@@ -20,6 +20,8 @@ described in the sections below.
 
 ## Common elements
 
+### Pre- and post-lude
+
 A number of elements are shared by all allocators: *pre* and *post* passes, and
 miscellaneous utilities. The *pre* passes are mainly run from the
 `Regalloc_rewrite.prelude` function:
@@ -38,6 +40,40 @@ and the *post* passes are run from the `Regalloc_rewrite.postlude` function:
   are used on disjoint intervals, they can be merged;
 - invariant checks (`Regalloc_invariants.postcondition_liveness`).
 
+
+### Rewrite
+
+The `Regalloc_rewrite` module also defines a `rewrite_gen` function that
+implements the rewrite function of IRC, but is also used in other allocators.
+The purpose of the rewrite function is to introduce spill and reload instructions
+for a list of registers the allocator has decided should be spilled. This
+means that the registers will have their values stored on the stack. In turn,
+it implies that before each read (resp. after each write) of the value, a reload
+(resp. spill) instruction needs to be inserted. The value is reloaded into
+(resp. spilled from) a fresh *temporary*, whose live range is covers only
+the instruction reading and/or writing the value. After rewrite, the spilled
+registers no longer appear in the CFG. All occurrences have been replaced with
+temporaries with very short live ranges, thus making the allocation problem
+easier to solve.
+
+A drawback of this transformation is that we may introduce too many temporaries,
+for instance reloading the very same value repeatedly. Indeed, the `rewrite_gen`
+function operates at the instruction level as described above, so if two
+instructions need to read the same spilled register, two reloads will be
+inserted, even when we can easily determine the value has not changed on the
+stack between the two instructions. For this reason, an option has been added to
+the function, that will in effect introduce temporaries at the *block* level
+rather than at the *instruction* level.
+
+The trade-off between *block* and *instruction* temporaries is of course
+that the former introduce fewer temporaries but whose live ranges are longer,
+making the problem more difficult to solve. The allocator must thus decide
+whether to enable the optimization, and retain the possibility to later
+effectively turn *block* temporaries into *instruction* temporaries.
+
+
+### Split/rename
+
 The split/rename preprocessing phase is implemented by mainly by 2 modules:
 
 - `Regalloc_split_state`, which is in charge of determining the destruction
@@ -46,6 +82,24 @@ The split/rename preprocessing phase is implemented by mainly by 2 modules:
 - `Regalloc_split`, which is in charge of computing and applying the
   substitution and inserting the actual spill, reload, and phi moves to the
   basic blocks, using the information computed by `Regalloc_split_state`.
+
+Since we know that at a destruction point all registers will be destroyed,
+spills and reloads will need to be inserted around the destruction for all
+the registers live across the destruction point. It is thus beneficial to do
+so as a preprocessing phase rather than during allocation per se:
+
+- if we don't, the first round of the allocator will simply "discover" that
+  the registers need to be spilled/reloaded, thus essentially wasting a
+  round;
+- worse, an allocator such as IRC will decide that the location of the
+  register is on the stack (and insert reloads and spills as described
+  above in [Rewrite](#rewrite)) while by introducing new names after
+  destruction points we are splitting the live ranges, making the problem
+  easier to solve and allowing the allocator to make finer-grained
+  decisions.
+
+
+### Stack operands
 
 The last element common to all register allocators is the
 `Regalloc_stack_operands` module, whose actual implementation is

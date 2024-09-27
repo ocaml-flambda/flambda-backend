@@ -1190,3 +1190,256 @@ Error: Signature mismatch:
        The former provides a weaker "zero_alloc" guarantee than the latter.
        Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
+
+(************************)
+(* Test 14: with module *)
+
+(* [with module] constraints require us to remove variables just like [module
+   type of].  Regression test: the below used to hit an assert, as a result of
+   not removing the vars in the signature of [S_plain] in the implementation of
+   [N]. *)
+module type S1 = sig
+  module M1 : sig
+    val f : int -> int
+  end
+end
+
+module N1 : sig
+  module Plain1 : sig
+    val f : int -> int
+  end
+
+  module type S_plain1 = S1 with module M1 = Plain1
+end = struct
+  module Plain1 = struct
+    let f x = x+1
+  end
+
+  module type S_plain1 = S1 with module M1 = Plain1
+end
+[%%expect{|
+module type S1 = sig module M1 : sig val f : int -> int end end
+module N1 :
+  sig
+    module Plain1 : sig val f : int -> int end
+    module type S_plain1 = sig module M1 : sig val f : int -> int end end
+  end
+|}]
+
+(* This revised version does not typecheck, because the signature on [S_plain2]
+   in the structure has no zero_alloc variable left to fill in. It would be nice
+   if it did, but that seems hard, and at least the error gives a useful Hint.
+*)
+module type S2 = sig
+  module M2 : sig
+    val f : int -> int
+  end
+end
+
+module N2 : sig
+  module Plain2 : sig
+    val[@zero_alloc] f : int -> int
+  end
+
+  module type S_plain2 = S2 with module M2 = Plain2
+end = struct
+  module Plain2 = struct
+    let f x = x+1
+  end
+
+  module type S_plain2 = S2 with module M2 = Plain2
+end
+[%%expect{|
+module type S2 = sig module M2 : sig val f : int -> int end end
+Lines 13-19, characters 6-3:
+13 | ......struct
+14 |   module Plain2 = struct
+15 |     let f x = x+1
+16 |   end
+17 |
+18 |   module type S_plain2 = S2 with module M2 = Plain2
+19 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module Plain2 : sig val f : int -> int [@@zero_alloc] end
+           module type S_plain2 =
+             sig module M2 : sig val f : int -> int end end
+         end
+       is not included in
+         sig
+           module Plain2 : sig val f : int -> int [@@zero_alloc] end
+           module type S_plain2 =
+             sig module M2 : sig val f : int -> int [@@zero_alloc] end end
+         end
+       Module type declarations do not match:
+         module type S_plain2 =
+           sig module M2 : sig val f : int -> int end end
+       does not match
+         module type S_plain2 =
+           sig module M2 : sig val f : int -> int [@@zero_alloc] end end
+       The first module type is not included in the second
+       At position module type S_plain2 = <here>
+       Module types do not match:
+         sig module M2 : sig val f : int -> int end end
+       is not equal to
+         sig module M2 : sig val f : int -> int [@@zero_alloc] end end
+       At position module type S_plain2 = sig module M2 : <here> end
+       Modules do not match:
+         sig val f : int -> int end
+       is not included in
+         sig val f : int -> int [@@zero_alloc] end
+       At position module type S_plain2 = sig module M2 : <here> end
+       Values do not match:
+         val f : int -> int
+       is not included in
+         val f : int -> int [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+       Hint: Add a "zero_alloc" attribute to the implementation.
+|}]
+
+(* But you can repair the previous example by specifying the zero_allocness
+   explicitly, so that when the `with module` constraint makes the variable into
+   a const, it has the right value. *)
+module type S3 = sig
+  module M3 : sig
+    val f : int -> int
+  end
+end
+
+module N3 : sig
+  module Plain3 : sig
+    val[@zero_alloc] f : int -> int
+  end
+
+  module type S_plain3 = S3 with module M3 = Plain3
+end = struct
+  module Plain3 = struct
+    let[@zero_alloc] f x = x+1
+  end
+
+  module type S_plain3 = S3 with module M3 = Plain3
+end
+[%%expect{|
+module type S3 = sig module M3 : sig val f : int -> int end end
+module N3 :
+  sig
+    module Plain3 : sig val f : int -> int [@@zero_alloc] end
+    module type S_plain3 =
+      sig module M3 : sig val f : int -> int [@@zero_alloc] end end
+  end
+|}]
+
+(******************************************)
+(* Test 15: destructive type substitution *)
+
+module M_outer = struct
+  module M_inner = struct
+    type t
+    let f () = () (* this has a zero_alloc variable (and a modality variable) *)
+  end
+end
+
+(* In [M_outer_strong], the type of [M_inner] will be
+   [Mty_alias M_outer.M_inner] *)
+module type M_outer_strong = sig
+  module M_inner = M_outer.M_inner
+end
+
+(* As a result of the destructive substition, we'll eliminate the alias.  When
+   this happens, we shouldn't keep the zero_alloc variables on [f] *)
+module type M_outer_subst = M_outer_strong
+  with type M_inner.t := M_outer.M_inner.t
+
+(* If we had kept the zero_alloc or modality variables, this would give an
+   error. *)
+module M : M_outer_subst = struct
+  module M_inner = struct
+    let f () = ()
+  end
+end
+[%%expect{|
+module M_outer : sig module M_inner : sig type t val f : unit -> unit end end
+module type M_outer_strong = sig module M_inner = M_outer.M_inner end
+module type M_outer_subst =
+  sig module M_inner : sig val f : unit -> unit end end
+module M : M_outer_subst
+|}]
+
+(********************************************)
+(* Test 16: destructive module substitution *)
+
+module M_outer = struct
+  module M_inner = struct
+    module M_innest = struct end
+    let f () = () (* this has a zero_alloc variable (and a modality variable) *)
+  end
+end
+
+(* In [M_outer_strong], the type of [M_inner] will be
+   [Mty_alias M_outer.M_inner] *)
+module type S_outer_strong = sig
+  module M_inner = M_outer.M_inner
+end
+
+(* As a result of the destructive substition, we'll eliminate the alias.  When
+   this happens, we shouldn't keep the zero_alloc variables on [f] *)
+module type S_outer_subst = S_outer_strong
+  with module M_inner.M_innest := M_outer.M_inner.M_innest
+
+(* If we had kept the zero_alloc or modality variables, this would give an
+   error. *)
+module M : S_outer_subst = struct
+  module M_inner = struct
+    let f () = ()
+  end
+end
+[%%expect{|
+module M_outer :
+  sig
+    module M_inner : sig module M_innest : sig end val f : unit -> unit end
+  end
+module type S_outer_strong = sig module M_inner = M_outer.M_inner end
+module type S_outer_subst =
+  sig module M_inner : sig val f : unit -> unit end end
+module M : S_outer_subst
+|}]
+
+(*************************************************)
+(* Test 17: destructive module type substitution *)
+
+module M_outer = struct
+  module M_inner = struct
+    module type S = sig end
+    let f () = () (* this has a zero_alloc variable (and a modality variable *)
+  end
+end
+
+(* In [M_outer_strong], the type of [M_inner] will be
+   [Mty_alias M_outer.M_inner] *)
+module type S_outer_strong = sig
+  module M_inner = M_outer.M_inner
+end
+
+(* As a result of the destructive substition, we'll eliminate the alias.  When
+   this happens, we shouldn't keep the zero_alloc variables on [f] *)
+module type S_outer_subst = S_outer_strong
+  with module type M_inner.S := M_outer.M_inner.S
+
+(* If we had kept the zero_alloc or modality variables, this would give an
+   error. *)
+module M : S_outer_subst = struct
+  module M_inner = struct
+    let f () = ()
+  end
+end
+[%%expect{|
+module M_outer :
+  sig
+    module M_inner : sig module type S = sig end val f : unit -> unit end
+  end
+module type S_outer_strong = sig module M_inner = M_outer.M_inner end
+module type S_outer_subst =
+  sig module M_inner : sig val f : unit -> unit end end
+module M : S_outer_subst
+|}]

@@ -1107,9 +1107,10 @@ int caml_num_rows_fd(int fd)
   return -1;
 }
 
-void caml_print_timestamp(FILE* channel, int formatted)
+int caml_format_timestamp(char* buf, size_t sz, int formatted)
 {
   /* unimplemented */
+  return 0;
 }
 
 /* UCRT clock function returns wall-clock time */

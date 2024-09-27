@@ -289,9 +289,13 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
       (Linkage_name.of_string (Variable.unique_name var))
   in
   let uacc =
-    let fields = List.map Field_of_static_block.tagged_immediate consts in
+    let fields =
+      List.map
+        (fun const -> Simple.With_debuginfo.create (Simple.const_int const) dbg)
+        consts
+    in
     let block_type =
-      T.immutable_block ~is_unique:false Tag.zero ~shape:Value_only
+      T.immutable_block ~is_unique:false Tag.zero ~shape:(Scannable Value_only)
         Alloc_mode.For_types.heap
         ~fields:
           (List.map
@@ -305,7 +309,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
          (LC.Definition.block_like
             (DA.denv dacc_before_switch)
             block_sym block_type ~symbol_projections:Variable.Map.empty
-            (RSC.create_block rebuilding tag Immutable ~fields)))
+            (RSC.create_block rebuilding tag Immutable Value_only ~fields)))
   in
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
@@ -567,6 +571,9 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
       |> Flambda_arity.create_singletons
     in
     let action = Apply_cont.update_args action ~args in
+    let dbg = AC.debuginfo action in
+    let dbg = DE.add_inlined_debuginfo (DA.denv dacc) dbg in
+    let action = AC.with_debuginfo action ~dbg in
     let dacc =
       DA.map_flow_acc dacc
         ~f:

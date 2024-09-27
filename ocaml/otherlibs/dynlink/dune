@@ -97,6 +97,8 @@
     primitive
     zero_alloc
     types
+    oprint
+    typemodifier
     jkind
     value_rec_types
     btype
@@ -197,6 +199,8 @@
 (copy_files ../../typing/jkind.ml)
 (copy_files ../../typing/jkind_intf.ml)
 (copy_files ../../typing/jkind_types.ml)
+(copy_files ../../typing/typemodifier.ml)
+(copy_files ../../typing/oprint.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/solver.ml)
@@ -269,6 +273,8 @@
 (copy_files ../../typing/jkind.mli)
 (copy_files ../../typing/jkind_intf.mli)
 (copy_files ../../typing/jkind_types.mli)
+(copy_files ../../typing/typemodifier.mli)
+(copy_files ../../typing/oprint.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
 (copy_files ../../typing/solver.mli)
@@ -357,8 +363,8 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Arg_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Identifiable.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Numbers.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debug.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension_kernel.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
@@ -393,6 +399,8 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Oprint.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemodifier.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -443,8 +451,8 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Arg_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Identifiable.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Numbers.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debug.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension_kernel.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
@@ -479,6 +487,8 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Oprint.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemodifier.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx

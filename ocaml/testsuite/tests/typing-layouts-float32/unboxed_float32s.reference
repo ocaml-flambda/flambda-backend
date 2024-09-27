@@ -196,6 +196,45 @@ Test 14, record update and mutation:
   d: 25.00
   e: -6.00
   f: -27.10
+Test 14.1, construction:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 1.41
+  e: 6.00
+  f: 27.10
+  a: -3.14
+  b: -13.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+Test 14.1, matching and projection:
+  a: -6.00
+  b: -4.55
+  c: 0.00
+  d: 14.41
+  e: 21.10
+  f: -27.10
+Test 14.1, variant update and mutation:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 42.00
+  e: 6.00
+  f: -7.31
+  a: -3.14
+  b: 17.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+  a: -3.14
+  b: 4.55
+  c: 42.00
+  d: 25.00
+  e: -6.00
+  f: -27.10
 Test 15, (float32#+float32) records in recursive groups:
   a: 1.10
   b: 2.00

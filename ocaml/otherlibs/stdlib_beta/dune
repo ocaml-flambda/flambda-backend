@@ -16,8 +16,6 @@
  (name stdlib_beta)
  (public_name ocaml.stdlib_beta)
  (modes byte native)
- (enabled_if
-  (= %{architecture} "amd64"))
  (flags
   (:standard
    -strict-sequence

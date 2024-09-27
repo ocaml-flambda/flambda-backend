@@ -152,6 +152,11 @@ let block_header ?(scannable_prefix = Scan_all) tag sz =
    structured constants and static module definitions. *)
 let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 
+let black_mixed_block_header tag sz ~scannable_prefix_len =
+  Nativeint.logor
+    (block_header tag sz ~scannable_prefix:(Scan_prefix scannable_prefix_len))
+    caml_black
+
 let local_block_header ?scannable_prefix tag sz =
   Nativeint.logor (block_header ?scannable_prefix tag sz) caml_local
 
@@ -1106,11 +1111,20 @@ let addr_array_ref arr ofs dbg =
 let int_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_int, [array_indexing log2_size_addr arr ofs dbg], dbg)
 
-let unboxed_float_array_ref arr ofs dbg =
+let unboxed_mutable_float_array_ref arr ofs dbg =
   Cop (mk_load_mut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
+let unboxed_immutable_float_array_ref arr ofs dbg =
+  Cop (mk_load_immut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
+
+let unboxed_float_array_ref (mutability : Asttypes.mutable_flag) ~block:arr
+    ~index:ofs dbg =
+  match mutability with
+  | Immutable -> unboxed_immutable_float_array_ref arr ofs dbg
+  | Mutable -> unboxed_mutable_float_array_ref arr ofs dbg
+
 let float_array_ref mode arr ofs dbg =
-  box_float dbg mode (unboxed_float_array_ref arr ofs dbg)
+  box_float dbg mode (unboxed_mutable_float_array_ref arr ofs dbg)
 
 let addr_array_set_heap arr ofs newval dbg =
   Cop
@@ -1618,43 +1632,53 @@ let addr_array_init arr ofs newval dbg =
       [array_indexing log2_size_addr arr ofs dbg; newval],
       dbg )
 
-let make_alloc ~mode dbg tag args =
+let make_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
     (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
     dbg tag (List.length args) args
 
-let make_float_alloc ~mode dbg tag args =
+let make_float_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
     (fun _ -> float_array_set)
     dbg tag
     (List.length args * size_float / size_addr)
     args
 
-let make_mixed_alloc ~mode dbg tag shape args =
-  let ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape) = shape in
+module Flat_suffix_element = struct
+  type t =
+    | Tagged_immediate
+    | Naked_float
+    | Naked_float32
+    | Naked_int32
+    | Naked_int64_or_nativeint
+end
+
+let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size
+    ~(flat_suffix : Flat_suffix_element.t array) args =
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
-    if idx < value_prefix_len
+    if idx < value_prefix_size
     then addr_array_init arr ofs newval dbg
     else
-      match flat_suffix.(idx - value_prefix_len) with
-      | Imm -> int_array_set arr ofs newval dbg
-      | Float_boxed | Float64 -> float_array_set arr ofs newval dbg
-      | Float32 -> setfield_unboxed_float32 arr ofs newval dbg
-      | Bits32 -> setfield_unboxed_int32 arr ofs newval dbg
-      | Bits64 | Word -> setfield_unboxed_int64_or_nativeint arr ofs newval dbg
+      match flat_suffix.(idx - value_prefix_size) with
+      | Tagged_immediate -> int_array_set arr ofs newval dbg
+      | Naked_float -> float_array_set arr ofs newval dbg
+      | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
+      | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
+      | Naked_int64_or_nativeint ->
+        setfield_unboxed_int64_or_nativeint arr ofs newval dbg
   in
   let size =
     (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
        will need to change. *)
-    value_prefix_len + Array.length flat_suffix
+    value_prefix_size + Array.length flat_suffix
   in
   if size_float <> size_addr
   then
     Misc.fatal_error
       "Unable to compile mixed blocks on a platform where a float is not the \
        same width as a value.";
-  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_len) ~mode
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_size) ~mode
     set_fn dbg tag size args
 
 (* Record application and currying functions *)
@@ -1704,6 +1728,7 @@ let curry_function_sym function_kind arity result =
 let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
   | Pbigarray_unknown -> assert false
   | Pbigarray_float32 -> 4
+  | Pbigarray_float32_t -> 4
   | Pbigarray_float64 -> 8
   | Pbigarray_sint8 -> 1
   | Pbigarray_uint8 -> 1
@@ -1719,6 +1744,7 @@ let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_unknown -> assert false
   | Pbigarray_float32 -> Single { reg = Float64 }
+  | Pbigarray_float32_t -> Single { reg = Float32 }
   | Pbigarray_float64 -> Double
   | Pbigarray_sint8 -> Byte_signed
   | Pbigarray_uint8 -> Byte_unsigned
@@ -2172,6 +2198,15 @@ let unaligned_set_64 ptr idx newval dbg =
                   ( Cstore (Byte_unsigned, Assignment),
                     [add_int (add_int ptr idx dbg) (cconst_int 7) dbg; b8],
                     dbg ) ) ) )
+
+let unaligned_load_f32 ptr idx dbg =
+  Cop (mk_load_mut (Single { reg = Float32 }), [add_int ptr idx dbg], dbg)
+
+let unaligned_set_f32 ptr idx newval dbg =
+  Cop
+    ( Cstore (Single { reg = Float32 }, Assignment),
+      [add_int ptr idx dbg; newval],
+      dbg )
 
 let unaligned_load_128 ptr idx dbg =
   assert (size_vec128 = 16);
@@ -3648,6 +3683,8 @@ let binary op ~dbg x y = Cop (op, [x; y], dbg)
 
 let int64_as_float = unary (Creinterpret_cast Float_of_int64)
 
+let float_as_int64 = unary (Creinterpret_cast Int64_of_float)
+
 let int_of_float = unary (Cstatic_cast (Int_of_float Float64))
 
 let float_of_int = unary (Cstatic_cast (Float_of_int Float64))
@@ -3882,6 +3919,8 @@ let infix_field_address ~dbg ptr n =
 
 let cint i = Cmm.Cint i
 
+let cint32 i = Cmm.Cint32 (Nativeint.of_int32 i)
+
 let cfloat32 f = Cmm.Csingle f
 
 let cfloat f = Cmm.Cdouble f
@@ -4111,7 +4150,7 @@ let dls_get ~dbg = Cop (Cdls_get, [], dbg)
 
 let perform ~dbg eff =
   let cont =
-    make_alloc dbg Runtimetags.cont_tag
+    make_alloc dbg ~tag:Runtimetags.cont_tag
       [int_const dbg 0]
       ~mode:Lambda.alloc_heap
   in

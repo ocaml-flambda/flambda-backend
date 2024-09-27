@@ -95,7 +95,7 @@ val c : c = <obj>
 val from_method_param : lexing_position =
   {pos_fname = ""; pos_lnum = 2; pos_bol = 2216; pos_cnum = 2258}
 val from_class_param : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 2197; pos_cnum = 2205}
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 2197; pos_cnum = 2206}
 |}]
 
 class parent ~(call_pos : [%call_pos]) () = object
@@ -123,7 +123,7 @@ let position = (o ())#pos
 [%%expect{|
 val o : call_pos:[%call_pos] -> unit -> parent = <fun>
 val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 2964; pos_cnum = 2979}
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 2964; pos_cnum = 2980}
 |}]
 
 (* Applying an call_pos argument without a label. *)
@@ -140,7 +140,7 @@ Warning 6 [labels-omitted]: label call_pos was omitted in the application of thi
 
 val o : call_pos:[%call_pos] -> unit -> parent = <fun>
 val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 3293; pos_cnum = 3308}
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3293; pos_cnum = 3309}
 |}]
 
 
@@ -216,7 +216,7 @@ let x, y = (new c ~y:pos_a ())#xy
 
 [%%expect{|
 val x : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 5199; pos_cnum = 5210}
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 5199; pos_cnum = 5211}
 val y : lexing_position =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]

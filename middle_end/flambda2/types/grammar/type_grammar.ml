@@ -198,6 +198,22 @@ and env_extension = { equations : t Name.Map.t } [@@unboxed]
 
 type flambda_type = t
 
+let get_alias_exn t =
+  match t with
+  | Value ty -> TD.get_alias_exn ty
+  | Naked_immediate ty -> TD.get_alias_exn ty
+  | Naked_float32 ty -> TD.get_alias_exn ty
+  | Naked_float ty -> TD.get_alias_exn ty
+  | Naked_int32 ty -> TD.get_alias_exn ty
+  | Naked_int64 ty -> TD.get_alias_exn ty
+  | Naked_nativeint ty -> TD.get_alias_exn ty
+  | Naked_vec128 ty -> TD.get_alias_exn ty
+  | Rec_info ty -> TD.get_alias_exn ty
+  | Region ty -> TD.get_alias_exn ty
+
+let get_alias_opt t =
+  match get_alias_exn t with s -> Some s | exception Not_found -> None
+
 let row_like_is_bottom ~known ~(other : _ Or_bottom.t) ~is_empty_map_known =
   is_empty_map_known known && match other with Bottom -> true | Ok _ -> false
 
@@ -1957,17 +1973,36 @@ and remove_unused_value_slots_and_shortcut_aliases_function_type
   then function_type
   else { code_id; rec_info = rec_info' }
 
-and remove_unused_value_slots_and_shortcut_aliases_env_extension
-    ({ equations } as env_extension) ~used_value_slots ~canonicalise =
-  let changed = ref false in
-  let equations' =
-    Name.Map.map_sharing
-      (fun ty ->
-        remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
-          ~canonicalise)
-      equations
+and remove_unused_value_slots_and_shortcut_aliases_env_extension { equations }
+    ~used_value_slots ~canonicalise =
+  (* CR vlaviron: Two things can be improved here. First, we could try to
+     preserve sharing. Currently we lose sharing as soon as the extension isn't
+     empty (the [env_extension] type is unboxed so the final record expression
+     doesn't lose sharing). With a bit of work we could recover sharing in the
+     general case, but it's unclear whether it's worth the trouble because this
+     function is only called just before emitting the cmx. The second
+     improvement would be to make this function return [Bottom] when an
+     inconsistency is discovered, and use this to remove incompatible cases in
+     the type that contains the extension. *)
+  let equations =
+    Name.Map.fold
+      (fun name ty acc ->
+        let ty' =
+          remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+            ~canonicalise
+        in
+        let lhs = canonicalise (Simple.name name) in
+        Simple.pattern_match lhs
+          ~name:(fun name' ~coercion ->
+            match get_alias_opt ty' with
+            | Some rhs when Simple.equal lhs rhs -> acc
+            | Some _ | None ->
+              let ty' = apply_coercion ty' (Coercion.inverse coercion) in
+              Name.Map.add name' ty' acc)
+          ~const:(fun _c -> acc (* CR vlaviron: check bottom and propagate *)))
+      equations Name.Map.empty
   in
-  if !changed then { equations = equations' } else env_extension
+  { equations }
 
 let rec project_variables_out ~to_project ~expand t =
   match t with
@@ -2619,9 +2654,10 @@ module Row_like_for_blocks = struct
           let field_kind = kind ty in
           let shape_kind =
             match (shape : K.Block_shape.t) with
-            | Value_only -> K.value
+            | Scannable Value_only -> K.value
+            | Scannable (Mixed_record kinds) ->
+              (K.Mixed_block_shape.field_kinds kinds).(i)
             | Float_record -> K.naked_float
-            | Mixed_record kinds -> (K.Mixed_block_shape.field_kinds kinds).(i)
           in
           if not (Flambda_kind.equal field_kind shape_kind)
           then
@@ -2643,11 +2679,11 @@ module Row_like_for_blocks = struct
       match tag with
       | Unknown -> (
         match shape with
-        | Value_only | Mixed_record _ -> Unknown
+        | Scannable (Value_only | Mixed_record _) -> Unknown
         | Float_record -> Known Tag.double_array_tag)
       | Known tag -> (
         match shape with
-        | Value_only | Mixed_record _ -> (
+        | Scannable (Value_only | Mixed_record _) -> (
           match Tag.Scannable.of_tag tag with
           | Some _ -> Known tag
           | None ->
@@ -2720,7 +2756,7 @@ module Row_like_for_blocks = struct
             | Unknown ->
               any_unknown := true;
               (* result doesn't matter as it is unused *)
-              Targetint_31_63.zero, K.Block_shape.Value_only
+              Targetint_31_63.zero, K.Block_shape.Scannable Value_only
             | Known { index = { domain; shape }; _ } -> (
               match domain with
               | Known size -> size, shape
@@ -2875,22 +2911,6 @@ module Env_extension = struct
 
   let to_map t = t.equations
 end
-
-let get_alias_exn t =
-  match t with
-  | Value ty -> TD.get_alias_exn ty
-  | Naked_immediate ty -> TD.get_alias_exn ty
-  | Naked_float32 ty -> TD.get_alias_exn ty
-  | Naked_float ty -> TD.get_alias_exn ty
-  | Naked_int32 ty -> TD.get_alias_exn ty
-  | Naked_int64 ty -> TD.get_alias_exn ty
-  | Naked_nativeint ty -> TD.get_alias_exn ty
-  | Naked_vec128 ty -> TD.get_alias_exn ty
-  | Rec_info ty -> TD.get_alias_exn ty
-  | Region ty -> TD.get_alias_exn ty
-
-let get_alias_opt t =
-  match get_alias_exn t with s -> Some s | exception Not_found -> None
 
 let is_obviously_bottom t =
   match t with

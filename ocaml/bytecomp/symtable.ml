@@ -170,6 +170,12 @@ let rec transl_const = function
       in
       List.iteri transl_field fields;
       block
+  | Const_mixed_block _ ->
+      (* CR layouts v5.9: Support constant mixed blocks in bytecode, either by
+         dynamically allocating them once at top-level, or by supporting
+         marshaling into the cmo format for mixed blocks in bytecode.
+      *)
+      Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
   | Const_float_block fields | Const_float_array fields ->
       let res = Array.Floatarray.create (List.length fields) in
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))

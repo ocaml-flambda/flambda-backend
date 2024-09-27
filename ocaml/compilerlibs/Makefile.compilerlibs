@@ -92,9 +92,9 @@ TYPING = \
   typing/shape.cmo \
   typing/zero_alloc.cmo \
   typing/types.cmo \
-  typing/jkind.cmo \
   typing/btype.cmo \
   typing/oprint.cmo \
+  typing/jkind.cmo \
   typing/subst.cmo \
   typing/predef.cmo \
   typing/datarepr.cmo \

@@ -502,6 +502,15 @@ let alloc_mode_for_allocations env (alloc : Alloc_mode.For_allocations.t) :
     let r = Env.find_region_exn env r in
     Local { region = r }
 
+let alloc_mode_for_applications env (alloc : Alloc_mode.For_applications.t) :
+    Fexpr.alloc_mode_for_applications =
+  match alloc with
+  | Heap -> Heap
+  | Local { region = r; ghost_region = r' } ->
+    let r = Env.find_region_exn env r in
+    let r' = Env.find_region_exn env r' in
+    Local { region = r; ghost_region = r' }
+
 let alloc_mode_for_assignments _env (alloc : Alloc_mode.For_assignments.t) :
     Fexpr.alloc_mode_for_assignments =
   match alloc with Heap -> Heap | Local -> Local
@@ -514,8 +523,8 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
 
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
-  | Begin_region -> Begin_region
-  | Begin_try_region -> Begin_try_region
+  | Begin_region { ghost } -> Begin_region { ghost }
+  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
   | Dls_get ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
@@ -528,8 +537,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
-  | End_region -> End_region
-  | End_try_region -> End_try_region
+  | End_region { ghost } -> End_region { ghost }
+  | End_try_region { ghost } -> End_try_region { ghost }
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
@@ -548,7 +557,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
+  | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
   | Get_header | Atomic_load _ ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
@@ -675,15 +684,19 @@ let set_of_closures env sc =
   let elts = match elts with [] -> None | _ -> Some elts in
   fun_decls, elts
 
-let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
-    =
-  match field with
-  | Symbol symbol -> Symbol (Env.find_symbol_exn env symbol)
-  | Tagged_immediate imm ->
-    Tagged_immediate
-      (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
-  | Dynamically_computed (var, _dbg) ->
-    Dynamically_computed (Env.find_var_exn env var)
+let field_of_block env field =
+  Simple.pattern_match'
+    (Simple.With_debuginfo.simple field)
+    ~var:(fun var ~coercion:_ : Fexpr.field_of_block ->
+      Dynamically_computed (Env.find_var_exn env var))
+    ~symbol:(fun symbol ~coercion:_ : Fexpr.field_of_block ->
+      Symbol (Env.find_symbol_exn env symbol))
+    ~const:(fun cst : Fexpr.field_of_block ->
+      match[@ocaml.warning "-fragile-match"] Reg_width_const.descr cst with
+      | Tagged_immediate imm ->
+        Tagged_immediate
+          (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
+      | _ -> Misc.fatal_error "Mixed blocks not supported yet in fexpr")
 
 let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
   match ov with
@@ -692,7 +705,7 @@ let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
 
 let static_const env (sc : Static_const.t) : Fexpr.static_data =
   match sc with
-  | Block (tag, mutability, fields) ->
+  | Block (tag, mutability, _shape, fields) ->
     let tag = tag |> Tag.Scannable.to_int in
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }
@@ -856,6 +869,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                ~my_closure
                ~is_my_closure_used:_
                ~my_region
+               ~my_ghost_region
                ~my_depth
                ~free_names_of_body:_
                :
@@ -873,6 +887,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
             in
             let closure_var, env = Env.bind_var env my_closure in
             let region_var, env = Env.bind_var env my_region in
+            let ghost_region_var, env = Env.bind_var env my_ghost_region in
             let depth_var, env = Env.bind_var env my_depth in
             let body = expr env body in
             (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
@@ -881,6 +896,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
               exn_cont;
               closure_var;
               region_var;
+              ghost_region_var;
               depth_var;
               body
             })
@@ -1030,13 +1046,13 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
-      let alloc = alloc_mode_for_allocations env alloc_mode in
+      let alloc = alloc_mode_for_applications env alloc_mode in
       Function (Direct { code_id; function_slot; alloc })
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity;
           alloc_mode
         } ->
-      let alloc = alloc_mode_for_allocations env alloc_mode in
+      let alloc = alloc_mode_for_applications env alloc_mode in
       Function (Indirect alloc)
     | C_call { needs_caml_c_call; _ } -> C_call { alloc = needs_caml_c_call }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
@@ -1210,6 +1226,7 @@ module Iter = struct
                ~my_closure:_
                ~is_my_closure_used:_
                ~my_region:_
+               ~my_ghost_region:_
                ~my_depth:_
                ~free_names_of_body:_
              -> expr f_c f_s body))

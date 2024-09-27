@@ -926,7 +926,7 @@ CAMLprim value caml_array_unsafe_get_indexed_by_nativeint(value, value);
 CAMLprim value caml_array_set_indexed_by_nativeint(value, value, value);
 CAMLprim value caml_array_unsafe_set_indexed_by_nativeint(value, value, value);
 
-#define CAMLprim_indexed_by(name, index_type, val_func)                     \
+#define Array_access_index_by(name, index_type, val_func)                   \
   CAMLprim value caml_array_get_indexed_by_##name(value array, value index) \
   {                                                                         \
     index_type idx = val_func(index);                                       \
@@ -953,6 +953,6 @@ CAMLprim value caml_array_unsafe_set_indexed_by_nativeint(value, value, value);
     return caml_array_unsafe_set(array, Val_long(val_func(index)), newval); \
   }
 
-CAMLprim_indexed_by(int64, int64_t, Int64_val)
-CAMLprim_indexed_by(int32, int32_t, Int32_val)
-CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)
+Array_access_index_by(int64, int64_t, Int64_val)
+Array_access_index_by(int32, int32_t, Int32_val)
+Array_access_index_by(nativeint, intnat, Nativeint_val)

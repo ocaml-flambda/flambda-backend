@@ -3,7 +3,7 @@ File "gadt_existential.ml", line 13, characters 61-62:
                                                                   ^
 Error: This expression has type a but an expression was expected of type
          'a t = ('a : void)
-       The layout of a is value, because
-         it's an unannotated existential type variable.
-       But the layout of a must be a sublayout of void, because
-         of the definition of f at file "gadt_existential.ml", line 10, characters 6-17.
+       The layout of a is value
+         because it's an unannotated existential type variable.
+       But the layout of a must be a sublayout of void
+         because of the definition of f at file "gadt_existential.ml", line 10, characters 6-17.

@@ -2,6 +2,12 @@
  expect;
 *)
 
+(* A type with kind value, used for the below tests *)
+type t_value
+[%%expect {|
+type t_value
+|}]
+
 (* You may constrain abstract types in packages. *)
 module type S = sig
   type t
@@ -43,23 +49,23 @@ module type S = sig
 end
 
 type m1 = (module S with type t = int)
-type m2 = (module S with type t = string);;
+type m2 = (module S with type t = t_value);;
 [%%expect{|
 module type S = sig type t : immediate end
 type m1 = (module S with type t = int)
-Line 6, characters 10-41:
-6 | type m2 = (module S with type t = string);;
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 6, characters 10-42:
+6 | type m2 = (module S with type t = t_value);;
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In this `with' constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t = string
+         type t = t_value
        is not included in
          type t : immediate
-       The layout of the first is value, because
-         it is the primitive value type string.
-       But the layout of the first must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-22.
+       The kind of the first is value
+         because of the definition of t_value at line 1, characters 0-12.
+       But the kind of the first must be a subkind of immediate
+         because of the definition of t at line 2, characters 2-22.
 |}];;
 
 (* You may not constrain types with a manifest in a package *)
@@ -67,12 +73,12 @@ module type S = sig
   type t = int
 end
 
-type m = (module S with type t = string);;
+type m = (module S with type t = t_value);;
 [%%expect{|
 module type S = sig type t = int end
-Line 5, characters 9-40:
-5 | type m = (module S with type t = string);;
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 5, characters 9-41:
+5 | type m = (module S with type t = t_value);;
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In the constrained signature, type t is defined to be int.
        Package `with' constraints may only be used on abstract types.
 |}];;
@@ -133,17 +139,17 @@ module type S = sig
 end
 
 type t1 = (module S with type t = t2)
-and t2 = string;;
+and t2 = t_value;;
 [%%expect{|
 module type S = sig type t : immediate end
-Line 6, characters 0-15:
-6 | and t2 = string;;
-    ^^^^^^^^^^^^^^^
+Line 6, characters 0-16:
+6 | and t2 = t_value;;
+    ^^^^^^^^^^^^^^^^
 Error:
-       The layout of t2 is value, because
-         it is the primitive value type string.
-       But the layout of t2 must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-22.
+       The kind of t2 is value
+         because of the definition of t_value at line 1, characters 0-12.
+       But the kind of t2 must be a subkind of immediate
+         because of the definition of t at line 2, characters 2-22.
 |}];;
 
 (* Though this sometimes fails if the check would require particularly clever
@@ -166,10 +172,11 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a t2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2 must be a sublayout of immediate, because
-           of the definition of t at line 2, characters 2-22.
+         The kind of 'a t2 is value
+           because it instantiates an unannotated type parameter of t2,
+           defaulted to kind value.
+         But the kind of 'a t2 must be a subkind of immediate
+           because of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;
@@ -179,7 +186,7 @@ module type S = sig
   type t [@@immediate]
 end
 
-type t1 = (module S with type t = string t2)
+type t1 = (module S with type t = t_value t2)
 and 'a t2 = 'a;;
 [%%expect{|
 module type S = sig type t : immediate end
@@ -191,10 +198,11 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a t2 is value, because
-           it instantiates an unannotated type parameter of t2, defaulted to layout value.
-         But the layout of 'a t2 must be a sublayout of immediate, because
-           of the definition of t at line 2, characters 2-22.
+         The kind of 'a t2 is value
+           because it instantiates an unannotated type parameter of t2,
+           defaulted to kind value.
+         But the kind of 'a t2 must be a subkind of immediate
+           because of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}];;
@@ -316,17 +324,17 @@ end
 type 'a t = (module S with type t = 'a)
 
 type t1 = int t
-type t2 = string t
+type t2 = t_value t
 [%%expect{|
 module type S = sig type t : immediate end
 type ('a : immediate) t = (module S with type t = 'a)
 type t1 = int t
-Line 8, characters 10-16:
-8 | type t2 = string t
-              ^^^^^^
-Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
-         of the definition of t at line 5, characters 0-39.
+Line 8, characters 10-17:
+8 | type t2 = t_value t
+              ^^^^^^^
+Error: This type t_value should be an instance of type ('a : immediate)
+       The kind of t_value is value
+         because of the definition of t_value at line 1, characters 0-12.
+       But the kind of t_value must be a subkind of immediate
+         because of the definition of t at line 5, characters 0-39.
 |}];;

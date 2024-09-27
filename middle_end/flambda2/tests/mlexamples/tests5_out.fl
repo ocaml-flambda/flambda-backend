@@ -1,7 +1,7 @@
 let code g_1 deleted and code f_0 deleted in
 let code rec loopify(never) size(18) newer_version_of(g_1)
       g_1_1 (y : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %int_comp y > 3 in
@@ -21,7 +21,7 @@ and $camlTests5__g_3 =
   closure g_1_1 @g
 and code rec loopify(never) size(18) newer_version_of(f_0)
       f_0_1 (x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %int_comp x < 4 in

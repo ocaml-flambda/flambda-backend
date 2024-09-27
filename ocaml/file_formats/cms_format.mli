@@ -23,7 +23,8 @@ type cms_infos = {
   cms_sourcefile : string option;
   cms_builddir : string;
   cms_source_digest : string option;
-  cms_uid_to_loc : Location.t Shape.Uid.Tbl.t;
+  cms_initial_env : Env.t option;
+  cms_uid_to_loc : string Location.loc Shape.Uid.Tbl.t;
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
   cms_ident_occurrences :
@@ -47,6 +48,7 @@ val save_cms :
   Compilation_unit.t ->  (* module name *)
   Cmt_format.binary_annots ->
   string option ->  (* source file *)
+  Env.t -> (* initial env *)
   Shape.t option ->
   unit
 

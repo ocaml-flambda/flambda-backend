@@ -37,6 +37,10 @@ val block_header : int -> int -> nativeint
 (** Same as block_header, but with GC bits set to black *)
 val black_block_header : int -> int -> nativeint
 
+(** Same as black_block_header, but for a mixed block *)
+val black_mixed_block_header :
+  int -> int -> scannable_prefix_len:int -> nativeint
+
 val black_closure_header : int -> nativeint
 
 (** Infix header at the given offset *)
@@ -216,7 +220,11 @@ val addr_array_ref : expression -> expression -> Debuginfo.t -> expression
 val int_array_ref : expression -> expression -> Debuginfo.t -> expression
 
 val unboxed_float_array_ref :
-  expression -> expression -> Debuginfo.t -> expression
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
 
 val float_array_ref :
   Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
@@ -303,19 +311,37 @@ end
 
 (** Allocate a block of regular values with the given tag *)
 val make_alloc :
-  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  tag:int ->
+  expression list ->
+  expression
 
 (** Allocate a block of unboxed floats with the given tag *)
 val make_float_alloc :
-  mode:Lambda.alloc_mode -> Debuginfo.t -> int -> expression list -> expression
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  tag:int ->
+  expression list ->
+  expression
+
+module Flat_suffix_element : sig
+  type t =
+    | Tagged_immediate
+    | Naked_float
+    | Naked_float32
+    | Naked_int32
+    | Naked_int64_or_nativeint
+end
 
 (** Allocate an mixed block of the corresponding tag and shape. Initial values
     of the flat suffix should be provided unboxed. *)
 val make_mixed_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
-  int ->
-  Lambda.mixed_block_shape ->
+  tag:int ->
+  value_prefix_size:int ->
+  flat_suffix:Flat_suffix_element.t array ->
   expression list ->
   expression
 
@@ -390,6 +416,11 @@ val unaligned_set_16 :
 val unaligned_load_32 : expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_32 :
+  expression -> expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_load_f32 : expression -> expression -> Debuginfo.t -> expression
+
+val unaligned_set_f32 :
   expression -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
@@ -689,6 +720,8 @@ val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val int64_as_float : dbg:Debuginfo.t -> expression -> expression
 
+val float_as_int64 : dbg:Debuginfo.t -> expression -> expression
+
 (** Conversions functions between integers and floats. *)
 
 val int_of_float : dbg:Debuginfo.t -> expression -> expression
@@ -875,6 +908,9 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 
 (** Static integer. *)
 val cint : nativeint -> data_item
+
+(** Static 32-bit integer. *)
+val cint32 : int32 -> data_item
 
 (** Static float32. *)
 val cfloat32 : float -> data_item

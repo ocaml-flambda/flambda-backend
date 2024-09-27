@@ -52,6 +52,9 @@ module Libloc = struct
   }
 end
 
+type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
+type profile_granularity_level = File_level | Function_level
+
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
 and include_dirs = ref ([] : string list) (* -I *)
@@ -156,7 +159,14 @@ let dump_combine = ref false            (* -dcombine *)
 let debug_ocaml = ref false             (* -debug-ocaml *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
-let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings *)
+let profile_columns : profile_column list ref = ref [] (* -dprofile/-dtimings/-dcounters *)
+let profile_granularity : profile_granularity_level ref = ref File_level (* -dgranularity *)
+
+let set_profile_granularity v =
+  profile_granularity := match v with
+  | "file" -> File_level
+  | "func" -> Function_level
+  | _ -> raise (Invalid_argument (Format.sprintf "profile granularity: %s" v))
 
 let native_code = ref false             (* set to true under ocamlopt *)
 
@@ -202,6 +212,7 @@ let afl_inst_ratio = ref 100           (* -afl-inst-ratio *)
 
 let function_sections = ref false      (* -function-sections *)
 let probes = ref Config.probes         (* -probes *)
+let allow_illegal_crossing = ref false (* -allow_illegal_crossing *)
 let simplify_rounds = ref None        (* -rounds *)
 let default_simplify_rounds = ref 1        (* -rounds *)
 let rounds () =
@@ -394,6 +405,7 @@ let set_dumped_pass s enabled =
   end
 
 let dump_into_file = ref false (* -dump-into-file *)
+let dump_into_csv = ref false (* -dump-into-csv *)
 let dump_dir: string option ref = ref None (* -dump-dir *)
 
 type 'a env_reader = {

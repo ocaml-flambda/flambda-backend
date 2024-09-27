@@ -1257,14 +1257,13 @@ end = struct
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
-      | Value_int i -> TG.this_tagged_immediate i
+      | Value_const cst -> MTC.type_for_const cst
       | Value_symbol symbol ->
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
-      | Block_approximation (tag, fields, alloc_mode) ->
+      | Block_approximation (tag, shape, fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
-        let shape : Flambda_kind.Block_shape.t = Value_only in
-        MTC.immutable_block ~is_unique:false (Tag.Scannable.to_tag tag) ~shape
-          ~fields alloc_mode
+        MTC.immutable_block ~is_unique:false (Tag.Scannable.to_tag tag)
+          ~shape:(Scannable shape) ~fields alloc_mode
       | Closure_approximation
           { code_id;
             function_slot;
@@ -1381,13 +1380,7 @@ end = struct
         | Unknown | Bottom -> Value_unknown
         | Ok (Equals simple) ->
           Simple.pattern_match' simple
-            ~const:(fun const ->
-              match Reg_width_const.descr const with
-              | Tagged_immediate i -> VA.Value_int i
-              | Naked_immediate _ | Naked_float _ | Naked_float32 _
-              | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
-              | Naked_nativeint _ ->
-                VA.Value_unknown)
+            ~const:(fun const -> VA.Value_const const)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
@@ -1428,17 +1421,24 @@ end = struct
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
               | None -> Value_unknown
-              | Some (tag, Value_only, _size, fields, alloc_mode) ->
+              | Some (tag, Scannable shape, _size, fields, alloc_mode) ->
+                let tag =
+                  match Tag.Scannable.of_tag tag with
+                  | Some tag -> tag
+                  | None ->
+                    Misc.fatal_errorf
+                      "For symbol %a, the tag %a is non-scannable yet the \
+                       block shape appears to be scannable:@ %a"
+                      Symbol.print symbol Tag.print tag
+                      K.Scannable_block_shape.print shape
+                in
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)
                 in
                 Block_approximation
-                  ( Option.get (Tag.Scannable.of_tag tag),
-                    Array.of_list fields,
-                    alloc_mode )
-              | Some (_, (Float_record | Mixed_record _), _, _, _) ->
-                Value_unknown
+                  (tag, shape, Array.of_list fields, alloc_mode)
+              | Some (_, Float_record, _, _, _) -> Value_unknown
             else Value_unknown))
       | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
       | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _

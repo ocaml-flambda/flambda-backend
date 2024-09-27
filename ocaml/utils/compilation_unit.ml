@@ -48,6 +48,8 @@ module Name : sig
 
   val of_head_of_global_name : Global_module.Name.t -> t
 
+  val of_global_name_no_args_exn : Global_module.Name.t -> t
+
   val to_global_name : t -> Global_module.Name.t
 
   val check_as_path_component : t -> unit
@@ -81,6 +83,18 @@ end = struct
     else str
 
   let of_head_of_global_name (name : Global_module.Name.t) = of_string name.head
+
+  let of_global_name_no_args_exn (name : Global_module.Name.t) =
+    match name.args with
+    | [] -> of_head_of_global_name name
+    | _ ->
+      (* This is a wart. We should have a separate type
+         [Global_module.Parameter_name.t] that is known not to have arguments,
+         and then we can convert without runtime checks here. Note that we can't
+         actually be specific in this message about why the thing isn't supposed
+         to have arguments. *)
+      Misc.fatal_errorf "Arguments not allowed in name:@ %a"
+        Global_module.Name.print name
 
   let to_global_name t = Global_module.Name.create_exn t []
 
@@ -176,7 +190,12 @@ module T0 : sig
   type descr = private
     { name : Name.t;
       for_pack_prefix : Prefix.t;
-      arguments : (t * t) list
+      arguments : argument list
+    }
+
+  and argument =
+    { param : t;
+      value : t
     }
 
   and t
@@ -189,7 +208,7 @@ module T0 : sig
 
   val for_pack_prefix : t -> Prefix.t
 
-  val instance_arguments : t -> (t * t) list
+  val instance_arguments : t -> argument list
 
   val to_global_name : t -> Global_module.Name.t option
 
@@ -197,18 +216,25 @@ module T0 : sig
 
   val to_global_name_without_prefix : t -> Global_module.Name.t
 
-  val create_full : Prefix.t -> Name.t -> (t * t) list -> t
+  val create_full : Prefix.t -> Name.t -> argument list -> t
 
   val of_global_name : Global_module.Name.t -> t
 
   val compare : t -> t -> int
+
+  val compare_argument_by_name : argument -> argument -> int
 end = struct
   (* As with [Name.t], changing [descr] or [t] requires bumping magic
      numbers. *)
   type descr =
     { name : Name.t;
       for_pack_prefix : Prefix.t;
-      arguments : (t * t) list
+      arguments : argument list
+    }
+
+  and argument =
+    { param : t;
+      value : t
     }
 
   and full =
@@ -240,7 +266,8 @@ end = struct
 
   let convert_arguments l =
     ListLabels.map
-      ~f:(fun (name, value) -> of_global_name name, of_global_name value)
+      ~f:(fun (param, value) ->
+        { param = of_global_name param; value = of_global_name value })
       l
 
   let descr t =
@@ -318,9 +345,12 @@ end = struct
         let c = Prefix.compare for_pack_prefix1 for_pack_prefix2 in
         if c <> 0 then c else List.compare compare_instance_arg args1 args2
 
-  and compare_instance_arg (param1, value1) (param2, value2) =
+  and compare_instance_arg { param = param1; value = value1 }
+      { param = param2; value = value2 } =
     let c = compare param1 param2 in
     if c <> 0 then c else compare value1 value2
+
+  let compare_argument_by_name arg1 arg2 = compare arg1.param arg2.param
 
   let to_global_name_exn t =
     if is_plain_name t
@@ -372,10 +402,7 @@ end = struct
         ListLabels.iter ~f:Name.check_as_path_component
           (for_pack_prefix |> Prefix.to_list))
     in
-    let arguments =
-      ListLabels.sort arguments ~cmp:(fun (param1, _) (param2, _) ->
-          compare param1 param2)
-    in
+    let arguments = ListLabels.sort arguments ~cmp:compare_argument_by_name in
     if empty_prefix && empty_arguments
     then of_plain_name name
     else if empty_prefix
@@ -383,8 +410,8 @@ end = struct
       let head = Name.to_string name in
       let arguments =
         ListLabels.map
-          ~f:(fun (name, value) ->
-            to_global_name_exn name, to_global_name_exn value)
+          ~f:(fun { param; value } ->
+            to_global_name_exn param, to_global_name_exn value)
           arguments
       in
       of_full (Global (Global_module.Name.create_exn head arguments))
@@ -449,7 +476,7 @@ include Identifiable.Make (struct
     in
     ListLabels.iter ~f:(print_arg fmt) arguments
 
-  and print_arg fmt (param, value) =
+  and print_arg fmt { param; value } =
     Format.fprintf fmt "[%a:%a]" print param print value
 
   let output = Misc.output_of_print print
@@ -461,7 +488,7 @@ include Identifiable.Make (struct
         Prefix.hash for_pack_prefix,
         ListLabels.map ~f:hash_arg arguments )
 
-  and hash_arg (param, value) = Hashtbl.hash (hash param, hash value)
+  and hash_arg { param; value } = Hashtbl.hash (hash param, hash value)
 end)
 
 let full_path_as_string t =
@@ -476,13 +503,13 @@ let is_instance t =
 
 let create_instance t arguments =
   let { for_pack_prefix; name; arguments = existing_arguments } = descr t in
-  let cmp (param1, _) (param2, _) = compare param1 param2 in
+  let cmp = compare_argument_by_name in
   let arguments = ListLabels.sort ~cmp arguments in
   let arguments =
     List.merge_map ~cmp
       ~left_only:(fun arg -> arg)
       ~right_only:(fun arg -> arg)
-      ~both:(fun (param, value1) (value2, _) ->
+      ~both:(fun { param; value = value1 } { value = value2; _ } ->
         raise
           (Error
              (Duplicate_argument
@@ -504,7 +531,7 @@ let split_instance_exn t =
 let full_path t = Prefix.to_list (for_pack_prefix t) @ [name t]
 
 let flatten t =
-  let rec flatten_arg (param, value) ~depth =
+  let rec flatten_arg { param; value } ~depth =
     assert (not (is_packed value));
     let param_name = name param in
     let { name; arguments; _ } = descr value in

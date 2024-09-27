@@ -143,10 +143,10 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type string is value, because
-         it is the primitive value type string.
-       But the layout of type string must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-31.
+Error: The kind of type string is immutable_data
+         because it is the primitive type string.
+       But the kind of type string must be a subkind of immediate
+         because of the definition of t at line 2, characters 2-31.
 |}];;
 (* CR layouts v2.9: The "of the definition of t ..." part is not great and it
    should only refer to definitions that type check. Fixing it will involve
@@ -160,10 +160,10 @@ end;;
 Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of immediate
+         because of the annotation on the declaration of the type t.
 |}];;
 
 (* Cannot directly declare a non-immediate type as immediate (record) *)
@@ -174,10 +174,10 @@ end;;
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of immediate
+         because of the annotation on the declaration of the type t.
 |}];;
 
 (* Not guaranteed that t is immediate, so this is an invalid declaration *)
@@ -189,10 +189,10 @@ end;;
 Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         of the definition of t at line 2, characters 2-8.
-       But the layout of type t must be a sublayout of immediate, because
-         of the definition of s at line 3, characters 2-26.
+Error: The kind of type t is value
+         because of the definition of t at line 2, characters 2-8.
+       But the kind of type t must be a subkind of immediate
+         because of the definition of s at line 3, characters 2-26.
 |}];;
 
 (* Can't ascribe to an immediate type signature with a non-immediate type *)
@@ -213,10 +213,10 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The layout of the first is value, because
-         it is the primitive value type string.
-       But the layout of the first must be a sublayout of immediate, because
-         of the definition of t at line 1, characters 15-35.
+       The kind of the first is immutable_data
+         because it is the primitive type string.
+       But the kind of the first must be a subkind of immediate
+         because of the definition of t at line 1, characters 15-35.
 |}];;
 
 (* Same as above but with explicit signature *)
@@ -231,10 +231,10 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The layout of the first is value, because
-         it is the primitive value type string.
-       But the layout of the first must be a sublayout of immediate, because
-         of the definition of t at line 1, characters 20-40.
+       The kind of the first is immutable_data
+         because it is the primitive type string.
+       But the kind of the first must be a subkind of immediate
+         because of the definition of t at line 1, characters 20-40.
 |}];;
 
 module FM_invalid = F (struct type t = string end);;
@@ -248,10 +248,10 @@ Error: Modules do not match: sig type t = string end is not included in
        type t = string
      is not included in
        type t : immediate
-     The layout of the first is value, because
-       it is the primitive value type string.
-     But the layout of the first must be a sublayout of immediate, because
-       of the definition of t at line 1, characters 20-40.
+     The kind of the first is immutable_data
+       because it is the primitive type string.
+     But the kind of the first must be a subkind of immediate
+       because of the definition of t at line 1, characters 20-40.
 |}];;
 
 (* Can't use a non-immediate type even if mutually recursive *)
@@ -263,10 +263,10 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type s is value, because
-         it is the primitive value type string.
-       But the layout of type s must be a sublayout of immediate, because
-         of the definition of t at line 2, characters 2-26.
+Error: The kind of type s is immutable_data
+         because it is the primitive type string.
+       But the kind of type s must be a subkind of immediate
+         because of the definition of t at line 2, characters 2-26.
 |}];;
 
 

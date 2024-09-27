@@ -110,6 +110,27 @@ let rhs_interval m n = {
 let get_pos_info pos =
   (pos.pos_fname, pos.pos_lnum, pos.pos_cnum - pos.pos_bol)
 
+let merge ?(ghost = true) locs =
+  let hd, tl =
+    match locs with
+    | hd :: tl -> hd, tl
+    | [] -> failwith "Compiler bug: Called [Location.merge] with an empty list"
+  in
+  List.fold_left
+    (fun acc x ->
+      let loc_start =
+        if compare_position x.loc_start acc.loc_start < 0
+        then x.loc_start else acc.loc_start
+      in
+      let loc_end =
+        if compare_position x.loc_end acc.loc_end > 0
+        then x.loc_end else acc.loc_end
+      in
+      let loc_ghost = x.loc_ghost || acc.loc_ghost in
+      { loc_start; loc_end; loc_ghost })
+    { hd with loc_ghost = hd.loc_ghost || ghost }
+    tl
+
 type 'a loc = {
   txt : 'a;
   loc : t;

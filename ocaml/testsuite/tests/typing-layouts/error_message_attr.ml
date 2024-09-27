@@ -25,10 +25,10 @@ Line 1, characters 51-52:
                                                        ^
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
-       The layout of float# is float64, because
-         it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
-         of the annotation on the wildcard _ at line 1, characters 20-31.
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because of the annotation on the wildcard _ at line 1, characters 20-31.
 |}]
 
 let f (v: float#): ((_ : value)[@error_message 1]) = v
@@ -44,10 +44,10 @@ Line 1, characters 53-54:
                                                          ^
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
-       The layout of float# is float64, because
-         it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
-         of the annotation on the wildcard _ at line 1, characters 20-31.
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because of the annotation on the wildcard _ at line 1, characters 20-31.
 |}]
 
 (* Ltyp_var { name = None; layout } case *)
@@ -58,10 +58,10 @@ Line 1, characters 68-69:
                                                                         ^
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
-       The layout of float# is float64, because
-         it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
-         of the annotation on the wildcard _ at line 1, characters 20-31.
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because of the annotation on the wildcard _ at line 1, characters 20-31.
          Custom message
 |}]
 
@@ -74,10 +74,10 @@ Line 3, characters 19-20:
                        ^
 Error: This expression has type ('a : value)
        but an expression was expected of type Float_u.t = float#
-       The layout of Float_u.t is float64, because
-         it is the primitive float64 type float#.
-       But the layout of Float_u.t must be a sublayout of value, because
-         of the annotation on the wildcard _ at line 2, characters 15-26.
+       The layout of Float_u.t is float64
+         because it is the primitive type float#.
+       But the layout of Float_u.t must be a sublayout of value
+         because of the annotation on the wildcard _ at line 2, characters 15-26.
          Custom message
 |}]
 
@@ -92,11 +92,11 @@ Line 3, characters 61-63:
 3 |   val f : (('a : value)[@error_message "Custom message"]) -> 'a t
                                                                  ^^
 Error: This type ('a : value) should be an instance of type ('b : float64)
-       The layout of 'a is value, because
-         of the annotation on the type variable 'a.
+       The layout of 'a is value
+         because of the annotation on the type variable 'a.
          Custom message
-       But the layout of 'a must overlap with float64, because
-         of the definition of t at line 2, characters 2-28.
+       But the layout of 'a must overlap with float64
+         because of the definition of t at line 2, characters 2-28.
 |}]
 
 
@@ -112,10 +112,10 @@ Line 3, characters 33-38:
 3 |   val f : 'a -> t -> (t as ('a : value)[@error_message "Custom message"])
                                      ^^^^^
 Error: Bad layout annotation:
-         The layout of t is float64, because
-           of the definition of t at line 2, characters 2-18.
-         But the layout of t must be a sublayout of value, because
-           of the annotation on the type variable 'a.
+         The layout of t is float64
+           because of the definition of t at line 2, characters 2-18.
+         But the layout of t must be a sublayout of value
+           because of the annotation on the type variable 'a.
            Custom message
 |}]
 
@@ -131,10 +131,10 @@ Line 3, characters 16-33:
                     ^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type t but is used as an instance of type
          ('a : value)
-       The layout of t is float64, because
-         of the definition of t at line 2, characters 2-18.
-       But the layout of t must be a sublayout of value, because
-         of the annotation on the type variable 'a.
+       The layout of t is float64
+         because of the definition of t at line 2, characters 2-18.
+       But the layout of t must be a sublayout of value
+         because of the annotation on the type variable 'a.
          Custom message
 |}]
 
@@ -149,10 +149,10 @@ Line 3, characters 26-31:
 3 |   val f : t -> (t as (_ : value)[@error_message "Custom message"])
                               ^^^^^
 Error: Bad layout annotation:
-         The layout of t/2 is float64, because
-           of the definition of t at line 2, characters 2-18.
-         But the layout of t/2 must be a sublayout of value, because
-           of the annotation on the wildcard _ at line 3, characters 26-31.
+         The layout of t/2 is float64
+           because of the definition of t at line 2, characters 2-18.
+         But the layout of t/2 must be a sublayout of value
+           because of the annotation on the wildcard _ at line 3, characters 26-31.
            Custom message
 |}]
 
@@ -232,10 +232,10 @@ Line 1, characters 22-23:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        custom message
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
-         of the annotation on the wildcard _ at line 1, characters 26-41.
+       The kind of string is immutable_data
+         because it is the primitive type string.
+       But the kind of string must be a subkind of immediate
+         because of the annotation on the wildcard _ at line 1, characters 26-41.
 |}]
 
 (* Doesn't apply when the mismatch is deep *)

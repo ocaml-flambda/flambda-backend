@@ -54,13 +54,7 @@ let float_reg_name = Array.init 16 (fun i -> XMM i)
 let register_name typ r =
   match (typ : machtype_component) with
   | Int | Val | Addr -> Reg64 (int_reg_name.(r))
-  | Float -> Regf (float_reg_name.(r - 100))
-  | Vec128 ->
-    assert_simd_enabled ();
-    Regf (float_reg_name.(r - 100))
-  | Float32 ->
-    assert_float32_enabled ();
-    Regf (float_reg_name.(r - 100))
+  | Float | Float32 | Vec128 -> Regf (float_reg_name.(r - 100))
 
 let phys_rax = phys_reg Int 0
 let phys_rdx = phys_reg Int 4
@@ -1016,12 +1010,8 @@ let emit_static_cast (cast : Cmm.static_cast) i =
     I.movq (arg i 0) (res i 0)
   | Scalar_of_v128 Int32x4 -> I.movd (arg i 0) (res32 i 0)
   | V128_of_scalar Int32x4 -> I.movd (arg32 i 0) (res i 0)
-  | V128_of_scalar Float32x4 ->
-    (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
-    I.cvtsd2ss (arg i 0) (res i 0)
-  | Scalar_of_v128 Float32x4 ->
-    (* CR mslater: (SIMD) remove cvt once we have unboxed float32 *)
-    I.cvtss2sd (arg i 0) (res i 0)
+  | V128_of_scalar Float32x4 | Scalar_of_v128 Float32x4 ->
+    if distinct then I.movss (arg i 0) (res i 0)
   | Scalar_of_v128 Int16x8 ->
     (* [movw] and [movzx] cannot operate on vector registers.
        We must zero extend as the result is an untagged positive int.
@@ -2086,10 +2076,6 @@ let make_stack_loc ~offset n (r : Reg.t) =
      probe arguments) in the wrapper's frame. *)
   let loc = Stack (Outgoing (offset + n)) in
   (* Manufacture stack entry with this register's type *)
-  (match r.typ with
-   | Int | Val | Addr | Float -> ()
-   | Float32 -> assert_float32_enabled ()
-   | Vec128 -> assert_simd_enabled ());
   Reg.at_location r.typ loc
 
 (* CR mshinwell: Not now, but after code review, it would be better to

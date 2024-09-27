@@ -22,10 +22,11 @@ type t =
   | Local of { name: string; stamp: int }
   | Scoped of { name: string; stamp: int; scope: int }
   | Global of string
+      (* separate from [Global_with_args] for efficiency *)
   | Predef of { name: string; stamp: int }
       (* the stamp is here only for fast comparison, but the name of
          predefined identifiers is always unique. *)
-  | Instance of global
+  | Global_with_args of global
       (* must have non-empty [args] *)
 and global = Global_module.Name.t = private
   { head: string; args: (global * global) list }
@@ -53,7 +54,7 @@ let create_persistent s =
 let create_global glob =
   match glob with
   | { head; args = [] } -> Global head
-  | _ -> Instance glob
+  | _ -> Global_with_args glob
 
 let create_local_binding_for_global glob =
   create_local (Global_module.Name.to_string glob)
@@ -68,7 +69,7 @@ let name = function
   | Scoped { name; _ }
   | Global name
   | Predef { name; _ } -> name
-  | Instance g -> global_name g
+  | Global_with_args g -> global_name g
 
 let rename = function
   | Local { name; stamp = _ }
@@ -90,14 +91,14 @@ let unique_name = function
       (* we know that none of the predef names (currently) finishes in
          "_<some number>", and that their name is unique. *)
       name
-  | Instance g -> global_name g
+  | Global_with_args g -> global_name g
 
 let unique_toplevel_name = function
   | Local { name; stamp }
   | Scoped { name; stamp } -> name ^ "/" ^ Int.to_string stamp
   | Global name
   | Predef { name; _ } -> name
-  | Instance g -> global_name g
+  | Global_with_args g -> global_name g
 
 let equal i1 i2 =
   match i1, i2 with
@@ -108,7 +109,7 @@ let equal i1 i2 =
   | Predef { stamp = s1; _ }, Predef { stamp = s2 } ->
       (* if they don't have the same stamp, they don't have the same name *)
       s1 = s2
-  | Instance g1, Instance g2 -> Global_module.Name.equal g1 g2
+  | Global_with_args g1, Global_with_args g2 -> Global_module.Name.equal g1 g2
   | _ ->
       false
 
@@ -120,7 +121,7 @@ let same i1 i2 =
       s1 = s2
   | Global name1, Global name2 ->
       name1 = name2
-  | Instance g1, Instance g2 -> Global_module.Name.equal g1 g2
+  | Global_with_args g1, Global_with_args g2 -> Global_module.Name.equal g1 g2
   | _ ->
       false
 
@@ -132,7 +133,7 @@ let stamp = function
 let scope = function
   | Scoped { scope; _ } -> scope
   | Local _ -> highest_scope
-  | Global _ | Predef _ | Instance _ -> lowest_scope
+  | Global _ | Predef _ | Global_with_args _ -> lowest_scope
 
 let reinit_level = ref (-1)
 
@@ -143,7 +144,7 @@ let reinit () =
 
 let is_global = function
   | Global _ -> true
-  | Instance _ -> true
+  | Global_with_args _ -> true
   | _ -> false
 
 let is_global_or_predef = function
@@ -151,19 +152,19 @@ let is_global_or_predef = function
   | Scoped _ -> false
   | Global _
   | Predef _
-  | Instance _ -> true
+  | Global_with_args _ -> true
 
 let is_predef = function
   | Predef _ -> true
   | _ -> false
 
 let is_instance = function
-  | Instance _ -> true
+  | Global_with_args _ -> true
   | _ -> false
 
 let to_global = function
   | Global head -> Some (Global_module.Name.create_exn head [])
-  | Instance g -> Some g
+  | Global_with_args g -> Some g
   | _ -> None
 
 let print ~with_scope ppf =
@@ -180,7 +181,7 @@ let print ~with_scope ppf =
       fprintf ppf "%s%s%s" name
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
         (if with_scope then sprintf "[%i]" scope else "")
-  | Instance g ->
+  | Global_with_args g ->
       fprintf ppf "%a!" Global_module.Name.print g
 
 let print_with_scope ppf id = print ~with_scope:true ppf id
@@ -411,9 +412,9 @@ let compare x y =
   | Global x, Global y -> compare x y
   | Global _, _ -> 1
   | _, Global _ -> (-1)
-  | Instance g1, Instance g2 -> Global_module.Name.compare g1 g2
-  | Instance _, _ -> 1
-  | _, Instance _ -> (-1)
+  | Global_with_args g1, Global_with_args g2 -> Global_module.Name.compare g1 g2
+  | Global_with_args _, _ -> 1
+  | _, Global_with_args _ -> (-1)
   | Predef { stamp = s1; _ }, Predef { stamp = s2; _ } -> compare s1 s2
 
 let output oc id = output_string oc (unique_name id)

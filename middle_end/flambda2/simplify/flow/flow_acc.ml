@@ -354,7 +354,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
       let bound_var = Bound_pattern.must_be_singleton let_bound in
       let var = Bound_var.var bound_var in
       match[@ocaml.warning "-4"] original_prim with
-      | Unary (End_region, _region) ->
+      | Unary (End_region { ghost = _ }, _region) ->
         (* Uses of region variables in [End_region] don't count as uses. *)
         t
       | Unary (Is_int _, simple) -> (

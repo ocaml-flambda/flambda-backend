@@ -186,7 +186,7 @@ let string_or_bigstring_load kind width =
        desirable ? *)
     | Sixteen -> 2 (* add, load (allow_unaligned_access) *)
     (* 7 (not allow_unaligned_access) *)
-    | Thirty_two -> 2 (* add, load (allow_unaligned_access) *)
+    | Thirty_two | Single -> 2 (* add, load (allow_unaligned_access) *)
     (* 17 (not allow_unaligned_access) *)
     | Sixty_four -> if arch32 then does_not_need_caml_c_call_extcall_size else 2
     (* add, load (allow_unaligned_access) *)
@@ -331,8 +331,8 @@ let nullary_prim_size prim =
   | Invalid _ -> 0
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
-  | Begin_region -> 1
-  | Begin_try_region -> 1
+  | Begin_region { ghost } -> if ghost then 0 else 1
+  | Begin_try_region { ghost } -> if ghost then 0 else 1
   | Enter_inlined_apply _ -> 0
   | Dls_get -> 1
 
@@ -360,7 +360,12 @@ let unary_prim_size prim =
   | Float_arith _ -> 2
   | Num_conv { src; dst } -> arith_conversion_size src dst
   | Boolean_not -> 1
-  | Reinterpret_int64_as_float -> 0
+  | Reinterpret_64_bit_word reinterpret -> (
+    match reinterpret with
+    | Tagged_int63_as_unboxed_int64 -> 0
+    | Unboxed_int64_as_tagged_int63 -> (* Needs a logical OR. *) 1
+    | Unboxed_int64_as_unboxed_float64 | Unboxed_float64_as_unboxed_int64 ->
+      (* Needs a move between register classes. *) 1)
   | Unbox_number k -> unbox_number k
   | Untag_immediate -> 1 (* 1 shift *)
   | Box_number (k, _alloc_mode) -> box_number k
@@ -369,7 +374,7 @@ let unary_prim_size prim =
   | Project_value_slot _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
-  | End_region | End_try_region -> 1
+  | End_region { ghost } | End_try_region { ghost } -> if ghost then 0 else 1
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
   | Atomic_load _ -> 1

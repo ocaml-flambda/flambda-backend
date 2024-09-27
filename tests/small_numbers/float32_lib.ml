@@ -1,9 +1,10 @@
 
 [@@@ocaml.warning "-unused-value-declaration"]
+[@@@ocaml.warning "-unused-module"]
 
 (* Tests for the float32 otherlib  *)
 
-module F32 = Stdlib_beta.Float32
+module F32 = Stdlib_stable.Float32
 
 module CF32 = struct
   type t = float32
@@ -145,8 +146,8 @@ module CF32 = struct
       for _ = 0 to 100_000 do
           let f0 = Random.int32 Int32.max_int in
           let f1 = Random.int32 Int32.max_int in
-          f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Stdlib_beta.Float32.of_float)
-            ((if Random.bool () then f1 else Int32.neg f1) |> Int32.float_of_bits |> Stdlib_beta.Float32.of_float)
+          f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> F32.of_float)
+            ((if Random.bool () then f1 else Int32.neg f1) |> Int32.float_of_bits |> F32.of_float)
       done
   ;;
 end
@@ -248,9 +249,9 @@ let () =
   CF32.check_float32s (fun f _ ->
     bit_eq (F32.round_up f) (CF32.ceil f);
     bit_eq (F32.round_down f) (CF32.floor f);
-    bit_eq (F32.round_half_to_even f) (CF32.round_current f);
+    bit_eq (F32.round_current f) (CF32.round_current f);
     (* Returns int64, so can compare directly. *)
-    assert ((F32.iround_half_to_even f) = (CF32.iround_current f));
+    assert ((F32.iround_current f) = (CF32.iround_current f));
   )
 ;;
 
@@ -488,3 +489,461 @@ let () = (* Cast & sqrt-with-memory intrinsics (see selection.ml) *)
     bit_eq (F32.of_bits (CF32.to_bits f)) f;
   )
 ;;
+
+module Bytes = struct
+
+  let data = Bytes.of_string "\x00\x01\x02\x03\x04\x05\x06\x07"
+
+  let low = F32.of_bits 0x03020100l
+  let high = F32.of_bits 0x07060504l
+
+  (* Getters *)
+
+  let () =
+    let v = F32.Bytes.get data ~pos:0 in
+    bit_eq low v;
+    let v = F32.Bytes.unsafe_get data ~pos:0 in
+    bit_eq low v;
+    let v = F32.Bytes.get data ~pos:4 in
+    bit_eq high v;
+    let v = F32.Bytes.unsafe_get data ~pos:4 in
+    bit_eq high v;
+  ;;
+
+  let () =
+    for bad = -4 to -1 do
+      try
+        let _ = F32.Bytes.get data ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+    for bad = 5 to 9 do
+      try
+        let _ = F32.Bytes.get data ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+  ;;
+
+  (* Setters *)
+
+  let set f pos =
+    F32.Bytes.set data f ~pos;
+    let v = F32.Bytes.get data ~pos in
+    bit_eq f v;
+  ;;
+
+  let set_unsafe f pos =
+    F32.Bytes.unsafe_set data f ~pos;
+    let v = F32.Bytes.get data ~pos in
+    bit_eq f v;
+  ;;
+
+  let () =
+    set (F32.of_bits 0x10101010l) 0;
+    set (F32.of_bits 0x20202020l) 4;
+    set_unsafe (F32.of_bits 0x10101010l) 0;
+    set_unsafe (F32.of_bits 0x20202020l) 4;
+    Random.init 1234;
+    for _ = 1 to 1000 do
+      set (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 5);
+      set_unsafe (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 5)
+    done;
+  ;;
+
+  let () =
+    let set = F32.of_bits 0xFFFFFFFFl in
+    for bad = -4 to -1 do
+      try
+        let _ = F32.Bytes.set data set ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+    for bad = 5 to 9 do
+      try
+        let _ = F32.Bytes.set data set ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+  ;;
+end
+
+module String = struct
+
+  let data = "\x00\x01\x02\x03\x04\x05\x06\x07"
+
+  let low = F32.of_bits 0x03020100l
+  let high = F32.of_bits 0x07060504l
+
+  (* Getters *)
+
+  let () =
+    let v = F32.String.get data ~pos:0 in
+    bit_eq low v;
+    let v = F32.String.unsafe_get data ~pos:0 in
+    bit_eq low v;
+    let v = F32.String.get data ~pos:4 in
+    bit_eq high v;
+    let v = F32.String.unsafe_get data ~pos:4 in
+    bit_eq high v;
+  ;;
+
+  let () =
+    for bad = -4 to -1 do
+      try
+        let _ = F32.String.get data ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+    for bad = 5 to 9 do
+      try
+        let _ = F32.String.get data ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+  ;;
+end
+
+module Bigstring = struct
+  open Bigarray
+
+  let bigstring_of_string s =
+    let open Stdlib in
+    let a = Array1.create char c_layout (String.length s) in
+    for i = 0 to String.length s - 1 do
+      a.{i} <- s.[i]
+    done;
+    a
+
+  let data = bigstring_of_string "\x00\x01\x02\x03\x04\x05\x06\x07"
+
+  let low = F32.of_bits 0x03020100l
+  let high = F32.of_bits 0x07060504l
+
+  (* Getters *)
+
+  let () =
+    let v = F32.Bigstring.get data ~pos:0 in
+    bit_eq low v;
+    let v = F32.Bigstring.unsafe_get data ~pos:0 in
+    bit_eq low v;
+    let v = F32.Bigstring.get data ~pos:4 in
+    bit_eq high v;
+    let v = F32.Bigstring.unsafe_get data ~pos:4 in
+    bit_eq high v;
+  ;;
+
+  let () =
+    for bad = -4 to -1 do
+      try
+        let _ = F32.Bigstring.get data ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+    for bad = 5 to 9 do
+      try
+        let _ = F32.Bigstring.get data ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+  ;;
+
+  (* Setters *)
+
+  let set f pos =
+    F32.Bigstring.set data f ~pos;
+    let v = F32.Bigstring.get data ~pos in
+    bit_eq f v;
+  ;;
+
+  let set_unsafe f pos =
+    F32.Bigstring.unsafe_set data f ~pos;
+    let v = F32.Bigstring.get data ~pos in
+    bit_eq f v;
+  ;;
+
+  let () =
+    set (F32.of_bits 0x10101010l) 0;
+    set (F32.of_bits 0x20202020l) 4;
+    set_unsafe (F32.of_bits 0x10101010l) 0;
+    set_unsafe (F32.of_bits 0x20202020l) 4;
+    Random.init 1234;
+    for _ = 1 to 1000 do
+      set (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 5);
+      set_unsafe (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 5)
+    done;
+  ;;
+
+  let () =
+    let set = F32.of_bits 0xFFFFFFFFl in
+    for bad = -4 to -1 do
+      try
+        let _ = F32.Bigstring.set data set ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+    for bad = 5 to 9 do
+      try
+        let _ = F32.Bigstring.set data set ~pos:bad in
+        assert false
+      with | Invalid_argument s when s = "index out of bounds" -> ()
+    done;
+  ;;
+end
+
+module Bigarray = struct
+  open Stdlib.Bigarray
+
+  module A1 = struct
+    let c_array = Array1.init Float32 C_layout 4 Float.of_int
+
+    let f_array = Array1.init Float32 Fortran_layout 4 Float.of_int
+
+    let () =
+      let v = F32.Bigarray.Array1.get c_array 0 in
+      bit_eq 0.0s v;
+      let v = F32.Bigarray.Array1.unsafe_get c_array 0 in
+      bit_eq 0.0s v;
+      let v = F32.Bigarray.Array1.get c_array 3 in
+      bit_eq 3.0s v;
+      let v = F32.Bigarray.Array1.unsafe_get c_array 3 in
+      bit_eq 3.0s v;
+    ;;
+
+    let () =
+      let v = F32.Bigarray.Array1.get f_array 1 in
+      bit_eq 1.0s v;
+      let v = F32.Bigarray.Array1.unsafe_get f_array 1 in
+      bit_eq 1.0s v;
+      let v = F32.Bigarray.Array1.get f_array 4 in
+      bit_eq 4.0s v;
+      let v = F32.Bigarray.Array1.unsafe_get f_array 4 in
+      bit_eq 4.0s v;
+    ;;
+
+    let set array f pos =
+      F32.Bigarray.Array1.set array pos f;
+      let v = F32.Bigarray.Array1.get array pos in
+      bit_eq f v;
+    ;;
+
+    let set_unsafe array f pos =
+      F32.Bigarray.Array1.unsafe_set array pos f;
+      let v = F32.Bigarray.Array1.get array pos in
+      bit_eq f v;
+    ;;
+
+    let () =
+      set c_array (F32.of_bits 0x10101010l) 0;
+      set c_array (F32.of_bits 0x20202020l) 1;
+      set_unsafe c_array (F32.of_bits 0x10101010l) 2;
+      set_unsafe c_array (F32.of_bits 0x20202020l) 3;
+      Random.init 1234;
+      for _ = 1 to 1000 do
+        set c_array (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 4);
+        set_unsafe c_array (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 4)
+      done;
+      set f_array (F32.of_bits 0x10101010l) 1;
+      set f_array (F32.of_bits 0x20202020l) 2;
+      set_unsafe f_array (F32.of_bits 0x10101010l) 3;
+      set_unsafe f_array (F32.of_bits 0x20202020l) 4;
+      Random.init 1234;
+      for _ = 1 to 1000 do
+        set f_array (Random.int32 Int32.max_int |> F32.of_bits) (1 + Random.int 4);
+        set_unsafe f_array (Random.int32 Int32.max_int |> F32.of_bits) (1 + Random.int 4)
+      done;
+    ;;
+
+    let () =
+      let check f =
+        try f () |> ignore; assert false
+        with | Invalid_argument s when s = "index out of bounds" -> ()
+      in
+      check (fun () -> F32.Bigarray.Array1.get c_array (-1));
+      check (fun () -> F32.Bigarray.Array1.set c_array (-1) 0.0s);
+      check (fun () -> F32.Bigarray.Array1.get c_array 4);
+      check (fun () -> F32.Bigarray.Array1.set c_array 4 0.0s);
+      check (fun () -> F32.Bigarray.Array1.get f_array 0);
+      check (fun () -> F32.Bigarray.Array1.set f_array 0 0.0s);
+      check (fun () -> F32.Bigarray.Array1.get f_array 5);
+      check (fun () -> F32.Bigarray.Array1.set f_array 5 0.0s);
+    ;;
+  end
+
+  module A2 = struct
+    let c_array = Array2.init Float32 C_layout 4 4 (fun i j -> Float.of_int (i * 4 + j))
+
+    let f_array = Array2.init Float32 Fortran_layout 4 4 (fun i j -> Float.of_int (i * 4 + j))
+
+    let () =
+      let v = F32.Bigarray.Array2.get c_array 0 1 in
+      bit_eq 1.0s v;
+      let v = F32.Bigarray.Array2.unsafe_get c_array 0 1 in
+      bit_eq 1.0s v;
+      let v = F32.Bigarray.Array2.get c_array 3 2 in
+      bit_eq 14.0s v;
+      let v = F32.Bigarray.Array2.unsafe_get c_array 3 2 in
+      bit_eq 14.0s v;
+    ;;
+
+    let () =
+      let v = F32.Bigarray.Array2.get f_array 1 2 in
+      bit_eq 6.0s v;
+      let v = F32.Bigarray.Array2.unsafe_get f_array 1 2 in
+      bit_eq 6.0s v;
+      let v = F32.Bigarray.Array2.get f_array 4 3 in
+      bit_eq 19.0s v;
+      let v = F32.Bigarray.Array2.unsafe_get f_array 4 3 in
+      bit_eq 19.0s v;
+    ;;
+
+    let set array f i j =
+      F32.Bigarray.Array2.set array i j f;
+      let v = F32.Bigarray.Array2.get array i j in
+      bit_eq f v;
+    ;;
+
+    let set_unsafe array f i j =
+      F32.Bigarray.Array2.unsafe_set array i j f;
+      let v = F32.Bigarray.Array2.get array i j in
+      bit_eq f v;
+    ;;
+
+    let () =
+      set c_array (F32.of_bits 0x10101010l) 0 1;
+      set c_array (F32.of_bits 0x20202020l) 1 0;
+      set_unsafe c_array (F32.of_bits 0x10101010l) 2 3;
+      set_unsafe c_array (F32.of_bits 0x20202020l) 3 2;
+      Random.init 1234;
+      for _ = 1 to 1000 do
+        set c_array (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 4) (Random.int 4);
+        set_unsafe c_array (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 4) (Random.int 4)
+      done;
+      set f_array (F32.of_bits 0x10101010l) 1 2;
+      set f_array (F32.of_bits 0x20202020l) 2 1;
+      set_unsafe f_array (F32.of_bits 0x10101010l) 3 4;
+      set_unsafe f_array (F32.of_bits 0x20202020l) 4 3;
+      Random.init 1234;
+      for _ = 1 to 1000 do
+        set f_array (Random.int32 Int32.max_int |> F32.of_bits) (1 + Random.int 4) (1 + Random.int 4);
+        set_unsafe f_array (Random.int32 Int32.max_int |> F32.of_bits) (1 + Random.int 4) (1 + Random.int 4)
+      done;
+    ;;
+
+    let () =
+      let check f =
+        try f () |> ignore; assert false
+        with | Invalid_argument s when s = "index out of bounds" -> ()
+      in
+      check (fun () -> F32.Bigarray.Array2.get c_array (-1) 0);
+      check (fun () -> F32.Bigarray.Array2.set c_array (-1) 0 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get c_array 4 0);
+      check (fun () -> F32.Bigarray.Array2.set c_array 4 0 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get c_array 0 (-1));
+      check (fun () -> F32.Bigarray.Array2.set c_array 0 (-1) 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get c_array 0 4);
+      check (fun () -> F32.Bigarray.Array2.set c_array 0 4 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 0 1);
+      check (fun () -> F32.Bigarray.Array2.set f_array 0 1 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 5 1);
+      check (fun () -> F32.Bigarray.Array2.set f_array 5 1 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 1 0);
+      check (fun () -> F32.Bigarray.Array2.set f_array 1 0 0.0s);
+      check (fun () -> F32.Bigarray.Array2.get f_array 1 5);
+      check (fun () -> F32.Bigarray.Array2.set f_array 1 5 0.0s);
+    ;;
+  end
+
+  module A3 = struct
+    let c_array = Array3.init Float32 C_layout 4 4 4 (fun i j k -> Float.of_int (i * 16 + j * 4 + k))
+
+    let f_array = Array3.init Float32 Fortran_layout 4 4 4 (fun i j k -> Float.of_int (i * 16 + j * 4 + k))
+
+    let () =
+      let v = F32.Bigarray.Array3.get c_array 0 1 2 in
+      bit_eq 6.0s v;
+      let v = F32.Bigarray.Array3.unsafe_get c_array 0 1 2 in
+      bit_eq 6.0s v;
+      let v = F32.Bigarray.Array3.get c_array 3 2 1 in
+      bit_eq 57.0s v;
+      let v = F32.Bigarray.Array3.unsafe_get c_array 3 2 1 in
+      bit_eq 57.0s v;
+    ;;
+
+    let () =
+      let v = F32.Bigarray.Array3.get f_array 1 2 3 in
+      bit_eq 27.0s v;
+      let v = F32.Bigarray.Array3.unsafe_get f_array 1 2 3 in
+      bit_eq 27.0s v;
+      let v = F32.Bigarray.Array3.get f_array 4 3 2 in
+      bit_eq 78.0s v;
+      let v = F32.Bigarray.Array3.unsafe_get f_array 4 3 2 in
+      bit_eq 78.0s v;
+    ;;
+
+    let set array f i j k =
+      F32.Bigarray.Array3.set array i j k f;
+      let v = F32.Bigarray.Array3.get array i j k in
+      bit_eq f v;
+    ;;
+
+    let set_unsafe array f i j k =
+      F32.Bigarray.Array3.unsafe_set array i j k f;
+      let v = F32.Bigarray.Array3.get array i j k in
+      bit_eq f v;
+    ;;
+
+    let () =
+      set c_array (F32.of_bits 0x10101010l) 0 1 2;
+      set c_array (F32.of_bits 0x20202020l) 2 1 0;
+      set_unsafe c_array (F32.of_bits 0x10101010l) 1 2 3;
+      set_unsafe c_array (F32.of_bits 0x20202020l) 3 2 1;
+      Random.init 1234;
+      for _ = 1 to 1000 do
+        set c_array (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 4) (Random.int 4) (Random.int 4);
+        set_unsafe c_array (Random.int32 Int32.max_int |> F32.of_bits) (Random.int 4) (Random.int 4) (Random.int 4)
+      done;
+      set f_array (F32.of_bits 0x10101010l) 1 2 3;
+      set f_array (F32.of_bits 0x20202020l) 3 2 1;
+      set_unsafe f_array (F32.of_bits 0x10101010l) 2 3 4;
+      set_unsafe f_array (F32.of_bits 0x20202020l) 4 3 2;
+      Random.init 1234;
+      for _ = 1 to 1000 do
+        set f_array (Random.int32 Int32.max_int |> F32.of_bits) (1 + Random.int 4) (1 + Random.int 4) (1 + Random.int 4);
+        set_unsafe f_array (Random.int32 Int32.max_int |> F32.of_bits) (1 + Random.int 4) (1 + Random.int 4) (1 + Random.int 4)
+      done;
+    ;;
+
+    let () =
+      let check f =
+        try f () |> ignore; assert false
+        with | Invalid_argument s when s = "index out of bounds" -> ()
+      in
+      check (fun () -> F32.Bigarray.Array3.get c_array (-1) 0 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array (-1) 0 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 4 0 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array 4 0 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 (-1) 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 (-1) 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 4 0);
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 4 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 0 (-1));
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 0 (-1) 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get c_array 0 0 4);
+      check (fun () -> F32.Bigarray.Array3.set c_array 0 0 4 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 0 1 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 0 1 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 5 1 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 5 1 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 0 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 0 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 5 1);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 5 1 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 1 0);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 1 0 0.0s);
+      check (fun () -> F32.Bigarray.Array3.get f_array 1 1 5);
+      check (fun () -> F32.Bigarray.Array3.set f_array 1 1 5 0.0s);
+    ;;
+  end
+end
+
