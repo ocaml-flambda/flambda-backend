@@ -1028,7 +1028,7 @@ let components_of_module ~alerts ~uid env ps path addr mty shape =
   }
 
 let read_sign_of_cmi sign name uid ~shape ~address:addr ~flags =
-  let id = Ident.create_persistent (Compilation_unit.Name.to_string name) in
+  let id = Ident.create_global name in
   let path = Pident id in
   let alerts =
     List.fold_left (fun acc -> function Alerts s -> s | _ -> acc)
@@ -1165,15 +1165,16 @@ let check_functor_appl
       ~arg_path ~arg_mty ~arg_mode ~param_mty
       env
 
-let modname_of_ident id = Ident.name id |> Compilation_unit.Name.of_string
-
 (* Lookup by identifier *)
 
 let find_ident_module id env =
   match find_same_module id env.modules with
   | Mod_local data -> data
   | Mod_unbound _ -> raise Not_found
-  | Mod_persistent -> find_pers_mod ~allow_hidden:true (id |> modname_of_ident)
+  | Mod_persistent ->
+      match Ident.to_global id with
+      | Some global_name -> find_pers_mod ~allow_hidden:true global_name
+      | None -> Misc.fatal_errorf "Not global: %a" Ident.print id
 
 let rec find_module_components path env =
   match path with
@@ -1623,6 +1624,9 @@ let make_copy_of_types env0 =
 type iter_cont = unit -> unit
 let iter_env_cont = ref []
 
+let global_ident_is_looked_up id =
+  Persistent_env.looked_up !persistent_env (Ident.to_global_exn id)
+
 let rec scrape_alias_for_visit env mty =
   let open Subst.Lazy in
   match mty with
@@ -1630,7 +1634,7 @@ let rec scrape_alias_for_visit env mty =
       match path with
       | Pident id
         when Ident.is_global id
-          && not (Persistent_env.looked_up !persistent_env (id |> modname_of_ident)) ->
+          && not (global_ident_is_looked_up id) ->
           false
       | path -> (* PR#6600: find_module may raise Not_found *)
           try
@@ -1672,7 +1676,7 @@ let iter_env wrap proj1 proj2 f env () =
        | Mod_persistent -> ())
     env.modules;
   Persistent_env.fold !persistent_env (fun name data () ->
-    let id = Ident.create_persistent (Compilation_unit.Name.to_string name) in
+    let id = Ident.create_global name in
     let path = Pident id in
     iter_components path path data.mda_components) ()
 
@@ -1692,7 +1696,10 @@ let same_types env1 env2 =
 
 let used_persistent () =
   Persistent_env.fold !persistent_env
-    (fun s _m r -> Compilation_unit.Name.Set.add s r)
+    (fun s _m r ->
+       Compilation_unit.Name.Set.add
+         (s |> Compilation_unit.Name.of_head_of_global_name)
+         r)
     Compilation_unit.Name.Set.empty
 
 let find_all_comps wrap proj s (p, mda) =
@@ -3013,7 +3020,8 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   | Mod_unbound reason ->
       report_module_unbound ~errors ~loc env reason
   | Mod_persistent -> begin
-      let name = s |> Compilation_unit.Name.of_string in
+      (* Currently there are never instance arguments *)
+      let name = Global_module.Name.create s [] in
       match load with
       | Don't_load ->
           check_pers_mod ~allow_hidden:false ~loc name;
@@ -3705,7 +3713,7 @@ let bound_module name env =
       else begin
         match
           find_pers_mod ~allow_hidden:false
-            (name |> Compilation_unit.Name.of_string)
+            (Global_module.Name.create name [])
         with
         | _ -> true
         | exception Not_found -> false
@@ -3789,7 +3797,12 @@ let fold_modules f lid env acc =
                in
                f name p md acc
            | Mod_persistent ->
-               let modname = name |> Compilation_unit.Name.of_string in
+               (* CR lmaurer: Setting instance args to [] here isn't right. We
+                  really should have [IdTbl.fold_name] provide the whole ident
+                  rather than just the name. It looks like the only immediate
+                  consequence of this is that spellcheck won't suggest
+                  instance names (which is good!). *)
+               let modname = Global_module.Name.create name [] in
                match Persistent_env.find_in_cache !persistent_env modname with
                | None -> acc
                | Some mda ->
@@ -3856,7 +3869,9 @@ let filter_non_loaded_persistent f env =
          | Mod_local _ -> acc
          | Mod_unbound _ -> acc
          | Mod_persistent ->
-             let modname = name |> Compilation_unit.Name.of_string in
+             (* CR lmaurer: Again, setting args to [] here is weird but fine
+                for the moment *)
+             let modname = Global_module.Name.create name [] in
              match Persistent_env.find_in_cache !persistent_env modname with
              | Some _ -> acc
              | None ->

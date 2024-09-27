@@ -32,11 +32,11 @@ type error =
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
-  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
-  | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
+  | Illegal_import_of_parameter of Global_module.Name.t * filepath
+  | Not_compiled_as_parameter of Global_module.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Compilation_unit.Name.t;
-        parameter : Compilation_unit.Name.t;
+      { imported : Global_module.Name.t;
+        parameter : Global_module.Name.t;
   }
 
 
@@ -69,7 +69,7 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
+val fold : 'a t -> (Global_module.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 type address =
   | Aunit of Compilation_unit.t
@@ -78,7 +78,7 @@ type address =
 
 type 'a sig_reader =
   Subst.Lazy.signature
-  -> Compilation_unit.Name.t
+  -> Global_module.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
   -> address:address
@@ -90,29 +90,29 @@ type 'a sig_reader =
 (* CR-someday lmaurer: [add_binding] is apparently always false, including in the
    [-instantiate] branch. We should remove this parameter. *)
 val read : 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+  -> Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
   -> Subst.Lazy.signature
 val find : allow_hidden:bool -> 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> 'a
+  -> Global_module.Name.t -> 'a
 
-val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
+val find_in_cache : 'a t -> Global_module.Name.t -> 'a option
 
 val check : allow_hidden:bool -> 'a t -> 'a sig_reader
-  -> loc:Location.t -> Compilation_unit.Name.t -> unit
+  -> loc:Location.t -> Global_module.Name.t -> unit
 
 (* Lets it be known that the given module is a parameter to this module and thus is
    expected to have been compiled as such. Raises an exception if the module has already
    been imported as a non-parameter. *)
-val register_parameter : 'a t -> Compilation_unit.Name.t -> unit
+val register_parameter : 'a t -> Global_module.Name.t -> unit
 
 (* [is_parameter_import penv md] checks if [md] is a parameter. Raises a fatal
    error if the module has not been imported. *)
-val is_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
+val is_parameter_import : 'a t -> Global_module.Name.t -> bool
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
-val looked_up : 'a t -> Compilation_unit.Name.t -> bool
+val looked_up : 'a t -> Global_module.Name.t -> bool
 
 (* [is_imported penv md] checks if [md] has been successfully
    imported in the environment [penv] *)
@@ -128,8 +128,8 @@ val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
-val implemented_parameter : 'a t -> Compilation_unit.Name.t
-  -> Compilation_unit.Name.t option
+val implemented_parameter : 'a t
+  -> Global_module.Name.t -> Global_module.Name.t option
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
@@ -162,13 +162,13 @@ val imports : 'a t -> Import_info.t list
 
    Note that the word "runtime" is a bit of a fiction reflecting a front-end view of the
    world. In fact we aim to inline away all passing of runtime parameters. *)
-val runtime_parameters : 'a t -> (Compilation_unit.Name.t * Ident.t) list
+val runtime_parameters : 'a t -> (Global_module.Name.t * Ident.t) list
 
 (* Return the list of parameters specified for the current unit, in alphabetical order.
    All of these will have been specified by [-parameter] but not all of them are
    necessarily imported - any that don't appear in the source are still considered
    parameters of the module but will not appear in [imports]. *)
-val parameters : 'a t -> Compilation_unit.Name.t list
+val parameters : 'a t -> Global_module.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t

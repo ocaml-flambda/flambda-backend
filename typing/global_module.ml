@@ -6,18 +6,28 @@ let pp_concat pp ppf list =
 module Name : sig
   type t = private {
     head : string;
-    args : (t * t) list;
+    args : argument list;
+  }
+  and argument = {
+    param : t;
+    value : t;
   }
 
-  val create : string -> (t * t) list -> t
+  val create : string -> argument list -> t
 
-  val unsafe_create_unchecked : string -> (t * t) list -> t
+  val unsafe_create_unchecked : string -> argument list -> t
+
+  val to_string : t -> string
 
   include Identifiable.S with type t := t
 end = struct
   type t = {
     head : string;
-    args : (t * t) list;
+    args : argument list;
+  }
+  and argument = {
+    param : t;
+    value : t;
   }
 
   include Identifiable.Make (struct
@@ -31,7 +41,7 @@ end = struct
         match String.compare head1 head2 with
         | 0 -> List.compare compare_arg args1 args2
         | c -> c
-    and compare_arg (name1, arg1) (name2, arg2) =
+    and compare_arg { param = name1; value = arg1 } { param = name2; value = arg2 } =
       match compare name1 name2 with
       | 0 -> compare arg1 arg2
       | c -> c
@@ -47,7 +57,7 @@ end = struct
           Format.fprintf ppf "@[<hov 1>%s%a@]"
             head
             (pp_concat print_arg_pair) args
-    and print_arg_pair ppf (name, arg) =
+    and print_arg_pair ppf { param = name; value = arg } =
       Format.fprintf ppf "[%a:%a]" print name print arg
 
     let output = print |> Misc.output_of_print
@@ -57,7 +67,7 @@ end = struct
 
   let create head args =
     let sorted_args =
-      List.sort_uniq (fun (name1, _) (name2, _) -> compare name1 name2) args
+      List.sort_uniq (fun { param = name1; _ } { param = name2; _ } -> compare name1 name2) args
     in
     let t = { head; args = sorted_args } in
     if List.length args != List.length sorted_args then
@@ -66,6 +76,8 @@ end = struct
     t
 
   let unsafe_create_unchecked head args = { head; args }
+
+  let to_string = print |> Misc.to_string_of_print
 end
 
 let compare_arg_name (name1, _) (name2, _) = Name.compare name1 name2
@@ -123,7 +135,7 @@ end = struct
       hidden_args = []
       && String.equal head name_head
       && list_similar equal_looking_args visible_args name_args
-    and equal_looking_args (name1, value1) (name2, value2) =
+    and equal_looking_args (name1, value1) { Name.param = name2; value = value2 } =
       Name.equal name1 name2 && equal_looking value1 value2
 
     let rec print ppf { head; visible_args; hidden_args } =
@@ -168,11 +180,13 @@ end = struct
   let rec to_name ({ head; visible_args; hidden_args = _ }) : Name.t =
     (* Safe because we already checked the names in this exact argument list *)
     Name.unsafe_create_unchecked head (List.map arg_to_name visible_args)
-  and arg_to_name (name, value) =
-    name, to_name value
+  and arg_to_name (name, value) : Name.argument =
+    { param = name; value = to_name value }
 end
 
 include T0
+
+let to_string = print |> Misc.to_string_of_print
 
 let all_args t = t.visible_args @ t.hidden_args
 
