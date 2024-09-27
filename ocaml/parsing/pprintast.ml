@@ -1441,13 +1441,13 @@ and kind_abbrev ctxt f name jkind =
     (jkind_annotation ctxt) jkind
 
 and module_type ctxt f x =
+    match Jane_syntax.Module_type.of_ast x with
+    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
+    | None ->
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
-    match Jane_syntax.Module_type.of_ast x with
-    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
-    | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
         pp f "@[<hov2>() ->@ %a@]" (module_type ctxt) mt2
