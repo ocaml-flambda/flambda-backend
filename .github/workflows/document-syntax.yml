@@ -1,4 +1,4 @@
-name: Request documentation for syntax changes
+name: Syntax changes reminder
 
 on:
   pull_request:
@@ -6,7 +6,7 @@ on:
       - 'ocaml/parsing/parser.mly'
 
 jobs:
-  request-documentation-for-syntax:
+  remind:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -19,13 +19,17 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number }}
           COMMENT="## Parser Change Checklist
 
-          This PR modifies the parser. Please check that the following
-          tests are updated:
+          This PR modifies the parser. Please check that the following tests are updated:
 
-          - [ ] language-extensions/examples.ml
-          - [ ] language-extensions/pprintast_unconditional.ml
+          - [ ] `language-extensions/examples.ml`
+          - [ ] `language-extensions/pprintast_unconditional.ml`
 
-          Both of these tests should have examples of every new bit of
-          syntax you are adding."
+          Both of these tests should have examples of every new bit of syntax you are adding. Feel free to just check these boxes if your PR does not actually change the syntax (because it is refactoring the parser, say)."
 
-          gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
+           # Check if comment already exists
+          if ! gh pr view $PR_NUMBER --json comments -q '.comments[].body' --repo $REPO | grep -q "Parser Change Checklist"; then
+            gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
+          else
+            echo "Comment already exists. Skipping."
+          fi
+
