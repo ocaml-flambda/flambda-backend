@@ -4,10 +4,13 @@
    expect;
 *)
 
-(* Confirm that Pprintast round-trips with Jane Street experimental syntax.
-   test.ml is the driver that runs this test. test.ml also checks that
-   Pprintast doesn't print the attribute encoding.
-*)
+(* This file is two tests in one! It's both an expect-test, run in the
+   normal way. It *also* is processed by [test.ml] (in this same directory)
+   to make sure that Pprintast round-trips. *)
+
+(* There should be examples of all Jane Street syntax here. This file can
+   thus additionally serve as a cheap-and-cheerful documentation for all of
+   our features. *)
 
 (***********)
 (* Layouts *)
