@@ -231,7 +231,7 @@ Line 1, characters 25-31:
                              ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_86 & '_representable_layout_87
+       The layout of #('a * 'b) is '_representable_layout_1 & '_representable_layout_2
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
@@ -256,7 +256,7 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_89 & '_representable_layout_90
+       The layout of #('a * 'b) is '_representable_layout_3 & '_representable_layout_4
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a tuple element.
@@ -348,7 +348,7 @@ Line 3, characters 15-21:
                    ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_102 & '_representable_layout_103
+       The layout of #('a * 'b) is '_representable_layout_5 & '_representable_layout_6
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of an object field.
@@ -365,7 +365,7 @@ Line 3, characters 17-21:
                      ^^^^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_110 & '_representable_layout_111
+       The layout of #('a * 'b) is '_representable_layout_7 & '_representable_layout_8
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a variable captured in an object.
@@ -701,7 +701,7 @@ Line 2, characters 37-44:
                                          ^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_190 & '_representable_layout_191
+       The layout of #('a * 'b) is '_representable_layout_9 & '_representable_layout_10
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable x.
@@ -717,7 +717,7 @@ Line 1, characters 21-29:
                          ^^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_195 & '_representable_layout_196
+       The layout of #('a * 'b) is '_representable_layout_11 & '_representable_layout_12
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable _x.
@@ -796,7 +796,7 @@ Line 1, characters 31-37:
                                    ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_210 & '_representable_layout_211
+       The layout of #('a * 'b) is '_representable_layout_13 & '_representable_layout_14
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value.
 |}]
@@ -863,7 +863,7 @@ Line 2, characters 25-26:
                              ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_246 & '_representable_layout_247
+       The layout of #('a * 'b) is '_representable_layout_15 & '_representable_layout_16
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a term-level argument to a class constructor.
@@ -880,7 +880,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_249 & '_representable_layout_250
+       The layout of #('a * 'b) is '_representable_layout_17 & '_representable_layout_18
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a lazy expression.
@@ -930,7 +930,7 @@ Line 1, characters 28-34:
                                 ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_267 & '_representable_layout_268
+       The layout of #('a * 'b) is '_representable_layout_19 & '_representable_layout_20
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because the type argument of option has layout value.
