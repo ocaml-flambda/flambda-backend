@@ -5003,7 +5003,7 @@ type type_function_result =
   { function_ :
       type_expr * type_function_result_param list * function_body;
     (* The uninterrupted prefix of newtypes of the parameter suffix. *)
-    newtypes: (string loc * Jkind.annotation option) list;
+    newtypes: (Ident.t * string loc * Jkind.annotation option * Uid.t) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
     params_contain_gadt: contains_gadt;
     (* The alloc mode of the "rest of the function". None only for recursive
@@ -6738,7 +6738,7 @@ and type_function
   | { pparam_desc = Pparam_newtype (newtype_var, jkind_annot) } :: rest ->
       (* Check everything else in the scope of (type a). *)
       let (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
-          exp_type, jkind_annot =
+          exp_type, jkind_annot, id, uid =
         type_newtype env newtype_var jkind_annot (fun env ->
           let { function_ = exp_type, params, body;
                 newtypes; params_contain_gadt = contains_gadt;
@@ -6755,7 +6755,7 @@ and type_function
           (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
           exp_type)
       in
-      let newtype = newtype_var, jkind_annot in
+      let newtype = id, newtype_var, jkind_annot, uid in
       with_explanation ty_fun.explanation (fun () ->
           unify_exp_types loc env exp_type (instance ty_expected));
       { function_ = exp_type, params, body;
@@ -8344,7 +8344,7 @@ and map_half_typed_cases
 *)
 and type_newtype
   : type a. _ -> _ -> _ -> (Env.t -> a * type_expr)
-    -> a * type_expr * Jkind.annotation option =
+    -> a * type_expr * Jkind.annotation option * Ident.t * Uid.t =
   fun env name jkind_annot_opt type_body  ->
   let { txt = name; loc = name_loc } : _ Location.loc = name in
   let jkind, jkind_annot =
@@ -8379,13 +8379,14 @@ and type_newtype
     in
     let ety = Subst.type_expr Subst.identity exp_type in
     replace ety;
-    (result, ety, jkind_annot)
+    let uid = decl.type_uid in
+    (result, ety, jkind_annot, id, uid)
   end
 
 (** [type_newtype] where the "body" is just an expression. *)
 and type_newtype_expr
     ~loc ~env ~expected_mode ~rue ~attributes name jkind_annot_opt sbody =
-  let body, ety, jkind_annot =
+  let body, ety, jkind_annot, id, uid =
     type_newtype env name jkind_annot_opt (fun env ->
       let expr = type_exp env expected_mode sbody in
       expr, expr.exp_type)
@@ -8394,7 +8395,7 @@ and type_newtype_expr
      any new extra node in the typed AST. *)
   rue { body with exp_loc = loc; exp_type = ety;
         exp_extra =
-        (Texp_newtype (name.txt, jkind_annot),
+        (Texp_newtype (id, name, jkind_annot, uid),
          loc, attributes) :: body.exp_extra }
 
 (* Typing of match cases *)
@@ -9097,7 +9098,8 @@ and type_n_ary_function
         exp_loc = loc;
         exp_extra =
           List.map
-            (fun ({ txt; loc }, layout) -> Texp_newtype (txt, layout), loc, [])
+            (fun (id, txt_loc, layout, uid) ->
+              Texp_newtype (id, txt_loc, layout, uid), txt_loc.loc, [])
             newtypes;
         exp_type;
         exp_attributes = attributes;

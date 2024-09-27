@@ -228,7 +228,7 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of string * Jkind.annotation option
+  | Texp_newtype of Ident.t * string loc * Jkind.annotation option * Uid.t
         (** fun (type t : immediate) ->  *)
   | Texp_stack
         (** stack_ E *)
@@ -454,7 +454,7 @@ and function_param =
     fp_sort: Jkind.sort;
     fp_mode: Mode.Alloc.l;
     fp_curry: function_curry;
-    fp_newtypes: (string loc * Jkind.annotation option) list;
+    fp_newtypes: (Ident.t * string loc * Jkind.annotation option * Uid.t) list;
     (** [fp_newtypes] are the new type declarations that come *after* that
         parameter. The newtypes that come before the first parameter are
         placed as exp_extras on the Texp_function node. This is just used in
