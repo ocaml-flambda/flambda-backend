@@ -979,6 +979,7 @@ let unboxed_type sloc lident tys =
 %token OPEN                   "open"
 %token <string> OPTLABEL      "?label:" (* just an example *)
 %token OR                     "or"
+%token OVERWRITE              "overwrite_"
 /* %token PARSER              "parser" */
 %token PERCENT                "%"
 %token PLUS                   "+"
@@ -2754,10 +2755,8 @@ fun_expr:
     { mk_indexop_expr user_indexing_operators ~loc:$sloc $1 }
   | fun_expr attribute
       { Exp.attr $1 $2 }
-/* BEGIN AVOID */
   | UNDERSCORE
-     { not_expecting $loc($1) "wildcard \"_\"" }
-/* END AVOID */
+    { mkexp ~loc:$sloc Pexp_hole }
   | mode=mode_legacy exp=seq_expr
      { mkexp_with_modes ~loc:$sloc ~exp ~cty:None ~modes:[mode] }
   | EXCLAVE seq_expr
@@ -2781,6 +2780,8 @@ fun_expr:
       { Pexp_try($3, $5), $2 }
   | TRY ext_attributes seq_expr WITH error
       { syntax_error() }
+  | OVERWRITE ext_attributes mkrhs(val_longident) WITH expr
+      { Pexp_overwrite($3, $5), $2 }
   | IF ext_attributes seq_expr THEN expr ELSE expr
       { Pexp_ifthenelse($3, $5, Some $7), $2 }
   | IF ext_attributes seq_expr THEN expr

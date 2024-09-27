@@ -395,3 +395,5 @@ val raise_errorf: ?loc:t -> ?sub:msg list ->
 
 val report_exception: formatter -> exn -> unit
 (** Reraise the exception if it is unknown. *)
+
+val todo_overwrite_not_implemented : t -> 'a

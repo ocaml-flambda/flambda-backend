@@ -80,6 +80,7 @@ let keyword_table =
     "once_", ONCE;
     "open", OPEN;
     "or", OR;
+    "overwrite_", OVERWRITE;
 (*  "parser", PARSER; *)
     "private", PRIVATE;
     "rec", REC;
