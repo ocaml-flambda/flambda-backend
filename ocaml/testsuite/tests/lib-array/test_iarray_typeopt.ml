@@ -7,6 +7,12 @@
 module Array = Stdlib.Array
 open Stdlib_stable.Iarray
 
+[%%expect {|
+0
+module Array = Array
+0
+|}]
+
 (* Regression test showing that an [i]array of iarrays
    has element kind [addr].
  *)
@@ -14,9 +20,6 @@ open Stdlib_stable.Iarray
 let _ = [: [: :] :];;
 
 [%%expect {|
-0
-module Array = Array
-0
 (makearray_imm[addr] (makearray_imm[gen]))
 - : 'a iarray iarray = [:[::]:]
 |}]
