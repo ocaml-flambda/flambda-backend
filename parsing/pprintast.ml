@@ -755,14 +755,20 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_variant (l,None) ->  pp f "`%a" ident_of_name l
     | Ppat_constraint (p, ct, m) ->
         let legacy, m = split_out_legacy_modes m in
-        begin match ct with
-        | Some ct ->
+        begin match ct, legacy with
+        | Some ct, [] | Some ({ ptyp_desc = Ptyp_poly _ } as ct), _ ->
             pp f "@[<2>(%a%a@;:@;%a%a)@]"
               optional_legacy_modes legacy
               (pattern1 ctxt) p
               (core_type ctxt) ct
               optional_atat_modes m
-        | None ->
+        | Some ct, _ :: _ ->
+            pp f "@[<2>(%a(%a@;:@;%a%a))@]"
+              optional_legacy_modes legacy
+              (pattern1 ctxt) p
+              (core_type ctxt) ct
+              optional_atat_modes m
+        | None, _ ->
             pp f "@[<2>(%a%a%a)@]"
               optional_legacy_modes legacy
               (pattern1 ctxt) p
@@ -1439,13 +1445,13 @@ and kind_abbrev ctxt f name jkind =
     (jkind_annotation ctxt) jkind
 
 and module_type ctxt f x =
+    match Jane_syntax.Module_type.of_ast x with
+    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
+    | None ->
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
-    match Jane_syntax.Module_type.of_ast x with
-    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
-    | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
         pp f "@[<hov2>() ->@ %a@]" (module_type ctxt) mt2
