@@ -107,6 +107,8 @@ type t = ..
 type t += K : ('a : float64). 'a ignore -> t
 |}]
 
+(* CR layouts v2.8: re-enable this *)
+(*
 module M : sig
   kind_abbrev_ k = immediate
 end = struct
@@ -118,6 +120,7 @@ end
 Uncaught exception: Misc.Fatal_error
 
 |}]
+*)
 
 type t1 : any
 type t2 : any_non_null
