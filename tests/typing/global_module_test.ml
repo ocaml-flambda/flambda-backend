@@ -15,10 +15,10 @@ module Test_data = struct
     (* This [let] is only here so that ocamlformat lets us add line breaks in
        the following. Note that, despite being disabled, ocamlformat insists on
        adding whitespace errors by indenting empty lines. *)
-
+  
     (* Here we imagine the following modules and parameters, with their
        parameters given in square brackets:
-
+  
        {v
          - X (parameter)
          - Y[X] (parameter)
@@ -33,7 +33,7 @@ module Test_data = struct
          - Opaque[I] : Conv[I][O:String]
          - Print[I][Conv[I][O:String]] (regular module)
        v}
-
+  
        Each [*_p] is an [I.param] and an untagged identifier is an [I.t].
        *)
     ()
