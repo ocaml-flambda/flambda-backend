@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension layouts_alpha -extension simd_beta";
+ flags = "-extension layouts_alpha";
  expect;
 *)
 

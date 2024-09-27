@@ -7,6 +7,9 @@
    flags = "-extension layouts_beta -extension simd_beta";
    native;
  }
+ {
+   native;
+ }
 *)
 (* Test compilation correctness for array of unboxed int64x2s. General
    tests around type-checking should go to [basics.ml]. *)

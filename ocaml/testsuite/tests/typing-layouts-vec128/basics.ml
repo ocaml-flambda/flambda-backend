@@ -1,6 +1,11 @@
 (* TEST
- flags = "-extension layouts_beta -extension simd_beta";
- expect;
+ {
+   flags = "-extension layouts_beta -extension simd_beta";
+   expect;
+ }
+ {
+   expect;
+ }
 *)
 
 (* This file contains typing tests for the layout [vec128].
