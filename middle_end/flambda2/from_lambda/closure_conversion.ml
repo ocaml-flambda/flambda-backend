@@ -136,12 +136,6 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
     acc, reg_width (RWC.naked_nativeint c), "unboxed_nativeint"
-  | Const_unboxed_vec128 { high; low } ->
-    ( acc,
-      reg_width
-        (RWC.naked_vec128
-           (Vector_types.Vec128.Bit_pattern.of_bits { high; low })),
-      "unboxed_vec128" )
   | Const_immstring c ->
     register_const acc dbg (SC.immutable_string c) "immstring"
   | Const_float_block c ->
@@ -205,8 +199,8 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
           | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
           | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
-      | Const_unboxed_vec128 _ | Const_block _ | Const_mixed_block _
-      | Const_float_array _ | Const_immstring _ | Const_float_block _ ->
+      | Const_block _ | Const_mixed_block _ | Const_float_array _
+      | Const_immstring _ | Const_float_block _ ->
         Misc.fatal_errorf
           "In constant mixed block, a field of kind Float_boxed contained the \
            constant %a"

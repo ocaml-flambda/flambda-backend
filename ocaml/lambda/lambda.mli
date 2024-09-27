@@ -521,8 +521,6 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
-  (* Not included in [constant] as vec128 constants cannot appear in the AST. *)
-  | Const_unboxed_vec128 of { high : int64; low : int64 }
 
 type tailcall_attribute =
   | Tailcall_expectation of bool

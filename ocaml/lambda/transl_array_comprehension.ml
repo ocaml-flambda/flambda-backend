@@ -727,8 +727,9 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
         Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
       )
     | Dynamic_size, Punboxedvectorarray Pvec128 ->
-      ( Mutable,
-        Resizable_array.make ~loc array_kind (unboxed_vec128 ~high:0L ~low:0L) )
+      (* The above cases are not actually allowed/tested yet. *)
+      Misc.fatal_error
+        "Comprehensions on arrays of unboxed types are not yet supported."
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 

@@ -563,7 +563,6 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
-  | Const_unboxed_vec128 of { high : int64; low : int64 }
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
@@ -1842,7 +1841,6 @@ let constant_layout: constant -> layout = function
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
-  | Const_unboxed_vec128 _ -> Punboxed_vector Pvec128
   | Const_mixed_block _ | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 

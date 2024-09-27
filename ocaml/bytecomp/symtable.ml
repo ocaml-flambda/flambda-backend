@@ -206,8 +206,6 @@ let rec transl_const = function
   | Const_base(Const_unboxed_int64 i) -> Obj.repr i
   | Const_base(Const_nativeint i)
   | Const_base(Const_unboxed_nativeint i) -> Obj.repr i
-  | Const_unboxed_vec128 _ ->
-    Misc.fatal_error "[Const_unboxed_vec128] not supported in bytecode."
   | Const_immstring s -> Obj.repr s
   | Const_block(tag, fields) ->
       let block = Obj.new_block tag (List.length fields) in
