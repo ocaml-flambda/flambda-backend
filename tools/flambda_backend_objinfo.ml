@@ -92,7 +92,7 @@ let print_cmo_infos cu =
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
   print_string "Required globals:\n";
-  List.iter print_required_global cu.cu_required_globals;
+  List.iter print_required_global cu.cu_required_compunits;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
   | [] -> printf "no\n"
@@ -235,7 +235,8 @@ let print_general_infos print_name name crc defines iter_cmi iter_cmx =
 
 let print_global_table table =
   printf "Globals defined:\n";
-  Symtable.iter_global_map (fun id _ -> print_line (Ident.name id)) table
+  Symtable.iter_global_map (fun id _ -> print_line (Symtable.Global.name id))
+    table
 
 open Cmx_format
 open Cmxs_format
@@ -431,7 +432,7 @@ let dump_obj_by_kind filename ic obj_kind =
     close_in ic;
     let cms = Cms_format.read filename in
     print_cms_infos cms
-  | Cmx _config ->
+  | Cmx ->
     let uir = (input_value ic : unit_infos_raw) in
     let first_section_offset = pos_in ic in
     seek_in ic (first_section_offset + uir.uir_sections_length);
@@ -440,7 +441,7 @@ let dump_obj_by_kind filename ic obj_kind =
     let sections = Flambda_backend_utils.File_sections.create
         uir.uir_section_toc filename ic ~first_section_offset in
     print_cmx_infos (uir, sections, crc)
-  | Cmxa _config ->
+  | Cmxa ->
     let li = (input_value ic : library_infos) in
     close_in ic;
     print_cmxa_infos li

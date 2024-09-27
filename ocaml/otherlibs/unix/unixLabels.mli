@@ -215,10 +215,11 @@ type wait_flag = Unix.wait_flag =
 (** Flags for {!waitpid}. *)
 
 val execv : prog:string -> args:string array -> 'a
-(** [execv ~prog ~args] execute the program in file [prog], with
-   the arguments [args], and the current process environment.
-   These [execv*] functions never return: on success, the current
-   program is replaced by the new one.
+(** [execv prog args] execute the program in file [prog], with the arguments
+   [args], and the current process environment.  Note that the first
+   argument, [args.(0)], is by convention the filename of the program being
+   executed, just like [Sys.argv.(0)]. These [execv*] functions never return:
+   on success, the current program is replaced by the new one.
 
    On Windows: the CRT simply spawns a new process and exits the
    current one. This will have unwanted consequences if e.g.
@@ -242,10 +243,15 @@ val execvpe : prog:string -> args:string array -> env:string array -> 'a
 
 val fork : unit -> int
 (** Fork a new process. The returned integer is 0 for the child
-   process, the pid of the child process for the parent process.
+   process, the pid of the child process for the parent process. It
+   fails if the OCaml process is multi-core (any domain has been
+   spawned). In addition, if any thread from the Thread module has
+   been spawned, then the child process might be in a corrupted state.
 
-   @raise Invalid_argument on Windows. Use {!create_process} or threads
-   instead. *)
+   @raise Invalid_argument on Windows. Use {!create_process} or
+   threads instead.
+
+   @raise Failure if any domain has been spawned. *)
 
 val wait : unit -> int * process_status
 (** Wait until one of the children processes die, and return its pid
@@ -376,12 +382,26 @@ val read : file_descr -> buf:bytes -> pos:int -> len:int -> int
     storing them in byte sequence [buf], starting at position [pos] in
     [buf]. Return the number of bytes actually read. *)
 
+val read_bigarray :
+  file_descr ->
+  buf:(_, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t ->
+  pos:int -> len:int -> int
+(** Same as {!read}, but read the data into a bigarray.
+    @since 5.2 *)
+
 val write : file_descr -> buf:bytes -> pos:int -> len:int -> int
 (** [write fd ~buf ~pos ~len] writes [len] bytes to descriptor [fd],
     taking them from byte sequence [buf], starting at position [pos]
     in [buff]. Return the number of bytes actually written.  [write]
     repeats the writing operation until all bytes have been written or
     an error occurs.  *)
+
+val write_bigarray :
+  file_descr ->
+  buf:(_, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t ->
+  pos:int -> len:int -> int
+(** Same as {!write}, but take the data from a bigarray.
+    @since 5.2 *)
 
 val single_write : file_descr -> buf:bytes -> pos:int -> len:int -> int
 (** Same as {!write}, but attempts to write only once.
@@ -398,6 +418,13 @@ val single_write_substring :
 (** Same as {!single_write}, but take the data from a string instead of
     a byte sequence.
     @since 4.02 *)
+
+val single_write_bigarray :
+  file_descr ->
+  buf:(_, Bigarray.int8_unsigned_elt, Bigarray.c_layout) Bigarray.Array1.t ->
+  pos:int -> len:int -> int
+(** Same as {!single_write}, but take the data from a bigarray.
+    @since 5.2 *)
 
 (** {1 Interfacing with the standard input/output library} *)
 
@@ -853,18 +880,18 @@ val mkfifo : string -> perm:file_perm -> unit
 val create_process :
   prog:string -> args:string array -> stdin:file_descr -> stdout:file_descr ->
     stderr:file_descr -> int
-(** [create_process ~prog ~args ~stdin ~stdout ~stderr]
-   creates a new process that executes the program
-   in file [prog], with arguments [args]. The pid of the new
-   process is returned immediately; the new process executes
-   concurrently with the current process.
-   The standard input and outputs of the new process are connected
-   to the descriptors [stdin], [stdout] and [stderr].
-   Passing e.g. {!Unix.stdout} for [stdout] prevents the redirection
-   and causes the new process to have the same standard output
-   as the current process.
-   The executable file [prog] is searched in the path.
-   The new process has the same environment as the current process. *)
+(** [create_process ~prog ~args ~stdin ~stdout ~stderr] creates a new process
+    that executes the program in file [prog], with arguments [args]. Note that
+    the first argument, [args.(0)], is by convention the filename of the
+    program being executed, just like [Sys.argv.(0)].
+    The pid of the new process is returned immediately; the new process
+    executes concurrently with the current process.  The standard input and
+    outputs of the new process are connected to the descriptors [stdin],
+    [stdout] and [stderr].  Passing e.g. {!Unix.stdout} for [stdout] prevents
+    the redirection and causes the new process to have the same standard
+    output as the current process.  The executable file [prog] is searched in
+    the path.  The new process has the same environment as the current
+    process. *)
 
 val create_process_env :
   prog:string -> args:string array -> env:string array -> stdin:file_descr ->
@@ -919,13 +946,25 @@ val open_process_full :
 
 val open_process_args : string -> string array -> in_channel * out_channel
 (** [open_process_args prog args] runs the program [prog] with arguments
+<<<<<<< HEAD
     [args].  Note that the first argument is by convention the filename of
     the program being executed, just like [Sys.argv.(0)].  The new process
     executes concurrently with the current process.  The standard input and
     output of the new process are redirected to pipes, which can be
+||||||| 121bedcfd2
+    [args].  Note that the first argument is by convention the filename of
+    the program being executed, just like {!Sys.argv.(0)}.  The new process
+    executes concurrently with the current process.  The standard input and
+    output of the new process are redirected to pipes, which can be
+=======
+    [args].  Note that the first argument, [args.(0)], is by convention the
+    filename of the program being executed, just like [Sys.argv.(0)].  The new
+    process executes concurrently with the current process.  The standard
+    input and output of the new process are redirected to pipes, which can be
+>>>>>>> 5.2.0
     respectively read and written via the returned channels.  The input
-    channel is connected to the output of the program, and the output
-    channel to the input of the program.
+    channel is connected to the output of the program, and the output channel
+    to the input of the program.
 
     Warning: writes on output channels are buffered, hence be careful to
     call {!Stdlib.flush} at the right times to ensure correct
@@ -962,26 +1001,26 @@ val open_process_args_full :
     @since 4.08 *)
 
 val process_in_pid : in_channel -> int
-(** Return the pid of a process opened via {!open_process_in} or
-   {!open_process_args_in}.
+(** Return the pid of a process opened via {!open_process_args_in} or
+   the pid of the shell opened via {!open_process_in}.
 
     @since 4.08 (4.12 in UnixLabels) *)
 
 val process_out_pid : out_channel -> int
-(** Return the pid of a process opened via {!open_process_out} or
-   {!open_process_args_out}.
+(** Return the pid of a process opened via {!open_process_args_out} or
+   the pid of the shell opened via {!open_process_out}.
 
     @since 4.08 (4.12 in UnixLabels) *)
 
 val process_pid : in_channel * out_channel -> int
-(** Return the pid of a process opened via {!open_process} or
-   {!open_process_args}.
+(** Return the pid of a process opened via {!open_process_args} or
+   the pid of the shell opened via {!open_process_args}.
 
     @since 4.08 (4.12 in UnixLabels) *)
 
 val process_full_pid : in_channel * out_channel * in_channel -> int
-(** Return the pid of a process opened via {!open_process_full} or
-   {!open_process_args_full}.
+(** Return the pid of a process opened via {!open_process_args_full} or
+   the pid of the shell opened via {!open_process_full}.
 
     @since 4.08 (4.12 in UnixLabels) *)
 
@@ -1561,7 +1600,7 @@ type socket_bool_option = Unix.socket_bool_option =
   | SO_ACCEPTCONN  (** Report whether socket listening is enabled *)
   | TCP_NODELAY    (** Control the Nagle algorithm for TCP sockets *)
   | IPV6_ONLY      (** Forbid binding an IPv6 socket to an IPv4 address *)
-  | SO_REUSEPORT   (** Allow reuse of address and port bindings *)
+  | SO_REUSEPORT   (** Allow reuse of address and port bindings. @since 4.12. *)
 (** The socket options that can be consulted with {!getsockopt}
    and modified with {!setsockopt}.  These options have a boolean
    ([true]/[false]) value. *)

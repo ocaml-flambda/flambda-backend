@@ -3,17 +3,25 @@
 type ('name, 'value) duplicate =
   | Duplicate of { name : 'name; value1 : 'value; value2 : 'value }
 
+module Argument : sig
+  type ('param, 'value) t = {
+    param : 'param;
+    value : 'value;
+  }
+end
+
 module Name : sig
   type t = private {
     head : string;
-    args : (t * t) list;
+    args : argument list;
   }
+  and argument = (t, t) Argument.t
 
   include Identifiable.S with type t := t
 
-  val create : string -> (t * t) list -> (t, (t, t) duplicate) Result.t
+  val create : string -> argument list -> (t, (t, t) duplicate) Result.t
 
-  val create_exn : string -> (t * t) list -> t
+  val create_exn : string -> argument list -> t
 
   val to_string : t -> string
 end
@@ -52,29 +60,24 @@ end
 *)
 type t = private {
   head : string;
-  visible_args : (Name.t * t) list;
-  hidden_args : (Name.t * t) list;
+  visible_args : argument list;
+  hidden_args : argument list;
 }
+and argument = (Name.t, t) Argument.t
 
 include Identifiable.S with type t := t
 
 val create
-   : string
-  -> (Name.t * t) list
-  -> hidden_args:(Name.t * t) list
+   : string -> argument list -> hidden_args:argument list
   -> (t, (Name.t, t) duplicate) Result.t
 
-val create_exn
-   : string
-  -> (Name.t * t) list
-  -> hidden_args:(Name.t * t) list
-  -> t
+val create_exn : string -> argument list -> hidden_args:argument list -> t
 
 val to_string : t -> string
 
 val to_name : t -> Name.t
 
-val all_args : t -> (Name.t * t) list
+val all_args : t -> argument list
 
 (** A map from parameter names to their values. Hidden arguments aren't relevant
     in the parameter names, so they're represented by [Name.t]s here. *)

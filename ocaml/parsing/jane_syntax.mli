@@ -129,74 +129,9 @@ module Jkind : sig
     | Mod of t * Parsetree.modes
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type
+    | Product of t list
 
   type annotation = t Location.loc
-end
-
-(** The ASTs for labeled tuples. When we merge this upstream, we'll replace
-    existing [P{typ,exp,pat}_tuple] constructors with these. *)
-module Labeled_tuples : sig
-  (** [tl] represents a product type:
-          - [T1 * ... * Tn]       when [tl] is [(None,T1);...;(None,Tn)]
-          - [L1:T1 * ... * Ln:Tn] when [tl] is [(Some L1,T1);...;(Some Ln,Tn)]
-          - A mix, e.g. [L1:T1,T2] when [tl] is [(Some L1,T1);(None,T2)]
-
-          Invariant: [n >= 2].
-      *)
-  type core_type = (string option * Parsetree.core_type) list
-
-  (** [el] represents
-          - [(E1, ..., En)]
-              when [el] is [(None, E1);...;(None, En)]
-          - [(~L1:E1, ..., ~Ln:En)]
-              when [el] is [(Some L1, E1);...;(Some Ln, En)]
-          - A mix, e.g.:
-              [(~L1:E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
-
-          Invariant: [n >= 2].
-      *)
-  type expression = (string option * Parsetree.expression) list
-
-  (** [(pl, Closed)] represents
-          - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
-          - [(L1:P1, ..., Ln:Pn)] when [pl] is
-                                              [(Some L1, P1);...;(Some Ln, Pn)]
-          - A mix, e.g. [(L1:P1, P2)] when [pl] is [(Some L1, P1);(None, P2)]
-          - If pattern is open, then it also ends in a [..]
-
-        Invariant:
-        - If Closed, [n >= 2].
-        - If Open, [n >= 1].
-      *)
-  type pattern = (string option * Parsetree.pattern) list * Asttypes.closed_flag
-
-  (** Embeds the core type in Jane Syntax only if there are any labels.
-      Otherwise, returns a normal [Ptyp_tuple].
-  *)
-  val typ_of : loc:Location.t -> core_type -> Parsetree.core_type
-
-  (** Embeds the expression in Jane Syntax only if there are any labels.
-      Otherwise, returns a normal [Pexp_tuple].
-  *)
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
-
-  (** Embeds the pattern in Jane Syntax only if there are any labels or
-      if the pattern is open. Otherwise, returns a normal [Ppat_tuple].
-  *)
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
-end
-
-(** The ASTs for [include functor].  When we merge this upstream, we'll merge
-    these into the existing [P{sig,str}_include] constructors (similar to what
-    we did with [T{sig,str}_include], but without depending on typechecking). *)
-module Include_functor : sig
-  type signature_item = Ifsig_include_functor of Parsetree.include_description
-
-  type structure_item = Ifstr_include_functor of Parsetree.include_declaration
-
-  val sig_item_of : loc:Location.t -> signature_item -> Parsetree.signature_item
-
-  val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
 end
 
 (** The ASTs for module type strengthening. *)
@@ -254,7 +189,7 @@ module Layouts : sig
        intervening [type_desc]. *)
     | Ltyp_alias of
         { aliased_type : Parsetree.core_type;
-          name : string option;
+          name : string Location.loc option;
           jkind : Jkind.annotation
         }
 
@@ -432,9 +367,7 @@ end
 
 (** Novel syntax in types *)
 module Core_type : sig
-  type t =
-    | Jtyp_layout of Layouts.core_type
-    | Jtyp_tuple of Labeled_tuples.core_type
+  type t = Jtyp_layout of Layouts.core_type
 
   include
     AST
@@ -462,7 +395,6 @@ module Expression : sig
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
-    | Jexp_tuple of Labeled_tuples.expression
 
   include
     AST
@@ -478,7 +410,6 @@ module Pattern : sig
   type t =
     | Jpat_immutable_array of Immutable_arrays.pattern
     | Jpat_layout of Layouts.pattern
-    | Jpat_tuple of Labeled_tuples.pattern
 
   include
     AST
@@ -504,18 +435,14 @@ end
 
 (** Novel syntax in signature items *)
 module Signature_item : sig
-  type t =
-    | Jsig_include_functor of Include_functor.signature_item
-    | Jsig_layout of Layouts.signature_item
+  type t = Jsig_layout of Layouts.signature_item
 
   include AST with type t := t and type ast := Parsetree.signature_item
 end
 
 (** Novel syntax in structure items *)
 module Structure_item : sig
-  type t =
-    | Jstr_include_functor of Include_functor.structure_item
-    | Jstr_layout of Layouts.structure_item
+  type t = Jstr_layout of Layouts.structure_item
 
   include AST with type t := t and type ast := Parsetree.structure_item
 end

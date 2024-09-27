@@ -87,7 +87,7 @@ let emit_wreg = function
 let initial_stack_offset f =
   8 * f.fun_num_stack_slots.(0) +
   8 * f.fun_num_stack_slots.(1) +
-  (if f.fun_contains_calls then 8 else 0)
+  (if f.fun_frame_required then 8 else 0)
 
 let frame_size env =
   let sz =
@@ -276,7 +276,7 @@ let emit_stack_adjustment n =
 
 let output_epilogue env f =
   let n = frame_size env in
-  if env.f.fun_contains_calls then
+  if env.f.fun_frame_required then
     `	ldr	x30, [sp, #{emit_int (n-8)}]\n`;
   if n > 0 then
     emit_stack_adjustment n;
@@ -445,10 +445,10 @@ module BR = Branch_relaxation.Make (struct
 
   let prologue_size f =
     (if initial_stack_offset f > 0 then 2 else 0)
-      + (if f.fun_contains_calls then 1 else 0)
+      + (if f.fun_frame_required then 1 else 0)
 
   let epilogue_size f =
-    if f.fun_contains_calls then 3 else 2
+    if f.fun_frame_required then 3 else 2
 
   let instr_size f = function
     | Lend -> 0
@@ -533,6 +533,7 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
     | Lop (Idls_get) -> 1
+    | Lop (Ireturn_addr) -> 1
     | Lreloadretaddr -> 0
     | Lreturn -> epilogue_size f
     | Llabel _ -> 0
@@ -701,11 +702,10 @@ let emit_instr env i =
     match i.desc with
     | Lend -> ()
     | Lprologue ->
-      assert (env.f.fun_prologue_required);
       let n = frame_size env in
       if n > 0 then
         emit_stack_adjustment (-n);
-      if env.f.fun_contains_calls then begin
+      if env.f.fun_frame_required then begin
         cfi_offset ~reg:30 (* return address *) ~offset:(-8);
         `	str	x30, [sp, #{emit_int (n-8)}]\n`
       end
@@ -785,9 +785,9 @@ let emit_instr env i =
 (* BACKPORT END *)
 (* BACKPORT
         end else begin
-          (* store ocaml stack in the frame pointer register
-             NB: no need to store previous x29 because OCaml frames don't
-             maintain frame pointer *)
+          (* Push frame pointer (x29) onto stack and restore later. *)
+          `	str	x29, [sp, -16]!\n`;
+          (* Store OCaml stack in the frame pointer register. *)
           `	mov	x29, sp\n`;
           cfi_remember_state ();
           cfi_def_cfa_register ~reg:29;
@@ -796,6 +796,7 @@ let emit_instr env i =
           `	mov	sp, {emit_reg reg_tmp1}\n`;
           `	bl	{emit_symbol func}\n`;
           `	mov	sp, x29\n`;
+          `	ldr	x29, [sp], 16\n`;
           cfi_restore_state ()
         end
 *)
@@ -938,10 +939,10 @@ let emit_instr env i =
         `	smulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
     | Lop(Iintop op) ->
         let instr = name_for_int_operation op in
-        `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
     | Lop(Iintop_imm(op, n)) ->
         let instr = name_for_int_operation op in
-        `	{emit_string instr}     {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
+        `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
     | Lop(Ifloatofint | Iintoffloat | Iabsf | Inegf | Ispecific Isqrtf as op) ->
         let instr = (match op with
                      | Ifloatofint      -> "scvtf"
@@ -1006,8 +1007,20 @@ let emit_instr env i =
 (* BACKPORT END *)
 (* BACKPORT
         let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
+<<<<<<< HEAD
         ` ldr {emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`
 *)
+||||||| 121bedcfd2
+        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`
+=======
+        `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`
+    | Lop(Ireturn_addr) ->
+        let n = frame_size env in
+        if env.f.fun_frame_required then
+          `	ldr	{emit_reg i.res.(0)}, [sp, #{emit_int (n-8)}]\n`
+        else
+          `	mov	{emit_reg i.res.(0)}, x30\n`
+>>>>>>> 5.2.0
     | Lreloadretaddr ->
         ()
     | Lreturn ->
@@ -1127,9 +1140,29 @@ let fundecl fundecl =
   `	.align	3\n`;
   `	.globl	{emit_symbol fundecl.fun_name}\n`;
   emit_symbol_type emit_symbol fundecl.fun_name "function";
+  (* Dynamic stack checking *)
+  let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
+  let max_frame_size = frame_size env + fundecl.fun_extra_stack_used in
+  let handle_overflow, stack_check_size =
+    if fundecl.fun_contains_nontail_calls
+    || max_frame_size >= stack_threshold_size then begin
+      let overflow = new_label () in
+      `{emit_label overflow}:\n`;
+      (* Pass the desired frame size on the stack, since all of the
+        argument-passing registers may be in use. *)
+      let s = (Config.stack_threshold + max_frame_size / 8) in
+      `	mov	{emit_reg reg_tmp1}, #{emit_int s}\n`;
+      `	stp	{emit_reg reg_tmp1}, x30, [sp, #-16]!\n`;
+      `	bl	{emit_symbol "caml_call_realloc_stack"}\n`;
+      `	ldp	{emit_reg reg_tmp1}, x30, [sp], #16\n`;
+      (* fall through function entry point *)
+      Some overflow, 5
+    end else
+      None, 0 in
   `{emit_symbol fundecl.fun_name}:\n`;
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc();
+<<<<<<< HEAD
   let num_call_gc, num_check_bound =
     num_call_gc_and_check_bound_points env
   in
@@ -1158,12 +1191,63 @@ let fundecl fundecl =
   end;
 *)
 
+||||||| 121bedcfd2
+  let num_call_gc, num_check_bound =
+    num_call_gc_and_check_bound_points env
+  in
+
+  (* Dynamic stack checking *)
+  let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
+  let { max_frame_size; contains_nontail_calls} =
+    preproc_stack_check
+      ~fun_body:fundecl.fun_body ~frame_size:(frame_size env) ~trap_size:16
+  in
+  let handle_overflow, stack_check_size =
+    if contains_nontail_calls || max_frame_size >= stack_threshold_size then begin
+      let overflow = new_label () and ret = new_label () in
+      let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
+      let f = max_frame_size + threshold_offset in
+      let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
+      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      emit_addimm reg_tmp1 reg_tmp1 f;
+      `	cmp	sp, {emit_reg reg_tmp1}\n`;
+      `	bcc	{emit_label overflow}\n`;
+      `{emit_label ret}:\n`;
+      Some (overflow, ret), 5
+    end else None, 0
+  in
+
+=======
+  begin match handle_overflow with
+  | None -> ()
+  | Some overflow ->
+      let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
+      let f = max_frame_size + threshold_offset in
+      let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
+      `	ldr	{emit_reg reg_tmp1}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`;
+      emit_addimm reg_tmp1 reg_tmp1 f;
+      `	cmp	sp, {emit_reg reg_tmp1}\n`;
+      `	bcc	{emit_label overflow}\n`
+  end;
+  let num_call_gc, num_check_bound =
+    num_call_gc_and_check_bound_points env
+  in
+>>>>>>> 5.2.0
   let max_out_of_line_code_offset =
+<<<<<<< HEAD
 (* BACKPORT
     !stack_check_size +
 *)
     max_out_of_line_code_offset ~num_call_gc
       ~num_check_bound
+||||||| 121bedcfd2
+    stack_check_size +
+    max_out_of_line_code_offset ~num_call_gc
+      ~num_check_bound
+=======
+    stack_check_size +
+    max_out_of_line_code_offset ~num_call_gc ~num_check_bound
+>>>>>>> 5.2.0
   in
 
   BR.relax fundecl ~max_out_of_line_code_offset;
@@ -1174,6 +1258,7 @@ let fundecl fundecl =
   assert (List.length env.call_gc_sites = num_call_gc);
   assert (List.length env.bound_error_sites = num_check_bound);
 
+<<<<<<< HEAD
 (* BACKPORT
   begin match !handle_overflow with
   | None -> ()
@@ -1191,6 +1276,24 @@ let fundecl fundecl =
   end;
 *)
 
+||||||| 121bedcfd2
+  begin match handle_overflow with
+  | None -> ()
+  | Some (overflow,ret) -> begin
+      `{emit_label overflow}:\n`;
+      (* Pass the desired frame size on the stack, since all of the
+        argument-passing registers may be in use. *)
+      let s = (Config.stack_threshold + max_frame_size / 8) in
+      `	mov	{emit_reg reg_tmp1}, #{emit_int s}\n`;
+      `	stp	{emit_reg reg_tmp1}, x30, [sp, #-16]!\n`;
+      `	bl	{emit_symbol "caml_call_realloc_stack"}\n`;
+      `	ldp	{emit_reg reg_tmp1}, x30, [sp], #16\n`;
+      `	b	{emit_label ret}\n`
+    end
+  end;
+
+=======
+>>>>>>> 5.2.0
   cfi_endproc();
   emit_symbol_type emit_symbol fundecl.fun_name "function";
   emit_symbol_size fundecl.fun_name;

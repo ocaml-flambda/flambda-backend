@@ -64,12 +64,12 @@ end
       Requires OCaml 5 runtime. *)
 module Mutex : sig
 
-    type 'k t
+    type 'k t : value mod portable uncontended
     (** ['k t] is the type of the mutex that controls access to
         the capsule ['k]. This mutex is created when creating
         the capsule ['k] using {!create_with_mutex}. *)
 
-    type packed = P : 'k t -> packed
+    type packed : value mod portable uncontended = P : 'k t -> packed
     (** [packed] is the type of a mutex for some unknown capsule.
         Unpacking one provides a ['k Mutex.t] together with a fresh
         existential type brand for ['k]. *)

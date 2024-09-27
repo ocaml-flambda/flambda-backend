@@ -501,6 +501,7 @@ let remove_option typ =
     | Tpoly _
     | Tarrow _
     | Ttuple _
+    | Tunboxed_tuple _
     | Tobject _
     | Tfield _
     | Tnil

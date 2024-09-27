@@ -66,8 +66,13 @@ let mk_load_atomic memory_chunk =
 let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
 
 type t =
-  | Scan_all
-  | Scan_prefix of int
+  | Regular_block
+  (* Regular blocks, including closures (with unboxed fields). Closures do *not*
+     need to be mixed block because they can make use of the startenv to skip
+     the unboxed part of the environment. *)
+  | Mixed_block of { scannable_prefix : int }
+(* Mixed blocks, that need special header to specify the length of the scannable
+   prefix. *)
 
 module Mixed_block_support : sig
   val assert_mixed_block_support : unit -> unit
@@ -136,15 +141,15 @@ end = struct
 end
 
 (* CR mshinwell: update to use NOT_MARKABLE terminology *)
-let block_header ?(scannable_prefix = Scan_all) tag sz =
+let block_header ?(block_kind = Regular_block) tag sz =
   let hdr =
     Nativeint.add
       (Nativeint.shift_left (Nativeint.of_int sz) 10)
       (Nativeint.of_int tag)
   in
-  match scannable_prefix with
-  | Scan_all -> hdr
-  | Scan_prefix scannable_prefix ->
+  match block_kind with
+  | Regular_block -> hdr
+  | Mixed_block { scannable_prefix } ->
     Mixed_block_support.make_header hdr ~scannable_prefix
 
 (* Static data corresponding to "value"s must be marked black in case we are in
@@ -154,11 +159,12 @@ let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 
 let black_mixed_block_header tag sz ~scannable_prefix_len =
   Nativeint.logor
-    (block_header tag sz ~scannable_prefix:(Scan_prefix scannable_prefix_len))
+    (block_header tag sz
+       ~block_kind:(Mixed_block { scannable_prefix = scannable_prefix_len }))
     caml_black
 
-let local_block_header ?scannable_prefix tag sz =
-  Nativeint.logor (block_header ?scannable_prefix tag sz) caml_local
+let local_block_header ?block_kind tag sz =
+  Nativeint.logor (block_header ?block_kind tag sz) caml_local
 
 let white_closure_header sz = block_header Obj.closure_tag sz
 
@@ -837,6 +843,38 @@ let unbox_vec128 dbg =
         Cconst_vec128 ({ low; high }, dbg) (* or keep _dbg? *)
       | _ -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
     | cmm -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
+
+(* Conversions for 16-bit floats *)
+
+let float_of_float16 dbg c =
+  Cop
+    ( Cextcall
+        { func = "caml_double_of_float16";
+          ty = typ_float;
+          alloc = false;
+          builtin = false;
+          returns = true;
+          effects = No_effects;
+          coeffects = No_coeffects;
+          ty_args = [XInt]
+        },
+      [c],
+      dbg )
+
+let float16_of_float dbg c =
+  Cop
+    ( Cextcall
+        { func = "caml_float16_of_double";
+          ty = typ_int;
+          alloc = false;
+          builtin = false;
+          returns = true;
+          effects = No_effects;
+          coeffects = No_coeffects;
+          ty_args = [XFloat]
+        },
+      [c],
+      dbg )
 
 (* Complex *)
 
@@ -1568,37 +1606,91 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
-    wordsize args =
+(* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code will
+   need to change. *)
+let memory_chunk_size_in_words_for_mixed_block = function
+  | (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed) as
+    memory_chunk ->
+    Misc.fatal_errorf
+      "Fields with memory chunk %s are not allowed in mixed blocks"
+      (Printcmm.chunk memory_chunk)
+  | Thirtytwo_unsigned | Thirtytwo_signed ->
+    (* Int32s are currently stored using a whole word *)
+    1
+  | Single _ | Double ->
+    (* Float32s are currently stored using a whole word *)
+    if size_float <> size_addr
+    then
+      Misc.fatal_error
+        "Unable to compile mixed blocks on a platform where a float is not the \
+         same width as a value.";
+    1
+  | Word_int | Word_val -> 1
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 2
+
+let alloc_generic_set_fn block ofs newval memory_chunk dbg =
+  let generic_case () =
+    let addr = array_indexing log2_size_addr block ofs dbg in
+    Cop (Cstore (memory_chunk, Initialization), [addr; newval], dbg)
+  in
+  match (memory_chunk : Cmm.memory_chunk) with
+  | Word_val ->
+    (* Values must go through "caml_initialize" *)
+    addr_array_initialize block ofs newval dbg
+  | Word_int -> generic_case ()
+  (* Generic cases that may differ under big endian archs *)
+  | Single _ | Double | Thirtytwo_unsigned | Thirtytwo_signed
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+    if Arch.big_endian
+    then
+      Misc.fatal_errorf
+        "Fields with memory_chunk %s are not supported on big-endian \
+         architectures"
+        (Printcmm.chunk memory_chunk);
+    generic_case ()
+  (* Forbidden cases *)
+  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+    Misc.fatal_errorf
+      "Fields with memory_chunk %s are not supported in generic allocations"
+      (Printcmm.chunk memory_chunk)
+
+let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
+    args_memory_chunks =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
   if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
       match mode with
-      | Lambda.Alloc_local -> local_block_header ~scannable_prefix tag wordsize
-      | Lambda.Alloc_heap -> block_header ~scannable_prefix tag wordsize
+      | Lambda.Alloc_local -> local_block_header ~block_kind tag wordsize
+      | Lambda.Alloc_heap -> block_header ~block_kind tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
     let id = V.create_local "*alloc*" in
-    let rec fill_fields idx = function
-      | [] -> Cvar id
-      | e1 :: el ->
+    let rec fill_fields idx args memory_chunks =
+      match args, memory_chunks with
+      | [], [] -> Cvar id
+      | e1 :: el, m1 :: ml ->
+        let ofs = memory_chunk_size_in_words_for_mixed_block m1 in
         Csequence
-          ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
-            fill_fields (idx + 1) el )
+          ( alloc_generic_set_fn (Cvar id) (int_const dbg idx) e1 m1 dbg,
+            fill_fields (idx + ofs) el ml )
+      | _ ->
+        Misc.fatal_errorf
+          "To_cmm_helpers.make_alloc_generic: mismatched list sizes between \
+           fields and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
-      match Config.runtime5, scannable_prefix with
-      | true, Scan_all -> "caml_alloc_shr_check_gc", [wordsize; tag]
-      | false, Scan_all -> "caml_alloc", [wordsize; tag]
-      | true, Scan_prefix prefix_len ->
+      match Config.runtime5, block_kind with
+      | true, Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | false, Regular_block -> "caml_alloc", [wordsize; tag]
+      | true, Mixed_block { scannable_prefix } ->
         Mixed_block_support.assert_mixed_block_support ();
-        "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
-      | false, Scan_prefix prefix_len ->
+        "caml_alloc_mixed_shr_check_gc", [wordsize; tag; scannable_prefix]
+      | false, Mixed_block { scannable_prefix } ->
         Mixed_block_support.assert_mixed_block_support ();
-        "caml_alloc_mixed", [wordsize; tag; prefix_len]
+        "caml_alloc_mixed", [wordsize; tag; scannable_prefix]
     in
     Clet
       ( VP.create id,
@@ -1615,71 +1707,73 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
               },
             List.map (fun arg -> Cconst_int (arg, dbg)) caml_alloc_args,
             dbg ),
-        fill_fields 0 args )
-
-let addr_array_init arr ofs newval dbg =
-  Cop
-    ( Cextcall
-        { func = "caml_initialize";
-          ty = typ_void;
-          alloc = false;
-          builtin = false;
-          returns = true;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects;
-          ty_args = []
-        },
-      [array_indexing log2_size_addr arr ofs dbg; newval],
-      dbg )
+        fill_fields 0 args args_memory_chunks )
 
 let make_alloc ~mode dbg ~tag args =
-  make_alloc_generic ~mode
-    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
-    dbg tag (List.length args) args
+  make_alloc_generic ~block_kind:Regular_block ~mode dbg tag (List.length args)
+    args
+    (List.map (fun _ -> Word_val) args)
 
 let make_float_alloc ~mode dbg ~tag args =
-  make_alloc_generic ~mode
-    (fun _ -> float_array_set)
-    dbg tag
+  make_alloc_generic ~block_kind:Regular_block ~mode dbg tag
     (List.length args * size_float / size_addr)
     args
+    (List.map (fun _ -> Double) args)
 
-module Flat_suffix_element = struct
-  type t =
-    | Tagged_immediate
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_int64_or_nativeint
-end
-
-let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size
-    ~(flat_suffix : Flat_suffix_element.t array) args =
-  (* args with shape [Float] must already have been unboxed. *)
-  let set_fn idx arr ofs newval dbg =
-    if idx < value_prefix_size
-    then addr_array_init arr ofs newval dbg
-    else
-      match flat_suffix.(idx - value_prefix_size) with
-      | Tagged_immediate -> int_array_set arr ofs newval dbg
-      | Naked_float -> float_array_set arr ofs newval dbg
-      | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
-      | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
-      | Naked_int64_or_nativeint ->
-        setfield_unboxed_int64_or_nativeint arr ofs newval dbg
-  in
+let make_closure_alloc ~mode dbg ~tag args args_memory_chunks =
   let size =
-    (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
-       will need to change. *)
-    value_prefix_size + Array.length flat_suffix
+    List.fold_left
+      (fun acc memory_chunk ->
+        acc + memory_chunk_size_in_words_for_mixed_block memory_chunk)
+      0 args_memory_chunks
   in
-  if size_float <> size_addr
-  then
-    Misc.fatal_error
-      "Unable to compile mixed blocks on a platform where a float is not the \
-       same width as a value.";
-  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_size) ~mode
-    set_fn dbg tag size args
+  make_alloc_generic ~block_kind:Regular_block ~mode dbg tag size args
+    args_memory_chunks
+
+let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
+  let size =
+    List.fold_left
+      (fun ofs memory_chunk ->
+        let ok () =
+          ofs + memory_chunk_size_in_words_for_mixed_block memory_chunk
+        in
+        let error situation =
+          Misc.fatal_errorf
+            "Fields with memory chunk %s are not allowed in %s.@\n\
+             value_prefix_size: %d@\n\
+             args: @[<v>%a@]@\n\
+             chunks: @[<v>%a@]@."
+            (Printcmm.chunk memory_chunk)
+            situation value_prefix_size
+            (Format.pp_print_list Printcmm.expression)
+            args
+            (Format.pp_print_list Format.pp_print_string)
+            (List.map Printcmm.chunk args_memory_chunks)
+        in
+        if ofs < value_prefix_size
+        then
+          (* regular scanned part of a block *)
+          match memory_chunk with
+          | Word_int | Word_val -> ok ()
+          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+            error "mixed blocks"
+          | Thirtytwo_unsigned | Thirtytwo_signed | Single _ | Double
+          | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+            error "the value prefix of a mixed block"
+        else
+          (* flat suffix part of the block *)
+          match memory_chunk with
+          | Word_int | Thirtytwo_unsigned | Thirtytwo_signed | Double
+          | Onetwentyeight_unaligned | Onetwentyeight_aligned | Single _ ->
+            ok ()
+          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+            error "mixed blocks"
+          | Word_val -> error "the flat suffix of a mixed block")
+      0 args_memory_chunks
+  in
+  make_alloc_generic
+    ~block_kind:(Mixed_block { scannable_prefix = value_prefix_size })
+    ~mode dbg tag size args args_memory_chunks
 
 (* Record application and currying functions *)
 
@@ -1727,6 +1821,7 @@ let curry_function_sym function_kind arity result =
 
 let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
   | Pbigarray_unknown -> assert false
+  | Pbigarray_float16 -> 2
   | Pbigarray_float32 -> 4
   | Pbigarray_float32_t -> 4
   | Pbigarray_float64 -> 8
@@ -1743,6 +1838,7 @@ let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
 
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_unknown -> assert false
+  | Pbigarray_float16 -> Sixteen_unsigned
   | Pbigarray_float32 -> Single { reg = Float64 }
   | Pbigarray_float32_t -> Single { reg = Float32 }
   | Pbigarray_float64 -> Double
@@ -3883,6 +3979,9 @@ let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
     box_complex dbg
       (load ~dbg elt_chunk Mutable ~addr)
       (load ~dbg elt_chunk Mutable ~addr:addr')
+  | Pbigarray_float16 ->
+    assert (match elt_chunk with Sixteen_unsigned -> true | _ -> false);
+    float_of_float16 dbg (load ~dbg elt_chunk Mutable ~addr)
   | _ ->
     (* Note that no sign extension operation is necessary here: if the element
        type of the bigarray is signed, then the backend will emit a
@@ -3905,6 +4004,10 @@ let bigarray_store ~dbg ~(elt_kind : Lambda.bigarray_kind) ~elt_size ~elt_chunk
             ~new_value:(complex_re new_value dbg))
          (store ~dbg elt_chunk Assignment ~addr:addr'
             ~new_value:(complex_im new_value dbg)))
+  | Pbigarray_float16 ->
+    assert (match elt_chunk with Sixteen_unsigned -> true | _ -> false);
+    let new_value = float16_of_float dbg new_value in
+    return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value)
   | _ -> return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value)
 
 (* Infix field address. Contrary to regular field addresses, these addresses are
@@ -4170,13 +4273,17 @@ let run_stack ~dbg ~stack ~f ~arg =
       [Cconst_symbol (Cmm.global_symbol "caml_runstack", dbg); stack; f; arg],
       dbg )
 
-let resume ~dbg ~stack ~f ~arg =
+let resume ~dbg ~stack ~f ~arg ~last_fiber =
   (* Rc_normal is required here, because there are some uses of effects with
      repeated resumes, and these should consume O(1) stack space by tail-calling
      caml_resume. *)
   Cop
     ( Capply (typ_val, Rc_normal),
-      [Cconst_symbol (Cmm.global_symbol "caml_resume", dbg); stack; f; arg],
+      [ Cconst_symbol (Cmm.global_symbol "caml_resume", dbg);
+        stack;
+        f;
+        arg;
+        last_fiber ],
       dbg )
 
 let reperform ~dbg ~eff ~cont ~last_fiber =
@@ -4189,3 +4296,5 @@ let reperform ~dbg ~eff ~cont ~last_fiber =
         cont;
         last_fiber ],
       dbg )
+
+let poll ~dbg = return_unit dbg (Cop (Cpoll, [], dbg))

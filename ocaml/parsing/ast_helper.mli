@@ -72,17 +72,21 @@ module Typ :
     val var: ?loc:loc -> ?attrs:attrs -> string -> core_type
     val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> core_type ->
       mode with_loc list -> mode with_loc list -> core_type
-    val tuple: ?loc:loc -> ?attrs:attrs -> core_type list -> core_type
+    val tuple: ?loc:loc -> ?attrs:attrs -> (string option * core_type) list -> core_type
+    val unboxed_tuple: ?loc:loc -> ?attrs:attrs
+                       -> (string option * core_type) list -> core_type
     val constr: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
     val object_: ?loc:loc -> ?attrs:attrs -> object_field list
                    -> closed_flag -> core_type
     val class_: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
-    val alias: ?loc:loc -> ?attrs:attrs -> core_type -> string -> core_type
+    val alias: ?loc:loc -> ?attrs:attrs -> core_type -> string with_loc
+               -> core_type
     val variant: ?loc:loc -> ?attrs:attrs -> row_field list -> closed_flag
                  -> label list option -> core_type
     val poly: ?loc:loc -> ?attrs:attrs -> str list -> core_type -> core_type
     val package: ?loc:loc -> ?attrs:attrs -> lid -> (lid * core_type) list
                  -> core_type
+    val open_ : ?loc:loc -> ?attrs:attrs -> lid -> core_type -> core_type
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> core_type
 
     val force_poly: core_type -> core_type
@@ -109,7 +113,11 @@ module Pat:
     val alias: ?loc:loc -> ?attrs:attrs -> pattern -> str -> pattern
     val constant: ?loc:loc -> ?attrs:attrs -> constant -> pattern
     val interval: ?loc:loc -> ?attrs:attrs -> constant -> constant -> pattern
-    val tuple: ?loc:loc -> ?attrs:attrs -> pattern list -> pattern
+    val tuple: ?loc:loc -> ?attrs:attrs -> (string option * pattern) list ->
+      closed_flag -> pattern
+    val unboxed_tuple: ?loc:loc -> ?attrs:attrs
+                       -> (string option * pattern) list -> closed_flag
+                       -> pattern
     val construct: ?loc:loc -> ?attrs:attrs ->
       lid -> (str list * pattern) option -> pattern
     val variant: ?loc:loc -> ?attrs:attrs -> label -> pattern option -> pattern
@@ -145,7 +153,9 @@ module Exp:
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list
                 -> expression
     val try_: ?loc:loc -> ?attrs:attrs -> expression -> case list -> expression
-    val tuple: ?loc:loc -> ?attrs:attrs -> expression list -> expression
+    val tuple: ?loc:loc -> ?attrs:attrs -> (string option * expression) list -> expression
+    val unboxed_tuple: ?loc:loc -> ?attrs:attrs
+                       -> (string option * expression) list -> expression
     val construct: ?loc:loc -> ?attrs:attrs -> lid -> expression option
                    -> expression
     val variant: ?loc:loc -> ?attrs:attrs -> label -> expression option
@@ -301,7 +311,8 @@ module Sig:
     val modtype: ?loc:loc -> module_type_declaration -> signature_item
     val modtype_subst: ?loc:loc -> module_type_declaration -> signature_item
     val open_: ?loc:loc -> open_description -> signature_item
-    val include_: ?loc:loc -> include_description -> signature_item
+    val include_: ?loc:loc -> ?modalities:modalities -> include_description ->
+      signature_item
     val class_: ?loc:loc -> class_description list -> signature_item
     val class_type: ?loc:loc -> class_type_declaration list -> signature_item
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> signature_item
@@ -370,7 +381,8 @@ module Opn:
 (** Includes *)
 module Incl:
   sig
-    val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> 'a -> 'a include_infos
+    val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> ?kind:include_kind -> 'a
+      -> 'a include_infos
   end
 
 (** Value bindings *)

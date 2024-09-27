@@ -1,8 +1,9 @@
 (* TEST
  modules = "tscanf2_io.ml";
- include unix;
  readonly_files = "tscanf2_worker.ml";
  reference = "${test_source_directory}/tscanf2.reference";
+ include systhreads;
+ hassysthreads;
  hasunix;
  {
    (* The bytecode test *)

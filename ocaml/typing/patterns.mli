@@ -41,6 +41,7 @@ module Simple : sig
     | `Any
     | `Constant of constant
     | `Tuple of (string option * pattern) list
+    | `Unboxed_tuple of (string option * pattern * Jkind.sort) list
     | `Construct of
         Longident.t loc * constructor_description * pattern list
     | `Variant of label * pattern option * row_desc ref
@@ -82,6 +83,7 @@ module Head : sig
     | Construct of constructor_description
     | Constant of constant
     | Tuple of string option list
+    | Unboxed_tuple of (string option * Jkind.sort) list
     | Record of label_description list
     | Variant of
         { tag: label; has_arg: bool;

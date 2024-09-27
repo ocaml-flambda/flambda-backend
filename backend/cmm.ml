@@ -267,6 +267,7 @@ type operation =
   | Cbeginregion | Cendregion
   | Ctuple_field of int * machtype array
   | Cdls_get
+  | Cpoll
 
 type kind_for_unboxing =
   | Any
@@ -356,6 +357,14 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
+
+let width_in_bytes (memory_chunk : memory_chunk) : int =
+  match memory_chunk with
+  | Byte_unsigned | Byte_signed -> 1
+  | Sixteen_unsigned | Sixteen_signed -> 2
+  | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
+  | Word_int | Word_val | Double -> 8
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
 
 let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)

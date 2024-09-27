@@ -121,7 +121,34 @@ let get_stored_string () = Buffer.contents string_buffer
 let store_string_char c = Buffer.add_char string_buffer c
 let store_string_utf_8_uchar u = Buffer.add_utf_8_uchar string_buffer u
 let store_string s = Buffer.add_string string_buffer s
+let store_substring s ~pos ~len = Buffer.add_substring string_buffer s pos len
+
 let store_lexeme lexbuf = store_string (Lexing.lexeme lexbuf)
+let store_normalized_newline newline =
+  (* #12502: we normalize "\r\n" to "\n" at lexing time,
+     to avoid behavior difference due to OS-specific
+     newline characters in string literals.
+
+     (For example, Git for Windows will translate \n in versioned
+     files into \r\n sequences when checking out files on Windows. If
+     your code contains multiline quoted string literals, the raw
+     content of the string literal would be different between Git for
+     Windows users and all other users. Thanks to newline
+     normalization, the value of the literal as a string constant will
+     be the same no matter which programming tools are used.)
+
+     Many programming languages use the same approach, for example
+     Java, Javascript, Kotlin, Python, Swift and C++.
+  *)
+  (* Our 'newline' regexp accepts \r*\n, but we only wish
+     to normalize \r?\n into \n -- see the discussion in #12502.
+     All carriage returns except for the (optional) last one
+     are reproduced in the output. We implement this by skipping
+     the first carriage return, if any. *)
+  let len = String.length newline in
+  if len = 1
+  then store_string_char '\n'
+  else store_substring newline ~pos:1 ~len:(len - 1)
 
 (* To store the position of the beginning of a string and comment *)
 let string_start_loc = ref Location.none
@@ -459,7 +486,7 @@ let prepare_error loc = function
       Location.error ~loc ~sub msg
   | Keyword_as_label kwd ->
       Location.errorf ~loc
-        "`%s' is a keyword, it cannot be used as label name" kwd
+        "%a is a keyword, it cannot be used as label name" Style.inline_code kwd
   | Invalid_literal s ->
       Location.errorf ~loc "Invalid literal %s" s
   | Invalid_directive (dir, explanation) ->
@@ -524,6 +551,7 @@ let hex_float_literal =
   ('.' ['0'-'9' 'A'-'F' 'a'-'f' '_']* )?
   (['p' 'P'] ['+' '-']? ['0'-'9'] ['0'-'9' '_']* )?
 let literal_modifier = ['G'-'Z' 'g'-'z']
+let raw_ident_escape = "\\#"
 
 rule token = parse
   | ('\\' as bs) newline {
@@ -542,6 +570,8 @@ rule token = parse
   | ".~"
       { error lexbuf
           (Reserved_sequence (".~", Some "is reserved for use in MetaOCaml")) }
+  | "~" raw_ident_escape (lowercase identchar * as name) ':'
+      { LABEL name }
   | "~" (lowercase identchar * as name) ':'
       { check_label_name lexbuf name;
         LABEL name }
@@ -550,6 +580,8 @@ rule token = parse
         LABEL name }
   | "?"
       { QUESTION }
+  | "?" raw_ident_escape (lowercase identchar * as name) ':'
+      { OPTLABEL name }
   | "?" (lowercase identchar * as name) ':'
       { check_label_name lexbuf name;
         OPTLABEL name }
@@ -567,6 +599,8 @@ rule token = parse
       (* See Note [Lexing hack for float#] *)
       { enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf;
         lookup_keyword name }
+  | raw_ident_escape (lowercase identchar * as name)
+      { LIDENT name }
   | lowercase identchar * as name
       { lookup_keyword name }
   (* Lowercase latin1 identifiers are split into 3 cases, and the order matters
@@ -652,7 +686,7 @@ rule token = parse
       { CHAR(char_for_octal_code lexbuf 3) }
   | "\'\\" 'x' ['0'-'9' 'a'-'f' 'A'-'F'] ['0'-'9' 'a'-'f' 'A'-'F'] "\'"
       { CHAR(char_for_hexadecimal_code lexbuf 3) }
-  | "\'" ("\\" _ as esc)
+  | "\'" ("\\" [^ '#'] as esc)
       { error lexbuf (Illegal_escape (esc, None)) }
   | "\'\'"
       { error lexbuf Empty_character_literal }
@@ -705,6 +739,7 @@ rule token = parse
   | "\'" { QUOTE }
   | "("  { LPAREN }
   | ")"  { RPAREN }
+  | "#(" { HASHLPAREN }
   | "*"  { STAR }
   | ","  { COMMA }
   | "->" { MINUSGREATER }
@@ -872,9 +907,11 @@ and comment = parse
         comment lexbuf }
   | "\'\'"
       { store_lexeme lexbuf; comment lexbuf }
-  | "\'" newline "\'"
+  | "\'" (newline as nl) "\'"
       { update_loc lexbuf None 1 false 1;
-        store_lexeme lexbuf;
+        store_string_char '\'';
+        store_normalized_newline nl;
+        store_string_char '\'';
         comment lexbuf
       }
   | "\'" [^ '\\' '\'' '\010' '\013' ] "\'"
@@ -895,9 +932,9 @@ and comment = parse
           comment_start_loc := [];
           error_loc loc (Unterminated_comment start)
       }
-  | newline
+  | newline as nl
       { update_loc lexbuf None 1 false 0;
-        store_lexeme lexbuf;
+        store_normalized_newline nl;
         comment lexbuf
       }
   | ident
@@ -908,9 +945,13 @@ and comment = parse
 and string = parse
     '\"'
       { lexbuf.lex_start_p }
-  | '\\' newline ([' ' '\t'] * as space)
+  | '\\' (newline as nl) ([' ' '\t'] * as space)
       { update_loc lexbuf None 1 false (String.length space);
-        if in_comment () then store_lexeme lexbuf;
+        if in_comment () then begin
+          store_string_char '\\';
+          store_normalized_newline nl;
+          store_string space;
+        end;
         string lexbuf
       }
   | '\\' (['\\' '\'' '\"' 'n' 't' 'b' 'r' ' '] as c)
@@ -939,11 +980,9 @@ and string = parse
         store_lexeme lexbuf;
         string lexbuf
       }
-  | newline
-      { if not (in_comment ()) then
-          Location.prerr_warning (Location.curr lexbuf) Warnings.Eol_in_string;
-        update_loc lexbuf None 1 false 0;
-        store_lexeme lexbuf;
+  | newline as nl
+      { update_loc lexbuf None 1 false 0;
+        store_normalized_newline nl;
         string lexbuf
       }
   | eof
@@ -954,9 +993,9 @@ and string = parse
         string lexbuf }
 
 and quoted_string delim = parse
-  | newline
+  | newline as nl
       { update_loc lexbuf None 1 false 0;
-        store_lexeme lexbuf;
+        store_normalized_newline nl;
         quoted_string delim lexbuf
       }
   | eof

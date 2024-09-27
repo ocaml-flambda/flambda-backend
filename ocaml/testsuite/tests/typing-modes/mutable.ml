@@ -78,19 +78,19 @@ let foo (s @ portable) = ({s} : _ @@ portable)
 Line 1, characters 26-29:
 1 | let foo (s @ portable) = ({s} : _ @@ portable)
                               ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* This attribute doesn't disable implied modalities on monadic axes. For
-   example, there is a [shared] modality on the [s] field, which allows the
+   example, there is a [aliased] modality on the [s] field, which allows the
    following to type check. Otherwise, new values in mutation are required to be
    [unique]. *)
-let foo r (s @ shared) = r.s <- s
+let foo r (s @ aliased) = r.s <- s
 [%%expect{|
 val foo : 'a r -> 'a -> unit = <fun>
 |}]
 
-let foo (s @ shared) = ({s} : _ @@ unique)
+let foo (s @ aliased) = ({s} : _ @@ unique)
 [%%expect{|
 val foo : 'a -> 'a r = <fun>
 |}]
@@ -100,7 +100,7 @@ let foo (r @ unique) = (r.s : _ @@ unique)
 Line 1, characters 24-27:
 1 | let foo (r @ unique) = (r.s : _ @@ unique)
                             ^^^
-Error: This value is shared but expected to be unique.
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 module M : sig
@@ -123,9 +123,9 @@ Error: Signature mismatch:
        is not included in
          type t = { mutable s : string; }
        Fields do not match:
-         mutable s : string;
+         "mutable s : string;"
        is not the same as:
-         mutable s : string;
+         "mutable s : string;"
        The first is global_ and the second is not.
 |}]
 
@@ -149,9 +149,9 @@ Error: Signature mismatch:
        is not included in
          type t = { mutable s : string; }
        Fields do not match:
-         mutable s : string;
+         "mutable s : string;"
        is not the same as:
-         mutable s : string;
+         "mutable s : string;"
        The second is global_ and the first is not.
 |}]
 
@@ -167,7 +167,7 @@ type r = { f : string -> string; mutable a : int; }
 Lines 5-6, characters 2-12:
 5 | ..{ f = (fun x -> x);
 6 |     a = 42 }
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 type r =
@@ -183,5 +183,5 @@ type r = { f : string -> string; mutable g : string -> string @@ portable; }
 Lines 5-6, characters 2-20:
 5 | ..{ f = (fun x -> x);
 6 |     g = fun x -> x }
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]

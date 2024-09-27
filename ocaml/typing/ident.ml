@@ -29,7 +29,7 @@ type t =
   | Global_with_args of global
       (* must have non-empty [args] *)
 and global = Global_module.Name.t = private
-  { head: string; args: (global * global) list }
+  { head: string; args: Global_module.Name.argument list }
 
 (* A stamp of 0 denotes a persistent identifier *)
 

@@ -46,9 +46,11 @@ end
 module TransientTypeHash = Hashtbl.Make(TransientTypeOps)
 module TypeHash = struct
   include TransientTypeHash
+  let mem hash = wrap_repr (mem hash)
   let add hash = wrap_repr (add hash)
   let remove hash = wrap_repr (remove hash)
   let find hash = wrap_repr (find hash)
+  let find_opt hash = wrap_repr (find_opt hash)
   let iter f = TransientTypeHash.iter (wrap_type_expr f)
 end
 module TransientTypePairs =
@@ -129,6 +131,10 @@ let is_Tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false
 let is_Tpoly ty = match get_desc ty with Tpoly _ -> true | _ -> false
 let type_kind_is_abstract decl =
   match decl.type_kind with Type_abstract _ -> true | _ -> false
+let type_origin decl =
+  match decl.type_kind with
+  | Type_abstract origin -> origin
+  | Type_variant _ | Type_record _ | Type_open -> Definition
 
 let dummy_method = "*dummy method*"
 
@@ -270,6 +276,7 @@ let fold_type_expr f init ty =
       let result = f init ty1 in
       f result ty2
   | Ttuple l            -> List.fold_left f init (List.map snd l)
+  | Tunboxed_tuple l    -> List.fold_left f init (List.map snd l)
   | Tconstr (_, l, _)   -> List.fold_left f init l
   | Tobject(ty, {contents = Some (_, p)}) ->
       let result = f init ty in
@@ -450,6 +457,8 @@ let rec copy_type_desc ?(keep_names=false) f = function
      if keep_names then tv else Tvar { name=None; jkind }
   | Tarrow (p, ty1, ty2, c)-> Tarrow (p, f ty1, f ty2, copy_commu c)
   | Ttuple l            -> Ttuple (List.map (fun (label, t) -> label, f t) l)
+  | Tunboxed_tuple l    ->
+    Tunboxed_tuple (List.map (fun (label, t) -> label, f t) l)
   | Tconstr (p, l, _)   -> Tconstr (p, List.map f l, ref Mnil)
   | Tobject(ty, {contents = Some (p, tl)})
                         -> Tobject (f ty, ref (Some(p, List.map f tl)))

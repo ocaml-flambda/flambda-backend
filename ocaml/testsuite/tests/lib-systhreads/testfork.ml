@@ -3,6 +3,7 @@
  hassysthreads;
  not-bsd;
  libunix;
+ no-tsan; (* tsan limitation: starting new threads after fork is not supported *)
  {
    bytecode;
  }{
@@ -36,7 +37,9 @@ let main () =
       exit 0
   | pid ->
       print_string "In parent..."; print_newline();
-      Thread.delay 0.4;
+      let pid', stat = Unix.waitpid [WUNTRACED] pid in
+      assert (pid = pid');
+      assert (stat = WEXITED 0);
       print_string "Parent is exiting."; print_newline();
       exit 0
 

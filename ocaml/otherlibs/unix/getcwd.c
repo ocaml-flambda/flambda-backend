@@ -19,9 +19,9 @@
 #include <caml/alloc.h>
 #include <caml/fail.h>
 #include <caml/osdeps.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
-#if !defined (_WIN32) && !macintosh
+#if !defined(_WIN32)
 #include <sys/param.h>
 #endif
 

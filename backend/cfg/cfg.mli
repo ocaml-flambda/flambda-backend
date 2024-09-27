@@ -202,6 +202,8 @@ val set_stack_offset : 'a instruction -> int -> unit
 
 val string_of_irc_work_list : irc_work_list -> string
 
+val dump_operation : Format.formatter -> operation -> unit
+
 val dump_basic : Format.formatter -> basic -> unit
 
 val dump_terminator : ?sep:string -> Format.formatter -> terminator -> unit

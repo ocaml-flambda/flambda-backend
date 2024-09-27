@@ -92,6 +92,16 @@ and type_desc =
       [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
 
+  | Tunboxed_tuple of (string option * type_expr) list
+  (** [Tunboxed_tuple [None, t1; ...; None, tn]] ==> [#(t1 * ... * tn)]
+      [Tunboxed_tuple [Some "l1", t1; ...; Some "ln", tn]]
+                  ==> [#(l1:t1 * ... * ln:tn)]
+
+      Any mix of labeled and unlabeled components also works:
+      [Tunboxed_tuple [Some "l1", t1; None, t2; Some "l3", t3]]
+           ==> [#(l1:t1 * t2 * l3:t3)]
+  *)
+
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
   (** [Tconstr (`A.B.t', [t1;...;tn], _)] ==> [(t1,...,tn) A.B.t]
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)
@@ -541,7 +551,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of abstract_reason
+    Type_abstract of type_origin
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -560,10 +570,6 @@ and ('lbl, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t * jkind array
-
-and abstract_reason =
-    Abstract_def
-  | Abstract_rec_check_regularity       (* See Typedecl.transl_type_decl *)
 
 (* A mixed product contains a possibly-empty prefix of values followed by a
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
@@ -584,6 +590,11 @@ and mixed_product_shape =
     (* We use an array just so we can index into the middle. *)
     flat_suffix : flat_element array;
   }
+
+and type_origin =
+    Definition
+  | Rec_check_regularity       (* See Typedecl.transl_type_decl *)
+  | Existential of string
 
 and record_representation =
   | Record_unboxed

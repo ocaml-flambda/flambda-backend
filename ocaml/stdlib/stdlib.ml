@@ -608,7 +608,11 @@ module Complex        = Complex
 module Condition      = Condition
 module Digest         = Digest
 module Domain         = Domain
+module Dynarray       = Dynarray
+(* CR ocaml 5 effects:
+   BACKPORT
 module Effect         = Effect
+*)
 module Either         = Either
 module Ephemeron      = Ephemeron
 module Filename       = Filename

@@ -50,7 +50,8 @@ module Typedtree_search =
 
     let iter_val_pattern = function
       | Typedtree.Tpat_any -> None
-      | Typedtree.Tpat_var (name, _, _, _) -> Some (Name.from_ident name)
+      | Typedtree.Tpat_var (name, _, _, _)
+      | Typedtree.Tpat_alias (_, name, _, _, _)  -> Some (Name.from_ident name)
       | Typedtree.Tpat_tuple _ -> None (* FIXME when we will handle tuples *)
       | _ -> None
 
@@ -351,7 +352,8 @@ module Analyser =
              val_info = comment_opt ;
              val_type = Odoc_env.subst_type env pat.Typedtree.pat_type ;
              val_recursive = rec_flag = Asttypes.Recursive ;
-             val_parameters = tt_analyse_function_parameters env comment_opt params body ;
+             val_parameters =
+               tt_analyse_function_parameters env comment_opt params body ;
              val_code = code ;
              val_loc = { loc_impl = Some loc ; loc_inter = None } ;
            }
@@ -1012,13 +1014,9 @@ module Analyser =
      in
      (0, env, [ Element_included_module im ]) (* FIXME: extend the environment? With what? *)
 
-   and analyse_structure_item_jst env _current_module_name _loc _pos_limit comment_opt jstritem _typedtree
+   and analyse_structure_item_jst _env _current_module_name _loc _pos_limit _comment_opt jstritem _typedtree
         _table _table_values =
      match (jstritem : Jane_syntax.Structure_item.t) with
-      | Jstr_include_functor ifincl -> begin match ifincl with
-          | Ifstr_include_functor incl ->
-              analyse_structure_item_include ~env ~comment_opt incl
-        end
       | Jstr_layout (Lstr_kind_abbrev _) ->
         Misc.fatal_error "Lstr_kind_abbrev"
 
@@ -1868,7 +1866,7 @@ module Analyser =
        let (tree_structure, _) = typedtree in
        prepare_file source_file input_file;
        (* We create the t_module for this file. *)
-       let mod_name = String.capitalize_ascii (Filename.basename (Filename.chop_extension source_file)) in
+       let mod_name = Unit_info.modname_from_source source_file in
        let len, info_opt = Sig.preamble !file_name !file
            (fun x -> x.Parsetree.pstr_loc) parsetree in
       let info_opt = analyze_toplevel_alerts info_opt parsetree in

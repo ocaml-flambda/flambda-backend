@@ -21,7 +21,7 @@
 #include <caml/alloc.h>
 #include <caml/io.h>
 #include <caml/signals.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
 #ifdef HAS_UNISTD
 #include <unistd.h>
@@ -35,7 +35,7 @@
 #define EOVERFLOW ERANGE
 #endif
 
-static int seek_command_table[] = {
+static const int seek_command_table[] = {
   SEEK_SET, SEEK_CUR, SEEK_END
 };
 

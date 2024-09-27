@@ -216,7 +216,7 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
 
 let mk_add_type add_type
       ?manifest type_ident
-      ?(kind=Type_abstract Abstract_def)
+      ?(kind=Type_abstract Definition)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -246,7 +246,7 @@ let mk_add_type add_type
   add_type type_ident decl env
 
 let mk_add_type1 add_type type_ident
-      ?(kind=fun _ -> Type_abstract Abstract_def)
+      ?(kind=fun _ -> Type_abstract Definition)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
@@ -289,8 +289,10 @@ let mk_add_extension add_extension id args jkinds =
       | Const const ->
           begin
             match Jkind.Const.get_layout const with
-            | Sort Value -> ()
-            | Any | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64) ->
+            | Base Value -> ()
+            | Any
+            | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64)
+            | Product _ ->
                 raise_error ()
           end
       | _ -> raise_error ())
@@ -421,7 +423,8 @@ let build_initial_env add_type add_extension empty_env =
          in
          let immediate = Jkind.Builtin.value ~why:(Primitive ident_int) in
          let labels = List.map lbl [
-           ("pos_fname", type_string, Jkind.Builtin.value ~why:(Primitive ident_string));
+           ("pos_fname", type_string, (Jkind.of_const ~why:(Primitive ident_string)
+                                          Jkind.Const.Builtin.immutable_data.jkind));
            ("pos_lnum", type_int, immediate);
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
@@ -431,7 +434,9 @@ let build_initial_env add_type add_extension empty_env =
            (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
          )
        )
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_record)
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_lexing_position)
+                Jkind.Const.Builtin.immutable_data.jkind)
+       ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_string
        ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
                 Jkind.Const.Builtin.immutable_data.jkind)
