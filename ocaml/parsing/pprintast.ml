@@ -751,14 +751,20 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_variant (l,None) ->  pp f "`%a" ident_of_name l
     | Ppat_constraint (p, ct, m) ->
         let legacy, m = split_out_legacy_modes m in
-        begin match ct with
-        | Some ct ->
+        begin match ct, legacy with
+        | Some ct, [] | Some ({ ptyp_desc = Ptyp_poly _ } as ct), _ ->
             pp f "@[<2>(%a%a@;:@;%a%a)@]"
               optional_legacy_modes legacy
               (pattern1 ctxt) p
               (core_type ctxt) ct
               optional_atat_modes m
-        | None ->
+        | Some ct, _ :: _ ->
+            pp f "@[<2>(%a(%a@;:@;%a%a))@]"
+              optional_legacy_modes legacy
+              (pattern1 ctxt) p
+              (core_type ctxt) ct
+              optional_atat_modes m
+        | None, _ ->
             pp f "@[<2>(%a%a%a)@]"
               optional_legacy_modes legacy
               (pattern1 ctxt) p
