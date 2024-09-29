@@ -28,7 +28,7 @@
    ]}
 *)
 
-type t : value mod portable uncontended
+type t : value mod portable contended
 (** The type of mutexes. *)
 
 val create : unit -> t

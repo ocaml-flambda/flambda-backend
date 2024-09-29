@@ -112,11 +112,11 @@ type cross_portable : value mod portable
 type cross_nonportable
 type cross_unyielding : value mod unyielding
 type cross_yielding
-type cross_aliased
-type cross_unique : value mod unique
-type cross_contended
+type cross_aliased : value mod aliased
+type cross_unique
+type cross_contended : value mod contended
 type cross_shared : value mod shared
-type cross_uncontended : value mod uncontended
+type cross_uncontended
 |}]
 
 let cross_global (x : cross_global @@ local) : _ @@ global = x
@@ -174,56 +174,55 @@ Error: This value is "yielding" but expected to be "unyielding".
 
 let cross_aliased (x : cross_aliased @@ aliased) : _ @@ unique = x
 [%%expect{|
-Line 1, characters 65-66:
-1 | let cross_aliased (x : cross_aliased @@ aliased) : _ @@ unique = x
-                                                                     ^
-Error: This value is "aliased" but expected to be "unique".
+val cross_aliased : cross_aliased -> cross_aliased @ unique = <fun>
 |}]
 
 let cross_unique (x : cross_unique @@ aliased) : _ @@ unique = x
 [%%expect{|
-val cross_unique : cross_unique -> cross_unique @ unique = <fun>
+Line 1, characters 63-64:
+1 | let cross_unique (x : cross_unique @@ aliased) : _ @@ unique = x
+                                                                   ^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let cross_contended1 (x : cross_contended @@ shared) : _ @@ uncontended = x
 [%%expect{|
-Line 1, characters 74-75:
-1 | let cross_contended1 (x : cross_contended @@ shared) : _ @@ uncontended = x
-                                                                              ^
-Error: This value is "shared" but expected to be "uncontended".
+val cross_contended1 : cross_contended @ shared -> cross_contended = <fun>
 |}]
 
 let cross_contended2 (x : cross_contended @@ contended) : _ @@ shared = x
 [%%expect{|
-Line 1, characters 72-73:
-1 | let cross_contended2 (x : cross_contended @@ contended) : _ @@ shared = x
-                                                                            ^
-Error: This value is "contended" but expected to be "shared".
+val cross_contended2 :
+  cross_contended @ contended -> cross_contended @ shared = <fun>
 |}]
 
 let cross_shared1 (x : cross_shared @@ shared) : _ @@ uncontended = x
 [%%expect{|
-Line 1, characters 68-69:
-1 | let cross_shared1 (x : cross_shared @@ shared) : _ @@ uncontended = x
-                                                                        ^
-Error: This value is "shared" but expected to be "uncontended".
+val cross_shared1 : cross_shared @ shared -> cross_shared = <fun>
 |}]
 
 let cross_shared2 (x : cross_shared @@ contended) : _ @@ shared = x
 [%%expect{|
-val cross_shared2 : cross_shared @ contended -> cross_shared @ shared = <fun>
+Line 1, characters 66-67:
+1 | let cross_shared2 (x : cross_shared @@ contended) : _ @@ shared = x
+                                                                      ^
+Error: This value is "contended" but expected to be "shared".
 |}]
 
 let cross_uncontended1 (x : cross_uncontended @@ shared) : _ @@ uncontended = x
 [%%expect{|
-val cross_uncontended1 : cross_uncontended @ shared -> cross_uncontended =
-  <fun>
+Line 1, characters 78-79:
+1 | let cross_uncontended1 (x : cross_uncontended @@ shared) : _ @@ uncontended = x
+                                                                                  ^
+Error: This value is "shared" but expected to be "uncontended".
 |}]
 
 let cross_uncontended2 (x : cross_uncontended @@ contended) : _ @@ shared = x
 [%%expect{|
-val cross_uncontended2 :
-  cross_uncontended @ contended -> cross_uncontended @ shared = <fun>
+Line 1, characters 76-77:
+1 | let cross_uncontended2 (x : cross_uncontended @@ contended) : _ @@ shared = x
+                                                                                ^
+Error: This value is "contended" but expected to be "shared".
 |}]
 
 (* Check that all modalities cross modes -- does not currently work *)
@@ -272,11 +271,23 @@ Error: The kind of type "s" is value
 |}]
 type s : value mod aliased = { v : t @@ aliased } [@@unboxed]
 [%%expect{|
-type s = { v : t @@ aliased; } [@@unboxed]
+Line 1, characters 0-61:
+1 | type s : value mod aliased = { v : t @@ aliased } [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "s" is value
+         because of the definition of t at line 1, characters 0-6.
+       But the kind of type "s" must be a subkind of value mod aliased
+         because of the annotation on the declaration of the type s.
 |}]
 type s : value mod contended = { v : t @@ contended } [@@unboxed]
 [%%expect{|
-type s = { v : t @@ contended; } [@@unboxed]
+Line 1, characters 0-65:
+1 | type s : value mod contended = { v : t @@ contended } [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "s" is value
+         because of the definition of t at line 1, characters 0-6.
+       But the kind of type "s" must be a subkind of value mod contended
+         because of the annotation on the declaration of the type s.
 |}]
 type s : value mod shared = { v : t @@ shared } [@@unboxed]
 [%%expect{|

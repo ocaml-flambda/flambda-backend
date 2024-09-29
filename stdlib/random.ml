@@ -352,10 +352,10 @@ let random_key =
 
 let[@inline] apply0 f () = DLS.access (fun access -> f (DLS.get access random_key))
 
-let[@inline] apply1 (type (a : value mod portable uncontended)) (f : State.t -> a -> a) v =
+let[@inline] apply1 (type (a : value mod portable contended)) (f : State.t -> a -> a) v =
   DLS.access (fun access -> f (DLS.get access random_key) v)
 
-let[@inline] apply_in_range (type (a : value mod portable uncontended))
+let[@inline] apply_in_range (type (a : value mod portable contended))
       (f : State.t -> min:a -> max:a -> a) ~min ~max =
   DLS.access (fun access -> f (DLS.get access random_key) ~min ~max)
 

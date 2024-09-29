@@ -1580,6 +1580,8 @@ end
 module Uniqueness = struct
   module Const = C.Uniqueness
 
+  module Const_op = C.Uniqueness_op
+
   module Obj = struct
     type const = Const.t
 
@@ -1602,6 +1604,8 @@ end
 
 module Contention = struct
   module Const = C.Contention
+
+  module Const_op = C.Contention_op
 
   module Obj = struct
     type const = Const.t
@@ -1728,16 +1732,29 @@ module Comonadic_with (Areality : Areality) = struct
 
   let imply c m = Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_left m)
 
+  let subtract c m =
+    Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_right m)
+
   let legacy = of_const Const.legacy
 
   let axis_of_error (err : Obj.const Solver.error) : error =
-    if Areality.Const.le err.left.areality err.right.areality
+    let
+      { left = { areality = areality1;
+                 linearity = linearity1;
+                 portability = portability1;
+                 yielding = yielding1; };
+        right = { areality = areality2;
+                 linearity = linearity2;
+                 portability = portability2;
+                 yielding = yielding2; } } = err
+    in
+    if Areality.Const.le areality1 areality2
     then
-      if Linearity.Const.le err.left.linearity err.right.linearity
+      if Linearity.Const.le linearity1 linearity2
       then
-        if Portability.Const.le err.left.portability err.right.portability
+        if Portability.Const.le portability1 portability2
         then
-          if Yielding.Const.le err.left.yielding err.right.yielding
+          if Yielding.Const.le yielding1 yielding2
           then assert false
           else Error (Yielding,
                       { left = err.left.yielding; right = err.right.yielding })
@@ -1805,6 +1822,8 @@ module Monadic = struct
       | Contention -> (module Contention.Const)
   end
 
+  module Const_op = C.Monadic_op
+
   let proj ax m = Obj.Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   (* The monadic fragment is inverted. Most of the inversion logic is taken care
@@ -1827,6 +1846,8 @@ module Monadic = struct
 
   let imply c m = Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_left m)
 
+  let subtract c m = Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_right m)
+
   let zap_to_legacy m : Const.t =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
     let contention = proj Contention m |> Contention.zap_to_legacy in
@@ -1835,9 +1856,15 @@ module Monadic = struct
   let legacy = of_const Const.legacy
 
   let axis_of_error (err : Obj.const Solver.error) : error =
-    if Uniqueness.Const.le err.left.uniqueness err.right.uniqueness
+    let
+      { left = { uniqueness = uniqueness1;
+                 contention = contention1; };
+        right = { uniqueness = uniqueness2;
+                 contention = contention2; } } = err
+    in
+    if Uniqueness.Const.le uniqueness1 uniqueness2
     then
-      if Contention.Const.le err.left.contention err.right.contention
+      if Contention.Const.le contention1 contention2
       then assert false
       else Error (Contention, { left = err.left.contention; right = err.right.contention })
     else Error (Uniqueness, { left = err.left.uniqueness; right = err.right.uniqueness })
@@ -2292,6 +2319,18 @@ module Value_with (Areality : Areality) = struct
     let c = split c in
     let comonadic = Comonadic.imply c.comonadic comonadic in
     let monadic = Monadic.imply c.monadic monadic in
+    { monadic; comonadic }
+
+  let join_const c { comonadic; monadic } =
+    let c = split c in
+    let comonadic = Comonadic.join_const c.comonadic comonadic in
+    let monadic = Monadic.join_const c.monadic monadic in
+    { monadic; comonadic }
+
+  let subtract c { comonadic; monadic } =
+    let c = split c in
+    let comonadic = Comonadic.subtract c.comonadic comonadic in
+    let monadic = Monadic.subtract c.monadic monadic in
     { monadic; comonadic }
 
   let zap_to_ceil { comonadic; monadic } =

@@ -640,7 +640,8 @@ type type_declaration =
 and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
 and unsafe_mode_crossing =
-  { modal_upper_bounds : Mode.Alloc.Const.t }
+  { modal_upper_bounds : Mode.Alloc.Comonadic.Const.t;
+    modal_lower_bounds : Mode.Alloc.Monadic.Const.t }
 
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
@@ -1058,6 +1059,9 @@ val equal_flat_element : flat_element -> flat_element -> bool
 val compare_flat_element : flat_element -> flat_element -> int
 val flat_element_to_string : flat_element -> string
 val flat_element_to_lowercase_string : flat_element -> string
+
+val equal_unsafe_mode_crossing :
+  unsafe_mode_crossing -> unsafe_mode_crossing -> bool
 
 (**** Utilities for backtracking ****)
 

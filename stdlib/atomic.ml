@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type !'a t : value mod portable uncontended
+type !'a t : value mod portable contended
 
 module Unsafe = struct
   external make : 'a -> 'a t = "%makemutable"

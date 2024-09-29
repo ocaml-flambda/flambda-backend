@@ -36,7 +36,7 @@ Line 1, characters 12-13:
 Error: Unimplemented kind syntax
 |}]
 
-kind_abbrev_ immediate = value mod global unique many sync uncontended
+kind_abbrev_ immediate = value mod global aliased many sync contended
 
 [%%expect{|
 >> Fatal error: kind_abbrev not supported!
@@ -44,7 +44,7 @@ Uncaught exception: Misc.Fatal_error
 
 |}]
 
-kind_abbrev_ immutable_data = value mod sync uncontended many
+kind_abbrev_ immutable_data = value mod sync contended many
 
 [%%expect{|
 >> Fatal error: kind_abbrev not supported!
@@ -52,7 +52,7 @@ Uncaught exception: Misc.Fatal_error
 
 |}]
 
-kind_abbrev_ immutable = value mod uncontended
+kind_abbrev_ immutable = value mod contended
 
 [%%expect{|
 >> Fatal error: kind_abbrev not supported!
@@ -73,9 +73,9 @@ module type S = sig
   type ('a, 'b) either : immutable_data with 'a * 'b
   type 'a gel : kind_of_ 'a mod global
   type 'a t : _
-  kind_abbrev_ immediate = value mod global unique many sync uncontended
-  kind_abbrev_ immutable_data = value mod sync uncontended many
-  kind_abbrev_ immutable = value mod uncontended
+  kind_abbrev_ immediate = value mod global aliased many sync contended
+  kind_abbrev_ immutable_data = value mod sync contended many
+  kind_abbrev_ immutable = value mod contended
   kind_abbrev_ data = value mod sync many
 end
 
@@ -213,25 +213,25 @@ Error: The layout of type "a" is value
          because of the definition of b at line 2, characters 0-30.
 |}]
 
-type a : value mod global unique many uncontended portable external_ unyielding
-type b : value mod local aliased once contended nonportable internal = a
+type a : value mod global aliased many contended portable external_ unyielding
+type b : value mod local unique once contended nonportable internal = a
 [%%expect{|
 type a : immediate
 type b = a
 |}]
 
-type a : value mod global unique once uncontended portable external_
-type b : value mod local aliased many uncontended nonportable internal = a
+type a : value mod global aliased once contended portable external_
+type b : value mod local unique many contended nonportable internal = a
 [%%expect{|
-type a : value mod global unique uncontended portable external_
-Line 2, characters 0-74:
-2 | type b : value mod local aliased many uncontended nonportable internal = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+type a : value mod global portable aliased contended external_
+Line 2, characters 0-71:
+2 | type b : value mod local unique many contended nonportable internal = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is
-         value mod global unique uncontended portable external_
-         because of the definition of a at line 1, characters 0-68.
-       But the kind of type "a" must be a subkind of value mod many uncontended
-         because of the definition of b at line 2, characters 0-74.
+         value mod global portable aliased contended external_
+         because of the definition of a at line 1, characters 0-67.
+       But the kind of type "a" must be a subkind of value mod many contended
+         because of the definition of b at line 2, characters 0-71.
 |}]
 
 (********************************************************)
@@ -239,8 +239,8 @@ Error: The kind of type "a" is
 (* CR layouts: when we have abbreviations, these tests can become less verbose *)
 
 type a : any
-type b : any mod local aliased once contended nonportable internal = a
-type c : any mod local aliased once contended nonportable internal
+type b : any mod local unique once uncontended nonportable internal = a
+type c : any mod local unique once uncontended nonportable internal
 type d : any = c
 [%%expect{|
 type a : any
@@ -250,8 +250,8 @@ type d = c
 |}]
 
 type a : value
-type b : value mod local aliased once contended nonportable internal = a
-type c : value mod local aliased once contended nonportable internal
+type b : value mod local unique once uncontended nonportable internal = a
+type c : value mod local unique once uncontended nonportable internal
 type d : value = c
 [%%expect{|
 type a
@@ -261,8 +261,8 @@ type d = c
 |}]
 
 type a : void
-type b : void mod local aliased once contended nonportable internal = a
-type c : void mod local aliased once contended nonportable internal
+type b : void mod local unique once uncontended nonportable internal = a
+type c : void mod local unique once uncontended nonportable internal
 type d : void = c
 [%%expect{|
 Line 1, characters 9-13:
@@ -273,8 +273,8 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 |}]
 
 type a : immediate
-type b : value mod global unique many uncontended portable unyielding external_ = a
-type c : value mod global unique many uncontended portable unyielding external_
+type b : value mod global aliased many contended portable unyielding external_ = a
+type c : value mod global aliased many contended portable unyielding external_
 type d : immediate = c
 [%%expect{|
 type a : immediate
@@ -284,8 +284,8 @@ type d = c
 |}]
 
 type a : immediate64
-type b : value mod global unique many uncontended portable unyielding external64 = a
-type c : value mod global unique many uncontended portable unyielding external64
+type b : value mod global aliased many contended portable unyielding external64 = a
+type c : value mod global aliased many contended portable unyielding external64
 type d : immediate64 = c
 [%%expect{|
 type a : immediate64
@@ -295,8 +295,8 @@ type d = c
 |}]
 
 type a : float64
-type b : float64 mod global unique many uncontended portable external_ = a
-type c : float64 mod global unique many uncontended portable external_
+type b : float64 mod global aliased many contended portable external_ = a
+type c : float64 mod global aliased many contended portable external_
 type d : float64 = c
 [%%expect{|
 type a : float64
@@ -306,8 +306,8 @@ type d = c
 |}]
 
 type a : float32
-type b : float32 mod global unique many uncontended portable external_ = a
-type c : float32 mod global unique many uncontended portable external_
+type b : float32 mod global aliased many contended portable external_ = a
+type c : float32 mod global aliased many contended portable external_
 type d : float32 = c
 [%%expect{|
 type a : float32
@@ -317,8 +317,8 @@ type d = c
 |}]
 
 type a : word
-type b : word mod local aliased once contended nonportable internal = a
-type c : word mod local aliased once contended nonportable internal
+type b : word mod local unique once uncontended nonportable internal = a
+type c : word mod local unique once uncontended nonportable internal
 type d : word = c
 [%%expect{|
 type a : word
@@ -328,8 +328,8 @@ type d = c
 |}]
 
 type a : bits32
-type b : bits32 mod local aliased once contended nonportable internal = a
-type c : bits32 mod local aliased once contended nonportable internal
+type b : bits32 mod local unique once uncontended nonportable internal = a
+type c : bits32 mod local unique once uncontended nonportable internal
 type d : bits32 = c
 [%%expect{|
 type a : bits32
@@ -339,8 +339,8 @@ type d = c
 |}]
 
 type a : bits64
-type b : bits64 mod local aliased once contended nonportable internal = a
-type c : bits64 mod local aliased once contended nonportable internal
+type b : bits64 mod local unique once uncontended nonportable internal = a
+type c : bits64 mod local unique once uncontended nonportable internal
 type d : bits64 = c
 [%%expect{|
 type a : bits64
@@ -352,17 +352,17 @@ type d = c
 (****************************************)
 (* Test 4: Appropriate types mode cross *)
 
-type t : any mod global unique many uncontended portable external_ = int
+type t : any mod global aliased many contended portable external_ = int
 [%%expect{|
 type t = int
 |}]
 
-type t : any mod global unique many uncontended portable external_ = float#
+type t : any mod global aliased many contended portable external_ = float#
 [%%expect{|
 type t = float#
 |}]
 
-type t : any mod global unique many uncontended portable external_ = float32#
+type t : any mod global aliased many uncontended portable external_ = float32#
 [%%expect{|
 type t = float32#
 |}]
@@ -419,13 +419,13 @@ type indirect_int = int
 type t = indirect_int
 |}]
 
-let x : (_ : value mod uncontended) = 10
+let x : (_ : value mod contended) = 10
 [%%expect {|
 val x : int = 10
 |}]
 
 let f (x : nativeint#) =
-  let _ : (_ : word mod portable many unique) = x in
+  let _ : (_ : word mod portable many aliased) = x in
   ()
 [%%expect {|
 val f : nativeint# -> unit = <fun>
@@ -447,15 +447,15 @@ Error: The kind of type "t_value" is value
          because of the definition of t at line 1, characters 0-33.
 |}]
 
-type t : any mod unique = t_value
+type t : any mod aliased = t_value
 [%%expect{|
-Line 1, characters 0-33:
-1 | type t : any mod unique = t_value
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-34:
+1 | type t : any mod aliased = t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t_value" is value
          because of the definition of t_value at line 1, characters 0-20.
-       But the kind of type "t_value" must be a subkind of any mod unique
-         because of the definition of t at line 1, characters 0-33.
+       But the kind of type "t_value" must be a subkind of any mod aliased
+         because of the definition of t at line 1, characters 0-34.
 |}]
 
 type t : any mod many = t_value
@@ -469,15 +469,15 @@ Error: The kind of type "t_value" is value
          because of the definition of t at line 1, characters 0-31.
 |}]
 
-type t : any mod uncontended = t_value
+type t : any mod contended = t_value
 [%%expect{|
-Line 1, characters 0-38:
-1 | type t : any mod uncontended = t_value
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-36:
+1 | type t : any mod contended = t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t_value" is value
          because of the definition of t_value at line 1, characters 0-20.
-       But the kind of type "t_value" must be a subkind of any mod uncontended
-         because of the definition of t at line 1, characters 0-38.
+       But the kind of type "t_value" must be a subkind of any mod contended
+         because of the definition of t at line 1, characters 0-36.
 |}]
 
 type t : any mod portable = t_value
@@ -502,19 +502,19 @@ Error: The kind of type "t_value" is value
          because of the definition of t at line 1, characters 0-36.
 |}]
 
-type ('a : value mod unique) t = { unique_field : 'a }
-let x = { unique_field = "string" }
+type ('a : value mod aliased) t = { aliased_field : 'a }
+let x = { aliased_field = "string" }
 [%%expect {|
-type ('a : value mod unique) t = { unique_field : 'a; }
-Line 2, characters 25-33:
-2 | let x = { unique_field = "string" }
-                             ^^^^^^^^
+type ('a : value mod aliased) t = { aliased_field : 'a; }
+Line 2, characters 26-34:
+2 | let x = { aliased_field = "string" }
+                              ^^^^^^^^
 Error: This expression has type "string" but an expression was expected of type
-         "('a : value mod unique)"
+         "('a : value mod aliased)"
        The kind of string is immutable_data
          because it is the primitive type string.
-       But the kind of string must be a subkind of value mod unique
-         because of the definition of t at line 1, characters 0-54.
+       But the kind of string must be a subkind of value mod aliased
+         because of the definition of t at line 1, characters 0-56.
 |}]
 
 type t : value mod global
@@ -539,30 +539,30 @@ Error: This expression has type "t" but an expression was expected of type
          because of the annotation on the type variable 'a.
 |}]
 
-type t : value mod unique
-let f (x : _ as (_ : value mod unique)) = ()
+type t : value mod aliased
+let f (x : _ as (_ : value mod aliased)) = ()
 let g (x : t) = f x
 [%%expect {|
-type t : value mod unique
-val f : ('a : value mod unique). 'a -> unit = <fun>
+type t : value mod aliased
+val f : ('a : value mod aliased). 'a -> unit = <fun>
 val g : t -> unit = <fun>
 |}]
 
 type t : value mod external64
-let f (x : _ as (_ : value mod unique)) = ()
+let f (x : _ as (_ : value mod aliased)) = ()
 let g (x : t) = f x
 [%%expect {|
 type t : value mod external64
-val f : ('a : value mod unique). 'a -> unit = <fun>
+val f : ('a : value mod aliased). 'a -> unit = <fun>
 Line 3, characters 18-19:
 3 | let g (x : t) = f x
                       ^
 Error: This expression has type "t" but an expression was expected of type
-         "('a : value mod unique)"
+         "('a : value mod aliased)"
        The kind of t is value mod external64
          because of the definition of t at line 1, characters 0-29.
-       But the kind of t must be a subkind of value mod unique
-         because of the definition of f at line 2, characters 6-44.
+       But the kind of t must be a subkind of value mod aliased
+         because of the definition of f at line 2, characters 6-45.
 |}]
 
 module A : sig
@@ -606,7 +606,7 @@ val f : t -> t = <fun>
 (* CR layouts v2.8: This should fail since t is nominative *)
 
 type t : value = private int
-let f (x : t) : _ as (_ : value mod unique) = x
+let f (x : t) : _ as (_ : value mod aliased) = x
 [%%expect {|
 type t = private int
 val f : t -> t = <fun>
@@ -630,7 +630,7 @@ val f : t -> t = <fun>
 (* CR layouts v2.8: This should fail since t is nominative *)
 
 type t : value = private int
-let f (x : t) : _ as (_ : value mod uncontended) = x
+let f (x : t) : _ as (_ : value mod contended) = x
 [%%expect {|
 type t = private int
 val f : t -> t = <fun>
@@ -647,10 +647,10 @@ val f : t -> t = <fun>
 
 type t = private int
 let f (x : t) : _ as (_ : value mod global) = x
-let f (x : t) : _ as (_ : value mod unique) = x
+let f (x : t) : _ as (_ : value mod aliased) = x
 let f (x : t) : _ as (_ : value mod many) = x
 let f (x : t) : _ as (_ : value mod portable) = x
-let f (x : t) : _ as (_ : value mod uncontended) = x
+let f (x : t) : _ as (_ : value mod contended) = x
 let f (x : t) : _ as (_ : value mod external_) = x
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
@@ -673,7 +673,7 @@ val f : t -> t = <fun>
 (* CR layouts v2.8: This should fail since t is nominative *)
 
 type t : value = private { x : int } [@@unboxed]
-let f (x : t) : _ as (_ : value mod unique) = x
+let f (x : t) : _ as (_ : value mod aliased) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
@@ -697,7 +697,7 @@ val f : t -> t = <fun>
 (* CR layouts v2.8: This should fail since t is nominative *)
 
 type t : value = private { x : int } [@@unboxed]
-let f (x : t) : _ as (_ : value mod uncontended) = x
+let f (x : t) : _ as (_ : value mod contended) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
@@ -726,14 +726,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : any mod unique = { x : string }
+type t : any mod aliased = { x : string }
 [%%expect{|
 Line 1, characters 0-40:
 1 | type t : any mod unique = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of any mod unique
+       But the kind of type "t" must be a subkind of any mod aliased
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -750,7 +750,7 @@ Error: The kind of type "t" is immutable_data
 
 type t : any mod many = { x : string }
 type t : any mod portable = { x : string }
-type t : any mod uncontended = { x : string }
+type t : any mod contended = { x : string }
 [%%expect {|
 type t = { x : string; }
 type t = { x : string; }
@@ -768,14 +768,14 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : any mod uncontended = { x : t_value }
+type t : any mod contended = { x : t_value }
 [%%expect{|
 Line 1, characters 0-46:
 1 | type t : any mod uncontended = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of any mod uncontended
+       But the kind of type "t" must be a subkind of any mod contended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -790,7 +790,7 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : any mod many uncontended portable global = { x : t_value }
+type t : any mod many contended portable global = { x : t_value }
 [%%expect{|
 Line 1, characters 0-67:
 1 | type t : any mod many uncontended portable global = { x : t_value }
@@ -798,7 +798,7 @@ Line 1, characters 0-67:
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of
-         any mod global many uncontended portable
+         any mod global many portable contended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -824,7 +824,7 @@ Error: This expression has type "t" but an expression was expected of type
          because of the annotation on the wildcard _ at line 2, characters 20-39.
 |}]
 
-type t : any mod uncontended = { x : int }
+type t : any mod contended = { x : int }
 type t : any mod portable = { x : int }
 type t : any mod many = { x : int }
 [%%expect{|
@@ -855,23 +855,23 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : any mod unique = { x : int }
+type t : any mod aliased = { x : int }
 [%%expect {|
 Line 1, characters 0-37:
 1 | type t : any mod unique = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of any mod unique
+       But the kind of type "t" must be a subkind of any mod aliased
          because of the annotation on the declaration of the type t.
 |}]
 
 type t : any mod global = { x : int } [@@unboxed]
 type t : any mod portable = { x : int } [@@unboxed]
-type t : any mod uncontended = { x : int } [@@unboxed]
+type t : any mod contended = { x : int } [@@unboxed]
 type t : any mod external_ = { x : int } [@@unboxed]
 type t : any mod many = { x : int } [@@unboxed]
-type t : any mod unique = { x : int } [@@unboxed]
+type t : any mod aliased = { x : int } [@@unboxed]
 type t : immediate = { x : int } [@@unboxed]
 [%%expect {|
 type t = { x : int; } [@@unboxed]
@@ -885,10 +885,10 @@ type t = { x : int; } [@@unboxed]
 
 type ('a : immediate) t : any mod global = { x : 'a } [@@unboxed]
 type ('a : immediate) t : any mod portable = { x : 'a } [@@unboxed]
-type ('a : immediate) t : any mod uncontended = { x : 'a } [@@unboxed]
+type ('a : immediate) t : any mod contended = { x : 'a } [@@unboxed]
 type ('a : immediate) t : any mod external_ = { x : 'a } [@@unboxed]
 type ('a : immediate) t : any mod many = { x : 'a } [@@unboxed]
-type ('a : immediate) t : any mod unique = { x : 'a } [@@unboxed]
+type ('a : immediate) t : any mod aliased = { x : 'a } [@@unboxed]
 type ('a : immediate) t : immediate = { x : 'a } [@@unboxed]
 [%%expect {|
 type ('a : immediate) t = { x : 'a; } [@@unboxed]
@@ -927,14 +927,14 @@ Error: The kind of type "t" is value
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : any mod uncontended = { x : u } [@@unboxed]
+type t : any mod contended = { x : u } [@@unboxed]
 [%%expect {|
-Line 1, characters 0-52:
-1 | type t : any mod uncontended = { x : u } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-50:
+1 | type t : any mod contended = { x : u } [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because of the definition of u at line 1, characters 0-14.
-       But the kind of type "t" must be a subkind of any mod uncontended
+       But the kind of type "t" must be a subkind of any mod contended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -960,14 +960,14 @@ Error: The kind of type "t" is value
          because of the annotation on the declaration of the type t.
 |}]
 
-type t : any mod unique = { x : u } [@@unboxed]
+type t : any mod aliased = { x : u } [@@unboxed]
 [%%expect {|
-Line 1, characters 0-47:
-1 | type t : any mod unique = { x : u } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-48:
+1 | type t : any mod aliased = { x : u } [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because of the definition of u at line 1, characters 0-14.
-       But the kind of type "t" must be a subkind of any mod unique
+       But the kind of type "t" must be a subkind of any mod aliased
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -996,25 +996,25 @@ Error: The kind of type "t" is mutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-type ('a : immediate) t : value mod unique = { mutable x : 'a }
+type ('a : immediate) t : value mod aliased = { mutable x : 'a }
 [%%expect {|
 Line 1, characters 0-63:
 1 | type ('a : immediate) t : value mod unique = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of value mod unique
+       But the kind of type "t" must be a subkind of value mod aliased
          because of the annotation on the declaration of the type t.
 |}]
 
-type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
+type ('a : immediate) t : value mod contended = { mutable x : 'a }
 [%%expect {|
 Line 1, characters 0-68:
 1 | type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of value mod uncontended
+       But the kind of type "t" must be a subkind of value mod contended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1044,10 +1044,10 @@ Error: The kind of type "t" is mutable_data
 (* Test 6: Mode crossing of variants *)
 
 type t : any mod global = Foo | Bar
-type t : any mod unique = Foo | Bar
+type t : any mod aliased = Foo | Bar
 type t : any mod many = Foo | Bar
 type t : any mod portable = Foo | Bar
-type t : any mod uncontended = Foo | Bar
+type t : any mod contended = Foo | Bar
 type t : any mod external_ = Foo | Bar
 [%%expect {|
 type t = Foo | Bar
@@ -1058,7 +1058,7 @@ type t = Foo | Bar
 type t = Foo | Bar
 |}]
 
-type t : any mod uncontended = Foo of int | Bar
+type t : any mod contended = Foo of int | Bar
 type t : any mod portable = Foo of int | Bar
 type t : any mod many = Foo of int | Bar
 [%%expect {|
@@ -1067,14 +1067,14 @@ type t = Foo of int | Bar
 type t = Foo of int | Bar
 |}]
 
-type t : any mod unique = Foo of int | Bar
+type t : any mod aliased = Foo of int | Bar
 [%%expect {|
 Line 1, characters 0-42:
 1 | type t : any mod unique = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of any mod unique
+       But the kind of type "t" must be a subkind of any mod aliased
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1102,7 +1102,7 @@ Error: The kind of type "t" is immutable_data
 |}]
 
 type t : any mod portable = Foo of bool [@@unboxed]
-let x = (Foo true : _ as (_ : value mod portable uncontended unique))
+let x = (Foo true : _ as (_ : value mod portable contended aliased))
 [%%expect {|
 type t = Foo of bool [@@unboxed]
 val x : t = <unknown constructor>
@@ -1111,9 +1111,9 @@ val x : t = <unknown constructor>
 
 type t : value mod global = Foo of int [@@unboxed]
 type t : value mod many = Foo of int [@@unboxed]
-type t : value mod unique = Foo of int [@@unboxed]
+type t : value mod aliased = Foo of int [@@unboxed]
 type t : value mod portable = Foo of int [@@unboxed]
-type t : value mod uncontended = Foo of int [@@unboxed]
+type t : value mod contended = Foo of int [@@unboxed]
 type t : value mod external_ = Foo of int [@@unboxed]
 [%%expect {|
 type t = Foo of int [@@unboxed]
@@ -1149,7 +1149,7 @@ Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
          chosen to have kind value.
        But the kind of type "t" must be a subkind of
-         immutable_data mod global unique
+         immutable_data mod global aliased
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1164,7 +1164,7 @@ Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
          chosen to have kind value.
        But the kind of type "t" must be a subkind of
-         immutable_data mod global unique
+         immutable_data mod global aliased
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1184,26 +1184,26 @@ type ('a : immediate) t = Foo of global_ 'a [@@unboxed]
 type ('a : value mod global) t = Foo of 'a [@@unboxed]
 |}]
 
-type ('a : value mod uncontended many) t : value mod uncontended many unique =
-  { x : 'a @@ unique } [@@unboxed]
+type ('a : value mod contended many) t : value mod contended many aliased =
+  { x : 'a @@ aliased } [@@unboxed]
 [%%expect {|
-Lines 1-2, characters 0-34:
-1 | type ('a : value mod uncontended many) t : value mod uncontended many unique =
-2 |   { x : 'a @@ unique } [@@unboxed]
-Error: The kind of type "t" is value mod many uncontended
+Lines 1-2, characters 0-35:
+1 | type ('a : value mod contended many) t : value mod contended many aliased =
+2 |   { x : 'a @@ aliased } [@@unboxed]
+Error: The kind of type "t" is value mod many contended
          because of the annotation on 'a in the declaration of the type t.
        But the kind of type "t" must be a subkind of
-         value mod unique many uncontended
+         value mod many aliased contended
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
 
 type ('a : value mod external_) t : immediate =
-  Foo of 'a @@ global portable uncontended many unique [@@unboxed]
+  Foo of 'a @@ global portable contended many aliased [@@unboxed]
 [%%expect {|
-Lines 1-2, characters 0-66:
+Lines 1-2, characters 0-65:
 1 | type ('a : value mod external_) t : immediate =
-2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
+2 |   Foo of 'a @@ global portable contended many aliased [@@unboxed]
 Error: The kind of type "t" is value mod external_
          because of the annotation on 'a in the declaration of the type t.
        But the kind of type "t" must be a subkind of immediate
@@ -1229,14 +1229,14 @@ type 'a t = { x : 'a @@ contended; }
 type 'a t = { x : 'a @@ portable; }
 |}]
 
-type 'a t : value mod unique = { x : 'a @@ unique }
+type 'a t : value mod aliased = { x : 'a @@ aliased }
 [%%expect {|
 Line 1, characters 0-51:
 1 | type 'a t : value mod unique = { x : 'a @@ unique }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of value mod unique
+       But the kind of type "t" must be a subkind of value mod aliased
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1254,15 +1254,15 @@ Error: The kind of type "t" is immutable_data
 (*****************************)
 (* Test 8: Kind intersection *)
 
-type ('a : value mod unique) t = ('a : value mod global)
+type ('a : value mod aliased) t = ('a : value mod global)
 type ('a : immediate) t = ('a : value)
 type ('a : value) t = ('a : immediate)
 type ('a : value mod external_ portable many unyielding) t = ('a : value mod uncontended global unique)
 type ('a : value) t = ('a : any)
 type ('a : value) t = ('a : value)
-type ('a : bits32 mod unique) t = ('a : any mod global)
+type ('a : bits32 mod aliased) t = ('a : any mod global)
 [%%expect {|
-type ('a : value mod global unique) t = 'a
+type ('a : value mod global aliased) t = 'a
 type ('a : immediate) t = 'a
 type ('a : immediate) t = 'a
 type ('a : immediate) t = 'a
@@ -1283,11 +1283,11 @@ Error: Bad layout annotation:
            because of the annotation on the type variable 'a.
 |}]
 
-let f : ('a : any mod global unique) -> ('a: any mod uncontended) = fun x -> x
+let f : ('a : any mod global aliased) -> ('a: any mod contended) = fun x -> x
 let f : ('a : value mod external64) -> ('a: any mod external_) = fun x -> x
 let f : ('a : value) -> ('a: immediate) = fun x -> x
 [%%expect {|
-val f : ('a : value_or_null mod global unique uncontended). 'a -> 'a = <fun>
+val f : ('a : value_or_null mod global aliased contended). 'a -> 'a = <fun>
 val f : ('a : value mod external_). 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
 |}]
@@ -1332,7 +1332,7 @@ val f : 'a t -> 'a = <fun>
 
 type _ t =
   | A : ('a : immediate) t
-  | B : ('b : value mod portable) -> ('b : value mod unique) t
+  | B : ('b : value mod portable) -> ('b : value mod aliased) t
   | C : _ t
 
 let f (type a : value) (x : a t) =
@@ -1342,7 +1342,7 @@ let f (type a : value) (x : a t) =
     let f (_ : _ as (_ : immediate)) = () in
     f y
   | B z ->
-    let f : ('a : value mod portable unique). 'a -> 'a -> _ = fun _ _ -> () in
+    let f : ('a : value mod portable aliased). 'a -> 'a -> _ = fun _ _ -> () in
     f y z
   | C ->
     ()
@@ -1350,14 +1350,14 @@ let f (type a : value) (x : a t) =
 [%%expect{|
 type _ t =
     A : ('a : immediate). 'a t
-  | B : ('b : value mod unique portable). 'b -> 'b t
+  | B : ('b : value mod portable aliased). 'b -> 'b t
   | C : 'c t
 val f : 'a t -> unit = <fun>
 |}]
 
 type _ t =
   | A : ('a : immediate) t
-  | B : ('b : value mod portable) -> ('b : value mod unique) t
+  | B : ('b : value mod portable) -> ('b : value mod aliased) t
   | C : _ t
 
 let f (type a : value) (x : a t) =
@@ -1367,7 +1367,7 @@ let f (type a : value) (x : a t) =
     let f (_ : _ as (_ : immediate)) = () in
     f y
   | B z ->
-    let f : ('a : value mod portable unique). 'a -> 'a -> _ = fun _ _ -> () in
+    let f : ('a : value mod portable aliased). 'a -> 'a -> _ = fun _ _ -> () in
     f y z
   | C ->
     let f (_ : _ as (_ : immediate)) = () in
@@ -1376,7 +1376,7 @@ let f (type a : value) (x : a t) =
 [%%expect{|
 type _ t =
     A : ('a : immediate). 'a t
-  | B : ('b : value mod unique portable). 'b -> 'b t
+  | B : ('b : value mod portable aliased). 'b -> 'b t
   | C : 'c t
 Line 17, characters 6-7:
 17 |     f y
@@ -1417,17 +1417,17 @@ let x : (_ as (_ : value mod many)) = object end
 val x : <  > = <obj>
 |}]
 
-let x : (_ as (_ : value mod unique)) = object end
+let x : (_ as (_ : value mod aliased)) = object end
 [%%expect {|
-Line 1, characters 40-50:
-1 | let x : (_ as (_ : value mod unique)) = object end
-                                            ^^^^^^^^^^
+Line 1, characters 41-51:
+1 | let x : (_ as (_ : value mod aliased)) = object end
+                                             ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
-         "('a : value mod unique)"
+         "('a : value mod aliased)"
        The kind of <  > is value mod global many unyielding
          because it's the type of an object.
-       But the kind of <  > must be a subkind of value mod unique
-         because of the annotation on the wildcard _ at line 1, characters 19-35.
+       But the kind of <  > must be a subkind of value mod aliased
+         because of the annotation on the wildcard _ at line 1, characters 19-36.
 |}]
 
 let x : (_ as (_ : value mod portable)) = object end
@@ -1443,17 +1443,17 @@ Error: This expression has type "<  >" but an expression was expected of type
          because of the annotation on the wildcard _ at line 1, characters 19-37.
 |}]
 
-let x : (_ as (_ : value mod uncontended)) = object end
+let x : (_ as (_ : value mod contended)) = object end
 [%%expect {|
-Line 1, characters 45-55:
-1 | let x : (_ as (_ : value mod uncontended)) = object end
-                                                 ^^^^^^^^^^
+Line 1, characters 43-53:
+1 | let x : (_ as (_ : value mod contended)) = object end
+                                               ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
-         "('a : value mod uncontended)"
+         "('a : value mod contended)"
        The kind of <  > is value mod global many unyielding
          because it's the type of an object.
-       But the kind of <  > must be a subkind of value mod uncontended
-         because of the annotation on the wildcard _ at line 1, characters 19-40.
+       But the kind of <  > must be a subkind of value mod contended
+         because of the annotation on the wildcard _ at line 1, characters 19-38.
 |}]
 
 let x : (_ as (_ : value mod external_)) = object end

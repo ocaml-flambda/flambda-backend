@@ -17,7 +17,7 @@
 
 open! Stdlib
 
-type backend_type : value mod portable uncontended =
+type backend_type : value mod portable contended =
   | Native
   | Bytecode
   | Other of string
@@ -109,7 +109,7 @@ external readdir : string -> string array @@ portable = "caml_sys_read_directory
 
 let interactive = ref false
 
-type signal_behavior : value mod uncontended =
+type signal_behavior : value mod contended =
     Signal_default
   | Signal_ignore
   | Signal_handle of (int -> unit)
@@ -185,7 +185,7 @@ type extra_prefix = Plus | Tilde
 
 type extra_info = extra_prefix * string
 
-type ocaml_release_info : value mod portable uncontended = {
+type ocaml_release_info : value mod portable contended = {
   major : int;
   minor : int;
   patchlevel : int;

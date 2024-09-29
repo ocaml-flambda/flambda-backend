@@ -25,7 +25,7 @@
 *)
 
 (** An atomic (mutable) reference to a value of type ['a]. *)
-type !'a t : value mod portable uncontended
+type !'a t : value mod portable contended
 
 (** Create an atomic reference. *)
 val make : 'a -> 'a t @@ nonportable
