@@ -4686,7 +4686,16 @@ let mode_cross_left env ty mode =
       figure this out later. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.meet_const upper_bounds mode
+  let upper_bounds =
+    Alloc.Const.merge
+      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
+  in
+  let lower_bounds = Jkind.get_modal_lower_bounds jkind in
+  let lower_bounds =
+    Alloc.Const.merge
+      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
+  in
+  Alloc.subtract lower_bounds (Alloc.meet_const upper_bounds mode)
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value] and
     [Alloc] get unified *)
@@ -4695,7 +4704,16 @@ let mode_cross_right env ty mode =
       comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.imply upper_bounds mode
+  let upper_bounds =
+    Alloc.Const.merge
+      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
+  in
+  let lower_bounds = Jkind.get_modal_lower_bounds jkind in
+  let lower_bounds =
+    Alloc.Const.merge
+      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
+  in
+  Alloc.imply upper_bounds (Alloc.join_const lower_bounds mode)
 
 let submode_with_cross env ~is_ret ty l r =
   let r' = mode_cross_right env ty r in

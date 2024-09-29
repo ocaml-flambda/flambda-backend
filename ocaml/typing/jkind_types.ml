@@ -503,15 +503,17 @@ module Layout = struct
   end
 end
 
-module Modes = Mode.Alloc.Const
+module Layout_and_axes = struct
+  type 'layout t =
+    { layout : 'layout;
+      comonadic_bounds : Mode.Alloc.Comonadic.Const.t;
+      monadic_op_bounds : Mode.Alloc.Monadic.Const_op.t;
+      externality_upper_bound : Jkind_axis.Externality.t;
+      nullability_upper_bound : Jkind_axis.Nullability.t }
+end
 
 module Jkind_desc = struct
-  type 'type_expr t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
+  type 'type_expr t = Layout.t Layout_and_axes.t
 end
 
 (* A history of conditions placed on a jkind.
@@ -537,12 +539,7 @@ type 'type_expr t =
   }
 
 module Const = struct
-  type 'type_expr t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
+  type 'type_expr t = Layout.Const.t Layout_and_axes.t
 end
 
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

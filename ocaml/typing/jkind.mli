@@ -154,8 +154,11 @@ module Const : sig
   (** Gets the layout of a constant jkind. Never does mutation. *)
   val get_layout : t -> Layout.Const.t
 
-  (** Gets the maximum modes for types of this constant jkind. *)
-  val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+  (** Gets the maximum comonadic modes for types of this constant jkind. *)
+  val get_modal_upper_bounds : t -> Mode.Alloc.Comonadic.Const.t
+
+  (** Gets the minimum monadic modes for types of this constant jkind. *)
+  val get_modal_lower_bounds : t -> Mode.Alloc.Monadic.Const.t
 
   (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
   val get_externality_upper_bound : t -> Externality.t
@@ -379,8 +382,11 @@ val sort_of_jkind : t -> sort
     Never does mutation. *)
 val get_layout : t -> Layout.Const.t option
 
-(** Gets the maximum modes for types of this jkind. *)
-val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+(** Gets the maximum comonadic modes for types of this jkind. *)
+val get_modal_upper_bounds : t -> Mode.Alloc.Comonadic.Const.t
+
+(** Gets the minimum monadic modes for types of this jkind. *)
+val get_modal_lower_bounds : t -> Mode.Alloc.Monadic.Const.t
 
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
 val get_externality_upper_bound : t -> Externality.t

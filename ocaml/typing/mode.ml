@@ -1509,6 +1509,8 @@ end
 module Uniqueness = struct
   module Const = C.Uniqueness
 
+  module Const_op = C.Uniqueness_op
+
   module Obj = struct
     type const = Const.t
 
@@ -1531,6 +1533,8 @@ end
 
 module Contention = struct
   module Const = C.Contention
+
+  module Const_op = C.Contention_op
 
   module Obj = struct
     type const = Const.t
@@ -1630,6 +1634,9 @@ module Comonadic_with (Areality : Areality) = struct
 
   let imply c m = Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_left m)
 
+  let subtract c m =
+    Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_right m)
+
   let legacy = of_const Const.legacy
 
   let axis_of_error (err : Obj.const Solver.error) : error =
@@ -1697,6 +1704,8 @@ module Monadic = struct
       C.le obj b a
   end
 
+  module Const_op = C.Monadic_op
+
   let proj ax m = Obj.Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
 
   (* The monadic fragment is inverted. Most of the inversion logic is taken care
@@ -1718,6 +1727,8 @@ module Monadic = struct
   let meet_with ax c m = meet_const (C.min_with Obj.obj ax c) m
 
   let imply c m = Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_left m)
+
+  let subtract c m = Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_right m)
 
   let zap_to_legacy m : Const.t =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
@@ -2144,6 +2155,18 @@ module Value_with (Areality : Areality) = struct
     let c = split c in
     let comonadic = Comonadic.imply c.comonadic comonadic in
     let monadic = Monadic.imply c.monadic monadic in
+    { monadic; comonadic }
+
+  let join_const c { comonadic; monadic } =
+    let c = split c in
+    let comonadic = Comonadic.join_const c.comonadic comonadic in
+    let monadic = Monadic.join_const c.monadic monadic in
+    { monadic; comonadic }
+
+  let subtract c { comonadic; monadic } =
+    let c = split c in
+    let comonadic = Comonadic.subtract c.comonadic comonadic in
+    let monadic = Monadic.subtract c.monadic monadic in
     { monadic; comonadic }
 
   let zap_to_ceil { comonadic; monadic } =

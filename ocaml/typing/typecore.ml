@@ -854,14 +854,24 @@ let has_poly_constraint spat =
 
 (** Mode cross a left mode *)
 let mode_cross_left env ty mode =
-  let mode =
-    if not (is_principal ty) then mode else
+  if not (is_principal ty) then
+    Value.disallow_right mode
+  else begin
     let jkind = type_jkind_purely env ty in
     let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+    let upper_bounds =
+      Alloc.Const.merge
+        { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
+    in
     let upper_bounds = Const.alloc_as_value upper_bounds in
-    Value.meet_const upper_bounds mode
-  in
-  mode |> Value.disallow_right
+    let lower_bounds = Jkind.get_modal_lower_bounds jkind in
+    let lower_bounds =
+      Alloc.Const.merge
+        { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
+    in
+    let lower_bounds = Const.alloc_as_value lower_bounds in
+    Value.subtract lower_bounds (Value.meet_const upper_bounds mode)
+  end
 
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
   : Env.actual_mode =
@@ -876,9 +886,9 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   if not (is_principal ty) then { monadic; comonadic } else
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Alloc.Const.split upper_bounds in
-  let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
-  let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
+  let comonadic = Alloc.Comonadic.meet_const upper_bounds comonadic in
+  let lower_bounds = Jkind.get_modal_lower_bounds jkind in
+  let monadic = Alloc.Monadic.join_const lower_bounds monadic in
   { monadic; comonadic }
 
 (** Mode cross a right mode *)
@@ -886,8 +896,22 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let upper_bounds =
+    Alloc.Const.merge
+      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
+  in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  mode_morph (Value.imply upper_bounds) expected_mode
+  let lower_bounds = Jkind.get_modal_lower_bounds jkind in
+  let lower_bounds =
+    Alloc.Const.merge
+      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
+  in
+  let lower_bounds = Const.alloc_as_value lower_bounds in
+  mode_morph
+    (fun m ->
+      Value.imply upper_bounds
+        (Value.join_const lower_bounds m))
+    expected_mode
 
 let mode_annots_from_pat pat =
   let modes =

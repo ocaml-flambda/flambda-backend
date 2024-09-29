@@ -229,6 +229,8 @@ module type S = sig
       include Lattice with type t := t
     end
 
+    module Const_op : Lattice with type t = Const.t
+
     type error = Const.t Solver.error
 
     include
@@ -251,6 +253,8 @@ module type S = sig
 
       include Lattice with type t := t
     end
+
+    module Const_op : Lattice with type t = Const.t
 
     type error = Const.t Solver.error
 
@@ -289,9 +293,11 @@ module type S = sig
     module Monadic : sig
       module Const : Lattice with type t = monadic
 
+      module Const_op : Lattice with type t = monadic
+
       include Common with module Const := Const
 
-      val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+      val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
     end
 
     module Comonadic : sig
@@ -409,6 +415,10 @@ module type S = sig
     val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
 
     val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+
+    val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+    val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
     (* The following two are about the scenario where we partially apply a
        function [A -> B -> C] to [A] and get back [B -> C]. The mode of the

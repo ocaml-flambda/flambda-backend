@@ -16,41 +16,41 @@ type b : value mod portable = { a : int; b : int; }
 |}]
 
 type a
-type b : value mod uncontended = Foo of int
+type b : value mod contended = Foo of int
 [%%expect {|
 type a
-type b : value mod uncontended = Foo of int
+type b : value mod contended = Foo of int
 |}]
 
 type a
-type b : value mod uncontended portable = Foo of int | Bar of int
+type b : value mod contended portable = Foo of int | Bar of int
 [%%expect {|
 type a
-type b : value mod uncontended portable = Foo of int | Bar of int
+type b : value mod contended portable = Foo of int | Bar of int
 |}]
 
 module _ = struct
   type a
-  type b : value mod uncontended = private a
+  type b : value mod contended = private a
 end
 [%%expect {|
-Line 3, characters 2-44:
-3 |   type b : value mod uncontended = private a
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 3, characters 2-42:
+3 |   type b : value mod contended = private a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is value
          because of the definition of a at line 2, characters 2-8.
-       But the kind of type "a" must be a subkind of value mod uncontended
-         because of the definition of b at line 3, characters 2-44.
+       But the kind of type "a" must be a subkind of value mod contended
+         because of the definition of b at line 3, characters 2-42.
 |}]
 
-type t : value mod portable uncontended = { a : int; b : int }
+type t : value mod portable contended = { a : int; b : int }
 [%%expect {|
-type t : value mod portable uncontended = { a : int; b : int; }
+type t : value mod portable contended = { a : int; b : int; }
 |}]
 
-type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
+type ('a, 'b) t : value mod portable contended = { a : 'a; b : 'b }
 [%%expect {|
-type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b; }
+type ('a, 'b) t : value mod portable contended = { a : 'a; b : 'b; }
 |}]
 
 type t : value mod portable = private { foo : string }
@@ -65,23 +65,23 @@ type a : value mod portable = { foo : string; }
 type b = a : value mod portable = { foo : string; }
 |}]
 
-type a : value mod uncontended = private { foo : string }
-type b : value mod uncontended = a = private { foo : string }
+type a : value mod contended = private { foo : string }
+type b : value mod contended = a = private { foo : string }
 [%%expect {|
-type a : value mod uncontended = private { foo : string; }
-type b = a : value mod uncontended = private { foo : string; }
+type a : value mod contended = private { foo : string; }
+type b = a : value mod contended = private { foo : string; }
 |}]
 
-type t : value mod uncontended = private Foo of int | Bar
+type t : value mod contended = private Foo of int | Bar
 [%%expect {|
-type t : value mod uncontended = private Foo of int | Bar
+type t : value mod contended = private Foo of int | Bar
 |}]
 
-type a : value mod uncontended = Foo of int | Bar
-type b : value mod uncontended = a = Foo of int | Bar
+type a : value mod contended = Foo of int | Bar
+type b : value mod contended = a = Foo of int | Bar
 [%%expect {|
-type a : value mod uncontended = Foo of int | Bar
-type b = a : value mod uncontended = Foo of int | Bar
+type a : value mod contended = Foo of int | Bar
+type b = a : value mod contended = Foo of int | Bar
 |}]
 
 type a : value mod portable = private Foo of int | Bar
@@ -103,42 +103,42 @@ module A : sig type t : value mod portable = { a : string; } end
 (********************************************)
 (* Test 2: illegal mode crossing propogates *)
 
-type a : value mod portable uncontended = Foo of string
-type ('a : value mod portable uncontended) b
+type a : value mod portable contended = Foo of string
+type ('a : value mod portable contended) b
 type c = a b
 [%%expect {|
-type a : value mod portable uncontended = Foo of string
-type ('a : value mod uncontended portable) b
+type a : value mod portable contended = Foo of string
+type ('a : value mod portable contended) b
 type c = a b
 |}]
 
-type t : value mod portable uncontended = { a : string; b : int }
-let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
+type t : value mod portable contended = { a : string; b : int }
+let f : ('a : value mod portable contended). 'a -> 'a = fun x -> x
 let g (x : t) = f x
 [%%expect {|
-type t : value mod portable uncontended = { a : string; b : int; }
-val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
+type t : value mod portable contended = { a : string; b : int; }
+val f : ('a : value mod portable contended). 'a -> 'a = <fun>
 val g : t -> t = <fun>
 |}]
 
-type t : value mod portable uncontended = { a : int; b : int }
-let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
+type t : value mod portable contended = { a : int; b : int }
+let x : _ as (_ : value mod portable contended) = { a = 5; b = 5 }
 [%%expect {|
-type t : value mod portable uncontended = { a : int; b : int; }
+type t : value mod portable contended = { a : int; b : int; }
 val x : t = {a = 5; b = 5}
 |}]
 
-type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
-let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
+type ('a, 'b) t : value mod portable contended = { a : 'a; b : 'b }
+let x : _ as (_ : value mod portable contended) = { a = 5; b = 5 }
 [%%expect {|
-type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b; }
+type ('a, 'b) t : value mod portable contended = { a : 'a; b : 'b; }
 val x : (int, int) t = {a = 5; b = 5}
 |}]
 
-type t : value mod portable uncontended = Foo of string | Bar of int
-let x : _ as (_ : value mod portable uncontended) = Foo "hello world"
+type t : value mod portable contended = Foo of string | Bar of int
+let x : _ as (_ : value mod portable contended) = Foo "hello world"
 [%%expect {|
-type t : value mod portable uncontended = Foo of string | Bar of int
+type t : value mod portable contended = Foo of string | Bar of int
 val x : t = Foo "hello world"
 |}]
 
@@ -175,24 +175,24 @@ val my_fun : 'a -> 'a = <fun>
 val y : t = {a = <fun>}
 |}]
 
-type t : value mod uncontended = { a : string }
+type t : value mod contended = { a : string }
 let make_str () : string = failwith ""
 let f () =
   let _ = ({ a = make_str () } : t @@ uncontended) in
   ()
 [%%expect {|
-type t : value mod uncontended = { a : string; }
+type t : value mod contended = { a : string; }
 val make_str : unit -> string = <fun>
 val f : unit -> unit = <fun>
 |}]
 
-type t : value mod uncontended = { a : string }
+type t : value mod contended = { a : string }
 let make_str () : string = failwith ""
 let f () =
   let _ : t @@ uncontended = { a = make_str () } in
   ()
 [%%expect {|
-type t : value mod uncontended = { a : string; }
+type t : value mod contended = { a : string; }
 val make_str : unit -> string = <fun>
 val f : unit -> unit = <fun>
 |}]
@@ -201,14 +201,14 @@ val f : unit -> unit = <fun>
    -allow-illegal-crossing is a short-term solution *)
 
 type t_value : value
-type t : value mod portable uncontended = Foo of t_value
+type t : value mod portable contended = Foo of t_value
 let make_value () : t_value = failwith ""
 let f () =
   let _ = (Foo (make_value ()) : t @@ portable uncontended) in
   ()
 [%%expect {|
 type t_value
-type t : value mod portable uncontended = Foo of t_value
+type t : value mod portable contended = Foo of t_value
 val make_value : unit -> t_value = <fun>
 val f : unit -> unit = <fun>
 |}]
@@ -229,11 +229,11 @@ Error: This value is "nonportable" but expected to be "portable".
    -allow-illegal-crossing is a short-term solution *)
 
 let f (_x : _ @@ portable uncontended) = ()
-type t : value mod portable uncontended = Foo of string | Bar of int
+type t : value mod portable contended = Foo of string | Bar of int
 let g (x : t @@ nonportable contended) = f x; f (Foo ""); f (Bar 10)
 [%%expect {|
 val f : 'a @ portable -> unit = <fun>
-type t : value mod portable uncontended = Foo of string | Bar of int
+type t : value mod portable contended = Foo of string | Bar of int
 val g : t @ contended -> unit = <fun>
 |}]
 
@@ -241,7 +241,7 @@ val g : t @ contended -> unit = <fun>
 module Unsound : sig
   val cross : 'a @ nonportable contended -> 'a @ portable uncontended
 end = struct
-  type 'a box : value mod portable uncontended = { value : 'a }
+  type 'a box : value mod portable contended = { value : 'a }
   let cross x =
     let box = { value = x } in
     box.value
@@ -300,16 +300,16 @@ Error: The kind of type "a" is value
 |}]
 
 type a
-type b : value mod unique = private a
+type b : value mod aliased = private a
 [%%expect {|
 type a
-Line 2, characters 0-37:
-2 | type b : value mod unique = private a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-38:
+2 | type b : value mod aliased = private a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type "a" must be a subkind of value mod unique
-         because of the definition of b at line 2, characters 0-37.
+       But the kind of type "a" must be a subkind of value mod aliased
+         because of the definition of b at line 2, characters 0-38.
 |}]
 
 type a
@@ -387,16 +387,16 @@ Error: The kind of type "t" is value
          because of the annotation on the declaration of the type t.
 |}]
 
-type a : value mod unique = private b
+type a : value mod aliased = private b
 and b
 [%%expect {|
-Line 1, characters 0-37:
-1 | type a : value mod unique = private b
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-38:
+1 | type a : value mod aliased = private b
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "b" is value
          because an abstract type has the value kind by default.
-       But the kind of type "b" must be a subkind of value mod unique
-         because of the definition of a at line 1, characters 0-37.
+       But the kind of type "b" must be a subkind of value mod aliased
+         because of the definition of a at line 1, characters 0-38.
 |}]
 
 type a
@@ -542,16 +542,16 @@ Error: The kind of type "a" is value
 |}]
 
 type a = Foo of int | Bar of string
-type b : any mod uncontended = a
+type b : any mod contended = a
 [%%expect {|
 type a = Foo of int | Bar of string
-Line 2, characters 0-32:
-2 | type b : any mod uncontended = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-30:
+2 | type b : any mod contended = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-35.
-       But the kind of type "a" must be a subkind of any mod uncontended
-         because of the definition of b at line 2, characters 0-32.
+       But the kind of type "a" must be a subkind of any mod contended
+         because of the definition of b at line 2, characters 0-30.
 |}]
 
 module Foo : sig
@@ -585,29 +585,29 @@ Error: The kind of type "a" is value
 |}]
 
 type a = private { foo : string }
-type b : value mod uncontended = a = private { foo : string }
+type b : value mod contended = a = private { foo : string }
 [%%expect {|
 type a = private { foo : string; }
-Line 2, characters 0-61:
-2 | type b : value mod uncontended = a = private { foo : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-59:
+2 | type b : value mod contended = a = private { foo : string }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-33.
-       But the kind of type "a" must be a subkind of value mod uncontended
-         because of the definition of b at line 2, characters 0-61.
+       But the kind of type "a" must be a subkind of value mod contended
+         because of the definition of b at line 2, characters 0-59.
 |}]
 
 type a = Foo of string | Bar
-type b : value mod uncontended = a = Foo of string | Bar
+type b : value mod contended = a = Foo of string | Bar
 [%%expect {|
 type a = Foo of string | Bar
-Line 2, characters 0-56:
-2 | type b : value mod uncontended = a = Foo of string | Bar
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-54:
+2 | type b : value mod contended = a = Foo of string | Bar
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-28.
-       But the kind of type "a" must be a subkind of value mod uncontended
-         because of the definition of b at line 2, characters 0-56.
+       But the kind of type "a" must be a subkind of value mod contended
+         because of the definition of b at line 2, characters 0-54.
 |}]
 
 type a = private Foo of string | Bar
@@ -623,19 +623,19 @@ Error: The kind of type "a" is value
          because of the definition of b at line 2, characters 0-61.
 |}]
 
-type ('a : value mod uncontended) of_uncontended
-type t = t_value of_uncontended
+type ('a : value mod contended) of_contended
+type t = t_value of_contended
 [%%expect {|
-type ('a : value mod uncontended) of_uncontended
+type ('a : value mod contended) of_contended
 Line 2, characters 9-16:
-2 | type t = t_value of_uncontended
+2 | type t = t_value of_contended
              ^^^^^^^
 Error: This type "t_value" should be an instance of type
-         "('a : value mod uncontended)"
+         "('a : value mod contended)"
        The kind of t_value is value
          because of the definition of t_value at line 1, characters 0-20.
-       But the kind of t_value must be a subkind of value mod uncontended
-         because of the definition of of_uncontended at line 1, characters 0-48.
+       But the kind of t_value must be a subkind of value mod contended
+         because of the definition of of_contended at line 1, characters 0-44.
 |}]
 
 type ('a : value mod portable) of_portable
@@ -662,31 +662,31 @@ Line 2, characters 10-22:
 2 | let _ = f (fun x -> x)
               ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value mod unique uncontended
+       The kind of 'a -> 'b is value mod aliased contended
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of value mod portable
          because of the definition of f at line 1, characters 4-5.
 |}]
 
-let f : ('a : value mod uncontended). 'a -> 'a = fun x -> x
+let f : ('a : value mod contended). 'a -> 'a = fun x -> x
 let _ = f (ref 10)
 [%%expect {|
-val f : ('a : value mod uncontended). 'a -> 'a = <fun>
+val f : ('a : value mod contended). 'a -> 'a = <fun>
 Line 2, characters 10-18:
 2 | let _ = f (ref 10)
               ^^^^^^^^
 Error: This expression has type "int ref"
-       but an expression was expected of type "('a : value mod uncontended)"
+       but an expression was expected of type "('a : value mod contended)"
        The kind of int ref is value.
-       But the kind of int ref must be a subkind of value mod uncontended
+       But the kind of int ref must be a subkind of value mod contended
          because of the definition of f at line 1, characters 4-5.
 |}]
 
 (* immediate types can still cross *)
-let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
+let f : ('a : value mod portable contended). 'a -> 'a = fun x -> x
 let _ = f 0
 [%%expect {|
-val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
+val f : ('a : value mod portable contended). 'a -> 'a = <fun>
 - : int = 0
 |}]
 
@@ -719,18 +719,18 @@ Error: This expression has type "Value.t"
 |}]
 
 type t = { v : Value.t }
-let f _ : _ as (_ : value mod uncontended) = { v = Value.mk }
+let f _ : _ as (_ : value mod contended) = { v = Value.mk }
 [%%expect {|
 type t = { v : Value.t; }
-Line 2, characters 45-61:
-2 | let f _ : _ as (_ : value mod uncontended) = { v = Value.mk }
-                                                 ^^^^^^^^^^^^^^^^
+Line 2, characters 43-59:
+2 | let f _ : _ as (_ : value mod contended) = { v = Value.mk }
+                                               ^^^^^^^^^^^^^^^^
 Error: This expression has type "t" but an expression was expected of type
-         "('a : value mod uncontended)"
+         "('a : value mod contended)"
        The kind of t is value
          because of the definition of t at line 1, characters 0-24.
-       But the kind of t must be a subkind of value mod uncontended
-         because of the annotation on the wildcard _ at line 2, characters 20-41.
+       But the kind of t must be a subkind of value mod contended
+         because of the annotation on the wildcard _ at line 2, characters 20-39.
 |}]
 
 type t = Foo of Value.t
@@ -749,17 +749,17 @@ Error: This expression has type "t" but an expression was expected of type
 |}]
 
 type t = Value.t
-let x : ('a : value mod uncontended) = (Value.mk : t)
+let x : ('a : value mod contended) = (Value.mk : t)
 [%%expect {|
 type t = Value.t
-Line 2, characters 39-53:
-2 | let x : ('a : value mod uncontended) = (Value.mk : t)
-                                           ^^^^^^^^^^^^^^
+Line 2, characters 37-51:
+2 | let x : ('a : value mod contended) = (Value.mk : t)
+                                         ^^^^^^^^^^^^^^
 Error: This expression has type "t" = "Value.t"
-       but an expression was expected of type "('a : value mod uncontended)"
+       but an expression was expected of type "('a : value mod contended)"
        The kind of t is value
          because of the definition of t at line 2, characters 2-8.
-       But the kind of t must be a subkind of value mod uncontended
+       But the kind of t must be a subkind of value mod contended
          because of the annotation on the type variable 'a.
 |}]
 
@@ -780,29 +780,29 @@ Error: The layout of type "a" is word
 |}]
 
 type a : bits64
-type b : float32 mod uncontended = a
+type b : float32 mod contended = a
 [%%expect {|
 type a : bits64
-Line 2, characters 0-36:
-2 | type b : float32 mod uncontended = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-34:
+2 | type b : float32 mod contended = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type "a" is bits64
          because of the definition of a at line 1, characters 0-15.
        But the layout of type "a" must be a sublayout of float32
-         because of the definition of b at line 2, characters 0-36.
+         because of the definition of b at line 2, characters 0-34.
 |}]
 
 type a : any
-type b : value mod uncontended = a
+type b : value mod contended = a
 [%%expect {|
 type a : any
-Line 2, characters 0-34:
-2 | type b : value mod uncontended = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-32:
+2 | type b : value mod contended = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The layout of type "a" is any
          because of the definition of a at line 1, characters 0-12.
        But the layout of type "a" must be a sublayout of value
-         because of the definition of b at line 2, characters 0-34.
+         because of the definition of b at line 2, characters 0-32.
 |}]
 
 (****************************************************************)
@@ -822,16 +822,16 @@ Error: The kind of type "a" is value
 |}]
 
 type a
-type b : value mod uncontended = a
+type b : value mod contended = a
 [%%expect {|
 type a
-Line 2, characters 0-34:
-2 | type b : value mod uncontended = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-32:
+2 | type b : value mod contended = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type "a" must be a subkind of value mod uncontended
-         because of the definition of b at line 2, characters 0-34.
+       But the kind of type "a" must be a subkind of value mod contended
+         because of the definition of b at line 2, characters 0-32.
 |}]
 
 type a
@@ -848,41 +848,40 @@ Error: The kind of type "a" is value
 |}]
 
 type a
-type b : value mod uncontended = private a
+type b : value mod contended = private a
 [%%expect {|
 type a
-Line 2, characters 0-42:
-2 | type b : value mod uncontended = private a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-40:
+2 | type b : value mod contended = private a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type "a" must be a subkind of value mod uncontended
-         because of the definition of b at line 2, characters 0-42.
+       But the kind of type "a" must be a subkind of value mod contended
+         because of the definition of b at line 2, characters 0-40.
 |}]
 
 type a : word
-type b : any mod uncontended portable = private a
+type b : any mod contended portable = private a
 [%%expect {|
 type a : word
-Line 2, characters 0-49:
-2 | type b : any mod uncontended portable = private a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-47:
+2 | type b : any mod contended portable = private a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is word
          because of the definition of a at line 1, characters 0-13.
-       But the kind of type "a" must be a subkind of
-         any mod uncontended portable
-         because of the definition of b at line 2, characters 0-49.
+       But the kind of type "a" must be a subkind of any mod portable contended
+         because of the definition of b at line 2, characters 0-47.
 |}]
 
-type a : value mod global many unique external_
+type a : value mod global many aliased external_
 type b : immediate = private a
 [%%expect {|
-type a : value mod global many unique external_
+type a : value mod global many aliased external_
 Line 2, characters 0-30:
 2 | type b : immediate = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "a" is value mod global unique many external_
-         because of the definition of a at line 1, characters 0-47.
+Error: The kind of type "a" is value mod global many aliased external_
+         because of the definition of a at line 1, characters 0-48.
        But the kind of type "a" must be a subkind of immediate
          because of the definition of b at line 2, characters 0-30.
 |}]
@@ -902,36 +901,36 @@ Error: The kind of type "t_value" is value
          because of the definition of t at line 4, characters 2-47.
 |}]
 
-type a : value mod portable uncontended = private b
+type a : value mod portable contended = private b
 and b
 [%%expect {|
-Line 1, characters 0-51:
-1 | type a : value mod portable uncontended = private b
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-49:
+1 | type a : value mod portable contended = private b
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "b" is value
          because an abstract type has the value kind by default.
        But the kind of type "b" must be a subkind of
-         value mod uncontended portable
-         because of the definition of a at line 1, characters 0-51.
+         value mod portable contended
+         because of the definition of a at line 1, characters 0-49.
 |}]
 
 type a
-and b : value mod portable uncontended = a
+and b : value mod portable contended = a
 [%%expect {|
-Line 2, characters 0-42:
-2 | and b : value mod portable uncontended = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-40:
+2 | and b : value mod portable contended = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a/2" is value
          because an abstract type has the value kind by default.
        But the kind of type "a/2" must be a subkind of
-         value mod uncontended portable
-         because of the definition of b at line 2, characters 0-42.
+         value mod portable contended
+         because of the definition of b at line 2, characters 0-40.
 |}]
 
 module rec A : sig
-  type t : value mod portable uncontended
+  type t : value mod portable contended
 end = struct
-  type t : value mod portable uncontended = B.t
+  type t : value mod portable contended = B.t
 end
 and B : sig
   type t
@@ -939,14 +938,14 @@ end = struct
   type t
 end
 [%%expect {|
-Line 4, characters 2-47:
-4 |   type t : value mod portable uncontended = B.t
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 4, characters 2-45:
+4 |   type t : value mod portable contended = B.t
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "B.t" is value
          because of the definition of t at line 7, characters 2-8.
        But the kind of type "B.t" must be a subkind of
-         value mod uncontended portable
-         because of the definition of t at line 4, characters 2-47.
+         value mod portable contended
+         because of the definition of t at line 4, characters 2-45.
 |}]
 
 module rec A : sig
@@ -955,17 +954,17 @@ end = struct
   type t
 end
 and B : sig
-  type t : value mod portable uncontended
+  type t : value mod portable contended
 end = struct
-  type t : value mod portable uncontended = private A.t
+  type t : value mod portable contended = private A.t
 end
 [%%expect {|
-Line 9, characters 2-55:
-9 |   type t : value mod portable uncontended = private A.t
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 9, characters 2-53:
+9 |   type t : value mod portable contended = private A.t
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "A.t" is value
          because of the definition of t at line 2, characters 2-8.
        But the kind of type "A.t" must be a subkind of
-         value mod uncontended portable
-         because of the definition of t at line 9, characters 2-55.
+         value mod portable contended
+         because of the definition of t at line 9, characters 2-53.
 |}]

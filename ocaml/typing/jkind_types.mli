@@ -119,15 +119,17 @@ module Layout : sig
   end
 end
 
-module Modes = Mode.Alloc.Const
+module Layout_and_axes : sig
+  type 'layout t =
+    { layout : 'layout;
+      comonadic_bounds : Mode.Alloc.Comonadic.Const.t;
+      monadic_op_bounds : Mode.Alloc.Monadic.Const_op.t;
+      externality_upper_bound : Jkind_axis.Externality.t;
+      nullability_upper_bound : Jkind_axis.Nullability.t }
+end
 
 module Jkind_desc : sig
-  type 'type_expr t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
+  type 'type_expr t = Layout.t Layout_and_axes.t
 end
 
 type 'type_expr history =
@@ -148,12 +150,7 @@ type 'type_expr t =
 
 (** CR layouts v2.8: remove this when printing is improved *)
 module Const : sig
-  type 'type_expr t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
+  type 'type_expr t = Layout.Const.t Layout_and_axes.t
 end
 
 (** CR layouts v2.8: remove this when printing is improved *)
