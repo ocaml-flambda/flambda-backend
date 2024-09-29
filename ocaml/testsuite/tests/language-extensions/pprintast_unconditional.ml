@@ -3,6 +3,11 @@
  flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
+(* This test is somewhat duplicative of [ocaml/testsuite/tests/parsetree/source_jane_street.ml].
+   Tests for new syntax elements should be added there, not here, unless there's a good reason
+   you can't add them there.
+ *)
+
 (******************************************************************************)
 (* Setup *)
 
@@ -17,45 +22,6 @@ module Example = struct
     let located =  Location.mknoloc
     let parse p str = p (Lexing.from_string str)
   end
-
-  let modality_record  = parse module_expr
-    "struct \
-      type t = {global_ x : string;
-                global_ y : int @@ local many once shared unique portable nonportable
-                                   contended uncontended;
-                z : bool @@ unique} \
-     end"
-  let modality_cstrarg = parse module_expr
-    "struct \
-      type t = Foo of global_ string * global_ string @@ portable * string @@ portable \
-      type u = Foo : global_ string * global_ string -> u \
-     end"
-
-  let modality_val  = parse module_type
-    "sig \
-      val t : string -> string @ local @@ foo bar \
-      include S @@ bar foo
-      include functor S @@ foo foo
-     end"
-
-  let local_exp = parse expression "let x = foo (local_ x) in local_ y"
-  let stack_exp = parse expression
-    "let x = stack_ 42 in \
-     let y = stack_ (f x) in \
-     let z = foo (stack_ 42) in \
-     foo (stack_ (f x))"
-  let fun_with_modes_on_arg = parse expression
-    "let f (a @ local) ~(b @ local) ?(c @ local) \
-          ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
-           () = () in f"
-  let utuple_exp = parse expression
-    "let #(x,y) : #(int * int) = #(1,2) in \
-     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in \
-     let #(i,j) : ('b : value mod m & (value mod l)) = #(6,7) in \
-     let #(s,t) : ('c : value mod m & value mod l) = #(7,8) in \
-     let #(k,l) : ('d : value with t & (value with t)) = #(6,7) in \
-     let #(u,v) : ('e : value with t & value with t) = #(7,8) in \
-     x + y + a + b + c + i + j + s + t + k + l + u + v"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -201,15 +167,6 @@ end = struct
     print_test_header Test.name;
     Test.setup ()
   ;;
-
-  let modality_record = test "modality_record" module_expr Example.modality_record
-  let modality_cstrarg = test "modality_cstrarg" module_expr Example.modality_cstrarg
-  let modality_val = test "modality_val" module_type Example.modality_val
-
-  let local_exp = test "local_exp" expression Example.local_exp
-  let stack_exp = test "stack_exp" expression Example.stack_exp
-  let fun_with_modes_on_arg = test "fun_with_modes_on_arg" expression Example.fun_with_modes_on_arg
-  let utuple_exp = test "utuple_exp" expression Example.utuple_exp
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression

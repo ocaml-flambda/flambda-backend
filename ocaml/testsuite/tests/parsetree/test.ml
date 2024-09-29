@@ -56,7 +56,9 @@ let format_lexing_position ppf lexing_pos =
   let (filename, line, col) = Location.get_pos_info lexing_pos in
   Printf.fprintf ppf "%s %d:%d" filename line col
 
-let test ~here parse_fun pprint print map filename =
+let test ~here ?(universe_for_parsing = Language_extension.Universe.No_extensions) parse_fun pprint print map filename =
+  let universe_for_printing = Language_extension.Universe.No_extensions in
+  Language_extension.set_universe_and_enable_all universe_for_parsing;
   match from_file parse_fun filename with
   | exception exn ->
       Printf.printf "%s: FAIL, CANNOT PARSE (%a)\n" filename
@@ -64,7 +66,9 @@ let test ~here parse_fun pprint print map filename =
       report_err exn;
       print_endline "====================================================="
   | ast ->
+      Language_extension.set_universe_and_enable_all universe_for_printing;
       let str = to_string pprint ast in
+      Language_extension.set_universe_and_enable_all universe_for_parsing;
       match from_string parse_fun str with
       | exception exn ->
           Printf.printf "%s: FAIL, CANNOT REPARSE (%a)\n" filename
@@ -73,6 +77,10 @@ let test ~here parse_fun pprint print map filename =
           print_endline str;
           print_endline "====================================================="
       | ast2 ->
+          (* We can remove this when ast_mapper no longer checks extension enabledness. This should
+             happen when Jane_syntax is good and dead.
+           *)
+          Language_extension.(set_universe_and_enable_all Universe.maximal);
           let ast = map remove_locs remove_locs ast in
           let ast2 = map remove_locs remove_locs ast2 in
           if ast <> ast2 then begin
@@ -87,17 +95,18 @@ let test ~here parse_fun pprint print map filename =
             print_endline"====================================================="
           end
 
-let test ~here parse_fun pprint print map filename =
-  try test ~here parse_fun pprint print map filename
+let test ~here ?universe_for_parsing parse_fun pprint print map filename =
+  try test ~here  ?universe_for_parsing parse_fun pprint print map filename
   with exn -> report_err exn
 
-let rec process ~(here : [%call_pos]) path =
+let rec process ~(here : [%call_pos]) ?universe_for_parsing path =
   if Sys.is_directory path then
     let files = Sys.readdir path in
     Array.iter (fun s -> process ~here (Filename.concat path s)) files
   else if Filename.check_suffix path ".ml" then
     test
       ~here
+      ?universe_for_parsing
       Parse.implementation
       Pprintast.structure
       Printast.implementation
@@ -106,6 +115,7 @@ let rec process ~(here : [%call_pos]) path =
   else if Filename.check_suffix path ".mli" then
     test
       ~here
+      ?universe_for_parsing
       Parse.interface
       Pprintast.signature
       Printast.interface
@@ -114,31 +124,12 @@ let rec process ~(here : [%call_pos]) path =
 
 let () =
   process "source.ml";
-  Language_extension.set_universe_and_enable_all
-    Language_extension.Universe.maximal;
-  process "source_jane_street.ml";
-  (* Additionally check that merely parsing and printing doesn't attempt
-     to check extensions enabledness. This is actually an important property.
+  process "source_jane_street.ml" ~universe_for_parsing:Language_extension.Universe.maximal;
+  (* Check that parsing with no extensions enabled still succeeds.
 
-     For parsing:
-       ppxes run the parser code in a separate process from the
-       compiler, and ppxes always enable extensions to the max. So checks
-       in the parser are ineffective in a common mode of running the
-       compiler.
-
-     For printing:
-       It's a shame if disabling an extension makes it the toolchain
-       can't print the source code that includes the extension. I can't
-       remember a detailed reason why, but we thought this check was
-       important at some point.
-  *)
-  Language_extension.disable_all ();
-  match process "source_jane_street.ml" with
-  | () -> ()
-  | exception _ ->
-      print_endline
-        "Failed to parse or print with all extensions disabled after successfully\
-        \ parsing/print with all extensions enabled. Does the parser (or Pprintast) check for\
-        \ extension enabledness, which is almost certainly a bug? (See the\
-        \ comment by this test.)"
-;;
+     ppxes run the parser code in a separate process from the
+     compiler, and ppxes always enable extensions to the max. So checks
+     in the parser are ineffective in a common mode of running the
+     compiler.
+   *)
+  process "source_jane_street.ml" ~universe_for_parsing:No_extensions;
