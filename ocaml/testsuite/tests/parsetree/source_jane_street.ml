@@ -4,13 +4,21 @@
    expect;
 *)
 
-(* This file is two tests in one! It's both an expect-test, run in the
-   normal way. It *also* is processed by [test.ml] (in this same directory)
-   to make sure that Pprintast round-trips. *)
-
 (* There should be examples of all Jane Street syntax here. This file can
    thus additionally serve as a cheap-and-cheerful documentation for all of
    our features. *)
+
+(* This file is three tests in one!
+    - It's an expect-test, run in the normal way.
+    - It is processed by [test.ml] (in this same directory) to make sure that Pprintast round-trips.
+    - It is processed by [test_ppx.ml] (in this same directory) to make sure that ppxes run properly
+      on examples of Jane Street syntax.
+*)
+
+(* Use [language-extensions/pprintast_unconditional.ml] to document pieces of syntax that
+   can't be added to this file (e.g. because you haven't yet implemented type-checking for
+   your feature).
+*)
 
 (***********)
 (* Layouts *)
