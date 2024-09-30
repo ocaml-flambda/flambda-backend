@@ -44,6 +44,18 @@ module Axis_pair = struct
     | "shared" -> Any_axis_pair (Modal Contention, Contention.Const.Shared)
     | "uncontended" ->
       Any_axis_pair (Modal Contention, Contention.Const.Uncontended)
+    | "coordinated_none" ->
+      Any_axis_pair (Modal Coordinated, Coordinated.Const.Coordinated_none)
+    | "coordinated_read" ->
+      Any_axis_pair (Modal Coordinated, Coordinated.Const.Coordinated_read)
+    | "coordinated_write" ->
+      Any_axis_pair (Modal Coordinated, Coordinated.Const.Coordinated_write)
+    | "coordinate_nothing" ->
+      Any_axis_pair (Modal Coordinate, Coordinate.Const.Coordinate_nothing)
+    | "coordinate_reading" ->
+      Any_axis_pair (Modal Coordinate, Coordinate.Const.Coordinate_reading)
+    | "coordinate_writing" ->
+      Any_axis_pair (Modal Coordinate, Coordinate.Const.Coordinate_writing)
     | "maybe_null" ->
       Any_axis_pair (Nonmodal Nullability, Nullability.Maybe_null)
     | "non_null" -> Any_axis_pair (Nonmodal Nullability, Nullability.Non_null)
@@ -116,7 +128,9 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
     linearity = modes.linearity;
     uniqueness = modes.uniqueness;
     portability = modes.portability;
-    contention = modes.contention
+    contention = modes.contention;
+    coordinate = modes.coordinate;
+    coordinated = modes.coordinated
   }
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
@@ -155,6 +169,10 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
     Modality.Atom (Comonadic Portability, Meet_with mode)
   | Modal_axis_pair (Contention, mode) ->
     Modality.Atom (Monadic Contention, Join_with mode)
+  | Modal_axis_pair (Coordinate, mode) ->
+    Modality.Atom (Comonadic Coordinate, Meet_with mode)
+  | Modal_axis_pair (Coordinated, mode) ->
+    Modality.Atom (Monadic Coordinated, Join_with mode)
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
@@ -188,11 +206,13 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
   let comonadic : Modality.t list =
     [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
       Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
-      Atom (Comonadic Portability, Meet_with Portability.Const.legacy) ]
+      Atom (Comonadic Portability, Meet_with Portability.Const.legacy);
+      Atom (Comonadic Coordinate, Meet_with Coordinate.Const.legacy) ]
   in
   let monadic : Modality.t list =
     [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
-      Atom (Monadic Contention, Join_with Contention.Const.legacy) ]
+      Atom (Monadic Contention, Join_with Contention.Const.legacy);
+      Atom (Monadic Coordinated, Join_with Coordinated.Const.legacy) ]
   in
   match mut with
   | Immutable -> []

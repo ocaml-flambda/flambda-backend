@@ -395,12 +395,32 @@ module Const = struct
                 contention = Contention.Const.min;
                 portability = Portability.Const.min;
                 uniqueness = Uniqueness.Const.max;
-                areality = Locality.Const.max
+                areality = Locality.Const.max;
+                coordinate = Coordinate.Const.min;
+                coordinated = Coordinated.Const.min;
               };
             externality_upper_bound = Externality.max;
             nullability_upper_bound = Nullability.Non_null
           };
         name = "immutable_data"
+      }
+
+    let atomically_mutable_data =
+      { jkind =
+          { layout = Base Value;
+            modes_upper_bounds =
+              { linearity = Linearity.Const.min;
+                contention = Contention.Const.min;
+                portability = Portability.Const.min;
+                uniqueness = Uniqueness.Const.max;
+                areality = Locality.Const.max;
+                coordinate = Coordinate.Const.min;
+                coordinated = Coordinated.Const.max;
+              };
+            externality_upper_bound = Externality.max;
+            nullability_upper_bound = Nullability.Non_null
+          };
+        name = "atomically_mutable_data"
       }
 
     let mutable_data =
@@ -411,7 +431,9 @@ module Const = struct
                 contention = Contention.Const.max;
                 portability = Portability.Const.min;
                 uniqueness = Uniqueness.Const.max;
-                areality = Locality.Const.max
+                areality = Locality.Const.max;
+                coordinate = Coordinate.Const.min;
+                coordinated = Coordinated.Const.min;
               };
             externality_upper_bound = Externality.max;
             nullability_upper_bound = Nullability.Non_null
@@ -509,6 +531,7 @@ module Const = struct
         value_or_null;
         value;
         immutable_data;
+        atomically_mutable_data;
         mutable_data;
         void;
         immediate;
@@ -526,6 +549,7 @@ module Const = struct
         { value_or_null with name = "value" };
         value;
         immutable_data;
+        atomically_mutable_data;
         mutable_data;
         void;
         immediate;
@@ -585,6 +609,10 @@ module Const = struct
           ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
         get_modal_bound ~le:Portability.Const.le ~print:Portability.Const.print
           ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
+        get_modal_bound ~le:Coordinated.Const.le ~print:Coordinated.Const.print
+          ~base:base.alloc_bounds.coordinated actual.alloc_bounds.coordinated;
+        get_modal_bound ~le:Coordinate.Const.le ~print:Coordinate.Const.print
+          ~base:base.alloc_bounds.coordinate actual.alloc_bounds.coordinate;
         get_modal_bound ~le:Externality.le ~print:Externality.print
           ~base:base.externality_bound actual.externality_bound;
         get_modal_bound ~le:Nullability.le ~print:Nullability.print
@@ -744,6 +772,9 @@ module Const = struct
       | "word" -> Builtin.word.jkind
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
+      | "immutable_data" -> Builtin.immutable_data.jkind
+      | "mutable_data" -> Builtin.mutable_data.jkind
+      | "atomically_mutable_data" -> Builtin.atomically_mutable_data.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
@@ -754,7 +785,9 @@ module Const = struct
           linearity = parsed_modifiers.linearity;
           uniqueness = parsed_modifiers.uniqueness;
           portability = parsed_modifiers.portability;
-          contention = parsed_modifiers.contention
+          contention = parsed_modifiers.contention;
+          coordinate = parsed_modifiers.coordinate;
+          coordinated = parsed_modifiers.coordinated;
         }
       in
       { layout = base.layout;
@@ -871,8 +904,8 @@ module Jkind_desc = struct
     let added_crossings =
       (not
          (Portability.Const.le t.modes_upper_bounds.portability new_portability))
-      || not
-           (Contention.Const.le t.modes_upper_bounds.contention new_contention)
+      || (not
+           (Contention.Const.le t.modes_upper_bounds.contention new_contention))
     in
     ( { t with
         modes_upper_bounds =
@@ -1212,7 +1245,9 @@ let for_arrow =
           areality = Locality.Const.max;
           uniqueness = Uniqueness.Const.min;
           portability = Portability.Const.max;
-          contention = Contention.Const.min
+          contention = Contention.Const.min;
+          coordinate = Coordinate.Const.max;
+          coordinated = Coordinated.Const.min;
         };
       externality_upper_bound = Externality.max;
       nullability_upper_bound = Non_null
