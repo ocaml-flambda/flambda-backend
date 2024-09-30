@@ -268,7 +268,7 @@ module type S = sig
         | Coordinated_read
         | Coordinated_write
 
-    include Lattice with type t := t
+      include Lattice with type t := t
     end
 
     type error = Const.t Solver.error
@@ -299,9 +299,11 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_comonadic
   end
 
-  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t * Coordinate.Const.t
+  type 'a comonadic_with = private
+    'a * Linearity.Const.t * Portability.Const.t * Coordinate.Const.t
 
-  type monadic = private Uniqueness.Const.t * Contention.Const.t * Coordinated.Const.t
+  type monadic = private
+    Uniqueness.Const.t * Contention.Const.t * Coordinated.Const.t
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
@@ -375,7 +377,7 @@ module type S = sig
               Portability.Const.t,
               Contention.Const.t,
               Coordinate.Const.t,
-              Coordinated.Const.t)
+              Coordinated.Const.t )
             modes
 
       module Option : sig
@@ -388,7 +390,7 @@ module type S = sig
             Portability.Const.t option,
             Contention.Const.t option,
             Coordinate.Const.t option,
-            Coordinated.Const.t option)
+            Coordinated.Const.t option )
           modes
 
         val none : t
