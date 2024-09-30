@@ -231,6 +231,39 @@ and ('a : float64, 'b : immediate, 'ptr) t = {
 }
 |}];;
 
+(* It's illegal for the mixed representation to differ from the structure
+   to the signature. This can only arise for all-float-and-float# mixed
+   records, where the signature can hide the fact that a float is
+   unboxed.
+*)
+module _ : sig
+  type u
+  type t = { u : u; f : float# }
+  val t : t
+end = struct
+  type u = float
+  type t = { u : float; f : float# }
+  let t = { u = 3.0; f = #4.0 }
+end
+[%%expect {|
+Lines 5-9, characters 6-3:
+5 | ......struct
+6 |   type u = float
+7 |   type t = { u : float; f : float# }
+8 |   let t = { u = 3.0; f = #4.0 }
+9 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type u = float type t = { u : float; f : float#; } val t : t end
+       is not included in
+         sig type u type t = { u : u; f : float#; } val t : t end
+       Type declarations do not match:
+         type t = { u : float; f : float#; }
+       is not included in
+         type t = { u : u; f : float#; }
+       Their internal representations differ:
+       the first declaration uses a mixed representation where boxed floats are stored flat.
+|}]
 
 (* There is a cap on the number of fields in the scannable prefix. *)
 type ptr = string
