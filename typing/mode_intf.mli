@@ -263,9 +263,47 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_monadic
   end
 
-  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t
+  module Coordinated : sig
+    module Const : sig
+      type t =
+        | Coordinated_none
+        | Coordinated_read
+        | Coordinated_write
 
-  type monadic = private Uniqueness.Const.t * Contention.Const.t
+    include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_monadic
+  end
+
+  module Coordinate : sig
+    module Const : sig
+      type t =
+        | Coordinate_writing
+        | Coordinate_reading
+        | Coordinate_nothing
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
+  end
+
+  type 'a comonadic_with = private 'a * Linearity.Const.t * Portability.Const.t * Coordinate.Const.t
+
+  type monadic = private Uniqueness.Const.t * Contention.Const.t * Coordinated.Const.t
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
@@ -276,6 +314,8 @@ module type S = sig
       | Portability : ('areality comonadic_with, Portability.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
       | Contention : (monadic, Contention.Const.t) t
+      | Coordinate : ('areality comonadic_with, Coordinate.Const.t) t
+      | Coordinated : (monadic, Coordinated.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
   end
@@ -317,12 +357,14 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-    type ('a, 'b, 'c, 'd, 'e) modes =
+    type ('a, 'b, 'c, 'd, 'e, 'f, 'g) modes =
       { areality : 'a;
         linearity : 'b;
         uniqueness : 'c;
         portability : 'd;
-        contention : 'e
+        contention : 'e;
+        coordinate : 'f;
+        coordinated : 'g
       }
 
     module Const : sig
@@ -333,7 +375,9 @@ module type S = sig
               Linearity.Const.t,
               Uniqueness.Const.t,
               Portability.Const.t,
-              Contention.Const.t )
+              Contention.Const.t,
+              Coordinate.Const.t,
+              Coordinated.Const.t)
             modes
 
       module Option : sig
@@ -344,7 +388,9 @@ module type S = sig
             Linearity.Const.t option,
             Uniqueness.Const.t option,
             Portability.Const.t option,
-            Contention.Const.t option )
+            Contention.Const.t option,
+            Coordinate.Const.t option,
+            Coordinated.Const.t option)
           modes
 
         val none : t

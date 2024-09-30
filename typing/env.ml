@@ -4416,8 +4416,11 @@ let report_lookup_error _loc env ppf = function
       let e0, e1 =
         match error with
         | Error (Areality, _) -> "local", "might escape"
-        | Error (Linearity, _) -> "once", "is many"
-        | Error (Portability, _) -> "nonportable", "is portable"
+        | Error (ax, { left; right }) ->
+          Format.asprintf "%a" (Style.as_inline_code
+            (Mode.Value.Comonadic.Const.print_axis ax)) left,
+          Format.asprintf "is %a" (Style.as_inline_code
+            (Mode.Value.Comonadic.Const.print_axis ax)) right
       in
       let s, hint =
         match context with

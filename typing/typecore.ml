@@ -10811,6 +10811,8 @@ let report_error ~loc env = function
         | Error (Monadic Contention, _ ) ->
           contention_hint fail_reason submode_reason contention_context
         | Error (Comonadic Portability, _ ) -> []
+        | Error (Comonadic Coordinate, _) -> []
+        | Error (Monadic Coordinated, _) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with

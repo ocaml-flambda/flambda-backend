@@ -235,6 +235,9 @@ module Const : sig
     (** Immutable values that don't contain functions. *)
     val immutable_data : 'd t
 
+    (** Atomically mutable values that don't contain functions. *)
+    val atomically_mutable_data : t
+
     (** Mutable values that don't contain functions. *)
     val mutable_data : 'd t
 
