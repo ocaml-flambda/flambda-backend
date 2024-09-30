@@ -77,6 +77,10 @@ let array_kind = function
   | Punboxedintarray Pint64 -> "unboxed_int64"
   | Punboxedintarray Pnativeint -> "unboxed_nativeint"
 
+let array_mut = function
+  | Mutable -> "array"
+  | Immutable | Immutable_unique -> "iarray"
+
 let array_ref_kind ppf k =
   let pp_mode ppf = function
     | Alloc_heap -> ()
@@ -582,15 +586,17 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu (rk, idx) -> fprintf ppf "array.unsafe_get[%a indexed by %a]"
-                              array_ref_kind rk
-                              array_index_kind idx
+  | Parrayrefu (rk, idx, mut) -> fprintf ppf "%s.unsafe_get[%a indexed by %a]"
+                                 (array_mut mut)
+                                 array_ref_kind rk
+                                 array_index_kind idx
   | Parraysetu (sk, idx) -> fprintf ppf "array.unsafe_set[%a indexed by %a]"
                               array_set_kind sk
                               array_index_kind idx
-  | Parrayrefs (rk, idx) -> fprintf ppf "array.get[%a indexed by %a]"
-                              array_ref_kind rk
-                              array_index_kind idx
+  | Parrayrefs (rk, idx, mut) -> fprintf ppf "%s.get[%a indexed by %a]"
+                                 (array_mut mut)
+                                 array_ref_kind rk
+                                 array_index_kind idx
   | Parraysets (sk, idx) -> fprintf ppf "array.set[%a indexed by %a]"
                               array_set_kind sk
                               array_index_kind idx

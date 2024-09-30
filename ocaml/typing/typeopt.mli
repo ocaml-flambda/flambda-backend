@@ -28,6 +28,7 @@ val maybe_pointer : Typedtree.expression -> Lambda.immediate_or_pointer
 val array_type_kind :
   elt_sort:(Jkind.Sort.t option)
   -> Env.t -> Location.t -> Types.type_expr -> Lambda.array_kind
+val array_type_mut : Env.t -> Types.type_expr -> Lambda.mutable_flag
 val array_kind :
   Typedtree.expression -> Jkind.Sort.t -> Lambda.array_kind
 val array_pattern_kind :

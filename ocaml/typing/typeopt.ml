@@ -194,6 +194,11 @@ let array_type_kind ~elt_sort env loc ty =
       (* This can happen with e.g. Obj.field *)
       Pgenarray
 
+let array_type_mut env ty =
+  match scrape_poly env ty with
+  | Tconstr(p, [_], _) when Path.same p Predef.path_iarray -> Immutable
+  | _ -> Mutable
+
 let array_kind exp elt_sort =
   array_type_kind
     ~elt_sort:(Some elt_sort)
