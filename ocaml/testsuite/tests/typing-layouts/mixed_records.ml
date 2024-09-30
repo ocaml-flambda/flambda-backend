@@ -301,7 +301,7 @@ type t =
     x233:ptr; x234:ptr; x235:ptr; x236:ptr; x237:ptr; x238:ptr; x239:ptr; x240:ptr;
     x241:ptr; x242:ptr; x243:ptr; x244:ptr; x245:ptr; x246:ptr; x247:ptr; x248:ptr;
     x249:ptr; x250:ptr; x251:ptr; x252:ptr; x253:ptr; x254:ptr; x255:ptr;
-    value_but_flat:int; unboxed:float#;
+    unboxed:float#;
   }
 [%%expect{|
 type ptr = string
@@ -314,7 +314,7 @@ Lines 2-37, characters 0-3:
 ...
 34 |     x241:ptr; x242:ptr; x243:ptr; x244:ptr; x245:ptr; x246:ptr; x247:ptr; x248:ptr;
 35 |     x249:ptr; x250:ptr; x251:ptr; x252:ptr; x253:ptr; x254:ptr; x255:ptr;
-36 |     value_but_flat:int; unboxed:float#;
+36 |     unboxed:float#;
 37 |   }
 Error: Mixed records may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;

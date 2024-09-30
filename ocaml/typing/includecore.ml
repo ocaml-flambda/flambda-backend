@@ -711,14 +711,6 @@ module Record_diffing = struct
     =
     if v1 = v2 then None
     else
-      (* It's currently possible for the value prefix length to legally differ
-         between two compatible record declarations. The signature may hide
-         the fact that record fields are immediates, in which case its value
-         prefix length will be less than the implementation.
-
-         It's illegal for the difference to be in whether [float] fields
-         are boxed.
-      *)
       let has_float_boxed_on_read fields =
         Array.exists (function
             | Float_boxed -> true
@@ -729,7 +721,11 @@ module Record_diffing = struct
       then Some (Mixed_representation_with_flat_floats First)
       else if has_float_boxed_on_read s2
       then Some (Mixed_representation_with_flat_floats Second)
-      else None
+      else
+        Misc.fatal_error
+          "Impossible: the only way for mixed blocks to differ in \
+           representation is if one is a flat float record with a boxed float \
+           field, and the other isn't."
 
   let compare_with_representation ~loc env params1 params2 l r rep1 rep2 =
     if not (equal ~loc env params1 params2 l r) then
