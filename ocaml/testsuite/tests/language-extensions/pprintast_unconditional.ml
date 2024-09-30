@@ -3,10 +3,10 @@
  flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
-(* This test is somewhat duplicative of [ocaml/testsuite/tests/parsetree/source_jane_street.ml].
-   Tests for new syntax elements should be added there, not here, unless there's a good reason
-   you can't add them there.
- *)
+(* See [ocaml/testsuite/tests/parsetree/source_jane_street.ml] for tests for
+   new language extensions. The present test is along a different axis: the
+   different syntax elements that we support in Pprintast.
+*)
 
 (******************************************************************************)
 (* Setup *)
@@ -22,35 +22,6 @@ module Example = struct
     let located =  Location.mknoloc
     let parse p str = p (Lexing.from_string str)
   end
-
-  let modal_kind_struct =
-    parse module_expr "struct \
-      type 'a list : immutable_data with 'a \
-      type ('a, 'b) either : immutable_data with 'a * 'b \
-      type 'a gel : kind_of_ 'a mod global \
-      type 'a t : _ \
-      kind_abbrev_ immediate = value mod global unique many sync uncontended \
-      kind_abbrev_ immutable_data = value mod sync uncontended many \
-      kind_abbrev_ immutable = value mod uncontended \
-      kind_abbrev_ data = value mod sync many \
-    end"
-
-  let modal_kind_sig =
-    parse module_type "sig \
-      type 'a list : immutable_data with 'a \
-      type ('a, 'b) either : immutable_data with 'a * 'b \
-      type 'a gel : kind_of_ 'a mod global \
-      type 'a t : _ \
-      kind_abbrev_ immediate = value mod global unique many sync uncontended \
-      kind_abbrev_ immutable_data = value mod sync uncontended many \
-      kind_abbrev_ immutable = value mod uncontended \
-      kind_abbrev_ data = value mod sync many \
-    end"
-
-  let instance_name =
-    parse module_expr "\
-      Base(Name1)(Value1)(Name2)(Value2(Name2_1)(Value2_1)) \
-        [@jane.non_erasable.instances]"
 
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
@@ -191,9 +162,15 @@ end = struct
 
   let string_of_expression = test_string_of "string_of_expression" string_of_expression Example.expression
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
+<<<<<<< HEAD
   let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
   let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
   let instance_name = test "instance_name" module_expr Example.instance_name
+||||||| parent of 5004e408bf (Update based on feedback from review)
+  let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
+  let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
+=======
+>>>>>>> 5004e408bf (Update based on feedback from review)
 
   let tyvar_of_name =
     test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name

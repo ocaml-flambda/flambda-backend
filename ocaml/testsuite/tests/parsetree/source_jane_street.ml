@@ -15,11 +15,6 @@
       on examples of Jane Street syntax.
 *)
 
-(* Use [language-extensions/pprintast_unconditional.ml] to document pieces of syntax that
-   can't be added to this file (e.g. because you haven't yet implemented type-checking for
-   your feature).
-*)
-
 (***********)
 (* Layouts *)
 
@@ -853,9 +848,34 @@ result: 7
 (***************)
 (* Modal kinds *)
 
-(* CR layouts v2.8: add examples like the ones in
-  [pprintast_unconditional.ml] when modal kind syntax is fully
-  implemented. [test_ppx.ml] currently fails. *)
+module _ : sig
+  type 'a list : immutable_data with 'a
+  type ('a, 'b) either : immutable_data with 'a * 'b
+  type 'a gel : kind_of_ 'a mod global
+  type 'a t : _
+  kind_abbrev_ immediate = value mod global unique many sync uncontended
+  kind_abbrev_ immutable_data = value mod sync uncontended many
+  kind_abbrev_ immutable = value mod uncontended
+  kind_abbrev_ data = value mod sync many
+end = struct
+  type 'a list : immutable_data with 'a
+  type ('a, 'b) either : immutable_data with 'a * 'b
+  type 'a gel : kind_of_ 'a mod global
+  type 'a t : _
+  kind_abbrev_ immediate = value mod global unique many sync uncontended
+  kind_abbrev_ immutable_data = value mod sync uncontended many
+  kind_abbrev_ immutable = value mod uncontended
+  kind_abbrev_ data = value mod sync many
+end
+
+(* CR layouts v2.8: Expect this output to change once modal kinds are
+   supported. *)
+
+[%%expect{|
+>> Fatal error: XXX unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}]
 
 (**************************)
 (* Polymorphic parameters *)
@@ -963,4 +983,30 @@ Error: This expression has type "float#" but an expression was expected of type
          need a value
 |}]
 
+(*********************************)
+(* Instance names as identifiers *)
 
+module Base (_ : sig end) (_ : sig end) (_ : sig end) (_ : sig end) = struct end
+module Name1 = struct end
+module Name2 = struct end
+module Value1 = struct end
+module Value2 (_ : sig end) (_ : sig end) = struct end
+module Name2_1 = struct end
+module Name2_1 = struct end
+
+module _ = Base(Name1)(Value1)(Name2)(Value2(Name2_1)(Value2_1)) [@jane.non_erasable.instances]
+
+
+[%%expect{|
+module Base : sig end -> sig end -> sig end -> sig end -> sig end
+module Name1 : sig end
+module Name2 : sig end
+module Value1 : sig end
+module Value2 : sig end -> sig end -> sig end
+module Name2_1 : sig end
+module Name2_1 : sig end
+>> Fatal error: Unimplemented: instance identifier
+                Base[Name1:Value1][Name2:Value2[Name2_1:Value2_1]]
+Uncaught exception: Misc.Fatal_error
+
+|}]
