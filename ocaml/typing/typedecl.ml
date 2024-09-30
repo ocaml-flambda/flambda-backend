@@ -3699,7 +3699,7 @@ let report_error ppf = function
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
                    Only %a, %a, %a, %a, vector primitives, and@ \
-                   concrete unboxed types can be marked unboxed.@]"
+                   the corresponding unboxed types can be marked unboxed.@]"
         Style.inline_code "float"
         Style.inline_code "int32"
         Style.inline_code "int64"

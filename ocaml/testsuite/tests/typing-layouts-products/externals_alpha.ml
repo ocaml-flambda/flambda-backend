@@ -32,7 +32,7 @@ Line 1, characters 17-32:
                      ^^^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external foo2 : int -> (#(int * float#) [@unboxed]) = "foo" "foo'"
@@ -42,7 +42,7 @@ Line 1, characters 24-39:
                             ^^^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external foo1 : #(int * float#) -> int = "foo" "foo'" [@@unboxed]
@@ -52,7 +52,7 @@ Line 1, characters 16-31:
                     ^^^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external foo2 : float# -> #(int * float#) = "foo" "foo'" [@@unboxed]
@@ -62,7 +62,7 @@ Line 1, characters 26-41:
                               ^^^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 (* You can't use the [untagged] attributes with products. *)
@@ -100,4 +100,30 @@ Line 1, characters 23-38:
                            ^^^^^^^^^^^^^^^
 Error: Don't know how to untag this type. Only "int"
        and other immediate types can be untagged.
+|}]
+
+(* You can't smuggle an unrepresentable type into an external inside a
+   product. *)
+external foo1 : ('a : any). #( string * 'a * float# ) -> int = "foo" "bar"
+[%%expect{|
+Line 1, characters 28-53:
+1 | external foo1 : ('a : any). #( string * 'a * float# ) -> int = "foo" "bar"
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Types in an external must have a representable layout.
+       The layout of #(string * 'a * float#) is value & any & float64
+         because it is an unboxed tuple.
+       But the layout of #(string * 'a * float#) must be representable
+         because it's the type of an argument in an external declaration.
+|}]
+
+external foo2 : ('a : any). int -> #( string * 'a * float# ) = "foo" "bar"
+[%%expect{|
+Line 1, characters 35-60:
+1 | external foo2 : ('a : any). int -> #( string * 'a * float# ) = "foo" "bar"
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Types in an external must have a representable layout.
+       The layout of #(string * 'a * float#) is value & any & float64
+         because it is an unboxed tuple.
+       But the layout of #(string * 'a * float#) must be representable
+         because it's the type of the result of an external declaration.
 |}]

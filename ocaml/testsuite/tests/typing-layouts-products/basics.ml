@@ -619,7 +619,7 @@ Line 1, characters 36-49:
                                         ^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external ext_product_arg : t_product -> int = "foo" "bar"
@@ -638,7 +638,7 @@ Line 1, characters 38-47:
                                           ^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external ext_tuple_return : int -> #(int * bool) = "foo" "bar"
@@ -657,7 +657,7 @@ Line 1, characters 46-59:
                                                   ^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external ext_product_return : int -> t_product = "foo" "bar"
@@ -676,7 +676,7 @@ Line 1, characters 48-57:
                                                     ^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
