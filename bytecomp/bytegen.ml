@@ -505,15 +505,15 @@ let comp_primitive stack_info p sz args =
   (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
      array modes (allocation for [Parrayref{s,u}], modification for
      [Parrayset{s,u}]). *)
-  | Parrayrefs (Pgenarray_ref _, index_kind)
+  | Parrayrefs (Pgenarray_ref _, index_kind, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
                 | Punboxedfloatarray_ref (Pfloat64 | Pfloat32) | Punboxedintarray_ref _),
-                (Punboxed_int_index _ as index_kind)) ->
+                (Punboxed_int_index _ as index_kind), _) ->
       Kccall(indexing_primitive index_kind "caml_array_get", 2)
-  | Parrayrefs ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
+  | Parrayrefs ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index, _) ->
       Kccall("caml_floatarray_get", 2)
   | Parrayrefs ((Punboxedfloatarray_ref Pfloat32 | Punboxedintarray_ref _
-                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index) ->
+                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index, _) ->
       Kccall("caml_array_get_addr", 2)
   | Parraysets (Pgenarray_set _, index_kind)
   | Parraysets ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
@@ -526,15 +526,15 @@ let comp_primitive stack_info p sz args =
   | Parraysets ((Punboxedfloatarray_set Pfloat32 | Punboxedintarray_set _
                 | Paddrarray_set _ | Pintarray_set), Ptagged_int_index) ->
     Kccall("caml_array_set_addr", 3)
-  | Parrayrefu (Pgenarray_ref _, index_kind)
+  | Parrayrefu (Pgenarray_ref _, index_kind, _)
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
                 | Punboxedfloatarray_ref (Pfloat64 | Pfloat32) | Punboxedintarray_ref _),
-                (Punboxed_int_index _ as index_kind)) ->
+                (Punboxed_int_index _ as index_kind), _) ->
       Kccall(indexing_primitive index_kind "caml_array_unsafe_get", 2)
-  | Parrayrefu ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
+  | Parrayrefu ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index, _) ->
     Kccall("caml_floatarray_unsafe_get", 2)
   | Parrayrefu ((Punboxedfloatarray_ref Pfloat32 | Punboxedintarray_ref _
-                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index) -> Kgetvectitem
+                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index, _) -> Kgetvectitem
   | Parraysetu (Pgenarray_set _, index_kind)
   | Parraysetu ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
                 | Punboxedfloatarray_set (Pfloat64 | Pfloat32) | Punboxedintarray_set _),
