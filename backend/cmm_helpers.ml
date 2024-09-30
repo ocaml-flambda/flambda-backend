@@ -1888,8 +1888,11 @@ let sign_extend_63 dbg e =
   match e with
   | Cop (Casr, [_; Cconst_int (n, _)], _) when n > 0 && n < 64 ->
     (* [asr] by a positive constant is sign-preserving. However:
+
        - Some architectures treat the shift length modulo the word size.
+
        - OCaml does not define behavior of shifts by more than the word size.
+
        So we don't make the simplification for shifts of length 64 or more. *)
     e
   | _ ->
