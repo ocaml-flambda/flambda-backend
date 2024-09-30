@@ -1014,8 +1014,12 @@ let rec apply_modalities_signature ~recursive env modalities sg =
 
 and apply_modalities_module_type env modalities = function
   | Mty_ident p ->
-      let mtd = Env.find_modtype p env in
-      begin match mtd.mtd_type with
+      let mtd_type =
+        match Env.find_modtype p env with
+        | mtd -> mtd.mtd_type
+        | exception Not_found -> None
+      in
+      begin match mtd_type with
       | None -> Mty_ident p
       | Some mty -> apply_modalities_module_type env modalities mty
       end
@@ -1203,9 +1207,6 @@ and approx_sig env ssg =
           approx_sig env srem
       | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind;
             pincl_attributes=attrs}, moda) ->
-          let recursive =
-            not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
-          in
           begin match kind with
           | Functor ->
               Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
@@ -1214,11 +1215,17 @@ and approx_sig env ssg =
               let mty = approx_modtype env mod_ in
               let scope = Ctype.create_scope () in
               let sg = extract_sig env loc mty in
-              let modalities =
-                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
-              in
               let sg =
-                apply_modalities_signature ~recursive env modalities sg
+                match moda with
+                | [] -> sg
+                | _ ->
+                  let modalities =
+                    Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+                  in
+                  let recursive =
+                    not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
+                  in
+                  apply_modalities_signature ~recursive env modalities sg
               in
               let sg, newenv = Env.enter_signature ~scope sg env in
               sg @ approx_sig newenv srem
@@ -1716,10 +1723,6 @@ and transl_signature env sg =
   let names = Signature_names.create () in
 
   let transl_include ~loc env sig_acc sincl modalities =
-    let recursive =
-      not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
-        sincl.pincl_attributes
-    in
     let smty = sincl.pincl_mod in
     let tmty =
       Builtin_attributes.warning_scope sincl.pincl_attributes
@@ -1738,10 +1741,19 @@ and transl_signature env sg =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    let sg, modalities =
+      match modalities with
+      | [] -> sg, Mode.Modality.Value.Const.id
+      | _ ->
+        let modalities =
+          Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        in
+        let recursive =
+          not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
+            sincl.pincl_attributes
+        in
+        apply_modalities_signature ~recursive env modalities sg, modalities
     in
-    let sg = apply_modalities_signature ~recursive env modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
       (Signature_names.check_sig_item names loc)

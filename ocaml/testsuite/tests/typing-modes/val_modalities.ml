@@ -612,3 +612,22 @@ end
 [%%expect{|
 module type T' = sig val baz : 'a -> 'a @@ portable module M : S end
 |}]
+
+(* CR zqian: fix this *)
+(* [MT] is not in the scope of [include S] and thus not affected. *)
+module type S = sig
+  module type MT = sig
+    val foo : 'a -> 'a
+  end
+  module M : MT
+end
+
+module type S2 = sig
+  include S @@ portable
+end
+[%%expect{|
+module type S =
+  sig module type MT = sig val foo : 'a -> 'a end module M : MT end
+module type S2 =
+  sig module type MT = sig val foo : 'a -> 'a end module M : MT end
+|}]
