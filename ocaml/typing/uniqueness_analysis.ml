@@ -441,7 +441,7 @@ module Projection : sig
     | Record_field of string
     | Construct_field of string * int
     | Variant_field of label
-    | Memory_address (* clubsuit *)
+    | Memory_address (* this is rendered as clubsuit in the ICFP'24 paper *)
 
   module Map : Map.S with type key = t
 end = struct
