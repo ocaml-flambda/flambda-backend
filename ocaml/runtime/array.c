@@ -522,7 +522,7 @@ CAMLprim value caml_make_unboxed_product_vect(value v_init, value v_is_local,
     res = caml_alloc_shr(size, 0);
     /* We now know that everything in [v_init] is not in the minor heap, so
        there is no need to call [caml_initialize].  (Indeed we cannot if
-       [!scannable] holds.) */
+       [!is_scannable] holds.) */
     for (i = 0; i < size; i++) {
       Field(res, i) = Field(v_init, i % num_initializers);
     }
