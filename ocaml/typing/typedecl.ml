@@ -1355,6 +1355,7 @@ module Element_repr = struct
       | [] -> None
       | (t1, t1_extra) :: ts ->
           match t1 with
+          | Float_element | Imm_element | Value_element -> find_flat_suffix ts
           | Unboxed_element unboxed ->
               let suffix =
                 List.map (fun (t2, t2_extra) ->
@@ -1366,19 +1367,7 @@ module Element_repr = struct
                           ~boxed:t2_extra)
                   ts
               in
-              Some (`Continue (unboxed_to_flat unboxed :: suffix))
-          | Float_element
-          | Imm_element
-          | Value_element as repr -> begin
-              match find_flat_suffix ts with
-              | None -> None
-              | Some `Stop _ as stop -> stop
-              | Some `Continue suffix ->
-                  Some (
-                    match to_flat repr with
-                    | None -> `Stop suffix
-                    | Some flat -> `Continue (flat :: suffix))
-            end
+              Some (unboxed_to_flat unboxed :: suffix)
           (* CR layouts v7: Supporting void with mixed blocks will require
              updating some assumptions in lambda, e.g. the translation
              of [value_prefix_len]. *)
@@ -1393,8 +1382,7 @@ module Element_repr = struct
     in
     match find_flat_suffix ts with
     | None -> None
-    | Some (`Continue flat_suffix | `Stop flat_suffix) ->
-        Some (Array.of_list flat_suffix)
+    | Some flat_suffix -> Some (Array.of_list flat_suffix)
 
   let mixed_product_shape loc ts kind ~on_flat_field_expected =
     let flat_suffix = mixed_product_flat_suffix ts ~on_flat_field_expected in
