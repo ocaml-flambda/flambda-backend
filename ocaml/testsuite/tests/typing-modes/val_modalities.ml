@@ -549,3 +549,66 @@ module type S' =
 
 (* CR zqian: add tests of recursive modules & include w/ modalties, once
    modules can have modes. *)
+
+module type S = sig
+  val bar : 'a -> 'a
+  module M : sig
+    val foo : 'a -> 'a
+  end
+end
+[%%expect{|
+module type S =
+  sig val bar : 'a -> 'a module M : sig val foo : 'a -> 'a end end
+|}]
+
+module type S' = sig
+  include S @@ portable
+end
+[%%expect{|
+module type S' =
+  sig
+    val bar : 'a -> 'a @@ portable
+    module M : sig val foo : 'a -> 'a @@ portable end
+  end
+|}]
+
+module type S' = sig
+  include [@no_recursive_modalities] S @@ portable
+end
+[%%expect{|
+module type S' =
+  sig
+    val bar : 'a -> 'a @@ portable
+    module M : sig val foo : 'a -> 'a end
+  end
+|}]
+
+module type T = sig
+  val baz : 'a -> 'a
+  module M : S
+end
+[%%expect{|
+module type T = sig val baz : 'a -> 'a module M : S end
+|}]
+
+module type T' = sig
+  include T @@ portable
+end
+[%%expect{|
+module type T' =
+  sig
+    val baz : 'a -> 'a @@ portable
+    module M :
+      sig
+        val bar : 'a -> 'a @@ portable
+        module M : sig val foo : 'a -> 'a @@ portable end
+      end
+  end
+|}]
+
+module type T' = sig
+  include [@no_recursive_modalities] T @@ portable
+end
+[%%expect{|
+module type T' = sig val baz : 'a -> 'a @@ portable module M : S end
+|}]

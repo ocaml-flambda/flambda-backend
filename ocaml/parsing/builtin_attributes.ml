@@ -112,6 +112,7 @@ let builtin_attrs =
   ; "layout_poly"
   ; "no_mutable_implied_modalities"
   ; "or_null_reexport"
+  ; "no_recursive_modalities"
   ]
 
 let drop_ocaml_attr_prefix s =
