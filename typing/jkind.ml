@@ -438,7 +438,7 @@ module Const = struct
                 uniqueness = Uniqueness.Const.max;
                 areality = Locality.Const.max;
                 coordinate = Coordinate.Const.min;
-                coordinated = Coordinated.Const.min;
+                coordinated = Coordinated.Const.min
               };
             externality_upper_bound = Externality.max;
             nullability_upper_bound = Nullability.Non_null
@@ -456,7 +456,7 @@ module Const = struct
                 uniqueness = Uniqueness.Const.max;
                 areality = Locality.Const.max;
                 coordinate = Coordinate.Const.min;
-                coordinated = Coordinated.Const.max;
+                coordinated = Coordinated.Const.max
               };
             externality_upper_bound = Externality.max;
             nullability_upper_bound = Nullability.Non_null
@@ -474,7 +474,7 @@ module Const = struct
                 uniqueness = Uniqueness.Const.max;
                 areality = Locality.Const.max;
                 coordinate = Coordinate.Const.min;
-                coordinated = Coordinated.Const.min;
+                coordinated = Coordinated.Const.min
               };
             externality_upper_bound = Externality.max;
             nullability_upper_bound = Nullability.Non_null
@@ -825,7 +825,7 @@ module Const = struct
           portability = parsed_modifiers.portability;
           contention = parsed_modifiers.contention;
           coordinate = parsed_modifiers.coordinate;
-          coordinated = parsed_modifiers.coordinated;
+          coordinated = parsed_modifiers.coordinated
         }
       in
       { layout = base.layout;
@@ -926,8 +926,8 @@ module Jkind_desc = struct
     let added_crossings =
       (not
          (Portability.Const.le t.modes_upper_bounds.portability new_portability))
-      || (not
-           (Contention.Const.le t.modes_upper_bounds.contention new_contention))
+      || not
+           (Contention.Const.le t.modes_upper_bounds.contention new_contention)
     in
     ( { t with
         modes_upper_bounds =
@@ -1218,7 +1218,7 @@ let for_arrow =
           portability = Portability.Const.max;
           contention = Contention.Const.min;
           coordinate = Coordinate.Const.max;
-          coordinated = Coordinated.Const.min;
+          coordinated = Coordinated.Const.min
         };
       externality_upper_bound = Externality.max;
       nullability_upper_bound = Non_null
