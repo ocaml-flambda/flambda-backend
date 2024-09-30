@@ -218,6 +218,7 @@ type record_mismatch =
   | Float_representation of position
   | Ufloat_representation of position
   | Mixed_representation of position
+  | Mixed_representation_with_flat_floats of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -423,6 +424,10 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses mixed representation"
+  | Mixed_representation_with_flat_floats ord ->
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "uses a mixed representation where boxed floats are stored flat"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -700,6 +705,31 @@ module Record_diffing = struct
     else
       Some (diffing loc env params1 params2 l r)
 
+  let find_mismatch_in_mixed_record_representations
+      ({ value_prefix_len = v1; flat_suffix = s1 } : mixed_product_shape)
+      ({ value_prefix_len = v2; flat_suffix = s2 } : mixed_product_shape)
+    =
+    if v1 = v2 then None
+    else
+      (* It's currently possible for the value prefix length to legally differ
+         between two compatible record declarations. The signature may hide
+         the fact that record fields are immediates, in which case its value
+         prefix length will be less than the implementation.
+
+         It's illegal for the difference to be in whether [float] fields
+         are boxed.
+      *)
+      let has_float_boxed_on_read fields =
+        Array.exists (function
+            | Float_boxed -> true
+            | _ -> false)
+          fields
+      in
+      if has_float_boxed_on_read s1
+      then Some (Mixed_representation_with_flat_floats First)
+      else if has_float_boxed_on_read s2
+      then Some (Mixed_representation_with_flat_floats Second)
+      else None
 
   let compare_with_representation ~loc env params1 params2 l r rep1 rep2 =
     if not (equal ~loc env params1 params2 l r) then
@@ -729,7 +759,11 @@ module Record_diffing = struct
      | _, Record_ufloat ->
         Some (Record_mismatch (Ufloat_representation Second))
 
-     | Record_mixed _, Record_mixed _ -> None
+     | Record_mixed m1, Record_mixed m2 -> begin
+         match find_mismatch_in_mixed_record_representations m1 m2 with
+         | None -> None
+         | Some mismatch -> Some (Record_mismatch mismatch)
+       end
      | Record_mixed _, _ ->
         Some (Record_mismatch (Mixed_representation First))
      | _, Record_mixed _ ->
