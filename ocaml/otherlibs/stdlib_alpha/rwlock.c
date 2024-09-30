@@ -9,6 +9,7 @@
 #include "caml/signals.h"
 #include "caml/sys.h"
 
+#ifdef CAML_RUNTIME_5
 #include "../../runtime/sync_posix.h"
 
 /* Rwlock ops */
@@ -86,3 +87,27 @@ CAMLprim value caml_ml_rwlock_unlock(value wrapper)
   sync_check_error(retcode, "Rwlock.unlock");
   return Val_unit;
 }
+
+#else
+
+CAMLprim value caml_ml_rwlock_new(value unit)
+{
+  caml_failwith("Must use runtime5 to use Rwlock");
+}
+
+CAMLprim value caml_ml_rwlock_rdlock(value wrapper)
+{
+  caml_failwith("Must use runtime5 to use Rwlock");
+}
+
+CAMLprim value caml_ml_rwlock_wrlock(value wrapper)
+{
+  caml_failwith("Must use runtime5 to use Rwlock");
+}
+
+CAMLprim value caml_ml_rwlock_unlock(value wrapper)
+{
+  caml_failwith("Must use runtime5 to use Rwlock");
+}
+
+#endif // CAML_RUNTIME_5
