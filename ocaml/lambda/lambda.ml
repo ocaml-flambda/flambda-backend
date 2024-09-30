@@ -204,9 +204,9 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * alloc_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
-  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
   | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
@@ -1757,11 +1757,11 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _)
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _) -> None
-  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _)
-  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _) -> Some m
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _, _) -> None
+  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
+  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
   | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -1961,7 +1961,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu (array_ref_kind, _) | Parrayrefs (array_ref_kind, _) ->
+  | Parrayrefu (array_ref_kind, _, _) | Parrayrefs (array_ref_kind, _, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
@@ -1983,7 +1983,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_128 _ | Pbytes_load_128 _
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
-  | Pbigstring_load_32 { boxed = false; _ } 
+  | Pbigstring_load_32 { boxed = false; _ }
   | Pstring_load_32 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
   | Pbigstring_load_f32 { boxed = false; _ }
