@@ -92,7 +92,7 @@ end = struct
       Misc.fatal_errorf "Arguments not allowed in name:@ %a"
         Global_module.Name.print name
 
-  let to_global_name t = Global_module.Name.create_exn t []
+  let to_global_name t = Global_module.Name.create_no_args t
 
   (* This is so called (and separate from [of_string]) because we only want to
      check a name if it has a prefix. In particular, this allows single-module
@@ -350,7 +350,7 @@ end = struct
     if is_plain_name t
     then
       let name = Sys.opaque_identity (Obj.obj t : Name.t) in
-      Global_module.Name.create_exn (Name.to_string name) []
+      Global_module.Name.create_no_args (Name.to_string name)
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
       match full with
@@ -365,12 +365,12 @@ end = struct
     if is_plain_name t
     then
       let name = Sys.opaque_identity (Obj.obj t : Name.t) in
-      Global_module.Name.create_exn (Name.to_string name) []
+      Global_module.Name.create_no_args (Name.to_string name)
     else
       let full = Sys.opaque_identity (Obj.obj t : full) in
       match full with
       | With_prefix { name; _ } ->
-        Global_module.Name.create_exn (Name.to_string name) []
+        Global_module.Name.create_no_args (Name.to_string name)
       | Global glob -> glob
 
   let of_global_name (name : Global_module.Name.t) =

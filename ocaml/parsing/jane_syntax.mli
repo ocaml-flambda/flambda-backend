@@ -281,7 +281,7 @@ module Instances : sig
       flambda-backend compiler. *)
   type instance =
     { head : string;
-      args : (instance * instance) list
+      args : (string * instance) list
     }
 
   type module_expr = Imod_instance of instance

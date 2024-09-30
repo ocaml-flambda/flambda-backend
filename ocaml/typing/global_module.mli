@@ -23,6 +23,8 @@ module Name : sig
 
   val create_exn : string -> argument list -> t
 
+  val create_no_args : string -> t
+
   val to_string : t -> string
 end
 

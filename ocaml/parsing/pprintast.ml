@@ -2353,7 +2353,7 @@ and instance ctxt f (x : Jane_syntax.Instances.instance) =
     pp f "@[<2>%s %a@]" head (list (instance_arg ctxt)) args
 
 and instance_arg ctxt f (param, value) =
-  pp f "@[<1>(%a)@;(%a)@]" (instance ctxt) param (instance ctxt) value
+  pp f "@[<1>(%s)@;(%a)@]" param (instance ctxt) value
 
 (******************************************************************************)
 (* All exported functions must be defined or redefined below here and wrapped in

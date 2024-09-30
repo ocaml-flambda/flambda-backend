@@ -360,8 +360,8 @@ let rec instance_name ~loc env syntax =
   let ({ head; args } : Jane_syntax.Instances.instance) = syntax in
   let args =
     List.map
-      (fun (name, value) : Global_module.Name.argument ->
-         { param = instance_name ~loc env name;
+      (fun (param, value) : Global_module.Name.argument ->
+         { param = Global_module.Name.create_no_args param;
            value = instance_name ~loc env value })
       args
   in
@@ -3542,7 +3542,7 @@ let register_params params =
   List.iter
     (fun param_name ->
        (* We don't (yet!) support parameterised parameters *)
-       let param = Global_module.Name.create_exn param_name [] in
+       let param = Global_module.Name.create_no_args param_name in
        Env.register_parameter param
     )
     params
@@ -3669,7 +3669,7 @@ let type_implementation target modulename initial_env ast =
       end else begin
         let arg_type =
           !Clflags.as_argument_for
-          |> Option.map (fun name -> Global_module.Name.create_exn name [])
+          |> Option.map (fun name -> Global_module.Name.create_no_args name)
         in
         let cu_name = Compilation_unit.name modulename in
         let basename = cu_name |> Compilation_unit.Name.to_string in
@@ -3830,7 +3830,7 @@ let type_interface ~sourcefile modulename env ast =
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
-    |> Option.map (fun name -> Global_module.Name.create_exn name [])
+    |> Option.map (fun name -> Global_module.Name.create_no_args name)
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
@@ -3882,7 +3882,7 @@ let package_units initial_env objfiles target_cmi modulename =
            |> String.capitalize_ascii
          in
          let unit = Compilation_unit.Name.of_string basename in
-         let global_name = Global_module.Name.create_exn basename [] in
+         let global_name = Global_module.Name.create_no_args basename in
          let modname = Compilation_unit.create_child modulename unit in
          let artifact = Unit_info.Artifact.from_filename f in
          let sg =

@@ -163,7 +163,7 @@ let is_instance = function
   | _ -> false
 
 let to_global = function
-  | Global head -> Some (Global_module.Name.create_exn head [])
+  | Global head -> Some (Global_module.Name.create_no_args head)
   | Global_with_args g -> Some g
   | _ -> None
 

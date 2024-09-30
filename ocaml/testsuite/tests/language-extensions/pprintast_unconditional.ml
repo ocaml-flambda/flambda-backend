@@ -81,6 +81,11 @@ module Example = struct
       kind_abbrev_ data = value mod sync many \
     end"
 
+  let instance_name =
+    parse module_expr "\
+      Base(Name1)(Value1)(Name2)(Value2(Name2_1)(Value2_1)) \
+        [@jane.non_erasable.instances]"
+
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
   let pattern          = parse pattern "[:_:]"
@@ -231,6 +236,7 @@ end = struct
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
   let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
   let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
+  let instance_name = test "instance_name" module_expr Example.instance_name
 
   let tyvar_of_name =
     test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name

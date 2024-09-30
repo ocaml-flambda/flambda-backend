@@ -407,7 +407,10 @@ module M = struct
   module I = Jane_syntax.Instances
 
   let iter_instance _sub : I.instance -> _ = function
-    | _ -> () (* Currently treating these as atomic? *)
+    | _ ->
+        (* CR lmaurer: Implement this. Might want to change the [instance] type to have
+           Ids with locations in them rather than just raw strings. *)
+        ()
 
   let iter_instance_expr sub : I.module_expr -> _ = function
     | Imod_instance i -> iter_instance sub i
