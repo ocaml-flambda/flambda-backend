@@ -210,10 +210,10 @@ let () =
   assert (record.str1 = "" && record.imm0 = 5);
   let record = copy_via_weak record in
   check record.a 1L 2L;
-  assert (record.str1 = "" && record.imm0 = 0);
+  assert (record.str1 = "" && record.imm0 = 5);
   let record = copy_via_tag record in
   check record.a 1L 2L;
-  assert (record.str1 = "" && record.imm0 = 0);
+  assert (record.str1 = "" && record.imm0 = 5);
 ;;
 
 (* Store in variant *)

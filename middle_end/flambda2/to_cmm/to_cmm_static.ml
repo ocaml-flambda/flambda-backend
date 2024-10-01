@@ -22,11 +22,22 @@ end
 module SC = Static_const
 module R = To_cmm_result
 module UK = C.Update_kind
+module MBS = Flambda_kind.Mixed_block_shape
 
-let static_field res field =
+let static_field res (field, field_kind) =
   Simple.pattern_match'
     (Simple.With_debuginfo.simple field)
-    ~var:(fun _var ~coercion:_ -> [C.cint 1n])
+    ~var:(fun _var ~coercion:_ ->
+      match (field_kind : Flambda_kind.t) with
+      | Naked_number Naked_vec128 -> [C.cvec128 { low = 1L; high = 1L }]
+      | Naked_number
+          ( Naked_immediate | Naked_float32 | Naked_float | Naked_int32
+          | Naked_int64 | Naked_nativeint )
+      | Value ->
+        [C.cint 1n]
+      | Region | Rec_info ->
+        Misc.fatal_errorf "Unexpected static field kind %a" Flambda_kind.print
+          field_kind)
     ~symbol:(fun sym ~coercion:_ -> [C.symbol_address (R.symbol res sym)])
     ~const:C.const_static
 
@@ -51,7 +62,9 @@ let rec static_block_updates symb env res acc i = function
   | [] -> env, res, acc
   | (simple, update_kind) :: r ->
     let env, res, acc = update_field symb env res acc i update_kind simple in
-    static_block_updates symb env res acc (i + 1) r
+    static_block_updates symb env res acc
+      (i + UK.field_size_in_words update_kind)
+      r
 
 type maybe_int32 =
   | Int32
@@ -248,25 +261,28 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         Symbol.print s);
     let sym = R.symbol res s in
     let res = R.check_for_module_symbol res s in
-    let header =
+    let field_kinds, header =
       let tag = Tag.Scannable.to_int tag in
       let num_fields = List.length fields in
       match shape with
-      | Value_only -> C.black_block_header tag num_fields
+      | Value_only ->
+        ( List.init num_fields (fun _ -> Flambda_kind.value),
+          C.black_block_header tag num_fields )
       | Mixed_record shape ->
-        C.black_mixed_block_header tag num_fields
-          ~scannable_prefix_len:
-            (Flambda_kind.Mixed_block_shape.value_prefix_size shape)
+        ( MBS.field_kinds shape |> Array.to_list,
+          C.black_mixed_block_header tag (MBS.size_in_words shape)
+            ~scannable_prefix_len:(MBS.value_prefix_size shape) )
     in
-    let static_fields = List.concat_map (static_field res) fields in
+    let static_fields =
+      List.concat_map (static_field res) (List.combine fields field_kinds)
+    in
     let block = C.emit_block sym header static_fields in
     let update_kinds =
       match shape with
       | Value_only -> List.map (fun _ -> UK.pointers) fields
       | Mixed_record shape ->
         let value_prefix =
-          List.init (Flambda_kind.Mixed_block_shape.value_prefix_size shape)
-            (fun _ -> UK.pointers)
+          List.init (MBS.value_prefix_size shape) (fun _ -> UK.pointers)
         in
         let flat_suffix =
           List.map
@@ -386,7 +402,12 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
-    let static_fields = List.concat_map (static_field res) fields in
+    let field_kinds =
+      List.init (List.length fields) (fun _ -> Flambda_kind.value)
+    in
+    let static_fields =
+      List.concat_map (static_field res) (List.combine fields field_kinds)
+    in
     let block = C.emit_block sym header static_fields in
     let update_kinds = List.map (fun _ -> UK.pointers) fields in
     let env, res, updates =
