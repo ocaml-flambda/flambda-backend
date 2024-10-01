@@ -690,9 +690,6 @@ type 'a sig_reader =
    Checks that OCaml source is allowed to refer to this module. *)
 
 let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
-  if modname.Global_module.Name.args <> [] then
-    Misc.fatal_errorf "TODO: Unsupported instance name: %a"
-      Global_module.Name.print modname;
   let {persistent_structures; _} = penv in
   let import = pers_name.pn_import in
   let global = pers_name.pn_global in
