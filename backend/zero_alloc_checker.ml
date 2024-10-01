@@ -45,6 +45,7 @@ module Witness = struct
         { name : string;
           handler_code_sym : string
         }
+    | Widen
 
   type t =
     { dbg : Debuginfo.t;
@@ -72,6 +73,7 @@ module Witness = struct
     | Arch_specific -> fprintf ppf "arch specific operation"
     | Probe { name; handler_code_sym } ->
       fprintf ppf "probe \"%s\" handler %s" name handler_code_sym
+    | Widen -> fprintf ppf "widen"
 
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a {%a}@," print_kind kind Debuginfo.print_compact dbg
@@ -1101,8 +1103,10 @@ end = struct
      Someday it can be optimized using hash consing and bdd-like
      representation. *)
 
+  let widen_witness = Witnesses.create Witness.Widen Debuginfo.none
+
   let bounded_join f =
-    try Join (f ()) with Transforms.Widen -> Top Witnesses.empty
+    try Join (f ()) with Transforms.Widen -> Top widen_witness
 
   (* Keep [join] and [lessequal] in sync. *)
   let join t1 t2 =
@@ -1625,7 +1629,6 @@ end = struct
     in
     let print_witness (w : Witness.t) ~component =
       (* print location of the witness, print witness description. *)
-      let loc = Debuginfo.to_location w.dbg in
       let component_msg =
         if String.equal "" component
         then component
@@ -1638,6 +1641,17 @@ end = struct
           ( Format.dprintf "%a%s%s" Witness.print_kind w.kind component_msg
               comballoc_msg,
             sub )
+        | Widen ->
+          ( Format.dprintf
+              "details are not available. This may be a false alarm due to \
+               conservative analysis.\n\
+               Hint: for more precise results, recompile this function with\n\
+               \"-function-layout topological\" or \"-zero-alloc-checker-join \
+               0\" flags.\n\
+               The \"-zero-alloc-checker-join 0\" flag may substantially \
+               increase compilation time.\n\
+               (widenning applied in function %s%s)" t.fun_name component_msg,
+            [] )
         | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
         | Extcall _ ->
           ( Format.dprintf "called function may allocate%s (%a)" component_msg
@@ -1648,9 +1662,11 @@ end = struct
               Witness.print_kind w.kind,
             [] )
       in
+      let dbg = if Debuginfo.is_none w.dbg then t.fun_dbg else w.dbg in
+      let loc = Debuginfo.to_location dbg in
       let pp ppf () =
         print_main_msg ppf;
-        pp_inlined_dbg ppf w.dbg
+        pp_inlined_dbg ppf dbg
       in
       Location.error_of_printer ~loc ~sub pp ()
     in
@@ -2268,7 +2284,12 @@ end = struct
       | Iexit _ ->
         report t next ~msg:"transform" ~desc:"iexit" i.dbg;
         next
-      | Iifthenelse _ | Iswitch _ -> next
+      | Iifthenelse _ ->
+        report t next ~msg:"transform" ~desc:"ifthenelse" i.dbg;
+        next
+      | Iswitch _ ->
+        report t next ~msg:"transform" ~desc:"switch" i.dbg;
+        next
       | Icatch (_rc, _ts, _, _body) ->
         report t next ~msg:"transform" ~desc:"catch" i.dbg;
         next
