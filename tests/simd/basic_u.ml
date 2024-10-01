@@ -188,6 +188,34 @@ let () =
   check v 11L 14L
 ;;
 
+type record2 = { imm0 : int; str1 : string; a : int64x2# }
+
+let copy_via_weak x =
+  let weak = Weak.create 1 in
+  Weak.set weak 0 (Some x);
+  Weak.get_copy weak 0 |> Option.get
+;;
+
+let copy_via_tag x =
+  let obj = Obj.repr x in
+  Obj.with_tag (Obj.tag obj) obj |> Obj.obj;;
+;;
+
+let () =
+  let record = { imm0 = 0; str1 = ""; a = int64x2_of_int64s 1L 2L } in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 0);
+  let record = { record with imm0 = 5 } in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 5);
+  let record = copy_via_weak record in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 0);
+  let record = copy_via_tag record in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 0);
+;;
+
 (* Store in variant *)
 type variant = A of int64x2 | B of int64x2 | C of float
 
