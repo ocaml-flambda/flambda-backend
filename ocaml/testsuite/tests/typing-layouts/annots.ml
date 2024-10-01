@@ -848,7 +848,7 @@ Line 1, characters 29-36:
                                  ^^^^^^^
 Error: This pattern matches values of type "a"
        but a pattern was expected which matches values of type
-         "('a : '_representable_layout_238)"
+         "('a : '_representable_layout_1)"
        The layout of a is any
          because of the annotation on the abstract type declaration for a.
        But the layout of a must be representable
