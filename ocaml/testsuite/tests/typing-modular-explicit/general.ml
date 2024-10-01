@@ -141,6 +141,16 @@ Error: This expression has type "(module M : Typ) -> y:M.t -> M.t"
        Received an expression argument. However, module arguments cannot be omitted.
 |}]
 
+(* Here we can remove the dependancy, thus it should be accepted. *)
+let labelled' (module M : Typ with type t = int) ~(y:M.t) = y
+
+let apply_labelled_success = labelled' ~y:3
+
+[%%expect{|
+val labelled' : (module M : Typ with type t = int) -> y:M.t -> M.t = <fun>
+val apply_labelled_success : (module Typ with type t = int) -> int = <fun>
+|}]
+
 let apply_opt (f : ?opt:int -> (module M : Typ) -> M.t) = f (module Int)
 
 [%%expect{|
@@ -149,7 +159,6 @@ val apply_opt : (?opt:int -> ((module M : Typ) -> M.t)) -> Int.t = <fun>
 
 let build_pair (module M : Typ) ~x ~y : M.t * M.t = (x, y)
 
-(* This raises a principality warning but maybe it shouldn't *)
 let principality_warning = build_pair (module Int) ~y:3 ~x:1
 
 [%%expect{|
@@ -157,14 +166,18 @@ val build_pair : (module M : Typ) -> x:M.t -> y:M.t -> M.t * M.t = <fun>
 val principality_warning : Int.t * Int.t = (1, 3)
 |}]
 
-(* Typing rules make sense only if module argument are
-   a path (module names, projections and applications) *)
 let x_from_struct = id (module struct type t = int end) 3
 
 [%%expect{|
 val x_from_struct : int = 3
 |}]
 
+module F () : Typ = struct type t = int end
+
+let x_from_generative_functor = id (module F ())
+
+[%%expect{|
+|}]
 
 module type Map = sig
   type _ t
@@ -370,6 +383,21 @@ Error: This expression has type "(module A/1 : Add2) -> A/1.t -> A/1.t"
        (* Modules do not match: Add is not included in Add2
        The type a is required but not provided *)
 
+let try_coerce4' (f : (module A : Add) -> A.t -> A.t) : (module A : Add2) -> A.t -> A.t = f
+
+[%%expect{|
+Line 1, characters 90-91:
+1 | let try_coerce4' (f : (module A : Add) -> A.t -> A.t) : (module A : Add2) -> A.t -> A.t = f
+                                                                                              ^
+Error: This expression has type (module A/1 : Add) -> A/1.t -> A/1.t
+       but an expression was expected of type
+         (module A/2 : Add2) -> A/2.t -> A/2.t
+       File "_none_", line 1:
+         Definition of module A/2
+|}]
+       (* Modules do not match: Add is not included in Add2
+       The type a is required but not provided *)
+
 let coerce5 (f : (module A : Add) -> A.t -> A.t) = (f :> (module A : Add2) -> A.t -> A.t)
 
 let try_coerce6 (f : (module A : Add2) -> A.t -> A.t) : (module A : Add3) -> A.t -> A.t = f
@@ -403,14 +431,10 @@ let apply_with_annot f (module T : Typ) (x : T.t) : T.t =
   let _g : (module T : Typ) -> T.t -> T.t = f in
   f (module T) x
 
-(* (type a) -> a -> a -> a *)
-let merge_no_mod (type a) (x : a) (y : a) = x
-
 [%%expect{|
 val apply_with_annot :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
   ((module T/2 : Typ) -> T/2.t -> T/2.t) = <fun>
-val merge_no_mod : 'a -> 'a -> 'a = <fun>
 |}, Principal{|
 Line 3, characters 4-14:
 3 |   f (module T) x
@@ -420,9 +444,14 @@ Warning 18 [not-principal]: this module packing is not principal.
 val apply_with_annot :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
   ((module T/2 : Typ) -> T/2.t -> T/2.t) = <fun>
-val merge_no_mod : 'a -> 'a -> 'a = <fun>
 |}]
 
+(* (type a) -> a -> a -> a *)
+let merge_no_mod (type a) (x : a) (y : a) = x
+
+[%%expect{|
+val merge_no_mod : 'a -> 'a -> 'a = <fun>
+|}]
 
 let apply_small_annot1 (f : (module T : Typ) -> T.t -> T.t) g (module T : Typ) x =
   let r = g (module T) x in
