@@ -2115,6 +2115,7 @@ end = struct
     { dst with div }
 
   let transform t ~next ~exn ~(effect : Value.t) desc dbg =
+    report t effect ~msg:"transform effect" ~desc dbg;
     let next = transform_return ~effect:effect.nor next in
     let exn = transform_return ~effect:effect.exn exn in
     report t next ~msg:"transform new next" ~desc dbg;
@@ -2148,6 +2149,9 @@ end = struct
 
   (** Summary of target specific operations. *)
   let transform_specific t s ~next ~exn dbg =
+    let desc = "Arch.specific_operation" in
+    report t next ~msg:"transform_specific next" ~desc dbg;
+    report t exn ~msg:"transform_specific exn" ~desc dbg;
     let can_raise = Arch.operation_can_raise s in
     let effect =
       let w = create_witnesses t Arch_specific dbg in
@@ -2161,7 +2165,7 @@ end = struct
         let div = V.bot in
         { Value.nor; exn; div }
     in
-    transform t ~next ~exn ~effect "Arch.specific_operation" dbg
+    transform t ~next ~exn ~effect desc dbg
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
