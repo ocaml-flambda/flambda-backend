@@ -36,8 +36,9 @@ pm ::= portable | observing | nonportable
 em ::= external | external64 | internal
 
 (* monadic axes = descriptive axes *)
-um ::= unique | exclusive | aliased
-cm ::= uncontended | shared | contended
+(* These are *backwards* from the way the submode operation works in terms. *)
+um ::= aliased | exclusive | unique
+cm ::= contended | shared | uncontended
 
 m ::= lm | om | um | cm | pm | em
 modes, ms ::= [[ m ]]  (* [ms] is used when all modes are from the same axis *)
@@ -139,6 +140,35 @@ rec {
 μ ::= (* semantic modality *)
 q ::= best | not_best   (* quality of an inferred kind; best < not_best *)
 ```
+
+Mode crossing is not covered in this design. 
+
+However, it may be helpful to know that having e.g. `mod observing` in a kind
+means that `observing` is the upper bound for the locality mode of values whose
+types have that kind. For example, if `t : ... mod observing` and some
+expression `e` of type `t` has mode `nonportable` (the top mode), it actually
+has mode `observing`.  If `e'` of type `t` has mode `portable` (the bottom
+mode), that `e` is completely unaffected by the mode-crossing.  Other comonadic
+axes work similarly.
+
+Monadic axes are different, though: a kind with `mod exclusive` means that
+`exclusive` is a lower bound for mode requirements on terms whose types have
+that kind.  Suppose `t : ... mod exclusive`. If a context requires `e` of type
+`t` to have mode `unique` (the bottom mode), then actually having mode
+`exclusive` is sufficient. A requirement of `aliased` (the top mode) is
+completely unaffected.
+
+The key question: if `t : ... mod exclusive` and we have 
+`type ('a : ... mod aliased) t2`, is `t t2` valid? No! Even though
+`exclusive < aliased`. That's because `mod aliased` puts a *harder* requirement
+on its type (it must be agnostic between all of `unique`, `exclusive`, and
+`aliased`) than `mod exclusive` does (which says the type is agnostic between
+`unique` and `exclusive` only). This means that the subkind relation works
+backwards on monadic axes: `... mod aliased ≤ ... mod exclusive`. For this
+reason, in the presentation above, the monadic axis elements are listed in 
+reverse order: this document does not care about submoding or mode crossing
+directly, and writing the axes in reverse order gives us the right behavior
+on subkinding.
 
 Meta-syntax:
 
