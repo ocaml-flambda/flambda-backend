@@ -995,6 +995,7 @@ let map_ext fn exts =
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
 let rec apply_modalities_signature ~recursive env modalities sg =
+  let env = Env.add_signature sg env in
   List.map (function
   | Sig_value (id, vd, vis) ->
       let val_modalities =
@@ -1014,12 +1015,8 @@ let rec apply_modalities_signature ~recursive env modalities sg =
 
 and apply_modalities_module_type env modalities = function
   | Mty_ident p ->
-      let mtd_type =
-        match Env.find_modtype p env with
-        | mtd -> mtd.mtd_type
-        | exception Not_found -> None
-      in
-      begin match mtd_type with
+      let mtd = Env.find_modtype p env in
+      begin match mtd.mtd_type with
       | None -> Mty_ident p
       | Some mty -> apply_modalities_module_type env modalities mty
       end

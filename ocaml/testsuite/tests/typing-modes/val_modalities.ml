@@ -613,8 +613,7 @@ end
 module type T' = sig val baz : 'a -> 'a @@ portable module M : S end
 |}]
 
-(* CR zqian: fix this *)
-(* [MT] is not in the scope of [include S] and thus not affected. *)
+(* submodule whose type is in the signature *)
 module type S = sig
   module type MT = sig
     val foo : 'a -> 'a
@@ -622,12 +621,123 @@ module type S = sig
   module M : MT
 end
 
-module type S2 = sig
+module type S' = sig
   include S @@ portable
 end
 [%%expect{|
 module type S =
   sig module type MT = sig val foo : 'a -> 'a end module M : MT end
-module type S2 =
-  sig module type MT = sig val foo : 'a -> 'a end module M : MT end
+module type S' =
+  sig
+    module type MT = sig val foo : 'a -> 'a end
+    module M : sig val foo : 'a -> 'a @@ portable end
+  end
+|}]
+
+(* and this works deeply *)
+module type S = sig
+  module type MT = sig
+    val foo : 'a -> 'a
+  end
+  module M : sig
+    module N : MT
+  end
+end
+module type S' = sig
+include S @@ portable
+end
+[%%expect{|
+module type S =
+  sig
+    module type MT = sig val foo : 'a -> 'a end
+    module M : sig module N : MT end
+  end
+module type S' =
+  sig
+    module type MT = sig val foo : 'a -> 'a end
+    module M : sig module N : sig val foo : 'a -> 'a @@ portable end end
+  end
+|}]
+
+(* submodule whose type is not in the signature but inside a module *)
+module M = struct
+  module type Foo = sig
+    val foo : 'a -> 'a
+  end
+  module type Foo' = Foo
+  module type S = sig
+    module N : Foo'
+  end
+end
+module type S' = sig
+  include M.S @@ portable
+end
+[%%expect{|
+module M :
+  sig
+    module type Foo = sig val foo : 'a -> 'a end
+    module type Foo' = Foo
+    module type S = sig module N : Foo' end
+  end
+module type S' = sig module N : sig val foo : 'a -> 'a @@ portable end end
+|}]
+
+(* include abstract module type is still not allowed *)
+module type S = sig
+  module type MT
+  include MT @@ portable
+end
+[%%expect{|
+Line 3, characters 10-12:
+3 |   include MT @@ portable
+              ^^
+Error: This module type is not a signature
+|}]
+
+(* submodule of abstract type is not affected by modality *)
+module type MT
+module type S = sig
+  module M : MT
+end
+module type S' = sig
+include S @@ portable
+end
+[%%expect{|
+module type MT
+module type S = sig module M : MT end
+module type S' = sig module M : MT end
+|}]
+
+(* strenghtened module type *)
+module type S = sig
+  module type T = sig
+    type a
+    val baz : a
+    val foo : a -> a
+  end
+  module MT : T
+  module M : T with MT
+end
+module type S' = sig
+include S @@ portable
+end
+[%%expect{|
+module type S =
+  sig
+    module type T = sig type a val baz : a val foo : a -> a end
+    module MT : T
+    module M : sig type a = MT.a val baz : a val foo : a -> a end
+  end
+module type S' =
+  sig
+    module type T = sig type a val baz : a val foo : a -> a end
+    module MT :
+      sig type a val baz : a @@ portable val foo : a -> a @@ portable end
+    module M :
+      sig
+        type a = MT.a
+        val baz : a @@ portable
+        val foo : a -> a @@ portable
+      end
+  end
 |}]
