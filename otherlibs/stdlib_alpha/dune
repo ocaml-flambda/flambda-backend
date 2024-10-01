@@ -50,16 +50,6 @@
 
 (install
  (files
-  (.stdlib_alpha.objs/native/stdlib_alpha.cmx as stdlib_alpha.cmx)
-  (stdlib_alpha.cmxa as stdlib_alpha.cmxa)
-  (stdlib_alpha.a as stdlib_alpha.a)
-  (stdlib_alpha.cma as stdlib_alpha.cma)
-  (.stdlib_alpha.objs/byte/stdlib_alpha.cmi as stdlib_alpha.cmi)
-  (.stdlib_alpha.objs/byte/stdlib_alpha.cmt as stdlib_alpha.cmt)
-  (.stdlib_alpha.objs/byte/stdlib_alpha.cmti as stdlib_alpha.cmti)
-  (stdlib_alpha.cmxs as stdlib_alpha.cmxs)
-  (dllstdlib_alpha_stubs.so as dllstdlib_alpha_stubs.so)
-  (stdlib_alpha.mli as stdlib_alpha.mli)
-  (rwlock.h as rwlock.h))
+  (dllstdlib_alpha_stubs.so as stublibs/dllstdlib_alpha_stubs.so))
  (section lib)
  (package ocaml))
