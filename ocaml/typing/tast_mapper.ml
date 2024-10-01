@@ -491,14 +491,13 @@ let expr sub x =
         }
     | Texp_field (exp, lid, ld, float, ubr) ->
         Texp_field (sub.expr sub exp, map_loc sub lid, ld, float, ubr)
-    | Texp_setfield (exp1, am, lid, ld, exp2, ubr) ->
+    | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
           am,
           map_loc sub lid,
           ld,
-          sub.expr sub exp2,
-          ubr
+          sub.expr sub exp2
         )
     | Texp_array (amut, sort, list, alloc_mode) ->
         Texp_array (amut, sort, List.map (sub.expr sub) list, alloc_mode)

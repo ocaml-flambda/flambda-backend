@@ -513,7 +513,7 @@ and expression i ppf x =
       line i ppf "Texp_field\n";
       expression i ppf e;
       longident i ppf li;
-  | Texp_setfield (e1, am, li, _, e2, _) ->
+  | Texp_setfield (e1, am, li, _, e2) ->
       line i ppf "Texp_setfield\n";
       locality_mode i ppf am;
       expression i ppf e1;

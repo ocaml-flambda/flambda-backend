@@ -608,8 +608,8 @@ type let_kind = Strict | Alias | StrictOpt
  *)
 
 type unique_barrier =
-  | MayBePushedDown
-  | MustStayHere
+  | May_be_pushed_down
+  | Must_stay_here
 
 val add_barrier_to_read : unique_barrier -> field_read_semantics -> field_read_semantics
 

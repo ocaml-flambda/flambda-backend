@@ -3071,8 +3071,11 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                       (Lprim (Pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
                   nonconsts default
               in
-              Llet (Alias, Lambda.layout_block, tag,
-                    Lprim (Pfield (0, Pointer, Reads_agree), [ arg ], loc),
+              (* Since the tag is used directly in the tests, it would be sound
+                 to mark it Alias+Reads_agree but this would not change performance.
+                 We keep it this way to guarantee soundness of in-place overwriting. *)
+              Llet (StrictOpt, Lambda.layout_block, tag,
+                    Lprim (Pfield (0, Pointer, Reads_vary), [ arg ], loc),
                     tests)
         in
         List.fold_right
@@ -3199,11 +3202,14 @@ let call_switcher_variant_constant kind loc fail arg int_lambda_list =
 
 let call_switcher_variant_constr value_kind loc fail arg int_lambda_list =
   let v = Ident.create_local "variant" in
+  (* Since v is used directly in the tests, it would be sound
+     to mark it Alias+May_be_pushed_down but this would not change performance.
+     We keep it this way to guarantee soundness of in-place overwriting. *)
   Llet
-    ( Alias,
+    ( StrictOpt,
       Lambda.layout_int,
       v,
-      Lprim (nonconstant_variant_field MayBePushedDown 0, [ arg ], loc),
+      Lprim (nonconstant_variant_field Must_stay_here 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
 
 let combine_variant value_kind loc row arg partial ctx def
@@ -4225,7 +4231,9 @@ let for_optional_arg_default
       ~if_some:
         (Lprim
            (* CR ncik-roberts: Check whether we need something better here. *)
-           (Pfield (0, Pointer, Reads_agree),
+           (* Since overwriting this option is not possible, it would be sound to
+              use Reads_agree here, but we want to be conservative. *)
+           (Pfield (0, Pointer, Reads_vary),
             [ Lvar param ],
             Loc_unknown))
   in

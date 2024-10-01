@@ -186,7 +186,7 @@ let iter_on_occurrences
       | Texp_construct (lid, constr_desc, _, _) ->
           add_constructor_description exp_env lid constr_desc
       | Texp_field (_, lid, label_desc, _, _)
-      | Texp_setfield (_, _, lid, label_desc, _, _) ->
+      | Texp_setfield (_, _, lid, label_desc, _) ->
           add_label exp_env lid label_desc
       | Texp_new (path, lid, _, _) ->
           f ~namespace:Class exp_env path lid

@@ -287,7 +287,7 @@ let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
     pat_type;
     pat_env;
     pat_attributes;
-    pat_unique_barrier = Unique_barrier.fresh ();
+    pat_unique_barrier = Unique_barrier.not_computed ();
   }
 
 type tpat_var_identifier = Value.l

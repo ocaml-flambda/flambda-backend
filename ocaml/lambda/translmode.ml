@@ -45,5 +45,5 @@ let transl_modify_mode locality =
 
 let transl_unique_barrier barrier =
   match Typedtree.Unique_barrier.resolve barrier with
-  | Uniqueness.Const.Aliased -> MayBePushedDown
-  | Uniqueness.Const.Unique -> MustStayHere
+  | Uniqueness.Const.Aliased -> May_be_pushed_down
+  | Uniqueness.Const.Unique -> Must_stay_here

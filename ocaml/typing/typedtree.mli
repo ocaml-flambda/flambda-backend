@@ -70,8 +70,11 @@ type _ pattern_category =
 module Unique_barrier : sig
   type t
 
-  (* Create a fresh (mutable) barrier. *)
-  val fresh : unit -> t
+  (* Barriers start out as not computed. *)
+  val not_computed : unit -> t
+
+  (* The uniqueness analysis enables all barriers. *)
+  val enable : t -> unit
 
   (* Record an upper bound on the uniqueness of the record. *)
   val add_upper_bound : Mode.Uniqueness.r -> t -> unit
@@ -389,7 +392,7 @@ and expression_desc =
         projection requires boxing. *)
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
-      Types.label_description * expression * Unique_barrier.t
+      Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
   | Texp_array of Types.mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension

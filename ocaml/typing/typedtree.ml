@@ -51,15 +51,42 @@ type _ pattern_category =
 | Computation : computation pattern_category
 
 module Unique_barrier = struct
-  type t = Mode.Uniqueness.lr
+  (* For added safety, we record the states in the life of a barrier:
+     - Barriers start out as Not_computed
+     - They are enabled by the uniqueness analysis
+     - They are resolved in translcore
+    This allows us to error if the barrier is not enabled or resolved. *)
+  type barrier =
+    | Enabled of Mode.Uniqueness.lr
+    | Resolved of Mode.Uniqueness.Const.t
+    | Not_computed
 
-  let fresh () = Uniqueness.newvar ()
+  type t = barrier ref
 
+  let not_computed () = ref Not_computed
+
+  let enable barrier = match !barrier with
+    | Not_computed ->
+      barrier := Enabled (Uniqueness.newvar ())
+    | _ -> assert false
+
+  (* Due to or-patterns a barrier may have several upper bounds. *)
   let add_upper_bound uniq barrier =
-    Uniqueness.submode_exn barrier uniq
+    match !barrier with
+    | Enabled barrier -> Uniqueness.submode_exn barrier uniq
+    | _ -> assert false
 
   let resolve barrier =
-    Uniqueness.zap_to_ceil barrier
+    match !barrier with
+    | Enabled uniq ->
+      let zapped = Uniqueness.zap_to_ceil uniq in
+      barrier := Resolved zapped;
+      zapped
+    | Resolved barrier -> barrier
+    | Not_computed ->
+      if Language_extension.is_enabled Unique then
+        assert false
+      else Uniqueness.Const.Aliased
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
@@ -186,8 +213,7 @@ and expression_desc =
       expression * Longident.t loc * label_description * texp_field_boxing *
         Unique_barrier.t
   | Texp_setfield of
-      expression * Mode.Locality.l * Longident.t loc * label_description * expression *
-        Unique_barrier.t
+      expression * Mode.Locality.l * Longident.t loc * label_description * expression
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutability * Jkind.sort * comprehension
