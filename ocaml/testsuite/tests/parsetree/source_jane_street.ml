@@ -521,6 +521,49 @@ val f2 : local_ float -> once_ (float -> float) -> local_ once_ t2 @@ global
 |}]
 
 (**********)
+(* stack *)
+
+let f x = stack_ (ref x)
+
+[%%expect{|
+Line 1, characters 17-24:
+1 | let f x = stack_ (ref x)
+                     ^^^^^^^
+Error: This expression is not an allocation site.
+|}]
+
+type t = { a : int }
+let f a =
+  let y = stack_ { a } in
+  y.a
+
+[%%expect{|
+type t = { a : int; }
+val f : int -> int @@ global many = <fun>
+|}]
+
+let apply ~(f @ local) x = f x [@nontail]
+let double1 y = apply ~f:(stack_ fun x -> x + y) y [@nontail]
+let double2 y = apply ~f:(stack_ function x -> x + y) y [@nontail]
+
+[%%expect{|
+val apply :
+  ('a : value_or_null) ('b : value_or_null). f:local_ ('a -> 'b) -> 'a -> 'b
+  @@ global many = <fun>
+val double1 : int -> int @@ global many = <fun>
+val double2 : int -> int @@ global many = <fun>
+|}]
+
+let make_tuple x y z = stack_ (x, y), z
+[%%expect{|
+Line 1, characters 30-36:
+1 | let make_tuple x y z = stack_ (x, y), z
+                                  ^^^^^^
+Error: This allocation cannot be on the stack.
+|}]
+
+
+(**********)
 (* unique *)
 
 (* No syntax; the unique extension just enables the uniqueness checker. *)

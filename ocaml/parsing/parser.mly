@@ -2708,12 +2708,7 @@ let_pattern_no_modes:
 
 %inline qualified_dotop: ioption(DOT mod_longident {$2}) DOTOP { $1, $2 };
 
-fun_expr:
-    simple_expr %prec below_HASH
-      { $1 }
-  | fun_expr_attrs
-      { let desc, attrs = $1 in
-        mkexp_attrs ~loc:$sloc desc attrs }
+fun_:
     /* Cf #5939: we used to accept (fun p when e0 -> e) */
   | FUN ext_attributes fun_params preceded(COLON, atomic_type)?
       MINUSGREATER fun_body
@@ -2727,6 +2722,15 @@ fun_expr:
         in
         mkfunction $3 body_constraint $6 ~loc:$sloc ~attrs:$2
       }
+
+fun_expr:
+    simple_expr %prec below_HASH
+      { $1 }
+  | fun_expr_attrs
+      { let desc, attrs = $1 in
+        mkexp_attrs ~loc:$sloc desc attrs }
+  | fun_
+      { $1 }
   | expr_
       { $1 }
   | let_bindings(ext) IN seq_expr
@@ -2807,6 +2811,8 @@ fun_expr:
   | simple_expr nonempty_llist(labeled_simple_expr)
       { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
   | STACK simple_expr
+      { mkexp ~loc:$sloc (Pexp_stack $2) }
+  | STACK or_function(fun_)
       { mkexp ~loc:$sloc (Pexp_stack $2) }
   | labeled_tuple %prec below_COMMA
       { mkexp ~loc:$sloc (Pexp_tuple $1) }
