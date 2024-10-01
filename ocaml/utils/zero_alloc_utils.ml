@@ -207,6 +207,7 @@ module Assume_info = struct
   type t =
     | No_assume
     | Assume of Value.t
+    | Assume_inferred of Value.t
   (* CR ccasinghino: consider extending this time to also capture "check"
      attributes, and using it everywhere in typed tree instead of sometimes
      having a check_attribute and sometimes having this type. *)
@@ -215,35 +216,59 @@ module Assume_info = struct
     match t1, t2 with
     | No_assume, No_assume -> 0
     | Assume v1, Assume v2 -> Value.compare v1 v2
-    | No_assume, Assume _ -> -1
-    | Assume _, No_assume -> 1
+    | Assume_inferred v1, Assume_inferred v2 -> Value.compare v1 v2
+    | No_assume, (Assume _ | Assume_inferred _) -> -1
+    | Assume_inferred _, Assume _ -> -1
+    | Assume _, Assume_inferred _ -> 1
+    | (Assume _ | Assume_inferred _), No_assume -> 1
 
   let equal t1 t2 = compare t1 t2 = 0
 
   let print ppf = function
     | No_assume -> ()
     | Assume v -> Format.fprintf ppf "%a" (Value.print ~witnesses:false) v
+    | Assume_inferred v ->
+      Format.fprintf ppf "(inferred)%a" (Value.print ~witnesses:false) v
 
   let to_string v = Format.asprintf "%a" print v
 
   let join t1 t2 =
     match t1, t2 with
     | No_assume, No_assume -> No_assume
-    | No_assume, Assume _ | Assume _, No_assume -> No_assume
+    | No_assume, (Assume _ | Assume_inferred _)
+    | (Assume _ | Assume_inferred _), No_assume ->
+      No_assume
     | Assume t1, Assume t2 -> Assume (Value.join t1 t2)
+    | Assume_inferred t1, Assume_inferred t2 ->
+      Assume_inferred (Value.join t1 t2)
+    | Assume t1, Assume_inferred t2 | Assume_inferred t1, Assume t2 ->
+      Assume_inferred (Value.join t1 t2)
 
   let meet t1 t2 =
     match t1, t2 with
     | No_assume, No_assume -> No_assume
     | No_assume, (Assume _ as t) | (Assume _ as t), No_assume -> t
+    | No_assume, (Assume_inferred _ as t) | (Assume_inferred _ as t), No_assume
+      ->
+      t
     | Assume t1, Assume t2 -> Assume (Value.meet t1 t2)
+    | Assume_inferred t1, Assume_inferred t2 ->
+      Assume_inferred (Value.meet t1 t2)
+    | Assume t1, Assume_inferred t2 -> Assume (Value.meet t1 t2)
+    | Assume_inferred t1, Assume t2 -> Assume (Value.meet t1 t2)
 
   let none = No_assume
 
-  let create ~strict ~never_returns_normally ~never_raises =
-    Assume (Value.of_annotation ~strict ~never_returns_normally ~never_raises)
+  let create ~strict ~never_returns_normally ~never_raises ~inferred =
+    let v = Value.of_annotation ~strict ~never_returns_normally ~never_raises in
+    match inferred with false -> Assume v | true -> Assume_inferred v
 
-  let get_value t = match t with No_assume -> None | Assume v -> Some v
+  let get_value t =
+    match t with No_assume -> None | Assume v | Assume_inferred v -> Some v
 
-  let is_none t = match t with No_assume -> true | Assume _ -> false
+  let is_none t =
+    match t with No_assume -> true | Assume _ | Assume_inferred _ -> false
+
+  let is_inferred t =
+    match t with Assume_inferred _ -> true | Assume _ | No_assume -> false
 end

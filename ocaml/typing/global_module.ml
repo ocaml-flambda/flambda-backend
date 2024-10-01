@@ -39,6 +39,21 @@ let sort_and_check_uniqueness l ~cmp =
   let l = List.stable_sort (fun arg1 arg2 -> cmp arg1.param arg2.param) l in
   check_uniqueness_of_sorted l ~cmp |> Result.map (fun () -> l)
 
+let check_uniqueness_of_merged (type n v)
+      (l1 : (n, v) Argument.t list) l2 ~(cmp : n -> n -> int) =
+  let open Argument in
+  let exception Found_duplicate of (n, v) duplicate in
+  match
+    Misc.Stdlib.List.merge_iter l1 l2
+      ~cmp:(fun arg1 arg2 -> cmp arg1.param arg2.param)
+      ~left_only:ignore
+      ~right_only:ignore
+      ~both:(fun { param = name; value = value1 } { value = value2; _ } ->
+          raise (Found_duplicate (Duplicate { name; value1; value2 })))
+  with
+  | () -> Ok ()
+  | exception Found_duplicate dup -> Error dup
+
 module Name : sig
   type t = private {
     head : string;
@@ -49,6 +64,8 @@ module Name : sig
   val create : string -> argument list -> (t, (t, t) duplicate) Result.t
 
   val create_exn : string -> argument list -> t
+
+  val create_no_args : string -> t
 
   val unsafe_create_unchecked : string -> argument list -> t
 
@@ -104,6 +121,8 @@ end = struct
     | Error (Duplicate _) ->
       Misc.fatal_errorf "Names of instance arguments must be unique:@ %a"
         print { head; args }
+
+  let create_no_args head = create_exn head []
 
   let unsafe_create_unchecked head args = { head; args }
 
@@ -203,9 +222,7 @@ end = struct
     let (let*) = Result.bind in
     let* visible_args = sort_and_check_uniqueness visible_args ~cmp:Name.compare in
     let* hidden_args = sort_and_check_uniqueness hidden_args ~cmp:Name.compare in
-    (* This should check that visible and hidden args don't overlap.
-       Fortunately, we don't ever parse these directly from the user, so there
-       isn't much chance of an overlap actually happening. *)
+    let* () = check_uniqueness_of_merged visible_args hidden_args ~cmp:Name.compare in
     Ok { head; visible_args; hidden_args }
 
   let create_exn head visible_args ~hidden_args =

@@ -1264,22 +1264,25 @@ end
 module Instances = struct
   type instance =
     { head : string;
-      args : (instance * instance) list
+      args : (string * instance) list
     }
 
   type module_expr = Imod_instance of instance
 
   let feature : Feature.t = Language_extension Instances
 
+  let module_expr_of_string ~loc str =
+    Ast_helper.Mod.ident ~loc { txt = Lident str; loc }
+
   let rec module_expr_of_instance ~loc { head; args } =
-    let head = Ast_helper.Mod.ident ~loc { txt = Lident head; loc } in
+    let head = module_expr_of_string ~loc head in
     match args with
     | [] -> head
     | _ ->
       let args =
         List.concat_map
           (fun (param, value) ->
-            let param = module_expr_of_instance ~loc param in
+            let param = module_expr_of_string ~loc param in
             let value = module_expr_of_instance ~loc value in
             [param; value])
           args
@@ -1307,6 +1310,11 @@ module Instances = struct
     in
     loop mexpr []
 
+  let string_of_module_expr mexpr =
+    match mexpr.pmod_desc with
+    | Pmod_ident i -> head_of_ident i
+    | _ -> failwith "Malformed instance identifier"
+
   let rec instance_of_module_expr mexpr =
     match gather_args mexpr with
     | Pmod_ident i, args ->
@@ -1316,7 +1324,7 @@ module Instances = struct
     | _ -> failwith "Malformed instance identifier"
 
   and instances_of_arg_pair (n, v) =
-    instance_of_module_expr n, instance_of_module_expr v
+    string_of_module_expr n, instance_of_module_expr v
 
   let of_module_expr mexpr = Imod_instance (instance_of_module_expr mexpr)
 end

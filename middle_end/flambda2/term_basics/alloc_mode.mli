@@ -67,8 +67,6 @@ module For_applications : sig
     current_ghost_region:Variable.t ->
     t
 
-  val to_lambda : t -> Lambda.alloc_mode
-
   include Contains_names.S with type t := t
 
   include Contains_ids.S with type t := t
@@ -93,8 +91,6 @@ module For_allocations : sig
   val as_type : t -> For_types.t
 
   val from_lambda : Lambda.alloc_mode -> current_region:Variable.t -> t
-
-  val to_lambda : t -> Lambda.alloc_mode
 
   include Contains_names.S with type t := t
 

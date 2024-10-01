@@ -485,7 +485,10 @@ module M = struct
 
   (* Value expressions for the module language *)
   let map_instance _sub : I.instance -> I.instance = function
-    | i -> i (* Currently treating these as atomic? *)
+    | i ->
+      (* CR lmaurer: Implement this. Might want to change the [instance] type to have
+        Ids with locations in them rather than just raw strings. *)
+      i
 
   let map_instance_expr sub : I.module_expr -> I.module_expr = function
     | Imod_instance i -> Imod_instance (map_instance sub i)

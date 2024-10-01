@@ -50,8 +50,12 @@ module Example = struct
            () = () in f"
   let utuple_exp = parse expression
     "let #(x,y) : #(int * int) = #(1,2) in \
-     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in
-     x + y + a + b + c"
+     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in \
+     let #(i,j) : ('b : value mod m & (value mod l)) = #(6,7) in \
+     let #(s,t) : ('c : value mod m & value mod l) = #(7,8) in \
+     let #(k,l) : ('d : value with t & (value with t)) = #(6,7) in \
+     let #(u,v) : ('e : value with t & value with t) = #(7,8) in \
+     x + y + a + b + c + i + j + s + t + k + l + u + v"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -76,6 +80,11 @@ module Example = struct
       kind_abbrev_ immutable = value mod uncontended \
       kind_abbrev_ data = value mod sync many \
     end"
+
+  let instance_name =
+    parse module_expr "\
+      Base(Name1)(Value1)(Name2)(Value2(Name2_1)(Value2_1)) \
+        [@jane.non_erasable.instances]"
 
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
@@ -227,6 +236,7 @@ end = struct
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
   let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
   let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
+  let instance_name = test "instance_name" module_expr Example.instance_name
 
   let tyvar_of_name =
     test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name

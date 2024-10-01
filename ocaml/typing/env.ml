@@ -3038,7 +3038,7 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   | Mod_persistent -> begin
       (* This is only used when processing [Longident.t]s, which never have
          instance arguments *)
-      let name = Global_module.Name.create_exn s [] in
+      let name = Global_module.Name.create_no_args s in
       let path, a =
         lookup_global_name_module load ~errors ~use ~loc path name env
       in
@@ -3735,7 +3735,7 @@ let bound_module name env =
       else begin
         match
           find_pers_mod ~allow_hidden:false
-            (Global_module.Name.create_exn name [])
+            (Global_module.Name.create_no_args name)
         with
         | _ -> true
         | exception Not_found -> false
@@ -3824,7 +3824,7 @@ let fold_modules f lid env acc =
                   rather than just the name. It looks like the only immediate
                   consequence of this is that spellcheck won't suggest
                   instance names (which is good!). *)
-               let modname = Global_module.Name.create_exn name [] in
+               let modname = Global_module.Name.create_no_args name in
                match Persistent_env.find_in_cache !persistent_env modname with
                | None -> acc
                | Some mda ->
@@ -3893,7 +3893,7 @@ let filter_non_loaded_persistent f env =
          | Mod_persistent ->
              (* CR lmaurer: Again, setting args to [] here is weird but fine
                 for the moment *)
-             let modname = Global_module.Name.create_exn name [] in
+             let modname = Global_module.Name.create_no_args name in
              match Persistent_env.find_in_cache !persistent_env modname with
              | Some _ -> acc
              | None ->
