@@ -41,6 +41,8 @@ type to_lift =
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_vec128_array of
       { fields : Vector_types.Vec128.Bit_pattern.t list }
+  | Immutable_non_scannable_unboxed_product_array of
+      { fields : (Simple.t * Flambda_kind.With_subkind.t) list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 
@@ -547,7 +549,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
                 (Array
                   { contents = Unknown | Known Mutable;
                     length;
-                    element_kind;
+                    element_kinds;
                     alloc_mode = _
                   })
           }) -> (
@@ -556,11 +558,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         if not (Targetint_31_63.equal length Targetint_31_63.zero)
         then try_canonical_simple ()
         else
-          match element_kind with
-          | Ok element_kind ->
+          match element_kinds with
+          | Ok element_kinds ->
             let array_kind =
-              Empty_array_kind.of_element_kind
-                (Flambda_kind.With_subkind.kind element_kind)
+              Empty_array_kind.of_element_kinds
+                (List.map Flambda_kind.With_subkind.kind element_kinds)
             in
             Lift (Empty_array array_kind)
           | Unknown | Bottom -> try_canonical_simple ())
@@ -575,57 +577,99 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
                   { contents = Known (Immutable { fields });
                     length = _;
                     alloc_mode;
-                    element_kind
+                    element_kinds
                   })
           }) -> (
       match fields with
       | [||] -> (
-        match element_kind with
-        | Ok element_kind ->
+        match element_kinds with
+        | Ok element_kinds ->
           let array_kind =
-            Empty_array_kind.of_element_kind
-              (Flambda_kind.With_subkind.kind element_kind)
+            Empty_array_kind.of_element_kinds
+              (List.map Flambda_kind.With_subkind.kind element_kinds)
           in
           Lift (Empty_array array_kind)
         | Unknown | Bottom -> try_canonical_simple ())
       | _ -> (
         let fields = Array.to_list fields in
-        match element_kind with
+        match element_kinds with
         | Unknown -> try_canonical_simple ()
         | Bottom ->
           (* CR someday vlaviron: we could use [Lift Empty_array] here *)
           try_canonical_simple ()
-        | Ok element_kind -> (
-          let kind = Flambda_kind.With_subkind.kind element_kind in
-          match kind with
-          | Value -> (
-            let field_types_and_expected_kinds =
-              List.map (fun ty -> ty, Flambda_kind.value) fields
-            in
+        | Ok element_kinds -> (
+          let kinds = List.map Flambda_kind.With_subkind.kind element_kinds in
+          match kinds with
+          | [] -> Misc.fatal_error "Did not expect empty element kinds"
+          | _ :: _ :: _ -> (
+            let field_types_and_expected_kinds = List.combine fields kinds in
             match
               try_to_reify_fields env ~var_allowed alloc_mode
                 ~field_types_and_expected_kinds
             with
-            | Some fields -> Lift (Immutable_value_array { fields })
+            (* XXX mshinwell: We need to convince ourselves that there is no
+               problem with making different decisions based on immediacy
+               here. *)
+            | Some fields' ->
+              let fields = List.combine fields' element_kinds in
+              if List.for_all
+                   (fun (_, kind) ->
+                     Flambda_kind.equal
+                       (Flambda_kind.With_subkind.kind kind)
+                       Flambda_kind.value
+                     && not
+                          (Flambda_kind.With_subkind.equal
+                             Flambda_kind.With_subkind.tagged_immediate kind))
+                   fields
+              then Lift (Immutable_value_array { fields = fields' })
+              else (
+                if List.exists
+                     (fun (_, kind) ->
+                       Flambda_kind.equal
+                         (Flambda_kind.With_subkind.kind kind)
+                         Flambda_kind.value
+                       && not
+                            (Flambda_kind.With_subkind.equal
+                               Flambda_kind.With_subkind.tagged_immediate kind))
+                     fields
+                then
+                  Misc.fatal_errorf
+                    "This type specifies an unboxed product array that is \
+                     neither scannable nor entirely non-scannable:@ %a"
+                    TG.print t;
+                Lift (Immutable_non_scannable_unboxed_product_array { fields }))
             | None -> try_canonical_simple ())
-          | Naked_number Naked_float ->
-            Lift_array_of_naked_floats.lift env ~fields ~try_canonical_simple
-          | Naked_number Naked_float32 ->
-            Lift_array_of_naked_float32s.lift env ~fields ~try_canonical_simple
-          | Naked_number Naked_int32 ->
-            Lift_array_of_naked_int32s.lift env ~fields ~try_canonical_simple
-          | Naked_number Naked_int64 ->
-            Lift_array_of_naked_int64s.lift env ~fields ~try_canonical_simple
-          | Naked_number Naked_nativeint ->
-            Lift_array_of_naked_nativeints.lift env ~fields
-              ~try_canonical_simple
-          | Naked_number Naked_vec128 ->
-            Lift_array_of_naked_vec128s.lift env ~fields ~try_canonical_simple
-          | Naked_number Naked_immediate | Region | Rec_info ->
-            Misc.fatal_errorf
-              "Unexpected kind %a in immutable array case when reifying type:@ \
-               %a@ in env:@ %a"
-              Flambda_kind.print kind TG.print t TE.print env)))
+          | [kind] -> (
+            match kind with
+            | Value -> (
+              let field_types_and_expected_kinds =
+                List.map (fun ty -> ty, Flambda_kind.value) fields
+              in
+              match
+                try_to_reify_fields env ~var_allowed alloc_mode
+                  ~field_types_and_expected_kinds
+              with
+              | Some fields -> Lift (Immutable_value_array { fields })
+              | None -> try_canonical_simple ())
+            | Naked_number Naked_float ->
+              Lift_array_of_naked_floats.lift env ~fields ~try_canonical_simple
+            | Naked_number Naked_float32 ->
+              Lift_array_of_naked_float32s.lift env ~fields
+                ~try_canonical_simple
+            | Naked_number Naked_int32 ->
+              Lift_array_of_naked_int32s.lift env ~fields ~try_canonical_simple
+            | Naked_number Naked_int64 ->
+              Lift_array_of_naked_int64s.lift env ~fields ~try_canonical_simple
+            | Naked_number Naked_nativeint ->
+              Lift_array_of_naked_nativeints.lift env ~fields
+                ~try_canonical_simple
+            | Naked_number Naked_vec128 ->
+              Lift_array_of_naked_vec128s.lift env ~fields ~try_canonical_simple
+            | Naked_number Naked_immediate | Region | Rec_info ->
+              Misc.fatal_errorf
+                "Unexpected kind %a in immutable array case when reifying \
+                 type:@ %a@ in env:@ %a"
+                Flambda_kind.print kind TG.print t TE.print env))))
     | Value Bottom
     | Naked_immediate Bottom
     | Naked_float32 Bottom

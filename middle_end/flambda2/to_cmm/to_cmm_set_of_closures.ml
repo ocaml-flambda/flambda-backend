@@ -178,25 +178,8 @@ end = struct
                 _
               } ->
             let update_kind =
-              let module UK = C.Update_kind in
-              match KS.kind kind with
-              | Value ->
-                if KS.Non_null_value_subkind.equal
-                     (KS.non_null_value_subkind kind)
-                     Tagged_immediate
-                then UK.tagged_immediates
-                else UK.pointers
-              | Naked_number Naked_immediate
-              | Naked_number Naked_int64
-              | Naked_number Naked_nativeint ->
-                UK.naked_int64s
-              | Naked_number Naked_float -> UK.naked_floats
-              | Naked_number Naked_vec128 -> UK.naked_vec128_fields
-              (* The "fields" update kinds are used because we are writing into
-                 a 64-bit slot, and wish to initialize the whole. *)
-              | Naked_number Naked_int32 -> UK.naked_int32_fields
-              | Naked_number Naked_float32 -> UK.naked_float32_fields
-              | Region | Rec_info ->
+              try C.Update_kind.of_kind_with_subkind kind
+              with _exn ->
                 Misc.fatal_errorf "Unexpected value slot kind for %a: %a"
                   Value_slot.print value_slot KS.print kind
             in

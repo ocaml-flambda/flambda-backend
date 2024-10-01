@@ -400,8 +400,8 @@ let arity_of_list ts =
   Flambda_arity.create_singletons
     (List.map (fun ty -> Flambda_kind.With_subkind.anything (TG.kind ty)) ts)
 
-let mutable_array_non_null ~element_kind ~length alloc_mode =
-  TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+let mutable_array_non_null ~element_kinds ~length alloc_mode =
+  TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kinds
     ~length Unknown alloc_mode
 
 let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
@@ -447,50 +447,50 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
       | Float_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.naked_float)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.naked_float])
              ~length:any_tagged_immediate alloc_mode)
       | Unboxed_float32_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.naked_float32)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.naked_float32])
              ~length:any_tagged_immediate alloc_mode)
       | Unboxed_int32_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.naked_int32)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.naked_int32])
              ~length:any_tagged_immediate alloc_mode)
       | Unboxed_int64_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.naked_int64)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.naked_int64])
              ~length:any_tagged_immediate alloc_mode)
       | Unboxed_nativeint_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.naked_nativeint)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.naked_nativeint])
              ~length:any_tagged_immediate alloc_mode)
       | Unboxed_vec128_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.naked_vec128)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.naked_vec128])
              ~length:any_tagged_immediate alloc_mode)
       | Unboxed_product_array ->
         Ok
-          (mutable_array_non_null ~element_kind:Unknown
+          (mutable_array_non_null ~element_kinds:Unknown
              ~length:any_tagged_immediate alloc_mode)
       | Immediate_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.tagged_immediate)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.tagged_immediate])
              ~length:any_tagged_immediate alloc_mode)
       | Value_array ->
         Ok
           (mutable_array_non_null
-             ~element_kind:(Ok Flambda_kind.With_subkind.any_value)
+             ~element_kinds:(Ok [Flambda_kind.With_subkind.any_value])
              ~length:any_tagged_immediate alloc_mode)
       | Generic_array ->
         Ok
-          (mutable_array_non_null ~element_kind:Unknown
+          (mutable_array_non_null ~element_kinds:Unknown
              ~length:any_tagged_immediate alloc_mode)
     in
     let is_null : TG.is_null =

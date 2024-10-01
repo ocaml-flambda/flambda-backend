@@ -759,6 +759,9 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Misc.fatal_error
       "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
        yet implemented"
+  | Immutable_non_scannable_unboxed_product_array _ ->
+    Misc.fatal_error
+      "fexpr support for unboxed product arrays not yet implemented"
   | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

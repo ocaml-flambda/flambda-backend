@@ -85,6 +85,10 @@ let rewrite_simple_with_debuginfo kinds env (simple : Simple.With_debuginfo.t) =
     (rewrite_simple kinds env (Simple.With_debuginfo.simple simple))
     (Simple.With_debuginfo.dbg simple)
 
+let rewrite_simple_with_debuginfo_and_full_kind kinds env
+    ((simple : Simple.With_debuginfo.t), full_kind) =
+  rewrite_simple_with_debuginfo kinds env simple, full_kind
+
 let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
   match sc with
   | Set_of_closures sc ->
@@ -168,6 +172,11 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
         fields
     in
     Static_const.immutable_vec128_array fields
+  | Immutable_non_scannable_unboxed_product_array fields ->
+    let fields =
+      List.map (rewrite_simple_with_debuginfo_and_full_kind kinds env) fields
+    in
+    Static_const.immutable_non_scannable_unboxed_product_array fields
   | Empty_array _ | Mutable_string _ | Immutable_string _ -> sc
 
 let rewrite_static_const_or_code kinds env (sc : Static_const_or_code.t) =

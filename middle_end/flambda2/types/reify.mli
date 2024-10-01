@@ -39,6 +39,8 @@ type to_lift = private
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_vec128_array of
       { fields : Vector_types.Vec128.Bit_pattern.t list }
+  | Immutable_non_scannable_unboxed_product_array of
+      { fields : (Simple.t * Flambda_kind.With_subkind.t) list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 

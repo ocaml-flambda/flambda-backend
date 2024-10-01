@@ -128,17 +128,17 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
 
 let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
   let typing_env = DA.typing_env dacc in
-  let element_kind : _ Or_unknown_or_bottom.t =
+  let element_kinds : _ Or_unknown_or_bottom.t =
     (* We can't deduce subkind information, e.g. an array is all-immediates
        rather than arbitrary values, but we can deduce kind information. *)
     if not (Flambda_features.flat_float_array ())
-    then Ok (Flambda_kind.With_subkind.anything (T.kind init_value_ty))
+    then Ok [Flambda_kind.With_subkind.anything (T.kind init_value_ty)]
     else
       match T.prove_is_or_is_not_a_boxed_float typing_env init_value_ty with
       | Proved true ->
         (* A boxed float provided to [caml_make_vect] with the float array
            optimisation on will always yield a flat array of naked floats. *)
-        Ok Flambda_kind.With_subkind.naked_float
+        Ok [Flambda_kind.With_subkind.naked_float]
       | Proved false | Unknown -> Unknown
   in
   (* CR-someday mshinwell: We should really adjust the kind of the parameter of
@@ -151,7 +151,7 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
      Also maybe we should allow static allocation of these arrays for reasonable
      sizes. *)
   let type_of_returned_array =
-    T.mutable_array ~element_kind ~length:len_ty Alloc_mode.For_types.heap
+    T.mutable_array ~element_kinds ~length:len_ty Alloc_mode.For_types.heap
   in
   Unchanged { return_types = Known [type_of_returned_array] }
 

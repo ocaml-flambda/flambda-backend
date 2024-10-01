@@ -28,6 +28,6 @@ val print : Format.formatter -> t -> unit
 
 val compare : t -> t -> int
 
-val of_element_kind : Flambda_kind.t -> t
+val of_element_kinds : Flambda_kind.t list -> t
 
 val of_lambda : Lambda.array_kind -> t

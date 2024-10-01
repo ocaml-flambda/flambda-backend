@@ -400,6 +400,27 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         "caml_unboxed_nativeint_array_ops", None)
   | Block_like symbol, Immutable_vec128_array elts ->
     immutable_unboxed_vec128_array env res updates ~symbol ~elts
+  | Block_like s, Immutable_non_scannable_unboxed_product_array fields ->
+    let sym = R.symbol res s in
+    let header =
+      C.black_mixed_block_header 0 (List.length fields) ~scannable_prefix_len:0
+    in
+    let field_simples = List.map fst fields in
+    let field_kinds =
+      List.map snd fields |> List.map Flambda_kind.With_subkind.kind
+    in
+    let static_fields =
+      Misc.Stdlib.List.concat_map2 (static_field res) field_simples field_kinds
+    in
+    let block = C.emit_block sym header static_fields in
+    let update_kinds =
+      List.map C.Update_kind.of_kind_with_subkind (List.map snd fields)
+    in
+    let env, res, updates =
+      static_block_updates sym env res updates 0
+        (List.combine field_simples update_kinds)
+    in
+    env, R.set_data res block, updates
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
@@ -473,7 +494,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
-      | Immutable_vec128_array _ | Immutable_value_array _ | Empty_array _
+      | Immutable_vec128_array _ | Immutable_value_array _
+      | Immutable_non_scannable_unboxed_product_array _ | Empty_array _
       | Mutable_string _ | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \

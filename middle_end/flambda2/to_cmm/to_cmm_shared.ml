@@ -353,6 +353,28 @@ module Update_kind = struct
   let naked_float32_fields = { kind = Naked_float32; stride = Arch.size_addr }
 
   let naked_vec128_fields = { kind = Naked_vec128; stride = Arch.size_addr }
+
+  let of_kind_with_subkind kind =
+    let module KS = Flambda_kind.With_subkind in
+    match KS.kind kind with
+    | Value ->
+      if KS.Non_null_value_subkind.equal
+           (KS.non_null_value_subkind kind)
+           Tagged_immediate
+      then tagged_immediates
+      else pointers
+    | Naked_number Naked_immediate
+    | Naked_number Naked_int64
+    | Naked_number Naked_nativeint ->
+      naked_int64s
+    | Naked_number Naked_float -> naked_floats
+    | Naked_number Naked_vec128 -> naked_vec128_fields
+    (* The "fields" update kinds are used because we are writing into a 64-bit
+       slot, and wish to initialize the whole. *)
+    | Naked_number Naked_int32 -> naked_int32_fields
+    | Naked_number Naked_float32 -> naked_float32_fields
+    | Region | Rec_info ->
+      Misc.fatal_errorf "Unexpected kind for update: %a" KS.print kind
 end
 
 let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var

@@ -53,7 +53,7 @@ let rebuild_naked_number_array dacc ~bind_result_sym kind type_creator creator
   in
   let dacc =
     bind_result_sym
-      (T.immutable_array ~element_kind:(Ok kind) ~fields:field_tys
+      (T.immutable_array ~element_kinds:(Ok [kind]) ~fields:field_tys
          Alloc_mode.For_types.heap)
   in
   creator (DA.are_rebuilding_terms dacc) fields, dacc
@@ -199,6 +199,24 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Immutable_vec128_array fields ->
     rebuild_naked_number_array dacc ~bind_result_sym KS.naked_vec128
       T.this_naked_vec128 RSC.create_immutable_vec128_array ~fields
+  | Immutable_non_scannable_unboxed_product_array fields ->
+    let kinds = List.map snd fields in
+    let fields_with_tys =
+      List.map
+        (fun (field, kind) ->
+          simplify_field_of_block dacc (field, K.With_subkind.kind kind))
+        fields
+    in
+    let fields, field_tys = List.split fields_with_tys in
+    let dacc =
+      bind_result_sym
+        (T.immutable_array ~element_kinds:(Ok kinds) ~fields:field_tys
+           Alloc_mode.For_types.heap)
+    in
+    ( Rebuilt_static_const.create_immutable_non_scannable_unboxed_product_array
+        (DA.are_rebuilding_terms dacc)
+        (List.combine fields kinds),
+      dacc )
   | Immutable_value_array fields ->
     let fields_with_tys =
       List.map
@@ -208,7 +226,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let fields, field_tys = List.split fields_with_tys in
     let dacc =
       bind_result_sym
-        (T.immutable_array ~element_kind:(Ok KS.any_value) ~fields:field_tys
+        (T.immutable_array ~element_kinds:(Ok [KS.any_value]) ~fields:field_tys
            Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_immutable_value_array
@@ -218,7 +236,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Empty_array array_kind ->
     let dacc =
       bind_result_sym
-        (T.array_of_length ~element_kind:Bottom
+        (T.array_of_length ~element_kinds:Bottom
            ~length:(T.this_tagged_immediate Targetint_31_63.zero)
            Alloc_mode.For_types.heap)
     in

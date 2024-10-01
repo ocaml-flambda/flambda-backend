@@ -465,28 +465,52 @@ let meet_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
   | Unknown, Unknown -> Unknown
   | Bottom, _ | _, Bottom -> Bottom
   | Unknown, Ok kind | Ok kind, Unknown -> Ok kind
-  | Ok element_kind1, Ok element_kind2 ->
-    if Flambda_kind.With_subkind.compatible element_kind1
-         ~when_used_at:element_kind2
-    then Ok element_kind1
-    else if Flambda_kind.With_subkind.compatible element_kind2
-              ~when_used_at:element_kind1
-    then Ok element_kind2
-    else Bottom
+  | Ok element_kinds1, Ok element_kinds2 ->
+    if List.compare_lengths element_kinds1 element_kinds2 <> 0
+    then Bottom
+    else
+      List.fold_left2
+        (fun (acc : _ Or_unknown_or_bottom.t) element_kind1 element_kind2 :
+             _ Or_unknown_or_bottom.t ->
+          match acc with
+          | Bottom -> Bottom
+          | Ok acc ->
+            if Flambda_kind.With_subkind.compatible element_kind1
+                 ~when_used_at:element_kind2
+            then Ok (element_kind1 :: acc)
+            else if Flambda_kind.With_subkind.compatible element_kind2
+                      ~when_used_at:element_kind1
+            then Ok (element_kind2 :: acc)
+            else Bottom
+          | Unknown -> assert false)
+        (Or_unknown_or_bottom.Ok []) (List.rev element_kinds1)
+        (List.rev element_kinds2)
 
-let join_array_element_kinds (element_kind1 : _ Or_unknown_or_bottom.t)
-    (element_kind2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
-  match element_kind1, element_kind2 with
+let join_array_element_kinds (element_kinds1 : _ Or_unknown_or_bottom.t)
+    (element_kinds2 : _ Or_unknown_or_bottom.t) : _ Or_unknown_or_bottom.t =
+  match element_kinds1, element_kinds2 with
   | Unknown, _ | _, Unknown -> Unknown
-  | Bottom, element_kind | element_kind, Bottom -> element_kind
-  | Ok element_kind1, Ok element_kind2 ->
-    if Flambda_kind.With_subkind.compatible element_kind1
-         ~when_used_at:element_kind2
-    then Ok element_kind2
-    else if Flambda_kind.With_subkind.compatible element_kind2
-              ~when_used_at:element_kind1
-    then Ok element_kind1
-    else Unknown
+  | Bottom, element_kinds | element_kinds, Bottom -> element_kinds
+  | Ok element_kinds1, Ok element_kinds2 ->
+    if List.compare_lengths element_kinds1 element_kinds2 <> 0
+    then Unknown
+    else
+      List.fold_left2
+        (fun (acc : _ Or_unknown_or_bottom.t) element_kind1 element_kind2 :
+             _ Or_unknown_or_bottom.t ->
+          match acc with
+          | Unknown -> Unknown
+          | Ok acc ->
+            if Flambda_kind.With_subkind.compatible element_kind1
+                 ~when_used_at:element_kind2
+            then Ok (element_kind2 :: acc)
+            else if Flambda_kind.With_subkind.compatible element_kind2
+                      ~when_used_at:element_kind1
+            then Ok (element_kind1 :: acc)
+            else Unknown
+          | Bottom -> assert false)
+        (Or_unknown_or_bottom.Ok []) (List.rev element_kinds1)
+        (List.rev element_kinds2)
 
 let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
   if not (K.equal (TG.kind t1) (TG.kind t2))
@@ -806,20 +830,20 @@ and meet_head_of_kind_value_non_null env
     map_result ~f:TG.Head_of_kind_value_non_null.create_string
       (set_meet (module String_info.Set) env strs1 strs2 ~of_set:Fun.id)
   | ( Array
-        { element_kind = element_kind1;
+        { element_kinds = element_kinds1;
           length = length1;
           contents = contents1;
           alloc_mode = alloc_mode1
         },
       Array
-        { element_kind = element_kind2;
+        { element_kinds = element_kinds2;
           length = length2;
           contents = contents2;
           alloc_mode = alloc_mode2
         } ) ->
     meet_array_type env
-      (element_kind1, length1, contents1, alloc_mode1)
-      (element_kind2, length2, contents2, alloc_mode2)
+      (element_kinds1, length1, contents1, alloc_mode1)
+      (element_kinds2, length2, contents2, alloc_mode2)
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
       | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
       | Closures _ | String _ | Array _ ),
@@ -828,23 +852,23 @@ and meet_head_of_kind_value_non_null env
        could break very hard for dubious uses of Obj. *)
     Bottom (New_result ())
 
-and meet_array_type env (element_kind1, length1, contents1, alloc_mode1)
-    (element_kind2, length2, contents2, alloc_mode2) =
-  let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
+and meet_array_type env (element_kinds1, length1, contents1, alloc_mode1)
+    (element_kinds2, length2, contents2, alloc_mode2) =
+  let element_kinds = meet_array_element_kinds element_kinds1 element_kinds2 in
   combine_results env
     ~rebuild:(fun (length, (contents, (alloc_mode, ()))) ->
-      TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+      TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kinds
         ~length contents alloc_mode)
     ~meet_ops:
       [ meet;
-        meet_array_contents ~meet_element_kind:element_kind;
+        meet_array_contents ~meet_element_kinds:element_kinds;
         meet_alloc_mode ]
     ~left_inputs:[length1; contents1; alloc_mode1]
     ~right_inputs:[length2; contents2; alloc_mode2]
 
 and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     (array_contents2 : TG.array_contents Or_unknown.t)
-    ~(meet_element_kind : _ Or_unknown_or_bottom.t) =
+    ~(meet_element_kinds : _ Or_unknown_or_bottom.t) =
   meet_unknown
     (fun env (array_contents1 : TG.array_contents)
          (array_contents2 : TG.array_contents) : TG.array_contents meet_result ->
@@ -855,7 +879,7 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
         if Array.length fields1 <> Array.length fields2
         then Bottom (New_result ())
         else
-          match meet_element_kind with
+          match meet_element_kinds with
           | Bottom ->
             if Array.length fields1 = 0
             then
@@ -1770,25 +1794,27 @@ and join_head_of_kind_value_non_null env
     let strs = String_info.Set.union strs1 strs2 in
     Known (TG.Head_of_kind_value_non_null.create_string strs)
   | ( Array
-        { element_kind = element_kind1;
+        { element_kinds = element_kinds1;
           length = length1;
           contents = array_contents1;
           alloc_mode = alloc_mode1
         },
       Array
-        { element_kind = element_kind2;
+        { element_kinds = element_kinds2;
           length = length2;
           contents = array_contents2;
           alloc_mode = alloc_mode2
         } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    let element_kind = join_array_element_kinds element_kind1 element_kind2 in
+    let element_kinds =
+      join_array_element_kinds element_kinds1 element_kinds2
+    in
     let contents =
       join_array_contents env array_contents1 array_contents2
-        ~joined_element_kind:element_kind
+        ~joined_element_kinds:element_kinds
     in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+    TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kinds
       ~length contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
       | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
@@ -1798,7 +1824,7 @@ and join_head_of_kind_value_non_null env
 
 and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
     (array_contents2 : TG.array_contents Or_unknown.t)
-    ~(joined_element_kind : _ Or_unknown_or_bottom.t) =
+    ~(joined_element_kinds : _ Or_unknown_or_bottom.t) =
   join_unknown
     (fun env (array_contents1 : TG.array_contents)
          (array_contents2 : TG.array_contents) : TG.array_contents Or_unknown.t ->
@@ -1809,7 +1835,7 @@ and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
         if Array.length fields1 <> Array.length fields2
         then Unknown
         else
-          match joined_element_kind with
+          match joined_element_kinds with
           | Bottom | Unknown -> Unknown
           | Ok _ -> (
             let exception Unknown_result in
