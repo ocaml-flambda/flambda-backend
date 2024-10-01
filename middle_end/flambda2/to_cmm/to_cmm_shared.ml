@@ -325,6 +325,13 @@ module Update_kind = struct
     assert (Arch.size_addr = 8);
     assert (Arch.size_float = 8)
 
+  let field_size_in_words t =
+    match t.kind with
+    | Pointer | Immediate | Naked_int32 | Naked_int64 | Naked_float
+    | Naked_float32 ->
+      1
+    | Naked_vec128 -> 2
+
   let pointers = { kind = Pointer; stride = Arch.size_addr }
 
   let tagged_immediates = { kind = Immediate; stride = Arch.size_addr }

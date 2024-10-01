@@ -240,6 +240,11 @@ module Mixed_block_shape = struct
 
   let field_kinds t = t.field_kinds
 
+  let size_in_words t =
+    Array.fold_left
+      (fun acc x -> acc + Flat_suffix_element0.size_in_words x)
+      t.value_prefix_size t.flat_suffix
+
   let offset_in_words t index =
     if index <= t.value_prefix_size
     then index

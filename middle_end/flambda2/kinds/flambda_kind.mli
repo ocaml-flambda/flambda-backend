@@ -96,6 +96,8 @@ module Mixed_block_shape : sig
 
   val flat_suffix : t -> flat_suffix_element array
 
+  val size_in_words : t -> int
+
   val offset_in_words : t -> int -> int
 
   val equal : t -> t -> bool

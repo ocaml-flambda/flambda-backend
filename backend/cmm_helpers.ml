@@ -1436,6 +1436,7 @@ let get_field_unboxed_vec128 mutability ~block ~index dbg =
     Misc.fatal_error
       "Unboxed vec128 fields only supported on little-endian architectures";
   let memory_chunk = Onetwentyeight_unaligned in
+  (* The index is an offset in words, not 128-bit elements. *)
   let field_address = array_indexing log2_size_addr block index dbg in
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
@@ -1446,10 +1447,12 @@ let setfield_unboxed_vec128 arr ofs newval dbg =
   then
     Misc.fatal_error
       "Unboxed vec128 fields only supported on little-endian architectures";
+  (* The index is an offset in words, not 128-bit elements. *)
+  let field_address = array_indexing log2_size_addr arr ofs dbg in
   return_unit dbg
     (Cop
        ( Cstore (Onetwentyeight_unaligned, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
+         [field_address; newval],
          dbg ))
 
 (* String length *)
