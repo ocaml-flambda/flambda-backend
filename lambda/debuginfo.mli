@@ -79,6 +79,7 @@ type item = private {
       set to [Some] by Flambda 2. *)
   dinfo_uid: string option;
   dinfo_function_symbol: string option;
+  dinfo_dir: string option;
 }
 
 val item_with_uid_and_function_symbol : item -> dinfo_uid:string option
