@@ -506,12 +506,16 @@ end
 module Modes = Mode.Alloc.Const
 
 module Jkind_desc = struct
-  type 'type_expr t =
+  type ('type_expr, 'd) t =
     { layout : Layout.t;
       modes_upper_bounds : Modes.t;
       externality_upper_bound : Jkind_axis.Externality.t;
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
+    constraint 'd = 'l * 'r
+
+  type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
+  [@@unboxed]
 end
 
 (* A history of conditions placed on a jkind.
@@ -523,15 +527,15 @@ end
 type 'type_expr history =
   | Interact of
       { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
-        lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
-        rhs_history : 'type_expr history
+        jkind1 : 'type_expr Jkind_desc.packed;
+        history1 : 'type_expr history;
+        jkind2 : 'type_expr Jkind_desc.packed;
+        history2 : 'type_expr history
       }
   | Creation of Jkind_intf.History.creation_reason
 
-type 'type_expr t =
-  { jkind : 'type_expr Jkind_desc.t;
+type ('type_expr, 'd) t =
+  { jkind : ('type_expr, 'd) Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }
