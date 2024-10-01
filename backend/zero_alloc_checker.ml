@@ -1600,6 +1600,41 @@ end = struct
 
   exception Fail of t list
 
+  let print_debuginfo ~sep ~include_fs ~include_scope ppf
+      (items : Debuginfo.item list) =
+    (* CR-soon gyorsh: this function duplicates some code from [Debuginfo]
+       printing functions, to avoid conflicts with the work on dwarf info, until
+       the format of zero_alloc messages is more stable. *)
+    let print_item (item : Debuginfo.item) =
+      (match item.dinfo_dir with
+      | None -> ()
+      | Some dir -> Format.fprintf ppf "%a/" Location.print_filename dir);
+      Format.fprintf ppf "%a:%i" Location.print_filename item.dinfo_file
+        item.dinfo_line;
+      if item.dinfo_char_start >= 0
+      then
+        Format.fprintf ppf ",%i--%i" item.dinfo_char_start item.dinfo_char_end;
+      if include_scope
+      then
+        Format.fprintf ppf "[%s]"
+          (Debuginfo.Scoped_location.string_of_scopes ~include_zero_alloc:false
+             item.dinfo_scopes);
+      match item.dinfo_function_symbol with
+      | None -> ()
+      | Some function_symbol ->
+        if include_fs then Format.fprintf ppf "[%s]" function_symbol
+    in
+    let rec loop items =
+      match items with
+      | [] -> ()
+      | [item] -> print_item item
+      | item :: tl ->
+        print_item item;
+        Format.fprintf ppf "%s" sep;
+        loop tl
+    in
+    loop items
+
   let annotation_error t =
     (* print location of the annotation, print function name as part of the
        message. *)
@@ -1627,8 +1662,22 @@ end = struct
     let pp_inlined_dbg ppf dbg =
       (* Show inlined locations, if dbg has more than one item. The first item
          will be shown at the start of the error message. *)
-      if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
-      then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
+      let items = Debuginfo.to_items dbg in
+      if List.compare_length_with items 1 > 0
+      then
+        (* Print the inlined stack starting from the innermost frame, i.e., the
+           location that directly contains the witness instruction before
+           inlining. *)
+        let items = List.rev items in
+        if !Flambda_backend_flags.zero_alloc_checker_details_extra
+        then
+          Format.fprintf ppf "\ninlined from\n%a"
+            (print_debuginfo ~sep:"\n" ~include_fs:true ~include_scope:true)
+            items
+        else
+          Format.fprintf ppf " (%a)"
+            (print_debuginfo ~sep:";" ~include_fs:false ~include_scope:false)
+            items
     in
     let pp_alloc_block_kind ppf k =
       let pp s = Format.fprintf ppf " for %s" s in
