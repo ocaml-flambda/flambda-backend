@@ -2657,9 +2657,10 @@ and type_module_extension_aux ~alias sttn env smod
       : Jane_syntax.Module_expr.t -> _ =
   function
   | Emod_instance (Imod_instance glob) ->
-      ignore (alias, sttn, env, smod);
+      ignore (alias, sttn);
+      let glob = instance_name ~loc:smod.pmod_loc env glob in
       Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
-        Global_module.Name.print (instance_name ~loc:smod.pmod_loc env glob)
+        Global_module.Name.print glob
 
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =
