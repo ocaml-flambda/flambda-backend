@@ -164,8 +164,16 @@ let get_unboxed_from_attributes sdecl =
 let make_params env path params =
   TyVarEnv.reset (); (* [transl_type_param] binds type variables *)
   let make_param (sty, v) =
+    (* Our choice for now is that if you want a parameter of jkind any, you have
+       to ask for it with an annotation.  Some restriction here seems necessary
+       for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
+       have jkind any).  But it might be possible to infer [any] in some
+       cases. *)
+    let jkind =
+      Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path)
+    in
     try
-      (transl_type_param env path sty, v)
+      (transl_type_param env path jkind sty, v)
     with Already_bound ->
       raise(Error(sty.ptyp_loc, Repeated_parameter))
   in
@@ -199,6 +207,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   if not needed then env else
   let arity = List.length sdecl.ptype_params in
   let path = Path.Pident id in
+  let any = Jkind.Builtin.any ~why:Initial_typedecl_env in
 
   (* There is some trickiness going on here with the jkind.  It expands on an
      old trick used in the manifest of [decl] below.
@@ -256,12 +265,17 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.Builtin.any ~why:Initial_typedecl_env)
+      ~default:any
       sdecl
   in
   let abstract_source, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
-    | None, _ | Some _, None -> Definition, Some (Ctype.newvar type_jkind)
+    (* Make a manifest with an unrestricted type variable. This type variable
+       essentially collects constraints that arise from the usage of the
+       type being constructed. Nothing is gained by using the jkind from
+       an annotation here, and doing so with separated left- and right-jkinds
+       is hard to do. *)
+    | None, _ | Some _, None -> Definition, Some (Ctype.newvar any)
     | Some _, Some reason -> reason, None
 in
   let type_params =
@@ -557,7 +571,7 @@ let make_constructor
   | Some sret_type ->
       (* if it's a generalized constructor we must first narrow and
          then widen so as to not introduce any new constraints *)
-      (* narrow and widen are now invoked through wrap_type_variable_scope *)
+      (* narrow and widen are now invoked through with_local_scope *)
       TyVarEnv.with_local_scope begin fun () ->
       let closed =
         match svars with
@@ -1042,7 +1056,8 @@ let rec check_constraints_rec env loc visited ty =
         | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
           let violation =
             Jkind.Violation.of_
-              (Not_a_subjkind (original_jkind, inferred_jkind))
+              (Not_a_subjkind (Jkind.disallow_right original_jkind,
+                               Jkind.disallow_left inferred_jkind))
           in
           raise (Error(loc, Jkind_mismatch_due_to_bad_inference
                             (ty, violation, Check_constraints)))
@@ -1142,7 +1157,7 @@ let narrow_to_manifest_jkind env loc decl =
   | None -> decl
   | Some ty ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    match Jkind.sub_with_history jkind' decl.type_jkind with
+    match Jkind.sub_jkind_l jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
       raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1156,7 +1171,7 @@ let check_kind_coherence env loc dpath decl =
   | (Type_variant _ | Type_record _ | Type_open), Some ty ->
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
-        begin match Jkind.sub_with_history jkind' decl.type_jkind with
+        begin match Jkind.sub_jkind_l jkind' decl.type_jkind with
         | Ok _ -> ()
         | Error v ->
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1674,8 +1689,10 @@ let update_decl_jkind env dpath decl =
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
-    begin match Jkind.sub_or_error new_jkind decl.type_jkind with
-    | Ok () -> ()
+    (* CR layouts v2.8: Consider making a function that doesn't compute
+       histories for this use-case, which doesn't need it. *)
+    begin match Jkind.sub_jkind_l new_jkind decl.type_jkind with
+    | Ok _ -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
     end;
@@ -2893,16 +2910,14 @@ let check_unboxable env loc ty =
     all_unboxable_types
     ()
 
-let has_ty_var_with_layout_any env ty =
-  List.exists
-    (fun ty -> Jkind.has_layout_any (Ctype.estimate_type_jkind env ty))
-    (Ctype.free_variables ty)
+let has_ty_var_with_layout_any ty =
+  Ctype.exists_free_variable (fun _ jkind -> Jkind.has_layout_any jkind) ty
 
-let unexpected_layout_any_check prim env cty ty =
+let unexpected_layout_any_check prim cty ty =
   if Primitive.prim_can_contain_layout_any prim ||
      prim.prim_is_layout_poly then ()
   else
-  if has_ty_var_with_layout_any env ty then
+  if has_ty_var_with_layout_any ty then
     raise(Error (cty.ctyp_loc,
             Unexpected_layout_any_in_primitive(prim.prim_name)))
 
@@ -2966,9 +2981,9 @@ let unexpected_layout_any_check prim env cty ty =
    product. So we rule out some things here, but others must be caught much
    later, in translprim.
 *)
-let error_if_containing_unexpected_jkind prim env cty ty =
+let error_if_containing_unexpected_jkind prim cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
-  unexpected_layout_any_check prim env cty ty
+  unexpected_layout_any_check prim cty ty
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
@@ -3033,7 +3048,7 @@ let transl_value_decl env loc valdecl =
         Builtin_attributes.has_layout_poly valdecl.pval_attributes
       in
       if is_layout_poly &&
-         not (has_ty_var_with_layout_any env ty) then
+         not (has_ty_var_with_layout_any ty) then
         raise(Error(valdecl.pval_type.ptyp_loc, Useless_layout_poly));
       let native_repr_args, native_repr_res =
         parse_native_repr_attributes
@@ -3045,7 +3060,7 @@ let transl_value_decl env loc valdecl =
           ~native_repr_res
           ~is_layout_poly
       in
-      error_if_containing_unexpected_jkind prim env cty ty;
+      error_if_containing_unexpected_jkind prim cty ty;
       if prim.prim_arity = 0 &&
          (prim.prim_name = "" || prim.prim_name.[0] <> '%') then
         raise(Error(valdecl.pval_type.ptyp_loc, Null_arity_external));

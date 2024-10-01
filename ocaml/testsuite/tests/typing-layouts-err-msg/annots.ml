@@ -17,7 +17,7 @@ type 'a value = unit
 Line 5, characters 8-14:
 5 | and t = t_void value
             ^^^^^^
-Error: This type "t_void" = "('a : void)" should be an instance of type
+Error: This type "t_void" = "('a : any)" should be an instance of type
          "('b : value)"
        The layout of t_void is void
          because of the annotation on the declaration of the type t_void.
