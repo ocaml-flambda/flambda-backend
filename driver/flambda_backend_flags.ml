@@ -63,6 +63,7 @@ type zero_alloc_checker_join =
   | Widen of int  (* n > 0 *)
   | Error of int (* n > 0 *)
 
+let zero_alloc_checker_details_extra = ref false
 let default_zero_alloc_checker_join = Widen 100
 let zero_alloc_checker_join = ref default_zero_alloc_checker_join
                               (* -zero-alloc-checker-join n *)
