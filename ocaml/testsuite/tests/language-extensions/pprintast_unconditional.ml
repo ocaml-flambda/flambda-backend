@@ -162,15 +162,6 @@ end = struct
 
   let string_of_expression = test_string_of "string_of_expression" string_of_expression Example.expression
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
-<<<<<<< HEAD
-  let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
-  let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
-  let instance_name = test "instance_name" module_expr Example.instance_name
-||||||| parent of 5004e408bf (Update based on feedback from review)
-  let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
-  let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
-=======
->>>>>>> 5004e408bf (Update based on feedback from review)
 
   let tyvar_of_name =
     test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name
