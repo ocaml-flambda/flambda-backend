@@ -180,6 +180,9 @@ type change = unscoped * unscoped_state
 
 let change_log = ref (fun _ -> assert false)
 
+let set_change_log cl =
+  change_log := cl
+
 let undo_change (us, us_d) =
   us.state <- us_d
 

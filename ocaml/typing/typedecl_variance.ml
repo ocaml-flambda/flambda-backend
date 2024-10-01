@@ -104,7 +104,7 @@ let compute_variance env visited vari ty =
     | Tfunctor (_, id, (p, fl), ty) ->
       let env' =
           Env.add_module (Ident.of_unscoped id) Mp_present (Mty_ident p) env in
-      compute_same (Ctype.newty (Tpackage (p, fl)));
+      compute_variance_rec env (Variance.conjugate vari) (Ctype.newty (Tpackage (p, fl)));
       compute_variance_rec env' vari ty
     | Tpackage (_, fl) ->
         let v = Variance.(compose vari full) in

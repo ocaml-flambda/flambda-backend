@@ -38,7 +38,7 @@ let string_of_variance t v =
 let rec is_arrow_type t =
   match Types.get_desc t with
     Types.Tarrow _ -> true
-  | Types.Tfunctor _ -> assert false (* TODO *)
+  | Types.Tfunctor _ -> true
   | Types.Tlink t2 -> is_arrow_type t2
   | Types.Ttuple _
   | Types.Tunboxed_tuple _

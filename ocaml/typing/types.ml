@@ -817,7 +817,7 @@ let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
   Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change));
   Zero_alloc.set_change_log (fun change -> log_change (Czero_alloc change));
-  Ident.change_log := (fun change -> log_change (Cunscoped change))
+  Ident.set_change_log (fun change -> log_change (Cunscoped change))
 
 (* constructor and accessors for [field_kind] *)
 

@@ -43,7 +43,7 @@ let rec equiv p1 p2 =
   || match (p1, p2) with
         (Pident id1, Pident id2) -> Ident.equiv id1 id2
       | (Pdot(p1, s1), Pdot(p2, s2)) ->
-        s1 = s2 && equiv p1 p2
+        String.equal s1 s2 && equiv p1 p2
       | (Papply(fun1, arg1), Papply(fun2, arg2)) ->
         equiv fun1 fun2 && equiv arg1 arg2
       | (Pextra_ty (p1, t1), Pextra_ty(p2, t2)) ->
@@ -113,22 +113,28 @@ let subst id_map p =
   let exception Unchanged in
   let rec aux = function
   | Pident id ->
-    begin try
-      snd (List.find (fun (i, _) -> Ident.same i id) id_map)
-    with Not_found -> raise Unchanged
+    begin match List.find (fun (i, _) -> Ident.same i id) id_map with
+    | (_, p) -> p
+    | exception Not_found -> raise Unchanged
     end
   | Pdot(p, s) -> Pdot(aux p, s)
   | Pextra_ty(p, e) -> Pextra_ty(aux p, e)
   | Papply(p1, p2) ->
-    let p1, b1 = try aux p1, false with Unchanged -> p1, true in
-    let p2, b2 = try aux p2, false with Unchanged -> p2, true in
+    let p1, b1 = match aux p1 with
+      | p -> p, false
+      | exception Unchanged -> p1, true
+    in
+    let p2, b2 = match aux p2 with
+      | p -> p, false
+      | exception Unchanged -> p2, true
+    in
     if b1 && b2
     then raise Unchanged
     else Papply(p1, p2)
   in
   try aux p with Unchanged -> p
 
-let unbounded_unscoped uset p =
+let check_for_unbound_unscoped_idents uset p =
   let exception Escape of Ident.unscoped in
   let rec aux = function
       Pident id ->
@@ -141,7 +147,9 @@ let unbounded_unscoped uset p =
         end
     | Pdot (p, _) | Pextra_ty (p, _) -> aux p
     | Papply (p1, p2) -> aux p1; aux p2
-  in try aux p; None with Escape i -> Some i
+  in match aux p with
+  | () -> None
+  | exception Escape i -> Some i
 
 let kfalse _ = false
 

@@ -88,7 +88,7 @@ val to_global: t -> Global_module.Name.t option
 val to_global_exn: t -> Global_module.Name.t
 
 type change
-val change_log: (change -> unit) ref
+val set_change_log: (change -> unit) -> unit
 val undo_change: change -> unit
 
 val link_unscoped: unscoped -> unscoped -> unit

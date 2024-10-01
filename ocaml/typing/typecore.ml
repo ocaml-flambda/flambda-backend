@@ -4000,7 +4000,6 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             if wrapped_in_some then
               may_warn sarg.pexp_loc
                 (Warnings.Not_principal "using an optional argument here");
-            let _ = (fun i -> try tpoly_get_poly i with _ -> assert false) ty_arg in
             Arg (Known_arg
               { sarg; ty_arg; ty_arg0; commuted; sort_arg;
                 mode_fun; mode_arg; wrapped_in_some })
@@ -5155,7 +5154,7 @@ let split_function_ty
   let ty_arg_mono =
     if has_poly then ty_arg
     else begin
-      let ty, vars = (fun i -> try tpoly_get_poly i with _ -> assert false) ty_arg in
+      let ty, vars = tpoly_get_poly ty_arg in
       if vars = [] then ty
       else begin
         with_level ~level:generic_level
@@ -5181,7 +5180,6 @@ let split_function_ty
 let split_function_mty env ty_expected ~arg_label
     ~in_function ~is_first_val_param
   =
-  let { ty = ty_fun; explanation }, loc_fun = in_function in
   with_local_level_iter ~post:generalize_structure begin fun () ->
     try
       let filtered = filter_functor env (instance ty_expected) arg_label in
@@ -5189,6 +5187,9 @@ let split_function_mty env ty_expected ~arg_label
       | None -> (filtered, [])
       | Some (_, _, _, ty_ret) -> (filtered, [ty_ret])  
     with Filter_arrow_failed err ->
+        let { ty = ty_fun; explanation }, loc_fun =
+          in_function
+        in
         let err =
           error_of_filter_arrow_failure ~explanation ~first:is_first_val_param
             ty_fun err
@@ -8034,7 +8035,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
                      mode_arg; wrapped_in_some; sort_arg }) ->
       let expected_mode, mode_arg =
         mode_argument ~funct ~index ~position_and_mode ~partial_app mode_arg in
-      let ty_arg', vars = (fun i -> try tpoly_get_poly i with _ -> assert false) ty_arg in
+      let ty_arg', vars = tpoly_get_poly ty_arg in
       let arg =
         if vars = [] then begin
           let ty_arg0' = tpoly_get_mono ty_arg0 in

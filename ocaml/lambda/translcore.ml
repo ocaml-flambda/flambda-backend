@@ -427,8 +427,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         match prim_repr, oargs with
         | [], _ -> [], oargs
         | _, [] -> failwith "Translcore cut_args"
-        | ((_, arg_repr) :: prim_repr),
-          ((_, Arg (x, _)) :: oargs) ->
+        | ((_, arg_repr) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
           let arg_exps, extra_args = cut_args prim_repr oargs in
           let arg_sort =
             Jkind.Sort.of_const
@@ -1403,7 +1402,7 @@ and transl_apply ~scopes
          match arg with
          | Omitted _ as arg -> arg
          | Arg (exp, sort_arg) ->
-             Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
+           Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
       sargs
   in
   build_apply lam [] loc position mode args

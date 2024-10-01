@@ -577,6 +577,13 @@ let expression sub exp =
         let params =
           List.concat_map
             (fun fp ->
+               let pat, default_arg =
+                 match fp.fp_kind with
+                 | Tparam_pat pat -> pat, None
+                 | Tparam_optional_default (pat, expr, _) -> pat, Some expr
+               in
+               let pat = sub.pat sub pat in
+               let default_arg = Option.map (sub.expr sub) default_arg in
                let newtypes =
                  List.map
                    (fun (_, x, annot, _) ->
@@ -586,15 +593,8 @@ let expression sub exp =
                    fp.fp_newtypes
                in
                let pparam_desc =
-                   let parg_label = label fp.fp_arg_label in
-                   let pat, default_arg =
-                     match fp.fp_kind with
-                     | Tparam_pat pat -> pat, None
-                     | Tparam_optional_default (pat, expr, _) -> pat, Some expr
-                   in
-                   let pat = sub.pat sub pat in
-                   let default_arg = Option.map (sub.expr sub) default_arg in
-                   Pparam_val (parg_label, default_arg, pat)
+                 let parg_label = label fp.fp_arg_label in
+                 Pparam_val (parg_label, default_arg, pat)
                in
                { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
             params
