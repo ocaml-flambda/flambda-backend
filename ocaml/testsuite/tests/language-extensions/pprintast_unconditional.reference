@@ -122,6 +122,10 @@ modal_kind_sig:
     kind_abbrev_ data = value mod sync many
   end
 
+instance_name:
+  ((((((Base)(Name1))(Value1))(Name2))(((Value2)(Name2_1))(Value2_1)))
+  [@jane.non_erasable.instances ])
+
 tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
@@ -255,6 +259,10 @@ modal_kind_sig:
     kind_abbrev_ immutable = value mod uncontended
     kind_abbrev_ data = value mod sync many
   end
+
+instance_name:
+  ((((((Base)(Name1))(Value1))(Name2))(((Value2)(Name2_1))(Value2_1)))
+  [@jane.non_erasable.instances ])
 
 tyvar_of_name: 'no_tyvars_require_extensions
 

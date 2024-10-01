@@ -102,6 +102,7 @@ type error =
       old_arg_type : Global_module.Name.t option;
       old_source_file : Misc.filepath;
     }
+  | Duplicate_parameter_name of Global_module.Name.t
   | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
@@ -354,6 +355,20 @@ let path_is_strict_prefix =
     | `Ok (ident1, l1), `Ok (ident2, l2) ->
        Ident.same ident1 ident2
        && list_is_strict_prefix l1 ~prefix:l2
+
+let rec instance_name ~loc env syntax =
+  let ({ head; args } : Jane_syntax.Instances.instance) = syntax in
+  let args =
+    List.map
+      (fun (param, value) : Global_module.Name.argument ->
+         { param = Global_module.Name.create_no_args param;
+           value = instance_name ~loc env value })
+      args
+  in
+  match Global_module.Name.create head args with
+  | Ok name -> name
+  | Error (Duplicate { name; value1 = _; value2 = _ }) ->
+    raise (Error (loc, env, Duplicate_parameter_name name))
 
 let iterator_with_env env =
   let env = ref (lazy env) in
@@ -2494,6 +2509,10 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
+  match Jane_syntax.Module_expr.of_ast smod with
+    Some ext ->
+      type_module_extension_aux ~alias sttn env smod ext
+  | None ->
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, mode =
@@ -2633,6 +2652,15 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.leaf_for_unpack
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and type_module_extension_aux ~alias sttn env smod
+      : Jane_syntax.Module_expr.t -> _ =
+  function
+  | Emod_instance (Imod_instance glob) ->
+      ignore (alias, sttn);
+      let glob = instance_name ~loc:smod.pmod_loc env glob in
+      Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
+        Global_module.Name.print glob
 
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =
@@ -3515,7 +3543,7 @@ let register_params params =
   List.iter
     (fun param_name ->
        (* We don't (yet!) support parameterised parameters *)
-       let param = Global_module.Name.create param_name [] in
+       let param = Global_module.Name.create_no_args param_name in
        Env.register_parameter param
     )
     params
@@ -3642,7 +3670,7 @@ let type_implementation target modulename initial_env ast =
       end else begin
         let arg_type =
           !Clflags.as_argument_for
-          |> Option.map (fun name -> Global_module.Name.create name [])
+          |> Option.map (fun name -> Global_module.Name.create_no_args name)
         in
         let cu_name = Compilation_unit.name modulename in
         let basename = cu_name |> Compilation_unit.Name.to_string in
@@ -3803,7 +3831,7 @@ let type_interface ~sourcefile modulename env ast =
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
-    |> Option.map (fun name -> Global_module.Name.create name [])
+    |> Option.map (fun name -> Global_module.Name.create_no_args name)
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
@@ -3855,7 +3883,7 @@ let package_units initial_env objfiles target_cmi modulename =
            |> String.capitalize_ascii
          in
          let unit = Compilation_unit.Name.of_string basename in
-         let global_name = Global_module.Name.create basename [] in
+         let global_name = Global_module.Name.create_no_args basename in
          let modname = Compilation_unit.create_child modulename unit in
          let artifact = Unit_info.Artifact.from_filename f in
          let sg =
@@ -4240,6 +4268,10 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
         (Style.as_inline_code Global_module.Name.print) arg_type
+  | Duplicate_parameter_name name ->
+      Location.errorf ~loc
+        "This instance has multiple arguments with the name %a."
+        (Style.as_inline_code Global_module.Name.print) name
   | Submode_failed (Error (ax, {left; right})) ->
       Location.errorf ~loc
         "This value is %a, but expected to be %a because it is inside a module."
