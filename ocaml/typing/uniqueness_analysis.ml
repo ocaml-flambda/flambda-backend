@@ -1151,11 +1151,18 @@ let pattern_match pat = function
   | Match_tuple values -> pattern_match_tuple pat values
   | Match_single paths -> pattern_match_single pat paths
 
-(* We ignore exceptions in uniqueness analysis. *)
 let comp_pattern_match pat value =
-  match split_pattern pat with
-  | Some pat', _ -> pattern_match pat' value
-  | None, _ -> Ienv.Extension.empty, UF.unused
+  let vals, exns = split_pattern pat in
+  (* We ignore exceptions in uniqueness analysis,
+     since they can never contain unique values. *)
+  (match exns with
+  | Some exns ->
+    let _ = pattern_match exns (Match_single Paths.untracked) in
+    ()
+  | None -> ());
+  match vals with
+  | Some pat' -> pattern_match pat' value
+  | None -> Ienv.Extension.empty, UF.unused
 
 let value_of_ident ienv unique_use occ path =
   match path with
