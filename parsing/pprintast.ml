@@ -1643,7 +1643,9 @@ and module_expr ctxt f x =
   if x.pmod_attributes <> [] then
     pp f "((%a)%a)" (module_expr ctxt) {x with pmod_attributes=[]}
       (attributes ctxt) x.pmod_attributes
-  else match x.pmod_desc with
+  else match Jane_syntax.Module_expr.of_ast x with
+    | Some ext -> extension_module_expr ctxt f ext
+    | None -> match x.pmod_desc with
     | Pmod_structure (s) ->
         pp f "@[<hv2>struct@;@[<0>%a@]@;<1 -2>end@]"
           (list (structure_item ctxt) ~sep:"@\n") s;
@@ -2341,6 +2343,23 @@ and function_params_then_body ctxt f params constraint_ body ~delimiter =
 and labeled_tuple_expr ctxt f ~unboxed x =
   pp f "@[<hov2>%s(%a)@]" (if unboxed then "#" else "")
     (list (tuple_component ctxt) ~sep:",@;") x
+
+and extension_module_expr ctxt f (x : Jane_syntax.Module_expr.t) =
+  match x with
+  | Emod_instance i -> instance_module_expr ctxt f i
+
+and instance_module_expr ctxt f (x : Jane_syntax.Instances.module_expr) =
+  match x with
+  | Imod_instance i -> instance ctxt f i
+
+and instance ctxt f (x : Jane_syntax.Instances.instance) =
+  match x with
+  | { head; args = [] } -> pp f "%s" head
+  | { head; args } ->
+    pp f "@[<2>%s %a@]" head (list (instance_arg ctxt)) args
+
+and instance_arg ctxt f (param, value) =
+  pp f "@[<1>(%s)@;(%a)@]" param (instance ctxt) value
 
 (******************************************************************************)
 (* All exported functions must be defined or redefined below here and wrapped in
