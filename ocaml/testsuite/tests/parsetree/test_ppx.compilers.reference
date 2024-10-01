@@ -1,0 +1,5 @@
+File "source_jane_street.ml", line 153, characters 0-24:
+153 | type t = #(int * float#)
+      ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Multiple definition of the type name "t".
+       Names must be unique in a given structure or signature.

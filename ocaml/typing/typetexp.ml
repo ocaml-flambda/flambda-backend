@@ -717,7 +717,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       loop mode args
   | Ptyp_tuple stl ->
     let desc, typ =
-      transl_type_aux_tuple env ~policy ~row_context stl
+      transl_type_aux_tuple env ~loc ~policy ~row_context stl
     in
     ctyp desc typ
   | Ptyp_unboxed_tuple stl ->
@@ -1165,11 +1165,13 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
   Ttyp_alias (cty, name_opt, jkind_annot),
   cty.ctyp_type
 
-and transl_type_aux_tuple env ~policy ~row_context stl =
+and transl_type_aux_tuple env ~loc ~policy ~row_context stl =
   assert (List.length stl >= 2);
   let ctys =
     List.map
       (fun (label, t) ->
+         Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                 Language_extension.Labeled_tuples ()) label;
          label, transl_type env ~policy ~row_context Alloc.Const.legacy t)
       stl
   in

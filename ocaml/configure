@@ -20530,7 +20530,7 @@ then :
 fi
 
 # Only gcc supports -fno-partial-inlining
-case $ocaml_cv_cc_vendor in #(
+case $ocaml_cc_vendor in #(
   gcc-*) :
     no_partial_inlining_cflags="-fno-partial-inlining" ;; #(
   *) :

@@ -99,7 +99,22 @@ module Sort = struct
   module Var = struct
     type t = var
 
-    let name { uid; _ } = "'_representable_layout_" ^ Int.to_string uid
+    (* Map var uids to smaller numbers for more consistent printing. *)
+    let next_id = ref 1
+
+    let names : (int, int) Hashtbl.t = Hashtbl.create 16
+
+    let name { uid; _ } =
+      let id =
+        match Hashtbl.find_opt names uid with
+        | Some n -> n
+        | None ->
+          let id = !next_id in
+          incr next_id;
+          Hashtbl.add names uid id;
+          id
+      in
+      "'_representable_layout_" ^ Int.to_string id
   end
 
   (*** debug printing **)

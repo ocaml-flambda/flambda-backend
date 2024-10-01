@@ -2530,6 +2530,11 @@ and type_pat_aux
       match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
       | Ttuple labeled_tl when is_principal expected_ty ->
+        begin match closed with
+        | Open -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                    Language_extension.Labeled_tuples ()
+        | Closed -> ()
+        end;
         reorder_pat loc penv spl closed labeled_tl expected_ty
       (* If not, it's not allowed to be open (partial) *)
       | _ ->
@@ -2542,6 +2547,8 @@ and type_pat_aux
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) lbl;
         lbl, type_pat tps Value ~alloc_mode p t)
         spl_ann
     in
@@ -2559,6 +2566,11 @@ and type_pat_aux
       match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
       | Tunboxed_tuple labeled_tl when is_principal expected_ty ->
+                begin match closed with
+        | Open -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                    Language_extension.Labeled_tuples ()
+        | Closed -> ()
+        end;
         reorder_pat loc penv spl closed labeled_tl expected_ty
       (* If not, it's not allowed to be open (partial) *)
       | _ ->
@@ -2572,6 +2584,8 @@ and type_pat_aux
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode, sort) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) lbl;
         lbl, type_pat tps Value ~alloc_mode p t, sort)
         spl_ann
     in
@@ -7812,6 +7826,8 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let expl =
     List.map2
       (fun (label, body) ((_, ty), argument_mode) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty)))
@@ -7866,6 +7882,8 @@ and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let expl =
     List.map2
       (fun (label, body) ((_, ty, sort), argument_mode) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty), sort))
