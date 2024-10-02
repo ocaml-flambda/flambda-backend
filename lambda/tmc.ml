@@ -76,8 +76,6 @@ let assign_to_dst {var; offset; loc} lam =
         [Lvar var; offset_code offset; lam], loc)
 
 module Constr : sig
-  (* CR: check that the offset is computed correctly for resets
-     (which have an extra argument for the reused allocation and some omitted fields) *)
   type is_reusing =
     | New_alloc
     | Reuse_alloc of { resets : reset_field list }
