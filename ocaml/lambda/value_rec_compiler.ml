@@ -244,7 +244,7 @@ let compute_static_size lam =
            number of arguments instead.
            Note that flat float arrays/records use Pmakearray, so we don't need
            to check the tag here. *)
-      Block (Regular_block (List.length args))
+        Block (Regular_block (List.length args))
     | Pmakemixedblock (_, _, shape, _) ->
         Block (Mixed_record (List.length args, shape))
     | Pmakearray (kind, _, _) ->
