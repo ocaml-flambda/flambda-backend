@@ -111,6 +111,7 @@ let builtin_attrs =
   ; "layout_poly"; "ocaml.layout_poly"
   ; "no_mutable_implied_modalities"; "ocaml.no_mutable_implied_modalities"
   ; "or_null_reexport"; "ocaml.or_null_reexport"
+  ; "no_recursive_modalities"; "ocaml.no_recursive_modalities"
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
