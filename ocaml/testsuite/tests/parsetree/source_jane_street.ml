@@ -1009,4 +1009,26 @@ module Name2_1 : sig end
                 Base[Name1:Value1][Name2:Value2[Name2_1:Value2_1]]
 Uncaught exception: Misc.Fatal_error
 
+|}](*********)
+(* modes *)
+
+module type S = sig
+  val bar : 'a -> 'a
+  module M : sig
+    val foo : 'a -> 'a
+  end
+end
+
+module type S' = sig
+  include [@no_recursive_modalities] S @@ portable
+end
+
+[%%expect{|
+module type S =
+  sig val bar : 'a -> 'a module M : sig val foo : 'a -> 'a end end
+module type S' =
+  sig
+    val bar : 'a -> 'a @@ portable
+    module M : sig val foo : 'a -> 'a end
+  end
 |}]
