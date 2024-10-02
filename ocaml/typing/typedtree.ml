@@ -68,13 +68,13 @@ module Unique_barrier = struct
   let enable barrier = match !barrier with
     | Not_computed ->
       barrier := Enabled (Uniqueness.newvar ())
-    | _ -> assert false
+    | _ -> Misc.fatal_error "Unique barrier was enabled twice"
 
   (* Due to or-patterns a barrier may have several upper bounds. *)
   let add_upper_bound uniq barrier =
     match !barrier with
     | Enabled barrier -> Uniqueness.submode_exn barrier uniq
-    | _ -> assert false
+    | _ -> Misc.fatal_error "Unique barrier got an upper bound in the wrong state"
 
   let resolve barrier =
     match !barrier with
@@ -85,7 +85,7 @@ module Unique_barrier = struct
     | Resolved barrier -> barrier
     | Not_computed ->
       if Language_extension.is_enabled Unique then
-        assert false
+        Misc.fatal_error "A unique barrier was not enabled by the analysis"
       else Uniqueness.Const.Aliased
 end
 
