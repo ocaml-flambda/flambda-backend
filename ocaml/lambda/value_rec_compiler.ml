@@ -244,9 +244,13 @@ let compute_static_size lam =
            number of arguments instead.
            Note that flat float arrays/records use Pmakearray, so we don't need
            to check the tag here. *)
-        Block (Regular_block (List.length args))
+      Block (Regular_block (List.length args))
+    | Preuseblock _ ->
+        Location.todo_overwrite_not_implemented Location.none
     | Pmakemixedblock (_, _, shape, _) ->
         Block (Mixed_record (List.length args, shape))
+    | Preusemixedblock _ ->
+        Location.todo_overwrite_not_implemented Location.none
     | Pmakearray (kind, _, _) ->
         let size = List.length args in
         begin match kind with
@@ -350,6 +354,8 @@ let compute_static_size lam =
     | Pmakefloatblock (_, _) ->
         let size = List.length args in
         Block (Float_record size)
+    | Preusefloatblock _ ->
+        Location.todo_overwrite_not_implemented Location.none
 
     | Psetufloatfield (_, _)
     | Pbytes_set_128 _
@@ -367,6 +373,8 @@ let compute_static_size lam =
     | Pmakeufloatblock (_, _)
     | Pmake_unboxed_product _ ->
         dynamic_size lam (* Not allowed *)
+    | Preuseufloatblock _ ->
+        Location.todo_overwrite_not_implemented Location.none
 
     | Pobj_dup
     | Parray_to_iarray

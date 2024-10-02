@@ -76,6 +76,12 @@ let assign_to_dst {var; offset; loc} lam =
         [Lvar var; offset_code offset; lam], loc)
 
 module Constr : sig
+  (* CR: check that the offset is computed correctly for resets
+     (which have an extra argument for the reused allocation and some omitted fields) *)
+  type is_reusing =
+    | New_alloc
+    | Reuse_alloc of { resets : reset_field list }
+
   (** The type [Constr.t] represents a reified constructor with
      a single hole, which can be either directly applied to a [lambda]
      term, or be used to create a fresh [lambda destination] with
@@ -84,10 +90,15 @@ module Constr : sig
     tag : int;
     flag: Lambda.mutable_flag;
     shape : block_shape;
+    is_reusing : is_reusing;
     before: lambda list;
     after: lambda list;
     loc : Debuginfo.Scoped_location.t;
   }
+
+  val makeblock :
+    (int * Lambda.mutable_flag * block_shape * is_reusing * Lambda.alloc_mode) ->
+    primitive
 
   (** [apply constr e] plugs the expression [e] in the hole of the
      constructor [const]. *)
@@ -113,19 +124,31 @@ module Constr : sig
       variable names, for readability purposes. *)
   val delay_impure : block_id:int -> t -> (t -> lambda) -> lambda
 end = struct
+  type is_reusing =
+    | New_alloc
+    | Reuse_alloc of { resets : reset_field list }
+
   type t = {
     tag : int;
     flag: Lambda.mutable_flag;
     shape : block_shape;
+    is_reusing : is_reusing;
     before: lambda list;
     after: lambda list;
     loc : Debuginfo.Scoped_location.t;
   }
 
+  let makeblock (tag, mut, shape, is_reusing, mode) =
+    match is_reusing with
+    | Reuse_alloc { resets } -> Preuseblock { tag; mut; shape; resets; mode }
+    | New_alloc -> Pmakeblock (tag, mut, shape, mode)
+
   let apply constr t =
     let block_args = List.append constr.before @@ t :: constr.after in
-    Lprim (Pmakeblock (constr.tag, constr.flag, constr.shape, alloc_heap),
-           block_args, constr.loc)
+    let block =
+      makeblock (constr.tag, constr.flag, constr.shape, constr.is_reusing, alloc_heap)
+    in
+    Lprim(block, block_args, constr.loc)
 
   let tmc_placeholder =
     (* we choose a placeholder whose tagged representation will be
@@ -763,11 +786,12 @@ let rec choice ctx t =
         direct = (fun () -> Lapply apply_no_bailout);
       }
 
-  and choice_makeblock ctx ~tail:_ (tag, flag, shape, mode) blockargs loc =
+  and choice_makeblock ctx ~tail:_ (tag, flag, shape, is_reusing, mode) blockargs loc =
     let choices = List.map (choice ctx ~tail:false) blockargs in
     match Choice.find_nonambiguous_tmc_call choices with
     | Choice.No_tmc_call args ->
-        Choice.lambda @@ Lprim (Pmakeblock (tag, flag, shape, mode), args, loc)
+        let block = Constr.makeblock (tag, flag, shape, is_reusing, mode) in
+        Choice.lambda @@ Lprim (block, args, loc)
     | Choice.Ambiguous { explicit; subterms = ambiguous_subterms } ->
         (* An ambiguous term should not lead to an error if it not
            used in TMC position. Consider for example:
@@ -804,7 +828,8 @@ let rec choice ctx t =
         *)
         let term_choice =
           let+ args = Choice.list choices in
-          Lprim (Pmakeblock(tag, flag, shape, mode), args, loc)
+          let block = Constr.makeblock (tag, flag, shape, is_reusing, mode) in
+          Lprim (block, args, loc)
         in
         { term_choice with
           Choice.dps = Dps.make (fun ~tail:_ ~dst:_ ->
@@ -826,6 +851,7 @@ let rec choice ctx t =
             tag;
             flag;
             shape;
+            is_reusing;
             before = List.rev rev_before;
             after;
             loc;
@@ -856,7 +882,10 @@ let rec choice ctx t =
     match prim with
     (* The important case is the construction case *)
     | Pmakeblock (tag, flag, shape, mode) ->
-        choice_makeblock ctx ~tail (tag, flag, shape, mode) primargs loc
+        choice_makeblock ctx ~tail (tag, flag, shape, Constr.New_alloc, mode) primargs loc
+    | Preuseblock { tag; mut; shape; resets; mode } ->
+        choice_makeblock ctx ~tail (tag, mut, shape, Constr.Reuse_alloc { resets }, mode)
+          primargs loc
 
     (* Some primitives have arguments in tail-position *)
     | Popaque layout ->
@@ -925,6 +954,10 @@ let rec choice ctx t =
     | Pmakefloatblock _
     | Pmakeufloatblock _
     | Pmakemixedblock _
+
+    | Preusefloatblock _
+    | Preuseufloatblock _
+    | Preusemixedblock _
 
     (* nor unboxed products *)
     | Pmake_unboxed_product _ | Punboxed_product_field _

@@ -120,6 +120,7 @@ let preserve_tailcall_for_prim = function
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
   | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakemixedblock _
+  | Preuseblock _ | Preusefloatblock _ | Preuseufloatblock _ | Preusemixedblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
@@ -633,6 +634,10 @@ let comp_primitive stack_info p sz args =
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
+  | Preuseblock _
+  | Preusefloatblock _
+  | Preuseufloatblock _
+  | Preusemixedblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
     ->
@@ -820,6 +825,10 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
+  | Lprim ((Preusefloatblock _ | Preuseufloatblock _), _args, loc) ->
+    (* CR: We should create a Kmakefloatblock here. But we need custom code to access the
+       fields of the old allocation in all the places where no reset happens. *)
+    Location.todo_overwrite_not_implemented (to_location loc)
   | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
       (* There is no notion of a mixed block at runtime in bytecode. Further,
          source-level unboxed types are represented as boxed in bytecode, so
@@ -830,6 +839,10 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmake_faux_mixedblock (total_len, tag) :: cont)
+  | Lprim(Preusemixedblock _, _args, loc) ->
+    (* CR: We should create a Kmake_faux_mixedblock here. But we need custom code to
+       access the fields of the old allocation in all the places where no reset happens. *)
+    Location.todo_overwrite_not_implemented (to_location loc)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
@@ -921,6 +934,10 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, tag) :: cont)
+  | Lprim(Preuseblock _, _args, loc) ->
+    (* CR: We should create a Kmakeblock here. But we need custom code to access the
+       fields of the old allocation in all the places where no reset happens. *)
+    Location.todo_overwrite_not_implemented (to_location loc)
   | Lprim(Pmake_unboxed_product _, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
