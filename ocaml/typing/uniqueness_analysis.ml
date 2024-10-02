@@ -1045,8 +1045,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
      since the user might want use a wildcard for already-consumed data. *)
   let no_borrow_memory_address () =
     Unique_barrier.enable pat.pat_unique_barrier;
-    let _ = Unique_barrier.resolve pat.pat_unique_barrier in
-    ()
+    ignore (Unique_barrier.resolve pat.pat_unique_barrier)
   in
   let borrow_memory_address () =
     Unique_barrier.enable pat.pat_unique_barrier;
@@ -1055,18 +1054,18 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
   in
   match pat.pat_desc with
   | Tpat_or (pat0, pat1, _) ->
-    let () = no_borrow_memory_address () in
+    no_borrow_memory_address ();
     let ext0, uf0 = pattern_match_single pat0 paths in
     let ext1, uf1 = pattern_match_single pat1 paths in
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
   | Tpat_any ->
-    let () = no_borrow_memory_address () in
+    no_borrow_memory_address ();
     Ienv.Extension.empty, UF.unused
   | Tpat_var (id, _, _, _) ->
-    let () = no_borrow_memory_address () in
+    no_borrow_memory_address ();
     Ienv.Extension.singleton id paths, UF.unused
   | Tpat_alias (pat', id, _, _, _) ->
-    let () = no_borrow_memory_address () in
+    no_borrow_memory_address ();
     let ext0 = Ienv.Extension.singleton id paths in
     let ext1, uf = pattern_match_single pat' paths in
     Ienv.Extension.conjunct ext0 ext1, uf
@@ -1119,7 +1118,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_lazy arg ->
-    let () = no_borrow_memory_address () in
+    no_borrow_memory_address ();
     (* forced below: *)
     (* forcing a lazy expression is like calling a nullary-function *)
     let uf_force = Paths.mark_aliased occ Lazy paths in
@@ -1139,7 +1138,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     ext, UF.par uf_read uf_args
   | Tpat_unboxed_tuple args ->
     (* No borrow since unboxed data can not be consumed. *)
-    let () = no_borrow_memory_address () in
+    no_borrow_memory_address ();
     let ext, uf_args =
       List.mapi
         (fun i (_, arg, _) ->
