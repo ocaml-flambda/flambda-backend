@@ -519,6 +519,8 @@ end = struct
     val get_unresolved_names : t -> String.Set.t
 
     exception Widen
+
+    exception Widen_with_witness
   end = struct
     (* Join of two Transform with the same set of vars: merged both sets of Vars
        into one Transform in normal form, without loss of precision or
@@ -532,10 +534,18 @@ end = struct
 
     exception Widen
 
+    exception Widen_with_witness
+
     let maybe_widen t =
       match !Flambda_backend_flags.zero_alloc_checker_join with
       | Keep_all -> t
-      | Widen n -> if M.cardinal t > n then raise Widen else t
+      | Widen n ->
+        if M.cardinal t > n
+        then
+          if M.exists (fun _var tr -> Transform.has_witnesses tr) t
+          then raise Widen_with_witness
+          else raise Widen
+        else t
       | Error n ->
         if M.cardinal t > n
         then
@@ -1106,7 +1116,9 @@ end = struct
   let widen_witness = Witnesses.create Witness.Widen Debuginfo.none
 
   let bounded_join f =
-    try Join (f ()) with Transforms.Widen -> Top widen_witness
+    try Join (f ()) with
+    | Transforms.Widen -> Top Witnesses.empty
+    | Transforms.Widen_with_witness -> Top widen_witness
 
   (* Keep [join] and [lessequal] in sync. *)
   let join t1 t2 =
