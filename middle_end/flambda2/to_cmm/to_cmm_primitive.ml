@@ -141,12 +141,15 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     | Naked_floats _ -> C.unboxed_float_array_ref, field
     | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
       let func =
+        (* CR-someday mslater: make these functions consistent *)
         match field_kind with
         | Tagged_immediate -> C.get_field_computed Immediate
         | Naked_float -> C.unboxed_float_array_ref
         | Naked_float32 -> C.get_field_unboxed_float32
         | Naked_int32 -> C.get_field_unboxed_int32
-        | Naked_vec128 -> C.get_field_unboxed_vec128
+        | Naked_vec128 ->
+          fun mut ~block ~index dbg ->
+            C.get_field_unboxed_vec128 mut ~block ~index_in_words:index dbg
         | Naked_int64 | Naked_nativeint ->
           C.get_field_unboxed_int64_or_nativeint
       in
@@ -171,12 +174,15 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     | Naked_floats _ -> C.float_array_set, field
     | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
       let func =
+        (* CR-someday mslater: make these functions consistent *)
         match field_kind with
         | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
         | Naked_float -> C.float_array_set
         | Naked_float32 -> C.setfield_unboxed_float32
         | Naked_int32 -> C.setfield_unboxed_int32
-        | Naked_vec128 -> C.setfield_unboxed_vec128
+        | Naked_vec128 ->
+          fun arr index_in_words newval dbg ->
+            C.setfield_unboxed_vec128 arr ~index_in_words newval dbg
         | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint
       in
       let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
