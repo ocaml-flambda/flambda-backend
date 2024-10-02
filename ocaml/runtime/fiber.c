@@ -183,10 +183,6 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   if (block == MAP_FAILED) {
     return NULL;
   }
-  if (madvise (block, len, MADV_NOHUGEPAGE)) {
-    munmap(block, len);
-    return NULL;
-  }
   if (mprotect(block, len, PROT_READ | PROT_WRITE)) {
     munmap(block, len);
     return NULL;
