@@ -143,7 +143,7 @@ module Array_ref_kind = struct
   type t =
     | Immediates
     | Values
-    | Naked_floats_to_be_boxed of L.alloc_mode
+    | Naked_floats_to_be_boxed of L.locality_mode
     | Naked_floats
     | Naked_float32s
     | Naked_int32s
@@ -153,7 +153,7 @@ end
 
 type converted_array_ref_kind =
   | Array_ref_kind of Array_ref_kind.t
-  | Float_array_opt_dynamic_ref of L.alloc_mode
+  | Float_array_opt_dynamic_ref of L.locality_mode
 
 let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
     =
@@ -169,7 +169,8 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
     Float_array_opt_dynamic_ref mode
   | Paddrarray_ref -> Array_ref_kind Values
   | Pintarray_ref -> Array_ref_kind Immediates
-  | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
+  | Pfloatarray_ref mode ->
+    Array_ref_kind (Naked_floats_to_be_boxed mode)
   | Punboxedfloatarray_ref Pfloat64 -> Array_ref_kind Naked_floats
   | Punboxedfloatarray_ref Pfloat32 -> Array_ref_kind Naked_float32s
   | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
@@ -286,7 +287,7 @@ let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
 let unbox_float32 (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number K.Boxable_number.Naked_float32, arg))
 
-let box_float32 (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
+let box_float32 (mode : L.locality_mode) (arg : H.expr_primitive) ~current_region :
     H.expr_primitive =
   Unary
     ( Box_number
@@ -294,7 +295,7 @@ let box_float32 (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
           Alloc_mode.For_allocations.from_lambda mode ~current_region ),
       Prim arg )
 
-let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
+let box_float (mode : L.locality_mode) (arg : H.expr_primitive) ~current_region :
     H.expr_primitive =
   Unary
     ( Box_number
