@@ -1423,11 +1423,11 @@ let emit_instr ~first ~fallthrough i =
           (* NB: gdb has asserts on contiguous stacks that mean it
             will not unwind through this unless we were to tag this
             calling frame with cfi_signal_frame in it's definition. *)
-          I.mov (domain_field Domainstate.Domain_c_stack) rsp;
+          I.mov (domain_field Domainstate.Domain_c_stack) rbx;
         end;
         emit_call (Cmm.global_symbol func);
         if Config.runtime5 then begin
-          I.mov rbx rsp;
+          I.mov rsp rbx;
           cfi_restore_state ();
         end;
       end
