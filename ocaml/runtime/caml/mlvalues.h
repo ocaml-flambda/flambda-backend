@@ -123,9 +123,12 @@ mixed blocks. In the upstream compiler, R is set with the
 #define HEADER_COLOR_MASK (((1ull << HEADER_COLOR_BITS) - 1ull) \
                             << HEADER_COLOR_SHIFT)
 
+// HEADER_RESERVED_BITS is defined by configuration
+#define HEADER_RESERVED_SHIFT (HEADER_COLOR_SHIFT + HEADER_COLOR_BITS)
+
 #define HEADER_WOSIZE_BITS (HEADER_BITS - HEADER_TAG_BITS \
                             - HEADER_COLOR_BITS - HEADER_RESERVED_BITS)
-#define HEADER_WOSIZE_SHIFT (HEADER_COLOR_SHIFT  + HEADER_COLOR_BITS + HEADER_RESERVED_BITS)
+#define HEADER_WOSIZE_SHIFT (HEADER_RESERVED_BITS + HEADER_RESERVED_SHIFT)
 #define HEADER_WOSIZE_MASK (((1ull << HEADER_WOSIZE_BITS) - 1ull) \
                              << HEADER_WOSIZE_SHIFT)
 
@@ -142,12 +145,11 @@ mixed blocks. In the upstream compiler, R is set with the
 
 #if HEADER_RESERVED_BITS > 0
 
-#define HEADER_RESERVED_SHIFT (HEADER_BITS - HEADER_RESERVED_BITS)
 #define HEADER_RESERVED_MASK  (((1ull << HEADER_RESERVED_BITS) - 1ull) \
                              << HEADER_RESERVED_SHIFT)
 
-#define Reserved_hd(hd)   ((((header_t) (hd)) >> HEADER_RESERVED_SHIFT) \
-                             & HEADER_RESERVED_MASK)
+#define Reserved_hd(hd)   ((((header_t) (hd)) & HEADER_RESERVED_MASK) \
+                             >> HEADER_RESERVED_SHIFT)
 
 #define Hd_reserved(res)  ((header_t)(res) << HEADER_RESERVED_SHIFT)
 
