@@ -133,16 +133,19 @@ module Scoped_location = struct
     | Empty -> ZA.Assume_info.none
     | Cons { assume_zero_alloc; _ } -> assume_zero_alloc
 
-  let string_of_scopes = function
+  let string_of_scopes ~include_zero_alloc = function
     | Empty -> "<unknown>"
     | Cons {str; assume_zero_alloc; _} ->
-      str^(ZA.Assume_info.to_string assume_zero_alloc)
+      if include_zero_alloc then
+        str^(ZA.Assume_info.to_string assume_zero_alloc)
+      else
+        str
 
-  let string_of_scopes =
+  let string_of_scopes ?(include_zero_alloc=false) =
     let module StringSet = Set.Make (String) in
     let repr = ref StringSet.empty in
     fun scopes ->
-      let res = string_of_scopes scopes in
+      let res = string_of_scopes scopes ~include_zero_alloc in
       match StringSet.find_opt res !repr with
       | Some x -> x
       | None ->
