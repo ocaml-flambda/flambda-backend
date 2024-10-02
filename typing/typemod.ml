@@ -994,7 +994,8 @@ let map_ext fn exts =
   | [] -> []
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
-let apply_modalities_signature modalities sg =
+let rec apply_modalities_signature ~recursive env modalities sg =
+  let env = Env.add_signature sg env in
   List.map (function
   | Sig_value (id, vd, vis) ->
       let val_modalities =
@@ -1005,7 +1006,26 @@ let apply_modalities_signature modalities sg =
       in
       let vd = {vd with val_modalities} in
       Sig_value (id, vd, vis)
-  | item -> item) sg
+  | Sig_module (id, pres, md, rec_, vis) when recursive ->
+      let md_type = apply_modalities_module_type env modalities md.md_type in
+      let md = {md with md_type} in
+      Sig_module (id, pres, md, rec_, vis)
+  | item -> item
+  ) sg
+
+and apply_modalities_module_type env modalities = function
+  | Mty_ident p ->
+      let mtd = Env.find_modtype p env in
+      begin match mtd.mtd_type with
+      | None -> Mty_ident p
+      | Some mty -> apply_modalities_module_type env modalities mty
+      end
+  | Mty_strengthen (mty, p, alias) ->
+      Mty_strengthen (apply_modalities_module_type env modalities mty, p, alias)
+  | Mty_signature sg ->
+      let sg = apply_modalities_signature ~recursive:true env modalities sg in
+      Mty_signature sg
+  | (Mty_functor _ | Mty_alias _) as mty -> mty
 
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
@@ -1182,7 +1202,8 @@ and approx_sig env ssg =
       | Psig_open sod ->
           let _, env = type_open_descr env sod in
           approx_sig env srem
-      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind; _}, moda) ->
+      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind;
+            pincl_attributes=attrs}, moda) ->
           begin match kind with
           | Functor ->
               Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
@@ -1191,10 +1212,18 @@ and approx_sig env ssg =
               let mty = approx_modtype env mod_ in
               let scope = Ctype.create_scope () in
               let sg = extract_sig env loc mty in
-              let modalities =
-                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+              let sg =
+                match moda with
+                | [] -> sg
+                | _ ->
+                  let modalities =
+                    Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+                  in
+                  let recursive =
+                    not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
+                  in
+                  apply_modalities_signature ~recursive env modalities sg
               in
-              let sg = apply_modalities_signature modalities sg in
               let sg, newenv = Env.enter_signature ~scope sg env in
               sg @ approx_sig newenv srem
           end
@@ -1709,10 +1738,19 @@ and transl_signature env sg =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    let sg, modalities =
+      match modalities with
+      | [] -> sg, Mode.Modality.Value.Const.id
+      | _ ->
+        let modalities =
+          Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        in
+        let recursive =
+          not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
+            sincl.pincl_attributes
+        in
+        apply_modalities_signature ~recursive env modalities sg, modalities
     in
-    let sg = apply_modalities_signature modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
       (Signature_names.check_sig_item names loc)
