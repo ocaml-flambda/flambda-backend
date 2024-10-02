@@ -127,6 +127,13 @@ Line 1, characters 52-55:
 Error: Unbound module "M"
 |}]
 
+(* Is this the expected output ? *)
+type 'a t_fail7 = (module M : T) -> (M.t as 'a)
+
+[%%expect{|
+type 'a t_fail7 = (module M : T) -> M.t
+|}]
+
 (* tests about variance *)
 
 module type V = sig

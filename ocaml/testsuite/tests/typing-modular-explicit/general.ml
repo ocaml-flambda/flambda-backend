@@ -177,6 +177,14 @@ module F () : Typ = struct type t = int end
 let x_from_generative_functor = id (module F ())
 
 [%%expect{|
+module F : functor () -> Typ
+Line 3, characters 35-48:
+3 | let x_from_generative_functor = id (module F ())
+                                       ^^^^^^^^^^^^^
+Error:
+       The module T would escape its scope
+  Attempted to remove dependency because
+  could not extract path from module argument.
 |}]
 
 module type Map = sig

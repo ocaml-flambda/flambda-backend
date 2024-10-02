@@ -63,7 +63,6 @@ let f (x : (module M : T with type t = int) ->
   (M.t * ((module N : T with type t = int) -> 'a) as 'a)) =
 (x : ((module O : T with type t = int) -> O.t * 'b) as 'b)
 
-(* Error : this should be corrected *)
 [%%expect{|
 val f :
   ((module M : T with type t = int) ->
