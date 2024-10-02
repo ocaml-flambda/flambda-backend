@@ -18,12 +18,85 @@ open Local_store
 let lowest_scope  = 0
 let highest_scope = 100000000
 
-type unscoped_desc = { name: string; stamp: int }
+(* A stamp of 0 denotes a persistent identifier *)
 
-type unscoped_state =
-  | Udesc of unscoped_desc
-  | Ulink of unscoped
-and unscoped = { mutable state : unscoped_state }
+let currentstamp = s_ref 0
+let predefstamp = s_ref 0
+
+module Unscoped = struct
+  type desc = { name: string; stamp: int }
+
+  type state =
+    | Udesc of desc
+    | Ulink of t
+  and t = { mutable state : state }
+
+
+  let create s =
+    incr currentstamp;
+    { state = Udesc { name = s; stamp = !currentstamp } }
+
+  let rec get_desc us =
+    match us.state with
+      Udesc d -> d
+    | Ulink u -> get_desc u
+
+  let name u = (get_desc u).name
+
+  let refresh us = create (get_desc us).name
+
+  let stamp us = (get_desc us).stamp
+
+  let same us1 us2 = stamp us1 = stamp us2
+
+  type change = t * state
+
+  let change_log = ref (fun _ -> assert false)
+
+  let set_change_log cl =
+    change_log := cl
+
+  let undo_change (us, us_d) =
+    us.state <- us_d
+
+  let rec repr us =
+    match us.state with
+    | Ulink us' ->
+      repr us'
+    | Udesc _ -> us
+
+  let link us1 us2 =
+    let us1 = repr us1 in
+    let us2 = repr us2 in
+    if us1 == us2 then () else begin
+    !change_log (us1, us1.state);
+    us1.state <- Ulink us2
+    end
+
+  let id_pairs = ref []
+
+  let get_id_pairs () = !id_pairs
+
+  let with_id_pairs pairs f =
+    let old = !id_pairs in
+    id_pairs := pairs;
+    Misc.try_finally f
+      ~always:(fun () -> id_pairs := old)
+
+  let equiv us1 us2 =
+    let s1 = stamp us1 in
+    let s2 = stamp us2 in
+    s1 = s2
+    || List.exists (fun (i1, i2) -> (stamp i1 = s1 && stamp i2 = s2)
+                            || stamp i2 = s1 && stamp i1 = s2) !id_pairs
+
+  module UnscopedOps = struct
+    type nonrec t = t
+    let compare us1 us2 = stamp us1 - stamp us2
+  end
+
+  module Set = Stdlib.Set.Make(UnscopedOps)
+end
  
 type t =
   | Local of { name: string; stamp: int }
@@ -33,16 +106,11 @@ type t =
   | Predef of { name: string; stamp: int }
       (* the stamp is here only for fast comparison, but the name of
          predefined identifiers is always unique. *)
-  | Unscoped of unscoped
+  | Unscoped of Unscoped.t
   | Global_with_args of global
       (* must have non-empty [args] *)
 and global = Global_module.Name.t = private
   { head: string; args: Global_module.Name.argument list }
-
-(* A stamp of 0 denotes a persistent identifier *)
-
-let currentstamp = s_ref 0
-let predefstamp = s_ref 0
 
 let create_scoped ~scope s =
   incr currentstamp;
@@ -51,10 +119,6 @@ let create_scoped ~scope s =
 let create_local s =
   incr currentstamp;
   Local { name = s; stamp = !currentstamp }
-
-let create_unscoped s =
-  incr currentstamp;
-  { state = Udesc { name = s; stamp = !currentstamp } }
 
 let of_unscoped u =
   Unscoped u
@@ -83,22 +147,13 @@ let create_instance head args =
 
 let global_name g = Global_module.Name.to_string g
 
-let rec get_desc us =
-  match us.state with
-    Udesc d -> d
-  | Ulink u -> get_desc u
-
-let name_unscoped u = (get_desc u).name
-
 let name = function
   | Local { name; _ }
   | Scoped { name; _ }
   | Global name
   | Predef { name; _ } -> name
-  | Unscoped us -> name_unscoped us
+  | Unscoped us -> Unscoped.name us
   | Global_with_args g -> global_name g
-
-let refresh us = create_unscoped (get_desc us).name
 
 let rename = function
   | Local { name; stamp = _ }
@@ -106,7 +161,7 @@ let rename = function
       incr currentstamp;
       Local { name; stamp = !currentstamp }
   | Unscoped us ->
-      Unscoped (refresh us)
+      Unscoped (Unscoped.refresh us)
   | id ->
       Misc.fatal_errorf "Ident.rename %s" (name id)
 
@@ -114,7 +169,7 @@ let unique_name = function
   | Local { name; stamp }
   | Scoped { name; stamp } -> name ^ "_" ^ Int.to_string stamp
   | Unscoped us ->
-      let { name; stamp } = get_desc us in
+      let Unscoped.{ name; stamp } = Unscoped.get_desc us in
       name ^ "_" ^ Int.to_string stamp
   | Global name ->
       (* we're adding a fake stamp, because someone could have named his unit
@@ -131,7 +186,7 @@ let unique_toplevel_name = function
   | Local { name; stamp }
   | Scoped { name; stamp } -> name ^ "/" ^ Int.to_string stamp
   | Unscoped us ->
-    let { name; stamp } = get_desc us in
+    let Unscoped.{ name; stamp } = Unscoped.get_desc us in
     name ^ "/" ^ Int.to_string stamp
   | Global name
   | Predef { name; _ } -> name
@@ -144,15 +199,13 @@ let equal i1 i2 =
   | Global name1, Global name2 ->
       name1 = name2
   | Unscoped us1, Unscoped us2 ->
-      (get_desc us1).name = (get_desc us2).name
+      Unscoped.name us1 = Unscoped.name us2
   | Predef { stamp = s1; _ }, Predef { stamp = s2 } ->
       (* if they don't have the same stamp, they don't have the same name *)
       s1 = s2
   | Global_with_args g1, Global_with_args g2 -> Global_module.Name.equal g1 g2
   | _ ->
       false
-
-let same_unscoped us1 us2 = (get_desc us1).stamp = (get_desc us2).stamp
 
 let same i1 i2 =
   match i1, i2 with
@@ -161,54 +214,18 @@ let same i1 i2 =
   | Predef { stamp = s1; _ }, Predef { stamp = s2 } ->
       s1 = s2
   | Unscoped us1, Unscoped us2 ->
-    same_unscoped us1 us2
+    Unscoped.same us1 us2
   | Global name1, Global name2 ->
       name1 = name2
   | Global_with_args g1, Global_with_args g2 -> Global_module.Name.equal g1 g2
   | _ ->
       false
 
-let stamp_us us = (get_desc us).stamp
-
 let stamp = function
   | Local { stamp; _ }
   | Scoped { stamp; _ } -> stamp
-  | Unscoped us -> stamp_us us
+  | Unscoped us -> Unscoped.stamp us
   | _ -> 0
-
-type change = unscoped * unscoped_state
-
-let change_log = ref (fun _ -> assert false)
-
-let set_change_log cl =
-  change_log := cl
-
-let undo_change (us, us_d) =
-  us.state <- us_d
-
-let rec repr us =
-  match us.state with
-  | Ulink us' ->
-    repr us'
-  | Udesc _ -> us
-
-let link_unscoped us1 us2 =
-  let us1 = repr us1 in
-  let us2 = repr us2 in
-  if us1 == us2 then () else begin
-  !change_log (us1, us1.state);
-  us1.state <- Ulink us2
-  end
-
-let id_pairs = ref []
-
-let get_id_pairs () = !id_pairs
-
-let with_id_pairs pairs f =
-  let old = !id_pairs in
-  id_pairs := pairs;
-  Misc.try_finally f
-    ~always:(fun () -> id_pairs := old)
 
 let equiv i1 i2 =
   match i1, i2 with
@@ -216,13 +233,8 @@ let equiv i1 i2 =
   | Scoped { stamp = s1; _ }, Scoped { stamp = s2; _ }
   | Predef { stamp = s1; _ }, Predef { stamp = s2 } ->
       s1 = s2
-  | Unscoped us1,
-    Unscoped us2 ->
-      let s1 = stamp_us us1 in
-      let s2 = stamp_us us2 in
-      s1 = s2
-      || List.exists (fun (i1, i2) -> (stamp_us i1 = s1 && stamp_us i2 = s2)
-                              || stamp_us i2 = s1 && stamp_us i1 = s2) !id_pairs
+  | Unscoped us1, Unscoped us2 ->
+      Unscoped.equiv us1 us2
   | Global name1, Global name2 ->
       name1 = name2
   | _ ->
@@ -282,7 +294,7 @@ let print ~with_scope ppf =
       fprintf ppf "%s%s" name
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
   | Unscoped us ->
-      let { name; stamp = n } = get_desc us in
+      let Unscoped.{ name; stamp = n } = Unscoped.get_desc us in
       fprintf ppf "%s/%i" name n
   | Scoped { name; stamp = n; scope } ->
       fprintf ppf "%s%s%s" name
@@ -526,8 +538,8 @@ let compare x y =
   | Predef _, _ -> 1
   | _, Predef _ -> (-1)
   | Unscoped x, Unscoped y ->
-    let x = get_desc x in
-    let y = get_desc y in
+    let x = Unscoped.get_desc x in
+    let y = Unscoped.get_desc y in
     let c = x.stamp - y.stamp in
     if c <> 0 then c
     else compare x.name y.name
@@ -545,10 +557,3 @@ include Identifiable.Make (struct
   let equal = same
 end)
 let equal = original_equal
-
-module UnscopedOps = struct
-  type t = unscoped
-  let compare us1 us2 = stamp_us us1 - stamp_us us2
-end
-
-module UnscopedSet = Stdlib.Set.Make(UnscopedOps)

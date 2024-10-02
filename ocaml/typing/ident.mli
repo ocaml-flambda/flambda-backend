@@ -15,7 +15,26 @@
 
 (* Identifiers (unique names) *)
 
-type unscoped
+module Unscoped : sig
+  type t
+  val create : string -> t
+  val refresh : t -> t
+  val name : t -> string
+  val same : t -> t -> bool
+
+  type change
+  val set_change_log: (change -> unit) -> unit
+  val undo_change: change -> unit
+  val link : t  -> t -> unit
+
+  module Set : Stdlib.Set.S with type elt = t
+
+  val get_id_pairs: unit -> (t * t) list
+  val with_id_pairs: (t * t) list -> (unit -> 'a) -> 'a
+          (** Set an equivalence between identifiers and give to the related
+              identifer a scope. We expect all identifiers to have been created
+              with [create] to obtain the expected semantic. *)
+end
 
 type t
 
@@ -33,9 +52,8 @@ val print_with_scope : Format.formatter -> t -> unit
 
 val create_scoped: scope:int -> string -> t
 val create_local: string -> t
-val create_unscoped: string -> unscoped
-val of_unscoped: unscoped -> t
-val get_unscoped: t -> unscoped option
+val of_unscoped: Unscoped.t -> t
+val get_unscoped: t -> Unscoped.t option
 val create_persistent: string -> t
 val create_predef: string -> t
 val create_instance: string -> Global_module.Name.argument list -> t
@@ -47,17 +65,14 @@ val create_local_binding_for_global: Global_module.Name.t -> t
             on one). The global is used purely for the mnemonic name for
             debugging purposes - no semantic connection to the global is kept. *)
 
-val refresh: unscoped -> unscoped
 val rename: t -> t
         (** Creates an identifier with the same name as the input, a fresh
             stamp, and no scope.
             @raise [Fatal_error] if called on a persistent / predef ident. *)
 
-val name_unscoped: unscoped -> string
 val name: t -> string
 val unique_name: t -> string
 val unique_toplevel_name: t -> string
-val same_unscoped: unscoped -> unscoped -> bool
 val same: t -> t -> bool
         (** Compare identifiers by binding location.
             Two identifiers are the same either if they are both
@@ -67,7 +82,7 @@ val same: t -> t -> bool
 
 val equiv: t -> t -> bool
         (** Same as [same] up to the fact that identifiers
-            created by [create_unscoped] are equivalent only
+            created by [Unscoped.create] are equivalent only
             the corresponding pair is stored in the list *)
 
 val compare: t -> t -> int
@@ -86,17 +101,6 @@ val highest_scope: int
 
 val to_global: t -> Global_module.Name.t option
 val to_global_exn: t -> Global_module.Name.t
-
-type change
-val set_change_log: (change -> unit) -> unit
-val undo_change: change -> unit
-
-val link_unscoped: unscoped -> unscoped -> unit
-val get_id_pairs: unit -> (unscoped * unscoped) list
-val with_id_pairs: (unscoped * unscoped) list -> (unit -> 'a) -> 'a
-        (** Set an equivalence between identifiers and give to the related
-            identifer a scope. We expect all identifiers to have been created
-            with [create_unscoped] to obtain the expected semantic. *)
 
 val reinit: unit -> unit
 
@@ -146,5 +150,3 @@ val remove: t -> 'a tbl -> 'a tbl
 (* Idents for sharing keys *)
 
 val make_key_generator : unit -> (t -> t)
-
-module UnscopedSet : Stdlib.Set.S with type elt = unscoped

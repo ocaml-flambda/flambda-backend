@@ -1040,7 +1040,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         scoped_ident,
           transl_type env ~policy ~row_context Alloc.Const.legacy st
       end in
-    let ident = Ident.create_unscoped name.txt in
+    let ident = Ident.Unscoped.create name.txt in
     let ctyp_type =
         Option.value ~default:cty.ctyp_type
           (instance_funct ~id_in:scoped_ident ~p_out:(Pident (Ident.of_unscoped ident))

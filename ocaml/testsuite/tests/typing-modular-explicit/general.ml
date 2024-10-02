@@ -30,6 +30,19 @@ let f x y = (id (module Int) x, id (module Bool) y)
 val f : Int.t -> Bool.t -> Int.t * Bool.t = <fun>
 |}]
 
+let f2 x y = (id (module (Int : Typ)) x, id (module (Bool : Typ)) y)
+
+[%%expect{|
+val f2 : Int.t -> Bool.t -> Int.t * Bool.t = <fun>
+|}]
+
+let f3 x y = (id (module Int : Typ) x, id (module Bool : Typ) y)
+
+[%%expect{|
+(* TODO : this test currently fails because (module Int : Typ) is considered a first-class module *)
+val f3 : Int.t -> Bool.t -> Int.t * Bool.t = <fun>
+|}]
+
 let merge (module T : Typ) x y = (id (module T) x, id (module T) y)
 
 [%%expect{|
@@ -164,6 +177,13 @@ let principality_warning = build_pair (module Int) ~y:3 ~x:1
 [%%expect{|
 val build_pair : (module M : Typ) -> x:M.t -> y:M.t -> M.t * M.t = <fun>
 val principality_warning : Int.t * Int.t = (1, 3)
+|}]
+
+let foo f a =
+  let _ = (f ~a : (module M : Typ) -> M.t) in
+  f ~a (fun x -> x)
+
+[%%expect{|
 |}]
 
 let x_from_struct = id (module struct type t = int end) 3
@@ -397,11 +417,11 @@ let try_coerce4' (f : (module A : Add) -> A.t -> A.t) : (module A : Add2) -> A.t
 Line 1, characters 90-91:
 1 | let try_coerce4' (f : (module A : Add) -> A.t -> A.t) : (module A : Add2) -> A.t -> A.t = f
                                                                                               ^
-Error: This expression has type (module A/1 : Add) -> A/1.t -> A/1.t
+Error: This expression has type "(module A/1 : Add) -> A/1.t -> A/1.t"
        but an expression was expected of type
-         (module A/2 : Add2) -> A/2.t -> A/2.t
-       File "_none_", line 1:
-         Definition of module A/2
+         "(module A/2 : Add2) -> A/2.t -> A/2.t"
+       Type "(module Add)" is not compatible with type "(module Add2)"
+         Definition of module "A/2"
 |}]
        (* Modules do not match: Add is not included in Add2
        The type a is required but not provided *)

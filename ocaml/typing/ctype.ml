@@ -283,7 +283,7 @@ module Pattern_env : sig
   val copy: ?equations_scope:int -> t -> t
   val enter_type: scope:int -> label -> type_declaration -> t -> Ident.t
   val add_local_constraint: Path.t -> type_declaration -> t -> unit
-  val with_mty: t -> Ident.unscoped -> module_type -> (unit -> 'a) -> 'a
+  val with_mty: t -> Ident.Unscoped.t -> module_type -> (unit -> 'a) -> 'a
   val set_env: t -> Env.t -> unit
 end = struct
   type envop =
@@ -1464,7 +1464,7 @@ let rec copy ?(keep_level = false) ?partial ?keep_names ?(id_map=[]) ?(closed=al
       | Tfunctor (lbl, id, (p, fl), ty) ->
           let fl = List.map (fun (li, ty) -> (li, copy ty)) fl in
           let p = Path.subst id_map p in
-          let id' = Ident.refresh id in
+          let id' = Ident.Unscoped.refresh id in
           let p_id' = Path.Pident (Ident.of_unscoped id') in
           let id = Ident.of_unscoped id in
           let id_map = (id, p_id')
@@ -1760,7 +1760,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) ~id_map sch =
           Tobject (copy_rec ~closed ~id_map ~may_share:true ty,
                    ref (Some (p, List.map (copy_rec ~closed ~id_map ~may_share:true) tl)))
         | Tfunctor (lbl, id, (p, fl), ty) ->
-            let id' = Ident.refresh id in
+            let id' = Ident.Unscoped.refresh id in
             let ty =
               let p_id' = Path.Pident (Ident.of_unscoped id') in
               let old_id = Ident.of_unscoped id in
@@ -2844,15 +2844,15 @@ let occur_univar_or_unscoped ?(inj_only=false) env ty =
   let visited = ref TypeMap.empty in
   let rec occur_rec env bound_uv bound_id ty =
     if not_marked_node ty then
-      if TypeSet.is_empty bound_uv && Ident.UnscopedSet.is_empty bound_id then
+      if TypeSet.is_empty bound_uv && Ident.Unscoped.Set.is_empty bound_id then
         (flip_mark_node ty; occur_desc env bound_uv bound_id ty)
       else try
         let (bound_uv', bound_id') = TypeMap.find ty !visited in
         if not (TypeSet.subset bound_uv' bound_uv &&
-                Ident.UnscopedSet.subset bound_id' bound_id) then begin
+                Ident.Unscoped.Set.subset bound_id' bound_id) then begin
           visited := TypeMap.add ty
                                  (TypeSet.inter bound_uv bound_uv',
-                                  Ident.UnscopedSet.inter bound_id bound_id')
+                                  Ident.Unscoped.Set.inter bound_id bound_id')
                                  !visited;
           occur_desc env bound_uv bound_id ty
         end
@@ -2925,12 +2925,12 @@ let occur_univar_or_unscoped ?(inj_only=false) env ty =
               let mty = !modtype_of_package env Location.none p fl in
               let env = Env.add_module (Ident.of_unscoped id)
                                        Mp_present mty env in
-              occur_rec env bound_uv (Ident.UnscopedSet.add id bound_id) ty
+              occur_rec env bound_uv (Ident.Unscoped.Set.add id bound_id) ty
           end
       | _ -> iter_type_expr (occur_rec env bound_uv bound_id) ty
   in
   Misc.try_finally (fun () ->
-      occur_rec env TypeSet.empty Ident.UnscopedSet.empty ty
+      occur_rec env TypeSet.empty Ident.Unscoped.Set.empty ty
     )
     ~always:(fun () -> unmark_type ty)
 
@@ -3063,7 +3063,7 @@ let identifier_escape env idl ty =
               occur ~ignore_mark:true idl ty
           | None ->
               List.iter (fun (_, t) -> occur idl t) fl;
-              let idl' = List.filter (fun i -> not (Ident.same_unscoped i id)) idl in
+              let idl' = List.filter (fun i -> not (Ident.Unscoped.same i id)) idl in
               if idl' = []
               then ()
               else occur idl' t
@@ -3087,8 +3087,8 @@ let enter_functor env id1 t1 id2 t2 f =
   let rec filter_id_pairs = function
     | [] -> []
     | (i1, i2) :: tl ->
-      if Ident.same_unscoped id1 i1 || Ident.same_unscoped id1 i2
-        || Ident.same_unscoped id2 i1 || Ident.same_unscoped id2 i2
+      if Ident.Unscoped.same id1 i1 || Ident.Unscoped.same id1 i2
+        || Ident.Unscoped.same id2 i1 || Ident.Unscoped.same id2 i2
       then begin
         identifier_escape env [i1; i2] t1;
         identifier_escape env [i1; i2] t2;
@@ -3096,9 +3096,9 @@ let enter_functor env id1 t1 id2 t2 f =
       end else
         (i1, i2) :: filter_id_pairs tl
   in
-  let old_id_pairs = Ident.get_id_pairs () in
+  let old_id_pairs = Ident.Unscoped.get_id_pairs () in
   let filtered_id_pairs = filter_id_pairs old_id_pairs in
-  Ident.with_id_pairs ((id1, id2) :: filtered_id_pairs) f
+  Ident.Unscoped.with_id_pairs ((id1, id2) :: filtered_id_pairs) f
 
 let enter_functor_for tr_exn env id1 t1 id2 t2 f =
   try
@@ -4017,7 +4017,7 @@ and unify3 uenv t1 t1' t2 t2' =
           let env = get_env uenv in
           let mty1 = !modtype_of_package env Location.none p1 fl1 in
           enter_functor_for Unify env id1 (newty d1) id2 t2'
-            (fun () -> Ident.link_unscoped id1 id2;
+            (fun () -> Ident.Unscoped.link id1 id2;
                       with_mty uenv id1 mty1
                           (fun uenv -> unify uenv ty1 ty2))
       | (Tfunctor ((l1,a1,r1), id1, (p1, fl1), u1),
@@ -4540,7 +4540,7 @@ let unify_pairs env ty1 ty2 pairs =
   unify (Expression {env; in_subst = false}) ty1 ty2
 
 let unify env ty1 ty2 =
-  Ident.with_id_pairs [] (fun () -> unify_pairs env ty1 ty2 [])
+  Ident.Unscoped.with_id_pairs [] (fun () -> unify_pairs env ty1 ty2 [])
 
 let unify_delaying_jkind_checks env ty1 ty2 =
   delay_jkind_checks_in (fun () ->
@@ -4676,7 +4676,7 @@ let filter_arrow env t l ~force_tpoly =
       raise (Filter_arrow_failed Not_a_function)
 
 type filtered_functor =
-  { ret : (arrow_desc * Ident.unscoped * (Path.t * (Longident.t * type_expr) list) * type_expr) option;
+  { ret : (arrow_desc * Ident.Unscoped.t * (Path.t * (Longident.t * type_expr) list) * type_expr) option;
     arg_mode : Mode.Alloc.lr;
     ret_mode : Mode.Alloc.lr
   }
@@ -6402,7 +6402,7 @@ let rec build_subtype env (visited : transient_expr list)
       let visited = tt :: visited in
       let mty = !modtype_of_package env Location.none p fl in
       let env = Env.add_module (Ident.of_unscoped us) Mp_present mty env in
-      let us' = Ident.refresh us in
+      let us' = Ident.Unscoped.refresh us in
       let id_map = [(Ident.of_unscoped us,
                      Path.Pident (Ident.of_unscoped us'))] in
       let closed = compute_id_from_map id_map ty in
@@ -6640,7 +6640,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
     TypePairs.add subtypes (t1, t2);
     match (get_desc t1, get_desc t2) with
       (Tvar _, _) | (_, Tvar _) ->
-        ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+        ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
     | (Tarrow((l1,a1,r1), t1, u1, _),
        Tarrow((l2,a2,r2), t2, u2, _)) when l1 = l2
       || !Clflags.classic && equivalent_with_nolabels l1 l2 ->
@@ -6695,7 +6695,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                 u1 u2
                 cstrs)
         with Escape _ -> 
-          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+          ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
         end
     | (Tfunctor((l1,a1,r1), id1, (p1, fl1), u1),
        Tarrow((l2,a2,r2), fcm2, u2, _)) when l1 = l2
@@ -6724,7 +6724,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             u1 u2
             cstrs
         with Escape _ -> 
-          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+          ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
         end  
     | (Tarrow((l1,a1,r1), fcm1, u1, _),
        Tfunctor((l2,a2,r2), id2, (p2, fl2), u2)) when l1 = l2
@@ -6753,7 +6753,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             u1 u2
             cstrs
         with Escape _ -> 
-          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+          ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
         end  
     | (Ttuple tl1, Ttuple tl2) ->
         subtype_labeled_list env trace tl1 tl2 cstrs
@@ -6775,7 +6775,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
               let (co, cn) = Variance.get_upper v in
               if co then
                 if cn then
-                  ((env, Ident.get_id_pairs ()),
+                  ((env, Ident.Unscoped.get_id_pairs ()),
                    trace, newty2 ~level:(get_level t1) (Ttuple[None, t1]),
                    newty2 ~level:(get_level t2) (Ttuple[None, t2]), !univar_pairs)
                   :: cstrs
@@ -6796,7 +6796,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                 else cstrs)
             cstrs decl.type_variance (List.combine tl1 tl2)
         with Not_found ->
-          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+          ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
         end
     | (Tconstr(p1, _, _), _)
       when generic_private_abbrev env p1 && safe_abbrev_opt env t1 ->
@@ -6806,14 +6806,14 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tobject (f1, _), Tobject (f2, _))
       when is_Tvar (object_row f1) && is_Tvar (object_row f2) ->
         (* Same row variable implies same object. *)
-        ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+        ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
     | (Tobject (f1, _), Tobject (f2, _)) ->
         subtype_fields env trace f1 f2 cstrs
     | (Tvariant row1, Tvariant row2) ->
         begin try
           subtype_row env trace row1 row2 cstrs
         with Exit ->
-          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+          ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
         end
     | (Tpoly (u1, []), Tpoly (u2, [])) ->
         subtype_rec env trace u1 u2 cstrs
@@ -6825,7 +6825,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
           enter_poly env univar_pairs u1 tl1 u2 tl2
             (fun t1 t2 -> subtype_rec env trace t1 t2 cstrs)
         with Escape _ ->
-          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+          ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
         end
     | (Tpackage (p1, fl1), Tpackage (p2, fl2)) ->
         begin try
@@ -6836,7 +6836,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
               ~allow_absent:true in
           let cstrs' =
             List.map
-              (fun (n2,t2) -> ((env, Ident.get_id_pairs ()), trace,
+              (fun (n2,t2) -> ((env, Ident.Unscoped.get_id_pairs ()), trace,
                                List.assoc n2 ntl1, t2, !univar_pairs))
               ntl2
           in
@@ -6846,7 +6846,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
             let snap = Btype.snapshot () in
             match
               List.iter (fun ((env, id_pairs), _, t1, t2, _) ->
-                  Ident.with_id_pairs id_pairs (fun () -> unify env t1 t2))
+                  Ident.Unscoped.with_id_pairs id_pairs (fun () -> unify env t1 t2))
                 cstrs'
             with
             | () when !package_subtype env p1 fl1 p2 fl2 ->
@@ -6855,10 +6855,10 @@ let rec subtype_rec env trace t1 t2 cstrs =
               Btype.backtrack snap; raise Not_found
           end
         with Not_found ->
-          ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+          ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
         end
     | (_, _) ->
-        ((env, Ident.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
+        ((env, Ident.Unscoped.get_id_pairs ()), trace, t1, t2, !univar_pairs)::cstrs
   end
 
 and subtype_labeled_list env trace labeled_tl1 labeled_tl2 cstrs =
@@ -6889,13 +6889,13 @@ and subtype_fields env trace ty1 ty2 cstrs =
         rest1 rest2
         cstrs
     else
-      ((env, Ident.get_id_pairs ()), trace,
+      ((env, Ident.Unscoped.get_id_pairs ()), trace,
        build_fields (get_level ty1) miss1 rest1, rest2,
        !univar_pairs) :: cstrs
   in
   let cstrs =
     if miss2 = [] then cstrs else
-    ((env, Ident.get_id_pairs ()), trace, rest1, build_fields (get_level ty2) miss2
+    ((env, Ident.Unscoped.get_id_pairs ()), trace, rest1, build_fields (get_level ty2) miss2
                      (newvar (Jkind.Builtin.value ~why:Object_field)),
      !univar_pairs) :: cstrs
   in
@@ -6987,7 +6987,7 @@ let subtype env ty1 ty2 =
   function () ->
     List.iter
       (function ((env, id_pairs), trace0, t1, t2, pairs) ->
-         try Ident.with_id_pairs id_pairs (fun () -> unify_pairs env t1 t2 pairs)
+         try Ident.Unscoped.with_id_pairs id_pairs (fun () -> unify_pairs env t1 t2 pairs)
          with Unify {trace} ->
            subtype_error ~env ~trace:trace0 ~unification_trace:(List.tl trace))
       (List.rev cstrs)
@@ -7293,7 +7293,7 @@ let rec nondep_type_rec ?(expand_private=false) env id_map ids ty =
             let fl' = List.map nondep_field_rec fl in
             let us_id = Ident.of_unscoped us in
             let ids' = List.filter (fun i -> not (Ident.same i us_id)) ids in
-            let us' = Ident.refresh us in
+            let us' = Ident.Unscoped.refresh us in
             let id_map = List.filter (fun (i, _) -> not (Ident.same i us_id))
                                           id_map in
             let id_map = (us_id, Path.Pident (Ident.of_unscoped us'))

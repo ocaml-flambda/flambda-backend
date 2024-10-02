@@ -7086,7 +7086,7 @@ and type_function
           s_ident, ret_sort
       end
       in
-      let ident = Ident.create_unscoped name.txt in
+      let ident = Ident.Unscoped.create name.txt in
       let ad = (typed_arg_label, arg_mode, ret_mode) in
       let exp_type =
           match
@@ -8099,7 +8099,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
   | Omitted _ as arg -> (lbl, arg)
 
 and type_application env app_loc expected_mode position_and_mode
-      funct funct_mode sargs ret_tvar : ((_ * apply_arg) list * _ * _ * _) =
+      funct funct_mode sargs ret_tvar =
   let is_ignore funct =
     is_prim ~name:"%ignore" funct &&
     (try ignore (filter_arrow_mono env (instance funct.exp_type) Nolabel); true

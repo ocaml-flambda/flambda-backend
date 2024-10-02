@@ -695,7 +695,7 @@ and raw_type_desc ppf = function
         (string_of_label l)
         (Alloc.print ~verbose:true ()) arg
         (Alloc.print ~verbose:true ()) ret
-        (Ident.name_unscoped name) path p raw_lid_type_list fl raw_type ty
+        (Ident.Unscoped.name name) path p raw_lid_type_list fl raw_type ty
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
