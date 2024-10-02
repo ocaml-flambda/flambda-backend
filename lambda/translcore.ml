@@ -430,9 +430,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | ((_, arg_repr) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
           let arg_exps, extra_args = cut_args prim_repr oargs in
           let arg_sort =
-            Jkind.Sort.of_base
-              (Translprim.sort_of_native_repr ~loc:x.exp_loc arg_repr
-                 ~poly_sort:psort)
+            Jkind.Sort.of_const
+              (Translprim.sort_of_native_repr arg_repr ~poly_sort:psort)
           in
           (x, arg_sort) :: arg_exps, extra_args
         | _, ((_, Omitted _) :: _) -> assert false

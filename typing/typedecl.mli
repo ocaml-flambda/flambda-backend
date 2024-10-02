@@ -138,7 +138,6 @@ type error =
     }
   | Null_arity_external
   | Missing_native_external
-  | Unboxed_product_in_external
   | Unbound_type_var of type_expr * type_declaration
   | Cannot_extend_private_type of Path.t
   | Not_extensible_type of Path.t

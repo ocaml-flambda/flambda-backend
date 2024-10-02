@@ -60,7 +60,10 @@ module Nullability : sig
   include module type of Jkind_axis.Nullability with type t := t
 end
 
-module Sort : Jkind_intf.Sort with type base = Jkind_types.Sort.base
+module Sort :
+  Jkind_intf.Sort
+    with type base = Jkind_types.Sort.base
+     and type Const.t = Jkind_types.Sort.Const.t
 
 type sort = Sort.t
 

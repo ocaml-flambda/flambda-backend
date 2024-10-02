@@ -336,7 +336,7 @@ type primitive =
   | Ppoll
 
 and extern_repr =
-  | Same_as_ocaml_repr of Jkind.Sort.base
+  | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
@@ -1871,21 +1871,24 @@ let structured_constant_layout = function
   | Const_mixed_block _ | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
+let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
+  match c with
+  | Base Value -> layout_any_value
+  | Base Float64 -> layout_unboxed_float Pfloat64
+  | Base Float32 -> layout_unboxed_float Pfloat32
+  | Base Word -> layout_unboxed_nativeint
+  | Base Bits32 -> layout_unboxed_int32
+  | Base Bits64 -> layout_unboxed_int64
+  | Base Void -> assert false
+  | Product sorts ->
+    layout_unboxed_product (List.map layout_of_const_sort sorts)
+
 let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
   | Unboxed_float bf -> layout_boxed_float bf
   | Unboxed_integer bi -> layout_boxedint bi
-  | Same_as_ocaml_repr s ->
-    begin match s with
-    | Value -> layout_any_value
-    | Float64 -> layout_unboxed_float Pfloat64
-    | Float32 -> layout_unboxed_float Pfloat32
-    | Word -> layout_unboxed_nativeint
-    | Bits32 -> layout_unboxed_int32
-    | Bits64 -> layout_unboxed_int64
-    | Void -> assert false
-    end
+  | Same_as_ocaml_repr s -> layout_of_const_sort s
 
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
@@ -2156,6 +2159,6 @@ let simple_prim_on_values ~name ~arity ~alloc =
     ~native_name:""
     ~native_repr_args:
       (Primitive.make_prim_repr_args arity
-        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Value))
-    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Value)
+        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Const.value))
+    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Const.value)
     ~is_layout_poly:false
