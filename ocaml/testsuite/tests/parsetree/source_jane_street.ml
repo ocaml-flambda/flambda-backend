@@ -593,9 +593,9 @@ let (~x:x0, ~s, ~(y:int), ..) : (x:int * s:string * y:int * string) =
    (~x: 1, ~s: "a", ~y: 2, "ignore me")
 
 [%%expect{|
-val x0 : int @@ global many portable = 1
-val s : string @@ global many portable = "a"
-val y : int @@ global many portable = 2
+val x0 : int @@ global many portable coordinate_nothing = 1
+val s : string @@ global many portable coordinate_nothing = "a"
+val y : int @@ global many portable coordinate_nothing = 2
 |}]
 
 module M : sig
@@ -634,9 +634,9 @@ val foo :
   ('a : value_or_null) ('b : value_or_null).
     'a -> (unit -> 'b) -> (unit -> 'b) -> 'b
   @@ global many = <fun>
-val x : int @@ global many portable = 1
+val x : int @@ global many portable coordinate_nothing = 1
 val y : int @@ global many = 2
-val x : int @@ global many portable = 1
+val x : int @@ global many portable coordinate_nothing = 1
 val y : int @@ global many = 2
 val f : (foo:int * bar:int) -> int @@ global many = <fun>
 val f : (x:int * int) -> int @@ global many = <fun>

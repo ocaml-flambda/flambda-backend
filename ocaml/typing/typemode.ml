@@ -79,7 +79,16 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
   | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
   | pair, Modifier -> pair
 
+let unfold_alias_annot { txt = s; loc } =
+  match s with
+  | "deterministic" ->
+    [{ txt = "portable"; loc }; { txt = "coordinate_nothing"; loc }]
+  | "constant" -> [{ txt = "contended"; loc }; { txt = "coordinated_none"; loc }]
+  | _ -> [{ txt = s; loc }]
+
 let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
+
+let unpack_modality_annot { txt = Parsetree.Modality s; loc } = { txt = s; loc }
 
 module Opt_axis_collection = Axis_collection (Option)
 
@@ -113,7 +122,7 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
   let step modifiers_so_far annot =
     let (Modal_axis_pair (type a) ((axis, mode) : a Axis.Modal.t * a)) =
       transl_annot ~annot_type:Mode ~required_mode_maturity:(Some Stable)
-      @@ unpack_mode_annot annot
+      @@ annot
     in
     let axis = Axis.Modal axis in
     if Option.is_some (Opt_axis_collection.get ~axis modifiers_so_far)
@@ -123,7 +132,11 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
   let empty_modifiers =
     Opt_axis_collection.create { f = (fun ~axis:_ -> None) }
   in
-  let modes = List.fold_left step empty_modifiers annots in
+  let unfolded_annots =
+    List.concat
+      (List.map (fun x -> unpack_mode_annot x |> unfold_alias_annot) annots)
+  in
+  let modes = List.fold_left step empty_modifiers unfolded_annots in
   { areality = modes.locality;
     linearity = modes.linearity;
     uniqueness = modes.uniqueness;
@@ -152,7 +165,7 @@ let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
     (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
     [areality; uniqueness; linearity; portability; contention]
 
-let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
+let transl_modality ~maturity { txt = modality; loc } =
   let axis_pair =
     transl_annot ~annot_type:Modality ~required_mode_maturity:(Some maturity)
       { txt = modality; loc }
@@ -192,6 +205,24 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
     | Atom (Monadic Contention, Join_with Contention.Const.Shared) -> "shared"
     | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
       "uncontended"
+    | Atom (Monadic Coordinated, Join_with Coordinated.Const.Coordinated_none)
+      ->
+      "coordinated_none"
+    | Atom (Monadic Coordinated, Join_with Coordinated.Const.Coordinated_read)
+      ->
+      "coordinated_read"
+    | Atom (Monadic Coordinated, Join_with Coordinated.Const.Coordinated_write)
+      ->
+      "coordinated_write"
+    | Atom (Comonadic Coordinate, Meet_with Coordinate.Const.Coordinate_nothing)
+      ->
+      "coordinate_nothing"
+    | Atom (Comonadic Coordinate, Meet_with Coordinate.Const.Coordinate_reading)
+      ->
+      "coordinate_reading"
+    | Atom (Comonadic Coordinate, Meet_with Coordinate.Const.Coordinate_writing)
+      ->
+      "coordinate_writing"
     | _ -> failwith "BUG: impossible modality atom"
   in
   { txt = Modality s; loc = Location.none }
@@ -223,7 +254,13 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
 
 let transl_modalities ~maturity mut attrs modalities =
   let mut_modalities = mutable_implied_modalities mut attrs in
-  let modalities = List.map (transl_modality ~maturity) modalities in
+  let unfolded_modalities =
+    List.concat
+      (List.map
+         (fun x -> unpack_modality_annot x |> unfold_alias_annot)
+         modalities)
+  in
+  let modalities = List.map (transl_modality ~maturity) unfolded_modalities in
   (* mut_modalities is applied before explicit modalities *)
   Modality.Value.Const.id
   |> List.fold_right

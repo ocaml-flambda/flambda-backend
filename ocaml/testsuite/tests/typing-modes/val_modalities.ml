@@ -62,7 +62,8 @@ module M = struct
     let x @ contended = "hello"
 end
 [%%expect{|
-module M : sig val x : string @@ global many portable contended end
+module M :
+  sig val x : string @@ global many portable coordinate_nothing contended end
 |}]
 
 (* Testing the defaulting behaviour.
@@ -106,11 +107,14 @@ Lines 8-10, characters 35-7:
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ global many portable contended end
+         sig
+           val x : string @@ global many portable coordinate_nothing
+             contended
+         end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : string @@ global many portable contended
+         val x : string @@ global many portable coordinate_nothing contended
        is not included in
          val x : string
        The second is empty and the first is contended.
@@ -141,9 +145,12 @@ Lines 8-13, characters 35-7:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val x : string @@ global many portable
+           val x : string @@ global many portable coordinate_nothing
            module N :
-             sig val y : string @@ global many portable contended end
+             sig
+               val y : string @@ global many portable coordinate_nothing
+                 contended
+             end
          end
        is not included in
          sig
@@ -152,12 +159,15 @@ Error: Signature mismatch:
          end
        In module "N":
        Modules do not match:
-         sig val y : string @@ global many portable contended end
+         sig
+           val y : string @@ global many portable coordinate_nothing
+             contended
+         end
        is not included in
          sig val y : string end
        In module "N":
        Values do not match:
-         val y : string @@ global many portable contended
+         val y : string @@ global many portable coordinate_nothing contended
        is not included in
          val y : string
        The second is empty and the first is contended.
@@ -176,7 +186,10 @@ module Without_inclusion = struct
 end
 [%%expect{|
 module Without_inclusion :
-  sig module M : sig val x : 'a -> 'a @@ global many portable end end
+  sig
+    module M :
+      sig val x : 'a -> 'a @@ global many portable coordinate_nothing end
+  end
 |}]
 
 module Without_inclusion = struct
@@ -206,11 +219,14 @@ Lines 4-6, characters 10-7:
 6 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ global many portable contended end
+         sig
+           val x : string @@ global many portable coordinate_nothing
+             contended
+         end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : string @@ global many portable contended
+         val x : string @@ global many portable coordinate_nothing contended
        is not included in
          val x : string
        The second is empty and the first is contended.
@@ -270,8 +286,9 @@ end
 [%%expect{|
 module Close_over_value :
   sig
-    module M : sig val x : string @@ global many portable end
-    val foo : unit -> unit @@ global many portable
+    module M :
+      sig val x : string @@ global many portable coordinate_nothing end
+    val foo : unit -> unit @@ global many portable coordinate_nothing
   end
 |}]
 

@@ -26,9 +26,10 @@ end
 module GhostUnitAtomic :
   sig
     type t : atomically_mutable_data
-    val make : unit -> t @@ portable
+    val make : unit -> t @@ portable coordinate_nothing
     val get : t @ coordinated_read -> unit @ contended @@ portable
-    val set : t -> unit @ contended -> unit @@ portable
+      coordinate_nothing
+    val set : t -> unit @ contended -> unit @@ portable coordinate_nothing
   end
 |}]
 
