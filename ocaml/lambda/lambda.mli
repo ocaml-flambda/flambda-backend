@@ -332,6 +332,39 @@ type primitive =
      if the value is locally allocated *)
   (* Fetching domain-local state *)
   | Pdls_get
+    (* In-place reuse of heap blocks.
+     Each of these takes the allocation to be reused as first argument.
+     The following arguments correspond to the fields that are Reuse_set. *)
+  | Preuseblock of
+      { tag : int;             (* The immutable tag of both the old and resulting block *)
+        mut : mutable_flag;                            (* Mutability of resulting block *)
+        shape : block_shape;                          (* Block shape of resulting block *)
+        resets : reset_field list;                  (* Reset-information for each field *)
+        (* Note: even if the mode is Alloc_local, the old allocation may be on the heap *)
+        mode : alloc_mode;                             (* Alloc mode of resulting block *)
+      }
+  | Preusefloatblock of
+      { mut : mutable_flag;                            (* Mutability of resulting block *)
+        resets : reset_field list;                  (* Reset-information for each field *)
+        mode : alloc_mode               (* Upper bound on alloc mode of resulting block *)
+      }
+  | Preuseufloatblock of
+      { mut : mutable_flag;                            (* Mutability of resulting block *)
+        resets : reset_field list;                  (* Reset-information for each field *)
+        mode : alloc_mode               (* Upper bound on alloc mode of resulting block *)
+      }
+  | Preusemixedblock of
+      { tag : int;             (* The immutable tag of both the old and resulting block *)
+        mut : mutable_flag;                            (* Mutability of resulting block *)
+        shape : mixed_block_shape;                    (* Block shape of resulting block *)
+        resets : reset_field list;                  (* Reset-information for each field *)
+        (* Note: even if the mode is Alloc_local, the old allocation may be on the heap *)
+        mode : alloc_mode;                             (* Alloc mode of resulting block *)
+      }
+
+and reset_field =
+  | Reuse_set_to of value_kind
+  | Reuse_keep_old
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)

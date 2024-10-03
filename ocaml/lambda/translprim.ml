@@ -1064,8 +1064,22 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
       else None
     end
+  | Primitive (Preuseblock { tag; mut; shape = None; resets; mode }, arity), fields ->
+    begin
+      let shape =
+        List.map (fun typ ->
+          Lambda.must_be_value (Typeopt.layout env (to_location loc)
+                                  Jkind.Sort.for_block_element typ))
+          fields
+      in
+      let useful = List.exists (fun knd -> knd <> Pgenval) shape in
+      if useful then
+        Some (Primitive (Preuseblock { tag; mut; shape = Some shape; resets; mode },
+                         arity))
+      else None
+    end
   | Primitive (Patomic_load { immediate_or_pointer = Pointer },
-               arity), _ ->begin
+               arity), _ -> begin
       let is_int = match is_function_type env ty with
         | None -> Pointer
         | Some (_p1, rhs) -> maybe_pointer_type env rhs in
@@ -1556,6 +1570,7 @@ let lambda_primitive_needs_event_after = function
   | Pignore | Psetglobal _
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pmakeufloatblock _ | Pmakemixedblock _
+  | Preuseblock _ | Preusefloatblock _ | Preuseufloatblock _ | Preusemixedblock _
   | Pmake_unboxed_product _ | Punboxed_product_field _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
