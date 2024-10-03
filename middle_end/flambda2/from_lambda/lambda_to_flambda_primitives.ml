@@ -294,8 +294,8 @@ let box_float32 (mode : L.locality_mode) (arg : H.expr_primitive)
           Alloc_mode.For_allocations.from_lambda mode ~current_region ),
       Prim arg )
 
-let box_float (mode : L.locality_mode) (arg : H.expr_primitive)
-    ~current_region : H.expr_primitive =
+let box_float (mode : L.locality_mode) (arg : H.expr_primitive) ~current_region
+    : H.expr_primitive =
   Unary
     ( Box_number
         ( K.Boxable_number.Naked_float,
