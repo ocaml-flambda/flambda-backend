@@ -196,9 +196,9 @@ module type Lattices_mono = sig
   (** Apply morphism on constant *)
   val apply : 'b obj -> ('a, 'b, 'd) morph -> 'a -> 'b
 
-  (** Checks if two morphisms are equal. If so, returns [Some Refl].
-    Used for deduplication only; it is fine (but not recommended) to return
-   [None] for equal morphisms. *)
+  (** Checks if two morphisms are equal. If so, returns [Some Refl]. This
+      equality is used to ensure termination of submoding, so should be
+      precise. *)
   val eq_morph :
     'b obj ->
     ('a0, 'b, 'l0 * 'r0) morph ->
