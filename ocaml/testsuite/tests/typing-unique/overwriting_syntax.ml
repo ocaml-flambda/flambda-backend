@@ -32,6 +32,17 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8:
 
 |}]
 
+let overwrite_record = function
+    { a; b } as t -> overwrite_ t with { b = a }
+[%%expect{|
+Line 2, characters 21-48:
+2 |     { a; b } as t -> overwrite_ t with { b = a }
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+
+|}]
+
 type constructor = C of { a : int; b : int }
 
 let overwrite_constructor = function
@@ -41,6 +52,17 @@ type constructor = C of { a : int; b : int; }
 Line 4, characters 21-57:
 4 |   C { a; b } as t -> overwrite_ t with C { b = a; a = _ }
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+
+|}]
+
+let overwrite_constructor = function
+    C { a; b } as t -> overwrite_ t with C { b = a }
+[%%expect{|
+Line 2, characters 23-52:
+2 |     C { a; b } as t -> overwrite_ t with C { b = a }
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
 
