@@ -28,6 +28,8 @@ module type Lattice = sig
 
   val le : t -> t -> bool
 
+  val equal : t -> t -> bool
+
   val join : t -> t -> t
 
   val meet : t -> t -> t
@@ -297,7 +299,7 @@ module type S = sig
 
       include Common with module Const := Const
 
-      val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+      val join_const : Const.t -> (disallowed * 'r) t -> (disallowed * 'r) t
     end
 
     module Comonadic : sig
@@ -313,7 +315,7 @@ module type S = sig
 
       include Common with type error := error and module Const := Const
 
-      val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+      val meet_const : Const.t -> ('l * disallowed) t -> ('l * disallowed) t
     end
 
     (** Represents a mode axis in this product whose constant is ['a], and
@@ -396,29 +398,59 @@ module type S = sig
       include Allow_disallow with type (_, _, 'd) sided = 'd t list
     end
 
+    val meet_const :
+      Comonadic.Const.t -> ('l * 'r) t -> ('l * disallowed) t
+
+    val join_const :
+      Monadic.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+
+    val imply :
+      Comonadic.Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+
+    val subtract :
+      Monadic.Const.t -> ('l * 'r) t -> ('l * disallowed) t
+
     val proj : ('m, 'a, 'l * 'r) axis -> ('l * 'r) t -> 'm
 
     val max_with : ('m, 'a, 'l * 'r) axis -> 'm -> (disallowed * 'r) t
 
     val min_with : ('m, 'a, 'l * 'r) axis -> 'm -> ('l * disallowed) t
 
-    val meet_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
+    val meet_with :
+      ('m, 'a, 'l2 * allowed) axis -> 'm -> ('l1 * allowed) t -> right_only t
 
-    val join_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
+    val join_with :
+      ('m, 'a, allowed * 'r2) axis -> 'm -> (allowed * 'r1) t -> left_only t
+
+    val meet_const_with :
+      (Comonadic.Const.t, 'a) Axis.t
+      -> 'a
+      -> ('l * 'r) t
+      -> ('l * disallowed) t
+
+    val join_const_with :
+      (Monadic.Const.t, 'a) Axis.t
+      -> 'a
+      -> ('l * 'r) t
+      -> (disallowed * 'r) t
+
+    val imply_with :
+      (Comonadic.Const.t, 'a) Axis.t
+      -> 'a
+      -> ('l * 'r) t
+      -> (disallowed * 'r) t
+
+    val subtract_with :
+      (Monadic.Const.t, 'a) Axis.t
+      -> 'a
+      -> ('l * 'r) t
+      -> ('l * disallowed) t
 
     val zap_to_legacy : lr -> Const.t
 
     val zap_to_ceil : ('l * allowed) t -> Const.t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
-
-    val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
-    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
-    val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
     (* The following two are about the scenario where we partially apply a
        function [A -> B -> C] to [A] and get back [B -> C]. The mode of the
@@ -445,17 +477,14 @@ module type S = sig
   module Const : sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
 
+    val alloc_as_value_comonadic :
+      Alloc.Comonadic.Const.t -> Value.Comonadic.Const.t
+
     val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
   end
 
-  (** Converts regional to local, identity otherwise *)
-  val regional_to_local : ('l * 'r) Regionality.t -> ('l * 'r) Locality.t
-
   (** Inject locality into regionality *)
-  val locality_as_regionality : ('l * 'r) Locality.t -> ('l * 'r) Regionality.t
-
-  (** Converts regional to global, identity otherwise *)
-  val regional_to_global : ('l * 'r) Regionality.t -> ('l * 'r) Locality.t
+  val locality_as_regionality : Locality.l -> Regionality.l
 
   (** Similar to [locality_as_regionality], behaves as identity on other axes *)
   val alloc_as_value : ('l * 'r) Alloc.t -> ('l * 'r) Value.t
@@ -467,15 +496,16 @@ module type S = sig
   val value_to_alloc_r2l : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
 
   (** Similar to [regional_to_global], behaves as identity on other axes *)
-  val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
+  val value_to_alloc_r2g :
+    ('l * 'r) Value.t -> (disallowed * 'r) Alloc.t
 
   module Modality : sig
     type ('m, 'a) raw =
-      | Meet_with : 'a -> (('a, 'd) mode_comonadic, 'a) raw
-          (** [Meet_with c] takes [x] and returns [meet c x]. [c] can be [max]
+      | Meet_const : 'a -> (('a, 'd) mode_comonadic, 'a) raw
+          (** [Meet_const c] takes [x] and returns [meet c x]. [c] can be [max]
           in which case it's the identity modality. *)
-      | Join_with : 'a -> (('a, 'd) mode_monadic, 'a) raw
-          (** [Join_with c] takes [x] and returns [join c x]. [c] can be [min]
+      | Join_const : 'a -> (('a, 'd) mode_monadic, 'a) raw
+          (** [Join_const c] takes [x] and returns [join c x]. [c] can be [min]
           in which case it's the identity modality. *)
 
     (** An atom modality is a [raw] accompanied by the axis it acts on. *)
@@ -503,8 +533,11 @@ module type S = sig
         (** The identity modality. *)
         val id : t
 
-        (** Apply a modality on mode. *)
-        val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
+        (** Apply a modality on left mode. *)
+        val apply_left : t -> (allowed * 'r) Value.t -> Value.l
+
+        (** Apply a modality on right mode. *)
+        val apply_right : t -> ('l * allowed) Value.t -> Value.r
 
         (** [compose ~then_ t] returns the modality that is [then_] after [t]. *)
         val compose : then_:atom -> t -> t

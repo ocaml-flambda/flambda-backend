@@ -451,7 +451,7 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet_with (Comonadic Areality) Regionality.Const.Regional mode
+  Value.meet_with (Comonadic Areality) Regionality.regional mode
 
 let mode_default mode =
   { position = RNontail;
@@ -476,7 +476,7 @@ let mode_morph f expected_mode =
 
 let mode_modality modality expected_mode =
   as_single_mode expected_mode
-  |> Modality.Value.Const.apply modality
+  |> Modality.Value.Const.apply_right modality
   |> mode_default
 
 (* used when entering a function;
@@ -508,8 +508,8 @@ let mode_max_with_position position =
 
 let mode_exclave expected_mode =
   let mode =
-    Value.join_with (Comonadic Areality)
-      Regionality.Const.Local (as_single_mode expected_mode)
+    Value.imply_with Areality Regionality.Const.Global
+      (as_single_mode expected_mode)
   in
   { (mode_default mode)
     with strictly_local = true
@@ -533,7 +533,7 @@ let mode_lazy expected_mode =
     |> as_single_mode
     (* The thunk is evaluated only once, so we only require it to be [once],
        even if the [lazy] is [many]. *)
-    |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
+    |> Value.imply_with Linearity Linearity.Const.Many
   in
   {expected_mode with locality_context = Some Lazy }, closure_mode
 
@@ -630,7 +630,8 @@ let tuple_pat_mode mode tuple_modes =
 
 let global_pat_mode {mode; _}=
   let mode =
-    Value.meet_with (Comonadic Areality) Regionality.Const.Global mode
+    Value.meet_const_with Areality
+      Regionality.Const.Global mode
   in
   simple_pat_mode mode
 
@@ -642,11 +643,23 @@ let register_allocation_mode alloc_mode =
   let alloc_mode = Alloc.disallow_left alloc_mode in
   allocations := alloc_mode :: !allocations
 
-let register_allocation_value_mode mode =
+let register_allocation_value_mode (mode : Value.r) : Alloc.r * Value.r =
   let alloc_mode = value_to_alloc_r2g mode in
   register_allocation_mode alloc_mode;
   let mode = alloc_as_value alloc_mode in
   alloc_mode, mode
+
+(* Unlike most allocations which can be the highest mode allowed by
+   [expected_mode] and their [alloc_mode] identical to [expected_mode] ,
+   functions have more constraints. For example, an outer function needs
+   to be made global if its inner function is global. As a result, a
+   function gets an [Alloc.lr] allocation mode that can be further
+   constrained. *)
+let register_closure_allocation (mode : Value.r) : Alloc.lr * Value.r =
+  let alloc_mode, _ = Alloc.newvar_below (value_to_alloc_r2g mode) in
+  register_allocation_mode (Alloc.disallow_left alloc_mode);
+  let closed_over_mode = Value.disallow_left (alloc_as_value alloc_mode) in
+  alloc_mode, closed_over_mode
 
 (** Register as allocation the expression constrained by the given
     [expected_mode]. Returns the mode of the allocation, and the expected mode
@@ -859,18 +872,10 @@ let mode_cross_left env ty mode =
   else begin
     let jkind = type_jkind_purely env ty in
     let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-    let upper_bounds =
-      Alloc.Const.merge
-        { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-    in
-    let upper_bounds = Const.alloc_as_value upper_bounds in
+    let upper_bounds = Const.alloc_as_value_comonadic upper_bounds in
     let lower_bounds = Jkind.get_modal_lower_bounds jkind in
-    let lower_bounds =
-      Alloc.Const.merge
-        { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-    in
-    let lower_bounds = Const.alloc_as_value lower_bounds in
     Value.subtract lower_bounds (Value.meet_const upper_bounds mode)
+
   end
 
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
@@ -896,17 +901,8 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
+  let upper_bounds = Const.alloc_as_value_comonadic upper_bounds in
   let lower_bounds = Jkind.get_modal_lower_bounds jkind in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
-  let lower_bounds = Const.alloc_as_value lower_bounds in
   mode_morph
     (fun m ->
       Value.imply upper_bounds
@@ -2537,7 +2533,7 @@ and type_pat_aux
       Typemode.transl_modalities ~maturity:Stable mutability [] []
     in
     check_project_mutability ~loc ~env:!!penv mutability alloc_mode.mode;
-    let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
+    let alloc_mode = Modality.Value.Const.apply_left modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
@@ -2825,7 +2821,9 @@ and type_pat_aux
       let args =
         List.map2
           (fun p (ty, gf) ->
-             let alloc_mode = Modality.Value.Const.apply gf alloc_mode.mode in
+             let alloc_mode =
+               Modality.Value.Const.apply_left gf alloc_mode.mode
+             in
              let alloc_mode = simple_pat_mode alloc_mode in
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
@@ -2871,7 +2869,7 @@ and type_pat_aux
             record_ty in
         check_project_mutability ~loc ~env:!!penv label.lbl_mut alloc_mode.mode;
         let mode =
-          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
+          Modality.Value.Const.apply_left label.lbl_modalities alloc_mode.mode
         in
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
@@ -4915,15 +4913,8 @@ let split_function_ty
     env (expected_mode : expected_mode) ty_expected loc ~arg_label ~has_poly
     ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
   =
-  let alloc_mode =
-      (* Unlike most allocations which can be the highest mode allowed by
-         [expected_mode] and their [alloc_mode] identical to [expected_mode] ,
-         functions have more constraints. For example, an outer function needs
-         to be made global if its inner function is global. As a result, a
-         function deserves a separate allocation mode.
-      *)
-      let mode, _ = Value.newvar_below (as_single_mode expected_mode) in
-      fst (register_allocation_value_mode mode)
+  let alloc_mode, closed_over_mode =
+    register_closure_allocation (as_single_mode expected_mode)
   in
   if expected_mode.strictly_local then
     Locality.submode_exn Locality.local (Alloc.proj (Comonadic Areality) alloc_mode);
@@ -4971,7 +4962,7 @@ let split_function_ty
         let env =
           Env.add_closure_lock
             (Function expected_mode.locality_context)
-            (alloc_as_value alloc_mode).comonadic
+            closed_over_mode.comonadic
             env
         in
         Env.add_region_lock env
@@ -5759,7 +5750,9 @@ and type_expect_
                   with_explanation (fun () ->
                     unify_exp_types loc env (instance ty_expected) ty_res2);
                   check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
+                  let mode =
+                    Modality.Value.Const.apply_left lbl.lbl_modalities mode
+                  in
                   check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
                   let argument_mode =
                     mode_modality lbl.lbl_modalities argument_mode
@@ -5811,7 +5804,7 @@ and type_expect_
         end ~post:generalize_structure
       in
       check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
-      let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
+      let mode = Modality.Value.Const.apply_left label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -5866,8 +5859,8 @@ and type_expect_
       unify_exp env record ty_record;
       rue {
         exp_desc = Texp_setfield(record,
-          Locality.disallow_right (regional_to_local
-            (Value.proj (Comonadic Areality) rmode)),
+          Locality.disallow_right
+            (Alloc.proj (Comonadic Areality) (value_to_alloc_r2l rmode)),
           label_loc, label, newval);
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
@@ -7578,15 +7571,13 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ret_sort = type_sort ~why:Function_result ty_res in
       let func texp =
-        let ret_mode = alloc_as_value mret in
         let e =
           {texp with exp_type = ty_res; exp_desc =
            Texp_apply
              (texp,
               args @ [Nolabel, Arg (eta_var, arg_sort)], Nontail,
-              ret_mode
-              |> Value.proj (Comonadic Areality)
-              |> regional_to_global
+              mret
+              |> Alloc.proj (Comonadic Areality)
               |> Locality.disallow_right,
               None)}
         in

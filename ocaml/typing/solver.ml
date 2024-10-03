@@ -37,18 +37,6 @@ module Magic_allow_disallow (X : Allow_disallow) :
 end
 [@@inline]
 
-module Magic_equal (X : Equal) :
-  Equal with type ('a, 'b, 'c) t = ('a, 'b, 'c) X.t = struct
-  type ('a, 'b, 'd) t = ('a, 'b, 'd) X.t
-
-  let equal :
-      type a0 a1 b l0 l1 r0 r1.
-      (a0, b, l0 * r0) t -> (a1, b, l1 * r1) t -> (a0, a1) Misc.eq option =
-   fun x0 x1 ->
-    if Obj.repr x0 = Obj.repr x1 then Some (Obj.magic Misc.Refl) else None
-end
-[@@inline]
-
 type 'a error =
   { left : 'a;
     right : 'a
@@ -383,22 +371,23 @@ module Solver_mono (C : Lattices_mono) = struct
       | Error e -> Error (C.apply obj f e)
 
   let eq_morphvar :
-      type a l0 r0 l1 r1. (a, l0 * r0) morphvar -> (a, l1 * r1) morphvar -> bool
+      type a l0 r0 l1 r1.
+        a C.obj -> (a, l0 * r0) morphvar -> (a, l1 * r1) morphvar -> bool
       =
-   fun (Amorphvar (v0, f0) as mv0) (Amorphvar (v1, f1) as mv1) ->
+   fun dst (Amorphvar (v0, f0) as mv0) (Amorphvar (v1, f1) as mv1) ->
     (* To align l0/l1, r0/r1; The existing disallow_left/right] is for [mode],
        not [morphvar]. *)
     Morphvar.(
       disallow_left (disallow_right mv0) == disallow_left (disallow_right mv1))
-    || match C.eq_morph f0 f1 with None -> false | Some Refl -> v0 == v1
+    || match C.eq_morph dst f0 f1 with None -> false | Some Refl -> v0 == v1
 
-  let exists mu mvs = List.exists (fun mv -> eq_morphvar mv mu) mvs
+  let exists dst mu mvs = List.exists (fun mv -> eq_morphvar dst mv mu) mvs
 
   let submode_mvmv (type a) ~log (dst : a C.obj) (Amorphvar (v, f) as mv)
       (Amorphvar (u, g) as mu) =
     if C.le dst (mupper dst mv) (mlower dst mu)
     then Ok ()
-    else if eq_morphvar mv mu
+    else if eq_morphvar dst mv mu
     then Ok ()
     else
       (* The call f v <= g u translates to three steps:
@@ -419,7 +408,8 @@ module Solver_mono (C : Lattices_mono) = struct
           let src = C.src dst g in
           let g'f = C.compose src g' (C.disallow_right f) in
           let x = Amorphvar (v, g'f) in
-          if not (exists x u.vlower) then set_vlower ~log u (x :: u.vlower);
+          if not (exists src x u.vlower) then
+            set_vlower ~log u (x :: u.vlower);
           Ok ())
 
   let cnt_id = ref 0
@@ -483,13 +473,13 @@ module Solver_mono (C : Lattices_mono) = struct
                       find_error (fun mv -> submode_mvmv ~log obj mv mu) mvs)
                     mus)))
 
-  let cons_dedup x xs = if exists x xs then xs else x :: xs
+  let cons_dedup dst x xs = if exists dst x xs then xs else x :: xs
 
   (* Similar to [List.rev_append] but dedup the result (assuming both inputs are
      deduped) *)
-  let rev_append_dedup l0 l1 =
+  let rev_append_dedup dst l0 l1 =
     let rec loop rest acc =
-      match rest with [] -> acc | x :: xs -> loop xs (cons_dedup x acc)
+      match rest with [] -> acc | x :: xs -> loop xs (cons_dedup dst x acc)
     in
     loop l0 l1
 
@@ -512,9 +502,9 @@ module Solver_mono (C : Lattices_mono) = struct
               should keep the latter instead. This helps to fail early in
              [submode] *)
           | Amodevar mv ->
-            loop (C.join obj a (mlower obj mv)) (cons_dedup mv mvs) xs
+            loop (C.join obj a (mlower obj mv)) (cons_dedup obj mv mvs) xs
           | Amodejoin (b, mvs') ->
-            loop (C.join obj a b) (rev_append_dedup mvs' mvs) xs)
+            loop (C.join obj a b) (rev_append_dedup obj mvs' mvs) xs)
     in
     loop (C.min obj) [] l
 
@@ -537,9 +527,9 @@ module Solver_mono (C : Lattices_mono) = struct
               should keep the latter instead. This helps to fail early in
              [submode_log] *)
           | Amodevar mv ->
-            loop (C.meet obj a (mupper obj mv)) (cons_dedup mv mvs) xs
+            loop (C.meet obj a (mupper obj mv)) (cons_dedup obj mv mvs) xs
           | Amodemeet (b, mvs') ->
-            loop (C.meet obj a b) (rev_append_dedup mvs' mvs) xs)
+            loop (C.meet obj a b) (rev_append_dedup obj mvs' mvs) xs)
     in
     loop (C.max obj) [] l
 

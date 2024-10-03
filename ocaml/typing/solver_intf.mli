@@ -48,6 +48,8 @@ type right_only = disallowed * allowed
 
 type both = allowed * allowed
 
+type neither = disallowed * disallowed
+
 module type Allow_disallow = sig
   type ('a, 'b, 'd) sided constraint 'd = 'l * 'r
 
@@ -196,12 +198,9 @@ module type Lattices_mono = sig
 
   (** Checks if two morphisms are equal. If so, returns [Some Refl].
     Used for deduplication only; it is fine (but not recommended) to return
-   [None] for equal morphisms.
-
-    While a [morph] must be acompanied by a destination [obj] to uniquely
-    identify a morphism, two [morph] sharing the same destination can be
-    compared on their own. *)
+   [None] for equal morphisms. *)
   val eq_morph :
+    'b obj ->
     ('a0, 'b, 'l0 * 'r0) morph ->
     ('a1, 'b, 'l1 * 'r1) morph ->
     ('a0, 'a1) Misc.eq option
@@ -353,13 +352,6 @@ module type S = sig
       identity functions (up to runtime representation). *)
   module Magic_allow_disallow (X : Allow_disallow) :
     Allow_disallow with type ('a, 'b, 'd) sided = ('a, 'b, 'd) X.sided
-
-  (** Takes a slow but type-correct [Equal] module and returns the
-      magic version, which is faster.
-      NOTE: for this to be sound, the function in the original module must be
-      just %equal (up to runtime representation). *)
-  module Magic_equal (X : Equal) :
-    Equal with type ('a, 'b, 'c) t = ('a, 'b, 'c) X.t
 
   (** Solver that supports polarized lattices; needed because some morphisms
       are antitone  *)

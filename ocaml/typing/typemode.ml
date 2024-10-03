@@ -146,33 +146,33 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
   match axis_pair with
   | Modal_axis_pair (Locality, mode) ->
     Modality.Atom
-      (Comonadic Areality, Meet_with (Const.locality_as_regionality mode))
+      (Comonadic Areality, Meet_const (Const.locality_as_regionality mode))
   | Modal_axis_pair (Linearity, mode) ->
-    Modality.Atom (Comonadic Linearity, Meet_with mode)
+    Modality.Atom (Comonadic Linearity, Meet_const mode)
   | Modal_axis_pair (Uniqueness, mode) ->
-    Modality.Atom (Monadic Uniqueness, Join_with mode)
+    Modality.Atom (Monadic Uniqueness, Join_const mode)
   | Modal_axis_pair (Portability, mode) ->
-    Modality.Atom (Comonadic Portability, Meet_with mode)
+    Modality.Atom (Comonadic Portability, Meet_const mode)
   | Modal_axis_pair (Contention, mode) ->
-    Modality.Atom (Monadic Contention, Join_with mode)
+    Modality.Atom (Monadic Contention, Join_const mode)
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
     match a with
-    | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) -> "global"
-    | Atom (Comonadic Areality, Meet_with Regionality.Const.Local) -> "local"
-    | Atom (Comonadic Linearity, Meet_with Linearity.Const.Many) -> "many"
-    | Atom (Comonadic Linearity, Meet_with Linearity.Const.Once) -> "once"
-    | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Aliased) -> "aliased"
-    | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique) -> "unique"
-    | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) ->
+    | Atom (Comonadic Areality, Meet_const Regionality.Const.Global) -> "global"
+    | Atom (Comonadic Areality, Meet_const Regionality.Const.Local) -> "local"
+    | Atom (Comonadic Linearity, Meet_const Linearity.Const.Many) -> "many"
+    | Atom (Comonadic Linearity, Meet_const Linearity.Const.Once) -> "once"
+    | Atom (Monadic Uniqueness, Join_const Uniqueness.Const.Aliased) -> "aliased"
+    | Atom (Monadic Uniqueness, Join_const Uniqueness.Const.Unique) -> "unique"
+    | Atom (Comonadic Portability, Meet_const Portability.Const.Portable) ->
       "portable"
-    | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) ->
+    | Atom (Comonadic Portability, Meet_const Portability.Const.Nonportable) ->
       "nonportable"
-    | Atom (Monadic Contention, Join_with Contention.Const.Contended) ->
+    | Atom (Monadic Contention, Join_const Contention.Const.Contended) ->
       "contended"
-    | Atom (Monadic Contention, Join_with Contention.Const.Shared) -> "shared"
-    | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
+    | Atom (Monadic Contention, Join_const Contention.Const.Shared) -> "shared"
+    | Atom (Monadic Contention, Join_const Contention.Const.Uncontended) ->
       "uncontended"
     | _ -> failwith "BUG: impossible modality atom"
   in
@@ -186,13 +186,13 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
 (* CR zqian: decouple mutable and comonadic modalities *)
 let mutable_implied_modalities (mut : Types.mutability) attrs =
   let comonadic : Modality.t list =
-    [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
-      Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
-      Atom (Comonadic Portability, Meet_with Portability.Const.legacy) ]
+    [ Atom (Comonadic Areality, Meet_const Regionality.Const.legacy);
+      Atom (Comonadic Linearity, Meet_const Linearity.Const.legacy);
+      Atom (Comonadic Portability, Meet_const Portability.Const.legacy) ]
   in
   let monadic : Modality.t list =
-    [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
-      Atom (Monadic Contention, Join_with Contention.Const.legacy) ]
+    [ Atom (Monadic Uniqueness, Join_const Uniqueness.Const.legacy);
+      Atom (Monadic Contention, Join_const Contention.Const.legacy) ]
   in
   match mut with
   | Immutable -> []

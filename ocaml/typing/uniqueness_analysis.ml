@@ -785,8 +785,8 @@ end = struct
     let l =
       List.filter
         (function
-         | Atom (Monadic Uniqueness, Join_with Aliased) -> true
-         | Atom (Comonadic Linearity, Meet_with Many) -> true
+         | Atom (Monadic Uniqueness, Join_const Aliased) -> true
+         | Atom (Comonadic Linearity, Meet_const Many) -> true
          | _ -> false
           : Modality.t -> _)
         gf

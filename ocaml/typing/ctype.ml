@@ -1625,8 +1625,8 @@ let prim_mode mvar = function
 let with_locality locality m =
   let m' = Alloc.newvar () in
   Locality.equate_exn (Alloc.proj (Comonadic Areality) m') locality;
-  Alloc.submode_exn m' (Alloc.join_with (Comonadic Areality) Locality.Const.max m);
-  Alloc.submode_exn (Alloc.meet_with (Comonadic Areality) Locality.Const.min m) m';
+  Alloc.submode_exn m' (Alloc.imply_with Areality Locality.Const.min m);
+  Alloc.submode_exn (Alloc.meet_const_with Areality Locality.Const.min m) m';
   m'
 
 let curry_mode alloc arg : Alloc.Const.t =
@@ -4686,15 +4686,7 @@ let mode_cross_left env ty mode =
       figure this out later. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
   let lower_bounds = Jkind.get_modal_lower_bounds jkind in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
   Alloc.subtract lower_bounds (Alloc.meet_const upper_bounds mode)
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value] and
@@ -4704,15 +4696,7 @@ let mode_cross_right env ty mode =
       comment in [mode_cross_left]. *)
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds =
-    Alloc.Const.merge
-      { comonadic = upper_bounds; monadic = Alloc.Monadic.Const.max }
-  in
   let lower_bounds = Jkind.get_modal_lower_bounds jkind in
-  let lower_bounds =
-    Alloc.Const.merge
-      { comonadic = Alloc.Comonadic.Const.min; monadic = lower_bounds }
-  in
   Alloc.imply upper_bounds (Alloc.join_const lower_bounds mode)
 
 let submode_with_cross env ~is_ret ty l r =
@@ -5796,10 +5780,10 @@ let rec build_subtype env (visited : transient_expr list)
           let t1 = if posi then t1 else t1' in
           let posi_arg = not posi in
           if posi_arg then begin
-            let a = mode_cross_right env t1 a in
+            let a = mode_cross_right env t1 (Alloc.disallow_left a) in
             build_submode_pos a
           end else begin
-            let a = mode_cross_left env t1 a in
+            let a = mode_cross_left env t1 (Alloc.disallow_right a) in
             build_submode_neg a
           end
         end else a, Unchanged
