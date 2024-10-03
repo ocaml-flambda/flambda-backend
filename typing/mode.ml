@@ -2525,6 +2525,8 @@ module Modality = struct
           [ (let ax : _ Axis.t = Uniqueness in
              Atom (Monadic ax, Join_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Contention in
+             Atom (Monadic ax, Join_with (Axis.proj ax c)));
+            (let ax : _ Axis.t = Coordinated in
              Atom (Monadic ax, Join_with (Axis.proj ax c))) ]
 
       let print ppf = function
@@ -2667,6 +2669,8 @@ module Modality = struct
             (let ax : _ Axis.t = Linearity in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Portability in
+             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
+            (let ax : _ Axis.t = Coordinate in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
       let print ppf = function
