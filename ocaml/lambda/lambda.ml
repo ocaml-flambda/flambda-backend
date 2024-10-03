@@ -1679,7 +1679,7 @@ let find_exact_application kind ~arity args =
           if arity <> List.length tupled_args
           then None
           else Some tupled_args
-      (* CR: this allocation is removed by the simplifier and
+      (* CR uniqueness: this allocation is removed by the simplifier and
          we should warn the user that their reuse is meaningless. *)
       | [Lprim(Preuseblock _, tupled_args, _)] ->
         if arity <> List.length tupled_args

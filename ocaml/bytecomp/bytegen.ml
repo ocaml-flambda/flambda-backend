@@ -1185,19 +1185,20 @@ and comp_expr_list stack_info env exprl sz cont = match exprl with
    leave the first argument in the accumulator. *)
 
 and comp_reuse_args stack_info env argl resets getfield sz cont =
-  let rec zip_resets idx resets argl =
+  let rec zip_resets idx resets argl acc =
     let next = idx + 1 in
     match resets, argl with
-    | [], [] -> []
-    | Reuse_keep_old :: resets,        argl -> `ReadOld idx :: zip_resets next resets argl
-    | Reuse_set_to _ :: resets, arg :: argl -> `PushNew arg :: zip_resets next resets argl
+    | [], [] -> acc
+    | Reuse_keep_old :: resets,        argl ->
+        zip_resets next resets argl (`ReadOld idx :: acc)
+    | Reuse_set_to _ :: resets, arg :: argl ->
+        zip_resets next resets argl (`PushNew arg :: acc)
     | _ -> assert false (* There is exactly one arg for each Some. *)
   in
   match argl with
   | [] -> assert false (* The first argument is the reused value. *)
   | old :: argl ->
-    comp_reuse_expr_list stack_info env (List.rev (zip_resets 0 resets argl))
-      old getfield sz cont
+    comp_reuse_expr_list stack_info env (zip_resets 0 resets argl []) old getfield sz cont
 
 and comp_reuse_expr_list stack_info env exprl old getfield sz cont =
   let comp_reuse_arg exp cont =

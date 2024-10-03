@@ -95,7 +95,11 @@ module Constr : sig
   }
 
   val makeblock :
-    (int * Lambda.mutable_flag * block_shape * is_reusing * Lambda.alloc_mode) ->
+    tag:int ->
+    flag:Lambda.mutable_flag ->
+    shape:block_shape ->
+    is_reusing:is_reusing ->
+    mode:Lambda.alloc_mode ->
     primitive
 
   (** [apply constr e] plugs the expression [e] in the hole of the
@@ -136,17 +140,15 @@ end = struct
     loc : Debuginfo.Scoped_location.t;
   }
 
-  let makeblock (tag, mut, shape, is_reusing, mode) =
+  let makeblock ~tag ~flag ~shape ~is_reusing ~mode =
     match is_reusing with
-    | Reuse_alloc { resets } -> Preuseblock { tag; mut; shape; resets; mode }
-    | New_alloc -> Pmakeblock (tag, mut, shape, mode)
+    | Reuse_alloc { resets } -> Preuseblock { tag; mut = flag; shape; resets; mode }
+    | New_alloc -> Pmakeblock (tag, flag, shape, mode)
 
-  let apply constr t =
-    let block_args = List.append constr.before @@ t :: constr.after in
-    let block =
-      makeblock (constr.tag, constr.flag, constr.shape, constr.is_reusing, alloc_heap)
-    in
-    Lprim(block, block_args, constr.loc)
+  let apply { tag; flag; shape; is_reusing; before; after; loc } t =
+    let block_args = List.append before @@ t :: after in
+    let block = makeblock ~tag ~flag ~shape ~is_reusing ~mode:alloc_heap in
+    Lprim(block, block_args, loc)
 
   let tmc_placeholder =
     (* we choose a placeholder whose tagged representation will be
@@ -788,7 +790,7 @@ let rec choice ctx t =
     let choices = List.map (choice ctx ~tail:false) blockargs in
     match Choice.find_nonambiguous_tmc_call choices with
     | Choice.No_tmc_call args ->
-        let block = Constr.makeblock (tag, flag, shape, is_reusing, mode) in
+        let block = Constr.makeblock ~tag ~flag ~shape ~is_reusing ~mode in
         Choice.lambda @@ Lprim (block, args, loc)
     | Choice.Ambiguous { explicit; subterms = ambiguous_subterms } ->
         (* An ambiguous term should not lead to an error if it not
@@ -826,7 +828,7 @@ let rec choice ctx t =
         *)
         let term_choice =
           let+ args = Choice.list choices in
-          let block = Constr.makeblock (tag, flag, shape, is_reusing, mode) in
+          let block = Constr.makeblock ~tag ~flag ~shape ~is_reusing ~mode in
           Lprim (block, args, loc)
         in
         { term_choice with
