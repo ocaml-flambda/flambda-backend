@@ -24,20 +24,6 @@ module R = To_cmm_result
 module UK = C.Update_kind
 module MBS = Flambda_kind.Mixed_block_shape
 
-module List = struct
-  include List
-
-  let concat_map2 f l1 l2 =
-    let rec aux f acc = function
-      | [], [] -> rev acc
-      | a1 :: l1, a2 :: l2 ->
-        let xs = f a1 a2 in
-        aux f (rev_append xs acc) (l1, l2)
-      | _, _ -> invalid_arg "List.concat_map2"
-    in
-    aux f [] (l1, l2)
-end
-
 let static_field res field field_kind =
   Simple.pattern_match'
     (Simple.With_debuginfo.simple field)
@@ -288,7 +274,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
             ~scannable_prefix_len:(MBS.value_prefix_size shape) )
     in
     let static_fields =
-      List.concat_map2 (static_field res) fields field_kinds
+      Misc.Stdlib.List.concat_map2 (static_field res) fields field_kinds
     in
     let block = C.emit_block sym header static_fields in
     let update_kinds =
@@ -420,7 +406,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       List.init (List.length fields) (fun _ -> Flambda_kind.value)
     in
     let static_fields =
-      List.concat_map2 (static_field res) fields field_kinds
+      Misc.Stdlib.List.concat_map2 (static_field res) fields field_kinds
     in
     let block = C.emit_block sym header static_fields in
     let update_kinds = List.map (fun _ -> UK.pointers) fields in
