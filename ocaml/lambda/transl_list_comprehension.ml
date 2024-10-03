@@ -113,7 +113,7 @@ let ( rev_list_to_list,
     building the intermediate restults of list comprehensions; see the
     documentation for [CamlinternalComprehension.rev_list] for more details. *)
 let rev_list_snoc_local ~loc ~init ~last =
-  Lprim (Pmakeblock (0, Immutable, None, alloc_local), [init; last], loc)
+  Lprim (Pmakeblock (0, Immutable, None, alloc_local_unique), [init; last], loc)
 
 (** The [CamlinternalComprehension.Nil] constructor, for building the
     intermediate restults of list comprehensions; see the documentation for
@@ -244,15 +244,15 @@ let rec translate_bindings ~transl_exp ~scopes ~loc ~inner_body ~accumulator =
               layout = element_kind;
               attributes = Lambda.default_param_attribute;
               (* CR ncourant: check *)
-              mode = alloc_heap
+              mode = alloc_heap_aliased
             };
             { name = inner_acc;
               layout = Pvalue Pgenval;
               attributes = Lambda.default_param_attribute;
-              mode = alloc_local
+              mode = alloc_local_aliased
             } ]
         ~return:(Pvalue Pgenval) ~attr:default_function_attribute ~loc
-        ~mode:alloc_local ~ret_mode:alloc_local ~region:false
+        ~mode:alloc_local ~ret_mode:alloc_local_aliased ~region:false
         ~body:(add_bindings body)
     in
     let result =

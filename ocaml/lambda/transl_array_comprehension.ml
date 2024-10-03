@@ -218,7 +218,7 @@ end = struct
     Lprim
       ( Praise Raise_regular,
         [ Lprim
-            ( Pmakeblock (0, Immutable, None, alloc_heap),
+            ( Pmakeblock (0, Immutable, None, alloc_heap_aliased),
               [ slot;
                 string ~loc:loc'
                   "integer overflow when precomputing the size of an array \

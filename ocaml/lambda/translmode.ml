@@ -27,13 +27,25 @@ let transl_locality_mode_r locality =
      to ceil and determined; here we push it again just to get the constant. *)
   Locality.zap_to_ceil locality |> transl_locality_mode
 
+let transl_uniqueness_mode = function
+  | Uniqueness.Const.Unique -> alloc_unique
+  | Uniqueness.Const.Aliased -> alloc_aliased
+
+let transl_uniqueness_mode_l uniqueness =
+  Uniqueness.zap_to_floor uniqueness |> transl_uniqueness_mode
+
+let transl_uniqueness_mode_r uniqueness =
+  Uniqueness.zap_to_ceil uniqueness |> transl_uniqueness_mode
+
 let transl_alloc_mode_l mode =
-  (* we only take the locality axis *)
-  Alloc.proj (Comonadic Areality) mode |> transl_locality_mode_l
+  (* we only take the locality and uniqueness axis *)
+  ( Alloc.proj (Comonadic Areality) mode |> transl_locality_mode_l,
+    Alloc.proj (Monadic Uniqueness) mode |> transl_uniqueness_mode_l )
 
 let transl_alloc_mode_r mode =
-  (* we only take the locality axis *)
-  Alloc.proj (Comonadic Areality) mode |> transl_locality_mode_r
+  (* we only take the locality and uniqueness axis *)
+  ( Alloc.proj (Comonadic Areality) mode |> transl_locality_mode_r,
+    Alloc.proj (Monadic Uniqueness) mode |> transl_uniqueness_mode_r )
 
 let transl_alloc_mode (mode : Typedtree.alloc_mode) =
   transl_alloc_mode_r mode.mode

@@ -37,7 +37,7 @@ let layout_meth = layout_any_value
 let layout_tables = Lambda.Pvalue Pgenval
 
 
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) return_layout params body =
+let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap_aliased) return_layout params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
@@ -71,7 +71,7 @@ let lapply ap =
 
 let lparam name layout : Lambda.lparam =
   { name; layout;
-    attributes = Lambda.default_param_attribute; mode = alloc_heap }
+    attributes = Lambda.default_param_attribute; mode = alloc_heap_aliased }
 
 let mkappl (func, args, layout) =
   Lprim
@@ -229,7 +229,7 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                    ~loc:(of_location ~scopes pat.pat_loc)
                    ~body
                    ~mode:alloc_heap
-                   ~ret_mode:alloc_heap
+                   ~ret_mode:alloc_heap_aliased
                    ~region:true
        in
        begin match obj_init with
@@ -305,7 +305,7 @@ let output_methods tbl methods lam =
       lsequence (mkappl(oo_prim "set_method", [Lvar tbl; lab; code], layout_unit)) lam
   | _ ->
       let methods =
-        Lprim(Pmakeblock(0,Immutable,None,alloc_heap), methods, Loc_unknown)
+        Lprim(Pmakeblock(0,Immutable,None,alloc_heap_aliased), methods, Loc_unknown)
       in
       lsequence (mkappl(oo_prim "set_methods",
                         [Lvar tbl; Lprim (Popaque layout_block,
@@ -519,7 +519,7 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                   ~loc:(of_location ~scopes pat.pat_loc)
                   ~body
                   ~mode:alloc_heap
-                  ~ret_mode:alloc_heap
+                  ~ret_mode:alloc_heap_aliased
                   ~region:true
       in
       (path, path_lam,
@@ -598,7 +598,7 @@ let transl_class_rebind ~scopes cl vf =
     Strict, layout_function, new_init, lfunction layout_function [lparam obj_init layout_function] obj_init',
     Llet(
     Alias, layout_block, cla, path_lam,
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
           [mkappl(Lvar new_init, [lfield cla 0], layout_function);
            lfunction layout_function [lparam table layout_table]
              (Llet(Strict, layout_function, env_init,
@@ -884,7 +884,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
            ~loc:Loc_unknown
            ~return:layout_function
            ~mode:alloc_heap
-           ~ret_mode:alloc_heap
+           ~ret_mode:alloc_heap_aliased
            ~region:true
            ~params:[lparam cla layout_table]
            ~body:cl_init,
@@ -903,20 +903,20 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
       Strict, layout_function, env_init, mkappl (Lvar class_init, [Lvar table], layout_function),
       Lsequence(
       mkappl (oo_prim "init_class", [Lvar table], layout_unit),
-      Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+      Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
             [mkappl (Lvar env_init, [lambda_unit], layout_obj);
              Lvar class_init; Lvar env_init; lambda_unit],
             Loc_unknown)))),
       Static
   and lbody_virt lenvs =
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
           [lambda_unit; Lambda.lfunction
                           ~kind:(Curried {nlocal=0})
                           ~attr:default_function_attribute
                           ~loc:Loc_unknown
                           ~return:layout_function
                           ~mode:alloc_heap
-                          ~ret_mode:alloc_heap
+                          ~ret_mode:alloc_heap_aliased
                           ~region:true
                           ~params:[lparam cla layout_table] ~body:cl_init;
            lambda_unit; lenvs],
@@ -937,11 +937,11 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let lenv =
     let menv =
       if !new_ids_meths = [] then lambda_unit else
-      Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+      Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
             List.map (fun id -> Lvar id) !new_ids_meths,
             Loc_unknown) in
     if !new_ids_init = [] then menv else
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
           menv :: List.map (fun id -> Lvar id) !new_ids_init,
           Loc_unknown)
   and linh_envs =
@@ -952,7 +952,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let make_envs (lam, rkind) =
     Llet(StrictOpt, layout_block, envs,
          (if linh_envs = [] then lenv else
-         Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+         Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
                lenv :: linh_envs, Loc_unknown)),
          lam),
     rkind
@@ -979,7 +979,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~attr:default_function_attribute
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
-                   ~ret_mode:alloc_heap
+                   ~ret_mode:alloc_heap_aliased
                    ~region:true
                    ~body:(def_ids cla cl_init), lam)
   and lset cached i lam =
@@ -998,7 +998,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~attr:default_function_attribute
          ~loc:Loc_unknown
          ~mode:alloc_heap
-         ~ret_mode:alloc_heap
+         ~ret_mode:alloc_heap_aliased
          ~region:true
          ~return:layout_function
          ~params:[lparam cla layout_table]
@@ -1038,7 +1038,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   if ids = []
   then mkappl (lfield cached 0, [lenvs], layout_obj), Dynamic
   else
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
         (if concrete then
           [mkappl (lfield cached 0, [lenvs], layout_obj);
            lfield cached 1;
