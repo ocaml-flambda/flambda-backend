@@ -955,7 +955,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
         Misc.fatal_error "Unexpected empty float# block in [Closure_conversion]"
       | Pmakemixedblock _ ->
         Misc.fatal_error "Unexpected empty mixed block in [Closure_conversion]"
-      | Preuseblock _ | Preusefloatblock _ | Preuseufloatblock _ | Preusemixedblock _ ->
+      | Preuseblock _ | Preusefloatblock _ | Preuseufloatblock _
+      | Preusemixedblock _ ->
         Location.todo_overwrite_not_implemented Location.none
       | Pmakearray (array_kind, _, _mode) ->
         let array_kind = Empty_array_kind.of_lambda array_kind in

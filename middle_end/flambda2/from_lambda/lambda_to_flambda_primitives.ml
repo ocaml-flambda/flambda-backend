@@ -1014,8 +1014,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let tag = Tag.Scannable.create_exn tag in
     let shape = K.Mixed_block_shape.from_lambda shape in
     [Variadic (Make_block (Mixed (tag, shape), mutability, mode), args)]
-  | Preuseblock _, _ | Preusefloatblock _, _ | Preuseufloatblock _, _
-  | Preusemixedblock _, _ -> Location.todo_overwrite_not_implemented Location.none
+  | Preuseblock _, _
+  | Preusefloatblock _, _
+  | Preuseufloatblock _, _
+  | Preusemixedblock _, _ ->
+    Location.todo_overwrite_not_implemented Location.none
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
