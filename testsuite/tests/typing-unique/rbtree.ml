@@ -523,6 +523,6 @@ Line 110, characters 16-52:
 110 |     | Node _ -> overwrite_ t with Node { color = c }
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
 
 |}]

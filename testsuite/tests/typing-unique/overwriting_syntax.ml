@@ -21,7 +21,7 @@ Line 2, characters 17-41:
 2 |   (a, b) as t -> overwrite_ t with (b, _)
                      ^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
 
 |}]
 
@@ -35,7 +35,7 @@ Line 4, characters 19-53:
 4 |   { a; b } as t -> overwrite_ t with { b = a; a = _ }
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
 
 |}]
 
@@ -52,7 +52,7 @@ Line 2, characters 21-48:
 2 |     { a; b } as t -> overwrite_ t with { b = a }
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
 
 |}]
 
@@ -66,7 +66,7 @@ Line 4, characters 21-57:
 4 |   C { a; b } as t -> overwrite_ t with C { b = a; a = _ }
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
 
 |}]
 
@@ -77,7 +77,7 @@ Line 2, characters 23-52:
 2 |     C { a; b } as t -> overwrite_ t with C { b = a }
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
 
 |}]
 
@@ -99,7 +99,7 @@ Line 3, characters 10-46:
 3 |     match overwrite_ t with C { b = a; a = _ } with
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
 
 |}]
 
