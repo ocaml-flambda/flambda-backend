@@ -537,9 +537,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%nativeint_sub" -> Primitive ((Psubbint (Pnativeint, mode)), 2)
     | "%nativeint_mul" -> Primitive ((Pmulbint (Pnativeint, mode)), 2)
     | "%nativeint_div" ->
-      Primitive ((Pdivbint { size = Pnativeint; is_safe = Safe; mode = mode }), 2);
+      Primitive ((Pdivbint { size = Pnativeint; is_safe = Safe; mode }), 2);
     | "%nativeint_mod" ->
-      Primitive ((Pmodbint { size = Pnativeint; is_safe = Safe; mode = mode }), 2);
+      Primitive ((Pmodbint { size = Pnativeint; is_safe = Safe; mode }), 2);
     | "%nativeint_and" -> Primitive ((Pandbint (Pnativeint, mode)), 2)
     | "%nativeint_or" -> Primitive ( (Porbint (Pnativeint, mode)), 2)
     | "%nativeint_xor" -> Primitive ((Pxorbint (Pnativeint, mode)), 2)
@@ -553,9 +553,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%int32_sub" -> Primitive ((Psubbint (Pint32, mode)), 2)
     | "%int32_mul" -> Primitive ((Pmulbint (Pint32, mode)), 2)
     | "%int32_div" ->
-       Primitive ((Pdivbint { size = Pint32; is_safe = Safe; mode = mode }), 2)
+       Primitive ((Pdivbint { size = Pint32; is_safe = Safe; mode }), 2)
     | "%int32_mod" ->
-       Primitive ((Pmodbint { size = Pint32; is_safe = Safe; mode = mode }), 2)
+       Primitive ((Pmodbint { size = Pint32; is_safe = Safe; mode }), 2)
     | "%int32_and" -> Primitive ((Pandbint (Pint32, mode)), 2)
     | "%int32_or" -> Primitive ( (Porbint (Pint32, mode)), 2)
     | "%int32_xor" -> Primitive ((Pxorbint (Pint32, mode)), 2)
@@ -569,9 +569,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%int64_sub" -> Primitive ((Psubbint (Pint64, mode)), 2)
     | "%int64_mul" -> Primitive ((Pmulbint (Pint64, mode)), 2)
     | "%int64_div" ->
-       Primitive ((Pdivbint { size = Pint64; is_safe = Safe; mode = mode }), 2)
+       Primitive ((Pdivbint { size = Pint64; is_safe = Safe; mode }), 2)
     | "%int64_mod" ->
-       Primitive ((Pmodbint { size = Pint64; is_safe = Safe; mode = mode }), 2)
+       Primitive ((Pmodbint { size = Pint64; is_safe = Safe; mode }), 2)
     | "%int64_and" -> Primitive ((Pandbint (Pint64, mode)), 2)
     | "%int64_or" -> Primitive ( (Porbint (Pint64, mode)), 2)
     | "%int64_xor" -> Primitive ((Pxorbint (Pint64, mode)), 2)
@@ -1414,6 +1414,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
     | None -> prim
     | Some prim -> prim
   in
+  let to_locality = to_locality ~poly:poly_mode in
   let error_loc = to_location loc in
   let rec make_params ty repr_args repr_res =
     match repr_args, repr_res with
@@ -1436,7 +1437,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
           let arg_layout =
             Typeopt.layout env error_loc arg_sort arg_ty
           in
-          let arg_mode = to_locality ~poly:poly_mode arg in
+          let arg_mode = to_locality arg in
           let params, return = make_params ret_ty repr_args repr_res in
           { name = Ident.create_local "prim";
             layout = arg_layout;
@@ -1457,7 +1458,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
-     let locality_mode = to_locality ~poly:poly_mode p.prim_native_repr_res in
+     let locality_mode = to_locality p.prim_native_repr_res in
      let () =
        (* CR mshinwell: Write a version of [primitive_may_allocate] that
           works on the [prim] type. *)
@@ -1502,8 +1503,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
-     let nlocal = count_nlocal
-                    (List.map (to_locality ~poly:poly_mode) p.prim_native_repr_args)
+     let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args)
      in lfunction
        ~kind:(Curried {nlocal})
        ~params
@@ -1512,7 +1512,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
        ~loc
        ~body
        ~mode:alloc_heap
-       ~ret_mode:(to_locality ~poly:poly_mode p.prim_native_repr_res)
+       ~ret_mode:(to_locality p.prim_native_repr_res)
        ~region
 
 let lambda_primitive_needs_event_after = function

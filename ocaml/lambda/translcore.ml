@@ -1406,7 +1406,7 @@ and transl_apply ~scopes
            Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
       sargs
   in
-  build_apply lam [] loc position (mode : locality_mode) args
+  build_apply lam [] loc position mode args
 
 (* There are two cases in function translation:
     - [Tupled]. It takes a tupled argument, and we can flatten it.

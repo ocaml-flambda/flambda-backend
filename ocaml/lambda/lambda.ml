@@ -1785,7 +1785,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Punboxed_float32_array_load_128 { mode = m; _ }
   | Punboxed_int32_array_load_128 { mode = m; _ }
   | Punboxed_int64_array_load_128 { mode = m; _ }
-  | Punboxed_nativeint_array_load_128 { mode = m; _ } -> Some m
+  | Punboxed_nativeint_array_load_128 { mode = m; _ }
   | Pget_header m -> Some m
   | Pstring_load_32 { boxed = false; _ }
   | Pstring_load_f32 { boxed = false; _ }
