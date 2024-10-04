@@ -184,6 +184,7 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
+  | Naked_vec128s
 
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float32

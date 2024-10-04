@@ -133,6 +133,7 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Punboxedintarray Pint32 -> Array_kind Naked_int32s
   | Punboxedintarray Pint64 -> Array_kind Naked_int64s
   | Punboxedintarray Pnativeint -> Array_kind Naked_nativeints
+  | Punboxedvectorarray Pvec128 -> Array_kind Naked_vec128s
 
 let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   match convert_array_kind kind with
@@ -149,6 +150,7 @@ module Array_ref_kind = struct
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 end
 
 type converted_array_ref_kind =
@@ -175,6 +177,7 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
   | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
   | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
   | Punboxedintarray_ref Pnativeint -> Array_ref_kind Naked_nativeints
+  | Punboxedvectorarray_ref Pvec128 -> Array_ref_kind Naked_vec128s
 
 let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
     =
@@ -188,6 +191,7 @@ let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
   | Array_ref_kind Naked_int32s -> Array_kind Naked_int32s
   | Array_ref_kind Naked_int64s -> Array_kind Naked_int64s
   | Array_ref_kind Naked_nativeints -> Array_kind Naked_nativeints
+  | Array_ref_kind Naked_vec128s -> Array_kind Naked_vec128s
 
 module Array_set_kind = struct
   type t =
@@ -199,6 +203,7 @@ module Array_set_kind = struct
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 end
 
 type converted_array_set_kind =
@@ -215,6 +220,7 @@ let convert_intermediate_array_set_kind (kind : Array_set_kind.t) :
   | Naked_int32s -> Naked_int32s
   | Naked_int64s -> Naked_int64s
   | Naked_nativeints -> Naked_nativeints
+  | Naked_vec128s -> Naked_vec128s
 
 let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
     =
@@ -234,6 +240,7 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
   | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
   | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
   | Punboxedintarray_set Pnativeint -> Array_set_kind Naked_nativeints
+  | Punboxedvectorarray_set Pvec128 -> Array_set_kind Naked_vec128s
 
 let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
     =
@@ -247,6 +254,7 @@ let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
   | Array_set_kind Naked_int32s -> Array_kind Naked_int32s
   | Array_set_kind Naked_int64s -> Array_kind Naked_int64s
   | Array_set_kind Naked_nativeints -> Array_kind Naked_nativeints
+  | Array_set_kind Naked_vec128s -> Array_kind Naked_vec128s
 
 type converted_duplicate_array_kind =
   | Duplicate_array_kind of P.Duplicate_array_kind.t
@@ -270,6 +278,8 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
     Duplicate_array_kind (Naked_int64s { length = None })
   | Punboxedintarray Pnativeint ->
     Duplicate_array_kind (Naked_nativeints { length = None })
+  | Punboxedvectorarray Pvec128 ->
+    Duplicate_array_kind (Naked_vec128s { length = None })
 
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
@@ -661,6 +671,7 @@ let multiple_word_array_access_validity_condition array ~size_int
 
 let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
   match array_kind with
+  | Naked_vec128s -> 1
   | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
   | Naked_int32s | Naked_float32s -> 4
   | Values ->
@@ -858,13 +869,15 @@ let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag)
   | Naked_int64s -> Binary (Array_load (Naked_int64s, Scalar, mut), array, index)
   | Naked_nativeints ->
     Binary (Array_load (Naked_nativeints, Scalar, mut), array, index)
+  | Naked_vec128s ->
+    Binary (Array_load (Naked_vec128s, Scalar, mut), array, index)
 
 let array_set_unsafe ~array ~index ~new_value
     (array_set_kind : Array_set_kind.t) : H.expr_primitive =
   let new_value =
     match array_set_kind with
     | Immediates | Values _ | Naked_floats | Naked_float32s | Naked_int32s
-    | Naked_int64s | Naked_nativeints ->
+    | Naked_int64s | Naked_nativeints | Naked_vec128s ->
       new_value
     | Naked_floats_to_be_unboxed -> unbox_float new_value
   in
@@ -1048,7 +1061,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         match lambda_array_kind with
         | Pgenarray | Paddrarray | Pintarray
         | Punboxedfloatarray (Pfloat64 | Pfloat32)
-        | Punboxedintarray (Pint32 | Pint64 | Pnativeint) ->
+        | Punboxedintarray (Pint32 | Pint64 | Pnativeint)
+        | Punboxedvectorarray Pvec128 ->
           args
         | Pfloatarray -> List.map unbox_float args
       in
@@ -2008,13 +2022,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Parrayrefu
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
-            | Punboxedintarray_ref _ ),
+            | Punboxedintarray_ref _ | Punboxedvectorarray_ref _ ),
             _,
             _ )
       | Parrayrefs
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
-            | Punboxedintarray_ref _ ),
+            | Punboxedintarray_ref _ | Punboxedvectorarray_ref _ ),
             _,
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
@@ -2032,12 +2046,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Parraysetu
           ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
             | Pfloatarray_set | Punboxedfloatarray_set _
-            | Punboxedintarray_set _ ),
+            | Punboxedintarray_set _ | Punboxedvectorarray_set _ ),
             _ )
       | Parraysets
           ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
             | Pfloatarray_set | Punboxedfloatarray_set _
-            | Punboxedintarray_set _ ),
+            | Punboxedintarray_set _ | Punboxedvectorarray_set _ ),
             _ )
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _ | Pbytes_set_64 _
       | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _

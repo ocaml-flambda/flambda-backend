@@ -92,6 +92,11 @@ val create_immutable_int64_array :
 val create_immutable_nativeint_array :
   Are_rebuilding_terms.t -> Targetint_32_64.t Or_variable.t list -> t
 
+val create_immutable_vec128_array :
+  Are_rebuilding_terms.t ->
+  Vector_types.Vec128.Bit_pattern.t Or_variable.t list ->
+  t
+
 val create_immutable_value_array :
   Are_rebuilding_terms.t -> Simple.With_debuginfo.t list -> t
 

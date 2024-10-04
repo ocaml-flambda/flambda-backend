@@ -545,6 +545,9 @@ let comp_primitive stack_info p sz args =
       Kccall("caml_floatarray_unsafe_set", 3)
   | Parraysetu ((Punboxedfloatarray_set Pfloat32 | Punboxedintarray_set _
                 | Paddrarray_set _ | Pintarray_set), Ptagged_int_index) -> Ksetvectitem
+  | Parrayrefs (Punboxedvectorarray_ref _, _, _) | Parraysets (Punboxedvectorarray_set _, _)
+  | Parrayrefu (Punboxedvectorarray_ref _, _, _) | Parraysetu (Punboxedvectorarray_set _, _) ->
+      fatal_error "SIMD is not supported in bytecode mode."
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -881,6 +884,8 @@ let rec comp_expr stack_info env exp sz cont =
       | Pfloatarray | Punboxedfloatarray Pfloat64 ->
           comp_args stack_info env args sz
             (Kmakefloatblock(List.length args) :: cont)
+      | Punboxedvectorarray _ ->
+        fatal_error "SIMD is not supported in bytecode mode."
       | Pgenarray ->
           if args = []
           then Kmakeblock(0, 0) :: cont

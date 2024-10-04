@@ -356,6 +356,7 @@ and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
+  | Punboxedvectorarray of unboxed_vector
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
@@ -366,6 +367,7 @@ and array_ref_kind =
   | Pfloatarray_ref of locality_mode
   | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
+  | Punboxedvectorarray_ref of unboxed_vector
 
 (** When updating an array that might contain pointers, we need to know what
     mode they're at; otherwise, access is uniform. *)
@@ -376,6 +378,7 @@ and array_set_kind =
   | Pfloatarray_set
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
+  | Punboxedvectorarray_set of unboxed_vector
 
 and array_index_kind =
   | Ptagged_int_index

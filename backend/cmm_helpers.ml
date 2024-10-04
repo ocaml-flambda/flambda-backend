@@ -1085,6 +1085,10 @@ let custom_ops_unboxed_nativeint_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
+let custom_ops_unboxed_vec128_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_vec128_array_ops", Debuginfo.none)
+
 let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
     ~elements_per_word =
   (* Checking custom_ops is needed to determine if the array contains an odd or
@@ -1135,6 +1139,14 @@ let unboxed_int64_or_nativeint_array_length arr dbg =
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
   tag_int res dbg
+
+let unboxed_vec128_array_length arr dbg =
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int (lsr_int res (int ~dbg 1) dbg) dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -4228,6 +4240,20 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
+
+let allocate_unboxed_vec128_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
+  let header =
+    let size =
+      1 (* custom_ops field *) + (ints_per_vec128 * List.length elements)
+    in
+    match mode with
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
+  in
+  Cop
+    ( Calloc mode,
+      Cconst_natint (header, dbg) :: custom_ops_unboxed_vec128_array :: elements,
+      dbg )
 
 (* Drop internal optional arguments from exported interface *)
 let block_header x y = block_header x y

@@ -400,6 +400,7 @@ and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
+  | Punboxedvectorarray of unboxed_vector
 
 and array_ref_kind =
   | Pgenarray_ref of locality_mode
@@ -408,6 +409,7 @@ and array_ref_kind =
   | Pfloatarray_ref of locality_mode
   | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
+  | Punboxedvectorarray_ref of unboxed_vector
 
 and array_set_kind =
   | Pgenarray_set of modify_mode
@@ -416,6 +418,7 @@ and array_set_kind =
   | Pfloatarray_set
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
+  | Punboxedvectorarray_set of unboxed_vector
 
 and array_index_kind =
   | Ptagged_int_index
@@ -1701,9 +1704,11 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _, _)
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
+      | Punboxedvectorarray_ref _), _, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _, _) -> None
+      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
+      | Punboxedvectorarray_ref _), _, _) -> None
   | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
   | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
   | Pisint _ | Pisout -> None
@@ -1854,6 +1859,7 @@ let array_ref_kind_result_layout = function
   | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
   | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
   | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
+  | Punboxedvectorarray_ref bv -> layout_unboxed_vector bv
 
 let layout_of_mixed_field (kind : mixed_block_read) =
   match kind with
@@ -2060,6 +2066,7 @@ let array_ref_kind mode = function
   | Pfloatarray -> Pfloatarray_ref mode
   | Punboxedintarray int_kind -> Punboxedintarray_ref int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_ref float_kind
+  | Punboxedvectorarray vec_kind -> Punboxedvectorarray_ref vec_kind
 
 let array_set_kind mode = function
   | Pgenarray -> Pgenarray_set mode
@@ -2068,6 +2075,7 @@ let array_set_kind mode = function
   | Pfloatarray -> Pfloatarray_set
   | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_set float_kind
+  | Punboxedvectorarray vec_kind -> Punboxedvectorarray_set vec_kind
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)

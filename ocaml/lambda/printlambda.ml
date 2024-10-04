@@ -76,6 +76,7 @@ let array_kind = function
   | Punboxedintarray Pint32 -> "unboxed_int32"
   | Punboxedintarray Pint64 -> "unboxed_int64"
   | Punboxedintarray Pnativeint -> "unboxed_nativeint"
+  | Punboxedvectorarray Pvec128 -> "unboxed_vec128"
 
 let array_mut = function
   | Mutable -> "array"
@@ -96,6 +97,7 @@ let array_ref_kind ppf k =
   | Punboxedintarray_ref Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
+  | Punboxedvectorarray_ref Pvec128 -> fprintf ppf "unboxed_vec128"
 
 let array_index_kind ppf k =
   match k with
@@ -119,6 +121,7 @@ let array_set_kind ppf k =
   | Punboxedintarray_set Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
+  | Punboxedvectorarray_set Pvec128 -> fprintf ppf "unboxed_vec128"
 
 let locality_mode_if_local = function
   | Alloc_heap -> ""

@@ -177,13 +177,11 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
               match RWC.descr cst with
               | Tagged_immediate _ -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
-              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+              | Naked_vec128 _ ->
                 Misc.fatal_errorf
                   "Unboxed constants are not allowed inside of Const_block: %a"
-                  Printlambda.structured_constant const
-              | Naked_vec128 _ ->
-                Misc.fatal_error
-                  "Naked_vec128 not yet supported as a static field initializer");
+                  Printlambda.structured_constant const);
           acc, field)
         acc consts
     in

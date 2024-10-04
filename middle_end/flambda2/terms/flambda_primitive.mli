@@ -50,6 +50,7 @@ module Array_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 
   val print : Format.formatter -> t -> unit
 
@@ -87,6 +88,7 @@ module Array_set_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 
   val print : Format.formatter -> t -> unit
 
@@ -126,6 +128,7 @@ module Duplicate_array_kind : sig
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
     | Naked_nativeints of { length : Targetint_31_63.t option }
+    | Naked_vec128s of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 

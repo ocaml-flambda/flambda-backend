@@ -200,9 +200,7 @@ let array_type_kind ~elt_sort env loc ty =
       | Int -> Pintarray
       | Unboxed_float f -> Punboxedfloatarray f
       | Unboxed_int i -> Punboxedintarray i
-      | Unboxed_vector _ ->
-        (* CR mslater: unboxed vector arrays *)
-        Misc.fatal_error "Array of unboxed vectors is not yet supported."
+      | Unboxed_vector v -> Punboxedvectorarray v
       | Product cs ->
         let kind = Jkind.Sort.Const.Product cs in
         raise (Error (loc, Unsupported_product_in_array kind))

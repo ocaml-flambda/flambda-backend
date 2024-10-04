@@ -1056,6 +1056,11 @@ val allocate_unboxed_int64_array :
 val allocate_unboxed_nativeint_array :
   elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
+(** Allocate a block to hold an unboxed vec128 array for the given number of
+    elements. *)
+val allocate_unboxed_vec128_array :
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
+
 (** Compute the length of an unboxed float32 array. *)
 val unboxed_float32_array_length : expression -> Debuginfo.t -> expression
 
@@ -1065,6 +1070,9 @@ val unboxed_int32_array_length : expression -> Debuginfo.t -> expression
 (** Compute the length of an unboxed int64 or unboxed nativeint array. *)
 val unboxed_int64_or_nativeint_array_length :
   expression -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed vec128 array. *)
+val unboxed_vec128_array_length : expression -> Debuginfo.t -> expression
 
 (** Read from an unboxed float32 array (without bounds check). *)
 val unboxed_float32_array_ref :

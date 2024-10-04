@@ -384,6 +384,7 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   | Naked_int32s -> for_naked_number Naked_int32
   | Naked_int64s -> for_naked_number Naked_int64
   | Naked_nativeints -> for_naked_number Naked_nativeint
+  | Naked_vec128s -> for_naked_number Naked_vec128
   | Immediates -> (
     (* The only thing worth checking is for float arrays, as that would allow us
        to remove the branch *)
