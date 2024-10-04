@@ -767,6 +767,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%box_float" -> Primitive(Pbox_float (Pfloat64, mode), 1)
     | "%unbox_float32" -> Primitive(Punbox_float Pfloat32, 1)
     | "%box_float32" -> Primitive(Pbox_float (Pfloat32, mode), 1)
+    | "%unbox_vec128" -> Primitive(Punbox_vector Pvec128, 1)
+    | "%box_vec128" -> Primitive(Pbox_vector (Pvec128, mode), 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
     | "%atomic_load" ->
         Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)
@@ -1575,10 +1577,10 @@ let lambda_primitive_needs_event_after = function
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
-  | Pobj_magic _ | Punbox_float _ | Punbox_int _
+  | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _
   | Preinterpret_unboxed_int64_as_tagged_int63
   (* These don't allocate in bytecode; they're just identity functions: *)
-  | Pbox_float (_, _) | Pbox_int _
+  | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
     -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

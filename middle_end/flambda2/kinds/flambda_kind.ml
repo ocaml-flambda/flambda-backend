@@ -89,7 +89,7 @@ let to_lambda (t : t) : Lambda.layout =
   | Naked_number Naked_int32 -> Punboxed_int Pint32
   | Naked_number Naked_int64 -> Punboxed_int Pint64
   | Naked_number Naked_nativeint -> Punboxed_int Pnativeint
-  | Naked_number Naked_vec128 -> Punboxed_vector (Pvec128 Unknown128)
+  | Naked_number Naked_vec128 -> Punboxed_vector Pvec128
   | Region -> Misc.fatal_error "Can't convert kind [Region] to lambda layout"
   | Rec_info ->
     Misc.fatal_error "Can't convert kind [Rec_info] to lambda layout"
@@ -821,7 +821,7 @@ module With_subkind = struct
     | Pboxedintval Pint32 -> boxed_int32
     | Pboxedintval Pint64 -> boxed_int64
     | Pboxedintval Pnativeint -> boxed_nativeint
-    | Pboxedvectorval (Pvec128 _) -> boxed_vec128
+    | Pboxedvectorval Pvec128 -> boxed_vec128
     | Pintval -> tagged_immediate
     | Pvariant { consts; non_consts } -> (
       match consts, non_consts with
@@ -889,7 +889,7 @@ module With_subkind = struct
     | Punboxed_int Pint32 -> naked_int32
     | Punboxed_int Pint64 -> naked_int64
     | Punboxed_int Pnativeint -> naked_nativeint
-    | Punboxed_vector (Pvec128 _) -> naked_vec128
+    | Punboxed_vector Pvec128 -> naked_vec128
     | Punboxed_product _ | Ptop | Pbottom ->
       Misc.fatal_errorf
         "Flambda_kind.from_lambda_values_and_unboxed_numbers_only: cannot \

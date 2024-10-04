@@ -76,6 +76,8 @@ module Layout = struct
 
       let bits64 = Base Sort.Bits64
 
+      let vec128 = Base Sort.Vec128
+
       let of_base : Sort.base -> t = function
         | Value -> value
         | Void -> void
@@ -84,6 +86,7 @@ module Layout = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
     end
 
     include Static
@@ -503,6 +506,13 @@ module Const = struct
         name = "bits64"
       }
 
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let vec128 =
+      { jkind =
+          of_layout (Base Vec128) ~mode_crossing:false ~nullability:Non_null;
+        name = "vec128"
+      }
+
     let all =
       [ any;
         any_non_null;
@@ -744,6 +754,10 @@ module Const = struct
       | "word" -> Builtin.word.jkind
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
+      | "vec128"
+        when Language_extension.(is_at_least Layouts Beta)
+             && Language_extension.(is_at_least SIMD Beta) ->
+        Builtin.vec128.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
@@ -786,7 +800,7 @@ module Const = struct
     | Base Value, Non_null ->
       Stable
     | Base Void, _ | Base Value, Maybe_null -> Alpha
-    | Product _, _ -> Beta
+    | Base Vec128, _ | Product _, _ -> Beta
 
   let of_user_written_annotation ~context Location.{ loc; txt = annot } =
     let const = of_user_written_annotation_unchecked_level annot in

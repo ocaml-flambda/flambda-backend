@@ -137,6 +137,9 @@ let boxed_float_name = function
   | Pfloat64 -> "float"
   | Pfloat32 -> "float32"
 
+let boxed_vector_name = function
+  | Pvec128 -> "vec128"
+
 let constructor_shape print_value_kind ppf shape =
   let value_fields, flat_fields  =
     match shape with
@@ -179,7 +182,7 @@ let rec value_kind ppf = function
   | Pboxedfloatval bf -> fprintf ppf "[%s]" (boxed_float_name bf)
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
-  | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
+  | Pboxedvectorval bv -> fprintf ppf "[%s]" (boxed_vector_name bv)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
@@ -189,7 +192,7 @@ and value_kind' ppf = function
   | Pboxedfloatval bf -> fprintf ppf "[%s]" (boxed_float_name bf)
   | Parrayval elt_kind -> fprintf ppf "[%sarray]" (array_kind elt_kind)
   | Pboxedintval bi -> fprintf ppf "[%s]" (boxed_integer_name bi)
-  | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
+  | Pboxedvectorval bv -> fprintf ppf "[%s]" (boxed_vector_name bv)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
 
@@ -200,7 +203,7 @@ let rec layout' is_top ppf layout_ =
   | Pbottom -> fprintf ppf "[bottom]"
   | Punboxed_float bf -> fprintf ppf "[unboxed_%s]" (boxed_float_name bf)
   | Punboxed_int bi -> fprintf ppf "[unboxed_%s]" (boxed_integer_name bi)
-  | Punboxed_vector (Pvec128 v) -> fprintf ppf "[unboxed_%s]" (vec128_name v)
+  | Punboxed_vector bv -> fprintf ppf "[unboxed_%s]" (boxed_vector_name bv)
   | Punboxed_product layouts ->
     fprintf ppf "@[<hov 1>#(%a)@]"
       (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ") (layout' false))
@@ -219,13 +222,12 @@ let return_kind ppf (mode, kind) =
   | Pvalue (Parrayval elt_kind) ->
      fprintf ppf ": %s%sarray@ " smode (array_kind elt_kind)
   | Pvalue (Pboxedintval bi) -> fprintf ppf ": %s%s@ " smode (boxed_integer_name bi)
-  | Pvalue (Pboxedvectorval (Pvec128 v)) ->
-    fprintf ppf ": %s%s@ " smode (vec128_name v)
+  | Pvalue (Pboxedvectorval bv) -> fprintf ppf ": %s%s@ " smode (boxed_vector_name bv)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
   | Punboxed_float bf -> fprintf ppf ": unboxed_%s@ " (boxed_float_name bf)
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
-  | Punboxed_vector (Pvec128 v) -> fprintf ppf ": unboxed_%s@ " (vec128_name v)
+  | Punboxed_vector bv -> fprintf ppf ": unboxed_%s@ " (boxed_vector_name bv)
   | Punboxed_product _ -> fprintf ppf ": %a" layout kind
   | Ptop -> fprintf ppf ": top@ "
   | Pbottom -> fprintf ppf ": bottom@ "
@@ -236,7 +238,7 @@ let field_kind ppf = function
   | Pboxedfloatval bf -> pp_print_string ppf (boxed_float_name bf)
   | Parrayval elt_kind -> fprintf ppf "%s-array" (array_kind elt_kind)
   | Pboxedintval bi -> pp_print_string ppf (boxed_integer_name bi)
-  | Pboxedvectorval (Pvec128 v) -> pp_print_string ppf (vec128_name v)
+  | Pboxedvectorval bv -> pp_print_string ppf (boxed_vector_name bv)
   | Pvariant { consts; non_consts; } ->
     fprintf ppf "@[<hov 1>[(consts (%a))@ (non_consts (%a))]@]"
       (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_int)
@@ -819,7 +821,9 @@ let primitive ppf = function
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
   | Pbox_int (bi, m) ->
       fprintf ppf "box_%s%s" (boxed_integer_name bi) (locality_kind m)
-
+  | Punbox_vector bi -> fprintf ppf "unbox_%s" (boxed_vector_name bi)
+  | Pbox_vector (bi, m) ->
+      fprintf ppf "box_%s%s" (boxed_vector_name bi) (locality_kind m)
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
   | Pget_header m -> fprintf ppf "get_header%s" (locality_kind m)
@@ -990,6 +994,8 @@ let name_of_primitive = function
   | Pbox_float (_, _) -> "Pbox_float"
   | Punbox_int _ -> "Punbox_int"
   | Pbox_int _ -> "Pbox_int"
+  | Punbox_vector _ -> "Punbox_vector"
+  | Pbox_vector _ -> "Pbox_vector"
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
   | Pget_header _ -> "Pget_header"

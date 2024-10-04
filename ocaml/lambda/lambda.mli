@@ -303,6 +303,8 @@ type primitive =
   | Pbox_float of boxed_float * locality_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
+  | Punbox_vector of boxed_vector
+  | Pbox_vector of boxed_vector * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Preinterpret_tagged_int63_as_unboxed_int64
     (** At present [Preinterpret_unboxed_int64_as_tagged_int63] and
@@ -445,21 +447,14 @@ and boxed_float = Primitive.boxed_float =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
+and boxed_vector = Primitive.boxed_vector =
+  | Pvec128
+
 and unboxed_float = boxed_float
 
 and unboxed_integer = boxed_integer
 
-and vec128_type =
-  | Unknown128
-  | Int8x16
-  | Int16x8
-  | Int32x4
-  | Int64x2
-  | Float32x4
-  | Float64x2
-
-and boxed_vector =
-  | Pvec128 of vec128_type
+and unboxed_vector = boxed_vector
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -482,10 +477,6 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-val vec128_name: vec128_type -> string
-
-val join_boxed_vector_layout: boxed_vector -> boxed_vector -> layout
-
 val equal_value_kind : value_kind -> value_kind -> bool
 
 val equal_layout : layout -> layout -> bool
@@ -496,7 +487,7 @@ val equal_boxed_float : boxed_float -> boxed_float -> bool
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 
-val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
+val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
 
 val compare_boxed_vector : boxed_vector -> boxed_vector -> int
 
@@ -807,7 +798,7 @@ val layout_string : layout
 val layout_boxed_float : boxed_float -> layout
 val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
-val layout_boxed_vector : Primitive.boxed_vector -> layout
+val layout_boxed_vector : boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a tuple *)
 val layout_tuple_element : layout
 (* A layout that is Pgenval because it is the arg of a polymorphic variant *)

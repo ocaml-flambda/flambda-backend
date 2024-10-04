@@ -22,11 +22,9 @@ module String = Misc.Stdlib.String
 
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
-type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
-
 type boxed_float = Pfloat64 | Pfloat32
 
-type boxed_vector = Pvec128 of vec128_type
+type boxed_vector = Pvec128
 
 type native_repr =
   | Repr_poly
@@ -332,13 +330,9 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
-let vec128_name = function
-  | Int8x16 -> "int8x16"
-  | Int16x8 -> "int16x8"
-  | Int32x4 -> "int32x4"
-  | Int64x2 -> "int64x2"
-  | Float32x4 -> "float32x4"
-  | Float64x2 -> "float64x2"
+let equal_boxed_vector v1 v2 =
+  match v1, v2 with
+  | Pvec128, Pvec128 -> true
 
 let equal_boxed_integer bi1 bi2 =
   match bi1, bi2 with
@@ -355,21 +349,11 @@ let equal_boxed_float f1 f2 =
   | Pfloat64, Pfloat64 -> true
   | (Pfloat32 | Pfloat64), _ -> false
 
-let equal_vec128_type v1 v2 =
-  match v1, v2 with
-  | Int8x16, Int8x16 -> true
-  | Int16x8, Int16x8 -> true
-  | Int32x4, Int32x4 -> true
-  | Int64x2, Int64x2 -> true
-  | Float32x4, Float32x4 -> true
-  | Float64x2, Float64x2 -> true
-  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ -> false
-
 let equal_boxed_vector_size bi1 bi2 =
   (* For the purposes of layouts/native representations,
      all 128-bit vector types are equal. *)
   match bi1, bi2 with
-  | Pvec128 _, Pvec128 _ -> true
+  | Pvec128, Pvec128 -> true
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
@@ -689,6 +673,10 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr C.bits64; Same_as_ocaml_repr C.value]
     | "%unbox_int64" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.bits64]
+    | "%box_vec128" ->
+      exactly [Same_as_ocaml_repr C.vec128; Same_as_ocaml_repr C.value]
+    | "%unbox_vec128" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.vec128]
 
     | "%reinterpret_tagged_int63_as_unboxed_int64" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.bits64]
