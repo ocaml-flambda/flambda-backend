@@ -86,8 +86,10 @@ let project_tuple ~dbg ~size ~field tuple =
       }
   in
   let mutability : Mutability.t = Immutable in
-  let index = Simple.const_int (Targetint_31_63.of_int field) in
-  let prim = P.Binary (Block_load (bak, mutability), tuple, index) in
+  let field = Targetint_31_63.of_int field in
+  let prim =
+    P.Unary (Block_load { kind = bak; mut = mutability; field }, tuple)
+  in
   Named.create_prim prim dbg
 
 let split_direct_over_application apply
