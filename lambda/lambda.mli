@@ -224,7 +224,8 @@ type primitive =
   | Pstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : locality_mode; boxed : bool }
   | Pstring_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : locality_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : locality_mode; boxed : bool }
   | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
       mode : locality_mode; boxed : bool }
@@ -233,7 +234,8 @@ type primitive =
   | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : locality_mode; boxed : bool }
   | Pbytes_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : locality_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : locality_mode; boxed : bool }
   | Pbytes_set_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_set_32 of { unsafe : bool; index_kind : array_index_kind;
       boxed : bool }
@@ -264,22 +266,22 @@ type primitive =
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool;
       index_kind : array_index_kind; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
-  | Pfloatarray_load_128 of { unsafe : bool; mode : locality_mode }
-  | Pfloat_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Pint_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_float_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Pfloatarray_set_128 of { unsafe : bool }
-  | Pfloat_array_set_128 of { unsafe : bool }
-  | Pint_array_set_128 of { unsafe : bool }
-  | Punboxed_float_array_set_128 of { unsafe : bool }
-  | Punboxed_float32_array_set_128 of { unsafe : bool }
-  | Punboxed_int32_array_set_128 of { unsafe : bool }
-  | Punboxed_int64_array_set_128 of { unsafe : bool }
-  | Punboxed_nativeint_array_set_128 of { unsafe : bool }
+  | Pfloatarray_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pint_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pfloatarray_set_128 of { unsafe : bool; boxed : bool }
+  | Pfloat_array_set_128 of { unsafe : bool; boxed : bool }
+  | Pint_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_float_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_float32_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_int32_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_int64_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_nativeint_array_set_128 of { unsafe : bool; boxed : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
