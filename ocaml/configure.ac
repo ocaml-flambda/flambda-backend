@@ -2583,7 +2583,7 @@ AC_DEFINE_UNQUOTED([PROFINFO_WIDTH], [$profinfo_width])
 AS_IF([$profinfo], [AC_DEFINE([WITH_PROFINFO])])
 
 # Only gcc supports -fno-partial-inlining
-AS_CASE([$ocaml_cv_cc_vendor],
+AS_CASE([$ocaml_cc_vendor],
   [gcc-*],
     [no_partial_inlining_cflags="-fno-partial-inlining"],
   [no_partial_inlining_cflags=""])

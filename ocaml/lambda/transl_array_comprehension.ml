@@ -474,6 +474,9 @@ let iterator ~transl_exp ~scopes ~loc :
       Typeopt.array_type_kind ~elt_sort:None iter_arr_exp.exp_env
         iter_arr_exp.exp_loc iter_arr_exp.exp_type
     in
+    let iter_arr_mut =
+      Typeopt.array_type_mut iter_arr_exp.exp_env iter_arr_exp.exp_type
+    in
     let iter_len =
       (* Extra let-binding if we're not in the fixed-size array case; the
          middle-end will simplify this for us *)
@@ -498,7 +501,8 @@ let iterator ~transl_exp ~scopes ~loc :
               (Lprim
                  ( Parrayrefu
                      ( Lambda.(array_ref_kind alloc_heap iter_arr_kind),
-                       Ptagged_int_index ),
+                       Ptagged_int_index,
+                       iter_arr_mut ),
                    [iter_arr.var; Lvar iter_ix],
                    loc ))
               pattern body
@@ -727,8 +731,9 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
         Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
       )
     | Dynamic_size, Punboxedvectorarray Pvec128 ->
-      ( Mutable,
-        Resizable_array.make ~loc array_kind (unboxed_vec128 ~high:0L ~low:0L) )
+      (* The above cases are not actually allowed/tested yet. *)
+      Misc.fatal_error
+        "Comprehensions on arrays of unboxed types are not yet supported."
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 

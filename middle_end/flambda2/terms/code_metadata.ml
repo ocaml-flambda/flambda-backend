@@ -25,7 +25,7 @@ type t =
        for instance as a result of a partial application. *)
     result_arity : [`Unarized] Flambda_arity.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
-    result_mode : Lambda.alloc_mode;
+    result_mode : Lambda.locality_mode;
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
@@ -134,7 +134,7 @@ type 'a create_type =
   first_complex_local_param:int ->
   result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
-  result_mode:Lambda.alloc_mode ->
+  result_mode:Lambda.locality_mode ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
@@ -550,7 +550,7 @@ let approx_equal
   && List.equal Alloc_mode.For_types.equal param_modes1 param_modes2
   && Int.equal first_complex_local_param1 first_complex_local_param2
   && Flambda_arity.equal_ignoring_subkinds result_arity1 result_arity2
-  && Lambda.equal_alloc_mode result_mode1 result_mode2
+  && Lambda.eq_locality_mode result_mode1 result_mode2
   && Bool.equal contains_no_escaping_local_allocs1
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2

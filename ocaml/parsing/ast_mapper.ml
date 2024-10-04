@@ -94,6 +94,8 @@ type mapper = {
     Jane_syntax.Extension_constructor.t -> Jane_syntax.Extension_constructor.t;
   module_type_jane_syntax: mapper
     -> Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
+  module_expr_jane_syntax: mapper
+    -> Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
   pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
   signature_item_jane_syntax: mapper ->
     Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;
@@ -479,12 +481,33 @@ end
 
 
 module M = struct
-  (* Value expressions for the module language *)
+  module I = Jane_syntax.Instances
 
-  let map sub {pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} =
+  (* Value expressions for the module language *)
+  let map_instance _sub : I.instance -> I.instance = function
+    | i ->
+      (* CR lmaurer: Implement this. Might want to change the [instance] type to have
+        Ids with locations in them rather than just raw strings. *)
+      i
+
+  let map_instance_expr sub : I.module_expr -> I.module_expr = function
+    | Imod_instance i -> Imod_instance (map_instance sub i)
+
+  let map_ext sub : Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t =
+    function
+    | Emod_instance i -> Emod_instance (map_instance_expr sub i)
+
+  let map sub
+        ({pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} as mexpr) =
     let open Mod in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Jane_syntax.Module_expr.of_ast mexpr with
+    | Some ext -> begin
+        match sub.module_expr_jane_syntax sub ext with
+        | Emod_instance i -> Jane_syntax.Instances.module_expr_of ~loc i
+      end
+    | None ->
     match desc with
     | Pmod_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pmod_structure str -> structure ~loc ~attrs (sub.structure sub str)
@@ -887,6 +910,7 @@ let default_mapper =
     structure = (fun this l -> List.map (this.structure_item this) l);
     structure_item = M.map_structure_item;
     module_expr = M.map;
+    module_expr_jane_syntax = M.map_ext;
     signature = (fun this l -> List.map (this.signature_item this) l);
     signature_item = MT.map_signature_item;
     module_type = MT.map;
