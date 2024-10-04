@@ -420,6 +420,7 @@ and flat_element = Types.flat_element =
   | Float32
   | Bits32
   | Bits64
+  | Vec128
   | Word
 
 and flat_element_read = private

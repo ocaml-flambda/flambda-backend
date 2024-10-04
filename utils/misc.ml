@@ -148,6 +148,15 @@ module Stdlib = struct
       in
       loop []
 
+    let concat_map2 f l1 l2 =
+      let rec aux f acc = function
+        | [], [] -> rev acc
+        | (a1 :: l1, a2 :: l2) ->
+          let xs = f a1 a2 in
+          aux f (rev_append xs acc) (l1, l2)
+        | (_, _) -> invalid_arg "List.concat_map2"
+      in aux f [] (l1, l2)
+
     let rec iteri2 i f l1 l2 =
       match (l1, l2) with
         ([], []) -> ()

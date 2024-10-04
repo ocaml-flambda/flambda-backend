@@ -1294,6 +1294,7 @@ module Element_repr = struct
     | Float32
     | Bits32
     | Bits64
+    | Vec128
     | Word
 
   type t =
@@ -1342,9 +1343,7 @@ module Element_repr = struct
       | Word, _ -> Unboxed_element Word
       | Bits32, _ -> Unboxed_element Bits32
       | Bits64, _ -> Unboxed_element Bits64
-      | Vec128, _ ->
-        (* CR mslater: unboxed vector fields *)
-        Misc.fatal_error "Unboxed vector fields are not yet supported"
+      | Vec128, _ -> Unboxed_element Vec128
       | Void, _ -> Element_without_runtime_component { loc; ty }
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
@@ -1352,6 +1351,7 @@ module Element_repr = struct
     | Float32 -> Float32
     | Bits32 -> Bits32
     | Bits64 -> Bits64
+    | Vec128 -> Vec128
     | Word -> Word
 
   let to_flat : _ -> flat_element option = function
@@ -1518,7 +1518,7 @@ let update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Float32 | Bits32 | Bits64 | Word) ->
+           | Unboxed_element (Float32 | Bits32 | Bits64 | Vec128 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())
