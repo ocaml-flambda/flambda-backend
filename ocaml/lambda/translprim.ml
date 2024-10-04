@@ -1455,7 +1455,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
-     let alloc_mode = to_locality p.prim_native_repr_res in
+     let locality_mode = to_locality p.prim_native_repr_res in
      let () =
        (* CR mshinwell: Write a version of [primitive_may_allocate] that
           works on the [prim] type. *)
@@ -1472,7 +1472,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
             (* In this case we add a check to ensure the middle end has
                the correct information as to whether a region was inserted
                at this point. *)
-            match alloc_mode, lambda_alloc_mode with
+            match locality_mode, lambda_alloc_mode with
             | Alloc_heap, Alloc_heap
             | Alloc_local, Alloc_local -> ()
             | Alloc_local, Alloc_heap ->
@@ -1481,16 +1481,16 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
                  deleted by the middle end. *)
               ()
             | Alloc_heap, Alloc_local ->
-              Misc.fatal_errorf "Alloc mode incompatibility for:@ %a@ \
+              Misc.fatal_errorf "Locality mode incompatibility for:@ %a@ \
                   (from to_locality, %a; from primitive_may_allocate, %a)"
                 Printlambda.lambda body
-                Printlambda.alloc_mode alloc_mode
-                Printlambda.alloc_mode lambda_alloc_mode
+                Printlambda.locality_mode locality_mode
+                Printlambda.locality_mode lambda_alloc_mode
          )
        | _ -> ()
      in
      let region =
-       match alloc_mode with
+       match locality_mode with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
@@ -1500,8 +1500,8 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
-     let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args) in
-     lfunction
+     let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args)
+     in lfunction
        ~kind:(Curried {nlocal})
        ~params
        ~return
