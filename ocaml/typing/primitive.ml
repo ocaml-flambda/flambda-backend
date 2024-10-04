@@ -486,6 +486,8 @@ let prim_has_valid_reprs ~loc prim =
           ("32", "#", C.bits32);
           ("f32", "#", C.float32);
           ("64", "#", C.bits64);
+          ("a128", "#", C.vec128);
+          ("u128", "#", C.vec128);
         ]
       in
       let indices : (_ * Jkind_types.Sort.Const.t) list =
@@ -683,17 +685,41 @@ let prim_has_valid_reprs ~loc prim =
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       exactly [Same_as_ocaml_repr C.bits64; Same_as_ocaml_repr C.value]
 
-    (* CR layouts: add these when we have unboxed simd layouts *)
-    (* | "%caml_bigstring_getu128#" ->
-    | "%caml_bigstring_getu128u#" ->
-    | "%caml_bigstring_geta128#" ->
-    | "%caml_bigstring_geta128u#" -> *)
+    | "%caml_float_array_get128#"
+    | "%caml_float_array_get128u#"
+    | "%caml_floatarray_get128#"
+    | "%caml_floatarray_get128u#"
+    | "%caml_unboxed_float_array_get128#"
+    | "%caml_unboxed_float_array_get128u#"
+    | "%caml_unboxed_float32_array_get128#"
+    | "%caml_unboxed_float32_array_get128u#"
+    | "%caml_int_array_get128#"
+    | "%caml_int_array_get128u#"
+    | "%caml_unboxed_int64_array_get128#"
+    | "%caml_unboxed_int64_array_get128u#"
+    | "%caml_unboxed_int32_array_get128#"
+    | "%caml_unboxed_int32_array_get128u#"
+    | "%caml_unboxed_nativeint_array_get128#"
+    | "%caml_unboxed_nativeint_array_get128u#" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.vec128]
+    | "%caml_float_array_set128#"
+    | "%caml_float_array_set128u#"
+    | "%caml_floatarray_set128#"
+    | "%caml_floatarray_set128u#"
+    | "%caml_unboxed_float_array_set128#"
+    | "%caml_unboxed_float_array_set128u#"
+    | "%caml_unboxed_float32_array_set128#"
+    | "%caml_unboxed_float32_array_set128u#"
+    | "%caml_int_array_set128#"
+    | "%caml_int_array_set128u#"
+    | "%caml_unboxed_int64_array_set128#"
+    | "%caml_unboxed_int64_array_set128u#"
+    | "%caml_unboxed_int32_array_set128#"
+    | "%caml_unboxed_int32_array_set128u#"
+    | "%caml_unboxed_nativeint_array_set128#"
+    | "%caml_unboxed_nativeint_array_set128u#" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.vec128; Same_as_ocaml_repr C.value]
 
-    (* CR layouts: add these when we have unboxed simd layouts *)
-    (* | "%caml_bigstring_setu128#" ->
-    | "%caml_bigstring_setu128u#" ->
-    | "%caml_bigstring_seta128#" ->
-    | "%caml_bigstring_seta128u#" -> *)
     | name -> (
         match String.Map.find_opt name stringlike_indexing_primitives with
         | Some reprs -> exactly reprs

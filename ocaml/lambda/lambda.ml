@@ -232,7 +232,8 @@ type primitive =
   | Pstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : locality_mode; boxed : bool }
   | Pstring_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : locality_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : locality_mode; boxed: bool }
   | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
       mode : locality_mode; boxed : bool }
@@ -241,7 +242,8 @@ type primitive =
   | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : locality_mode; boxed : bool }
   | Pbytes_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : locality_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : locality_mode; boxed : bool }
   | Pbytes_set_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_set_32 of { unsafe : bool; index_kind : array_index_kind;
       boxed : bool }
@@ -272,22 +274,22 @@ type primitive =
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool;
       index_kind : array_index_kind; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
-  | Pfloatarray_load_128 of { unsafe : bool; mode : locality_mode }
-  | Pfloat_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Pint_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_float_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : locality_mode }
-  | Pfloatarray_set_128 of { unsafe : bool }
-  | Pfloat_array_set_128 of { unsafe : bool }
-  | Pint_array_set_128 of { unsafe : bool }
-  | Punboxed_float_array_set_128 of { unsafe : bool }
-  | Punboxed_float32_array_set_128 of { unsafe : bool }
-  | Punboxed_int32_array_set_128 of { unsafe : bool }
-  | Punboxed_int64_array_set_128 of { unsafe : bool }
-  | Punboxed_nativeint_array_set_128 of { unsafe : bool }
+  | Pfloatarray_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pint_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pfloatarray_set_128 of { unsafe : bool; boxed : bool }
+  | Pfloat_array_set_128 of { unsafe : bool; boxed : bool }
+  | Pint_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_float_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_float32_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_int32_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_int64_array_set_128 of { unsafe : bool; boxed : bool }
+  | Punboxed_nativeint_array_set_128 of { unsafe : bool; boxed : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
   (* byte swap *)
@@ -1732,22 +1734,33 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pbytes_load_f32 { mode = m; boxed = true; _ }
   | Pstring_load_64 { mode = m; boxed = true; _ }
   | Pbytes_load_64 { mode = m; boxed = true; _ }
-  | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
-  | Pfloatarray_load_128 { mode = m; _ }
-  | Pfloat_array_load_128 { mode = m; _ }
-  | Pint_array_load_128 { mode = m; _ }
-  | Punboxed_float_array_load_128 { mode = m; _ }
-  | Punboxed_float32_array_load_128 { mode = m; _ }
-  | Punboxed_int32_array_load_128 { mode = m; _ }
-  | Punboxed_int64_array_load_128 { mode = m; _ }
-  | Punboxed_nativeint_array_load_128 { mode = m; _ }
+  | Pstring_load_128 { mode = m; boxed = true; _ }
+  | Pbytes_load_128 { mode = m; boxed = true; _ }
+  | Pfloatarray_load_128 { mode = m; boxed = true; _ }
+  | Pfloat_array_load_128 { mode = m; boxed = true; _ }
+  | Pint_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_float_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_float32_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_int32_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_int64_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_nativeint_array_load_128 { mode = m; boxed = true; _ }
   | Pget_header m -> Some m
   | Pstring_load_32 { boxed = false; _ }
   | Pstring_load_f32 { boxed = false; _ }
   | Pstring_load_64 { boxed = false; _ }
+  | Pstring_load_128 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ }
   | Pbytes_load_f32 { boxed = false; _ }
-  | Pbytes_load_64 { boxed = false; _ } -> None
+  | Pbytes_load_64 { boxed = false; _ }
+  | Pbytes_load_128 { boxed = false; _ }
+  | Pfloatarray_load_128 { boxed = false; _ }
+  | Pfloat_array_load_128 { boxed = false; _ }
+  | Pint_array_load_128 { boxed = false; _ }
+  | Punboxed_float_array_load_128 { boxed = false; _ }
+  | Punboxed_float32_array_load_128 { boxed = false; _ }
+  | Punboxed_int32_array_load_128 { boxed = false; _ }
+  | Punboxed_int64_array_load_128 { boxed = false; _ }
+  | Punboxed_nativeint_array_load_128 { boxed = false; _ } -> None
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _
   | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
@@ -1928,7 +1941,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_64 { boxed = true; _ } | Pbytes_load_64 { boxed = true; _ }
   | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
-  | Pstring_load_128 _ | Pbytes_load_128 _
+  | Pstring_load_128 { boxed = true; _ } | Pbytes_load_128 { boxed = true; _ }
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector Pvec128
   | Pbigstring_load_32 { boxed = false; _ }
@@ -1940,17 +1953,27 @@ let primitive_result_layout (p : primitive) =
   | Pbigstring_load_64 { boxed = false; _ }
   | Pstring_load_64 { boxed = false; _ }
   | Pbytes_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
-  | Pbigstring_load_128 { boxed = false; _ } -> layout_unboxed_vector Pvec128
-  | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
-  | Punboxed_float_array_load_128 _ -> layout_boxed_vector Pvec128
-  | Punboxed_float32_array_load_128 _ -> layout_boxed_vector Pvec128
-  | Pint_array_load_128 _ | Punboxed_int64_array_load_128 _
-  | Punboxed_nativeint_array_load_128 _ ->
-    (* 128-bit types are only supported in the x86_64 backend, so we may
-       assume that nativeint is 64 bits. *)
-    layout_boxed_vector Pvec128
-  | Punboxed_int32_array_load_128 _ ->
-    layout_boxed_vector Pvec128
+  | Pstring_load_128 { boxed = false; _ } | Pbytes_load_128 { boxed = false; _ }
+  | Pbigstring_load_128 { boxed = false; _ } ->
+      layout_unboxed_vector Pvec128
+  | Pfloatarray_load_128 { boxed = true; _ }
+  | Pfloat_array_load_128 { boxed = true; _ }
+  | Punboxed_float_array_load_128 { boxed = true; _ }
+  | Punboxed_float32_array_load_128 { boxed = true; _ }
+  | Pint_array_load_128 { boxed = true; _ }
+  | Punboxed_int64_array_load_128 { boxed = true; _ }
+  | Punboxed_nativeint_array_load_128 { boxed = true; _ }
+  | Punboxed_int32_array_load_128 { boxed = true; _ } ->
+      layout_boxed_vector Pvec128
+  | Pfloatarray_load_128 { boxed = false; _ }
+  | Pfloat_array_load_128 { boxed = false; _ }
+  | Punboxed_float_array_load_128 { boxed = false; _ }
+  | Punboxed_float32_array_load_128 { boxed = false; _ }
+  | Pint_array_load_128 { boxed = false; _ }
+  | Punboxed_int64_array_load_128 { boxed = false; _ }
+  | Punboxed_nativeint_array_load_128 { boxed = false; _ }
+  | Punboxed_int32_array_load_128 { boxed = false; _ } ->
+      layout_unboxed_vector Pvec128
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
