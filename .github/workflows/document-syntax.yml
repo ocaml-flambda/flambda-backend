@@ -1,7 +1,8 @@
 name: Syntax changes reminder
 
 on:
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
     paths:
       - 'ocaml/parsing/parser.mly'
 
@@ -28,6 +29,7 @@ jobs:
            # Check if comment already exists
           if ! gh pr view $PR_NUMBER --json comments -q '.comments[].body' --repo $REPO | grep -q "Parser Change Checklist"; then
             gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
+            echo "Comment added successfully."
           else
             echo "Comment already exists. Skipping."
           fi
