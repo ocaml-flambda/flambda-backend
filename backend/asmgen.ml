@@ -448,6 +448,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                     ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
                          (Cfg_polling.instrument_fundecl
                             ~future_funcnames:funcnames)
+                    ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+                         "After poll insertion"
                     ++ (fun cfg_with_layout ->
                          match
                            !Flambda_backend_flags.cfg_zero_alloc_checker
