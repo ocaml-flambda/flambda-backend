@@ -1427,13 +1427,14 @@ let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Block_load _ | Is_int _ | Opaque_identity _ | Int_arith _ | Num_conv _
-  | Boolean_not | Reinterpret_64_bit_word _ | Float_arith _ ->
+  | Is_int _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+  | Reinterpret_64_bit_word _ | Float_arith _ ->
     Neither
   | Array_length _ | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
     Destructive
   | Box_number _ | Tag_immediate | Int_as_pointer _ -> Constructive
-  | Project_function_slot _ | Project_value_slot _ | Atomic_load _ ->
+  | Project_function_slot _ | Project_value_slot _ | Atomic_load _
+  | Block_load _ ->
     Destructive
   | Is_boxed_float | Is_flat_float_array -> Neither
   | End_region _ | End_try_region _ -> Neither
