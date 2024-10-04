@@ -186,11 +186,11 @@ let function_attribute_disallowing_arity_fusion =
 *)
 let curried_function_kind
     : (function_curry * Mode.Alloc.l) list
-      -> return_mode:alloc_mode
-      -> alloc_mode:alloc_mode
+      -> return_mode:locality_mode
+      -> mode:locality_mode
       -> curried_function_kind
   =
-  let rec loop params ~return_mode ~alloc_mode ~running_count
+  let rec loop params ~return_mode ~mode ~running_count
       ~found_local_already
     =
     match params with
@@ -199,7 +199,7 @@ let curried_function_kind
         let nlocal =
           if running_count = 0
              && is_alloc_heap return_mode
-             && is_alloc_heap alloc_mode
+             && is_alloc_heap mode
              && is_alloc_heap (transl_alloc_mode_l final_arg_mode)
           then 0
           else running_count + 1
@@ -209,18 +209,18 @@ let curried_function_kind
     | (More_args { partial_mode }, _) :: params ->
         match transl_alloc_mode_l partial_mode with
         | Alloc_heap when not found_local_already ->
-            loop params ~return_mode ~alloc_mode
+            loop params ~return_mode ~mode
               ~running_count:0 ~found_local_already
         | Alloc_local ->
-            loop params ~return_mode ~alloc_mode
+            loop params ~return_mode ~mode
               ~running_count:(running_count + 1) ~found_local_already:true
         | Alloc_heap ->
             Misc.fatal_error
               "A function argument with a Global partial_mode unexpectedly \
               found following a function argument with a Local partial_mode"
   in
-  fun params ~return_mode ~alloc_mode ->
-    loop params ~return_mode ~alloc_mode ~running_count:0
+  fun params ~return_mode ~mode ->
+    loop params ~return_mode ~mode ~running_count:0
       ~found_local_already:false
 
 (* Insertion of debugging events *)
@@ -266,7 +266,7 @@ type fusable_function =
   { params : function_param list
   ; body : function_body
   ; return_sort : Jkind.sort
-  ; return_mode : alloc_mode
+  ; return_mode : locality_mode
   ; region : bool
   }
 
@@ -1133,7 +1133,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~kind:(Curried {nlocal=List.length param_idents})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_local }) param_idents)
+          ~params:(List.map (fun name -> { name; layout = layout_probe_arg;
+                                           attributes = Lambda.default_param_attribute;
+                                           mode = alloc_local }) param_idents)
           ~return:return_layout
           ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
@@ -1366,7 +1368,7 @@ and transl_apply ~scopes
           let ret_mode = transl_alloc_mode_l mode_ret in
           let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
           let nlocal =
-            match join_mode mode (join_mode arg_mode ret_mode) with
+            match join_locality_mode mode (join_locality_mode arg_mode ret_mode) with
             | Alloc_local -> 1
             | Alloc_heap -> 0
           in
@@ -1508,7 +1510,7 @@ and transl_curried_function ~scopes loc repr params body
     let param_curries = List.map (fun fp -> fp.fp_curry, fp.fp_mode) params in
     curried_function_kind
       ~return_mode
-      ~alloc_mode:mode
+      ~mode
       (match body with
        | Tfunction_body _ -> param_curries
        | Tfunction_cases fc -> param_curries @ [ Final_arg, fc.fc_arg_mode ])
@@ -1602,7 +1604,7 @@ and transl_curried_function ~scopes loc repr params body
       type acc =
         { body : lambda; (* The function body of those params *)
           return_layout : layout; (* The layout of [body] *)
-          return_mode : alloc_mode; (* The mode of [body]. *)
+          return_mode : locality_mode; (* The mode of [body]. *)
           region : bool; (* Whether the function has its own region *)
           nlocal : int;
           (* An upper bound on the [nlocal] field for the function. If [nlocal]
@@ -1645,7 +1647,7 @@ and transl_curried_function ~scopes loc repr params body
         (* we return Pgenval (for a function) after the rightmost chunk *)
         { body;
           return_layout = Pvalue Pgenval;
-          return_mode = (if enclosing_region then alloc_heap else alloc_local);
+          return_mode = if enclosing_region then alloc_heap else alloc_local;
           nlocal = enclosing_nlocal;
           region = enclosing_region;
         }
