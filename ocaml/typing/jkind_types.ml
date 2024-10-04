@@ -77,6 +77,22 @@ module Sort = struct
       in
       pp_element ~nested:false ppf c
 
+    let value = Base Value
+
+    let void = Base Void
+
+    let float64 = Base Float64
+
+    let float32 = Base Float32
+
+    let word = Base Word
+
+    let bits32 = Base Bits32
+
+    let bits64 = Base Bits64
+
+    let vec128 = Base Vec128
+
     module Debug_printers = struct
       let t ppf c =
         let rec pp_element ~nested ppf = function
@@ -104,7 +120,22 @@ module Sort = struct
   module Var = struct
     type t = var
 
-    let name { uid; _ } = "'_representable_layout_" ^ Int.to_string uid
+    (* Map var uids to smaller numbers for more consistent printing. *)
+    let next_id = ref 1
+
+    let names : (int, int) Hashtbl.t = Hashtbl.create 16
+
+    let name { uid; _ } =
+      let id =
+        match Hashtbl.find_opt names uid with
+        | Some n -> n
+        | None ->
+          let id = !next_id in
+          incr next_id;
+          Hashtbl.add names uid id;
+          id
+      in
+      "'_representable_layout_" ^ Int.to_string id
   end
 
   (*** debug printing **)
@@ -507,12 +538,16 @@ end
 module Modes = Mode.Alloc.Const
 
 module Jkind_desc = struct
-  type 'type_expr t =
+  type ('type_expr, 'd) t =
     { layout : Layout.t;
       modes_upper_bounds : Modes.t;
       externality_upper_bound : Jkind_axis.Externality.t;
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
+    constraint 'd = 'l * 'r
+
+  type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
+  [@@unboxed]
 end
 
 (* A history of conditions placed on a jkind.
@@ -524,15 +559,15 @@ end
 type 'type_expr history =
   | Interact of
       { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
-        lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
-        rhs_history : 'type_expr history
+        jkind1 : 'type_expr Jkind_desc.packed;
+        history1 : 'type_expr history;
+        jkind2 : 'type_expr Jkind_desc.packed;
+        history2 : 'type_expr history
       }
   | Creation of Jkind_intf.History.creation_reason
 
-type 'type_expr t =
-  { jkind : 'type_expr Jkind_desc.t;
+type ('type_expr, 'd) t =
+  { jkind : ('type_expr, 'd) Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }

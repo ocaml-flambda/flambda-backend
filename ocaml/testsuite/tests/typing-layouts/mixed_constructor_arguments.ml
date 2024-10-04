@@ -521,10 +521,10 @@ type t_cstr_capped =
     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
-    int * float#
+    float#
 [%%expect{|
 type ptr = string
-Lines 3-36, characters 2-16:
+Lines 3-36, characters 2-10:
  3 | ..A of
  4 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
  5 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
@@ -534,7 +534,7 @@ Lines 3-36, characters 2-16:
 33 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
-36 |     int * float#
+36 |     float#
 Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
 
@@ -565,7 +565,7 @@ type t_cstr_capped_record = A of {
  x0:ptr; x1:ptr; x2:ptr; x3:ptr; x4:ptr; x5:ptr; x6:ptr; x7:ptr; x8:ptr; x9:ptr;
  y0:ptr; y1:ptr; y2:ptr; y3:ptr; y4:ptr; y5:ptr; y6:ptr; y7:ptr; y8:ptr; y9:ptr;
  z0:ptr; z1:ptr; z2:ptr; z3:ptr; z4:ptr;
- int:int; unboxed:float#
+ unboxed:float#
  }
 [%%expect{|
 Lines 1-29, characters 28-2:
@@ -577,7 +577,7 @@ Lines 1-29, characters 28-2:
 ...
 26 |  y0:ptr; y1:ptr; y2:ptr; y3:ptr; y4:ptr; y5:ptr; y6:ptr; y7:ptr; y8:ptr; y9:ptr;
 27 |  z0:ptr; z1:ptr; z2:ptr; z3:ptr; z4:ptr;
-28 |  int:int; unboxed:float#
+28 |  unboxed:float#
 29 |  }
 Error: Mixed inline record arguments to constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
@@ -628,7 +628,7 @@ Lines 2-35, characters 2-16:
 33 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     int * float#
-Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
+Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 256.
 |}];;
 
 (* GADT syntax *)

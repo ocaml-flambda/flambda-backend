@@ -42,7 +42,7 @@ val print_bigarray :
   string -> bool -> Lambda.bigarray_kind -> formatter ->
   Lambda.bigarray_layout -> unit
 val zero_alloc_attribute : formatter -> zero_alloc_attribute -> unit
-val alloc_mode : formatter -> alloc_mode -> unit
+val locality_mode : formatter -> locality_mode -> unit
 val array_kind : array_kind -> string
 
 val tag_and_constructor_shape :

@@ -474,6 +474,9 @@ let iterator ~transl_exp ~scopes ~loc :
       Typeopt.array_type_kind ~elt_sort:None iter_arr_exp.exp_env
         iter_arr_exp.exp_loc iter_arr_exp.exp_type
     in
+    let iter_arr_mut =
+      Typeopt.array_type_mut iter_arr_exp.exp_env iter_arr_exp.exp_type
+    in
     let iter_len =
       (* Extra let-binding if we're not in the fixed-size array case; the
          middle-end will simplify this for us *)
@@ -498,7 +501,8 @@ let iterator ~transl_exp ~scopes ~loc :
               (Lprim
                  ( Parrayrefu
                      ( Lambda.(array_ref_kind alloc_heap iter_arr_kind),
-                       Ptagged_int_index ),
+                       Ptagged_int_index,
+                       iter_arr_mut ),
                    [iter_arr.var; Lvar iter_ix],
                    loc ))
               pattern body
