@@ -240,6 +240,10 @@ module type S = sig
     val aliased : lr
 
     val unique : lr
+
+    val zap_to_floor : (allowed * 'r) t -> Const.t
+
+    val zap_to_ceil : ('l * allowed) t -> Const.t
   end
 
   module Contention : sig

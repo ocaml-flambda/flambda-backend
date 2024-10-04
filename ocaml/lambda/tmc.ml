@@ -63,9 +63,9 @@ let offset_code (Offset t) = t
 
 let add_dst_params ({var; offset} : Ident.t destination) params =
   { name = var ; layout = Lambda.layout_block ;
-    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap_aliased } ::
   { name = offset ; layout = Lambda.layout_int ;
-    attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
+    attributes = Lambda.default_param_attribute ; mode = alloc_heap_aliased } ::
   params
 
 let add_dst_args ({var; offset} : offset destination) args =
@@ -124,7 +124,7 @@ end = struct
 
   let apply constr t =
     let block_args = List.append constr.before @@ t :: constr.after in
-    Lprim (Pmakeblock (constr.tag, constr.flag, constr.shape, alloc_heap),
+    Lprim (Pmakeblock (constr.tag, constr.flag, constr.shape, alloc_heap_aliased),
            block_args, constr.loc)
 
   let tmc_placeholder =
@@ -565,10 +565,10 @@ let find_candidate = function
   | Lfunction lfun when lfun.attr.tmc_candidate ->
      (* TMC does not make sense for local-returning functions *)
      begin match lfun.ret_mode with
-     | Alloc_local ->
+     | Alloc_local, _ ->
        raise (Error (Debuginfo.Scoped_location.to_location lfun.loc,
                      Tmc_local_returning))
-     | Alloc_heap -> Some lfun
+     | Alloc_heap, _ -> Some lfun
      end
   | _ -> None
 

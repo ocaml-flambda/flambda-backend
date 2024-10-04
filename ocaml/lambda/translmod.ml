@@ -117,7 +117,7 @@ let rec apply_coercion loc strict restr arg =
             Lprim(mod_field pos,[Lvar id], loc)
         in
         let lam =
-          Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+          Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
                 List.map (apply_coercion_field loc get_field) pos_cc_list,
                 loc)
         in
@@ -127,7 +127,7 @@ let rec apply_coercion loc strict restr arg =
       let carg = apply_coercion loc Alias cc_arg (Lvar param) in
       apply_coercion_result loc strict arg
         [{name = param; layout = Lambda.layout_module;
-          attributes = Lambda.default_param_attribute; mode = alloc_heap}]
+          attributes = Lambda.default_param_attribute; mode = alloc_heap_aliased}]
         [carg] cc_res
   | Tcoerce_primitive { pc_desc; pc_env; pc_type; pc_poly_mode; pc_poly_sort } ->
       Translprim.transl_primitive loc pc_desc pc_env pc_type
@@ -151,7 +151,7 @@ and apply_coercion_result loc strict funct params args cc_res =
       ({ name = param;
          layout = Lambda.layout_module;
          attributes = Lambda.default_param_attribute;
-         mode = alloc_heap } :: params)
+         mode = alloc_heap_aliased } :: params)
       (arg :: args) cc_res
   | _ ->
       name_lambda strict funct Lambda.layout_functor
@@ -167,7 +167,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                         may_fuse_arity = true; }
              ~loc
              ~mode:alloc_heap
-             ~ret_mode:alloc_heap
+             ~ret_mode:alloc_heap_aliased
              ~region:true
              ~body:(apply_coercion
                    loc Strict cc_res
@@ -554,7 +554,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
           name = param';
           layout = Lambda.layout_module;
           attributes = Lambda.default_param_attribute;
-          mode = alloc_heap
+          mode = alloc_heap_aliased
         } :: params in
         let body = Llet (Alias, Lambda.layout_module, param, arg, body) in
         params, body)
@@ -581,7 +581,7 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     }
     ~loc
     ~mode:alloc_heap
-    ~ret_mode:alloc_heap
+    ~ret_mode:alloc_heap_aliased
     ~region:true
     ~body
 
@@ -638,7 +638,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
       let body, size =
         match cc with
           Tcoerce_none ->
-            Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+            Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
                   List.map (fun id -> Lvar id) (List.rev fields), loc),
               List.length fields
         | Tcoerce_structure(pos_cc_list, id_pos_list) ->
@@ -654,7 +654,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             in
             let ids = List.fold_right Ident.Set.add fields Ident.Set.empty in
             let lam =
-              Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+              Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
                   List.map
                     (fun (pos, cc) ->
                       match cc with
@@ -862,7 +862,7 @@ and transl_include_functor ~generative modl params scopes loc =
   let modl = transl_module ~scopes Tcoerce_none None modl in
   let params = if generative then [params;[]] else [params] in
   let params = List.map (fun coercion ->
-    Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
           List.map (fun (name, cc) ->
             apply_coercion loc Strict cc (Lvar name))
             coercion,
@@ -1197,7 +1197,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             Lsequence(lam,
                       Llet(Strict, Lambda.layout_module, id,
                            Lambda.subst no_env_update subst
-                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
                                     List.map (fun id -> Lvar id)
                                       (defined_idents str.str_items), loc)),
                            Lsequence(store_ident loc id,
@@ -1226,7 +1226,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
             Lsequence(lam,
                       Llet(Strict, Lambda.layout_module, id,
                            Lambda.subst no_env_update subst
-                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+                             (Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
                                     List.map field map, loc)),
                            Lsequence(store_ident loc id,
                                      transl_store ~scopes rootpath
@@ -1575,7 +1575,7 @@ let stub_out_runtime_parameters compilation_unit code =
                                        Location.none, None)))
     in
     Lprim (Praise Raise_regular,
-           [Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [ slot; message ], loc)],
+           [Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased), [ slot; message ], loc)],
            loc)
 
 let transl_implementation compilation_unit impl ~style =
@@ -1791,7 +1791,7 @@ let transl_package_plain_block component_names coercion =
   in
   size,
   apply_coercion Loc_unknown Strict coercion
-    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
            List.map get_component component_names,
            Loc_unknown))
 
@@ -1831,7 +1831,7 @@ let transl_package_set_fields component_names target_name coercion =
          0 component_names)
   | Tcoerce_structure (pos_cc_list, _id_pos_list) ->
       let components =
-        Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+        Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
               List.map get_component component_names,
               Loc_unknown)
       in

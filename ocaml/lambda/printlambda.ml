@@ -131,6 +131,12 @@ let locality_mode ppf = function
   | Alloc_heap -> fprintf ppf "heap"
   | Alloc_local -> fprintf ppf "local"
 
+let alloc_mode_if_local alloc_mode =
+  locality_mode_if_local (fst alloc_mode)
+
+let alloc_mode ppf alloc_mode =
+  locality_mode ppf (fst alloc_mode)
+
 let boxed_integer_name = function
   | Pnativeint -> "nativeint"
   | Pint32 -> "int32"
@@ -215,9 +221,9 @@ let rec layout' is_top ppf layout_ =
 let layout ppf layout_ = layout' true ppf layout_
 
 let return_kind ppf (mode, kind) =
-  let smode = locality_mode_if_local mode in
+  let smode = alloc_mode_if_local mode in
   match kind with
-  | Pvalue Pgenval when is_heap_mode mode -> ()
+  | Pvalue Pgenval when is_heap_mode (fst mode) -> ()
   | Pvalue Pgenval -> fprintf ppf ": %s@ " smode
   | Pvalue Pintval -> fprintf ppf ": int@ "
   | Pvalue (Pboxedfloatval bf) ->
@@ -253,6 +259,9 @@ let field_kind ppf = function
 let locality_kind = function
   | Alloc_heap -> ""
   | Alloc_local -> "[L]"
+
+let alloc_kind alloc_mode =
+  locality_kind (fst alloc_mode)
 
 let print_boxed_integer_conversion ppf bi1 bi2 m =
   fprintf ppf "%s_of_%s%s" (boxed_integer_name bi2) (boxed_integer_name bi1)
@@ -407,40 +416,40 @@ let primitive ppf = function
   | Pgetpredef id -> fprintf ppf "getpredef %a!" Ident.print id
   | Pmakeblock(tag, Immutable, shape, mode) ->
       fprintf ppf "make%sblock %i%a"
-        (locality_mode_if_local mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakeblock(tag, Immutable_unique, shape, mode) ->
       fprintf ppf "make%sblock_unique %i%a"
-        (locality_mode_if_local mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakeblock(tag, Mutable, shape, mode) ->
       fprintf ppf "make%smutable %i%a"
-        (locality_mode_if_local mode) tag block_shape shape
+        (alloc_mode_if_local mode) tag block_shape shape
   | Pmakefloatblock (Immutable, mode) ->
       fprintf ppf "make%sfloatblock Immutable"
-        (locality_mode_if_local mode)
+        (alloc_mode_if_local mode)
   | Pmakefloatblock (Immutable_unique, mode) ->
      fprintf ppf "make%sfloatblock Immutable_unique"
-        (locality_mode_if_local mode)
+        (alloc_mode_if_local mode)
   | Pmakefloatblock (Mutable, mode) ->
      fprintf ppf "make%sfloatblock Mutable"
-        (locality_mode_if_local mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Immutable, mode) ->
       fprintf ppf "make%sufloatblock Immutable"
-        (locality_mode_if_local mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Immutable_unique, mode) ->
      fprintf ppf "make%sufloatblock Immutable_unique"
-        (locality_mode_if_local mode)
+        (alloc_mode_if_local mode)
   | Pmakeufloatblock (Mutable, mode) ->
      fprintf ppf "make%sufloatblock Mutable"
-        (locality_mode_if_local mode)
+        (alloc_mode_if_local mode)
   | Pmakemixedblock (tag, Immutable, abs, mode) ->
       fprintf ppf "make%amixedblock %i Immutable%a"
-        locality_mode mode tag mixed_block_shape abs
+        alloc_mode mode tag mixed_block_shape abs
   | Pmakemixedblock (tag, Immutable_unique, abs, mode) ->
      fprintf ppf "make%amixedblock %i Immutable_unique%a"
-        locality_mode mode tag mixed_block_shape abs
+        alloc_mode mode tag mixed_block_shape abs
   | Pmakemixedblock (tag, Mutable, abs, mode) ->
      fprintf ppf "make%amixedblock %i Mutable%a"
-        locality_mode mode tag mixed_block_shape abs
+        alloc_mode mode tag mixed_block_shape abs
   | Pfield (n, ptr, sem) ->
       let instr =
         match ptr, sem with
@@ -1268,7 +1277,7 @@ and lfunction ppf {kind; params; return; body; attr; ret_mode; mode} =
         List.iter (fun (p : Lambda.lparam) ->
             let { unbox_param } = p.attributes in
             fprintf ppf "@ %a%s%a%s"
-              Ident.print p.name (locality_kind p.mode) layout p.layout
+              Ident.print p.name (alloc_kind p.mode) layout p.layout
               (if unbox_param then "[@unboxable]" else "")
           ) params
     | Tupled ->
@@ -1279,7 +1288,7 @@ and lfunction ppf {kind; params; return; body; attr; ret_mode; mode} =
              let { unbox_param } = p.attributes in
              if !first then first := false else fprintf ppf ",@ ";
              Ident.print ppf p.name;
-             Format.fprintf ppf "%s" (locality_kind p.mode);
+             Format.fprintf ppf "%s" (alloc_kind p.mode);
              layout ppf p.layout;
              if unbox_param then Format.fprintf ppf "[@unboxable]"
           )

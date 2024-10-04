@@ -102,7 +102,7 @@ let transl_extension_constructor ~scopes env path ext =
       (* Extension constructors are currently always Alloc_heap.
          They could be Alloc_local, but that would require changes
          to pattern typing, as patterns can close over them. *)
-      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, None, alloc_heap),
+      Lprim (Pmakeblock (Obj.object_tag, Immutable_unique, None, alloc_heap_aliased),
         [Lconst (Const_base (Const_string (name, ext.ext_loc, None)));
          Lprim (prim_fresh_oo_id, [Lconst (const_int 0)], loc)],
         loc)
@@ -186,7 +186,7 @@ let function_attribute_disallowing_arity_fusion =
 *)
 let curried_function_kind
     : (function_curry * Mode.Alloc.l) list
-      -> return_mode:locality_mode
+      -> return_mode:alloc_mode
       -> mode:locality_mode
       -> curried_function_kind
   =
@@ -198,9 +198,9 @@ let curried_function_kind
     | [ Final_arg, final_arg_mode ] ->
         let nlocal =
           if running_count = 0
-             && is_alloc_heap return_mode
+             && is_alloc_heap (fst return_mode)
              && is_alloc_heap mode
-             && is_alloc_heap (transl_alloc_mode_l final_arg_mode)
+             && is_alloc_heap (fst (transl_alloc_mode_l final_arg_mode))
           then 0
           else running_count + 1
         in
@@ -208,13 +208,13 @@ let curried_function_kind
     | (Final_arg, _) :: _ -> Misc.fatal_error "Found [Final_arg] too early"
     | (More_args { partial_mode }, _) :: params ->
         match transl_alloc_mode_l partial_mode with
-        | Alloc_heap when not found_local_already ->
+        | Alloc_heap, _ when not found_local_already ->
             loop params ~return_mode ~mode
               ~running_count:0 ~found_local_already
-        | Alloc_local ->
+        | Alloc_local, _ ->
             loop params ~return_mode ~mode
               ~running_count:(running_count + 1) ~found_local_already:true
-        | Alloc_heap ->
+        | Alloc_heap, _ ->
             Misc.fatal_error
               "A function argument with a Global partial_mode unexpectedly \
               found following a function argument with a Local partial_mode"
@@ -255,7 +255,7 @@ let assert_failed loc ~scopes exp =
   in
   let loc = of_location ~scopes exp.exp_loc in
   Lprim(Praise Raise_regular, [event_after ~scopes exp
-    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+    (Lprim(Pmakeblock(0, Immutable, None, alloc_heap_aliased),
           [slot;
            Lconst(Const_block(0,
               [Const_base(Const_string (fname, exp.exp_loc, None));
@@ -266,7 +266,7 @@ type fusable_function =
   { params : function_param list
   ; body : function_body
   ; return_sort : Jkind.sort
-  ; return_mode : locality_mode
+  ; return_mode : alloc_mode
   ; region : bool
   }
 
@@ -283,7 +283,7 @@ type fusable_function =
 let fuse_method_arity (parent : fusable_function) : fusable_function =
   match parent with
   | { params = [ self_param ];
-      return_mode = Alloc_heap;
+      return_mode = Alloc_heap, _;
       body =
         Tfunction_body { exp_desc = Texp_function method_; exp_extra; }
     }
@@ -293,8 +293,8 @@ let fuse_method_arity (parent : fusable_function) : fusable_function =
         exp_extra
     ->
       begin match transl_alloc_mode method_.alloc_mode with
-      | Alloc_heap -> ()
-      | Alloc_local ->
+      | Alloc_heap, _ -> ()
+      | Alloc_local, _ ->
           (* If we support locally-allocated objects, we'll also have to
              pass the new mode back to the caller.
           *)
@@ -648,7 +648,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             | Boxing (alloc_mode, _) -> alloc_mode
             | Non_boxing _ -> assert false
           in
-          let mode = transl_alloc_mode alloc_mode in
+          let mode = fst (transl_alloc_mode alloc_mode) in
           Lprim (Pfloatfield (lbl.lbl_pos, sem, mode), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_ufloat ->
@@ -675,7 +675,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                 | Float_boxed ->
                   (match float with
                     | Boxing (mode, _) ->
-                        flat_read_float_boxed (transl_alloc_mode mode)
+                        flat_read_float_boxed (fst (transl_alloc_mode mode))
                     | Non_boxing _ ->
                         Misc.fatal_error
                           "expected typechecking to make [float] boxing mode\
@@ -737,7 +737,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                      transl_exp ~scopes lbl_sort newval],
             of_location ~scopes e.exp_loc)
   | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
-      let mode = transl_alloc_mode alloc_mode in
+      let mode, _ = transl_alloc_mode alloc_mode in
       let kind = array_kind e element_sort in
       let ll =
         transl_list ~scopes
@@ -973,7 +973,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              block will never be shortcutted since it points to a float
              and Config.flat_float_array is true. *)
          Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                          alloc_heap),
+                          alloc_heap_aliased),
                 [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                of_location ~scopes e.exp_loc)
       | `Identifier `Forward_value ->
@@ -985,7 +985,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             value may subsequently turn into an immediate... *)
          Lprim (Popaque Lambda.layout_lazy,
                 [Lprim(Pmakeblock(Obj.forward_tag, Immutable, None,
-                                  alloc_heap),
+                                  alloc_heap_aliased),
                        [transl_exp ~scopes Jkind.Sort.for_lazy_body e],
                        of_location ~scopes e.exp_loc)],
                 of_location ~scopes e.exp_loc)
@@ -999,7 +999,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                             ~params:[{ name = Ident.create_local "param";
                                        layout = Lambda.layout_unit;
                                        attributes = Lambda.default_param_attribute;
-                                       mode = alloc_heap}]
+                                       mode = alloc_heap_aliased}]
                             ~return:Lambda.layout_lazy_contents
                             (* The translation of [e] may be a function, in
                                which case disallowing arity fusion gives a very
@@ -1008,13 +1008,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                             ~attr:function_attribute_disallowing_arity_fusion
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
-                            ~ret_mode:alloc_heap
+                            ~ret_mode:alloc_heap_aliased
                             ~region:true
                             ~body:(maybe_region_layout
                                      Lambda.layout_lazy_contents
                                      (transl_exp ~scopes Jkind.Sort.for_lazy_body e))
          in
-          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap), [fn],
+          Lprim(Pmakeblock(Config.lazy_tag, Mutable, None, alloc_heap_aliased), [fn],
                 of_location ~scopes e.exp_loc)
       end
   | Texp_object (cs, meths) ->
@@ -1135,13 +1135,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              probes. *)
           ~params:(List.map (fun name -> { name; layout = layout_probe_arg;
                                            attributes = Lambda.default_param_attribute;
-                                           mode = alloc_local }) param_idents)
+                                           mode = alloc_local_aliased }) param_idents)
           ~return:return_layout
           ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
           ~attr
           ~mode:alloc_heap
-          ~ret_mode:alloc_local
+          ~ret_mode:alloc_local_aliased
           (* CR zqian: the handler function doesn't have a region. However, the
              [region] field is currently broken. *)
           ~region:true
@@ -1366,16 +1366,16 @@ and transl_apply ~scopes
           let mode = transl_alloc_mode_r mode_closure in
           let arg_mode = transl_alloc_mode_l mode_arg in
           let ret_mode = transl_alloc_mode_l mode_ret in
-          let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
+          let body = build_apply handle [Lvar id_arg] loc Rc_normal (fst ret_mode) l in
           let nlocal =
-            match join_locality_mode mode (join_locality_mode arg_mode ret_mode) with
-            | Alloc_local -> 1
-            | Alloc_heap -> 0
+            match join_mode mode (join_mode arg_mode ret_mode) with
+            | Alloc_local, _ -> 1
+            | Alloc_heap, _ -> 0
           in
           let region =
             match ret_mode with
-            | Alloc_local -> false
-            | Alloc_heap -> true
+            | Alloc_local, _ -> false
+            | Alloc_heap, _ -> true
           in
           let layout_arg = layout_of_sort (to_location loc) sort_arg in
           let params = [{
@@ -1385,7 +1385,7 @@ and transl_apply ~scopes
               mode = arg_mode
             }] in
           lfunction ~kind:(Curried {nlocal}) ~params
-                    ~return:result_layout ~body ~mode ~ret_mode ~region
+                    ~return:result_layout ~body ~mode:(fst mode) ~ret_mode ~region
                     ~attr:{ default_stub_attribute with may_fuse_arity = false } ~loc
         in
         (* Wrap "protected" definitions, starting from the left,
@@ -1405,7 +1405,7 @@ and transl_apply ~scopes
            Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
       sargs
   in
-  build_apply lam [] loc position mode args
+  build_apply lam [] loc position (mode : locality_mode) args
 
 (* There are two cases in function translation:
     - [Tupled]. It takes a tupled argument, and we can flatten it.
@@ -1460,7 +1460,7 @@ and transl_tupled_function
       (cases, partial,
        ({ pat_desc = Tpat_tuple pl } as arg_pat), arg_mode, arg_sort)
     when is_alloc_heap mode
-      && is_alloc_heap (transl_alloc_mode_l arg_mode)
+      && is_alloc_heap (fst (transl_alloc_mode_l arg_mode))
       && !Clflags.native_code
       && List.length pl <= (Lambda.max_arity ()) ->
       begin try
@@ -1488,7 +1488,7 @@ and transl_tupled_function
                 name = Ident.create_local "param";
                 layout = kind;
                 attributes = Lambda.default_param_attribute;
-                mode = alloc_heap
+                mode = alloc_heap_aliased
               }) kinds
         in
         let params = List.map (fun p -> p.name) tparams in
@@ -1604,7 +1604,7 @@ and transl_curried_function ~scopes loc repr params body
       type acc =
         { body : lambda; (* The function body of those params *)
           return_layout : layout; (* The layout of [body] *)
-          return_mode : locality_mode; (* The mode of [body]. *)
+          return_mode : alloc_mode; (* The mode of [body]. *)
           region : bool; (* Whether the function has its own region *)
           nlocal : int;
           (* An upper bound on the [nlocal] field for the function. If [nlocal]
@@ -1647,7 +1647,7 @@ and transl_curried_function ~scopes loc repr params body
         (* we return Pgenval (for a function) after the rightmost chunk *)
         { body;
           return_layout = Pvalue Pgenval;
-          return_mode = if enclosing_region then alloc_heap else alloc_local;
+          return_mode = (if enclosing_region then alloc_heap else alloc_local), alloc_aliased;
           nlocal = enclosing_nlocal;
           region = enclosing_region;
         }
@@ -1676,7 +1676,7 @@ and transl_function ~in_new_scope ~scopes e params body
       ~alloc_mode ~ret_mode:sreturn_mode ~ret_sort:sreturn_sort ~region:sregion
       ~zero_alloc =
   let attrs = e.exp_attributes in
-  let mode = transl_alloc_mode alloc_mode in
+  let mode, _ = transl_alloc_mode alloc_mode in
   let zero_alloc = Zero_alloc.get zero_alloc in
   let assume_zero_alloc =
     match zero_alloc with
@@ -1816,7 +1816,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
   let no_init = match opt_init_expr with None -> true | _ -> false in
   let on_heap = match mode with
     | None -> false (* unboxed is not on heap *)
-    | Some m -> is_heap_mode m
+    | Some m -> is_heap_mode (fst m)
   in
   if no_init || size < Config.max_young_wosize || not on_heap
   then begin
@@ -2031,7 +2031,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     begin match opt_init_expr with
       None -> assert false
     | Some init_expr ->
-        assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
+        assert (is_heap_mode (fst (Option.get mode))); (* Pduprecord must be Alloc_heap and not unboxed *)
         Llet(Strict, Lambda.layout_block, copy_id,
              Lprim(Pduprecord (repres, size),
                    [transl_exp ~scopes Jkind.Sort.for_record init_expr],
@@ -2214,7 +2214,7 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
       (transl_exp ~scopes let_.bop_exp_sort let_.bop_exp) ands
   in
   let func =
-    let return_mode = alloc_heap (* XXX fixme: use result of is_function_type *) in
+    let return_mode = alloc_heap_aliased (* XXX fixme: use result of is_function_type *) in
     let (kind, params, return, _region, ret_mode), body =
       event_function ~scopes case.c_rhs
         (function repr ->

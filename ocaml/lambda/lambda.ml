@@ -49,6 +49,12 @@ include (struct
     | Alloc_heap
     | Alloc_local
 
+  type uniqueness_mode =
+    | Alloc_unique
+    | Alloc_aliased
+
+  type alloc_mode = locality_mode * uniqueness_mode
+
   type modify_mode =
     | Modify_heap
     | Modify_maybe_stack
@@ -58,6 +64,13 @@ include (struct
   let alloc_local =
     if Config.stack_allocation then Alloc_local
     else Alloc_heap
+
+  let alloc_unique = Alloc_unique
+  let alloc_aliased = Alloc_aliased
+  let alloc_heap_unique = alloc_heap, alloc_unique
+  let alloc_heap_aliased = alloc_heap, Alloc_aliased
+  let alloc_local_unique = alloc_local, alloc_unique
+  let alloc_local_aliased = alloc_local, Alloc_aliased
 
   let modify_heap = Modify_heap
 
@@ -69,11 +82,25 @@ include (struct
     match a, b with
     | Alloc_local, _ | _, Alloc_local -> Alloc_local
     | Alloc_heap, Alloc_heap -> Alloc_heap
+
+  let join_uniqueness_mode a b =
+    match a, b with
+    | Alloc_aliased, _ | _, Alloc_aliased -> Alloc_aliased
+    | Alloc_unique, Alloc_unique -> Alloc_unique
+
+  let join_mode (al, au) (bl, bu) =
+    (join_locality_mode al bl, join_uniqueness_mode au bu)
 end : sig
 
   type locality_mode = private
     | Alloc_heap
     | Alloc_local
+
+  type uniqueness_mode = private
+    | Alloc_unique
+    | Alloc_aliased
+
+  type alloc_mode = locality_mode * uniqueness_mode
 
   type modify_mode = private
     | Modify_heap
@@ -82,12 +109,24 @@ end : sig
   val alloc_heap : locality_mode
   val alloc_local : locality_mode
 
+  val alloc_unique : uniqueness_mode
+  val alloc_aliased : uniqueness_mode
+
+  val alloc_heap_unique : alloc_mode
+  val alloc_heap_aliased : alloc_mode
+  val alloc_local_unique : alloc_mode
+  val alloc_local_aliased : alloc_mode
+
   val modify_heap : modify_mode
 
   val modify_maybe_stack : modify_mode
 
   val join_locality_mode : locality_mode -> locality_mode -> locality_mode
+  val join_mode : alloc_mode -> alloc_mode -> alloc_mode
 end)
+
+let todo_mode_propagation mode =
+  fst mode
 
 let is_local_mode = function
   | Alloc_heap -> false
@@ -103,12 +142,31 @@ let sub_locality_mode a b =
   | _, Alloc_local -> true
   | Alloc_local, Alloc_heap -> false
 
+let sub_uniqueness_mode a b =
+  match a, b with
+  | Alloc_unique, _ -> true
+  | _, Alloc_aliased -> true
+  | Alloc_aliased, Alloc_unique -> false
+
+let sub_mode (al, au) (bl, bu) =
+  sub_locality_mode al bl && sub_uniqueness_mode au bu
+
 let eq_locality_mode a b =
   match a, b with
   | Alloc_heap, Alloc_heap -> true
   | Alloc_local, Alloc_local -> true
   | Alloc_heap, Alloc_local -> false
   | Alloc_local, Alloc_heap -> false
+
+let eq_uniqueness_mode a b =
+  match a, b with
+  | Alloc_unique, Alloc_unique -> true
+  | Alloc_aliased, Alloc_aliased -> true
+  | Alloc_unique, Alloc_aliased -> false
+  | Alloc_aliased, Alloc_unique -> false
+
+let eq_mode (al, au) (bl, bu) =
+  eq_locality_mode al bl && eq_uniqueness_mode au bu
 
 type initialization_or_assignment =
   | Assignment of modify_mode
@@ -129,10 +187,10 @@ type primitive =
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape * locality_mode
-  | Pmakefloatblock of mutable_flag * locality_mode
-  | Pmakeufloatblock of mutable_flag * locality_mode
-  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
+  | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
+  | Pmakefloatblock of mutable_flag * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -685,7 +743,7 @@ type lparam = {
   name : Ident.t;
   layout : layout;
   attributes : parameter_attribute;
-  mode : locality_mode
+  mode : alloc_mode
 }
 
 type pop_region =
@@ -736,7 +794,7 @@ and lfunction =
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc: scoped_location;
     mode: locality_mode;
-    ret_mode: locality_mode;
+    ret_mode: alloc_mode;
     region: bool; }
 
 and lambda_while =
@@ -1660,10 +1718,10 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Parray_to_iarray | Parray_of_iarray
   | Pignore -> None
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> None
-  | Pmakeblock (_, _, _, m) -> Some m
-  | Pmakefloatblock (_, m) -> Some m
-  | Pmakeufloatblock (_, m) -> Some m
-  | Pmakemixedblock (_, _, _, m) -> Some m
+  | Pmakeblock (_, _, _, m) -> Some (fst m)
+  | Pmakefloatblock (_, m) -> Some (fst m)
+  | Pmakeufloatblock (_, m) -> Some (fst m)
+  | Pmakemixedblock (_, _, _, m) -> Some (fst m)
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None

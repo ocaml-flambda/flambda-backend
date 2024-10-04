@@ -41,6 +41,12 @@ type locality_mode = private
   | Alloc_heap
   | Alloc_local
 
+type uniqueness_mode = private
+  | Alloc_unique (* Might be reused *)
+  | Alloc_aliased (* No reuse *)
+
+type alloc_mode = locality_mode * uniqueness_mode
+
 type modify_mode = private
   | Modify_heap
   | Modify_maybe_stack
@@ -50,9 +56,19 @@ val alloc_heap : locality_mode
 (* Actually [Alloc_heap] if [Config.stack_allocation] is [false] *)
 val alloc_local : locality_mode
 
+val alloc_aliased : uniqueness_mode
+val alloc_unique : uniqueness_mode
+
+val alloc_heap_unique : alloc_mode
+val alloc_heap_aliased : alloc_mode
+val alloc_local_unique : alloc_mode
+val alloc_local_aliased : alloc_mode
+
 val modify_heap : modify_mode
 
 val modify_maybe_stack : modify_mode
+
+val todo_mode_propagation : alloc_mode -> locality_mode
 
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
@@ -113,10 +129,10 @@ type primitive =
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape * locality_mode
-  | Pmakefloatblock of mutable_flag * locality_mode
-  | Pmakeufloatblock of mutable_flag * locality_mode
-  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
+  | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
+  | Pmakefloatblock of mutable_flag * alloc_mode
+  | Pmakeufloatblock of mutable_flag * alloc_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
@@ -637,7 +653,7 @@ type lparam = {
   name : Ident.t;
   layout : layout;
   attributes : parameter_attribute;
-  mode : locality_mode
+  mode : alloc_mode
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -710,7 +726,7 @@ and lfunction = private
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
     mode : locality_mode;     (* locality of the closure itself *)
-    ret_mode: locality_mode;
+    ret_mode: alloc_mode;
     region : bool;         (* false if this function may locally
                               allocate in the caller's region *)
   }
@@ -844,7 +860,7 @@ val lfunction :
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
   mode:locality_mode ->
-  ret_mode:locality_mode ->
+  ret_mode:alloc_mode ->
   region:bool ->
   lambda
 
@@ -856,7 +872,7 @@ val lfunction' :
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
   mode:locality_mode ->
-  ret_mode:locality_mode ->
+  ret_mode:alloc_mode ->
   region:bool ->
   lfunction
 
@@ -962,6 +978,10 @@ val max_arity : unit -> int
       maximal length of the [params] list of a [lfunction] record.
       This is unlimited ([max_int]) for bytecode, but limited
       (currently to 126) for native code. *)
+
+val join_mode : alloc_mode -> alloc_mode -> alloc_mode
+val sub_mode : alloc_mode -> alloc_mode -> bool
+val eq_mode : alloc_mode -> alloc_mode -> bool
 
 val join_locality_mode : locality_mode -> locality_mode -> locality_mode
 val sub_locality_mode : locality_mode -> locality_mode -> bool

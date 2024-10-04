@@ -3908,7 +3908,7 @@ let failure_handler ~scopes loc ~failer () =
     Lprim
       ( Praise Raise_regular,
         [ Lprim
-            ( Pmakeblock (0, Immutable, None, alloc_heap),
+            ( Pmakeblock (0, Immutable, None, alloc_heap_aliased),
               [ slot;
                 Lconst
                   (Const_block

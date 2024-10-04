@@ -511,7 +511,7 @@ let rec split_static_function lfun block_var local_idents lam :
         ap_specialised = Default_specialise;
         ap_result_layout = lfun.return;
         ap_region_close = Rc_normal;
-        ap_mode = lfun.ret_mode;
+        ap_mode = fst lfun.ret_mode;
         ap_probe = None;
       }
     in
@@ -529,7 +529,7 @@ let rec split_static_function lfun block_var local_idents lam :
     in
     let lifted = { lfun = wrapper; free_vars_block_size = 1 } in
     Reachable (lifted,
-               Lprim (Pmakeblock (0, lifted_block_mut, None, Lambda.alloc_heap),
+               Lprim (Pmakeblock (0, lifted_block_mut, None, Lambda.alloc_heap_aliased),
                       [Lvar v], no_loc))
   | Lfunction lfun ->
     let free_vars = Lambda.free_variables lfun.body in
@@ -555,7 +555,7 @@ let rec split_static_function lfun block_var local_idents lam :
     in
     let lifted = { lfun = new_fun; free_vars_block_size } in
     let block =
-      Lprim (Pmakeblock (0, lifted_block_mut, None, Lambda.alloc_heap),
+      Lprim (Pmakeblock (0, lifted_block_mut, None, Lambda.alloc_heap_aliased),
              List.rev block_fields_rev,
              no_loc)
     in

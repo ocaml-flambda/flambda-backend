@@ -986,6 +986,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   match prim, args with
   | Pmakeblock (tag, mutability, shape, mode), _ ->
     let args = List.flatten args in
+    let mode = L.todo_mode_propagation mode in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let tag = Tag.Scannable.create_exn tag in
     let shape = convert_block_shape shape ~num_fields:(List.length args) in
@@ -1023,6 +1024,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     List.map (fun arg : H.expr_primitive -> Simple arg) projected_args
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
+    let mode = L.todo_mode_propagation mode in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [ Variadic
@@ -1030,6 +1032,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     ]
   | Pmakeufloatblock (mutability, mode), _ ->
     let args = List.flatten args in
+    let mode = L.todo_mode_propagation mode in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
@@ -1045,6 +1048,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           | Flat_suffix Float_boxed -> unbox_float arg)
         args
     in
+    let mode = L.todo_mode_propagation mode in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     let tag = Tag.Scannable.create_exn tag in
