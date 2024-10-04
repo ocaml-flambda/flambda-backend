@@ -394,6 +394,8 @@ let compute_static_size lam =
     | Pbox_float (_, _)
     | Punbox_int _
     | Pbox_int (_, _)
+    | Punbox_vector _
+    | Pbox_vector (_, _)
     | Pfloatoffloat32 _
     | Pfloat32offloat _
     | Pget_header _

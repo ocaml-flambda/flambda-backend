@@ -108,7 +108,7 @@ let jkind_layout_default_to_value_and_check_not_void loc jkind =
   let rec contains_void : Jkind.Layout.Const.t -> bool = function
     | Any -> false
     | Base Void -> true
-    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) -> false
     | Product [] ->
       Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
     | Product ts -> List.exists contains_void ts

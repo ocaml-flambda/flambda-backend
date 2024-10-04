@@ -311,6 +311,8 @@ type primitive =
   | Pbox_float of boxed_float * locality_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
+  | Punbox_vector of boxed_vector
+  | Pbox_vector of boxed_vector * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Preinterpret_tagged_int63_as_unboxed_int64
   (* Jane Street extensions *)
@@ -424,21 +426,14 @@ and boxed_float = Primitive.boxed_float =
 and boxed_integer = Primitive.boxed_integer =
     Pnativeint | Pint32 | Pint64
 
+and boxed_vector = Primitive.boxed_vector =
+  | Pvec128
+
 and unboxed_float = boxed_float
 
 and unboxed_integer = boxed_integer
 
-and vec128_type =
-  | Unknown128
-  | Int8x16
-  | Int16x8
-  | Int32x4
-  | Int64x2
-  | Float32x4
-  | Float64x2
-
-and boxed_vector =
-  | Pvec128 of vec128_type
+and unboxed_vector = boxed_vector
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -461,52 +456,24 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
-let vec128_name = function
-  | Unknown128 -> "unknown128"
-  | Int8x16 -> "int8x16"
-  | Int16x8 -> "int16x8"
-  | Int32x4 -> "int32x4"
-  | Int64x2 -> "int64x2"
-  | Float32x4 -> "float32x4"
-  | Float64x2 -> "float64x2"
-
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
 let equal_boxed_float = Primitive.equal_boxed_float
 
-let equal_boxed_vector_size v1 v2 =
-  match v1, v2 with
-  | Pvec128 _, Pvec128 _ -> true
+let equal_boxed_vector = Primitive.equal_boxed_vector
 
 let compare_boxed_vector = Stdlib.compare
 
 let print_boxed_vector ppf t =
   match t with
-  | Pvec128 v -> Format.pp_print_string ppf (vec128_name v)
-
-let join_vec128_types v1 v2 =
-  match v1, v2 with
-  | Unknown128, _ | _, Unknown128 -> Unknown128
-  | Int8x16, Int8x16 -> Int8x16
-  | Int16x8, Int16x8 -> Int16x8
-  | Int32x4, Int32x4 -> Int32x4
-  | Int64x2, Int64x2 -> Int64x2
-  | Float32x4, Float32x4 -> Float32x4
-  | Float64x2, Float64x2 -> Float64x2
-  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ ->
-    Unknown128
-
-let join_boxed_vector_layout v1 v2 =
-  match v1, v2 with
-  | Pvec128 v1, Pvec128 v2 -> Punboxed_vector (Pvec128 (join_vec128_types v1 v2))
+  | Pvec128 -> Format.pp_print_string ppf "Vec128"
 
 let rec equal_value_kind x y =
   match x, y with
   | Pgenval, Pgenval -> true
   | Pboxedfloatval f1, Pboxedfloatval f2 -> equal_boxed_float f1 f2
   | Pboxedintval bi1, Pboxedintval bi2 -> equal_boxed_integer bi1 bi2
-  | Pboxedvectorval bi1, Pboxedvectorval bi2 ->
-    equal_boxed_vector_size bi1 bi2
+  | Pboxedvectorval bv1, Pboxedvectorval bv2 -> equal_boxed_vector bv1 bv2
   | Pintval, Pintval -> true
   | Parrayval elt_kind1, Parrayval elt_kind2 -> elt_kind1 = elt_kind2
   | Pvariant { consts = consts1; non_consts = non_consts1; },
@@ -550,9 +517,8 @@ let rec compatible_layout x y =
   | _, Pbottom -> true
   | Pvalue _, Pvalue _ -> true
   | Punboxed_float f1, Punboxed_float f2 -> equal_boxed_float f1 f2
-  | Punboxed_int bi1, Punboxed_int bi2 ->
-      equal_boxed_integer bi1 bi2
-  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector_size bi1 bi2
+  | Punboxed_int bi1, Punboxed_int bi2 -> equal_boxed_integer bi1 bi2
+  | Punboxed_vector bi1, Punboxed_vector bi2 -> equal_boxed_vector bi1 bi2
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       List.compare_lengths layouts1 layouts2 = 0
       && List.for_all2 compatible_layout layouts1 layouts2
@@ -890,22 +856,11 @@ let layout_string = Pvalue Pgenval
 let layout_unboxed_int ubi = Punboxed_int ubi
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
-let layout_unboxed_vector (v : Primitive.boxed_vector) =
-  match v with
-  | Pvec128 Int8x16 -> Punboxed_vector (Pvec128 Int8x16)
-  | Pvec128 Int16x8 -> Punboxed_vector (Pvec128 Int16x8)
-  | Pvec128 Int32x4 -> Punboxed_vector (Pvec128 Int32x4)
-  | Pvec128 Int64x2 -> Punboxed_vector (Pvec128 Int64x2)
-  | Pvec128 Float32x4 -> Punboxed_vector (Pvec128 Float32x4)
-  | Pvec128 Float64x2 -> Punboxed_vector (Pvec128 Float64x2)
+let layout_unboxed_vector = function
+  | Pvec128 -> Punboxed_vector Pvec128
 
-let layout_boxed_vector : Primitive.boxed_vector -> layout = function
-  | Pvec128 Int8x16 -> Pvalue (Pboxedvectorval (Pvec128 Int8x16))
-  | Pvec128 Int16x8 -> Pvalue (Pboxedvectorval (Pvec128 Int16x8))
-  | Pvec128 Int32x4 -> Pvalue (Pboxedvectorval (Pvec128 Int32x4))
-  | Pvec128 Int64x2 -> Pvalue (Pboxedvectorval (Pvec128 Int64x2))
-  | Pvec128 Float32x4 -> Pvalue (Pboxedvectorval (Pvec128 Float32x4))
-  | Pvec128 Float64x2 -> Pvalue (Pboxedvectorval (Pvec128 Float64x2))
+let layout_boxed_vector = function
+  | Pvec128 -> Pvalue (Pboxedvectorval Pvec128)
 
 let layout_lazy = Pvalue Pgenval
 let layout_lazy_contents = Pvalue Pgenval
@@ -1818,8 +1773,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
-  | Punbox_float _ | Punbox_int _ -> None
-  | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
+  | Punbox_float _ | Punbox_int _ | Punbox_vector _ -> None
+  | Pbox_float (_, m) | Pbox_int (_, m) | Pbox_vector (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform
     (* CR mshinwell: check *)
   | Ppoll ->
@@ -1866,6 +1821,7 @@ let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   | Base Word -> layout_unboxed_nativeint
   | Base Bits32 -> layout_unboxed_int32
   | Base Bits64 -> layout_unboxed_int64
+  | Base Vec128 -> layout_unboxed_vector Pvec128
   | Base Void -> assert false
   | Product sorts ->
     layout_unboxed_product (List.map layout_of_const_sort sorts)
@@ -1932,6 +1888,8 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
+  | Pbox_vector (v, _) -> layout_boxed_vector v
+  | Punbox_vector v -> Punboxed_vector v
   | Pmixedfield (_, kind, _, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
@@ -1972,7 +1930,7 @@ let primitive_result_layout (p : primitive) =
       layout_boxedint Pint64
   | Pstring_load_128 _ | Pbytes_load_128 _
   | Pbigstring_load_128 { boxed = true; _ } ->
-      layout_boxed_vector (Pvec128 Int8x16)
+      layout_boxed_vector Pvec128
   | Pbigstring_load_32 { boxed = false; _ }
   | Pstring_load_32 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
@@ -1982,20 +1940,17 @@ let primitive_result_layout (p : primitive) =
   | Pbigstring_load_64 { boxed = false; _ }
   | Pstring_load_64 { boxed = false; _ }
   | Pbytes_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
-  | Pbigstring_load_128 { boxed = false; _ } ->
-      layout_unboxed_vector (Pvec128 Int8x16)
+  | Pbigstring_load_128 { boxed = false; _ } -> layout_unboxed_vector Pvec128
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
-  | Punboxed_float_array_load_128 _ ->
-    layout_boxed_vector (Pvec128 Float64x2)
-  | Punboxed_float32_array_load_128 _ ->
-    layout_boxed_vector (Pvec128 Float32x4)
+  | Punboxed_float_array_load_128 _ -> layout_boxed_vector Pvec128
+  | Punboxed_float32_array_load_128 _ -> layout_boxed_vector Pvec128
   | Pint_array_load_128 _ | Punboxed_int64_array_load_128 _
   | Punboxed_nativeint_array_load_128 _ ->
     (* 128-bit types are only supported in the x86_64 backend, so we may
        assume that nativeint is 64 bits. *)
-    layout_boxed_vector (Pvec128 Int64x2)
+    layout_boxed_vector Pvec128
   | Punboxed_int32_array_load_128 _ ->
-    layout_boxed_vector (Pvec128 Int32x4)
+    layout_boxed_vector Pvec128
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value

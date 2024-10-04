@@ -19,7 +19,7 @@ type _ t =
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
-  | SIMD : unit t
+  | SIMD : maturity t
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
   | Instances : unit t
