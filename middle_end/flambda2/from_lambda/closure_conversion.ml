@@ -556,7 +556,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         k acc (List.map Named.create_var let_bound_vars))
   in
   let alloc_mode_app =
-    match Lambda.alloc_mode_of_primitive_description prim_desc with
+    match Lambda.locality_mode_of_primitive_description prim_desc with
     | None ->
       (* This happens when stack allocation is disabled. *)
       Alloc_mode.For_applications.heap
@@ -565,7 +565,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         ~current_ghost_region
   in
   let alloc_mode =
-    match Lambda.alloc_mode_of_primitive_description prim_desc with
+    match Lambda.locality_mode_of_primitive_description prim_desc with
     | None ->
       (* This happens when stack allocation is disabled. *)
       Alloc_mode.For_allocations.heap
@@ -604,7 +604,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       K.With_subkind.(
         kind
           (from_lambda_values_and_unboxed_numbers_only
-             (Typeopt.layout_of_base_sort sort)))
+             (Typeopt.layout_of_const_sort sort)))
     | Unboxed_float Pfloat64 -> K.naked_float
     | Unboxed_float Pfloat32 -> K.naked_float32
     | Unboxed_integer Pnativeint -> K.naked_nativeint
@@ -2823,7 +2823,7 @@ let close_let_rec acc env ~function_declarations
     (* The closure allocation mode must be the same for all closures in the set
        of closures. *)
     List.fold_left
-      (fun (alloc_mode : Lambda.alloc_mode option) function_decl ->
+      (fun (alloc_mode : Lambda.locality_mode option) function_decl ->
         match alloc_mode, Function_decl.closure_alloc_mode function_decl with
         | None, alloc_mode -> Some alloc_mode
         | Some Alloc_heap, Alloc_heap | Some Alloc_local, Alloc_local ->
@@ -2994,7 +2994,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     then Lambda.alloc_heap, first_complex_local_param - num_provided
     else Lambda.alloc_local, 0
   in
-  if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
+  if not (Lambda.sub_locality_mode closure_alloc_mode apply.IR.mode)
   then
     (* This can happen in a dead GADT match case. *)
     ( acc,
@@ -3042,7 +3042,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
   let acc, remaining = find_simples acc env remaining in
   let apply_dbg = Debuginfo.from_location apply.loc in
   let needs_region =
-    match apply.mode, (result_mode : Lambda.alloc_mode) with
+    match apply.mode, (result_mode : Lambda.locality_mode) with
     | Alloc_heap, Alloc_local ->
       let over_app_region = Variable.create "over_app_region" in
       let over_app_ghost_region = Variable.create "over_app_ghost_region" in
@@ -3169,7 +3169,7 @@ type call_args_split =
         provided_arity : [`Complex] Flambda_arity.t;
         remaining : IR.simple list;
         remaining_arity : [`Complex] Flambda_arity.t;
-        result_mode : Lambda.alloc_mode
+        result_mode : Lambda.locality_mode
       }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =

@@ -29,7 +29,6 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
-  | Unexpected_product_in_prim of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -145,14 +144,10 @@ let to_modify_mode ~poly = function
     | Some mode -> transl_modify_mode mode
 
 let extern_repr_of_native_repr:
-  loc:_ -> poly_sort:Jkind.Sort.t option -> Primitive.native_repr
-  -> Lambda.extern_repr
-  = fun ~loc ~poly_sort r -> match r, poly_sort with
+  poly_sort:Jkind.Sort.t option -> Primitive.native_repr -> Lambda.extern_repr
+  = fun ~poly_sort r -> match r, poly_sort with
   | Repr_poly, Some s ->
-    begin match Jkind.Sort.default_to_value_and_get s with
-    | Base b -> Same_as_ocaml_repr b
-    | Product _ as c -> raise (Error (loc, Unexpected_product_in_prim c))
-    end
+    Same_as_ocaml_repr (Jkind.Sort.default_to_value_and_get s)
   | Repr_poly, None -> Misc.fatal_error "Unexpected Repr_poly"
   | Same_as_ocaml_repr s, _ -> Same_as_ocaml_repr s
   | Unboxed_float f, _ -> Unboxed_float f
@@ -160,22 +155,22 @@ let extern_repr_of_native_repr:
   | Unboxed_vector i, _ -> Unboxed_vector i
   | Untagged_immediate, _ -> Untagged_int
 
-let sort_of_native_repr ~loc ~poly_sort repr =
-  match extern_repr_of_native_repr ~loc ~poly_sort repr with
+let sort_of_native_repr ~poly_sort repr =
+  match extern_repr_of_native_repr ~poly_sort repr with
   | Same_as_ocaml_repr s -> s
   | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
       Unboxed_vector _) ->
-    Jkind.Sort.Value
+    Jkind.Sort.Const.Base Value
 
-let to_lambda_prim ~loc prim ~poly_sort =
+let to_lambda_prim prim ~poly_sort =
   let native_repr_args =
     List.map
-    (fun (m, r) -> m, extern_repr_of_native_repr ~loc ~poly_sort r)
+    (fun (m, r) -> m, extern_repr_of_native_repr ~poly_sort r)
       prim.prim_native_repr_args
   in
   let native_repr_res =
     let (m, r) = prim.prim_native_repr_res in
-    m, extern_repr_of_native_repr ~loc ~poly_sort r
+    m, extern_repr_of_native_repr ~poly_sort r
   in
   Primitive.make
     ~name:prim.prim_name
@@ -330,7 +325,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         Misc.fatal_errorf "Primitive \"%s\" unexpectedly had zero arguments"
           p.prim_name
   in
-  let lambda_prim = to_lambda_prim ~loc p ~poly_sort in
+  let lambda_prim = to_lambda_prim p ~poly_sort in
   let layout =
     (* Extract the result layout of the primitive.  This can be a non-value
        layout even without the use of [@layout_poly]. For example:
@@ -452,21 +447,21 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%array_length" -> Primitive ((Parraylength gen_array_kind), 1)
     | "%array_safe_get" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Ptagged_int_index)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, Ptagged_int_index, Mutable)), 2)
     | "%array_safe_set" ->
       Primitive
         (Parraysets (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index),
          3)
     | "%array_unsafe_get" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Ptagged_int_index), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Ptagged_int_index, Mutable), 2)
     | "%array_unsafe_set" ->
       Primitive
         ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index)),
         3)
     | "%array_safe_get_indexed_by_int64#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint64)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint64, Mutable)), 2)
     | "%array_safe_set_indexed_by_int64#" ->
       Primitive
         (Parraysets
@@ -474,7 +469,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
          3)
     | "%array_unsafe_get_indexed_by_int64#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint64), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint64, Mutable), 2)
     | "%array_unsafe_set_indexed_by_int64#" ->
       Primitive
         ((Parraysetu
@@ -482,7 +477,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         3)
     | "%array_safe_get_indexed_by_int32#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint32)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint32, Mutable)), 2)
     | "%array_safe_set_indexed_by_int32#" ->
       Primitive
         (Parraysets
@@ -490,7 +485,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
          3)
     | "%array_unsafe_get_indexed_by_int32#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint32), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint32, Mutable), 2)
     | "%array_unsafe_set_indexed_by_int32#" ->
       Primitive
         ((Parraysetu
@@ -498,7 +493,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         3)
     | "%array_safe_get_indexed_by_nativeint#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pnativeint)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pnativeint, Mutable)), 2)
     | "%array_safe_set_indexed_by_nativeint#" ->
       Primitive
         (Parraysets
@@ -506,24 +501,24 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
          3)
     | "%array_unsafe_get_indexed_by_nativeint#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pnativeint), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pnativeint, Mutable), 2)
     | "%array_unsafe_set_indexed_by_nativeint#" ->
       Primitive
         ((Parraysetu
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
         3)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
-    | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index)), 2)
+    | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%obj_set_field" ->
       Primitive
         ((Parraysetu (Pgenarray_set (get_first_arg_mode ()), Ptagged_int_index)), 3)
     | "%floatarray_length" -> Primitive ((Parraylength Pfloatarray), 1)
     | "%floatarray_safe_get" ->
-      Primitive ((Parrayrefs (Pfloatarray_ref mode, Ptagged_int_index)), 2)
+      Primitive ((Parrayrefs (Pfloatarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%floatarray_safe_set" ->
       Primitive (Parraysets (Pfloatarray_set, Ptagged_int_index), 3)
     | "%floatarray_unsafe_get" ->
-      Primitive ((Parrayrefu (Pfloatarray_ref mode, Ptagged_int_index)), 2)
+      Primitive ((Parrayrefu (Pfloatarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%floatarray_unsafe_set" ->
       Primitive ((Parraysetu (Pfloatarray_set, Ptagged_int_index)), 3)
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
@@ -1076,13 +1071,14 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if t = array_type then None
       else Some (Primitive (Parraylength array_type, arity))
     end
-  | Primitive (Parrayrefu (rt, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parrayrefu (rt, index_kind, mut), arity), p1 :: _ -> begin
       let loc = to_location loc in
       let array_ref_type =
         glb_array_ref_type loc rt (array_type_kind ~elt_sort:None env loc p1)
       in
-      if rt = array_ref_type then None
-      else Some (Primitive (Parrayrefu (array_ref_type, index_kind), arity))
+      let array_mut = array_type_mut env p1 in
+      if rt = array_ref_type && mut = array_mut then None
+      else Some (Primitive (Parrayrefu (array_ref_type, index_kind, array_mut), arity))
     end
   | Primitive (Parraysetu (st, index_kind), arity), p1 :: _ -> begin
       let loc = to_location loc in
@@ -1092,13 +1088,14 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysetu (array_set_type, index_kind), arity))
     end
-  | Primitive (Parrayrefs (rt, index_kind), arity), p1 :: _ -> begin
+  | Primitive (Parrayrefs (rt, index_kind, mut), arity), p1 :: _ -> begin
       let loc = to_location loc in
       let array_ref_type =
         glb_array_ref_type loc rt (array_type_kind ~elt_sort:None env loc p1)
       in
-      if rt = array_ref_type then None
-      else Some (Primitive (Parrayrefs (array_ref_type, index_kind), arity))
+      let array_mut = array_type_mut env p1 in
+      if rt = array_ref_type && mut = array_mut then None
+      else Some (Primitive (Parrayrefs (array_ref_type, index_kind, array_mut), arity))
     end
   | Primitive (Parraysets (st, index_kind), arity), p1 :: _ -> begin
       let loc = to_location loc in
@@ -1484,8 +1481,8 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
       let res_sort =
-        Jkind.Sort.of_base
-          (sort_of_native_repr ~loc:error_loc res_repr ~poly_sort)
+        Jkind.Sort.of_const
+          (sort_of_native_repr res_repr ~poly_sort)
       in
       [], Typeopt.layout env error_loc res_sort ty
     | (((_, arg_repr) as arg) :: repr_args), _ ->
@@ -1495,8 +1492,8 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
           let arg_sort =
-            Jkind.Sort.of_base
-              (sort_of_native_repr ~loc:error_loc arg_repr ~poly_sort)
+            Jkind.Sort.of_const
+              (sort_of_native_repr arg_repr ~poly_sort)
           in
           let arg_layout =
             Typeopt.layout env error_loc arg_sort arg_ty
@@ -1522,7 +1519,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
          loc
      in
      let body = lambda_of_prim p.prim_name prim loc args None in
-     let alloc_mode = to_locality p.prim_native_repr_res in
+     let locality_mode = to_locality p.prim_native_repr_res in
      let () =
        (* CR mshinwell: Write a version of [primitive_may_allocate] that
           works on the [prim] type. *)
@@ -1539,7 +1536,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
             (* In this case we add a check to ensure the middle end has
                the correct information as to whether a region was inserted
                at this point. *)
-            match alloc_mode, lambda_alloc_mode with
+            match locality_mode, lambda_alloc_mode with
             | Alloc_heap, Alloc_heap
             | Alloc_local, Alloc_local -> ()
             | Alloc_local, Alloc_heap ->
@@ -1548,16 +1545,16 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
                  deleted by the middle end. *)
               ()
             | Alloc_heap, Alloc_local ->
-              Misc.fatal_errorf "Alloc mode incompatibility for:@ %a@ \
+              Misc.fatal_errorf "Locality mode incompatibility for:@ %a@ \
                   (from to_locality, %a; from primitive_may_allocate, %a)"
                 Printlambda.lambda body
-                Printlambda.alloc_mode alloc_mode
-                Printlambda.alloc_mode lambda_alloc_mode
+                Printlambda.locality_mode locality_mode
+                Printlambda.locality_mode lambda_alloc_mode
          )
        | _ -> ()
      in
      let region =
-       match alloc_mode with
+       match locality_mode with
        | Alloc_heap -> true
        | Alloc_local -> false
      in
@@ -1567,8 +1564,8 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
        | Alloc_heap :: args -> count_nlocal args
        | (Alloc_local :: _) as args -> List.length args
      in
-     let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args) in
-     lfunction
+     let nlocal = count_nlocal (List.map to_locality p.prim_native_repr_args)
+     in lfunction
        ~kind:(Curried {nlocal})
        ~params
        ~return
@@ -1592,7 +1589,7 @@ let lambda_primitive_needs_event_after = function
   | Pmulfloat (_, _) | Pdivfloat (_, _)
   | Pstringrefs | Pbytesrefs
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
-  | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _)
+  | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -1706,11 +1703,6 @@ let report_error ppf = function
         "@[Floatarray primitives can't be used on arrays containing@ \
          unboxed types.@]"
 
-  | Unexpected_product_in_prim c ->
-      fprintf ppf
-        "@[Unboxed product layouts are not yet supported as arguments to@ \
-         layout polymorphic externals.@ The layout of this argument is %a.@]"
-        Jkind.Sort.Const.format c
 let () =
   Location.register_error_of_exn
     (function

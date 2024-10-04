@@ -15,8 +15,8 @@
 (* warn on fragile matches *)
 [@@@warning "+4"]
 
+open Allowance
 open Solver
-open Solver_intf
 open Mode_intf
 
 type nonrec allowed = allowed

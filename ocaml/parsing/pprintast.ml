@@ -755,14 +755,20 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_variant (l,None) ->  pp f "`%a" ident_of_name l
     | Ppat_constraint (p, ct, m) ->
         let legacy, m = split_out_legacy_modes m in
-        begin match ct with
-        | Some ct ->
+        begin match ct, legacy with
+        | Some ct, [] | Some ({ ptyp_desc = Ptyp_poly _ } as ct), _ ->
             pp f "@[<2>(%a%a@;:@;%a%a)@]"
               optional_legacy_modes legacy
               (pattern1 ctxt) p
               (core_type ctxt) ct
               optional_atat_modes m
-        | None ->
+        | Some ct, _ :: _ ->
+            pp f "@[<2>(%a(%a@;:@;%a%a))@]"
+              optional_legacy_modes legacy
+              (pattern1 ctxt) p
+              (core_type ctxt) ct
+              optional_atat_modes m
+        | None, _ ->
             pp f "@[<2>(%a%a%a)@]"
               optional_legacy_modes legacy
               (pattern1 ctxt) p
@@ -1439,13 +1445,13 @@ and kind_abbrev ctxt f name jkind =
     (jkind_annotation ctxt) jkind
 
 and module_type ctxt f x =
+    match Jane_syntax.Module_type.of_ast x with
+    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
+    | None ->
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
-    match Jane_syntax.Module_type.of_ast x with
-    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
-    | None ->
     match x.pmty_desc with
     | Pmty_functor (Unit, mt2) ->
         pp f "@[<hov2>() ->@ %a@]" (module_type ctxt) mt2
@@ -1637,7 +1643,9 @@ and module_expr ctxt f x =
   if x.pmod_attributes <> [] then
     pp f "((%a)%a)" (module_expr ctxt) {x with pmod_attributes=[]}
       (attributes ctxt) x.pmod_attributes
-  else match x.pmod_desc with
+  else match Jane_syntax.Module_expr.of_ast x with
+    | Some ext -> extension_module_expr ctxt f ext
+    | None -> match x.pmod_desc with
     | Pmod_structure (s) ->
         pp f "@[<hv2>struct@;@[<0>%a@]@;<1 -2>end@]"
           (list (structure_item ctxt) ~sep:"@\n") s;
@@ -2335,6 +2343,23 @@ and function_params_then_body ctxt f params constraint_ body ~delimiter =
 and labeled_tuple_expr ctxt f ~unboxed x =
   pp f "@[<hov2>%s(%a)@]" (if unboxed then "#" else "")
     (list (tuple_component ctxt) ~sep:",@;") x
+
+and extension_module_expr ctxt f (x : Jane_syntax.Module_expr.t) =
+  match x with
+  | Emod_instance i -> instance_module_expr ctxt f i
+
+and instance_module_expr ctxt f (x : Jane_syntax.Instances.module_expr) =
+  match x with
+  | Imod_instance i -> instance ctxt f i
+
+and instance ctxt f (x : Jane_syntax.Instances.instance) =
+  match x with
+  | { head; args = [] } -> pp f "%s" head
+  | { head; args } ->
+    pp f "@[<2>%s %a@]" head (list (instance_arg ctxt)) args
+
+and instance_arg ctxt f (param, value) =
+  pp f "@[<1>(%s)@;(%a)@]" param (instance ctxt) value
 
 (******************************************************************************)
 (* All exported functions must be defined or redefined below here and wrapped in

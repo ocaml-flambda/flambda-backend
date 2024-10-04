@@ -1,14 +1,31 @@
 [@@@ocaml.warning "+a-9-40-41-42"]
 
+type ('name, 'value) duplicate =
+  | Duplicate of { name : 'name; value1 : 'value; value2 : 'value }
+
+module Argument : sig
+  type ('param, 'value) t = {
+    param : 'param;
+    value : 'value;
+  }
+end
+
 module Name : sig
   type t = private {
     head : string;
-    args : (t * t) list;
+    args : argument list;
   }
+  and argument = (t, t) Argument.t
 
   include Identifiable.S with type t := t
 
-  val create : string -> (t * t) list -> t
+  val create : string -> argument list -> (t, (t, t) duplicate) Result.t
+
+  val create_exn : string -> argument list -> t
+
+  val create_no_args : string -> t
+
+  val to_string : t -> string
 end
 
 (** An elaborated form of name in which all arguments are expressed, including
@@ -21,9 +38,9 @@ end
     parameterised. If someone is passing [Foo] as the value of [X], then, we
     will have (abbreviating nested records):
 
-    {v
+    {[
       { head: M; visible_args: [ X, Foo ]; hidden_args: [ Y, Y ] }
-    v}
+    ]}
 
     This represents that [X] is explicitly being given the value [Foo] and [Y]
     (the parameter) is implicitly getting the value [Y] (the argument currently
@@ -33,9 +50,9 @@ end
     two parameters [X] and [Y], but now once [X] has the value [Foo], [Y]
     requires _that particular_ [X]:
 
-    {v
+    {[
       { head: M; visible_args: [ X, Foo ]; hidden_args: [ Y, Y[X:Foo] ] }
-    v}
+    ]}
 
     Importantly, the _parameters_ [X] and [Y] never change: they are names that
     appear in [m.ml] and [m.cmi]. But further specialisation requires passing
@@ -45,17 +62,24 @@ end
 *)
 type t = private {
   head : string;
-  visible_args : (Name.t * t) list;
-  hidden_args : (Name.t * t) list;
+  visible_args : argument list;
+  hidden_args : argument list;
 }
+and argument = (Name.t, t) Argument.t
 
 include Identifiable.S with type t := t
 
-val create : string -> (Name.t * t) list -> hidden_args:(Name.t * t) list -> t
+val create
+   : string -> argument list -> hidden_args:argument list
+  -> (t, (Name.t, t) duplicate) Result.t
+
+val create_exn : string -> argument list -> hidden_args:argument list -> t
+
+val to_string : t -> string
 
 val to_name : t -> Name.t
 
-val all_args : t -> (Name.t * t) list
+val all_args : t -> argument list
 
 (** A map from parameter names to their values. Hidden arguments aren't relevant
     in the parameter names, so they're represented by [Name.t]s here. *)
