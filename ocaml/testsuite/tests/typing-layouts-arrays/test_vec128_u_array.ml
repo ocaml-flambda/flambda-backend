@@ -217,7 +217,7 @@ const #1L; const (-#1L); const #1L; const (-#1L); const #1L; const (-#1L); const
 const (-#1L) |]
   in
   check_eq_f (fun idx -> if (idx mod 2) = 0 then I.of_int (1) else I.of_int (-1)) r;
-  (* dynamic blocks *)
+  (* static blocks with opaque contents *)
   let[@inline never] f x = x in
   let r = [|
 f (const #0L); f (const #1L); f (const #2L); f (const #3L); f (const #4L); f (const #5L);

@@ -464,7 +464,7 @@ val raise_prim : Lambda.raise_kind -> unary_primitive
 val negint : unary_primitive
 
 (** Return the length of the array argument, as an OCaml integer *)
-val arraylength : Lambda.array_kind -> unary_primitive
+val addr_array_length : unary_primitive
 
 (** Byte swap primitive Operates on Cmm integers (unboxed values) *)
 val bbswap : Primitive.boxed_integer -> unary_primitive
@@ -1134,7 +1134,7 @@ val get_field_unboxed_float32 :
 val get_field_unboxed_vec128 :
   Asttypes.mutable_flag ->
   block:expression ->
-  index:expression ->
+  index_in_words:expression ->
   Debuginfo.t ->
   expression
 
@@ -1155,7 +1155,12 @@ val setfield_unboxed_int32 : ternary_primitive
 
 val setfield_unboxed_float32 : ternary_primitive
 
-val setfield_unboxed_vec128 : ternary_primitive
+val setfield_unboxed_vec128 :
+  expression ->
+  index_in_words:expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
 

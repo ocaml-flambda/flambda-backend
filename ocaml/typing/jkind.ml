@@ -1058,7 +1058,27 @@ module Jkind_desc = struct
   end
 end
 
-type t = type_expr Jkind_types.t
+type 'd t = (type_expr, 'd) Jkind_types.t
+
+type jkind_l = (allowed * disallowed) t
+
+type jkind_r = (disallowed * allowed) t
+
+type packed = Pack : 'd t -> packed [@@unboxed]
+
+include Allowance.Magic_allow_disallow (struct
+  type (_, _, 'd) sided = 'd t
+
+  let disallow_right ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let disallow_left ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let allow_right ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let allow_left ({ jkind = { layout = _; _ }; _ } as t) = t
+end)
+
+let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
 
 let fresh_jkind jkind ~why =
   { jkind; history = Creation why; has_warned = false }
@@ -1254,7 +1274,7 @@ let get t = Jkind_desc.get t.jkind
 
 (* CR layouts: this function is suspect; it seems likely to reisenberg
    that refactoring could get rid of it *)
-let sort_of_jkind (t : t) : sort =
+let sort_of_jkind (t : jkind_l) : sort =
   let rec sort_of_layout (t : Layout.t) =
     match t with
     | Any -> Misc.fatal_error "Jkind.sort_of_jkind"
@@ -1634,10 +1654,9 @@ module Format_history = struct
   (* this isn't really formatted for user consumption *)
   let format_history_tree ~intro ~layout_or_kind ppf t =
     let rec in_order ppf = function
-      | Interact
-          { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ } ->
-        fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
-          format_interact_reason reason in_order rhs_history
+      | Interact { reason; history1; history2; jkind1 = _; jkind2 = _ } ->
+        fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order history1
+          format_interact_reason reason in_order history2
       | Creation c -> format_creation_reason ppf ~layout_or_kind c
     in
     fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
@@ -1660,8 +1679,8 @@ module Violation = struct
   open Format
 
   type violation =
-    | Not_a_subjkind of t * t
-    | No_intersection of t * t
+    | Not_a_subjkind of jkind_l * jkind_r
+    | No_intersection of packed * jkind_r
 
   type nonrec t =
     { violation : violation;
@@ -1705,7 +1724,7 @@ module Violation = struct
       | Const _ | Product _ ->
         dprintf "%s a sub%s of %a" verb layout_or_kind format_layout_or_kind k2
     in
-    let k1, k2, fmt_k1, fmt_k2, missing_cmi_option =
+    let Pack k1, k2, fmt_k1, fmt_k2, missing_cmi_option =
       match t with
       | { violation = Not_a_subjkind (k1, k2); missing_cmi } -> (
         let missing_cmi =
@@ -1719,20 +1738,20 @@ module Violation = struct
         in
         match missing_cmi with
         | None ->
-          ( k1,
+          ( Pack k1,
             k2,
             dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
             subjkind_format "is not" k2,
             None )
         | Some p ->
-          ( k1,
+          ( Pack k1,
             k2,
             dprintf "an unknown %s" layout_or_kind,
             subjkind_format "might not be" k2,
             Some p ))
-      | { violation = No_intersection (k1, k2); missing_cmi } ->
+      | { violation = No_intersection (Pack k1, k2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
-        ( k1,
+        ( Pack k1,
           k2,
           dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
           dprintf "does not overlap with %a" format_layout_or_kind k2,
@@ -1785,11 +1804,11 @@ let equate_or_equal ~allow_mutation
   Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
-let equal = equate_or_equal ~allow_mutation:true
+let equal t1 t2 = equate_or_equal ~allow_mutation:true t1 t2
 
 let () = Types.set_jkind_equal equal
 
-let equate = equate_or_equal ~allow_mutation:true
+let equate t1 t2 = equate_or_equal ~allow_mutation:true t1 t2
 
 (* Not all jkind history reasons are created equal. Some are more helpful than others.
     This function encodes that information.
@@ -1803,25 +1822,25 @@ let score_reason = function
   | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
   | _ -> 0
 
-let combine_histories reason lhs rhs =
+let combine_histories reason (Pack k1) (Pack k2) =
   if flattened_histories
   then
-    match Desc.sub (Jkind_desc.get lhs.jkind) (Jkind_desc.get rhs.jkind) with
-    | Less -> lhs.history
+    match Desc.sub (Jkind_desc.get k1.jkind) (Jkind_desc.get k2.jkind) with
+    | Less -> k1.history
     | Not_le ->
-      rhs.history
+      k2.history
       (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
     | Equal ->
-      if score_reason lhs.history >= score_reason rhs.history
-      then lhs.history
-      else rhs.history
+      if score_reason k1.history >= score_reason k2.history
+      then k1.history
+      else k2.history
   else
     Interact
       { reason;
-        lhs_jkind = lhs.jkind;
-        lhs_history = lhs.history;
-        rhs_jkind = rhs.jkind;
-        rhs_history = rhs.history
+        jkind1 = Pack k1.jkind;
+        history1 = k1.history;
+        jkind2 = Pack k2.jkind;
+        history2 = k2.history
       }
 
 let has_intersection t1 t2 =
@@ -1829,13 +1848,23 @@ let has_intersection t1 t2 =
 
 let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
-  | None -> Error (Violation.of_ (No_intersection (t1, t2)))
+  | None -> Error (Violation.of_ (No_intersection (Pack t1, t2)))
   | Some jkind ->
     Ok
       { jkind;
-        history = combine_histories reason t1 t2;
+        history = combine_histories reason (Pack t1) (Pack t2);
         has_warned = t1.has_warned || t2.has_warned
       }
+
+let intersect_l_l ~reason t1 t2 =
+  (* CR layouts v2.8: Do something cleverer here once we have more
+     expressive l-kinds. *)
+  intersection_or_error ~reason t1 (terrible_relax_l t2)
+
+let has_intersection_l_l t1 t2 =
+  (* CR layouts v2.8: Do something cleverer here once we have more
+     expressive l-kinds. *)
+  has_intersection (terrible_relax_l t1) (terrible_relax_l t2)
 
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
@@ -1859,10 +1888,13 @@ let sub_or_error t1 t2 =
   | Sub -> Ok ()
   | _ -> Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
-let sub_with_history sub super =
+(* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
+   kind polymorphism design. *)
+let sub_jkind_l sub super =
+  let super = terrible_relax_l super in
   match check_sub sub super with
   | Less | Equal ->
-    Ok { sub with history = combine_histories Subjkind sub super }
+    Ok { sub with history = combine_histories Subjkind (Pack sub) (Pack super) }
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let is_void_defaulting = function
@@ -2030,15 +2062,21 @@ module Debug_printers = struct
     | Subjkind -> fprintf ppf "Subjkind"
 
   let rec history ppf = function
-    | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
+    | Interact
+        { reason;
+          jkind1 = Pack jkind1;
+          history1;
+          jkind2 = Pack jkind2;
+          history2
+        } ->
       fprintf ppf
-        "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
-         rhs_jkind = %a;@ rhs_history = %a}@]"
-        interact_reason reason Jkind_desc.Debug_printers.t lhs_jkind history
-        lhs_history Jkind_desc.Debug_printers.t rhs_jkind history rhs_history
+        "Interact {@[reason = %a;@ jkind1 = %a;@ history1 = %a;@ jkind2 = %a;@ \
+         history2 = %a}@]"
+        interact_reason reason Jkind_desc.Debug_printers.t jkind1 history
+        history1 Jkind_desc.Debug_printers.t jkind2 history history2
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
+  let t ppf ({ jkind; history = h; has_warned = _ } : 'd t) : unit =
     fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
       Jkind_desc.Debug_printers.t jkind history h
 

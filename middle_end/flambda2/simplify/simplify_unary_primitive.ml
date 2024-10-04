@@ -875,9 +875,6 @@ let simplify_immutable_block_load access_kind ~field ~min_name_mode dacc
       ~original_term dbg ~arg ~arg_ty ~result_var
   in
   let dacc' =
-    (* The [args] being queried here are the post-simplification arguments of
-       the primitive, so we can directly read off whether they are symbols or
-       constants, as needed. *)
     let kind = P.Block_access_kind.element_subkind_for_load access_kind in
     Simplify_common.add_symbol_projection result.dacc ~projected_from:arg
       (Symbol_projection.Projection.block_load ~index:field)

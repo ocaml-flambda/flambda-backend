@@ -30,7 +30,8 @@ type error =
   | Simd_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
   | Unsupported_sort of Jkind.Sort.Const.t
-  | Unsupported_product_in_structure of Jkind.Sort.Const.t
+  | Unsupported_product_in_lazy of Jkind.Sort.Const.t
+  | Unsupported_product_in_array of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -122,6 +123,10 @@ type classification =
   | Lazy
   | Addr  (* anything except a float or a lazy *)
   | Any
+  | Product of Jkind.Sort.Const.t list
+  (* CR layouts v7.1: This [Product] case is always an error for now, but soon
+     we will support unboxed products in arrays and it will only sometimes be an
+     error. *)
 
 (* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
    Returning [Any] is safe, though may skip some optimizations. *)
@@ -176,8 +181,7 @@ let classify env loc ty sort : classification =
   | Base Word -> Unboxed_int Pnativeint
   | Base Void as c ->
     raise (Error (loc, Unsupported_sort c))
-  | Product _ as c ->
-    raise (Error (loc, Unsupported_product_in_structure c))
+  | Product c -> Product c
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
@@ -197,12 +201,20 @@ let array_type_kind ~elt_sort env loc ty =
       | Unboxed_float f -> Punboxedfloatarray f
       | Unboxed_int i -> Punboxedintarray i
       | Unboxed_vector v -> Punboxedvectorarray v
+      | Product cs ->
+        let kind = Jkind.Sort.Const.Product cs in
+        raise (Error (loc, Unsupported_product_in_array kind))
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->
       (* This can happen with e.g. Obj.field *)
       Pgenarray
+
+let array_type_mut env ty =
+  match scrape_poly env ty with
+  | Tconstr(p, [_], _) when Path.same p Predef.path_iarray -> Immutable
+  | _ -> Mutable
 
 let array_kind exp elt_sort =
   array_type_kind
@@ -722,7 +734,7 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   | Base Bits64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint64
   | Base Float32 when Language_extension.(is_at_least Layouts Stable) &&
-                            Language_extension.(is_enabled Small_numbers) ->
+                      Language_extension.(is_enabled Small_numbers) ->
     Lambda.Punboxed_float Pfloat32
   | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
                      Language_extension.(is_at_least SIMD Stable) ->
@@ -783,9 +795,9 @@ let layout_of_sort loc sort =
                                                  Beta,
                                                  None))))
 
-let layout_of_base_sort b =
+let layout_of_const_sort c =
   layout_of_const_sort_generic
-    (Base b)
+    c
     ~value_kind:(lazy Pgenval)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"
@@ -820,6 +832,9 @@ let lazy_val_requires_forward env loc ty =
     Misc.fatal_error "Unboxed value encountered inside lazy expression"
   | Float -> Config.flat_float_array
   | Addr | Int -> false
+  | Product cs ->
+    let kind = Jkind.Sort.Const.Product cs in
+    raise (Error (loc, Unsupported_product_in_lazy kind))
 
 (** The compilation of the expression [lazy e] depends on the form of e:
     constants, floats and identifiers are optimized.  The optimization must be
@@ -957,11 +972,16 @@ let report_error ppf = function
   | Unsupported_sort const ->
       fprintf ppf "Layout %a is not supported yet."
         Jkind.Sort.Const.format const
-  | Unsupported_product_in_structure const ->
+  | Unsupported_product_in_lazy const ->
       fprintf ppf
-        "Product layout %a detected in structure in [Typeopt.Layout]@ \
+        "Product layout %a detected in [lazy] in [Typeopt.Layout]@ \
          Please report this error to the Jane Street compilers team."
         Jkind.Sort.Const.format const
+  | Unsupported_product_in_array const ->
+    fprintf ppf
+      "Unboxed products are not yet supported with array primitives.@ \
+       Here, layout %a was used."
+      Jkind.Sort.Const.format const
 
 let () =
   Location.register_error_of_exn

@@ -140,6 +140,10 @@ module Stdlib : sig
 
     val map3 : ('a -> 'b -> 'c -> 'd) -> 'a list -> 'b list -> 'c list -> 'd list
 
+    val concat_map2 : ('a -> 'b -> 'c list) -> 'a list -> 'b list -> 'c list
+    (** [concat_map2 f l1 l2] gives the same result as [concat (map2 f l1 l2)].
+        Tail-recursive. *)
+
     val iteri2 : (int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit
     (** Same as {!List.iter2}, but the function is applied to the index of
         the element as first argument (counting from 0) *)
@@ -192,6 +196,19 @@ module Stdlib : sig
       -> (unit, 'b) Result.t
      (** [iter_until_error f l] applies [f] to each element of [l], in order,
          short-circuiting in the case [f] returns [Error] on any element. *)
+
+    val merge_iter
+       : cmp:('a -> 'b -> int)
+      -> left_only:('a -> unit)
+      -> right_only:('b -> unit)
+      -> both:('a -> 'b -> unit)
+      -> 'a t
+      -> 'b t
+      -> unit
+    (** Iterates over two sorted lists, calling [left_only] on those elements
+        that appear only in the left list, [right_only] on those elements
+        that appear only in the right list, and [both] on those elements that
+        appear in both. *)
   end
 
 (** {2 Extensions to the Option module} *)
@@ -727,6 +744,13 @@ val output_of_print :
 val is_print_longer_than: int -> (Format.formatter -> unit) -> bool
 (** Returns [true] if the printed string is longer than the given integer. Stops
     early if so. Spaces and newlines are counted, but indentation is not. *)
+
+val to_string_of_print :
+  (Format.formatter -> 'a -> unit) -> 'a -> string
+(** [to_string_of_print print] produces a string conversion function from a
+    pretty printer. This is similar but preferable to [Format.asprintf "%a"]
+    when the output may be large, since [to_string] functions don't usually
+    return embedded newlines. *)
 
 (** {1 Displaying configuration variables} *)
 

@@ -65,8 +65,6 @@ module Lambda_utils : sig
 
     val unboxed_int64 : Int64.t -> lambda
 
-    val unboxed_vec128 : high:Int64.t -> low:Int64.t -> lambda
-
     val unboxed_nativeint : Targetint.t -> lambda
 
     (** Lambda string literals; these require a location, and are constructed as
@@ -78,7 +76,7 @@ module Lambda_utils : sig
       other information needed by [Lapply] is set to some default value. *)
   val apply :
     loc:scoped_location ->
-    mode:alloc_mode ->
+    mode:locality_mode ->
     lambda ->
     lambda list ->
     result_layout:layout ->

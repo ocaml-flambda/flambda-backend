@@ -148,6 +148,15 @@ module Stdlib = struct
       in
       loop []
 
+    let concat_map2 f l1 l2 =
+      let rec aux f acc = function
+        | [], [] -> rev acc
+        | (a1 :: l1, a2 :: l2) ->
+          let xs = f a1 a2 in
+          aux f (rev_append xs acc) (l1, l2)
+        | (_, _) -> invalid_arg "List.concat_map2"
+      in aux f [] (l1, l2)
+
     let rec iteri2 i f l1 l2 =
       match (l1, l2) with
         ([], []) -> ()
@@ -250,6 +259,27 @@ module Stdlib = struct
         match f x with
         | Ok () -> iter_until_error ~f xs
         | Error _ as e -> e
+
+    let [@inline] merge_fold ~cmp ~left_only ~right_only ~both ~init t1 t2 =
+      let rec loop acc t1 t2 =
+        match t1, t2 with
+        | [], [] -> acc
+        | a :: t1', [] -> loop (left_only acc a) t1' []
+        | [], b :: t2' -> loop (right_only acc b) [] t2'
+        | a :: t1', b :: t2' ->
+            match cmp a b with
+            | 0 -> loop (both acc a b) t1' t2'
+            | c when c < 0 -> loop (left_only acc a) t1' t2
+            | _ -> loop (right_only acc b) t1 t2'
+      in
+      loop init t1 t2
+
+    let [@inline] merge_iter ~cmp ~left_only ~right_only ~both t1 t2 =
+      merge_fold t1 t2 ~cmp
+        ~init:()
+        ~left_only:(fun () a -> left_only a)
+        ~right_only:(fun () b -> right_only b)
+        ~both:(fun () a b -> both a b)
   end
 
   module Option = struct
@@ -1237,6 +1267,9 @@ let print_see_manual ppf manual_section =
 let output_of_print print =
   let output out_channel t =
     let ppf = Format.formatter_of_out_channel out_channel in
+    (* Effectively disable automatic wrapping because [Printf]-based code
+       doesn't expect it *)
+    Format.pp_set_margin ppf Int.max_int;
     print ppf t;
     (* Must flush the formatter immediately because it has a buffer separate
        from the output channel's buffer *)
@@ -1266,6 +1299,19 @@ let is_print_longer_than size p =
   let ppf = Format.formatter_of_out_functions out_functions in
   try p ppf; false
   with Limit_exceeded -> true
+
+let to_string_of_print print =
+  let to_string t =
+    (* Implemented similarly to [Format.asprintf] *)
+    let buf = Buffer.create 32 in
+    let ppf = Format.formatter_of_buffer buf in
+    Format.pp_set_margin ppf Int.max_int;
+    print ppf t;
+    Format.pp_print_flush ppf ();
+    Buffer.contents buf
+  in
+  to_string
+
 
 type filepath = string
 

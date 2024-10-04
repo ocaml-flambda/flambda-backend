@@ -46,8 +46,6 @@ module Lambda_utils = struct
 
     let unboxed_int64 i = Lconst (Const_base (Const_unboxed_int64 i))
 
-    let unboxed_vec128 ~high ~low = Lconst (Const_unboxed_vec128 { high; low })
-
     let unboxed_nativeint i =
       (* See CR in typedtree.mli *)
       let i = i |> Targetint.to_int64 |> Int64.to_nativeint in

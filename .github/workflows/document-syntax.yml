@@ -1,0 +1,34 @@
+name: Syntax changes reminder
+
+on:
+  pull_request:
+    paths:
+      - 'ocaml/parsing/parser.mly'
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Create PR Comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO=${{ github.repository }}
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT="## Parser Change Checklist
+
+          This PR modifies the parser. Please check that the following tests are updated:
+
+          - [ ] \`parsetree/source_jane_street.ml\`
+
+          This test should have examples of every new bit of syntax you are adding. Feel free to just check the box if your PR does not actually change the syntax (because it is refactoring the parser, say)."
+
+           # Check if comment already exists
+          if ! gh pr view $PR_NUMBER --json comments -q '.comments[].body' --repo $REPO | grep -q "Parser Change Checklist"; then
+            gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
+          else
+            echo "Comment already exists. Skipping."
+          fi
+

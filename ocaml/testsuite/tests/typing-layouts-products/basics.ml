@@ -231,7 +231,7 @@ Line 1, characters 25-31:
                              ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_86 & '_representable_layout_87
+       The layout of #('a * 'b) is '_representable_layout_1 & '_representable_layout_2
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
@@ -256,7 +256,7 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_89 & '_representable_layout_90
+       The layout of #('a * 'b) is '_representable_layout_3 & '_representable_layout_4
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a tuple element.
@@ -348,7 +348,7 @@ Line 3, characters 15-21:
                    ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_102 & '_representable_layout_103
+       The layout of #('a * 'b) is '_representable_layout_5 & '_representable_layout_6
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of an object field.
@@ -365,7 +365,7 @@ Line 3, characters 17-21:
                      ^^^^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_110 & '_representable_layout_111
+       The layout of #('a * 'b) is '_representable_layout_7 & '_representable_layout_8
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a variable captured in an object.
@@ -600,18 +600,16 @@ Error: This value escapes its region.
 (*********************)
 (* Test 9: externals *)
 
-(* CR layouts v7.1: Unboxed products should be allowed for some primitives, like
-   %identity *)
-
 type t_product : value & value
 
-external ext_tuple_arg : #(int * bool) -> int = "foo"
+external ext_tuple_arg : #(int * bool) -> int = "foo" "bar"
 [%%expect{|
 type t_product : value & value
-Line 3, characters 25-38:
-3 | external ext_tuple_arg : #(int * bool) -> int = "foo"
-                             ^^^^^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Line 3, characters 25-45:
+3 | external ext_tuple_arg : #(int * bool) -> int = "foo" "bar"
+                             ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [foo] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]
 
 external ext_tuple_arg_with_attr : (#(int * bool) [@unboxed]) -> int = "foo"
@@ -619,15 +617,18 @@ external ext_tuple_arg_with_attr : (#(int * bool) [@unboxed]) -> int = "foo"
 Line 1, characters 36-49:
 1 | external ext_tuple_arg_with_attr : (#(int * bool) [@unboxed]) -> int = "foo"
                                         ^^^^^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Error: Don't know how to unbox this type.
+       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
-external ext_product_arg : t_product -> int = "foo"
+external ext_product_arg : t_product -> int = "foo" "bar"
 [%%expect{|
-Line 1, characters 27-36:
-1 | external ext_product_arg : t_product -> int = "foo"
-                               ^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Line 1, characters 27-43:
+1 | external ext_product_arg : t_product -> int = "foo" "bar"
+                               ^^^^^^^^^^^^^^^^
+Error: The primitive [foo] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]
 
 external ext_product_arg_with_attr : (t_product [@unboxed]) -> int = "foo"
@@ -635,15 +636,18 @@ external ext_product_arg_with_attr : (t_product [@unboxed]) -> int = "foo"
 Line 1, characters 38-47:
 1 | external ext_product_arg_with_attr : (t_product [@unboxed]) -> int = "foo"
                                           ^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Error: Don't know how to unbox this type.
+       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
-external ext_tuple_return : int -> #(int * bool) = "foo"
+external ext_tuple_return : int -> #(int * bool) = "foo" "bar"
 [%%expect{|
-Line 1, characters 35-48:
-1 | external ext_tuple_return : int -> #(int * bool) = "foo"
-                                       ^^^^^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Line 1, characters 28-48:
+1 | external ext_tuple_return : int -> #(int * bool) = "foo" "bar"
+                                ^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [foo] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]
 
 external ext_tuple_return_with_attr : int -> (#(int * bool) [@unboxed]) = "foo"
@@ -651,15 +655,18 @@ external ext_tuple_return_with_attr : int -> (#(int * bool) [@unboxed]) = "foo"
 Line 1, characters 46-59:
 1 | external ext_tuple_return_with_attr : int -> (#(int * bool) [@unboxed]) = "foo"
                                                   ^^^^^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Error: Don't know how to unbox this type.
+       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
-external ext_product_return : int -> t_product = "foo"
+external ext_product_return : int -> t_product = "foo" "bar"
 [%%expect{|
-Line 1, characters 37-46:
-1 | external ext_product_return : int -> t_product = "foo"
-                                         ^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Line 1, characters 30-46:
+1 | external ext_product_return : int -> t_product = "foo" "bar"
+                                  ^^^^^^^^^^^^^^^^
+Error: The primitive [foo] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]
 
 external ext_product_return_with_attr : int -> (t_product [@unboxed]) = "foo"
@@ -667,7 +674,9 @@ external ext_product_return_with_attr : int -> (t_product [@unboxed]) = "foo"
 Line 1, characters 48-57:
 1 | external ext_product_return_with_attr : int -> (t_product [@unboxed]) = "foo"
                                                     ^^^^^^^^^
-Error: Unboxed product layouts are not supported in external declarations
+Error: Don't know how to unbox this type.
+       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity"
@@ -677,16 +686,8 @@ let sum =
   x + y
 [%%expect{|
 external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
-Line 4, characters 18-24:
-4 |   let #(x,y) = id #(1,2) in
-                      ^^^^^^
-Error: Unboxed product layouts are not yet supported as arguments to
-       layout polymorphic externals.
-       The layout of this argument is value & value.
+val sum : int = 3
 |}]
-
-(* CR layouts v7.1: Unboxed products should be allowed for some primitives, like
-   %identity *)
 
 (***********************************)
 (* Test 9: not allowed in let recs *)
@@ -701,7 +702,7 @@ Line 2, characters 37-44:
                                          ^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_190 & '_representable_layout_191
+       The layout of #('a * 'b) is '_representable_layout_9 & '_representable_layout_10
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable x.
@@ -717,7 +718,7 @@ Line 1, characters 21-29:
                          ^^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_195 & '_representable_layout_196
+       The layout of #('a * 'b) is '_representable_layout_11 & '_representable_layout_12
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable _x.
@@ -778,15 +779,13 @@ type t3 = #(int * bool) array
 type t4 = #(string * #(float# * bool option)) array
 |}]
 
-(* CR layouts v7.1: This should be accepted, or the error message should
-   be improved. *)
 let _ = [| #(1,2) |]
 [%%expect{|
 Line 1, characters 8-20:
 1 | let _ = [| #(1,2) |]
             ^^^^^^^^^^^^
-Error: Product layout value & value detected in structure in [Typeopt.Layout]
-       Please report this error to the Jane Street compilers team.
+Error: Unboxed products are not yet supported with array primitives.
+       Here, layout value & value was used.
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -796,17 +795,19 @@ Line 1, characters 31-37:
                                    ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_210 & '_representable_layout_211
+       The layout of #('a * 'b) is '_representable_layout_13 & '_representable_layout_14
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value.
 |}]
 
-external make : ('a : value & value) . int -> 'a -> 'a array = "caml_make_vect"
+external make : ('a : value & value) . int -> 'a -> 'a array =
+  "caml_make_vect" "caml_make_vect"
 [%%expect{|
-Line 1, characters 46-48:
-1 | external make : ('a : value & value) . int -> 'a -> 'a array = "caml_make_vect"
-                                                  ^^
-Error: Unboxed product layouts are not supported in external declarations
+Line 1, characters 16-60:
+1 | external make : ('a : value & value) . int -> 'a -> 'a array =
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [caml_make_vect] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
 |}]
 
 external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
@@ -829,9 +830,8 @@ external array_get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
 Line 3, characters 25-38:
 3 | let f x : #(int * int) = array_get x 3
                              ^^^^^^^^^^^^^
-Error: Unboxed product layouts are not yet supported as arguments to
-       layout polymorphic externals.
-       The layout of this argument is value & value.
+Error: Unboxed products are not yet supported with array primitives.
+       Here, layout value & value was used.
 |}]
 
 external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
@@ -840,12 +840,11 @@ let f x = array_set x 3 #(1,2)
 [%%expect{|
 external array_set : ('a : any). 'a array -> int -> 'a -> unit
   = "%array_safe_set" [@@layout_poly]
-Line 3, characters 24-30:
+Line 3, characters 10-30:
 3 | let f x = array_set x 3 #(1,2)
-                            ^^^^^^
-Error: Unboxed product layouts are not yet supported as arguments to
-       layout polymorphic externals.
-       The layout of this argument is value & value.
+              ^^^^^^^^^^^^^^^^^^^^
+Error: Unboxed products are not yet supported with array primitives.
+       Here, layout value & value was used.
 |}]
 
 
@@ -863,7 +862,7 @@ Line 2, characters 25-26:
                              ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_246 & '_representable_layout_247
+       The layout of #('a * 'b) is '_representable_layout_15 & '_representable_layout_16
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a term-level argument to a class constructor.
@@ -880,7 +879,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_249 & '_representable_layout_250
+       The layout of #('a * 'b) is '_representable_layout_17 & '_representable_layout_18
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a lazy expression.
@@ -930,7 +929,7 @@ Line 1, characters 28-34:
                                 ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_267 & '_representable_layout_268
+       The layout of #('a * 'b) is '_representable_layout_19 & '_representable_layout_20
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because the type argument of option has layout value.
