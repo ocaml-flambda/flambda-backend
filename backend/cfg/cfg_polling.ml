@@ -35,7 +35,15 @@ module Back_edge_sources : sig
 
   val create : Cfg.t -> Cfg_loop_infos.EdgeSet.t -> t
 
+  val add : t -> 'a Cfg.instruction -> t
+
   val mem : t -> 'a Cfg.instruction -> bool
+
+  val empty : t
+
+  val union : t -> t -> t
+
+  val subset : t -> t -> bool
 end = struct
   module Int = Numbers.Int
   include Int.Set
@@ -50,35 +58,21 @@ end = struct
     |> Int.Set.of_list
 
   let mem t (instruction : 'a Cfg.instruction) = Int.Set.mem instruction.id t
+
+  let add t (instruction : 'a Cfg.instruction) = Int.Set.add instruction.id t
 end
 
 module Unsafe_or_safe_domain = struct
-  type t =
-    | Unsafe
-    | Safe
+  type t = Back_edge_sources.t
 
-  (* Assume that everything is safe (think of it as unreachable). A backedge
-     produces "Unsafe" (think of it the bad state is reachable). If it can
-     propagate to the corresponding loop head, then we need to insert the
-     handler on the backedge. This means inserting a poll point on all backedges
-     to a given header, if one of them needs it. It matches the upstream
-     algorithm. *)
+  (* Compute backward-reachability from the sources of all back edges. The
+     abstract value represents individual back edges that are reachable from
+     each program point, without going through a "safe" instruction. *)
+  let bot = Back_edge_sources.empty
 
-  (* CR-soon gyorsh: Propagate a set of backedges, instead of a single Unsafe
-     value. If a backedge reaches its loop head, insert poll on it. *)
-  let bot = Safe
+  let join t1 t2 = Back_edge_sources.union t1 t2
 
-  let join t1 t2 =
-    match t1, t2 with
-    | Unsafe, Unsafe | Unsafe, Safe | Safe, Unsafe -> Unsafe
-    | Safe, Safe -> Safe
-
-  let less_equal t1 t2 =
-    match t1, t2 with
-    | Unsafe, Unsafe -> true
-    | Unsafe, Safe -> false
-    | Safe, Safe -> true
-    | Safe, Unsafe -> true
+  let less_equal t1 t2 = Back_edge_sources.subset t1 t2
 end
 
 module Unsafe_or_safe_transfer = struct
@@ -110,7 +104,7 @@ module Unsafe_or_safe_transfer = struct
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
     | Switch _ | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
       if Back_edge_sources.mem back_edge_sources term
-      then Ok Unsafe
+      then Ok (Back_edge_sources.add dom term)
       else if Cfg.can_raise_terminator term.desc
       then Ok (Unsafe_or_safe_domain.join dom exn)
       else Ok dom
@@ -240,15 +234,13 @@ let instr_cfg_with_layout :
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg_loop_infos.EdgeSet.fold
     (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
+      let after = Cfg.get_block_exn cfg src in
       let needs_poll =
-        match Label.Tbl.find_opt block_needs_poll dst with
-        | None -> assert false
-        | Some Safe -> false
-        | Some Unsafe -> true
+        let reachable_back_edge_sources = Label.Tbl.find block_needs_poll dst in
+        Back_edge_sources.mem reachable_back_edge_sources after.terminator
       in
       if needs_poll
       then (
-        let after = Cfg.get_block_exn cfg src in
         let cfg_infos = Regalloc_utils.collect_cfg_infos cfg_with_layout in
         let next_instruction_id = ref (succ cfg_infos.max_instruction_id) in
         let next_instruction_id () =
