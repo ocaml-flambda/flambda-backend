@@ -20,6 +20,9 @@
   (* Ensure that record patterns don't miss any field. *)
 *)
 
+[@@@ocaml.warning "-60"] module Str = Ast_helper.Str (* For ocamldep *)
+[@@@ocaml.warning "+60"]
+
 open Parsetree
 open Ast_helper
 open Location
@@ -47,6 +50,7 @@ type mapper = {
   constant: mapper -> constant -> constant;
   constructor_declaration: mapper -> constructor_declaration
                            -> constructor_declaration;
+  directive_argument: mapper -> directive_argument -> directive_argument;
   expr: mapper -> expression -> expression;
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
@@ -72,6 +76,8 @@ type mapper = {
   signature_item: mapper -> signature_item -> signature_item;
   structure: mapper -> structure -> structure;
   structure_item: mapper -> structure_item -> structure_item;
+  toplevel_directive: mapper -> toplevel_directive -> toplevel_directive;
+  toplevel_phrase: mapper -> toplevel_phrase -> toplevel_phrase;
   typ: mapper -> core_type -> core_type;
   type_declaration: mapper -> type_declaration -> type_declaration;
   type_extension: mapper -> type_extension -> type_extension;
@@ -88,6 +94,8 @@ type mapper = {
     Jane_syntax.Extension_constructor.t -> Jane_syntax.Extension_constructor.t;
   module_type_jane_syntax: mapper
     -> Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
+  module_expr_jane_syntax: mapper
+    -> Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
   pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
   signature_item_jane_syntax: mapper ->
     Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;
@@ -169,16 +177,15 @@ module T = struct
       Ltyp_poly { bound_vars; inner_type }
     | Ltyp_alias { aliased_type; name; jkind } ->
       let aliased_type = sub.typ sub aliased_type in
+      let name = map_opt (map_loc sub) name in
       let jkind = map_loc_txt sub sub.jkind_annotation jkind in
       Ltyp_alias { aliased_type; name; jkind }
 
   let map_labeled_tuple sub tl = List.map (map_snd (sub.typ sub)) tl
-    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
 
   let map_jst sub : Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t =
     function
     | Jtyp_layout typ -> Jtyp_layout (map_jst_layouts sub typ)
-    | Jtyp_tuple x -> Jtyp_tuple (map_labeled_tuple sub x)
 
   let map sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                  as typ) =
@@ -197,7 +204,7 @@ module T = struct
     | Ptyp_var s -> var ~loc ~attrs s
     | Ptyp_arrow (lab, t1, t2, m1, m2) ->
         arrow ~loc ~attrs lab (sub.typ sub t1) (sub.typ sub t2) (sub.modes sub m1) (sub.modes sub m2)
-    | Ptyp_tuple tyl -> tuple ~loc ~attrs (List.map (sub.typ sub) tyl)
+    | Ptyp_tuple tyl -> tuple ~loc ~attrs (map_labeled_tuple sub tyl)
     | Ptyp_unboxed_tuple tyl ->
         unboxed_tuple ~loc ~attrs (map_labeled_tuple sub tyl)
     | Ptyp_constr (lid, tl) ->
@@ -206,7 +213,9 @@ module T = struct
         object_ ~loc ~attrs (List.map (object_field sub) l) o
     | Ptyp_class (lid, tl) ->
         class_ ~loc ~attrs (map_loc sub lid) (List.map (sub.typ sub) tl)
-    | Ptyp_alias (t, s) -> alias ~loc ~attrs (sub.typ sub t) s
+    | Ptyp_alias (t, s) ->
+        let s = map_loc sub s in
+        alias ~loc ~attrs (sub.typ sub t) s
     | Ptyp_variant (rl, b, ll) ->
         variant ~loc ~attrs (List.map (row_field sub) rl) b ll
     | Ptyp_poly (sl, t) -> poly ~loc ~attrs
@@ -214,6 +223,8 @@ module T = struct
     | Ptyp_package (lid, l) ->
         package ~loc ~attrs (map_loc sub lid)
           (List.map (map_tuple (map_loc sub) (sub.typ sub)) l)
+    | Ptyp_open (mod_ident, t) ->
+        open_ ~loc ~attrs (map_loc sub mod_ident) (sub.typ sub t)
     | Ptyp_extension x -> extension ~loc ~attrs (sub.extension sub x)
 
   let map_type_declaration sub
@@ -470,12 +481,33 @@ end
 
 
 module M = struct
-  (* Value expressions for the module language *)
+  module I = Jane_syntax.Instances
 
-  let map sub {pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} =
+  (* Value expressions for the module language *)
+  let map_instance _sub : I.instance -> I.instance = function
+    | i ->
+      (* CR lmaurer: Implement this. Might want to change the [instance] type to have
+        Ids with locations in them rather than just raw strings. *)
+      i
+
+  let map_instance_expr sub : I.module_expr -> I.module_expr = function
+    | Imod_instance i -> Imod_instance (map_instance sub i)
+
+  let map_ext sub : Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t =
+    function
+    | Emod_instance i -> Emod_instance (map_instance_expr sub i)
+
+  let map sub
+        ({pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} as mexpr) =
     let open Mod in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
+    match Jane_syntax.Module_expr.of_ast mexpr with
+    | Some ext -> begin
+        match sub.module_expr_jane_syntax sub ext with
+        | Emod_instance i -> Jane_syntax.Instances.module_expr_of ~loc i
+      end
+    | None ->
     match desc with
     | Pmod_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pmod_structure str -> structure ~loc ~attrs (sub.structure sub str)
@@ -627,14 +659,12 @@ module E = struct
       Lexp_newtype (str, jkind, inner_expr)
 
   let map_ltexp sub el = List.map (map_snd (sub.expr sub)) el
-    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
 
   let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
     function
     | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
     | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
     | Jexp_layout x -> Jexp_layout (map_layout_exp sub x)
-    | Jexp_tuple ltexp -> Jexp_tuple (map_ltexp sub ltexp)
 
   let map sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
@@ -664,7 +694,8 @@ module E = struct
     | Pexp_match (e, pel) ->
         match_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
     | Pexp_try (e, pel) -> try_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
-    | Pexp_tuple el -> tuple ~loc ~attrs (List.map (sub.expr sub) el)
+    | Pexp_tuple el ->
+        tuple ~loc ~attrs (map_ltexp sub el)
     | Pexp_unboxed_tuple el ->
         unboxed_tuple ~loc ~attrs (map_ltexp sub el)
     | Pexp_construct (lid, arg) ->
@@ -754,13 +785,11 @@ module P = struct
     | Float _ | Integer _ as x -> x
 
   let map_ltpat sub pl = List.map (map_snd (sub.pat sub)) pl
-    (* CR labeled tuples: Eventually mappers may want to see the labels. *)
 
   let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
     | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
     | Jpat_layout (Lpat_constant x) ->
         Jpat_layout (Lpat_constant (map_unboxed_constant_pat sub x))
-    | Jpat_tuple (ltpat, c) -> Jpat_tuple (map_ltpat sub ltpat, c)
 
   let map sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -780,7 +809,7 @@ module P = struct
     | Ppat_constant c -> constant ~loc ~attrs (sub.constant sub c)
     | Ppat_interval (c1, c2) ->
         interval ~loc ~attrs (sub.constant sub c1) (sub.constant sub c2)
-    | Ppat_tuple pl -> tuple ~loc ~attrs (List.map (sub.pat sub) pl)
+    | Ppat_tuple (pl, c) -> tuple ~loc ~attrs (map_ltpat sub pl) c
     | Ppat_unboxed_tuple (pl, c) ->
         unboxed_tuple ~loc ~attrs (map_ltpat sub pl) c
     | Ppat_construct (l, p) ->
@@ -881,6 +910,7 @@ let default_mapper =
     structure = (fun this l -> List.map (this.structure_item this) l);
     structure_item = M.map_structure_item;
     module_expr = M.map;
+    module_expr_jane_syntax = M.map_ext;
     signature = (fun this l -> List.map (this.signature_item this) l);
     signature_item = MT.map_signature_item;
     module_type = MT.map;
@@ -1101,6 +1131,22 @@ let default_mapper =
 
     modalities = (fun this m ->
       List.map (map_loc this) m);
+
+    directive_argument =
+      (fun this a ->
+         { pdira_desc= a.pdira_desc
+         ; pdira_loc= this.location this a.pdira_loc} );
+
+    toplevel_directive =
+      (fun this d ->
+         { pdir_name= map_loc this d.pdir_name
+         ; pdir_arg= map_opt (this.directive_argument this) d.pdir_arg
+         ; pdir_loc= this.location this d.pdir_loc } );
+
+    toplevel_phrase =
+      (fun this -> function
+         | Ptop_def s -> Ptop_def (this.structure this s)
+         | Ptop_dir d -> Ptop_dir (this.toplevel_directive this d) );
   }
 
 let extension_of_error {kind; main; sub} =
@@ -1153,12 +1199,12 @@ module PpxContext = struct
   let rec make_list f lst =
     match lst with
     | x :: rest ->
-      Exp.construct (lid "::") (Some (Exp.tuple [f x; make_list f rest]))
+      Exp.construct (lid "::") (Some (Exp.tuple [None, f x; None, make_list f rest]))
     | [] ->
       Exp.construct (lid "[]") None
 
   let make_pair f1 f2 (x1, x2) =
-    Exp.tuple [f1 x1; f2 x2]
+    Exp.tuple [None, f1 x1; None, f2 x2]
 
   let make_option f opt =
     match opt with
@@ -1229,7 +1275,7 @@ module PpxContext = struct
       and get_list elem = function
         | {pexp_desc =
              Pexp_construct ({txt = Longident.Lident "::"},
-                             Some {pexp_desc = Pexp_tuple [exp; rest]}) } ->
+                             Some {pexp_desc = Pexp_tuple [None, exp; None, rest]}) } ->
             elem exp :: get_list elem rest
         | {pexp_desc =
              Pexp_construct ({txt = Longident.Lident "[]"}, None)} ->
@@ -1237,7 +1283,7 @@ module PpxContext = struct
         | _ -> raise_errorf "Internal error: invalid [@@@ocaml.ppx.context \
                              { %s }] list syntax" name
       and get_pair f1 f2 = function
-        | {pexp_desc = Pexp_tuple [e1; e2]} ->
+        | {pexp_desc = Pexp_tuple [None, e1; None, e2]} ->
             (f1 e1, f2 e2)
         | _ -> raise_errorf "Internal error: invalid [@@@ocaml.ppx.context \
                              { %s }] pair syntax" name

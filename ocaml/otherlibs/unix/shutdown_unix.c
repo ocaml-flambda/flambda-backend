@@ -15,13 +15,13 @@
 
 #include <caml/fail.h>
 #include <caml/mlvalues.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
 #ifdef HAS_SOCKETS
 
 #include <sys/socket.h>
 
-static int shutdown_command_table[] = {
+static const int shutdown_command_table[] = {
   0, 1, 2
 };
 

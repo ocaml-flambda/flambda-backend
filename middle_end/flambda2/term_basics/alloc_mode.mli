@@ -35,10 +35,10 @@ module For_types : sig
 
   (** Maps [Alloc_local] to [Heap_or_local], as all Lambda annotations that we
       transform into constraints have this semantics *)
-  val from_lambda : Lambda.alloc_mode -> t
+  val from_lambda : Lambda.locality_mode -> t
 
   (** Symmetric to [from_lambda], so [Heap_or_local] is mapped to [Alloc_local] *)
-  val to_lambda : t -> Lambda.alloc_mode
+  val to_lambda : t -> Lambda.locality_mode
 end
 
 module For_applications : sig
@@ -62,12 +62,10 @@ module For_applications : sig
   val as_type : t -> For_types.t
 
   val from_lambda :
-    Lambda.alloc_mode ->
+    Lambda.locality_mode ->
     current_region:Variable.t ->
     current_ghost_region:Variable.t ->
     t
-
-  val to_lambda : t -> Lambda.alloc_mode
 
   include Contains_names.S with type t := t
 
@@ -92,9 +90,7 @@ module For_allocations : sig
 
   val as_type : t -> For_types.t
 
-  val from_lambda : Lambda.alloc_mode -> current_region:Variable.t -> t
-
-  val to_lambda : t -> Lambda.alloc_mode
+  val from_lambda : Lambda.locality_mode -> current_region:Variable.t -> t
 
   include Contains_names.S with type t := t
 

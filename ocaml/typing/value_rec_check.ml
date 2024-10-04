@@ -16,7 +16,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Static checking of recursive declarations
+(** Static checking of recursive declarations, as described in
+
+      A practical mode system for recursive definitions
+      Alban Reynaud, Gabriel Scherer and Jeremy Yallop
+      POPL 2021
 
 Some recursive definitions are meaningful
 {[
@@ -600,7 +604,8 @@ let array_mode exp elt_sort = match Typeopt.array_kind exp elt_sort with
   | Lambda.Paddrarray | Lambda.Pintarray ->
     (* non-generic, non-float arrays act as constructors *)
     Guard
-  | Lambda.Punboxedfloatarray _ | Lambda.Punboxedintarray _ ->
+  | Lambda.Punboxedfloatarray _ | Lambda.Punboxedintarray _
+  | Lambda.Punboxedvectorarray _ ->
     Dereference
 
 (* Expression judgment:
@@ -669,19 +674,33 @@ let rec expression : Typedtree.expression -> term_judg =
       *)
       expression arg << Guard
     | Texp_apply (e, args, _, _, _)  ->
-        let arg (_, arg) =
-          match arg with
-          | Omitted _ -> empty
-          | Arg (e, _) -> expression e
+        (* [args] may contain omitted arguments, corresponding to labels in
+           the function's type that were not passed in the actual application.
+           The arguments before the first omitted argument are passed to the
+           function immediately, so they are dereferenced. The arguments after
+           the first omitted one are stored in a closure, so guarded.
+           The function itself is called immediately (dereferenced) if there
+           is at least one argument before the first omitted one.
+           On the other hand, if the first argument is omitted then the
+           function is stored in the closure without being called. *)
+        let rec split_args ~has_omitted_arg = function
+          | [] -> [], []
+          | (_, Omitted _) :: rest -> split_args ~has_omitted_arg:true rest
+          | (_, Arg (arg, _)) :: rest ->
+            let applied, delayed = split_args ~has_omitted_arg rest in
+            if has_omitted_arg
+            then applied, arg :: delayed
+            else arg :: applied, delayed
         in
-        let app_mode = if List.exists is_abstracted_arg args
-          then (* see the comment on Texp_apply in typedtree.mli;
-                  the non-abstracted arguments are bound to local
-                  variables, which corresponds to a Guard mode. *)
-            Guard
-          else Dereference
+        let applied, delayed = split_args ~has_omitted_arg:false args in
+        let function_mode =
+          match applied with
+          | [] -> Guard
+          | _ :: _ -> Dereference
         in
-        join [expression e; list arg args] << app_mode
+        join [expression e << function_mode;
+              list expression applied << Dereference;
+              list expression delayed << Guard]
     | Texp_tuple (exprs, _) ->
       list expression (List.map snd exprs) << Guard
     | Texp_unboxed_tuple exprs ->

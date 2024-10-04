@@ -24,8 +24,14 @@ val afl_instrument : bool
 val asm : string
 (** Path to the assembler *)
 
+val cpp : string
+(** Command to use to invoke the C preprocessor *)
+
+val cppflags : string
+(** Flags to pass to the C preprocessor *)
+
 val cc : string
-(** Path to the C compiler *)
+(** Command to use to invoke the C compiler *)
 
 val cflags : string
 (** Flags to pass to the C compiler *)
@@ -66,9 +72,6 @@ val asmext : string
 
 val system : string
 (** The content of the SYSTEM Make variable *)
-
-val c_preprocessor : string
-(** Command to use to invoke the C preprocessor *)
 
 val ocamlc_default_flags : string
 (** Flags passed by default to ocamlc.byte and ocamlc.opt *)
@@ -145,3 +148,6 @@ val frame_pointers : bool
 
 val naked_pointers : bool
 (** Whether the runtime system supports naked pointers outside the heap *)
+
+val tsan : bool
+(** Whether ThreadSanitizer support has been enabled at configure time *)

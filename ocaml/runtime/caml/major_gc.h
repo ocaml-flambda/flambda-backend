@@ -24,28 +24,14 @@ typedef enum {
   Phase_mark_final,
   Phase_sweep_ephe
 } gc_phase_t;
-extern gc_phase_t caml_gc_phase;
 
-Caml_inline char caml_gc_phase_char(gc_phase_t phase) {
-  switch (phase) {
-    case Phase_sweep_main:
-      return 'S';
-    case Phase_sweep_and_mark_main:
-      return 'M';
-    case Phase_mark_final:
-      return 'F';
-    case Phase_sweep_ephe:
-      return 'E';
-    default:
-      return 'U';
-  }
-}
+extern gc_phase_t caml_gc_phase;
 
 Caml_inline int caml_marking_started(void) {
   return caml_gc_phase != Phase_sweep_main;
 }
 
-intnat caml_opportunistic_major_work_available (void);
+intnat caml_opportunistic_major_work_available (caml_domain_state*);
 void caml_opportunistic_major_collection_slice (intnat);
 /* auto-triggered slice from within the GC */
 #define AUTO_TRIGGERED_MAJOR_SLICE -1
@@ -64,11 +50,8 @@ void caml_finish_major_cycle(int force_compaction);
 #ifdef DEBUG
 int caml_mark_stack_is_empty(void);
 #endif
-/* Ephemerons and finalisers */
-void caml_orphan_allocated_words(void);
-void caml_add_to_orphaned_ephe_list(struct caml_ephe_info* ephe_info);
-void caml_add_orphaned_finalisers (struct caml_final_info*);
-void caml_final_domain_terminate (caml_domain_state *domain_state);
+void caml_orphan_ephemerons(caml_domain_state*);
+void caml_orphan_finalisers(caml_domain_state*);
 
 /* Forces finalisation of all heap-allocated values,
    disregarding both local and global roots.

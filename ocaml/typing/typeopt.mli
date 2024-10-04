@@ -28,6 +28,7 @@ val maybe_pointer : Typedtree.expression -> Lambda.immediate_or_pointer
 val array_type_kind :
   elt_sort:(Jkind.Sort.t option)
   -> Env.t -> Location.t -> Types.type_expr -> Lambda.array_kind
+val array_type_mut : Env.t -> Types.type_expr -> Lambda.mutable_flag
 val array_kind :
   Typedtree.expression -> Jkind.Sort.t -> Lambda.array_kind
 val array_pattern_kind :
@@ -54,7 +55,7 @@ val layout :
    optimization.  [layout_of_sort] gracefully errors on void, while
    [layout_of_base] loudly fails on void. *)
 val layout_of_sort : Location.t -> Jkind.sort -> Lambda.layout
-val layout_of_base_sort : Jkind.Sort.base -> Lambda.layout
+val layout_of_const_sort : Jkind.Sort.Const.t -> Lambda.layout
 
 (* Given a function type and the sort of its return type, compute the layout of
    its return type. *)
@@ -71,6 +72,7 @@ val function2_return_layout :
 val function_arg_layout :
   Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
+val value_kind : Env.t -> Location.t -> Types.type_expr -> Lambda.value_kind
 
 val classify_lazy_argument : Typedtree.expression ->
                              [ `Constant_or_function

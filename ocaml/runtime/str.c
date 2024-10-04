@@ -276,6 +276,10 @@ CAMLprim value caml_bytes_set64(value str, value index, value newval)
   return Val_unit;
 }
 
+CAMLno_tsan_for_perf /* This attribute needs to stay on its own line for this
+                        function to be detected as a primitive by the build
+                        system. */
+
 CAMLprim value caml_string_get16_indexed_by_int64(value, value);
 CAMLprim value caml_string_get16_indexed_by_int32(value, value);
 CAMLprim value caml_string_get16_indexed_by_nativeint(value, value);

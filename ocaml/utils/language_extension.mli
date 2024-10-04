@@ -20,9 +20,10 @@ type 'a t = 'a Language_extension_kernel.t =
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
-  | SIMD : unit t
+  | SIMD : maturity t
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
+  | Instances : unit t
 
 (** Existentially packed language extension *)
 module Exist : sig

@@ -62,6 +62,12 @@ and ident_int32x4 = ident_create "int32x4"
 and ident_int64x2 = ident_create "int64x2"
 and ident_float32x4 = ident_create "float32x4"
 and ident_float64x2 = ident_create "float64x2"
+and ident_unboxed_int8x16 = ident_create "int8x16#"
+and ident_unboxed_int16x8 = ident_create "int16x8#"
+and ident_unboxed_int32x4 = ident_create "int32x4#"
+and ident_unboxed_int64x2 = ident_create "int64x2#"
+and ident_unboxed_float32x4 = ident_create "float32x4#"
+and ident_unboxed_float64x2 = ident_create "float64x2#"
 
 let path_int = Pident ident_int
 and path_char = Pident ident_char
@@ -97,6 +103,12 @@ and path_int32x4 = Pident ident_int32x4
 and path_int64x2 = Pident ident_int64x2
 and path_float32x4 = Pident ident_float32x4
 and path_float64x2 = Pident ident_float64x2
+and path_unboxed_int8x16 = Pident ident_unboxed_int8x16
+and path_unboxed_int16x8 = Pident ident_unboxed_int16x8
+and path_unboxed_int32x4 = Pident ident_unboxed_int32x4
+and path_unboxed_int64x2 = Pident ident_unboxed_int64x2
+and path_unboxed_float32x4 = Pident ident_unboxed_float32x4
+and path_unboxed_float64x2 = Pident ident_unboxed_float64x2
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
@@ -134,6 +146,12 @@ and type_int32x4 = newgenty (Tconstr(path_int32x4, [], ref Mnil))
 and type_int64x2 = newgenty (Tconstr(path_int64x2, [], ref Mnil))
 and type_float32x4 = newgenty (Tconstr(path_float32x4, [], ref Mnil))
 and type_float64x2 = newgenty (Tconstr(path_float64x2, [], ref Mnil))
+and type_unboxed_int8x16 = newgenty (Tconstr(path_unboxed_int8x16, [], ref Mnil))
+and type_unboxed_int16x8 = newgenty (Tconstr(path_unboxed_int16x8, [], ref Mnil))
+and type_unboxed_int32x4 = newgenty (Tconstr(path_unboxed_int32x4, [], ref Mnil))
+and type_unboxed_int64x2 = newgenty (Tconstr(path_unboxed_int64x2, [], ref Mnil))
+and type_unboxed_float32x4 = newgenty (Tconstr(path_unboxed_float32x4, [], ref Mnil))
+and type_unboxed_float64x2 = newgenty (Tconstr(path_unboxed_float64x2, [], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -216,7 +234,7 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
 
 let mk_add_type add_type
       ?manifest type_ident
-      ?(kind=Type_abstract Abstract_def)
+      ?(kind=Type_abstract Definition)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -246,7 +264,7 @@ let mk_add_type add_type
   add_type type_ident decl env
 
 let mk_add_type1 add_type type_ident
-      ?(kind=fun _ -> Type_abstract Abstract_def)
+      ?(kind=fun _ -> Type_abstract Definition)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
@@ -291,7 +309,7 @@ let mk_add_extension add_extension id args jkinds =
             match Jkind.Const.get_layout const with
             | Base Value -> ()
             | Any
-            | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64)
+            | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
             | Product _ ->
                 raise_error ()
           end
@@ -494,7 +512,7 @@ let build_initial_env add_type add_extension empty_env =
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Jkind.Builtin.value ~why:Tuple |]
 
-let add_simd_extension_types add_type env =
+let add_simd_stable_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_int8x16
@@ -521,6 +539,34 @@ let add_simd_extension_types add_type env =
       ~jkind:(Jkind.of_const ~why:(Primitive ident_float64x2)
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+
+let add_simd_beta_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  env
+  |> add_type ident_unboxed_int8x16
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int8x16)
+                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_int16x8
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int16x8)
+                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_int32x4
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int32x4)
+                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_int64x2
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int64x2)
+                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_float32x4
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float32x4)
+                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_float64x2
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float64x2)
+                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.vec128
 
 let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in

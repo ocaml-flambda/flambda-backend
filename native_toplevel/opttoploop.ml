@@ -261,7 +261,7 @@ let default_load ppf (program : Lambda.program) =
   Asmgen.compile_implementation
     (module Unix : Compiler_owee.Unix_intf.S)
     ~toplevel:need_symbol
-    ~filename ~prefixname:filename
+    ~sourcefile:(Some filename) ~prefixname:filename
     ~pipeline ~ppf_dump:ppf
     program;
   Asmlink.call_linker_shared ~native_toplevel:true [filename ^ ext_obj] dll;

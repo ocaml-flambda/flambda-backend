@@ -183,6 +183,8 @@ module Lambda_utils = struct
 
     let make_unboxed_nativeint_vect = unary "caml_make_unboxed_nativeint_vect"
 
+    let make_unboxed_vec128_vect = unary "caml_make_unboxed_vec128_vect"
+
     let array_append = binary "caml_array_append"
 
     let array_sub =

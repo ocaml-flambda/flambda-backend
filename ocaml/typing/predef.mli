@@ -50,6 +50,12 @@ val type_int32x4: type_expr
 val type_int64x2: type_expr
 val type_float32x4: type_expr
 val type_float64x2: type_expr
+val type_unboxed_int8x16: type_expr
+val type_unboxed_int16x8: type_expr
+val type_unboxed_int32x4: type_expr
+val type_unboxed_int64x2: type_expr
+val type_unboxed_float32x4: type_expr
+val type_unboxed_float64x2: type_expr
 
 val path_int: Path.t
 val path_char: Path.t
@@ -85,6 +91,12 @@ val path_int32x4: Path.t
 val path_int64x2: Path.t
 val path_float32x4: Path.t
 val path_float64x2: Path.t
+val path_unboxed_int8x16: Path.t
+val path_unboxed_int16x8: Path.t
+val path_unboxed_int32x4: Path.t
+val path_unboxed_int64x2: Path.t
+val path_unboxed_float32x4: Path.t
+val path_unboxed_float64x2: Path.t
 
 val path_match_failure: Path.t
 val path_invalid_argument: Path.t
@@ -102,9 +114,9 @@ val ident_some : Ident.t
 val ident_or_null : Ident.t
 
 (* The jkind used for optional function argument types *)
-val option_argument_jkind : Jkind.t
+val option_argument_jkind : 'd jkind
 (* The jkind used for list argument types *)
-val list_argument_jkind : Jkind.t
+val list_argument_jkind : 'd jkind
 
 (* To build the initial environment. Since there is a nasty mutual
    recursion between predef and env, we break it by parameterizing
@@ -117,7 +129,10 @@ val build_initial_env:
 
 (* Add simd types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the simd extension is on. *)
-val add_simd_extension_types :
+val add_simd_stable_extension_types :
+  (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+
+val add_simd_beta_extension_types :
   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
 
 (* Add small number types to an environment.  This is separate from [build_initial_env]

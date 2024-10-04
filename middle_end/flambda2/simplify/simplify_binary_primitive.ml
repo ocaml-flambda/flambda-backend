@@ -926,153 +926,10 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     in
     SPR.create original_term ~try_reify:false dacc
 
-let[@inline always] simplify_immutable_block_load0
-    (access_kind : P.Block_access_kind.t) ~min_name_mode dacc ~original_term
-    _dbg ~arg1:block ~arg1_ty:block_ty ~arg2:_ ~arg2_ty:index_ty ~result_var =
-  let result_kind = P.Block_access_kind.element_kind_for_load access_kind in
-  let result_var' = Bound_var.var result_var in
-  let typing_env = DA.typing_env dacc in
-  match[@warning "-fragile-match"]
-    T.meet_equals_single_tagged_immediate typing_env index_ty
-  with
-  | Invalid -> SPR.create_invalid dacc
-  | Need_meet -> SPR.create_unknown dacc ~result_var result_kind ~original_term
-  | Known_result index -> (
-    match
-      T.meet_block_field_simple typing_env ~min_name_mode
-        ~field_kind:result_kind block_ty index
-    with
-    | Invalid -> SPR.create_invalid dacc
-    | Known_result simple ->
-      let dacc =
-        DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
-      in
-      SPR.create (Named.create_simple simple) ~try_reify:false dacc
-    | Need_meet -> (
-      let n = Targetint_31_63.add index Targetint_31_63.one in
-      (* CR-someday mshinwell: We should be able to use the size in the
-         [access_kind] to constrain the type of the block *)
-      let tag, shape =
-        match access_kind with
-        | Values { tag; _ } ->
-          ( Or_unknown.map tag ~f:Tag.Scannable.to_tag,
-            K.Block_shape.Scannable Value_only )
-        | Naked_floats { size } ->
-          ( (match size with
-            | Known size ->
-              (* We don't expect blocks of naked floats of size zero (it doesn't
-                 seem that the frontend currently emits code to create such
-                 blocks) and so it isn't clear whether such blocks should have
-                 tag zero (like zero-sized naked float arrays) or another
-                 tag. *)
-              if Targetint_31_63.equal size Targetint_31_63.zero
-              then Or_unknown.Unknown
-              else Or_unknown.Known Tag.double_array_tag
-            | Unknown -> Or_unknown.Unknown),
-            K.Block_shape.Float_record )
-        | Mixed { tag; size = _; field_kind = _; shape } ->
-          ( Or_unknown.map tag ~f:Tag.Scannable.to_tag,
-            K.Block_shape.Scannable (Mixed_record shape) )
-      in
-      let result =
-        Simplify_common.simplify_projection dacc ~original_term
-          ~deconstructing:block_ty
-          ~shape:
-            (T.immutable_block_with_size_at_least ~tag ~n ~shape
-               ~field_n_minus_one:result_var')
-          ~result_var ~result_kind
-      in
-      match result.simplified_named with
-      | Invalid -> result
-      | Ok _ -> (
-        (* If the type contains enough information to actually build a primitive
-           to make the corresponding block, then we add a CSE equation, to try
-           to avoid duplicate allocations in the future. This should help with
-           cases such as "Some x -> Some x". *)
-        let dacc = result.dacc in
-        match
-          T.prove_unique_fully_constructed_immutable_heap_block
-            (DA.typing_env dacc) block_ty
-        with
-        | Unknown -> result
-        | Proved (tag, shape_from_type, _size, field_simples) -> (
-          match Tag.Scannable.of_tag tag with
-          | None -> result
-          | Some tag -> (
-            let block_kind : P.Block_kind.t =
-              match access_kind with
-              | Values _ ->
-                let arity =
-                  List.map (fun _ -> K.With_subkind.any_value) field_simples
-                in
-                Values (tag, arity)
-              | Naked_floats _ -> Naked_floats
-              | Mixed { shape; _ } ->
-                (match shape_from_type with
-                | Scannable (Mixed_record shape_from_type)
-                  when K.Mixed_block_shape.equal shape shape_from_type ->
-                  ()
-                | Scannable Value_only
-                | Float_record
-                | Scannable (Mixed_record _) ->
-                  Misc.fatal_error
-                    "Block access kind disagrees with block shape from type");
-                Mixed (tag, shape)
-            in
-            let prim =
-              P.Eligible_for_cse.create
-                (Variadic
-                   ( Make_block
-                       (block_kind, Immutable, Alloc_mode.For_allocations.heap),
-                     field_simples ))
-            in
-            match prim with
-            | None -> result
-            | Some prim ->
-              let dacc =
-                DA.map_denv dacc ~f:(fun denv ->
-                    DE.add_cse denv prim ~bound_to:block)
-              in
-              SPR.with_dacc result dacc)))))
-
-let simplify_immutable_block_load access_kind ~min_name_mode dacc ~original_term
-    dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var =
-  let result =
-    simplify_immutable_block_load0 access_kind ~min_name_mode dacc
-      ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~result_var
-  in
-  let dacc' =
-    (* The [args] being queried here are the post-simplification arguments of
-       the primitive, so we can directly read off whether they are symbols or
-       constants, as needed. *)
-    Simple.pattern_match arg2
-      ~const:(fun const ->
-        match Reg_width_const.descr const with
-        | Tagged_immediate index ->
-          let kind = P.Block_access_kind.element_subkind_for_load access_kind in
-          Simplify_common.add_symbol_projection result.dacc ~projected_from:arg1
-            (Symbol_projection.Projection.block_load ~index)
-            ~projection_bound_to:result_var ~kind
-        | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-        | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
-          Misc.fatal_errorf "Kind error for [Block_load] of %a at index %a"
-            Simple.print arg1 Simple.print arg2)
-      ~name:(fun _ ~coercion:_ -> dacc)
-  in
-  if dacc == dacc' then result else SPR.with_dacc result dacc'
-
-let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
-    _dbg ~arg1 ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
-  if Simple.is_const arg1
-  then SPR.create_invalid dacc
-  else
-    SPR.create_unknown dacc ~result_var
-      (P.result_kind' original_prim)
-      ~original_term
-
 let simplify_array_load (array_kind : P.Array_kind.t)
     (accessor_width : P.array_accessor_width) mutability dacc ~original_term:_
-    dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
+    dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:index_ty ~result_var
+    =
   let result_kind =
     match accessor_width with
     | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
@@ -1087,10 +944,7 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     let ty = T.bottom result_kind in
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create_invalid dacc
-  | Ok array_kind ->
-    (* CR mshinwell: Add proper support for immutable arrays here (probably not
-       required at present since they only go into [Duplicate_array]
-       operations). *)
+  | Ok array_kind -> (
     let result_kind' =
       match accessor_width with
       | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
@@ -1098,12 +952,44 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     in
     assert (K.equal result_kind result_kind');
     let prim : P.t =
-      Binary (Array_load (array_kind, accessor_width, mutability), arg1, arg2)
+      Binary (Array_load (array_kind, accessor_width, mutability), array, index)
     in
-    let named = Named.create_prim prim dbg in
-    let ty = T.unknown (P.result_kind' prim) in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create named ~try_reify:false dacc
+    let[@inline] return_given_type ty ~try_reify =
+      let named = Named.create_prim prim dbg in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create named ~try_reify dacc
+    in
+    let[@inline] contents_unknown () =
+      return_given_type (T.unknown (P.result_kind' prim)) ~try_reify:false
+    in
+    (* CR mshinwell/vlaviron: if immutable array accesses were consistently
+       setting [mutability] to [Immutable], we could restrict the following code
+       to immutable loads only and use [T.meet_is_immutable_array] instead. *)
+    match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
+    | Unknown -> contents_unknown ()
+    | Proved (elt_kind, fields, _mode) -> (
+      match elt_kind with
+      | Unknown | Bottom -> contents_unknown ()
+      | Ok elt_kind -> (
+        if not (K.equal (K.With_subkind.kind elt_kind) result_kind)
+        then contents_unknown ()
+        else
+          match
+            T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty
+          with
+          | Unknown -> contents_unknown ()
+          | Proved imms -> (
+            match Targetint_31_63.Set.get_singleton imms with
+            | None -> contents_unknown ()
+            | Some imm ->
+              if Targetint_31_63.( < ) imm Targetint_31_63.zero
+                 || Targetint_31_63.( >= ) imm
+                      (Array.length fields |> Targetint_31_63.of_int)
+              then SPR.create_invalid dacc
+              else
+                return_given_type
+                  fields.(Targetint_31_63.to_int imm)
+                  ~try_reify:true))))
 
 let simplify_string_or_bigstring_load _string_like_value _string_accessor_width
     ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_
@@ -1138,16 +1024,16 @@ let simplify_atomic_fetch_and_add ~original_prim dacc ~original_term _dbg
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_block_set _block_access_kind _init_or_assign ~field:_ dacc
+    ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~result_var =
+  SPR.create_unit dacc ~result_var ~original_term
+
 let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty dbg ~result_var =
-  let min_name_mode = Bound_var.name_mode result_var in
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
-    | Block_load (access_kind, (Immutable | Immutable_unique)) ->
-      simplify_immutable_block_load access_kind ~min_name_mode
-    | Block_load (access_kind, Mutable) ->
-      simplify_mutable_block_load access_kind ~original_prim
+    | Block_set { kind; init; field } -> simplify_block_set kind init ~field
     | Array_load (array_kind, width, mutability) ->
       simplify_array_load array_kind width mutability
     | Int_arith (kind, op) -> (
@@ -1195,7 +1081,7 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
 
 let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
   match prim with
-  | Block_load _ | Array_load _ | Int_arith _ | Int_shift _
+  | Block_set _ | Array_load _ | Int_arith _ | Int_shift _
   | Int_comp (_, Yielding_int_like_compare_functions _)
   | Float_arith _ | Float_comp _ | Phys_equal _ | String_or_bigstring_load _
   | Bigarray_load _ | Bigarray_get_alignment _ | Atomic_exchange

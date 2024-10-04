@@ -218,6 +218,7 @@ type record_mismatch =
   | Float_representation of position
   | Ufloat_representation of position
   | Mixed_representation of position
+  | Mixed_representation_with_flat_floats of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -280,6 +281,8 @@ let report_modality_equate_error first second ppf ((equate_step, sub_error) : Mo
   | Left_le_right -> report_modality_sub_error first second ppf sub_error
   | Right_le_left -> report_modality_sub_error second first ppf sub_error
 
+module Style = Misc.Style
+
 let report_primitive_mismatch first second ppf err =
   let pr fmt = Format.fprintf ppf fmt in
   match (err : primitive_mismatch) with
@@ -289,8 +292,9 @@ let report_primitive_mismatch first second ppf err =
       pr "The syntactic arities of these primitives were not the same.@ \
           (They must have the same number of arrows present in the source.)"
   | No_alloc ord ->
-      pr "%s primitive is [@@@@noalloc] but %s is not"
+      pr "%s primitive is %a but %s is not"
         (String.capitalize_ascii (choose ord first second))
+        Style.inline_code "[@@noalloc]"
         (choose_other ord first second)
   | Builtin ->
       pr "The two primitives differ in whether they are builtins"
@@ -353,30 +357,34 @@ let report_label_mismatch first second env ppf err =
 let pp_record_diff first second prefix decl env ppf (x : record_change) =
   match x with
   | Delete cd ->
-      Format.fprintf ppf "%aAn extra field, %s, is provided in %s %s."
-        prefix x (Ident.name cd.delete.ld_id) first decl
+      Format.fprintf ppf "%aAn extra field, %a, is provided in %s %s."
+        prefix x Style.inline_code (Ident.name cd.delete.ld_id) first decl
   | Insert cd ->
-      Format.fprintf  ppf "%aA field, %s, is missing in %s %s."
-        prefix x (Ident.name cd.insert.ld_id) first decl
+      Format.fprintf  ppf "%aA field, %a, is missing in %s %s."
+        prefix x Style.inline_code (Ident.name cd.insert.ld_id) first decl
   | Change Type {got=lbl1; expected=lbl2; reason} ->
       Format.fprintf ppf
         "@[<hv>%aFields do not match:@;<1 2>\
          %a@ is not the same as:\
          @;<1 2>%a@ %a@]"
         prefix x
-        Printtyp.label lbl1
-        Printtyp.label lbl2
+        (Style.as_inline_code Printtyp.label) lbl1
+        (Style.as_inline_code Printtyp.label) lbl2
         (report_label_mismatch first second env) reason
   | Change Name n ->
-      Format.fprintf ppf "%aFields have different names, %s and %s."
-        prefix x n.got n.expected
+      Format.fprintf ppf "%aFields have different names, %a and %a."
+        prefix x
+        Style.inline_code n.got
+        Style.inline_code n.expected
   | Swap sw ->
-      Format.fprintf ppf "%aFields %s and %s have been swapped."
-        prefix x sw.first sw.last
+      Format.fprintf ppf "%aFields %a and %a have been swapped."
+        prefix x
+        Style.inline_code sw.first
+        Style.inline_code sw.last
   | Move {name; got; expected } ->
       Format.fprintf ppf
-        "@[<2>%aField %s has been moved@ from@ position %d@ to %d.@]"
-        prefix x name expected got
+        "@[<2>%aField %a has been moved@ from@ position %d@ to %d.@]"
+        prefix x Style.inline_code name expected got
 
 let report_patch pr_diff first second decl env ppf patch =
   let nl ppf () = Format.fprintf ppf "@," in
@@ -416,6 +424,10 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses mixed representation"
+  | Mixed_representation_with_flat_floats ord ->
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "uses a mixed representation where boxed floats are stored flat"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -440,32 +452,36 @@ let report_constructor_mismatch first second decl env ppf err =
 let pp_variant_diff first second prefix decl env ppf (x : variant_change) =
   match x with
   | Delete cd ->
-      Format.fprintf ppf  "%aAn extra constructor, %s, is provided in %s %s."
-        prefix x (Ident.name cd.delete.cd_id) first decl
+      Format.fprintf ppf  "%aAn extra constructor, %a, is provided in %s %s."
+        prefix x Style.inline_code (Ident.name cd.delete.cd_id) first decl
   | Insert cd ->
-      Format.fprintf ppf "%aA constructor, %s, is missing in %s %s."
-        prefix x (Ident.name cd.insert.cd_id) first decl
+      Format.fprintf ppf "%aA constructor, %a, is missing in %s %s."
+        prefix x Style.inline_code (Ident.name cd.insert.cd_id) first decl
   | Change Type {got; expected; reason} ->
       Format.fprintf ppf
         "@[<hv>%aConstructors do not match:@;<1 2>\
          %a@ is not the same as:\
          @;<1 2>%a@ %a@]"
         prefix x
-        Printtyp.constructor got
-        Printtyp.constructor expected
+        (Style.as_inline_code Printtyp.constructor) got
+        (Style.as_inline_code Printtyp.constructor) expected
         (report_constructor_mismatch first second decl env) reason
   | Change Name n ->
       Format.fprintf ppf
-        "%aConstructors have different names, %s and %s."
-        prefix x n.got n.expected
+        "%aConstructors have different names, %a and %a."
+        prefix x
+        Style.inline_code n.got
+        Style.inline_code n.expected
   | Swap sw ->
       Format.fprintf ppf
-        "%aConstructors %s and %s have been swapped."
-        prefix x sw.first sw.last
+        "%aConstructors %a and %a have been swapped."
+        prefix x
+        Style.inline_code sw.first
+        Style.inline_code sw.last
   | Move {name; got; expected} ->
       Format.fprintf ppf
-        "@[<2>%aConstructor %s has been moved@ from@ position %d@ to %d.@]"
-        prefix x name expected got
+        "@[<2>%aConstructor %a has been moved@ from@ position %d@ to %d.@]"
+        prefix x Style.inline_code name expected got
 
 let report_extension_constructor_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -473,25 +489,30 @@ let report_extension_constructor_mismatch first second decl env ppf err =
   | Constructor_privacy ->
       pr "Private extension constructor(s) would be revealed."
   | Constructor_mismatch (id, ext1, ext2, err) ->
+      let constructor =
+        Style.as_inline_code (Printtyp.extension_only_constructor id)
+      in
       pr "@[<hv>Constructors do not match:@;<1 2>%a@ is not the same as:\
           @;<1 2>%a@ %a@]"
-        (Printtyp.extension_only_constructor id) ext1
-        (Printtyp.extension_only_constructor id) ext2
+        constructor ext1
+        constructor ext2
         (report_constructor_mismatch first second decl env) err
+
 
 let report_private_variant_mismatch first second decl env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
+  let pp_tag ppf x = Format.fprintf ppf "`%s" x in
   match (err : private_variant_mismatch) with
   | Only_outer_closed ->
       (* It's only dangerous in one direction, so we don't have a position *)
       pr "%s is private and closed, but %s is not closed"
         (String.capitalize_ascii second) first
   | Missing (ord, name) ->
-      pr "The constructor %s is only present in %s %s."
-        name (choose ord first second) decl
+      pr "The constructor %a is only present in %s %s."
+        Style.inline_code name (choose ord first second) decl
   | Presence s ->
-      pr "The tag `%s is present in the %s %s,@ but might not be in the %s"
-        s second decl first
+      pr "The tag %a is present in the %s %s,@ but might not be in the %s"
+        (Style.as_inline_code pp_tag) s second decl first
   | Incompatible_types_for s -> pr "Types for tag `%s are incompatible" s
   | Types err ->
       report_type_inequality env ppf err
@@ -499,7 +520,8 @@ let report_private_variant_mismatch first second decl env ppf err =
 let report_private_object_mismatch env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
   match (err : private_object_mismatch) with
-  | Missing s -> pr "The implementation is missing the method %s" s
+  | Missing s ->
+      pr "The implementation is missing the method %a" Style.inline_code s
   | Types err -> report_type_inequality env ppf err
 
 let report_kind_mismatch first second ppf (kind1, kind2) =
@@ -683,6 +705,27 @@ module Record_diffing = struct
     else
       Some (diffing loc env params1 params2 l r)
 
+  let find_mismatch_in_mixed_record_representations
+      ({ value_prefix_len = v1; flat_suffix = s1 } : mixed_product_shape)
+      ({ value_prefix_len = v2; flat_suffix = s2 } : mixed_product_shape)
+    =
+    if v1 = v2 then None
+    else
+      let has_float_boxed_on_read fields =
+        Array.exists (function
+            | Float_boxed -> true
+            | _ -> false)
+          fields
+      in
+      if has_float_boxed_on_read s1
+      then Some (Mixed_representation_with_flat_floats First)
+      else if has_float_boxed_on_read s2
+      then Some (Mixed_representation_with_flat_floats Second)
+      else
+        Misc.fatal_error
+          "Impossible: the only way for mixed blocks to differ in \
+           representation is if one is a flat float record with a boxed float \
+           field, and the other isn't."
 
   let compare_with_representation ~loc env params1 params2 l r rep1 rep2 =
     if not (equal ~loc env params1 params2 l r) then
@@ -712,7 +755,11 @@ module Record_diffing = struct
      | _, Record_ufloat ->
         Some (Record_mismatch (Ufloat_representation Second))
 
-     | Record_mixed _, Record_mixed _ -> None
+     | Record_mixed m1, Record_mixed m2 -> begin
+         match find_mismatch_in_mixed_record_representations m1 m2 with
+         | None -> None
+         | Some mismatch -> Some (Record_mismatch mismatch)
+       end
      | Record_mixed _, _ ->
         Some (Record_mismatch (Mixed_representation First))
      | _, Record_mixed _ ->

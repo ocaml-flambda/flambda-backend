@@ -204,6 +204,35 @@ let immutable_unboxed_float32_array env res updates ~symbol ~elts =
   in
   env, R.set_data res block, updates
 
+let immutable_unboxed_vec128_array env res updates ~symbol ~elts =
+  let sym = R.symbol res symbol in
+  let num_elts = List.length elts in
+  let num_fields = num_elts * 2 in
+  let header =
+    C.black_custom_header
+      ~size:(1 (* for the custom_operations pointer *) + num_fields)
+  in
+  let payload =
+    List.map
+      (Or_variable.value_map
+         ~default:(Cmm.Cvec128 { high = 0L; low = 0L })
+         ~f:(fun v ->
+           let Vector_types.Vec128.Bit_pattern.{ high; low } =
+             Vector_types.Vec128.Bit_pattern.to_bits v
+           in
+           Cmm.Cvec128 { high; low }))
+      elts
+  in
+  let static_fields =
+    C.symbol_address (Cmm.global_symbol "caml_unboxed_vec128_array_ops")
+    :: payload
+  in
+  let block = C.emit_block sym header static_fields in
+  let env, res, updates =
+    static_unboxed_array_updates sym env res updates UK.naked_vec128s 0 elts
+  in
+  env, R.set_data res block, updates
+
 let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     (static_const : Static_const.t) =
   match bound_static, static_const with
@@ -351,6 +380,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
       ~to_int64:Targetint_32_64.to_int64 ~custom_ops_symbol:(fun ~num_elts:_ ->
         "caml_unboxed_nativeint_array_ops", None)
+  | Block_like symbol, Immutable_vec128_array elts ->
+    immutable_unboxed_vec128_array env res updates ~symbol ~elts
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
@@ -396,6 +427,13 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         [C.symbol_address (Cmm.global_symbol "caml_unboxed_nativeint_array_ops")]
     in
     env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_vec128s ->
+    let block =
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_vec128_array_ops")]
+    in
+    env, R.set_data res block, updates
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
     let data = C.emit_string_constant (R.symbol res s) str in
@@ -410,8 +448,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
-      | Immutable_value_array _ | Empty_array _ | Mutable_string _
-      | Immutable_string _ ) ) ->
+      | Immutable_vec128_array _ | Immutable_value_array _ | Empty_array _
+      | Mutable_string _ | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

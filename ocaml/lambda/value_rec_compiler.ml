@@ -218,7 +218,8 @@ let compute_static_size lam =
     | Pbigstring_set_16 _
     | Pbigstring_set_32 _
     | Pbigstring_set_f32 _
-    | Pbigstring_set_64 _ ->
+    | Pbigstring_set_64 _
+    | Ppoll ->
         (* Unit-returning primitives. Most of these are only generated from
            external declarations and not special-cased by [Value_rec_check],
            but it doesn't hurt to be consistent. *)
@@ -254,7 +255,7 @@ let compute_static_size lam =
             Block (Regular_block size)
         | Pfloatarray ->
             Block (Float_record size)
-        | Punboxedfloatarray _ | Punboxedintarray _ ->
+        | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _ ->
             Misc.fatal_error "size_of_primitive"
         end
     | Pduparray _ ->
@@ -393,6 +394,8 @@ let compute_static_size lam =
     | Pbox_float (_, _)
     | Punbox_int _
     | Pbox_int (_, _)
+    | Punbox_vector _
+    | Pbox_vector (_, _)
     | Pfloatoffloat32 _
     | Pfloat32offloat _
     | Pget_header _

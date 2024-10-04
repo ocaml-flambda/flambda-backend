@@ -22,6 +22,7 @@
 *)
 
 open Asttypes
+module Uid = Shape.Uid
 
 (* We define a new constant type that can represent unboxed values.
    This is currently used only in [Typedtree], but the long term goal
@@ -42,8 +43,6 @@ type constant =
   | Const_unboxed_int32 of int32
   | Const_unboxed_int64 of int64
   | Const_unboxed_nativeint of nativeint
-
-module Uid = Shape.Uid
 
 (* Value expressions for the core language *)
 
@@ -87,7 +86,7 @@ type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
 type alloc_mode = {
   mode : Mode.Alloc.r;
-  closure_context : Env.closure_context option;
+  locality_context : Env.locality_context option;
 }
 
 type texp_field_boxing =
@@ -905,10 +904,11 @@ and core_type_desc =
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * Jkind.annotation option
+  | Ttyp_alias of core_type * string loc option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_open of Path.t * Longident.t loc * core_type
   | Ttyp_call_pos
       (** [Ttyp_call_pos] represents the type of the value of a Position
           argument ([lbl:[%call_pos] -> ...]). *)

@@ -76,7 +76,7 @@ module Lambda_utils : sig
       other information needed by [Lapply] is set to some default value. *)
   val apply :
     loc:scoped_location ->
-    mode:alloc_mode ->
+    mode:locality_mode ->
     lambda ->
     lambda list ->
     result_layout:layout ->
@@ -154,6 +154,9 @@ module Lambda_utils : sig
 
     (** Like [make_float_vect] but for unboxed nativeint arrays. *)
     val make_unboxed_nativeint_vect : loc:scoped_location -> lambda -> lambda
+
+    (** Like [make_float_vect] but for unboxed vec128 arrays. *)
+    val make_unboxed_vec128_vect : loc:scoped_location -> lambda -> lambda
 
     (** [array_append a1 a2] calls the [caml_array_append] C primitive, which
         creates a new array by appending [a1] and [a2] *)
