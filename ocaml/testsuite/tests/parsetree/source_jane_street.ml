@@ -1032,3 +1032,34 @@ module type S' =
     module M : sig val foo : 'a -> 'a end
   end
 |}]
+
+(***************)
+(* Overwriting *)
+
+
+let overwrite_tuple = function
+    (a, b) as t -> overwrite_ t with (b, _)
+
+type record = { a : int; b : int }
+
+let overwrite_record = function
+    { a; b } as t -> overwrite_ t with { b = a; a = _ }
+
+let overwrite_record = function
+    { a; b } as t -> overwrite_ t with { b = a }
+
+type constructor = C of { a : int; b : int }
+
+let overwrite_constructor = function
+    C { a; b } as t -> overwrite_ t with C { b = a; a = _ }
+
+let overwrite_constructor = function
+    C { a; b } as t -> overwrite_ t with C { b = a }
+[%%expect{|
+Line 2, characters 19-43:
+2 |     (a, b) as t -> overwrite_ t with (b, _)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
