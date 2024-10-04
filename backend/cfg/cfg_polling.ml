@@ -30,28 +30,69 @@ exception Error = Polling.Error
    H is "unsafe", therefore, if starting from H we can loop infinitely without
    crossing an Alloc or Poll instruction. *)
 
+module Back_edge_sources : sig
+  type t
+
+  val create : Cfg.t -> Cfg_loop_infos.EdgeSet.t -> t
+
+  val mem : t -> 'a Cfg.instruction -> bool
+end = struct
+  module Int = Numbers.Int
+  include Int.Set
+
+  let create cfg back_edges =
+    let get_terminator_id (edge : Cfg_loop_infos.Edge.t) : int =
+      let block = Cfg.get_block_exn cfg edge.src in
+      block.terminator.id
+    in
+    Cfg_loop_infos.EdgeSet.elements back_edges
+    |> List.map ~f:get_terminator_id
+    |> Int.Set.of_list
+
+  let mem t (instruction : 'a Cfg.instruction) = Int.Set.mem instruction.id t
+end
+
 module Unsafe_or_safe_domain = struct
-  type t = Polling.Unsafe_or_safe.t
+  type t =
+    | Unsafe
+    | Safe
 
-  let bot = Polling.Unsafe_or_safe.bot
+  (* Assume that everything is safe (think of it as unreachable). A backedge
+     produces "Unsafe" (think of it the bad state is reachable). If it can
+     propagate to the corresponding loop head, then we need to insert the
+     handler on the backedge. This means inserting a poll point on all backedges
+     to a given header, if one of them needs it. It matches the upstream
+     algorithm. *)
 
-  let join = Polling.Unsafe_or_safe.join
+  (* CR-soon gyorsh: Propagate a set of backedges, instead of a single Unsafe
+     value. If a backedge reaches its loop head, insert poll on it. *)
+  let bot = Safe
 
-  let less_equal = Polling.Unsafe_or_safe.lessequal
+  let join t1 t2 =
+    match t1, t2 with
+    | Unsafe, Unsafe | Unsafe, Safe | Safe, Unsafe -> Unsafe
+    | Safe, Safe -> Safe
+
+  let less_equal t1 t2 =
+    match t1, t2 with
+    | Unsafe, Unsafe -> true
+    | Unsafe, Safe -> false
+    | Safe, Safe -> true
+    | Safe, Unsafe -> true
 end
 
 module Unsafe_or_safe_transfer = struct
   type domain = Unsafe_or_safe_domain.t
 
-  type context = unit
+  type context = Back_edge_sources.t
 
   type error = |
 
   let basic :
       domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
-   fun dom instr () ->
+   fun dom instr _back_edge_sources ->
     match[@ocaml.warning "-4"] instr.desc with
-    | Op (Poll | Alloc _) -> Ok Safe
+    | Op (Poll | Alloc _) -> Ok Unsafe_or_safe_domain.bot
     | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       Ok dom
 
@@ -61,34 +102,36 @@ module Unsafe_or_safe_transfer = struct
       Cfg.terminator Cfg.instruction ->
       context ->
       (domain, error) result =
-   fun dom ~exn term () ->
+   fun dom ~exn term back_edge_sources ->
     match term.desc with
     | Never -> assert false
-    | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ ->
-      Ok dom
     | Raise _ -> Ok exn
-    | Tailcall_self _ | Tailcall_func _ | Return -> Ok Safe
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
-      if Cfg.can_raise_terminator term.desc
+    | Tailcall_self _ | Tailcall_func _ | Return -> Ok Unsafe_or_safe_domain.bot
+    | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+    | Switch _ | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+      if Back_edge_sources.mem back_edge_sources term
+      then Ok Unsafe
+      else if Cfg.can_raise_terminator term.desc
       then Ok (Unsafe_or_safe_domain.join dom exn)
       else Ok dom
 
   let exception_ : domain -> context -> (domain, error) result =
-   fun dom () -> Ok dom
+   fun dom _back_edge_sources -> Ok dom
 end
 
 module PolledLoopsAnalysis =
   Cfg_dataflow.Backward (Unsafe_or_safe_domain) (Unsafe_or_safe_transfer)
 
 let polled_loops_analysis :
-    Cfg_with_layout.t -> PolledLoopsAnalysis.domain Label.Tbl.t =
- fun cfg_with_layout ->
+    Cfg_with_layout.t ->
+    Back_edge_sources.t ->
+    PolledLoopsAnalysis.domain Label.Tbl.t =
+ fun cfg_with_layout back_edge_sources ->
   let init : Unsafe_or_safe_domain.t = Unsafe_or_safe_domain.bot in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   match
-    PolledLoopsAnalysis.run ~init ~map:PolledLoopsAnalysis.Block ~exnescape:Safe
-      cfg ()
+    PolledLoopsAnalysis.run ~init ~map:PolledLoopsAnalysis.Block
+      ~exnescape:Unsafe_or_safe_domain.bot cfg back_edge_sources
   with
   | Ok res -> res
   | Aborted _ -> .
@@ -332,11 +375,14 @@ let instrument_fundecl :
   if is_disabled cfg.fun_name
   then cfg_with_layout
   else
-    let block_needs_poll = polled_loops_analysis cfg_with_layout in
     (* CR-soon xclerc for xclerc: consider using `Cfg_with_infos` to cache the
        computations *)
     let doms = Cfg_dominators.build cfg in
     let back_edges = Cfg_loop_infos.compute_back_edges cfg doms in
+    let back_edge_sources = Back_edge_sources.create cfg back_edges in
+    let block_needs_poll =
+      polled_loops_analysis cfg_with_layout back_edge_sources
+    in
     let added_poll =
       instr_cfg_with_layout cfg_with_layout ~block_needs_poll ~back_edges
     in
