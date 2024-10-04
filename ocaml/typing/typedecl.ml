@@ -418,7 +418,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
     if not allow_unboxed then
       match Jkind.Sort.default_to_value_and_get s with
       | Base (Void | Value) -> ()
-      | Base (Float64 | Float32 | Word | Bits32 | Bits64)
+      | Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128)
       | Product _ as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
@@ -1280,6 +1280,7 @@ module Element_repr = struct
     | Float32
     | Bits32
     | Bits64
+    | Vec128
     | Word
 
   type t =
@@ -1328,6 +1329,7 @@ module Element_repr = struct
       | Word, _ -> Unboxed_element Word
       | Bits32, _ -> Unboxed_element Bits32
       | Bits64, _ -> Unboxed_element Bits64
+      | Vec128, _ -> Unboxed_element Vec128
       | Void, _ -> Element_without_runtime_component { loc; ty }
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
@@ -1335,6 +1337,7 @@ module Element_repr = struct
     | Float32 -> Float32
     | Bits32 -> Bits32
     | Bits64 -> Bits64
+    | Vec128 -> Vec128
     | Word -> Word
 
   let to_flat : _ -> flat_element option = function
@@ -1501,7 +1504,7 @@ let update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Float32 | Bits32 | Bits64 | Word) ->
+           | Unboxed_element (Float32 | Bits32 | Bits64 | Vec128 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())
@@ -2697,17 +2700,17 @@ let native_repr_of_type env kind ty sort_or_poly =
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
-    Some (Unboxed_vector (Pvec128 Int8x16))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
-    Some (Unboxed_vector (Pvec128 Int16x8))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x4 ->
-    Some (Unboxed_vector (Pvec128 Int32x4))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x2 ->
-    Some (Unboxed_vector (Pvec128 Int64x2))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x4 ->
-    Some (Unboxed_vector (Pvec128 Float32x4))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
-    Some (Unboxed_vector (Pvec128 Float64x2))
+    Some (Unboxed_vector Pvec128)
   | _ ->
     None
 

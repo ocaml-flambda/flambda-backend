@@ -61,7 +61,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Immutable_arrays -> (module Unit)
   | Module_strengthening -> (module Unit)
   | Layouts -> (module Maturity)
-  | SIMD -> (module Unit)
+  | SIMD -> (module Maturity)
   | Labeled_tuples -> (module Unit)
   | Small_numbers -> (module Maturity)
 
@@ -77,7 +77,7 @@ module Exist_pair = struct
     | Pair (Immutable_arrays, ()) -> Stable
     | Pair (Module_strengthening, ()) -> Stable
     | Pair (Layouts, m) -> m
-    | Pair (SIMD, ()) -> Stable
+    | Pair (SIMD, m) -> m
     | Pair (Labeled_tuples, ()) -> Stable
     | Pair (Small_numbers, m) -> m
 
@@ -88,10 +88,10 @@ module Exist_pair = struct
     | Pair (Mode, m) -> to_string Mode ^ "_" ^ maturity_to_string m
     | Pair (Small_numbers, m) ->
       to_string Small_numbers ^ "_" ^ maturity_to_string m
+    | Pair (SIMD, m) -> to_string SIMD ^ "_" ^ maturity_to_string m
     | Pair
         ( (( Comprehensions | Unique | Include_functor | Polymorphic_parameters
-           | Immutable_arrays | Module_strengthening | SIMD | Labeled_tuples )
-          as ext),
+           | Immutable_arrays | Module_strengthening | Labeled_tuples ) as ext),
           _ ) ->
       to_string ext
 end

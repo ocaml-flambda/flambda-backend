@@ -221,6 +221,10 @@ module Const : sig
     not mode-cross. *)
     val bits64 : t
 
+    (** This is the jkind of unboxed 128-bit simd vectors. They have sort Vec128. Does
+    not mode-cross. *)
+    val vec128 : t
+
     (** A list of all Builtin jkinds *)
     val all : t list
   end

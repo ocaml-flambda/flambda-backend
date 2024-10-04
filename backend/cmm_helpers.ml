@@ -1094,6 +1094,10 @@ let custom_ops_unboxed_nativeint_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
+let custom_ops_unboxed_vec128_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_vec128_array_ops", Debuginfo.none)
+
 let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
     ~elements_per_word =
   (* Checking custom_ops is needed to determine if the array contains an odd or
@@ -1144,6 +1148,14 @@ let unboxed_int64_or_nativeint_array_length arr dbg =
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
   tag_int res dbg
+
+let unboxed_vec128_array_length arr dbg =
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int (lsr_int res (int ~dbg 1) dbg) dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -1415,6 +1427,32 @@ let setfield_unboxed_float32 arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
+(* Getters and setters for unboxed vec128 fields *)
+
+let get_field_unboxed_vec128 mutability ~block ~index_in_words dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let memory_chunk = Onetwentyeight_unaligned in
+  let field_address = array_indexing log2_size_addr block index_in_words dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let field_address = array_indexing log2_size_addr arr index_in_words dbg in
+  return_unit dbg
+    (Cop
+       ( Cstore (Onetwentyeight_unaligned, Assignment),
+         [field_address; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)
@@ -1545,7 +1583,7 @@ module Extended_machtype = struct
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float Pfloat64 -> typ_float
     | Punboxed_float Pfloat32 -> typ_float32
-    | Punboxed_vector (Pvec128 _) -> typ_vec128
+    | Punboxed_vector Pvec128 -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
@@ -3262,6 +3300,7 @@ let arraylength kind arg dbg =
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg
   | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
+  | Punboxedvectorarray Pvec128 -> unboxed_vec128_array_length arg dbg
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
@@ -4251,6 +4290,20 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
+
+let allocate_unboxed_vec128_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
+  let header =
+    let size =
+      1 (* custom_ops field *) + (ints_per_vec128 * List.length elements)
+    in
+    match mode with
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
+  in
+  Cop
+    ( Calloc mode,
+      Cconst_natint (header, dbg) :: custom_ops_unboxed_vec128_array :: elements,
+      dbg )
 
 (* Drop internal optional arguments from exported interface *)
 let block_header x y = block_header x y

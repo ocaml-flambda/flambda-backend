@@ -32,6 +32,7 @@ by a *type*. There is a small fixed set of layouts:
 * `float64` is the layout of the `float#` unboxed float type.
 * `bits32` is the layout of the `int32#` unboxed int32 type.
 * `bits64` is the layout of the `int64#` unboxed int64 type.
+* `vec128` is the layout of 128-bit unboxed SIMD vector types.
 * `word` is the layout of the `nativeint#` unboxed nativeint type.
 * `any` is a layout that is the superlayout of all other layouts.  It doesn't correspond
   to a specific runtime representation. More information [below](#the-any-layout).
@@ -109,11 +110,16 @@ decisions and contains additional examples.
 
 # Unboxed numbers
 
-We now have `float#`, `int32#`, `int64#`, and `nativeint#` types.
+We now have `float#`, `int32#`, `int64#`, `nativeint#`, and unboxed 128-bit vector types.
 They are the types for unboxed numbers. These all are stored
 without pointers; working with them does not cause any allocation.
-Each unboxed numeric type has its own layout: `float# : float64`, `int32# : bits32`,
-`int64# : bits64`, and `nativeint# : word`.
+
+Most unboxed numeric types have their own layout: `float# : float64`, `int32# : bits32`,
+`int64# : bits64`, `nativeint# : word`.
+
+All of the 128-bit vectors have the same layout: `float32x4# : vec128`,
+`float64x2# : vec128`, `int8x16# : vec128`, `int16x2# : vec128`, `int32x4# : vec128`,
+and `int64x2# : vec128`.
 
 Using layouts, you can usefully make a synonym of `float#` (or any of
 the other unboxed types) that has layout
@@ -125,6 +131,7 @@ Each numeric type has its own library for working with it: `float_u`,
 modules in the `janestreet_shims` library.)
 
 * Unboxed constants are written with a prepended `#`.
+  There is no literal syntax for unboxed vectors: use the `Ocaml_simd_sse` library instead.
   Examples include:
 
     * `#3.14  (* : float# *)`
@@ -147,9 +154,10 @@ modules in the `janestreet_shims` library.)
    * ... anywhere near the class system (no `int64#` methods or class variables or even
      parameters in constructors)
 
-* You can make records containing all `float#`s. (This applies only to `float#`s, not
-  other unboxed numbers.) Every field must be a `float#` (or
-  actually have layout `float64`). No exceptions. This does *not* work for inline or
+* Unboxed numbers may be stored in structures, with
+  [some restrictions](#using-unboxed-types-in-structures). Additionally, blocks
+  in which every field is a `float` or has layout `float64` are represented as
+  flat float arrays. Unboxed numbers may *not* be stored in inline or
   `[@@unboxed]` records.
 
 * With a few specific exceptions (documented below), existing types all expect
@@ -333,14 +341,12 @@ A limited set of primitives may be bound as `[@layout_poly]`;
 
 ## Runtime representation
 
-| Array                            | Tag                | Layout of data                                              |
-|----------------------------------|--------------------|-------------------------------------------------------------|
-| `float# array`                   | `Double_array_tag` | 64 bits per element                                         |
-| `int64# array`                   | `Custom_tag`       | reserved custom block word, followed by 64 bits per element |
-| `float32# array`, `int32# array` | `Custom_tag`       | reserved custom block word, followed by 32 bits per element |
-
-The above table is written about concrete types like `float#` and `int64#`, but
-actually holds for all types of the relevant layout.
+| Array                                          | Tag                | Layout of data                                               |
+|----------------------------------              |--------------------|--------------------------------------------------------------|
+| `('a : float64) array`                         | `Double_array_tag` | 64 bits per element                                          |
+| `('a : bits64) array`                          | `Custom_tag`       | reserved custom block word, followed by 64 bits per element  |
+| `('a : float32) array`, `('a : bits32) array`  | `Custom_tag`       | reserved custom block word, followed by 32 bits per element  |
+| `('a : vec128) array`                          | `Custom_tag`       | reserved custom block word, followed by 128 bits per element |
 
 The reserved custom block word is the standard custom block field that stores a
 pointer to the record of custom operations, like polymorphic equality and

@@ -21,6 +21,7 @@ module Sort = struct
     | Word
     | Bits32
     | Bits64
+    | Vec128
 
   type t =
     | Var of var
@@ -40,9 +41,11 @@ module Sort = struct
     | Float32, Float32
     | Word, Word
     | Bits32, Bits32
-    | Bits64, Bits64 ->
+    | Bits64, Bits64
+    | Vec128, Vec128 ->
       true
-    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
+    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128), _ ->
+      false
 
   let to_string_base = function
     | Value -> "value"
@@ -52,6 +55,7 @@ module Sort = struct
     | Word -> "word"
     | Bits32 -> "bits32"
     | Bits64 -> "bits64"
+    | Vec128 -> "vec128"
 
   module Const = struct
     type t =
@@ -73,6 +77,8 @@ module Sort = struct
       in
       pp_element ~nested:false ppf c
 
+    let vec128 = Base Vec128
+
     module Debug_printers = struct
       let t ppf c =
         let rec pp_element ~nested ppf = function
@@ -85,7 +91,8 @@ module Sort = struct
               | Float32 -> "Float32"
               | Word -> "Word"
               | Bits32 -> "Bits32"
-              | Bits64 -> "Bits64")
+              | Bits64 -> "Bits64"
+              | Vec128 -> "Vec128")
           | Product cs ->
             let pp_sep ppf () = Format.fprintf ppf "@ , " in
             Format.fprintf ppf "Product [%a]"
@@ -117,7 +124,8 @@ module Sort = struct
           | Float32 -> "Float32"
           | Word -> "Word"
           | Bits32 -> "Bits32"
-          | Bits64 -> "Bits64")
+          | Bits64 -> "Bits64"
+          | Vec128 -> "Vec128")
       | Product ts ->
         fprintf ppf "Product [ %a ]"
           (pp_print_list ~pp_sep:(fun ppf () -> pp_print_text ppf "; ") t)
@@ -167,6 +175,8 @@ module Sort = struct
 
       let bits64 = Base Bits64
 
+      let vec128 = Base Vec128
+
       let of_base = function
         | Void -> void
         | Value -> value
@@ -175,6 +185,7 @@ module Sort = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
 
       let rec of_const : Const.t -> t = function
         | Base b -> of_base b
@@ -196,6 +207,8 @@ module Sort = struct
 
       let bits64 = Some T.bits64
 
+      let vec128 = Some T.vec128
+
       let of_base = function
         | Void -> void
         | Value -> value
@@ -204,6 +217,7 @@ module Sort = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
 
       let rec of_const : Const.t -> t option = function
         | Base b -> of_base b
@@ -230,6 +244,8 @@ module Sort = struct
 
       let bits64 = Base Bits64
 
+      let vec128 = Base Vec128
+
       let of_base : base -> Const.t = function
         | Value -> value
         | Void -> void
@@ -238,6 +254,7 @@ module Sort = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
     end
   end
 
@@ -394,7 +411,8 @@ module Sort = struct
     (* CR layouts v5: this should probably default to void now *)
     match default_to_value_and_get t with
     | Base Void -> true
-    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) ->
+      false
     | Product _ -> false
 
   (*** pretty printing ***)

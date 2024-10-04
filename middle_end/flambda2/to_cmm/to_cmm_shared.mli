@@ -106,6 +106,9 @@ val invalid :
 module Update_kind : sig
   type t
 
+  (** The number of words written when applying this update to a block. *)
+  val field_size_in_words : t -> int
+
   val pointers : t
 
   val tagged_immediates : t

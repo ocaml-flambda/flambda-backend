@@ -177,13 +177,11 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
               match RWC.descr cst with
               | Tagged_immediate _ -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
-              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+              | Naked_vec128 _ ->
                 Misc.fatal_errorf
                   "Unboxed constants are not allowed inside of Const_block: %a"
-                  Printlambda.structured_constant const
-              | Naked_vec128 _ ->
-                Misc.fatal_error
-                  "Naked_vec128 not yet supported as a static field initializer");
+                  Printlambda.structured_constant const);
           acc, field)
         acc consts
     in
@@ -216,7 +214,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           else
             match shape.flat_suffix.(i - shape.value_prefix_len) with
             | Float_boxed -> unbox_float_constant c
-            | Imm | Float64 | Float32 | Bits32 | Bits64 | Word -> c)
+            | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> c)
         consts
     in
     let shape = K.Mixed_block_shape.from_lambda shape in
@@ -556,7 +554,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         k acc (List.map Named.create_var let_bound_vars))
   in
   let alloc_mode_app =
-    match Lambda.alloc_mode_of_primitive_description prim_desc with
+    match Lambda.locality_mode_of_primitive_description prim_desc with
     | None ->
       (* This happens when stack allocation is disabled. *)
       Alloc_mode.For_applications.heap
@@ -565,7 +563,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         ~current_ghost_region
   in
   let alloc_mode =
-    match Lambda.alloc_mode_of_primitive_description prim_desc with
+    match Lambda.locality_mode_of_primitive_description prim_desc with
     | None ->
       (* This happens when stack allocation is disabled. *)
       Alloc_mode.For_allocations.heap
@@ -582,7 +580,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       Some (P.Box_number (Naked_nativeint, alloc_mode))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
     | _, Unboxed_integer Pint64 -> Some (P.Box_number (Naked_int64, alloc_mode))
-    | _, Unboxed_vector (Pvec128 _) ->
+    | _, Unboxed_vector Pvec128 ->
       Some (P.Box_number (Naked_vec128, alloc_mode))
     | _, Untagged_int -> Some P.Tag_immediate
   in
@@ -611,7 +609,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
     | Untagged_int -> K.naked_immediate
-    | Unboxed_vector (Pvec128 _) -> K.naked_vec128
+    | Unboxed_vector Pvec128 -> K.naked_vec128
   in
   let param_arity =
     List.map kind_of_primitive_extern_repr prim_native_repr_args
@@ -703,7 +701,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
           | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
           | _, Untagged_int -> Some P.Untag_immediate
-          | _, Unboxed_vector (Pvec128 _) -> Some (P.Unbox_number Naked_vec128)
+          | _, Unboxed_vector Pvec128 -> Some (P.Unbox_number Naked_vec128)
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc
@@ -1003,6 +1001,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
       | Pobj_magic _ | Punbox_float _
       | Pbox_float (_, _)
+      | Punbox_vector _
+      | Pbox_vector (_, _)
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas
@@ -1094,14 +1094,8 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
   | Closure_approximation _ | Value_symbol _ | Value_const _ -> Not_a_block
   | Block_approximation (_tag, _shape, approx, _alloc_mode) -> (
     let approx =
-      Simple.pattern_match field
-        ~const:(fun const ->
-          match Reg_width_const.descr const with
-          | Tagged_immediate i ->
-            let i = Targetint_31_63.to_int i in
-            if i >= Array.length approx then None else Some approx.(i)
-          | _ -> Some Value_approximation.Value_unknown)
-        ~name:(fun _ ~coercion:_ -> Some Value_approximation.Value_unknown)
+      let i = Targetint_31_63.to_int field in
+      if i >= Array.length approx then None else Some approx.(i)
     in
     match approx with
     | Some (Value_symbol sym) -> Field_contents (Simple.symbol sym)
@@ -1362,7 +1356,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             (Bound_pattern.static
                (Bound_static.create [Bound_static.Pattern.block_like symbol]))
             defining_expr ~body
-        | Prim (Binary (Block_load _, block, field), _) -> (
+        | Prim (Unary (Block_load { field; _ }, block), _) -> (
           match simplify_block_load acc body_env ~block ~field with
           | Unknown -> bind acc body_env
           | Not_a_block ->
@@ -1697,20 +1691,18 @@ let unboxing_primitive (k : Function_decl.unboxing_kind) boxed_variable i =
           field_kind = Any_value
         }
     in
-    Flambda_primitive.Binary
-      ( Block_load (block_access_kind, Immutable),
-        Simple.var boxed_variable,
-        Simple.const_int i )
+    Flambda_primitive.Unary
+      ( Block_load { kind = block_access_kind; mut = Immutable; field = i },
+        Simple.var boxed_variable )
   | Unboxed_number bn ->
     Flambda_primitive.Unary (Unbox_number bn, Simple.var boxed_variable)
   | Unboxed_float_record num_fields ->
     let block_access_kind : P.Block_access_kind.t =
       Naked_floats { size = Known (Targetint_31_63.of_int num_fields) }
     in
-    Flambda_primitive.Binary
-      ( Block_load (block_access_kind, Immutable),
-        Simple.var boxed_variable,
-        Simple.const_int i )
+    Flambda_primitive.Unary
+      ( Block_load { kind = block_access_kind; mut = Immutable; field = i },
+        Simple.var boxed_variable )
 
 let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
     unboxed_variables : Flambda_primitive.t =
@@ -2829,7 +2821,7 @@ let close_let_rec acc env ~function_declarations
     (* The closure allocation mode must be the same for all closures in the set
        of closures. *)
     List.fold_left
-      (fun (alloc_mode : Lambda.alloc_mode option) function_decl ->
+      (fun (alloc_mode : Lambda.locality_mode option) function_decl ->
         match alloc_mode, Function_decl.closure_alloc_mode function_decl with
         | None, alloc_mode -> Some alloc_mode
         | Some Alloc_heap, Alloc_heap | Some Alloc_local, Alloc_local ->
@@ -3000,7 +2992,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     then Lambda.alloc_heap, first_complex_local_param - num_provided
     else Lambda.alloc_local, 0
   in
-  if not (Lambda.sub_mode closure_alloc_mode apply.IR.mode)
+  if not (Lambda.sub_locality_mode closure_alloc_mode apply.IR.mode)
   then
     (* This can happen in a dead GADT match case. *)
     ( acc,
@@ -3048,7 +3040,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
   let acc, remaining = find_simples acc env remaining in
   let apply_dbg = Debuginfo.from_location apply.loc in
   let needs_region =
-    match apply.mode, (result_mode : Lambda.alloc_mode) with
+    match apply.mode, (result_mode : Lambda.locality_mode) with
     | Alloc_heap, Alloc_local ->
       let over_app_region = Variable.create "over_app_region" in
       let over_app_ghost_region = Variable.create "over_app_ghost_region" in
@@ -3175,7 +3167,7 @@ type call_args_split =
         provided_arity : [`Complex] Flambda_arity.t;
         remaining : IR.simple list;
         remaining_arity : [`Complex] Flambda_arity.t;
-        result_mode : Lambda.alloc_mode
+        result_mode : Lambda.locality_mode
       }
 
 let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
@@ -3481,12 +3473,14 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
         let pat = Bound_pattern.singleton var in
         let pos = Targetint_31_63.of_int pos in
         let block = module_block_simple in
-        let field = Simple.const (Reg_width_const.tagged_immediate pos) in
-        match simplify_block_load acc env ~block ~field with
+        match simplify_block_load acc env ~block ~field:pos with
         | Unknown | Not_a_block | Block_but_cannot_simplify _ ->
           let named =
             Named.create_prim
-              (Binary (Block_load (block_access, Immutable), block, field))
+              (Unary
+                 ( Block_load
+                     { kind = block_access; mut = Immutable; field = pos },
+                   block ))
               Debuginfo.none
           in
           Let_with_acc.create acc pat named ~body
