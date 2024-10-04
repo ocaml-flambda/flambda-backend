@@ -34,7 +34,7 @@ Line 3, characters 14-36:
 3 | let f () = id (assert false : t_any)
                   ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t_any" but an expression was expected of type
-         "('a : '_representable_layout_9)"
+         "('a : '_representable_layout_1)"
        The layout of t_any is any
          because of the definition of t_any at line 3, characters 0-16.
        But the layout of t_any must be representable
@@ -565,7 +565,7 @@ Line 1, characters 40-42:
                                             ^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}]
 
 external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]

@@ -15,3 +15,5 @@ typemode.mli
 typemode.ml
 jkind_axis.mli
 jkind_axis.ml
+allowance.mli
+allowance.ml

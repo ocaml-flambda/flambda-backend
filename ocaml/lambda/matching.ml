@@ -2381,8 +2381,9 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
          array pattern, once that's available *)
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
+      let mut = if Types.is_mutable am then Mutable else Immutable in
       ( Lprim
-          (Parrayrefu (ref_kind, Ptagged_int_index),
+          (Parrayrefu (ref_kind, Ptagged_int_index, mut),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (if Types.is_mutable am then StrictOpt else Alias),

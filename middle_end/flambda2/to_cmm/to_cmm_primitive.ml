@@ -194,7 +194,7 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
     (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
        width of floats is equal to the machine word width (see flambda2.ml). *)
     assert (C.wordsize_shift = C.numfloat_shift);
-    C.arraylength Paddrarray arr dbg
+    C.addr_array_length arr dbg
   | Naked_float32s -> C.unboxed_float32_array_length arr dbg
   | Naked_int32s -> C.unboxed_int32_array_length arr dbg
   | Naked_int64s | Naked_nativeints ->

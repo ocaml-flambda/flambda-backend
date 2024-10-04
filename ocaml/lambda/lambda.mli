@@ -41,10 +41,6 @@ type locality_mode = private
   | Alloc_heap
   | Alloc_local
 
-(** For now we don't have strong update, and thus uniqueness is irrelevant in
-    middle and back-end; in the future this will be extended with uniqueness *)
-type alloc_mode = locality_mode
-
 type modify_mode = private
   | Modify_heap
   | Modify_maybe_stack
@@ -57,8 +53,6 @@ val alloc_local : locality_mode
 val modify_heap : modify_mode
 
 val modify_maybe_stack : modify_mode
-
-val equal_alloc_mode : alloc_mode -> alloc_mode -> bool
 
 type initialization_or_assignment =
   (* [Assignment Alloc_local] is a mutation of a block that may be heap or local.
@@ -119,15 +113,15 @@ type primitive =
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape * alloc_mode
-  | Pmakefloatblock of mutable_flag * alloc_mode
-  | Pmakeufloatblock of mutable_flag * alloc_mode
-  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * alloc_mode
+  | Pmakeblock of int * mutable_flag * block_shape * locality_mode
+  | Pmakefloatblock of mutable_flag * locality_mode
+  | Pmakeufloatblock of mutable_flag * locality_mode
+  | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
-  | Pfloatfield of int * field_read_semantics * alloc_mode
+  | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
   | Pmixedfield of
       int * mixed_block_read * mixed_block_shape * field_read_semantics
@@ -167,53 +161,53 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  | Pfloatoffloat32 of alloc_mode
-  | Pfloat32offloat of alloc_mode
+  | Pfloatoffloat32 of locality_mode
+  | Pfloat32offloat of locality_mode
   | Pintoffloat of boxed_float
-  | Pfloatofint of boxed_float * alloc_mode
-  | Pnegfloat of boxed_float * alloc_mode
-  | Pabsfloat of boxed_float * alloc_mode
-  | Paddfloat of boxed_float * alloc_mode
-  | Psubfloat of boxed_float * alloc_mode
-  | Pmulfloat of boxed_float * alloc_mode
-  | Pdivfloat of boxed_float * alloc_mode
+  | Pfloatofint of boxed_float * locality_mode
+  | Pnegfloat of boxed_float * locality_mode
+  | Pabsfloat of boxed_float * locality_mode
+  | Paddfloat of boxed_float * locality_mode
+  | Psubfloat of boxed_float * locality_mode
+  | Pmulfloat of boxed_float * locality_mode
+  | Pdivfloat of boxed_float * locality_mode
   | Pfloatcomp of boxed_float * float_comparison
   | Punboxed_float_comp of boxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
-  | Pmakearray of array_kind * mutable_flag * alloc_mode
+  | Pmakearray of array_kind * mutable_flag * locality_mode
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
-  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
   | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
-  | Pbintofint of boxed_integer * alloc_mode
+  | Pbintofint of boxed_integer * locality_mode
   | Pintofbint of boxed_integer
   | Pcvtbint of boxed_integer (*source*) * boxed_integer (*destination*)
-                * alloc_mode
-  | Pnegbint of boxed_integer * alloc_mode
-  | Paddbint of boxed_integer * alloc_mode
-  | Psubbint of boxed_integer * alloc_mode
-  | Pmulbint of boxed_integer * alloc_mode
-  | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
-  | Pmodbint of { size : boxed_integer; is_safe : is_safe; mode: alloc_mode }
-  | Pandbint of boxed_integer * alloc_mode
-  | Porbint of boxed_integer * alloc_mode
-  | Pxorbint of boxed_integer * alloc_mode
-  | Plslbint of boxed_integer * alloc_mode
-  | Plsrbint of boxed_integer * alloc_mode
-  | Pasrbint of boxed_integer * alloc_mode
+                * locality_mode
+  | Pnegbint of boxed_integer * locality_mode
+  | Paddbint of boxed_integer * locality_mode
+  | Psubbint of boxed_integer * locality_mode
+  | Pmulbint of boxed_integer * locality_mode
+  | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: locality_mode }
+  | Pmodbint of { size : boxed_integer; is_safe : is_safe; mode: locality_mode }
+  | Pandbint of boxed_integer * locality_mode
+  | Porbint of boxed_integer * locality_mode
+  | Pxorbint of boxed_integer * locality_mode
+  | Plslbint of boxed_integer * locality_mode
+  | Plsrbint of boxed_integer * locality_mode
+  | Pasrbint of boxed_integer * locality_mode
   | Pbintcomp of boxed_integer * integer_comparison
   | Punboxed_int_comp of unboxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
@@ -224,24 +218,24 @@ type primitive =
   (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pstring_load_32 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pstring_load_f32 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pstring_load_128 of
       { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbytes_load_f32 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbytes_load_128 of
       { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbytes_set_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_set_32 of { unsafe : bool; index_kind : array_index_kind;
       boxed : bool }
@@ -255,13 +249,13 @@ type primitive =
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbigstring_load_32 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbigstring_load_f32 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbigstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
-      mode : alloc_mode; boxed : bool }
+      mode : locality_mode; boxed : bool }
   | Pbigstring_load_128 of { aligned : bool; unsafe : bool;
-      index_kind : array_index_kind; mode : alloc_mode; boxed : bool }
+      index_kind : array_index_kind; mode : locality_mode; boxed : bool }
   | Pbigstring_set_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbigstring_set_32 of { unsafe : bool; index_kind : array_index_kind;
       boxed : bool }
@@ -272,14 +266,14 @@ type primitive =
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool;
       index_kind : array_index_kind; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
-  | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
-  | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
-  | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
-  | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
-  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
-  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
-  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
-  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode; boxed : bool }
+  | Pfloatarray_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pfloat_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Pint_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_float_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_int32_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_int64_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
+  | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : locality_mode; boxed : bool }
   | Pfloatarray_set_128 of { unsafe : bool; boxed : bool }
   | Pfloat_array_set_128 of { unsafe : bool; boxed : bool }
   | Pint_array_set_128 of { unsafe : bool; boxed : bool }
@@ -292,9 +286,9 @@ type primitive =
   | Pctconst of compile_time_constant
   (* byte swap *)
   | Pbswap16
-  | Pbbswap of boxed_integer * alloc_mode
+  | Pbbswap of boxed_integer * locality_mode
   (* Integer to external pointer *)
-  | Pint_as_pointer of alloc_mode
+  | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange
@@ -308,11 +302,11 @@ type primitive =
   | Pobj_dup
   | Pobj_magic of layout
   | Punbox_float of boxed_float
-  | Pbox_float of boxed_float * alloc_mode
+  | Pbox_float of boxed_float * locality_mode
   | Punbox_int of boxed_integer
-  | Pbox_int of boxed_integer * alloc_mode
+  | Pbox_int of boxed_integer * locality_mode
   | Punbox_vector of boxed_vector
-  | Pbox_vector of boxed_vector * alloc_mode
+  | Pbox_vector of boxed_vector * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Preinterpret_tagged_int63_as_unboxed_int64
     (** At present [Preinterpret_unboxed_int64_as_tagged_int63] and
@@ -329,7 +323,7 @@ type primitive =
                         one; O(1) *)
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
-  | Pget_header of alloc_mode
+  | Pget_header of locality_mode
   (* Get the header of a block. This primitive is invalid if provided with an
      immediate value.
      Note: The GC color bits in the header are not reliable except for checking
@@ -344,7 +338,7 @@ type primitive =
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)
 and extern_repr =
-  | Same_as_ocaml_repr of Jkind.Sort.base
+  | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
@@ -367,10 +361,10 @@ and array_kind =
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
 and array_ref_kind =
-  | Pgenarray_ref of alloc_mode (* This might be a flat float array *)
+  | Pgenarray_ref of locality_mode (* This might be a flat float array *)
   | Paddrarray_ref
   | Pintarray_ref
-  | Pfloatarray_ref of alloc_mode
+  | Pfloatarray_ref of locality_mode
   | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
   | Punboxedvectorarray_ref of unboxed_vector
@@ -430,7 +424,7 @@ and flat_element = Types.flat_element =
 
 and flat_element_read = private
   | Flat_read of flat_element (* invariant: not [Float] *)
-  | Flat_read_float_boxed of alloc_mode
+  | Flat_read_float_boxed of locality_mode
 and mixed_block_read =
   | Mread_value_prefix of immediate_or_pointer
   | Mread_flat_suffix of flat_element_read
@@ -643,7 +637,7 @@ type lparam = {
   name : Ident.t;
   layout : layout;
   attributes : parameter_attribute;
-  mode : alloc_mode
+  mode : locality_mode
 }
 
 type scoped_location = Debuginfo.Scoped_location.t
@@ -692,7 +686,7 @@ type lambda =
   | Lfor of lambda_for
   | Lassign of Ident.t * lambda
   | Lsend of meth_kind * lambda * lambda * lambda list
-             * region_close * alloc_mode * scoped_location * layout
+             * region_close * locality_mode * scoped_location * layout
   | Levent of lambda * lambda_event
   | Lifused of Ident.t * lambda
   | Lregion of lambda * layout
@@ -715,8 +709,8 @@ and lfunction = private
     body: lambda;
     attr: function_attribute; (* specified with [@inline] attribute *)
     loc : scoped_location;
-    mode : alloc_mode;     (* alloc mode of the closure itself *)
-    ret_mode: alloc_mode;
+    mode : locality_mode;     (* locality of the closure itself *)
+    ret_mode: locality_mode;
     region : bool;         (* false if this function may locally
                               allocate in the caller's region *)
   }
@@ -740,7 +734,7 @@ and lambda_apply =
     ap_args : lambda list;
     ap_result_layout : layout;
     ap_region_close : region_close;
-    ap_mode : alloc_mode;
+    ap_mode : locality_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
     ap_inlined : inlined_attribute; (* [@inlined] attribute in code *)
@@ -849,8 +843,8 @@ val lfunction :
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
-  mode:alloc_mode ->
-  ret_mode:alloc_mode ->
+  mode:locality_mode ->
+  ret_mode:locality_mode ->
   region:bool ->
   lambda
 
@@ -861,8 +855,8 @@ val lfunction' :
   body:lambda ->
   attr:function_attribute -> (* specified with [@inline] attribute *)
   loc:scoped_location ->
-  mode:alloc_mode ->
-  ret_mode:alloc_mode ->
+  mode:locality_mode ->
+  ret_mode:locality_mode ->
   region:bool ->
   lfunction
 
@@ -906,7 +900,7 @@ val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
 
 (** Raises if [flat_element] is [Float_boxed]. *)
 val flat_read_non_float : flat_element -> flat_element_read
-val flat_read_float_boxed : alloc_mode -> flat_element_read
+val flat_read_float_boxed : locality_mode -> flat_element_read
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
@@ -969,13 +963,13 @@ val max_arity : unit -> int
       This is unlimited ([max_int]) for bytecode, but limited
       (currently to 126) for native code. *)
 
-val join_mode : alloc_mode -> alloc_mode -> alloc_mode
-val sub_mode : alloc_mode -> alloc_mode -> bool
-val eq_mode : alloc_mode -> alloc_mode -> bool
-val is_local_mode : alloc_mode -> bool
-val is_heap_mode : alloc_mode -> bool
+val join_locality_mode : locality_mode -> locality_mode -> locality_mode
+val sub_locality_mode : locality_mode -> locality_mode -> bool
+val eq_locality_mode : locality_mode -> locality_mode -> bool
+val is_local_mode : locality_mode -> bool
+val is_heap_mode : locality_mode -> bool
 
-val primitive_may_allocate : primitive -> alloc_mode option
+val primitive_may_allocate : primitive -> locality_mode option
   (** Whether and where a primitive may allocate.
       [Some Alloc_local] permits both options: that is, primitives that
       may allocate on both the GC heap and locally report this value.
@@ -988,8 +982,8 @@ val primitive_may_allocate : primitive -> alloc_mode option
       revised.
   *)
 
-val alloc_mode_of_primitive_description :
-  external_call_description -> alloc_mode option
+val locality_mode_of_primitive_description :
+  external_call_description -> locality_mode option
   (** Like [primitive_may_allocate], for [external] calls. *)
 
 (***********************)
@@ -1030,7 +1024,7 @@ val array_ref_kind_result_layout: array_ref_kind -> layout
 val compute_expr_layout : (Ident.t -> layout option) -> lambda -> layout
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
-val array_ref_kind : alloc_mode -> array_kind -> array_ref_kind
+val array_ref_kind : locality_mode -> array_kind -> array_ref_kind
 
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind

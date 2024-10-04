@@ -95,13 +95,14 @@ type error =
   | Compiling_as_parameterised_parameter
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
-  | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Compilation_unit.Name.t
+  | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global_module.Name.t
   | Inconsistent_argument_types of {
-      new_arg_type : Compilation_unit.Name.t option;
-      old_arg_type : Compilation_unit.Name.t option;
+      new_arg_type : Global_module.Name.t option;
+      old_arg_type : Global_module.Name.t option;
       old_source_file : Misc.filepath;
     }
+  | Duplicate_parameter_name of Global_module.Name.t
   | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
@@ -354,6 +355,20 @@ let path_is_strict_prefix =
     | `Ok (ident1, l1), `Ok (ident2, l2) ->
        Ident.same ident1 ident2
        && list_is_strict_prefix l1 ~prefix:l2
+
+let rec instance_name ~loc env syntax =
+  let ({ head; args } : Jane_syntax.Instances.instance) = syntax in
+  let args =
+    List.map
+      (fun (param, value) : Global_module.Name.argument ->
+         { param = Global_module.Name.create_no_args param;
+           value = instance_name ~loc env value })
+      args
+  in
+  match Global_module.Name.create head args with
+  | Ok name -> name
+  | Error (Duplicate { name; value1 = _; value2 = _ }) ->
+    raise (Error (loc, env, Duplicate_parameter_name name))
 
 let iterator_with_env env =
   let env = ref (lazy env) in
@@ -979,7 +994,8 @@ let map_ext fn exts =
   | [] -> []
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
-let apply_modalities_signature modalities sg =
+let rec apply_modalities_signature ~recursive env modalities sg =
+  let env = Env.add_signature sg env in
   List.map (function
   | Sig_value (id, vd, vis) ->
       let val_modalities =
@@ -990,7 +1006,26 @@ let apply_modalities_signature modalities sg =
       in
       let vd = {vd with val_modalities} in
       Sig_value (id, vd, vis)
-  | item -> item) sg
+  | Sig_module (id, pres, md, rec_, vis) when recursive ->
+      let md_type = apply_modalities_module_type env modalities md.md_type in
+      let md = {md with md_type} in
+      Sig_module (id, pres, md, rec_, vis)
+  | item -> item
+  ) sg
+
+and apply_modalities_module_type env modalities = function
+  | Mty_ident p ->
+      let mtd = Env.find_modtype p env in
+      begin match mtd.mtd_type with
+      | None -> Mty_ident p
+      | Some mty -> apply_modalities_module_type env modalities mty
+      end
+  | Mty_strengthen (mty, p, alias) ->
+      Mty_strengthen (apply_modalities_module_type env modalities mty, p, alias)
+  | Mty_signature sg ->
+      let sg = apply_modalities_signature ~recursive:true env modalities sg in
+      Mty_signature sg
+  | (Mty_functor _ | Mty_alias _) as mty -> mty
 
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
@@ -1167,7 +1202,8 @@ and approx_sig env ssg =
       | Psig_open sod ->
           let _, env = type_open_descr env sod in
           approx_sig env srem
-      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind; _}, moda) ->
+      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind;
+            pincl_attributes=attrs}, moda) ->
           begin match kind with
           | Functor ->
               Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
@@ -1176,10 +1212,18 @@ and approx_sig env ssg =
               let mty = approx_modtype env mod_ in
               let scope = Ctype.create_scope () in
               let sg = extract_sig env loc mty in
-              let modalities =
-                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+              let sg =
+                match moda with
+                | [] -> sg
+                | _ ->
+                  let modalities =
+                    Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+                  in
+                  let recursive =
+                    not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
+                  in
+                  apply_modalities_signature ~recursive env modalities sg
               in
-              let sg = apply_modalities_signature modalities sg in
               let sg, newenv = Env.enter_signature ~scope sg env in
               sg @ approx_sig newenv srem
           end
@@ -1694,10 +1738,19 @@ and transl_signature env sg =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    let sg, modalities =
+      match modalities with
+      | [] -> sg, Mode.Modality.Value.Const.id
+      | _ ->
+        let modalities =
+          Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        in
+        let recursive =
+          not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
+            sincl.pincl_attributes
+        in
+        apply_modalities_signature ~recursive env modalities sg, modalities
     in
-    let sg = apply_modalities_signature modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
       (Signature_names.check_sig_item names loc)
@@ -2393,7 +2446,7 @@ let modtype_of_package env loc p fl =
 let package_subtype env p1 fl1 p2 fl2 =
   let mkmty p fl =
     let fl =
-      List.filter (fun (_n,t) -> Ctype.free_variables t = []) fl in
+      List.filter (fun (_n,t) -> Ctype.closed_type_expr t) fl in
     modtype_of_package env Location.none p fl
   in
   match mkmty p1 fl1, mkmty p2 fl2 with
@@ -2494,6 +2547,10 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
+  match Jane_syntax.Module_expr.of_ast smod with
+    Some ext ->
+      type_module_extension_aux ~alias sttn env smod ext
+  | None ->
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, mode =
@@ -2608,7 +2665,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       let mty =
         match get_desc (Ctype.expand_head env exp.exp_type) with
           Tpackage (p, fl) ->
-            if List.exists (fun (_n, t) -> Ctype.free_variables t <> []) fl then
+            if List.exists (fun (_n, t) -> not (Ctype.closed_type_expr t)) fl
+            then
               raise (Error (smod.pmod_loc, env,
                             Incomplete_packed_module exp.exp_type));
             if !Clflags.principal &&
@@ -2633,6 +2691,15 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.leaf_for_unpack
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
+
+and type_module_extension_aux ~alias sttn env smod
+      : Jane_syntax.Module_expr.t -> _ =
+  function
+  | Emod_instance (Imod_instance glob) ->
+      ignore (alias, sttn);
+      let glob = instance_name ~loc:smod.pmod_loc env glob in
+      Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
+        Global_module.Name.print glob
 
 and type_application loc strengthen funct_body env smod =
   let rec extract_application funct_body env sargs smod =
@@ -3514,7 +3581,8 @@ let () =
 let register_params params =
   List.iter
     (fun param_name ->
-       let param = Compilation_unit.Name.of_string param_name in
+       (* We don't (yet!) support parameterised parameters *)
+       let param = Global_module.Name.create_no_args param_name in
        Env.register_parameter param
     )
     params
@@ -3559,8 +3627,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
   | None -> None
   | Some arg_module ->
       let arg_import =
-        (* This will soon be converting from one type to another *)
-        arg_module
+        Compilation_unit.Name.of_global_name_no_args_exn arg_module
       in
       (* CR lmaurer: This "look for known name in path" code is duplicated
          all over the place. *)
@@ -3574,7 +3641,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
       let arg_cmi = Unit_info.Artifact.from_filename arg_filename in
       let arg_sig =
         Env.read_signature arg_module arg_cmi ~add_binding:false in
-      if not (Env.is_parameter_unit arg_import) then
+      if not (Env.is_parameter_unit arg_module) then
         raise (Error (Location.none, env,
                       Argument_for_non_parameter (arg_module, arg_filename)));
       let coercion =
@@ -3642,9 +3709,10 @@ let type_implementation target modulename initial_env ast =
       end else begin
         let arg_type =
           !Clflags.as_argument_for
-          |> Option.map Compilation_unit.Name.of_string
+          |> Option.map (fun name -> Global_module.Name.create_no_args name)
         in
-        let import = Compilation_unit.name modulename in
+        let cu_name = Compilation_unit.name modulename in
+        let basename = cu_name |> Compilation_unit.Name.to_string in
         let source_intf = Unit_info.mli_from_source target in
         if !Clflags.cmi_file <> None
         || Sys.file_exists source_intf then begin
@@ -3652,7 +3720,6 @@ let type_implementation target modulename initial_env ast =
             match !Clflags.cmi_file with
             | Some cmi_file -> Unit_info.Artifact.from_filename cmi_file
             | None ->
-              let basename = import |> Compilation_unit.Name.to_string in
               let cmi_file =
                 try
                   Load_path.find_normalized (basename ^ ".cmi")
@@ -3667,13 +3734,16 @@ let type_implementation target modulename initial_env ast =
           let compiled_intf_file_name =
             Unit_info.Artifact.filename compiled_intf_file
           in
-          let dclsig =
-            Env.read_signature import compiled_intf_file ~add_binding:false
+          let global_name =
+            Compilation_unit.to_global_name_without_prefix modulename
           in
-          if Env.is_parameter_unit import then
-            error (Cannot_implement_parameter (import, source_intf));
-          let arg_type_from_cmi = Env.implemented_parameter import in
-          if not (Option.equal Compilation_unit.Name.equal
+          let dclsig =
+            Env.read_signature global_name compiled_intf_file ~add_binding:false
+          in
+          if Env.is_parameter_unit global_name then
+            error (Cannot_implement_parameter (cu_name, source_intf));
+          let arg_type_from_cmi = Env.implemented_parameter global_name in
+          if not (Option.equal Global_module.Name.equal
                     arg_type arg_type_from_cmi) then
             error (Inconsistent_argument_types
                      { new_arg_type = arg_type; old_source_file = source_intf;
@@ -3800,7 +3870,7 @@ let type_interface ~sourcefile modulename env ast =
   let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
-    |> Option.map Compilation_unit.Name.of_string
+    |> Option.map (fun name -> Global_module.Name.create_no_args name)
   in
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
@@ -3846,16 +3916,17 @@ let package_units initial_env objfiles target_cmi modulename =
     List.map
       (fun f ->
          let pref = chop_extensions f in
-         let unit =
+         let basename =
            pref
            |> Filename.basename
            |> String.capitalize_ascii
-           |> Compilation_unit.Name.of_string
          in
+         let unit = Compilation_unit.Name.of_string basename in
+         let global_name = Global_module.Name.create_no_args basename in
          let modname = Compilation_unit.create_child modulename unit in
          let artifact = Unit_info.Artifact.from_filename f in
          let sg =
-           Env.read_signature unit (Unit_info.companion_cmi artifact)
+           Env.read_signature global_name (Unit_info.companion_cmi artifact)
              ~add_binding:false
          in
          if Unit_info.is_cmi artifact &&
@@ -3885,7 +3956,7 @@ let package_units initial_env objfiles target_cmi modulename =
       raise(Error(Location.in_file mli, Env.empty,
                   Interface_not_compiled mli))
     end;
-    let name = Compilation_unit.name modulename in
+    let name = Compilation_unit.to_global_name_without_prefix modulename in
     let dclsig = Env.read_signature name target_cmi ~add_binding:false in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
@@ -4216,7 +4287,7 @@ let report_error ~loc _env = function
         "Interface %a@ found for module@ %a@ is not flagged as a parameter.@ \
          It cannot be the parameter type for this argument module."
         Style.inline_code path
-        (Style.as_inline_code Compilation_unit.Name.print) param
+        (Style.as_inline_code Global_module.Name.print) param
   | Inconsistent_argument_types
         { new_arg_type; old_source_file; old_arg_type } ->
       let pp_arg_type ppf arg_type =
@@ -4224,7 +4295,7 @@ let report_error ~loc _env = function
         | None -> Format.fprintf ppf "without -as-argument-for"
         | Some arg_type ->
             Format.fprintf ppf "with -as-argument-for %a"
-              Compilation_unit.Name.print arg_type
+              Global_module.Name.print arg_type
       in
       Location.errorf ~loc
         "Inconsistent usage of -as-argument-for. Interface@ %s@ was compiled \
@@ -4235,7 +4306,11 @@ let report_error ~loc _env = function
   | Cannot_find_argument_type arg_type ->
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
-        (Style.as_inline_code Compilation_unit.Name.print) arg_type
+        (Style.as_inline_code Global_module.Name.print) arg_type
+  | Duplicate_parameter_name name ->
+      Location.errorf ~loc
+        "This instance has multiple arguments with the name %a."
+        (Style.as_inline_code Global_module.Name.print) name
   | Submode_failed (Error (ax, {left; right})) ->
       Location.errorf ~loc
         "This value is %a, but expected to be %a because it is inside a module."

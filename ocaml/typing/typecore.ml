@@ -853,7 +853,9 @@ let has_poly_constraint spat =
   | _ -> false
 
 (** Mode cross a left mode *)
-let mode_cross_left env ty mode =
+(* This is very similar to Ctype.mode_cross_left_alloc. Any bugs here are likely
+   bugs there, too. *)
+let mode_cross_left_value env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
@@ -865,7 +867,7 @@ let mode_cross_left env ty mode =
 
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
   : Env.actual_mode =
-  let mode = mode_cross_left env ty actual_mode.mode in
+  let mode = mode_cross_left_value env ty actual_mode.mode in
   {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
@@ -882,6 +884,8 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   { monadic; comonadic }
 
 (** Mode cross a right mode *)
+(* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
+   there, too. *)
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
@@ -1308,7 +1312,7 @@ and build_as_type_and_mode_extra env p ~mode : _ -> _ * _ = function
   | (Tpat_constraint {ctyp_type = ty; _}, _, _) :: rest ->
       (* If the type constraint is ground, then this is the best type
          we can return, so just return an instance (cf. #12313) *)
-      if free_variables ty = [] then instance ty, mode else
+      if closed_type_expr ty then instance ty, mode else
       (* Otherwise we combine the inferred type for the pattern with
          then non-ground constraint in a non-ambivalent way *)
       let as_ty, as_mode = build_as_type_and_mode_extra env p rest ~mode in
@@ -2530,6 +2534,11 @@ and type_pat_aux
       match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
       | Ttuple labeled_tl when is_principal expected_ty ->
+        begin match closed with
+        | Open -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                    Language_extension.Labeled_tuples ()
+        | Closed -> ()
+        end;
         reorder_pat loc penv spl closed labeled_tl expected_ty
       (* If not, it's not allowed to be open (partial) *)
       | _ ->
@@ -2542,6 +2551,8 @@ and type_pat_aux
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) lbl;
         lbl, type_pat tps Value ~alloc_mode p t)
         spl_ann
     in
@@ -2559,6 +2570,11 @@ and type_pat_aux
       match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
       | Tunboxed_tuple labeled_tl when is_principal expected_ty ->
+                begin match closed with
+        | Open -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                    Language_extension.Labeled_tuples ()
+        | Closed -> ()
+        end;
         reorder_pat loc penv spl closed labeled_tl expected_ty
       (* If not, it's not allowed to be open (partial) *)
       | _ ->
@@ -2572,6 +2588,8 @@ and type_pat_aux
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode, sort) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) lbl;
         lbl, type_pat tps Value ~alloc_mode p t, sort)
         spl_ann
     in
@@ -2614,7 +2632,9 @@ and type_pat_aux
         pat_env = !!penv }
   | Ppat_var name ->
       let ty = instance expected_ty in
-      let alloc_mode = mode_cross_left !!penv expected_ty alloc_mode.mode in
+      let alloc_mode =
+        mode_cross_left_value !!penv expected_ty alloc_mode.mode
+      in
       let id, uid =
         enter_variable tps loc name alloc_mode ty sp.ppat_attributes
       in
@@ -2653,7 +2673,7 @@ and type_pat_aux
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
-      let mode = mode_cross_left !!penv expected_ty mode in
+      let mode = mode_cross_left_value !!penv expected_ty mode in
       let id, uid =
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
           sp.ppat_attributes
@@ -4368,7 +4388,7 @@ let check_univars env kind exp ty_expected vars =
             *)
             match get_desc (expand_head env var) with
             | Tvar { jkind = jkind2; } -> begin
-                match check_type_jkind env uvar jkind2 with
+                match check_type_jkind env uvar (Jkind.disallow_left jkind2) with
                 | Ok _ -> ()
                 | Error err ->
                   error exp_ty ty_expected
@@ -5789,14 +5809,14 @@ and type_expect_
         match is_float_boxing with
         | true ->
           let alloc_mode, argument_mode = register_allocation expected_mode in
-          let mode = mode_cross_left env Predef.type_unboxed_float mode in
+          let mode = mode_cross_left_value env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu =
             unique_use ~loc ~env mode (as_single_mode argument_mode)
           in
           Boxing (alloc_mode, uu)
         | false ->
-          let mode = mode_cross_left env ty_arg mode in
+          let mode = mode_cross_left_value env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
           Non_boxing uu
@@ -6539,7 +6559,10 @@ and type_coerce
   match sty with
   | None ->
     let (cty', ty', force) =
-      Typetexp.transl_simple_type_delayed env type_mode sty'
+      with_local_level begin fun () ->
+        Typetexp.transl_simple_type_delayed env type_mode sty'
+      end
+      ~post:(fun (_, ty, _) -> generalize_structure ty)
     in
     let arg, arg_type, gen =
       let lv = get_current_level () in
@@ -6555,8 +6578,8 @@ and type_coerce
           (* prerr_endline "self coercion"; *)
           r := loc :: !r;
           force ()
-      | _ when free_variables ~env arg_type = []
-            && free_variables ~env ty' = [] ->
+      | _ when closed_type_expr ~env arg_type
+            && closed_type_expr ~env ty' ->
           if not gen && (* first try a single coercion *)
             let snap = snapshot () in
             let ty, _b = enlarge_type env ty' in
@@ -6598,7 +6621,9 @@ and type_coerce
         end
       in
       begin try
-        let force'' = subtype env (instance ty) (instance ty') in
+        let force'' =
+          subtype env (generic_instance ty) (generic_instance ty')
+        in
         force (); force' (); force'' ()
       with Subtype err ->
         raise (Error (loc, env, Not_subtype err))
@@ -7701,7 +7726,7 @@ and type_application env app_loc expected_mode position_and_mode
       let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) ret_mode) in
       let mode_res =
-        mode_cross_left env ty_ret (alloc_as_value ret_mode)
+        mode_cross_left_value env ty_ret (alloc_as_value ret_mode)
       in
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
@@ -7763,7 +7788,7 @@ and type_application env app_loc expected_mode position_and_mode
       in
       let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) mode_ret) in
       let mode_ret =
-        mode_cross_left env ty_ret (alloc_as_value mode_ret)
+        mode_cross_left_value env ty_ret (alloc_as_value mode_ret)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
@@ -7812,6 +7837,8 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let expl =
     List.map2
       (fun (label, body) ((_, ty), argument_mode) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty)))
@@ -7866,6 +7893,8 @@ and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let expl =
     List.map2
       (fun (label, body) ((_, ty, sort), argument_mode) ->
+        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
+                                Language_extension.Labeled_tuples ()) label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty), sort))
