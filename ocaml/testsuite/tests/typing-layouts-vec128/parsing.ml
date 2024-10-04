@@ -17,16 +17,12 @@ val f : int64x2# -> unit = <fun>
 
 type t = C of int64x2#;;
 [%%expect {|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type t = C of int64x2#
 |}];;
 
 type t = C : int64x2# -> t;;
 [%%expect {|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type t = C : int64x2# -> t
 |}];;
 
 (* int64x2# works as an argument to normal type constructors, not just

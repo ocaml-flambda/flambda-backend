@@ -588,6 +588,7 @@ and flat_element =
   | Float32
   | Bits32
   | Bits64
+  | Vec128
   | Word
 
 and mixed_product_shape =

@@ -372,6 +372,7 @@ and flat_element = Types.flat_element =
   | Float32
   | Bits32
   | Bits64
+  | Vec128
   | Word
 
 and flat_element_read =
@@ -1251,7 +1252,7 @@ let get_mixed_block_element = Types.get_mixed_product_element
 let flat_read_non_float flat_element =
   match flat_element with
   | Float_boxed -> Misc.fatal_error "flat_element_read_non_float Float_boxed"
-  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as flat_element ->
+  | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word as flat_element ->
       Flat_read flat_element
 
 let flat_read_float_boxed locality_mode = Flat_read_float_boxed locality_mode
@@ -1873,6 +1874,7 @@ let layout_of_mixed_field (kind : mixed_block_read) =
       | Float32 -> layout_unboxed_float Pfloat32
       | Bits32 -> layout_unboxed_int32
       | Bits64 -> layout_unboxed_int64
+      | Vec128 -> layout_unboxed_vector Pvec128
       | Word -> layout_unboxed_nativeint
       | Float_boxed -> layout_boxed_float Pfloat64
 

@@ -102,6 +102,7 @@ let mixed_block_kinds shape =
         | Naked_float32 -> KS.naked_float32
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
+        | Naked_vec128 -> KS.naked_vec128
         | Naked_nativeint -> KS.naked_nativeint)
       (Array.to_list (K.Mixed_block_shape.flat_suffix shape))
   in
@@ -128,47 +129,66 @@ let make_block ~dbg kind alloc_mode args =
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~field =
   let mutability = Mutability.to_asttypes mutability in
-  let index = C.const ~dbg (Reg_width_const.tagged_immediate field) in
-  let load_func =
+  let field = Targetint_31_63.to_int field in
+  let load_func, offset =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
-      C.get_field_computed Pointer
+      C.get_field_computed Pointer, field
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
-      C.get_field_computed Immediate
-    | Naked_floats _ -> C.unboxed_float_array_ref
-    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-      match field_kind with
-      | Tagged_immediate -> C.get_field_computed Immediate
-      | Naked_float -> C.unboxed_float_array_ref
-      | Naked_float32 -> C.get_field_unboxed_float32
-      | Naked_int32 -> C.get_field_unboxed_int32
-      | Naked_int64 | Naked_nativeint -> C.get_field_unboxed_int64_or_nativeint)
+      C.get_field_computed Immediate, field
+    | Naked_floats _ -> C.unboxed_float_array_ref, field
+    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+      let func =
+        (* CR-someday mslater: make these functions consistent *)
+        match field_kind with
+        | Tagged_immediate -> C.get_field_computed Immediate
+        | Naked_float -> C.unboxed_float_array_ref
+        | Naked_float32 -> C.get_field_unboxed_float32
+        | Naked_int32 -> C.get_field_unboxed_int32
+        | Naked_vec128 ->
+          fun mut ~block ~index dbg ->
+            C.get_field_unboxed_vec128 mut ~block ~index_in_words:index dbg
+        | Naked_int64 | Naked_nativeint ->
+          C.get_field_unboxed_int64_or_nativeint
+      in
+      let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
+      func, offset
   in
+  let index = C.int_const dbg offset in
   load_func mutability ~block ~index dbg
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~field ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
-  let index = C.const ~dbg (Reg_width_const.tagged_immediate field) in
-  let set_func =
+  let field = Targetint_31_63.to_int field in
+  let set_func, offset =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
-      C.setfield_computed Pointer init_or_assign
+      C.setfield_computed Pointer init_or_assign, field
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
-      C.setfield_computed Immediate init_or_assign
-    | Naked_floats _ -> C.float_array_set
-    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-      match field_kind with
-      | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
-      | Naked_float -> C.float_array_set
-      | Naked_float32 -> C.setfield_unboxed_float32
-      | Naked_int32 -> C.setfield_unboxed_int32
-      | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint)
+      C.setfield_computed Immediate init_or_assign, field
+    | Naked_floats _ -> C.float_array_set, field
+    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+      let func =
+        (* CR-someday mslater: make these functions consistent *)
+        match field_kind with
+        | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
+        | Naked_float -> C.float_array_set
+        | Naked_float32 -> C.setfield_unboxed_float32
+        | Naked_int32 -> C.setfield_unboxed_int32
+        | Naked_vec128 ->
+          fun arr index_in_words newval dbg ->
+            C.setfield_unboxed_vec128 arr ~index_in_words newval dbg
+        | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint
+      in
+      let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
+      func, offset
   in
+  let index = C.int_const dbg offset in
   C.return_unit dbg (set_func block index new_value dbg)
 
 (* Array creation and access. For these functions, [index] is a tagged

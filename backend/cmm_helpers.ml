@@ -1418,6 +1418,32 @@ let setfield_unboxed_float32 arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
+(* Getters and setters for unboxed vec128 fields *)
+
+let get_field_unboxed_vec128 mutability ~block ~index_in_words dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let memory_chunk = Onetwentyeight_unaligned in
+  let field_address = array_indexing log2_size_addr block index_in_words dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let field_address = array_indexing log2_size_addr arr index_in_words dbg in
+  return_unit dbg
+    (Cop
+       ( Cstore (Onetwentyeight_unaligned, Assignment),
+         [field_address; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)

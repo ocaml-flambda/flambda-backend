@@ -196,23 +196,17 @@ Error: Tuple element types must have layout value.
 
 type t5_1 = { x : t_vec128 };;
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type t5_1 = { x : t_vec128; }
 |}];;
 
 type t5_2 = { y : int; x : t_vec128 };;
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type t5_2 = { y : int; x : t_vec128; }
 |}];;
 
 type t5_2' = { y : string; x : t_vec128 };;
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type t5_2' = { y : string; x : t_vec128; }
 |}];;
 
 (* CR layouts 2.5: allow this *)
@@ -227,34 +221,30 @@ Error: Type "t_vec128" has layout "vec128".
 
 type t5_4 = A of t_vec128;;
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type t5_4 = A of t_vec128
 |}];;
 
 type t5_5 = A of int * t_vec128;;
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type t5_5 = A of int * t_vec128
 |}];;
 
 type ('a : vec128) t5_7 = A of int
 type ('a : vec128) t5_8 = A of 'a;;
 [%%expect{|
 type ('a : vec128) t5_7 = A of int
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+type ('a : vec128) t5_8 = A of 'a
 |}]
 
 (* not allowed: value in flat suffix *)
 type 'a t_disallowed = A of t_vec128 * 'a
 
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 23-41:
+1 | type 'a t_disallowed = A of t_vec128 * 'a
+                           ^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, "
+       t_vec128", but found boxed argument, "'a".
 |}]
 
 
@@ -526,16 +516,18 @@ type t11_1 = ..
 type t11_1 += A of t_vec128;;
 [%%expect{|
 type t11_1 = ..
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+Line 3, characters 14-27:
+3 | type t11_1 += A of t_vec128;;
+                  ^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of int64x2#;;
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 14-27:
+1 | type t11_1 += B of int64x2#;;
+                  ^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : vec128) t11_2 = ..
@@ -547,18 +539,21 @@ type 'a t11_2 += B of 'a;;
 [%%expect{|
 type ('a : vec128) t11_2 = ..
 type 'a t11_2 += A of int
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+Line 5, characters 17-24:
+5 | type 'a t11_2 += B of 'a;;
+                     ^^^^^^^
+Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
 |}]
 
 (* not allowed: value in flat suffix *)
 type 'a t11_2 += C : 'a * 'b -> 'a t11_2
 
 [%%expect{|
->> Fatal error: Unboxed vector fields are not yet supported
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 17-40:
+1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
+                     ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Expected all flat constructor arguments after non-value argument, "'a",
+       but found boxed argument, "'b".
 |}]
 
 (***************************************)

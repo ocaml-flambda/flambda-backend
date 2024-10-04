@@ -9,8 +9,11 @@ CR-someday mslater: with layout polymorphism, the tests could be functorized.
 
 [@@@ocaml.warning "-unused-type-declaration"]
 
+external box_float : float# -> float = "%box_float"
+
 external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
 external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
+
 external int64x2_of_int64s : int64 -> int64 -> int64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
 external int64x2_low_int64 : int64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
 external int64x2_high_int64 : int64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
@@ -166,26 +169,55 @@ let () =
 ;;
 
 (* Store in record *)
-(* CR mslater: unboxed vector fields *)
-(* type record = { a : int64x2
+type record = { prefix : string
+              ; a : int64x2
               ; mutable b : int64x2
-              ; c : float }
+              ; c : float# }
 
 let () =
-  let record = { a = int64x2_of_int64s 1L 2L; b = int64x2_of_int64s 3L 4L; c = 5. } in
+  let record = { prefix = "prefix"; a = int64x2_of_int64s 1L 2L; b = int64x2_of_int64s 3L 4L; c = #5. } in
   check record.a 1L 2L;
   check record.b 3L 4L;
+  assert (record.prefix = "prefix");
   let record = Sys.opaque_identity record in
   record.b <- int64x2_of_int64s 5L 6L;
   check record.a 1L 2L;
   check record.b 5L 6L;
-  let v = combine_with_floats record.a record.c record.b 6. in
+  assert (record.prefix = "prefix");
+  let v = combine_with_floats record.a (box_float record.c) record.b 6. in
   check v 11L 14L
-;; *)
+;;
+
+type record2 = { imm0 : int; str1 : string; a : int64x2# }
+
+let copy_via_weak x =
+  let weak = Weak.create 1 in
+  Weak.set weak 0 (Some x);
+  Weak.get_copy weak 0 |> Option.get
+;;
+
+let copy_via_tag x =
+  let obj = Obj.repr x in
+  Obj.with_tag (Obj.tag obj) obj |> Obj.obj;;
+;;
+
+let () =
+  let record = { imm0 = 0; str1 = ""; a = int64x2_of_int64s 1L 2L } in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 0);
+  let record = { record with imm0 = 5 } in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 5);
+  let record = copy_via_weak record in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 5);
+  let record = copy_via_tag record in
+  check record.a 1L 2L;
+  assert (record.str1 = "" && record.imm0 = 5);
+;;
 
 (* Store in variant *)
-(* CR mslater: unboxed vector fields *)
-(* type variant = A of int64x2 | B of int64x2 | C of float
+type variant = A of int64x2 | B of int64x2 | C of float
 
 let () =
   let variant = A (int64x2_of_int64s 1L 2L) in
@@ -199,7 +231,7 @@ let () =
   match !variant with
   | B v -> check v 3L 4L
   | _ -> print_endline "fail"
-;; *)
+;;
 
 (* Pass lots of vectors to an external *)
 external lots_of_vectors :

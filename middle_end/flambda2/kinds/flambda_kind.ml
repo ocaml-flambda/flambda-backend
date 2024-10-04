@@ -170,6 +170,7 @@ type flat_suffix_element =
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
+  | Naked_vec128
 
 module Flat_suffix_element0 = struct
   type t = flat_suffix_element
@@ -182,12 +183,19 @@ module Flat_suffix_element0 = struct
     | Naked_int32 -> naked_int32
     | Naked_int64 -> naked_int64
     | Naked_nativeint -> naked_nativeint
+    | Naked_vec128 -> naked_vec128
 
   let naked_float = Naked_float
 
   let compare = Stdlib.compare
 
   let equal = Stdlib.( = )
+
+  let size_in_words = function
+    | Tagged_immediate | Naked_float | Naked_float32 | Naked_int32 | Naked_int64
+    | Naked_nativeint ->
+      1
+    | Naked_vec128 -> 2
 
   let print ppf t =
     match t with
@@ -197,6 +205,7 @@ module Flat_suffix_element0 = struct
     | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
+    | Naked_vec128 -> Format.pp_print_string ppf "Naked_vec128"
 
   let from_lambda (elt : Lambda.flat_element) =
     match elt with
@@ -205,6 +214,7 @@ module Flat_suffix_element0 = struct
     | Float32 -> Naked_float32
     | Bits32 -> Naked_int32
     | Bits64 -> Naked_int64
+    | Vec128 -> Naked_vec128
     | Word -> Naked_nativeint
 end
 
@@ -229,6 +239,22 @@ module Mixed_block_shape = struct
   let flat_suffix t = t.flat_suffix
 
   let field_kinds t = t.field_kinds
+
+  let size_in_words t =
+    Array.fold_left
+      (fun acc x -> acc + Flat_suffix_element0.size_in_words x)
+      t.value_prefix_size t.flat_suffix
+
+  let offset_in_words t index =
+    if index <= t.value_prefix_size
+    then index
+    else
+      let o = ref t.value_prefix_size in
+      let flat = index - t.value_prefix_size in
+      for i = 0 to flat - 1 do
+        o := !o + Flat_suffix_element0.size_in_words t.flat_suffix.(i)
+      done;
+      !o
 
   (* This function has two meanings. The first is to say whether two shapes are
      equivalent. The second is to tell whether two shapes are compatible.
@@ -960,4 +986,5 @@ module Flat_suffix_element = struct
     | Naked_int32 -> With_subkind.naked_int32
     | Naked_int64 -> With_subkind.naked_int64
     | Naked_nativeint -> With_subkind.naked_nativeint
+    | Naked_vec128 -> With_subkind.naked_vec128
 end
