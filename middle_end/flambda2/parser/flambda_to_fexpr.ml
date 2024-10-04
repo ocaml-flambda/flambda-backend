@@ -438,10 +438,10 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
   | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
-  | Unboxed_nativeint_array ->
+  | Unboxed_nativeint_array | Unboxed_vec128_array ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
-       implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -526,12 +526,34 @@ let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   | Begin_region { ghost } -> Begin_region { ghost }
   | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
-  | Dls_get ->
+  | Dls_get | Poll ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
 
+let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
+    Fexpr.block_access_kind =
+  let size (s : _ Or_unknown.t) =
+    match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
+  in
+  match bk with
+  | Values { field_kind; size = s; tag } ->
+    let size = s |> size in
+    let tag =
+      match tag with
+      | Unknown -> None
+      | Known tag -> Some (tag |> Tag.Scannable.to_int)
+    in
+    Values { field_kind; size; tag }
+  | Naked_floats { size = s } ->
+    let size = s |> size in
+    Naked_floats { size }
+  | Mixed _ -> Misc.fatal_error "Mixed blocks not supported in fexpr"
+
 let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
+  | Block_load { kind; mut; field } ->
+    let kind = block_access_kind kind in
+    Block_load { kind; mut; field }
   | Array_length ak -> Array_length ak
   | Box_number (bk, alloc) ->
     Box_number (bk, alloc_mode_for_allocations env alloc)
@@ -563,31 +585,13 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
 
-let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
-    Fexpr.block_access_kind =
-  let size (s : _ Or_unknown.t) =
-    match s with Known s -> Some (s |> targetint_ocaml) | Unknown -> None
-  in
-  match bk with
-  | Values { field_kind; size = s; tag } ->
-    let size = s |> size in
-    let tag =
-      match tag with
-      | Unknown -> None
-      | Known tag -> Some (tag |> Tag.Scannable.to_int)
-    in
-    Values { field_kind; size; tag }
-  | Naked_floats { size = s } ->
-    let size = s |> size in
-    Naked_floats { size }
-  | Mixed _ -> Misc.fatal_error "Mixed blocks not supported in fexpr"
-
-let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
+let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   match op with
+  | Block_set { kind; init; field } ->
+    let kind = block_access_kind kind in
+    let init = init_or_assign env init in
+    Block_set { kind; init; field }
   | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
-  | Block_load (access_kind, mutability) ->
-    let access_kind = block_access_kind access_kind in
-    Block_load (access_kind, mutability)
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
   | Int_arith
@@ -612,7 +616,6 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
     let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
     let ak = Flambda_primitive.Array_set_kind.array_kind ak in
     Array_set (ak, width, init_or_assign env ia)
-  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
   | Bigarray_set _ | Atomic_compare_and_set ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
@@ -635,7 +638,7 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   | Nullary op -> Nullary (nullop env op)
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, arg1, arg2) ->
-    Binary (binop op, simple env arg1, simple env arg2)
+    Binary (binop env op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
     Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
   | Variadic (op, args) -> Variadic (varop env op, List.map (simple env) args)
@@ -723,10 +726,11 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
   | Immutable_value_array elements ->
     Immutable_value_array (List.map (field_of_block env) elements)
   | Immutable_float32_array _ | Immutable_int32_array _
-  | Immutable_int64_array _ | Immutable_nativeint_array _ ->
+  | Immutable_int64_array _ | Immutable_nativeint_array _
+  | Immutable_vec128_array _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
-       implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
   | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s

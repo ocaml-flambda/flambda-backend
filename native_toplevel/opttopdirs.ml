@@ -48,7 +48,7 @@ let _ = Hashtbl.add directive_table "directory" (Directive_string dir_directory)
 let dir_remove_directory s =
   let d = expand_directory Config.standard_library s in
   let keep id =
-    match Load_path.find_uncap (Ident.name id ^ ".cmi") with
+    match Load_path.find_normalized (Ident.name id ^ ".cmi") with
     | exception Not_found -> true
     | fn -> Filename.dirname fn <> d
   in

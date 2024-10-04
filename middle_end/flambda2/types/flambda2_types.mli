@@ -406,6 +406,8 @@ val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
 
+val this_naked_vec128 : Vector_types.Vec128.Bit_pattern.t -> t
+
 val this_rec_info : Rec_info_expr.t -> t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> t
@@ -656,9 +658,17 @@ val meet_is_immutable_array :
   Typing_env.t ->
   t ->
   (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
-  * t
+  * t array
   * Alloc_mode.For_types.t)
   meet_shortcut
+
+val prove_is_immutable_array :
+  Typing_env.t ->
+  t ->
+  (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
+  * t array
+  * Alloc_mode.For_types.t)
+  proof_of_property
 
 val meet_single_closures_entry :
   Typing_env.t ->
@@ -768,6 +778,8 @@ type to_lift = private
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
+  | Immutable_vec128_array of
+      { fields : Vector_types.Vec128.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 

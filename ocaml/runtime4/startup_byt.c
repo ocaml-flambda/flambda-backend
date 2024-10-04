@@ -95,7 +95,7 @@ static void fixup_endianness_trailer(uint32_t * p)
 #endif
 }
 
-static int read_trailer(int fd, struct exec_trailer *trail)
+int caml_read_trailer(int fd, struct exec_trailer *trail)
 {
   if (lseek(fd, (long) -TRAILER_SIZE, SEEK_END) == -1)
     return BAD_BYTECODE;
@@ -146,7 +146,7 @@ int caml_attempt_open(char_os **name, struct exec_trailer *trail,
       return BAD_BYTECODE;
     }
   }
-  err = read_trailer(fd, trail);
+  err = caml_read_trailer(fd, trail);
   if (err != 0) {
     close(fd);
     caml_stat_free(truename);
@@ -399,7 +399,7 @@ static void do_print_config(void)
          "false");
 #endif
   printf("windows_unicode: %s\n",
-#if WINDOWS_UNICODE
+#if defined(WINDOWS_UNICODE) && WINDOWS_UNICODE != 0
          "true");
 #else
          "false");
@@ -633,6 +633,7 @@ CAMLexport value caml_startup_code_exn(
   caml_install_invalid_parameter_handler();
 #endif
   caml_init_custom_operations();
+  caml_ext_table_init(&caml_shared_libs_path, 8);
   cds_file = caml_secure_getenv(T("CAML_DEBUG_FILE"));
   if (cds_file != NULL) {
     caml_cds_file = caml_stat_strdup_os(cds_file);

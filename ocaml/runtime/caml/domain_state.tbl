@@ -52,9 +52,9 @@ DOMAIN_STATE(intnat, local_sp)
 DOMAIN_STATE(void*, local_top)
 DOMAIN_STATE(intnat, local_limit)
 
-DOMAIN_STATE(int, action_pending)
+DOMAIN_STATE(intnat, action_pending)
 /* Whether we are due to start the processing of delayable pending
-   actions. See runtime/signal.c. */
+   actions. See runtime/signal.c. Valid values: 0,1. */
 
 DOMAIN_STATE(struct c_stack_link*, c_stack)
 /* The C stack associated with this domain.
@@ -83,6 +83,12 @@ DOMAIN_STATE(uintnat, sweeping_done)
 /* Is sweeping done for the current major cycle. */
 
 DOMAIN_STATE(uintnat, allocated_words)
+/* Number of words promoted or allocated directly to the major heap since
+   latest slice. */
+
+DOMAIN_STATE(uintnat, allocated_words_direct)
+/* Number of words allocated directly to the major heap since the latest
+   slice. (subset of allocated_words) */
 
 DOMAIN_STATE(uintnat, swept_words)
 

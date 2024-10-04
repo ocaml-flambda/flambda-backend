@@ -22,7 +22,7 @@
 #else
 #include <caml/eventlog.h>
 #endif
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 #include <caml/domain.h>
 #include <caml/fail.h>
 
@@ -46,7 +46,7 @@ CAMLprim value caml_unix_fork(value unit)
 #ifdef CAML_RUNTIME_5
   if (caml_domain_is_multicore()) {
     caml_failwith
-      ("Unix.fork may not be called while other domains were created");
+      ("Unix.fork may not be called after any domain has been spawned");
   }
 #else
   CAML_EV_FLUSH();

@@ -8,7 +8,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-
 (env
  (_
   (flags
@@ -317,14 +316,17 @@
  (modes native)
  (instrumentation
   (backend bisect_ppx))
+ ; We don't use [unix] in [libraries] as that causes ocaml/otherlibs/unix/
+ ; to be built against the system compiler, which won't work.
+ (ocamlc_flags unix.cma)
+ (ocamlopt_flags unix.cmxa)
  (libraries
   flambda_backend_driver
   flambda2
   flambda2_ui
   flambda2_to_cmm
   ocamloptcomp
-  ocamlcommon
-  unix)
+  ocamlcommon)
  (modules boot_ocamlopt))
 
 ; The input archives (.a, .cma and .cmxa) to the following three rules

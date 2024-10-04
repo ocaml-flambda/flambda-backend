@@ -2,4 +2,4 @@ Raised at Names_partial_application.bang in file "names_partial_application.ml",
 Called from Names_partial_application.labelled_arguments_partial.f in file "names_partial_application.ml", line 12, characters 38-42
 Called from Names_partial_application.labelled_arguments_partial.(partial) in file "names_partial_application.ml", line 13, characters 37-45
 Called from Names_partial_application.labelled_arguments_partial in file "names_partial_application.ml", line 14, characters 2-15
-Called from Names_partial_application in file "names_partial_application.ml", line 20, characters 4-54
+Called from Names_partial_application in file "names_partial_application.ml", lines 20-21, characters 4-54

@@ -66,8 +66,8 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_float32 -> Cmm.typ_float32
@@ -86,8 +86,8 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_float32 -> Extended_machtype.typ_float32
@@ -107,8 +107,8 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
   | Naked_number Naked_int32 ->
@@ -426,3 +426,15 @@ let extended_machtype_of_return_arity arity =
   | arity ->
     (* Functions returning multiple values *)
     List.map extended_machtype_of_kind arity |> Array.concat
+
+let alloc_mode_for_applications_to_cmx t =
+  match t with
+  | Alloc_mode.For_applications.Local _ -> Cmx_format.Alloc_local
+  | Alloc_mode.For_applications.Heap -> Cmx_format.Alloc_heap
+
+let alloc_mode_for_allocations_to_cmm t =
+  match t with
+  | Alloc_mode.For_allocations.Heap -> Cmm.Alloc_mode.Heap
+  | Alloc_mode.For_allocations.Local _ ->
+    assert (Flambda_features.stack_allocation_enabled ());
+    Cmm.Alloc_mode.Local

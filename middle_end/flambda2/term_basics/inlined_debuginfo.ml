@@ -87,7 +87,7 @@ module One_step = struct
       (* Note that [t.dbg] might not be a singleton -- however everything should
          be ok in terms of each frame (except the first) being annotated with a
          uid and function symbol in [t.dbg]. *)
-      Debuginfo.inline t.dbg dbg_from_inlined_body
+      Debuginfo.inline t.dbg ~from_inlined_body:dbg_from_inlined_body
 end
 
 (* The most recent [Enter_inlined_apply] primitive that we have encountered,

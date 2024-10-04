@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Solver_intf
+open Allowance
 
 (* While all our lattices are bi-Heyting algebras (see [mode.ml]), the extra
    structure is not directly useful to the user, so we only expose the basic
@@ -48,8 +48,8 @@ module type Common = sig
 
   type 'd t constraint 'd = 'l * 'r
 
-  (* [allowed] and [disallowed] is from [Solver_intf], see Note [Allowance]
-     in that file. *)
+  (* [allowed] and [disallowed] is from [Allowance], see Note [Allowance]
+     in allowance.mli. *)
 
   (** Left-only mode *)
   type l = (allowed * disallowed) t
@@ -246,6 +246,7 @@ module type S = sig
     module Const : sig
       type t =
         | Contended
+        | Shared
         | Uncontended
 
       include Lattice with type t := t

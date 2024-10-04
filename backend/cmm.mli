@@ -162,6 +162,14 @@ type float_width =
   | Float64
   | Float32
 
+type vec128_type =
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -199,8 +207,17 @@ type static_cast =
   | Int_of_float of float_width
   | Float_of_float32
   | Float32_of_float
-  | V128_of_scalar of Primitive.vec128_type
-  | Scalar_of_v128 of Primitive.vec128_type
+  | V128_of_scalar of vec128_type
+  | Scalar_of_v128 of vec128_type
+
+module Alloc_mode : sig
+  type t = Heap | Local
+
+  val equal : t -> t -> bool
+  val print : Format.formatter -> t -> unit
+  val is_local : t -> bool
+  val is_heap  : t -> bool
+end
 
 type operation =
     Capply of machtype * Lambda.region_close
@@ -223,7 +240,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Lambda.alloc_mode
+  | Calloc of Alloc_mode.t
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool }  | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -253,6 +270,7 @@ type operation =
   | Ctuple_field of int * machtype array
       (* the [machtype array] refers to the whole tuple *)
   | Cdls_get
+  | Cpoll
 
 (* This is information used exclusively during construction of cmm terms by
    cmmgen, and thus irrelevant for selectgen and flambda2. *)

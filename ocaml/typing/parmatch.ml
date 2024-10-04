@@ -604,12 +604,14 @@ let do_set_args ~erase_mutable q r = match q with
     end
 | {pat_desc = Tpat_array (am, arg_sort, omegas)} ->
     let args,rest = read_args omegas r in
+    let args = if erase_mutable then omegas else args in
     make_pat
       (Tpat_array (am, arg_sort, args)) q.pat_type q.pat_env::
     rest
 | {pat_desc=Tpat_constant _|Tpat_any} ->
     q::r (* case any is used in matching.ml *)
-| _ -> fatal_error "Parmatch.set_args"
+| {pat_desc = (Tpat_var _ | Tpat_alias _ | Tpat_or _); _} ->
+    fatal_error "Parmatch.set_args"
 
 let set_args q r = do_set_args ~erase_mutable:false q r
 and set_args_erase_mutable q r = do_set_args ~erase_mutable:true q r
@@ -1847,6 +1849,10 @@ let get_mins le ps =
         if List.exists (fun p0 -> le p0 p) ps
         then select_rec r ps
         else select_rec (p::r) ps in
+  (* [select_rec] removes the elements that are followed by a smaller element.
+     An element that is preceded by a smaller element may stay in the list.
+     We thus do two passes on the list, which is returned reversed
+     the first time. *)
   select_rec [] (select_rec [] ps)
 
 (*
@@ -2029,7 +2035,7 @@ let do_check_partial ~pred loc casel pss = match pss with
           try
             let buf = Buffer.create 16 in
             let fmt = Format.formatter_of_buffer buf in
-            Printpat.top_pretty fmt v;
+            Format.fprintf fmt "%a@?" Printpat.pretty_pat v;
             if do_match (initial_only_guarded casel) [v] then
               Buffer.add_string buf
                 "\n(However, some guarded clause may match this value.)";
@@ -2084,7 +2090,8 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
     List.fold_left
       (fun r (_, _, p) -> collect_paths_from_pat r p)
       r lps
-| Tpat_variant (_, Some p, _) | Tpat_alias (p,_,_,_,_) -> collect_paths_from_pat r p
+| Tpat_variant (_, Some p, _) | Tpat_alias (p,_,_,_,_) ->
+    collect_paths_from_pat r p
 | Tpat_or (p1,p2,_) ->
     collect_paths_from_pat (collect_paths_from_pat r p1) p2
 | Tpat_lazy p

@@ -19,19 +19,17 @@ type boxed_integer = Pnativeint | Pint32 | Pint64
 
 type boxed_float = Pfloat64 | Pfloat32
 
-type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
-
-type boxed_vector = Pvec128 of vec128_type
+type boxed_vector = Pvec128
 
 (* Representation of arguments/result for the native code version
    of a primitive *)
 type native_repr =
   | Repr_poly
-  | Same_as_ocaml_repr of Jkind_types.Sort.base
+  | Same_as_ocaml_repr of Jkind_types.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
-  | Untagged_int
+  | Untagged_immediate
 
 (* See [middle_end/semantics_of_primitives.mli] *)
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
@@ -98,12 +96,10 @@ val print
 
 val native_name: 'a description_gen -> string
 val byte_name: 'a description_gen -> string
-val vec128_name: vec128_type -> string
 
 val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
 val equal_boxed_float : boxed_float -> boxed_float -> bool
-val equal_vec128_type : vec128_type -> vec128_type -> bool
-val equal_boxed_vector_size : boxed_vector -> boxed_vector -> bool
+val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
 val equal_effects : effects -> effects -> bool
 val equal_coeffects : coeffects -> coeffects -> bool

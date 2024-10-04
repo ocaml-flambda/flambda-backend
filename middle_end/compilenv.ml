@@ -35,11 +35,13 @@ type error =
 
 exception Error of error
 
+module Infos_table = Global_module.Name.Tbl
+
 let global_infos_table =
-  (CU.Name.Tbl.create 17 : unit_infos option CU.Name.Tbl.t)
+  (Infos_table.create 17 : unit_infos option Infos_table.t)
 
 let reset_info_tables () =
-  CU.Name.Tbl.reset global_infos_table
+  Infos_table.reset global_infos_table
 
 module String = Misc.Stdlib.String
 
@@ -62,7 +64,7 @@ let current_unit =
   }
 
 let reset compilation_unit =
-  CU.Name.Tbl.clear global_infos_table;
+  Infos_table.clear global_infos_table;
   Zero_alloc_info.reset cached_zero_alloc_info;
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
@@ -133,6 +135,15 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
+let equal_args arg1 arg2 =
+  let ({ param = name1; value = value1 } : CU.argument) = arg1 in
+  let ({ param = name2; value = value2 } : CU.argument) = arg2 in
+  CU.equal name1 name2 && CU.equal value1 value2
+
+let equal_up_to_pack_prefix cu1 cu2 =
+  CU.Name.equal (CU.name cu1) (CU.name cu2)
+  && List.equal equal_args (CU.instance_arguments cu1) (CU.instance_arguments cu2)
+
 let get_unit_info comp_unit =
   (* If this fails, it likely means that someone didn't call
      [CU.which_cmx_file]. *)
@@ -140,34 +151,35 @@ let get_unit_info comp_unit =
   (* CR lmaurer: Surely this should just compare [comp_unit] to
      [current_unit.ui_unit], but doing so seems to break Closure. We should fix
      that. *)
-  if CU.Name.equal (CU.name comp_unit) (CU.name current_unit.ui_unit)
+  if equal_up_to_pack_prefix comp_unit current_unit.ui_unit
   then
     Some current_unit
   else begin
-    let cmx_name = CU.name comp_unit in
+    let name = CU.to_global_name_without_prefix comp_unit in
     try
-      CU.Name.Tbl.find global_infos_table cmx_name
+      Infos_table.find global_infos_table name
     with Not_found ->
       let (infos, crc) =
-        if Env.is_imported_opaque cmx_name then (None, None)
+        if Env.is_imported_opaque (CU.name comp_unit) then (None, None)
         else begin
           try
             let filename =
-              Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
+              Load_path.find_normalized
+                (CU.base_filename comp_unit ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_zero_alloc_info ui.ui_zero_alloc_info;
             (Some ui, Some crc)
           with Not_found ->
-            let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in
+            let warn = Warnings.No_cmx_file (Global_module.Name.to_string name) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
       in
       let import = Import_info.create_normal comp_unit ~crc in
       current_unit.ui_imports_cmx <- import :: current_unit.ui_imports_cmx;
-      CU.Name.Tbl.add global_infos_table cmx_name infos;
+      Infos_table.add global_infos_table name infos;
       infos
   end
 
@@ -189,7 +201,8 @@ let get_global_export_info id =
 
 let cache_unit_info ui =
   cache_zero_alloc_info ui.ui_zero_alloc_info;
-  CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
+  Infos_table.add global_infos_table
+    (ui.ui_unit |> CU.to_global_name_without_prefix) (Some ui)
 
 (* Exporting cross-module information *)
 

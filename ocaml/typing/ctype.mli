@@ -76,7 +76,7 @@ val create_scope : unit -> int
 
 val newty: type_desc -> type_expr
 val new_scoped_ty: int -> type_desc -> type_expr
-val newvar: ?name:string -> Jkind.t -> type_expr
+val newvar: ?name:string -> jkind_lr -> type_expr
 
 val new_rep_var
   : ?name:string
@@ -84,9 +84,9 @@ val new_rep_var
   -> unit
   -> type_expr * Jkind.sort
         (* Return a fresh representable variable, along with its sort *)
-val newvar2: ?name:string -> int -> Jkind.t -> type_expr
+val newvar2: ?name:string -> int -> jkind_lr -> type_expr
         (* Return a fresh variable *)
-val new_global_var: ?name:string -> Jkind.t -> type_expr
+val new_global_var: ?name:string -> jkind_lr -> type_expr
         (* Return a fresh variable, bound at toplevel
            (as type variables ['a] in type constraints). *)
 val newobj: type_expr -> type_expr
@@ -180,12 +180,25 @@ val instance_list: type_expr list -> type_expr list
         (* Take an instance of a list of type schemes *)
 val new_local_type:
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
-        Jkind.t -> jkind_annot:Jkind.annotation option -> type_declaration
-val existential_name: constructor_description -> type_expr -> string
+        type_origin -> jkind_l -> jkind_annot:Jkind.annotation option ->
+        type_declaration
+
+module Pattern_env : sig
+  type t = private
+    { mutable env : Env.t;
+      equations_scope : int;
+      (* scope for local type declarations *)
+      allow_recursive_equations : bool;
+      (* true iff checking counter examples *)
+    }
+  val make: Env.t -> equations_scope:int -> allow_recursive_equations:bool -> t
+  val copy: ?equations_scope:int -> t -> t
+  val set_env: t -> Env.t -> unit
+end
 
 type existential_treatment =
   | Keep_existentials_flexible
-  | Make_existentials_abstract of { env: Env.t ref; scope: int }
+  | Make_existentials_abstract of Pattern_env.t
 
 val instance_constructor: existential_treatment ->
         constructor_description ->
@@ -201,12 +214,13 @@ val instance_class:
         type_expr list -> class_type -> type_expr list * class_type
 
 val instance_poly:
-        ?keep_names:bool ->
-        bool -> type_expr list -> type_expr -> type_expr list * type_expr
+        ?keep_names:bool -> fixed:bool ->
+        type_expr list -> type_expr -> type_expr list * type_expr
         (* Take an instance of a type scheme containing free univars *)
 val polyfy: Env.t -> type_expr -> type_expr list -> type_expr * bool
 val instance_label:
-        bool -> label_description -> type_expr list * type_expr * type_expr
+        fixed:bool ->
+        label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
 val prim_mode :
         (Mode.allowed * 'r) Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
@@ -270,8 +284,7 @@ val extract_concrete_typedecl:
 val unify: Env.t -> type_expr -> type_expr -> unit
         (* Unify the two types given. Raise [Unify] if not possible. *)
 val unify_gadt:
-        equations_level:int -> allow_recursive_equations:bool ->
-        Env.t ref -> type_expr -> type_expr -> Btype.TypePairs.t
+        Pattern_env.t -> type_expr -> type_expr -> Btype.TypePairs.t
         (* Unify the two types given and update the environment with the
            local constraints. Raise [Unify] if not possible.
            Returns the pairs of types that have been equated.  *)
@@ -279,7 +292,7 @@ val unify_var: Env.t -> type_expr -> type_expr -> unit
         (* Same as [unify], but allow free univars when first type
            is a variable. *)
 val unify_delaying_jkind_checks :
-  Env.t -> type_expr -> type_expr -> (type_expr * Jkind.t) list
+  Env.t -> type_expr -> type_expr -> (type_expr * jkind_r) list
         (* Same as [unify], but don't check jkind compatibility.  Instead,
            return the checks that would have been performed.  For use in
            typedecl before well-foundedness checks have made jkind checking
@@ -323,8 +336,8 @@ val all_distinct_vars: Env.t -> type_expr list -> bool
 
 type matches_result =
   | Unification_failure of Errortrace.unification_error
-  | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
-                     ; ty : type_expr }
+  | Jkind_mismatch of { original_jkind : jkind_lr; inferred_jkind : jkind_lr
+                      ; ty : type_expr }
   | All_good
 val matches: expand_error_trace:bool -> Env.t ->
   type_expr -> type_expr -> matches_result
@@ -364,9 +377,9 @@ exception Filter_method_failed of filter_method_failure
 type class_match_failure =
     CM_Virtual_class
   | CM_Parameter_arity_mismatch of int * int
-  | CM_Type_parameter_mismatch of Env.t * Errortrace.equality_error
+  | CM_Type_parameter_mismatch of int * Env.t * Errortrace.equality_error
   | CM_Class_type_mismatch of Env.t * class_type * class_type
-  | CM_Parameter_mismatch of Env.t * Errortrace.moregen_error
+  | CM_Parameter_mismatch of int * Env.t * Errortrace.moregen_error
   | CM_Val_type_mismatch of string * Env.t * Errortrace.comparison_error
   | CM_Meth_type_mismatch of string * Env.t * Errortrace.comparison_error
   | CM_Non_mutable_value of string
@@ -495,6 +508,14 @@ val free_variables: ?env:Env.t -> type_expr -> type_expr list
 val free_non_row_variables_of_list: type_expr list -> type_expr list
         (* gets only non-row variables *)
 
+val exists_free_variable : (type_expr -> jkind_lr -> bool) -> type_expr -> bool
+        (* Check if there exists a free variable that satisfies the
+           given predicate. *)
+
+val closed_type_expr: ?env:Env.t -> type_expr -> bool
+        (* If env present, expand abbreviations to see if expansion
+           eliminates the variable *)
+
 val closed_type_decl: type_declaration -> type_expr option
 val closed_extension_constructor: extension_constructor -> type_expr option
 val closed_class:
@@ -540,23 +561,24 @@ val tvariant_not_immediate : row_desc -> bool
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
-val estimate_type_jkind : Env.t ->  type_expr -> jkind
+val estimate_type_jkind : Env.t ->  type_expr -> jkind_l
 
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)
-val type_jkind : Env.t -> type_expr -> jkind
+val type_jkind : Env.t -> type_expr -> jkind_l
 
 (* Get the jkind of a type, dropping any changes to types caused by
    expansion. *)
-val type_jkind_purely : Env.t -> type_expr -> jkind
+val type_jkind_purely : Env.t -> type_expr -> jkind_l
 
-(* Find a type's sort (constraining it to be an arbitrary sort variable, if
-   needed) *)
+(* Find a type's sort (if fixed is false: constraining it to be an
+   arbitrary sort variable, if needed) *)
 val type_sort :
   why:Jkind.History.concrete_creation_reason ->
+  fixed:bool ->
   Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
 
-(* As [type_sort], but constrain the jkind to be non-null.
+(* As [type_sort ~fixed:false], but constrain the jkind to be non-null.
    Used for checking array elements. *)
 val type_legacy_sort :
   why:Jkind.History.concrete_legacy_creation_reason ->
@@ -565,17 +587,20 @@ val type_legacy_sort :
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type
    variables to make the check true, if possible.  [check_decl_jkind] and
    [check_type_jkind] won't, but will still instantiate sort variables.
-*)
-(* CR layouts: When we improve errors, it may be convenient to change these to
-   raise on error, like unify. *)
+ *)
+
+(* These two functions check against an l-jkind. This is highly unusual,
+   but correct: they are used to implement the module inclusion check, where
+   we can be sure that the l-jkind has no undetermined variables. *)
 val check_decl_jkind :
-  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
+  Env.t -> type_declaration -> jkind_l -> (unit, Jkind.Violation.t) result
 val constrain_decl_jkind :
-  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
+  Env.t -> type_declaration -> jkind_l -> (unit, Jkind.Violation.t) result
+
 val check_type_jkind :
-  Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
+  Env.t -> type_expr -> jkind_r -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
-  Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
+  Env.t -> type_expr -> jkind_r -> (unit, Jkind.Violation.t) result
 
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop

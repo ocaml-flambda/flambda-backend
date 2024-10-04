@@ -173,7 +173,7 @@ let rec core_type i ppf x =
       modes i ppf m2;
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
-      list i core_type ppf l;
+      list i (labeled_tuple_element core_type) ppf l;
   | Ptyp_unboxed_tuple l ->
       line i ppf "Ptyp_unboxed_tuple\n";
       list i (labeled_tuple_element core_type) ppf l
@@ -201,7 +201,7 @@ let rec core_type i ppf x =
       line i ppf "Ptyp_class %a\n" fmt_longident_loc li;
       list i core_type ppf l
   | Ptyp_alias (ct, s) ->
-      line i ppf "Ptyp_alias \"%s\"\n" s;
+      line i ppf "Ptyp_alias \"%s\"\n" s.txt;
       core_type i ppf ct;
   | Ptyp_poly (sl, ct) ->
       line i ppf "Ptyp_poly%a\n" typevars sl;
@@ -209,6 +209,9 @@ let rec core_type i ppf x =
   | Ptyp_package (s, l) ->
       line i ppf "Ptyp_package %a\n" fmt_longident_loc s;
       list i package_with ppf l;
+  | Ptyp_open (mod_ident, t) ->
+      line i ppf "Ptyp_open \"%a\"\n" fmt_longident_loc mod_ident;
+      core_type i ppf t
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension \"%s\"\n" s.txt;
       payload i ppf arg
@@ -230,9 +233,9 @@ and pattern i ppf x =
   | Ppat_constant (c) -> line i ppf "Ppat_constant %a\n" fmt_constant c;
   | Ppat_interval (c1, c2) ->
       line i ppf "Ppat_interval %a..%a\n" fmt_constant c1 fmt_constant c2;
-  | Ppat_tuple (l) ->
-      line i ppf "Ppat_tuple\n";
-      list i pattern ppf l;
+  | Ppat_tuple (l, c) ->
+      line i ppf "Ppat_tuple\n %a\n" fmt_closed_flag c;
+      list i (labeled_tuple_element pattern) ppf l
   | Ppat_unboxed_tuple (l, c) ->
       line i ppf "Ppat_unboxed_tuple %a\n" fmt_closed_flag c;
       list i (labeled_tuple_element pattern) ppf l
@@ -309,7 +312,7 @@ and expression i ppf x =
       list i case ppf l;
   | Pexp_tuple (l) ->
       line i ppf "Pexp_tuple\n";
-      list i expression ppf l;
+      list i (labeled_tuple_element expression) ppf l;
   | Pexp_unboxed_tuple (l) ->
       line i ppf "Pexp_unboxed_tuple\n";
       list i (labeled_tuple_element expression) ppf l;

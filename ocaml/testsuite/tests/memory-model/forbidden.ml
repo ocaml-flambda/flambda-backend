@@ -3,6 +3,7 @@
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
  not-bsd;
+ no-tsan; (* tsan detects the intentional data races and fails *)
  {
    bytecode;
  }{
