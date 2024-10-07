@@ -12,8 +12,10 @@ let g x = (x : (module S with type t = 'a and type u = 'b) :> (module S'));;
 [%%expect{|
 module type S = sig type u type t end
 module type S' = sig type t = int type u = bool end
-val f : (module S with type t = int and type u = bool) -> (module S') = <fun>
-val g : (module S with type t = int and type u = bool) -> (module S') = <fun>
+val f : (module S with type t = int and type u = bool) -> (module S') @@
+  global many = <fun>
+val g : (module S with type t = int and type u = bool) -> (module S') @@
+  global many = <fun>
 |}];;
 
 (* with subtyping it is also ok to forget some types *)
@@ -26,9 +28,10 @@ let k (x : (module S2 with type t = 'a)) =
   (x : (module S with type t = 'a));; (* fail *)
 [%%expect{|
 module type S2 = sig type u type t type w end
-val g2 : (module S2 with type t = int and type u = bool) -> (module S') =
-  <fun>
-val h : (module S2 with type t = 'a) -> (module S with type t = 'a) = <fun>
+val g2 : (module S2 with type t = int and type u = bool) -> (module S') @@
+  global many = <fun>
+val h : (module S2 with type t = 'a) -> (module S with type t = 'a) @@ global
+  many = <fun>
 Line 5, characters 3-4:
 5 |   (x : (module S'));; (* fail *)
        ^

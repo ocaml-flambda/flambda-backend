@@ -34,54 +34,55 @@ let measure_arity f =
 [%%expect{|
 type t = int lazy_t
 val measure_arity :
-  ('a lazy_t -> 'b lazy_t -> 'c lazy_t -> 'd lazy_t -> 'e) -> int = <fun>
+  ('a lazy_t -> 'b lazy_t -> 'c lazy_t -> 'd lazy_t -> 'e) -> int @@ global
+  many = <fun>
 |}];;
 
 let unary (lazy _ : t) = assert false;;
 let arity = measure_arity unary;;
 [%%expect{|
-val unary : t -> 'a = <fun>
-val arity : int = 1
+val unary : t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 1
 |}];;
 
 let fun_lambda = fun (lazy _ : t) (lazy _ : t) -> assert false;;
 let arity = measure_arity fun_lambda;;
 [%%expect{|
-val fun_lambda : t -> t -> 'a = <fun>
-val arity : int = 2
+val fun_lambda : t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 2
 |}];;
 
 let nested_arity = fun (lazy _ : t) -> fun (lazy _ : t) -> assert false;;
 let arity1 = measure_arity nested_arity;;
 let arity2 = measure_arity (nested_arity (lazy 0));;
 [%%expect{|
-val nested_arity : t -> t -> 'a = <fun>
-val arity1 : int = 1
-val arity2 : int = 1
+val nested_arity : t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 1
+val arity2 : int @@ global many = 1
 |}];;
 
 let fun_lambda_with_function_body =
   fun (lazy _ : t) (lazy _ : t) -> function (lazy _ : t) -> assert false;;
 let arity = measure_arity fun_lambda_with_function_body;;
 [%%expect{|
-val fun_lambda_with_function_body : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val fun_lambda_with_function_body : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_single_case (lazy _ : t) (lazy _ : t) = function
   | (lazy _ : t) -> assert false;;
 let arity = measure_arity function_body_single_case;;
 [%%expect{|
-val function_body_single_case : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_single_case : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_constraint (lazy _ : t) (lazy _ : t) : _ = function
   | (lazy _ : t) -> assert false;;
 let arity = measure_arity function_body_constraint;;
 [%%expect{|
-val function_body_constraint : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_constraint : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_multiple_cases (lazy _ : t) (lazy _ : t) = function
@@ -89,8 +90,9 @@ let function_body_multiple_cases (lazy _ : t) (lazy _ : t) = function
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false);;
 let arity = measure_arity function_body_multiple_cases;;
 [%%expect{|
-val function_body_multiple_cases : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_multiple_cases : t -> t -> t -> t -> 'a @@ global many =
+  <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_constraint_multiple_cases (lazy _ : t) (lazy _ : t) : _ =
@@ -99,8 +101,9 @@ let function_body_constraint_multiple_cases (lazy _ : t) (lazy _ : t) : _ =
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false)
 let arity = measure_arity function_body_constraint_multiple_cases
 [%%expect{|
-val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a @@
+  global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_coercion (lazy _ : t) (lazy _ : t) :> _ = function
@@ -108,8 +111,8 @@ let function_body_coercion (lazy _ : t) (lazy _ : t) :> _ = function
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false)
 let arity = measure_arity function_body_coercion
 [%%expect{|
-val function_body_coercion : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_coercion : t -> t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_coercion_constraint (lazy _ : t) (lazy _ : t) : _ :> _ =
@@ -118,8 +121,9 @@ let function_body_coercion_constraint (lazy _ : t) (lazy _ : t) : _ :> _ =
   | (lazy _ : t) -> (fun (lazy _ : t) -> assert false)
 let arity = measure_arity function_body_coercion_constraint
 [%%expect{|
-val function_body_coercion_constraint : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_coercion_constraint : t -> t -> t -> t -> 'a @@ global many =
+  <fun>
+val arity : int @@ global many = 3
 |}];;
 
 (* partial application: applying a function with arity 3 yields a
@@ -130,9 +134,9 @@ let partial_application (lazy _ : t) (lazy _ : t) = function
 let arity1 = measure_arity partial_application
 let arity2 = measure_arity (partial_application (lazy 0))
 [%%expect{|
-val partial_application : t -> t -> t -> t -> 'a = <fun>
-val arity1 : int = 3
-val arity2 : int = 2
+val partial_application : t -> t -> t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 3
+val arity2 : int @@ global many = 2
 |}];;
 
 (* newtype doesn't interrupt arity *)
@@ -146,14 +150,14 @@ let arity2 = measure_arity f2
 let arity3 = measure_arity f3
 let arity4 = measure_arity f4
 [%%expect{|
-val f1 : t -> t -> 'a = <fun>
-val f2 : t -> t -> 'a = <fun>
-val f3 : t -> t -> 'a = <fun>
-val f4 : t -> t -> 'a = <fun>
-val arity1 : int = 2
-val arity2 : int = 2
-val arity3 : int = 2
-val arity4 : int = 2
+val f1 : t -> t -> 'a @@ global many = <fun>
+val f2 : t -> t -> 'a @@ global many = <fun>
+val f3 : t -> t -> 'a @@ global many = <fun>
+val f4 : t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 2
+val arity2 : int @@ global many = 2
+val arity3 : int @@ global many = 2
+val arity4 : int @@ global many = 2
 |}];;
 
 (* II. Measuring arity with non-exhaustive pattern matches  *)
@@ -177,54 +181,54 @@ let measure_arity f =
 
 [%%expect{|
 type t = A | B | C
-val measure_arity : (t -> t -> t -> t -> 'a) -> int = <fun>
+val measure_arity : (t -> t -> t -> t -> 'a) -> int @@ global many = <fun>
 |}];;
 
 let unary A = assert false;;
 let arity = measure_arity unary;;
 [%%expect{|
-val unary : t -> 'a = <fun>
-val arity : int = 1
+val unary : t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 1
 |}];;
 
 let fun_lambda = fun A A -> assert false;;
 let arity = measure_arity fun_lambda;;
 [%%expect{|
-val fun_lambda : t -> t -> 'a = <fun>
-val arity : int = 2
+val fun_lambda : t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 2
 |}];;
 
 let nested_arity = fun A -> fun A -> assert false;;
 let arity1 = measure_arity nested_arity;;
 let arity2 = measure_arity (nested_arity A);;
 [%%expect{|
-val nested_arity : t -> t -> 'a = <fun>
-val arity1 : int = 1
-val arity2 : int = 1
+val nested_arity : t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 1
+val arity2 : int @@ global many = 1
 |}];;
 
 let fun_lambda_with_function_body =
   fun A A -> function A -> assert false;;
 let arity = measure_arity fun_lambda_with_function_body;;
 [%%expect{|
-val fun_lambda_with_function_body : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val fun_lambda_with_function_body : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_single_case A A = function
   | A -> assert false;;
 let arity = measure_arity function_body_single_case;;
 [%%expect{|
-val function_body_single_case : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_single_case : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_constraint A A : _ = function
   | A -> assert false;;
 let arity = measure_arity function_body_constraint;;
 [%%expect{|
-val function_body_constraint : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_constraint : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_multiple_cases A A = function
@@ -232,8 +236,9 @@ let function_body_multiple_cases A A = function
   | A -> (fun A -> assert false);;
 let arity = measure_arity function_body_multiple_cases;;
 [%%expect{|
-val function_body_multiple_cases : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_multiple_cases : t -> t -> t -> t -> 'a @@ global many =
+  <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_constraint_multiple_cases A A : _ = function
@@ -241,8 +246,9 @@ let function_body_constraint_multiple_cases A A : _ = function
   | A -> (fun A -> assert false)
 let arity = measure_arity function_body_constraint_multiple_cases
 [%%expect{|
-val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a @@
+  global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_coercion A A :> _ = function
@@ -250,8 +256,8 @@ let function_body_coercion A A :> _ = function
   | A -> (fun A -> assert false)
 let arity = measure_arity function_body_coercion
 [%%expect{|
-val function_body_coercion : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_coercion : t -> t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_coercion_constraint A A : _ :> _ = function
@@ -259,8 +265,9 @@ let function_body_coercion_constraint A A : _ :> _ = function
   | A -> (fun A -> assert false)
 let arity = measure_arity function_body_coercion_constraint
 [%%expect{|
-val function_body_coercion_constraint : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_coercion_constraint : t -> t -> t -> t -> 'a @@ global many =
+  <fun>
+val arity : int @@ global many = 3
 |}];;
 
 (* partial application: applying a function with arity 3 yields a
@@ -271,9 +278,9 @@ let partial_application A A = function
 let arity1 = measure_arity partial_application
 let arity2 = measure_arity (partial_application A)
 [%%expect{|
-val partial_application : t -> t -> t -> t -> 'a = <fun>
-val arity1 : int = 3
-val arity2 : int = 2
+val partial_application : t -> t -> t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 3
+val arity2 : int @@ global many = 2
 |}];;
 
 (* newtype doesn't interrupt arity *)
@@ -286,14 +293,14 @@ let arity2 = measure_arity f2
 let arity3 = measure_arity f3
 let arity4 = measure_arity f4
 [%%expect{|
-val f1 : t -> t -> 'a = <fun>
-val f2 : t -> t -> 'a = <fun>
-val f3 : t -> t -> 'a = <fun>
-val f4 : t -> t -> 'a = <fun>
-val arity1 : int = 2
-val arity2 : int = 2
-val arity3 : int = 2
-val arity4 : int = 2
+val f1 : t -> t -> 'a @@ global many = <fun>
+val f2 : t -> t -> 'a @@ global many = <fun>
+val f3 : t -> t -> 'a @@ global many = <fun>
+val f4 : t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 2
+val arity2 : int @@ global many = 2
+val arity3 : int @@ global many = 2
+val arity4 : int @@ global many = 2
 |}];;
 
 (* III. Measuring arity with mutable pattern matches  *)
@@ -355,57 +362,58 @@ let measure_arity f =
 
 [%%expect{|
 exception Return of int
-val return : int -> 'a = <fun>
+val return : int -> 'a @@ global many = <fun>
 type t = { mutable x : int; }
 type nothing = |
-val measure_arity : (t -> t -> t -> t -> t -> nothing) -> int = <fun>
+val measure_arity : (t -> t -> t -> t -> t -> nothing) -> int @@ global many =
+  <fun>
 |}];;
 
 let unary {x} = return x;;
 let arity = measure_arity unary;;
 [%%expect{|
-val unary : t -> 'a = <fun>
-val arity : int = 1
+val unary : t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 1
 |}];;
 
 let fun_lambda = fun {x=x1} {x=x2} -> return (x1+x2);;
 let arity = measure_arity fun_lambda;;
 [%%expect{|
-val fun_lambda : t -> t -> 'a = <fun>
-val arity : int = 2
+val fun_lambda : t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 2
 |}];;
 
 let nested_arity = fun {x=x1} -> fun {x=x2} -> return (x1+x2);;
 let arity1 = measure_arity nested_arity;;
 let arity2 = measure_arity (nested_arity {x=7});;
 [%%expect{|
-val nested_arity : t -> t -> 'a = <fun>
-val arity1 : int = 1
-val arity2 : int = 1
+val nested_arity : t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 1
+val arity2 : int @@ global many = 1
 |}];;
 
 let fun_lambda_with_function_body =
   fun {x=x1} {x=x2} -> function {x=x3} -> return (x1+x2+x3);;
 let arity = measure_arity fun_lambda_with_function_body;;
 [%%expect{|
-val fun_lambda_with_function_body : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val fun_lambda_with_function_body : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_single_case {x=x1} {x=x2} = function
   | {x=x3} -> return (x1+x2+x3);;
 let arity = measure_arity function_body_single_case;;
 [%%expect{|
-val function_body_single_case : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_single_case : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_constraint {x=x1} {x=x2} : _ = function
   | {x=x3} -> return (x1+x2+x3);;
 let arity = measure_arity function_body_constraint;;
 [%%expect{|
-val function_body_constraint : t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_constraint : t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_multiple_cases {x=x1} {x=x2} = function
@@ -413,8 +421,9 @@ let function_body_multiple_cases {x=x1} {x=x2} = function
   | {x=x3} -> (fun {x=x4} -> return (x1+x2+x3+x4));;
 let arity = measure_arity function_body_multiple_cases;;
 [%%expect{|
-val function_body_multiple_cases : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_multiple_cases : t -> t -> t -> t -> 'a @@ global many =
+  <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_constraint_multiple_cases {x=x1} {x=x2} : _ = function
@@ -422,8 +431,9 @@ let function_body_constraint_multiple_cases {x=x1} {x=x2} : _ = function
   | {x=x3} -> (fun {x=x4} -> return (x1+x2+x3+x4))
 let arity = measure_arity function_body_constraint_multiple_cases
 [%%expect{|
-val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_constraint_multiple_cases : t -> t -> t -> t -> 'a @@
+  global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_coercion {x=x1} {x=x2} :> _ = function
@@ -431,8 +441,8 @@ let function_body_coercion {x=x1} {x=x2} :> _ = function
   | {x=x3} -> (fun {x=x4} -> return (x1+x2+x3+x4))
 let arity = measure_arity function_body_coercion
 [%%expect{|
-val function_body_coercion : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_coercion : t -> t -> t -> t -> 'a @@ global many = <fun>
+val arity : int @@ global many = 3
 |}];;
 
 let function_body_coercion_constraint {x=x1} {x=x2} : _ :> _ = function
@@ -440,8 +450,9 @@ let function_body_coercion_constraint {x=x1} {x=x2} : _ :> _ = function
   | {x=x3} -> (fun {x=x4} -> return (x1+x2+x3+x4))
 let arity = measure_arity function_body_coercion_constraint
 [%%expect{|
-val function_body_coercion_constraint : t -> t -> t -> t -> 'a = <fun>
-val arity : int = 3
+val function_body_coercion_constraint : t -> t -> t -> t -> 'a @@ global many =
+  <fun>
+val arity : int @@ global many = 3
 |}];;
 
 (* partial application: applying a function with arity 3 yields a
@@ -452,9 +463,9 @@ let partial_application {x=x1} {x=x2} = function
 let arity1 = measure_arity partial_application
 let arity2 = measure_arity (partial_application {x=7})
 [%%expect{|
-val partial_application : t -> t -> t -> t -> 'a = <fun>
-val arity1 : int = 3
-val arity2 : int = 2
+val partial_application : t -> t -> t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 3
+val arity2 : int @@ global many = 2
 |}];;
 
 (* newtype doesn't interrupt arity *)
@@ -467,12 +478,12 @@ let arity2 = measure_arity f2
 let arity3 = measure_arity f3
 let arity4 = measure_arity f4
 [%%expect{|
-val f1 : t -> t -> 'a = <fun>
-val f2 : t -> t -> 'a = <fun>
-val f3 : t -> t -> 'a = <fun>
-val f4 : t -> t -> 'a = <fun>
-val arity1 : int = 2
-val arity2 : int = 2
-val arity3 : int = 2
-val arity4 : int = 2
+val f1 : t -> t -> 'a @@ global many = <fun>
+val f2 : t -> t -> 'a @@ global many = <fun>
+val f3 : t -> t -> 'a @@ global many = <fun>
+val f4 : t -> t -> 'a @@ global many = <fun>
+val arity1 : int @@ global many = 2
+val arity2 : int @@ global many = 2
+val arity3 : int @@ global many = 2
+val arity4 : int @@ global many = 2
 |}];;

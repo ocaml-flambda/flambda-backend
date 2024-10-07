@@ -21,11 +21,12 @@ module F (X : S) = struct
     let x = X.x
 end
 [%%expect{|
-val portable_use : 'a @ portable -> unit = <fun>
+val portable_use : 'a @ portable -> unit @@ global many = <fun>
 module type S = sig val x : 'a -> unit end
 module type SL = sig type 'a t end
-module M : sig type 'a t = int val x : 'a -> unit end
-module F : functor (X : S) -> sig type t = int val x : 'a -> unit end
+module M : sig type 'a t = int val x : 'a -> unit @@ global many portable end
+module F :
+  functor (X : S) -> sig type t = int val x : 'a -> unit @@ global many end
 |}]
 
 (* Closing over modules affects closure's modes *)
@@ -82,7 +83,7 @@ let u =
     in
     portable_use foo
 [%%expect{|
-val u : unit = ()
+val u : unit @@ global many = ()
 |}]
 
 (* first class modules are produced at legacy *)
@@ -114,7 +115,7 @@ let foo () =
     let _ = (bar : _ @@ portable) in
     ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -128,7 +129,7 @@ let foo () =
     let _ = (bar : _ @@ portable) in
     ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -143,7 +144,7 @@ let foo () =
     let _ = (bar : _ @@ portable) in
     ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 (* Replacing [:=] in the above example with [=] should work similarly, but I
@@ -161,7 +162,7 @@ let foo () =
     let _ = (bar : _ @@ portable) in
     ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -176,7 +177,7 @@ let foo () =
     let _ = (bar : _ @@ portable) in
     ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 (* Pmty_alias is not testable *)

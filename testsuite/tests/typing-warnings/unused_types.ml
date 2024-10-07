@@ -540,7 +540,7 @@ Line 1, characters 12-18:
                 ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val u : unit = ()
+val u : unit @@ global many = ()
 |}]
 
 let u = fun (type unused) -> ()
@@ -550,7 +550,7 @@ Line 1, characters 18-24:
                       ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val u : unit = ()
+val u : unit @@ global many = ()
 |}]
 
 let f (type unused) x = x
@@ -560,7 +560,7 @@ Line 1, characters 12-18:
                 ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val f : 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun (type unused) x -> x
@@ -570,7 +570,7 @@ Line 1, characters 18-24:
                       ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val f : 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
 |}]
 
 let f (type used unused) (x : used) = x
@@ -580,7 +580,7 @@ Line 1, characters 17-23:
                      ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val f : 'used -> 'used = <fun>
+val f : 'used -> 'used @@ global many = <fun>
 |}]
 
 let f = fun (type used unused) (x : used) -> x
@@ -591,5 +591,5 @@ Line 1, characters 23-29:
                            ^^^^^^
 Warning 34 [unused-type-declaration]: unused type unused.
 
-val f : 'used -> 'used = <fun>
+val f : 'used -> 'used @@ global many = <fun>
 |}]

@@ -29,11 +29,11 @@ Lines 2-4, characters 2-5:
 4 |   end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : fpclass -> Stdlib.fpclass end
+         sig val f : fpclass -> Stdlib.fpclass @@ global many portable end
        is not included in
          sig val f : fpclass -> fpclass end
        Values do not match:
-         val f : fpclass -> Stdlib.fpclass
+         val f : fpclass -> Stdlib.fpclass @@ global many portable
        is not included in
          val f : fpclass -> fpclass
        The type "fpclass -> Stdlib.fpclass" is not compatible with the type

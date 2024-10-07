@@ -18,8 +18,8 @@ else `Right ()) xs
 ;;
 [%%expect{|
 val partition_map :
-  ('a -> [< `Left of 'b | `Right of 'c ]) -> 'a list -> 'b list * 'c list =
-  <fun>
+  ('a -> [< `Left of 'b | `Right of 'c ]) -> 'a list -> 'b list * 'c list @@
+  global many = <fun>
 Lines 12-13, characters 35-18:
 12 | ...................................partition_map (fun x -> if x then `Left ()
 13 | else `Right ()) xs
@@ -75,7 +75,8 @@ Error: Signature mismatch:
                [ `A of int | `B of [ `BA | `BB of unit list ] | `C of unit ]
            val a :
              [> `A of int ] ->
-             [> `B of [> `BA | `BB of int list ] | `C of unit ]
+             [> `B of [> `BA | `BB of int list ] | `C of unit ] @@ global
+             many portable
          end
        is not included in
          sig
@@ -86,7 +87,8 @@ Error: Signature mismatch:
        Values do not match:
          val a :
            [> `A of int ] ->
-           [> `B of [> `BA | `BB of int list ] | `C of unit ]
+           [> `B of [> `BA | `BB of int list ] | `C of unit ] @@ global many
+           portable
        is not included in
          val a : t -> t
        The type

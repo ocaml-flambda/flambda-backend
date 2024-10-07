@@ -8,8 +8,8 @@ let good_annot () =
   nop () [@nontail];
   nop () [@tail]
 [%%expect{|
-val nop : unit -> unit = <fun>
-val good_annot : unit -> unit = <fun>
+val nop : unit -> unit @@ global many = <fun>
+val good_annot : unit -> unit @@ global many = <fun>
 |}]
 
 let bad_annot_1 () =
@@ -51,12 +51,12 @@ Line 2, characters 9-24:
 Warning 47 [attribute-payload]: illegal payload for attribute 'tail'.
 Only 'hint' is supported
 
-val bad_annot_4 : unit -> unit = <fun>
+val bad_annot_4 : unit -> unit @@ global many = <fun>
 |}]
 
 let good_annot_2 () =
   nop () [@tail hint];
   nop () [@tail hint]
 [%%expect{|
-val good_annot_2 : unit -> unit = <fun>
+val good_annot_2 : unit -> unit @@ global many = <fun>
 |}]

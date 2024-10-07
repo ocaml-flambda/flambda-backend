@@ -9,7 +9,7 @@ let f (type a) (x : a t) (y : int) =
 ;;
 [%%expect{|
 type _ t = I : int t
-val f : 'a t -> int -> unit = <fun>
+val f : 'a t -> int -> unit @@ global many = <fun>
 |}]
 
 type ('a, 'b) eq = Refl : ('a, 'a) eq;;

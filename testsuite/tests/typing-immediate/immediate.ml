@@ -109,7 +109,7 @@ let test f =
   let start = Sys.time() in f ();
   (Sys.time() -. start);;
 [%%expect{|
-val test : (unit -> 'a) -> float = <fun>
+val test : (unit -> 'a) -> float @@ global many = <fun>
 |}];;
 
 let test_foo () =
@@ -117,7 +117,7 @@ let test_foo () =
     Foo.x := !Foo.x
   done;;
 [%%expect{|
-val test_foo : unit -> unit = <fun>
+val test_foo : unit -> unit @@ global many = <fun>
 |}];;
 
 let test_bar () =
@@ -125,7 +125,7 @@ let test_bar () =
     Bar.x := !Bar.x
   done;;
 [%%expect{|
-val test_bar : unit -> unit = <fun>
+val test_bar : unit -> unit @@ global many = <fun>
 |}];;
 
 (* Uncomment these to test. Should see substantial speedup!

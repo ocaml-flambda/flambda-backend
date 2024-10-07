@@ -86,8 +86,8 @@ let elim (Foo (x, f)) = f x
 type g1 = Foo : 'a * ('a -> unit) -> g1
 type g2 = g1 = Foo : 'a * ('a -> unit) -> g2
 type g3 = g2 = Foo : 'd * ('d -> unit) -> g3
-val intro : g3 = Foo (<poly>, <fun>)
-val elim : g3 -> unit = <fun>
+val intro : g3 @@ global many = Foo (<poly>, <fun>)
+val elim : g3 -> unit @@ global many = <fun>
 |}]
 
 (* In GADT syntax, all type variables must be bound, even parameters *)

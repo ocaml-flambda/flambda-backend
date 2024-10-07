@@ -11,7 +11,7 @@ type t = int32#;;
 let f (_ : int32#) = ();;
 [%%expect {|
 type t = int32#
-val f : int32# -> unit = <fun>
+val f : int32# -> unit @@ global many = <fun>
 |}];;
 
 type t = C of int32#;;
@@ -214,7 +214,7 @@ type 'a t = C of (int32 #c as 'a);;
 type t = C : int32 #c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = int32 #c
-val f : int32 #c -> unit = <fun>
+val f : int32 #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = int32 #c
 type t = C : int32 #c -> t
 |}];;
@@ -250,7 +250,7 @@ type 'a t = C of (int32 # c as 'a);;
 type t = C : int32 # c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = int32 #c
-val f : int32 #c -> unit = <fun>
+val f : int32 #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = int32 #c
 type t = C : int32 #c -> t
 |}];;

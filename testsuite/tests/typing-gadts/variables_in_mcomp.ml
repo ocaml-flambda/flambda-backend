@@ -22,5 +22,5 @@ let f (x : (M.t, N.t) eq)=
 module M : sig type 'a s = 'a type t = T : 'a s -> t end
 module N : sig type 'a s = 'a type t = T : 'a s -> t end
 type (_, _) eq = Refl : ('a, 'a) eq
-val f : (M.t, N.t) eq -> unit = <fun>
+val f : (M.t, N.t) eq -> unit @@ global many = <fun>
 |}]

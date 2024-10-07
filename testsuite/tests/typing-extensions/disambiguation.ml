@@ -103,7 +103,7 @@ module M :
     module N : sig type u = s = .. type u += Foo end
   end
 type exn += Foo
-val x : r = M.N.Foo
+val x : r @@ global many = M.N.Foo
 |}]
 
 (** Closed open extensible type support *)
@@ -125,7 +125,7 @@ type exn += Aleph
 
 let x : t = Aleph;;
 [%%expect {|
-val x : M.t = M.Aleph
+val x : M.t @@ global many = M.Aleph
 |}]
 
 module F(X: sig type t = .. end ) = struct type X.t+= Beth end
@@ -138,7 +138,7 @@ module F : functor (X : sig type t = .. end) -> sig type X.t += Beth end
 module X : sig type t = .. end
 module FX : sig type X.t += Beth end
 type exn += Beth
-val x : X.t = <extension>
+val x : X.t @@ global many = <extension>
 |}]
 
 (** Aliasing *)
@@ -185,7 +185,7 @@ type x = ..
 type x += A | B
 type u = A | B
 module M : sig type y = .. type y += A | B  end
-val f : x -> int = <fun>
+val f : x -> int @@ global many = <fun>
 |}]
 
 (** Local exception *)
@@ -207,7 +207,7 @@ let x =
   let open M in
   (Local:exn);;
 [%%expect{|
-val x : exn = Local
+val x : exn @@ global many = Local
 |}
 ]
 
@@ -220,9 +220,9 @@ open M
 let y = f T ;;
 [%%expect {|
 module M : sig type t = .. type t += T end
-val f : M.t -> bool = <fun>
+val f : M.t -> bool @@ global many = <fun>
 module M : sig type t = .. type t += S end
-val y : bool = true
+val y : bool @@ global many = true
 |}]
 
 (** Amniguity warning *)
@@ -245,7 +245,7 @@ Line 7, characters 8-14:
 Warning 41 [ambiguous-name]: Unique belongs to several types: b M.s t a
 The first one was selected. Please disambiguate if this is wrong.
 
-val x : b = Unique
+val x : b @@ global many = Unique
 |}]
 
 (* Optional argument defaults *)
@@ -259,7 +259,7 @@ let f3 ?x:((_ : M.t) = A) () = ();;
 
 [%%expect {|
 module M : sig type t = A | B end
-val f1 : ?x:M.t -> unit -> unit = <fun>
-val f2 : ?x:M.t -> unit -> unit = <fun>
-val f3 : ?x:M.t -> unit -> unit = <fun>
+val f1 : ?x:M.t -> unit -> unit @@ global many = <fun>
+val f2 : ?x:M.t -> unit -> unit @@ global many = <fun>
+val f3 : ?x:M.t -> unit -> unit @@ global many = <fun>
 |}]

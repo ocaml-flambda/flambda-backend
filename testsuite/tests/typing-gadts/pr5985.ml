@@ -78,8 +78,9 @@ let eq : (('a, 'b) Ephemeron.K1.t, ('c, 'd) Ephemeron.K1.t) eq = eq;;
 type _ t = T : 'a -> ('a, 'b) Ephemeron.K1.t t;; (* fail *)
 [%%expect{|
 type (_, _) eq = Eq : ('a, 'a) eq
-val eq : 'a = <poly>
-val eq : (('a, 'b) Ephemeron.K1.t, ('c, 'd) Ephemeron.K1.t) eq = Eq
+val eq : 'a @@ global many = <poly>
+val eq : (('a, 'b) Ephemeron.K1.t, ('c, 'd) Ephemeron.K1.t) eq @@ global many
+  portable = Eq
 Line 4, characters 0-46:
 4 | type _ t = T : 'a -> ('a, 'b) Ephemeron.K1.t t;; (* fail *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

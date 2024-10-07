@@ -48,8 +48,8 @@ module C3 :
 let f x = let module M = struct module L = List end in M.L.length x;;
 let g x = let module L = List in L.length (L.map succ x);;
 [%%expect{|
-val f : 'a list -> int = <fun>
-val g : int list -> int = <fun>
+val f : 'a list -> int @@ global many = <fun>
+val g : int list -> int @@ global many = <fun>
 |}];;
 
 module F(X:sig end) = Char;;
@@ -101,7 +101,11 @@ module M' = struct
 end;;
 M'.N'.x;;
 [%%expect{|
-module M' : sig module N : sig val x : int end module N' = N end
+module M' :
+  sig
+    module N : sig val x : int @@ global many portable end
+    module N' = N
+  end
 - : int = 1
 |}];;
 
@@ -142,7 +146,10 @@ M5.N'.x;;
 [%%expect{|
 module F :
   functor (X : sig end) ->
-    sig module N : sig val x : int end module N' = N end
+    sig
+      module N : sig val x : int @@ global many portable end
+      module N' = N
+    end
 module G : functor (X : sig end) -> sig module N' : sig val x : int end end
 module M5 : sig module N' : sig val x : int end end
 - : int = 1
@@ -165,8 +172,8 @@ N'.x;;
 [%%expect{|
 module M :
   sig
-    module D : sig val y : int end
-    module N : sig val x : int end
+    module D : sig val y : int @@ global many portable end
+    module N : sig val x : int @@ global many portable end
     module N' = N
   end
 module M1 : sig module N : sig val x : int end module N' = N end
@@ -371,7 +378,7 @@ module SSet :
     val add_seq : elt Seq.t -> t -> t
     val of_seq : elt Seq.t -> t
   end
-val f : StringSet.t -> SSet.t = <fun>
+val f : StringSet.t -> SSet.t @@ global many = <fun>
 |}];;
 
 (* Also using include (cf. Leo's mail 2013-11-16) *)
@@ -387,7 +394,7 @@ module F : functor (M : sig end) -> sig type t end
 module T : sig module M : sig end type t = F(M).t end
 module M = T.M
 type t = F(M).t
-val f : t -> T.t = <fun>
+val f : t -> T.t @@ global many = <fun>
 |}];;
 
 (* PR#4049 *)
@@ -402,7 +409,8 @@ A1.empty = A.empty;;
 [%%expect{|
 module A :
   sig
-    module B : sig type t val compare : 'a -> 'b -> int end
+    module B :
+      sig type t val compare : 'a -> 'b -> int @@ global many portable end
     module S :
       sig
         type elt = B.t
@@ -451,7 +459,7 @@ module A :
         val add_seq : elt Seq.t -> t -> t
         val of_seq : elt Seq.t -> t
       end
-    val empty : S.t
+    val empty : S.t @@ global many
   end
 module A1 = A
 - : bool = true
@@ -492,7 +500,7 @@ module F : functor (M : sig end) -> sig type t end
 module T : sig module M : sig end type t = F(M).t end
 module M = T.M
 type t = F(M).t
-val f : t -> T.t = <fun>
+val f : t -> T.t @@ global many = <fun>
 |}]
 
 (* PR#6307 *)
@@ -534,7 +542,8 @@ module type S' = sig
   include S with module I := I
 end;; (* fail *)
 [%%expect{|
-module Int : sig type t = int val compare : 'a -> 'a -> int end
+module Int :
+  sig type t = int val compare : 'a -> 'a -> int @@ global many end
 module SInt :
   sig
     type elt = Int.t
@@ -595,7 +604,8 @@ module type S =
     module I = Int
     type wrap' = wrap = W of (Set.Make(Int).t, Set.Make(I).t) eq
   end
-module Int2 : sig type t = int val compare : 'a -> 'a -> int end
+module Int2 :
+  sig type t = int val compare : 'a -> 'a -> int @@ global many end
 Line 15, characters 10-30:
 15 |   include S with module I := I
                ^^^^^^^^^^^^^^^^^^^^
@@ -676,7 +686,7 @@ module H' = H;;
 module type S' = S with module M = H';; (* shouldn't introduce an alias *)
 [%%expect{|
 module type S = sig module M : sig type t val x : t end end
-module H : sig type t = A val x : t end
+module H : sig type t = A val x : t @@ global many portable end
 module H' = H
 module type S' = sig module M : sig type t = H.t = A val x : t end end
 |}];;
@@ -721,7 +731,7 @@ let x : K.N.t = "foo";;
 [%%expect{|
 module B : sig module R : sig type t = string end module O = R end
 module K : sig module E = B module N = E.O end
-val x : K.N.t = "foo"
+val x : K.N.t @@ global many portable = "foo"
 |}];;
 
 (* PR#6465 *)
@@ -792,7 +802,7 @@ module rec R : sig module M : sig val f : 'a -> 'a end end =
   struct module M = M end;;
 R.M.f 3;;
 [%%expect{|
-module M : sig val f : 'a -> 'a end
+module M : sig val f : 'a -> 'a @@ global many portable end
 module rec R : sig module M : sig val f : 'a -> 'a end end
 - : int = 3
 |}];;
@@ -847,9 +857,12 @@ module type S =
     module N = M.A
   end
 module Foo :
-  sig module B : sig val x : int end module A : sig val x : string end end
+  sig
+    module B : sig val x : int @@ global many portable end
+    module A : sig val x : string @@ global many portable end
+  end
 module Bar : sig module N = Foo.A end
-val s : string = "hello"
+val s : string @@ global many portable = "hello"
 |}]
 
 
@@ -883,5 +896,5 @@ module M :
     module F : functor (X : sig module A = N.A end) -> sig val s : string end
   end
 module N : sig val s : string end
-val s : string = "hello"
+val s : string @@ global many portable = "hello"
 |}]

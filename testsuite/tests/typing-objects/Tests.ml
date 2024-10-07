@@ -172,7 +172,7 @@ class ['a, 'b] d :
 (* Non-generic constraint *)
 let x = ref [];;
 [%%expect{|
-val x : '_weak1 list ref = {contents = []}
+val x : '_weak1 list ref @@ global many = {contents = []}
 |}];;
 class ['a] c () = object
   method f = (x : 'a)
@@ -449,7 +449,7 @@ class e :
 |}];;
 let e = new e ();;
 [%%expect{|
-val e : e = <obj>
+val e : e @@ global many = <obj>
 |}];;
 e#f, e#g, e#h, e#i, e#j;;
 [%%expect{|
@@ -523,7 +523,7 @@ class e :
 |}];;
 let e = new e ();;
 [%%expect{|
-val e : e = <obj>
+val e : e @@ global many = <obj>
 |}];;
 e#x, e#y, e#z, e#t, e#u, e#a, e#b;;
 [%%expect{|
@@ -706,11 +706,11 @@ Lines 1-3, characters 12-3:
 3 | end......
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : (#c as 'a) -> 'a end
+         sig val f : (#c as 'a) -> 'a @@ global many portable end
        is not included in
          sig val f : #c -> #c end
        Values do not match:
-         val f : (#c as 'a) -> 'a
+         val f : (#c as 'a) -> 'a @@ global many portable
        is not included in
          val f : #c -> #c
        The type "(#c as 'a) -> 'a" is not compatible with the type "#c -> #c"
@@ -760,7 +760,7 @@ fun x -> (x : < .. > :> < >);;
 
 let x = ref [];;
 [%%expect{|
-val x : '_weak2 list ref = {contents = []}
+val x : '_weak2 list ref @@ global many = {contents = []}
 |}];;
 module F(X : sig end) =
   struct type t = int let _ = (x : < m : t> list ref) end;;
@@ -1147,7 +1147,7 @@ Error: The class type
 let is_empty (x : < >) = ()
 class c = object (self) method private foo = is_empty self end;;
 [%%expect {|
-val is_empty : <  > -> unit = <fun>
+val is_empty : <  > -> unit @@ global many = <fun>
 Line 2, characters 54-58:
 2 | class c = object (self) method private foo = is_empty self end;;
                                                           ^^^^
@@ -1161,7 +1161,7 @@ let has_foo (x : < foo : 'a; .. >) = ()
 
 class c = object (self) method private foo = 5 initializer has_foo self end;;
 [%%expect {|
-val has_foo : < foo : 'a; .. > -> unit = <fun>
+val has_foo : < foo : 'a; .. > -> unit @@ global many = <fun>
 Line 3, characters 10-75:
 3 | class c = object (self) method private foo = 5 initializer has_foo self end;;
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1232,7 +1232,7 @@ Error: This expression has no method "foo"
 let has_foo (x : < foo : int; ..>) = ()
 class c = object(self) initializer has_foo self end;;
 [%%expect {|
-val has_foo : < foo : int; .. > -> unit = <fun>
+val has_foo : < foo : int; .. > -> unit @@ global many = <fun>
 Line 2, characters 10-51:
 2 | class c = object(self) initializer has_foo self end;;
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

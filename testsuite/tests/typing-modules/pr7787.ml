@@ -21,8 +21,8 @@ end;;
 [%%expect{|
 module O :
   functor (T : sig module N : sig val foo : int -> int end end) ->
-    sig val go : unit -> int end
-module T : sig module N : sig val foo : int -> int end end
+    sig val go : unit -> int @@ global many end
+module T : sig module N : sig val foo : int -> int @@ global many end end
 |}]
 
 (* Incidentally, M isn't used in T2, but it doesn't seem to fail if

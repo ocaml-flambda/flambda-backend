@@ -6,7 +6,7 @@ class c = object end
 let rec x = fun () -> new c;;
 [%%expect{|
 class c : object  end
-val x : unit -> c = <fun>
+val x : unit -> c @@ global many = <fun>
 |}];;
 
 class c _ = object end

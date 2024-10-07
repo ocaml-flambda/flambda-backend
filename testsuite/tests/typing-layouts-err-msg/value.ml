@@ -30,7 +30,7 @@ class foo () =
   let v = f () in
   object end;;
 [%%expect{|
-val f : unit -> t_float64 = <fun>
+val f : unit -> t_float64 @@ global many = <fun>
 Line 3, characters 6-7:
 3 |   let v = f () in
           ^

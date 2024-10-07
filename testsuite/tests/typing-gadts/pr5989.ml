@@ -32,7 +32,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Eq
 
-val f : (M.s, [ `A | `B ]) t -> string = <fun>
+val f : (M.s, [ `A | `B ]) t -> string @@ global many = <fun>
 Exception: Match_failure ("", 16, 39).
 |}];;
 
@@ -63,5 +63,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Eq
 
-val f : (N.s, < a : int; b : bool >) t -> string = <fun>
+val f : (N.s, < a : int; b : bool >) t -> string @@ global many = <fun>
 |}];;

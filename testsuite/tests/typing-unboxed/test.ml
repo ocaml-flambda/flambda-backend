@@ -447,11 +447,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int end
+         sig val f : int -> int @@ global many end
        is not included in
          sig external f : int -> int = "f" "f_nat" end
        Values do not match:
-         val f : int -> int
+         val f : int -> int @@ global many
        is not included in
          external f : int -> int = "f" "f_nat"
        The implementation is not a primitive.

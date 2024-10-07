@@ -305,11 +305,11 @@ type _ ty =
   | Fun : 'a ty * 'b ty -> ('a -> 'b) ty
   | Vec : 'a ty -> 'a Vec.t ty
 type dyn = Dyn : 'a ty * 'a -> dyn
-val eq_ty : 'a ty -> 'b ty -> ('a, 'b) eq option = <fun>
-val undyn : 'a ty -> dyn -> 'a option = <fun>
-val v : int Vec.t Vec.t = <abstr>
-val int_vec_vec : int Vec.t Vec.t ty = Vec (Vec Int)
-val d : dyn = Dyn (Vec (Vec Int), <poly>)
+val eq_ty : 'a ty -> 'b ty -> ('a, 'b) eq option @@ global many = <fun>
+val undyn : 'a ty -> dyn -> 'a option @@ global many = <fun>
+val v : int Vec.t Vec.t @@ global many = <abstr>
+val int_vec_vec : int Vec.t Vec.t ty @@ global many = Vec (Vec Int)
+val d : dyn @@ global many = Dyn (Vec (Vec Int), <poly>)
 Line 47, characters 4-11:
 47 | let Some v' = undyn int_vec_vec d
          ^^^^^^^
@@ -317,7 +317,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 None
 
-val v' : int Vec.t Vec.t = <abstr>
+val v' : int Vec.t Vec.t @@ global many = <abstr>
 |}]
 
 (* Break it (using magic) *)
@@ -341,7 +341,7 @@ let eq_int_any : type a.  unit -> (int, a) eq = fun () ->
 [%%expect{|
 module Vec : sig type +!'a t val eqt : ('a t, 'b t) eq end
 type _ ty = Int : int ty | Vec : 'a ty -> 'a Vec.t ty
-val coe : ('a, 'b) eq -> 'a ty -> 'b ty = <fun>
+val coe : ('a, 'b) eq -> 'a ty -> 'b ty @@ global many = <fun>
 Line 17, characters 2-30:
 17 |   let Vec Int = vec_ty in Refl
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -349,7 +349,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Vec (Vec Int)
 
-val eq_int_any : unit -> (int, 'a) eq = <fun>
+val eq_int_any : unit -> (int, 'a) eq @@ global many = <fun>
 |}]
 
 (* Not directly related: injectivity and constraints *)
@@ -398,7 +398,7 @@ type (_, _) eql = Refl : ('a, 'a) eql
 module Uninj :
   functor (X : sig type !'a t end) ->
     sig val uninj : ('a X.t, 'b X.t) eql -> ('a, 'b) eql end
-val coerce : ('a, 'b) eql -> 'a -> 'b = <fun>
+val coerce : ('a, 'b) eql -> 'a -> 'b @@ global many = <fun>
 |}]
 
 (* Now the questionable part, defining two "injective" type definitions in

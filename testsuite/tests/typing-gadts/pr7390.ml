@@ -28,5 +28,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Either (N, Y _)
 
-val f : filled either -> string = <fun>
+val f : filled either -> string @@ global many = <fun>
 |}]

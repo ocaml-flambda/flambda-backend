@@ -19,7 +19,9 @@ let x:'a. 'a Middle.t =
   let _r = ref 0 in
   Middle.T
 [%%expect {|
-val x : 'a Middle.t = Middle.T
+val x : 'a Middle.t @@ global many portable = Middle.T
+|}, Principal{|
+val x : 'a Middle.t @@ global many = Middle.T
 |}]
 
 
@@ -91,12 +93,12 @@ Error: Type "Middle.pack2" = "(module Middle.T with type M.t = int)"
 (* Check the detection of type kind in type-directed disambiguation . *)
 let t = Middle.r.Middle.x
 [%%expect {|
-val t : unit = ()
+val t : unit @@ global many = ()
 |}]
 
 let k = match Middle.s with Middle.S -> ()
 [%%expect {|
-val k : unit = ()
+val k : unit @@ global many = ()
 |}]
 
 (* #11560: gadts and missing cmis *)
@@ -104,7 +106,8 @@ val k : unit = ()
 let  f : type a b. (a Middle.ti -> unit) -> (a,b) Middle.gadt -> b -> unit =
   fun call Middle.G x -> call x
 [%%expect {|
-val f : ('a Middle.ti -> unit) -> ('a, 'b) Middle.gadt -> 'b -> unit = <fun>
+val f : ('a Middle.ti -> unit) -> ('a, 'b) Middle.gadt -> 'b -> unit @@
+  global many = <fun>
 |}]
 
 (* Check re-exportation of GADTs *)
@@ -112,11 +115,11 @@ val f : ('a Middle.ti -> unit) -> ('a, 'b) Middle.gadt -> 'b -> unit = <fun>
 let f : type a. a Middle.is_int -> a -> int = fun Middle.Is_int x -> x
 let g : bool Middle.is_int -> 'a = function _ -> .
 [%%expect{|
-val f : 'a Middle.is_int -> 'a -> int = <fun>
-val g : bool Middle.is_int -> 'a = <fun>
+val f : 'a Middle.is_int -> 'a -> int @@ global many = <fun>
+val g : bool Middle.is_int -> 'a @@ global many = <fun>
 |}]
 
 let f (x: Middle.u) = x
 [%%expect {|
-val f : Middle.u -> Middle.u = <fun>
+val f : Middle.u -> Middle.u @@ global many = <fun>
 |}]

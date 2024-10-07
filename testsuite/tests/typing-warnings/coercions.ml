@@ -50,7 +50,7 @@ module PR7135 :
   sig
     module M : sig type t = private int end
     type t = M.t
-    val lift2 : (int -> int -> int) -> t -> t -> int
+    val lift2 : (int -> int -> int) -> t -> t -> int @@ global many portable
   end
 |}]
 
@@ -61,12 +61,14 @@ module Test1 = struct
   let f x = let y = if true then x else (x:t) in (y :> int)
 end;;
 [%%expect {|
-module Test1 : sig type t = private int val f : t -> int end
+module Test1 :
+  sig type t = private int val f : t -> int @@ global many portable end
 |}, Principal{|
 Line 3, characters 49-59:
 3 |   let f x = let y = if true then x else (x:t) in (y :> int)
                                                      ^^^^^^^^^^
 Warning 18 [not-principal]: this ground coercion is not principal.
 
-module Test1 : sig type t = private int val f : t -> int end
+module Test1 :
+  sig type t = private int val f : t -> int @@ global many portable end
 |}]

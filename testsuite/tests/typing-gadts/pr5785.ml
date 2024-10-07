@@ -25,6 +25,6 @@ module Add :
   functor (T : sig type two end) ->
     sig
       type _ t = One : [ `One ] t | Two : T.two t
-      val add : 'a t * 'a t -> string
+      val add : 'a t * 'a t -> string @@ global many portable
     end
 |}];;

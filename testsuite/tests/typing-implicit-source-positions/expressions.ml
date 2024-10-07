@@ -4,13 +4,14 @@ Fille
 
 let x = [%src_pos]
 [%%expect{|
-val x : lexing_position =
+val x : lexing_position @@ global many =
   {pos_fname = ""; pos_lnum = 1; pos_bol = 24; pos_cnum = 32}
 |}]
 
 let f = fun ~(call_pos:[%call_pos]) () -> call_pos
 [%%expect{|
-val f : call_pos:[%call_pos] -> unit -> lexing_position = <fun>
+val f : call_pos:[%call_pos] -> unit -> lexing_position @@ global many =
+  <fun>
 |}]
 
 let _ = f ~call_pos:x () ;;
@@ -24,7 +25,7 @@ let _ = f ~call_pos:[%src_pos] () ;;
 [%%expect{|
 - : string = "Increment line count"
 - : lexing_position =
-{pos_fname = ""; pos_lnum = 2; pos_bol = 438; pos_cnum = 458}
+{pos_fname = ""; pos_lnum = 2; pos_bol = 470; pos_cnum = 490}
 |}]
 
 (* TEST

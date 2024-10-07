@@ -214,7 +214,7 @@ Error: This expression has type "int" but an expression was expected of type
 let g (x : int) = x
 let f (x : bool) = (let y = false in g y : int)[@error_message "custom message"]
 [%%expect{|
-val g : int -> int = <fun>
+val g : int -> int @@ global many = <fun>
 Line 2, characters 39-40:
 2 | let f (x : bool) = (let y = false in g y : int)[@error_message "custom message"]
                                            ^
@@ -261,7 +261,7 @@ Error: This expression should not be a function, the expected type is
 let g (x: int) = x
 let f () = (g : (string -> string))[@error_message "custom message"]
 [%%expect{|
-val g : int -> int = <fun>
+val g : int -> int @@ global many = <fun>
 Line 2, characters 12-13:
 2 | let f () = (g : (string -> string))[@error_message "custom message"]
                 ^
@@ -273,7 +273,7 @@ Error: This expression has type "int -> int"
 let g (x: int) = x
 let f () = (g : string)[@error_message "custom message"]
 [%%expect{|
-val g : int -> int = <fun>
+val g : int -> int @@ global many = <fun>
 Line 2, characters 12-13:
 2 | let f () = (g : string)[@error_message "custom message"]
                 ^

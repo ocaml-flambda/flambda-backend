@@ -47,7 +47,8 @@ module Extended :
     type t = Foo.t
     val to_ : t -> Foo.Bar.t
     val from : Foo.Bar.t -> t
-    module Bar : sig type t = Foo.Bar.t val int : int end
+    module Bar :
+      sig type t = Foo.Bar.t val int : int @@ global many portable end
   end
 |}]
 

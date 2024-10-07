@@ -16,14 +16,14 @@ let ok (type a) ?opt:((Eq : (a, int -> int) eq) = assert false) () : a =
   function x -> x + 1;;
 [%%expect{|
 val ok :
-  ('a : any) ('b : any). ?opt:('a -> 'b, int -> int) eq -> unit -> 'a -> 'b =
-  <fun>
+  ('a : any) ('b : any). ?opt:('a -> 'b, int -> int) eq -> unit -> 'a -> 'b
+  @@ global many = <fun>
 |}];;
 
 let (x : string -> nothing) = ok ();;
 x "hello";;
 [%%expect{|
-val x : string -> nothing = <fun>
+val x : string -> nothing @@ global many = <fun>
 Exception: Assert_failure ("", 1, 50).
 |}];;
 
@@ -63,7 +63,8 @@ let workaround1 (type a) ?opt:((opt : (a, int -> int) eq) = assert false) () : a
   | Eq -> (function x -> x + 1);;
 
 [%%expect{|
-val workaround1 : ?opt:('a, int -> int) eq -> unit -> 'a = <fun>
+val workaround1 : ?opt:('a, int -> int) eq -> unit -> 'a @@ global many =
+  <fun>
 |}];;
 
 (* Workaround 2: Use an expression body instead of a function body *)
@@ -71,7 +72,8 @@ val workaround1 : ?opt:('a, int -> int) eq -> unit -> 'a = <fun>
 let workaround2 (type a) ?opt:((Eq : (a, int -> int) eq) = assert false) () : a =
   (function x -> x + 1);;
 [%%expect{|
-val workaround2 : ?opt:('a, int -> int) eq -> unit -> 'a = <fun>
+val workaround2 : ?opt:('a, int -> int) eq -> unit -> 'a @@ global many =
+  <fun>
 |}];;
 
 let (x : nothing) = workaround2 ();;
@@ -96,8 +98,8 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Neq
 
-val ok : ('a : any) ('b : any). ('a -> 'b, int -> int) eq_or_not -> 'a -> 'b =
-  <fun>
+val ok : ('a : any) ('b : any). ('a -> 'b, int -> int) eq_or_not -> 'a -> 'b
+  @@ global many = <fun>
 |}];;
 
 let bad : type a. (a, int -> int) eq_or_not -> a =
@@ -129,8 +131,8 @@ let ok (type a) (lazy (Eq : (a, int -> int) eq)) : a =
   function x -> x + 1
 
 [%%expect{|
-val ok : ('a : any) ('b : any). ('a -> 'b, int -> int) eq lazy_t -> 'a -> 'b =
-  <fun>
+val ok : ('a : any) ('b : any). ('a -> 'b, int -> int) eq lazy_t -> 'a -> 'b
+  @@ global many = <fun>
 |}];;
 
 let bad : type a. (a, int -> int) eq lazy_t -> a =

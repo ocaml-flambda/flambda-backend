@@ -60,8 +60,8 @@ type baz = {
   b1 : void_rec;
   b2 : void_rec;
 }
-val r : '_weak1 list ref = {contents = []}
-val cons_r : '_weak1 -> unit = <fun>
+val r : '_weak1 list ref @@ global many = {contents = []}
+val cons_r : '_weak1 -> unit @@ global many = <fun>
 Lines 14-21, characters 2-3:
 14 | ..{a1 = (cons_r 11; {v = ((cons_r 12; a1).v)});
 15 |    a2 = (cons_r 9; {v = ((cons_r 10; a2).v)});
@@ -209,8 +209,8 @@ type void_variant =
   | D of { a1 : t_void; a2 : void_rec; x : int; v : void_rec; z : int;
       b1 : void_rec; b2 : t_void;
     }
-val r : '_weak2 list ref = {contents = []}
-val cons_r : '_weak2 -> unit = <fun>
+val r : '_weak2 list ref @@ global many = {contents = []}
+val cons_r : '_weak2 -> unit @@ global many = <fun>
 Lines 17-35, characters 10-27:
 17 | ..........function
 18 |   | A (a1, a2, x, v, z, b1, b2) ->

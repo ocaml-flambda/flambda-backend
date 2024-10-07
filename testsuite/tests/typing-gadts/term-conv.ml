@@ -41,8 +41,8 @@ module Typeable :
       | Fun : ('a ty * 'b ty) -> ('a -> 'b) ty
     type (_, _) eq = Eq : ('a, 'a) eq
     exception CastFailure
-    val check_eq : 't ty -> ' t' ty -> ('t, ' t') eq
-    val gcast : 't ty -> ' t' ty -> 't -> ' t'
+    val check_eq : 't ty -> ' t' ty -> ('t, ' t') eq @@ global many
+    val gcast : 't ty -> ' t' ty -> 't -> ' t' @@ global many
   end
 |}];;
 
@@ -69,7 +69,7 @@ module HOAS :
       | Con : 't -> 't term
       | Lam : 's Typeable.ty * ('s term -> 't term) -> ('s -> 't) term
       | App : ('s -> 't) term * 's term -> 't term
-    val intp : 't term -> 't
+    val intp : 't term -> 't @@ global many
   end
 |}];;
 
@@ -110,7 +110,7 @@ module DeBruijn :
     type ('env, 't) ix =
         ZeroIx : ('env * 't, 't) ix
       | SuccIx : ('env, 't) ix -> ('env * 's, 't) ix
-    val to_int : ('env, 't) ix -> int
+    val to_int : ('env, 't) ix -> int @@ global many
     type ('env, 't) term =
         Var : ('env, 't) ix -> ('env, 't) term
       | Con : 't -> ('env, 't) term
@@ -119,8 +119,8 @@ module DeBruijn :
     type _ stack =
         Empty : unit stack
       | Push : 'env stack * 't -> ('env * 't) stack
-    val prj : ('env, 't) ix -> 'env stack -> 't
-    val intp : ('env, 't) term -> 'env stack -> 't
+    val prj : ('env, 't) ix -> 'env stack -> 't @@ global many portable
+    val intp : ('env, 't) term -> 'env stack -> 't @@ global many portable
   end
 |}];;
 
@@ -169,12 +169,15 @@ module Convert :
         EmptyLayout : ('env, unit) layout
       | PushLayout : 't Typeable.ty * ('env, 'env') layout *
           ('env, 't) DeBruijn.ix -> ('env, 'env' * 't) layout
-    val size : ('env, 'env') layout -> int
-    val inc : ('env, 'env') layout -> ('env * 't, 'env') layout
+    val size : ('env, 'env') layout -> int @@ global many
+    val inc : ('env, 'env') layout -> ('env * 't, 'env') layout @@ global
+      many portable
     val prj :
       't Typeable.ty -> int -> ('env, 'env') layout -> ('env, 't) DeBruijn.ix
+      @@ global many
     val cvt : ('env, 'env) layout -> 't HOAS.term -> ('env, 't) DeBruijn.term
-    val convert : 'a HOAS.term -> (unit, 'a) DeBruijn.term
+      @@ global many
+    val convert : 'a HOAS.term -> (unit, 'a) DeBruijn.term @@ global many
   end
 |}];;
 
@@ -204,19 +207,49 @@ end;;
 [%%expect{|
 module Main :
   sig
-    val i : 'a Typeable.ty -> ('a -> 'a) HOAS.term
-    val zero : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term
-    val one : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term
-    val two : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term
-    val three : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term
+    val i : 'a Typeable.ty -> ('a -> 'a) HOAS.term @@ global many portable
+    val zero : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@ global
+      many portable
+    val one : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@ global
+      many portable
+    val two : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@ global
+      many portable
+    val three : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@
+      global many portable
     val plus :
       'a Typeable.ty ->
       ((('a -> 'a) -> 'a -> 'a) ->
        (('a -> 'a) -> 'a -> 'a) -> ('a -> 'a) -> 'a -> 'a)
-      HOAS.term
-    val plus_2_3 : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term
-    val i' : (unit, int -> int) DeBruijn.term
-    val plus_2_3' : (unit, (int -> int) -> int -> int) DeBruijn.term
-    val eval_plus_2_3' : int
+      HOAS.term @@ global many portable
+    val plus_2_3 : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@
+      global many portable
+    val i' : (unit, int -> int) DeBruijn.term @@ global many
+    val plus_2_3' : (unit, (int -> int) -> int -> int) DeBruijn.term @@
+      global many
+    val eval_plus_2_3' : int @@ global many portable
+  end
+|}, Principal{|
+module Main :
+  sig
+    val i : 'a Typeable.ty -> ('a -> 'a) HOAS.term @@ global many portable
+    val zero : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@ global
+      many portable
+    val one : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@ global
+      many portable
+    val two : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@ global
+      many portable
+    val three : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@
+      global many portable
+    val plus :
+      'a Typeable.ty ->
+      ((('a -> 'a) -> 'a -> 'a) ->
+       (('a -> 'a) -> 'a -> 'a) -> ('a -> 'a) -> 'a -> 'a)
+      HOAS.term @@ global many portable
+    val plus_2_3 : 'a Typeable.ty -> (('a -> 'a) -> 'a -> 'a) HOAS.term @@
+      global many portable
+    val i' : (unit, int -> int) DeBruijn.term @@ global many
+    val plus_2_3' : (unit, (int -> int) -> int -> int) DeBruijn.term @@
+      global many
+    val eval_plus_2_3' : int @@ global many
   end
 |}];;

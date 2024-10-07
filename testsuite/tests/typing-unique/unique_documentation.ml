@@ -18,11 +18,11 @@ let store_field i = ()
 let flip_coin () = true
 [%%expect{|
 type t = Con of { field : int list; }
-val free : t @ unique -> unit = <fun>
-val free_field : 'a @ unique -> unit = <fun>
-val store : t -> unit = <fun>
-val store_field : 'a -> unit = <fun>
-val flip_coin : unit -> bool = <fun>
+val free : t @ unique -> unit @@ global many = <fun>
+val free_field : 'a @ unique -> unit @@ global many = <fun>
+val store : t -> unit @@ global many = <fun>
+val store_field : 'a -> unit @@ global many = <fun>
+val flip_coin : unit -> bool @@ global many = <fun>
 |}]
 
 let test () =
@@ -52,7 +52,7 @@ Line 5, characters 6-15:
           ^^^^^^^^^
 Warning 26 [unused-var]: unused variable linearize.
 
-val test : unit -> unit = <fun>
+val test : unit -> unit @@ global many = <fun>
 |}]
 
 type 'a aliased = { a : 'a @@ aliased } [@@unboxed]
@@ -61,7 +61,8 @@ let cons : 'a @ aliased -> 'a aliased list @ unique -> 'a aliased list @ unique 
   fun x xs -> { a = x } :: xs
 [%%expect{|
 type 'a aliased = { a : 'a @@ aliased; } [@@unboxed]
-val cons : 'a -> 'a aliased list @ unique -> 'a aliased list @ unique = <fun>
+val cons : 'a -> 'a aliased list @ unique -> 'a aliased list @ unique @@
+  global many = <fun>
 |}]
 
 type delayed_free = { id : int; callback : unit -> unit }
@@ -69,7 +70,7 @@ type delayed_free = { id : int; callback : unit -> unit }
 let get_id : delayed_free @ once -> int @ many = fun d -> d.id
 [%%expect{|
 type delayed_free = { id : int; callback : unit -> unit; }
-val get_id : delayed_free @ once -> int = <fun>
+val get_id : delayed_free @ once -> int @@ global many = <fun>
 |}]
 
 type delayed_free = { ids : int list; callback : unit -> unit }
@@ -89,7 +90,7 @@ let okay t =
   match t with
   | Con { field } -> free t
 [%%expect{|
-val okay : t @ unique -> unit = <fun>
+val okay : t @ unique -> unit @@ global many = <fun>
 |}]
 
 let bad t =
@@ -116,7 +117,7 @@ let okay t =
     then free_field field
     else free t
 [%%expect{|
-val okay : t @ unique -> unit = <fun>
+val okay : t @ unique -> unit @@ global many = <fun>
 |}]
 
 let okay t =
@@ -125,7 +126,7 @@ let okay t =
     store_field field;
     store t
 [%%expect{|
-val okay : t -> unit = <fun>
+val okay : t -> unit @@ global many = <fun>
 |}]
 
 (****************)
@@ -141,7 +142,7 @@ Line 3, characters 6-9:
           ^^^
 Warning 26 [unused-var]: unused variable use.
 
-val module_ret_unique : unit = ()
+val module_ret_unique : unit @@ global many = ()
 |}]
 
 module Mk = struct
@@ -152,7 +153,7 @@ let module_ret_unique =
   let use () = free (Mk.mk ()) in
   ()
 [%%expect{|
-module Mk : sig val mk : unit -> t end
+module Mk : sig val mk : unit -> t @@ global many portable end
 Line 6, characters 20-30:
 6 |   let use () = free (Mk.mk ()) in
                         ^^^^^^^^^^
@@ -166,8 +167,8 @@ end
 [%%expect{|
 module Unique_array :
   sig
-    val set : 'a @ unique -> int -> 'b -> 'a @ unique
-    val size : 'a -> int
+    val set : 'a @ unique -> int -> 'b -> 'a @ unique @@ global many portable
+    val size : 'a -> int @@ global many portable
   end
 |}]
 
@@ -205,7 +206,7 @@ let set_all_zero arr =
   let size, arr = size arr in
   loop size arr
 [%%expect{|
-val set_all_zero : 'a @ unique -> 'a = <fun>
+val set_all_zero : 'a @ unique -> 'a @@ global many = <fun>
 |}]
 
 (****************)
@@ -220,11 +221,11 @@ let store_field i = ()
 let flip_coin () = true
 [%%expect{|
 type t = { field1 : t; field2 : t; }
-val free : t @ unique -> unit = <fun>
-val free_field : 'a @ unique -> unit = <fun>
-val store : t -> unit = <fun>
-val store_field : 'a -> unit = <fun>
-val flip_coin : unit -> bool = <fun>
+val free : t @ unique -> unit @@ global many = <fun>
+val free_field : 'a @ unique -> unit @@ global many = <fun>
+val store : t -> unit @@ global many = <fun>
+val store_field : 'a -> unit @@ global many = <fun>
+val flip_coin : unit -> bool @@ global many = <fun>
 |}]
 
 let okay t =
@@ -232,7 +233,7 @@ let okay t =
   then free t
   else (store t; store t)
 [%%expect{|
-val okay : t @ unique -> unit = <fun>
+val okay : t @ unique -> unit @@ global many = <fun>
 |}]
 
 let okay r =
@@ -240,7 +241,7 @@ let okay r =
   match r with
   | { field2; _ } -> free field2
 [%%expect{|
-val okay : t @ unique -> unit = <fun>
+val okay : t @ unique -> unit @@ global many = <fun>
 |}]
 
 let bad r =
@@ -265,12 +266,12 @@ let okay r =
   match r with
   | { field2; _ } -> free field2
 [%%expect{|
-val okay : t @ unique -> unit = <fun>
+val okay : t @ unique -> unit @@ global many = <fun>
 |}]
 
 let id : 'a @ unique -> 'a @ unique = fun t -> t
 [%%expect{|
-val id : 'a @ unique -> 'a @ unique = <fun>
+val id : 'a @ unique -> 'a @ unique @@ global many = <fun>
 |}]
 
 let bad r =
@@ -311,14 +312,15 @@ let check_tuple x y z =
     | p, q, r -> free p
   in m, y, y
 [%%expect{|
-val check_tuple : t @ unique -> 'a -> 'b -> unit * 'a * 'a = <fun>
+val check_tuple : t @ unique -> 'a -> 'b -> unit * 'a * 'a @@ global many =
+  <fun>
 |}]
 
 let okay x y z =
   match x, y, z with
   | p, q, r -> free x.field1; free p.field2
 [%%expect{|
-val okay : t @ unique -> 'a -> 'b -> unit = <fun>
+val okay : t @ unique -> 'a -> 'b -> unit @@ global many = <fun>
 |}]
 
 let bad x y z =

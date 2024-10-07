@@ -18,7 +18,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 T (`Conj _)
 
-val f : s t -> unit = <fun>
+val f : s t -> unit @@ global many = <fun>
 Exception: Match_failure ("", 4, 6).
 |}];;
 

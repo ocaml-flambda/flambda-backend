@@ -3,6 +3,9 @@ File "lib2_client.ml", line 19, characters 11-36:
                 ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This functor has type
        "functor (T : sig type t end) ->
-         sig type t = Lib1_client__X.t val f : T.t -> unit end"
+         sig
+           type t = Lib1_client__X.t
+           val f : T.t -> unit @@ global many portable
+         end"
        The parameter cannot be eliminated in the result type.
        Please bind the argument to a module identifier.

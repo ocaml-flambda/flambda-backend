@@ -15,12 +15,12 @@ Hint: Did you mean "`A_name"?
 
 let f (x:'id_arg) = x;;
 [%%expect{|
-val f : 'id_arg -> 'id_arg = <fun>
+val f : 'id_arg -> 'id_arg @@ global many = <fun>
 |}];;
 
 let f (x:'Id_arg) = x;;
 [%%expect{|
-val f : 'Id_arg -> 'Id_arg = <fun>
+val f : 'Id_arg -> 'Id_arg @@ global many = <fun>
 |}];;
 
 (* GPR#1204, GPR#1329 *)
@@ -28,20 +28,20 @@ type 'a id = 'a
 let f (x : [< [`Foo] id]) = ();;
 [%%expect{|
 type 'a id = 'a
-val f : [< [ `Foo ] id ] -> unit = <fun>
+val f : [< [ `Foo ] id ] -> unit @@ global many = <fun>
 |}];;
 
 module M = struct module N = struct type t = [`A] end end;;
 let f x = (x :> M.N.t);;
 [%%expect{|
 module M : sig module N : sig type t = [ `A ] end end
-val f : [< M.N.t ] -> M.N.t = <fun>
+val f : [< M.N.t ] -> M.N.t @@ global many = <fun>
 |}]
 module G = M.N;;
 let f x = (x :> G.t);;
 [%%expect{|
 module G = M.N
-val f : [< G.t ] -> G.t = <fun>
+val f : [< G.t ] -> G.t @@ global many = <fun>
 |}]
 
 
@@ -61,7 +61,7 @@ let zeros = object(self) method next = 0, self end
 let x = X zeros;;
 [%%expect {|
 type 'a t = private X of 'a
-val zeros : < next : int * 'a > as 'a = <obj>
+val zeros : < next : int * 'a > as 'a @@ global many = <obj>
 Line 3, characters 8-15:
 3 | let x = X zeros;;
             ^^^^^^^

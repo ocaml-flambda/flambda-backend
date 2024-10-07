@@ -34,7 +34,7 @@ let f = function
 | Some (~x:5, 2) -> true
 | _ -> false
 [%%expect{|
-val f : (x:int * int) option -> bool = <fun>
+val f : (x:int * int) option -> bool @@ global many = <fun>
 |}]
 
 
@@ -44,7 +44,7 @@ let f = function
 | _ -> false
 [%%expect{|
 type t = Foo of (x:int * int)
-val f : t -> bool = <fun>
+val f : t -> bool @@ global many = <fun>
 |}]
 
 let _ = f (Foo (~x:5,2))

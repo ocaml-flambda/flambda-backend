@@ -13,32 +13,35 @@ let ( .@()<- ) = Hashtbl.add ;;
 [%%expect {|
 
 let (.?[]) = Hashtbl.find_opt;;
-val ( .?[] ) : ('a, 'b) Hashtbl.t -> 'a -> 'b option = <fun>
+val ( .?[] ) : ('a, 'b) Hashtbl.t -> 'a -> 'b option @@ global many = <fun>
 
 let (.@[]) = Hashtbl.find;;
-val ( .@[] ) : ('a, 'b) Hashtbl.t -> 'a -> 'b = <fun>
+val ( .@[] ) : ('a, 'b) Hashtbl.t -> 'a -> 'b @@ global many = <fun>
 
 let (.@[]<-) = Hashtbl.add;;
-val ( .@[]<- ) : ('a, 'b) Hashtbl.t -> 'a -> 'b -> unit = <fun>
+val ( .@[]<- ) : ('a, 'b) Hashtbl.t -> 'a -> 'b -> unit @@ global many =
+  <fun>
 
 let (.@{}) = Hashtbl.find;;
-val ( .@{} ) : ('a, 'b) Hashtbl.t -> 'a -> 'b = <fun>
+val ( .@{} ) : ('a, 'b) Hashtbl.t -> 'a -> 'b @@ global many = <fun>
 
 let (.@{}<-) = Hashtbl.add;;
-val ( .@{}<- ) : ('a, 'b) Hashtbl.t -> 'a -> 'b -> unit = <fun>
+val ( .@{}<- ) : ('a, 'b) Hashtbl.t -> 'a -> 'b -> unit @@ global many =
+  <fun>
 
 let (.@()) = Hashtbl.find;;
-val ( .@() ) : ('a, 'b) Hashtbl.t -> 'a -> 'b = <fun>
+val ( .@() ) : ('a, 'b) Hashtbl.t -> 'a -> 'b @@ global many = <fun>
 
 let (.@()<-) = Hashtbl.add;;
-val ( .@()<- ) : ('a, 'b) Hashtbl.t -> 'a -> 'b -> unit = <fun>
+val ( .@()<- ) : ('a, 'b) Hashtbl.t -> 'a -> 'b -> unit @@ global many =
+  <fun>
 |}]
 
 let h: (string,int) Hashtbl.t = Hashtbl.create 17;;
 [%%expect {|
 
 let h : (string, int) Hashtbl.t = Hashtbl.create 17;;
-val h : (string, int) Hashtbl.t = <abstr>
+val h : (string, int) Hashtbl.t @@ global many = <abstr>
 |}]
 
 let () =
@@ -65,13 +68,13 @@ let _ = 1 #? x.%(0);;
 [%%expect {|
 
 let (#?) x y = (x, y);;
-val ( #? ) : 'a -> 'b -> 'a * 'b = <fun>
+val ( #? ) : 'a -> 'b -> 'a * 'b @@ global many = <fun>
 
 let (.%()) x y = x.(y);;
-val ( .%() ) : 'a array -> int -> 'a = <fun>
+val ( .%() ) : 'a array -> int -> 'a @@ global many = <fun>
 
 let x = [|0|];;
-val x : int array = [|0|]
+val x : int array @@ global many = [|0|]
 
 let _ = 1 #? (x.(0));;
 - : int * int = (1, 0)

@@ -124,9 +124,9 @@ module M1 :
     type t : any
     type ('a : any) s = { a : 'a -> 'a; }
     type q = t s
-    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s
-    val f2 : unit -> string s
-    val f3 : unit -> int s
+    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
+    val f2 : unit -> string s @@ global many
+    val f3 : unit -> int s @@ global many
   end
 |}]
 
@@ -147,9 +147,9 @@ module M1 :
     type t : any
     type ('a : any) s = A of ('a -> 'a)
     type q = t s
-    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s
-    val f2 : unit -> string s
-    val f3 : unit -> int s
+    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
+    val f2 : unit -> string s @@ global many
+    val f3 : unit -> int s @@ global many
   end
 |}]
 
@@ -170,9 +170,9 @@ module M1 :
     type t : any
     type ('a : any) s = A of { a : 'a -> 'a; }
     type q = t s
-    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s
-    val f2 : unit -> string s
-    val f3 : unit -> int s
+    val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
+    val f2 : unit -> string s @@ global many
+    val f3 : unit -> int s @@ global many
   end
 |}]
 
@@ -196,12 +196,12 @@ module M1 :
     type t : any
     type ('a : any) s = A : ('a : any) 'b. { a : 'a -> 'b -> 'a; } -> 'a s
     type q = t s
-    val f0 : unit -> 'a s
-    val f1 : unit -> int s
-    val f2 : unit -> string s
-    val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s
-    val f4 : unit -> int s
-    val f5 : unit -> string s
+    val f0 : unit -> 'a s @@ global many portable
+    val f1 : unit -> int s @@ global many
+    val f2 : unit -> string s @@ global many
+    val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
+    val f4 : unit -> int s @@ global many
+    val f5 : unit -> string s @@ global many
   end
 |}]
 
@@ -225,12 +225,12 @@ module M1 :
     type t : any
     type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
     type q = t s
-    val f0 : unit -> 'a s
-    val f1 : unit -> int s
-    val f2 : unit -> string s
-    val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s
-    val f4 : unit -> int s
-    val f5 : unit -> string s
+    val f0 : unit -> 'a s @@ global many portable
+    val f1 : unit -> int s @@ global many
+    val f2 : unit -> string s @@ global many
+    val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
+    val f4 : unit -> int s @@ global many
+    val f5 : unit -> string s @@ global many
   end
 |}]
 
@@ -473,7 +473,7 @@ end;;
 [%%expect{|
 module F2 :
   functor (X : sig val f : t_float64 -> unit end) ->
-    sig val g : t_float64 -> unit end
+    sig val g : t_float64 -> unit @@ global many end
 |}];;
 
 (**************************************)
@@ -490,8 +490,8 @@ let plus_3' (x : int imm_id) = x + 3;;
 
 [%%expect{|
 type my_int = int imm_id
-val plus_3 : my_int -> int = <fun>
-val plus_3' : int imm_id -> int = <fun>
+val plus_3 : my_int -> int @@ global many = <fun>
+val plus_3' : int imm_id -> int @@ global many = <fun>
 |}];;
 
 let string_id (x : string imm_id) = x;;
@@ -511,9 +511,10 @@ let id_for_imms (x : 'a imm_id) = x
 let three = id_for_imms 3
 let true_ = id_for_imms true;;
 [%%expect{|
-val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id = <fun>
-val three : int imm_id = 3
-val true_ : bool imm_id = true
+val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id @@ global many =
+  <fun>
+val three : int imm_id @@ global many = 3
+val true_ : bool imm_id @@ global many = true
 |}]
 
 let not_helloworld = id_for_imms "hello world";;
@@ -638,7 +639,7 @@ type 'a t6_val = T6val of 'a
 let ignore_val6 : 'a . 'a -> unit =
   fun a -> let _ = T6val a in ();;
 [%%expect{|
-val ignore_val6 : 'a -> unit = <fun>
+val ignore_val6 : 'a -> unit @@ global many = <fun>
 |}];;
 
 let ignore_imm6 : 'a . 'a -> unit =
@@ -900,13 +901,40 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type ('a : immediate) t = 'a
-           val f : ('a : immediate). 'a t -> 'a
-           val x : ('a : immediate). 'a
+           val f : ('a : immediate). 'a t -> 'a @@ global many portable
+           val x : ('a : immediate). 'a @@ global many portable
          end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : ('a : immediate). 'a
+         val x : ('a : immediate). 'a @@ global many portable
+       is not included in
+         val x : string
+       The type "('a : immediate)" is not compatible with the type "string"
+       The kind of string is immutable_data
+         because it is the primitive type string.
+       But the kind of string must be a subkind of immediate
+         because of the definition of x at line 8, characters 10-26.
+|}, Principal{|
+Lines 3-9, characters 6-3:
+3 | ......struct
+4 |   type ('a : immediate) t = 'a
+5 |
+6 |   let f : 'a t -> 'a = fun x -> x
+7 |
+8 |   let x = f (assert false)
+9 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type ('a : immediate) t = 'a
+           val f : ('a : immediate). 'a t -> 'a @@ global many portable
+           val x : ('a : immediate). 'a @@ global many
+         end
+       is not included in
+         sig val x : string end
+       Values do not match:
+         val x : ('a : immediate). 'a @@ global many
        is not included in
          val x : string
        The type "('a : immediate)" is not compatible with the type "string"
@@ -940,13 +968,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type ('a : immediate) t = 'a
-           val f : ('a : immediate). 'a t -> 'a t
-           val x : ('a : immediate). 'a t
+           val f : ('a : immediate). 'a t -> 'a t @@ global many portable
+           val x : ('a : immediate). 'a t @@ global many portable
          end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : ('a : immediate). 'a t
+         val x : ('a : immediate). 'a t @@ global many portable
        is not included in
          val x : string
        The type "'a t" = "('a : immediate)" is not compatible with the type
@@ -1019,6 +1047,7 @@ module M11_3f :
   sig
     type ('a : float64) t = 'a
     val foo : ('a : float64) 'b. < usefloat : 'a t -> 'b; .. > -> 'a t -> 'b
+      @@ global many portable
   end
 |}];;
 
@@ -1236,7 +1265,7 @@ let x13f v =
   match v with
   | lazy v -> f_id v
 [%%expect{|
-val f_id : t_float64 -> t_float64 = <fun>
+val f_id : t_float64 -> t_float64 @@ global many = <fun>
 Line 4, characters 19-20:
 4 |   | lazy v -> f_id v
                        ^
@@ -1341,7 +1370,7 @@ type t13f = t_float64 array
 
 let x13f (v : t_float64) = [| v |];;
 [%%expect{|
-val x13f : t_float64 -> t_float64 array = <fun>
+val x13f : t_float64 -> t_float64 array @@ global many = <fun>
 |}];;
 
 let x13f v =
@@ -1349,7 +1378,7 @@ let x13f v =
   | [| v |] -> f_id v
   | _ -> assert false
 [%%expect{|
-val x13f : t_float64 array -> t_float64 = <fun>
+val x13f : t_float64 array -> t_float64 @@ global many = <fun>
 |}];;
 
 (****************************************************************************)
@@ -1430,8 +1459,8 @@ let f18 : 'a . 'a -> 'a = fun x -> id18 x;;
 
 [%%expect{|
 type 'a t18 = 'a
-val id18 : 'a t18 -> 'a t18 = <fun>
-val f18 : 'a -> 'a = <fun>
+val id18 : 'a t18 -> 'a t18 @@ global many = <fun>
+val f18 : 'a -> 'a @@ global many = <fun>
 |}];;
 
 (********************************)
@@ -1444,7 +1473,7 @@ let f19f () =
   let _y = (x :> t_float64) in
   ();;
 [%%expect{|
-val f19f : unit -> unit = <fun>
+val f19f : unit -> unit @@ global many = <fun>
 |}];;
 
 (********************************************)
@@ -1460,7 +1489,7 @@ let f20f () =
   in
   ();;
 [%%expect{|
-val f20f : unit -> unit = <fun>
+val f20f : unit -> unit @@ global many = <fun>
 |}];;
 
 (**********************************)
@@ -1478,7 +1507,7 @@ let f21f () =
   ();;
 [%%expect{|
 module type M21 = sig end
-val f21f : unit -> unit = <fun>
+val f21f : unit -> unit @@ global many = <fun>
 |}];;
 
 (***************************************************************)
@@ -1493,7 +1522,7 @@ let f () =
   g (assert false);;
 [%%expect{|
 type ('a : float64) t22f = 'a
-val f : ('a : float64). unit -> 'a t22f t22f = <fun>
+val f : ('a : float64). unit -> 'a t22f t22f @@ global many = <fun>
 |}];;
 
 
@@ -1543,7 +1572,7 @@ let f (x : 'a. 'a t2_float) = x
 
 [%%expect{|
 type 'a t2_float : float64
-val f : ('a. 'a t2_float) -> 'b t2_float = <fun>
+val f : ('a. 'a t2_float) -> 'b t2_float @@ global many = <fun>
 |}]
 
 (**************************************************)
@@ -1575,7 +1604,8 @@ Error: This expression has type "t_float64"
 let g f (x : t_float64) : t_float64 = f x
 
 [%%expect{|
-val g : (t_float64 -> t_float64) -> t_float64 -> t_float64 = <fun>
+val g : (t_float64 -> t_float64) -> t_float64 -> t_float64 @@ global many =
+  <fun>
 |}]
 
 (******************************************)
@@ -1586,7 +1616,7 @@ val g : (t_float64 -> t_float64) -> t_float64 -> t_float64 = <fun>
 let rec f : _ -> _ = fun (x : t_float64) -> x
 
 [%%expect{|
-val f : t_float64 -> t_float64 = <fun>
+val f : t_float64 -> t_float64 @@ global many = <fun>
 |}]
 
 (************************************)
@@ -1602,8 +1632,8 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : t_float64 -> 'a -> unit = <fun>
-val q : unit -> unit = <fun>
+val ( let* ) : t_float64 -> 'a -> unit @@ global many = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.2: non-value letop binder arg without and *)
@@ -1614,8 +1644,9 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
-val q : unit -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit @@ global many =
+  <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.3: non-value letop binder result *)
@@ -1626,8 +1657,9 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
-val q : unit -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit @@ global many =
+  <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.4: non-value letop result *)
@@ -1638,8 +1670,8 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> t_float64 = <fun>
-val q : unit -> t_float64 = <fun>
+val ( let* ) : 'a -> 'b -> t_float64 @@ global many = <fun>
+val q : unit -> t_float64 @@ global many = <fun>
 |}]
 
 (* 28.5: non-value andop second arg *)
@@ -1652,9 +1684,9 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> unit = <fun>
-val ( and* ) : 'a -> t_float64 -> unit = <fun>
-val q : unit -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit @@ global many = <fun>
+val ( and* ) : 'a -> t_float64 -> unit @@ global many = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.6: non-value andop first arg *)
@@ -1667,9 +1699,9 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> unit = <fun>
-val ( and* ) : t_float64 -> 'a -> unit = <fun>
-val q : unit -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit @@ global many = <fun>
+val ( and* ) : t_float64 -> 'a -> unit @@ global many = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.7: non-value andop result *)
@@ -1682,9 +1714,9 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
-val ( and* ) : 'a -> 'b -> t_float64 = <fun>
-val q : unit -> unit = <fun>
+val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit @@ global many = <fun>
+val ( and* ) : 'a -> 'b -> t_float64 @@ global many = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.8: non-value letop binder arg with and *)
@@ -1697,8 +1729,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : 'a -> 'b -> unit = <fun>
-val ( and* ) : 'a -> 'b -> 'c = <fun>
+val ( let* ) : 'a -> 'b -> unit @@ global many = <fun>
+val ( and* ) : 'a -> 'b -> 'c @@ global many = <fun>
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
@@ -1721,7 +1753,7 @@ let x () = eq (mk_float64 ()) (mk_float64 ())
 
 [%%expect{|
 external eq : 'a -> 'a -> bool = "%equal"
-val mk_float64 : unit -> t_float64 = <fun>
+val mk_float64 : unit -> t_float64 @@ global many = <fun>
 Line 3, characters 14-29:
 3 | let x () = eq (mk_float64 ()) (mk_float64 ())
                   ^^^^^^^^^^^^^^^
@@ -1961,11 +1993,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a @@ global many portable end
        is not included in
          sig val f : ('a : any). 'a -> 'a end
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a @@ global many portable
        is not included in
          val f : ('a : any). 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
@@ -2178,11 +2210,11 @@ Lines 3-6, characters 6-3:
 6 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : (('a : any). 'a -> unit) -> unit end
+         sig val f : (('a : any). 'a -> unit) -> unit @@ global many end
        is not included in
          sig val f : ('a. 'a -> unit) -> unit end
        Values do not match:
-         val f : (('a : any). 'a -> unit) -> unit
+         val f : (('a : any). 'a -> unit) -> unit @@ global many
        is not included in
          val f : ('a. 'a -> unit) -> unit
        The type "(('a : any). 'a -> unit) -> unit"
@@ -2205,11 +2237,11 @@ Lines 3-6, characters 6-3:
 6 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : ('a. 'a -> 'a) -> unit end
+         sig val f : ('a. 'a -> 'a) -> unit @@ global many end
        is not included in
          sig val f : (('a : any). 'a -> 'a) -> unit end
        Values do not match:
-         val f : ('a. 'a -> 'a) -> unit
+         val f : ('a. 'a -> 'a) -> unit @@ global many
        is not included in
          val f : (('a : any). 'a -> 'a) -> unit
        The type "('a. 'a -> 'a) -> unit" is not compatible with the type
@@ -2295,7 +2327,7 @@ Error: This expression has type "< foo : ('a : float64). 'a foo bar >"
 let rec f () : 'a -> 'a = f ()
 
 [%%expect{|
-val f : ('a : any). unit -> 'a -> 'a = <fun>
+val f : ('a : any). unit -> 'a -> 'a @@ global many = <fun>
 |}]
 
 module M = struct
@@ -2303,15 +2335,16 @@ module M = struct
 end
 
 [%%expect{|
-module M : sig val f : ('a : any). unit -> 'a -> 'a end
+module M :
+  sig val f : ('a : any). unit -> 'a -> 'a @@ global many portable end
 |}]
 
 let rec f () : 'a -> 'a = f ()
 let g : ('a : any). unit -> 'a -> 'a = f
 
 [%%expect{|
-val f : ('a : any). unit -> 'a -> 'a = <fun>
-val g : ('a : any). unit -> 'a -> 'a = <fun>
+val f : ('a : any). unit -> 'a -> 'a @@ global many = <fun>
+val g : ('a : any). unit -> 'a -> 'a @@ global many = <fun>
 |}]
 
 module M : sig
@@ -2327,7 +2360,7 @@ module M : sig val f : ('a : any). unit -> 'a -> 'a end
 let rec f : ('a : any). unit -> 'a -> 'a = fun () -> f ()
 
 [%%expect{|
-val f : ('a : any). unit -> 'a -> 'a = <fun>
+val f : ('a : any). unit -> 'a -> 'a @@ global many = <fun>
 |}]
 
 (****************************************************************)
@@ -2547,7 +2580,8 @@ let f_match_allowed (type a : any) (x : a t_gadt_simple) : int =
   | Float64 -> 1;;
 [%%expect{|
 type ('a : any) t_gadt_simple = Float64 : ('a : float64). 'a t_gadt_simple
-val f_match_allowed : ('a : any). 'a t_gadt_simple -> int = <fun>
+val f_match_allowed : ('a : any). 'a t_gadt_simple -> int @@ global many =
+  <fun>
 |}]
 
 let not_magic  (type a : any) (x : a t_gadt_simple) : 'b =
@@ -2573,7 +2607,7 @@ let make_pi (type a : any) (x : a t) : unit -> a =
   | Int -> fun () -> 3;;
 [%%expect{|
 type ('a : any) t = UFloat : float# t | Float : float t | Int : int t
-val make_pi : ('a : any). 'a t -> unit -> 'a = <fun>
+val make_pi : ('a : any). 'a t -> unit -> 'a @@ global many = <fun>
 |}]
 
 type ('a : any) repr =
@@ -2586,7 +2620,7 @@ let lpoly_id (type a : any) (x : a repr) : a -> a =
   | Value -> fun x -> x
 [%%expect{|
 type ('a : any) repr = Float64 : ('a : float64). 'a repr | Value : 'a repr
-val lpoly_id : ('a : any). 'a repr -> 'a -> 'a = <fun>
+val lpoly_id : ('a : any). 'a repr -> 'a -> 'a @@ global many = <fun>
 |}]
 
 type 'a s = 'a
@@ -2609,7 +2643,7 @@ module M : sig type t : immediate end
 module N :
   sig
     type ('a, 'b) eq = Refl : ('a, 'a) eq
-    val f : (M.t, M.t s) eq -> int
+    val f : (M.t, M.t s) eq -> int @@ global many portable
   end
 |}]
 
@@ -2626,7 +2660,7 @@ end
 module N2 :
   sig
     type ('a, 'b) eq = Refl : ('a, 'a) eq
-    val f : (M.t, M.t s) eq -> int
+    val f : (M.t, M.t s) eq -> int @@ global many portable
   end
 |}]
 
@@ -2646,7 +2680,7 @@ type ('a : immediate) s_imm = 'a
 module N3 :
   sig
     type ('a, 'b) eq = Refl : ('a, 'a) eq
-    val f : (M.t, M.t s_imm) eq -> int
+    val f : (M.t, M.t s_imm) eq -> int @@ global many portable
   end
 |}]
 
@@ -2713,7 +2747,7 @@ module M2 : sig type 'a t : immediate end
 module N6 :
   sig
     type ('a, 'b) eq = Refl : ('a, 'a) eq
-    val f : ('a M2.t, 'a M2.t s) eq -> int
+    val f : ('a M2.t, 'a M2.t s) eq -> int @@ global many portable
   end
 |}]
 
@@ -2758,7 +2792,7 @@ let refute (x : t is_value) =
 [%%expect{|
 type ('a : any) is_value = V : 'a is_value
 type t : float64
-val refute : t is_value -> 'a = <fun>
+val refute : t is_value -> 'a @@ global many = <fun>
 |}]
 
 type ('a : any) is_value =
@@ -2773,7 +2807,7 @@ let refute (x : 'a t is_value) =
 [%%expect{|
 type ('a : any) is_value = V : 'a is_value
 type 'a t : float64
-val refute : 'a t is_value -> 'b = <fun>
+val refute : 'a t is_value -> 'b @@ global many = <fun>
 |}]
 
 (***********************************)
@@ -2814,12 +2848,18 @@ module F :
   functor (X : S) ->
     sig
       val f1 : ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> 'b
+        @@ global many portable
       val f2 :
-        ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> 'b
-      val f3 : ([ `K of 'a X.bits64 inj ], [ `K of 'b inj ]) eq -> 'c
-      val f4 : ([ `K of 'b inj ], [ `K of 'a X.bits64 inj ]) eq -> 'c
-      val f5 : ([ `K of 'a X.bits64 s inj ], [ `K of 'b s inj ]) eq -> 'c
-      val f6 : ([ `K of 'b s inj ], [ `K of 'a X.bits64 s inj ]) eq -> 'c
+        ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> 'b @@
+        global many portable
+      val f3 : ([ `K of 'a X.bits64 inj ], [ `K of 'b inj ]) eq -> 'c @@
+        global many portable
+      val f4 : ([ `K of 'b inj ], [ `K of 'a X.bits64 inj ]) eq -> 'c @@
+        global many portable
+      val f5 : ([ `K of 'a X.bits64 s inj ], [ `K of 'b s inj ]) eq -> 'c @@
+        global many portable
+      val f6 : ([ `K of 'b s inj ], [ `K of 'a X.bits64 s inj ]) eq -> 'c @@
+        global many portable
     end
 |}]
 
@@ -2887,6 +2927,6 @@ let f (x : ('a : value)) = x ()
 let f (x : ('a : value mod uncontended)) = x ()
 
 [%%expect{|
-val f : (unit -> 'a) -> 'a = <fun>
-val f : (unit -> 'a) -> 'a = <fun>
+val f : (unit -> 'a) -> 'a @@ global many = <fun>
+val f : (unit -> 'a) -> 'a @@ global many = <fun>
 |}]

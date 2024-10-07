@@ -46,7 +46,7 @@ let f () = let g ~y = (raise Not_found : 'a) in
 let _ = Format.printf "%b@." (try f (); false with Not_found -> true)
 [%%expect {|
 - : unit = ()
-val f : t -> y:'a -> 'b = <fun>
+val f : t -> y:'a -> 'b @@ global many = <fun>
 false
 - : unit = ()
 |}]
@@ -58,7 +58,7 @@ let f () = let g ~y = (raise Not_found : 'a) in
 let _ = Format.printf "%b@." (try f (); false with Not_found -> true)
 [%%expect {|
 - : unit = ()
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 true
 - : unit = ()
 |}]

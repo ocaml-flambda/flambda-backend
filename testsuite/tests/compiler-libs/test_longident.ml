@@ -13,11 +13,11 @@ module L = Longident
 
 let flatten_ident = L.flatten (L.Lident "foo")
 [%%expect {|
-val flatten_ident : string list = ["foo"]
+val flatten_ident : string list @@ global many = ["foo"]
 |}]
 let flatten_dot = L.flatten (L.Ldot (L.Lident "M", "foo"))
 [%%expect {|
-val flatten_dot : string list = ["M"; "foo"]
+val flatten_dot : string list @@ global many = ["M"; "foo"]
 |}]
 let flatten_apply = L.flatten (L.Lapply (L.Lident "F", L.Lident "X"))
 [%%expect {|
@@ -27,25 +27,25 @@ Exception: Misc.Fatal_error.
 
 let unflatten_empty = L.unflatten []
 [%%expect {|
-val unflatten_empty : L.t option = None
+val unflatten_empty : L.t option @@ global many = None
 |}]
 let unflatten_sing = L.unflatten ["foo"]
 [%%expect {|
-val unflatten_sing : L.t option = Some (L.Lident "foo")
+val unflatten_sing : L.t option @@ global many = Some (L.Lident "foo")
 |}]
 let unflatten_dot = L.unflatten ["M"; "N"; "foo"]
 [%%expect {|
-val unflatten_dot : L.t option =
+val unflatten_dot : L.t option @@ global many =
   Some (L.Ldot (L.Ldot (L.Lident "M", "N"), "foo"))
 |}]
 
 let last_ident = L.last (L.Lident "foo")
 [%%expect {|
-val last_ident : string = "foo"
+val last_ident : string @@ global many = "foo"
 |}]
 let last_dot = L.last (L.Ldot (L.Lident "M", "foo"))
 [%%expect {|
-val last_dot : string = "foo"
+val last_dot : string @@ global many = "foo"
 |}]
 let last_apply = L.last (L.Lapply (L.Lident "F", L.Lident "X"))
 [%%expect {|
@@ -55,7 +55,7 @@ Exception: Misc.Fatal_error.
 let last_dot_apply = L.last
     (L.Ldot (L.Lapply (L.Lident "F", L.Lident "X"), "foo"))
 [%%expect {|
-val last_dot_apply : string = "foo"
+val last_dot_apply : string @@ global many = "foo"
 |}];;
 
 type parse_result = { flat: L.t; spec:L.t; any_is_correct:bool }
@@ -70,8 +70,9 @@ let parse_empty = L.parse ""
 let parse_empty_val = Parse.longident (Lexing.from_string "")
 [%%expect {|
 type parse_result = { flat : L.t; spec : L.t; any_is_correct : bool; }
-val test : (Lexing.lexbuf -> L.t) -> string -> parse_result = <fun>
-val parse_empty : L.t = L.Lident ""
+val test : (Lexing.lexbuf -> L.t) -> string -> parse_result @@ global many =
+  <fun>
+val parse_empty : L.t @@ global many = L.Lident ""
 Exception:
 Syntaxerr.Error
  (Syntaxerr.Other
@@ -83,18 +84,18 @@ Syntaxerr.Error
 |}]
 let parse_ident = test Parse.val_ident "foo"
 [%%expect {|
-val parse_ident : parse_result =
+val parse_ident : parse_result @@ global many =
   {flat = L.Lident "foo"; spec = L.Lident "foo"; any_is_correct = true}
 |}]
 let parse_dot = test Parse.val_ident "M.foo"
 [%%expect {|
-val parse_dot : parse_result =
+val parse_dot : parse_result @@ global many =
   {flat = L.Ldot (L.Lident "M", "foo"); spec = L.Ldot (L.Lident "M", "foo");
    any_is_correct = true}
 |}]
 let parse_path = test Parse.val_ident "M.N.foo"
 [%%expect {|
-val parse_path : parse_result =
+val parse_path : parse_result @@ global many =
   {flat = L.Ldot (L.Ldot (L.Lident "M", "N"), "foo");
    spec = L.Ldot (L.Ldot (L.Lident "M", "N"), "foo"); any_is_correct = true}
 |}]
@@ -102,7 +103,7 @@ let parse_complex = test  Parse.type_ident "M.F(M.N).N.foo"
 (* the result below is a known misbehavior of Longident.parse
    which does not handle applications properly. *)
 [%%expect {|
-val parse_complex : parse_result =
+val parse_complex : parse_result @@ global many =
   {flat =
     L.Ldot (L.Ldot (L.Ldot (L.Ldot (L.Lident "M", "F(M"), "N)"), "N"), "foo");
    spec =
@@ -117,7 +118,7 @@ val parse_complex : parse_result =
 let parse_op = test Parse.val_ident "M.(.%.()<-)"
 (* the result below is another known misbehavior of Longident.parse. *)
 [%%expect {|
-val parse_op : parse_result =
+val parse_op : parse_result @@ global many =
   {flat = L.Ldot (L.Ldot (L.Ldot (L.Lident "M", "("), "%"), "()<-)");
    spec = L.Ldot (L.Lident "M", ".%.()<-"); any_is_correct = true}
 |}]
@@ -125,20 +126,20 @@ val parse_op : parse_result =
 
 let parse_let_op = test Parse.val_ident "M.(let+*!)"
 [%%expect {|
-val parse_let_op : parse_result =
+val parse_let_op : parse_result @@ global many =
   {flat = L.Ldot (L.Lident "M", "(let+*!)");
    spec = L.Ldot (L.Lident "M", "let+*!"); any_is_correct = true}
 |}]
 
 let constr = test Parse.constr_ident "true"
 [%%expect{|
-val constr : parse_result =
+val constr : parse_result @@ global many =
   {flat = L.Lident "true"; spec = L.Lident "true"; any_is_correct = true}
 |}]
 
 let prefix_constr = test Parse.constr_ident "A.B.C.(::)"
 [%%expect{|
-val prefix_constr : parse_result =
+val prefix_constr : parse_result @@ global many =
   {flat = L.Ldot (L.Ldot (L.Ldot (L.Lident "A", "B"), "C"), "(::)");
    spec = L.Ldot (L.Ldot (L.Ldot (L.Lident "A", "B"), "C"), "::");
    any_is_correct = true}
@@ -148,7 +149,7 @@ val prefix_constr : parse_result =
 
 let mod_ext = test Parse.extended_module_path "A.F(B.C(X)).G(Y).D"
 [%%expect{|
-val mod_ext : parse_result =
+val mod_ext : parse_result @@ global many =
   {flat =
     L.Ldot (L.Ldot (L.Ldot (L.Ldot (L.Lident "A", "F(B"), "C(X))"), "G(Y)"),
      "D");
@@ -167,23 +168,23 @@ val mod_ext : parse_result =
 
 let string_of_longident lid = Format.asprintf "%a" Pprintast.longident lid
 [%%expect{|
-val string_of_longident : Longident.t -> string = <fun>
+val string_of_longident : Longident.t -> string @@ global many = <fun>
 |}]
 let str_empty   = string_of_longident parse_empty
 [%%expect {|
-val str_empty : string = ""
+val str_empty : string @@ global many = ""
 |}]
 let str_ident   = string_of_longident parse_ident.flat
 [%%expect {|
-val str_ident : string = "foo"
+val str_ident : string @@ global many = "foo"
 |}]
 let str_dot     = string_of_longident parse_dot.flat
 [%%expect {|
-val str_dot : string = "M.foo"
+val str_dot : string @@ global many = "M.foo"
 |}]
 let str_path    = string_of_longident parse_path.flat
 [%%expect {|
-val str_path : string = "M.N.foo"
+val str_path : string @@ global many = "M.N.foo"
 |}]
 
 
@@ -191,5 +192,5 @@ let str_complex = string_of_longident
    (let (&.) p word = L.Ldot(p, word) in
     L.Lapply(L.Lident "M" &. "F", L.Lident "M" &. "N") &. "N" &. "foo")
 [%%expect{|
-val str_complex : string = "M.F(M.N).N.foo"
+val str_complex : string @@ global many = "M.F(M.N).N.foo"
 |}]

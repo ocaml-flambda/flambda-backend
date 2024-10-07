@@ -9,5 +9,5 @@ let f x =
 ;;
 
 [%%expect{|
-val f : [< `A ] -> unit = <fun>
+val f : [< `A ] -> unit @@ global many = <fun>
 |}]

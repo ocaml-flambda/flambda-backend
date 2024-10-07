@@ -107,8 +107,8 @@ let g2 () = S.id "abc"
 [%%expect{|
 module S :
   sig external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly] end
-val g1 : unit -> float# = <fun>
-val g2 : unit -> string = <fun>
+val g1 : unit -> float# @@ global many = <fun>
+val g2 : unit -> string @@ global many = <fun>
 |}]
 
 type ('a : any) s
@@ -247,8 +247,8 @@ module S :
     external id : ('a : any). ('a [@local_opt]) -> ('a [@local_opt])
       = "%identity" [@@layout_poly]
   end
-val g1 : unit -> float# = <fun>
-val g2 : unit -> string = <fun>
+val g1 : unit -> float# @@ global many = <fun>
+val g2 : unit -> string @@ global many = <fun>
 |}]
 
 
@@ -362,13 +362,13 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val id : ('a : any). 'a -> 'a end
+         sig val id : ('a : any). 'a -> 'a @@ global many portable end
        is not included in
          sig
            external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
          end
        Values do not match:
-         val id : ('a : any). 'a -> 'a
+         val id : ('a : any). 'a -> 'a @@ global many portable
        is not included in
          external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
        The implementation is not a primitive.
@@ -502,9 +502,9 @@ module M :
   functor (A : sig type ('a : any) t = private 'a end) ->
     sig
       external id : ('a : any). 'a A.t -> 'a = "%identity" [@@layout_poly]
-      val f1 : unit -> float#
-      val f2 : unit -> int64#
-      val f3 : unit -> int32#
+      val f1 : unit -> float# @@ global many
+      val f2 : unit -> int64# @@ global many
+      val f3 : unit -> int32# @@ global many
     end
 |}]
 
@@ -599,9 +599,9 @@ let f (x: int32#): int32# = id x
 [%%expect{|
 external id : ('a : any). 'a t_with_any -> 'a t_with_any = "%identity"
   [@@layout_poly]
-val f : float# -> float# = <fun>
-val f : int64# -> int64# = <fun>
-val f : int32# -> int32# = <fun>
+val f : float# -> float# @@ global many = <fun>
+val f : int64# -> int64# @@ global many = <fun>
+val f : int32# -> int32# @@ global many = <fun>
 |}]
 
 
@@ -614,9 +614,9 @@ let f (): int32# M_any.t = id (assert false : int32# M_any.t)
 [%%expect{|
 external id : ('a : any). 'a M_any.t -> 'a M_any.t = "%identity"
   [@@layout_poly]
-val f : unit -> float# M_any.t = <fun>
-val f : unit -> int64# M_any.t = <fun>
-val f : unit -> int32# M_any.t = <fun>
+val f : unit -> float# M_any.t @@ global many = <fun>
+val f : unit -> int64# M_any.t @@ global many = <fun>
+val f : unit -> int32# M_any.t @@ global many = <fun>
 |}]
 
 
@@ -662,7 +662,7 @@ let id' x = id x
 
 [%%expect{|
 external id : ('a : any). 'a t -> int = "%array_length" [@@layout_poly]
-val id' : 'a t -> int = <fun>
+val id' : 'a t -> int @@ global many = <fun>
 |}]
 
 external id : ('a : any). 'a t -> int = "%identity"
@@ -670,7 +670,7 @@ let id' x = id x
 
 [%%expect{|
 external id : ('a : any). 'a t -> int = "%identity"
-val id' : ('a : any). 'a t -> int = <fun>
+val id' : ('a : any). 'a t -> int @@ global many = <fun>
 |}]
 
 

@@ -10,7 +10,7 @@ let foo (type a) (x : (a, int) eq) (a : a) p =
   if p then a else M.x;;
 [%%expect{|
 type (_, _) eq = Refl : ('a, 'a) eq
-val foo : ('a, int) eq -> 'a -> bool -> 'a = <fun>
+val foo : ('a, int) eq -> 'a -> bool -> 'a @@ global many = <fun>
 |}]
 
 let foo (type a) (x : (a, int) eq) (a : a) p =
@@ -18,7 +18,7 @@ let foo (type a) (x : (a, int) eq) (a : a) p =
   let Refl = x in
   if p then a else M.x;;
 [%%expect{|
-val foo : ('a, int) eq -> 'a -> bool -> 'a = <fun>
+val foo : ('a, int) eq -> 'a -> bool -> 'a @@ global many = <fun>
 |}]
 
 let foo (type a) (x : (a, int) eq) (a : a) p =
@@ -26,7 +26,7 @@ let foo (type a) (x : (a, int) eq) (a : a) p =
   let Refl = x in
   if p then a else M.x;;
 [%%expect{|
-val foo : ('a, int) eq -> 'a -> bool -> 'a = <fun>
+val foo : ('a, int) eq -> 'a -> bool -> 'a @@ global many = <fun>
 |}]
 
 let foo (type a) (x : (a, int) eq) (a : a) p =
@@ -34,7 +34,7 @@ let foo (type a) (x : (a, int) eq) (a : a) p =
   let Refl = x in
   if p then a else M.x;;
 [%%expect{|
-val foo : ('a, int) eq -> 'a -> bool -> 'a = <fun>
+val foo : ('a, int) eq -> 'a -> bool -> 'a @@ global many = <fun>
 |}]
 
 type ('a,'b) fst = 'a
@@ -46,5 +46,5 @@ let foo4 (type a) (x : (a, int) eq) (a : a) p =
   if p then a else M.x;;
 [%%expect{|
 type ('a, 'b) fst = 'a
-val foo4 : ('a, int) eq -> 'a -> bool -> 'a = <fun>
+val foo4 : ('a, int) eq -> 'a -> bool -> 'a @@ global many = <fun>
 |}]

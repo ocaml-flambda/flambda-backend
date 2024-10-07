@@ -138,7 +138,8 @@ type ('a : immediate) r2 = R
 type (!'a : immediate) s2 = private [> `A of 'a r2 ]
 module type T2 = sig type ('a : immediate) t = 'a s2 end
 module F2 :
-  functor (X : T2) -> sig val f : ('a : immediate). unit -> 'a X.t end
+  functor (X : T2) ->
+    sig val f : ('a : immediate). unit -> 'a X.t @@ global many portable end
 |}]
 
 type ('a : immediate) s2' = private [> `B of 'a]
@@ -411,7 +412,7 @@ module type S3_1 =
   sig type ('a : immediate) t val f : ('a : immediate). 'a -> 'a t end
 module type S3_1' = sig val f : ('a : immediate). 'a -> 'a list end
 module M3_1 : S3_1'
-val x3 : int list = [42]
+val x3 : int list @@ global many = [42]
 Line 14, characters 17-23:
 14 | let x3' = M3_1.f "test";;
                       ^^^^^^
@@ -696,7 +697,7 @@ let x = (module C : S with type t = 'a)
 [%%expect{|
 module type S = sig type t : any end
 module C : S
-val x : (module S with type t = C.t) = <module>
+val x : (module S with type t = C.t) @@ global many = <module>
 |}]
 
 (*************************************************)
@@ -758,7 +759,7 @@ let m : (module S) =
   | Non_immediate -> (module Choice2)
 
 [%%expect{|
-val m : (module S) = <module>
+val m : (module S) @@ global many = <module>
 |}]
 
 (*********************************************)

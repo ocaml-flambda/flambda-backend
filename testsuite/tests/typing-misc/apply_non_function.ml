@@ -8,7 +8,7 @@ let () =
   print_lines (List.map string_of_int [ 1; 2; 3; 4; 5 ])
   print_endline "foo"
 [%%expect{|
-val print_lines : string list -> unit = <fun>
+val print_lines : string list -> unit @@ global many = <fun>
 Lines 4-5, characters 2-15:
 4 | ..print_lines (List.map string_of_int [ 1; 2; 3; 4; 5 ])
 5 |   print_endline......

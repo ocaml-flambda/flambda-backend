@@ -17,7 +17,7 @@ type t = { t : rec_t; x2 : float#; }
 let rec rec_t = { rec_t; x1 = #4.0 }
 
 [%%expect {|
-val rec_t : rec_t = {rec_t = <cycle>; x1 = <abstr>}
+val rec_t : rec_t @@ global many = {rec_t = <cycle>; x1 = <abstr>}
 |}];;
 
 (* Error: the recursive use is for a field in the flat suffix *)
@@ -40,7 +40,7 @@ Error: This expression has type "('a : value)"
 let rec rec_t = let _ = { rec_t; x1 = #4.0 } in { rec_t; x1 = #4.0 };;
 
 [%%expect {|
-val rec_t : rec_t = {rec_t = <cycle>; x1 = <abstr>}
+val rec_t : rec_t @@ global many = {rec_t = <cycle>; x1 = <abstr>}
 |}];;
 
 (* Constructor: tupled args *)
@@ -53,7 +53,7 @@ type cstr = A of cstr * float#
 (* OK: the recursive use is for a field in the value prefix. *)
 let rec rec_cstr = A (rec_cstr, #4.0)
 [%%expect {|
-val rec_cstr : cstr = A (<cycle>, <abstr>)
+val rec_cstr : cstr @@ global many = A (<cycle>, <abstr>)
 |}];;
 
 (* Error: the recursive use is for a field in the flat suffix *)
@@ -75,7 +75,7 @@ Error: This expression has type "('a : value)"
 let rec good_block = let _ = A (good_block, #4.0) in A (good_block, #4.0);;
 
 [%%expect {|
-val good_block : cstr = A (<cycle>, <abstr>)
+val good_block : cstr @@ global many = A (<cycle>, <abstr>)
 |}];;
 
 (* Constructor: inline record args *)
@@ -88,7 +88,7 @@ type cstr = A of { cstr : cstr; flt : float#; }
 (* OK: the recursive use is for a field in the value prefix. *)
 let rec rec_cstr = A { cstr = rec_cstr; flt = #4.0 }
 [%%expect {|
-val rec_cstr : cstr = A {cstr = <cycle>; flt = <abstr>}
+val rec_cstr : cstr @@ global many = A {cstr = <cycle>; flt = <abstr>}
 |}];;
 
 (* Error: the recursive use is for a field in the flat suffix *)
@@ -111,5 +111,5 @@ let rec good_block = let _ = A { cstr = good_block; flt = #4.0 } in
                      A { cstr = good_block; flt = #4.0 };;
 
 [%%expect {|
-val good_block : cstr = A {cstr = <cycle>; flt = <abstr>}
+val good_block : cstr @@ global many = A {cstr = <cycle>; flt = <abstr>}
 |}];;

@@ -6,7 +6,7 @@
 #use "contexts_1.ml";;
 [%%expect {|
 type u = { a : bool; mutable b : (bool, int) Either.t; }
-val example_1 : unit -> (bool, int) Result.t = <fun>
+val example_1 : unit -> (bool, int) Result.t @@ global many = <fun>
 |}]
 
 let _ = example_1 ();;
@@ -20,7 +20,7 @@ let _ = example_1 ();;
 [%%expect {|
 type 'a myref = { mutable mut : 'a; }
 type u = { a : bool; b : (bool, int) Either.t myref; }
-val example_2 : unit -> (bool, int) Result.t = <fun>
+val example_2 : unit -> (bool, int) Result.t @@ global many = <fun>
 |}];;
 
 let _ = example_2 ();;
@@ -33,7 +33,7 @@ let _ = example_2 ();;
 [%%expect {|
 type 'a myref = { mutable mut : 'a; }
 type u = (bool * (bool, int) Either.t) myref
-val example_3 : unit -> (bool, int) Result.t = <fun>
+val example_3 : unit -> (bool, int) Result.t @@ global many = <fun>
 |}];;
 
 let _ = example_3 ();;

@@ -12,8 +12,8 @@ type dyn = Dyn : 'a ty * 'a -> dyn
 let ok1 = function Dyn (type a) (w, x : a ty * a) -> ignore (x : a)
 let ok2 = function Dyn (type a) (w, x : _ * a) -> ignore (x : a)
 [%%expect{|
-val ok1 : dyn -> unit = <fun>
-val ok2 : dyn -> unit = <fun>
+val ok1 : dyn -> unit @@ global many = <fun>
+val ok2 : dyn -> unit @@ global many = <fun>
 |}]
 
 let ko1 = function Dyn (type a) (w, x) -> ()
@@ -46,7 +46,7 @@ type u = C : 'a * ('a -> 'b list) -> u
 let f = function C (type a b) (x, f : _ * (a -> b list)) -> ignore (x : a)
 [%%expect{|
 type u = C : 'a * ('a -> 'b list) -> u
-val f : u -> unit = <fun>
+val f : u -> unit @@ global many = <fun>
 |}]
 
 let f = function C (type a) (x, f : a * (a -> a list)) -> ignore (x : a)
@@ -73,7 +73,7 @@ type _ expr =
     Int : int -> int expr
   | Add : (int -> int -> int) expr
   | App : ('a -> 'b) expr * 'a expr -> 'b expr
-val eval : 't expr -> 't = <fun>
+val eval : 't expr -> 't @@ global many = <fun>
 |}]
 
 let rec test : type a. a expr -> a = function
@@ -115,5 +115,5 @@ type ('a,'b) pair = Pair of 'a * 'b
 let f = function Pair (x, y : int * _) -> x + y
 [%%expect{|
 type ('a, 'b) pair = Pair of 'a * 'b
-val f : (int, int) pair -> int = <fun>
+val f : (int, int) pair -> int @@ global many = <fun>
 |}]

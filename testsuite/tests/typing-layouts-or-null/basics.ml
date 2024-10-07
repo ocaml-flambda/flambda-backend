@@ -91,7 +91,7 @@ Error: This expression has type "t_any_non_null"
 let f (x : t_value_or_null) = x
 
 [%%expect{|
-val f : t_value_or_null -> t_value_or_null = <fun>
+val f : t_value_or_null -> t_value_or_null @@ global many = <fun>
 |}]
 
 type t = { x : t_value_or_null }
@@ -121,7 +121,8 @@ module M2 (X : S2) = struct
 end
 
 [%%expect{|
-module M2 : functor (X : S2) -> sig val f : unit -> t_value_or_null end
+module M2 :
+  functor (X : S2) -> sig val f : unit -> t_value_or_null @@ global many end
 |}]
 
 type ('a : any) id_any = 'a
@@ -474,5 +475,5 @@ Line 2, characters 10-11:
               ^
 Warning 26 [unused-var]: unused variable x.
 
-val u : unit -> unit = <fun>
+val u : unit -> unit @@ global many = <fun>
 |}]

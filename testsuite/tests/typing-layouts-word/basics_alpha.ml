@@ -25,9 +25,9 @@ let f1_3 (x : nativeint#) = x;;
 [%%expect{|
 type t_word : word
 type ('a : word) t_word_id = 'a
-val f1_1 : t_word -> t_word = <fun>
-val f1_2 : ('a : word). 'a t_word_id -> 'a t_word_id = <fun>
-val f1_3 : nativeint# -> nativeint# = <fun>
+val f1_1 : t_word -> t_word @@ global many = <fun>
+val f1_2 : ('a : word). 'a t_word_id -> 'a t_word_id @@ global many = <fun>
+val f1_3 : nativeint# -> nativeint# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -44,9 +44,9 @@ let f2_3 (x : nativeint#) =
   let y = x in
   y;;
 [%%expect{|
-val f2_1 : t_word -> t_word = <fun>
-val f2_2 : ('a : word). 'a t_word_id -> 'a t_word_id = <fun>
-val f2_3 : nativeint# -> nativeint# = <fun>
+val f2_1 : t_word -> t_word @@ global many = <fun>
+val f2_2 : ('a : word). 'a t_word_id -> 'a t_word_id @@ global many = <fun>
+val f2_3 : nativeint# -> nativeint# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -374,10 +374,10 @@ let make_nativeintu () : nativeint# = assert false
 
 let id_value x = x;;
 [%%expect{|
-val make_t_word : unit -> t_word = <fun>
-val make_t_word_id : ('a : word). unit -> 'a t_word_id = <fun>
-val make_nativeintu : unit -> nativeint# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val make_t_word : unit -> t_word @@ global many = <fun>
+val make_t_word_id : ('a : word). unit -> 'a t_word_id @@ global many = <fun>
+val make_nativeintu : unit -> nativeint# @@ global many = <fun>
+val id_value : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_word ());;
@@ -429,11 +429,11 @@ let f9_2 () = twice f1_2 (make_t_word_id ())
 let f9_3 () = twice f1_3 (make_nativeintu ());;
 [%%expect{|
 val twice :
-  ('a : word). ('a t_word_id -> 'a t_word_id) -> 'a t_word_id -> 'a t_word_id =
-  <fun>
-val f9_1 : unit -> t_word t_word_id = <fun>
-val f9_2 : ('a : word). unit -> 'a t_word_id = <fun>
-val f9_3 : unit -> nativeint# t_word_id = <fun>
+  ('a : word). ('a t_word_id -> 'a t_word_id) -> 'a t_word_id -> 'a t_word_id
+  @@ global many = <fun>
+val f9_1 : unit -> t_word t_word_id @@ global many = <fun>
+val f9_2 : ('a : word). unit -> 'a t_word_id @@ global many = <fun>
+val f9_3 : unit -> nativeint# t_word_id @@ global many = <fun>
 |}];;
 
 (**************************************************)
@@ -665,10 +665,10 @@ class ['a] c12_12 = object
 end;;
 [%%expect{|
 type t12_8 = < f : t_word -> t_word >
-val f12_9 : t12_8 -> t_word -> t_word = <fun>
+val f12_9 : t12_8 -> t_word -> t_word @@ global many = <fun>
 val f12_10 :
-  < baz : t_word -> t_word -> t_word -> t_word; .. > -> t_word -> t_word =
-  <fun>
+  < baz : t_word -> t_word -> t_word -> t_word; .. > -> t_word -> t_word @@
+  global many = <fun>
 class ['a] c12_11 : object method x : t_word -> 'a end
 class ['a] c12_12 : object method x : 'a -> t_word end
 |}];;

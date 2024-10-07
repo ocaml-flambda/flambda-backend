@@ -318,7 +318,7 @@ let t = (module struct
 end : S);;
 [%%expect {|
 module type S = sig type t val x : t end
-val t : (module S) = <module>
+val t : (module S) @@ global many = <module>
 |}];;
 
 [ M.x for (module M : S) in [ t ] ];;
@@ -434,7 +434,7 @@ module M : sig type t = A | B end
 
 let x : M.t list  = [A for _ = 1 to 3];;
 [%%expect{|
-val x : M.t list = [M.A; M.A; M.A]
+val x : M.t list @@ global many = [M.A; M.A; M.A]
 |}];;
 
 [A for _ = 1 to 3];;

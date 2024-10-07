@@ -19,7 +19,7 @@ let y =
   | `Foo -> assert false
 ;;
 [%%expect{|
-val y : [ `Bar of 'a | `Foo ] as 'a = `Foo
+val y : [ `Bar of 'a | `Foo ] as 'a @@ global many = `Foo
 |}]
 
 let y =

@@ -23,7 +23,7 @@ module F :
   functor (S : sig type 'a t end) ->
     sig
       type _ ab = A : int S.t ab | B : float S.t ab
-      val f : int S.t ab -> float S.t ab -> string
+      val f : int S.t ab -> float S.t ab -> string @@ global many portable
     end
 |}];;
 
@@ -53,6 +53,6 @@ module F :
       type a = int * int
       type b = int -> int
       type _ ab = A : a S.t ab | B : b S.t ab
-      val f : a S.t ab -> b S.t ab -> string
+      val f : a S.t ab -> b S.t ab -> string @@ global many portable
     end
 |}];;

@@ -15,7 +15,7 @@ let to_option (x : 'a or_null) =
   | This x -> Some x
 
 [%%expect{|
-val to_option : 'a or_null -> 'a option = <fun>
+val to_option : 'a or_null -> 'a option @@ global many = <fun>
 |}]
 
 let of_option (x : 'a option) =
@@ -24,13 +24,13 @@ let of_option (x : 'a option) =
   | Some x -> This x
 
 [%%expect{|
-val of_option : 'a option -> 'a t = <fun>
+val of_option : 'a option -> 'a t @@ global many = <fun>
 |}]
 
 let pi = This 3.14
 
 [%%expect{|
-val pi : float t = This 3.14
+val pi : float t @@ global many = This 3.14
 |}]
 
 let pi' =
@@ -38,7 +38,7 @@ let pi' =
   value
 
 [%%expect{|
-val pi' : float t = This 3.14
+val pi' : float t @@ global many = This 3.14
 |}]
 
 type myrec = { x : int; y : int or_null }
@@ -50,25 +50,25 @@ type myrec = { x : int; y : int or_null; }
 let fst { x; y } = x
 
 [%%expect{|
-val fst : myrec -> int = <fun>
+val fst : myrec -> int @@ global many = <fun>
 |}]
 
 let snd { x; y } = y
 
 [%%expect{|
-val snd : myrec -> int or_null = <fun>
+val snd : myrec -> int or_null @@ global many = <fun>
 |}]
 
 let snd' (a : myrec) = a.y
 
 [%%expect{|
-val snd' : myrec -> int or_null = <fun>
+val snd' : myrec -> int or_null @@ global many = <fun>
 |}]
 
 let mk n = { x = n; y = This n }
 
 [%%expect{|
-val mk : int -> myrec = <fun>
+val mk : int -> myrec @@ global many = <fun>
 |}]
 
 let test =
@@ -77,13 +77,13 @@ let test =
   a'.y
 
 [%%expect{|
-val test : int or_null = Null
+val test : int or_null @@ global many = Null
 |}]
 
 let mytup = (4, This 5)
 
 [%%expect{|
-val mytup : int * int t = (4, This 5)
+val mytup : int * int t @@ global many = (4, This 5)
 |}]
 
 type mytup' = int * int t
@@ -136,7 +136,7 @@ Error: This expression has type "'a t" = "'a or_null"
 let mk' n = `Foo (This n)
 
 [%%expect{|
-val mk' : 'a -> [> `Foo of 'a t ] = <fun>
+val mk' : 'a -> [> `Foo of 'a t ] @@ global many = <fun>
 |}]
 
 module type S = sig

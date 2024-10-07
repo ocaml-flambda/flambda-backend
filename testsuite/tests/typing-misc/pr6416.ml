@@ -19,11 +19,11 @@ Lines 5-8, characters 8-5:
 8 |   end
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = B val f : t -> unit end
+         sig type t = B val f : t -> unit @@ global many portable end
        is not included in
          sig val f : t -> unit end
        Values do not match:
-         val f : t/1 -> unit
+         val f : t/1 -> unit @@ global many portable
        is not included in
          val f : t/2 -> unit
        The type "t/1 -> unit" is not compatible with the type "t/2 -> unit"
@@ -145,11 +145,15 @@ Line 5, characters 2-62:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig module type s type t = B val f : (module s) -> t/2 -> t/1 end
+         sig
+           module type s
+           type t = B
+           val f : (module s) -> t/2 -> t/1 @@ global many portable
+         end
        is not included in
          sig val f : (module s) -> t -> t end
        Values do not match:
-         val f : (module s/1) -> t/2 -> t/1
+         val f : (module s/1) -> t/2 -> t/1 @@ global many portable
        is not included in
          val f : (module s/2) -> t/2 -> t/2
        The type "(module s/1) -> t/2 -> t/1" is not compatible with the type
@@ -178,11 +182,11 @@ Line 5, characters 5-41:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig type a = B val f : a/2 -> 'a -> a/1 end
+         sig type a = B val f : a/2 -> 'a -> a/1 @@ global many portable end
        is not included in
          sig val f : a -> (module a) -> a end
        Values do not match:
-         val f : a/2 -> 'a -> a/1
+         val f : a/2 -> 'a -> a/1 @@ global many portable
        is not included in
          val f : a/2 -> (module a) -> a/2
        The type "a/2 -> (module a) -> a/1" is not compatible with the type
@@ -368,11 +372,11 @@ Lines 5-7, characters 44-3:
 7 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : t/2 -> t/3 -> t/4 -> t/1 end
+         sig val f : t/2 -> t/3 -> t/4 -> t/1 @@ global many portable end
        is not included in
          sig val f : t -> t -> t -> t end
        Values do not match:
-         val f : t/2 -> t/3 -> t/4 -> t/1
+         val f : t/2 -> t/3 -> t/4 -> t/1 @@ global many portable
        is not included in
          val f : t/1 -> t/1 -> t/1 -> t/1
        The type "t/2 -> t/3 -> t/4 -> t/1" is not compatible with the type
@@ -403,7 +407,7 @@ Warning 40 [name-out-of-scope]: doc was selected from type Foo.info.
 It is not visible in the current scope, and will not
 be selected if the type becomes unknown.
 
-val add_extra_info : Foo.t -> unit = <fun>
+val add_extra_info : Foo.t -> unit @@ global many = <fun>
 |}]
 
 (** Check type-directed disambiguation *)
@@ -426,5 +430,5 @@ Warning 40 [name-out-of-scope]: doc was selected from type Bar/2.info.
 It is not visible in the current scope, and will not
 be selected if the type becomes unknown.
 
-val add_extra_info : Foo.t -> unit = <fun>
+val add_extra_info : Foo.t -> unit @@ global many = <fun>
 |}]

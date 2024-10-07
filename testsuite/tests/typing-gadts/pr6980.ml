@@ -20,7 +20,22 @@ type 'a s = 'a constraint 'a = [< `Bar | `Baz | `Foo > `Bar ]
 type 'a first = First : 'a t second -> ([< `Bar | `Foo ] as 'a) t first
 and 'a second = Second : [< `Bar | `Baz | `Foo > `Bar ] s second
 type aux = Aux : ([< `Bar | `Foo ] as 'a) t second * ('a -> int) -> aux
-val it : [< `Bar | `Foo > `Bar ] = `Bar
+val it : [< `Bar | `Foo > `Bar ] @@ global many portable = `Bar
+Line 11, characters 27-29:
+11 | let g (Aux(Second, f)) = f it;;
+                                ^^
+Error: This expression has type "[< `Bar | `Foo > `Bar ]"
+       but an expression was expected of type "[< `Bar | `Foo ]"
+       The second variant type is bound to "$a",
+       it may not allow the tag(s) "`Bar"
+       Hint: "$a" is an existential type bound by the constructor "Aux".
+|}, Principal{|
+type 'a t = 'a constraint 'a = [< `Bar | `Foo ]
+type 'a s = 'a constraint 'a = [< `Bar | `Baz | `Foo > `Bar ]
+type 'a first = First : 'a t second -> ([< `Bar | `Foo ] as 'a) t first
+and 'a second = Second : [< `Bar | `Baz | `Foo > `Bar ] s second
+type aux = Aux : ([< `Bar | `Foo ] as 'a) t second * ('a -> int) -> aux
+val it : [< `Bar | `Foo > `Bar ] @@ global many = `Bar
 Line 11, characters 27-29:
 11 | let g (Aux(Second, f)) = f it;;
                                 ^^

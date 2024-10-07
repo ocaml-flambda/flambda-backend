@@ -57,7 +57,7 @@ Warning 52 [fragile-literal-pattern]: Code should not depend on the actual value
 this constructor's arguments. They are only for information
 and may change in future versions. (see manual section 13.5.3)
 
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 |}];;
 
 let g = function
@@ -71,21 +71,21 @@ Warning 52 [fragile-literal-pattern]: Code should not depend on the actual value
 this constructor's arguments. They are only for information
 and may change in future versions. (see manual section 13.5.3)
 
-val g : t -> unit = <fun>
+val g : t -> unit @@ global many = <fun>
 |}];;
 
 let h = function
 | Without_warning "outside" -> ()
 | Warn _ | Warn' _ | Without_warning _ | Deep _ -> ();;
 [%%expect{|
-val h : t -> unit = <fun>
+val h : t -> unit @@ global many = <fun>
 |}];;
 
 let i = function
 | Deep (_ :: _ :: _ :: _) -> ()
 | Warn _ | Warn' _ | Without_warning _ | Deep _ -> ();;
 [%%expect{|
-val i : t -> unit = <fun>
+val i : t -> unit @@ global many = <fun>
 |}];;
 
 let j = function
@@ -99,5 +99,5 @@ Warning 52 [fragile-literal-pattern]: Code should not depend on the actual value
 this constructor's arguments. They are only for information
 and may change in future versions. (see manual section 13.5.3)
 
-val j : t -> unit = <fun>
+val j : t -> unit @@ global many = <fun>
 |}];;

@@ -15,9 +15,11 @@ let ( and* ) a b =
   | _ -> None
 
 [%%expect{|
-val portable_use : 'a @ portable -> unit = <fun>
-val ( let* ) : 'a option -> ('a -> 'b option) -> 'b option = <fun>
-val ( and* ) : 'a option -> 'b option -> ('a * 'b) option = <fun>
+val portable_use : 'a @ portable -> unit @@ global many = <fun>
+val ( let* ) : 'a option -> ('a -> 'b option) -> 'b option @@ global many =
+  <fun>
+val ( and* ) : 'a option -> 'b option -> ('a * 'b) option @@ global many =
+  <fun>
 |}]
 
 (* bindings are required to be legacy *)

@@ -226,7 +226,7 @@ let f (x:int) = ()
 let x = f (module struct end)
 [%%expect {|
 module type empty = sig end
-val f : int -> unit = <fun>
+val f : int -> unit @@ global many = <fun>
 Line 3, characters 10-29:
 3 | let x = f (module struct end)
               ^^^^^^^^^^^^^^^^^^^
@@ -267,7 +267,7 @@ Error: invalid format "%z": at character number 1, invalid conversion "%z"
 let f ~x = x + 2
 let y = f ~y:1
 [%%expect {|
-val f : x:int -> int = <fun>
+val f : x:int -> int @@ global many = <fun>
 Line 4, characters 13-14:
 4 | let y = f ~y:1
                  ^

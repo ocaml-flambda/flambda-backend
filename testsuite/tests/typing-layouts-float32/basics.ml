@@ -25,9 +25,10 @@ let f1_3 (x : float32#) = x;;
 [%%expect{|
 type t_float32 : float32
 type ('a : float32) t_float32_id = 'a
-val f1_1 : t_float32 -> t_float32 = <fun>
-val f1_2 : ('a : float32). 'a t_float32_id -> 'a t_float32_id = <fun>
-val f1_3 : float32# -> float32# = <fun>
+val f1_1 : t_float32 -> t_float32 @@ global many = <fun>
+val f1_2 : ('a : float32). 'a t_float32_id -> 'a t_float32_id @@ global many =
+  <fun>
+val f1_3 : float32# -> float32# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -44,9 +45,10 @@ let f2_3 (x : float32#) =
   let y = x in
   y;;
 [%%expect{|
-val f2_1 : t_float32 -> t_float32 = <fun>
-val f2_2 : ('a : float32). 'a t_float32_id -> 'a t_float32_id = <fun>
-val f2_3 : float32# -> float32# = <fun>
+val f2_1 : t_float32 -> t_float32 @@ global many = <fun>
+val f2_2 : ('a : float32). 'a t_float32_id -> 'a t_float32_id @@ global many =
+  <fun>
+val f2_3 : float32# -> float32# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -408,10 +410,11 @@ let make_floatu () : float32# = assert false
 
 let id_value x = x;;
 [%%expect{|
-val make_t_float32 : unit -> t_float32 = <fun>
-val make_t_float32_id : ('a : float32). unit -> 'a t_float32_id = <fun>
-val make_floatu : unit -> float32# = <fun>
-val id_value : 'a -> 'a = <fun>
+val make_t_float32 : unit -> t_float32 @@ global many = <fun>
+val make_t_float32_id : ('a : float32). unit -> 'a t_float32_id @@ global
+  many = <fun>
+val make_floatu : unit -> float32# @@ global many = <fun>
+val id_value : 'a -> 'a @@ global many = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_float32 ());;
@@ -465,11 +468,11 @@ let f9_3 () = twice f1_3 (make_floatu ());;
 val twice :
   ('a : float32).
     ('a t_float32_id -> 'a t_float32_id) ->
-    'a t_float32_id -> 'a t_float32_id =
-  <fun>
-val f9_1 : unit -> t_float32 t_float32_id = <fun>
-val f9_2 : ('a : float32). unit -> 'a t_float32_id = <fun>
-val f9_3 : unit -> float32# t_float32_id = <fun>
+    'a t_float32_id -> 'a t_float32_id
+  @@ global many = <fun>
+val f9_1 : unit -> t_float32 t_float32_id @@ global many = <fun>
+val f9_2 : ('a : float32). unit -> 'a t_float32_id @@ global many = <fun>
+val f9_3 : unit -> float32# t_float32_id @@ global many = <fun>
 |}];;
 
 (**************************************************)
@@ -725,10 +728,10 @@ class ['a] c12_12 = object
 end;;
 [%%expect{|
 type t12_8 = < f : t_float32 -> t_float32 >
-val f12_9 : t12_8 -> t_float32 -> t_float32 = <fun>
+val f12_9 : t12_8 -> t_float32 -> t_float32 @@ global many = <fun>
 val f12_10 :
   < baz : t_float32 -> t_float32 -> t_float32 -> t_float32; .. > ->
-  t_float32 -> t_float32 = <fun>
+  t_float32 -> t_float32 @@ global many = <fun>
 class ['a] c12_11 : object method x : t_float32 -> 'a end
 class ['a] c12_12 : object method x : 'a -> t_float32 end
 |}];;
@@ -891,22 +894,22 @@ module FU :
     external of_float32 : (float32 [@local_opt]) -> float32#
       = "%unbox_float32"
     external to_float32 : float32# -> (float32 [@local_opt]) = "%box_float32"
-    val sub : float32# -> float32# -> float32#
-    val add : float32# -> float32# -> float32#
+    val sub : float32# -> float32# -> float32# @@ global many
+    val add : float32# -> float32# -> float32# @@ global many
   end
 type t14_1 = { x : float32#; y : float32#; }
-val f14_1 : t14_1 -> float32# = <fun>
-val r14 : t14_1 = {x = <abstr>; y = <abstr>}
-val sum14_1 : float32 = 0.420000076s
-val f14_2 : t14_1 -> float32# = <fun>
-val sum14_2 : float32 = 0.420000076s
+val f14_1 : t14_1 -> float32# @@ global many = <fun>
+val r14 : t14_1 @@ global many = {x = <abstr>; y = <abstr>}
+val sum14_1 : float32 @@ global many = 0.420000076s
+val f14_2 : t14_1 -> float32# @@ global many = <fun>
+val sum14_2 : float32 @@ global many = 0.420000076s
 type t14_2 = { mutable a : float32#; b : float32#; mutable c : float32#; }
-val f14_3 : t14_2 -> t14_2 = <fun>
-val a : float32 = -16.8999996s
-val b : float32 = -0.419999987s
-val c : float32 = 27.7000008s
-val a' : float32 = 42.s
-val b' : float32 = 20.s
-val c' : float32 = 3.0999999s
-val f14_4 : t14_1 -> float32# = <fun>
+val f14_3 : t14_2 -> t14_2 @@ global many = <fun>
+val a : float32 @@ global many = -16.8999996s
+val b : float32 @@ global many = -0.419999987s
+val c : float32 @@ global many = 27.7000008s
+val a' : float32 @@ global many = 42.s
+val b' : float32 @@ global many = 20.s
+val c' : float32 @@ global many = 3.0999999s
+val f14_4 : t14_1 -> float32# @@ global many = <fun>
 |}]

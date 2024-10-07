@@ -34,7 +34,7 @@ Line 2, characters 21-22:
 2 | let foo = ("hello" @ );;
                          ^
 Error: Syntax error
-val foo : bar:string -> string = <fun>
+val foo : bar:string -> string @@ global many = <fun>
 Line 4, characters 16-18:
 4 |   foo ~(bar : _ @@ )
                     ^^

@@ -6,7 +6,7 @@ let f = function
   | ([] : int list) as x -> x
   | _ :: _ -> assert false;;
 [%%expect{|
-val f : int list -> int list = <fun>
+val f : int list -> int list @@ global many = <fun>
 |}]
 
 let f =
@@ -16,7 +16,8 @@ let f =
   in
   f', f';;
 [%%expect{|
-val f : ('a list -> 'a list) * ('a list -> 'a list) = (<fun>, <fun>)
+val f : ('a list -> 'a list) * ('a list -> 'a list) @@ global many =
+  (<fun>, <fun>)
 |}]
 
 let f =
@@ -26,7 +27,8 @@ let f =
   in
   f', f';;
 [%%expect{|
-val f : ('a list -> 'b list) * ('c list -> 'd list) = (<fun>, <fun>)
+val f : ('a list -> 'b list) * ('c list -> 'd list) @@ global many =
+  (<fun>, <fun>)
 |}]
 
 let f =
@@ -36,7 +38,8 @@ let f =
   in
   f', f';;
 [%%expect{|
-val f : ('a list -> 'a list) * ('b list -> 'b list) = (<fun>, <fun>)
+val f : ('a list -> 'a list) * ('b list -> 'b list) @@ global many =
+  (<fun>, <fun>)
 |}]
 
 type t = [ `A | `B ];;
@@ -46,17 +49,17 @@ type t = [ `A | `B ]
 
 let f = function `A as x -> x | `B -> `A;;
 [%%expect{|
-val f : [< `A | `B ] -> [> `A ] = <fun>
+val f : [< `A | `B ] -> [> `A ] @@ global many = <fun>
 |}]
 
 let f = function (`A : t) as x -> x | `B -> `A;;
 [%%expect{|
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 let f : t -> _ = function `A as x -> x | `B -> `A;;
 [%%expect{|
-val f : t -> [> `A ] = <fun>
+val f : t -> [> `A ] @@ global many = <fun>
 |}]
 
 let f = function
@@ -76,7 +79,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 `B
 
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 |}]
 
 
@@ -88,7 +91,7 @@ let f = function
     end
   | `B -> ();;
 [%%expect{|
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 |}]
 
 
@@ -111,7 +114,7 @@ Error: This pattern matches values of type "[? `C ]"
 
 let f = function (`A, _ : _ * int) as x -> x;;
 [%%expect{|
-val f : [< `A ] * int -> [> `A ] * int = <fun>
+val f : [< `A ] * int -> [> `A ] * int @@ global many = <fun>
 |}]
 
 (* Make sure *all* the constraints are respected: *)
@@ -133,7 +136,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 `B
 
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 |}]
 
 let f = function
@@ -154,5 +157,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 `B
 
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 |}]

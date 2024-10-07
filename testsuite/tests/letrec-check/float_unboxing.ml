@@ -14,7 +14,7 @@ let g = { f = 0.0 }
 let rec x = (g.f <- y; ()) and y = 2.0;;
 [%%expect{|
 type t = { mutable f : float; }
-val g : t = {f = 0.}
+val g : t @@ global many = {f = 0.}
 Line 3, characters 12-26:
 3 | let rec x = (g.f <- y; ()) and y = 2.0;;
                 ^^^^^^^^^^^^^^

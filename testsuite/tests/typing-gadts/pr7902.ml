@@ -14,7 +14,7 @@ let color : type a b . (a, b) segment -> int = function
 type ('a, 'b) segment =
     SegNil : ('a, 'a) segment
   | SegCons : ('a * 'a, 'b) segment -> ('a, 'b) segment
-val color : ('a, 'b) segment -> int = <fun>
+val color : ('a, 'b) segment -> int @@ global many = <fun>
 |}]
 
 (* Fail *)

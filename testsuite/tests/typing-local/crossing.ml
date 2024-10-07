@@ -33,19 +33,19 @@ type foo = (int, string) foo0
 (* 1. function argument crosses mode at application   *)
 let f' x = x + 1
 [%%expect{|
-val f' : int -> int = <fun>
+val f' : int -> int @@ global many = <fun>
 |}]
 
 let f : local_ _ -> _ =
   fun n -> f' n
 [%%expect{|
-val f : local_ int -> int = <fun>
+val f : local_ int -> int @@ global many = <fun>
 |}]
 
 (* As comparison, string won't cross modes *)
 let f' x = x ^ "hello"
 [%%expect{|
-val f' : string -> string = <fun>
+val f' : string -> string @@ global many = <fun>
 |}]
 
 let f : local_ _ -> _ =
@@ -63,7 +63,7 @@ Error: This value escapes its region.
 let f : local_ _ -> bar =
     fun n -> Bar0 (n, "hello")
 [%%expect{|
-val f : local_ int -> bar = <fun>
+val f : local_ int -> bar @@ global many = <fun>
 |}]
 
 let f : local_ _ -> bar =
@@ -79,7 +79,7 @@ Error: This value escapes its region.
 let f : local_ _ -> foo =
   fun n -> {x = n; y = "hello"}
 [%%expect{|
-val f : local_ int -> foo = <fun>
+val f : local_ int -> foo @@ global many = <fun>
 |}]
 
 let f : local_ _ -> foo =
@@ -95,7 +95,7 @@ Error: This value escapes its region.
 let f : local_ _ -> _ =
   fun n -> (n : int)
 [%%expect{|
-val f : local_ int -> int = <fun>
+val f : local_ int -> int @@ global many = <fun>
 |}]
 
 let f : local_ _ -> _ =
@@ -111,7 +111,7 @@ Error: This value escapes its region.
 let f : local_ _ -> [> `Number of int] =
   fun n -> `Number n
 [%%expect{|
-val f : local_ int -> [> `Number of int ] = <fun>
+val f : local_ int -> [> `Number of int ] @@ global many = <fun>
 |}]
 
 let f : local_ _ -> [> `Text of string] =
@@ -127,7 +127,7 @@ Error: This value escapes its region.
 let f : local_ _ -> int * int =
   fun n -> (n, n)
 [%%expect{|
-val f : local_ int -> int * int = <fun>
+val f : local_ int -> int * int @@ global many = <fun>
 |}]
 
 let f : local_ _ -> string * string =
@@ -143,7 +143,7 @@ Error: This value escapes its region.
 let f : local_ _ -> int array =
   fun n -> [|n; n|]
 [%%expect{|
-val f : local_ int -> int array = <fun>
+val f : local_ int -> int array @@ global many = <fun>
 |}]
 
 let f: local_ _ -> string array =
@@ -171,7 +171,7 @@ Error: The value "n" is local, so cannot be used inside a lazy expression.
 let f : local_ foo -> _  =
   fun r -> r.x
 [%%expect{|
-val f : local_ foo -> int = <fun>
+val f : local_ foo -> int @@ global many = <fun>
 |}]
 
 let f : local_ foo -> _ =
@@ -189,7 +189,7 @@ the body will be used to mode cross *)
 let f : local_ _ -> int =
   fun r -> r.x
 [%%expect{|
-val f : local_ (int, 'a) foo0 -> int = <fun>
+val f : local_ (int, 'a) foo0 -> int @@ global many = <fun>
 |}]
 
 (* expression crosses mode when prefixed with local_ *)
@@ -200,8 +200,8 @@ let f : _ -> int =
   fun () ->
      g (local_ 42)
 [%%expect{|
-val g : int -> int = <fun>
-val f : unit -> int = <fun>
+val g : int -> int @@ global many = <fun>
+val f : unit -> int @@ global many = <fun>
 |}]
 
 let g : string -> string
@@ -212,7 +212,7 @@ let f : _ -> string =
     g (local_ "world")
 
 [%%expect{|
-val g : string -> string = <fun>
+val g : string -> string @@ global many = <fun>
 Line 6, characters 6-22:
 6 |     g (local_ "world")
           ^^^^^^^^^^^^^^^^
@@ -225,19 +225,19 @@ Error: This value escapes its region.
 let f : _ -> local_ _ =
   fun () -> exclave_ 42
 [%%expect{|
-val f : unit -> local_ int = <fun>
+val f : unit -> local_ int @@ global many = <fun>
 |}]
 
 let g : _ -> _ =
   fun () -> let x = f () in x
 [%%expect{|
-val g : unit -> int = <fun>
+val g : unit -> int @@ global many = <fun>
 |}]
 
 let f : _ -> local_ _ =
   fun () -> exclave_ "hello"
 [%%expect{|
-val f : unit -> local_ string = <fun>
+val f : unit -> local_ string @@ global many = <fun>
 |}]
 
 let g : _ -> _ =
@@ -255,7 +255,7 @@ let f : local_ bar -> _ =
     match b with
     | Bar0 (x, _) -> x
 [%%expect{|
-val f : local_ bar -> int = <fun>
+val f : local_ bar -> int @@ global many = <fun>
 |}]
 
 (* This example is identical to the last one,
@@ -267,7 +267,7 @@ let f : local_ _ -> int =
     match b with
     | Bar0 (x, _) -> x
 [%%expect{|
-val f : local_ (int, 'a) bar0 -> int = <fun>
+val f : local_ (int, 'a) bar0 -> int @@ global many = <fun>
 |}]
 
 let f : local_ bar -> _ =
@@ -287,7 +287,7 @@ let f : local_ foo -> _ =
   match r with
   | {x; _} -> x
 [%%expect{|
-val f : local_ foo -> int = <fun>
+val f : local_ foo -> int @@ global many = <fun>
 |}]
 
 (* this example works again because function body crosses modes
@@ -297,7 +297,7 @@ let f : local_ _ -> int =
   match r with
   | {x; _} -> x
 [%%expect{|
-val f : local_ (int, 'a) foo0 -> int = <fun>
+val f : local_ (int, 'a) foo0 -> int @@ global many = <fun>
 |}]
 
 let f : local_ foo -> _ =
@@ -315,7 +315,7 @@ Error: This value escapes its region.
 let f : local_ _ -> _ =
   fun (x : int) -> x
 [%%expect{|
-val f : local_ int -> int = <fun>
+val f : local_ int -> int @@ global many = <fun>
 |}]
 
 let f : local_ _ -> _ =
@@ -346,8 +346,8 @@ let f : local_ _ -> t2 =
 [%%expect{|
 module M : sig type t : immediate end
 type t2 = { x : int; } [@@unboxed]
-val f : local_ M.t -> M.t = <fun>
-val f : local_ t2 -> t2 = <fun>
+val f : local_ M.t -> M.t @@ global many = <fun>
+val f : local_ t2 -> t2 @@ global many = <fun>
 |}]
 
 (* This test needs the snapshotting in [type_jkind_purely] to prevent a type error
@@ -361,25 +361,25 @@ let f (type a) (x : a t_gadt) (y : a) =
 [%%expect{|
 type _ t_gadt = Int : int t_gadt
 type 'a t_rec = { fld : 'a; }
-val f : 'a t_gadt -> 'a -> 'a = <fun>
+val f : 'a t_gadt -> 'a -> 'a @@ global many = <fun>
 |}]
 
 (* Mode crossing in coercing arrow types *)
 let foo : int -> int = fun x -> x
 [%%expect{|
-val foo : int -> int = <fun>
+val foo : int -> int @@ global many = <fun>
 |}]
 
 let foo' : int -> local_ int = fun x -> exclave_ x
 [%%expect{|
-val foo' : int -> local_ int = <fun>
+val foo' : int -> local_ int @@ global many = <fun>
 |}]
 
 
 
 let bar (f : local_ int -> int) = f 42
 [%%expect{|
-val bar : (local_ int -> int) -> int = <fun>
+val bar : (local_ int -> int) -> int @@ global many = <fun>
 |}]
 
 (* Implicit mode crossing is not good enough *)
@@ -417,12 +417,12 @@ let foo = function
   | `A -> ()
   | `B (s : string) -> ()
 [%%expect{|
-val foo : [< `A | `B of string ] -> unit = <fun>
+val foo : [< `A | `B of string ] -> unit @@ global many = <fun>
 |}]
 
 let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`A] -> unit)
 [%%expect{|
-val foo_ : local_ [ `A ] -> unit = <fun>
+val foo_ : local_ [ `A ] -> unit @@ global many = <fun>
 |}]
 
 let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
@@ -473,7 +473,7 @@ let foo () =
   let _ = ref x, ref y in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 (* Values crosses modes when pattern-matching, an implication is that, closing
@@ -482,5 +482,5 @@ let foo (local_ x : int) =
   let bar y = x + y in
   ref bar
 [%%expect{|
-val foo : local_ int -> (int -> int) ref = <fun>
+val foo : local_ int -> (int -> int) ref @@ global many = <fun>
 |}]

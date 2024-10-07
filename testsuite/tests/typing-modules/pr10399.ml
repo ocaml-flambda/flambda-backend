@@ -32,7 +32,7 @@ Error: Signature mismatch:
          sig
            type t = < x : int >
            class c : object method x : int method y : bool end
-           val o : c
+           val o : c @@ global many
          end
        is not included in
          sig
@@ -40,7 +40,10 @@ Error: Signature mismatch:
            class c : object method x : int method y : bool end
            val o : t
          end
-       Values do not match: val o : c is not included in val o : t
+       Values do not match:
+         val o : c @@ global many
+       is not included in
+         val o : t
        The type "c" is not compatible with the type "t"
        The second object type has no method "y"
 |}]

@@ -7,27 +7,27 @@
 let x = ~x:1, ~y:2
 
 [%%expect{|
-val x : x:int * y:int = (~x:1, ~y:2)
+val x : x:int * y:int @@ global many = (~x:1, ~y:2)
 |}];;
 
 let z = 5
 let punned = 2
 let _ = ~x: 5, 2, ~z, ~(punned:int)
 [%%expect{|
-val z : int = 5
-val punned : int = 2
+val z : int @@ global many = 5
+val punned : int @@ global many = 2
 - : x:int * int * z:int * punned:int = (~x:5, 2, ~z:5, ~punned:2)
 |}]
 
 (* Basic annotations *)
 let (x : x:int * y:int) = ~x:1, ~y:2
 [%%expect{|
-val x : x:int * y:int = (~x:1, ~y:2)
+val x : x:int * y:int @@ global many = (~x:1, ~y:2)
 |}]
 
 let (x : x:int * int) = ~x:1, 2
 [%%expect{|
-val x : x:int * int = (~x:1, 2)
+val x : x:int * int @@ global many = (~x:1, 2)
 |}]
 
 (* Incorrect annotations *)
@@ -64,7 +64,7 @@ let foo b = if b then
 else
    ~a: "5", 10, ~c: "hi"
 [%%expect{|
-val foo : bool -> a:string * int * c:string = <fun>
+val foo : bool -> a:string * int * c:string @@ global many = <fun>
 |}]
 
 (* Missing label (the type vars in the error aren't ideal, but the same thing
@@ -115,14 +115,15 @@ let choose_pt replace_with_default pt =
    else
       pt
 [%%expect{|
-val default : x:int * y:int = (~x:1, ~y:2)
-val choose_pt : bool -> (x:int * y:int) -> x:int * y:int = <fun>
+val default : x:int * y:int @@ global many = (~x:1, ~y:2)
+val choose_pt : bool -> (x:int * y:int) -> x:int * y:int @@ global many =
+  <fun>
 |}]
 
 (* Application happy case *)
 let a = choose_pt true (~x: 5, ~y: 6)
 [%%expect{|
-val a : x:int * y:int = (~x:1, ~y:2)
+val a : x:int * y:int @@ global many = (~x:1, ~y:2)
 |}]
 
 (* Wrong order *)
@@ -149,32 +150,34 @@ Error: This expression has type "int * lbl:(int * lbl:'a)"
 
 let rec l = ~lbl: 5, ~lbl2: 10 :: l
 [%%expect{|
-val l : (lbl:int * lbl2:int) list = [(~lbl:5, ~lbl2:10); <cycle>]
+val l : (lbl:int * lbl2:int) list @@ global many =
+  [(~lbl:5, ~lbl2:10); <cycle>]
 |}]
 
 (* Tuple containing labeled tuples *)
 let tup = (~a:1, ~b:2), (~b:3, ~a:4), 5
 [%%expect{|
-val tup : (a:int * b:int) * (b:int * a:int) * int =
+val tup : (a:int * b:int) * (b:int * a:int) * int @@ global many =
   ((~a:1, ~b:2), (~b:3, ~a:4), 5)
 |}]
 
 (* Polymorphic variant containing labeled tuple *)
 let a = `Some (~a: 1, ~b:2, 3)
 [%%expect{|
-val a : [> `Some of a:int * b:int * int ] = `Some (~a:1, ~b:2, 3)
+val a : [> `Some of a:int * b:int * int ] @@ global many =
+  `Some (~a:1, ~b:2, 3)
 |}]
 
 (* List of labeled tuples *)
 let lst = ~a: 1, ~b: 2 :: []
 [%%expect{|
-val lst : (a:int * b:int) list = [(~a:1, ~b:2)]
+val lst : (a:int * b:int) list @@ global many = [(~a:1, ~b:2)]
 |}]
 
 (* Ref of labeled tuple *)
 let x = ref (~x:"hello", 5)
 [%%expect{|
-val x : (x:string * int) ref = {contents = (~x:"hello", 5)}
+val x : (x:string * int) ref @@ global many = {contents = (~x:"hello", 5)}
 |}]
 
 (* Polymorphic record containing a labeled tuple *)
@@ -182,7 +185,7 @@ type 'a box = {thing: 'a}
 let boxed = {thing = "hello", ~x:5}
 [%%expect{|
 type 'a box = { thing : 'a; }
-val boxed : (string * x:int) box = {thing = ("hello", ~x:5)}
+val boxed : (string * x:int) box @@ global many = {thing = ("hello", ~x:5)}
 |}]
 
 (* Punned tuple components with type annotations. *)
@@ -191,14 +194,14 @@ let y = "hi"
 
 let z = ~x, ~(y:string);;
 [%%expect{|
-val x : int = 42
-val y : string = "hi"
-val z : x:int * y:string = (~x:42, ~y:"hi")
+val x : int @@ global many = 42
+val y : string @@ global many = "hi"
+val z : x:int * y:string @@ global many = (~x:42, ~y:"hi")
 |}];;
 
 let z = ~(x:int), ~y:"baz";;
 [%%expect{|
-val z : x:int * y:string = (~x:42, ~y:"baz")
+val z : x:int * y:string @@ global many = (~x:42, ~y:"baz")
 |}];;
 
 let z = ~(x:string), ~y:"baz";;
@@ -224,16 +227,18 @@ and swap' (~a, ~b) =
    | 0 -> ~swapped:(~a, ~b), ~same:false
    | n -> swap (~a:b, ~b:a) (n-1)
 [%%expect{|
-val swap : (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
-val swap' : (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
+val swap : (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool @@
+  global many = <fun>
+val swap' : (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool @@
+  global many = <fun>
 |}]
 
 let foobar = swap (~a:"foo", ~b:"bar") 86
 let barfoo = swap (~a:"foo", ~b:"bar") 87
 [%%expect{|
-val foobar : swapped:(a:string * b:string) * same:bool =
+val foobar : swapped:(a:string * b:string) * same:bool @@ global many =
   (~swapped:(~a:"foo", ~b:"bar"), ~same:true)
-val barfoo : swapped:(a:string * b:string) * same:bool =
+val barfoo : swapped:(a:string * b:string) * same:bool @@ global many =
   (~swapped:(~a:"bar", ~b:"foo"), ~same:false)
 |}]
 
@@ -251,18 +256,19 @@ Error: This expression has type "lbl:'a * 'b"
 (* Well-typed *)
 let x: string * a:int * int = "hi", ~a:1, 2
 [%%expect{|
-val x : string * a:int * int = ("hi", ~a:1, 2)
+val x : string * a:int * int @@ global many = ("hi", ~a:1, 2)
 |}]
 
 (* Function type *)
 let mk_x : (foo:unit * bar:unit) -> string * a:int * int = fun _ -> x
 [%%expect{|
-val mk_x : (foo:unit * bar:unit) -> string * a:int * int = <fun>
+val mk_x : (foo:unit * bar:unit) -> string * a:int * int @@ global many =
+  <fun>
 |}]
 
 let x = mk_x (~foo:(), ~bar:())
 [%%expect{|
-val x : string * a:int * int = ("hi", ~a:1, 2)
+val x : string * a:int * int @@ global many = ("hi", ~a:1, 2)
 |}]
 
 (* Labeled tuples in records *)
@@ -497,10 +503,10 @@ let tree_abc = Tree.Branch ("b", (~left:(leaf "a"), ~right:(leaf "c")))
 let tree_abcde = Tree.Branch ("d", (~left:tree_abc, ~right:(leaf "e")))
 let _ = Tree.in_order tree_abcde
 [%%expect{|
-val leaf : string -> Tree.t = <fun>
-val tree_abc : Tree.t =
+val leaf : string -> Tree.t @@ global many = <fun>
+val tree_abc : Tree.t @@ global many =
   Tree.Branch ("b", (~left:Tree.Leaf "a", ~right:Tree.Leaf "c"))
-val tree_abcde : Tree.t =
+val tree_abcde : Tree.t @@ global many =
   Tree.Branch ("d",
    (~left:Tree.Branch ("b", (~left:Tree.Leaf "a", ~right:Tree.Leaf "c")),
     ~right:Tree.Leaf "e"))
@@ -519,8 +525,8 @@ let two_kinds_of_sums ints =
 let _ = two_kinds_of_sums [1;2;3;4]
 let _ = two_kinds_of_sums [1;2;-3;42;-17]
 [%%expect{|
-val two_kinds_of_sums : int list -> normal_sum:int * absolute_value_sum:int =
-  <fun>
+val two_kinds_of_sums : int list -> normal_sum:int * absolute_value_sum:int
+  @@ global many = <fun>
 - : normal_sum:int * absolute_value_sum:int =
 (~normal_sum:10, ~absolute_value_sum:10)
 - : normal_sum:int * absolute_value_sum:int =

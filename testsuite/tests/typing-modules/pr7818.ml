@@ -38,7 +38,11 @@ module Make1 :
             module Term0 : Termsig.Term0.S
             module T : sig module Id : sig end end
           end)
-    -> sig module T : sig module Id : sig end val u : int end end
+    ->
+    sig
+      module T :
+        sig module Id : sig end val u : int @@ global many portable end
+    end
 |}]
 
 module Make2 (T' : Termsig.Term.S) = struct
@@ -57,7 +61,12 @@ module Make2 :
           end)
     ->
     sig
-      module T : sig module Id : sig end module Id2 = Id val u : int end
+      module T :
+        sig
+          module Id : sig end
+          module Id2 = Id
+          val u : int @@ global many portable
+        end
     end
 |}]
 
@@ -78,7 +87,12 @@ module Make3 :
           end)
     ->
     sig
-      module T : sig module Id : sig end module Id2 = Id val u : int end
+      module T :
+        sig
+          module Id : sig end
+          module Id2 = Id
+          val u : int @@ global many portable
+        end
     end
 |}]
 
@@ -141,7 +155,12 @@ module Make3 :
           end)
     ->
     sig
-      module T : sig module Id : sig end module Id2 = Id val u : int end
+      module T :
+        sig
+          module Id : sig end
+          module Id2 = Id
+          val u : int @@ global many portable
+        end
     end
 |}]
 
@@ -197,7 +216,8 @@ module Make1 :
     -> sig module Id : sig end module Id2 = Id type t = T'.t end
 module IS :
   sig
-    module Term0 : sig module Id : sig val x : string end end
+    module Term0 :
+      sig module Id : sig val x : string @@ global many portable end end
     module T = Term0
     type t = MkT(T).t
   end
@@ -316,8 +336,10 @@ module type S' =
     type t = M.t = E of (MkT(T).t, MkT(T).t) eq
     type u = t = E of (MkT(Term0).t, MkT(T).t) eq
   end
-module Asc : sig type t = int val compare : int -> int -> int end
-module Desc : sig type t = int val compare : int -> int -> int end
+module Asc :
+  sig type t = int val compare : int -> int -> int @@ global many end
+module Desc :
+  sig type t = int val compare : int -> int -> int @@ global many end
 Line 15, characters 0-69:
 15 | module rec M1 : S' with module Term0 := Asc and module T := Desc = M1;;
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

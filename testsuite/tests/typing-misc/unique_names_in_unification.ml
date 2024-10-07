@@ -10,7 +10,7 @@ end;;
 
 [%%expect{|
 type t = A
-val x : t = A
+val x : t @@ global many = A
 Line 5, characters 27-28:
 5 |   let f: t -> t = fun B -> x
                                ^
@@ -33,7 +33,7 @@ end;;
 
 [%%expect{|
 module M : sig type t = B end
-val y : M.t = M.B
+val y : M.t @@ global many = M.B
 Line 7, characters 34-35:
 7 |   let f : M.t -> M.t = fun M.C -> y
                                       ^

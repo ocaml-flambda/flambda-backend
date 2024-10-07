@@ -49,30 +49,30 @@ type ('a : float32) t6' = 'a array
 
 let v1 = [| #1. |]
 [%%expect{|
-val v1 : float# array = [|<abstr>|]
+val v1 : float# array @@ global many = [|<abstr>|]
 |}];;
 
 
 let v2 = [| #1l |]
 [%%expect{|
-val v2 : int32# array = [|<abstr>|]
+val v2 : int32# array @@ global many = [|<abstr>|]
 |}];;
 
 
 let v3 = [| #1L |]
 [%%expect{|
-val v3 : int64# array = [|<abstr>|]
+val v3 : int64# array @@ global many = [|<abstr>|]
 |}];;
 
 
 let v4 = [| #1n |]
 [%%expect{|
-val v4 : nativeint# array = [|<abstr>|]
+val v4 : nativeint# array @@ global many = [|<abstr>|]
 |}];;
 
 let v5 = [| #1.s |]
 [%%expect{|
-val v5 : float32# array = [|<abstr>|]
+val v5 : float32# array @@ global many = [|<abstr>|]
 |}];;
 
 (****************************************)
@@ -124,7 +124,7 @@ let d (x : float# array) = get (Obj.magic x : floatarray) 0
 
 [%%expect{|
 external get : floatarray -> int -> float = "%floatarray_safe_get"
-val d : float# array -> float = <fun>
+val d : float# array -> float @@ global many = <fun>
 |}];;
 
 external get : ('a : any_non_null). 'a array -> int -> float = "%floatarray_safe_get"
@@ -133,7 +133,7 @@ let d (x : 'a array) = get x 0
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int -> float
   = "%floatarray_safe_get"
-val d : 'a array -> float = <fun>
+val d : 'a array -> float @@ global many = <fun>
 |}];;
 
 external get : int32# array -> int -> float = "%floatarray_safe_get"
@@ -197,11 +197,11 @@ let f5 (x : float32# array) = get x 0
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
   [@@layout_poly]
-val f1 : float# array -> float# = <fun>
-val f2 : int32# array -> int32# = <fun>
-val f3 : int64# array -> int64# = <fun>
-val f4 : nativeint# array -> nativeint# = <fun>
-val f5 : float32# array -> float32# = <fun>
+val f1 : float# array -> float# @@ global many = <fun>
+val f2 : int32# array -> int32# @@ global many = <fun>
+val f3 : int64# array -> int64# @@ global many = <fun>
+val f4 : nativeint# array -> nativeint# @@ global many = <fun>
+val f5 : float32# array -> float32# @@ global many = <fun>
 |}];;
 
 external[@layout_poly] set : ('a : any_non_null). 'a array -> int -> 'a -> unit = "%array_safe_set"
@@ -214,11 +214,11 @@ let f5 (x : float32# array) v = set x 0 v
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> int -> 'a -> unit
   = "%array_safe_set" [@@layout_poly]
-val f1 : float# array -> float# -> unit = <fun>
-val f2 : int32# array -> int32# -> unit = <fun>
-val f3 : int64# array -> int64# -> unit = <fun>
-val f4 : nativeint# array -> nativeint# -> unit = <fun>
-val f5 : float32# array -> float32# -> unit = <fun>
+val f1 : float# array -> float# -> unit @@ global many = <fun>
+val f2 : int32# array -> int32# -> unit @@ global many = <fun>
+val f3 : int64# array -> int64# -> unit @@ global many = <fun>
+val f4 : nativeint# array -> nativeint# -> unit @@ global many = <fun>
+val f5 : float32# array -> float32# -> unit @@ global many = <fun>
 |}]
 
 (***********************************)

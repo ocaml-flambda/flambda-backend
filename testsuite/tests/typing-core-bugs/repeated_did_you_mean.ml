@@ -12,8 +12,8 @@ open M
 
 let _ = fox;;
 [%%expect{|
-val foo : int = 12
-module M : sig val foo : int end
+val foo : int @@ global many = 12
+module M : sig val foo : int @@ global many portable end
 Line 7, characters 8-11:
 7 | let _ = fox;;
             ^^^

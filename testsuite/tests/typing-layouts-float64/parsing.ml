@@ -17,7 +17,7 @@ type t = float#;;
 let f (_ : float#) = ();;
 [%%expect {|
 type t = float#
-val f : float# -> unit = <fun>
+val f : float# -> unit @@ global many = <fun>
 |}];;
 
 (* float# works as an argument to normal type constructors, not just classes,
@@ -210,7 +210,7 @@ type 'a t = C of (float #c as 'a);;
 type t = C : float #c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = float #c
-val f : float #c -> unit = <fun>
+val f : float #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = float #c
 type t = C : float #c -> t
 |}];;
@@ -246,7 +246,7 @@ type 'a t = C of (float # c as 'a);;
 type t = C : float # c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = float #c
-val f : float #c -> unit = <fun>
+val f : float #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = float #c
 type t = C : float #c -> t
 |}];;

@@ -30,7 +30,7 @@ Hint: Single backslashes \ are reserved for escape sequences
 (\n, \r, ...). Did you check the list of OCaml escape sequences?
 To get a backslash character, escape it with a second backslash: \\.
 
-val no_hex_digits : string = "\\u{}"
+val no_hex_digits : string @@ global many = "\\u{}"
 Line 1, characters 25-27:
 1 | let illegal_hex_digit = "\u{u}" ;;
                              ^^
@@ -39,5 +39,5 @@ Hint: Single backslashes \ are reserved for escape sequences
 (\n, \r, ...). Did you check the list of OCaml escape sequences?
 To get a backslash character, escape it with a second backslash: \\.
 
-val illegal_hex_digit : string = "\\u{u}"
+val illegal_hex_digit : string @@ global many = "\\u{u}"
 

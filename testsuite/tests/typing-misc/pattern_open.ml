@@ -18,10 +18,16 @@ module N = struct
 end
 open N;;
 [%%expect {|
-val pp : ('a, Format.formatter, unit, unit, unit, unit) format6 -> 'a = <fun>
+val pp : ('a, Format.formatter, unit, unit, unit, unit) format6 -> 'a @@
+  global many = <fun>
 type 'a box = B of 'a
 module M : sig type c = C type t = { x : c box; } end
-module N : sig type d = D val d : d type t = { x : d box; } end
+module N :
+  sig
+    type d = D
+    val d : d @@ global many portable
+    type t = { x : d box; }
+  end
 |}]
 
 let f M.{ x=B C } y  = M.C,y;;
@@ -44,11 +50,11 @@ let f2 = function
 let M.() = ()
 ;;
 [%%expect {|
-val f : M.t -> 'a -> M.c * 'a = <fun>
-val g : int -> int -> int = <fun>
-val g : M.c list -> M.c list = <fun>
-val h : M.c array -> M.c option = <fun>
-val f2 : M.c box box -> M.c = <fun>
+val f : M.t -> 'a -> M.c * 'a @@ global many = <fun>
+val g : int -> int -> int @@ global many = <fun>
+val g : M.c list -> M.c list @@ global many = <fun>
+val h : M.c array -> M.c option @@ global many = <fun>
+val f2 : M.c box box -> M.c @@ global many = <fun>
 |}]
 
 (* Pattern open separation*)
@@ -71,14 +77,14 @@ module L :
     type _ c = C : unit c
     type t = { t : unit c; }
     type r = { r : unit c; }
-    val x : unit -> unit
+    val x : unit -> unit @@ global many
   end
 module K :
   sig
     type _ c = C : unit c
     type t = { t : unit c; }
     type r = { r : unit c; }
-    val x : unit -> unit
+    val x : unit -> unit @@ global many
   end
 |}]
 
@@ -119,15 +125,15 @@ module Exterior :
           sig
             type t = { b : bool; }
             type wrong = false | true
-            val print : unit -> unit
+            val print : unit -> unit @@ global many
           end
         type _ t =
             Bool : Boolean.t -> bool t
           | Int : int -> int t
           | Eq : 'a t * 'a t -> bool t
-        val print : unit -> unit
+        val print : unit -> unit @@ global many
       end
-    val print : unit -> unit
+    val print : unit -> unit @@ global many
   end
 |}]
 let rec eval: type t. t Exterior.Gadt.t -> t = function
@@ -152,7 +158,7 @@ let () =
   print ()
 ;;
 [%%expect {|
-val eval : 't Exterior.Gadt.t -> 't = <fun>
+val eval : 't Exterior.Gadt.t -> 't @@ global many = <fun>
 Right function print
 Right function print
 |}
@@ -168,7 +174,7 @@ let rec print: Existential.printable -> unit  = function
 [%%expect {|
 module Existential :
   sig type printable = E : 'a * ('a -> unit) -> printable end
-val print : Existential.printable -> unit = <fun>
+val print : Existential.printable -> unit @@ global many = <fun>
 |}]
 
 (* Test that constructors and variables introduced in scope inside
@@ -184,7 +190,7 @@ module S :
   sig
     type 'a t = Sep : unit t
     type ex = Ex : 'a * 'a -> ex
-    val s : unit t
+    val s : unit t @@ global many portable
   end
 |}]
 let test_separation = function
@@ -244,6 +250,6 @@ module PR6437 :
     module Var :
       sig type 'a t = O : ('a * unit) t | S : 'a t -> ('a * unit) t end
   end
-val f : ('g1, 'g2) PR6437.Ctx.t * 'g1 PR6437.Var.t -> 'g2 PR6437.Var.t =
-  <fun>
+val f : ('g1, 'g2) PR6437.Ctx.t * 'g1 PR6437.Var.t -> 'g2 PR6437.Var.t @@
+  global many = <fun>
 |}]

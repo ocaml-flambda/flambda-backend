@@ -104,7 +104,7 @@ Error: float32 literal patterns are not supported.
 
 let ignore (f : float32#) = ()
 [%%expect{|
-val ignore : float32# -> unit = <fun>
+val ignore : float32# -> unit @@ global many = <fun>
 |}];;
 
 type t = float32#;;

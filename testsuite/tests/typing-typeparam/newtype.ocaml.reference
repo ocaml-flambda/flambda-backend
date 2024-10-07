@@ -1,9 +1,11 @@
-val property : unit -> ('t -> exn) * (exn -> 't option) = <fun>
+val property : unit -> ('t -> exn) * (exn -> 't option) @@ global many =
+  <fun>
 false
 true
 true
 false
-val sort_uniq : ('s -> 's -> int) -> 's list -> 's list = <fun>
+val sort_uniq : ('s -> 's -> int) -> 's list -> 's list @@ global many =
+  <fun>
 abc,xyz
 Line 2, characters 32-33:
 2 | let f x (type a) (y : a) = (x = y);; (* Fails *)

@@ -36,7 +36,7 @@ Error: This type "t_value_or_null" should be an instance of type "('a : value)"
 let should_work (x : t_value_or_null) = x
 
 [%%expect{|
-val should_work : t_value_or_null -> t_value_or_null = <fun>
+val should_work : t_value_or_null -> t_value_or_null @@ global many = <fun>
 |}]
 
 (* Type variables in function definitions default to [value]. *)
@@ -157,11 +157,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a @@ global many portable end
        is not included in
          sig val f : ('a : value_or_null). 'a -> 'a end
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a @@ global many portable
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
@@ -184,11 +184,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a @@ global many portable end
        is not included in
          sig val f : ('a : value_or_null). 'a -> 'a end
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a @@ global many portable
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
@@ -212,11 +212,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a @@ global many portable end
        is not included in
          sig val f : ('a : value_or_null). 'a -> 'a end
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a @@ global many portable
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
@@ -240,11 +240,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a @@ global many portable end
        is not included in
          sig val f : ('a : value_or_null). 'a -> 'a end
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a @@ global many portable
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
@@ -269,11 +269,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a @@ global many portable end
        is not included in
          sig val f : ('a : value_or_null). 'a -> 'a end
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a @@ global many portable
        is not included in
          val f : ('a : value_or_null). 'a -> 'a
        The type "'a -> 'a" is not compatible with the type "'b -> 'b"
@@ -393,5 +393,5 @@ let should_work s =
   )
 
 [%%expect{|
-val should_work : string -> < a : 'a; b : 'b > = <fun>
+val should_work : string -> < a : 'a; b : 'b > @@ global many = <fun>
 |}]

@@ -296,7 +296,7 @@ end
 module N :
   sig
     type t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M : sig end
     module type T = sig end
@@ -317,7 +317,7 @@ end
 module NN :
   sig
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T
@@ -342,7 +342,7 @@ module Type :
   sig
     type u = N.t
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T
@@ -365,7 +365,7 @@ module Module :
   sig
     module O = N.M
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T
@@ -388,7 +388,7 @@ module Module_type :
   sig
     module type U = N.T
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T
@@ -411,7 +411,7 @@ module Exception :
   sig
     exception Exn
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T
@@ -434,7 +434,7 @@ module Extension :
   sig
     type N.ext += C2
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T
@@ -457,7 +457,7 @@ module Class :
   sig
     class parametrized : 'a -> object  end
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T
@@ -480,7 +480,7 @@ module Class_type :
   sig
     class type parametrized = object  end
     type t = N.t
-    val unit : unit
+    val unit : unit @@ global many portable
     external e : unit -> unit = "%identity"
     module M = N.M
     module type T = N.T

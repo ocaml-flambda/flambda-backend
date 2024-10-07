@@ -24,11 +24,11 @@ let test args =
 
 [%%expect{|
 type arg = AString of string | ARest of string | ARest_all of string list
-val push : 'a list ref -> 'a -> unit = <fun>
-val f_str : arg list ref -> string -> unit = <fun>
-val f_rest : arg list ref -> string -> unit = <fun>
-val f_rest_all : arg list ref -> string list -> unit = <fun>
-val test : string array -> arg list = <fun>
+val push : 'a list ref -> 'a -> unit @@ global many = <fun>
+val f_str : arg list ref -> string -> unit @@ global many = <fun>
+val f_rest : arg list ref -> string -> unit @@ global many = <fun>
+val f_rest_all : arg list ref -> string list -> unit @@ global many = <fun>
+val test : string array -> arg list @@ global many = <fun>
 |}];;
 
 let _ = test [|

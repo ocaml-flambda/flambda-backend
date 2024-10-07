@@ -13,5 +13,5 @@ let foo (x : Ext(List).t) =
 [%%expect {|
 module Ext :
   functor (X : sig type 'a t end) -> sig type t = T : 'a X.t -> t end
-val foo : Ext(List).t -> Ext(Array).t = <fun>
+val foo : Ext(List).t -> Ext(Array).t @@ global many = <fun>
 |}]

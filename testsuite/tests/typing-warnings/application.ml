@@ -65,7 +65,7 @@ type t = {r: int -> int -> int}
 let f x = let _ = x.r in ();;
 [%%expect {|
 type t = { r : int -> int -> int; }
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 |}]
 
 let f x = let _ = x.r 1 in ();;
@@ -76,14 +76,14 @@ Line 1, characters 18-23:
 Warning 5 [ignored-partial-application]: this function application is partial,
 maybe some arguments are missing.
 
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 |}]
 
 let f a b = a + b;;
 match f 42 with
 | _ -> ();;
 [%%expect {|
-val f : int -> int -> int = <fun>
+val f : int -> int -> int @@ global many = <fun>
 Line 2, characters 6-10:
 2 | match f 42 with
           ^^^^
@@ -98,7 +98,7 @@ match f 42 with
 | _ -> ()
 | exception _ -> ();;
 [%%expect {|
-val f : int -> int -> int = <fun>
+val f : int -> int -> int @@ global many = <fun>
 Line 2, characters 6-10:
 2 | match f 42 with
           ^^^^
@@ -112,7 +112,7 @@ let f a b = a + b;;
 match f 42 with
 | x -> ignore (x 34);;
 [%%expect {|
-val f : int -> int -> int = <fun>
+val f : int -> int -> int @@ global many = <fun>
 - : unit = ()
 |}]
 
@@ -121,7 +121,7 @@ let f a b = a + b;;
 match (f 42 : _) with
 | _ -> ();;
 [%%expect {|
-val f : int -> int -> int = <fun>
+val f : int -> int -> int @@ global many = <fun>
 - : unit = ()
 |}]
 
@@ -137,12 +137,12 @@ Exception: Stdlib.Exit.
 
 let f a b = a + b;;
 [%%expect {|
-val f : int -> int -> int = <fun>
+val f : int -> int -> int @@ global many = <fun>
 |}]
 let g x = x + 1
 let _ = g (f 1);;
 [%%expect {|
-val g : int -> int = <fun>
+val g : int -> int @@ global many = <fun>
 Line 2, characters 10-15:
 2 | let _ = g (f 1);;
               ^^^^^

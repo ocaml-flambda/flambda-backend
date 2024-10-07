@@ -23,8 +23,13 @@ end
 let () = assert Int.(equal M1.y 5);;
 [%%expect{|
 module type S = sig type t val x : t end
-module F1 : functor (X : S) -> sig val y : X.t end
-module M1 : sig type t = int val x : int val y : int end
+module F1 : functor (X : S) -> sig val y : X.t @@ global many end
+module M1 :
+  sig
+    type t = int
+    val x : int @@ global many portable
+    val y : int @@ global many
+  end
 |}];;
 
 (* Test 2: Wrong type in structure *)
@@ -39,7 +44,10 @@ Line 5, characters 18-20:
 5 |   include functor F1
                       ^^
 Error: Signature mismatch in included functor's parameter:
-       Values do not match: val x : bool is not included in val x : t
+       Values do not match:
+         val x : bool @@ global many portable
+       is not included in
+         val x : t
        The type "bool" is not compatible with the type "t" = "int"
 |}];;
 
@@ -182,9 +190,10 @@ let () = assert (M9.eq_z M9.Foo.z);;
 [%%expect{|
 module type Eq9 = sig type t val z : t val equal : t -> t -> bool end
 module type S9 = sig module Foo : Eq9 end
-module F9 : functor (X : S9) -> sig val eq_z : X.Foo.t -> bool end
+module F9 :
+  functor (X : S9) -> sig val eq_z : X.Foo.t -> bool @@ global many end
 module Int9 : sig type t val equal : t -> t -> bool val of_int : int -> t end
-module M9 : sig module Foo : Eq9 val eq_z : Foo.t -> bool end
+module M9 : sig module Foo : Eq9 val eq_z : Foo.t -> bool @@ global many end
 |}];;
 
 let () = assert (M9.eq_z 7);;
@@ -214,9 +223,9 @@ module M9' :
         type t = Int9.t
         val equal : t -> t -> bool
         val of_int : int -> t
-        val z : t
+        val z : t @@ global many
       end
-    val eq_z : Int9.t -> bool
+    val eq_z : Int9.t -> bool @@ global many
   end
 |}];;
 
@@ -232,12 +241,15 @@ module M10 = struct
   include functor F10
 end;;
 [%%expect{|
-module F10 : functor (X : Set.OrderedType) -> sig val s : Set.Make(X).t end
+module F10 :
+  functor (X : Set.OrderedType) ->
+    sig val s : Set.Make(X).t @@ global many portable end
 Line 8, characters 18-21:
 8 |   include functor F10
                       ^^^
 Error: This functor has type
-       "functor (X : Set.OrderedType) -> sig val s : Set.Make(X).t end"
+       "functor (X : Set.OrderedType) ->
+         sig val s : Set.Make(X).t @@ global many portable end"
        The parameter cannot be eliminated in the result type.
        This functor can't be included directly; please apply it to an explicit argument.
 |}];;
@@ -251,9 +263,9 @@ include functor F1
 let () = assert (Int.(equal y 5));;
 [%%expect{|
 type t = int
-val x : t = 3
-val x : t = 5
-val y : int = 5
+val x : t @@ global many portable = 3
+val x : t @@ global many portable = 5
+val y : int @@ global many = 5
 |}];;
 
 type t = int
@@ -264,9 +276,9 @@ include functor F1
 let () = assert (Int.(equal y 5));;
 [%%expect{|
 type t = int
-val x : t = 5
-val x : t = 3
-val y : int = 3
+val x : t @@ global many portable = 5
+val x : t @@ global many portable = 3
+val y : int @@ global many = 3
 Exception: Assert_failure ("", 6, 9).
 |}]
 
@@ -436,12 +448,13 @@ module M14 = struct
   include functor F14
 end;;
 [%%expect{|
-module F14 : functor (X : S) (Y : S) -> sig val z : X.t * Y.t end
+module F14 :
+  functor (X : S) (Y : S) -> sig val z : X.t * Y.t @@ global many end
 Line 9, characters 18-21:
 9 |   include functor F14
                       ^^^
 Error: The type of this functor's result is not includable; it is
-       "functor (Y : S) -> sig val z : X.t * Y.t end"
+       "functor (Y : S) -> sig val z : X.t * Y.t @@ global many end"
 |}];;
 
 module F14_2 (X : S) () () = struct
@@ -455,12 +468,12 @@ module M14_2 = struct
   include functor F14_2
 end;;
 [%%expect{|
-module F14_2 : functor (X : S) () () -> sig val z : X.t end
+module F14_2 : functor (X : S) () () -> sig val z : X.t @@ global many end
 Line 9, characters 18-23:
 9 |   include functor F14_2
                       ^^^^^
 Error: The type of this functor's result is not includable; it is
-       "functor () () -> sig val z : X.t end"
+       "functor () () -> sig val z : X.t @@ global many end"
 |}];;
 
 (* Test 15: Make sure we're extracting functor return types appropriately *)
@@ -599,8 +612,8 @@ module F18 :
 module M18 :
   sig
     type t = int
-    val x : int
-    val equal : int -> int -> bool
+    val x : int @@ global many portable
+    val equal : int -> int -> bool @@ global many
     type t'
     val z : t'
     val equal_t' : t' -> t' -> bool
@@ -648,9 +661,9 @@ end
 
 let () = assert (Int.equal 42 !r19);;
 [%%expect{|
-val r19 : int ref = {contents = 0}
+val r19 : int ref @@ global many = {contents = 0}
 module F19 : functor (X : sig val x : int end) -> sig end
-module M19 : sig val x : int end
+module M19 : sig val x : int @@ global many portable end
 |}];;
 
 (* Test 20: Shadowed types *)
@@ -677,8 +690,9 @@ let () = M20.go 3;;
 [%%expect{|
 module I20 : sig type t = int end
 module F20 :
-  functor (M : sig type t = string end) -> sig val go : M.t -> unit end
-module M20 : sig type t = string val go : string -> unit end
+  functor (M : sig type t = string end) ->
+    sig val go : M.t -> unit @@ global many end
+module M20 : sig type t = string val go : string -> unit @@ global many end
 Line 20, characters 16-17:
 20 | let () = M20.go 3;;
                      ^

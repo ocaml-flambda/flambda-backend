@@ -25,7 +25,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some true
 
-val test_match_exhaustiveness : unit -> unit = <fun>
+val test_match_exhaustiveness : unit -> unit @@ global many = <fun>
 |}]
 ;;
 
@@ -44,7 +44,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some true
 
-val test_match_exhaustiveness_nest1 : unit -> unit = <fun>
+val test_match_exhaustiveness_nest1 : unit -> unit @@ global many = <fun>
 |}]
 ;;
 
@@ -63,7 +63,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some true
 
-val test_match_exhaustiveness_nest2 : unit -> unit = <fun>
+val test_match_exhaustiveness_nest2 : unit -> unit @@ global many = <fun>
 |}]
 ;;
 
@@ -94,6 +94,6 @@ Line 5, characters 23-24:
                            ^
 Warning 11 [redundant-case]: this match case is unused.
 
-val test_match_exhaustiveness_full : unit -> unit = <fun>
+val test_match_exhaustiveness_full : unit -> unit @@ global many = <fun>
 |}]
 ;;

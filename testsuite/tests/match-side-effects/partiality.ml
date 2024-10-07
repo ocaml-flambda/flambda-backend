@@ -36,7 +36,7 @@ type t = { a : bool; mutable b : int option; }
              1))
          0)))
   (apply (field_imm 1 (global Toploop!)) "f" f/280))
-val f : t -> int = <fun>
+val f : t -> int @@ global many = <fun>
 |}]
 
 
@@ -63,7 +63,7 @@ type t = { a : bool; mutable b : int option; }
            (if *match*/296 (field_imm 0 *match*/296) 1))
          0)))
   (apply (field_imm 1 (global Toploop!)) "f" f/291))
-val f : t -> int = <fun>
+val f : t -> int @@ global many = <fun>
 |}]
 
 
@@ -104,7 +104,7 @@ let f r =
                    (field_imm 0 *match*/305))
                  3)))))))
   (apply (field_imm 1 (global Toploop!)) "f" f/298))
-val f : int option ref -> int = <fun>
+val f : int option ref -> int @@ global many = <fun>
 |}]
 
 
@@ -127,7 +127,7 @@ type _ t = Int : int -> int t | Bool : bool -> bool t
      (function {nlocal = 0} param/312[(consts (0)) (non_consts ([0: *]))]
        : int (if param/312 (field_imm 0 (field_imm 0 param/312)) 0)))
   (apply (field_imm 1 (global Toploop!)) "test" test/309))
-val test : int t option -> int = <fun>
+val test : int t option -> int @@ global many = <fun>
 |}]
 
 
@@ -149,7 +149,7 @@ type _ t = Int : int -> int t | Bool : bool -> bool t
        (let (*match*/320 =o (field_mut 0 param/319))
          (if *match*/320 (field_imm 0 (field_imm 0 *match*/320)) 0))))
   (apply (field_imm 1 (global Toploop!)) "test" test/317))
-val test : int t option ref -> int = <fun>
+val test : int t option ref -> int @@ global many = <fun>
 |}]
 
 
@@ -190,5 +190,5 @@ type _ t = Int : int -> int t | Bool : bool -> bool t
                  (~ (field_imm 0 (field_imm 1 *match*/330)))))
              3)))))
   (apply (field_imm 1 (global Toploop!)) "test" test/325))
-val test : 'a -> int = <fun>
+val test : 'a -> int @@ global many = <fun>
 |}]

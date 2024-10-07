@@ -19,7 +19,8 @@ let sort (type s) (module Set : Set.S with type elt = s) l =
   Set.elements (List.fold_right Set.add l Set.empty)
 ;;
 [%%expect{|
-val sort : (module Set.S with type elt = 's) -> 's list -> 's list = <fun>
+val sort : (module Set.S with type elt = 's) -> 's list -> 's list @@ global
+  many = <fun>
 |}];;
 
 (* No real improvement here? *)
@@ -27,7 +28,8 @@ let make_set (type s) cmp : (module Set.S with type elt = s) =
   (module Set.Make (struct type t = s let compare = cmp end))
 ;;
 [%%expect{|
-val make_set : ('s -> 's -> int) -> (module Set.S with type elt = 's) = <fun>
+val make_set : ('s -> 's -> int) -> (module Set.S with type elt = 's) @@
+  global many = <fun>
 |}];;
 
 (* No type annotation here *)
@@ -35,7 +37,7 @@ let sort_cmp (type s) cmp =
   sort (module Set.Make (struct type t = s let compare = cmp end))
 ;;
 [%%expect{|
-val sort_cmp : ('s -> 's -> int) -> 's list -> 's list = <fun>
+val sort_cmp : ('s -> 's -> int) -> 's list -> 's list @@ global many = <fun>
 |}];;
 
 module type S = sig type t val x : t end;;
@@ -45,7 +47,7 @@ module type S = sig type t val x : t end
 
 let f (module M : S with type t = int) = M.x;;
 [%%expect{|
-val f : (module S with type t = int) -> int = <fun>
+val f : (module S with type t = int) -> int @@ global many = <fun>
 |}];;
 
 let f (module M : S with type t = 'a) = M.x;; (* Error *)
@@ -60,7 +62,7 @@ Error: The type of this packed module contains variables:
 let f (type a) (module M : S with type t = a) = M.x;;
 f (module struct type t = int let x = 1 end);;
 [%%expect{|
-val f : (module S with type t = 'a) -> 'a = <fun>
+val f : (module S with type t = 'a) -> 'a @@ global many = <fun>
 - : int = 1
 |}];;
 
@@ -87,7 +89,7 @@ Error: The type of this packed module contains variables:
 
 let f (type a) ({s=(module M)} : a s) = M.x;;
 [%%expect{|
-val f : 'a s -> 'a = <fun>
+val f : 'a s -> 'a @@ global many = <fun>
 |}];;
 
 type s = {s: (module S with type t = int)};;
@@ -95,8 +97,8 @@ let f {s=(module M)} = M.x;;
 let f {s=(module M)} {s=(module N)} = M.x + N.x;;
 [%%expect{|
 type s = { s : (module S with type t = int); }
-val f : s -> int = <fun>
-val f : s -> s -> int = <fun>
+val f : s -> int @@ global many = <fun>
+val f : s -> s -> int @@ global many = <fun>
 |}];;
 
 (***)
@@ -108,7 +110,7 @@ module type S = sig val x : int end
 
 let f (module M : S) y (module N : S) = M.x + y + N.x;;
 [%%expect{|
-val f : (module S) -> int -> (module S) -> int = <fun>
+val f : (module S) -> int -> (module S) -> int @@ global many = <fun>
 |}];;
 
 let m = (module struct let x = 3 end);; (* Error *)
@@ -121,7 +123,7 @@ Error: The signature for this packaged module couldn't be inferred.
 
 let m = (module struct let x = 3 end : S);;
 [%%expect{|
-val m : (module S) = <module>
+val m : (module S) @@ global many = <module>
 |}];;
 
 f m 1 m;;
@@ -187,7 +189,7 @@ let f (l : (module S with type t = int and type u = bool) list) =
 module type S = sig type t type u val x : t * u end
 val f :
   (module S with type t = int and type u = bool) list ->
-  (module S with type u = bool) list = <fun>
+  (module S with type u = bool) list @@ global many = <fun>
 |}];;
 
 (* GADTs from the manual *)
@@ -268,10 +270,11 @@ module rec Typ :
       | String of ('a, string) TypEq.t
       | Pair of (module PAIR with type t = 'a)
   end
-val int : int Typ.typ = Typ.Int <abstr>
-val str : string Typ.typ = Typ.String <abstr>
-val pair : 's1 Typ.typ -> 's2 Typ.typ -> ('s1 * 's2) Typ.typ = <fun>
-val to_string : 'a Typ.typ -> 'a -> string = <fun>
+val int : int Typ.typ @@ global many = Typ.Int <abstr>
+val str : string Typ.typ @@ global many = Typ.String <abstr>
+val pair : 's1 Typ.typ -> 's2 Typ.typ -> ('s1 * 's2) Typ.typ @@ global many =
+  <fun>
+val to_string : 'a Typ.typ -> 'a -> string @@ global many = <fun>
 |}];;
 
 (* Wrapping maps *)
@@ -355,7 +358,7 @@ module type MapT =
   end
 type ('k, 'd, 'm) map =
     (module MapT with type data = 'd and type key = 'k and type map = 'm)
-val add : ('k, 'd, 'm) map -> 'k -> 'd -> 'm -> 'm = <fun>
+val add : ('k, 'd, 'm) map -> 'k -> 'd -> 'm -> 'm @@ global many = <fun>
 module SSMap :
   sig
     type key = String.t
@@ -406,8 +409,8 @@ module SSMap :
     val of_seq : (key * 'a) Seq.t -> 'a t
     type data = string
     type map = data t
-    val of_t : 'a -> 'a
-    val to_t : 'a -> 'a
+    val of_t : 'a -> 'a @@ global many portable
+    val to_t : 'a -> 'a @@ global many portable
   end
 |}];;
 
@@ -418,8 +421,8 @@ let ssmap =
 [%%expect{|
 val ssmap :
   (module MapT with type data = string and type key = string and type map =
-   SSMap.map) =
-  <module>
+   SSMap.map)
+  @@ global many = <module>
 |}];;
 
 let ssmap =
@@ -429,8 +432,8 @@ let ssmap =
 [%%expect{|
 val ssmap :
   (module MapT with type data = string and type key = string and type map =
-   SSMap.map) =
-  <module>
+   SSMap.map)
+  @@ global many = <module>
 |}];;
 
 let ssmap =
@@ -441,8 +444,8 @@ let ssmap =
 [%%expect{|
 val ssmap :
   (module MapT with type data = string and type key = string and type map =
-   SSMap.map) =
-  <module>
+   SSMap.map)
+  @@ global many = <module>
 |}];;
 
 let ssmap =
@@ -451,13 +454,13 @@ let ssmap =
 [%%expect{|
 val ssmap :
   (module MapT with type data = SSMap.data and type key = SSMap.key and type map =
-   SSMap.map) =
-  <module>
+   SSMap.map)
+  @@ global many = <module>
 |}];;
 
 let ssmap : (_,_,_) map = (module SSMap);;
 [%%expect{|
-val ssmap : (SSMap.key, SSMap.data, SSMap.map) map = <module>
+val ssmap : (SSMap.key, SSMap.data, SSMap.map) map @@ global many = <module>
 |}];;
 
 add ssmap;;
@@ -488,7 +491,7 @@ type 'a s = (module S with type t = 'a)
 
 let x : 'a s = (module struct type t = int end);;
 [%%expect{|
-val x : int s = <module>
+val x : int s @@ global many = <module>
 |}];;
 
 let x : 'a s = (module struct type t = A end);;

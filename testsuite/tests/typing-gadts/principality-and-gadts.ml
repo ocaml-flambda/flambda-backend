@@ -26,7 +26,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Sigma (M, B)
 
-val f : dyn -> unit = <fun>
+val f : dyn -> unit @@ global many = <fun>
 |}];;
 
 type _ t = IntLit : int t | BoolLit : bool t;;
@@ -43,7 +43,7 @@ let f (type a) t (x : a) =
   | BoolLit, b -> 1
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> int = <fun>
+val f : 'a t -> 'a -> int @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-10:
 4 |   | IntLit, n -> n+1
@@ -57,7 +57,7 @@ Line 5, characters 4-11:
 Warning 18 [not-principal]: typing this pattern requires considering bool and a as equal.
 But the knowledge of these types is not principal.
 
-val f : 'a t -> 'a -> int = <fun>
+val f : 'a t -> 'a -> int @@ global many = <fun>
 |}]
 
 let f (type a) t (x : a) =
@@ -67,7 +67,7 @@ let f (type a) t (x : a) =
   | _, _ -> 1
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> int = <fun>
+val f : 'a t -> 'a -> int @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-10:
 4 |   | IntLit, n -> n+1
@@ -75,7 +75,7 @@ Line 4, characters 4-10:
 Warning 18 [not-principal]: typing this pattern requires considering int and a as equal.
 But the knowledge of these types is not principal.
 
-val f : 'a t -> 'a -> int = <fun>
+val f : 'a t -> 'a -> int @@ global many = <fun>
 |}]
 
 
@@ -136,7 +136,7 @@ let f1 t1 =
   | AB -> true
   | MAB -> false;;
 [%%expect{|
-val f1 : unit ab M.t -> bool = <fun>
+val f1 : unit ab M.t -> bool @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-7:
 4 |   | MAB -> false;;
@@ -144,7 +144,7 @@ Line 4, characters 4-7:
 Warning 18 [not-principal]: typing this pattern requires considering unit M.mab and unit ab as equal.
 But the knowledge of these types is not principal.
 
-val f1 : unit ab M.t -> bool = <fun>
+val f1 : unit ab M.t -> bool @@ global many = <fun>
 |}]
 
 let f2 (type x) t1 =
@@ -153,7 +153,7 @@ let f2 (type x) t1 =
   | AB -> true
   | MAB -> false;;
 [%%expect{|
-val f2 : 'x M.t -> bool = <fun>
+val f2 : 'x M.t -> bool @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-6:
 4 |   | AB -> true
@@ -167,7 +167,7 @@ Line 5, characters 4-7:
 Warning 18 [not-principal]: typing this pattern requires considering unit M.mab and x as equal.
 But the knowledge of these types is not principal.
 
-val f2 : 'x M.t -> bool = <fun>
+val f2 : 'x M.t -> bool @@ global many = <fun>
 |}]
 
 (* This should warn *)
@@ -177,7 +177,7 @@ let f3 t1 =
   | AB -> true
   | MAB -> false;;
 [%%expect{|
-val f3 : unit ab M.t -> bool = <fun>
+val f3 : unit ab M.t -> bool @@ global many = <fun>
 |}, Principal{|
 Line 5, characters 4-7:
 5 |   | MAB -> false;;
@@ -185,7 +185,7 @@ Line 5, characters 4-7:
 Warning 18 [not-principal]: typing this pattern requires considering unit M.mab and unit ab as equal.
 But the knowledge of these types is not principal.
 
-val f3 : unit ab M.t -> bool = <fun>
+val f3 : unit ab M.t -> bool @@ global many = <fun>
 |}]
 
 (* Example showing we need to warn when any part of the type is non generic. *)
@@ -197,7 +197,7 @@ type (_, _) eq = Refl : ('a, 'a) eq
 let g1 (type x) (e : (x, int option) eq) (x : x) : int option =
    let Refl = e in x;;
 [%%expect{|
-val g1 : ('x, int option) eq -> 'x -> int option = <fun>
+val g1 : ('x, int option) eq -> 'x -> int option @@ global many = <fun>
 |}]
 
 (* This should warn *)
@@ -205,7 +205,7 @@ let g2 (type x) (e : (x, _ option) eq) (x : x) : int option =
    ignore (e : (x, int option) eq);
    let Refl = e in x;;
 [%%expect{|
-val g2 : ('x, int option) eq -> 'x -> int option = <fun>
+val g2 : ('x, int option) eq -> 'x -> int option @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 7-11:
 3 |    let Refl = e in x;;
@@ -213,7 +213,7 @@ Line 3, characters 7-11:
 Warning 18 [not-principal]: typing this pattern requires considering x and int option as equal.
 But the knowledge of these types is not principal.
 
-val g2 : ('x, int option) eq -> 'x -> int option = <fun>
+val g2 : ('x, int option) eq -> 'x -> int option @@ global many = <fun>
 |}]
 
 (* Issues with "principal level" *)
@@ -352,7 +352,7 @@ let foo x =
   | { x = x; eq = Refl3 } -> x
 ;;
 [%%expect{|
-val foo : M.t foo -> M.t = <fun>
+val foo : M.t foo -> M.t @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 18-23:
 3 |   | { x = x; eq = Refl3 } -> x
@@ -360,7 +360,7 @@ Line 3, characters 18-23:
 Warning 18 [not-principal]: typing this pattern requires considering M.t and N.t as equal.
 But the knowledge of these types is not principal.
 
-val foo : M.t foo -> M.t = <fun>
+val foo : M.t foo -> M.t @@ global many = <fun>
 |}]
 
 let foo x =
@@ -368,7 +368,7 @@ let foo x =
   | { x = (x : int); eq = Refl3 } -> x
 ;;
 [%%expect{|
-val foo : int foo -> int = <fun>
+val foo : int foo -> int @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 26-31:
 3 |   | { x = (x : int); eq = Refl3 } -> x
@@ -376,7 +376,7 @@ Line 3, characters 26-31:
 Warning 18 [not-principal]: typing this pattern requires considering M.t and N.t as equal.
 But the knowledge of these types is not principal.
 
-val foo : int foo -> int = <fun>
+val foo : int foo -> int @@ global many = <fun>
 |}]
 
 let foo x =
@@ -412,7 +412,7 @@ let foo x =
   | { x = (x : string); eq = Refl3 } -> x
 ;;
 [%%expect{|
-val foo : string foo -> string = <fun>
+val foo : string foo -> string @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 29-34:
 3 |   | { x = (x : string); eq = Refl3 } -> x
@@ -420,7 +420,7 @@ Line 3, characters 29-34:
 Warning 18 [not-principal]: typing this pattern requires considering M.t and N.t as equal.
 But the knowledge of these types is not principal.
 
-val foo : string foo -> string = <fun>
+val foo : string foo -> string @@ global many = <fun>
 |}]
 
 let bar x =
@@ -428,7 +428,7 @@ let bar x =
   | { x = x; _ } -> x
 ;;
 [%%expect{|
-val bar : 'a foo -> 'a = <fun>
+val bar : 'a foo -> 'a @@ global many = <fun>
 |}]
 
 let bar x =
@@ -436,7 +436,7 @@ let bar x =
   | { x = (x : int); _ } -> x
 ;;
 [%%expect{|
-val bar : int foo -> int = <fun>
+val bar : int foo -> int @@ global many = <fun>
 |}]
 
 let bar x =
@@ -444,7 +444,7 @@ let bar x =
   | { x = (x : N.t); _ } -> x
 ;;
 [%%expect{|
-val bar : N.t foo -> N.t = <fun>
+val bar : N.t foo -> N.t @@ global many = <fun>
 |}]
 
 let bar x =
@@ -452,7 +452,7 @@ let bar x =
   | { x = (x : string); _ } -> x
 ;;
 [%%expect{|
-val bar : string foo -> string = <fun>
+val bar : string foo -> string @@ global many = <fun>
 |}]
 
 (* #10822 *)
@@ -468,5 +468,5 @@ type ('a, 'b) eq = Refl : ('a, 'a) eq
 let foo (type s) x (Refl : (s, u) eq) =
   (x : s :> t)
 [%%expect{|
-val foo : 's -> ('s, u) eq -> t = <fun>
+val foo : 's -> ('s, u) eq -> t @@ global many = <fun>
 |}]

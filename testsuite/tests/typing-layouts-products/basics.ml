@@ -147,8 +147,8 @@ let f_uvar_ok : 'a -> 'a t = fun x -> x
 let f_uvar_bad : 'a . 'a -> 'a t = fun x -> x
 [%%expect{|
 type ('a : float64 & value) t = 'a
-val f_uvar_good : ('a : float64 & value). 'a -> 'a t = <fun>
-val f_uvar_ok : ('a : float64 & value). 'a -> 'a t = <fun>
+val f_uvar_good : ('a : float64 & value). 'a -> 'a t @@ global many = <fun>
+val f_uvar_ok : ('a : float64 & value). 'a -> 'a t @@ global many = <fun>
 Line 6, characters 28-30:
 6 | let f_uvar_bad : 'a . 'a -> 'a t = fun x -> x
                                 ^^
@@ -184,10 +184,11 @@ let f_pull_apart_an_unboxed_tuple (x : #(string * #(float# * float#))) =
     else
       Float_u.add f1 f2
 [%%expect{|
-val f_make_an_unboxed_tuple : string -> float# -> #(float# * string) = <fun>
+val f_make_an_unboxed_tuple : string -> float# -> #(float# * string) @@
+  global many = <fun>
 val f_pull_apart_an_unboxed_tuple :
-  #(string * #(float# * float#)) -> Stdlib_upstream_compatible.Float_u.t =
-  <fun>
+  #(string * #(float# * float#)) -> Stdlib_upstream_compatible.Float_u.t @@
+  global many = <fun>
 |}]
 
 let f_mix_up_an_unboxed_tuple x =
@@ -195,8 +196,8 @@ let f_mix_up_an_unboxed_tuple x =
   #(b, #(c, (f, e)), a, d)
 [%%expect{|
 val f_mix_up_an_unboxed_tuple :
-  #('a * 'b * #('c * #('d * 'e)) * 'f) -> #('b * #('c * ('f * 'e)) * 'a * 'd) =
-  <fun>
+  #('a * 'b * #('c * #('d * 'e)) * 'f) -> #('b * #('c * ('f * 'e)) * 'a * 'd)
+  @@ global many = <fun>
 |}]
 
 let f_take_a_few_unboxed_tuples x1 x2 x3 x4 x5 =
@@ -208,8 +209,8 @@ let f_take_a_few_unboxed_tuples x1 x2 x3 x4 x5 =
 val f_take_a_few_unboxed_tuples :
   #('a * 'b) ->
   'c ->
-  #('d * 'e) -> 'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a) =
-  <fun>
+  #('d * 'e) -> 'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a)
+  @@ global many = <fun>
 |}]
 
 (***************************************************)
@@ -511,7 +512,7 @@ let f_external_utuple_mode_crosses_local_1
   : local_ #(int * int) -> #(int * int) = fun x -> x
 [%%expect{|
 val f_external_utuple_mode_crosses_local_1 :
-  local_ #(int * int) -> #(int * int) = <fun>
+  local_ #(int * int) -> #(int * int) @@ global many = <fun>
 |}]
 
 let f_internal_utuple_does_not_mode_cross_local_1
@@ -527,7 +528,8 @@ let f_external_utuple_mode_crosses_local_2
   : local_ #(int * #(bool * int)) -> #(int * #(bool * int)) = fun x -> x
 [%%expect{|
 val f_external_utuple_mode_crosses_local_2 :
-  local_ #(int * #(bool * int)) -> #(int * #(bool * int)) = <fun>
+  local_ #(int * #(bool * int)) -> #(int * #(bool * int)) @@ global many =
+  <fun>
 |}]
 
 let f_internal_utuple_does_not_mode_cross_local_2
@@ -545,7 +547,7 @@ let f_external_utuple_mode_crosses_local_3
 [%%expect{|
 type t = #(int * int)
 val f_external_utuple_mode_crosses_local_3 :
-  local_ #(int * #(t * int)) -> #(int * #(t * int)) = <fun>
+  local_ #(int * #(t * int)) -> #(int * #(t * int)) @@ global many = <fun>
 |}]
 
 type t = #(string * int)
@@ -567,7 +569,8 @@ let f_external_kind_annot_mode_crosses_local_1
   : local_ t -> t = fun x -> x
 [%%expect{|
 type t : float64 & float64
-val f_external_kind_annot_mode_crosses_local_1 : local_ t -> t = <fun>
+val f_external_kind_annot_mode_crosses_local_1 : local_ t -> t @@ global many =
+  <fun>
 |}]
 
 type t : float64 & value
@@ -586,7 +589,8 @@ let f_external_kind_annot_mode_crosses_local_2
   : local_ t -> t = fun x -> x
 [%%expect{|
 type t : immediate & (float64 & immediate)
-val f_external_kind_annot_mode_crosses_local_2 : local_ t -> t = <fun>
+val f_external_kind_annot_mode_crosses_local_2 : local_ t -> t @@ global many =
+  <fun>
 |}]
 
 type t : immediate & (value & float64)
@@ -689,7 +693,7 @@ let sum =
   x + y
 [%%expect{|
 external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
-val sum : int = 3
+val sum : int @@ global many = 3
 |}]
 
 (***********************************)
@@ -699,7 +703,7 @@ val sum : int = 3
 let[@warning "-26"] e1 = let rec x = (1, y) and y = 42 in ()
 let[@warning "-26"] e2 = let rec x = #(1, y) and y = 42 in ()
 [%%expect{|
-val e1 : unit = ()
+val e1 : unit @@ global many = ()
 Line 2, characters 37-44:
 2 | let[@warning "-26"] e2 = let rec x = #(1, y) and y = 42 in ()
                                          ^^^^^^^
@@ -920,7 +924,7 @@ let f (x : #(t * t)) =
   let #(a,b) = (x :> #(int * int)) in a + b
 [%%expect{|
 type t = private int
-val f : #(t * t) -> int = <fun>
+val f : #(t * t) -> int @@ global many = <fun>
 |}]
 
 let g (x : #(int * int)) = f (x :> #(t * t))

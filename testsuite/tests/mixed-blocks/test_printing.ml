@@ -12,7 +12,7 @@ let t = { flt = 4.0; uflt = #5.0 }
 
 [%%expect {|
 type t = { flt : float; uflt : float#; }
-val t : t = {flt = 4.; uflt = <abstr>}
+val t : t @@ global many = {flt = 4.; uflt = <abstr>}
 |}];;
 
 (* Non-empty value prefix *)
@@ -22,7 +22,7 @@ let t = { str = "str"; uflt = #5.0 }
 
 [%%expect {|
 type t = { str : string; uflt : float#; }
-val t : t = {str = "str"; uflt = <abstr>}
+val t : t @@ global many = {str = "str"; uflt = <abstr>}
 |}];;
 
 (* Flat suffix mixes float# and imm *)
@@ -32,5 +32,5 @@ let t = { str = "str"; uflt = #5.0; imm = 5 }
 
 [%%expect {|
 type t = { str : string; uflt : float#; imm : int; }
-val t : t = {str = "str"; uflt = <abstr>; imm = 5}
+val t : t @@ global many = {str = "str"; uflt = <abstr>; imm = 5}
 |}];;

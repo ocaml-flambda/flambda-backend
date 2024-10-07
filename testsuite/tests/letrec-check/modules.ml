@@ -4,7 +4,7 @@
 
 let rec x = let module M = struct let f = x end in ();;
 [%%expect{|
-val x : unit = ()
+val x : unit @@ global many = ()
 |}];;
 
 let rec x = let module M = struct let f = x let g = x () end in fun () -> ();;
@@ -64,7 +64,7 @@ let rec x = let module M =
   in fun () -> ignore (M.N.y ());;
 [%%expect{|
 module type T = sig val y : int end
-val x : unit -> unit = <fun>
+val x : unit -> unit @@ global many = <fun>
 |}];;
 
 let rec x = let module M = struct let f = x () and g = x end in fun () -> ();;

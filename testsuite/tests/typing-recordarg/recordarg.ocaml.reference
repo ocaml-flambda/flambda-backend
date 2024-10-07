@@ -3,17 +3,17 @@ Line 1, characters 14-15:
 1 | let f (A r) = r;;  (* -> escape *)
                   ^
 Error: This form is not allowed as the type of the inlined record could escape.
-val f : t -> int = <fun>
-val f : int -> t = <fun>
-val f : t -> t = <fun>
+val f : t -> int @@ global many = <fun>
+val f : int -> t @@ global many = <fun>
+val f : t -> t @@ global many = <fun>
 Line 1, characters 14-15:
 1 | let f () = A {a = 1};; (* customized error message *)
                   ^
 Error: The field "a" is not part of the record argument for the "t.A" constructor
-val f : unit -> t = <fun>
+val f : unit -> t @@ global many = <fun>
 type _ t = A : { x : 'a; y : 'b; } -> 'a t
-val f : 'a t -> 'a t = <fun>
-val f : 'a t -> 'a t = <fun>
+val f : 'a t -> 'a t @@ global many = <fun>
+val f : 'a t -> 'a t @@ global many = <fun>
 module M :
   sig
     type 'a t = A of { x : 'a; } | B : { u : 'b; } -> unit t
@@ -54,5 +54,5 @@ Error: Multiple definition of the extension constructor name "A".
        Names must be unique in a given structure or signature.
 type _ c = C : [ `A ] c
 type t = T : { x : [< `A ] c; } -> t
-val f : t -> unit = <fun>
+val f : t -> unit @@ global many = <fun>
 

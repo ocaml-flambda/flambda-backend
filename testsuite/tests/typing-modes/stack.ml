@@ -5,7 +5,7 @@ expect;
 
 let ignore_local : 'a @ local -> unit = fun _ -> ()
 [%%expect{|
-val ignore_local : local_ 'a -> unit = <fun>
+val ignore_local : local_ 'a -> unit @@ global many = <fun>
 |}]
 
 let f = ref (stack_ (fun x -> x))
@@ -34,7 +34,7 @@ Error: This value escapes its region.
 
 let f = ignore_local (stack_ (2, 3))
 [%%expect{|
-val f : unit = ()
+val f : unit @@ global many = ()
 |}]
 
 type t = Foo | Bar of int
@@ -58,7 +58,7 @@ Error: This value escapes its region.
 
 let f = ignore_local (stack_ (Bar 42))
 [%%expect{|
-val f : unit = ()
+val f : unit @@ global many = ()
 |}]
 
 let f = ref (stack_ `Foo)
@@ -79,7 +79,7 @@ Error: This value escapes its region.
 
 let f = ignore_local (stack_ (`Bar 42))
 [%%expect{|
-val f : unit = ()
+val f : unit @@ global many = ()
 |}]
 
 type r = {x : string} [@@unboxed]
@@ -106,7 +106,7 @@ Error: This value escapes its region.
 
 let f = ignore_local (stack_ {x = "hello"})
 [%%expect{|
-val f : unit = ()
+val f : unit @@ global many = ()
 |}]
 
 type r = {x : float; y : string}
@@ -132,7 +132,7 @@ Error: This value escapes its region.
 
 let f (r : r) = ignore_local (stack_ r.x) [@nontail]
 [%%expect{|
-val f : r -> unit = <fun>
+val f : r -> unit @@ global many = <fun>
 |}]
 
 let f = ref (stack_ [| 42; 56 |])
@@ -145,7 +145,7 @@ Error: This value escapes its region.
 
 let f = ignore_local (stack_ [| 42; 56 |])
 [%%expect{|
-val f : unit = ()
+val f : unit @@ global many = ()
 |}]
 
 (* tail-position stack_ does not indicate local-returning *)
@@ -160,7 +160,7 @@ Error: This value escapes its region.
 
 let f () = exclave_ stack_ (3, 5)
 [%%expect{|
-val f : unit -> local_ int * int = <fun>
+val f : unit -> local_ int * int @@ global many = <fun>
 |}]
 
 let f () =
@@ -268,7 +268,7 @@ let f () =
   let _ = stack_ (r.contents, r.contents) in
   r.contents
 [%%expect{|
-val f : unit -> string = <fun>
+val f : unit -> string @@ global many = <fun>
 |}]
 
 let f () =
@@ -276,7 +276,7 @@ let f () =
   let _ = stack_ (r, r) in
   r
 [%%expect{|
-val f : unit -> string = <fun>
+val f : unit -> string @@ global many = <fun>
 |}]
 
 type t = { x : int list; y : int list @@ global }
@@ -286,7 +286,7 @@ let mk () =
   r.y
 [%%expect{|
 type t = { x : int list; global_ y : int list; }
-val mk : unit -> int list = <fun>
+val mk : unit -> int list @@ global many = <fun>
 |}]
 
 let mk () =

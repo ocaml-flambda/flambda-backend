@@ -12,7 +12,7 @@ module G (X : sig end) : S = F ();; (* ok *)
 module H (X : sig end) = (val v);; (* ok *)
 [%%expect{|
 module type S = sig val x : int end
-val v : (module S) = <module>
+val v : (module S) @@ global many = <module>
 module F : functor () -> S
 module G : functor (X : sig end) -> S
 module H : functor (X : sig end) -> S
@@ -24,7 +24,7 @@ let v = (module struct type t = int let x = 3 end : S);;
 module F() = (val v);; (* ok *)
 [%%expect{|
 module type S = sig type t val x : t end
-val v : (module S) = <module>
+val v : (module S) @@ global many = <module>
 module F : functor () -> S
 |}];;
 module G (X : sig end) : S = F ();; (* fail *)

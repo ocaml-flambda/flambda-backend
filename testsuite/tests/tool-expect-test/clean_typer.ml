@@ -47,16 +47,16 @@ module M :
     val bar : unit -> Variants.bar t
   end
 module type Foo = sig val x : Variants.foo M.t -> unit end
-val ffoo : Variants.foo M.t -> (module Foo) -> unit = <fun>
+val ffoo : Variants.foo M.t -> (module Foo) -> unit @@ global many = <fun>
 module type Bar = sig val x : Variants.bar M.t -> unit end
-val fbar : Variants.bar M.t -> (module Bar) -> unit = <fun>
-val foo : Variants.foo M.t = <abstr>
-val bar : Variants.bar M.t = <abstr>
+val fbar : Variants.bar M.t -> (module Bar) -> unit @@ global many = <fun>
+val foo : Variants.foo M.t @@ global many = <abstr>
+val bar : Variants.bar M.t @@ global many = <abstr>
 |}]
 
 let f1 = ffoo foo;;
 [%%expect {|
-val f1 : (module Foo) -> unit = <fun>
+val f1 : (module Foo) -> unit @@ global many = <fun>
 |}]
 
 let f2 = ffoo bar;;

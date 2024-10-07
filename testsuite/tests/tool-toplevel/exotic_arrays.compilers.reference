@@ -1,6 +1,6 @@
-val y : float array = [|1.; 2.; 3.; 4.|]
-val y : float# array = [|<abstr>; <abstr>; <abstr>; <abstr>|]
-val y : int32# array = <abstr array>
-val y : nativeint# array = <abstr array>
-val y : int64# array = <abstr array>
+val y : float array @@ global many = [|1.; 2.; 3.; 4.|]
+val y : float# array @@ global many = [|<abstr>; <abstr>; <abstr>; <abstr>|]
+val y : int32# array @@ global many = <abstr array>
+val y : nativeint# array @@ global many = <abstr array>
+val y : int64# array @@ global many = <abstr array>
 

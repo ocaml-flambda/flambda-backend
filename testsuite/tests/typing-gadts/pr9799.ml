@@ -18,5 +18,5 @@ let fn: type a. a t -> a -> int = fun x y ->
   | (B, `z) -> 1
 ;;
 [%%expect{|
-val fn : 'a t -> 'a -> int = <fun>
+val fn : 'a t -> 'a -> int @@ global many = <fun>
 |}];;

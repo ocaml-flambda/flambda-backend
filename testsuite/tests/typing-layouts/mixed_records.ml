@@ -254,7 +254,11 @@ Lines 5-9, characters 6-3:
 9 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type u = float type t = { u : float; f : float#; } val t : t end
+         sig
+           type u = float
+           type t = { u : float; f : float#; }
+           val t : t @@ global many portable
+         end
        is not included in
          sig type u type t = { u : u; f : float#; } val t : t end
        Type declarations do not match:

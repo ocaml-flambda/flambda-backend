@@ -25,9 +25,10 @@ let f1_3 (x : int64#) = x;;
 [%%expect{|
 type t_bits64 : bits64
 type ('a : bits64) t_bits64_id = 'a
-val f1_1 : t_bits64 -> t_bits64 = <fun>
-val f1_2 : ('a : bits64). 'a t_bits64_id -> 'a t_bits64_id = <fun>
-val f1_3 : int64# -> int64# = <fun>
+val f1_1 : t_bits64 -> t_bits64 @@ global many = <fun>
+val f1_2 : ('a : bits64). 'a t_bits64_id -> 'a t_bits64_id @@ global many =
+  <fun>
+val f1_3 : int64# -> int64# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -44,9 +45,10 @@ let f2_3 (x : int64#) =
   let y = x in
   y;;
 [%%expect{|
-val f2_1 : t_bits64 -> t_bits64 = <fun>
-val f2_2 : ('a : bits64). 'a t_bits64_id -> 'a t_bits64_id = <fun>
-val f2_3 : int64# -> int64# = <fun>
+val f2_1 : t_bits64 -> t_bits64 @@ global many = <fun>
+val f2_2 : ('a : bits64). 'a t_bits64_id -> 'a t_bits64_id @@ global many =
+  <fun>
+val f2_3 : int64# -> int64# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -375,10 +377,11 @@ let make_int64u () : int64# = assert false
 
 let id_value x = x;;
 [%%expect{|
-val make_t_bits64 : unit -> t_bits64 = <fun>
-val make_t_bits64_id : ('a : bits64). unit -> 'a t_bits64_id = <fun>
-val make_int64u : unit -> int64# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val make_t_bits64 : unit -> t_bits64 @@ global many = <fun>
+val make_t_bits64_id : ('a : bits64). unit -> 'a t_bits64_id @@ global many =
+  <fun>
+val make_int64u : unit -> int64# @@ global many = <fun>
+val id_value : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_bits64 ());;
@@ -431,11 +434,11 @@ let f9_3 () = twice f1_3 (make_int64u ());;
 [%%expect{|
 val twice :
   ('a : bits64).
-    ('a t_bits64_id -> 'a t_bits64_id) -> 'a t_bits64_id -> 'a t_bits64_id =
-  <fun>
-val f9_1 : unit -> t_bits64 t_bits64_id = <fun>
-val f9_2 : ('a : bits64). unit -> 'a t_bits64_id = <fun>
-val f9_3 : unit -> int64# t_bits64_id = <fun>
+    ('a t_bits64_id -> 'a t_bits64_id) -> 'a t_bits64_id -> 'a t_bits64_id
+  @@ global many = <fun>
+val f9_1 : unit -> t_bits64 t_bits64_id @@ global many = <fun>
+val f9_2 : ('a : bits64). unit -> 'a t_bits64_id @@ global many = <fun>
+val f9_3 : unit -> int64# t_bits64_id @@ global many = <fun>
 |}];;
 
 (**************************************************)
@@ -667,10 +670,10 @@ class ['a] c12_12 = object
 end;;
 [%%expect{|
 type t12_8 = < f : t_bits64 -> t_bits64 >
-val f12_9 : t12_8 -> t_bits64 -> t_bits64 = <fun>
+val f12_9 : t12_8 -> t_bits64 -> t_bits64 @@ global many = <fun>
 val f12_10 :
   < baz : t_bits64 -> t_bits64 -> t_bits64 -> t_bits64; .. > ->
-  t_bits64 -> t_bits64 = <fun>
+  t_bits64 -> t_bits64 @@ global many = <fun>
 class ['a] c12_11 : object method x : t_bits64 -> 'a end
 class ['a] c12_12 : object method x : 'a -> t_bits64 end
 |}];;

@@ -32,7 +32,7 @@ variable x appears in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val ambiguous_typical_example : expr * expr -> unit = <fun>
+val ambiguous_typical_example : expr * expr -> unit @@ global many = <fun>
 |}]
 
 let fails = ambiguous_typical_example (Val 2, Val (-1))
@@ -47,7 +47,7 @@ let not_ambiguous__no_orpat = function
   | None -> ()
 ;;
 [%%expect {|
-val not_ambiguous__no_orpat : int option -> unit = <fun>
+val not_ambiguous__no_orpat : int option -> unit @@ global many = <fun>
 |}]
 
 let not_ambiguous__no_guard = function
@@ -55,7 +55,8 @@ let not_ambiguous__no_guard = function
   | (`B | `C) -> ()
 ;;
 [%%expect {|
-val not_ambiguous__no_guard : [< `A | `B | `C ] -> unit = <fun>
+val not_ambiguous__no_guard : [< `A | `B | `C ] -> unit @@ global many =
+  <fun>
 |}]
 
 let not_ambiguous__no_patvar_in_guard b = function
@@ -64,7 +65,7 @@ let not_ambiguous__no_patvar_in_guard b = function
 ;;
 [%%expect {|
 val not_ambiguous__no_patvar_in_guard :
-  bool -> [> `B of 'a | `C of 'a ] -> unit = <fun>
+  bool -> [> `B of 'a | `C of 'a ] -> unit @@ global many = <fun>
 |}]
 
 let not_ambiguous__disjoint_cases = function
@@ -72,8 +73,8 @@ let not_ambiguous__disjoint_cases = function
   | _ -> ()
 ;;
 [%%expect {|
-val not_ambiguous__disjoint_cases : [> `B of bool | `C of bool ] -> unit =
-  <fun>
+val not_ambiguous__disjoint_cases : [> `B of bool | `C of bool ] -> unit @@
+  global many = <fun>
 |}]
 
 (* the curious (..., _, Some _) | (..., Some _, _) device used in
@@ -86,7 +87,7 @@ let not_ambiguous__prefix_variables = function
 ;;
 [%%expect {|
 val not_ambiguous__prefix_variables :
-  [> `B of bool * 'a option * 'a option ] -> unit = <fun>
+  [> `B of bool * 'a option * 'a option ] -> unit @@ global many = <fun>
 |}]
 
 let ambiguous__y = function
@@ -102,7 +103,8 @@ variable y appears in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val ambiguous__y : [> `B of 'a * bool option * bool option ] -> unit = <fun>
+val ambiguous__y : [> `B of 'a * bool option * bool option ] -> unit @@
+  global many = <fun>
 |}]
 
 (* it should be understood that the ambiguity warning only protects
@@ -120,7 +122,7 @@ let not_ambiguous__rhs_not_protected = function
 ;;
 [%%expect {|
 val not_ambiguous__rhs_not_protected :
-  [> `B of 'a * bool option * bool option ] -> unit = <fun>
+  [> `B of 'a * bool option * bool option ] -> unit @@ global many = <fun>
 |}]
 
 let ambiguous__x_y = function
@@ -136,7 +138,8 @@ variable y appears in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val ambiguous__x_y : [> `B of 'a * 'a option * 'a option ] -> unit = <fun>
+val ambiguous__x_y : [> `B of 'a * 'a option * 'a option ] -> unit @@ global
+  many = <fun>
 |}]
 
 let ambiguous__x_y_z = function
@@ -152,7 +155,8 @@ variables y, z appear in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val ambiguous__x_y_z : [> `B of 'a * 'a option * 'a option ] -> unit = <fun>
+val ambiguous__x_y_z : [> `B of 'a * 'a option * 'a option ] -> unit @@
+  global many = <fun>
 |}]
 
 let not_ambiguous__disjoint_in_depth = function
@@ -161,7 +165,7 @@ let not_ambiguous__disjoint_in_depth = function
 ;;
 [%%expect {|
 val not_ambiguous__disjoint_in_depth :
-  [> `A of [> `B of bool | `C of bool ] ] -> unit = <fun>
+  [> `A of [> `B of bool | `C of bool ] ] -> unit @@ global many = <fun>
 |}]
 
 let not_ambiguous__prefix_variables_in_depth = function
@@ -170,7 +174,7 @@ let not_ambiguous__prefix_variables_in_depth = function
 ;;
 [%%expect {|
 val not_ambiguous__prefix_variables_in_depth :
-  [> `A of [> `B of bool * [> `C1 | `C2 ] ] ] -> unit = <fun>
+  [> `A of [> `B of bool * [> `C1 | `C2 ] ] ] -> unit @@ global many = <fun>
 |}]
 
 let ambiguous__in_depth = function
@@ -187,7 +191,8 @@ Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
 val ambiguous__in_depth :
-  [> `A of [> `B of bool option * bool option ] ] -> unit = <fun>
+  [> `A of [> `B of bool option * bool option ] ] -> unit @@ global many =
+  <fun>
 |}]
 
 let not_ambiguous__several_orpats = function
@@ -203,7 +208,7 @@ val not_ambiguous__several_orpats :
        [> `B of 'a * 'b option * 'c option ] *
        [> `C of 'a * 'd option * 'e option ] *
        [> `D1 of 'f * 'a * 'g option * 'h | `D2 of 'i * 'a * 'j * 'k option ]
-  ] -> unit = <fun>
+  ] -> unit @@ global many = <fun>
 |}]
 
 let ambiguous__first_orpat = function
@@ -224,7 +229,7 @@ val ambiguous__first_orpat :
   [> `A of
        [> `B of 'a option * 'a option ] *
        [> `C of 'a option * 'b option * 'c option ] ] ->
-  unit = <fun>
+  unit @@ global many = <fun>
 |}]
 
 let ambiguous__second_orpat = function
@@ -245,7 +250,7 @@ val ambiguous__second_orpat :
   [> `A of
        [> `B of 'a option * 'b option * 'c option ] *
        [> `C of 'a option * 'a option ] ] ->
-  unit = <fun>
+  unit @@ global many = <fun>
 |}]
 
 (* check that common prefixes work as expected *)
@@ -254,7 +259,8 @@ let not_ambiguous__pairs = function
   | _ -> ()
 ;;
 [%%expect {|
-val not_ambiguous__pairs : bool * 'a option * 'b option -> unit = <fun>
+val not_ambiguous__pairs : bool * 'a option * 'b option -> unit @@ global
+  many = <fun>
 |}]
 
 let not_ambiguous__vars =
@@ -264,7 +270,7 @@ let not_ambiguous__vars =
   end
 ;;
 [%%expect {|
-val not_ambiguous__vars : bool -> unit = <fun>
+val not_ambiguous__vars : bool -> unit @@ global many = <fun>
 |}]
 
 let not_ambiguous__as p = function
@@ -273,7 +279,8 @@ let not_ambiguous__as p = function
 ;;
 [%%expect {|
 val not_ambiguous__as :
-  ('a list * 'b list -> bool) -> 'a list * 'b list -> unit = <fun>
+  ('a list * 'b list -> bool) -> 'a list * 'b list -> unit @@ global many =
+  <fun>
 |}]
 
 let not_ambiguous__as_var p = function
@@ -281,8 +288,8 @@ let not_ambiguous__as_var p = function
   | _ -> ()
 ;;
 [%%expect {|
-val not_ambiguous__as_var : ('a list * 'b -> bool) -> 'a list * 'b -> unit =
-  <fun>
+val not_ambiguous__as_var : ('a list * 'b -> bool) -> 'a list * 'b -> unit @@
+  global many = <fun>
 |}]
 
 let not_ambiguous__var_as p = function
@@ -291,8 +298,8 @@ let not_ambiguous__var_as p = function
 ;;
 [%%expect {|
 val not_ambiguous__var_as :
-  ('a list * 'b -> bool) -> ('a list * 'b) * 'c option * 'd option -> unit =
-  <fun>
+  ('a list * 'b -> bool) -> ('a list * 'b) * 'c option * 'd option -> unit @@
+  global many = <fun>
 |}]
 
 let not_ambiguous__lazy = function
@@ -300,7 +307,8 @@ let not_ambiguous__lazy = function
   | _ -> ()
 ;;
 [%%expect {|
-val not_ambiguous__lazy : ('a list * 'b list) * bool lazy_t -> unit = <fun>
+val not_ambiguous__lazy : ('a list * 'b list) * bool lazy_t -> unit @@ global
+  many = <fun>
 |}]
 
 type t = A of int * int option * int option | B;;
@@ -313,7 +321,7 @@ let not_ambiguous__constructor = function
   | A _ | B -> ()
 ;;
 [%%expect {|
-val not_ambiguous__constructor : t -> unit = <fun>
+val not_ambiguous__constructor : t -> unit @@ global many = <fun>
 |}]
 
 type amoi = Z of int | Y of int * int  | X of amoi * amoi
@@ -337,7 +345,7 @@ variables x, y appear in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val ambiguous__amoi : amoi -> int = <fun>
+val ambiguous__amoi : amoi -> int @@ global many = <fun>
 |}]
 
 module type S = sig val b : bool end
@@ -361,7 +369,7 @@ Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
 val ambiguous__module_variable :
-  (module S) * (module S) * (int * int) -> bool -> int = <fun>
+  (module S) * (module S) * (int * int) -> bool -> int @@ global many = <fun>
 |}]
 
 let not_ambiguous__module_variable x b =  match x with
@@ -376,7 +384,7 @@ Line 2, characters 12-13:
 Warning 60 [unused-module]: unused module M.
 
 val not_ambiguous__module_variable :
-  (module S) * (module S) * (int * int) -> bool -> int = <fun>
+  (module S) * (module S) * (int * int) -> bool -> int @@ global many = <fun>
 |}]
 
 (* Mixed case *)
@@ -413,8 +421,8 @@ variables x, y appear in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val ambiguous_xy_but_not_ambiguous_z : (int -> int -> bool) -> t2 -> int =
-  <fun>
+val ambiguous_xy_but_not_ambiguous_z : (int -> int -> bool) -> t2 -> int @@
+  global many = <fun>
 |}, Principal{|
 Line 2, characters 4-5:
 2 |   | A (x as z,(0 as y))|A (0 as y as z,x)|B (x,(y as z)) when g x (y+z) -> 1
@@ -449,8 +457,8 @@ variables x, y appear in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val ambiguous_xy_but_not_ambiguous_z : (int -> int -> bool) -> t2 -> int =
-  <fun>
+val ambiguous_xy_but_not_ambiguous_z : (int -> int -> bool) -> t2 -> int @@
+  global many = <fun>
 |}]
 
 (* Regression test against an erroneous simplification of the algorithm
@@ -468,7 +476,7 @@ let not_ambiguous__as_disjoint_on_second_column_split = function
 ;;
 [%%expect {|
 val not_ambiguous__as_disjoint_on_second_column_split :
-  int option * int -> unit = <fun>
+  int option * int -> unit @@ global many = <fun>
 |}]
 
 (* we check for the ambiguous case first, so there
@@ -487,7 +495,8 @@ let solved_ambiguity_typical_example = function
       ()
 ;;
 [%%expect {|
-val solved_ambiguity_typical_example : expr * expr -> unit = <fun>
+val solved_ambiguity_typical_example : expr * expr -> unit @@ global many =
+  <fun>
 |}]
 
 (* if the check for the ambiguous case is guarded,
@@ -511,7 +520,7 @@ variable y appears in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val guarded_ambiguity : expr * expr -> unit = <fun>
+val guarded_ambiguity : expr * expr -> unit @@ global many = <fun>
 |}]
 
 (* see GPR#1552 *)
@@ -543,7 +552,7 @@ variable x appears in different places in different or-pattern alternatives.
 Only the first match will be used to evaluate the guard expression.
 (see manual section 13.5.4)
 
-val cmp : (a -> bool) -> a alg -> a alg -> unit = <fun>
+val cmp : (a -> bool) -> a alg -> a alg -> unit @@ global many = <fun>
 |}]
 
 type a = A1;;
@@ -566,5 +575,5 @@ let cmp (pred : a -> bool) (x : a alg) (y : a alg) =
   | (Val A1 | Binop _), _ -> ()
 ;;
 [%%expect {|
-val cmp : (a -> bool) -> a alg -> a alg -> unit = <fun>
+val cmp : (a -> bool) -> a alg -> a alg -> unit @@ global many = <fun>
 |}]

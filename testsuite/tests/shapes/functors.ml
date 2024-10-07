@@ -48,7 +48,8 @@ end
                                   "x"[value] -> <.9>;
                                   });
  }
-module Fredef : functor (X : S) -> sig type t = X.t val x : X.t end
+module Fredef :
+  functor (X : S) -> sig type t = X.t val x : X.t @@ global many end
 |}]
 
 module Fignore (_ : S) = struct
@@ -67,7 +68,8 @@ end
         "x"[value] -> <.13>;
         });
  }
-module Fignore : S -> sig type t = Fresh val x : t end
+module Fignore :
+  S -> sig type t = Fresh val x : t @@ global many portable end
 |}]
 
 module Arg : S = struct
@@ -118,7 +120,7 @@ include Fredef(Arg)
  "x"[value] -> <.9>;
  }
 type t = Arg.t
-val x : Arg.t = <abstr>
+val x : Arg.t @@ global many = <abstr>
 |}]
 
 include Fignore(Arg)
@@ -130,7 +132,7 @@ include Fignore(Arg)
  "x"[value] -> <.13>;
  }
 type t = Fignore(Arg).t = Fresh
-val x : t = Fresh
+val x : t @@ global many portable = Fresh
 |}]
 
 include Falias(struct type t = int let x = 0 end)
@@ -160,7 +162,7 @@ include Fredef(struct type t = int let x = 0 end)
  "x"[value] -> <.9>;
  }
 type t = int
-val x : int = 0
+val x : int @@ global many = 0
 |}]
 
 include Fignore(struct type t = int let x = 0 end)
@@ -172,7 +174,7 @@ include Fignore(struct type t = int let x = 0 end)
  "x"[value] -> <.13>;
  }
 type t = Fresh
-val x : t = Fresh
+val x : t @@ global many portable = Fresh
 |}]
 
 module Fgen () = struct
@@ -191,7 +193,8 @@ end
         "x"[value] -> <.29>;
         });
  }
-module Fgen : functor () -> sig type t = Fresher val x : t end
+module Fgen :
+  functor () -> sig type t = Fresher val x : t @@ global many portable end
 |}]
 
 include Fgen ()
@@ -203,7 +206,7 @@ include Fgen ()
  "x"[value] -> <.29>;
  }
 type t = Fresher
-val x : t = Fresher
+val x : t @@ global many portable = Fresher
 |}]
 
 (***************************************************************************)

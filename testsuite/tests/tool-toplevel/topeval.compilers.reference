@@ -1,7 +1,7 @@
 module A :
   sig type ('foo, 'bar) t val get_foo : ('foo, 'a) t -> 'foo option end
 - : ('foo, 'a) A.t -> 'foo option = <fun>
-val _bar : ('a, 'b) A.t -> 'a option = <fun>
+val _bar : ('a, 'b) A.t -> 'a option @@ global many = <fun>
 - : int = 42
 - : bool = false
 - : string = ""
@@ -9,5 +9,5 @@ val _bar : ('a, 'b) A.t -> 'a option = <fun>
 - : float = 42.
 external foo : int -> int -> int = "%addint"
 module S = String
-val x : int = 42
+val x : int @@ global many = 42
 

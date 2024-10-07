@@ -22,13 +22,13 @@ let noleak n =
   let r = local_ ref n in
   idint (r.contents)
 [%%expect{|
-val noleak : int -> int = <fun>
+val noleak : int -> int @@ global many = <fun>
 |}]
 
 
 let (!) = fun (local_ r) -> r.contents
 [%%expect{|
-val ( ! ) : local_ 'a ref -> 'a = <fun>
+val ( ! ) : local_ 'a ref -> 'a @@ global many = <fun>
 |}]
 
 (* Local lets *)
@@ -172,7 +172,7 @@ let foo () =
     ((fun y z -> z) : int -> local_ (int -> int)) in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -192,7 +192,7 @@ let foo () =
     ((fun y z -> z) : _ -> local_ (_ -> _)) in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -212,7 +212,7 @@ let foo () =
     ((fun y z -> z) : int -> local_ (int -> int)) in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -231,7 +231,7 @@ let foo (local_ bar : int -> int -> int) =
   let _ = (bar : int -> local_ (int -> int)) in
   ()
 [%%expect{|
-val foo : local_ (int -> int -> int) -> unit = <fun>
+val foo : local_ (int -> int -> int) -> unit @@ global many = <fun>
 |}]
 
 let foo (bar : int -> local_ (int -> int)) =
@@ -256,12 +256,12 @@ Error: This expression has type "int -> local_ (int -> int)"
 let f4 : int -> local_ 'a -> int -> int -> int =
   fun a _ b c -> a + b + c
 [%%expect{|
-val f4 : int -> local_ 'a -> int -> int -> int = <fun>
+val f4 : int -> local_ 'a -> int -> int -> int @@ global many = <fun>
 |}]
 
 let apply1 x = f4 x
 [%%expect{|
-val apply1 : int -> local_ 'a -> int -> int -> int = <fun>
+val apply1 : int -> local_ 'a -> int -> int -> int @@ global many = <fun>
 |}]
 let apply2 x = f4 x x
 [%%expect{|
@@ -286,7 +286,7 @@ Error: This value escapes its region.
 let apply4 x =
   f4 x x x x
 [%%expect{|
-val apply4 : int -> int = <fun>
+val apply4 : int -> int @@ global many = <fun>
 |}]
 
 (* Partial applications of two or three arguments are OK if bound locally *)
@@ -299,8 +299,8 @@ let apply3_stack x =
   let res = g x in
   res
 [%%expect{|
-val apply2_stack : int -> int = <fun>
-val apply3_stack : int -> int = <fun>
+val apply2_stack : int -> int @@ global many = <fun>
+val apply3_stack : int -> int @@ global many = <fun>
 |}]
 
 (*
@@ -310,7 +310,8 @@ let appopt1 (f : ?a:local_ int ref -> unit -> unit) =
   let res = f ~a:(let x = local_ ref 42 in x) () in
   res
 [%%expect{|
-val appopt1 : (?a:local_ int ref -> unit -> unit) -> unit = <fun>
+val appopt1 : (?a:local_ int ref -> unit -> unit) -> unit @@ global many =
+  <fun>
 |}]
 let appopt2 (f : ?a:local_ int ref -> unit -> unit) =
   let res = f ~a:(let x = local_ ref 42 in x) in
@@ -350,7 +351,7 @@ Error: This value escapes its region.
 (* Optional argument elimination eta-expands and therefore allocates *)
 let no_eta (local_ f : unit -> int) = (f : unit -> int)
 [%%expect{|
-val no_eta : local_ (unit -> int) -> unit -> int = <fun>
+val no_eta : local_ (unit -> int) -> unit -> int @@ global many = <fun>
 |}]
 
 let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
@@ -365,20 +366,20 @@ let etajoin p (f : ?b:bool -> unit -> int) (local_ g : unit -> int) =
   if p then (f : unit -> int) else g
 [%%expect{|
 val etajoin :
-  bool -> (?b:bool -> unit -> int) -> local_ (unit -> int) -> unit -> int =
-  <fun>
+  bool -> (?b:bool -> unit -> int) -> local_ (unit -> int) -> unit -> int @@
+  global many = <fun>
 |}]
 
 (* Default arguments *)
 
 let foo ?(local_ x) () = x;;
 [%%expect{|
-val foo : ?x:local_ 'a -> unit -> local_ 'a option = <fun>
+val foo : ?x:local_ 'a -> unit -> local_ 'a option @@ global many = <fun>
 |}]
 
 let foo ?(local_ x = "hello") () = x;;
 [%%expect{|
-val foo : ?x:local_ string -> unit -> local_ string = <fun>
+val foo : ?x:local_ string -> unit -> local_ string @@ global many = <fun>
 |}]
 
 let foo ?(local_ x = local_ "hello") () = x;;
@@ -435,7 +436,7 @@ let local_closure () =
   res
 
 [%%expect{|
-val local_closure : unit -> unit = <fun>
+val local_closure : unit -> unit @@ global many = <fun>
 |}]
 
 (*
@@ -511,15 +512,16 @@ let use_locally' (local_ f : local_ 'a -> 'a) (x : 'a) =
   let res = f x in
   res
 [%%expect{|
-val use_locally : (local_ 'a -> 'a) -> 'a -> 'a = <fun>
-val use_locally' : local_ (local_ 'a -> 'a) -> 'a -> 'a = <fun>
+val use_locally : (local_ 'a -> 'a) -> 'a -> 'a @@ global many = <fun>
+val use_locally' : local_ (local_ 'a -> 'a) -> 'a -> 'a @@ global many =
+  <fun>
 |}]
 
 let no_leak = use_locally (fun x -> 1) 42
 let no_leak' = use_locally' (fun x -> 1) 42
 [%%expect{|
-val no_leak : int = 1
-val no_leak' : int = 1
+val no_leak : int @@ global many = 1
+val no_leak' : int @@ global many = 1
 |}]
 
 let leak_id =
@@ -567,7 +569,7 @@ Error: This value escapes its region.
 let no_leak_exn =
   use_locally (fun x -> let _exn = local_ Invalid_argument x in "bluh") "blah"
 [%%expect{|
-val no_leak_exn : string = "bluh"
+val no_leak_exn : string @@ global many = "bluh"
 |}]
 let do_leak_exn =
   use_locally (fun x -> let _exn = local_ raise (Invalid_argument x) in "bluh") "blah"
@@ -592,7 +594,7 @@ let catch (f : unit -> local_ string) =
   in
   (a, b)
 [%%expect{|
-val catch : (unit -> local_ string) -> string * string = <fun>
+val catch : (unit -> local_ string) -> string * string @@ global many = <fun>
 |}]
 
 
@@ -600,7 +602,8 @@ val catch : (unit -> local_ string) -> string * string = <fun>
 let use_locally (f : local_ 'a -> local_ 'a) : local_ 'a -> local_ 'a = f
 [%%expect{|
 val use_locally :
-  ('a : any). (local_ 'a -> local_ 'a) -> local_ 'a -> local_ 'a = <fun>
+  ('a : any). (local_ 'a -> local_ 'a) -> local_ 'a -> local_ 'a @@ global
+  many = <fun>
 |}]
 
 let loc = ((fun x -> local_ x) : local_ int -> local_ int)
@@ -611,8 +614,8 @@ let no_leak_id =
   in ()
 
 [%%expect{|
-val loc : local_ int -> local_ int = <fun>
-val no_leak_id : unit = ()
+val loc : local_ int -> local_ int @@ global many = <fun>
+val no_leak_id : unit @@ global many = ()
 |}]
 
 module type S = sig val s : string end
@@ -624,7 +627,7 @@ let bar (local_ (m : (module S))) =
   ()
 [%%expect{|
 module type S = sig val s : string end
-val bar : local_ (module S) -> unit = <fun>
+val bar : local_ (module S) -> unit @@ global many = <fun>
 |}]
 
 let bar (local_ (m : (module S))) =
@@ -754,7 +757,7 @@ let foo (local_ x) =
       object end
   end in new M.c
 [%%expect{|
-val foo : local_ 'a -> <  > = <fun>
+val foo : local_ 'a -> <  > @@ global many = <fun>
 |}]
 
 let foo (local_ x : string ref) =
@@ -765,7 +768,7 @@ let foo (local_ x : string ref) =
     end
   end in new M.c
 [%%expect{|
-val foo : local_ string ref -> < m : string > = <fun>
+val foo : local_ string ref -> < m : string > @@ global many = <fun>
 |}]
 
 (* Don't escape under a class parameter variable *)
@@ -792,7 +795,8 @@ let foo (local_ x : string ref) =
       object method m = y end
   end in new M.c
 [%%expect{|
-val foo : local_ string ref -> (unit -> < m : string >) = <fun>
+val foo : local_ string ref -> (unit -> < m : string >) @@ global many =
+  <fun>
 |}]
 
 (* Don't escape in inherit expressions *)
@@ -835,7 +839,7 @@ let foo (local_ x) =
   let rec g () = let _ = x in h (); () and h () = g (); () in
   g (); ()
 [%%expect {|
-val foo : local_ 'a -> unit = <fun>
+val foo : local_ 'a -> unit @@ global many = <fun>
 |}]
 
 let foo (local_ x) =
@@ -843,7 +847,7 @@ let foo (local_ x) =
   let _ = (x, 1) in
   1
 [%%expect {|
-val foo : local_ 'a -> int = <fun>
+val foo : local_ 'a -> int @@ global many = <fun>
 |}]
 
 let foo (local_ x) =
@@ -865,7 +869,7 @@ let foo x =
   let r = local_ { contents = x } in
   print r
 [%%expect{|
-val print : local_ string ref -> unit = <fun>
+val print : local_ string ref -> unit @@ global many = <fun>
 Line 5, characters 8-9:
 5 |   print r
             ^
@@ -877,7 +881,7 @@ Error: This value escapes its region.
 let local_cb (local_ f) = f ()
 let foo (local_ x) = local_cb (fun () -> x := 17; 42)
 [%%expect{|
-val local_cb : local_ (unit -> 'a) -> 'a = <fun>
+val local_cb : local_ (unit -> 'a) -> 'a @@ global many = <fun>
 Line 2, characters 41-42:
 2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
                                              ^
@@ -890,14 +894,14 @@ let foo x =
   print r;
   ()
 [%%expect{|
-val foo : string -> unit = <fun>
+val foo : string -> unit @@ global many = <fun>
 |}]
 
 let foo x = exclave_
   let r = local_ { contents = x } in
   print r
 [%%expect{|
-val foo : string -> local_ unit = <fun>
+val foo : string -> local_ unit @@ global many = <fun>
 |}]
 
 (* Can pass local values to calls explicitly marked as nontail *)
@@ -905,14 +909,14 @@ let foo x =
   let local_ r = ref x in
   print r [@nontail]
 [%%expect{|
-val foo : string -> unit = <fun>
+val foo : string -> unit @@ global many = <fun>
 |}]
 
 let foo x =
   let local_ f () = 42 in
   f () [@nontail]
 [%%expect{|
-val foo : 'a -> int = <fun>
+val foo : 'a -> int @@ global many = <fun>
 |}]
 
 (* Cannot call local values in tail calls *)
@@ -936,7 +940,7 @@ let foo x =
   let res = foo () in
   res
 [%%expect{|
-val foo : 'a -> 'a = <fun>
+val foo : 'a -> 'a @@ global many = <fun>
 |}]
 
 let foo x = exclave_
@@ -944,7 +948,7 @@ let foo x = exclave_
   let local_ foo () = r.contents in
   foo ()
 [%%expect{|
-val foo : 'a -> local_ 'a = <fun>
+val foo : 'a -> local_ 'a @@ global many = <fun>
 |}]
 
 (* Cannot return local values without annotations on all exits *)
@@ -964,7 +968,7 @@ let foo x = exclave_
   let r = local_ { contents = x } in
   r
 [%%expect{|
-val foo : 'a -> local_ 'a ref = <fun>
+val foo : 'a -> local_ 'a ref @@ global many = <fun>
 |}]
 
 let foo p x = exclave_
@@ -972,7 +976,7 @@ let foo p x = exclave_
   if p then r
   else r
 [%%expect{|
-val foo : bool -> 'a -> local_ 'a ref = <fun>
+val foo : bool -> 'a -> local_ 'a ref @@ global many = <fun>
 |}]
 
 (* Non-local regional values can be passed to tail calls *)
@@ -981,7 +985,7 @@ let rec length acc (local_ xl) =
   | [] -> 0
   | x :: xs -> length (acc + 1) xs
 [%%expect{|
-val length : int -> local_ 'a list -> int = <fun>
+val length : int -> local_ 'a list -> int @@ global many = <fun>
 |}]
 
 let foo () =
@@ -993,7 +997,7 @@ let foo () =
   let x = baz () in
   x
 [%%expect{|
-val foo : unit -> int = <fun>
+val foo : unit -> int @@ global many = <fun>
 |}]
 
 (* tail-calling local-returning functions make the current function
@@ -1004,14 +1008,14 @@ let foo () = exclave_
   let _ = local_ (52, 24) in
   42
 [%%expect{|
-val foo : unit -> local_ int = <fun>
+val foo : unit -> local_ int @@ global many = <fun>
 |}]
 
 let bar () =
   let _x = 52 in
   foo ()
 [%%expect{|
-val bar : unit -> local_ int = <fun>
+val bar : unit -> local_ int @@ global many = <fun>
 |}]
 
 (* if not at tail, then not affected *)
@@ -1019,14 +1023,14 @@ let bar' () =
   let _x = foo () in
   52
 [%%expect{|
-val bar' : unit -> int = <fun>
+val bar' : unit -> int @@ global many = <fun>
 |}]
 
 (* nontail attribute works as well *)
 let bar' () =
   foo () [@nontail]
 [%%expect{|
-val bar' : unit -> int = <fun>
+val bar' : unit -> int @@ global many = <fun>
 |}]
 
 (* Parameter modes must be matched by the type *)
@@ -1044,7 +1048,7 @@ Error: This function takes a parameter which is "local",
 
 let foo : unit -> local_ string = fun () -> "hello"
 [%%expect{|
-val foo : unit -> local_ string = <fun>
+val foo : unit -> local_ string @@ global many = <fun>
 |}]
 
 let foo : unit -> string = fun () -> exclave_ "hello"
@@ -1065,7 +1069,7 @@ let f (local_ x) = B { bar = { foo = A x } }
 type 'a unb1 = A of 'a [@@unboxed]
 type 'a unb2 = { foo : 'a; } [@@unboxed]
 type 'a unb3 = B of { bar : 'a; } [@@unboxed]
-val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
+val f : local_ 'a -> local_ 'a unb1 unb2 unb3 @@ global many = <fun>
 |}]
 
 
@@ -1082,7 +1086,7 @@ type 'a gbl = { global_ gbl : 'a; }
 
 let foo (local_ x) = x.imm
 [%%expect{|
-val foo : local_ 'a imm -> local_ 'a = <fun>
+val foo : local_ 'a imm -> local_ 'a @@ global many = <fun>
 |}]
 let foo y =
   let x = local_ { imm = y } in
@@ -1096,28 +1100,28 @@ Error: This value escapes its region.
 |}]
 let foo (local_ x) = x.mut
 [%%expect{|
-val foo : local_ 'a mut -> 'a = <fun>
+val foo : local_ 'a mut -> 'a @@ global many = <fun>
 |}]
 let foo y =
   let x = local_ { mut = y } in
   x.mut
 [%%expect{|
-val foo : 'a -> 'a = <fun>
+val foo : 'a -> 'a @@ global many = <fun>
 |}]
 let foo (local_ x) = x.gbl
 [%%expect{|
-val foo : local_ 'a gbl -> 'a = <fun>
+val foo : local_ 'a gbl -> 'a @@ global many = <fun>
 |}]
 let foo y =
   let x = local_ { gbl = y } in
   x.gbl
 [%%expect{|
-val foo : 'a -> 'a = <fun>
+val foo : 'a -> 'a @@ global many = <fun>
 |}]
 
 let foo (local_ { imm }) = imm
 [%%expect{|
-val foo : local_ 'a imm -> local_ 'a = <fun>
+val foo : local_ 'a imm -> local_ 'a @@ global many = <fun>
 |}]
 let foo y =
   let { imm } = local_ { imm = y } in
@@ -1131,37 +1135,37 @@ Error: This value escapes its region.
 |}]
 let foo (local_ { mut }) = mut
 [%%expect{|
-val foo : local_ 'a mut -> 'a = <fun>
+val foo : local_ 'a mut -> 'a @@ global many = <fun>
 |}]
 let foo y =
   let { mut } = local_ { mut = y } in
   mut
 [%%expect{|
-val foo : 'a -> 'a = <fun>
+val foo : 'a -> 'a @@ global many = <fun>
 |}]
 let foo (local_ { gbl }) = gbl
 [%%expect{|
-val foo : local_ 'a gbl -> 'a = <fun>
+val foo : local_ 'a gbl -> 'a @@ global many = <fun>
 |}]
 let foo y =
   let { gbl } = local_ { gbl = y } in
   gbl
 [%%expect{|
-val foo : 'a -> 'a = <fun>
+val foo : 'a -> 'a @@ global many = <fun>
 |}]
 
 let foo (local_ imm) =
   let _ = { imm } in
   ()
 [%%expect{|
-val foo : local_ 'a -> unit = <fun>
+val foo : local_ 'a -> unit @@ global many = <fun>
 |}]
 let foo () =
   let imm = local_ ref 5 in
   let _ = { imm } in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 let foo (local_ mut) =
   let _ = { mut } in
@@ -1264,8 +1268,8 @@ let foo (local_ x) y =
   | None, _ -> ()
   | pr  -> let _, _ = pr in ();;
 [%%expect{|
-val escape : 'a -> unit = <fun>
-val foo : local_ 'a option -> 'b option -> unit = <fun>
+val escape : 'a -> unit @@ global many = <fun>
+val foo : local_ 'a option -> 'b option -> unit @@ global many = <fun>
 |}]
 
 let foo (local_ x) y =
@@ -1305,7 +1309,7 @@ let foo p (local_ x) y z =
   let _, _ = pr in
   escape b;;
 [%%expect{|
-val foo : bool -> local_ 'a -> 'b -> 'a * 'b -> unit = <fun>
+val foo : bool -> local_ 'a -> 'b -> 'a * 'b -> unit @@ global many = <fun>
 |}]
 
 let foo p (local_ x) y (local_ z) =
@@ -1358,7 +1362,7 @@ let foo (local_ x) =
   | None as y -> escape y
   | Some _ -> ()
 [%%expect{|
-val foo : local_ 'a option -> unit = <fun>
+val foo : local_ 'a option -> unit @@ global many = <fun>
 |}]
 
 let foo (local_ x) =
@@ -1379,7 +1383,7 @@ let foo (local_ x) =
   | 0 as y -> escape y
   | _ -> ()
 [%%expect{|
-val foo : local_ int -> unit = <fun>
+val foo : local_ int -> unit @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 21-22:
 3 |   | 0 as y -> escape y
@@ -1394,7 +1398,7 @@ let foo (local_ x) =
   | 'a'..'e' as y -> escape y
   | _ -> ()
 [%%expect{|
-val foo : local_ char -> unit = <fun>
+val foo : local_ char -> unit @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 28-29:
 3 |   | 'a'..'e' as y -> escape y
@@ -1422,7 +1426,7 @@ let foo (local_ x) =
   | `Foo as y -> escape y
   | _ -> ()
 [%%expect{|
-val foo : local_ [> `Foo ] -> unit = <fun>
+val foo : local_ [> `Foo ] -> unit @@ global many = <fun>
 |}]
 
 let foo (local_ x) =
@@ -1469,7 +1473,7 @@ let foo (local_ x) =
   | #foo as y -> escape y
 [%%expect{|
 type foo = [ `Bar | `Foo ]
-val foo : local_ [< foo ] -> unit = <fun>
+val foo : local_ [< foo ] -> unit @@ global many = <fun>
 |}]
 
 type foo = [`Foo | `Bar of int]
@@ -1514,11 +1518,15 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig val add : local_ int32 -> local_ int32 -> local_ int32 end
+         sig
+           val add : local_ int32 -> local_ int32 -> local_ int32 @@ global
+             many
+         end
        is not included in
          sig val add : local_ int32 -> local_ int32 -> int32 end
        Values do not match:
-         val add : local_ int32 -> local_ int32 -> local_ int32
+         val add : local_ int32 -> local_ int32 -> local_ int32 @@ global
+           many
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
        The type "local_ int32 -> local_ int32 -> local_ int32"
@@ -1575,8 +1583,8 @@ let zx : int ref -> (int -> unit) = (:=)
 let zz : local_ (int ref) -> int -> unit = (:=)
 let zy : local_ (int ref) -> (int -> unit) = (:=)
 [%%expect{|
-val zx : int ref -> int -> unit = <fun>
-val zz : local_ int ref -> int -> unit = <fun>
+val zx : int ref -> int -> unit @@ global many = <fun>
+val zz : local_ int ref -> int -> unit @@ global many = <fun>
 Line 3, characters 45-49:
 3 | let zy : local_ (int ref) -> (int -> unit) = (:=)
                                                  ^^^^
@@ -1593,16 +1601,19 @@ let nativeint (local_ x) (local_ y) = exclave_
 let float (local_ x) (local_ y) = exclave_
   (x +. y *. x -. 42.)
 [%%expect{|
-val int32 : local_ int32 -> local_ int32 -> local_ int32 = <fun>
-val int64 : local_ int64 -> local_ int64 -> local_ int64 = <fun>
-val nativeint : local_ nativeint -> local_ nativeint -> local_ nativeint =
+val int32 : local_ int32 -> local_ int32 -> local_ int32 @@ global many =
   <fun>
-val float : local_ float -> local_ float -> local_ float = <fun>
+val int64 : local_ int64 -> local_ int64 -> local_ int64 @@ global many =
+  <fun>
+val nativeint : local_ nativeint -> local_ nativeint -> local_ nativeint @@
+  global many = <fun>
+val float : local_ float -> local_ float -> local_ float @@ global many =
+  <fun>
 |}]
 
 let etapair (local_ x) = exclave_ (fst x, snd x)
 [%%expect{|
-val etapair : local_ 'a * 'b -> local_ 'a * 'b = <fun>
+val etapair : local_ 'a * 'b -> local_ 'a * 'b @@ global many = <fun>
 |}]
 
 (* Arity checking on primitives *)
@@ -1621,19 +1632,19 @@ Error: Wrong arity for builtin primitive "%int32_add"
 let compare (local_ x) (local_ y) =
   [x = y; x <> y; x < y; x > y; x <= y; x >= y; compare x y = 0; x == y; x != y]
 [%%expect{|
-val compare : local_ 'a -> local_ 'a -> bool list = <fun>
+val compare : local_ 'a -> local_ 'a -> bool list @@ global many = <fun>
 |}]
 
 (* integer primitives accept local args *)
 let intf (local_ x) = x |> Int.succ |> Int.add 42 |> pred |> (/) 100 |> (+) 1
 [%%expect{|
-val intf : local_ int -> int = <fun>
+val intf : local_ int -> int @@ global many = <fun>
 |}]
 
 (* primitives don't count as tail calls, so you can pass them locals *)
 let primloc x = let local_ y = Int32.add x 1l in Int32.to_int y
 [%%expect{|
-val primloc : int32 -> int = <fun>
+val primloc : int32 -> int @@ global many = <fun>
 |}]
 
 (* (&&) and (||) tail call on the right *)
@@ -1641,7 +1652,7 @@ let testbool1 f = let local_ r = ref 42 in (f r || false) && true
 
 let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
-val testbool1 : (local_ int ref -> bool) -> bool = <fun>
+val testbool1 : (local_ int ref -> bool) -> bool @@ global many = <fun>
 Line 3, characters 63-64:
 3 | let testbool2 f = let local_ r = ref 42 in true && (false || f r)
                                                                    ^
@@ -1655,8 +1666,8 @@ Error: This value escapes its region.
 let foo () = exclave_ let local_ _x = "hello" in true
 let testboo3 () =  true && (foo ())
 [%%expect{|
-val foo : unit -> local_ bool = <fun>
-val testboo3 : unit -> local_ bool = <fun>
+val foo : unit -> local_ bool @@ global many = <fun>
+val testboo3 : unit -> local_ bool @@ global many = <fun>
 |}]
 
 (* Test from Nathanaëlle Courant.
@@ -1679,7 +1690,7 @@ Error: This value escapes its region.
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
 [%%expect{|
-val promote : local_ int -> int = <fun>
+val promote : local_ int -> int @@ global many = <fun>
 |}]
 
 (* Or-patterns *)
@@ -1688,7 +1699,7 @@ let foo (local_ x) y =
   | Some z, None | None, Some z -> z
   | None, None | Some _, Some _ -> assert false
 [%%expect{|
-val foo : local_ 'a option -> 'a option -> local_ 'a = <fun>
+val foo : local_ 'a option -> 'a option -> local_ 'a @@ global many = <fun>
 |}]
 
 let foo (local_ x) y =
@@ -1696,7 +1707,7 @@ let foo (local_ x) y =
   | Some z, None | None, Some z -> z
   | None, None | Some _, Some _ -> assert false
 [%%expect{|
-val foo : local_ 'a option -> 'a option -> local_ 'a = <fun>
+val foo : local_ 'a option -> 'a option -> local_ 'a @@ global many = <fun>
 |}]
 
 module M = struct
@@ -1728,7 +1739,7 @@ let f g n =
   ()
 let z : (int list -> unit) -> int -> unit = f
 [%%expect{|
-val f : (local_ int list -> unit) -> int -> unit = <fun>
+val f : (local_ int list -> unit) -> int -> unit @@ global many = <fun>
 Line 5, characters 44-45:
 5 | let z : (int list -> unit) -> int -> unit = f
                                                 ^
@@ -1761,12 +1772,12 @@ Error: This expression has type "(local_ int list -> unit) -> int -> unit"
 
 let foo f = (f : local_ string -> float :> string -> float)
 [%%expect{|
-val foo : (local_ string -> float) -> string -> float = <fun>
+val foo : (local_ string -> float) -> string -> float @@ global many = <fun>
 |}]
 
 let foo f = (f : string -> float :> string -> local_ float)
 [%%expect{|
-val foo : (string -> float) -> string -> local_ float = <fun>
+val foo : (string -> float) -> string -> local_ float @@ global many = <fun>
 |}]
 
 let foo f = (f : string -> local_ float :> string -> float)
@@ -1787,7 +1798,7 @@ Error: Type "string -> float" is not a subtype of "local_ string -> local_ float
 
 let foo f = ignore (f :> string -> float); ()
 [%%expect{|
-val foo : (string -> float) -> unit = <fun>
+val foo : (string -> float) -> unit @@ global many = <fun>
 |}]
 
 let global_to_global_to_global (f : float -> string) = f 42.0
@@ -1796,9 +1807,10 @@ let foo f =
   ignore (f :> (local_ float -> string) -> string);
   [f; global_to_global_to_global]
 [%%expect{|
-val global_to_global_to_global : (float -> string) -> string = <fun>
-val foo : ((float -> string) -> string) -> ((float -> string) -> string) list =
+val global_to_global_to_global : (float -> string) -> string @@ global many =
   <fun>
+val foo : ((float -> string) -> string) -> ((float -> string) -> string) list
+  @@ global many = <fun>
 |}]
 
 let local_to_global_to_global (f : local_ float -> string) = f 42.0
@@ -1807,7 +1819,8 @@ let foo f =
   ignore (f :> (float -> string) -> string);
   [f; local_to_global_to_global]
 [%%expect{|
-val local_to_global_to_global : (local_ float -> string) -> string = <fun>
+val local_to_global_to_global : (local_ float -> string) -> string @@ global
+  many = <fun>
 Line 5, characters 6-31:
 5 |   [f; local_to_global_to_global]
           ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -2152,7 +2165,7 @@ let f (s : string) =
   | GFoo (s', _) -> ref s'
 
 [%%expect{|
-val f : string -> string ref = <fun>
+val f : string -> string ref @@ global many = <fun>
 |}]
 
 let f (local_ x : gfoo) =
@@ -2160,7 +2173,7 @@ let f (local_ x : gfoo) =
   | GFoo (s', _) -> ref s'
 
 [%%expect{|
-val f : local_ gfoo -> string ref = <fun>
+val f : local_ gfoo -> string ref @@ global many = <fun>
 |}]
 
 (* the argument not marked global remains contingent on construction  *)
@@ -2208,13 +2221,13 @@ Error: This value escapes its region.
 (* constructing local iarray from local elements is fine *)
 let f (local_ x : string) = exclave_ [:x; "foo":]
 [%%expect{|
-val f : local_ string -> local_ string iarray = <fun>
+val f : local_ string -> local_ string iarray @@ global many = <fun>
 |}]
 
 (* constructing global iarray from global elements is fine *)
 let f (x : string) = ref [:x; "foo":]
 [%%expect{|
-val f : string -> string iarray ref = <fun>
+val f : string -> string iarray ref @@ global many = <fun>
 |}]
 
 (* projecting out of local array gives local elements *)
@@ -2247,7 +2260,7 @@ let f (local_ a : string iarray) =
   | [: x; _ :] -> x
   | _ -> "foo"
 [%%expect{|
-val f : local_ string iarray -> local_ string = <fun>
+val f : local_ string iarray -> local_ string @@ global many = <fun>
 |}]
 
 (* projecting out of global iarray gives global elements *)
@@ -2256,7 +2269,7 @@ let f (a : string iarray) =
   | [: x :] -> ref x
   | _ -> ref "foo"
 [%%expect{|
-val f : string iarray -> string ref = <fun>
+val f : string iarray -> string ref @@ global many = <fun>
 |}]
 
 (* Mutable array, like references, is dangerous. They must contain global
@@ -2274,7 +2287,7 @@ Error: This value escapes its region.
 (* constructing local array from global elements is allowed *)
 let f (x : string) = exclave_ [| x |]
 [%%expect{|
-val f : string -> local_ string array = <fun>
+val f : string -> local_ string array @@ global many = <fun>
 |}]
 
 (* projecting out of local array gives global elements *)
@@ -2283,7 +2296,7 @@ let f (local_ a : string array) =
   | [| x |] -> ref x
   | _ -> ref "foo"
 [%%expect{|
-val f : local_ string array -> string ref = <fun>
+val f : local_ string array -> string ref @@ global many = <fun>
 |}]
 
 (* reported internal to Jane Street as TANDC-1742 *)
@@ -2328,13 +2341,13 @@ Lines 3-6, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val g : 'a -> 'b -> local_ string
-           val f : 'a -> local_ ('b -> local_ string)
+           val g : 'a -> 'b -> local_ string @@ global many portable
+           val f : 'a -> local_ ('b -> local_ string) @@ global many portable
          end
        is not included in
          sig val f : string -> string -> local_ string end
        Values do not match:
-         val f : 'a -> local_ ('b -> local_ string)
+         val f : 'a -> local_ ('b -> local_ string) @@ global many portable
        is not included in
          val f : string -> string -> local_ string
        The type "string -> local_ (string -> local_ string)"
@@ -2346,7 +2359,7 @@ Error: Signature mismatch:
 (* Valid; [local_ string -> string -> string] is [local_ string -> local_ (string -> string)] *)
 let f () = ((fun x y -> "") : (local_ string -> string -> string));;
 [%%expect{|
-val f : unit -> local_ string -> string -> string = <fun>
+val f : unit -> local_ string -> string -> string @@ global many = <fun>
 |}];;
 
 (* Illegal: the return mode on (string -> string) is global. *)
@@ -2372,14 +2385,14 @@ Error: This function or one of its parameters escape their region
 let f () = ((fun x -> (fun y -> "") [@extension.curry])
             : (local_ string -> (string -> string)));;
 [%%expect{|
-val f : unit -> local_ string -> (string -> string) = <fun>
+val f : unit -> local_ string -> (string -> string) @@ global many = <fun>
 |}];;
 
 (* mode crossing - the inner closure is [global] despite closing over [local_
 int] *)
 let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
 [%%expect{|
-val f : unit -> local_ int -> (int -> int) = <fun>
+val f : unit -> local_ int -> (int -> int) @@ global many = <fun>
 |}];;
 
 (* Illegal: the expected mode is global *)
@@ -2404,18 +2417,18 @@ Error: This function or one of its parameters escape their region
 (* For nested functions, inner functions are not constrained *)
 let f () = ((fun x -> fun y -> "") : (local_ string -> (string -> string)));;
 [%%expect{|
-val f : unit -> local_ string -> (string -> string) = <fun>
+val f : unit -> local_ string -> (string -> string) @@ global many = <fun>
 |}];;
 
 let f () = exclave_ ((fun x -> fun y -> x + y) : (_ -> _));;
 [%%expect{|
-val f : unit -> local_ (int -> (int -> int)) = <fun>
+val f : unit -> local_ (int -> (int -> int)) @@ global many = <fun>
 |}];;
 
 (* ok if curried *)
 let f () = exclave_ ((fun x -> (fun y -> x + y) [@extension.curry]) : (_ -> _));;
 [%%expect{|
-val f : unit -> local_ (int -> (int -> int)) = <fun>
+val f : unit -> local_ (int -> (int -> int)) @@ global many = <fun>
 |}];;
 
 (* Type annotations on a [local_] binding are interpreted in a local context,
@@ -2427,7 +2440,7 @@ let foo () =
   let local_ _bar2 z : int -> int -> int = exclave_ (fun x y -> x + y + z) in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}];;
 
 let foo () =
@@ -2478,8 +2491,8 @@ let foo (local_ _ : M.t) = ();;
 let foo_f (local_ _ : M.t -> unit) = ();;
 [%%expect{|
 module M : sig type t = M_constructor end
-val foo : local_ M.t -> unit = <fun>
-val foo_f : local_ (M.t -> unit) -> unit = <fun>
+val foo : local_ M.t -> unit @@ global many = <fun>
+val foo_f : local_ (M.t -> unit) -> unit @@ global many = <fun>
 |}]
 
 let () = foo M_constructor
@@ -2500,17 +2513,17 @@ let () = foo_f (local_ (fun M_constructor -> ()))
 
 let _ret () : M.t -> unit = (fun M_constructor -> ())
 [%%expect{|
-val _ret : unit -> M.t -> unit = <fun>
+val _ret : unit -> M.t -> unit @@ global many = <fun>
 |}]
 
 let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
 [%%expect{|
-val _ret : unit -> local_ (M.t -> unit) = <fun>
+val _ret : unit -> local_ (M.t -> unit) @@ global many = <fun>
 |}]
 
 let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
 [%%expect{|
-val _ret : unit -> local_ (M.t -> unit) = <fun>
+val _ret : unit -> local_ (M.t -> unit) @@ global many = <fun>
 |}]
 
 type r = {global_ x : string; y : string}
@@ -2522,5 +2535,5 @@ let foo () =
   {r with y = "foo!" }
 [%%expect{|
 type r = { global_ x : string; y : string; }
-val foo : unit -> r = <fun>
+val foo : unit -> r @@ global many = <fun>
 |}]

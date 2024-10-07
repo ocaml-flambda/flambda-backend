@@ -271,14 +271,14 @@ let can_escape_object_via_inheritance param = object
 [%%expect{|
 val can_escape_object_via_inheritance :
   < redrawWidget : parameter_contains_self -> unit; .. > ->
-  parameter_contains_self = <fun>
+  parameter_contains_self @@ global many = <fun>
 |}]
 
 let can_close_object_explicitly = object (_ : < i : int >)
   method i = 5
 end;;
 [%%expect{|
-val can_close_object_explicitly : < i : int > = <obj>
+val can_close_object_explicitly : < i : int > @@ global many = <obj>
 |}]
 
 let cannot_close_object_explicitly_with_inheritance = object

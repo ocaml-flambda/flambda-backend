@@ -68,12 +68,12 @@ type 'a t = 'a;;
 let f (x : 'a t as 'a) = ();; (* ok *)
 [%%expect{|
 type 'a t = 'a
-val f : 'a -> unit = <fun>
+val f : 'a -> unit @@ global many = <fun>
 |}];;
 
 let f (x : 'a t) (y : 'a) = x = y;;
 [%%expect{|
-val f : 'a t -> 'a -> bool = <fun>
+val f : 'a t -> 'a -> bool @@ global many = <fun>
 |}];;
 
 (* PR#6505 *)
@@ -117,7 +117,7 @@ module PR6505a :
     type 'o is_an_object = 'o constraint 'o = < .. >
     type ('a, 'b) abs = 'b constraint 'a = 'b is_an_object
       constraint 'b = < .. >
-    val y : (<  > is_an_object, <  > is_an_object) abs
+    val y : (<  > is_an_object, <  > is_an_object) abs @@ global many
   end
 Line 6, characters 8-17:
 6 | let _ = PR6505a.y#bang;; (* fails *)
@@ -131,7 +131,7 @@ module PR6505a :
     type 'o is_an_object = 'o constraint 'o = < .. >
     type ('a, 'b) abs = 'b constraint 'a = 'b is_an_object
       constraint 'b = < .. >
-    val y : (<  >, <  >) abs
+    val y : (<  >, <  >) abs @@ global many
   end
 Line 6, characters 8-17:
 6 | let _ = PR6505a.y#bang;; (* fails *)
@@ -152,7 +152,8 @@ module PR6505b :
     type 'o is_an_object = 'o constraint 'o = [>  ]
     type ('a, 'o) abs = 'o constraint 'a = 'o is_an_object
       constraint 'o = [>  ]
-    val x : (([> `Foo of int ] as 'a) is_an_object, 'a is_an_object) abs
+    val x : (([> `Foo of int ] as 'a) is_an_object, 'a is_an_object) abs @@
+      global many portable
   end
 Line 6, characters 23-57:
 6 | let () = print_endline (match PR6505b.x with `Bar s -> s);; (* fails *)
@@ -383,7 +384,8 @@ let test_obj_no_expansion :
       | Bar_tag -> obj#bar x
 [%%expect {|
 val test_obj_no_expansion :
-  'a tag -> < bar : bar -> 'b; foo : foo -> 'b; .. > -> 'a -> 'b = <fun>
+  'a tag -> < bar : bar -> 'b; foo : foo -> 'b; .. > -> 'a -> 'b @@ global
+  many = <fun>
 |}]
 
 let test_obj_with_expansion :
@@ -394,8 +396,8 @@ let test_obj_with_expansion :
       | Bar_tag -> obj#bar x
 [%%expect {|
 val test_obj_with_expansion :
-  'a tag -> ('b, < bar : bar -> 'b; foo : foo -> 'b; .. >) obj -> 'a -> 'b =
-  <fun>
+  'a tag -> ('b, < bar : bar -> 'b; foo : foo -> 'b; .. >) obj -> 'a -> 'b @@
+  global many = <fun>
 |}]
 
 

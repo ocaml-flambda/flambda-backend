@@ -34,9 +34,9 @@ type tag = [ `TagA | `TagB | `TagC ]
 type 'a poly =
     AandBTags : [< `TagA of int | `TagB ] poly
   | ATag : [< `TagA of int ] poly
-val intA : [< `TagA of 'a ] -> 'a = <fun>
-val intB : [< `TagB ] -> int = <fun>
-val intAorB : [< `TagA of int | `TagB ] -> int = <fun>
+val intA : [< `TagA of 'a ] -> 'a @@ global many = <fun>
+val intB : [< `TagB ] -> int @@ global many = <fun>
+val intAorB : [< `TagA of int | `TagB ] -> int @@ global many = <fun>
 type _ wrapPoly =
     WrapPoly : 'a poly -> ([< `TagA of int | `TagB ] as 'a) wrapPoly
 Line 25, characters 23-27:

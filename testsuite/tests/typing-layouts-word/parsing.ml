@@ -11,7 +11,7 @@ type t = nativeint#;;
 let f (_ : nativeint#) = ();;
 [%%expect {|
 type t = nativeint#
-val f : nativeint# -> unit = <fun>
+val f : nativeint# -> unit @@ global many = <fun>
 |}];;
 
 type t = C of nativeint#;;
@@ -214,7 +214,7 @@ type 'a t = C of (nativeint #c as 'a);;
 type t = C : nativeint #c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = nativeint #c
-val f : nativeint #c -> unit = <fun>
+val f : nativeint #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = nativeint #c
 type t = C : nativeint #c -> t
 |}];;
@@ -250,7 +250,7 @@ type 'a t = C of (nativeint # c as 'a);;
 type t = C : nativeint # c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = nativeint #c
-val f : nativeint #c -> unit = <fun>
+val f : nativeint #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = nativeint #c
 type t = C : nativeint #c -> t
 |}];;

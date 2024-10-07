@@ -13,9 +13,9 @@ let h : [> `b] t -> unit = fun _ -> ();;
 [%%expect{|
 type 'a t
 type a
-val f : < .. > t -> unit = <fun>
-val g : [< `b ] t -> unit = <fun>
-val h : [> `b ] t -> unit = <fun>
+val f : < .. > t -> unit @@ global many = <fun>
+val g : [< `b ] t -> unit @@ global many = <fun>
+val h : [> `b ] t -> unit @@ global many = <fun>
 |}];;
 
 let _ = fun (x : a t) -> f x;;

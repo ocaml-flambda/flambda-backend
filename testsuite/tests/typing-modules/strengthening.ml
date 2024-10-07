@@ -151,7 +151,7 @@ module Can_use_type :
         val foo : M.t -> M.t
         val bar : N.t
       end
-    val x : A.M.t
+    val x : A.M.t @@ global many
   end
 |}]
 
@@ -204,7 +204,7 @@ module Expand_destructive_with :
                module M : sig val foo : int -> int end
                module N : sig type t = int val foo : t -> t end
              end)
-        -> sig val bar : X.N.t end
+        -> sig val bar : X.N.t @@ global many portable end
   end
 |}]
 

@@ -24,7 +24,10 @@ Lines 3-10, characters 6-3:
 10 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = A.t = A | B val f : t -> unit end
+         sig
+           type t = A.t = A | B
+           val f : t -> unit @@ global many portable
+         end
        is not included in
          sig type t = int * string end
        Type declarations do not match:
@@ -56,7 +59,10 @@ Lines 3-10, characters 6-3:
 10 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = 'a B.t = A of 'a | B val f : 'a t -> unit end
+         sig
+           type 'a t = 'a B.t = A of 'a | B
+           val f : 'a t -> unit @@ global many portable
+         end
        is not included in
          sig type 'a t = 'a end
        Type declarations do not match:
@@ -88,7 +94,10 @@ Lines 3-10, characters 6-3:
 10 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = 'a C.t = A of 'a | B val f : 'a t -> unit end
+         sig
+           type 'a t = 'a C.t = A of 'a | B
+           val f : 'a t -> unit @@ global many portable
+         end
        is not included in
          sig type 'a t = { x : 'a; } end
        Type declarations do not match:
@@ -121,7 +130,10 @@ Lines 3-10, characters 6-3:
 10 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = 'a D.t = A of 'a | B val f : 'a t -> unit end
+         sig
+           type 'a t = 'a D.t = A of 'a | B
+           val f : 'a t -> unit @@ global many portable
+         end
        is not included in
          sig type 'a t = int end
        Type declarations do not match:
@@ -153,7 +165,10 @@ Lines 3-10, characters 6-3:
 10 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = 'a E.t = A of 'a | B val f : 'a t -> unit end
+         sig
+           type 'a t = 'a E.t = A of 'a | B
+           val f : 'a t -> unit @@ global many portable
+         end
        is not included in
          sig type 'a t = 'a constraint 'a = [> `Foo ] end
        Type declarations do not match:
@@ -186,7 +201,10 @@ Lines 3-10, characters 6-3:
 10 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = 'a E2.t = A of 'a | B val f : 'a t -> unit end
+         sig
+           type 'a t = 'a E2.t = A of 'a | B
+           val f : 'a t -> unit @@ global many portable
+         end
        is not included in
          sig type 'a t = [ `Foo ] end
        Type declarations do not match:
@@ -218,7 +236,10 @@ Lines 3-10, characters 6-3:
 10 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = 'a E3.t = A of 'a | B val f : 'a t -> unit end
+         sig
+           type 'a t = 'a E3.t = A of 'a | B
+           val f : 'a t -> unit @@ global many portable
+         end
        is not included in
          sig type 'a t = 'a constraint 'a = [< `Foo ] end
        Type declarations do not match:
@@ -252,7 +273,7 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type ('a, 'b) t = ('a, 'b) F.t = Foo of 'b
-           val coerce : ('a, 'b) t -> ('a, 'b) F.t
+           val coerce : ('a, 'b) t -> ('a, 'b) F.t @@ global many portable
          end
        is not included in
          sig type ('a, 'b) t = Foo of 'a end

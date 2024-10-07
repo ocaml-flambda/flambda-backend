@@ -4,7 +4,8 @@ Fille
 
 let f = fun ~(call_pos:[%call_pos]) () -> call_pos
 [%%expect {|
-val f : call_pos:[%call_pos] -> unit -> lexing_position = <fun>
+val f : call_pos:[%call_pos] -> unit -> lexing_position @@ global many =
+  <fun>
 |}]
 
 let _ = f ?call_pos:None ();
@@ -29,8 +30,8 @@ Error: the argument labeled "call_pos" is a "[%call_pos]" argument, filled in
 
 let ( >>| ) ~(call_pos : [%call_pos]) a b = a + b, call_pos ;;
 [%%expect {|
-val ( >>| ) : call_pos:[%call_pos] -> int -> int -> int * lexing_position =
-  <fun>
+val ( >>| ) : call_pos:[%call_pos] -> int -> int -> int * lexing_position @@
+  global many = <fun>
 |}]
 
 let _ =  ( >>| ) ?call_pos:None 1 2 ;;

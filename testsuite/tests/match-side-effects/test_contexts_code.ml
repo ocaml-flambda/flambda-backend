@@ -67,7 +67,7 @@ let example_1 () =
                                                           case tag 1: [1: 2]))
                                                        [1: 1])))))
   (apply (field_imm 1 (global Toploop!)) "example_1" example_1/295))
-val example_1 : unit -> (bool, int) Result.t = <fun>
+val example_1 : unit -> (bool, int) Result.t @@ global many = <fun>
 |}]
 
 #use "contexts_2.ml";;
@@ -139,7 +139,7 @@ let example_2 () =
                                                           case tag 1: [1: 2]))
                                                        [1: 1])))))
   (apply (field_imm 1 (global Toploop!)) "example_2" example_2/331))
-val example_2 : unit -> (bool, int) Result.t = <fun>
+val example_2 : unit -> (bool, int) Result.t @@ global many = <fun>
 |}]
 
 #use "contexts_3.ml";;
@@ -200,5 +200,5 @@ let example_3 () =
                                                         case tag 1: [1: 2])
                                                        [1: 1])))))
   (apply (field_imm 1 (global Toploop!)) "example_3" example_3/348))
-val example_3 : unit -> (bool, int) Result.t = <fun>
+val example_3 : unit -> (bool, int) Result.t @@ global many = <fun>
 |}]

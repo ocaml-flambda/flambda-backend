@@ -17,7 +17,7 @@ type t = int64x2#;;
 let f (_ : int64x2#) = ();;
 [%%expect {|
 type t = int64x2#
-val f : int64x2# -> unit = <fun>
+val f : int64x2# -> unit @@ global many = <fun>
 |}];;
 
 type t = C of int64x2#;;
@@ -220,7 +220,7 @@ type 'a t = C of (int64 #c as 'a);;
 type t = C : int64 #c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = int64 #c
-val f : int64 #c -> unit = <fun>
+val f : int64 #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = int64 #c
 type t = C : int64 #c -> t
 |}];;
@@ -256,7 +256,7 @@ type 'a t = C of (int64 # c as 'a);;
 type t = C : int64 # c -> t;;
 [%%expect {|
 type 'a t = 'a constraint 'a = int64 #c
-val f : int64 #c -> unit = <fun>
+val f : int64 #c -> unit @@ global many = <fun>
 type 'a t = C of 'a constraint 'a = int64 #c
 type t = C : int64 #c -> t
 |}];;

@@ -35,5 +35,5 @@ module type S =
 let f (module _ : S) = ()
 ;;
 [%%expect{|
-val f : (module S) -> unit = <fun>
+val f : (module S) -> unit @@ global many = <fun>
 |}]

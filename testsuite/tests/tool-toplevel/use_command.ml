@@ -5,7 +5,7 @@
 (* Test a success case *)
 #use_output {|echo let x = 42|}
 [%%expect {|
-val x : int = 42
+val x : int @@ global many = 42
 |}];;
 
 (* When the command fails *)

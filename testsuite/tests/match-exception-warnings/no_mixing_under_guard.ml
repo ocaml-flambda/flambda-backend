@@ -13,7 +13,7 @@ let guarded f =
 
 [%%expect{|
 exception Exit
-val r : string ref = {contents = ""}
+val r : string ref @@ global many = {contents = ""}
 Line 7, characters 4-25:
 7 |   | true | exception Exit when r := "hello"; true -> !r
         ^^^^^^^^^^^^^^^^^^^^^

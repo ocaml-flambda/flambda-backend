@@ -10,17 +10,17 @@ type 'a t = T : ('a -> 'b) * ('b -> 'a) -> 'a t
 
 let t = T ((fun x -> x), (fun x -> x));;
 [%%expect{|
-val t : 'a t = T (<fun>, <fun>)
+val t : 'a t @@ global many = T (<fun>, <fun>)
 |}]
 
 let t1 = let T (g, h) = t in h (g 1);;
 [%%expect{|
-val t1 : int = 1
+val t1 : int @@ global many = 1
 |}]
 
 let f x = let T (g, h) = t in h (g x);;
 [%%expect{|
-val f : 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
 |}]
 
 (* reformulation by @gasche *)
@@ -39,7 +39,7 @@ type 'a some_iso = Iso : ('a, 'b) iso -> 'a some_iso
 let t : 'a . 'a some_iso =
   Iso ((fun x -> x), (fun x -> x))
 [%%expect{|
-val t : 'a some_iso = Iso (<fun>, <fun>)
+val t : 'a some_iso @@ global many = Iso (<fun>, <fun>)
 |}]
 
 let unsound_cast : 'a 'b. 'a -> 'b = fun x ->

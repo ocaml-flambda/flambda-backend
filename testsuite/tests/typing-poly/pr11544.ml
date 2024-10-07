@@ -7,5 +7,5 @@ let poly3 : 'b. M.t -> 'b -> 'b =
   fun T x -> x
 [%%expect {|
 module M : sig type t = T end
-val poly3 : M.t -> 'b -> 'b = <fun>
+val poly3 : M.t -> 'b -> 'b @@ global many = <fun>
 |}];;

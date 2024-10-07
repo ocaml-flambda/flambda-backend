@@ -15,19 +15,19 @@ class type bar_t =
   end
 type 'b class_name += Bar : bar_t class_name
 class bar : bar_t
-val clist : castable list ref = {contents = []}
-val push_castable : #castable -> unit = <fun>
-val pop_castable : unit -> castable = <fun>
+val clist : castable list ref @@ global many = {contents = []}
+val push_castable : #castable -> unit @@ global many = <fun>
+val pop_castable : unit -> castable @@ global many = <fun>
 - : unit = ()
 - : unit = ()
 - : unit = ()
-val c1 : castable = <obj>
-val c2 : castable = <obj>
-val c3 : castable = <obj>
-val f1 : foo = <obj>
-val f2 : foo = <obj>
-val f3 : foo = <obj>
+val c1 : castable @@ global many = <obj>
+val c2 : castable @@ global many = <obj>
+val c3 : castable @@ global many = <obj>
+val f1 : foo @@ global many = <obj>
+val f2 : foo @@ global many = <obj>
+val f3 : foo @@ global many = <obj>
 Exception: Bad_cast.
-val b2 : bar = <obj>
+val b2 : bar @@ global many = <obj>
 Exception: Bad_cast.
 

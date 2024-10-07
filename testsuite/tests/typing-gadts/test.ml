@@ -40,8 +40,8 @@ module Exp :
       | Pair : 'a t * 'b t -> ('a * 'b) t
       | App : ('a -> 'b) t * 'a t -> 'b t
       | Abs : ('a -> 'b) -> ('a -> 'b) t
-    val eval : 's t -> 's
-    val discern : 'a t -> int
+    val eval : 's t -> 's @@ global many portable
+    val discern : 'a t -> int @@ global many portable
   end
 |}];;
 
@@ -68,9 +68,9 @@ module List :
   sig
     type zero
     type _ t = Nil : zero t | Cons : 'a * 'b t -> ('a * 'b) t
-    val head : ('a * 'b) t -> 'a
-    val tail : ('a * 'b) t -> 'b t
-    val length : 'a t -> int
+    val head : ('a * 'b) t -> 'a @@ global many portable
+    val tail : ('a * 'b) t -> 'b t @@ global many portable
+    val length : 'a t -> int @@ global many portable
   end
 |}];;
 
@@ -122,10 +122,10 @@ module Nonexhaustive :
   sig
     type 'a u = C1 : int -> int u | C2 : bool -> bool u
     type 'a v = C1 : int -> int v
-    val unexhaustive : 's u -> 's
+    val unexhaustive : 's u -> 's @@ global many portable
     module M : sig type t type u end
     type 'a t = Foo : M.t -> M.t t | Bar : M.u -> M.u t
-    val same_type : 's t * 's t -> bool
+    val same_type : 's t * 's t -> bool @@ global many portable
   end
 |}];;
 
@@ -149,7 +149,7 @@ module Exhaustive :
     type t = int
     type u = bool
     type 'a v = Foo : t -> t v | Bar : u -> u v
-    val same_type : 's v * 's v -> bool
+    val same_type : 's v * 's v -> bool @@ global many portable
   end
 |}];;
 
@@ -187,7 +187,10 @@ module Exhaustive2 = struct
 end;;
 [%%expect{|
 module Exhaustive2 :
-  sig type _ t = Int : int t val f : bool t option -> unit end
+  sig
+    type _ t = Int : int t
+    val f : bool t option -> unit @@ global many portable
+  end
 |}];;
 
 module PR6220 = struct
@@ -205,8 +208,8 @@ Consider replacing it with a refutation case '<pat> -> .'
 module PR6220 :
   sig
     type 'a t = I : int t | F : float t
-    val f : int t -> int
-    val g : int t -> int
+    val f : int t -> int @@ global many portable
+    val g : int t -> int @@ global many portable
   end
 |}];;
 
@@ -224,7 +227,8 @@ module PR6403 :
     type (_, _) eq = Refl : ('a, 'a) eq
     type empty = { bottom : 'a. 'a; }
     type ('a, 'b) sum = Left of 'a | Right of 'b
-    val notequal : ((int, bool) eq, empty) sum -> empty
+    val notequal : ((int, bool) eq, empty) sum -> empty @@ global many
+      portable
   end
 |}];;
 
@@ -250,7 +254,7 @@ module PR6437 :
         Nil : (unit, unit) ctx
       | Cons : ('a, 'b) ctx -> ('a * unit, 'b * unit) ctx
     type 'a var = O : ('a * unit) var | S : 'a var -> ('a * unit) var
-    val f : ('g1, 'g2) ctx * 'g1 var -> 'g2 var
+    val f : ('g1, 'g2) ctx * 'g1 var -> 'g2 var @@ global many portable
   end
 |}];;
 
@@ -278,7 +282,7 @@ module PR6801 :
         String : string -> string value
       | Float : float -> float value
       | Any
-    val print_string_value : string value -> unit
+    val print_string_value : string value -> unit @@ global many
   end
 |}];;
 
@@ -308,7 +312,10 @@ module Rectype =
 ;;
 [%%expect{|
 module Rectype :
-  sig type (_, _) t = C : ('a, 'a) t val f : ('s, 's * 's) t -> unit end
+  sig
+    type (_, _) t = C : ('a, 'a) t
+    val f : ('s, 's * 's) t -> unit @@ global many portable
+  end
 |}];;
 
 module Or_patterns =
@@ -327,7 +334,7 @@ end
 module Or_patterns :
   sig
     type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
-    val eval : 's t -> unit
+    val eval : 's t -> unit @@ global many portable
   end
 |}];;
 
@@ -347,7 +354,7 @@ module Polymorphic_variants =
 module Polymorphic_variants :
   sig
     type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
-    val eval : [ `A ] * 's t -> unit
+    val eval : [ `A ] * 's t -> unit @@ global many portable
   end
 |}];;
 
@@ -371,7 +378,7 @@ end
 module Propagation :
   sig
     type _ t = IntLit : int -> int t | BoolLit : bool -> bool t
-    val check : 's t -> 's
+    val check : 's t -> 's @@ global many portable
   end
 |}, Principal{|
 Line 13, characters 19-20:
@@ -420,22 +427,22 @@ let test : type a. a t -> a =
 ;;
 [%%expect{|
 type _ t = Int : int t
-val ky : 'a -> 'a -> 'a = <fun>
-val test : 'a t -> 'a = <fun>
+val ky : 'a -> 'a -> 'a @@ global many = <fun>
+val test : 'a t -> 'a @@ global many = <fun>
 |}];;
 
 let rec test : type a. a t -> a =
   function Int -> (1 : a)
 ;;
 [%%expect{|
-val test : 'a t -> 'a = <fun>
+val test : 'a t -> 'a @@ global many = <fun>
 |}];;
 
 let test : type a. a t -> _ =
   function Int -> 1       (* ok *)
 ;;
 [%%expect{|
-val test : 'a t -> int = <fun>
+val test : 'a t -> int @@ global many = <fun>
 |}];;
 
 let test : type a. a t -> _ =
@@ -483,7 +490,7 @@ let test (type a) x =
   in r
 ;;
 [%%expect{|
-val test : 'a t -> int = <fun>
+val test : 'a t -> int @@ global many = <fun>
 |}];;
 
 let test : type a. a t -> a = fun x ->
@@ -491,7 +498,7 @@ let test : type a. a t -> a = fun x ->
   in r
 ;;
 [%%expect{|
-val test : 'a t -> 'a = <fun>
+val test : 'a t -> 'a @@ global many = <fun>
 |}];;
 
 let test : type a. a t -> _ = fun x ->
@@ -499,7 +506,7 @@ let test : type a. a t -> _ = fun x ->
   in r
 ;;
 [%%expect{|
-val test : 'a t -> int = <fun>
+val test : 'a t -> int @@ global many = <fun>
 |}];;
 
 let test : type a. a t -> a = fun x ->
@@ -507,7 +514,7 @@ let test : type a. a t -> a = fun x ->
   in r (* ok *)
 ;;
 [%%expect{|
-val test : 'a t -> 'a = <fun>
+val test : 'a t -> 'a @@ global many = <fun>
 |}];;
 
 let test2 : type a. a t -> a option = fun x ->
@@ -516,7 +523,7 @@ let test2 : type a. a t -> a option = fun x ->
   !r (* ok *)
 ;;
 [%%expect{|
-val test2 : 'a t -> 'a option = <fun>
+val test2 : 'a t -> 'a option @@ global many = <fun>
 |}];;
 
 let test2 : type a. a t -> a option = fun x ->
@@ -525,7 +532,7 @@ let test2 : type a. a t -> a option = fun x ->
   !r (* ok *)
 ;;
 [%%expect{|
-val test2 : 'a t -> 'a option = <fun>
+val test2 : 'a t -> 'a option @@ global many = <fun>
 |}];;
 
 let test2 : type a. a t -> a option = fun x ->
@@ -535,7 +542,7 @@ let test2 : type a. a t -> a option = fun x ->
   !u
 ;; (* ok (u non-ambiguous) *)
 [%%expect{|
-val test2 : 'a t -> 'a option = <fun>
+val test2 : 'a t -> 'a option @@ global many = <fun>
 |}];;
 
 let test2 : type a. a t -> a option = fun x ->
@@ -562,7 +569,7 @@ let test2 : type a. a t -> a option = fun x ->
   !u
 ;; (* ok *)
 [%%expect{|
-val test2 : 'a t -> 'a option = <fun>
+val test2 : 'a t -> 'a option @@ global many = <fun>
 |}];;
 
 let test2 : type a. a t -> a option = fun x ->
@@ -574,7 +581,7 @@ let test2 : type a. a t -> a option = fun x ->
   in a
 ;; (* ok *)
 [%%expect{|
-val test2 : 'a t -> 'a option = <fun>
+val test2 : 'a t -> 'a option @@ global many = <fun>
 |}];;
 
 let either = ky
@@ -582,7 +589,7 @@ let we_y1x (type a) (x : a) (v : a t) =
   match v with Int -> let y = either 1 x in y
 ;; (* fail *)
 [%%expect{|
-val either : 'a -> 'a -> 'a = <fun>
+val either : 'a -> 'a -> 'a @@ global many = <fun>
 Line 3, characters 44-45:
 3 |   match v with Int -> let y = either 1 x in y
                                                 ^
@@ -598,7 +605,7 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> 'a = <fun>
+val f : 'a t -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f (type a) (x : a t) y =
@@ -607,7 +614,7 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> 'a = <fun>
+val f : 'a t -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f (type a) (x : a t) y =
@@ -616,7 +623,7 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> 'a = <fun>
+val f : 'a t -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f (type a) (x : a t) y =
@@ -625,14 +632,14 @@ let f (type a) (x : a t) y =
   r
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> 'a = <fun>
+val f : 'a t -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f (type a) (x : a t) (y : a) =
   match x with Int -> y (* returns 'a *)
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> 'a = <fun>
+val f : 'a t -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 (* Combination with local modules *)
@@ -643,7 +650,7 @@ let f (type a) (x : a t) y =
     in M.z
 ;;
 [%%expect{|
-val f : 'a t -> 'a -> 'a = <fun>
+val f : 'a t -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f (type a) (x : a t) y =
@@ -652,7 +659,7 @@ let f (type a) (x : a t) y =
     in M.z
 ;; (* ok *)
 [%%expect{|
-val f : 'a t -> int -> int = <fun>
+val f : 'a t -> int -> int @@ global many = <fun>
 |}];;
 
 (* Objects and variants *)
@@ -667,7 +674,7 @@ let f : type a. a h -> a = function
 ;;
 [%%expect{|
 type _ h = Has_m : < m : int > h | Has_b : < b : bool > h
-val f : 'a h -> 'a = <fun>
+val f : 'a h -> 'a @@ global many = <fun>
 |}];;
 
 type _ j =
@@ -680,7 +687,7 @@ let f : type a. a j -> a = function
 ;;
 [%%expect{|
 type _ j = Has_A : [ `A of int ] j | Has_B : [ `B of bool ] j
-val f : 'a j -> 'a = <fun>
+val f : 'a j -> 'a @@ global many = <fun>
 |}];;
 
 type (_,_) eq = Eq : ('a,'a) eq ;;
@@ -728,7 +735,7 @@ let f : type a b. (a,b) eq -> <m : a> -> <m : b> =
   fun Eq o -> o
 ;; (* ok *)
 [%%expect{|
-val f : ('a, 'b) eq -> < m : 'a > -> < m : 'b > = <fun>
+val f : ('a, 'b) eq -> < m : 'a > -> < m : 'b > @@ global many = <fun>
 |}];;
 
 let int_of_bool : (bool,int) eq = Obj.magic Eq;;
@@ -740,10 +747,10 @@ let f : type a. (a, int) eq -> <m : a> -> bool =
   fun Eq o -> ignore (o : <m : int; ..>); o#m = 3
 ;; (* should be ok *)
 [%%expect{|
-val int_of_bool : (bool, int) eq = Eq
-val x : < m : bool > = <obj>
-val y : < m : bool > * < m : int > = (<obj>, <obj>)
-val f : ('a, int) eq -> < m : 'a > -> bool = <fun>
+val int_of_bool : (bool, int) eq @@ global many portable = Eq
+val x : < m : bool > @@ global many = <obj>
+val y : < m : bool > * < m : int > @@ global many = (<obj>, <obj>)
+val f : ('a, int) eq -> < m : 'a > -> bool @@ global many = <fun>
 |}];;
 
 let f : type a b. (a,b) eq -> < m : a; .. > -> < m : b > =
@@ -752,7 +759,7 @@ let f : type a b. (a,b) eq -> < m : a; .. > -> < m : b > =
     let r : < m : b > = match eq with Eq -> o in (* fail with principal *)
     r;;
 [%%expect{|
-val f : ('a, 'b) eq -> < m : 'a > -> < m : 'b > = <fun>
+val f : ('a, 'b) eq -> < m : 'a > -> < m : 'b > @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 44-45:
 4 |     let r : < m : b > = match eq with Eq -> o in (* fail with principal *)
@@ -823,14 +830,15 @@ Error: This definition has type
 let f : type a b. (a,b) eq -> [`A of a | `B] -> [`A of b | `B] =
   fun Eq o -> o ;; (* ok *)
 [%%expect{|
-val f : ('a, 'b) eq -> [ `A of 'a | `B ] -> [ `A of 'b | `B ] = <fun>
+val f : ('a, 'b) eq -> [ `A of 'a | `B ] -> [ `A of 'b | `B ] @@ global many =
+  <fun>
 |}];;
 
 let f : type a. (a, int) eq -> [`A of a] -> bool =
   fun Eq v -> match v with `A 1 -> true | _ -> false
 ;; (* ok *)
 [%%expect{|
-val f : ('a, int) eq -> [ `A of 'a ] -> bool = <fun>
+val f : ('a, int) eq -> [ `A of 'a ] -> bool @@ global many = <fun>
 |}];;
 
 let f : type a b. (a,b) eq -> [> `A of a | `B] -> [`A of b | `B] =
@@ -912,7 +920,7 @@ type _ ty =
   | TB : bool ty
   | TC : float ty
   | TD : string -> bool ty
-val f : 'a ty -> 'a t -> int = <fun>
+val f : 'a ty -> 'a t -> int @@ global many = <fun>
 |}];;
 
 let f : type a. a ty -> a t -> int = fun x y ->
@@ -937,7 +945,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (TE TC, D [| 0. |])
 
-val f : 'a ty -> 'a t -> int = <fun>
+val f : 'a ty -> 'a t -> int @@ global many = <fun>
 |}];;
 
 let f : type a. a ty -> a t -> int = fun x y ->
@@ -1002,7 +1010,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {left=TE TC; right=D [| 0. |]}
 
-val f : 'a ty -> 'a t -> int = <fun>
+val f : 'a ty -> 'a t -> int @@ global many = <fun>
 |}];;
 
 (* Injectivity *)
@@ -1028,14 +1036,14 @@ let f : type a b. (a M.t * a, b M.t * b) eq -> (a, b) eq =
   function Eq -> Eq (* ok *)
 ;;
 [%%expect{|
-val f : ('a M.t * 'a, 'b M.t * 'b) eq -> ('a, 'b) eq = <fun>
+val f : ('a M.t * 'a, 'b M.t * 'b) eq -> ('a, 'b) eq @@ global many = <fun>
 |}];;
 
 let f : type a b. (a * a M.t, b * b M.t) eq -> (a, b) eq =
   function Eq -> Eq (* ok *)
 ;;
 [%%expect{|
-val f : ('a * 'a M.t, 'b * 'b M.t) eq -> ('a, 'b) eq = <fun>
+val f : ('a * 'a M.t, 'b * 'b M.t) eq -> ('a, 'b) eq @@ global many = <fun>
 |}];;
 
 (* Applications of polymorphic variants *)
@@ -1052,7 +1060,7 @@ let f : type a. a t -> a = function
 f V1;;
 [%%expect{|
 type _ t = V1 : [ `A | `B ] t | V2 : [ `C | `D ] t
-val f : 'a t -> 'a = <fun>
+val f : 'a t -> 'a @@ global many = <fun>
 - : [ `A | `B ] = `A
 |}];;
 
@@ -1121,7 +1129,7 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) : t =
   (x:<foo:int;bar:int;..>)
 ;;
 [%%expect{|
-val g : 't -> 't int_foo -> 't int_bar -> 't = <fun>
+val g : 't -> 't int_foo -> 't int_bar -> 't @@ global many = <fun>
 |}];;
 
 let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) =
@@ -1129,7 +1137,8 @@ let g (type t) (x:t) (e : t int_foo) (e' : t int_bar) =
   x, x#foo, x#bar
 ;;
 [%%expect{|
-val g : 't -> 't int_foo -> 't int_bar -> 't * int * int = <fun>
+val g : 't -> 't int_foo -> 't int_bar -> 't * int * int @@ global many =
+  <fun>
 |}, Principal{|
 Line 3, characters 5-10:
 3 |   x, x#foo, x#bar
@@ -1151,8 +1160,8 @@ let g : type a. a ty -> a =
   fun x -> match x with Int y -> y;;
 [%%expect{|
 type 'a ty = Int : int -> int ty
-val f : 'a ty -> 'a = <fun>
-val g : 'a ty -> 'a = <fun>
+val f : 'a ty -> 'a @@ global many = <fun>
+val g : 'a ty -> 'a @@ global many = <fun>
 |}];;
 
 (* Printing of anonymous variables *)
@@ -1177,7 +1186,8 @@ let f : type a b. (a,b) eq -> (a,int) eq -> a -> b -> _ = fun ab aint a b ->
   in ignore x
 ;; (* ok *)
 [%%expect{|
-val f : ('a, 'b) eq -> ('a, int) eq -> 'a -> 'b -> unit = <fun>
+val f : ('a, 'b) eq -> ('a, int) eq -> 'a -> 'b -> unit @@ global many =
+  <fun>
 |}];;
 
 let f : type a b. (a,b) eq -> (b,int) eq -> a -> b -> _ = fun ab bint a b ->
@@ -1188,7 +1198,8 @@ let f : type a b. (a,b) eq -> (b,int) eq -> a -> b -> _ = fun ab bint a b ->
   in ignore x
 ;; (* ok *)
 [%%expect{|
-val f : ('a, 'b) eq -> ('b, int) eq -> 'a -> 'b -> unit = <fun>
+val f : ('a, 'b) eq -> ('b, int) eq -> 'a -> 'b -> unit @@ global many =
+  <fun>
 |}];;
 
 let f : type a b. (a,b) eq -> (a,int) eq -> a -> b -> _ = fun ab aint a b ->

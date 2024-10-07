@@ -220,17 +220,17 @@ let foo p (e : (T.t, T.u) eq) (x : T.t) (y : T.u) =
 
 module type S = module type of M ;;
 [%%expect{|
-module M : sig val r : '_weak1 list ref end
+module M : sig val r : '_weak1 list ref @@ global many end
 Line 12, characters 25-26:
 12 |     let module O : N.S = M in
                               ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val r : '_weak1 list ref end
+         sig val r : '_weak1 list ref @@ global many end
        is not included in
          N.S
        Values do not match:
-         val r : '_weak1 list ref
+         val r : '_weak1 list ref @@ global many
        is not included in
          val r : T.t list ref
        The type "'_weak1 list ref" is not compatible with the type "T.t list ref"
@@ -254,17 +254,17 @@ let foo p (e : (T.u, T.t) eq) (x : T.t) (y : T.u) =
 
 module type S = module type of M ;;
 [%%expect{|
-module M : sig val r : '_weak2 list ref end
+module M : sig val r : '_weak2 list ref @@ global many end
 Line 12, characters 25-26:
 12 |     let module O : N.S = M in
                               ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val r : '_weak2 list ref end
+         sig val r : '_weak2 list ref @@ global many end
        is not included in
          N.S
        Values do not match:
-         val r : '_weak2 list ref
+         val r : '_weak2 list ref @@ global many
        is not included in
          val r : T.t list ref
        The type "'_weak2 list ref" is not compatible with the type "T.t list ref"

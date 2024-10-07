@@ -8,7 +8,7 @@ end;;
 [%%expect{|
 module F :
   functor (X : sig type t = private < foo : int; .. > val x : t end) ->
-    sig val x : X.t end
+    sig val x : X.t @@ global many end
 |}]
 
 module M = struct
@@ -20,12 +20,15 @@ module M = struct
 end;;
 [%%expect{|
 module M :
-  sig type t = < bar : int; foo : int > val x : < bar : int; foo : int > end
+  sig
+    type t = < bar : int; foo : int >
+    val x : < bar : int; foo : int > @@ global many
+  end
 |}]
 
 module N = F(M);;
 [%%expect{|
-module N : sig val x : M.t end
+module N : sig val x : M.t @@ global many end
 |}]
 
 module A : sig end = struct

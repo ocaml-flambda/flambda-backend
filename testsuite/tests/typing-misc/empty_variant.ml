@@ -10,7 +10,7 @@ type t = |
 
 let f (x:t) = match x with _ -> .
 [%%expect{|
-val f : t -> 'a = <fun>
+val f : t -> 'a @@ global many = <fun>
 |}];;
 
 type m = A of t | B of int * t | C of {g:t}
@@ -22,12 +22,12 @@ let g (x:m) =
   match x with
   | A _ | B _ | C _ -> .
 [%%expect{|
-val g : m -> 'a = <fun>
+val g : m -> 'a @@ global many = <fun>
 |}]
 
 let f : t option -> int = function None -> 3
 [%%expect{|
-val f : t option -> int = <fun>
+val f : t option -> int @@ global many = <fun>
 |}]
 
 type nothing = |
@@ -61,7 +61,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 C ()
 
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 type nothing = |
@@ -77,5 +77,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 C
 
-val g : nothing t -> unit = <fun>
+val g : nothing t -> unit @@ global many = <fun>
 |}]

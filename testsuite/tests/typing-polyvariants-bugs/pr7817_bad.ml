@@ -11,7 +11,7 @@ end = struct
     match x with `A _ | `B _ -> r := Some x
 end
 [%%expect{|
-val r : '_weak1 option ref = {contents = None}
+val r : '_weak1 option ref @@ global many = {contents = None}
 Lines 5-8, characters 6-3:
 5 | ......struct
 6 |   let write x =
@@ -21,12 +21,14 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            val write :
-             ([< `A of '_weak3 | `B of '_weak4 ] as '_weak2) -> unit
+             ([< `A of '_weak3 | `B of '_weak4 ] as '_weak2) -> unit @@
+             global many
          end
        is not included in
          sig val write : [< `A of string | `B of int ] -> unit end
        Values do not match:
          val write : ([< `A of '_weak3 | `B of '_weak4 ] as '_weak2) -> unit
+           @@ global many
        is not included in
          val write : [< `A of string | `B of int ] -> unit
        The type "([< `A of '_weak3 | `B of '_weak4 ] as '_weak2) -> unit"

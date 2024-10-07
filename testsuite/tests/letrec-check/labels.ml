@@ -4,7 +4,7 @@
 
 let f ~x () = x ();;
 [%%expect{|
-val f : x:(unit -> 'a) -> unit -> 'a = <fun>
+val f : x:(unit -> 'a) -> unit -> 'a @@ global many = <fun>
 |}];;
 
 let rec x = f ~x;;
@@ -25,7 +25,7 @@ and y =
   let _ = g in (* ignore g to have a real dependency *)
   ref "foo";;
 [%%expect {|
-val f : int -> y:int -> int = <fun>
+val f : int -> y:int -> int @@ global many = <fun>
 Line 6, characters 12-38:
 6 | let rec g = f ~y:(print_endline !y; 0)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^

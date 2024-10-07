@@ -18,14 +18,14 @@ type 'a t = (('a -> unit) -> unit);;
 let tl = !(ref ([] : 'a t list));;
 [%%expect{|
 type 'a t = ('a -> unit) -> unit
-val tl : '_a t list = []
+val tl : '_a t list @@ global many = []
 |}]
 
 type 'a u = U of (('a -> unit) -> unit);;
 let ul = !(ref ([] : 'a u list));;
 [%%expect{|
 type 'a u = U of (('a -> unit) -> unit)
-val ul : 'a u list = []
+val ul : 'a u list @@ global many = []
 |}]
 
 (* #11869 *)

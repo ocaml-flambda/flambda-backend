@@ -56,7 +56,7 @@ Error: This expression has type "int" but an expression was expected of type
 let x = 0
 let _ = Int32.(add x 2l);;
 [%%expect{|
-val x : int = 0
+val x : int @@ global many = 0
 Line 2, characters 19-20:
 2 | let _ = Int32.(add x 2l);;
                        ^

@@ -8,7 +8,7 @@ let[@tail_mod_cons] rec append xs ys =
   | [] -> ys
   | x :: xs -> x :: append xs ys
 [%%expect {|
-val append : 'a list -> 'a list -> 'a list = <fun>
+val append : 'a list -> 'a list -> 'a list @@ global many = <fun>
 |}]
 
 (* incorrect version: this cannot work *)
@@ -34,7 +34,7 @@ Lines 1-3, characters 34-40:
 Warning 71 [unused-tmc-attribute]: This function is marked @tail_mod_cons
 but is never applied in TMC position.
 
-val flatten : 'a list list -> 'a list = <fun>
+val flatten : 'a list list -> 'a list @@ global many = <fun>
 |}]
 
 (* correct version *)
@@ -47,7 +47,7 @@ let[@tail_mod_cons] rec flatten = function
         | x :: xs -> x :: append_flatten xs xss
       in append_flatten xs xss
 [%%expect {|
-val flatten : 'a list list -> 'a list = <fun>
+val flatten : 'a list list -> 'a list @@ global many = <fun>
 |}]
 
 (* incorrect version *)
@@ -87,7 +87,7 @@ Lines 1-10, characters 34-30:
 Warning 71 [unused-tmc-attribute]: This function is marked @tail_mod_cons
 but is never applied in TMC position.
 
-val flatten : 'a list list -> 'a list = <fun>
+val flatten : 'a list list -> 'a list @@ global many = <fun>
 |}]
 
 (* incorrect version: the call to append-flatten is not transformed *)
@@ -119,7 +119,7 @@ Please either mark the called function with the [@tail_mod_cons]
 attribute, or mark this call with the [@tailcall false] attribute
 to make its non-tailness explicit.
 
-val flatten : 'a list list -> 'a list = <fun>
+val flatten : 'a list list -> 'a list @@ global many = <fun>
 |}]
 
 
@@ -176,9 +176,9 @@ to make its non-tailness explicit.
 
 module Tail_calls_to_non_specialized_functions :
   sig
-    val list_id : 'a list -> 'a list
-    val filter_1 : ('a -> bool) -> 'a list -> 'a list
-    val filter_2 : ('a -> bool) -> 'a list -> 'a list
+    val list_id : 'a list -> 'a list @@ global many portable
+    val filter_1 : ('a -> bool) -> 'a list -> 'a list @@ global many portable
+    val filter_2 : ('a -> bool) -> 'a list -> 'a list @@ global many portable
   end
 |}]
 
@@ -209,8 +209,8 @@ end
 module All_annotations_correctly_used :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t
-    val graft : 'a -> 'b
-    val map : ('a -> 'b) -> 'a t -> 'b t
+    val graft : 'a -> 'b @@ global many portable
+    val map : ('a -> 'b) -> 'a t -> 'b t @@ global many
   end
 |}]
 
@@ -276,7 +276,7 @@ Warning 51 [wrong-tailcall-expectation]: expected tailcall
 module All_annotations_flipped :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t
-    val graft : 'a -> 'b
-    val map_wrong : ('a -> 'b) -> 'a t -> 'b t
+    val graft : 'a -> 'b @@ global many portable
+    val map_wrong : ('a -> 'b) -> 'a t -> 'b t @@ global many
   end
 |}]

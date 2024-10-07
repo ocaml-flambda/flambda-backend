@@ -7,21 +7,21 @@ module Fn = struct
 end
 ;;
 [%%expect{|
-module Fn : sig val id : 'a -> 'a end
+module Fn : sig val id : 'a -> 'a @@ global many portable end
 |}]
 
 let f = fun x -> Fn.id x
 ;;
 [%%expect{|
-val f : 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
 |}]
 
 let g = Fn.(fun x -> id x)
 let h = let open Fn in fun x -> id x
 ;;
 [%%expect{|
-val g : 'a -> 'a = <fun>
-val h : 'a -> 'a = <fun>
+val g : 'a -> 'a @@ global many = <fun>
+val h : 'a -> 'a @@ global many = <fun>
 |}]
 
 let i =
@@ -37,8 +37,8 @@ let iM =
   fun x -> M.id x
 ;;
 [%%expect{|
-val i : 'a -> 'a = <fun>
-val iM : 'a -> 'a = <fun>
+val i : 'a -> 'a @@ global many = <fun>
+val iM : 'a -> 'a @@ global many = <fun>
 |}]
 
 let j =
@@ -56,8 +56,8 @@ let jM =
   fun x -> M.id x
 ;;
 [%%expect{|
-val j : '_weak1 -> '_weak1 = <fun>
-val jM : '_weak2 -> '_weak2 = <fun>
+val j : '_weak1 -> '_weak1 @@ global many = <fun>
+val jM : '_weak2 -> '_weak2 @@ global many = <fun>
 |}]
 
 module Square(X : sig val x : int end) = struct
@@ -65,7 +65,9 @@ module Square(X : sig val x : int end) = struct
 end
 ;;
 [%%expect{|
-module Square : functor (X : sig val x : int end) -> sig val result : int end
+module Square :
+  functor (X : sig val x : int end) ->
+    sig val result : int @@ global many portable end
 |}]
 
 let k =
@@ -77,8 +79,8 @@ let kM =
   fun x -> x
 ;;
 [%%expect{|
-val k : '_weak3 -> '_weak3 = <fun>
-val kM : '_weak4 -> '_weak4 = <fun>
+val k : '_weak3 -> '_weak3 @@ global many = <fun>
+val kM : '_weak4 -> '_weak4 @@ global many = <fun>
 |}]
 
 let op =
@@ -89,5 +91,5 @@ let op =
   M.s
 ;;
 [%%expect{|
-val op : '_weak5 list ref = {contents = []}
+val op : '_weak5 list ref @@ global many = {contents = []}
 |}]

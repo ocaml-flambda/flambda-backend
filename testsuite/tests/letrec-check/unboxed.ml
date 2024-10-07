@@ -9,7 +9,7 @@ type r = R of r list [@@unboxed]
 let rec a = R [a];;
 [%%expect{|
 type r = R of r list [@@unboxed]
-val a : r = R [<cycle>]
+val a : r @@ global many = R [<cycle>]
 |}];;
 
 
@@ -47,7 +47,7 @@ let rec a =
 [%%expect{|
 type a = { a : b; }
 and b = X of a | Y
-val a : a = {a = X <cycle>}
+val a : a @@ global many = {a = X <cycle>}
 |}];;
 
 type a = {a: b }[@@unboxed]
@@ -87,7 +87,7 @@ let rec d =
      else
        W);;
 [%%expect{|
-val d : d = D (V <cycle>)
+val d : d @@ global many = D (V <cycle>)
 |}];;
 
 type d = D of e [@@unboxed]

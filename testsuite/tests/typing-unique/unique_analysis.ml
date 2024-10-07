@@ -10,25 +10,25 @@
 (* First some helper functions *)
 let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
-val unique_id : 'a @ unique -> 'a @ unique = <fun>
+val unique_id : 'a @ unique -> 'a @ unique @@ global many = <fun>
 |}]
 
 let aliased_id : 'a -> 'a = fun x -> x
 [%%expect{|
-val aliased_id : 'a -> 'a = <fun>
+val aliased_id : 'a -> 'a @@ global many = <fun>
 |}]
 
 let ignore_once: once_ 'a -> unit = fun x -> ()
 
 type box = { x : int }
 [%%expect{|
-val ignore_once : 'a @ once -> unit = <fun>
+val ignore_once : 'a @ once -> unit @@ global many = <fun>
 type box = { x : int; }
 |}]
 
 let update : unique_ box -> unique_ box = unique_id
 [%%expect{|
-val update : box @ unique -> box @ unique = <fun>
+val update : box @ unique -> box @ unique @@ global many = <fun>
 |}]
 
 
@@ -36,7 +36,7 @@ val update : box @ unique -> box @ unique = <fun>
 
 let branching (unique_ x) = unique_ if true then x else x
 [%%expect{|
-val branching : 'a @ unique -> 'a = <fun>
+val branching : 'a @ unique -> 'a @@ global many = <fun>
 |}]
 
 (* whether we constrain uniqueness or linearity is irrelavant
@@ -44,7 +44,7 @@ val branching : 'a @ unique -> 'a = <fun>
    will only constrain uniqueness *)
 let branching (once_ x) = if true then x else x
 [%%expect{|
-val branching : 'a @ once -> 'a @ once = <fun>
+val branching : 'a @ once -> 'a @ once @@ global many = <fun>
 |}]
 
 let branching b =
@@ -52,7 +52,7 @@ let branching b =
   if b then update r
        else update r
 [%%expect{|
-val branching : bool -> box = <fun>
+val branching : bool -> box @@ global many = <fun>
 |}]
 
 let sequence (unique_ x) = unique_ let y = x in (x, y)
@@ -73,7 +73,7 @@ let sequence =
   let t = update s in
   t
 [%%expect{|
-val sequence : box = {x = 23}
+val sequence : box @@ global many = {x = 23}
 |}]
 
 let sequence =
@@ -97,7 +97,8 @@ let children_unique (unique_ xs : float list) =
   | [] -> (0., [])
   | x :: xx -> unique_ (x, xx)
 [%%expect{|
-val children_unique : float list @ unique -> float * float list = <fun>
+val children_unique : float list @ unique -> float * float list @@ global
+  many = <fun>
 |}]
 
 let borrow_match (unique_ fs : 'a list) =
@@ -105,7 +106,7 @@ let borrow_match (unique_ fs : 'a list) =
   | [] -> []
   | x :: xs as gs -> unique_ gs
 [%%expect{|
-val borrow_match : 'a list @ unique -> 'a list = <fun>
+val borrow_match : 'a list @ unique -> 'a list @@ global many = <fun>
 |}]
 
 let borrow_match (unique_ fs : 'a list) =
@@ -113,7 +114,7 @@ let borrow_match (unique_ fs : 'a list) =
     | [] -> []
     | x :: xs -> unique_ fs
 [%%expect{|
-val borrow_match : 'a list @ unique -> 'a list = <fun>
+val borrow_match : 'a list @ unique -> 'a list @@ global many = <fun>
 |}]
 
 let dup_child (unique_ fs : 'a list) =
@@ -222,7 +223,7 @@ let or_patterns4 p =
   match p, x, y with
   | true, z, _ | false, _, z -> let _ = unique_id x in unique_id y
 [%%expect{|
-val or_patterns4 : bool -> int = <fun>
+val or_patterns4 : bool -> int @@ global many = <fun>
 |}]
 
 let or_patterns5 p =
@@ -282,16 +283,16 @@ let mark_aliased_in_one_branch b x =
   if b then unique_id (x, 3.0)
        else (x, x)
 [%%expect{|
-val mark_aliased_in_one_branch : bool -> float @ unique -> float * float =
-  <fun>
+val mark_aliased_in_one_branch : bool -> float @ unique -> float * float @@
+  global many = <fun>
 |}]
 
 let mark_aliased_in_one_branch b x =
   if b then (x, x)
        else unique_id (x, 3.0)
 [%%expect{|
-val mark_aliased_in_one_branch : bool -> float @ unique -> float * float =
-  <fun>
+val mark_aliased_in_one_branch : bool -> float @ unique -> float * float @@
+  global many = <fun>
 |}]
 
 let expr_tuple_match f x y =
@@ -299,7 +300,8 @@ let expr_tuple_match f x y =
   | (a, b), c -> unique_ (a, c)
 [%%expect{|
 val expr_tuple_match :
-  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'b * 'd = <fun>
+  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'b * 'd @@ global many =
+  <fun>
 |}]
 
 let expr_tuple_match f x y =
@@ -307,7 +309,8 @@ let expr_tuple_match f x y =
   | (a, b) as t, c -> let d = unique_id t in unique_ (c, d)
 [%%expect{|
 val expr_tuple_match :
-  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'd * ('b * 'c) = <fun>
+  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'd * ('b * 'c) @@ global
+  many = <fun>
 |}]
 
 let expr_tuple_match f x y =
@@ -329,7 +332,7 @@ let tuple_parent_marked a b =
   match (a, b) with
   | (_, b) as _t -> aliased_id b
 [%%expect{|
-val tuple_parent_marked : 'a -> 'b -> 'b = <fun>
+val tuple_parent_marked : 'a -> 'b -> 'b @@ global many = <fun>
 |}]
 
 (* TODO: Improve UA so that the following example can be allowed. The intuition
@@ -369,7 +372,8 @@ Line 2, characters 12-13:
 let unique_match_on a b =
   let unique_ t = (a, b) in t
 [%%expect{|
-val unique_match_on : 'a @ unique -> 'b @ unique -> 'a * 'b = <fun>
+val unique_match_on : 'a @ unique -> 'b @ unique -> 'a * 'b @@ global many =
+  <fun>
 |}]
 
 type ('a, 'b) record = { foo : 'a; bar : 'b }
@@ -433,8 +437,8 @@ let record_mode_vars (p : point) =
   let y = (p.y, p.y) in
   (x, y, unique_ p.z)
 [%%expect{|
-val record_mode_vars : point @ unique -> float * (float * float) * float =
-  <fun>
+val record_mode_vars : point @ unique -> float * (float * float) * float @@
+  global many = <fun>
 |}]
 
 let record_mode_vars (p : point) =
@@ -494,7 +498,7 @@ let foo () =
   ;
   unique_id r
 [%%expect{|
-val foo : unit -> point = <fun>
+val foo : unit -> point @@ global many = <fun>
 |}]
 
 let foo () =
@@ -543,7 +547,7 @@ let foo () =
   x.a <- "olleh";
   ignore (unique_id x)
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 (* the following is rather interesting - after uniquely used x.b, the x as a
@@ -554,7 +558,7 @@ let foo () =
   x.a <- "olleh";
   ignore (aliased_id x.a)
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 (* This will be used by below tests *)
@@ -582,7 +586,7 @@ let foo () =
      aliased *)
   ignore (unique_id r)
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
  (* Similarly for linearity *)
@@ -591,7 +595,7 @@ let foo () =
   ignore_once r.y;
   ignore_once r;
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -634,7 +638,7 @@ let foo () =
   (* r.y has been used aliased; in the following we will use r as unique *)
   ignore (unique_id r)
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -668,7 +672,7 @@ let foo () =
      aliased *)
   ignore (unique_id r)
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
  (* Similarly for linearity *)
@@ -678,7 +682,7 @@ let foo () =
   ignore_once y;
   ignore_once r;
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -792,7 +796,7 @@ let foo () =
   let #(_, _) = t in
   ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =

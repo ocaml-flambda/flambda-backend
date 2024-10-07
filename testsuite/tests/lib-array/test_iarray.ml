@@ -31,17 +31,19 @@ let rec list_map_local_input (local_ f) (local_ list) =
 [%%expect{|
 module Iarray = Stdlib_stable.Iarray
 external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
-val iarray : int iarray = [:1; 2; 3; 4; 5:]
-val iarray_local : unit -> local_ int iarray = <fun>
-val ifarray : float iarray = [:1.5; 2.5; 3.5; 4.5; 5.5:]
-val ifarray_local : unit -> local_ float iarray = <fun>
-val marray : int array = [|1; 2; 3; 4; 5|]
-val mfarray : float array = [|1.5; 2.5; 3.5; 4.5; 5.5|]
+val iarray : int iarray @@ global many = [:1; 2; 3; 4; 5:]
+val iarray_local : unit -> local_ int iarray @@ global many = <fun>
+val ifarray : float iarray @@ global many = [:1.5; 2.5; 3.5; 4.5; 5.5:]
+val ifarray_local : unit -> local_ float iarray @@ global many = <fun>
+val marray : int array @@ global many = [|1; 2; 3; 4; 5|]
+val mfarray : float array @@ global many = [|1.5; 2.5; 3.5; 4.5; 5.5|]
 external globalize_float : local_ float -> float = "%obj_dup"
 external globalize_string : local_ string -> string = "%obj_dup"
-val globalize_int_iarray : local_ int iarray -> int iarray = <fun>
+val globalize_int_iarray : local_ int iarray -> int iarray @@ global many =
+  <fun>
 val list_map_local_input :
-  local_ (local_ 'a -> 'b) -> local_ 'a list -> 'b list = <fun>
+  local_ (local_ 'a -> 'b) -> local_ 'a list -> 'b list @@ global many =
+  <fun>
 |}];;
 
 (** Pattern-match on some immutable arrays, and check the typing of array
@@ -384,7 +386,7 @@ let globalize_int_float_iarray (local_ ia) =
   Iarray.map_local_input (fun ((i : int), f) -> i, globalize_float f) ia;;
 [%%expect{|
 val globalize_int_float_iarray :
-  local_ (int * float) iarray -> (int * float) iarray = <fun>
+  local_ (int * float) iarray -> (int * float) iarray @@ global many = <fun>
 |}];;
 
 globalize_int_float_iarray
@@ -775,8 +777,10 @@ let globalize_float_option (local_ opt) = match opt with
   | Some x -> Some (globalize_float x)
 
 [%%expect{|
-val globalize_int_option : local_ int option -> int option = <fun>
-val globalize_float_option : local_ float option -> float option = <fun>
+val globalize_int_option : local_ int option -> int option @@ global many =
+  <fun>
+val globalize_float_option : local_ float option -> float option @@ global
+  many = <fun>
 |}];;
 
 globalize_int_option (Iarray.find_opt_local (fun x -> x*x  > 5)

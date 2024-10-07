@@ -27,7 +27,7 @@ type _ inline_t =
   | Link : string -> [< inkind > `Link ] inline_t
   | Mref : string *
       [ `Nonlink ] inline_t list -> [< inkind > `Link ] inline_t
-val uppercase : 'a inline_t list -> 'a inline_t list = <fun>
+val uppercase : 'a inline_t list -> 'a inline_t list @@ global many = <fun>
 |}];;
 
 type ast_t =
@@ -55,7 +55,8 @@ type ast_t =
   | Ast_Bold of ast_t list
   | Ast_Link of string
   | Ast_Mref of string * ast_t list
-val inlineseq_from_astseq : ast_t list -> inkind inline_t list = <fun>
+val inlineseq_from_astseq : ast_t list -> inkind inline_t list @@ global many =
+  <fun>
 |}];;
 
 (* OK *)
@@ -79,7 +80,8 @@ let inlineseq_from_astseq seq =
 ;;
 [%%expect{|
 type _ linkp = Nonlink : [ `Nonlink ] linkp | Maylink : inkind linkp
-val inlineseq_from_astseq : ast_t list -> inkind inline_t list = <fun>
+val inlineseq_from_astseq : ast_t list -> inkind inline_t list @@ global many =
+  <fun>
 |}];;
 
 (* Bad *)

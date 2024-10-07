@@ -18,7 +18,7 @@ let before_a : M.r =
   { lbl = 3 }
 ;;
 [%%expect{|
-val before_a : M.r = {M.lbl = 3}
+val before_a : M.r @@ global many = {M.lbl = 3}
 |}]
 
 let a =
@@ -26,7 +26,7 @@ let a =
   x.lbl
 ;;
 [%%expect{|
-val a : int = 3
+val a : int @@ global many = 3
 |}]
 
 let after_a =
@@ -40,7 +40,7 @@ Line 3, characters 2-20:
 Warning 23 [useless-record-with]: all the fields are explicitly listed in this record:
 the 'with' clause is useless.
 
-val after_a : M.r = {M.lbl = 4}
+val after_a : M.r @@ global many = {M.lbl = 4}
 |}]
 
 let b =
@@ -48,14 +48,14 @@ let b =
   x := { lbl = 4 }
 ;;
 [%%expect{|
-val b : unit = ()
+val b : unit @@ global many = ()
 |}, Principal{|
 Line 3, characters 7-18:
 3 |   x := { lbl = 4 }
            ^^^^^^^^^^^
 Warning 18 [not-principal]: this type-based record disambiguation is not principal.
 
-val b : unit = ()
+val b : unit @@ global many = ()
 |}]
 
 let c =
@@ -63,7 +63,7 @@ let c =
   !x.lbl
 ;;
 [%%expect{|
-val c : int = 3
+val c : int @@ global many = 3
 |}]
 
 let d =
@@ -71,7 +71,7 @@ let d =
   x.contents <- { lbl = 4 }
 ;;
 [%%expect{|
-val d : unit = ()
+val d : unit @@ global many = ()
 |}]
 
 let e =
@@ -90,7 +90,7 @@ let f =
   x.contents.lbl
 ;;
 [%%expect{|
-val f : int = 3
+val f : int @@ global many = 3
 |}]
 
 (* Patterns *)
@@ -100,7 +100,7 @@ let g (x : M.r) =
   | { lbl = _ } -> ()
 ;;
 [%%expect{|
-val g : M.r -> unit = <fun>
+val g : M.r -> unit @@ global many = <fun>
 |}]
 
 let h x =
@@ -114,7 +114,7 @@ Line 4, characters 4-15:
         ^^^^^^^^^^^
 Warning 11 [redundant-case]: this match case is unused.
 
-val h : M.r -> unit = <fun>
+val h : M.r -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-15:
 4 |   | { lbl = _ } -> ()
@@ -126,7 +126,7 @@ Line 4, characters 4-15:
         ^^^^^^^^^^^
 Warning 11 [redundant-case]: this match case is unused.
 
-val h : M.r -> unit = <fun>
+val h : M.r -> unit @@ global many = <fun>
 |}]
 
 let i x =
@@ -152,7 +152,7 @@ Line 4, characters 4-15:
         ^^^^^^^^^^^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
-val j : M.r -> unit = <fun>
+val j : M.r -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-15:
 4 |   | { lbl = _ } -> ()
@@ -164,7 +164,7 @@ Line 4, characters 4-15:
         ^^^^^^^^^^^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
-val j : M.r -> unit = <fun>
+val j : M.r -> unit @@ global many = <fun>
 |}]
 
 let k x =
@@ -184,7 +184,7 @@ let l (x : M.r ref) =
   | { contents = { lbl = _ } } -> ()
 ;;
 [%%expect{|
-val l : M.r ref -> unit = <fun>
+val l : M.r ref -> unit @@ global many = <fun>
 |}]
 
 let m x =
@@ -209,7 +209,7 @@ Line 4, characters 4-30:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 11 [redundant-case]: this match case is unused.
 
-val n : M.r ref -> unit = <fun>
+val n : M.r ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 17-28:
 4 |   | { contents = { lbl = _ } } -> ()
@@ -221,7 +221,7 @@ Line 4, characters 4-30:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 11 [redundant-case]: this match case is unused.
 
-val n : M.r ref -> unit = <fun>
+val n : M.r ref -> unit @@ global many = <fun>
 |}]
 
 let o x =
@@ -247,7 +247,7 @@ Line 4, characters 4-30:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
-val p : M.r ref -> unit = <fun>
+val p : M.r ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 17-28:
 4 |   | { contents = { lbl = _ } } -> ()
@@ -259,7 +259,7 @@ Line 4, characters 4-30:
         ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
-val p : M.r ref -> unit = <fun>
+val p : M.r ref -> unit @@ global many = <fun>
 |}]
 
 let q x =
@@ -280,7 +280,7 @@ let r arg =
     !x.lbl
 ;;
 [%%expect{|
-val r : M.r ref -> int = <fun>
+val r : M.r ref -> int @@ global many = <fun>
 |}]
 
 let s arg =
@@ -289,14 +289,14 @@ let s arg =
     x := { lbl = 4 }
 ;;
 [%%expect{|
-val s : M.r ref -> unit = <fun>
+val s : M.r ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 9-20:
 4 |     x := { lbl = 4 }
              ^^^^^^^^^^^
 Warning 18 [not-principal]: this type-based record disambiguation is not principal.
 
-val s : M.r ref -> unit = <fun>
+val s : M.r ref -> unit @@ global many = <fun>
 |}]
 
 let t = function
@@ -304,14 +304,14 @@ let t = function
     x := { lbl = 4 }
 ;;
 [%%expect{|
-val t : M.r ref -> unit = <fun>
+val t : M.r ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 9-20:
 3 |     x := { lbl = 4 }
              ^^^^^^^^^^^
 Warning 18 [not-principal]: this type-based record disambiguation is not principal.
 
-val t : M.r ref -> unit = <fun>
+val t : M.r ref -> unit @@ global many = <fun>
 |}]
 
 let u = function
@@ -319,7 +319,7 @@ let u = function
     !x.lbl
 ;;
 [%%expect{|
-val u : M.r ref -> int = <fun>
+val u : M.r ref -> int @@ global many = <fun>
 |}]
 
 
@@ -339,7 +339,7 @@ let before_a : M.t =
   A
 ;;
 [%%expect{|
-val before_a : M.t = M.A
+val before_a : M.t @@ global many portable = M.A
 |}]
 
 let a =
@@ -347,7 +347,7 @@ let a =
   x
 ;;
 [%%expect{|
-val a : M.t = M.A
+val a : M.t @@ global many = M.A
 |}]
 
 let b =
@@ -355,14 +355,14 @@ let b =
   x := B
 ;;
 [%%expect{|
-val b : unit = ()
+val b : unit @@ global many = ()
 |}, Principal{|
 Line 3, characters 7-8:
 3 |   x := B
            ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val b : unit = ()
+val b : unit @@ global many = ()
 |}]
 
 let d =
@@ -370,7 +370,7 @@ let d =
   x.contents <- B
 ;;
 [%%expect{|
-val d : unit = ()
+val d : unit @@ global many = ()
 |}]
 
 let e =
@@ -391,7 +391,7 @@ let g (x : M.t) =
   | A | B  -> ()
 ;;
 [%%expect{|
-val g : M.t -> unit = <fun>
+val g : M.t -> unit @@ global many = <fun>
 |}]
 
 let h x =
@@ -400,14 +400,14 @@ let h x =
   | B -> ()
 ;;
 [%%expect{|
-val h : M.t -> unit = <fun>
+val h : M.t -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-5:
 4 |   | B -> ()
         ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val h : M.t -> unit = <fun>
+val h : M.t -> unit @@ global many = <fun>
 |}]
 
 let i x =
@@ -428,14 +428,14 @@ let j x =
   | B -> ()
 ;;
 [%%expect{|
-val j : M.t -> unit = <fun>
+val j : M.t -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 4-5:
 4 |   | B -> ()
         ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val j : M.t -> unit = <fun>
+val j : M.t -> unit @@ global many = <fun>
 |}]
 
 let k x =
@@ -455,7 +455,7 @@ let l (x : M.t ref) =
   | { contents = (A | B) } -> ()
 ;;
 [%%expect{|
-val l : M.t ref -> unit = <fun>
+val l : M.t ref -> unit @@ global many = <fun>
 |}]
 
 let m x =
@@ -480,7 +480,7 @@ Line 4, characters 4-20:
         ^^^^^^^^^^^^^^^^
 Warning 11 [redundant-case]: this match case is unused.
 
-val n : M.t ref -> unit = <fun>
+val n : M.t ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 17-18:
 4 |   | { contents = A } -> ()
@@ -492,7 +492,7 @@ Line 4, characters 4-20:
         ^^^^^^^^^^^^^^^^
 Warning 11 [redundant-case]: this match case is unused.
 
-val n : M.t ref -> unit = <fun>
+val n : M.t ref -> unit @@ global many = <fun>
 |}]
 
 let o x =
@@ -518,7 +518,7 @@ Line 4, characters 4-20:
         ^^^^^^^^^^^^^^^^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
-val p : M.t ref -> unit = <fun>
+val p : M.t ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 17-18:
 4 |   | { contents = A } -> ()
@@ -530,7 +530,7 @@ Line 4, characters 4-20:
         ^^^^^^^^^^^^^^^^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
-val p : M.t ref -> unit = <fun>
+val p : M.t ref -> unit @@ global many = <fun>
 |}]
 
 let q x =
@@ -551,14 +551,14 @@ let s arg =
     x := A
 ;;
 [%%expect{|
-val s : M.t ref -> unit = <fun>
+val s : M.t ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 9-10:
 4 |     x := A
              ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val s : M.t ref -> unit = <fun>
+val s : M.t ref -> unit @@ global many = <fun>
 |}]
 
 let t = function
@@ -574,7 +574,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {contents=B}
 
-val t : M.t ref -> unit = <fun>
+val t : M.t ref -> unit @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 9-10:
 3 |     x := B
@@ -589,5 +589,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {contents=B}
 
-val t : M.t ref -> unit = <fun>
+val t : M.t ref -> unit @@ global many = <fun>
 |}]

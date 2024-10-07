@@ -50,7 +50,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 0
 
-val f : int -> unit = <fun>
+val f : int -> unit @@ global many = <fun>
 Line 2, characters 22-24:
 2 | let f 22 = ();; let f 23 = ();; let f 24 = ();; (* Several warnings. *)
                           ^^
@@ -58,7 +58,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 0
 
-val f : int -> unit = <fun>
+val f : int -> unit @@ global many = <fun>
 Line 2, characters 38-40:
 2 | let f 22 = ();; let f 23 = ();; let f 24 = ();; (* Several warnings. *)
                                           ^^
@@ -66,5 +66,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 0
 
-val f : int -> unit = <fun>
+val f : int -> unit @@ global many = <fun>
 #   * * *   

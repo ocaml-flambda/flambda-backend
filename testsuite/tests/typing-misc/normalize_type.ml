@@ -9,12 +9,16 @@ module M = struct
   let f (x : [< `Foo of t & int & string]) = ()
 end;;
 [%%expect{|
-module M : sig type t = int val f : [< `Foo of t & int & string ] -> unit end
+module M :
+  sig
+    type t = int
+    val f : [< `Foo of t & int & string ] -> unit @@ global many portable
+  end
 |}]
 
 type t = int
 let f (x : [< `Foo of t & int & string]) = () ;;
 [%%expect{|
 type t = int
-val f : [< `Foo of t & int & string ] -> unit = <fun>
+val f : [< `Foo of t & int & string ] -> unit @@ global many = <fun>
 |}]

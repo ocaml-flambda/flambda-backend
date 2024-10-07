@@ -118,7 +118,7 @@ Error: This value escapes its region.
 let int_escape = let local_ x : int = 5 in x
 
 [%%expect{|
-val int_escape : int = 5
+val int_escape : int @@ global many = 5
 |}]
 
 let string_list_escape = let local_ x : string list = ["hi";"bye"] in x
@@ -153,7 +153,7 @@ let hidden_int_escape =
   let local_ x : Hidden_int.t = Hidden_int.hide 42 in x
 
 [%%expect{|
-val hidden_int_escape : Hidden_int.t = <abstr>
+val hidden_int_escape : Hidden_int.t @@ global many = <abstr>
 |}]
 
 let hidden_string_list_escape =
@@ -192,27 +192,27 @@ Error: This value escapes its region.
 let float_u_escape () = let local_ x : float# = #3.14 in x
 
 [%%expect{|
-val float_u_escape : unit -> float# = <fun>
+val float_u_escape : unit -> float# @@ global many = <fun>
 |}]
 
 let int64_u_escape () = let local_ x : int64# = #314L in x
 
 [%%expect{|
-val int64_u_escape : unit -> int64# = <fun>
+val int64_u_escape : unit -> int64# @@ global many = <fun>
 |}]
 
 let hidden_float_u_escape () =
   let local_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in x
 
 [%%expect{|
-val hidden_float_u_escape : unit -> Hidden_float_u.t = <fun>
+val hidden_float_u_escape : unit -> Hidden_float_u.t @@ global many = <fun>
 |}]
 
 let hidden_int64_u_escape () =
   let local_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in x
 
 [%%expect{|
-val hidden_int64_u_escape : unit -> Hidden_int64_u.t = <fun>
+val hidden_int64_u_escape : unit -> Hidden_int64_u.t @@ global many = <fun>
 |}]
 
 let float_u_record_escape =
@@ -244,7 +244,7 @@ let foo () =
 
 [%%expect{|
 type r = { x : float; y : float; }
-val foo : unit -> float = <fun>
+val foo : unit -> float @@ global many = <fun>
 |}]
 
 let function_escape = let local_ x : int -> int = fun y -> y in x
@@ -269,13 +269,13 @@ Error: This value escapes its region.
 let string_duplicate = let once_ x : string = "hello" in Fun.id x
 
 [%%expect{|
-val string_duplicate : string = "hello"
+val string_duplicate : string @@ global many = "hello"
 |}]
 
 let int_duplicate = let once_ x : int = 5 in Fun.id x
 
 [%%expect{|
-val int_duplicate : int = 5
+val int_duplicate : int @@ global many = 5
 |}]
 
 let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
@@ -312,7 +312,7 @@ let hidden_int_duplicate =
   let once_ x : Hidden_int.t = Hidden_int.hide 42 in Fun.id x
 
 [%%expect{|
-val hidden_int_duplicate : Hidden_int.t = <abstr>
+val hidden_int_duplicate : Hidden_int.t @@ global many = <abstr>
 |}]
 
 let hidden_string_list_duplicate =
@@ -343,33 +343,35 @@ Error: This value is "once" but expected to be "many".
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
 
 [%%expect{|
-val float_duplicate : float = 3.14
+val float_duplicate : float @@ global many = 3.14
 |}]
 
 let float_u_duplicate () = let once_ x : float# = #3.14 in Float_u.id x
 
 [%%expect{|
-val float_u_duplicate : unit -> float# = <fun>
+val float_u_duplicate : unit -> float# @@ global many = <fun>
 |}]
 
 let int64_u_duplicate () = let once_ x : int64# = #314L in Int64_u.id x
 
 [%%expect{|
-val int64_u_duplicate : unit -> int64# = <fun>
+val int64_u_duplicate : unit -> int64# @@ global many = <fun>
 |}]
 
 let hidden_float_u_duplicate () =
   let once_ x : Hidden_float_u.t = Hidden_float_u.hide #3.14 in Float_u.id x
 
 [%%expect{|
-val hidden_float_u_duplicate : unit -> Hidden_float_u.t = <fun>
+val hidden_float_u_duplicate : unit -> Hidden_float_u.t @@ global many =
+  <fun>
 |}]
 
 let hidden_int64_u_duplicate () =
   let once_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in Int64_u.id x
 
 [%%expect{|
-val hidden_int64_u_duplicate : unit -> Hidden_int64_u.t = <fun>
+val hidden_int64_u_duplicate : unit -> Hidden_int64_u.t @@ global many =
+  <fun>
 |}]
 
 let float_u_record_duplicate =
@@ -416,7 +418,7 @@ Error: This value is "once" but expected to be "many".
 let unique (unique_ x) = x
 
 [%%expect{|
-val unique : 'a @ unique -> 'a = <fun>
+val unique : 'a @ unique -> 'a @@ global many = <fun>
 |}]
 
 let string_unshare = let x : string = "hello" in ignore x; unique x
@@ -547,7 +549,7 @@ argument kind is known to cross mode. *)
 let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
-val float_u_unshare : unit -> float# = <fun>
+val float_u_unshare : unit -> float# @@ global many = <fun>
 |}, Principal{|
 Line 1, characters 84-85:
 1 | let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
@@ -563,7 +565,7 @@ let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.uni
 
 (* CR layouts v2.8: this should succeed in principal mode, too *)
 [%%expect{|
-val int64_u_unshare : unit -> int64# = <fun>
+val int64_u_unshare : unit -> int64# @@ global many = <fun>
 |}, Principal{|
 Line 1, characters 84-85:
 1 | let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
@@ -578,7 +580,7 @@ Line 1, characters 66-67:
 let imm_escape () = Immediate.id (local_ 42) [@nontail]
 
 [%%expect{|
-val imm_escape : unit -> int = <fun>
+val imm_escape : unit -> int @@ global many = <fun>
 |}, Principal{|
 Line 1, characters 33-44:
 1 | let imm_escape () = Immediate.id (local_ 42) [@nontail]
@@ -591,7 +593,7 @@ let hidden_float_u_unshare () =
   Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
-val hidden_float_u_unshare : unit -> Hidden_float_u.t = <fun>
+val hidden_float_u_unshare : unit -> Hidden_float_u.t @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 35-36:
 3 |   Float_u.ignore x; Float_u.unique x
@@ -609,7 +611,7 @@ let hidden_int64_u_unshare () =
 
 (* CR layouts v2.8: This should fail when we use layout bits64 with hidden_int64 *)
 [%%expect{|
-val hidden_int64_u_unshare : unit -> Hidden_int64_u.t = <fun>
+val hidden_int64_u_unshare : unit -> Hidden_int64_u.t @@ global many = <fun>
 |}, Principal{|
 Line 3, characters 35-36:
 3 |   Int64_u.ignore x; Int64_u.unique x
@@ -680,7 +682,8 @@ Line 2, characters 71-72:
 let foo : (string -> string) -> (string -> string) @ unique
   = fun f -> f
 [%%expect{|
-val foo : (string -> string) -> (string -> string) @ unique = <fun>
+val foo : (string -> string) -> (string -> string) @ unique @@ global many =
+  <fun>
 |}]
 
 let weaken_immutable_data : 'a -> 'a @ contended once nonportable =
@@ -688,8 +691,8 @@ let weaken_immutable_data : 'a -> 'a @ contended once nonportable =
 
 let take_strong_immutable_data (x @ uncontended many portable) = ()
 [%%expect{|
-val weaken_immutable_data : 'a -> 'a @ once contended = <fun>
-val take_strong_immutable_data : 'a @ portable -> unit = <fun>
+val weaken_immutable_data : 'a -> 'a @ once contended @@ global many = <fun>
+val take_strong_immutable_data : 'a @ portable -> unit @@ global many = <fun>
 |}]
 
 let weaken_mutable_data : 'a -> 'a @ once nonportable =
@@ -697,8 +700,8 @@ let weaken_mutable_data : 'a -> 'a @ once nonportable =
 
 let take_strong_mutable_data (x @ many portable) = ()
 [%%expect{|
-val weaken_mutable_data : 'a -> 'a @ once = <fun>
-val take_strong_mutable_data : 'a @ portable -> unit = <fun>
+val weaken_mutable_data : 'a -> 'a @ once @@ global many = <fun>
+val take_strong_mutable_data : 'a @ portable -> unit @@ global many = <fun>
 |}]
 
 (* mode crossing on the right *)
@@ -724,55 +727,55 @@ Error: This value is "once" but expected to be "many".
 let float_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : float);
 [%%expect{|
-val float_immutable_data_right : float -> unit = <fun>
+val float_immutable_data_right : float -> unit @@ global many = <fun>
 |}]
 
 let int32_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : int32)
 [%%expect{|
-val int32_immutable_data_right : int32 -> unit = <fun>
+val int32_immutable_data_right : int32 -> unit @@ global many = <fun>
 |}]
 
 let int64_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : int64)
 [%%expect{|
-val int64_immutable_data_right : int64 -> unit = <fun>
+val int64_immutable_data_right : int64 -> unit @@ global many = <fun>
 |}]
 
 let nativeint_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : nativeint)
 [%%expect{|
-val nativeint_immutable_data_right : nativeint -> unit = <fun>
+val nativeint_immutable_data_right : nativeint -> unit @@ global many = <fun>
 |}]
 
 let string_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : string)
 [%%expect{|
-val string_immutable_data_right : string -> unit = <fun>
+val string_immutable_data_right : string -> unit @@ global many = <fun>
 |}]
 
 let float32_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : float32)
 [%%expect{|
-val float32_immutable_data_right : float32 -> unit = <fun>
+val float32_immutable_data_right : float32 -> unit @@ global many = <fun>
 |}]
 
 let int64x2_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : int64x2)
 [%%expect{|
-val int64x2_immutable_data_right : int64x2 -> unit = <fun>
+val int64x2_immutable_data_right : int64x2 -> unit @@ global many = <fun>
 |}]
 
 let floatarray_mutable_data_right x =
   take_strong_mutable_data (weaken_mutable_data x : floatarray)
 [%%expect{|
-val floatarray_mutable_data_right : floatarray -> unit = <fun>
+val floatarray_mutable_data_right : floatarray -> unit @@ global many = <fun>
 |}]
 
 let bytes_mutable_data_right x =
   take_strong_mutable_data (weaken_mutable_data x : bytes)
 [%%expect{|
-val bytes_mutable_data_right : bytes -> unit = <fun>
+val bytes_mutable_data_right : bytes -> unit @@ global many = <fun>
 |}]
 
 (* mode crossing on the left *)
@@ -780,73 +783,75 @@ let float_immutable_data_left x =
   let x : float = weaken_immutable_data x in
   take_strong_immutable_data x
 [%%expect{|
-val float_immutable_data_left : float -> unit = <fun>
+val float_immutable_data_left : float -> unit @@ global many = <fun>
 |}]
 
 let int32_immutable_data_left x =
   let x : int32 = weaken_immutable_data x in
   take_strong_immutable_data x
 [%%expect{|
-val int32_immutable_data_left : int32 -> unit = <fun>
+val int32_immutable_data_left : int32 -> unit @@ global many = <fun>
 |}]
 
 let int64_immutable_data_left x =
   let x : int64 = weaken_immutable_data x in
   take_strong_immutable_data x
 [%%expect{|
-val int64_immutable_data_left : int64 -> unit = <fun>
+val int64_immutable_data_left : int64 -> unit @@ global many = <fun>
 |}]
 
 let nativeint_immutable_data_left x =
   let x : nativeint = weaken_immutable_data x in
   take_strong_immutable_data x
 [%%expect{|
-val nativeint_immutable_data_left : nativeint -> unit = <fun>
+val nativeint_immutable_data_left : nativeint -> unit @@ global many = <fun>
 |}]
 
 let string_immutable_data_left x =
   let x : string = weaken_immutable_data x in
   take_strong_immutable_data x
 [%%expect{|
-val string_immutable_data_left : string -> unit = <fun>
+val string_immutable_data_left : string -> unit @@ global many = <fun>
 |}]
 
 let float32_immutable_data_left x =
   let x : float32 = weaken_immutable_data x in
   take_strong_immutable_data x
 [%%expect{|
-val float32_immutable_data_left : float32 -> unit = <fun>
+val float32_immutable_data_left : float32 -> unit @@ global many = <fun>
 |}]
 
 let int64x2_immutable_data_left x =
   let x : int64x2 = weaken_immutable_data x in
   take_strong_immutable_data x
 [%%expect{|
-val int64x2_immutable_data_left : int64x2 -> unit = <fun>
+val int64x2_immutable_data_left : int64x2 -> unit @@ global many = <fun>
 |}]
 
 let floatarray_mutable_data_left x =
   let x : floatarray = weaken_mutable_data x in
   take_strong_mutable_data x
 [%%expect{|
-val floatarray_mutable_data_left : floatarray -> unit = <fun>
+val floatarray_mutable_data_left : floatarray -> unit @@ global many = <fun>
 |}]
 
 let bytes_mutable_data_left x =
   let x : bytes = weaken_mutable_data x in
   take_strong_mutable_data x
 [%%expect{|
-val bytes_mutable_data_left : bytes -> unit = <fun>
+val bytes_mutable_data_left : bytes -> unit @@ global many = <fun>
 |}]
 
 let use_uncontended_arrow : ('a -> 'a) @ uncontended -> unit = fun _ -> ()
 [%%expect{|
-val use_uncontended_arrow : ('a : any). ('a -> 'a) -> unit = <fun>
+val use_uncontended_arrow : ('a : any). ('a -> 'a) -> unit @@ global many =
+  <fun>
 |}]
 
 let arrow_as_argument (f @ contended) = use_uncontended_arrow f
 [%%expect{|
-val arrow_as_argument : ('a : any). ('a -> 'a) @ contended -> unit = <fun>
+val arrow_as_argument : ('a : any). ('a -> 'a) @ contended -> unit @@ global
+  many = <fun>
 |}]
 
 (* f is added to environment as uncontended *)
@@ -854,5 +859,5 @@ let arrow_left () =
   let (f @ contended) () = () in
   f
 [%%expect{|
-val arrow_left : unit -> unit -> unit = <fun>
+val arrow_left : unit -> unit -> unit @@ global many = <fun>
 |}]

@@ -21,7 +21,7 @@ include struct
   let test = B (B (C, A), A)
 end
 [%%expect{|
-val test : M.t = M.B (M.B (M.C, A), A)
+val test : M.t @@ global many portable = M.B (M.B (M.C, A), A)
 |}]
 
 include struct
@@ -30,8 +30,8 @@ include struct
   let g y = aux 3 y
 end
 [%%expect{|
-val f : int -> int = <fun>
-val g : int -> int = <fun>
+val f : int -> int @@ global many = <fun>
+val g : int -> int @@ global many = <fun>
 |}];;
 
 include struct
@@ -42,7 +42,7 @@ include struct
     match run() with exception Interrupt -> () | _ -> assert false
 end
 [%%expect{|
-val run : unit -> 'a = <fun>
+val run : unit -> 'a @@ global many = <fun>
 |}];;
 
 (* It was decided to not allow this anymore. *)
@@ -87,9 +87,9 @@ open struct
   let current () = !counter
 end
 [%%expect{|
-val inc : unit -> unit = <fun>
-val dec : unit -> unit = <fun>
-val current : unit -> int = <fun>
+val inc : unit -> unit @@ global many = <fun>
+val dec : unit -> unit @@ global many = <fun>
+val current : unit -> int @@ global many = <fun>
 |}]
 
 let () =
@@ -343,7 +343,7 @@ Error: The module identifier M#32 cannot be eliminated from val x : M#32.t
 
 let x = let open struct open struct let y = 1 end let x = y + 1 end in x
 [%%expect{|
-val x : int = 2
+val x : int @@ global many = 2
 |}]
 
 let y =
@@ -352,7 +352,7 @@ let y =
   in x
 
 [%%expect{|
-val y : int = 2
+val y : int @@ global many = 2
 |}]
 
 let x = let open struct type t = T end in T
@@ -384,7 +384,7 @@ module type Print = sig type t val print : t -> unit end
 module Print_int : sig type t = int val print : t -> unit end
 module Print_list :
   functor (P : Print) -> sig type t = P.t list val print : t -> unit end
-val print_list_of_int : Print_int.t list -> unit = <fun>
+val print_list_of_int : Print_int.t list -> unit @@ global many = <fun>
 |}]
 
 let f () = let open functor(X: sig end) -> struct end in ();;

@@ -22,7 +22,7 @@ type (_, _) equ = Refl : ('q, 'q) equ
 module type Ty = sig type t end
 type 'a modu = (module Ty with type t = 'a)
 type 'q1 packed = P : 'q0 modu * ('q0, 'q1) equ -> 'q1 packed
-val repack : 'q packed -> 'q modu = <fun>
+val repack : 'q packed -> 'q modu @@ global many = <fun>
 |}]
 
 (* Same, using a polymorphic function rather than an existential *)
@@ -37,6 +37,6 @@ let f (type foo) (intish : (foo, int) equ) =
   ()
 
 [%%expect{|
-val mkmod : unit -> 'a modu = <fun>
-val f : ('foo, int) equ -> unit = <fun>
+val mkmod : unit -> 'a modu @@ global many = <fun>
+val f : ('foo, int) equ -> unit @@ global many = <fun>
 |}]

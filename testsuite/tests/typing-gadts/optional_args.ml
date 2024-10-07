@@ -14,23 +14,23 @@ let apply (_ : unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun () : a -> ())
 
 [%%expect{|
-val apply : (unit -> 'a) -> 'a = <fun>
-val go : (unit, 'a) refl -> 'a = <fun>
+val apply : (unit -> 'a) -> 'a @@ global many = <fun>
+val go : (unit, 'a) refl -> 'a @@ global many = <fun>
 |}]
 
 let apply (_ : x:unit -> unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun ~x:_ () : a -> ())
 
 [%%expect{|
-val apply : (x:unit -> unit -> 'a) -> 'a = <fun>
-val go : (unit, 'a) refl -> 'a = <fun>
+val apply : (x:unit -> unit -> 'a) -> 'a @@ global many = <fun>
+val go : (unit, 'a) refl -> 'a @@ global many = <fun>
 |}]
 
 let apply (_ : ?x:unit -> unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun ?x:_ () : a -> ())
 
 [%%expect{|
-val apply : (?x:unit -> unit -> 'a) -> 'a = <fun>
+val apply : (?x:unit -> unit -> 'a) -> 'a @@ global many = <fun>
 Line 2, characters 42-71:
 2 | let go (type a) (Refl : (unit, a) refl) = apply (fun ?x:_ () : a -> ())
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -44,15 +44,15 @@ let apply (_ : unit -> x:unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun () ~x:_ : a -> ())
 
 [%%expect{|
-val apply : (unit -> x:unit -> 'a) -> 'a = <fun>
-val go : (unit, 'a) refl -> 'a = <fun>
+val apply : (unit -> x:unit -> 'a) -> 'a @@ global many = <fun>
+val go : (unit, 'a) refl -> 'a @@ global many = <fun>
 |}]
 
 let apply (_ : unit -> ?x:unit -> 'a) : 'a = assert false
 let go (type a) (Refl : (unit, a) refl) = apply (fun () ?x:_ : a -> ())
 
 [%%expect{|
-val apply : (unit -> ?x:unit -> 'a) -> 'a = <fun>
+val apply : (unit -> ?x:unit -> 'a) -> 'a @@ global many = <fun>
 Line 2, characters 59-60:
 2 | let go (type a) (Refl : (unit, a) refl) = apply (fun () ?x:_ : a -> ())
                                                                ^

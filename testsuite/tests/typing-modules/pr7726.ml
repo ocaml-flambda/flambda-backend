@@ -44,7 +44,7 @@ let x : T3.Fixed.t = S Z;;
 [%%expect{|
 module F3 : functor (X : T) -> sig type t = Z | S of X.t end
 module T3 : sig module rec Fixed : sig type t = F3(Fixed).t end end
-val x : T3.Fixed.t = F3(T3.Fixed).S F3(T3.Fixed).Z
+val x : T3.Fixed.t @@ global many = F3(T3.Fixed).S F3(T3.Fixed).Z
 |}]
 
 (* Torture the type checker more *)
@@ -122,7 +122,8 @@ module M = Foo(Id);;
 M.f 5;;
 [%%expect{|
 module Foo :
-  functor (F : T -> T) -> sig val f : Fix(F).Fixed.t -> Fix(F).Fixed.t end
+  functor (F : T -> T) ->
+    sig val f : Fix(F).Fixed.t -> Fix(F).Fixed.t @@ global many portable end
 Line 1:
 Error: In the signature of Fix(Id):
        The definition of "Fixed.t" contains a cycle:

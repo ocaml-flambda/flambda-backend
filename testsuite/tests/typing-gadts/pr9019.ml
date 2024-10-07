@@ -40,7 +40,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (AB, MAB, A)
 
-val f : 'x M.t -> 'x M.t -> 'x -> int = <fun>
+val f : 'x M.t -> 'x M.t -> 'x -> int @@ global many = <fun>
 |}]
 
 let () = ignore (f M.ab MAB A)
@@ -87,13 +87,13 @@ let f (type x) (t1 : x t) (t2 : x t) (x : x) =
   | _, AB, B -> 3
   | _, MAB, _ -> 4;;
 [%%expect{|
-val f : 'x M.t -> 'x M.t -> 'x -> int = <fun>
+val f : 'x M.t -> 'x M.t -> 'x -> int @@ global many = <fun>
 |}]
 
 (* the answer shouldn't be 3 *)
 let x = f MAB M.ab M.a;;
 [%%expect{|
-val x : int = 2
+val x : int @@ global many = 2
 |}]
 
 (* using records *)
@@ -140,12 +140,12 @@ Line 7, characters 4-22:
         ^^^^^^^^^^^^^^^^^^
 Warning 11 [redundant-case]: this match case is unused.
 
-val f : 'x M.t -> 'x M.t -> 'x -> int = <fun>
+val f : 'x M.t -> 'x M.t -> 'x -> int @@ global many = <fun>
 |}]
 
 let p = f M.ab MAB { a = 42 };;
 [%%expect{|
-val p : int = 4
+val p : int @@ global many = 4
 |}]
 
 
@@ -173,7 +173,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (A, A_or_B, `B _)
 
-val f : 'x a -> 'x a_or_b -> 'x -> unit = <fun>
+val f : 'x a -> 'x a_or_b -> 'x -> unit @@ global many = <fun>
 |}]
 
 let segfault = f A A_or_B (`B 0)
@@ -205,7 +205,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (B, `B String_option, None)
 
-val f : ('x, 'y ty) b -> 'x -> 'y -> unit = <fun>
+val f : ('x, 'y ty) b -> 'x -> 'y -> unit @@ global many = <fun>
 |}]
 
 let segfault = f B (`B String_option) None
@@ -226,7 +226,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 `A (Some _)
 
-val f : 'a option a -> unit = <fun>
+val f : 'a option a -> unit @@ global many = <fun>
 |}]
 
 let f (x : [> `A] a) = match x with `A `B -> ();;
@@ -238,5 +238,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 `A `A
 
-val f : [< `A | `B > `A ] a -> unit = <fun>
+val f : [< `A | `B > `A ] a -> unit @@ global many = <fun>
 |}]

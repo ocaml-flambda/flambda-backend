@@ -8,7 +8,7 @@ let escape x =
   let _ = ref x in
   ()
 [%%expect{|
-val escape : 'a -> unit = <fun>
+val escape : 'a -> unit @@ global many = <fun>
 |}]
 
 (* Any function ending with exclave is always typed to return local value. This is to
@@ -19,7 +19,7 @@ let foo () =
     let local_ y = Some 42 in
     y
 [%%expect{|
-val foo : unit -> local_ int option = <fun>
+val foo : unit -> local_ int option @@ global many = <fun>
 |}]
 (* sidenote: in the above,
    y escapes the function even though local_
@@ -36,7 +36,7 @@ let foo () =
     let _ = escape x in
     x
 [%%expect{|
-val foo : unit -> local_ int option = <fun>
+val foo : unit -> local_ int option @@ global many = <fun>
 |}]
 
 (* this still applies even when the exclave doesn't allocate in outer region at all,
@@ -48,7 +48,7 @@ let foo x =
     let _ = escape x in
     x
 [%%expect{|
-val foo : 'a -> local_ int option = <fun>
+val foo : 'a -> local_ int option @@ global many = <fun>
 |}]
 
 
@@ -95,7 +95,7 @@ let foo () =
   done
 
 [%%expect{|
-val foo : unit -> 'a = <fun>
+val foo : unit -> 'a @@ global many = <fun>
 |}]
 
 (* we also require tail position *)
@@ -117,7 +117,7 @@ let foo () =
     exclave_ ()
   done
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -140,7 +140,7 @@ let foo (local_ x) =
 
 [%%expect{|
 type t = { x : int option; }
-val foo : local_ int option -> local_ int option = <fun>
+val foo : local_ int option -> local_ int option @@ global many = <fun>
 |}]
 
 (* semantics tests *)
@@ -177,8 +177,8 @@ let bar _ =
   | Some x -> "Some of " ^ (string_of_int (x + 0)) ;;
 bar ();;
 [%%expect{|
-val foo : 'a -> local_ 'a option = <fun>
-val bar : 'a -> string = <fun>
+val foo : 'a -> local_ 'a option @@ global many = <fun>
+val bar : 'a -> string @@ global many = <fun>
 - : string = "Some of 5"
 |}]
 
@@ -196,8 +196,8 @@ let f () =
 f ();;
 [%%expect{|
 type 'a glob = Glob of global_ 'a
-val return_local : 'a -> local_ 'a glob = <fun>
-val f : unit -> local_ unit = <fun>
+val return_local : 'a -> local_ 'a glob @@ global many = <fun>
+val f : unit -> local_ unit @@ global many = <fun>
 - : unit = ()
 |}]
 
@@ -233,7 +233,7 @@ let f () =
     (fun x -> fun y -> ()) : (string -> string -> unit)
   )
 [%%expect{|
-val f : unit -> local_ (string -> (string -> unit)) = <fun>
+val f : unit -> local_ (string -> (string -> unit)) @@ global many = <fun>
 |}]
 
 let f : local_ string -> string =

@@ -25,5 +25,5 @@ let f (type a) (a : a response) =
  match a with
  | C -> 0;;
 [%%expect{|
-val f : 'a response -> int = <fun>
+val f : 'a response -> int @@ global many = <fun>
 |}]

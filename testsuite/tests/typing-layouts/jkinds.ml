@@ -422,14 +422,14 @@ type t = indirect_int
 
 let x : (_ : value mod uncontended) = 10
 [%%expect {|
-val x : int = 10
+val x : int @@ global many = 10
 |}]
 
 let f (x : nativeint#) =
   let _ : (_ : word mod portable many unique) = x in
   ()
 [%%expect {|
-val f : nativeint# -> unit = <fun>
+val f : nativeint# -> unit @@ global many = <fun>
 |}]
 
 type t_value : value
@@ -522,7 +522,7 @@ type t : value mod global
 let g (x : t) : ('a : value mod global) = x
 [%%expect{|
 type t : value mod global
-val g : t -> t = <fun>
+val g : t -> t @@ global many = <fun>
 |}]
 
 type t : value mod many
@@ -545,8 +545,8 @@ let f (x : _ as (_ : value mod unique)) = ()
 let g (x : t) = f x
 [%%expect {|
 type t : value mod unique
-val f : ('a : value mod unique). 'a -> unit = <fun>
-val g : t -> unit = <fun>
+val f : ('a : value mod unique). 'a -> unit @@ global many = <fun>
+val g : t -> unit @@ global many = <fun>
 |}]
 
 type t : value mod external64
@@ -554,7 +554,7 @@ let f (x : _ as (_ : value mod unique)) = ()
 let g (x : t) = f x
 [%%expect {|
 type t : value mod external64
-val f : ('a : value mod unique). 'a -> unit = <fun>
+val f : ('a : value mod unique). 'a -> unit @@ global many = <fun>
 Line 3, characters 18-19:
 3 | let g (x : t) = f x
                       ^
@@ -602,7 +602,7 @@ type t : value = private int
 let f (x : t) : _ as (_ : value mod global) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -610,7 +610,7 @@ type t : value = private int
 let f (x : t) : _ as (_ : value mod unique) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -618,7 +618,7 @@ type t : value = private int
 let f (x : t) : _ as (_ : value mod many) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -626,7 +626,7 @@ type t : value = private int
 let f (x : t) : _ as (_ : value mod portable) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -634,7 +634,7 @@ type t : value = private int
 let f (x : t) : _ as (_ : value mod uncontended) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -642,7 +642,7 @@ type t : value = private int
 let f (x : t) : _ as (_ : value mod external_) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -656,20 +656,20 @@ let f (x : t) : _ as (_ : value mod external_) = x
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
-val f : t -> t = <fun>
-val f : t -> t = <fun>
-val f : t -> t = <fun>
-val f : t -> t = <fun>
-val f : t -> t = <fun>
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
+val f : t -> t @@ global many = <fun>
+val f : t -> t @@ global many = <fun>
+val f : t -> t @@ global many = <fun>
+val f : t -> t @@ global many = <fun>
+val f : t -> t @@ global many = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod global) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -677,7 +677,7 @@ type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod unique) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -685,7 +685,7 @@ type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod many) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -693,7 +693,7 @@ type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod portable) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -701,7 +701,7 @@ type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod uncontended) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -709,7 +709,7 @@ type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod external_) = x
 [%%expect {|
 type t = private { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -994,8 +994,8 @@ let f (x : _ as (_ : immediate)) : (_ as (_ : value mod many)) = x.x
 let v : (int as (_ : value mod portable)) = f { x = 5 }
 [%%expect {|
 type t = { x : int; } [@@unboxed]
-val f : t -> int = <fun>
-val v : int = 5
+val f : t -> int @@ global many = <fun>
+val v : int @@ global many portable = 5
 |}]
 
 type ('a : immediate) t : value mod many portable = { mutable x : 'a }
@@ -1136,7 +1136,7 @@ type t : any mod portable = Foo of bool [@@unboxed]
 let x = (Foo true : _ as (_ : value mod portable uncontended unique))
 [%%expect {|
 type t = Foo of bool [@@unboxed]
-val x : t = <unknown constructor>
+val x : t @@ global many = <unknown constructor>
 |}]
 (* CR layouts v2.8: This should be rejected once nominative types remember their kinds *)
 
@@ -1314,9 +1314,10 @@ let f : ('a : any mod global unique) -> ('a: any mod uncontended) = fun x -> x
 let f : ('a : value mod external64) -> ('a: any mod external_) = fun x -> x
 let f : ('a : value) -> ('a: immediate) = fun x -> x
 [%%expect {|
-val f : ('a : value mod global unique uncontended). 'a -> 'a = <fun>
-val f : ('a : value mod external_). 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : value mod global unique uncontended). 'a -> 'a @@ global many =
+  <fun>
+val f : ('a : value mod external_). 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f : ('a : value) -> ('a: float32) = fun x -> x
@@ -1354,7 +1355,7 @@ let f (type a : value) (x : a t) =
 
 [%%expect{|
 type _ t = K : ('a : value mod global). 'a t
-val f : 'a t -> 'a = <fun>
+val f : 'a t -> 'a @@ global many = <fun>
 |}]
 
 type _ t =
@@ -1379,7 +1380,7 @@ type _ t =
     A : ('a : immediate). 'a t
   | B : ('b : value mod unique portable). 'b -> 'b t
   | C : 'c t
-val f : 'a t -> unit = <fun>
+val f : 'a t -> unit @@ global many = <fun>
 |}]
 
 type _ t =
@@ -1431,17 +1432,17 @@ type t = <  >
 
 let x : (_ as (_ : value)) = object end
 [%%expect{|
-val x : <  > = <obj>
+val x : <  > @@ global many = <obj>
 |}]
 
 let x : (_ as (_ : value mod global)) = object end
 [%%expect {|
-val x : <  > = <obj>
+val x : <  > @@ global many = <obj>
 |}]
 
 let x : (_ as (_ : value mod many)) = object end
 [%%expect {|
-val x : <  > = <obj>
+val x : <  > @@ global many = <obj>
 |}]
 
 let x : (_ as (_ : value mod unique)) = object end

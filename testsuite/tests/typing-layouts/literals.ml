@@ -26,10 +26,10 @@ module Float_u = Stdlib_upstream_compatible.Float_u
 module Int32_u = Stdlib_upstream_compatible.Int32_u
 module Int64_u = Stdlib_upstream_compatible.Int64_u
 module Nativeint_u = Stdlib_upstream_compatible.Nativeint_u
-val test_float : string -> Float_u.t -> unit = <fun>
-val test_int32 : string -> Int32_u.t -> unit = <fun>
-val test_int64 : string -> Int64_u.t -> unit = <fun>
-val test_nativeint : string -> Nativeint_u.t -> unit = <fun>
+val test_float : string -> Float_u.t -> unit @@ global many = <fun>
+val test_int32 : string -> Int32_u.t -> unit @@ global many = <fun>
+val test_int64 : string -> Int64_u.t -> unit @@ global many = <fun>
+val test_nativeint : string -> Nativeint_u.t -> unit @@ global many = <fun>
 |}]
 
 (*****************************************)
@@ -181,7 +181,7 @@ let f x =
 
 f #4L;;
 [%%expect {|
-val f : int64# -> [> `Five | `Four | `Other ] = <fun>
+val f : int64# -> [> `Five | `Four | `Other ] @@ global many = <fun>
 - : [> `Five | `Four | `Other ] = `Four
 |}];;
 
@@ -194,7 +194,7 @@ let f x =
 
 test_int64 "result" (f #7L);;
 [%%expect {|
-val f : int64# -> int64# = <fun>
+val f : int64# -> int64# @@ global many = <fun>
 result: 7
 - : unit = ()
 |}];;
@@ -222,7 +222,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 #3L
 
-val f : int64# -> int64# = <fun>
+val f : int64# -> int64# @@ global many = <fun>
 Exception: Match_failure ("", 2, 2).
 |}];;
 
@@ -235,7 +235,7 @@ let f x =
 
 f #5.;;
 [%%expect {|
-val f : float# -> [> `Five | `Four | `Other ] = <fun>
+val f : float# -> [> `Five | `Four | `Other ] @@ global many = <fun>
 - : [> `Five | `Four | `Other ] = `Five
 |}];;
 
@@ -248,7 +248,7 @@ let f x =
 
 test_float "result" (f #7.);;
 [%%expect {|
-val f : float# -> float# = <fun>
+val f : float# -> float# @@ global many = <fun>
 result: 7.000000
 - : unit = ()
 |}];;
@@ -270,7 +270,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 #0.
 
-val f : float# -> float# = <fun>
+val f : float# -> float# @@ global many = <fun>
 Exception: Match_failure ("", 2, 2).
 |}];;
 
@@ -291,8 +291,8 @@ let () = f2
 ;;
 
 [%%expect{|
-val f1 : float# -> int64# -> unit = <fun>
-val f2 : float# -> float# -> unit = <fun>
+val f1 : float# -> int64# -> unit @@ global many = <fun>
+val f2 : float# -> float# -> unit @@ global many = <fun>
 |}];;
 
 let f _ _ = ();;
@@ -306,5 +306,5 @@ let () = f
 ;;
 
 [%%expect{|
-val f : 'a -> 'b -> unit = <fun>
+val f : 'a -> 'b -> unit @@ global many = <fun>
 |}];;

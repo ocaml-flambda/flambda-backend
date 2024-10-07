@@ -186,8 +186,8 @@ let () = ignore (f2 (assert false : 'a t_vv))
 [%%expect{|
 type 'a t_v = 'a
 type ('a : void) t_vv = 'a
-val f : 'a t_v -> 'a t_v = <fun>
-val f2 : 'a t_v -> 'a t_v = <fun>
+val f : 'a t_v -> 'a t_v @@ global many = <fun>
+val f2 : 'a t_v -> 'a t_v @@ global many = <fun>
 Line 5, characters 20-44:
 5 | let () = ignore (f2 (assert false : 'a t_vv))
                         ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -210,7 +210,7 @@ let () = ignore (f (assert false : 'a t_v2))
 type 'a t_v = 'a
 type ('a : void) t_v1 = 'a
 type ('a : void) t_v2 = 'a t_v1
-val f : 'a t_v -> 'a t_v = <fun>
+val f : 'a t_v -> 'a t_v @@ global many = <fun>
 Line 6, characters 19-43:
 6 | let () = ignore (f (assert false : 'a t_v2))
                        ^^^^^^^^^^^^^^^^^^^^^^^^

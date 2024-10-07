@@ -62,7 +62,7 @@ let f (type a) () =
   ()
 ;;
 [%%expect{|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}];;
 
 let f (type a) () =
@@ -73,7 +73,7 @@ let f (type a) () =
   in
   ();;
 [%%expect{|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}];;
 
 (* Reject scope escape via unification *)

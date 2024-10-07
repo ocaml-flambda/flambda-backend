@@ -8,14 +8,15 @@ end
 
 [%%expect{|
 val object_with_a_method_with_a_positional_parameter :
-  < m : call_pos:[%call_pos] -> unit -> lexing_position > = <obj>
+  < m : call_pos:[%call_pos] -> unit -> lexing_position > @@ global many =
+  <obj>
 |}]
 
 let position = object_with_a_method_with_a_positional_parameter#m ();;
 
 [%%expect{|
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 281; pos_cnum = 296}
+val position : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 298; pos_cnum = 313}
 |}]
 
 class class_with_a_method_with_a_positional_parameter = object 
@@ -30,21 +31,22 @@ class class_with_a_method_with_a_positional_parameter :
 let o = new class_with_a_method_with_a_positional_parameter;;
 
 [%%expect{|
-val o : class_with_a_method_with_a_positional_parameter = <obj>
+val o : class_with_a_method_with_a_positional_parameter @@ global many =
+  <obj>
 |}]
 
 let position = o#m ();;
 
 [%%expect{|
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 876; pos_cnum = 891}
+val position : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 925; pos_cnum = 940}
 |}]
 
 let position = (new class_with_a_method_with_a_positional_parameter)#m ();;
 
 [%%expect{|
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 1015; pos_cnum = 1030}
+val position : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 1079; pos_cnum = 1094}
 |}]
 
 
@@ -62,9 +64,9 @@ let o = new class_with_positional_parameter ()
 let position = o#call_pos
 
 [%%expect{|
-val o : class_with_positional_parameter = <obj>
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 1458; pos_cnum = 1466}
+val o : class_with_positional_parameter @@ global many = <obj>
+val position : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 1537; pos_cnum = 1545}
 |}]
 
 
@@ -91,11 +93,11 @@ let c = (new c ())
 let from_method_param, from_class_param = c#m()
 
 [%%expect{|
-val c : c = <obj>
-val from_method_param : lexing_position =
-  {pos_fname = ""; pos_lnum = 2; pos_bol = 2216; pos_cnum = 2258}
-val from_class_param : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 2197; pos_cnum = 2206}
+val c : c @@ global many = <obj>
+val from_method_param : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 2; pos_bol = 2325; pos_cnum = 2367}
+val from_class_param : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 2306; pos_cnum = 2315}
 |}]
 
 class parent ~(call_pos : [%call_pos]) () = object
@@ -110,9 +112,9 @@ let position = o#pos
 [%%expect{|
 class parent :
   call_pos:[%call_pos] -> unit -> object method pos : lexing_position end
-val o : parent = <obj>
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 6; pos_bol = 2611; pos_cnum = 2621}
+val o : parent @@ global many = <obj>
+val position : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 6; pos_bol = 2765; pos_cnum = 2775}
 |}]
 
 let o ~(call_pos : [%call_pos]) () = object 
@@ -121,9 +123,9 @@ end
 let position = (o ())#pos
 
 [%%expect{|
-val o : call_pos:[%call_pos] -> unit -> parent = <fun>
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 2964; pos_cnum = 2980}
+val o : call_pos:[%call_pos] -> unit -> parent @@ global many = <fun>
+val position : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3148; pos_cnum = 3164}
 |}]
 
 (* Applying an call_pos argument without a label. *)
@@ -138,9 +140,9 @@ Line 2, characters 10-16:
               ^^^^^^
 Warning 6 [labels-omitted]: label call_pos was omitted in the application of this function.
 
-val o : call_pos:[%call_pos] -> unit -> parent = <fun>
-val position : lexing_position =
-  {pos_fname = ""; pos_lnum = 4; pos_bol = 3293; pos_cnum = 3309}
+val o : call_pos:[%call_pos] -> unit -> parent @@ global many = <fun>
+val position : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 4; pos_bol = 3507; pos_cnum = 3523}
 |}]
 
 
@@ -156,8 +158,8 @@ let position = o#i
 
 [%%expect{|
 class parent : ?i:int -> unit -> object method i : int end
-val o : parent = <obj>
-val position : int = 1
+val o : parent @@ global many = <obj>
+val position : int @@ global many = 1
 |}]
 
 (* Partially applying a class *)
@@ -178,24 +180,25 @@ let pos_a : lexing_position = {Lexing.dummy_pos with pos_fname = "a"};;
 let partially_applied_class = new c ~a:pos_a
 
 [%%expect{|
-val pos_a : lexing_position =
+val pos_a : lexing_position @@ global many portable =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
-val partially_applied_class : b:[%call_pos] -> unit -> c = <fun>
+val partially_applied_class : b:[%call_pos] -> unit -> c @@ global many =
+  <fun>
 |}]
 
 let fully_applied_class = partially_applied_class ()
 
 [%%expect{|
-val fully_applied_class : c = <obj>
+val fully_applied_class : c @@ global many = <obj>
 |}]
 
 let a, b = fully_applied_class#a, fully_applied_class#b
 
 [%%expect{|
-val a : lexing_position =
+val a : lexing_position @@ global many =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
-val b : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 4512; pos_cnum = 4538}
+val b : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 4827; pos_cnum = 4853}
 |}]
 
 class c :
@@ -215,9 +218,9 @@ class c :
 let x, y = (new c ~y:pos_a ())#xy
 
 [%%expect{|
-val x : lexing_position =
-  {pos_fname = ""; pos_lnum = 1; pos_bol = 5199; pos_cnum = 5211}
-val y : lexing_position =
+val x : lexing_position @@ global many =
+  {pos_fname = ""; pos_lnum = 1; pos_bol = 5559; pos_cnum = 5571}
+val y : lexing_position @@ global many =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 

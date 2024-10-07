@@ -15,7 +15,7 @@ let f x =
 ;;
 
 [%%expect{|
-val f : (unit -> 'a) -> unit = <fun>
+val f : (unit -> 'a) -> unit @@ global many = <fun>
 |}]
 ;;
 
@@ -25,7 +25,7 @@ let f x =
 ;;
 
 [%%expect{|
-val f : (unit -> 'a) -> unit = <fun>
+val f : (unit -> 'a) -> unit @@ global many = <fun>
 |}]
 ;;
 
@@ -36,7 +36,7 @@ let f x =
 ;;
 
 [%%expect{|
-val f : (unit -> Arg.spec) -> unit = <fun>
+val f : (unit -> Arg.spec) -> unit @@ global many = <fun>
 |}]
 ;;
 
@@ -47,7 +47,7 @@ let f x =
 ;;
 
 [%%expect{|
-val f : (unit -> int) -> unit = <fun>
+val f : (unit -> int) -> unit @@ global many = <fun>
 |}]
 ;;
 

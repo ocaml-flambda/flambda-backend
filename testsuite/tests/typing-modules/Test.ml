@@ -52,14 +52,14 @@ module M : sig val v : (#c as 'a) -> 'a end
 
 let id = let module M = struct end in fun x -> x;;
 [%%expect{|
-val id : 'a -> 'a = <fun>
+val id : 'a -> 'a @@ global many = <fun>
 |}];;
 
 (* PR#4511 *)
 
 let ko = let module M = struct end in fun _ -> ();;
 [%%expect{|
-val ko : 'a -> unit = <fun>
+val ko : 'a -> unit @@ global many = <fun>
 |}];;
 
 (* PR#5993 *)
@@ -119,7 +119,8 @@ Error: Multiple definition of the extension constructor name "Foo".
 module F(X : sig end) = struct let x = 3 end;;
 F.x;; (* fail *)
 [%%expect{|
-module F : functor (X : sig end) -> sig val x : int end
+module F :
+  functor (X : sig end) -> sig val x : int @@ global many portable end
 Line 2, characters 0-3:
 2 | F.x;; (* fail *)
     ^^^

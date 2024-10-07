@@ -15,7 +15,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (None, Some _)
 
-val f : 'a option * 'b option -> int = <fun>
+val f : 'a option * 'b option -> int @@ global many = <fun>
 |}]
 
 type _ t =
@@ -44,7 +44,7 @@ Line 1, characters 42-43:
 Warning 56 [unreachable-case]: this match case is unreachable.
 Consider replacing it with a refutation case '<pat> -> .'
 
-val f : int t -> int = <fun>
+val f : int t -> int @@ global many = <fun>
 |}]
 
 let f (x : unit t option) = match x with None -> 1 | _ -> 2 ;; (* warn? *)
@@ -55,7 +55,7 @@ Line 1, characters 53-54:
 Warning 56 [unreachable-case]: this match case is unreachable.
 Consider replacing it with a refutation case '<pat> -> .'
 
-val f : unit t option -> int = <fun>
+val f : unit t option -> int @@ global many = <fun>
 |}]
 
 let f (x : unit t option) = match x with None -> 1 | Some _ -> 2 ;; (* warn *)
@@ -66,12 +66,12 @@ Line 1, characters 53-59:
 Warning 56 [unreachable-case]: this match case is unreachable.
 Consider replacing it with a refutation case '<pat> -> .'
 
-val f : unit t option -> int = <fun>
+val f : unit t option -> int @@ global many = <fun>
 |}]
 
 let f (x : int t option) = match x with None -> 1 | _ -> 2;;
 [%%expect {|
-val f : int t option -> int = <fun>
+val f : int t option -> int @@ global many = <fun>
 |}]
 
 let f (x : int t option) = match x with None -> 1;; (* warn *)
@@ -83,7 +83,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some A
 
-val f : int t option -> int = <fun>
+val f : int t option -> int @@ global many = <fun>
 |}]
 
 (* Example with record, type, single case *)
@@ -104,12 +104,12 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some ({left=Box A; right=Box A}, _)
 
-val f : (int t box pair * bool) option -> unit = <fun>
+val f : (int t box pair * bool) option -> unit @@ global many = <fun>
 |}]
 
 let f : (string t box pair * bool) option -> unit = function None -> ();;
 [%%expect {|
-val f : (string t box pair * bool) option -> unit = <fun>
+val f : (string t box pair * bool) option -> unit @@ global many = <fun>
 |}]
 
 let f = function {left=Box 0; _ } -> ();;
@@ -121,7 +121,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {left=Box 1; _ }
 
-val f : int box pair -> unit = <fun>
+val f : int box pair -> unit @@ global many = <fun>
 |}]
 
 let f = function {left=Box 0;right=Box 1} -> ();;
@@ -133,7 +133,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {left=Box 0; right=Box 0}
 
-val f : int box pair -> unit = <fun>
+val f : int box pair -> unit @@ global many = <fun>
 |}]
 
 (* Examples from ML2015 paper *)
@@ -151,14 +151,14 @@ let f : type a. a t -> a = function
   | Bool -> true
 ;;
 [%%expect {|
-val f : 'a t -> 'a = <fun>
+val f : 'a t -> 'a @@ global many = <fun>
 |}]
 
 let g : int t -> int = function
   | Int -> 1
 ;;
 [%%expect {|
-val g : int t -> int = <fun>
+val g : int t -> int @@ global many = <fun>
 |}]
 
 let h : type a. a t -> a t -> bool =
@@ -167,7 +167,7 @@ let h : type a. a t -> a t -> bool =
   | Bool, Bool -> true
 ;;
 [%%expect {|
-val h : 'a t -> 'a t -> bool = <fun>
+val h : 'a t -> 'a t -> bool @@ global many = <fun>
 |}]
 
 type (_, _) cmp =
@@ -191,14 +191,14 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Eq
 
-val f : (A.a, A.b) cmp -> unit = <fun>
+val f : (A.a, A.b) cmp -> unit @@ global many = <fun>
 |}]
 
 let deep : char t option -> char =
   function None -> 'c'
 ;;
 [%%expect {|
-val deep : char t option -> char = <fun>
+val deep : char t option -> char @@ global many = <fun>
 |}]
 
 type zero = Zero
@@ -224,14 +224,15 @@ let trivial : (zero succ, zero, zero) plus option -> bool =
   function None -> false
 ;;
 [%%expect {|
-val trivial : (zero succ, zero, zero) plus option -> bool = <fun>
+val trivial : (zero succ, zero, zero) plus option -> bool @@ global many =
+  <fun>
 |}]
 
 let easy : (zero, zero succ, zero) plus option -> bool =
   function None -> false
 ;;
 [%%expect {|
-val easy : (zero, zero succ, zero) plus option -> bool = <fun>
+val easy : (zero, zero succ, zero) plus option -> bool @@ global many = <fun>
 |}]
 
 let harder : (zero succ, zero succ, zero succ) plus option -> bool =
@@ -245,14 +246,16 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some (PlusS _)
 
-val harder : (zero succ, zero succ, zero succ) plus option -> bool = <fun>
+val harder : (zero succ, zero succ, zero succ) plus option -> bool @@ global
+  many = <fun>
 |}]
 
 let harder : (zero succ, zero succ, zero succ) plus option  -> bool =
   function None -> false | Some (PlusS _) -> .
 ;;
 [%%expect {|
-val harder : (zero succ, zero succ, zero succ) plus option -> bool = <fun>
+val harder : (zero succ, zero succ, zero succ) plus option -> bool @@ global
+  many = <fun>
 |}]
 
 let inv_zero : type a b c d. (a,b,c) plus -> (c,d,zero) plus -> bool =
@@ -261,7 +264,8 @@ let inv_zero : type a b c d. (a,b,c) plus -> (c,d,zero) plus -> bool =
     | Plus0, Plus0 -> true
 ;;
 [%%expect {|
-val inv_zero : ('a, 'b, 'c) plus -> ('c, 'd, zero) plus -> bool = <fun>
+val inv_zero : ('a, 'b, 'c) plus -> ('c, 'd, zero) plus -> bool @@ global
+  many = <fun>
 |}]
 
 
@@ -274,7 +278,7 @@ type _ t = Int : int t
 
 let f (x : bool t) = match x with _ -> . ;; (* ok *)
 [%%expect {|
-val f : bool t -> 'a = <fun>
+val f : bool t -> 'a @@ global many = <fun>
 |}]
 
 
@@ -309,7 +313,7 @@ Error: This match case could not be refuted.
 
 let f x = match x with _ -> () | None -> .;; (* do not warn *)
 [%%expect {|
-val f : 'a option -> unit = <fun>
+val f : 'a option -> unit @@ global many = <fun>
 |}]
 
 (* #7059, all clauses guarded *)
@@ -322,7 +326,7 @@ Line 1, characters 12-42:
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 All clauses in this pattern-matching are guarded.
 
-val f : 'a -> 'a -> int = <fun>
+val f : 'a -> 'a -> int @@ global many = <fun>
 |}]
 
 (* #7504, Example with no constraints on a record *)
@@ -335,7 +339,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 ({ _ }, 1)
 
-val f : 'a ref * int -> int = <fun>
+val f : 'a ref * int -> int @@ global many = <fun>
 |}]
 
 (* inexhaustive however some guarded clause might match *)
@@ -355,7 +359,7 @@ Here is an example of a case that is not matched:
 Some _
 (However, some guarded clause may match this value.)
 
-val f : int option -> unit = <fun>
+val f : int option -> unit @@ global many = <fun>
 |}]
 
 (* in the single-row case we can generate more compact witnesses *)
@@ -392,5 +396,8 @@ Here is an example of a case that is not matched:
 ((A|B), (A|B), (A|B), B)
 
 module Single_row_optim :
-  sig type t = A | B val non_exhaustive : t * t * t * t -> unit end
+  sig
+    type t = A | B
+    val non_exhaustive : t * t * t * t -> unit @@ global many portable
+  end
 |}]

@@ -17,7 +17,10 @@ Lines 4-7, characters 6-3:
 7 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = X.t = A | B val f : t -> int end
+         sig
+           type t = X.t = A | B
+           val f : t -> int @@ global many portable
+         end
        is not included in
          sig type t = int * bool end
        Type declarations do not match:

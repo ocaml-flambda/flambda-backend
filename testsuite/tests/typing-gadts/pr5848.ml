@@ -19,5 +19,5 @@ let of_type: type a. a -> a = fun x ->
 [%%expect{|
 module B :
   sig type (_, _) t = Eq : ('a, 'a) t val f : 'a -> 'b -> ('a, 'b) t end
-val of_type : 'a -> 'a = <fun>
+val of_type : 'a -> 'a @@ global many = <fun>
 |}];;

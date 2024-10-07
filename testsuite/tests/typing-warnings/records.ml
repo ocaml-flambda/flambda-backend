@@ -52,7 +52,11 @@ Line 7, characters 18-19:
 Warning 27 [unused-var-strict]: unused variable x.
 
 module OK :
-  sig val f1 : M1.t -> int val f2 : M1.t -> int val f3 : M1.t -> int end
+  sig
+    val f1 : M1.t -> int @@ global many portable
+    val f2 : M1.t -> int @@ global many
+    val f3 : M1.t -> int @@ global many
+  end
 |}, Principal{|
 Line 3, characters 19-20:
 3 |   let f1 (r:t) = r.x (* ok *)
@@ -89,7 +93,11 @@ Line 7, characters 18-19:
 Warning 27 [unused-var-strict]: unused variable x.
 
 module OK :
-  sig val f1 : M1.t -> int val f2 : M1.t -> int val f3 : M1.t -> int end
+  sig
+    val f1 : M1.t -> int @@ global many portable
+    val f2 : M1.t -> int @@ global many
+    val f3 : M1.t -> int @@ global many
+  end
 |}]
 
 module F1 = struct
@@ -135,7 +143,7 @@ Line 6, characters 8-9:
             ^
 Warning 27 [unused-var-strict]: unused variable x.
 
-module F2 : sig val f : M1.t -> int end
+module F2 : sig val f : M1.t -> int @@ global many end
 |}, Principal{|
 Line 6, characters 8-9:
 6 |        {x; y} -> y + y
@@ -159,7 +167,7 @@ Line 6, characters 8-9:
             ^
 Warning 27 [unused-var-strict]: unused variable x.
 
-module F2 : sig val f : M1.t -> int end
+module F2 : sig val f : M1.t -> int @@ global many end
 |}]
 
 (* Use type information with modules*)
@@ -178,7 +186,7 @@ Line 1, characters 18-21:
 Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
 
-val f : M.t -> int = <fun>
+val f : M.t -> int @@ global many = <fun>
 |}]
 let f (r:M.t) = r.x;; (* warning *)
 [%%expect{|
@@ -195,7 +203,7 @@ Line 1, characters 18-19:
 Warning 42 [disambiguated-name]: this use of x relies on type-directed disambiguation,
 it will not compile with OCaml 4.00 or earlier.
 
-val f : M.t -> int = <fun>
+val f : M.t -> int @@ global many = <fun>
 |}]
 let f ({x}:M.t) = x;; (* warning *)
 [%%expect{|
@@ -212,7 +220,7 @@ Warning 40 [name-out-of-scope]: this record of type M.t contains fields that are
 not visible in the current scope: x.
 They will not be selected if the type becomes unknown.
 
-val f : M.t -> int = <fun>
+val f : M.t -> int @@ global many = <fun>
 |}]
 
 module M = struct
@@ -244,7 +252,7 @@ Line 3, characters 2-8:
       ^^^^^^
 Warning 33 [unused-open]: unused open N.
 
-module OK : sig val f : M.t -> int end
+module OK : sig val f : M.t -> int @@ global many portable end
 |}]
 
 module M = struct
@@ -265,7 +273,7 @@ module OK = struct
   let f (r:M.t) = r.x
 end;;
 [%%expect{|
-module OK : sig val f : M.t -> int end
+module OK : sig val f : M.t -> int @@ global many portable end
 |}]
 
 (* Use field information *)
@@ -298,7 +306,7 @@ Warning 9 [missing-record-field-pattern]: the following labels are not bound in 
 y
 Either bind these labels explicitly or add '; _' to the pattern.
 
-module OK : sig val f : M.u -> bool * char end
+module OK : sig val f : M.u -> bool * char @@ global many portable end
 |}]
 module F3 = struct
   open M
@@ -339,7 +347,7 @@ module OK :
   sig
     type u = { x : int; y : bool; }
     type t = { x : bool; y : int; z : char; }
-    val r : u
+    val r : u @@ global many portable
   end
 |}]
 
@@ -611,7 +619,7 @@ module Shadow1 :
   sig
     type t = { x : int; }
     module M : sig type s = { x : string; } end
-    val y : t
+    val y : t @@ global many portable
   end
 |}]
 module Shadow2 = struct
@@ -638,7 +646,7 @@ module Shadow2 :
   sig
     type t = { x : int; }
     module M : sig type s = { x : string; } end
-    val y : M.s
+    val y : M.s @@ global many portable
   end
 |}]
 
@@ -662,7 +670,7 @@ module P6235 :
     type t = { loc : string; }
     type v = { loc : string; x : int; }
     type u = [ `Key of t ]
-    val f : u -> string
+    val f : u -> string @@ global many portable
   end
 |}]
 
@@ -688,7 +696,7 @@ module P6235' :
     type t = { loc : string; }
     type v = { loc : string; x : int; }
     type u = [ `Key of t ]
-    val f : u -> string
+    val f : u -> string @@ global many portable
   end
 |}, Principal{|
 Line 7, characters 11-14:
@@ -707,7 +715,7 @@ module P6235' :
     type t = { loc : string; }
     type v = { loc : string; x : int; }
     type u = [ `Key of t ]
-    val f : u -> string
+    val f : u -> string @@ global many portable
   end
 |}]
 
@@ -750,7 +758,7 @@ Warning 40 [name-out-of-scope]: this record of type M.t contains fields that are
 not visible in the current scope: y.
 They will not be selected if the type becomes unknown.
 
-val f : M.t -> M.t = <fun>
+val f : M.t -> M.t @@ global many = <fun>
 Line 3, characters 27-28:
 3 | let g (x : M.t) = { x with y = 'a' } :: []
                                ^
@@ -764,7 +772,7 @@ Warning 40 [name-out-of-scope]: this record of type M.t contains fields that are
 not visible in the current scope: y.
 They will not be selected if the type becomes unknown.
 
-val g : M.t -> M.t list = <fun>
+val g : M.t -> M.t list @@ global many = <fun>
 Line 4, characters 27-28:
 4 | let h (x : M.t) = { x with y = 'a' } :: { x with y = 'b' } :: [];;
                                ^
@@ -791,5 +799,5 @@ Warning 40 [name-out-of-scope]: this record of type M.t contains fields that are
 not visible in the current scope: y.
 They will not be selected if the type becomes unknown.
 
-val h : M.t -> M.t list = <fun>
+val h : M.t -> M.t list @@ global many = <fun>
 |}]

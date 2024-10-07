@@ -75,7 +75,7 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f x = (x : (_ : immediate))
@@ -86,7 +86,7 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f v: ((_ : immediate)[@error_message "Custom message"]) = v
@@ -97,7 +97,7 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}];;
 
 (* immediate64 *)
@@ -163,7 +163,7 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-val f : ('a : immediate64). 'a -> 'a = <fun>
+val f : ('a : immediate64). 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f x = (x : (_ : immediate64))
@@ -174,7 +174,7 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-val f : ('a : immediate64). 'a -> 'a = <fun>
+val f : ('a : immediate64). 'a -> 'a @@ global many = <fun>
 |}];;
 
 let f v: ((_ : immediate64)[@error_message "Custom message"]) = v
@@ -185,7 +185,7 @@ Line 1, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-val f : ('a : immediate64). 'a -> 'a = <fun>
+val f : ('a : immediate64). 'a -> 'a @@ global many = <fun>
 |}];;
 
 (* CR layouts: This message should change after we fix the package hack.
@@ -252,7 +252,8 @@ Line 5, characters 4-5:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in f
 can't be erased for compatibility with upstream OCaml.
 
-val f : ('a : immediate). (module S with type t = 'a) -> 'a -> 'a = <fun>
+val f : ('a : immediate). (module S with type t = 'a) -> 'a -> 'a @@ global
+  many = <fun>
 |}]
 
 (* CR layouts: this example should raise a warning, but it does not.
@@ -270,7 +271,7 @@ let x =
 
 [%%expect{|
 module type S = sig type t : immediate end
-val x : int = 15
+val x : int @@ global many = 15
 |}]
 
 (* CR layouts: this example should raise a warning, but it does not.
@@ -287,7 +288,7 @@ let y =
 ;;
 
 [%%expect{|
-val y : int = 4
+val y : int @@ global many = 4
 |}]
 
 (* Other annotations are not effected by this flag *)
@@ -337,11 +338,11 @@ module type S =
   end
 module M :
   sig
-    val f_any : unit
-    val f_bits64 : unit
-    val f_bits32 : unit
-    val f_float64 : unit
-    val f_word : unit
+    val f_any : unit @@ global many portable
+    val f_bits64 : unit @@ global many portable
+    val f_bits32 : unit @@ global many portable
+    val f_float64 : unit @@ global many portable
+    val f_word : unit @@ global many portable
   end
 |}];;
 
@@ -530,7 +531,8 @@ module[@warning "-187"] M5 = struct
 end;;
 
 [%%expect{|
-module M5 : sig val f : ('a : immediate). 'a -> 'a end
+module M5 :
+  sig val f : ('a : immediate). 'a -> 'a @@ global many portable end
 |}]
 
 (* Just disabling the warning on the expression level doesn't work
@@ -546,7 +548,7 @@ Line 1, characters 21-26:
 Warning 187 [incompatible-with-upstream]: Usage of layout immediate/immediate64 in fails
 can't be erased for compatibility with upstream OCaml.
 
-val fails : ('a : immediate). 'a -> 'a = <fun>
+val fails : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}]
 
 module type S1 = sig

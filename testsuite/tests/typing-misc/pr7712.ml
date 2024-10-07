@@ -16,5 +16,5 @@ let f : type a. a t -> a t = function
 type 'a or_error = string
 type ('a, 'b) t_ = Bar : ('a, 'a or_error) t_
 type 'a t = ('a, 'a) t_
-val f : 'a t -> 'a t = <fun>
+val f : 'a t -> 'a t @@ global many = <fun>
 |}];;

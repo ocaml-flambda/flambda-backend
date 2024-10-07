@@ -53,7 +53,7 @@ let _ = f (object
  end);;
 [%%expect {|
 class type t_a = object method f : 'a -> int end
-val f : t_a -> int = <fun>
+val f : t_a -> int @@ global many = <fun>
 Lines 5-7, characters 10-5:
 5 | ..........(object
 6 |     method f _ = 0
@@ -73,7 +73,7 @@ let () = f ( `A (object method f _ = 0 end): _ v);;
 [%%expect {|
 type uv = [ `A of < f : 'a. 'a -> int > ]
 type 'a v = [ `A of < f : 'a -> int > ]
-val f : uv -> int = <fun>
+val f : uv -> int @@ global many = <fun>
 Line 4, characters 11-49:
 4 | let () = f ( `A (object method f _ = 0 end): _ v);;
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -19,8 +19,9 @@ let foo xy k_good k_bad =
    | exception Odd -> k_bad ()
 [%%expect{|
 exception Odd
-val x_must_be_even : (x:int * 'a) -> x:int * 'a = <fun>
-val foo : (x:int * 'a) -> (unit -> 'b) -> (unit -> 'b) -> 'b = <fun>
+val x_must_be_even : (x:int * 'a) -> x:int * 'a @@ global many = <fun>
+val foo : (x:int * 'a) -> (unit -> 'b) -> (unit -> 'b) -> 'b @@ global many =
+  <fun>
 |}]
 
 (* Test correctness *)
@@ -48,15 +49,15 @@ let _ =
 (* Labeled tuple pattern *)
 let (~x:x0, ~y:y0, _) = ~x: 1, ~y: 2, "ignore me"
 [%%expect{|
-val x0 : int = 1
-val y0 : int = 2
+val x0 : int @@ global many = 1
+val y0 : int @@ global many = 2
 |}]
 
 (* Pattern with punning and type annotation *)
 let (~(x:int), ~y, _) = ~x: 1, ~y: 2, "ignore me"
 [%%expect{|
-val x : int = 1
-val y : int = 2
+val x : int @@ global many portable = 1
+val y : int @@ global many = 2
 |}]
 
 (* Patterns in functions *)
@@ -64,8 +65,8 @@ let f = fun (~foo, ~bar:bar) -> foo * 10 + bar
 let bar = 5
 let _ = f (~foo:1, ~bar)
 [%%expect{|
-val f : (foo:int * bar:int) -> int = <fun>
-val bar : int = 5
+val f : (foo:int * bar:int) -> int @@ global many = <fun>
+val bar : int @@ global many = 5
 - : int = 15
 |}]
 
@@ -73,7 +74,7 @@ val bar : int = 5
 let f : (foo:int * bar:int) -> int =
    fun (~foo, ~bar:bar) -> foo * 10 + bar
 [%%expect{|
-val f : (foo:int * bar:int) -> int = <fun>
+val f : (foo:int * bar:int) -> int @@ global many = <fun>
 |}]
 
 let f = fun (~foo, ~bar:bar) : (foo:int * bar:int) -> foo * 10 + bar
@@ -131,7 +132,7 @@ Error: This pattern was expected to match values of type "foo:float * foo:int",
 (* Annotated pattern *)
 let f (~x,y : (x:int * int)) : int = x + y
 [%%expect{|
-val f : (x:int * int) -> int = <fun>
+val f : (x:int * int) -> int @@ global many = <fun>
 |}]
 
 (* Misannotated pattern *)
@@ -146,23 +147,23 @@ Error: This pattern was expected to match values of type "int * int",
 
 let f (~x,y : (int * x:int)) : int = x + y
 [%%expect{|
-val f : int * x:int -> int = <fun>
+val f : int * x:int -> int @@ global many = <fun>
 |}]
 
 (* Annotation within pattern *)
 let f (~(x:int),y : (x:int * int)) : int = x + y
 [%%expect{|
-val f : (x:int * int) -> int = <fun>
+val f : (x:int * int) -> int @@ global many = <fun>
 |}]
 
 let f (~(x:int),y) = x + y
 [%%expect{|
-val f : (x:int * int) -> int = <fun>
+val f : (x:int * int) -> int @@ global many = <fun>
 |}]
 
 let f (~x:(x0:int),y) = x0 + y
 [%%expect{|
-val f : (x:int * int) -> int = <fun>
+val f : (x:int * int) -> int @@ global many = <fun>
 |}]
 
 (* Misannotation within pattern *)
@@ -182,24 +183,24 @@ let yx_id (pt : yx) = pt
 [%%expect{|
 type xy = x:int * y:int
 type yx = y:int * x:int
-val xy_id : xy -> xy = <fun>
-val yx_id : yx -> yx = <fun>
+val xy_id : xy -> xy @@ global many = <fun>
+val yx_id : yx -> yx @@ global many = <fun>
 |}]
 
 let xy_id (~y, ~x) : xy = ~x, ~y
 [%%expect{|
-val xy_id : (y:int * x:int) -> xy = <fun>
+val xy_id : (y:int * x:int) -> xy @@ global many = <fun>
 |}]
 
 
 let swap (~x, ~y) = ~y, ~x
 [%%expect{|
-val swap : (x:'a * y:'b) -> y:'b * x:'a = <fun>
+val swap : (x:'a * y:'b) -> y:'b * x:'a @@ global many = <fun>
 |}]
 
 let swap (~y, ~x : xy) = ~y, ~x
 [%%expect{|
-val swap : xy -> y:int * x:int = <fun>
+val swap : xy -> y:int * x:int @@ global many = <fun>
 |}]
 
 let swap (~x, ~y) = (~x, ~y : yx)
@@ -258,8 +259,8 @@ let matches =
   let ~x, ~y, ~x:x2, z = lt in
   x, y, x2, z
 [%%expect{|
-val lt : x:int * y:int * x:int * int = (~x:1, ~y:2, ~x:3, 4)
-val matches : int * int * int * int = (1, 2, 3, 4)
+val lt : x:int * y:int * x:int * int @@ global many = (~x:1, ~y:2, ~x:3, 4)
+val matches : int * int * int * int @@ global many = (1, 2, 3, 4)
 |}]
 
 (* Full match, over-bound *)
@@ -333,7 +334,7 @@ let matches =
   let ~x, ~y, .. = lt in
   x, y
 [%%expect{|
-val matches : int * int = (1, 2)
+val matches : int * int @@ global many = (1, 2)
 |}]
 
 (* Partial match, reordered *)
@@ -341,7 +342,7 @@ let matches =
   let ~y, ~x, .. = lt in
   x, y
 [%%expect{|
-val matches : int * int = (1, 2)
+val matches : int * int @@ global many = (1, 2)
 |}]
 
 (* Partial match, reordered, over-bound *)
@@ -360,7 +361,7 @@ let matches =
   let ~x, .. = lt in
   x
 [%%expect{|
-val matches : int = 1
+val matches : int @@ global many = 1
 |}]
 
 (* Partial match all *)
@@ -375,7 +376,7 @@ Warning 189 [unnecessarily-partial-tuple-pattern]: This tuple pattern
 unnecessarily ends in '..', as it explicitly matches all components
 of its expected type.
 
-val matches : int * int * int * int = (1, 2, 3, 4)
+val matches : int * int * int * int @@ global many = (1, 2, 3, 4)
 |}]
 
 (* Partial match too many of a name *)
@@ -407,7 +408,7 @@ Error: This pattern was expected to match values of type
 (* Nested pattern *)
 let f (z, (~y, ~x)) = x, y, z
 [%%expect{|
-val f : 'a * (y:'b * x:'c) -> 'c * 'b * 'a = <fun>
+val f : 'a * (y:'b * x:'c) -> 'c * 'b * 'a @@ global many = <fun>
 |}]
 
 (* Non-principally known patterns *)
@@ -439,16 +440,16 @@ let x = ref (~x:1, ~y:2, ~x:3, 4)
 let _1234 = match x with
 | { contents = ~x:x0, ~y, ~x , z } -> x0, y, x, z
 [%%expect{|
-val x : (x:int * y:int * x:int * int) ref =
+val x : (x:int * y:int * x:int * int) ref @@ global many =
   {contents = (~x:1, ~y:2, ~x:3, 4)}
-val _1234 : int * int * int * int = (1, 2, 3, 4)
+val _1234 : int * int * int * int @@ global many = (1, 2, 3, 4)
 |}]
 
 (* Good partial match *)
 let _1  = match x with
 | { contents = ~x, ..} -> x
 [%%expect{|
-val _1 : int = 1
+val _1 : int @@ global many = 1
 |}]
 
 (* Wrong label *)
@@ -530,7 +531,7 @@ let f (z : (x:_ * y:_)) =
   match z with
   | ~y, ~x -> x + y
 [%%expect{|
-val f : (x:int * y:int) -> int = <fun>
+val f : (x:int * y:int) -> int @@ global many = <fun>
 |}]
 
 let f = function ~x, ~y -> x + y
@@ -538,10 +539,10 @@ let f = function ~x, ~y -> x + y
 let g z =
   (f z, match z with ~y, ~x -> x + y)
 [%%expect{|
-val f : (x:int * y:int) -> int = <fun>
-val g : (x:int * y:int) -> int * int = <fun>
+val f : (x:int * y:int) -> int @@ global many = <fun>
+val g : (x:int * y:int) -> int * int @@ global many = <fun>
 |}, Principal{|
-val f : (x:int * y:int) -> int = <fun>
+val f : (x:int * y:int) -> int @@ global many = <fun>
 Line 4, characters 21-27:
 4 |   (f z, match z with ~y, ~x -> x + y)
                          ^^^^^^
@@ -554,7 +555,7 @@ let f = function ~x, ~y -> x + y
 let g z =
   match z with ~y, ~x -> x + y, f z
 [%%expect{|
-val f : (x:int * y:int) -> int = <fun>
+val f : (x:int * y:int) -> int @@ global many = <fun>
 Line 4, characters 34-35:
 4 |   match z with ~y, ~x -> x + y, f z
                                       ^
@@ -585,7 +586,8 @@ let _ =
 type t =
     x:int * y:int * int * x:int * x:int * y:int * y:int * int * int *
     y:int * x:int
-val t : t = (~x:1, ~y:2, 3, ~x:4, ~x:5, ~y:6, ~y:7, 8, 9, ~y:10, ~x:11)
+val t : t @@ global many =
+  (~x:1, ~y:2, 3, ~x:4, ~x:5, ~y:6, ~y:7, 8, 9, ~y:10, ~x:11)
 - : int * int * int = (2, 6, 7)
 |}]
 

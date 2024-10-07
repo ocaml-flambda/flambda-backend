@@ -34,5 +34,5 @@ type ('stack, 'typ) var =
     Head : (('typ -> 'a) s, 'typ) var
   | Tail : ('tail s, 'typ) var -> (('b -> 'tail) s, 'typ) var
 type _ lst = CNil : A.nil lst | CCons : 'h * 't lst -> ('h -> 't) lst
-val get_var : ('stk s, 'ret) var -> 'stk lst -> 'ret = <fun>
+val get_var : ('stk s, 'ret) var -> 'stk lst -> 'ret @@ global many = <fun>
 |}];;

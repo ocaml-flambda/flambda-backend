@@ -13,5 +13,5 @@ let foo (type a) (ty : a ty) (x : a r) =
   | Int, { a = 3; b } -> b
   | _ -> assert false;;
 [%%expect{|
-val foo : 'a ty -> 'a r -> 'a = <fun>
+val foo : 'a ty -> 'a r -> 'a @@ global many = <fun>
 |}]

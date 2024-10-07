@@ -245,11 +245,11 @@ Lines 5-7, characters 32-3:
 7 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc opt] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc opt] end
        is not included in
          S_bad_inc_base
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc opt]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -270,11 +270,11 @@ Lines 5-7, characters 35-3:
 7 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc] end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -291,11 +291,11 @@ Lines 1-3, characters 37-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc] end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -312,11 +312,11 @@ Lines 1-3, characters 34-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc opt] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc opt] end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc opt]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -333,11 +333,13 @@ Lines 1-3, characters 41-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc strict opt] end
+         sig
+           val f : 'a -> 'a @@ global many portable [@@zero_alloc strict opt]
+         end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc strict opt]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc strict opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -354,11 +356,11 @@ Lines 1-3, characters 41-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc] end
        is not included in
          S_bad_inc_strict
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -380,11 +382,11 @@ Lines 5-7, characters 33-3:
 7 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc] end
        is not included in
          S_strict_opt
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict opt]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -401,11 +403,11 @@ Lines 1-3, characters 30-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc opt] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc opt] end
        is not included in
          S_strict_opt
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc opt]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc opt]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict opt]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -422,11 +424,11 @@ Lines 1-3, characters 37-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a [@@zero_alloc] end
+         sig val f : 'a -> 'a @@ global many portable [@@zero_alloc] end
        is not included in
          S_strict_opt
        Values do not match:
-         val f : 'a -> 'a [@@zero_alloc]
+         val f : 'a -> 'a @@ global many portable [@@zero_alloc]
        is not included in
          val f : 'a -> 'a [@@zero_alloc strict opt]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -545,11 +547,13 @@ Lines 17-19, characters 46-3:
 19 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int [@@zero_alloc arity 1] end
+         sig
+           val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
+         end
        is not included in
          S_arity_int_int
        Values do not match:
-         val f : int -> int -> int [@@zero_alloc arity 1]
+         val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
        is not included in
          val f : int -> int -> int [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -594,11 +598,13 @@ Lines 1-3, characters 59-3:
 3 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int [@@zero_alloc arity 1] end
+         sig
+           val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
+         end
        is not included in
          S_alias_explicit_arity_2
        Values do not match:
-         val f : int -> int -> int [@@zero_alloc arity 1]
+         val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
        is not included in
          val f : t_two_args [@@zero_alloc arity 2]
        zero_alloc arity mismatch:
@@ -623,11 +629,11 @@ Lines 5-7, characters 59-3:
 7 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int [@@zero_alloc] end
+         sig val f : int -> int -> int @@ global many [@@zero_alloc] end
        is not included in
          S_alias_explicit_arity_1
        Values do not match:
-         val f : int -> int -> int [@@zero_alloc]
+         val f : int -> int -> int @@ global many [@@zero_alloc]
        is not included in
          val f : t_two_args [@@zero_alloc arity 1]
        zero_alloc arity mismatch:
@@ -680,11 +686,14 @@ Lines 18-21, characters 32-3:
 21 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = int -> int val f : int -> int -> int [@@zero_alloc] end
+         sig
+           type t = int -> int
+           val f : int -> int -> int @@ global many [@@zero_alloc]
+         end
        is not included in
          S_subst
        Values do not match:
-         val f : int -> int -> int [@@zero_alloc]
+         val f : int -> int -> int @@ global many [@@zero_alloc]
        is not included in
          val f : int -> t [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -724,11 +733,14 @@ Lines 13-16, characters 41-3:
 16 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int -> int * int [@@zero_alloc] end
+         sig
+           val f : int -> int -> int -> int * int @@ global many
+             [@@zero_alloc]
+         end
        is not included in
          S_fun_in_fun
        Values do not match:
-         val f : int -> int -> int -> int * int [@@zero_alloc]
+         val f : int -> int -> int -> int * int @@ global many [@@zero_alloc]
        is not included in
          val f : int -> int -> int -> int * int [@@zero_alloc arity 2]
        zero_alloc arity mismatch:
@@ -793,7 +805,7 @@ Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_1 :
-  sig val f : int -> int -> int [@@zero_alloc] end
+  sig val f : int -> int -> int @@ global many [@@zero_alloc] end
 |}]
 
 module M_struct_arity_let_2 = struct
@@ -807,7 +819,7 @@ Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_2 :
-  sig val f : int -> int -> int [@@zero_alloc] end
+  sig val f : int -> int -> int @@ global many [@@zero_alloc] end
 |}]
 
 module M_struct_arity_let_fun_1 = struct
@@ -821,7 +833,7 @@ Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_fun_1 :
-  sig val f : int -> int -> int [@@zero_alloc] end
+  sig val f : int -> int -> int @@ global many [@@zero_alloc] end
 |}]
 
 module M_struct_arity_let_fun_2 = struct
@@ -838,7 +850,8 @@ Line 4, characters 11-21:
 Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
-module M_struct_arity_let_fun_2 : sig val f : int -> int -> int end
+module M_struct_arity_let_fun_2 :
+  sig val f : int -> int -> int @@ global many end
 |}]
 
 (*********************************)
@@ -859,7 +872,8 @@ module M_mto_base_bad : S_base_mto = struct
 end
 
 [%%expect{|
-module M_base_for_mto : sig val f : int -> int [@@zero_alloc] end
+module M_base_for_mto :
+  sig val f : int -> int @@ global many [@@zero_alloc] end
 module type S_base_mto = sig val f : int -> int [@@zero_alloc] end
 module M_mto_base_good : S_base_mto
 Lines 11-13, characters 37-3:
@@ -868,11 +882,11 @@ Lines 11-13, characters 37-3:
 13 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int [@@zero_alloc opt] end
+         sig val f : int -> int @@ global many [@@zero_alloc opt] end
        is not included in
          S_base_mto
        Values do not match:
-         val f : int -> int [@@zero_alloc opt]
+         val f : int -> int @@ global many [@@zero_alloc opt]
        is not included in
          val f : int -> int [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -893,7 +907,8 @@ module M_mto_strict_bad : S_strict_mto = struct
 end
 
 [%%expect{|
-module M_strict_for_mto : sig val f : int -> int [@@zero_alloc strict] end
+module M_strict_for_mto :
+  sig val f : int -> int @@ global many [@@zero_alloc strict] end
 module type S_strict_mto = sig val f : int -> int [@@zero_alloc strict] end
 module M_mto_strict_good : S_strict_mto
 Lines 11-13, characters 41-3:
@@ -902,11 +917,11 @@ Lines 11-13, characters 41-3:
 13 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int [@@zero_alloc] end
+         sig val f : int -> int @@ global many [@@zero_alloc] end
        is not included in
          S_strict_mto
        Values do not match:
-         val f : int -> int [@@zero_alloc]
+         val f : int -> int @@ global many [@@zero_alloc]
        is not included in
          val f : int -> int [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -931,9 +946,11 @@ end
 module type S_no_nrn = module type of M_nrn_for_mto
 
 [%%expect{|
-module M_assume_for_mto : sig val f : int -> int * int [@@zero_alloc] end
+module M_assume_for_mto :
+  sig val f : int -> int * int @@ global many [@@zero_alloc] end
 module type S_no_assume = sig val f : int -> int * int [@@zero_alloc] end
-module M_nrn_for_mto : sig val f : int -> int * int [@@zero_alloc] end
+module M_nrn_for_mto :
+  sig val f : int -> int * int @@ global many [@@zero_alloc] end
 module type S_no_nrn = sig val f : int -> int * int [@@zero_alloc] end
 |}]
 
@@ -1012,7 +1029,11 @@ module M_infer2'''' : sig
   val[@zero_alloc opt] g : int -> int
 end = M_infer2 (* 4 *)
 [%%expect{|
-module M_infer2 : sig val f : 'a -> 'a val g : 'a -> 'a end
+module M_infer2 :
+  sig
+    val f : 'a -> 'a @@ global many portable
+    val g : 'a -> 'a @@ global many portable
+  end
 module M_infer2' :
   sig
     val f : int -> int [@@zero_alloc opt]
@@ -1061,17 +1082,18 @@ module _ : sig
   val[@zero_alloc] f : int -> t
 end = M_inf_too_many_args
 [%%expect{|
-module M_inf_too_many_args : sig type t = int -> int val f : int -> t end
+module M_inf_too_many_args :
+  sig type t = int -> int val f : int -> t @@ global many portable end
 Line 9, characters 6-25:
 9 | end = M_inf_too_many_args
           ^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = int -> int val f : int -> t end
+         sig type t = int -> int val f : int -> t @@ global many portable end
        is not included in
          sig type t val f : int -> t [@@zero_alloc] end
        Values do not match:
-         val f : int -> t
+         val f : int -> t @@ global many portable
        is not included in
          val f : int -> t [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -1088,17 +1110,17 @@ module _ : sig
   val[@zero_alloc] f : int -> int -> int
 end = M_inf_too_few_args
 [%%expect{|
-module M_inf_too_few_args : sig val f : int -> int -> int end
+module M_inf_too_few_args : sig val f : int -> int -> int @@ global many end
 Line 7, characters 6-24:
 7 | end = M_inf_too_few_args
           ^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int end
+         sig val f : int -> int -> int @@ global many end
        is not included in
          sig val f : int -> int -> int [@@zero_alloc] end
        Values do not match:
-         val f : int -> int -> int
+         val f : int -> int -> int @@ global many
        is not included in
          val f : int -> int -> int [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -1120,7 +1142,8 @@ end = M_explicit_arity_2
 
 module type S = module type of M_explicit_arity_2
 [%%expect{|
-module M_explicit_arity_2 : sig type t = int -> int val f : int -> t end
+module M_explicit_arity_2 :
+  sig type t = int -> int val f : int -> t @@ global many portable end
 module type S =
   sig type t = int -> int val f : int -> t [@@zero_alloc arity 2] end
 |}]
@@ -1140,7 +1163,7 @@ end
 (* The current state of the variables is "no check" *)
 module type S = module type of M_for_mto
 [%%expect{|
-module M_for_mto : sig val f : int -> int end
+module M_for_mto : sig val f : int -> int @@ global many end
 module type S = sig val f : int -> int end
 |}]
 
@@ -1262,7 +1285,8 @@ Lines 13-19, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           module Plain2 : sig val f : int -> int [@@zero_alloc] end
+           module Plain2 :
+             sig val f : int -> int @@ global many [@@zero_alloc] end
            module type S_plain2 =
              sig module M2 : sig val f : int -> int end end
          end
@@ -1359,7 +1383,11 @@ module M : M_outer_subst = struct
   end
 end
 [%%expect{|
-module M_outer : sig module M_inner : sig type t val f : unit -> unit end end
+module M_outer :
+  sig
+    module M_inner :
+      sig type t val f : unit -> unit @@ global many portable end
+  end
 module type M_outer_strong = sig module M_inner = M_outer.M_inner end
 module type M_outer_subst =
   sig module M_inner : sig val f : unit -> unit end end
@@ -1397,7 +1425,11 @@ end
 [%%expect{|
 module M_outer :
   sig
-    module M_inner : sig module M_innest : sig end val f : unit -> unit end
+    module M_inner :
+      sig
+        module M_innest : sig end
+        val f : unit -> unit @@ global many portable
+      end
   end
 module type S_outer_strong = sig module M_inner = M_outer.M_inner end
 module type S_outer_subst =
@@ -1436,7 +1468,11 @@ end
 [%%expect{|
 module M_outer :
   sig
-    module M_inner : sig module type S = sig end val f : unit -> unit end
+    module M_inner :
+      sig
+        module type S = sig end
+        val f : unit -> unit @@ global many portable
+      end
   end
 module type S_outer_strong = sig module M_inner = M_outer.M_inner end
 module type S_outer_subst =

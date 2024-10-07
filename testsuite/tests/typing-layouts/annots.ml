@@ -217,10 +217,10 @@ let x : int as ('a : any) = 5;;
 let x : int as ('a: value mod global aliased many uncontended portable external_) = 5
 
 [%%expect{|
-val x : int = 5
-val x : int = 5
-val x : int = 5
-val x : int = 5
+val x : int @@ global many portable = 5
+val x : int @@ global many portable = 5
+val x : int @@ global many portable = 5
+val x : int @@ global many portable = 5
 |}]
 
 let x : int as ('a : float64) = 5;;
@@ -239,7 +239,7 @@ Error: This alias is bound to type "int" but is used as an instance of type
 let x : (int as ('a : immediate)) list as ('b : value) = [3;4;5]
 ;;
 [%%expect {|
-val x : int list = [3; 4; 5]
+val x : int list @@ global many = [3; 4; 5]
 |}]
 
 let x : int list as ('a : immediate) = [3;4;5]
@@ -424,36 +424,40 @@ let f : 'a t2_imm -> 'a t2_imm = fun x -> x
 let f : 'a t2_global -> 'a t2_global = fun x -> x
 let f : 'a t2_complex -> 'a t2_complex = fun x -> x
 [%%expect {|
-val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
-val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
+val f : ('a : immediate). 'a t2_imm -> 'a t2_imm @@ global many = <fun>
+val f : ('a : value mod global). 'a t2_global -> 'a t2_global @@ global many =
+  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex @@ global many = <fun>
 |}]
 
 let f : ('a : immediate) t2_imm -> ('a : value) t2_imm = fun x -> x
 let f : ('a : value mod global) t2_global -> ('a : value) t2_global = fun x -> x
 let f : ('a : word mod external_ many aliased) t2_complex -> ('a : word) t2_complex = fun x -> x
 [%%expect {|
-val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
-val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
+val f : ('a : immediate). 'a t2_imm -> 'a t2_imm @@ global many = <fun>
+val f : ('a : value mod global). 'a t2_global -> 'a t2_global @@ global many =
+  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex @@ global many = <fun>
 |}]
 
 let f : ('a : value) t2_imm -> ('a : value) t2_imm = fun x -> x
 let f : ('a : value) t2_global -> ('a : value) t2_global = fun x -> x
 let f : ('a : word) t2_complex -> ('a : word) t2_complex = fun x -> x
 [%%expect {|
-val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
-val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
+val f : ('a : immediate). 'a t2_imm -> 'a t2_imm @@ global many = <fun>
+val f : ('a : value mod global). 'a t2_global -> 'a t2_global @@ global many =
+  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex @@ global many = <fun>
 |}]
 
 let f : ('a : immediate). 'a t2_imm -> 'a t2_imm = fun x -> x
 let f : ('a : value mod global). 'a t2_global -> 'a t2_global = fun x -> x
 let f : ('a : word mod external_ many aliased). 'a t2_complex -> 'a t2_complex = fun x -> x
 [%%expect {|
-val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
-val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
+val f : ('a : immediate). 'a t2_imm -> 'a t2_imm @@ global many = <fun>
+val f : ('a : value mod global). 'a t2_global -> 'a t2_global @@ global many =
+  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex @@ global many = <fun>
 |}]
 
 let f : ('a : value). 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -481,7 +485,7 @@ Error: The universal type variable 'a was declared to have kind value.
 let f : ('a : word). 'a t2_complex -> 'a t2_complex = fun x -> x
 ;;
 [%%expect {|
-val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex @@ global many = <fun>
 |}]
 
 type 'a t = 'a t2_imm
@@ -521,12 +525,12 @@ let f : (_ : word) t2_complex -> unit = fun _ -> ()
 let g : (_ : word mod external_ many aliased) t2_complex -> unit = fun _ -> ()
 
 [%%expect {|
-val f : ('a : immediate). 'a t2_imm -> unit = <fun>
-val g : ('a : immediate). 'a t2_imm -> unit = <fun>
-val f : ('a : value mod global). 'a t2_global -> unit = <fun>
-val g : ('a : value mod global). 'a t2_global -> unit = <fun>
-val f : ('a : word). 'a t2_complex -> unit = <fun>
-val g : ('a : word). 'a t2_complex -> unit = <fun>
+val f : ('a : immediate). 'a t2_imm -> unit @@ global many = <fun>
+val g : ('a : immediate). 'a t2_imm -> unit @@ global many = <fun>
+val f : ('a : value mod global). 'a t2_global -> unit @@ global many = <fun>
+val g : ('a : value mod global). 'a t2_global -> unit @@ global many = <fun>
+val f : ('a : word). 'a t2_complex -> unit @@ global many = <fun>
+val g : ('a : word). 'a t2_complex -> unit @@ global many = <fun>
 |}]
 
 let f : (_ : immediate) -> unit = fun _ -> ()
@@ -535,10 +539,10 @@ let f : (_ : word mod external_ many aliased) -> unit = fun _ -> ()
 let g : (_ : value) -> unit = fun _ -> ()
 
 [%%expect {|
-val f : ('a : immediate). 'a -> unit = <fun>
-val f : ('a : value mod global). 'a -> unit = <fun>
-val f : ('a : word). 'a -> unit = <fun>
-val g : 'a -> unit = <fun>
+val f : ('a : immediate). 'a -> unit @@ global many = <fun>
+val f : ('a : value mod global). 'a -> unit @@ global many = <fun>
+val f : ('a : word). 'a -> unit @@ global many = <fun>
+val g : 'a -> unit @@ global many = <fun>
 |}]
 
 let f : (_ : immediate) -> (_ : value) = fun _ -> assert false
@@ -551,12 +555,12 @@ let f : (_ : word mod external_ many aliased) -> (_ : value) = fun _ -> assert f
 let g : (_ : value) -> (_ : word mod external_ many aliased) = fun _ -> assert false
 
 [%%expect {|
-val f : ('a : immediate) 'b. 'a -> 'b = <fun>
-val g : 'a ('b : immediate). 'a -> 'b = <fun>
-val f : ('a : value mod global) 'b. 'a -> 'b = <fun>
-val g : 'a ('b : value mod global). 'a -> 'b = <fun>
-val f : ('a : word) 'b. 'a -> 'b = <fun>
-val g : 'a ('b : word). 'a -> 'b = <fun>
+val f : ('a : immediate) 'b. 'a -> 'b @@ global many = <fun>
+val g : 'a ('b : immediate). 'a -> 'b @@ global many = <fun>
+val f : ('a : value mod global) 'b. 'a -> 'b @@ global many = <fun>
+val g : 'a ('b : value mod global). 'a -> 'b @@ global many = <fun>
+val f : ('a : word) 'b. 'a -> 'b @@ global many = <fun>
+val g : 'a ('b : word). 'a -> 'b @@ global many = <fun>
 |}]
 
 (********************************************)
@@ -565,7 +569,7 @@ val g : 'a ('b : word). 'a -> 'b = <fun>
 let f : ('a : any) -> 'a = fun x -> x
 ;;
 [%%expect {|
-val f : 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
 |}]
 
 let f : ('a : any). 'a -> 'a = fun x -> x
@@ -587,7 +591,7 @@ Error: This definition has type "'b -> 'b" which is less general than
 let f : ('a : float64). 'a -> 'a = fun x -> x
 ;;
 [%%expect {|
-val f : ('a : float64). 'a -> 'a = <fun>
+val f : ('a : float64). 'a -> 'a @@ global many = <fun>
 |}]
 
 (********************************************)
@@ -598,21 +602,21 @@ let f { field } = field 5
 ;;
 [%%expect {|
 type r = { field : ('a : immediate). 'a -> 'a; }
-val f : r -> int = <fun>
+val f : r -> int @@ global many = <fun>
 |}]
 
 type rf = { fieldf : ('a : float64). 'a -> 'a }
 let f { fieldf } = fieldf (Stdlib_upstream_compatible.Float_u.of_float 3.14);;
 [%%expect {|
 type rf = { fieldf : ('a : float64). 'a -> 'a; }
-val f : rf -> Stdlib_upstream_compatible.Float_u.t = <fun>
+val f : rf -> Stdlib_upstream_compatible.Float_u.t @@ global many = <fun>
 |}]
 
 type rg = { fieldg : ('a : value mod global). 'a -> 'a }
 let f { fieldg } = fieldg 5;;
 [%%expect {|
 type rg = { fieldg : ('a : value mod global). 'a -> 'a; }
-val f : rg -> int = <fun>
+val f : rg -> int @@ global many = <fun>
 |}]
 
 type rc = { fieldc : ('a : word mod external_ many aliased). 'a -> 'a }
@@ -621,7 +625,7 @@ let f { fieldc } =
   fieldc x;;
 [%%expect {|
 type rc = { fieldc : ('a : word). 'a -> 'a; }
-val f : ('a : word). rc -> 'a = <fun>
+val f : ('a : word). rc -> 'a @@ global many = <fun>
 |}]
 
 let f { field } = field "hello"
@@ -670,22 +674,22 @@ let r = { field = fun x -> x }
 let r = { field = Fun.id }
 ;;
 [%%expect {|
-val r : r = {field = <fun>}
-val r : r = {field = <fun>}
+val r : r @@ global many = {field = <fun>}
+val r : r @@ global many = {field = <fun>}
 |}]
 
 let r = { field = fun (type (a : immediate)) (x : a) -> x }
 let r = { field = fun (type (a : value mod global)) (x : a) -> x }
 ;;
 [%%expect {|
-val r : r = {field = <fun>}
-val r : r = {field = <fun>}
+val r : r @@ global many = {field = <fun>}
+val r : r @@ global many = {field = <fun>}
 |}]
 
 let r = { field = fun (type (a : value)) (x : a) -> x }
 ;;
 [%%expect {|
-val r : r = {field = <fun>}
+val r : r @@ global many = {field = <fun>}
 |}]
 
 type r_value = { field : 'a. 'a -> 'a }
@@ -784,31 +788,31 @@ and ('a : word) u = 'a t_complex
 let f = fun (type (a : value)) (x : a) -> x
 ;;
 [%%expect {|
-val f : 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun (type (a : immediate)) (x : a) -> x
 ;;
 [%%expect {|
-val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun (type (a : float64)) (x : a) -> x
 ;;
 [%%expect {|
-val f : ('a : float64). 'a -> 'a = <fun>
+val f : ('a : float64). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun (type (a : value mod global)) (x : a) -> x
 ;;
 [%%expect {|
-val f : ('a : value mod global). 'a -> 'a = <fun>
+val f : ('a : value mod global). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun (type (a : word mod external_ many aliased)) (x : a) -> x
 ;;
 [%%expect {|
-val f : ('a : word). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun (type (a : any)) (x : a) -> x
@@ -832,31 +836,31 @@ Error: This pattern matches values of type "a"
 let f : type (a : value). a -> a = fun x -> x
 ;;
 [%%expect {|
-val f : 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
 |}]
 
 let f : type (a : immediate). a -> a = fun x -> x
 ;;
 [%%expect {|
-val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f : type (a : float64). a -> a = fun x -> x
 ;;
 [%%expect {|
-val f : ('a : float64). 'a -> 'a = <fun>
+val f : ('a : float64). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f : type (a : value mod global). a -> a = fun x -> x
 ;;
 [%%expect {|
-val f : ('a : value mod global). 'a -> 'a = <fun>
+val f : ('a : value mod global). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f : type (a : word mod external_ many aliased). a -> a = fun x -> x
 ;;
 [%%expect {|
-val f : ('a : word). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f : type (a : any). a -> a = fun x -> x
@@ -1019,7 +1023,7 @@ module type S =
 let f (x : ('a : value). 'a -> 'a) = x "string", x 5
 
 [%%expect {|
-val f : ('a. 'a -> 'a) -> string * int = <fun>
+val f : ('a. 'a -> 'a) -> string * int @@ global many = <fun>
 |}]
 
 let f (x : ('a : word mod external_ many aliased). 'a -> 'a) =
@@ -1027,7 +1031,7 @@ let f (x : ('a : word mod external_ many aliased). 'a -> 'a) =
   x native_int
 
 [%%expect {|
-val f : (('a : word). 'a -> 'a) -> nativeint# = <fun>
+val f : (('a : word). 'a -> 'a) -> nativeint# @@ global many = <fun>
 |}]
 
 let f (x : ('a : immediate). 'a -> 'a) = x "string"
@@ -1070,7 +1074,7 @@ type t = { x : int }
 let f (x : t) : _ as (_ : value) = x
 [%%expect {|
 type t = { x : int; }
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value = { x : t_value }
@@ -1106,21 +1110,21 @@ type t = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : immediate = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = { x : int; } [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value mod global = { x : t_value }
@@ -1196,7 +1200,7 @@ type t = Foo of int
 let f (x : t) : _ as (_ : value) = x
 [%%expect {|
 type t = Foo of int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value = Foo of t_value
@@ -1230,42 +1234,42 @@ type t = Foo | Bar
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = Foo | Bar
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value = Foo | Bar
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = Foo | Bar
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : immediate = Foo | Bar
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = Foo | Bar
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t = Foo of int [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = Foo of int [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value = Foo of int [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = Foo of int [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : immediate = Foo of int [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = Foo of int [@@unboxed]
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value mod global = Foo of t_value
@@ -1341,14 +1345,14 @@ type t = private int
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : value = private int
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
 
@@ -1356,7 +1360,7 @@ type t : immediate = private int
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
 type t = private int
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : bits64 mod portable unique
@@ -1365,7 +1369,7 @@ let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
 type t : bits64
 type u = private t
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : bits64 mod portable unique
@@ -1374,7 +1378,7 @@ let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
 type t : bits64
 type u = private t
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 (* CR layouts v2.8: This should fail since u is nominative *)
 
@@ -1384,7 +1388,7 @@ let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
 type t : bits64
 type u = private t
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t : float64 mod global portable
@@ -1488,11 +1492,11 @@ let f (type a : immediate mod global) (x : a) = x
 let f (type a : word mod external_ many aliased) (x : a) = x
 
 [%%expect{|
-val f : 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : value mod global). 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word). 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : value mod global). 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : word). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun (type a : value) (x : a) -> x
@@ -1502,11 +1506,11 @@ let f = fun (type a : immediate mod global) (x : a) -> x
 let f = fun (type a : word mod external_ many aliased) (x : a) -> x
 
 [%%expect{|
-val f : 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : value mod global). 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word). 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : value mod global). 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : word). 'a -> 'a @@ global many = <fun>
 |}]
 
 let o = object
@@ -1526,11 +1530,11 @@ let o = object
 end
 
 [%%expect{|
-val o : < m : 'a. 'a -> 'a > = <obj>
-val o : < m : ('a : immediate). 'a -> 'a > = <obj>
-val o : < m : ('a : value mod global). 'a -> 'a > = <obj>
-val o : < m : ('a : immediate). 'a -> 'a > = <obj>
-val o : < m : ('a : word). 'a -> 'a > = <obj>
+val o : < m : 'a. 'a -> 'a > @@ global many = <obj>
+val o : < m : ('a : immediate). 'a -> 'a > @@ global many = <obj>
+val o : < m : ('a : value mod global). 'a -> 'a > @@ global many = <obj>
+val o : < m : ('a : immediate). 'a -> 'a > @@ global many = <obj>
+val o : < m : ('a : word). 'a -> 'a > @@ global many = <obj>
 |}]
 
 let f : type (a : value). a -> a = fun x -> x
@@ -1540,11 +1544,11 @@ let f : type (a : immediate mod global). a -> a = fun x -> x
 let f : type (a : word mod external_ many aliased). a -> a = fun x -> x
 
 [%%expect{|
-val f : 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : value mod global). 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word). 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : value mod global). 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : word). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f x =
@@ -1568,11 +1572,11 @@ let f x =
   g x [@nontail]
 
 [%%expect{|
-val f : 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : value mod global). 'a -> 'a = <fun>
-val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word). 'a -> 'a = <fun>
+val f : 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : value mod global). 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : word). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun x y (type (a : value)) (z : a) -> z
@@ -1582,11 +1586,12 @@ let f = fun x y (type (a : immediate mod global)) (z : a) -> z
 let f = fun x y (type (a : word mod external_ many aliased)) (z : a) -> z
 
 [%%expect{|
-val f : 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b -> 'c -> 'a -> 'a @@ global many = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a @@ global many = <fun>
+val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a @@ global many =
+  <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a @@ global many = <fun>
+val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a @@ global many = <fun>
 |}]
 
 let f = fun x y (type a : value) (z : a) -> z
@@ -1596,11 +1601,12 @@ let f = fun x y (type a : immediate mod global) (z : a) -> z
 let f = fun x y (type a : word mod external_ many aliased) (z : a) -> z
 
 [%%expect{|
-val f : 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b -> 'c -> 'a -> 'a @@ global many = <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a @@ global many = <fun>
+val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a @@ global many =
+  <fun>
+val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a @@ global many = <fun>
+val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a @@ global many = <fun>
 |}]
 (* CR layouts: canonicalizing the order of quantification here
    would reduce wibbles in error messages *)
@@ -1640,10 +1646,11 @@ let f (x : ('a : value mod global). 'a -> 'a) = x 3, x true
 let f (x : ('a : immediate mod global). 'a -> 'a) = x 3, x true
 
 [%%expect{|
-val f : ('a. 'a -> 'a) -> int * bool = <fun>
-val f : (('a : immediate). 'a -> 'a) -> int * bool = <fun>
-val f : (('a : value mod global). 'a -> 'a) -> int * bool = <fun>
-val f : (('a : immediate). 'a -> 'a) -> int * bool = <fun>
+val f : ('a. 'a -> 'a) -> int * bool @@ global many = <fun>
+val f : (('a : immediate). 'a -> 'a) -> int * bool @@ global many = <fun>
+val f : (('a : value mod global). 'a -> 'a) -> int * bool @@ global many =
+  <fun>
+val f : (('a : immediate). 'a -> 'a) -> int * bool @@ global many = <fun>
 |}]
 
 type _ a = Mk : [> ] * ('a : value) -> int a
@@ -1661,7 +1668,7 @@ type _ a = Mk : ('a : immediate). [>  ] * 'a -> int a
 let f_imm : ('a : immediate). 'a -> 'a = fun x -> x
 
 [%%expect {|
-val f_imm : ('a : immediate). 'a -> 'a = <fun>
+val f_imm : ('a : immediate). 'a -> 'a @@ global many = <fun>
 |}]
 
 let f_val : ('a : value). 'a -> 'a = fun x -> f_imm x

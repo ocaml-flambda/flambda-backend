@@ -25,9 +25,10 @@ let f1_3 (x : float#) = x;;
 [%%expect{|
 type t_float64 : float64
 type ('a : float64) t_float64_id = 'a
-val f1_1 : t_float64 -> t_float64 = <fun>
-val f1_2 : ('a : float64). 'a t_float64_id -> 'a t_float64_id = <fun>
-val f1_3 : float# -> float# = <fun>
+val f1_1 : t_float64 -> t_float64 @@ global many = <fun>
+val f1_2 : ('a : float64). 'a t_float64_id -> 'a t_float64_id @@ global many =
+  <fun>
+val f1_3 : float# -> float# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -44,9 +45,10 @@ let f2_3 (x : float#) =
   let y = x in
   y;;
 [%%expect{|
-val f2_1 : t_float64 -> t_float64 = <fun>
-val f2_2 : ('a : float64). 'a t_float64_id -> 'a t_float64_id = <fun>
-val f2_3 : float# -> float# = <fun>
+val f2_1 : t_float64 -> t_float64 @@ global many = <fun>
+val f2_2 : ('a : float64). 'a t_float64_id -> 'a t_float64_id @@ global many =
+  <fun>
+val f2_3 : float# -> float# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -413,10 +415,11 @@ let make_floatu () : float# = assert false
 
 let id_value x = x;;
 [%%expect{|
-val make_t_float64 : unit -> t_float64 = <fun>
-val make_t_float64_id : ('a : float64). unit -> 'a t_float64_id = <fun>
-val make_floatu : unit -> float# = <fun>
-val id_value : 'a -> 'a = <fun>
+val make_t_float64 : unit -> t_float64 @@ global many = <fun>
+val make_t_float64_id : ('a : float64). unit -> 'a t_float64_id @@ global
+  many = <fun>
+val make_floatu : unit -> float# @@ global many = <fun>
+val id_value : 'a -> 'a @@ global many = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_float64 ());;
@@ -470,11 +473,11 @@ let f9_3 () = twice f1_3 (make_floatu ());;
 val twice :
   ('a : float64).
     ('a t_float64_id -> 'a t_float64_id) ->
-    'a t_float64_id -> 'a t_float64_id =
-  <fun>
-val f9_1 : unit -> t_float64 t_float64_id = <fun>
-val f9_2 : ('a : float64). unit -> 'a t_float64_id = <fun>
-val f9_3 : unit -> float# t_float64_id = <fun>
+    'a t_float64_id -> 'a t_float64_id
+  @@ global many = <fun>
+val f9_1 : unit -> t_float64 t_float64_id @@ global many = <fun>
+val f9_2 : ('a : float64). unit -> 'a t_float64_id @@ global many = <fun>
+val f9_3 : unit -> float# t_float64_id @@ global many = <fun>
 |}];;
 
 (**************************************************)
@@ -733,10 +736,10 @@ class ['a] c12_12 = object
 end;;
 [%%expect{|
 type t12_8 = < f : t_float64 -> t_float64 >
-val f12_9 : t12_8 -> t_float64 -> t_float64 = <fun>
+val f12_9 : t12_8 -> t_float64 -> t_float64 @@ global many = <fun>
 val f12_10 :
   < baz : t_float64 -> t_float64 -> t_float64 -> t_float64; .. > ->
-  t_float64 -> t_float64 = <fun>
+  t_float64 -> t_float64 @@ global many = <fun>
 class ['a] c12_11 : object method x : t_float64 -> 'a end
 class ['a] c12_12 : object method x : 'a -> t_float64 end
 |}];;
@@ -879,18 +882,18 @@ let f14_4 r =
 [%%expect{|
 module FU = Stdlib_upstream_compatible.Float_u
 type t14_1 = { x : float#; y : float#; }
-val f14_1 : t14_1 -> FU.t = <fun>
-val r14 : t14_1 = {x = <abstr>; y = <abstr>}
-val sum14_1 : float = 0.419999999999999929
-val f14_2 : t14_1 -> FU.t = <fun>
-val sum14_2 : float = 0.419999999999999929
+val f14_1 : t14_1 -> FU.t @@ global many = <fun>
+val r14 : t14_1 @@ global many = {x = <abstr>; y = <abstr>}
+val sum14_1 : float @@ global many = 0.419999999999999929
+val f14_2 : t14_1 -> FU.t @@ global many = <fun>
+val sum14_2 : float @@ global many = 0.419999999999999929
 type t14_2 = { mutable a : float#; b : float#; mutable c : float#; }
-val f14_3 : t14_2 -> t14_2 = <fun>
-val a : float = -16.9
-val b : float = -0.42
-val c : float = 27.7
-val a' : float = 42.
-val b' : float = 20.
-val c' : float = 3.1
-val f14_4 : t14_1 -> FU.t = <fun>
+val f14_3 : t14_2 -> t14_2 @@ global many = <fun>
+val a : float @@ global many = -16.9
+val b : float @@ global many = -0.42
+val c : float @@ global many = 27.7
+val a' : float @@ global many = 42.
+val b' : float @@ global many = 20.
+val c' : float @@ global many = 3.1
+val f14_4 : t14_1 -> FU.t @@ global many = <fun>
 |}]

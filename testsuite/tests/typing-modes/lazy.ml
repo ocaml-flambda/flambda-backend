@@ -5,7 +5,7 @@
 
 let use_portable : 'a @ portable -> unit = fun _ -> ()
 [%%expect{|
-val use_portable : 'a @ portable -> unit = <fun>
+val use_portable : 'a @ portable -> unit @@ global many = <fun>
 |}]
 
 (* The thunk and the result are required to be global. This is only because we
@@ -33,7 +33,7 @@ Error: The value "x" is local, so cannot be used inside a lazy expression.
 let foo () =
     lazy ("hello")
 [%%expect{|
-val foo : unit -> string lazy_t = <fun>
+val foo : unit -> string lazy_t @@ global many = <fun>
 |}]
 
 (* result of lazy is available as global always *)
@@ -41,7 +41,7 @@ let foo (x @ local) =
     match x with
     | lazy y -> y
 [%%expect{|
-val foo : local_ 'a lazy_t -> 'a = <fun>
+val foo : local_ 'a lazy_t -> 'a @@ global many = <fun>
 |}]
 
 (* one can construct portable lazy, if both the thunk and the result are
@@ -70,7 +70,7 @@ let foo (x @ portable) =
     let l = lazy (let _ = x in let y = fun () -> () in y) in
     use_portable l
 [%%expect{|
-val foo : 'a @ portable -> unit = <fun>
+val foo : 'a @ portable -> unit @@ global many = <fun>
 |}]
 
 (* inside a portable lazy, things are available as contended *)
@@ -89,7 +89,7 @@ let foo (x @ portable) =
     match x with
     | lazy r -> use_portable x
 [%%expect{|
-val foo : 'a lazy_t @ portable -> unit = <fun>
+val foo : 'a lazy_t @ portable -> unit @@ global many = <fun>
 |}]
 
 let foo (x @ nonportable) =
@@ -122,8 +122,8 @@ Error: This value is "contended" but expected to be "uncontended".
 let use_unique (_ @ unique) = ()
 let use_many (_ @ many) = ()
 [%%expect{|
-val use_unique : 'a @ unique -> unit = <fun>
-val use_many : 'a -> unit = <fun>
+val use_unique : 'a @ unique -> unit @@ global many = <fun>
+val use_many : 'a -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -131,5 +131,5 @@ let foo () =
     let t = lazy (use_unique x) in
     use_many t
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]

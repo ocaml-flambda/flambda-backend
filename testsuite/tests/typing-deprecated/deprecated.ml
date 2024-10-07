@@ -43,7 +43,7 @@ Line 1, characters 8-11:
             ^^^
 Alert deprecated: X.x
 
-val x : X.t = <abstr>
+val x : X.t @@ global many = <abstr>
 |}]
 
 (* Patterns *)
@@ -52,7 +52,7 @@ let (_, foo [@deprecated], _) = 1, (), 3
 ;;
 foo;;
 [%%expect{|
-val foo : unit = ()
+val foo : unit @@ global many = ()
 Line 3, characters 0-3:
 3 | foo;;
     ^^^
@@ -65,8 +65,8 @@ let (_, foo, bar) [@deprecated] = 1, (), 3
 ;;
 foo;;
 [%%expect{|
-val foo : unit = ()
-val bar : int = 3
+val foo : unit @@ global many = ()
+val bar : int @@ global many = 3
 - : unit = ()
 |}]
 
@@ -79,7 +79,7 @@ Line 2, characters 33-36:
                                      ^^^
 Alert deprecated: cho
 
-val f : 'a * int * 'b -> int = <fun>
+val f : 'a * int * 'b -> int @@ global many = <fun>
 |}]
 
 class c (_, (foo [@deprecated] : int)) =
@@ -209,19 +209,19 @@ Line 1, characters 26-29:
                               ^^^
 Alert deprecated: X.x
 
-module M : sig val x : X.t end
+module M : sig val x : X.t @@ global many end
 |}]
 
 module M = (struct let x = X.x end)[@ocaml.warning "-3"]
 ;;
 [%%expect{|
-module M : sig val x : X.t end
+module M : sig val x : X.t @@ global many end
 |}]
 
 module M = struct let x = X.x end [@@ocaml.warning "-3"]
 ;;
 [%%expect{|
-module M : sig val x : X.t end
+module M : sig val x : X.t @@ global many end
 |}]
 
 
@@ -575,7 +575,7 @@ Line 1, characters 29-44:
                                  ^^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning 1!
 
-val x : unit = ()
+val x : unit @@ global many = ()
 |}]
 
 type t = unit
@@ -619,7 +619,7 @@ Line 3, characters 23-38:
                            ^^^^^^^^^^^^^^^
 Warning 22 [preprocessor]: Pp warning 2!
 
-val x : unit = ()
+val x : unit @@ global many = ()
 |}]
 
 type t =

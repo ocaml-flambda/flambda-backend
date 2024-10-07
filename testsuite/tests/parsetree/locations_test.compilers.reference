@@ -233,7 +233,7 @@ Ptop_def
       ]
   ]
 
-val x : int = 3
+val x : int @@ global many portable = 3
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+35])
@@ -285,7 +285,7 @@ Ptop_def
       ]
   ]
 
-val x : 'a -> 'a = <fun>
+val x : 'a -> 'a @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[5,61+3])
@@ -380,7 +380,7 @@ Ptop_def
       ]
   ]
 
-val x : 'a -> 'a ref = <fun>
+val x : 'a -> 'a ref @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+30])
@@ -405,7 +405,7 @@ Ptop_def
       ]
   ]
 
-val x : int ref = {contents = 3}
+val x : int ref @@ global many = {contents = 3}
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+35])
@@ -441,7 +441,7 @@ Ptop_def
       ]
   ]
 
-val x : int -> int ref = <fun>
+val x : int -> int ref @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+41])
@@ -470,7 +470,7 @@ Ptop_def
       ]
   ]
 
-val x : 'a ref -> 'a = <fun>
+val x : 'a ref -> 'a @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+47])
@@ -504,7 +504,7 @@ Ptop_def
       ]
   ]
 
-val x : int ref -> int = <fun>
+val x : int ref -> int @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+44])
@@ -538,7 +538,7 @@ Ptop_def
       ]
   ]
 
-val x : int ref -> int = <fun>
+val x : int ref -> int @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[3,9+50])
@@ -612,7 +612,7 @@ Ptop_def
       ]
   ]
 
-val x : int ref = {contents = 3}
+val x : int ref @@ global many = {contents = 3}
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+18])
@@ -653,7 +653,7 @@ Ptop_def
       ]
   ]
 
-val x : int list = [3; 4]
+val x : int list @@ global many = [3; 4]
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+18])
@@ -680,7 +680,7 @@ Line 2, characters 12-13:
                 ^
 Warning 10 [non-unit-statement]: this expression should have type unit.
 
-val x : int = 4
+val x : int @@ global many = 4
 Ptop_def
   [
     structure_item (//toplevel//[6,56+0]..[6,56+24])
@@ -958,12 +958,12 @@ Ptop_def
       ]
   ]
 
-val ( .@() ) : int -> int -> int = <fun>
-val ( .@()<- ) : int -> int -> int -> int = <fun>
-val ( .%.{} ) : int -> int -> int = <fun>
-val ( .%.{}<- ) : int -> int -> int -> int = <fun>
-val ( .%.[] ) : int -> int -> int = <fun>
-val ( .%.[]<- ) : int -> int -> int -> int = <fun>
+val ( .@() ) : int -> int -> int @@ global many = <fun>
+val ( .@()<- ) : int -> int -> int -> int @@ global many = <fun>
+val ( .%.{} ) : int -> int -> int @@ global many = <fun>
+val ( .%.{}<- ) : int -> int -> int -> int @@ global many = <fun>
+val ( .%.[] ) : int -> int -> int @@ global many = <fun>
+val ( .%.[]<- ) : int -> int -> int -> int @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[4,27+0]..[4,27+6])
@@ -1131,7 +1131,7 @@ Ptop_def
       ]
   ]
 
-val f : (module S) -> unit = <fun>
+val f : (module S) -> unit @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[4,45+0]..[6,71+12])
@@ -1205,7 +1205,7 @@ Ptop_def
       ]
   ]
 
-val x : int = 42
+val x : int @@ global many = 42
 Ptop_def
   [
     structure_item (//toplevel//[3,56+0]..[3,56+31])
@@ -1233,7 +1233,7 @@ Ptop_def
       ]
   ]
 
-val x : < f : int > = <obj>
+val x : < f : int > @@ global many = <obj>
 Ptop_def
   [
     structure_item (//toplevel//[1,0+0]..[1,0+35])
@@ -1263,7 +1263,7 @@ Ptop_def
       ]
   ]
 
-val x : int = 1
+val x : int @@ global many = 1
 Ptop_def
   [
     structure_item (//toplevel//[1,0+0]..[1,0+36])
@@ -1294,7 +1294,7 @@ Ptop_def
       ]
   ]
 
-val x : < f : int > option = Some <obj>
+val x : < f : int > option @@ global many = Some <obj>
 Ptop_def
   [
     structure_item (//toplevel//[1,0+0]..[1,0+40])
@@ -1327,7 +1327,7 @@ Ptop_def
       ]
   ]
 
-val x : int option = Some 1
+val x : int option @@ global many = Some 1
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[5,76+12])
@@ -1486,7 +1486,7 @@ Ptop_def
       ]
   ]
 
-val g : int -> int = <fun>
+val g : int -> int @@ global many = <fun>
 Ptop_def
   [
     structure_item (//toplevel//[3,15+0]..[3,15+27])
@@ -1511,7 +1511,7 @@ Ptop_def
       ]
   ]
 
-val f : unit = ()
+val f : unit @@ global many = ()
 Ptop_def
   [
     structure_item (//toplevel//[2,1+0]..[2,1+26])
@@ -1569,5 +1569,5 @@ Ptop_def
       ]
   ]
 
-val a : unit = ()
+val a : unit @@ global many portable = ()
 

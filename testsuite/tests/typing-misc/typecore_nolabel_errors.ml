@@ -14,8 +14,8 @@ let check f = f ()
 let f ~x = ()
 let () = check f;;
 [%%expect {|
-val check : (unit -> 'a) -> 'a = <fun>
-val f : x:'a -> unit = <fun>
+val check : (unit -> 'a) -> 'a @@ global many = <fun>
+val f : x:'a -> unit @@ global many = <fun>
 |}]
 
 let () = f ~y:1
@@ -30,7 +30,7 @@ This argument cannot be applied with label "~y"
 let f ?x ~a ?y ~z () = ()
 let g = f ?y:None ?x:None ~a:()
 [%%expect {|
-val f : ?x:'a -> a:'b -> ?y:'c -> z:'d -> unit -> unit = <fun>
+val f : ?x:'a -> a:'b -> ?y:'c -> z:'d -> unit -> unit @@ global many = <fun>
 Line 2, characters 13-17:
 2 | let g = f ?y:None ?x:None ~a:()
                  ^^^^
@@ -57,7 +57,8 @@ let f i ?(a=0) ?(b=0) ?(c=0) ~x j =
   i + a + b + c + x + j
 ;;
 [%%expect{|
-val f : int -> ?a:int -> ?b:int -> ?c:int -> x:int -> int -> int = <fun>
+val f : int -> ?a:int -> ?b:int -> ?c:int -> x:int -> int -> int @@ global
+  many = <fun>
 |}]
 ;;
 
@@ -119,7 +120,7 @@ This argument cannot be applied with label "~b"
 
 let f ?x ?y () = ();;
 [%%expect{|
-val f : ?x:'a -> ?y:'b -> unit -> unit = <fun>
+val f : ?x:'a -> ?y:'b -> unit -> unit @@ global many = <fun>
 |}]
 ;;
 

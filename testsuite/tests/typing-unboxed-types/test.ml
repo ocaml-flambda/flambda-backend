@@ -291,7 +291,7 @@ type 'a t12 = M of 'a t12 [@@unboxed]
 |}];;
 let f (a : int t12 array) = a.(0);;
 [%%expect{|
-val f : int t12 array -> int t12 = <fun>
+val f : int t12 array -> int t12 @@ global many = <fun>
 |}];;
 
 (* Check for another possible loop *)
@@ -366,10 +366,10 @@ let g = Array.make 10 { field=[] };;
 let h = g.(5);;
 [%%expect{|
 type f = { field : 'a. 'a list; } [@@unboxed]
-val g : f array =
+val g : f array @@ global many =
   [|{field = []}; {field = []}; {field = []}; {field = []}; {field = []};
     {field = []}; {field = []}; {field = []}; {field = []}; {field = []}|]
-val h : f = {field = []}
+val h : f @@ global many = {field = []}
 |}];;
 
 (* Using [@@immediate] information (GPR#1469) *)

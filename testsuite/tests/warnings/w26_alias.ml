@@ -15,5 +15,5 @@ Line 6, characters 21-22:
                          ^
 Warning 26 [unused-var]: unused variable t.
 
-val sum : t -> int = <fun>
+val sum : t -> int @@ global many = <fun>
 |}]

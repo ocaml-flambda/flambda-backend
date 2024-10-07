@@ -15,7 +15,7 @@ class point :
 
 let p = new point 7;;
 [%%expect{|
-val p : point = <obj>
+val p : point @@ global many = <obj>
 |}];;
 
 p#get_x;;
@@ -33,9 +33,9 @@ p#get_x;;
 
 let q = Oo.copy p;;
 [%%expect{|
-val q : point = <obj>
+val q : point @@ global many = <obj>
 |}, Principal{|
-val q : < get_x : int; move : int -> unit > = <obj>
+val q : < get_x : int; move : int -> unit > @@ global many = <obj>
 |}];;
 
 q#move 7; p#get_x, q#get_x;;
@@ -63,7 +63,7 @@ class color_point :
 
 let p' = new color_point 5 "red";;
 [%%expect{|
-val p' : color_point = <obj>
+val p' : color_point @@ global many = <obj>
 |}];;
 
 p'#get_x, p'#color;;
@@ -73,16 +73,16 @@ p'#get_x, p'#color;;
 
 let l = [p; (p' :> point)];;
 [%%expect{|
-val l : point list = [<obj>; <obj>]
+val l : point list @@ global many = [<obj>; <obj>]
 |}];;
 
 let get_x p = p#get_x;;
 [%%expect{|
-val get_x : < get_x : 'a; .. > -> 'a = <fun>
+val get_x : < get_x : 'a; .. > -> 'a @@ global many = <fun>
 |}];;
 let set_x p = p#set_x;;
 [%%expect{|
-val set_x : < set_x : 'a; .. > -> 'a = <fun>
+val set_x : < set_x : 'a; .. > -> 'a @@ global many = <fun>
 |}];;
 List.map get_x l;;
 [%%expect{|
@@ -177,11 +177,12 @@ class ['a] circle :
 
 let (c, c') = (new circle p, new circle p');;
 [%%expect{|
-val c : point circle = <obj>
-val c' : color_point circle = <obj>
+val c : point circle @@ global many = <obj>
+val c' : color_point circle @@ global many = <obj>
 |}, Principal{|
-val c : point circle = <obj>
-val c' : < color : string; get_x : int; move : int -> unit > circle = <obj>
+val c : point circle @@ global many = <obj>
+val c' : < color : string; get_x : int; move : int -> unit > circle @@ global
+  many = <obj>
 |}];;
 
 class ['a] color_circle c = object
@@ -213,7 +214,7 @@ Error: This expression has type "point" but an expression was expected of type
 |}];;
 let c'' = new color_circle p';;
 [%%expect{|
-val c'' : color_point color_circle = <obj>
+val c'' : color_point color_circle @@ global many = <obj>
 |}];;
 
 (c'' :> color_point circle);;
@@ -268,7 +269,7 @@ class printable_point :
 
 let p = new printable_point 7;;
 [%%expect{|
-val p : printable_point = <obj>
+val p : printable_point @@ global many = <obj>
 |}];;
 p#print;;
 [%%expect{|
@@ -307,7 +308,7 @@ class printable_color_point :
 
 let p' = new printable_color_point 7 "red";;
 [%%expect{|
-val p' : printable_color_point = <obj>
+val p' : printable_color_point @@ global many = <obj>
 |}];;
 p'#print;;
 [%%expect{|
@@ -327,7 +328,7 @@ class functional_point :
 
 let p = new functional_point 7;;
 [%%expect{|
-val p : functional_point = <obj>
+val p : functional_point @@ global many = <obj>
 |}];;
 
 p#get_x;;
@@ -421,7 +422,7 @@ and ['a] cons :
 
 let l1 = new cons 3 (new cons 10 (new nil ()));;
 [%%expect{|
-val l1 : int lst = <obj>
+val l1 : int lst @@ global many = <obj>
 |}];;
 
 l1#print Format.print_int;;
@@ -431,7 +432,7 @@ l1#print Format.print_int;;
 
 let l2 = l1#map (fun x -> x + 1);;
 [%%expect{|
-val l2 : int lst = <obj>
+val l2 : int lst @@ global many = <obj>
 |}];;
 l2#print Format.print_int;;
 [%%expect{|
@@ -442,12 +443,12 @@ let rec map_list f (x:'a lst) =
   if x#null then new nil()
   else new cons (f x#hd) (map_list f x#tl);;
 [%%expect{|
-val map_list : ('a -> 'b) -> 'a lst -> 'b lst = <fun>
+val map_list : ('a -> 'b) -> 'a lst -> 'b lst @@ global many = <fun>
 |}];;
 
 let p1 = (map_list (fun x -> new printable_color_point x "red") l1);;
 [%%expect{|
-val p1 : printable_color_point lst = <obj>
+val p1 : printable_color_point lst @@ global many = <obj>
 |}];;
 p1#print (fun x -> x#print);;
 [%%expect{|
@@ -517,11 +518,11 @@ class ['a] sorted_list :
 
 let l = new sorted_list ();;
 [%%expect{|
-val l : (#comparable as '_weak1) sorted_list = <obj>
+val l : (#comparable as '_weak1) sorted_list @@ global many = <obj>
 |}];;
 let c = new int_comparable 10;;
 [%%expect{|
-val c : int_comparable = <obj>
+val c : int_comparable @@ global many = <obj>
 |}];;
 l#add c;;
 [%%expect{|
@@ -530,7 +531,7 @@ l#add c;;
 
 let c2 = new int_comparable2 15;;
 [%%expect{|
-val c2 : int_comparable2 = <obj>
+val c2 : int_comparable2 @@ global many = <obj>
 |}];;
 l#add (c2 :> int_comparable);;
 [%%expect{|
@@ -569,7 +570,7 @@ class int_comparable3 :
 
 let c3 = new int_comparable3 15;;
 [%%expect{|
-val c3 : int_comparable3 = <obj>
+val c3 : int_comparable3 @@ global many = <obj>
 |}];;
 l#add (c3 :> int_comparable);;
 [%%expect{|
@@ -593,7 +594,7 @@ Error: This expression has type
 
 let sort (l : #comparable list) = List.sort (fun x -> x#cmp) l;;
 [%%expect{|
-val sort : (#comparable as 'a) list -> 'a list = <fun>
+val sort : (#comparable as 'a) list -> 'a list @@ global many = <fun>
 |}];;
 let pr l =
   List.map (fun c -> Format.print_int c#x; Format.print_string " ") l;
@@ -604,12 +605,12 @@ Line 2, characters 2-69:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 10 [non-unit-statement]: this expression should have type unit.
 
-val pr : < x : int; .. > list -> unit = <fun>
+val pr : < x : int; .. > list -> unit @@ global many = <fun>
 |}];;
 let l = [new int_comparable 5; (new int_comparable3 2 :> int_comparable);
          new int_comparable 4];;
 [%%expect{|
-val l : int_comparable list = [<obj>; <obj>; <obj>]
+val l : int_comparable list @@ global many = [<obj>; <obj>; <obj>]
 |}];;
 pr l;;
 [%%expect{|
@@ -623,7 +624,7 @@ pr (sort l);;
 |}];;
 let l = [new int_comparable2 2; new int_comparable2 0];;
 [%%expect{|
-val l : int_comparable2 list = [<obj>; <obj>]
+val l : int_comparable2 list @@ global many = [<obj>; <obj>]
 |}];;
 pr l;;
 [%%expect{|
@@ -639,7 +640,7 @@ pr (sort l);;
 let min (x : #comparable) y =
   if x#cmp y <= 0 then x else y;;
 [%%expect{|
-val min : (#comparable as 'a) -> 'a -> 'a = <fun>
+val min : (#comparable as 'a) -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 (min (new int_comparable  7) (new int_comparable 11))#x;;
@@ -713,7 +714,8 @@ let rec fold_right f (l : 'a #link option) accu =
   | Some l ->
       f l#x (fold_right f l#next accu);;
 [%%expect{|
-val fold_right : ('a -> 'b -> 'b) -> 'a #link option -> 'b -> 'b = <fun>
+val fold_right : ('a -> 'b -> 'b) -> 'a #link option -> 'b -> 'b @@ global
+  many = <fun>
 |}];;
 
 (*******************************************************************)
@@ -858,7 +860,7 @@ and calculator_sub :
 
 let calculator = new calculator 0. 0.;;
 [%%expect{|
-val calculator : calculator = <obj>
+val calculator : calculator @@ global many = <obj>
 |}];;
 
 (calculator#enter 5.)#equals;;

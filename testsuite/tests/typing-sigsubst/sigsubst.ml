@@ -349,7 +349,8 @@ module type S = sig
   type t = M.N.P.t
 end with module M.N := A
 [%%expect {|
-module A : sig module P : sig type t val x : int end end
+module A :
+  sig module P : sig type t val x : int @@ global many portable end end
 module type S = sig module M : sig end type t = A.P.t end
 |}]
 

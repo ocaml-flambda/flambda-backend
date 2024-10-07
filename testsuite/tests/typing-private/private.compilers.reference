@@ -6,7 +6,7 @@ Line 2, characters 20-21:
 Error: This expression has type "F0.t" but an expression was expected of type
          "Foobar.t"
 module F = Foobar
-val f : F.t -> Foobar.t = <fun>
+val f : F.t -> Foobar.t @@ global many = <fun>
 module M : sig type t = < m : int > end
 module M1 : sig type t = private < m : int; .. > end
 module M2 : sig type t = private < m : int; .. > end
@@ -76,7 +76,7 @@ Line 3, characters 2-51:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = int val f : int -> t end
+         sig type t = int val f : int -> t @@ global many portable end
        is not included in
          sig type t = private Foobar.t val f : int -> t end
        Type declarations do not match:
@@ -102,8 +102,8 @@ module M : sig type 'a t = private T of 'a end
 module M1 : sig type 'a t = 'a M.t = private T of 'a end
 module Test : sig type t = private A end
 module Test2 : sig type t = Test.t = private A end
-val f : Test.t -> Test2.t = <fun>
-val f : Test2.t -> unit = <fun>
+val f : Test.t -> Test2.t @@ global many = <fun>
+val f : Test2.t -> unit @@ global many = <fun>
 Line 1, characters 8-15:
 1 | let a = Test2.A;; (* fail *)
             ^^^^^^^

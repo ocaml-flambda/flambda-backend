@@ -109,7 +109,7 @@ module O = N
                  "x"[value] -> <.16>;
                  };
  }
-module M : sig type t val x : int end
+module M : sig type t val x : int @@ global many portable end
 {
  "N"[module] -> {<.19>
                  "t"[type] -> <.15>;

@@ -8,7 +8,7 @@ let x = ()
 {
  "x"[value] -> <.0>;
  }
-val x : unit = ()
+val x : unit @@ global many = ()
 |}]
 
 external y : int -> int = "%identity"

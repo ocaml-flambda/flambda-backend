@@ -6,7 +6,7 @@
 
 module M = struct let f () = 1 end;;
 [%%expect {|
-module M : sig val f : unit -> int end
+module M : sig val f : unit -> int @@ global many portable end
 |}]
 
 let g f = f (); M.(f ());;
@@ -16,7 +16,7 @@ Line 1, characters 16-17:
                     ^
 Warning 44 [open-shadow-identifier]: this open statement shadows the value identifier f (which is later used)
 
-val g : (unit -> 'a) -> int = <fun>
+val g : (unit -> 'a) -> int @@ global many = <fun>
 |}]
 
 (* regression test for #12494
@@ -29,7 +29,7 @@ val g : (unit -> 'a) -> int = <fun>
 *)
 let f () = M.(f ());;
 [%%expect {|
-val f : unit -> int = <fun>
+val f : unit -> int @@ global many = <fun>
 |}]
 
 (* Advanced behaviors related to #12494: in classes.
@@ -60,6 +60,6 @@ class c = object
   val y = M.( x ) + 1
 end;;
 [%%expect {|
-module M : sig val x : int end
+module M : sig val x : int @@ global many portable end
 class c : object val x : int val y : int end
 |}]

@@ -29,7 +29,7 @@ Error: This pattern matches values of type "i t"
 let g (type a b) (y : (a,b) j t option) =
   let None = y in () ;;
 [%%expect{|
-val g : ('a, 'b) j t option -> unit = <fun>
+val g : ('a, 'b) j t option -> unit @@ global many = <fun>
 |}]
 
 module M = struct
@@ -40,7 +40,7 @@ let g (y : M.j t option) =
   let None = y in () ;;
 [%%expect{|
 module M : sig type 'a d = D type j = < m : 'c. 'c -> 'c d > end
-val g : M.j t option -> unit = <fun>
+val g : M.j t option -> unit @@ global many = <fun>
 |}]
 
 module M = struct
@@ -58,7 +58,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some A
 
-val g : M.j t option -> unit = <fun>
+val g : M.j t option -> unit @@ global many = <fun>
 |}]
 
 module M = struct
@@ -86,7 +86,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some A
 
-val g : M.j t option -> unit = <fun>
+val g : M.j t option -> unit @@ global many = <fun>
 |}]
 
 module M = struct
@@ -113,7 +113,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Some A
 
-val g : 'a M.j t option -> unit = <fun>
+val g : 'a M.j t option -> unit @@ global many = <fun>
 |}]
 
 (* more examples by @lpw25 *)
@@ -132,7 +132,7 @@ module M :
     type j = C of < m : 'c. 'c -> a >
   end
 type _ t = A : M.i t
-val f : M.j t -> 'a = <fun>
+val f : M.j t -> 'a @@ global many = <fun>
 |}]
 
 module M = struct
@@ -150,7 +150,7 @@ module M :
     type j = C of < m : 'c. 'c -> a >
   end
 type _ t = A : M.i t
-val f : M.j t -> 'a = <fun>
+val f : M.j t -> 'a @@ global many = <fun>
 |}]
 
 module M = struct

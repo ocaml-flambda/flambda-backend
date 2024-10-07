@@ -5,17 +5,17 @@
 let pos_a : lexing_position = {Lexing.dummy_pos with pos_fname = "a"};;
 let pos_b : lexing_position = {Lexing.dummy_pos with pos_fname = "b"};;
 [%%expect{|
-val pos_a : lexing_position =
+val pos_a : lexing_position @@ global many portable =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
-val pos_b : lexing_position =
+val pos_b : lexing_position @@ global many portable =
   {pos_fname = "b"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 
 let f = fun ~(a:[%call_pos]) ~(b:[%call_pos]) () -> a, b
 [%%expect{|
 val f :
-  a:[%call_pos] -> b:[%call_pos] -> unit -> lexing_position * lexing_position =
-  <fun>
+  a:[%call_pos] -> b:[%call_pos] -> unit -> lexing_position * lexing_position
+  @@ global many = <fun>
 |}]
 
 let _ = f ~b:pos_b ~a:pos_a () ;;
@@ -30,9 +30,10 @@ let x = f ~b:pos_b ;;
 let y = x ~a:pos_a ;;
 let z = y () ;;
 [%%expect {|
-val x : a:[%call_pos] -> unit -> lexing_position * lexing_position = <fun>
-val y : unit -> lexing_position * lexing_position = <fun>
-val z : lexing_position * lexing_position =
+val x : a:[%call_pos] -> unit -> lexing_position * lexing_position @@ global
+  many = <fun>
+val y : unit -> lexing_position * lexing_position @@ global many = <fun>
+val z : lexing_position * lexing_position @@ global many =
   ({pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1},
    {pos_fname = "b"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1})
 |}]
@@ -41,8 +42,8 @@ let g = fun ~(a:[%call_pos]) ?(c = 0) ~(b:[%call_pos]) () -> a, b, c
 [%%expect{|
 val g :
   a:[%call_pos] ->
-  ?c:int -> b:[%call_pos] -> unit -> lexing_position * lexing_position * int =
-  <fun>
+  ?c:int -> b:[%call_pos] -> unit -> lexing_position * lexing_position * int
+  @@ global many = <fun>
 |}]
 
 let _ = g ~b:pos_b ~a:pos_a () ;;
@@ -54,7 +55,8 @@ let _ = g ~b:pos_b ~a:pos_a () ;;
 
 let h = fun ~(a:[%call_pos]) ~(b:int) () -> a, b
 [%%expect{|
-val h : a:[%call_pos] -> b:int -> unit -> lexing_position * int = <fun>
+val h : a:[%call_pos] -> b:int -> unit -> lexing_position * int @@ global
+  many = <fun>
 |}]
 
 let _ = h ~b:0 ~a:pos_a ();;
@@ -65,7 +67,8 @@ let _ = h ~b:0 ~a:pos_a ();;
 
 let k = fun ~(a:int) ~(a:[%call_pos])() -> a
 [%%expect{|
-val k : a:int -> a:[%call_pos] -> unit -> lexing_position = <fun>
+val k : a:int -> a:[%call_pos] -> unit -> lexing_position @@ global many =
+  <fun>
 |}]
 
 let _ = k ~a:Lexing.dummy_pos ~a:0 ();;
@@ -112,11 +115,11 @@ let x = new c ~b:pos_b ;;
 let y = x ~a:pos_a ;;
 let a, b = (y ())#x ;;
 [%%expect{|
-val x : a:[%call_pos] -> unit -> c = <fun>
-val y : unit -> c = <fun>
-val a : lexing_position =
+val x : a:[%call_pos] -> unit -> c @@ global many = <fun>
+val y : unit -> c @@ global many = <fun>
+val a : lexing_position @@ global many =
   {pos_fname = "a"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
-val b : lexing_position =
+val b : lexing_position @@ global many =
   {pos_fname = "b"; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 

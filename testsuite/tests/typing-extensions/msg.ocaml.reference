@@ -14,9 +14,9 @@ module Msg :
       end
     module Define : functor (D : Desc) -> sig type 'a tag += C : D.t tag end
   end
-val write_int : int -> unit = <fun>
+val write_int : int -> unit @@ global many = <fun>
 module StrM : sig type 'a Msg.tag += C : string Msg.tag end
 type 'a Msg.tag += String : string Msg.tag
-val write_string : string -> unit = <fun>
-val read_one : unit -> unit = <fun>
+val write_string : string -> unit @@ global many = <fun>
+val read_one : unit -> unit @@ global many = <fun>
 

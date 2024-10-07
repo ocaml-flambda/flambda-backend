@@ -2,15 +2,15 @@ module Empty : sig end
 type u = A
 type v = B
 module type S = sig end
-val m : (module S) = <module>
+val m : (module S) @@ global many = <module>
 module M : sig type 'a t = X of 'a end
-val x : (u * v * (module S)) M.t = M.X (A, B, <module>)
+val x : (u * v * (module S)) M.t @@ global many = M.X (A, B, <module>)
 module type S = sig end
-val m : (module S) = <module>
+val m : (module S) @@ global many = <module>
 type u = A
 type v = B
 module M : sig type 'a t = X of 'a end
-val y : (u * v * (module S)) M.t = M.X (A, B, <module>)
+val y : (u * v * (module S)) M.t @@ global many = M.X (A, B, <module>)
 Line 2, characters 4-5:
 2 | x = y;;
         ^
@@ -27,11 +27,11 @@ Error: This expression has type "(u/1 * v/1 * (module S/1)) M/1.t"
          toplevel session. Some toplevel values still refer to old versions
          of this module type. Did you try to redefine them?
 type a = A
-val a : a = A
+val a : a @@ global many = A
 type a = A
-val b : a = A
+val b : a @@ global many = A
 type a = A
-val c : a = A
+val c : a @@ global many = A
 Line 2, characters 4-5:
 2 | a = b;;
         ^

@@ -9,7 +9,7 @@ let best_bytes : unit -> bytes @ portable uncontended
     = Obj.magic (fun () -> Bytes.empty)
 [%%expect{|
 type r = { mutable a : bytes; b : bytes; }
-val best_bytes : unit -> bytes @ portable = <fun>
+val best_bytes : unit -> bytes @ portable @@ global many = <fun>
 |}]
 
 (* TESTING records *)
@@ -38,7 +38,7 @@ Error: This value is "contended" but expected to be "shared".
 
 let foo (r @ contended) = {r with a = best_bytes ()}
 [%%expect{|
-val foo : r @ contended -> r @ contended = <fun>
+val foo : r @ contended -> r @ contended @@ global many = <fun>
 |}]
 
 let foo (r @ contended) = {r with b = best_bytes ()}
@@ -65,29 +65,29 @@ Error: This value is "shared" but expected to be "uncontended".
 (* reading mutable field from shared record is fine *)
 let foo (r @ shared) = r.a
 [%%expect{|
-val foo : r @ shared -> bytes @ shared = <fun>
+val foo : r @ shared -> bytes @ shared @@ global many = <fun>
 |}]
 
 let foo (r @ shared) = {r with b = best_bytes ()}
 [%%expect{|
-val foo : r @ shared -> r @ shared = <fun>
+val foo : r @ shared -> r @ shared @@ global many = <fun>
 |}]
 
 (* reading immutable field from contended record is fine *)
 let foo (r @ contended) = r.b
 [%%expect{|
-val foo : r @ contended -> bytes @ contended = <fun>
+val foo : r @ contended -> bytes @ contended @@ global many = <fun>
 |}]
 
 (* reading immutable field from shared record is fine *)
 let foo (r @ shared) = r.b
 [%%expect{|
-val foo : r @ shared -> bytes @ shared = <fun>
+val foo : r @ shared -> bytes @ shared @@ global many = <fun>
 |}]
 
 let foo (r @ shared) = {r with a = best_bytes ()}
 [%%expect{|
-val foo : r @ shared -> r @ shared = <fun>
+val foo : r @ shared -> r @ shared @@ global many = <fun>
 |}]
 
 (* Force top level to be uncontended and nonportable *)
@@ -111,7 +111,7 @@ let x @ portable = fun a -> a
 
 let y @ portable = x
 [%%expect{|
-val x : 'a -> 'a = <fun>
+val x : 'a -> 'a @@ global many = <fun>
 Line 3, characters 19-20:
 3 | let y @ portable = x
                        ^
@@ -228,7 +228,7 @@ let foo (r @ shared) =
     | [| x; y |] -> ()
     | _ -> ()
 [%%expect{|
-val foo : 'a array @ shared -> unit = <fun>
+val foo : 'a array @ shared -> unit @@ global many = <fun>
 |}]
 
 (* Closing over write gives nonportable *)
@@ -270,7 +270,7 @@ let foo () =
     let _ @ portable = bar in
     ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 let foo () =
@@ -279,7 +279,7 @@ let foo () =
     let _ @ portable = bar in
     ()
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> unit @@ global many = <fun>
 |}]
 
 (* Closing over nonportable forces nonportable. *)
@@ -351,14 +351,14 @@ let foo (x : int @@ nonportable) (y : int @@ contended) =
     let _ @ shared = y in
     ()
 [%%expect{|
-val foo : int -> int @ contended -> unit = <fun>
+val foo : int -> int @ contended -> unit @@ global many = <fun>
 |}]
 
 let foo (x : int @@ shared) =
     let _ @ uncontended = x in
     ()
 [%%expect{|
-val foo : int @ shared -> unit = <fun>
+val foo : int @ shared -> unit @@ global many = <fun>
 |}]
 
 (* TESTING immutable array *)

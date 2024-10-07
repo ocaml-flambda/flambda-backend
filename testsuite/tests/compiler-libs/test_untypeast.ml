@@ -12,7 +12,7 @@ let run s =
 ;;
 
 [%%expect{|
-val run : string -> string = <fun>
+val run : string -> string @@ global many = <fun>
 |}];;
 
 run {| match None with Some (Some _) -> () | _ -> () |};;

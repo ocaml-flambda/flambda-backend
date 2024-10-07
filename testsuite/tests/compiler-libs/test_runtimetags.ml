@@ -34,8 +34,8 @@ let () = check_tags [
 ]
 
 [%%expect{|
-val check_tag : string -> int -> int -> unit = <fun>
-val check_tags : (string * int * int) list -> unit = <fun>
+val check_tag : string -> int -> int -> unit @@ global many = <fun>
+val check_tags : (string * int * int) list -> unit @@ global many = <fun>
 values for "first_non_constant_constructor_tag" agree
 values for "last_non_constant_constructor_tag" agree
 values for "forcing_tag" agree

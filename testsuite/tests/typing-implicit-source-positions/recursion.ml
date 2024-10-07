@@ -26,7 +26,7 @@ let rec f ~(call_pos:[%call_pos]) i =
                   ; pos_cnum = -1 }
           (i - 1)
 [%%expect {|
-val f : call_pos:[%call_pos] -> int -> int = <fun>
+val f : call_pos:[%call_pos] -> int -> int @@ global many = <fun>
 |}]
 
 let y = { pos_fname = ""
@@ -34,7 +34,8 @@ let y = { pos_fname = ""
         ; pos_bol = 0
         ; pos_cnum = -1 }
 [%%expect {|
-val y : t = {pos_fname = ""; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
+val y : t @@ global many =
+  {pos_fname = ""; pos_lnum = 0; pos_bol = 0; pos_cnum = -1}
 |}]
 
 let rec g ~(call_pos:[%call_pos]) i =

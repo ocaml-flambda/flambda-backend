@@ -29,7 +29,7 @@ type 'a r = { mutable s : 'a; }
 (* We can now construct a local record using a local field. *)
 let foo (local_ s) = exclave_ {s}
 [%%expect{|
-val foo : local_ 'a -> local_ 'a r = <fun>
+val foo : local_ 'a -> local_ 'a r @@ global many = <fun>
 |}]
 
 (* Mutation needs to be global *)
@@ -53,7 +53,7 @@ Error: This value escapes its region.
 let foo (local_ r) =
   r.s <- "hello"
 [%%expect{|
-val foo : local_ string r -> unit = <fun>
+val foo : local_ string r -> unit @@ global many = <fun>
 |}]
 
 (* We can still add modalities explicitly. Of course, the print-back is
@@ -87,12 +87,12 @@ Error: This value is "nonportable" but expected to be "portable".
    [unique]. *)
 let foo r (s @ aliased) = r.s <- s
 [%%expect{|
-val foo : 'a r -> 'a -> unit = <fun>
+val foo : 'a r -> 'a -> unit @@ global many = <fun>
 |}]
 
 let foo (s @ aliased) = ({s} : _ @@ unique)
 [%%expect{|
-val foo : 'a -> 'a r = <fun>
+val foo : 'a -> 'a r @@ global many = <fun>
 |}]
 
 let foo (r @ unique) = (r.s : _ @@ unique)

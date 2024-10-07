@@ -16,13 +16,13 @@ module Id = struct
 
 end;;
 [%%expect{|
-val id : 'a -> 'a = <fun>
-val apply : 'a -> ('a -> 'b) -> 'b = <fun>
-val pair : 'a -> 'b -> 'a * 'b = <fun>
+val id : 'a -> 'a @@ global many = <fun>
+val apply : 'a -> ('a -> 'b) -> 'b @@ global many = <fun>
+val pair : 'a -> 'b -> 'a * 'b @@ global many = <fun>
 module Id :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : 'a -> 'b -> 'a * 'b @@ global many
   end
 |}];;
 
@@ -34,7 +34,7 @@ let res =
     [x; y; z]
   );;
 [%%expect{|
-val res : int list = [1; 2; 3]
+val res : int list @@ global many = [1; 2; 3]
 |}];;
 
 let res2 =
@@ -43,7 +43,7 @@ let res2 =
     x + 2
   );;
 [%%expect{|
-val res2 : int = 3
+val res2 : int @@ global many = 3
 |}];;
 
 
@@ -72,13 +72,13 @@ end;;
 [%%expect{|
 module List :
   sig
-    val map : 'a list -> ('a -> 'b) -> 'b list
-    val concat_map : 'a list -> ('a -> 'b list) -> 'b list
-    val product : 'a list -> 'b list -> ('a * 'b) list
-    val ( let+ ) : 'a list -> ('a -> 'b) -> 'b list
-    val ( and+ ) : 'a list -> 'b list -> ('a * 'b) list
-    val ( let* ) : 'a list -> ('a -> 'b list) -> 'b list
-    val ( and* ) : 'a list -> 'b list -> ('a * 'b) list
+    val map : 'a list -> ('a -> 'b) -> 'b list @@ global many
+    val concat_map : 'a list -> ('a -> 'b list) -> 'b list @@ global many
+    val product : 'a list -> 'b list -> ('a * 'b) list @@ global many
+    val ( let+ ) : 'a list -> ('a -> 'b) -> 'b list @@ global many
+    val ( and+ ) : 'a list -> 'b list -> ('a * 'b) list @@ global many
+    val ( let* ) : 'a list -> ('a -> 'b list) -> 'b list @@ global many
+    val ( and* ) : 'a list -> 'b list -> ('a * 'b) list @@ global many
   end
 |}];;
 
@@ -88,7 +88,7 @@ let map =
     x + 1
   );;
 [%%expect{|
-val map : int list = [2; 3; 4]
+val map : int list @@ global many = [2; 3; 4]
 |}];;
 
 let map_and =
@@ -98,7 +98,7 @@ let map_and =
     x + y
   );;
 [%%expect{|
-val map_and : int list = [8; 9; 10; 9; 10; 11; 10; 11; 12]
+val map_and : int list @@ global many = [8; 9; 10; 9; 10; 11; 10; 11; 12]
 |}];;
 
 let bind =
@@ -108,7 +108,7 @@ let bind =
     [x + y]
   );;
 [%%expect{|
-val bind : int list = [8; 9; 10; 9; 10; 11; 10; 11; 12]
+val bind : int list @@ global many = [8; 9; 10; 9; 10; 11; 10; 11; 12]
 |}];;
 
 let bind_and =
@@ -118,7 +118,7 @@ let bind_and =
     [x + y]
   );;
 [%%expect{|
-val bind_and : int list = [8; 9; 10; 9; 10; 11; 10; 11; 12]
+val bind_and : int list @@ global many = [8; 9; 10; 9; 10; 11; 10; 11; 12]
 |}];;
 
 let bind_map =
@@ -128,7 +128,7 @@ let bind_map =
     x + y
   );;
 [%%expect{|
-val bind_map : int list = [8; 9; 10; 9; 10; 11; 10; 11; 12]
+val bind_map : int list @@ global many = [8; 9; 10; 9; 10; 11; 10; 11; 12]
 |}];;
 
 module Let_unbound = struct
@@ -153,7 +153,8 @@ module And_unbound = struct
   let (let+) = Id.(let+)
 end;;
 [%%expect{|
-module And_unbound : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
+module And_unbound :
+  sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many end
 |}];;
 
 let and_unbound =
@@ -175,7 +176,8 @@ module Ill_typed_1 = struct
 
 end;;
 [%%expect{|
-module Ill_typed_1 : sig val ( let+ ) : bool -> (bool -> 'a) -> 'a end
+module Ill_typed_1 :
+  sig val ( let+ ) : bool -> (bool -> 'a) -> 'a @@ global many end
 |}];;
 
 let ill_typed_1 =
@@ -200,8 +202,8 @@ end;;
 [%%expect{|
 module Ill_typed_2 :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : float -> float -> float * float
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : float -> float -> float * float @@ global many
   end
 |}];;
 
@@ -226,7 +228,7 @@ module Ill_typed_3 = struct
 
 end;;
 [%%expect{|
-module Ill_typed_3 : sig val ( let+ ) : int end
+module Ill_typed_3 : sig val ( let+ ) : int @@ global many portable end
 |}];;
 
 let ill_typed_3 =
@@ -250,7 +252,10 @@ module Ill_typed_4 = struct
 end;;
 [%%expect{|
 module Ill_typed_4 :
-  sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b val ( and+ ) : bool -> bool end
+  sig
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : bool -> bool @@ global many
+  end
 |}];;
 
 let ill_typed_4 =
@@ -277,8 +282,8 @@ end;;
 [%%expect{|
 module Ill_typed_5 :
   sig
-    val ( let+ ) : bool -> 'a -> bool
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) : bool -> 'a -> bool @@ global many
+    val ( and+ ) : 'a -> 'b -> 'a * 'b @@ global many
   end
 |}];;
 
@@ -307,8 +312,8 @@ end;;
 [%%expect{|
 module Ill_typed_6 :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : int -> 'a -> int * 'a
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : int -> 'a -> int * 'a @@ global many
   end
 |}];;
 
@@ -337,8 +342,8 @@ end;;
 [%%expect{|
 module Ill_typed_7 :
   sig
-    val ( let+ ) : (int -> 'a) -> int -> 'a
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) : (int -> 'a) -> int -> 'a @@ global many
+    val ( and+ ) : 'a -> 'b -> 'a * 'b @@ global many
   end
 |}];;
 
@@ -431,21 +436,28 @@ module Indexed_monad :
       | Open : string -> (closed, opened, unit) t
       | Read : (opened, opened, string) t
       | Close : (opened, closed, unit) t
-    val return : 'a -> ('b, 'b, 'a) t
-    val map : ('a, 'b, 'c) t -> ('c -> 'd) -> ('a, 'b, 'd) t
-    val both : ('a, 'b, 'c) t -> ('b, 'd, 'e) t -> ('a, 'd, 'c * 'e) t
-    val bind : ('a, 'b, 'c) t -> ('c -> ('b, 'd, 'e) t) -> ('a, 'd, 'e) t
-    val open_ : string -> (closed, opened, unit) t
-    val read : (opened, opened, string) t
-    val close : (opened, closed, unit) t
+    val return : 'a -> ('b, 'b, 'a) t @@ global many portable
+    val map : ('a, 'b, 'c) t -> ('c -> 'd) -> ('a, 'b, 'd) t @@ global many
+      portable
+    val both : ('a, 'b, 'c) t -> ('b, 'd, 'e) t -> ('a, 'd, 'c * 'e) t @@
+      global many portable
+    val bind : ('a, 'b, 'c) t -> ('c -> ('b, 'd, 'e) t) -> ('a, 'd, 'e) t @@
+      global many portable
+    val open_ : string -> (closed, opened, unit) t @@ global many portable
+    val read : (opened, opened, string) t @@ global many portable
+    val close : (opened, closed, unit) t @@ global many portable
     type 'a state =
         Opened : in_channel -> opened state
       | Closed : closed state
-    val run : (closed, closed, 'a) t -> 'a
-    val ( let+ ) : ('a, 'b, 'c) t -> ('c -> 'd) -> ('a, 'b, 'd) t
-    val ( and+ ) : ('a, 'b, 'c) t -> ('b, 'd, 'e) t -> ('a, 'd, 'c * 'e) t
+    val run : (closed, closed, 'a) t -> 'a @@ global many
+    val ( let+ ) : ('a, 'b, 'c) t -> ('c -> 'd) -> ('a, 'b, 'd) t @@ global
+      many portable
+    val ( and+ ) : ('a, 'b, 'c) t -> ('b, 'd, 'e) t -> ('a, 'd, 'c * 'e) t @@
+      global many portable
     val ( let* ) : ('a, 'b, 'c) t -> ('c -> ('b, 'd, 'e) t) -> ('a, 'd, 'e) t
-    val ( and* ) : ('a, 'b, 'c) t -> ('b, 'd, 'e) t -> ('a, 'd, 'c * 'e) t
+      @@ global many portable
+    val ( and* ) : ('a, 'b, 'c) t -> ('b, 'd, 'e) t -> ('a, 'd, 'c * 'e) t @@
+      global many portable
   end
 |}];;
 
@@ -459,7 +471,8 @@ let indexed_monad1 =
   );;
 [%%expect{|
 val indexed_monad1 :
-  (Indexed_monad.closed, Indexed_monad.closed, string) Indexed_monad.t =
+  (Indexed_monad.closed, Indexed_monad.closed, string) Indexed_monad.t @@
+  global many =
   Indexed_monad.Map
    (Indexed_monad.Both
      (Indexed_monad.Both
@@ -479,8 +492,8 @@ let indexed_monad2 =
   );;
 [%%expect{|
 val indexed_monad2 :
-  (Indexed_monad.closed, Indexed_monad.closed, string) Indexed_monad.t =
-  Indexed_monad.Bind (Indexed_monad.Open "foo", <fun>)
+  (Indexed_monad.closed, Indexed_monad.closed, string) Indexed_monad.t @@
+  global many = Indexed_monad.Bind (Indexed_monad.Open "foo", <fun>)
 |}];;
 
 let indexed_monad3 =
@@ -534,7 +547,8 @@ module Let_principal = struct
 end;;
 [%%expect{|
 module A : sig type t = A end
-module Let_principal : sig val ( let+ ) : A.t -> (A.t -> 'a) -> 'a end
+module Let_principal :
+  sig val ( let+ ) : A.t -> (A.t -> 'a) -> 'a @@ global many portable end
 |}];;
 
 let let_principal =
@@ -543,7 +557,7 @@ let let_principal =
     ()
   );;
 [%%expect{|
-val let_principal : unit = ()
+val let_principal : unit @@ global many = ()
 |}];;
 
 
@@ -554,8 +568,8 @@ end;;
 [%%expect{|
 module And_principal :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : A.t -> 'a -> A.t * 'a
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : A.t -> 'a -> A.t * 'a @@ global many portable
   end
 |}];;
 
@@ -566,14 +580,15 @@ let and_principal =
     ()
   );;
 [%%expect{|
-val and_principal : unit = ()
+val and_principal : unit @@ global many = ()
 |}];;
 
 module Let_not_principal = struct
   let ( let+ ) = apply
 end;;
 [%%expect{|
-module Let_not_principal : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
+module Let_not_principal :
+  sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many end
 |}];;
 
 let let_not_principal =
@@ -582,14 +597,14 @@ let let_not_principal =
     ()
   );;
 [%%expect{|
-val let_not_principal : unit = ()
+val let_not_principal : unit @@ global many = ()
 |}, Principal{|
 Line 3, characters 9-10:
 3 |     let+ A = A.A in
              ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val let_not_principal : unit = ()
+val let_not_principal : unit @@ global many = ()
 |}];;
 
 module And_not_principal = struct
@@ -599,8 +614,8 @@ end;;
 [%%expect{|
 module And_not_principal :
   sig
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'a -> 'a * 'a
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : 'a -> 'a -> 'a * 'a @@ global many portable
   end
 |}];;
 
@@ -612,21 +627,22 @@ let and_not_principal =
       ()
   );;
 [%%expect{|
-val and_not_principal : A.t -> A.t -> unit = <fun>
+val and_not_principal : A.t -> A.t -> unit @@ global many = <fun>
 |}, Principal{|
 Line 5, characters 11-12:
 5 |       and+ A = y in
                ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val and_not_principal : A.t -> A.t -> unit = <fun>
+val and_not_principal : A.t -> A.t -> unit @@ global many = <fun>
 |}];;
 
 module Let_not_propagated = struct
   let ( let+ ) = apply
 end;;
 [%%expect{|
-module Let_not_propagated : sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b end
+module Let_not_propagated :
+  sig val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many end
 |}];;
 
 let let_not_propagated : A.t =
@@ -653,12 +669,12 @@ end;;
 [%%expect{|
 module Side_effects_ordering :
   sig
-    val r : string list ref
-    val msg : string -> unit
-    val output : unit -> string list
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
-    val ( and++ ) : 'a -> 'b -> 'a * 'b
+    val r : string list ref @@ global many
+    val msg : string -> unit @@ global many
+    val output : unit -> string list @@ global many
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : 'a -> 'b -> 'a * 'b @@ global many
+    val ( and++ ) : 'a -> 'b -> 'a * 'b @@ global many
   end
 |}];;
 
@@ -670,7 +686,7 @@ let side_effects_ordering =
     output ()
   );;
 [%%expect{|
-val side_effects_ordering : string list =
+val side_effects_ordering : string list @@ global many =
   ["First argument"; "Second argument"; "First and operator";
    "Third argument"; "Second and operator"; "Let operator"]
 |}];;
@@ -687,8 +703,8 @@ module GADT_ordering :
   sig
     type point = { x : int; y : int; }
     type _ is_point = Is_point : point is_point
-    val ( let+ ) : 'a -> ('a -> 'b) -> 'b
-    val ( and+ ) : 'a -> 'b -> 'a * 'b
+    val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
+    val ( and+ ) : 'a -> 'b -> 'a * 'b @@ global many
   end
 |}];;
 
@@ -700,7 +716,8 @@ let gadt_ordering =
         x + y
   );;
 [%%expect{|
-val gadt_ordering : 'a GADT_ordering.is_point -> 'a -> int = <fun>
+val gadt_ordering : 'a GADT_ordering.is_point -> 'a -> int @@ global many =
+  <fun>
 |}];;
 
 (* This example doesn't produce a good error location.  To fix this we need to handle the
@@ -715,7 +732,8 @@ let bad_location =
         x + y
   );;
 [%%expect{|
-val bad_location : 'a GADT_ordering.is_point -> 'a -> int = <fun>
+val bad_location : 'a GADT_ordering.is_point -> 'a -> int @@ global many =
+  <fun>
 |}, Principal{|
 Line 4, characters 11-19:
 4 |       let+ Is_point = is_point

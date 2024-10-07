@@ -8,7 +8,7 @@ Line 1, characters 9-10:
              ^
 Warning 16 [unerasable-optional-argument]: this optional argument cannot be erased.
 
-val foo : ?x:'a -> unit = <fun>
+val foo : ?x:'a -> unit @@ global many = <fun>
 |}]
 
 let foo ?x ~y = ()
@@ -18,17 +18,17 @@ Line 1, characters 9-10:
              ^
 Warning 16 [unerasable-optional-argument]: this optional argument cannot be erased.
 
-val foo : ?x:'a -> y:'b -> unit = <fun>
+val foo : ?x:'a -> y:'b -> unit @@ global many = <fun>
 |}]
 
 let foo ?x () = ()
 [%%expect{|
-val foo : ?x:'a -> unit -> unit = <fun>
+val foo : ?x:'a -> unit -> unit @@ global many = <fun>
 |}]
 
 let foo ?x ~y () = ()
 [%%expect{|
-val foo : ?x:'a -> y:'b -> unit -> unit = <fun>
+val foo : ?x:'a -> y:'b -> unit -> unit @@ global many = <fun>
 |}]
 
 class bar ?x = object end

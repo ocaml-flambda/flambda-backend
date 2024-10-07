@@ -12,7 +12,7 @@ type lexing_position = int
 (* src_pos works *)
 let f ~(call_pos:[%call_pos]) () = ();;
 [%%expect{|
-val f : call_pos:[%call_pos] -> unit -> unit = <fun>
+val f : call_pos:[%call_pos] -> unit -> unit @@ global many = <fun>
 |}]
 
 let _ = f ~call_pos:Lexing.dummy_pos () ;;
@@ -23,7 +23,7 @@ let _ = f ~call_pos:Lexing.dummy_pos () ;;
 (* new type works *)
 let h (x : lexing_position) = x ;;
 [%%expect{|
-val h : lexing_position -> lexing_position = <fun>
+val h : lexing_position -> lexing_position @@ global many = <fun>
 |}]
 
 let _ = h 5;;
@@ -50,7 +50,7 @@ let o = object
 end
 
 [%%expect {|
-val o : < m : call_pos:[%call_pos] -> unit -> unit > = <obj>
+val o : < m : call_pos:[%call_pos] -> unit -> unit > @@ global many = <obj>
 |}]
 
 let _ = o#m ~call_pos:Lexing.dummy_pos ()

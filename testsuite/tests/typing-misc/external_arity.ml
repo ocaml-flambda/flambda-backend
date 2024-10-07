@@ -8,7 +8,7 @@ let _ : int = Obj.magic f None None None
 
 [%%expect
 {|
-val f : int -> int -> int -> int = <fun>
+val f : int -> int -> int -> int @@ global many = <fun>
 - : int = 0
 |}]
 

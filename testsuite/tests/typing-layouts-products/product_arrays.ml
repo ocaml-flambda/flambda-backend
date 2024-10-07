@@ -112,11 +112,11 @@ let f_ignorable (x : #(float# * int * int64# * bool)) = make_vect 42 x
 [%%expect{|
 external make_vect : ('a : any_non_null). int -> 'a -> 'a array
   = "%makearray_dynamic" [@@layout_poly]
-val f_scannable : #(int * float * string) -> #(int * float * string) array =
-  <fun>
+val f_scannable : #(int * float * string) -> #(int * float * string) array @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) -> #(float# * int * int64# * bool) array =
-  <fun>
+  #(float# * int * int64# * bool) -> #(float# * int * int64# * bool) array @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -146,15 +146,16 @@ external make_scannable :
   int -> #(int * float * string) -> #(int * float * string) array
   = "%makearray_dynamic"
 val make_scannable_app :
-  int -> #(int * float * string) -> #(int * float * string) array = <fun>
+  int -> #(int * float * string) -> #(int * float * string) array @@ global
+  many = <fun>
 external make_ignorable :
   int ->
   #(float# * int * int64# * bool) -> #(float# * int * int64# * bool) array
   = "%makearray_dynamic"
 val make_ignorable_app :
   int ->
-  #(float# * int * int64# * bool) -> #(float# * int * int64# * bool) array =
-  <fun>
+  #(float# * int * int64# * bool) -> #(float# * int * int64# * bool) array @@
+  global many = <fun>
 |}]
 
 external make_bad : int -> #(string * float#) -> #(string * float#) array =
@@ -207,8 +208,9 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = len x
 [%%expect{|
 external len : ('a : any_non_null). 'a array -> int = "%array_length"
   [@@layout_poly]
-val f_scannable : #(int * float * string) array -> int = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> int = <fun>
+val f_scannable : #(int * float * string) array -> int @@ global many = <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> int @@ global many =
+  <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -232,10 +234,12 @@ let len_ignorable_app x = len_ignorable x
 [%%expect{|
 external len_scannable : #(int * float * string) array -> int
   = "%array_length"
-val len_scannable_app : #(int * float * string) array -> int = <fun>
+val len_scannable_app : #(int * float * string) array -> int @@ global many =
+  <fun>
 external len_ignorable : #(float# * int * int64# * bool) array -> int
   = "%array_length"
-val len_ignorable_app : #(float# * int * int64# * bool) array -> int = <fun>
+val len_ignorable_app : #(float# * int * int64# * bool) array -> int @@
+  global many = <fun>
 |}]
 
 external len_bad : #(string * float#) array -> int = "%array_length"
@@ -285,11 +289,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x 42
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
   [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -319,13 +323,14 @@ external get_scannable :
   #(int * float * string) array -> int -> #(int * float * string)
   = "%array_safe_get"
 val get_scannable_app :
-  #(int * float * string) array -> int -> #(int * float * string) = <fun>
+  #(int * float * string) array -> int -> #(int * float * string) @@ global
+  many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   int -> #(float# * int * int64# * bool) = "%array_safe_get"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int -> #(float# * int * int64# * bool) = <fun>
+  int -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad : #(string * float#) array -> int -> #(string * float#) =
@@ -379,8 +384,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> int -> 'a -> unit
   = "%array_safe_set" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 let f_bad (x : #(string * float#) array) = set x 42 #("1", #2.0)
@@ -409,14 +416,14 @@ external set_scannable :
   #(int * float * string) array -> int -> #(int * float * string) -> unit
   = "%array_safe_set"
 val set_scannable_app :
-  #(int * float * string) array -> int -> #(int * float * string) -> unit =
-  <fun>
+  #(int * float * string) array -> int -> #(int * float * string) -> unit @@
+  global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   int -> #(float# * int * int64# * bool) -> unit = "%array_safe_set"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int -> #(float# * int * int64# * bool) -> unit = <fun>
+  int -> #(float# * int * int64# * bool) -> unit @@ global many = <fun>
 |}]
 
 external set_bad :
@@ -472,11 +479,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x 42
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int -> 'a
   = "%array_unsafe_get" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -506,13 +513,14 @@ external get_scannable :
   #(int * float * string) array -> int -> #(int * float * string)
   = "%array_unsafe_get"
 val get_scannable_app :
-  #(int * float * string) array -> int -> #(int * float * string) = <fun>
+  #(int * float * string) array -> int -> #(int * float * string) @@ global
+  many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   int -> #(float# * int * int64# * bool) = "%array_unsafe_get"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int -> #(float# * int * int64# * bool) = <fun>
+  int -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad : #(string * float#) array -> int -> #(string * float#) =
@@ -567,8 +575,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> int -> 'a -> unit
   = "%array_unsafe_set" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 let f_bad (x : #(string * float#) array) = set x 42 #("1", #2.0)
@@ -597,14 +607,14 @@ external set_scannable :
   #(int * float * string) array -> int -> #(int * float * string) -> unit
   = "%array_unsafe_set"
 val set_scannable_app :
-  #(int * float * string) array -> int -> #(int * float * string) -> unit =
-  <fun>
+  #(int * float * string) array -> int -> #(int * float * string) -> unit @@
+  global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   int -> #(float# * int * int64# * bool) -> unit = "%array_unsafe_set"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int -> #(float# * int * int64# * bool) -> unit = <fun>
+  int -> #(float# * int * int64# * bool) -> unit @@ global many = <fun>
 |}]
 
 external set_bad :
@@ -660,11 +670,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42L
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int64# -> 'a
   = "%array_safe_get_indexed_by_int64#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -694,14 +704,15 @@ external get_scannable :
   #(int * float * string) array -> int64# -> #(int * float * string)
   = "%array_safe_get_indexed_by_int64#"
 val get_scannable_app :
-  #(int * float * string) array -> int64# -> #(int * float * string) = <fun>
+  #(int * float * string) array -> int64# -> #(int * float * string) @@
+  global many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   int64# -> #(float# * int * int64# * bool)
   = "%array_safe_get_indexed_by_int64#"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int64# -> #(float# * int * int64# * bool) = <fun>
+  int64# -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad : #(string * float#) array -> int64# -> #(string * float#) =
@@ -758,8 +769,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> int64# -> 'a -> unit
   = "%array_safe_set_indexed_by_int64#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -789,15 +802,15 @@ external set_scannable :
   #(int * float * string) array -> int64# -> #(int * float * string) -> unit
   = "%array_safe_set_indexed_by_int64#"
 val set_scannable_app :
-  #(int * float * string) array -> int64# -> #(int * float * string) -> unit =
-  <fun>
+  #(int * float * string) array -> int64# -> #(int * float * string) -> unit
+  @@ global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   int64# -> #(float# * int * int64# * bool) -> unit
   = "%array_safe_set_indexed_by_int64#"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int64# -> #(float# * int * int64# * bool) -> unit = <fun>
+  int64# -> #(float# * int * int64# * bool) -> unit @@ global many = <fun>
 |}]
 
 external set_bad :
@@ -853,11 +866,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42L
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int64# -> 'a
   = "%array_unsafe_get_indexed_by_int64#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -887,14 +900,15 @@ external get_scannable :
   #(int * float * string) array -> int64# -> #(int * float * string)
   = "%array_unsafe_get_indexed_by_int64#"
 val get_scannable_app :
-  #(int * float * string) array -> int64# -> #(int * float * string) = <fun>
+  #(int * float * string) array -> int64# -> #(int * float * string) @@
+  global many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   int64# -> #(float# * int * int64# * bool)
   = "%array_unsafe_get_indexed_by_int64#"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int64# -> #(float# * int * int64# * bool) = <fun>
+  int64# -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad : #(string * float#) array -> int64# -> #(string * float#) =
@@ -950,8 +964,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> int64# -> 'a -> unit
   = "%array_unsafe_set_indexed_by_int64#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -981,15 +997,15 @@ external set_scannable :
   #(int * float * string) array -> int64# -> #(int * float * string) -> unit
   = "%array_unsafe_set_indexed_by_int64#"
 val set_scannable_app :
-  #(int * float * string) array -> int64# -> #(int * float * string) -> unit =
-  <fun>
+  #(int * float * string) array -> int64# -> #(int * float * string) -> unit
+  @@ global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   int64# -> #(float# * int * int64# * bool) -> unit
   = "%array_unsafe_set_indexed_by_int64#"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int64# -> #(float# * int * int64# * bool) -> unit = <fun>
+  int64# -> #(float# * int * int64# * bool) -> unit @@ global many = <fun>
 |}]
 
 external set_bad :
@@ -1045,11 +1061,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42l
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int32# -> 'a
   = "%array_safe_get_indexed_by_int32#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1079,14 +1095,15 @@ external get_scannable :
   #(int * float * string) array -> int32# -> #(int * float * string)
   = "%array_safe_get_indexed_by_int32#"
 val get_scannable_app :
-  #(int * float * string) array -> int32# -> #(int * float * string) = <fun>
+  #(int * float * string) array -> int32# -> #(int * float * string) @@
+  global many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   int32# -> #(float# * int * int64# * bool)
   = "%array_safe_get_indexed_by_int32#"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int32# -> #(float# * int * int64# * bool) = <fun>
+  int32# -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad : #(string * float#) array -> int32# -> #(string * float#) =
@@ -1143,8 +1160,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> int32# -> 'a -> unit
   = "%array_safe_set_indexed_by_int32#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1174,15 +1193,15 @@ external set_scannable :
   #(int * float * string) array -> int32# -> #(int * float * string) -> unit
   = "%array_safe_set_indexed_by_int32#"
 val set_scannable_app :
-  #(int * float * string) array -> int32# -> #(int * float * string) -> unit =
-  <fun>
+  #(int * float * string) array -> int32# -> #(int * float * string) -> unit
+  @@ global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   int32# -> #(float# * int * int64# * bool) -> unit
   = "%array_safe_set_indexed_by_int32#"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int32# -> #(float# * int * int64# * bool) -> unit = <fun>
+  int32# -> #(float# * int * int64# * bool) -> unit @@ global many = <fun>
 |}]
 
 external set_bad :
@@ -1238,11 +1257,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42l
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int32# -> 'a
   = "%array_unsafe_get_indexed_by_int32#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1272,14 +1291,15 @@ external get_scannable :
   #(int * float * string) array -> int32# -> #(int * float * string)
   = "%array_unsafe_get_indexed_by_int32#"
 val get_scannable_app :
-  #(int * float * string) array -> int32# -> #(int * float * string) = <fun>
+  #(int * float * string) array -> int32# -> #(int * float * string) @@
+  global many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   int32# -> #(float# * int * int64# * bool)
   = "%array_unsafe_get_indexed_by_int32#"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int32# -> #(float# * int * int64# * bool) = <fun>
+  int32# -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad : #(string * float#) array -> int32# -> #(string * float#) =
@@ -1336,8 +1356,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> int32# -> 'a -> unit
   = "%array_unsafe_set_indexed_by_int32#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1367,15 +1389,15 @@ external set_scannable :
   #(int * float * string) array -> int32# -> #(int * float * string) -> unit
   = "%array_unsafe_set_indexed_by_int32#"
 val set_scannable_app :
-  #(int * float * string) array -> int32# -> #(int * float * string) -> unit =
-  <fun>
+  #(int * float * string) array -> int32# -> #(int * float * string) -> unit
+  @@ global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   int32# -> #(float# * int * int64# * bool) -> unit
   = "%array_unsafe_set_indexed_by_int32#"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int32# -> #(float# * int * int64# * bool) -> unit = <fun>
+  int32# -> #(float# * int * int64# * bool) -> unit @@ global many = <fun>
 |}]
 
 external set_bad :
@@ -1432,11 +1454,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42n
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> nativeint# -> 'a
   = "%array_safe_get_indexed_by_nativeint#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1466,15 +1488,15 @@ external get_scannable :
   #(int * float * string) array -> nativeint# -> #(int * float * string)
   = "%array_safe_get_indexed_by_nativeint#"
 val get_scannable_app :
-  #(int * float * string) array -> nativeint# -> #(int * float * string) =
-  <fun>
+  #(int * float * string) array -> nativeint# -> #(int * float * string) @@
+  global many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   nativeint# -> #(float# * int * int64# * bool)
   = "%array_safe_get_indexed_by_nativeint#"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  nativeint# -> #(float# * int * int64# * bool) = <fun>
+  nativeint# -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad :
@@ -1533,8 +1555,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> nativeint# -> 'a -> unit
   = "%array_safe_set_indexed_by_nativeint#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1567,14 +1591,15 @@ external set_scannable :
   = "%array_safe_set_indexed_by_nativeint#"
 val set_scannable_app :
   #(int * float * string) array ->
-  nativeint# -> #(int * float * string) -> unit = <fun>
+  nativeint# -> #(int * float * string) -> unit @@ global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   nativeint# -> #(float# * int * int64# * bool) -> unit
   = "%array_safe_set_indexed_by_nativeint#"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  nativeint# -> #(float# * int * int64# * bool) -> unit = <fun>
+  nativeint# -> #(float# * int * int64# * bool) -> unit @@ global many =
+  <fun>
 |}]
 
 external set_bad :
@@ -1631,11 +1656,11 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42n
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> nativeint# -> 'a
   = "%array_unsafe_get_indexed_by_nativeint#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> #(int * float * string) =
-  <fun>
+val f_scannable : #(int * float * string) array -> #(int * float * string) @@
+  global many = <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) =
-  <fun>
+  #(float# * int * int64# * bool) array -> #(float# * int * int64# * bool) @@
+  global many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1665,15 +1690,15 @@ external get_scannable :
   #(int * float * string) array -> nativeint# -> #(int * float * string)
   = "%array_unsafe_get_indexed_by_nativeint#"
 val get_scannable_app :
-  #(int * float * string) array -> nativeint# -> #(int * float * string) =
-  <fun>
+  #(int * float * string) array -> nativeint# -> #(int * float * string) @@
+  global many = <fun>
 external get_ignorable :
   #(float# * int * int64# * bool) array ->
   nativeint# -> #(float# * int * int64# * bool)
   = "%array_unsafe_get_indexed_by_nativeint#"
 val get_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  nativeint# -> #(float# * int * int64# * bool) = <fun>
+  nativeint# -> #(float# * int * int64# * bool) @@ global many = <fun>
 |}]
 
 external get_bad :
@@ -1732,8 +1757,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) =
 [%%expect{|
 external set : ('a : any_non_null). 'a array -> nativeint# -> 'a -> unit
   = "%array_unsafe_set_indexed_by_nativeint#" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1766,14 +1793,15 @@ external set_scannable :
   = "%array_unsafe_set_indexed_by_nativeint#"
 val set_scannable_app :
   #(int * float * string) array ->
-  nativeint# -> #(int * float * string) -> unit = <fun>
+  nativeint# -> #(int * float * string) -> unit @@ global many = <fun>
 external set_ignorable :
   #(float# * int * int64# * bool) array ->
   nativeint# -> #(float# * int * int64# * bool) -> unit
   = "%array_unsafe_set_indexed_by_nativeint#"
 val set_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  nativeint# -> #(float# * int * int64# * bool) -> unit = <fun>
+  nativeint# -> #(float# * int * int64# * bool) -> unit @@ global many =
+  <fun>
 |}]
 
 external set_bad :
@@ -1832,8 +1860,10 @@ let f_ignorable (x : #(float# * int * int64# * bool) array) = blit x 0 x 2 3
 external blit :
   ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit
   = "%arrayblit" [@@layout_poly]
-val f_scannable : #(int * float * string) array -> unit = <fun>
-val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+val f_scannable : #(int * float * string) array -> unit @@ global many =
+  <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit @@ global
+  many = <fun>
 |}]
 
 (* But not on the bad ones. *)
@@ -1866,15 +1896,16 @@ external blit_scannable :
 val blit_scannable_app :
   ('a : value_or_null).
     #(int * float * string) array ->
-    'a -> #(int * float * string) array -> int -> int -> unit =
-  <fun>
+    'a -> #(int * float * string) array -> int -> int -> unit
+  @@ global many = <fun>
 external blit_ignorable :
   #(float# * int * int64# * bool) array ->
   int -> #(float# * int * int64# * bool) array -> int -> int -> unit
   = "%arrayblit"
 val blit_ignorable_app :
   #(float# * int * int64# * bool) array ->
-  int -> #(float# * int * int64# * bool) array -> int -> int -> unit = <fun>
+  int -> #(float# * int * int64# * bool) array -> int -> int -> unit @@
+  global many = <fun>
 |}]
 
 external blit_bad :
@@ -1935,8 +1966,8 @@ external get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
   [@@layout_poly]
 val f1 :
   ('a : value mod external_).
-    #(float# * 'a * int * int64#) array -> #(float# * 'a * int * int64#) =
-  <fun>
+    #(float# * 'a * int * int64#) array -> #(float# * 'a * int * int64#)
+  @@ global many = <fun>
 |}]
 
 let f2 (type a : value mod external_) (x : #(string * a * bool option) array) =
@@ -1944,8 +1975,8 @@ let f2 (type a : value mod external_) (x : #(string * a * bool option) array) =
 [%%expect{|
 val f2 :
   ('a : value mod external_).
-    #(string * 'a * bool option) array -> #(string * 'a * bool option) =
-  <fun>
+    #(string * 'a * bool option) array -> #(string * 'a * bool option)
+  @@ global many = <fun>
 |}]
 
 (***********************************)
@@ -2038,10 +2069,11 @@ let f_scannable_empty_literal (type a : value mod external_)
 [%%expect{|
 val f_scannable_literal :
   ('a : value mod external_).
-    int -> 'a -> bool option -> #(int * 'a * bool option) array =
-  <fun>
+    int -> 'a -> bool option -> #(int * 'a * bool option) array
+  @@ global many = <fun>
 val f_scannable_empty_literal :
-  ('a : value mod external_). #(int * 'a * bool option) array = [||]
+  ('a : value mod external_). #(int * 'a * bool option) array @@ global many =
+  [||]
 |}]
 
 let f_ignorable_literal (type a : value mod external_)
@@ -2051,11 +2083,11 @@ let f_ignorable_empty_literal (type a : value mod external_)
 [%%expect{|
 val f_ignorable_literal :
   ('a : value mod external_).
-    int -> 'a -> #(int64# * float#) -> #(int * 'a * #(int64# * float#)) array =
-  <fun>
+    int -> 'a -> #(int64# * float#) -> #(int * 'a * #(int64# * float#)) array
+  @@ global many = <fun>
 val f_ignorable_empty_literal :
-  ('a : value mod external_). #(int * 'a * #(int64# * float#)) array =
-  [||]
+  ('a : value mod external_). #(int * 'a * #(int64# * float#)) array @@
+  global many = [||]
 |}]
 
 let f_illegal_literal (type a : value mod external_)
@@ -2090,8 +2122,8 @@ let f_scannable_literal arr : #(bool option * string * int) =
   | _ -> assert false
 [%%expect{|
 val f_scannable_literal :
-  #(int * string * bool option) array -> #(bool option * string * int) =
-  <fun>
+  #(int * string * bool option) array -> #(bool option * string * int) @@
+  global many = <fun>
 |}]
 
 let f_ignorable_literal arr : #(#(int64# * float#) * int32# * int) =
@@ -2102,7 +2134,7 @@ let f_ignorable_literal arr : #(#(int64# * float#) * int32# * int) =
 [%%expect{|
 val f_ignorable_literal :
   #(int * int32# * #(float# * int64#)) array ->
-  #(#(int64# * float#) * int32# * int) = <fun>
+  #(#(int64# * float#) * int32# * int) @@ global many = <fun>
 |}]
 
 let f_illegal_literal : #(float# * bool option * int) array -> int =

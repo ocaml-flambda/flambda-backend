@@ -2,14 +2,18 @@ File "pr7414_2_bad.ml", line 46, characters 22-35:
 46 |   let module Ignore = Force(Choose) in
                            ^^^^^^^^^^^^^
 Error: Modules do not match:
-       functor () -> sig module Choice : T val r : '_weak1 list ref ref end
+       functor () ->
+         sig
+           module Choice : T
+           val r : '_weak1 list ref ref @@ global many
+         end
      is not included in functor () -> S
      Modules do not match:
-       sig module Choice : T val r : '_weak1 list ref ref end
+       sig module Choice : T val r : '_weak1 list ref ref @@ global many end
      is not included in
        S
      Values do not match:
-       val r : '_weak1 list ref ref
+       val r : '_weak1 list ref ref @@ global many
      is not included in
        val r : Choice.t list ref ref
      The type "'_weak1 list ref ref" is not compatible with the type

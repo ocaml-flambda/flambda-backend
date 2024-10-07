@@ -39,7 +39,7 @@ Line 1, characters 49-51:
                                                      ^^
 Warning 12 [redundant-subpat]: this sub-pattern is unused.
 
-val f : [< `A | `B ] -> int = <fun>
+val f : [< `A | `B ] -> int @@ global many = <fun>
 |}];;
 let f (x : [`A | `B]) = match x with `A | `B | `C -> 0;; (* fail *)
 [%%expect{|
@@ -115,8 +115,8 @@ let f x (g : [< `Foo]) =
   revapply y (fun ((`Bar i), _) -> i);;
 (* f : 'a -> [< `Foo ] -> 'a *)
 [%%expect{|
-val revapply : 'a -> ('a -> 'b) -> 'b = <fun>
-val f : 'a -> [< `Foo ] -> 'a = <fun>
+val revapply : 'a -> ('a -> 'b) -> 'b @@ global many = <fun>
+val f : 'a -> [< `Foo ] -> 'a @@ global many = <fun>
 |}];;
 
 (* PR#6124 *)
@@ -163,7 +163,8 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (`AnyOtherTag', `AnyOtherTag'')
 
-val f : [> `AnyOtherTag ] * [> `AnyOtherTag | `AnyOtherTag' ] -> int = <fun>
+val f : [> `AnyOtherTag ] * [> `AnyOtherTag | `AnyOtherTag' ] -> int @@
+  global many = <fun>
 |}]
 
 let x:(([`A] as 'a)* ([`B] as 'a)) = [`A]
@@ -221,19 +222,19 @@ let inspect: [< t ] -> unit = function
 [%%expect {|
 type a = int
 type t = [ `A of a ]
-val inspect : [< `A of a & int ] -> unit = <fun>
+val inspect : [< `A of a & int ] -> unit @@ global many = <fun>
 |}]
 
 (** Error messages with weakly polymorphic row variables *)
 let x = Fun.id (function `X -> () | _ -> ())
 [%%expect {|
-val x : ([> `X ] as '_weak1) -> unit = <fun>
+val x : ([> `X ] as '_weak1) -> unit @@ global many = <fun>
 |}]
 
 let x = let rec x = `X (`Y (fun y -> x = y)) in Fun.id x
 [%%expect {|
-val x : [> `X of [> `Y of '_weak2 -> bool ] as '_weak3 ] as '_weak2 =
-  `X (`Y <fun>)
+val x : [> `X of [> `Y of '_weak2 -> bool ] as '_weak3 ] as '_weak2 @@ global
+  many = `X (`Y <fun>)
 |}]
 
 (** Code coverage for [unify_row_field] errors *)
@@ -281,7 +282,8 @@ let rec f = function `A -> 0 | `B s -> int_of_string s | `R x -> f x
 let g (x:[`A | `R of rt]) = f x
 [%%expect{|
 type rt = [ `A | `B of string | `R of rt ]
-val f : ([< `A | `B of string | `R of 'a ] as 'a) -> int = <fun>
+val f : ([< `A | `B of string | `R of 'a ] as 'a) -> int @@ global many =
+  <fun>
 Line 4, characters 30-31:
 4 | let g (x:[`A | `R of rt]) = f x
                                   ^

@@ -29,14 +29,14 @@ let f (x : < m : 'a. <n : 'r. ([< `A of 'a] as 'r) -> 'c > > as 'c) = x#m;;
 [%%expect{|
 val f :
   (< m : 'a. < n : 'c. ([< `A of 'a ] as 'c) -> 'b > > as 'b) ->
-  < n : 'd. ([< `A of 'e ] as 'd) -> 'b > = <fun>
+  < n : 'd. ([< `A of 'e ] as 'd) -> 'b > @@ global many = <fun>
 |}, Principal{|
 val f :
   (< m : 'a. < n : 'c. ([< `A of 'a ] as 'c) -> 'b > > as 'b) ->
   < n : 'd.
           ([< `A of 'e ] as 'd) ->
-          (< m : 'a. < n : 'g. ([< `A of 'a ] as 'g) -> 'f > > as 'f) > =
-  <fun>
+          (< m : 'a. < n : 'g. ([< `A of 'a ] as 'g) -> 'f > > as 'f) >
+  @@ global many = <fun>
 |}]
 
 let o =
@@ -46,12 +46,13 @@ let o =
   end;;
 let x = f o;;
 [%%expect{|
-val o : < m : 'a. < n : 'c. ([< `A of 'a ] as 'c) -> 'b > > as 'b = <obj>
+val o : < m : 'a. < n : 'c. ([< `A of 'a ] as 'c) -> 'b > > as 'b @@ global
+  many = <obj>
 val x :
   < n : 'b.
           ([< `A of '_weak1 ] as 'b) ->
-          (< m : 'a. < n : 'd. ([< `A of 'a ] as 'd) -> 'c > > as 'c) > =
-  <obj>
+          (< m : 'a. < n : 'd. ([< `A of 'a ] as 'd) -> 'c > > as 'c) >
+  @@ global many = <obj>
 |}]
 
 let g1 (x : < m : 'a. <n : 'r. ([< `A of 'a * 'c] as 'r) -> unit > as 'c >) =
@@ -59,7 +60,8 @@ let g1 (x : < m : 'a. <n : 'r. ([< `A of 'a * 'c] as 'r) -> unit > as 'c >) =
 [%%expect{|
 val g1 :
   < m : 'a. < n : 'c. ([< `A of 'a * 'b ] as 'c) -> unit > as 'b > ->
-  (< n : 'e. ([< `A of 'f * 'd ] as 'e) -> unit > as 'd) = <fun>
+  (< n : 'e. ([< `A of 'f * 'd ] as 'e) -> unit > as 'd) @@ global many =
+  <fun>
 |}]
 
 let g2 (x : < m : 'a. <n : 'r. ([< `A of 'a * 'c] as 'r) -> unit > > as 'c) =
@@ -67,7 +69,7 @@ let g2 (x : < m : 'a. <n : 'r. ([< `A of 'a * 'c] as 'r) -> unit > > as 'c) =
 [%%expect{|
 val g2 :
   (< m : 'a. < n : 'c. ([< `A of 'a * 'b ] as 'c) -> unit > > as 'b) ->
-  < n : 'd. ([< `A of 'e * 'b ] as 'd) -> unit > = <fun>
+  < n : 'd. ([< `A of 'e * 'b ] as 'd) -> unit > @@ global many = <fun>
 |}, Principal{|
 val g2 :
   (< m : 'a. < n : 'c. ([< `A of 'a * 'b ] as 'c) -> unit > > as 'b) ->
@@ -77,28 +79,29 @@ val g2 :
                 (< m : 'a. < n : 'g. ([< `A of 'a * 'f ] as 'g) -> unit > >
                  as 'f) ]
            as 'd) ->
-          unit > =
-  <fun>
+          unit >
+  @@ global many = <fun>
 |}]
 
 let g3 (x : < m : 'a. (< n : 'b. [< `A of 'a] as 'b > as 'c) * 'c >) = x#m;;
 [%%expect{|
 val g3 :
   < m : 'a. < n : 'b. [< `A of 'a ] as 'b > * < n : 'c. [< `A of 'a ] as 'c > > ->
-  < n : 'd. [< `A of 'e ] as 'd > * < n : 'f. [< `A of 'e ] as 'f > = <fun>
+  < n : 'd. [< `A of 'e ] as 'd > * < n : 'f. [< `A of 'e ] as 'f > @@ global
+  many = <fun>
 |}]
 
 let g (x : < m : 'a 'b. <n : ([< `A of 'a ] as 'b) -> 'c > > as 'c) = x#m;;
 [%%expect{|
 val g :
   (< m : 'a 'c. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b) ->
-  < n : [< `A of 'd ] -> 'b > = <fun>
+  < n : [< `A of 'd ] -> 'b > @@ global many = <fun>
 |}, Principal{|
 val g :
   (< m : 'a 'c. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b) ->
   < n : [< `A of 'd ] ->
-        (< m : 'a 'f. < n : ([< `A of 'a ] as 'f) -> 'e > > as 'e) > =
-  <fun>
+        (< m : 'a 'f. < n : ([< `A of 'a ] as 'f) -> 'e > > as 'e) >
+  @@ global many = <fun>
 |}]
 
 let o =
@@ -108,11 +111,12 @@ let o =
   end;;
 let y = g o;;
 [%%expect{|
-val o : < m : 'a 'c. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b = <obj>
+val o : < m : 'a 'c. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b @@ global
+  many = <obj>
 val y :
   < n : ([< `A of '_weak3 ] as '_weak2) ->
-        (< m : 'a 'c. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b) > =
-  <obj>
+        (< m : 'a 'c. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b) >
+  @@ global many = <obj>
 |}]
 
 (* Since the row variable is implicitly bound, 'a and 'b don't leak *)
@@ -121,7 +125,7 @@ let h (x : < m : 'a. <n : 'b. [< `A of 'a * 'b * 'c] > > as 'c) = x#m;;
 [%%expect{|
 val h :
   (< m : 'a. < n : 'd 'b. [< `A of 'a * 'b * 'c ] as 'd > > as 'c) ->
-  < n : 'e 'b. [< `A of 'f * 'b * 'c ] as 'e > = <fun>
+  < n : 'e 'b. [< `A of 'f * 'b * 'c ] as 'e > @@ global many = <fun>
 |}, Principal{|
 val h :
   (< m : 'a. < n : 'd 'b. [< `A of 'a * 'b * 'c ] as 'd > > as 'c) ->
@@ -130,8 +134,8 @@ val h :
                'f * 'b *
                (< m : 'a. < n : 'h 'b0. [< `A of 'a * 'b0 * 'g ] as 'h > >
                 as 'g) ]
-          as 'e > =
-  <fun>
+          as 'e >
+  @@ global many = <fun>
 |}]
 
 (* Since the row variable is implicitly bound, 'a doesn't leak *)
@@ -140,13 +144,13 @@ let j (x : < m : 'a. <n : 'b. [< `A of 'a ] -> 'c > > as 'c) = x#m;;
 [%%expect{|
 val j :
   (< m : 'c 'a. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b) ->
-  < n : [< `A of 'd ] -> 'b > = <fun>
+  < n : [< `A of 'd ] -> 'b > @@ global many = <fun>
 |}, Principal{|
 val j :
   (< m : 'c 'a. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b) ->
   < n : [< `A of 'd ] ->
-        (< m : 'f 'a. < n : ([< `A of 'a ] as 'f) -> 'e > > as 'e) > =
-  <fun>
+        (< m : 'f 'a. < n : ([< `A of 'a ] as 'f) -> 'e > > as 'e) >
+  @@ global many = <fun>
 |}]
 
 let o =
@@ -155,5 +159,6 @@ let o =
       object method n _ = self end
   end;;
 [%%expect{|
-val o : < m : 'c 'a. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b = <obj>
+val o : < m : 'c 'a. < n : ([< `A of 'a ] as 'c) -> 'b > > as 'b @@ global
+  many = <obj>
 |}]

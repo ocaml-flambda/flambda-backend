@@ -4,7 +4,7 @@
 
 module A = struct type t = A | B let x = B end;;
 [%%expect{|
-module A : sig type t = A | B val x : t end
+module A : sig type t = A | B val x : t @@ global many portable end
 |}]
 
 let test () =
@@ -13,14 +13,14 @@ let test () =
   | B when false -> `Onoes
   | B -> if Random.bool () then `Onoes else `A_t B;;
 [%%expect{|
-val test : unit -> [> `A_t of A.t | `Onoes ] = <fun>
+val test : unit -> [> `A_t of A.t | `Onoes ] @@ global many = <fun>
 |}, Principal{|
 Line 5, characters 49-50:
 5 |   | B -> if Random.bool () then `Onoes else `A_t B;;
                                                      ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val test : unit -> [> `A_t of A.t | `Onoes ] = <fun>
+val test : unit -> [> `A_t of A.t | `Onoes ] @@ global many = <fun>
 |}]
 
 let test () =
@@ -29,12 +29,12 @@ let test () =
   | A as a -> `A_t a
   | B -> if Random.bool () then `Onoes else `A_t B;;
 [%%expect{|
-val test : unit -> [> `A_t of A.t | `Onoes ] = <fun>
+val test : unit -> [> `A_t of A.t | `Onoes ] @@ global many = <fun>
 |}, Principal{|
 Line 5, characters 49-50:
 5 |   | B -> if Random.bool () then `Onoes else `A_t B;;
                                                      ^
 Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 
-val test : unit -> [> `A_t of A.t | `Onoes ] = <fun>
+val test : unit -> [> `A_t of A.t | `Onoes ] @@ global many = <fun>
 |}]

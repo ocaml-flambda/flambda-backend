@@ -45,8 +45,8 @@ let f () = [|Float_u.of_int e for e = 0 to 9|]
 
 [%%expect{|
 module Float_u = Stdlib_upstream_compatible.Float_u
-val of_int : int -> Float_u.t = <fun>
-val ( = ) : Float_u.t -> Float_u.t -> bool = <fun>
+val of_int : int -> Float_u.t @@ global many = <fun>
+val ( = ) : Float_u.t -> Float_u.t -> bool @@ global many = <fun>
 Line 25, characters 13-29:
 25 | let f () = [|Float_u.of_int e for e = 0 to 9|]
                   ^^^^^^^^^^^^^^^^

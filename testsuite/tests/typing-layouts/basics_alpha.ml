@@ -236,8 +236,8 @@ let plus_3' (x : int imm_id) = x + 3;;
 
 [%%expect{|
 type my_int = int imm_id
-val plus_3 : my_int -> int = <fun>
-val plus_3' : int imm_id -> int = <fun>
+val plus_3 : my_int -> int @@ global many = <fun>
+val plus_3' : int imm_id -> int @@ global many = <fun>
 |}];;
 
 let string_id (x : string imm_id) = x;;
@@ -257,9 +257,10 @@ let id_for_imms (x : 'a imm_id) = x
 let three = id_for_imms 3
 let true_ = id_for_imms true;;
 [%%expect{|
-val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id = <fun>
-val three : int imm_id = 3
-val true_ : bool imm_id = true
+val id_for_imms : ('a : immediate). 'a imm_id -> 'a imm_id @@ global many =
+  <fun>
+val three : int imm_id @@ global many = 3
+val true_ : bool imm_id @@ global many = true
 |}]
 
 let not_helloworld = id_for_imms "hello world";;
@@ -441,7 +442,7 @@ type 'a t6_val = T6val of 'a
 let ignore_val6 : 'a . 'a -> unit =
   fun a -> let _ = T6val a in ();;
 [%%expect{|
-val ignore_val6 : 'a -> unit = <fun>
+val ignore_val6 : 'a -> unit @@ global many = <fun>
 |}];;
 
 let ignore_imm6 : 'a . 'a -> unit =
@@ -739,13 +740,40 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type ('a : immediate) t = 'a
-           val f : ('a : immediate). 'a t -> 'a
-           val x : ('a : immediate). 'a
+           val f : ('a : immediate). 'a t -> 'a @@ global many portable
+           val x : ('a : immediate). 'a @@ global many portable
          end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : ('a : immediate). 'a
+         val x : ('a : immediate). 'a @@ global many portable
+       is not included in
+         val x : string
+       The type "('a : immediate)" is not compatible with the type "string"
+       The kind of string is immutable_data
+         because it is the primitive type string.
+       But the kind of string must be a subkind of immediate
+         because of the definition of x at line 8, characters 10-26.
+|}, Principal{|
+Lines 3-9, characters 6-3:
+3 | ......struct
+4 |   type ('a : immediate) t = 'a
+5 |
+6 |   let f : 'a t -> 'a = fun x -> x
+7 |
+8 |   let x = f (assert false)
+9 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type ('a : immediate) t = 'a
+           val f : ('a : immediate). 'a t -> 'a @@ global many portable
+           val x : ('a : immediate). 'a @@ global many
+         end
+       is not included in
+         sig val x : string end
+       Values do not match:
+         val x : ('a : immediate). 'a @@ global many
        is not included in
          val x : string
        The type "('a : immediate)" is not compatible with the type "string"
@@ -779,13 +807,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type ('a : immediate) t = 'a
-           val f : ('a : immediate). 'a t -> 'a t
-           val x : ('a : immediate). 'a t
+           val f : ('a : immediate). 'a t -> 'a t @@ global many portable
+           val x : ('a : immediate). 'a t @@ global many portable
          end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : ('a : immediate). 'a t
+         val x : ('a : immediate). 'a t @@ global many portable
        is not included in
          val x : string
        The type "'a t" = "('a : immediate)" is not compatible with the type
@@ -1247,8 +1275,8 @@ let f18 : 'a . 'a -> 'a = fun x -> id18 x;;
 
 [%%expect{|
 type 'a t18 = 'a
-val id18 : 'a t18 -> 'a t18 = <fun>
-val f18 : 'a -> 'a = <fun>
+val id18 : 'a t18 -> 'a t18 @@ global many = <fun>
+val f18 : 'a -> 'a @@ global many = <fun>
 |}];;
 
 (********************************)
@@ -1450,8 +1478,9 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
-val q : unit -> unit = <fun>
+val ( let* ) : ('a : value_or_null). t_float64 -> 'a -> unit @@ global many =
+  <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.2: non-value letop binder arg without and *)
@@ -1477,8 +1506,9 @@ let q () =
 
 [%%expect{|
 val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
-val q : unit -> unit = <fun>
+  ('a : value_or_null) ('b : any). 'a -> (t_float64 -> 'b) -> unit @@ global
+  many = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.3: non-value letop binder result *)
@@ -1504,8 +1534,9 @@ let q () =
 
 [%%expect{|
 val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
-val q : unit -> unit = <fun>
+  ('a : value_or_null) ('b : any). 'a -> ('b -> t_float64) -> unit @@ global
+  many = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.4: non-value letop result *)
@@ -1531,8 +1562,9 @@ let q () =
 
 [%%expect{|
 val ( let* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
-val q : unit -> t_float64 = <fun>
+  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 @@ global
+  many = <fun>
+val q : unit -> t_float64 @@ global many = <fun>
 |}]
 
 (* 28.5: non-value andop second arg *)
@@ -1561,10 +1593,11 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
+val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit @@
+  global many = <fun>
+val ( and* ) : ('a : value_or_null). 'a -> t_float64 -> unit @@ global many =
   <fun>
-val ( and* ) : ('a : value_or_null). 'a -> t_float64 -> unit = <fun>
-val q : unit -> unit = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.5: non-value andop first arg *)
@@ -1593,10 +1626,11 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
+val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit @@
+  global many = <fun>
+val ( and* ) : ('a : value_or_null). t_float64 -> 'a -> unit @@ global many =
   <fun>
-val ( and* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
-val q : unit -> unit = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.6: non-value andop result *)
@@ -1625,10 +1659,12 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : float64) ('b : value_or_null). 'a -> 'b -> unit = <fun>
+val ( let* ) : ('a : float64) ('b : value_or_null). 'a -> 'b -> unit @@
+  global many = <fun>
 val ( and* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
-val q : unit -> unit = <fun>
+  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 @@ global
+  many = <fun>
+val q : unit -> unit @@ global many = <fun>
 |}]
 
 (* 28.7: non-value letop binder arg with and *)
@@ -1664,12 +1700,12 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
+val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit @@
+  global many = <fun>
 val ( and* ) :
   ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    'a -> 'b -> 'c =
-  <fun>
+    'a -> 'b -> 'c
+  @@ global many = <fun>
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^

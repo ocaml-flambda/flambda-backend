@@ -6,7 +6,7 @@ Hint: Single backslashes \ are reserved for escape sequences
 (\n, \r, ...). Did you check the list of OCaml escape sequences?
 To get a backslash character, escape it with a second backslash: \\.
 
-val invalid : string = "\\99"
+val invalid : string @@ global many = "\\99"
 Line 1, characters 15-19:
 1 | let invalid = "\999" ;;
                    ^^^^
@@ -23,7 +23,7 @@ Hint: Single backslashes \ are reserved for escape sequences
 (\n, \r, ...). Did you check the list of OCaml escape sequences?
 To get a backslash character, escape it with a second backslash: \\.
 
-val invalid : string = "\\o77"
+val invalid : string @@ global many = "\\o77"
 Line 1, characters 15-17:
 1 | let invalid = "\o99" ;;
                    ^^
@@ -32,5 +32,5 @@ Hint: Single backslashes \ are reserved for escape sequences
 (\n, \r, ...). Did you check the list of OCaml escape sequences?
 To get a backslash character, escape it with a second backslash: \\.
 
-val invalid : string = "\\o99"
+val invalid : string @@ global many = "\\o99"
 

@@ -29,7 +29,7 @@ type int
 
 let x = 0;;
 [%%expect {|
-val x : int/2 = 0
+val x : int/2 @@ global many = 0
 |}];;
 
 

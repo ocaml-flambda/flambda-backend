@@ -11,18 +11,18 @@ type t = call_pos:[%call_pos] -> unit -> unit
 let f : t = fun ~(call_pos:[%call_pos]) () -> ()
 
 [%%expect{|
-val f : t = <fun>
+val f : t @@ global many = <fun>
 |}]
 
 let g ~(call_pos:[%call_pos]) () = ()
 
 [%%expect{|
-val g : call_pos:[%call_pos] -> unit -> unit = <fun>
+val g : call_pos:[%call_pos] -> unit -> unit @@ global many = <fun>
 |}]
 
 let apply (f : t) = f ~call_pos:Lexing.dummy_pos () ;;
 [%%expect {|
-val apply : t -> unit = <fun>
+val apply : t -> unit @@ global many = <fun>
 |}]
 
 let _ = apply f ;;

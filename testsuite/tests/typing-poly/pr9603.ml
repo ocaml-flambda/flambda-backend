@@ -12,7 +12,7 @@ let error: 'left 'right.
 type 'c pair = 'a * 'b constraint 'c = < left : 'a; right : 'b >
 val error :
   < left : 'left; right : 'right > pair ->
-  < left : 'right; right : 'left > pair = <fun>
+  < left : 'right; right : 'left > pair @@ global many = <fun>
 |}]
 
 (* Known problem with polymorphic methods *)

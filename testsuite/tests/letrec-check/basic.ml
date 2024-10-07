@@ -4,22 +4,22 @@
 
 let rec x = (x; ());;
 [%%expect{|
-val x : unit = ()
+val x : unit @@ global many = ()
 |}];;
 
 let rec x = "x";;
 [%%expect{|
-val x : string = "x"
+val x : string @@ global many = "x"
 |}];;
 
 let rec x = let x = () in x;;
 [%%expect{|
-val x : unit = ()
+val x : unit @@ global many = ()
 |}];;
 
 let rec x = let y = (x; ()) in y;;
 [%%expect{|
-val x : unit = ()
+val x : unit @@ global many = ()
 |}];;
 
 let rec x = let y = () in x;;
@@ -33,15 +33,15 @@ Error: This kind of expression is not allowed as right-hand side of "let rec"
 let rec x = [y]
 and y = let x = () in x;;
 [%%expect{|
-val x : unit list = [()]
-val y : unit = ()
+val x : unit list @@ global many = [()]
+val y : unit @@ global many = ()
 |}];;
 
 let rec x = [y]
 and y = let rec x = () in x;;
 [%%expect{|
-val x : unit list = [()]
-val y : unit = ()
+val x : unit list @@ global many = [()]
+val y : unit @@ global many = ()
 |}];;
 
 let rec x =
@@ -50,30 +50,30 @@ let rec x =
 and y =
   [x];;
 [%%expect{|
-val x : unit -> 'a = <fun>
-val y : (unit -> 'a) list = [<fun>]
+val x : unit -> 'a @@ global many = <fun>
+val y : (unit -> 'a) list @@ global many = [<fun>]
 |}];;
 
 let rec x = [|y|] and y = 0;;
 [%%expect{|
-val x : int array = [|0|]
-val y : int = 0
+val x : int array @@ global many = [|0|]
+val y : int @@ global many = 0
 |}];;
 
 
 let rec x = (y, y)
 and y = fun () -> ignore x;;
 [%%expect{|
-val x : (unit -> unit) * (unit -> unit) = (<fun>, <fun>)
-val y : unit -> unit = <fun>
+val x : (unit -> unit) * (unit -> unit) @@ global many = (<fun>, <fun>)
+val y : unit -> unit @@ global many = <fun>
 |}];;
 
 let rec x = Some y
 and y = fun () -> ignore x
 ;;
 [%%expect{|
-val x : (unit -> unit) option = Some <fun>
-val y : unit -> unit = <fun>
+val x : (unit -> unit) option @@ global many = Some <fun>
+val y : unit -> unit @@ global many = <fun>
 |}];;
 
 let rec x = ignore x;;
@@ -108,8 +108,8 @@ and y = function
   | _ :: _ -> ignore (x None)
     ;;
 [%%expect{|
-val x : 'a option -> unit = <fun>
-val y : 'a list -> unit = <fun>
+val x : 'a option -> unit @@ global many = <fun>
+val y : 'a list -> unit @@ global many = <fun>
 |}];;
 
 (* used to be accepted, see PR#7696 *)
@@ -135,34 +135,34 @@ let rec x = `A y
 and y = fun () -> ignore x
 ;;
 [%%expect{|
-val x : [> `A of unit -> unit ] = `A <fun>
-val y : unit -> unit = <fun>
+val x : [> `A of unit -> unit ] @@ global many = `A <fun>
+val y : unit -> unit @@ global many = <fun>
 |}];;
 
 let rec x = { contents = y }
 and y = fun () -> ignore x;;
 [%%expect{|
-val x : (unit -> unit) ref = {contents = <fun>}
-val y : unit -> unit = <fun>
+val x : (unit -> unit) ref @@ global many = {contents = <fun>}
+val y : unit -> unit @@ global many = <fun>
 |}];;
 
 let r = ref (fun () -> ())
 let rec x = fun () -> r := x;;
 [%%expect{|
-val r : (unit -> unit) ref = {contents = <fun>}
-val x : unit -> unit = <fun>
+val r : (unit -> unit) ref @@ global many = {contents = <fun>}
+val x : unit -> unit @@ global many = <fun>
 |}];;
 
 let rec x = fun () -> y.contents and y = { contents = 3 };;
 [%%expect{|
-val x : unit -> int = <fun>
-val y : int ref = {contents = 3}
+val x : unit -> int @@ global many = <fun>
+val y : int ref @@ global many = {contents = 3}
 |}];;
 
 let r = ref ()
 let rec x = r := x;;
 [%%expect{|
-val r : unit ref = {contents = ()}
+val r : unit ref @@ global many = {contents = ()}
 Line 2, characters 12-18:
 2 | let rec x = r := x;;
                 ^^^^^^
@@ -269,7 +269,7 @@ Error: This kind of expression is not allowed as right-hand side of "let rec"
 let rec deep_cycle : [`Tuple of [`Shared of 'a] array] as 'a
   = `Tuple [| `Shared deep_cycle |];;
 [%%expect{|
-val deep_cycle : [ `Tuple of [ `Shared of 'a ] array ] as 'a =
+val deep_cycle : [ `Tuple of [ `Shared of 'a ] array ] as 'a @@ global many =
   `Tuple [|`Shared <cycle>|]
 |}];;
 
@@ -362,5 +362,5 @@ let rec okay =
   and _y = ref okay in
   ref ("foo" ^ ! x);;
 [%%expect{|
-val okay : string ref = {contents = "foobar"}
+val okay : string ref @@ global many = {contents = "foobar"}
 |}]

@@ -15,7 +15,7 @@ let texp_object () =
   val bar = unique_ x
   end;
 [%%expect{|
-val unique_id : 'a @ unique -> unit = <fun>
+val unique_id : 'a @ unique -> unit @@ global many = <fun>
 Line 8, characters 20-21:
 8 |   val bar = unique_ x
                         ^
@@ -145,7 +145,7 @@ end
 let value_from_module () =
   unique_id M.foo
 [%%expect{|
-module M : sig val foo : string end
+module M : sig val foo : string @@ global many portable end
 Line 7, characters 12-17:
 7 |   unique_id M.foo
                 ^^^^^
@@ -161,5 +161,6 @@ let foo (local_ x : string ref) =
       object method m = y end
   end in new M.c
 [%%expect{|
-val foo : local_ string ref -> (unit -> < m : string >) = <fun>
+val foo : local_ string ref -> (unit -> < m : string >) @@ global many =
+  <fun>
 |}]

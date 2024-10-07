@@ -14,11 +14,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : bool * string end
+         sig val x : bool * string @@ global many portable end
        is not included in
          sig val x : bool * int end
        Values do not match:
-         val x : bool * string
+         val x : bool * string @@ global many portable
        is not included in
          val x : bool * int
        The type "bool * string" is not compatible with the type "bool * int"
@@ -37,11 +37,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int end
+         sig val f : int -> int @@ global many end
        is not included in
          sig val f : int -> (float * string option) list end
        Values do not match:
-         val f : int -> int
+         val f : int -> int @@ global many
        is not included in
          val f : int -> (float * string option) list
        The type "int -> int" is not compatible with the type
@@ -62,11 +62,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'c list * 'd option -> int end
+         sig val f : 'c list * 'd option -> int @@ global many portable end
        is not included in
          sig val f : 'a list * 'b list -> int end
        Values do not match:
-         val f : 'c list * 'd option -> int
+         val f : 'c list * 'd option -> int @@ global many portable
        is not included in
          val f : 'a list * 'b list -> int
        The type "'a list * 'b option -> int" is not compatible with the type

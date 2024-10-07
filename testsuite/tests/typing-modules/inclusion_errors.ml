@@ -516,19 +516,24 @@ module Int : sig type t = int end
 module type S = sig module Choice : T val r : Choice.t list ref ref end
 module Force : functor (X : functor () -> S) -> sig end
 module Choose :
-  functor () -> sig module Choice : T val r : '_weak1 list ref ref end
+  functor () ->
+    sig module Choice : T val r : '_weak1 list ref ref @@ global many end
 Line 17, characters 16-29:
 17 | module Ignore = Force(Choose)
                      ^^^^^^^^^^^^^
 Error: Modules do not match:
-       functor () -> sig module Choice : T val r : '_weak1 list ref ref end
+       functor () ->
+         sig
+           module Choice : T
+           val r : '_weak1 list ref ref @@ global many
+         end
      is not included in functor () -> S
      Modules do not match:
-       sig module Choice : T val r : '_weak1 list ref ref end
+       sig module Choice : T val r : '_weak1 list ref ref @@ global many end
      is not included in
        S
      Values do not match:
-       val r : '_weak1 list ref ref
+       val r : '_weak1 list ref ref @@ global many
      is not included in
        val r : Choice.t list ref ref
      The type "'_weak1 list ref ref" is not compatible with the type
@@ -553,11 +558,14 @@ Lines 5-8, characters 8-5:
 8 |   end
 Error: Signature mismatch:
        Modules do not match:
-         sig module type s val f : (module s) -> unit end
+         sig
+           module type s
+           val f : (module s) -> unit @@ global many portable
+         end
        is not included in
          sig val f : (module s) -> unit end
        Values do not match:
-         val f : (module s/1) -> unit
+         val f : (module s/1) -> unit @@ global many portable
        is not included in
          val f : (module s/2) -> unit
        The type "(module s/1) -> unit" is not compatible with the type
@@ -581,11 +589,14 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : (< m : 'a. 'a * 'b > as 'b) -> unit end
+         sig
+           val f : (< m : 'a. 'a * 'b > as 'b) -> unit @@ global many
+             portable
+         end
        is not included in
          sig val f : < m : 'b. 'b * < m : 'c. 'c * 'a > as 'a > -> unit end
        Values do not match:
-         val f : (< m : 'a. 'a * 'b > as 'b) -> unit
+         val f : (< m : 'a. 'a * 'b > as 'b) -> unit @@ global many portable
        is not included in
          val f : < m : 'b. 'b * < m : 'c. 'c * 'a > as 'a > -> unit
        The type "(< m : 'a. 'a * 'd > as 'd) -> unit"
@@ -611,11 +622,11 @@ Lines 5-7, characters 6-3:
 7 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : < m : int > -> < m : int > end
+         sig val f : < m : int > -> < m : int > @@ global many portable end
        is not included in
          sig val f : s -> s end
        Values do not match:
-         val f : < m : int > -> < m : int >
+         val f : < m : int > -> < m : int > @@ global many portable
        is not included in
          val f : s -> s
        The type "< m : int > -> < m : int >" is not compatible with the type
@@ -636,11 +647,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'b -> int end
+         sig val f : 'b -> int @@ global many portable end
        is not included in
          sig val f : 'a -> float end
        Values do not match:
-         val f : 'b -> int
+         val f : 'b -> int @@ global many portable
        is not included in
          val f : 'a -> float
        The type "'a -> int" is not compatible with the type "'a -> float"
@@ -659,11 +670,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : '_weak2 list ref end
+         sig val x : '_weak2 list ref @@ global many end
        is not included in
          sig val x : 'a list ref end
        Values do not match:
-         val x : '_weak2 list ref
+         val x : '_weak2 list ref @@ global many
        is not included in
          val x : 'a list ref
        The type "'_weak2 list ref" is not compatible with the type "'a list ref"
@@ -674,18 +685,18 @@ module M = struct let r = ref [] end;;
 type t;;
 module N : sig val r : t list ref end = M;;
 [%%expect{|
-module M : sig val r : '_weak3 list ref end
+module M : sig val r : '_weak3 list ref @@ global many end
 type t
 Line 3, characters 40-41:
 3 | module N : sig val r : t list ref end = M;;
                                             ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val r : '_weak3 list ref end
+         sig val r : '_weak3 list ref @@ global many end
        is not included in
          sig val r : t list ref end
        Values do not match:
-         val r : '_weak3 list ref
+         val r : '_weak3 list ref @@ global many
        is not included in
          val r : t list ref
        The type "'_weak3 list ref" is not compatible with the type "t list ref"
@@ -718,17 +729,17 @@ let foo p (e : (T.t, T.s) eq) (x : T.t) (y : T.s) =
 [%%expect{|
 type (_, _) eq = Refl : ('a, 'a) eq
 module T : sig type t type s val eq : (t, s) eq end
-module M : sig val r : '_weak4 list ref end
+module M : sig val r : '_weak4 list ref @@ global many end
 Line 22, characters 25-26:
 22 |     let module O : N.S = M in
                               ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val r : '_weak4 list ref end
+         sig val r : '_weak4 list ref @@ global many end
        is not included in
          N.S
        Values do not match:
-         val r : '_weak4 list ref
+         val r : '_weak4 list ref @@ global many
        is not included in
          val r : T.t list ref
        The type "'_weak4 list ref" is not compatible with the type "T.t list ref"
@@ -748,11 +759,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end
+         sig val f : 'a -> 'a @@ global many portable end
        is not included in
          sig val f : int -> float end
        Values do not match:
-         val f : 'a -> 'a
+         val f : 'a -> 'a @@ global many portable
        is not included in
          val f : int -> float
        The type "int -> int" is not compatible with the type "int -> float"
@@ -771,11 +782,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int * int -> int * int end
+         sig val f : int * int -> int * int @@ global many portable end
        is not included in
          sig val f : int * float * int -> int -> int end
        Values do not match:
-         val f : int * int -> int * int
+         val f : int * int -> int * int @@ global many portable
        is not included in
          val f : int * float * int -> int -> int
        The type "int * int -> int * int" is not compatible with the type
@@ -795,11 +806,15 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : < f : float; m : int > -> < f : float; m : int > end
+         sig
+           val f : < f : float; m : int > -> < f : float; m : int > @@ global
+             many portable
+         end
        is not included in
          sig val f : < m : int; n : float > -> < m : int; n : float > end
        Values do not match:
-         val f : < f : float; m : int > -> < f : float; m : int >
+         val f : < f : float; m : int > -> < f : float; m : int > @@ global
+           many portable
        is not included in
          val f : < m : int; n : float > -> < m : int; n : float >
        The type "< f : float; m : int > -> < f : float; m : int >"
@@ -820,11 +835,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : [ `Bar | `Foo ] -> unit end
+         sig val f : [ `Bar | `Foo ] -> unit @@ global many portable end
        is not included in
          sig val f : [ `Foo ] -> unit end
        Values do not match:
-         val f : [ `Bar | `Foo ] -> unit
+         val f : [ `Bar | `Foo ] -> unit @@ global many portable
        is not included in
          val f : [ `Foo ] -> unit
        The type "[ `Bar | `Foo ] -> unit" is not compatible with the type
@@ -844,11 +859,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : [< `Foo ] -> unit end
+         sig val f : [< `Foo ] -> unit @@ global many portable end
        is not included in
          sig val f : [> `Foo ] -> unit end
        Values do not match:
-         val f : [< `Foo ] -> unit
+         val f : [< `Foo ] -> unit @@ global many portable
        is not included in
          val f : [> `Foo ] -> unit
        The type "[< `Foo ] -> unit" is not compatible with the type
@@ -868,11 +883,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : [< `Foo ] -> unit end
+         sig val f : [< `Foo ] -> unit @@ global many portable end
        is not included in
          sig val f : [< `Bar | `Foo ] -> unit end
        Values do not match:
-         val f : [< `Foo ] -> unit
+         val f : [< `Foo ] -> unit @@ global many portable
        is not included in
          val f : [< `Bar | `Foo ] -> unit
        The type "[< `Foo ] -> unit" is not compatible with the type
@@ -892,11 +907,14 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : < m : 'a. [< `Foo ] as 'a > -> unit end
+         sig
+           val f : < m : 'a. [< `Foo ] as 'a > -> unit @@ global many
+             portable
+         end
        is not included in
          sig val f : < m : [< `Foo ] > -> unit end
        Values do not match:
-         val f : < m : 'a. [< `Foo ] as 'a > -> unit
+         val f : < m : 'a. [< `Foo ] as 'a > -> unit @@ global many portable
        is not included in
          val f : < m : [< `Foo ] > -> unit
        The type "< m : 'a. [< `Foo ] as 'a > -> unit"
@@ -917,11 +935,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : < m : [ `Foo ] > -> unit end
+         sig val f : < m : [ `Foo ] > -> unit @@ global many portable end
        is not included in
          sig val f : < m : 'a. [< `Foo ] as 'a > -> unit end
        Values do not match:
-         val f : < m : [ `Foo ] > -> unit
+         val f : < m : [ `Foo ] > -> unit @@ global many portable
        is not included in
          val f : < m : 'a. [< `Foo ] as 'a > -> unit
        The type "< m : [ `Foo ] > -> unit" is not compatible with the type
@@ -942,11 +960,13 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : [< `C of int & float ] -> unit end
+         sig
+           val f : [< `C of int & float ] -> unit @@ global many portable
+         end
        is not included in
          sig val f : [< `C ] -> unit end
        Values do not match:
-         val f : [< `C of int & float ] -> unit
+         val f : [< `C of int & float ] -> unit @@ global many portable
        is not included in
          val f : [< `C ] -> unit
        The type "[< `C of & int & float ] -> unit"
@@ -966,11 +986,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : [ `Foo of int ] -> unit end
+         sig val f : [ `Foo of int ] -> unit @@ global many portable end
        is not included in
          sig val f : [ `Foo ] -> unit end
        Values do not match:
-         val f : [ `Foo of int ] -> unit
+         val f : [ `Foo of int ] -> unit @@ global many portable
        is not included in
          val f : [ `Foo ] -> unit
        The type "[ `Foo of int ] -> unit" is not compatible with the type
@@ -990,11 +1010,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : [ `Foo ] -> unit end
+         sig val f : [ `Foo ] -> unit @@ global many portable end
        is not included in
          sig val f : [ `Foo of int ] -> unit end
        Values do not match:
-         val f : [ `Foo ] -> unit
+         val f : [ `Foo ] -> unit @@ global many portable
        is not included in
          val f : [ `Foo of int ] -> unit
        The type "[ `Foo ] -> unit" is not compatible with the type
@@ -1023,11 +1043,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : [> `Bar | `Foo ] -> unit end
+         sig val f : [> `Bar | `Foo ] -> unit @@ global many portable end
        is not included in
          sig val f : [< `Bar | `Baz | `Foo ] -> unit end
        Values do not match:
-         val f : [> `Bar | `Foo ] -> unit
+         val f : [> `Bar | `Foo ] -> unit @@ global many portable
        is not included in
          val f : [< `Bar | `Baz | `Foo ] -> unit
        The type "[> `Bar | `Foo ] -> unit" is not compatible with the type

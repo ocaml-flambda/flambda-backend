@@ -6,7 +6,7 @@
 let f ~x = x + 1;;
 f ?x:0;;
 [%%expect{|
-val f : x:int -> int = <fun>
+val f : x:int -> int @@ global many = <fun>
 Line 2, characters 5-6:
 2 | f ?x:0;;
          ^
@@ -20,8 +20,8 @@ let foo (f : unit -> unit) = ();;
 let g ?x () = ();;
 foo ((); g);;
 [%%expect{|
-val foo : (unit -> unit) -> unit = <fun>
-val g : ?x:'a -> unit -> unit = <fun>
+val foo : (unit -> unit) -> unit @@ global many = <fun>
+val g : ?x:'a -> unit -> unit @@ global many = <fun>
 - : unit = ()
 |}];;
 
@@ -89,38 +89,38 @@ Error: This function is applied to arguments
 (* principality warning *)
 let f g = ignore (g : ?x:int -> unit -> int); g ~x:3 () ;;
 [%%expect{|
-val f : (?x:int -> unit -> int) -> int = <fun>
+val f : (?x:int -> unit -> int) -> int @@ global many = <fun>
 |}, Principal{|
 Line 1, characters 51-52:
 1 | let f g = ignore (g : ?x:int -> unit -> int); g ~x:3 () ;;
                                                        ^
 Warning 18 [not-principal]: using an optional argument here is not principal.
 
-val f : (?x:int -> unit -> int) -> int = <fun>
+val f : (?x:int -> unit -> int) -> int @@ global many = <fun>
 |}];;
 
 let f g = ignore (g : ?x:int -> unit -> int); g ();;
 [%%expect{|
-val f : (?x:int -> unit -> int) -> int = <fun>
+val f : (?x:int -> unit -> int) -> int @@ global many = <fun>
 |}, Principal{|
 Line 1, characters 46-47:
 1 | let f g = ignore (g : ?x:int -> unit -> int); g ();;
                                                   ^
 Warning 19 [non-principal-labels]: eliminated omittable argument without principality.
 
-val f : (?x:int -> unit -> int) -> int = <fun>
+val f : (?x:int -> unit -> int) -> int @@ global many = <fun>
 |}];;
 
 let f g = ignore (g : x:int -> unit -> int); g ();;
 [%%expect{|
-val f : (x:int -> unit -> int) -> x:int -> int = <fun>
+val f : (x:int -> unit -> int) -> x:int -> int @@ global many = <fun>
 |}, Principal{|
 Line 1, characters 45-46:
 1 | let f g = ignore (g : x:int -> unit -> int); g ();;
                                                  ^
 Warning 19 [non-principal-labels]: commuted an argument without principality.
 
-val f : (x:int -> unit -> int) -> x:int -> int = <fun>
+val f : (x:int -> unit -> int) -> x:int -> int @@ global many = <fun>
 |}];;
 
 (* 9859: inferred function types may appear in the right hand side of :> *)
@@ -146,8 +146,8 @@ module E = (val type_of f)
 let g = ( (fun _ -> f) :> 'a -> E.t)
 [%%expect {|
 module type T = sig type t end
-val type_of : 'x -> (module T with type t = 'x) = <fun>
-val f : (x:int -> y:int -> int) -> int = <fun>
+val type_of : 'x -> (module T with type t = 'x) @@ global many = <fun>
+val f : (x:int -> y:int -> int) -> int @@ global many = <fun>
 module E : sig type t = (x:int -> y:int -> int) -> int end
-val g : 'a -> E.t = <fun>
+val g : 'a -> E.t @@ global many = <fun>
 |}]

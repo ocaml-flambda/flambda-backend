@@ -19,7 +19,7 @@ let obj = new M.\#and
 [%%expect{|
 module M :
   sig class \#and : object val mutable \#and : int method \#and : int end end
-val obj : M.\#and = <obj>
+val obj : M.\#and @@ global many = <obj>
 |}]
 
 module M : sig type \#and = int end = struct type \#and = string end
@@ -42,8 +42,8 @@ Error: Signature mismatch:
 let x = (`\#let `\#and : [ `\#let of [ `\#and ] ])
 let `\#let \#rec = x
 [%%expect{|
-val x : [ `\#let of [ `\#and ] ] = `\#let `\#and
-val \#rec : [ `\#and ] = `\#and
+val x : [ `\#let of [ `\#and ] ] @@ global many = `\#let `\#and
+val \#rec : [ `\#and ] @@ global many = `\#and
 |}]
 
 
@@ -52,7 +52,8 @@ let f g ~\#let ?\#and ?(\#for = \#and) () =
 [%%expect{|
 val f :
   (\#let:'a -> ?\#and:'b -> unit -> 'c) ->
-  \#let:'a -> ?\#and:'b -> ?\#for:'b option -> unit -> 'c = <fun>
+  \#let:'a -> ?\#and:'b -> ?\#for:'b option -> unit -> 'c @@ global many =
+  <fun>
 |}]
 
 
@@ -68,7 +69,7 @@ type \#mutable = { mutable \#mutable : \#mutable }
 let rec \#rec = { \#mutable = \#rec }
 [%%expect{|
 type \#mutable = { mutable \#mutable : \#mutable; }
-val \#rec : \#mutable = {\#mutable = <cycle>}
+val \#rec : \#mutable @@ global many = {\#mutable = <cycle>}
 |}]
 
 type \#and = ..
@@ -96,5 +97,5 @@ Error: Unbound value "\#let"
 
 let f ~\#let ?\#and () = 1
 [%%expect{|
-val f : \#let:'a -> ?\#and:'b -> unit -> int = <fun>
+val f : \#let:'a -> ?\#and:'b -> unit -> int @@ global many = <fun>
 |}]

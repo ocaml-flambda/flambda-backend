@@ -22,9 +22,10 @@ let f1_3 (x : int64x2#) = x;;
 [%%expect{|
 type t_vec128 : vec128
 type ('a : vec128) t_vec128_id = 'a
-val f1_1 : t_vec128 -> t_vec128 = <fun>
-val f1_2 : ('a : vec128). 'a t_vec128_id -> 'a t_vec128_id = <fun>
-val f1_3 : int64x2# -> int64x2# = <fun>
+val f1_1 : t_vec128 -> t_vec128 @@ global many = <fun>
+val f1_2 : ('a : vec128). 'a t_vec128_id -> 'a t_vec128_id @@ global many =
+  <fun>
+val f1_3 : int64x2# -> int64x2# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -41,9 +42,10 @@ let f2_3 (x : int64x2#) =
   let y = x in
   y;;
 [%%expect{|
-val f2_1 : t_vec128 -> t_vec128 = <fun>
-val f2_2 : ('a : vec128). 'a t_vec128_id -> 'a t_vec128_id = <fun>
-val f2_3 : int64x2# -> int64x2# = <fun>
+val f2_1 : t_vec128 -> t_vec128 @@ global many = <fun>
+val f2_2 : ('a : vec128). 'a t_vec128_id -> 'a t_vec128_id @@ global many =
+  <fun>
+val f2_3 : int64x2# -> int64x2# @@ global many = <fun>
 |}];;
 
 (*****************************************)
@@ -381,10 +383,11 @@ let make_int64u () : int64x2# = assert false
 
 let id_value x = x;;
 [%%expect{|
-val make_t_vec128 : unit -> t_vec128 = <fun>
-val make_t_vec128_id : ('a : vec128). unit -> 'a t_vec128_id = <fun>
-val make_int64u : unit -> int64x2# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val make_t_vec128 : unit -> t_vec128 @@ global many = <fun>
+val make_t_vec128_id : ('a : vec128). unit -> 'a t_vec128_id @@ global many =
+  <fun>
+val make_int64u : unit -> int64x2# @@ global many = <fun>
+val id_value : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_vec128 ());;
@@ -437,11 +440,11 @@ let f9_3 () = twice f1_3 (make_int64u ());;
 [%%expect{|
 val twice :
   ('a : vec128).
-    ('a t_vec128_id -> 'a t_vec128_id) -> 'a t_vec128_id -> 'a t_vec128_id =
-  <fun>
-val f9_1 : unit -> t_vec128 t_vec128_id = <fun>
-val f9_2 : ('a : vec128). unit -> 'a t_vec128_id = <fun>
-val f9_3 : unit -> int64x2# t_vec128_id = <fun>
+    ('a t_vec128_id -> 'a t_vec128_id) -> 'a t_vec128_id -> 'a t_vec128_id
+  @@ global many = <fun>
+val f9_1 : unit -> t_vec128 t_vec128_id @@ global many = <fun>
+val f9_2 : ('a : vec128). unit -> 'a t_vec128_id @@ global many = <fun>
+val f9_3 : unit -> int64x2# t_vec128_id @@ global many = <fun>
 |}];;
 
 (**************************************************)
@@ -674,10 +677,10 @@ class ['a] c12_12 = object
 end;;
 [%%expect{|
 type t12_8 = < f : t_vec128 -> t_vec128 >
-val f12_9 : t12_8 -> t_vec128 -> t_vec128 = <fun>
+val f12_9 : t12_8 -> t_vec128 -> t_vec128 @@ global many = <fun>
 val f12_10 :
   < baz : t_vec128 -> t_vec128 -> t_vec128 -> t_vec128; .. > ->
-  t_vec128 -> t_vec128 = <fun>
+  t_vec128 -> t_vec128 @@ global many = <fun>
 class ['a] c12_11 : object method x : t_vec128 -> 'a end
 class ['a] c12_12 : object method x : 'a -> t_vec128 end
 |}];;

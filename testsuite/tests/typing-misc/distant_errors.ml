@@ -23,7 +23,7 @@ Lines 9-12, characters 6-3:
 12 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type _ t val f : 'a -> unit end
+         sig type _ t val f : 'a -> unit @@ global many portable end
        is not included in
          sig type (_, _) t val f : ('a, 'b) t -> unit end
        Type declarations do not match:

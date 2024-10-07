@@ -117,29 +117,39 @@ let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
 let g (x : t) = f x
 [%%expect {|
 type t : value mod uncontended portable = { a : string; b : int; }
-val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
-val g : t -> t = <fun>
+val f : ('a : value mod uncontended portable). 'a -> 'a @@ global many =
+  <fun>
+val g : t -> t @@ global many = <fun>
 |}]
 
 type t : value mod portable uncontended = { a : int; b : int }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
 type t : value mod uncontended portable = { a : int; b : int; }
-val x : t = {a = 5; b = 5}
+val x : t @@ global many portable = {a = 5; b = 5}
+|}, Principal{|
+type t : value mod uncontended portable = { a : int; b : int; }
+val x : t @@ global many = {a = 5; b = 5}
 |}]
 
 type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
 type ('a, 'b) t : value mod uncontended portable = { a : 'a; b : 'b; }
-val x : (int, int) t = {a = 5; b = 5}
+val x : (int, int) t @@ global many portable = {a = 5; b = 5}
+|}, Principal{|
+type ('a, 'b) t : value mod uncontended portable = { a : 'a; b : 'b; }
+val x : (int, int) t @@ global many = {a = 5; b = 5}
 |}]
 
 type t : value mod portable uncontended = Foo of string | Bar of int
 let x : _ as (_ : value mod portable uncontended) = Foo "hello world"
 [%%expect {|
 type t : value mod uncontended portable = Foo of string | Bar of int
-val x : t = Foo "hello world"
+val x : t @@ global many portable = Foo "hello world"
+|}, Principal{|
+type t : value mod uncontended portable = Foo of string | Bar of int
+val x : t @@ global many = Foo "hello world"
 |}]
 
 module A : sig
@@ -154,7 +164,12 @@ let x : _ as (_ : value mod portable) = ({ a = "hello" } : A.t)
 module A : sig type t : value mod portable = { a : string; } end
 type ('a : value mod portable) u = 'a
 type v = A.t u
-val x : A.t = {A.a = "hello"}
+val x : A.t @@ global many portable = {A.a = "hello"}
+|}, Principal{|
+module A : sig type t : value mod portable = { a : string; } end
+type ('a : value mod portable) u = 'a
+type v = A.t u
+val x : A.t @@ global many = {A.a = "hello"}
 |}]
 
 type t : value mod portable = { a : string }
@@ -162,8 +177,12 @@ let my_str : string @@ nonportable = ""
 let y = ({ a = my_str } : t @@ portable)
 [%%expect {|
 type t : value mod portable = { a : string; }
-val my_str : string = ""
-val y : t = {a = ""}
+val my_str : string @@ global many portable = ""
+val y : t @@ global many = {a = ""}
+|}, Principal{|
+type t : value mod portable = { a : string; }
+val my_str : string @@ global many portable = ""
+val y : t @@ global many portable = {a = ""}
 |}]
 
 type t : value mod portable = { a : string -> string }
@@ -171,8 +190,8 @@ let my_fun @ nonportable = fun x -> x
 let y : t @@ portable = { a = my_fun }
 [%%expect {|
 type t : value mod portable = { a : string -> string; }
-val my_fun : 'a -> 'a = <fun>
-val y : t = {a = <fun>}
+val my_fun : 'a -> 'a @@ global many = <fun>
+val y : t @@ global many portable = {a = <fun>}
 |}]
 
 type t : value mod uncontended = { a : string }
@@ -182,8 +201,8 @@ let f () =
   ()
 [%%expect {|
 type t : value mod uncontended = { a : string; }
-val make_str : unit -> string = <fun>
-val f : unit -> unit = <fun>
+val make_str : unit -> string @@ global many = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 type t : value mod uncontended = { a : string }
@@ -193,8 +212,8 @@ let f () =
   ()
 [%%expect {|
 type t : value mod uncontended = { a : string; }
-val make_str : unit -> string = <fun>
-val f : unit -> unit = <fun>
+val make_str : unit -> string @@ global many = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 (* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
    since pushing the annotation to the right hand side resolves the issue, and
@@ -209,8 +228,8 @@ let f () =
 [%%expect {|
 type t_value
 type t : value mod uncontended portable = Foo of t_value
-val make_value : unit -> t_value = <fun>
-val f : unit -> unit = <fun>
+val make_value : unit -> t_value @@ global many = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 type t : value mod portable = { a : string -> string }
@@ -218,7 +237,7 @@ let my_fun : _ @@ nonportable = fun x -> x
 let y = ({ a = my_fun } : _ @@ portable)
 [%%expect {|
 type t : value mod portable = { a : string -> string; }
-val my_fun : 'a -> 'a = <fun>
+val my_fun : 'a -> 'a @@ global many = <fun>
 Line 3, characters 15-21:
 3 | let y = ({ a = my_fun } : _ @@ portable)
                    ^^^^^^
@@ -232,9 +251,9 @@ let f (_x : _ @@ portable uncontended) = ()
 type t : value mod portable uncontended = Foo of string | Bar of int
 let g (x : t @@ nonportable contended) = f x; f (Foo ""); f (Bar 10)
 [%%expect {|
-val f : 'a @ portable -> unit = <fun>
+val f : 'a @ portable -> unit @@ global many = <fun>
 type t : value mod uncontended portable = Foo of string | Bar of int
-val g : t @ contended -> unit = <fun>
+val g : t @ contended -> unit @@ global many = <fun>
 |}]
 
 (* Demonstrate that -allow-illegal-crossing allows for unsound mode-crossing *)
@@ -259,7 +278,7 @@ let x : Value.t @@ portable uncontended = Unsound.cross Value.value
 [%%expect {|
 module Unsound : sig val cross : 'a @ contended -> 'a @ portable end
 module Value : sig type t val value : t end
-val x : Value.t = <abstr>
+val x : Value.t @@ global many = <abstr>
 |}]
 
 (* Validate above testing technique *)
@@ -657,7 +676,7 @@ Error: This type "t" should be an instance of type "('a : value mod portable)"
 let f : ('a : value mod portable). 'a -> 'a = fun x -> x
 let _ = f (fun x -> x)
 [%%expect {|
-val f : ('a : value mod portable). 'a -> 'a = <fun>
+val f : ('a : value mod portable). 'a -> 'a @@ global many = <fun>
 Line 2, characters 10-22:
 2 | let _ = f (fun x -> x)
               ^^^^^^^^^^^^
@@ -671,7 +690,7 @@ Error:
 let f : ('a : value mod uncontended). 'a -> 'a = fun x -> x
 let _ = f (ref 10)
 [%%expect {|
-val f : ('a : value mod uncontended). 'a -> 'a = <fun>
+val f : ('a : value mod uncontended). 'a -> 'a @@ global many = <fun>
 Line 2, characters 10-18:
 2 | let _ = f (ref 10)
               ^^^^^^^^
@@ -686,7 +705,8 @@ Error: This expression has type "int ref"
 let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
 let _ = f 0
 [%%expect {|
-val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
+val f : ('a : value mod uncontended portable). 'a -> 'a @@ global many =
+  <fun>
 - : int = 0
 |}]
 

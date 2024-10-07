@@ -18,7 +18,10 @@ Lines 3-6, characters 6-3:
 6 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = X.t = A | B val f : t -> int end
+         sig
+           type t = X.t = A | B
+           val f : t -> int @@ global many portable
+         end
        is not included in
          sig type t = int * bool end
        Type declarations do not match:
@@ -39,8 +42,9 @@ end;;
 module Make :
   functor (X : sig val f : [ `A ] -> unit end) ->
     sig
-      val make : (([< `A ] as 'a) -> 'b) -> ('a -> 'c) -> 'a -> 'c
-      val f : [ `A ] -> unit
+      val make : (([< `A ] as 'a) -> 'b) -> ('a -> 'c) -> 'a -> 'c @@ global
+        many portable
+      val f : [ `A ] -> unit @@ global many
     end
 |}]
 

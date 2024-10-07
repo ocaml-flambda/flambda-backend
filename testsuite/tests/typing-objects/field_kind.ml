@@ -13,7 +13,7 @@ let o =
     method m : type a. a t -> a = fun Int -> (self#x : int)
   end;;
 [%%expect{|
-val o : < m : 'a. 'a t -> 'a > = <obj>
+val o : < m : 'a. 'a t -> 'a > @@ global many = <obj>
 |}]
 
 let o' =
@@ -32,8 +32,8 @@ Lines 2-5, characters 2-5:
 Warning 15 [implicit-public-methods]: the following private methods were made public implicitly:
  x.
 
-val o' : < m : 'a. 'a t -> 'b -> 'a; x : int > as 'b = <obj>
-val aargh : unit = ()
+val o' : < m : 'a. 'a t -> 'b -> 'a; x : int > as 'b @@ global many = <obj>
+val aargh : unit @@ global many = ()
 |}]
 
 let o2 =
@@ -50,7 +50,7 @@ Lines 2-5, characters 2-5:
 Warning 15 [implicit-public-methods]: the following private methods were made public implicitly:
  x.
 
-val o2 : < m : 'a -> int; x : int > as 'a = <obj>
+val o2 : < m : 'a -> int; x : int > as 'a @@ global many = <obj>
 |}]
 
 let o3 =
@@ -71,6 +71,6 @@ Lines 2-6, characters 2-5:
 Warning 15 [implicit-public-methods]: the following private methods were made public implicitly:
  x.
 
-val o3 : < m : 'a -> int; x : int > as 'a = <obj>
-val aargh : unit = ()
+val o3 : < m : 'a -> int; x : int > as 'a @@ global many = <obj>
+val aargh : unit @@ global many = ()
 |}]

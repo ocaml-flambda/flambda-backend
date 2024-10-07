@@ -63,8 +63,8 @@ let t v = Or_null.This v
 
 [%%expect{|
 module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
-val n : 'a Or_null.t = Or_null.Null
-val t : 'a -> 'a Or_null.t = <fun>
+val n : 'a Or_null.t @@ global many = Or_null.Null
+val t : 'a -> 'a Or_null.t @@ global many = <fun>
 |}]
 
 (* The jkind of [Or_null] is still correctly [value_or_null]. *)
@@ -333,5 +333,5 @@ Error: Invalid reexport declaration.
 let[@or_null_reexport] foo = 5
 
 [%%expect{|
-val foo : int = 5
+val foo : int @@ global many = 5
 |}]

@@ -8,11 +8,12 @@ end
 
 module type X' = module type of X
 [%%expect{|
-module X : sig val t : '_weak1 option ref end
+module X : sig val t : '_weak1 option ref @@ global many end
 Line 5, characters 32-33:
 5 | module type X' = module type of X
                                     ^
-Error: The type of this module, sig val t : '_weak1 option ref end,
+Error: The type of this module,
+       sig val t : '_weak1 option ref @@ global many end,
        contains non-generalizable type variable(s).
        (see manual section 6.1.2)
 Line 2, characters 6-7:

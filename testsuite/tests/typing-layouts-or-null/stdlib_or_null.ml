@@ -67,7 +67,7 @@ let _ = Or_null.iter ((:=) cell)  (This 2)
 let _ = !cell
 
 [%%expect{|
-val cell : int ref = {contents = 0}
+val cell : int ref @@ global many = {contents = 0}
 - : unit = ()
 - : int = 0
 - : unit = ()

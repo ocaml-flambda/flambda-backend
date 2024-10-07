@@ -19,7 +19,7 @@ let f1 x =
   | (None : empty option) -> ()
 ;;
 [%%expect {|
-val f1 : empty option -> unit = <fun>
+val f1 : empty option -> unit @@ global many = <fun>
 |}]
 
 let f2 () =
@@ -27,7 +27,7 @@ let f2 () =
   | (None : empty option) -> ()
 ;;
 [%%expect {|
-val f2 : unit -> unit = <fun>
+val f2 : unit -> unit @@ global many = <fun>
 |}]
 
 let f3 () =
@@ -36,7 +36,7 @@ let f3 () =
   | (None : empty option) -> ()
 ;;
 [%%expect {|
-val f3 : unit -> unit = <fun>
+val f3 : unit -> unit @@ global many = <fun>
 |}]
 
 let f1' x =
@@ -45,7 +45,7 @@ let f1' x =
   | Some _ -> .
 ;;
 [%%expect {|
-val f1' : empty option -> unit = <fun>
+val f1' : empty option -> unit @@ global many = <fun>
 |}]
 
 let f2' () =
@@ -54,7 +54,7 @@ let f2' () =
   | Some _ -> .
 ;;
 [%%expect {|
-val f2' : unit -> unit = <fun>
+val f2' : unit -> unit @@ global many = <fun>
 |}]
 
 let f3' () =
@@ -64,7 +64,7 @@ let f3' () =
   | Some _ -> .
 ;;
 [%%expect {|
-val f3' : unit -> unit = <fun>
+val f3' : unit -> unit @@ global many = <fun>
 |}]
 
 
@@ -77,7 +77,7 @@ let f () =
   ()
 ;;
 [%%expect {|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 let f () =
@@ -85,7 +85,7 @@ let f () =
   ()
 ;;
 [%%expect{|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 let f () =
@@ -93,7 +93,7 @@ let f () =
   | Left () -> ()
 ;;
 [%%expect {|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 let f () =
@@ -102,7 +102,7 @@ let f () =
   | Right _ -> .
 ;;
 [%%expect {|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 let f () =
@@ -110,7 +110,7 @@ let f () =
   | (Left () : (unit, empty) t) -> ()
 ;;
 [%%expect {|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]
 
 let f () =
@@ -119,5 +119,5 @@ let f () =
   | (Right _ : (unit, empty) t) -> .
 ;;
 [%%expect {|
-val f : unit -> unit = <fun>
+val f : unit -> unit @@ global many = <fun>
 |}]

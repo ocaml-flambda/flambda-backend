@@ -18,7 +18,7 @@ let blocks =
   List.map extract (e.pexp_loc :: e.pexp_loc_stack)
 ;;
 [%%expect {|
-val blocks : string list =
+val blocks : string list @@ global many =
   ["( (* comment *) (( \"contant\" [@attr] )  (* comment *)))";
    "(( \"contant\" [@attr] )  (* comment *))"; "( \"contant\" [@attr] )";
    "\"contant\""]

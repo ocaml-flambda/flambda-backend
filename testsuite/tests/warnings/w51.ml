@@ -13,7 +13,7 @@ Line 3, characters 13-37:
                  ^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected tailcall
 
-val fact : int -> int = <fun>
+val fact : int -> int @@ global many = <fun>
 |}]
 
 let rec fact = function
@@ -26,7 +26,7 @@ Line 3, characters 13-42:
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected tailcall
 
-val fact : int -> int = <fun>
+val fact : int -> int @@ global many = <fun>
 |}]
 
 let rec fact = function
@@ -34,7 +34,7 @@ let rec fact = function
   | n -> n * (fact [@tailcall false]) (n-1)
 ;;
 [%%expect {|
-val fact : int -> int = <fun>
+val fact : int -> int @@ global many = <fun>
 |}]
 
 let rec fact_tail acc = function
@@ -42,7 +42,7 @@ let rec fact_tail acc = function
   | n -> (fact_tail [@tailcall]) (n * acc) (n - 1)
 ;;
 [%%expect{|
-val fact_tail : int -> int -> int = <fun>
+val fact_tail : int -> int -> int @@ global many = <fun>
 |}]
 
 let rec fact_tail acc = function
@@ -50,7 +50,7 @@ let rec fact_tail acc = function
   | n -> (fact_tail [@tailcall true]) (n * acc) (n - 1)
 ;;
 [%%expect{|
-val fact_tail : int -> int -> int = <fun>
+val fact_tail : int -> int -> int @@ global many = <fun>
 |}]
 
 let rec fact_tail acc = function
@@ -63,7 +63,7 @@ Line 3, characters 9-56:
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 51 [wrong-tailcall-expectation]: expected non-tailcall
 
-val fact_tail : int -> int -> int = <fun>
+val fact_tail : int -> int -> int @@ global many = <fun>
 |}]
 
 
@@ -76,5 +76,5 @@ Line 1, characters 24-32:
 Warning 47 [attribute-payload]: illegal payload for attribute 'tailcall'.
 Only an optional boolean literal is supported.
 
-val test : 'a -> 'b = <fun>
+val test : 'a -> 'b @@ global many = <fun>
 |}]

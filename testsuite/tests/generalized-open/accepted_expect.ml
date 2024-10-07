@@ -53,14 +53,14 @@ val of_seq : elt Seq.t -> t = <fun>
 
 let e = empty;;
 [%%expect{|
-val e : t = <abstr>
+val e : t @@ global many = <abstr>
 |}]
 
 open struct
   let x = singleton "hidden"
 end;;
 [%%expect{|
-val x : t = <abstr>
+val x : t @@ global many = <abstr>
 |}];;
 
 elements (union x (of_list ["a"; "b"]));;
@@ -76,7 +76,7 @@ let f =
   end in
   (e, e2, y);;
 [%%expect{|
-val f : t * Set.Make(Int32).t * int = (<abstr>, <abstr>, 3)
+val f : t * Set.Make(Int32).t * int @@ global many = (<abstr>, <abstr>, 3)
 |}]
 
 module type S = sig
@@ -90,7 +90,7 @@ module type S = sig type nonrec t = Set.Make(Bool).t end
 
 let hd _ = ();;
 [%%expect{|
-val hd : 'a -> unit = <fun>
+val hd : 'a -> unit @@ global many = <fun>
 |}]
 
 open (List : sig val map : ('a -> 'b) -> 'a list -> 'b list end);;
@@ -101,10 +101,10 @@ val map : ('a -> 'b) -> 'a list -> 'b list = <fun>
 let l = map succ [0;1;2;3]
 let () = hd l;;
 [%%expect{|
-val l : int list = [1; 2; 3; 4]
+val l : int list @@ global many = [1; 2; 3; 4]
 |}]
 
 let y = map succ [];;
 [%%expect{|
-val y : int list = []
+val y : int list @@ global many = []
 |}]

@@ -11,5 +11,5 @@ end
 [%%expect{|
 module F :
   functor (M : sig type t : immediate64 end) ->
-    sig val f : local_ M.t -> M.t end
+    sig val f : local_ M.t -> M.t @@ global many portable end
 |}]

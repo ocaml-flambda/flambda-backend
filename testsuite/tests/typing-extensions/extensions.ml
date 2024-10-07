@@ -28,7 +28,7 @@ let is_a x =
   | _ -> false
 ;;
 [%%expect {|
-val is_a : foo -> bool = <fun>
+val is_a : foo -> bool @@ global many = <fun>
 |}]
 
 (* The type must be open to create extension *)
@@ -184,7 +184,7 @@ let get_num : type a. a foo -> a -> a option = fun f i1 ->
      |  _ -> None
 ;;
 [%%expect {|
-val get_num : 'a foo -> 'a -> 'a option = <fun>
+val get_num : 'a foo -> 'a -> 'a option @@ global many = <fun>
 |}]
 
 (* Extensions can have inline records (regression test for #9970) *)
@@ -203,12 +203,12 @@ let _ = X {x = 1};;
 
 let must_be_polymorphic = fun x -> X {x};;
 [%%expect {|
-val must_be_polymorphic : 'a -> 'a inline = <fun>
+val must_be_polymorphic : 'a -> 'a inline @@ global many = <fun>
 |}]
 
 let must_be_polymorphic : 'a . 'a -> 'a inline = fun x -> X {x};;
 [%%expect {|
-val must_be_polymorphic : 'a -> 'a inline = <fun>
+val must_be_polymorphic : 'a -> 'a inline @@ global many = <fun>
 |}]
 
 (* Extensions must obey constraints *)
@@ -261,7 +261,7 @@ module M : sig type foo += A of int end
 let a1 = M.A 10
 ;;
 [%%expect {|
-val a1 : foo = M.A 10
+val a1 : foo @@ global many = M.A 10
 |}]
 
 module type S = sig type foo += private A of int end
@@ -282,7 +282,7 @@ let is_s x =
   | _ -> false
 ;;
 [%%expect {|
-val is_s : foo -> bool = <fun>
+val is_s : foo -> bool @@ global many = <fun>
 |}]
 
 let a2 = M_S.A 20
@@ -662,7 +662,7 @@ type foo += Foo of int * int option | Bar of int option
 let x = Foo(3, Some 4), Bar(Some 5) (* Prints Foo and Bar successfully *)
 ;;
 [%%expect {|
-val x : foo * foo = (Foo (3, Some 4), Bar (Some 5))
+val x : foo * foo @@ global many = (Foo (3, Some 4), Bar (Some 5))
 |}]
 
 type foo += Foo of string
@@ -674,7 +674,7 @@ type foo += Foo of string
 let y = x (* Prints Bar but not Foo (which has been shadowed) *)
 ;;
 [%%expect {|
-val y : foo * foo = (<extension>, Bar (Some 5))
+val y : foo * foo @@ global many = (<extension>, Bar (Some 5))
 |}]
 
 exception Foo of int * int option
@@ -692,7 +692,7 @@ exception Bar of int option
 let x = Foo(3, Some 4), Bar(Some 5) (* Prints Foo and Bar successfully *)
 ;;
 [%%expect {|
-val x : exn * exn = (Foo (3, Some 4), Bar (Some 5))
+val x : exn * exn @@ global many = (Foo (3, Some 4), Bar (Some 5))
 |}]
 
 type foo += Foo of string
@@ -704,7 +704,7 @@ type foo += Foo of string
 let y = x (* Prints Bar and part of Foo (which has been shadowed) *)
 ;;
 [%%expect {|
-val y : exn * exn = (Foo (3, _), Bar (Some 5))
+val y : exn * exn @@ global many = (Foo (3, _), Bar (Some 5))
 |}]
 
 module Empty = struct end
@@ -716,7 +716,7 @@ let x = let open F(Empty) in (A:F(Empty).t) (* A is not printed *)
 [%%expect {|
 module Empty : sig end
 module F : functor (X : sig end) -> sig type t = .. type t += A end
-val x : F(Empty).t = <extension>
+val x : F(Empty).t @@ global many = <extension>
 |}]
 
 
@@ -740,44 +740,44 @@ let extension_name e = Obj.Extension_constructor.name
     (Obj.Extension_constructor.of_val e)
 ;;
 [%%expect {|
-val extension_name : 'a -> string = <fun>
+val extension_name : 'a -> string @@ global many = <fun>
 |}]
 
 let extension_id e = Obj.Extension_constructor.id
     (Obj.Extension_constructor.of_val e)
 ;;
 [%%expect {|
-val extension_id : 'a -> int = <fun>
+val extension_id : 'a -> int @@ global many = <fun>
 |}]
 
 let n1 = extension_name Foo
 ;;
 [%%expect {|
-val n1 : string = "Foo"
+val n1 : string @@ global many = "Foo"
 |}]
 
 let n2 = extension_name (Bar 1)
 ;;
 [%%expect {|
-val n2 : string = "Bar"
+val n2 : string @@ global many = "Bar"
 |}]
 
 let t = (extension_id (Bar 2)) = (extension_id (Bar 3))
 ;;
 [%%expect {|
-val t : bool = true
+val t : bool @@ global many = true
 |}]
 
 let f = (extension_id (Bar 2)) = (extension_id Foo)
 ;;
 [%%expect {|
-val f : bool = false
+val f : bool @@ global many = false
 |}]
 
 let is_foo x = (extension_id Foo) = (extension_id x)
 ;;
 [%%expect {|
-val is_foo : 'a -> bool = <fun>
+val is_foo : 'a -> bool @@ global many = <fun>
 |}]
 
 type foo += Foo
@@ -789,7 +789,7 @@ type foo += Foo
 let f = is_foo Foo
 ;;
 [%%expect {|
-val f : bool = false
+val f : bool @@ global many = false
 |}]
 
 let _ = Obj.Extension_constructor.of_val 7

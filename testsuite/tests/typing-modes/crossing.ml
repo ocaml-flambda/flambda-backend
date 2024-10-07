@@ -30,11 +30,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : unit -> [> `A ] end
+         sig val f : unit -> [> `A ] @@ global many portable end
        is not included in
          sig val f : unit -> [ `A | `B of 'a -> 'a ] @ portable end
        Values do not match:
-         val f : unit -> [> `A ]
+         val f : unit -> [> `A ] @@ global many portable
        is not included in
          val f : unit -> [ `A | `B of 'a -> 'a ] @ portable
        The type "unit -> [ `A | `B of 'a -> 'a ]"
@@ -68,11 +68,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : unit -> local_ int end
+         sig val f : unit -> local_ int @@ global many portable end
        is not included in
          sig val f : unit -> int end
        Values do not match:
-         val f : unit -> local_ int
+         val f : unit -> local_ int @@ global many portable
        is not included in
          val f : unit -> int
        The type "unit -> local_ int" is not compatible with the type

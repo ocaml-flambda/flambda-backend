@@ -5,12 +5,12 @@ module Core :
         module T :
           sig
             type t = int
-            val compare : 'a -> 'a -> t
-            val ( + ) : t -> t -> t
+            val compare : 'a -> 'a -> t @@ global many
+            val ( + ) : t -> t -> t @@ global many
           end
         type t = int
-        val compare : 'a -> 'a -> t
-        val ( + ) : t -> t -> t
+        val compare : 'a -> 'a -> t @@ global many
+        val ( + ) : t -> t -> t @@ global many
         module Map :
           sig
             type key = t
@@ -65,7 +65,7 @@ module Core :
       end
     module Std : sig module Int = Int end
   end
-val x : 'a Int.Map.t = <abstr>
+val x : 'a Int.Map.t @@ global many = <abstr>
 Line 1, characters 8-9:
 1 | let y = x + x ;;
             ^

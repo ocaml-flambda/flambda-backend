@@ -11,12 +11,12 @@ Line 3, characters 8-9:
             ^
 Warning 39 [unused-rec-flag]: unused rec flag.
 
-val f : unit -> int = <fun>
+val f : unit -> int @@ global many = <fun>
 |}];;
 
 let[@warning "-39"] rec g () = 3;;
 [%%expect{|
-val g : unit -> int = <fun>
+val g : unit -> int @@ global many = <fun>
 |}];;
 
 let[@warning "+39"] rec h () = 3;;
@@ -26,19 +26,19 @@ Line 1, characters 24-25:
                             ^
 Warning 39 [unused-rec-flag]: unused rec flag.
 
-val h : unit -> int = <fun>
+val h : unit -> int @@ global many = <fun>
 |}];;
 
 [@@@ocaml.warning "-39"]
 
 let rec f () = 3;;
 [%%expect{|
-val f : unit -> int = <fun>
+val f : unit -> int @@ global many = <fun>
 |}];;
 
 let[@warning "-39"] rec g () = 3;;
 [%%expect{|
-val g : unit -> int = <fun>
+val g : unit -> int @@ global many = <fun>
 |}];;
 
 let[@warning "+39"] rec h () = 3;;
@@ -48,5 +48,5 @@ Line 1, characters 24-25:
                             ^
 Warning 39 [unused-rec-flag]: unused rec flag.
 
-val h : unit -> int = <fun>
+val h : unit -> int @@ global many = <fun>
 |}];;

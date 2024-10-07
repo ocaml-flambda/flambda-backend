@@ -44,7 +44,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 []
 
-val f : [ `A ] Element.t -> [ `A | `C ] Element.t = <fun>
+val f : [ `A ] Element.t -> [ `A | `C ] Element.t @@ global many = <fun>
 |}];;
 
 type _ t = T : 'a -> 'a t
@@ -57,7 +57,7 @@ let f x =
 ;;
 [%%expect{|
 type _ t = T : 'a -> 'a t
-val f : [ `A ] Element.t -> [ `A | `C ] Element.t = <fun>
+val f : [ `A ] Element.t -> [ `A | `C ] Element.t @@ global many = <fun>
 |}];;
 
 let f () =
@@ -66,7 +66,7 @@ let f () =
   (x :> [ `A | `C ] Element.t)
 ;;
 [%%expect{|
-val f : unit -> [ `A | `C ] Element.t = <fun>
+val f : unit -> [ `A | `C ] Element.t @@ global many = <fun>
 |}];;
 
 let f () =
@@ -75,5 +75,5 @@ let f () =
   (x :> [ `A | `C ] Element.t)
 ;;
 [%%expect{|
-val f : unit -> [ `A | `C ] Element.t = <fun>
+val f : unit -> [ `A | `C ] Element.t @@ global many = <fun>
 |}];;

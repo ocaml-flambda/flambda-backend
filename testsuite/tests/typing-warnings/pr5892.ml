@@ -21,5 +21,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Right
 
-val f : CamlinternalOO.label choice -> bool = <fun>
+val f : CamlinternalOO.label choice -> bool @@ global many = <fun>
 |}]

@@ -16,7 +16,7 @@ module M :
   sig
     type ('a, 'b) elt = 'a
     type 'a iter = { f : 'b. 'a -> unit; }
-    val promote : ('a -> unit) -> 'a iter
+    val promote : ('a -> unit) -> 'a iter @@ global many portable
   end
 |}]
 
@@ -33,5 +33,5 @@ type 'a t = int
 let test : 'a. int -> 'a t = fun i -> i;;
 [%%expect{|
 type 'a t = int
-val test : int -> int = <fun>
+val test : int -> int @@ global many = <fun>
 |}]

@@ -10,7 +10,7 @@ object
 end
 
 [%%expect{|
-val x : '_weak1 option ref = {contents = None}
+val x : '_weak1 option ref @@ global many = {contents = None}
 Lines 3-6, characters 0-3:
 3 | class test =
 4 | object

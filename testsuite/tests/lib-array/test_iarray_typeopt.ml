@@ -42,7 +42,7 @@ let arr = [: 1; 2; 3 :];;
 [%%expect {|
 (let (arr/372 = (makearray_imm[int] 1 2 3))
   (apply (field_imm 1 (global Toploop!)) "arr" arr/372))
-val arr : int iarray = [:1; 2; 3:]
+val arr : int iarray @@ global many = [:1; 2; 3:]
 |}];;
 
 let _ = arr.:(1);;
@@ -73,7 +73,7 @@ let arr : int alias = [: 1; 2; 3 :];;
 type 'a alias = 'a iarray
 (let (arr/374 = (makearray_imm[int] 1 2 3))
   (apply (field_imm 1 (global Toploop!)) "arr" arr/374))
-val arr : int alias = [:1; 2; 3:]
+val arr : int alias @@ global many = [:1; 2; 3:]
 |}];;
 
 let _ = arr.:(1);;
@@ -102,13 +102,13 @@ let arr = of_array mut_arr;;
 [%%expect {|
 (let (mut_arr/375 =[intarray] (makearray[int] 1 2 3))
   (apply (field_imm 1 (global Toploop!)) "mut_arr" mut_arr/375))
-val mut_arr : int array = [|1; 2; 3|]
+val mut_arr : int array @@ global many = [|1; 2; 3|]
 (let
   (mut_arr/375 = (apply (field_imm 0 (global Toploop!)) "mut_arr")
    arr/376 =
      (apply (field_imm 13 (global Stdlib_stable__Iarray!)) mut_arr/375))
   (apply (field_imm 1 (global Toploop!)) "arr" arr/376))
-val arr : int iarray = [:1; 2; 3:]
+val arr : int iarray @@ global many = [:1; 2; 3:]
 |}];;
 
 let _ = arr.:(1);;
@@ -138,7 +138,7 @@ let mut_arr = [| 1; 2; 3 |];;
 [%%expect {|
 (let (mut_arr/377 =[intarray] (makearray[int] 1 2 3))
   (apply (field_imm 1 (global Toploop!)) "mut_arr" mut_arr/377))
-val mut_arr : int array = [|1; 2; 3|]
+val mut_arr : int array @@ global many = [|1; 2; 3|]
 |}]
 
 let _ = mut_arr.(1);;
@@ -169,7 +169,7 @@ let mut_arr : int alias = [| 1; 2; 3 |];;
 type 'a alias = 'a array
 (let (mut_arr/429 =[intarray] (makearray[int] 1 2 3))
   (apply (field_imm 1 (global Toploop!)) "mut_arr" mut_arr/429))
-val mut_arr : int alias = [|1; 2; 3|]
+val mut_arr : int alias @@ global many = [|1; 2; 3|]
 |}];;
 
 let _ = mut_arr.(1);;
@@ -198,13 +198,13 @@ let mut_arr = to_array arr;;
 [%%expect {|
 (let (arr/430 = (makearray_imm[int] 1 2 3))
   (apply (field_imm 1 (global Toploop!)) "arr" arr/430))
-val arr : int iarray = [:1; 2; 3:]
+val arr : int iarray @@ global many = [:1; 2; 3:]
 (let
   (arr/430 = (apply (field_imm 0 (global Toploop!)) "arr")
    mut_arr/431 =[intarray]
      (apply (field_imm 12 (global Stdlib_stable__Iarray!)) arr/430))
   (apply (field_imm 1 (global Toploop!)) "mut_arr" mut_arr/431))
-val mut_arr : int array = [|1; 2; 3|]
+val mut_arr : int array @@ global many = [|1; 2; 3|]
 |}];;
 
 let _ = mut_arr.(1);;

@@ -12,12 +12,12 @@ Error: This kind of expression is not allowed as right-hand side of "let rec"
 
 let rec e = lazy (fun _ -> f) and f = ();;
 [%%expect{|
-val e : ('a -> unit) lazy_t = lazy <fun>
-val f : unit = ()
+val e : ('a -> unit) lazy_t @@ global many = lazy <fun>
+val f : unit @@ global many = ()
 |}];;
 
 let rec x = lazy (Lazy.force x + Lazy.force x)
   ;;
 [%%expect{|
-val x : int Lazy.t = <lazy>
+val x : int Lazy.t @@ global many = <lazy>
 |}];;

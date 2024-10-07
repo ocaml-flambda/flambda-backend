@@ -80,7 +80,7 @@ let f4 (_ : Function_b.take_t) = ()
 let x1 = f4 Function_b.f_opt
 
 [%%expect{|
-val f4 : Function_b.take_t -> unit = <fun>
+val f4 : Function_b.take_t -> unit @@ global many = <fun>
 Line 2, characters 12-28:
 2 | let x1 = f4 Function_b.f_opt
                 ^^^^^^^^^^^^^^^^
@@ -97,7 +97,7 @@ let f5 (_ : Function_b.return_t) = ()
 let x2 = f5 Function_b.f_opt_2
 
 [%%expect{|
-val f5 : Function_b.return_t -> unit = <fun>
+val f5 : Function_b.return_t -> unit @@ global many = <fun>
 Line 2, characters 12-30:
 2 | let x2 = f5 Function_b.f_opt_2
                 ^^^^^^^^^^^^^^^^^^

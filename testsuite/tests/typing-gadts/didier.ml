@@ -19,7 +19,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Int
 
-val fbool : 't -> 't ty -> 't = <fun>
+val fbool : 't -> 't ty -> 't @@ global many = <fun>
 |}];;
 (* val fbool : 'a -> 'a ty -> 'a = <fun> *)
 (** OK: the return value is x of type t **)
@@ -36,7 +36,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 Bool
 
-val fint : 't -> 't ty -> bool = <fun>
+val fint : 't -> 't ty -> bool @@ global many = <fun>
 |}];;
 (* val fint : 'a -> 'a ty -> bool = <fun> *)
 (** OK: the return value is x > 0 of type bool;
@@ -49,7 +49,7 @@ let f (type t) (x : t) (tag : t ty) =
   | Bool -> x
 ;;
 [%%expect{|
-val f : 't -> 't ty -> bool = <fun>
+val f : 't -> 't ty -> bool @@ global many = <fun>
 |}, Principal{|
 Line 4, characters 12-13:
 4 |   | Bool -> x
@@ -92,7 +92,7 @@ let g (type t) (x : t) (tag : t ty) : bool =
   | Int -> x > 0
 ;;
 [%%expect{|
-val g : 't -> 't ty -> bool = <fun>
+val g : 't -> 't ty -> bool @@ global many = <fun>
 |}];;
 
 let id x = x;;
@@ -106,11 +106,11 @@ let g (type t) (x : t) (tag : t ty) =
   | Int -> x > 0
 ;;
 [%%expect{|
-val id : 'a -> 'a = <fun>
-val idb1 : bool -> bool = <fun>
-val idb2 : bool -> bool = <fun>
-val idb3 : bool -> bool = <fun>
-val g : 't -> 't ty -> bool = <fun>
+val id : 'a -> 'a @@ global many = <fun>
+val idb1 : bool -> bool @@ global many = <fun>
+val idb2 : bool -> bool @@ global many = <fun>
+val idb3 : bool -> bool @@ global many = <fun>
+val g : 't -> 't ty -> bool @@ global many = <fun>
 |}];;
 
 let g (type t) (x : t) (tag : t ty) =
@@ -119,5 +119,5 @@ let g (type t) (x : t) (tag : t ty) =
   | Int -> x > 0
 ;;
 [%%expect{|
-val g : 't -> 't ty -> bool = <fun>
+val g : 't -> 't ty -> bool @@ global many = <fun>
 |}];;

@@ -64,7 +64,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 (BoolLit, true)
 
-val check : 's t * 's -> bool = <fun>
+val check : 's t * 's -> bool @@ global many = <fun>
 |}];;
 
 type ('a, 'b) pair = { fst : 'a; snd : 'b }
@@ -83,5 +83,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 {fst=BoolLit; snd=true}
 
-val check : ('s t, 's) pair -> bool = <fun>
+val check : ('s t, 's) pair -> bool @@ global many = <fun>
 |}];;

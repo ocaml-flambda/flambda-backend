@@ -29,12 +29,13 @@ Error: [%call_pos] can only exist as the type of a labelled argument
 
 let apply f = f ~call_pos:Lexing.dummy_pos () ;;
 [%%expect {|
-val apply : (call_pos:Lexing.position -> unit -> 'a) -> 'a = <fun>
+val apply : (call_pos:Lexing.position -> unit -> 'a) -> 'a @@ global many =
+  <fun>
 |}]
 
 let g = fun ~(call_pos:[%call_pos]) () -> ()
 [%%expect{|
-val g : call_pos:[%call_pos] -> unit -> unit = <fun>
+val g : call_pos:[%call_pos] -> unit -> unit @@ global many = <fun>
 |}]
 
 let _ = apply g ;;
@@ -77,7 +78,8 @@ Hint: Consider explicitly annotating the label with "[%call_pos]"
 
 let n = fun ~(call_pos:[%call_pos]) () -> call_pos
 [%%expect{|
-val n : call_pos:[%call_pos] -> unit -> lexing_position = <fun>
+val n : call_pos:[%call_pos] -> unit -> lexing_position @@ global many =
+  <fun>
 |}]
 
 let _ = n Lexing.dummy_pos ();;
@@ -125,6 +127,7 @@ Line 1, characters 45-48:
                                                  ^^^
 Warning 188 [unerasable-position-argument]: this position argument cannot be erased.
 
-val this_object_has_an_unerasable_argument : pos:[%call_pos] -> <  > = <fun>
+val this_object_has_an_unerasable_argument : pos:[%call_pos] -> <  > @@
+  global many = <fun>
 |}]
 

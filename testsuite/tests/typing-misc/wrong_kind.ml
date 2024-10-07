@@ -46,29 +46,33 @@ end;;
 module Constr :
   sig
     type t = A | B | C
-    val get : 'a -> 'b -> t
-    val put : (unit -> t) -> unit
+    val get : 'a -> 'b -> t @@ global many portable
+    val put : (unit -> t) -> unit @@ global many
   end
 module Record :
   sig
     type t = { a : int; b : int; c : int; }
-    val get : 'a -> 'b -> t
-    val put : (unit -> t) -> unit
+    val get : 'a -> 'b -> t @@ global many portable
+    val put : (unit -> t) -> unit @@ global many
   end
 module Bool :
   sig
     type t = true | false
-    val get : 'a -> 'b -> t
-    val put : (unit -> t) -> unit
+    val get : 'a -> 'b -> t @@ global many portable
+    val put : (unit -> t) -> unit @@ global many
   end
 module List :
   sig
     type 'a t = [] | (::) of 'a * 'a t
-    val get : 'a -> 'b -> 'c t
-    val put : (unit -> int t) -> unit
+    val get : 'a -> 'b -> 'c t @@ global many portable
+    val put : (unit -> int t) -> unit @@ global many
   end
 module Unit :
-  sig type t = () val get : 'a -> 'b -> t val put : (unit -> t) -> unit end
+  sig
+    type t = ()
+    val get : 'a -> 'b -> t @@ global many portable
+    val put : (unit -> t) -> unit @@ global many
+  end
 |}]
 
 let () =

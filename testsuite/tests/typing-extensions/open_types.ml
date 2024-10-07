@@ -313,7 +313,7 @@ Here is an example of a case that is not matched:
 Matching over values of extensible variant types (the *extension* above)
 must include a wild card pattern in order to be exhaustive.
 
-val f : foo -> unit = <fun>
+val f : foo -> unit @@ global many = <fun>
 |}]
 
 (* More complex exhaustiveness *)
@@ -335,7 +335,7 @@ Here is an example of a case that is not matched:
 Matching over values of extensible variant types (the *extension* above)
 must include a wild card pattern in order to be exhaustive.
 
-val f : foo list -> int = <fun>
+val f : foo list -> int @@ global many = <fun>
 |}]
 
 
@@ -359,5 +359,5 @@ Here is an example of a case that is not matched:
 Matching over values of extensible variant types (the *extension* above)
 must include a wild card pattern in order to be exhaustive.
 
-val f : t -> string = <fun>
+val f : t -> string @@ global many = <fun>
 |}]

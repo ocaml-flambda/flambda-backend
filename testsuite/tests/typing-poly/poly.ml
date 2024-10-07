@@ -17,7 +17,7 @@ let f l = { fold = List.fold_left l };;
 [%%expect {|
 type 'a t = { t : 'a; }
 type 'a fold = { fold : 'b. f:('b -> 'a -> 'b) -> init:'b -> 'b; }
-val f : 'a list -> 'a fold = <fun>
+val f : 'a list -> 'a fold @@ global many = <fun>
 - : int = 6
 |}];;
 
@@ -32,13 +32,13 @@ let id x = x;;
 let {id} = id { id };;
 [%%expect {|
 type id = { id : 'a. 'a -> 'a; }
-val id : 'a -> 'a = <fun>
-val id : 'a -> 'a = <fun>
+val id : 'a -> 'a @@ global many = <fun>
+val id : 'a -> 'a @@ global many = <fun>
 |}];;
 
 let px = {pv = []};;
 [%%expect {|
-val px : pty = {pv = []}
+val px : pty @@ global many = {pv = []}
 |}];;
 
 match px with
@@ -147,7 +147,7 @@ let ilist2 l = object
 end
 ;;
 [%%expect {|
-val ilist2 : 'a list -> 'a vlist = <fun>
+val ilist2 : 'a list -> 'a vlist @@ global many = <fun>
 |}];;
 
 class ['a] ilist3 l = object
@@ -344,7 +344,11 @@ module V =
   end
 ;;
 [%%expect {|
-module V : sig type v = [ `A | `B | `C ] val m : [< v ] -> int end
+module V :
+  sig
+    type v = [ `A | `B | `C ]
+    val m : [< v ] -> int @@ global many portable
+  end
 |}];;
 
 class varj = object
@@ -386,7 +390,7 @@ module M : T
 
 let v = new M.vari;;
 [%%expect {|
-val v : M.vari = <obj>
+val v : M.vari @@ global many = <obj>
 |}];;
 
 v#m `A;;
@@ -457,12 +461,12 @@ let f (x : < m : 'a. 'a -> 'a >) = (x : < m : 'b. 'b -> 'b >)
 let f (x : < m : 'a. 'a -> 'a list >) = (x : < m : 'b. 'b -> 'c >)
 ;;
 [%%expect {|
-val p0 : point = <obj>
-val p1 : point = <obj>
-val cp : color_point = <obj>
-val c : circle = <obj>
-val d : float = 11.
-val f : < m : 'a. 'a -> 'a > -> < m : 'b. 'b -> 'b > = <fun>
+val p0 : point @@ global many = <obj>
+val p1 : point @@ global many = <obj>
+val cp : color_point @@ global many = <obj>
+val c : circle @@ global many = <obj>
+val d : float @@ global many = 11.
+val f : < m : 'a. 'a -> 'a > -> < m : 'b. 'b -> 'b > @@ global many = <fun>
 Line 9, characters 41-42:
 9 | let f (x : < m : 'a. 'a -> 'a list >) = (x : < m : 'b. 'b -> 'c >)
                                              ^
@@ -585,8 +589,8 @@ let f3 f = f#id 1, f#id true
 let f4 f = ignore(f : id); f#id 1, f#id true
 ;;
 [%%expect {|
-val f1 : id -> int * bool = <fun>
-val f2 : id -> int * bool = <fun>
+val f1 : id -> int * bool @@ global many = <fun>
+val f2 : id -> int * bool @@ global many = <fun>
 Line 5, characters 24-28:
 5 | let f3 f = f#id 1, f#id true
                             ^^^^
@@ -616,7 +620,7 @@ type 'a foo = 'a foo list
 ;;
 [%%expect {|
 class id2 : object method id : 'a -> 'a method mono : int -> int end
-val app : int * bool = (1, true)
+val app : int * bool @@ global many = (1, true)
 Line 9, characters 0-25:
 9 | type 'a foo = 'a foo list
     ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -646,7 +650,7 @@ fun (x : <m:'a.<p:'a;..> >) -> x#m;;
 - : (< m : 'a. 'b * 'a list > as 'b) -> 'b * 'c list = <fun>
 val f :
   (< m : 'b. 'a * (< n : 'b; .. > as 'b) > as 'a) ->
-  'a * (< n : 'c; .. > as 'c) = <fun>
+  'a * (< n : 'c; .. > as 'c) @@ global many = <fun>
 - : (< p : 'b. < m : 'b; n : 'a; .. > as 'b > as 'a) ->
     (< m : 'c; n : 'a; .. > as 'c)
 = <fun>
@@ -661,8 +665,8 @@ val f :
 = <fun>
 val f :
   (< m : 'b. 'a * (< n : 'b; .. > as 'b) > as 'a) ->
-  (< m : 'd. 'c * (< n : 'd; .. > as 'd) > as 'c) * (< n : 'e; .. > as 'e) =
-  <fun>
+  (< m : 'd. 'c * (< n : 'd; .. > as 'd) > as 'c) * (< n : 'e; .. > as 'e) @@
+  global many = <fun>
 - : (< p : 'b. < m : 'b; n : 'a; .. > as 'b > as 'a) ->
     (< m : 'c; n : < p : 'e. < m : 'e; n : 'd; .. > as 'e > as 'd; .. > as 'c)
 = <fun>
@@ -755,7 +759,7 @@ let append (l : 'a #olist) (l' : 'b #olist) =
   l#fold ~init:l' ~f:(fun x acc -> acc#cons x)
 ;;
 [%%expect {|
-val id : 'a -> 'a = <fun>
+val id : 'a -> 'a @@ global many = <fun>
 class c : object method id : 'a -> 'a end
 class c' : object method id : 'a -> 'a end
 class d :
@@ -772,9 +776,9 @@ class ['a] olist :
     method cons : 'a -> 'c
     method fold : f:('a -> 'b -> 'b) -> init:'b -> 'b
   end
-val sum : int #olist -> int = <fun>
-val count : 'a #olist -> int = <fun>
-val append : 'a #olist -> ('a #olist as 'b) -> 'b = <fun>
+val sum : int #olist -> int @@ global many = <fun>
+val count : 'a #olist -> int @@ global many = <fun>
+val append : 'a #olist -> ('a #olist as 'b) -> 'b @@ global many = <fun>
 |}];;
 
 type 'a t = unit
@@ -841,13 +845,16 @@ Error: This field value has type "'b option ref" which is less general than
 let f (x: <m:'a.<p: 'a * 'b> as 'b>) (y : 'b) = ();;
 let f (x: <m:'a. 'a * (<p:int*'b> as 'b)>) (y : 'b) = ();;
 [%%expect {|
-val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit = <fun>
-val f : < m : 'a. 'a * (< p : int * 'b > as 'b) > -> 'b -> unit = <fun>
+val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit @@ global many =
+  <fun>
+val f : < m : 'a. 'a * (< p : int * 'b > as 'b) > -> 'b -> unit @@ global
+  many = <fun>
 |}, Principal{|
-val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit = <fun>
+val f : < m : 'a. < p : 'a * 'c > as 'c > -> 'b -> unit @@ global many =
+  <fun>
 val f :
   < m : 'a. 'a * (< p : int * 'b > as 'b) > ->
-  (< p : int * 'c > as 'c) -> unit = <fun>
+  (< p : int * 'c > as 'c) -> unit @@ global many = <fun>
 |}];;
 
 (* PR#3643 *)
@@ -1107,15 +1114,15 @@ let o = object (_ : 's)
 end;;
 [%%expect {|
 class c : object method m : int end
-val f : unit -> c = <fun>
-val f : unit -> c = <fun>
+val f : unit -> c @@ global many = <fun>
+val f : unit -> c @@ global many = <fun>
 Line 4, characters 11-60:
 4 | let f () = object method private n = 1 method m = {<>}#n end;;
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 15 [implicit-public-methods]: the following private methods were made public implicitly:
  n.
 
-val f : unit -> < m : int; n : int > = <fun>
+val f : unit -> < m : int; n : int > @@ global many = <fun>
 Line 5, characters 27-39:
 5 | let f () = object (self:c) method n = 1 method m = 2 end;;
                                ^^^^^^^^^^^^
@@ -1180,13 +1187,17 @@ Line 3, characters 2-64:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : (< m : 'a. 'a * ('a * 'b) > as 'b) -> unit end
+         sig
+           val f : (< m : 'a. 'a * ('a * 'b) > as 'b) -> unit @@ global many
+             portable
+         end
        is not included in
          sig
            val f : < m : 'b. 'b * ('b * < m : 'c. 'c * 'a > as 'a) > -> unit
          end
        Values do not match:
-         val f : (< m : 'a. 'a * ('a * 'b) > as 'b) -> unit
+         val f : (< m : 'a. 'a * ('a * 'b) > as 'b) -> unit @@ global many
+           portable
        is not included in
          val f : < m : 'b. 'b * ('b * < m : 'c. 'c * 'a > as 'a) > -> unit
        The type "(< m : 'a. 'a * ('a * 'd) > as 'd) -> unit"
@@ -1217,7 +1228,7 @@ let f x y =
 [%%expect {|
 val f :
   (< m : 'a. 'a -> (< m : 'a. 'a -> 'c * <  > > as 'c) * < .. >; .. > as 'b) ->
-  'b -> bool = <fun>
+  'b -> bool @@ global many = <fun>
 |}];;
 
 
@@ -1278,28 +1289,32 @@ fun x -> (f (x,x))#m;; (* Warning 18 *)
 let f x = if true then [| (x : < m : 'a. 'a -> 'a >) |] else [|x|];;
 fun x -> (f x).(0)#m;; (* Warning 18 *)
 [%%expect {|
-val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > = <fun>
+val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > @@ global many = <fun>
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > = <fun>
+val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > @@ global many =
+  <fun>
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array = <fun>
+val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array @@ global many =
+  <fun>
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
 |}, Principal{|
-val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > = <fun>
+val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > @@ global many = <fun>
 Line 2, characters 9-16:
 2 | fun x -> (f x)#m;; (* Warning 18 *)
              ^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > = <fun>
+val f : < m : 'a. 'a -> 'a > * 'b -> < m : 'a. 'a -> 'a > @@ global many =
+  <fun>
 Line 4, characters 9-20:
 4 | fun x -> (f (x,x))#m;; (* Warning 18 *)
              ^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
 - : < m : 'a. 'a -> 'a > -> 'b -> 'b = <fun>
-val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array = <fun>
+val f : < m : 'a. 'a -> 'a > -> < m : 'a. 'a -> 'a > array @@ global many =
+  <fun>
 Line 6, characters 9-20:
 6 | fun x -> (f x).(0)#m;; (* Warning 18 *)
              ^^^^^^^^^^^
@@ -1322,27 +1337,27 @@ let h x =
 [%%expect {|
 class c : object method id : 'a -> 'a end
 type u = c option
-val just : 'a option -> 'a = <fun>
-val f : c -> 'a -> 'a = <fun>
-val g : c -> 'a -> 'a = <fun>
-val h : < id : 'a; .. > -> 'a = <fun>
+val just : 'a option -> 'a @@ global many = <fun>
+val f : c -> 'a -> 'a @@ global many = <fun>
+val g : c -> 'a -> 'a @@ global many = <fun>
+val h : < id : 'a; .. > -> 'a @@ global many = <fun>
 |}, Principal{|
 class c : object method id : 'a -> 'a end
 type u = c option
-val just : 'a option -> 'a = <fun>
+val just : 'a option -> 'a @@ global many = <fun>
 Line 4, characters 42-62:
 4 | let f x = let l = [Some x; (None : u)] in (just(List.hd l))#id;;
                                               ^^^^^^^^^^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
-val f : c -> 'a -> 'a = <fun>
+val f : c -> 'a -> 'a @@ global many = <fun>
 Line 7, characters 36-47:
 7 |   let x = List.hd [Some x; none] in (just x)#id;;
                                         ^^^^^^^^^^^
 Warning 18 [not-principal]: this use of a polymorphic method is not principal.
 
-val g : c -> 'a -> 'a = <fun>
-val h : < id : 'a; .. > -> 'a = <fun>
+val g : c -> 'a -> 'a @@ global many = <fun>
+val h : < id : 'a; .. > -> 'a @@ global many = <fun>
 |}];;
 
 (* Only solved for parameterless abbreviations *)
@@ -1351,8 +1366,8 @@ let just = function None -> failwith "just" | Some x -> x;;
 let f x = let l = [Some x; (None : _ u)] in (just(List.hd l))#id;;
 [%%expect {|
 type 'a u = c option
-val just : 'a option -> 'a = <fun>
-val f : c -> 'a -> 'a = <fun>
+val just : 'a option -> 'a @@ global many = <fun>
+val f : c -> 'a -> 'a @@ global many = <fun>
 |}];;
 
 (* polymorphic recursion *)
@@ -1376,12 +1391,12 @@ let f : 'a. _ -> _ = fun x -> x;;
 let zero : 'a. [> `Int of int | `B of 'a] as 'a  = `Int 0;; (* ok *)
 let zero : 'a. [< `Int of int] as 'a = `Int 0;; (* fails *)
 [%%expect {|
-val f : 'a -> int = <fun>
-val g : 'a -> int = <fun>
+val f : 'a -> int @@ global many = <fun>
+val g : 'a -> int @@ global many = <fun>
 type 'a t = Leaf of 'a | Node of ('a * 'a) t
-val depth : 'a t -> int = <fun>
-val depth : 'a t -> int = <fun>
-val d : ('a * 'a) t -> int = <fun>
+val depth : 'a t -> int @@ global many = <fun>
+val depth : 'a t -> int @@ global many = <fun>
+val d : ('a * 'a) t -> int @@ global many = <fun>
 Line 9, characters 2-46:
 9 |   function Leaf x -> x | Node x -> 1 + depth x;; (* fails *)
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1396,7 +1411,7 @@ type t = {f: 'a. [< `Int of int] as 'a}
 let zero = {f = `Int 0} ;; (* fails *)
 [%%expect {|
 type t = { f : 'a. [> `B of 'a | `Int of int ] as 'a; }
-val zero : t = {f = `Int 0}
+val zero : t @@ global many = {f = `Int 0}
 type t = { f : 'a. [< `Int of int ] as 'a; }
 Line 4, characters 16-22:
 4 | let zero = {f = `Int 0} ;; (* fails *)
@@ -1411,8 +1426,8 @@ Error: This expression has type "[> `Int of int ]"
 let rec id : 'a. 'a -> 'a = fun x -> x
 and neg i b = (id (-i), id (not b));;
 [%%expect {|
-val id : 'a -> 'a = <fun>
-val neg : int -> bool -> int * bool = <fun>
+val id : 'a -> 'a @@ global many = <fun>
+val neg : int -> bool -> int * bool @@ global many = <fun>
 |}];;
 
 (* De Xavier *)
@@ -1431,8 +1446,9 @@ and transf_alist : 'a. _ -> ('a*t) list -> ('a*t) list = fun f -> function
   | (k,v)::tl -> (k, transf f v) :: transf_alist f tl
 ;;
 [%%expect {|
-val transf : (int -> t) -> t -> t = <fun>
-val transf_alist : (int -> t) -> ('a * t) list -> ('a * t) list = <fun>
+val transf : (int -> t) -> t -> t @@ global many = <fun>
+val transf_alist : (int -> t) -> ('a * t) list -> ('a * t) list @@ global
+  many = <fun>
 |}];;
 
 (* PR#4862 *)
@@ -1441,7 +1457,7 @@ type t = {f: 'a. ('a list -> int) Lazy.t}
 let l : t = { f = lazy (raise Not_found)};;
 [%%expect {|
 type t = { f : 'a. ('a list -> int) Lazy.t; }
-val l : t = {f = <lazy>}
+val l : t @@ global many = {f = <lazy>}
 |}];;
 
 (* variant *)
@@ -1469,9 +1485,9 @@ end;;
 module Polux :
   sig
     type 'par t = 'par
-    val ident : 'a -> 'a
+    val ident : 'a -> 'a @@ global many portable
     class alias : object method alias : 'a t -> 'a end
-    val f : < m : 'a. 'a t > -> < m : 'a. 'a >
+    val f : < m : 'a. 'a t > -> < m : 'a. 'a > @@ global many portable
   end
 |}];;
 
@@ -1511,7 +1527,7 @@ let using_match b =
   f 0,f
 ;;
 [%%expect {|
-val using_match : bool -> int * ('a -> 'a) = <fun>
+val using_match : bool -> int * ('a -> 'a) @@ global many = <fun>
 |}];;
 
 match (fun x -> x), fun x -> x with x, y -> x, y;;
@@ -1527,13 +1543,13 @@ let n = object
   method m : 'x 'o. ([< `Foo of 'x] as 'o) -> 'x = fun x -> assert false
 end;;
 [%%expect {|
-val n : < m : 'x 'a. ([< `Foo of 'x ] as 'a) -> 'x > = <obj>
+val n : < m : 'x 'a. ([< `Foo of 'x ] as 'a) -> 'x > @@ global many = <obj>
 |}];;
 (* ok, due to implicit `'o. [< `Foo of _ ] as 'o`  *)
 let n =
   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
 [%%expect {|
-val n : < m : 'a 'x. ([< `Foo of 'x ] as 'a) -> 'x > = <obj>
+val n : < m : 'a 'x. ([< `Foo of 'x ] as 'a) -> 'x > @@ global many = <obj>
 |}];;
 (* fail *)
 let (n : < m : 'a. [< `Foo of int] -> 'a >) =
@@ -1565,7 +1581,7 @@ let f (n : < m : 'a 'r. [< `Foo of 'a & int | `Bar] as 'r >) =
 [%%expect{|
 val f :
   < m : 'a 'c. [< `Bar | `Foo of 'a & int ] as 'c > ->
-  < m : 'b 'd. [< `Bar | `Foo of 'b & int ] as 'd > = <fun>
+  < m : 'b 'd. [< `Bar | `Foo of 'b & int ] as 'd > @@ global many = <fun>
 |}]
 (* fail? *)
 let f (n : < m : 'a 'r. [< `Foo of 'a & int | `Bar] as 'r >) =
@@ -1587,7 +1603,7 @@ let f (n : < m : 'a. [< `Foo of 'a & int | `Bar] >) =
 [%%expect{|
 val f :
   < m : 'c 'a. [< `Bar | `Foo of 'a & int ] as 'c > ->
-  < m : 'd 'b. [< `Bar | `Foo of 'b & int ] as 'd > = <fun>
+  < m : 'd 'b. [< `Bar | `Foo of 'b & int ] as 'd > @@ global many = <fun>
 |}]
 
 (* PR#6171 *)
@@ -1623,10 +1639,10 @@ let rec f1 o c x =
 type 'a t = V1 of 'a
 type ('c, 't) pvariant = [ `V of 'c * 't t ]
 class ['c] clss : object method mthod : 'c -> 't t -> ('c, 't) pvariant end
-val f2 : 'a -> 'b -> 'c t -> 'c t = <fun>
+val f2 : 'a -> 'b -> 'c t -> 'c t @@ global many = <fun>
 val f1 :
   < mthod : 't. 'a -> 't t -> [< `V of 'a * 't t ]; .. > ->
-  'a -> 'b t -> 'b t = <fun>
+  'a -> 'b t -> 'b t @@ global many = <fun>
 |}]
 
 (* PR#7285 *)
@@ -1635,8 +1651,8 @@ let f (x : int) : ('a,'a) foo = Obj.magic x;;
 let x = f 3;;
 [%%expect{|
 type (+'a, -'b) foo = private int
-val f : int -> ('a, 'a) foo = <fun>
-val x : ('_weak1, '_weak1) foo = 3
+val f : int -> ('a, 'a) foo @@ global many = <fun>
+val x : ('_weak1, '_weak1) foo @@ global many = 3
 |}]
 
 
@@ -1647,7 +1663,7 @@ let rec f : unit -> < m: 'a. 'a -> 'a> = fun () ->
   ignore (x#m "hello");
   assert false;;
 [%%expect{|
-val f : unit -> < m : 'a. 'a -> 'a > = <fun>
+val f : unit -> < m : 'a. 'a -> 'a > @@ global many = <fun>
 |}]
 
 (* PR#7395 *)
@@ -1660,7 +1676,7 @@ let c (f : u -> u) =
 [%%expect{|
 type u
 type 'a t = u
-val c : (u -> u) -> < apply : 'a. u -> u > = <fun>
+val c : (u -> u) -> < apply : 'a. u -> u > @@ global many = <fun>
 |}]
 
 (* PR#7496 *)
@@ -1672,9 +1688,9 @@ let f t = { x = t.x };;
 [%%expect{|
 val f :
   < m : 'a. ([< `Foo of int & float ] as 'a) -> unit > ->
-  < m : 'b. ([< `Foo of int & float ] as 'b) -> unit > = <fun>
+  < m : 'b. ([< `Foo of int & float ] as 'b) -> unit > @@ global many = <fun>
 type t = { x : 'a. ([< `Foo of int & float ] as 'a) -> unit; }
-val f : t -> t = <fun>
+val f : t -> t @@ global many = <fun>
 |}]
 
 type t = <m:int>
@@ -1716,7 +1732,7 @@ type c = <a:int; d:string>
 let s:c = object method a=1; method d="123" end
 [%%expect{|
 type c = < a : int; d : string >
-val s : c = <obj>
+val s : c @@ global many = <obj>
 |}]
 
 type 'a t = < m: 'a >
@@ -1775,7 +1791,7 @@ Error: Illegal open object type
 
 let g = fun (y : ('a * 'b)) x -> (x : < <m: 'a> ; <m: 'b> >)
 [%%expect{|
-val g : 'a * 'a -> < m : 'a > -> < m : 'a > = <fun>
+val g : 'a * 'a -> < m : 'a > -> < m : 'a > @@ global many = <fun>
 |}]
 
 type 'a t = <m: 'a ; m: int>
@@ -1798,10 +1814,10 @@ external reraise : exn -> 'a = "%reraise"
 module M :
   functor () ->
     sig
-      val f : ('a : any). 'a -> 'a
-      val g : ('a : any). 'a -> 'a
-      val h : ('a : any). 'a -> 'a
-      val i : ('a : any). 'a -> 'a
+      val f : ('a : any). 'a -> 'a @@ global many portable
+      val g : ('a : any). 'a -> 'a @@ global many
+      val h : ('a : any). 'a -> 'a @@ global many
+      val i : ('a : any). 'a -> 'a @@ global many
     end
 |}]
 
@@ -1825,16 +1841,16 @@ let id x = x;;
 [%%expect{|
 type 'a t = 'a constraint 'a = 'b list
 type 'a s = 'a list
-val id : 'a -> 'a = <fun>
+val id : 'a -> 'a @@ global many = <fun>
 |}]
 
 let x : [ `Foo of _ s | `Foo of 'a t ] = id (`Foo []);;
 [%%expect{|
-val x : [ `Foo of 'a s ] = `Foo []
+val x : [ `Foo of 'a s ] @@ global many = `Foo []
 |}]
 let x : [ `Foo of 'a t | `Foo of _ s ] = id (`Foo []);;
 [%%expect{|
-val x : [ `Foo of 'a list t ] = `Foo []
+val x : [ `Foo of 'a list t ] @@ global many = `Foo []
 |}]
 
 (* generalize spine of inherited methods too *)
@@ -1951,7 +1967,7 @@ let simple: 'a. 'a -> [> `X of 'a ] -> 'a = fun default ->
   | `X x -> x
   | _ -> default
 [%%expect {|
-val simple : 'a -> [> `X of 'a ] -> 'a = <fun>
+val simple : 'a -> [> `X of 'a ] -> 'a @@ global many = <fun>
 |}]
 
 type 'a w = Int: int w
@@ -1961,7 +1977,7 @@ let locally_abstract: type a. a w -> [> `X of a ] -> a = fun Int ->
   | _ -> 0
 [%%expect {|
 type 'a w = Int : int w
-val locally_abstract : 'a w -> [> `X of 'a ] -> 'a = <fun>
+val locally_abstract : 'a w -> [> `X of 'a ] -> 'a @@ global many = <fun>
 |}]
 
 let nested: 'a.
@@ -1976,7 +1992,7 @@ val nested :
   < m : 'c 'b.
           < n : 'irr.
                   ('irr -> unit) * (([> `X of 'a | `Y of 'b ] as 'c) -> 'a) > > ->
-  'a = <fun>
+  'a @@ global many = <fun>
 |}]
 
 let fail: 'a . 'a -> [> `X of 'a ] -> 'a = fun x y ->
@@ -1998,7 +2014,8 @@ let fail_example_corrected: 'a . 'a -> [< `X of 'a | `Y ] -> 'a = fun x y ->
   | `Y -> x
   | `X x -> x
 [%%expect {|
-val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
+val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a @@ global many =
+  <fun>
 |}]
 
 
@@ -2007,7 +2024,7 @@ val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 
 let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
+val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a @@ global many = <fun>
 |}]
 
 
@@ -2051,7 +2068,7 @@ let simple: 'a. 'a -> [> `X of 'a ] -> 'a = fun default ->
   | `X x -> x
   | _ -> default
 [%%expect {|
-val simple : 'a -> [> `X of 'a ] -> 'a = <fun>
+val simple : 'a -> [> `X of 'a ] -> 'a @@ global many = <fun>
 |}]
 
 type 'a w = Int: int w
@@ -2061,7 +2078,7 @@ let locally_abstract: type a. a w -> [> `X of a ] -> a = fun Int ->
   | _ -> 0
 [%%expect {|
 type 'a w = Int : int w
-val locally_abstract : 'a w -> [> `X of 'a ] -> 'a = <fun>
+val locally_abstract : 'a w -> [> `X of 'a ] -> 'a @@ global many = <fun>
 |}]
 
 let nested: 'a.
@@ -2076,7 +2093,7 @@ val nested :
   < m : 'c 'b.
           < n : 'irr.
                   ('irr -> unit) * (([> `X of 'a | `Y of 'b ] as 'c) -> 'a) > > ->
-  'a = <fun>
+  'a @@ global many = <fun>
 |}]
 
 let fail: 'a . 'a -> [> `X of 'a ] -> 'a = fun x y ->
@@ -2098,7 +2115,8 @@ let fail_example_corrected: 'a . 'a -> [< `X of 'a | `Y ] -> 'a = fun x y ->
   | `Y -> x
   | `X x -> x
 [%%expect {|
-val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
+val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a @@ global many =
+  <fun>
 |}]
 
 
@@ -2107,7 +2125,7 @@ val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 
 let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
+val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a @@ global many = <fun>
 |}]
 
 
@@ -2151,7 +2169,7 @@ let simple: 'a. 'a -> [> `X of 'a ] -> 'a = fun default ->
   | `X x -> x
   | _ -> default
 [%%expect {|
-val simple : 'a -> [> `X of 'a ] -> 'a = <fun>
+val simple : 'a -> [> `X of 'a ] -> 'a @@ global many = <fun>
 |}]
 
 type 'a w = Int: int w
@@ -2161,7 +2179,7 @@ let locally_abstract: type a. a w -> [> `X of a ] -> a = fun Int ->
   | _ -> 0
 [%%expect {|
 type 'a w = Int : int w
-val locally_abstract : 'a w -> [> `X of 'a ] -> 'a = <fun>
+val locally_abstract : 'a w -> [> `X of 'a ] -> 'a @@ global many = <fun>
 |}]
 
 let nested: 'a.
@@ -2176,7 +2194,7 @@ val nested :
   < m : 'c 'b.
           < n : 'irr.
                   ('irr -> unit) * (([> `X of 'a | `Y of 'b ] as 'c) -> 'a) > > ->
-  'a = <fun>
+  'a @@ global many = <fun>
 |}]
 
 let fail: 'a . 'a -> [> `X of 'a ] -> 'a = fun x y ->
@@ -2198,7 +2216,8 @@ let fail_example_corrected: 'a . 'a -> [< `X of 'a | `Y ] -> 'a = fun x y ->
   | `Y -> x
   | `X x -> x
 [%%expect {|
-val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
+val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a @@ global many =
+  <fun>
 |}]
 
 
@@ -2207,7 +2226,7 @@ val fail_example_corrected : 'a -> [< `X of 'a | `Y ] -> 'a = <fun>
 
 let discrepancy: 'a. <x:'a; ..> -> 'a = fun o -> o#y (); o#x
 [%%expect {|
-val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a = <fun>
+val discrepancy : < x : 'a; y : unit -> 'b; .. > -> 'a @@ global many = <fun>
 |}]
 
 

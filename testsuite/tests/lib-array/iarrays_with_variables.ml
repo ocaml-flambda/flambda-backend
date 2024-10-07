@@ -15,15 +15,15 @@ let beta = Sys.opaque_identity "beta";;
 let gamma = Sys.opaque_identity "gamma";;
 
 [%%expect{|
-val one : int = 1
-val two : int = 2
-val three : int = 3
-val phi : float = 1.618
-val e : float = 2.71828182845904509
-val pi : float = 3.14159265358
-val alpha : string = "alpha"
-val beta : string = "beta"
-val gamma : string = "gamma"
+val one : int @@ global many = 1
+val two : int @@ global many = 2
+val three : int @@ global many = 3
+val phi : float @@ global many = 1.618
+val e : float @@ global many = 2.71828182845904509
+val pi : float @@ global many = 3.14159265358
+val alpha : string @@ global many = "alpha"
+val beta : string @@ global many = "beta"
+val gamma : string @@ global many = "gamma"
 |}];;
 
 [:one; two; three:];;

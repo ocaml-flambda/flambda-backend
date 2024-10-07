@@ -8,7 +8,7 @@ module M = struct
 end
 ;;
 [%%expect{|
-module M : sig type t = int val x : int end
+module M : sig type t = int val x : int @@ global many portable end
 |}]
 class c =
   let open M in

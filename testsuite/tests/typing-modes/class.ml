@@ -9,8 +9,8 @@ let unique_use : 'a @ unique -> unit = fun _ -> ()
 
 let portable_use : 'a @ portable -> unit = fun _ -> ()
 [%%expect{|
-val unique_use : 'a @ unique -> unit = <fun>
-val portable_use : 'a @ portable -> unit = <fun>
+val unique_use : 'a @ unique -> unit @@ global many = <fun>
+val portable_use : 'a @ portable -> unit @@ global many = <fun>
 |}]
 
 (* There is a closure_lock of legacy around a class. We test for comonadic and
@@ -104,21 +104,21 @@ class type cla = object method m : string end
 let foo (obj @ local) =
     obj#m
 [%%expect{|
-val foo : local_ < m : 'a; .. > -> 'a = <fun>
+val foo : local_ < m : 'a; .. > -> 'a @@ global many = <fun>
 |}]
 
 (* crosses at function application *)
 let foo (obj @ local) =
     ref (obj : cla)
 [%%expect{|
-val foo : local_ cla -> cla ref = <fun>
+val foo : local_ cla -> cla ref @@ global many = <fun>
 |}]
 
 (* crosses at binding site. This allows the closure to be global. *)
 let foo (obj : cla @@ local) =
     ref (fun () -> let _ = obj in ())
 [%%expect{|
-val foo : local_ cla -> (unit -> unit) ref = <fun>
+val foo : local_ cla -> (unit -> unit) ref @@ global many = <fun>
 |}]
 
 (* Objects don't cross monadic axes. Objects are defined at [uncontended]
@@ -191,7 +191,7 @@ let u =
     in
     portable_use foo
 [%%expect{|
-val u : unit = ()
+val u : unit @@ global many = ()
 |}]
 
 (* objects are always legacy *)

@@ -32,7 +32,10 @@ end
  }
 module Pair :
   functor (X : Stringable) (Y : Stringable) ->
-    sig type t = X.t * Y.t val to_string : X.t * Y.t -> string end
+    sig
+      type t = X.t * Y.t
+      val to_string : X.t * Y.t -> string @@ global many
+    end
 |}]
 
 module Int = struct
@@ -46,7 +49,8 @@ end
                    "to_string"[value] -> <.11>;
                    };
  }
-module Int : sig type t = int val to_string : int -> string end
+module Int :
+  sig type t = int val to_string : int -> string @@ global many end
 |}]
 
 module String = struct
@@ -60,7 +64,8 @@ end
                       "to_string"[value] -> <.15>;
                       };
  }
-module String : sig type t = string val to_string : 'a -> 'a end
+module String :
+  sig type t = string val to_string : 'a -> 'a @@ global many portable end
 |}]
 
 module P = Pair(Int)(Pair(String)(Int))
@@ -74,7 +79,7 @@ module P = Pair(Int)(Pair(String)(Int))
 module P :
   sig
     type t = Int.t * Pair(String)(Int).t
-    val to_string : Int.t * Pair(String)(Int).t -> string
+    val to_string : Int.t * Pair(String)(Int).t -> string @@ global many
   end
 |}];;
 

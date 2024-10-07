@@ -60,9 +60,9 @@ let f {M.x; y} = x+y;;
 let r = {M.x=1; y=2};;
 let z = f r;;
 [%%expect{|
-val f : M.t -> int = <fun>
-val r : M.t = {M.x = 1; y = 2}
-val z : int = 3
+val f : M.t -> int @@ global many = <fun>
+val r : M.t @@ global many = {M.x = 1; y = 2}
+val z : int @@ global many = 3
 |}];;
 
 (* messages *)
@@ -145,7 +145,7 @@ let with_fst r fst = { r with fst };;
 with_fst { fst=""; snd="" } 2;;
 [%%expect{|
 type ('a, 'b) t = { fst : 'a; snd : 'b; }
-val with_fst : ('a, 'b) t -> 'c -> ('c, 'b) t = <fun>
+val with_fst : ('a, 'b) t -> 'c -> ('c, 'b) t @@ global many = <fun>
 - : (int, string) t = {fst = 2; snd = ""}
 |}];;
 
@@ -155,7 +155,7 @@ let x = { f = 12; g = 43 };;
 {x with f = "hola"};;
 [%%expect{|
 type 'a t = { f : 'a; g : 'a; }
-val x : int t = {f = 12; g = 43}
+val x : int t @@ global many = {f = 12; g = 43}
 Line 3, characters 0-19:
 3 | {x with f = "hola"};;
     ^^^^^^^^^^^^^^^^^^^

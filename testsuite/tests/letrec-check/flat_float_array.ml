@@ -24,8 +24,8 @@
 let f (z: int) = let rec x = [| y; z |] and y = z in x;;
 let f (z: bytes) = let rec x = [| y; z |] and y = z in x;;
 [%%expect {|
-val f : int -> int array = <fun>
-val f : bytes -> bytes array = <fun>
+val f : int -> int array @@ global many = <fun>
+val f : bytes -> bytes array @@ global many = <fun>
 |}];;
 
 (* In this test, `z` has a generic/polymorphic type,

@@ -33,7 +33,7 @@ let trivial_annotated (type a) (t : a t) =
 ;;
 
 [%%expect{|
-val trivial_annotated : 'a t -> unit = <fun>
+val trivial_annotated : 'a t -> unit @@ global many = <fun>
 |}]
 
 let trivial_merged t =
@@ -58,7 +58,7 @@ let trivial_merged_annotated (type a) (t : a t) =
 ;;
 
 [%%expect{|
-val trivial_merged_annotated : 'a t -> unit = <fun>
+val trivial_merged_annotated : 'a t -> unit @@ global many = <fun>
 |}]
 
 let trivial_merged_annotated_under_tuple1 (type a) (t : a t) =
@@ -68,7 +68,8 @@ let trivial_merged_annotated_under_tuple1 (type a) (t : a t) =
 ;;
 
 [%%expect{|
-val trivial_merged_annotated_under_tuple1 : 'a t -> unit = <fun>
+val trivial_merged_annotated_under_tuple1 : 'a t -> unit @@ global many =
+  <fun>
 |}]
 
 let trivial_merged_annotated_under_tuple2 (type a) (tt : a t * a t) =
@@ -93,7 +94,8 @@ let trivial_merged_annotated_under_tuple2 (type a) (tt : a t * a t) =
 ;;
 
 [%%expect{|
-val trivial_merged_annotated_under_tuple2 : 'a t * 'a t -> unit = <fun>
+val trivial_merged_annotated_under_tuple2 : 'a t * 'a t -> unit @@ global
+  many = <fun>
 |}]
 
 
@@ -107,7 +109,8 @@ let trivial_merged_annotated_under_array (type a) (t : a t array) =
 ;;
 
 [%%expect{|
-val trivial_merged_annotated_under_array : 'a t array -> unit = <fun>
+val trivial_merged_annotated_under_array : 'a t array -> unit @@ global many =
+  <fun>
 |}]
 
 let simple t a =
@@ -134,7 +137,7 @@ let simple_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-val simple_annotated : 'a t -> 'a -> unit = <fun>
+val simple_annotated : 'a t -> 'a -> unit @@ global many = <fun>
 |}]
 
 let simple_merged t a =
@@ -195,7 +198,7 @@ let simple_merged_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-val simple_merged_annotated : 'a t -> 'a -> unit = <fun>
+val simple_merged_annotated : 'a t -> 'a -> unit @@ global many = <fun>
 |}]
 
 let simple_mega_merged_annotated (type a) (t : a t) (a : a) =
@@ -206,7 +209,7 @@ let simple_mega_merged_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-val simple_mega_merged_annotated : 'a t -> 'a -> unit = <fun>
+val simple_mega_merged_annotated : 'a t -> 'a -> unit @@ global many = <fun>
 |}]
 
 let simple_merged_annotated_return (type a) (t : a t) (a : a) =
@@ -233,7 +236,8 @@ let simple_merged_annotated_return_annotated (type a) (t : a t) (a : a) =
 ;;
 
 [%%expect{|
-val simple_merged_annotated_return_annotated : 'a t -> 'a -> unit = <fun>
+val simple_merged_annotated_return_annotated : 'a t -> 'a -> unit @@ global
+  many = <fun>
 |}]
 
 (* test more scenarios: when the or-pattern itself is not at toplevel but under
@@ -247,7 +251,8 @@ let simple_merged_annotated_under_tuple (type a) (pair : a t * a) =
 ;;
 
 [%%expect{|
-val simple_merged_annotated_under_tuple : 'a t * 'a -> unit = <fun>
+val simple_merged_annotated_under_tuple : 'a t * 'a -> unit @@ global many =
+  <fun>
 |}]
 
 let simple_merged_annotated_under_arrays (type a) (pair : a t * a) =
@@ -258,7 +263,8 @@ let simple_merged_annotated_under_arrays (type a) (pair : a t * a) =
 ;;
 
 [%%expect{|
-val simple_merged_annotated_under_arrays : 'a t * 'a -> unit = <fun>
+val simple_merged_annotated_under_arrays : 'a t * 'a -> unit @@ global many =
+  <fun>
 |}]
 
 
@@ -270,7 +276,8 @@ let simple_merged_annotated_under_poly_variant (type a) (pair : a t * a) =
 ;;
 
 [%%expect{|
-val simple_merged_annotated_under_poly_variant : 'a t * 'a -> unit = <fun>
+val simple_merged_annotated_under_poly_variant : 'a t * 'a -> unit @@ global
+  many = <fun>
 |}]
 
 let simple_merged_annotated_under_poly_variant_annotated (type a) pair =
@@ -281,8 +288,8 @@ let simple_merged_annotated_under_poly_variant_annotated (type a) pair =
 ;;
 
 [%%expect{|
-val simple_merged_annotated_under_poly_variant_annotated : 'a t * 'a -> unit =
-  <fun>
+val simple_merged_annotated_under_poly_variant_annotated : 'a t * 'a -> unit
+  @@ global many = <fun>
 |}]
 
 type 'a iref = { content : 'a; };;
@@ -297,7 +304,8 @@ let simple_merged_annotated_under_record (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-val simple_merged_annotated_under_record : 'a t * 'a -> unit = <fun>
+val simple_merged_annotated_under_record : 'a t * 'a -> unit @@ global many =
+  <fun>
 |}]
 
 let simple_merged_annotated_under_mutable_record (type a) (pair : a t * a) =
@@ -307,7 +315,8 @@ let simple_merged_annotated_under_mutable_record (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-val simple_merged_annotated_under_mutable_record : 'a t * 'a -> unit = <fun>
+val simple_merged_annotated_under_mutable_record : 'a t * 'a -> unit @@
+  global many = <fun>
 |}]
 
 type 'a piref = { pcontent : 'b. 'a * 'b; };;
@@ -322,8 +331,8 @@ let simple_merged_annotated_under_poly_record1 (type a) (r : (a t * a) piref) =
   | _ -> ()
 ;;
 [%%expect{|
-val simple_merged_annotated_under_poly_record1 : ('a t * 'a) piref -> unit =
-  <fun>
+val simple_merged_annotated_under_poly_record1 : ('a t * 'a) piref -> unit @@
+  global many = <fun>
 |}]
 
 let simple_merged_annotated_under_poly_record2 (type a) (r : (a t * a) piref) =
@@ -333,8 +342,8 @@ let simple_merged_annotated_under_poly_record2 (type a) (r : (a t * a) piref) =
   | _ -> ()
 ;;
 [%%expect{|
-val simple_merged_annotated_under_poly_record2 : ('a t * 'a) piref -> unit =
-  <fun>
+val simple_merged_annotated_under_poly_record2 : ('a t * 'a) piref -> unit @@
+  global many = <fun>
 |}]
 
 let simple_merged_annotated_under_constructor (type a) (pair : a t * a) =
@@ -344,7 +353,8 @@ let simple_merged_annotated_under_constructor (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-val simple_merged_annotated_under_constructor : 'a t * 'a -> unit = <fun>
+val simple_merged_annotated_under_constructor : 'a t * 'a -> unit @@ global
+  many = <fun>
 |}]
 
 type _ gadt_opt =
@@ -362,8 +372,8 @@ let simple_merged_annotated_under_gadt_constructor (type a) (pair : a t * a) =
   | _ -> ()
 ;;
 [%%expect{|
-val simple_merged_annotated_under_gadt_constructor : 'a t * 'a -> unit =
-  <fun>
+val simple_merged_annotated_under_gadt_constructor : 'a t * 'a -> unit @@
+  global many = <fun>
 |}]
 
 (* back to simpler tests. *)
@@ -390,7 +400,7 @@ let noop_annotated (type a) (t : a t) (a : a) : a =
 ;;
 
 [%%expect{|
-val noop_annotated : 'a t -> 'a -> 'a = <fun>
+val noop_annotated : 'a t -> 'a -> 'a @@ global many = <fun>
 |}]
 
 let noop_merged t a =
@@ -415,7 +425,7 @@ let noop_merged_annotated (type a) (t : a t) (a : a) : a =
 ;;
 
 [%%expect{|
-val noop_merged_annotated : 'a t -> 'a -> 'a = <fun>
+val noop_merged_annotated : 'a t -> 'a -> 'a @@ global many = <fun>
 |}]
 
 (***)
@@ -450,7 +460,7 @@ let trivial2_annotated (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-val trivial2_annotated : 'a t2 -> unit = <fun>
+val trivial2_annotated : 'a t2 -> unit @@ global many = <fun>
 |}]
 
 let trivial2_merged t2 =
@@ -475,7 +485,7 @@ let trivial2_merged_annotated (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-val trivial2_merged_annotated : 'a t2 -> unit = <fun>
+val trivial2_merged_annotated : 'a t2 -> unit @@ global many = <fun>
 |}]
 
 
@@ -501,7 +511,7 @@ let extract_annotated (type a) (t2 : a t2) : a =
 ;;
 
 [%%expect{|
-val extract_annotated : 'a t2 -> 'a = <fun>
+val extract_annotated : 'a t2 -> 'a @@ global many = <fun>
 |}]
 
 let extract_merged t2 =
@@ -541,7 +551,7 @@ let extract_merged_super_annotated (type a) (t2 : a t2) : a =
 ;;
 
 [%%expect{|
-val extract_merged_super_annotated : 'a t2 -> 'a = <fun>
+val extract_merged_super_annotated : 'a t2 -> 'a @@ global many = <fun>
 |}]
 
 let extract_merged_too_lightly_annotated (type a) (t2 : a t2) : a =
@@ -565,7 +575,8 @@ let extract_merged_super_lightly_annotated (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-val extract_merged_super_lightly_annotated : 'a t2 -> 'a = <fun>
+val extract_merged_super_lightly_annotated : 'a t2 -> 'a @@ global many =
+  <fun>
 |}]
 
 let lambiguity (type a) (t2 : a t2) =
@@ -575,7 +586,7 @@ let lambiguity (type a) (t2 : a t2) =
 ;;
 
 [%%expect{|
-val lambiguity : 'a t2 -> 'a = <fun>
+val lambiguity : 'a t2 -> 'a @@ global many = <fun>
 |}]
 
 let rambiguity (type a) (t2 : a t2) =
@@ -610,7 +621,7 @@ let not_annotated x =
 ;;
 
 [%%expect{|
-val not_annotated : int t3 -> int = <fun>
+val not_annotated : int t3 -> int @@ global many = <fun>
 |}]
 
 let return_int (type a) (x : a t3) =
@@ -619,7 +630,7 @@ let return_int (type a) (x : a t3) =
 ;;
 
 [%%expect{|
-val return_int : 'a t3 -> int = <fun>
+val return_int : 'a t3 -> int @@ global many = <fun>
 |}]
 
 let return_a (type a) (x : a t3) : a =
@@ -678,7 +689,7 @@ let gvoyel_of_a : a -> gvoyel = function
   | Up A | Lo A as a -> a
 ;;
 [%%expect{|
-val gvoyel_of_a : a -> gvoyel = <fun>
+val gvoyel_of_a : a -> gvoyel @@ global many = <fun>
 |}]
 
 (* Some other illustrations of the issues with as-patterns. *)
@@ -690,7 +701,7 @@ let f_ok (type a) (t : a t) (a : bool iref) (b : a iref) =
   | _, _, _ -> ()
 ;;
 [%%expect{|
-val f_ok : 'a t -> bool iref -> 'a iref -> unit = <fun>
+val f_ok : 'a t -> bool iref -> 'a iref -> unit @@ global many = <fun>
 |}]
 
 
@@ -717,7 +728,7 @@ let f_disamb (type a) (t : a t) (a : bool ref) (b : a ref) =
   | _, _, _ -> ()
 ;;
 [%%expect{|
-val f_disamb : 'a t -> bool ref -> 'a ref -> unit = <fun>
+val f_disamb : 'a t -> bool ref -> 'a ref -> unit @@ global many = <fun>
 |}]
 
 (* #11799, #12313 *)
@@ -740,7 +751,7 @@ Error: This pattern matches values of type "[ `B ] t"
 let foo : type a. a t -> a t =
   function (A | B : a t) as t -> t
 [%%expect{|
-val foo : 'a t -> 'a t = <fun>
+val foo : 'a t -> 'a t @@ global many = <fun>
 |}]
 
 (********************************************)
