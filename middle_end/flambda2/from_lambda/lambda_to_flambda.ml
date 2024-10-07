@@ -1640,17 +1640,26 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let unboxing_kind (layout : Lambda.layout) :
       Function_decl.unboxing_kind option =
     match[@warning "-fragile-match"] layout with
-    | Pvalue { nullable = Non_nullable; raw_kind =
-        (Pvariant
-          { consts = []; non_consts = [(0, Constructor_uniform field_kinds)] })}
-      ->
+    | Pvalue
+        { nullable = Non_nullable;
+          raw_kind =
+            Pvariant
+              { consts = [];
+                non_consts = [(0, Constructor_uniform field_kinds)]
+              }
+        } ->
       Some
         (Fields_of_block_with_tag_zero
            (List.map Flambda_kind.With_subkind.from_lambda_value_kind
               field_kinds))
-    | Pvalue { nullable = Non_nullable; raw_kind =
-        (Pvariant
-          { consts = []; non_consts = [(tag, Constructor_uniform field_kinds)] })}
+    | Pvalue
+        { nullable = Non_nullable;
+          raw_kind =
+            Pvariant
+              { consts = [];
+                non_consts = [(tag, Constructor_uniform field_kinds)]
+              }
+        }
       when tag = Obj.double_array_tag ->
       assert (
         List.for_all
@@ -1663,8 +1672,10 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
-    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat64 } -> Some (Unboxed_number Naked_float)
-    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat32 } -> Some (Unboxed_number Naked_float32)
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat64 } ->
+      Some (Unboxed_number Naked_float)
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat32 } ->
+      Some (Unboxed_number Naked_float32)
     | Pvalue { nullable = Non_nullable; raw_kind = Pboxedintval bi } ->
       let bn : Flambda_kind.Boxable_number.t =
         match bi with
@@ -1678,7 +1689,10 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
         match bv with Pvec128 -> Naked_vec128
       in
       Some (Unboxed_number bn)
-    | Pvalue { nullable = Non_nullable; raw_kind = (Pgenval | Pintval | Pvariant _ | Parrayval _) }
+    | Pvalue
+        { nullable = Non_nullable;
+          raw_kind = Pgenval | Pintval | Pvariant _ | Parrayval _
+        }
     | Pvalue { nullable = Nullable; raw_kind = _ }
     | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
     | Punboxed_product _ ->

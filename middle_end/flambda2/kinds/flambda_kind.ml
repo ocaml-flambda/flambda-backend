@@ -546,15 +546,13 @@ module With_subkind = struct
       type nonrec t = t
 
       let print ppf t =
-      match t with
-      | Nullable -> Format.fprintf ppf "|Null"
-      | Non_nullable -> ()
+        match t with
+        | Nullable -> Format.fprintf ppf "|Null"
+        | Non_nullable -> ()
 
       let compare t1 t2 =
         match t1, t2 with
-        | Nullable, Nullable
-        | Non_nullable, Non_nullable ->
-          0
+        | Nullable, Nullable | Non_nullable, Non_nullable -> 0
         | Nullable, Non_nullable -> -1
         | Non_nullable, Nullable -> 1
 
@@ -576,8 +574,7 @@ module With_subkind = struct
       | Tagged_immediate
       | Variant of
           { consts : Targetint_31_63.Set.t;
-            non_consts :
-              (Block_shape.t * full_kind list) Tag.Scannable.Map.t
+            non_consts : (Block_shape.t * full_kind list) Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
@@ -593,7 +590,7 @@ module With_subkind = struct
     and full_kind =
       { kind : kind;
         value_subkind : t;
-        nullable : Nullable.t;
+        nullable : Nullable.t
       }
 
     let rec compatible (t : t) ~(when_used_at : t) =
@@ -638,8 +635,10 @@ module With_subkind = struct
                 else
                   List.for_all2
                     (fun { kind = _; value_subkind = d; nullable = _ }
-                         { kind = _; value_subkind = when_used_at; nullable = _ } ->
-                      compatible d ~when_used_at)
+                         { kind = _;
+                           value_subkind = when_used_at;
+                           nullable = _
+                         } -> compatible d ~when_used_at)
                     fields1 fields2)
               field_lists1 field_lists2
       | ( Float_block { num_fields = num_fields1 },
@@ -698,7 +697,9 @@ module With_subkind = struct
             Flambda_colours.pop
         | Variant { consts; non_consts } ->
           (* CR vlaviron: print nullability *)
-          let print_field ppf { kind = _; value_subkind; nullable = _ } = print ppf value_subkind in
+          let print_field ppf { kind = _; value_subkind; nullable = _ } =
+            print ppf value_subkind
+          in
           Format.fprintf ppf "%t=Variant((consts (%a))@ (non_consts (%a)))%t"
             colour Targetint_31_63.Set.print consts
             (Tag.Scannable.Map.print (fun ppf (_shape, fields) ->
@@ -746,32 +747,35 @@ module With_subkind = struct
 
   type t = full_kind
 
-  let create (kind : kind) (value_subkind : Non_null_value_subkind.t) (nullable : Nullable.t) : t =
+  let create (kind : kind) (value_subkind : Non_null_value_subkind.t)
+      (nullable : Nullable.t) : t =
     (match kind with
     | Value -> ()
     | Naked_number _ | Region | Rec_info -> (
       match value_subkind, nullable with
       | Anything, Non_nullable -> ()
-      | (Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
-      | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
-      | Float_block _ | Float_array | Immediate_array | Value_array
-      | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array), _ ->
-        Misc.fatal_errorf "Subkind %a is not valid for kind %a" Non_null_value_subkind.print
-          value_subkind print kind
-      | _, Nullable ->
-        Misc.fatal_errorf "Kind %a cannot be Nullable" print kind));
+      | ( ( Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+          | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
+          | Float_block _ | Float_array | Immediate_array | Value_array
+          | Generic_array | Unboxed_float32_array | Unboxed_int32_array
+          | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+            ),
+          _ ) ->
+        Misc.fatal_errorf "Subkind %a is not valid for kind %a"
+          Non_null_value_subkind.print value_subkind print kind
+      | _, Nullable -> Misc.fatal_errorf "Kind %a cannot be Nullable" print kind
+      ));
     { kind; value_subkind; nullable }
 
   let anything kind =
     match kind with
     | Value -> create kind Anything Nullable
-    | Naked_number _ | Region | Rec_info ->
-      create kind Anything Non_nullable
+    | Naked_number _ | Region | Rec_info -> create kind Anything Non_nullable
 
   let compatible (t : t) ~(when_used_at : t) =
     equal t.kind when_used_at.kind
-    && Non_null_value_subkind.compatible t.value_subkind ~when_used_at:when_used_at.value_subkind
+    && Non_null_value_subkind.compatible t.value_subkind
+         ~when_used_at:when_used_at.value_subkind
 
   let kind (t : t) = t.kind
 
@@ -841,7 +845,8 @@ module With_subkind = struct
         Non_nullable
     | None -> Misc.fatal_errorf "Tag %a is not scannable" Tag.print tag
 
-  let float_block ~num_fields = create value (Float_block { num_fields }) Non_nullable
+  let float_block ~num_fields =
+    create value (Float_block { num_fields }) Non_nullable
 
   let of_naked_number_kind (naked_number_kind : Naked_number_kind.t) =
     match naked_number_kind with
@@ -872,8 +877,8 @@ module With_subkind = struct
     | Naked_vec128 -> boxed_vec128
 
   let of_flat_suffix_element elt =
-    (* CR vlaviron: tagged immediates can be nullable and can appear in the flat suffix;
-       we need to properly propagate that *)
+    (* CR vlaviron: tagged immediates can be nullable and can appear in the flat
+       suffix; we need to properly propagate that *)
     create (Flat_suffix_element0.kind elt) Anything Non_nullable
 
   let of_lambda_flat_element_kind elt =
@@ -891,53 +896,54 @@ module With_subkind = struct
       | Pboxedvectorval Pvec128 -> Boxed_vec128
       | Pintval -> Tagged_immediate
       | Pvariant { consts; non_consts } -> (
-          match consts, non_consts with
-          | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
-          | [], [(tag, shape)] when tag = Obj.double_array_tag ->
-            (* If we have [Obj.double_array_tag] here, this is always an all-float
-               block, not an array. *)
-            (* CR vlaviron: change the Lambda type *)
-            let num_fields =
-              match shape with
-              | Constructor_uniform fields -> List.length fields
-              | Constructor_mixed _ -> assert false
-            in
-            Float_block { num_fields }
-          | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
-            let consts =
-              Targetint_31_63.Set.of_list
-                (List.map (fun const -> Targetint_31_63.of_int const) consts)
-            in
-            let non_consts =
-              List.fold_left
-                (fun non_consts (tag, shape) ->
-                   match Tag.Scannable.create tag with
-                   | Some tag ->
-                     let shape_and_fields : Block_shape.t * t list =
-                       (* CR mshinwell/vlaviron: In both of these cases it would be
-                          nice to propagate immediacy information. *)
-                       match (shape : Lambda.constructor_shape) with
-                       | Constructor_uniform fields ->
-                         Scannable Value_only, List.map from_lambda_value_kind fields
-                       | Constructor_mixed { value_prefix; flat_suffix } ->
-                         let mixed_block_shape =
-                           Mixed_block_shape.from_lambda
-                             { value_prefix_len = List.length value_prefix;
-                               flat_suffix = Array.of_list flat_suffix
-                             }
-                         in
-                         let fields =
-                           List.map from_lambda_value_kind value_prefix
-                           @ List.map of_lambda_flat_element_kind flat_suffix
-                         in
-                         Scannable (Mixed_record mixed_block_shape), fields
-                     in
-                     Tag.Scannable.Map.add tag shape_and_fields non_consts
-                   | None ->
-                     Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
-                Tag.Scannable.Map.empty non_consts
-            in
-            Variant { consts; non_consts })
+        match consts, non_consts with
+        | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
+        | [], [(tag, shape)] when tag = Obj.double_array_tag ->
+          (* If we have [Obj.double_array_tag] here, this is always an all-float
+             block, not an array. *)
+          (* CR vlaviron: change the Lambda type *)
+          let num_fields =
+            match shape with
+            | Constructor_uniform fields -> List.length fields
+            | Constructor_mixed _ -> assert false
+          in
+          Float_block { num_fields }
+        | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
+          let consts =
+            Targetint_31_63.Set.of_list
+              (List.map (fun const -> Targetint_31_63.of_int const) consts)
+          in
+          let non_consts =
+            List.fold_left
+              (fun non_consts (tag, shape) ->
+                match Tag.Scannable.create tag with
+                | Some tag ->
+                  let shape_and_fields : Block_shape.t * t list =
+                    (* CR mshinwell/vlaviron: In both of these cases it would be
+                       nice to propagate immediacy information. *)
+                    match (shape : Lambda.constructor_shape) with
+                    | Constructor_uniform fields ->
+                      ( Scannable Value_only,
+                        List.map from_lambda_value_kind fields )
+                    | Constructor_mixed { value_prefix; flat_suffix } ->
+                      let mixed_block_shape =
+                        Mixed_block_shape.from_lambda
+                          { value_prefix_len = List.length value_prefix;
+                            flat_suffix = Array.of_list flat_suffix
+                          }
+                      in
+                      let fields =
+                        List.map from_lambda_value_kind value_prefix
+                        @ List.map of_lambda_flat_element_kind flat_suffix
+                      in
+                      Scannable (Mixed_record mixed_block_shape), fields
+                  in
+                  Tag.Scannable.Map.add tag shape_and_fields non_consts
+                | None ->
+                  Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
+              Tag.Scannable.Map.empty non_consts
+          in
+          Variant { consts; non_consts })
       | Parrayval Pfloatarray -> Float_array
       | Parrayval Pintarray -> Immediate_array
       | Parrayval Paddrarray -> Value_array
@@ -978,54 +984,58 @@ module With_subkind = struct
       match kind, value_subkind, nullable with
       | _, Anything, Non_nullable -> print ppf kind
       | Value, value_subkind, nullable ->
-        Format.fprintf ppf "@[%a%a%a@]" print kind Non_null_value_subkind.print value_subkind
-          Nullable.print nullable
+        Format.fprintf ppf "@[%a%a%a@]" print kind Non_null_value_subkind.print
+          value_subkind Nullable.print nullable
       | ( (Naked_number _ | Region | Rec_info),
           ( Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
           | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-          | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array ),
+          | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+            ),
           Non_nullable )
       | (Naked_number _ | Region | Rec_info), _, Nullable ->
         assert false
     (* see [create] *)
 
-    let compare ({ kind = kind1; value_subkind = value_subkind1; nullable = nullable1 } : t)
-        ({ kind = kind2; value_subkind = value_subkind2; nullable = nullable2 } : t) =
+    let compare
+        ({ kind = kind1; value_subkind = value_subkind1; nullable = nullable1 } :
+          t)
+        ({ kind = kind2; value_subkind = value_subkind2; nullable = nullable2 } :
+          t) =
       let c = compare kind1 kind2 in
-      if c <> 0 then c
+      if c <> 0
+      then c
       else
         let c = Non_null_value_subkind.compare value_subkind1 value_subkind2 in
-        if c <> 0 then c
-          else Nullable.compare nullable1 nullable2
+        if c <> 0 then c else Nullable.compare nullable1 nullable2
 
     let equal t1 t2 = compare t1 t2 = 0
 
     let hash ({ kind; value_subkind; nullable } : t) =
-      Hashtbl.hash (hash kind, Non_null_value_subkind.hash value_subkind, Nullable.hash nullable)
+      Hashtbl.hash
+        ( hash kind,
+          Non_null_value_subkind.hash value_subkind,
+          Nullable.hash nullable )
   end)
 
   let has_useful_subkind_info (t : t) =
     match t.kind with
     | Value -> (
-    match t.value_subkind with
-    | Anything -> (
-        match t.nullable with
-        | Nullable -> false
-        | Non_nullable -> true)
-    | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64 | Boxed_nativeint
-    | Boxed_vec128 | Tagged_immediate | Variant _ | Float_block _ | Float_array
-    | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
-    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
-    | Unboxed_vec128_array ->
-      true)
+      match t.value_subkind with
+      | Anything -> (
+        match t.nullable with Nullable -> false | Non_nullable -> true)
+      | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+      | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
+      | Float_block _ | Float_array | Immediate_array | Value_array
+      | Generic_array | Unboxed_float32_array | Unboxed_int32_array
+      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array ->
+        true)
     | Naked_number _ | Rec_info | Region -> false
 
   let erase_subkind (t : t) : t =
     match t.kind with
-    | Value ->
-      { t with value_subkind = Anything; nullable = Nullable }
+    | Value -> { t with value_subkind = Anything; nullable = Nullable }
     | Naked_number _ | Rec_info | Region -> t
 
   let equal_ignoring_subkind t1 t2 = equal (erase_subkind t1) (erase_subkind t2)

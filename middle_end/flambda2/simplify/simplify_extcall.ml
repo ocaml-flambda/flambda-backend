@@ -132,7 +132,10 @@ let simplify_caml_make_vect dacc ~len_ty ~init_value_ty : t =
     (* We can't deduce subkind information, e.g. an array is all-immediates
        rather than arbitrary values, but we can deduce kind information. *)
     if not (Flambda_features.flat_float_array ())
-    then Ok (Flambda_kind.With_subkind.create (T.kind init_value_ty) Anything Nullable)
+    then
+      Ok
+        (Flambda_kind.With_subkind.create (T.kind init_value_ty) Anything
+           Nullable)
     else
       match T.prove_is_or_is_not_a_boxed_float typing_env init_value_ty with
       | Proved true ->
