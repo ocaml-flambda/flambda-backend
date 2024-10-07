@@ -358,6 +358,7 @@ module M : sig
 end = struct
   type ('b, 'a) bar = A of 'a
 end;;
+(* CR reisenberg: Similar to an unfortunate change in variants_errors_test.ml. *)
 [%%expect {|
 Lines 3-5, characters 6-3:
 3 | ......struct
@@ -373,10 +374,10 @@ Error: Signature mismatch:
        is not included in
          type ('a, 'b) bar = A of 'a
        Constructors do not match:
-         "A of 'a"
+         "A of 'b"
        is not the same as:
          "A of 'a"
-       The type "'a" is not equal to the type "'b"
+       The type "'b" is not equal to the type "'a"
 |}];;
 
 

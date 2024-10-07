@@ -112,7 +112,6 @@ type ('a, 'variety) elt =
   | Bad_jkind_sort : type_expr * Jkind.Violation.t -> ('a, _) elt
   | Unequal_var_jkinds :
       type_expr * jkind_lr * type_expr * jkind_lr -> ('a, _) elt
-  | Unequal_var_jkinds_with_no_history
 
 type ('a, 'variety) t = ('a, 'variety) elt list
 
@@ -129,7 +128,6 @@ let map_elt (type variety) f : ('a, variety) elt -> ('b, variety) elt = function
   | Bad_jkind _ as x -> x
   | Bad_jkind_sort _ as x -> x
   | Unequal_var_jkinds _ as x -> x
-  | Unequal_var_jkinds_with_no_history as x -> x
 
 let map f t = List.map (map_elt f) t
 
