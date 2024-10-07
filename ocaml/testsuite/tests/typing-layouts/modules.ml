@@ -1410,28 +1410,28 @@ module M : sig type 'a t = private 'a end
 |}]
 
 module M : sig
-  type ('a : any) t = private 'a iddy
+  type ('a : any) t = private 'a
 end = struct
-  type ('a : value) t = 'a
+  type ('a : value) t = 'a iddy
 end
 
 [%%expect {|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   type ('a : value) t = 'a
+4 |   type ('a : value) t = 'a iddy
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = 'a end
+         sig type 'a t = 'a iddy end
        is not included in
-         sig type ('a : any) t = private 'a iddy end
+         sig type ('a : any) t = private 'a end
        Type declarations do not match:
-         type 'a t = 'a
+         type 'a t = 'a iddy
        is not included in
-         type ('a : any) t = private 'a iddy
+         type ('a : any) t = private 'a
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-37.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-26.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-32.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-31.
 |}]
