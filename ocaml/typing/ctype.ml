@@ -663,7 +663,6 @@ let exists_free_variable f ty =
   result
 
 let closed_type ?env ty =
-  remove_mode_and_jkind_variables ty;
   let add_one ty _jkind kind _acc = raise (Non_closed (ty, kind)) in
   free_vars ~zero:() ~add_one ?env [ty]
 
@@ -675,10 +674,14 @@ let closed_type_expr ?env ty =
   unmark_type ty;
   closed
 
+let close_type ty =
+  remove_mode_and_jkind_variables ty;
+  closed_type ty
+
 let closed_parameterized_type params ty =
   List.iter mark_type params;
   let ok =
-    try closed_type ty; true with Non_closed _ -> false in
+    try close_type ty; true with Non_closed _ -> false in
   List.iter unmark_type params;
   unmark_type ty;
   ok
@@ -705,16 +708,16 @@ let closed_type_decl decl =
                     remove_mode_and_jkind_variables l.ld_type) l
                 end;
                 remove_mode_and_jkind_variables res_ty
-            | None -> List.iter closed_type (tys_of_constr_args cd_args)
+            | None -> List.iter close_type (tys_of_constr_args cd_args)
           )
           v
     | Type_record(r, _rep) ->
-        List.iter (fun l -> closed_type l.ld_type) r
+        List.iter (fun l -> close_type l.ld_type) r
     | Type_open -> ()
     end;
     begin match decl.type_manifest with
       None    -> ()
-    | Some ty -> closed_type ty
+    | Some ty -> close_type ty
     end;
     unmark_type_decl decl;
     None
@@ -733,7 +736,7 @@ let closed_extension_constructor ext =
         iter_type_expr_cstr_args remove_mode_and_jkind_variables ext.ext_args;
         remove_mode_and_jkind_variables res_ty
     | None ->
-        iter_type_expr_cstr_args closed_type ext.ext_args
+        iter_type_expr_cstr_args close_type ext.ext_args
     end;
     unmark_extension_constructor ext;
     None
@@ -755,7 +758,7 @@ let closed_class params sign =
     Meths.iter
       (fun lab (priv, _, ty) ->
         if priv = Mpublic then begin
-          try closed_type ty with Non_closed (ty0, variable_kind) ->
+          try close_type ty with Non_closed (ty0, variable_kind) ->
             raise (CCFailure {
               free_variable = (ty0, variable_kind);
               meth = lab;
