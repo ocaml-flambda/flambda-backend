@@ -257,9 +257,7 @@ let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
           rewrite_ids
       in
       let var_kind =
-        Flambda_kind.With_subkind.create
-          (Variable.Map.find var aliases_kind)
-          Anything Nullable
+        Flambda_kind.With_subkind.anything (Variable.Map.find var aliases_kind)
       in
       EPA.add
         ~extra_param:(Bound_parameter.create var var_kind)
