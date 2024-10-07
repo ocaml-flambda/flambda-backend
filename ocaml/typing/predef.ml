@@ -564,10 +564,6 @@ let add_simd_stable_extension_types add_type env =
                 Jkind.Const.Builtin.vec128.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.vec128
 
-let add_simd_beta_extension_types add_type env =
-  let _add_type = mk_add_type add_type in
-  env
-
 let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
