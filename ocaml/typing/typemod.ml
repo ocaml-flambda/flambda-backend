@@ -1175,7 +1175,7 @@ and approx_sig env ssg =
               let scope = Ctype.create_scope () in
               let sg = extract_sig env loc mty in
               let modalities =
-                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+                Typemode.transl_modalities ~maturity:Stable Immutable [] moda
               in
               let sg = apply_modalities_signature modalities sg in
               let sg, newenv = Env.enter_signature ~scope sg env in
@@ -1694,7 +1694,7 @@ and transl_signature env (sg : Parsetree.signature) =
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
     let modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable [] modalities
     in
     let sg = apply_modalities_signature modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
@@ -2465,7 +2465,7 @@ let simplify_app_summary app_view = match app_view.arg with
     | false, None   -> Includemod.Error.Anonymous, mty
 
 let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
-  if Language_extension.(is_at_least Mode Alpha) then begin
+  if Language_extension.(is_at_least Mode Stable) then begin
     (* Upon construction, for comonadic (prescriptive) axes, module
     must be weaker than the values therein, for otherwise operations
     would be allowed to performed on the module (and extended to the

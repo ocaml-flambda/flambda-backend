@@ -2965,7 +2965,7 @@ let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   let modalities =
     valdecl.pval_modalities
-    |> Typemode.transl_modalities ~maturity:Alpha Immutable
+    |> Typemode.transl_modalities ~maturity:Stable Immutable
         valdecl.pval_attributes
     |> Mode.Modality.Value.of_const
   in
