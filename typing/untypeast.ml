@@ -147,7 +147,7 @@ let attributes sub l = List.map (sub.attribute sub) l
 
 let var_jkind ~loc (var, jkind) =
   let add_loc x = mkloc x loc in
-  add_loc var, Option.map (fun (_, annot) -> annot) jkind
+  add_loc var, jkind
 
 let structure sub str =
   List.map (sub.structure_item sub) str.str_items
@@ -418,7 +418,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
          Typemode.untransl_mode_annots ~loc modes)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (_, label_loc, jkind, _) ->
-        Pexp_newtype (label_loc, Option.map snd jkind, sexp)
+        Pexp_newtype (label_loc, jkind, sexp)
     | Texp_stack -> Pexp_stack sexp
   in
   Exp.mk ~loc ~attrs desc
@@ -532,7 +532,7 @@ let expression sub exp =
                let newtypes =
                  List.map
                    (fun (_, x, annot, _) ->
-                      { pparam_desc = Pparam_newtype (x, Option.map snd annot);
+                      { pparam_desc = Pparam_newtype (x, annot);
                         pparam_loc = x.loc;
                       })
                    fp.fp_newtypes
@@ -955,8 +955,8 @@ let core_type sub ct =
   let loc = sub.location sub ct.ctyp_loc in
   let attrs = sub.attributes sub ct.ctyp_attributes in
   let desc = match ct.ctyp_desc with
-    | Ttyp_var (None, jkind) -> Ptyp_any (Option.map snd jkind)
-    | Ttyp_var (Some s, jkind) -> Ptyp_var (s, Option.map snd jkind)
+    | Ttyp_var (None, jkind) -> Ptyp_any jkind
+    | Ttyp_var (Some s, jkind) -> Ptyp_var (s, jkind)
     | Ttyp_arrow (arg_label, ct1, ct2) ->
         (* CR cgunn: recover mode annotation here *)
         Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2, [], [])
@@ -976,7 +976,7 @@ let core_type sub ct =
     | Ttyp_alias (_, None, None) ->
         Misc.fatal_error "anonymous alias without layout annotation in Untypeast"
     | Ttyp_alias (ct, s, jkind) ->
-        Ptyp_alias (sub.typ sub ct, s, Option.map snd jkind)
+        Ptyp_alias (sub.typ sub ct, s, jkind)
     | Ttyp_variant (list, bool, labels) ->
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->

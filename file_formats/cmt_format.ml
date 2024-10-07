@@ -158,7 +158,7 @@ let iter_on_occurrences
   in
   let add_constructor_description env lid =
     function
-    | { Types.cstr_tag = Extension (path, _); _ } ->
+    | { Types.cstr_tag = Extension path; _ } ->
         f ~namespace:Extension_constructor env path lid
     | { Types.cstr_uid = Predef name; _} ->
         let id = List.assoc name Predef.builtin_idents in

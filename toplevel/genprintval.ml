@@ -250,8 +250,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Print_as of string (* can't print *)
 
     let get_and_default_jkind_for_printing jkind =
-      let const = Jkind.default_to_value_and_get jkind in
-      let layout = Jkind.Const.get_layout const in
+      let layout = Jkind.get_layout_defaulting_to_value jkind in
       match layout with
       (* CR layouts v3.0: [Value_or_null] should probably require special
          printing to avoid descending into NULL. (This module uses
@@ -427,7 +426,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                       then false, O.tag obj
                       else true, O.obj obj
                     in
-                    let {cstr_uid;cstr_arg_jkinds} =
+                    let {cstr_uid} =
                       Datarepr.find_constr_by_tag ~constant tag cstrs
                     in
                     let {cd_id;cd_args;cd_res} =
@@ -457,12 +456,11 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           let ty_args =
                             instantiate_types env type_params ty_list l in
                           let ty_args =
-                            List.mapi
-                              (fun i ty_arg ->
+                            List.map2
+                              (fun { ca_jkind } ty_arg ->
                                  (ty_arg,
-                                 get_and_default_jkind_for_printing
-                                   cstr_arg_jkinds.(i))
-                              ) ty_args
+                                 get_and_default_jkind_for_printing ca_jkind)
+                              ) l ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
                             (Ident.name cd_id) false 0 depth obj
@@ -685,7 +683,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         let cstr = Env.find_constructor_by_name lid env in
         let path =
           match cstr.cstr_tag with
-              Extension (p,_) -> p
+              Extension p -> p
             | _ -> raise Not_found
         in
         let addr = Env.find_constructor_address path env in
@@ -701,9 +699,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           | _ -> assert false
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
-        let args = List.mapi (fun i arg ->
-            (arg, get_and_default_jkind_for_printing cstr.cstr_arg_jkinds.(i)))
-            args
+        let args = List.map2 (fun { ca_jkind } arg ->
+            (arg, get_and_default_jkind_for_printing ca_jkind))
+            cstr.cstr_args args
         in
         tree_of_constr_with_args
            (fun x -> Oide_ident x) name (cstr.cstr_inlined <> None)

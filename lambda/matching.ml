@@ -113,8 +113,7 @@ let jkind_layout_default_to_value_and_check_not_void loc jkind =
       Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
     | Product ts -> List.exists contains_void ts
   in
-  let const = Jkind.default_to_value_and_get jkind in
-  let layout = Jkind.Const.get_layout const in
+  let layout = Jkind.get_layout_defaulting_to_value jkind in
   if contains_void layout then
     raise (Error (loc, Void_layout))
 ;;
@@ -1876,12 +1875,12 @@ let get_key_constr = function
 
 let get_pat_args_constr p rem =
   match p with
-  | { pat_desc = Tpat_construct (_, {cstr_arg_jkinds}, args, _) } ->
-    List.iteri
-      (fun i arg ->
+  | { pat_desc = Tpat_construct (_, {cstr_args}, args, _) } ->
+    List.iter2
+      (fun { ca_jkind } arg ->
          jkind_layout_default_to_value_and_check_not_void
-           arg.pat_loc cstr_arg_jkinds.(i))
-      args;
+           arg.pat_loc ca_jkind)
+      cstr_args args;
       (* CR layouts v5: This sanity check will have to go (or be replaced with a
          void-specific check) when we have other non-value sorts *)
     args @ rem
@@ -1896,12 +1895,12 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   let loc = head_loc ~scopes head in
   (* CR layouts v5: This sanity check should be removed or changed to
      specifically check for void when we add other non-value sorts. *)
-  Array.iter (fun jkind ->
-      jkind_layout_default_to_value_and_check_not_void head.pat_loc jkind)
-    cstr.cstr_arg_jkinds;
+  List.iter (fun { ca_jkind } ->
+      jkind_layout_default_to_value_and_check_not_void head.pat_loc ca_jkind)
+    cstr.cstr_args;
   let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
   let sem = add_barrier_to_read ubr Reads_agree in
-  let make_field_access binding_kind ~field ~pos =
+  let make_field_access binding_kind jkind ~field ~pos =
     let prim =
       match cstr.cstr_shape with
       | Constructor_uniform_value -> Pfield (pos, Pointer, sem)
@@ -1923,7 +1922,6 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
           let shape = Lambda.transl_mixed_product_shape shape in
           Pmixedfield (pos, read, shape, sem)
     in
-    let jkind = cstr.cstr_arg_jkinds.(field) in
     let sort = Jkind.sort_of_jkind jkind in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
@@ -1934,13 +1932,17 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   else
     match cstr.cstr_repr with
     | Variant_boxed _ ->
-        List.init cstr.cstr_arity
-          (fun i -> make_field_access str ~field:i ~pos:i)
+        List.mapi
+          (fun i { ca_jkind } ->
+             make_field_access str ca_jkind ~field:i ~pos:i)
+          cstr.cstr_args
         @ rem
     | Variant_unboxed -> (arg, str, sort, layout) :: rem
     | Variant_extensible ->
-        List.init cstr.cstr_arity
-          (fun i -> make_field_access str ~field:i ~pos:(i+1))
+        List.mapi
+          (fun i { ca_jkind } ->
+             make_field_access str ca_jkind ~field:i ~pos:(i+1))
+          cstr.cstr_args
         @ rem
 
 let divide_constructor ~scopes ctx pm =
@@ -3135,8 +3137,8 @@ let split_extension_cases tag_lambda_list =
   List.partition_map
     (fun ({cstr_constant; cstr_tag}, act) ->
        match cstr_constant, cstr_tag with
-       | true, Extension (path,_) -> Left (path, act)
-       | false, Extension (path,_)-> Right (path, act)
+       | true, Extension path -> Left (path, act)
+       | false, Extension path -> Right (path, act)
        | _, Ordinary _ -> assert false)
     tag_lambda_list
 

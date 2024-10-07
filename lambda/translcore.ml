@@ -522,10 +522,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             of_location ~scopes e.exp_loc)
   | Texp_construct(_, cstr, args, alloc_mode) ->
       let args_with_sorts =
-        List.mapi (fun i e ->
-            let sort = Jkind.sort_of_jkind cstr.cstr_arg_jkinds.(i) in
+        List.map2 (fun { ca_jkind } e ->
+            let sort = Jkind.sort_of_jkind ca_jkind in
             e, sort)
-          args
+          cstr.cstr_args args
       in
       let ll =
         List.map (fun (e, sort) -> transl_exp ~scopes sort e) args_with_sorts
@@ -578,7 +578,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               in
               Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
           end
-      | Extension (path, _), Variant_extensible ->
+      | Extension path, Variant_extensible ->
           let lam = transl_extension_path
                       (of_location ~scopes e.exp_loc) e.exp_env path in
           if cstr.cstr_constant
@@ -2029,7 +2029,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             (* CR layouts v5.9: support this *)
             fatal_error
               "Mixed inlined records not supported for extensible variants"
-        | Record_inlined (Extension (path, _),
+        | Record_inlined (Extension path,
                           Constructor_uniform_value, Variant_extensible) ->
             let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
