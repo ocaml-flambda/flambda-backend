@@ -18,7 +18,7 @@ Line 2, characters 10-41:
 2 |   let x = overwrite_ r with { x = "foo" }
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
@@ -27,7 +27,7 @@ let update2 = update { x = "bar" }
 Line 1, characters 14-20:
 1 | let update2 = update { x = "bar" }
                   ^^^^^^
-Error: Unbound value update
+Error: Unbound value "update"
 |}]
 
 (* Only global values may be written during overwrites,
@@ -40,7 +40,7 @@ Line 2, characters 11-36:
 2 |   exclave_ (overwrite_ r with { x })
                ^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
@@ -51,7 +51,7 @@ Line 2, characters 11-36:
 2 |   exclave_ (overwrite_ r with { x })
                ^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 

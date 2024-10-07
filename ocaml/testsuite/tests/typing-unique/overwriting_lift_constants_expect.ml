@@ -26,7 +26,7 @@ Line 2, characters 10-66:
 2 |   let q = overwrite_ p with { dim = 3; x = 2.0; y = 3.0; z = 4.0 } in
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 (*
@@ -44,7 +44,7 @@ let test =
 Line 4, characters 2-22:
 4 |   update_with_constant p == update_with_constant q
       ^^^^^^^^^^^^^^^^^^^^
-Error: Unbound value update_with_constant
+Error: Unbound value "update_with_constant"
 |}]
 (*
 [%%expect{|
@@ -67,7 +67,7 @@ Line 2, characters 10-57:
 2 |   let q = overwrite_ p with { x = 2.0; y = 3.0; z = 4.0 } in
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 (*
@@ -85,7 +85,7 @@ let test =
 Line 4, characters 2-23:
 4 |   fupdate_with_constant p == fupdate_with_constant q
       ^^^^^^^^^^^^^^^^^^^^^
-Error: Unbound value fupdate_with_constant
+Error: Unbound value "fupdate_with_constant"
 |}]
 (*
 [%%expect{|
@@ -180,7 +180,7 @@ Line 3, characters 19-48:
 3 |   if b then p else overwrite_ p with { x = 2.0 }
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1112, characters 2-8: Assertion failed
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 (*
@@ -196,8 +196,8 @@ let test =
 Line 2, characters 4-17:
 2 |   ((constant_lift true).x, (constant_lift false).x, (constant_lift true).x)
         ^^^^^^^^^^^^^
-Error: Unbound value constant_lift
-Hint: Did you mean constant_list?
+Error: Unbound value "constant_lift"
+Hint: Did you mean "constant_list"?
 |}]
 (*
 [%%expect{|
