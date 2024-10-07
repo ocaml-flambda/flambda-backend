@@ -1117,6 +1117,12 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
           (expression ctxt) body
     | Pexp_extension e -> extension ctxt f e
     | Pexp_unreachable -> pp f "."
+    | Pexp_overwrite (x, e) ->
+        (* Similar to the case of [Pexp_stack] *)
+        pp f "@[<hov2>overwrite_@ %a@ with@ %a@]"
+          longident_loc x
+          (expression2 reset_ctxt) e
+    | Pexp_hole -> pp f "_"
     | _ -> expression1 ctxt f x
 
 and expression1 ctxt f x =

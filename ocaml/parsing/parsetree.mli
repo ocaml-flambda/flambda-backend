@@ -477,6 +477,9 @@ and expression_desc =
   | Pexp_extension of extension  (** [[%id]] *)
   | Pexp_unreachable  (** [.] *)
   | Pexp_stack of expression (** stack_ exp *)
+  (* CR uniqueness: allow arbitrary expressions instead of identifiers here *)
+  | Pexp_overwrite of Longident.t loc * expression (** overwrite_ x with exp *)
+  | Pexp_hole (** _ *)
 
 and case =
     {

@@ -11,7 +11,7 @@ let count_language_extensions typing_input =
     | Labeled_tuples ->
       Language_extension_kernel.to_string lang_ext
     | Mode | Unique | Polymorphic_parameters | Layouts | SIMD | Small_numbers
-    | Instances ->
+    | Instances | Overwriting ->
       let error_msg =
         Format.sprintf "No counters supported for language extension : %s."
           (Language_extension_kernel.to_string lang_ext)

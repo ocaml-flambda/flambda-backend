@@ -5,6 +5,7 @@ type _ t =
   | Comprehensions : unit t
   | Mode : maturity t
   | Unique : unit t
+  | Overwriting : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
@@ -24,6 +25,7 @@ module Exist = struct
     [ Pack Comprehensions
     ; Pack Mode
     ; Pack Unique
+    ; Pack Overwriting
     ; Pack Include_functor
     ; Pack Polymorphic_parameters
     ; Pack Immutable_arrays
@@ -45,6 +47,7 @@ let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
   | Mode -> "mode"
   | Unique -> "unique"
+  | Overwriting -> "overwriting"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays"
@@ -66,6 +69,7 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "mode_beta" -> Some (Pair (Mode, Beta))
   | "mode_alpha" -> Some (Pair (Mode, Alpha))
   | "unique" -> Some (Pair (Unique, ()))
+  | "overwriting" -> Some (Pair (Overwriting, ()))
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
   | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
@@ -102,6 +106,7 @@ let of_string extn_name : Exist.t option =
 let is_erasable : type a. a t -> bool = function
   | Mode
   | Unique
+  | Overwriting
   | Layouts ->
       true
   | Comprehensions

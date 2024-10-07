@@ -6527,6 +6527,15 @@ and type_expect_
       end;
       let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
       {exp with exp_extra}
+  | Pexp_overwrite (_x, _e) ->
+      if not (Language_extension.is_enabled Overwriting) then
+        raise (Typetexp.Error (loc, env,
+                               Unsupported_extension Overwriting))
+      else Location.todo_overwrite_not_implemented loc
+  | Pexp_hole ->
+      if not (Language_extension.is_enabled Overwriting) then
+        raise Syntaxerr.(Error(Not_expecting(loc, "wildcard \"_\"")))
+      else Location.todo_overwrite_not_implemented loc
 
 and expression_constraint pexp =
   { type_without_constraint = (fun env expected_mode ->
