@@ -39,7 +39,8 @@ type mapper =
     expr: mapper -> expression -> expression;
     extension_constructor: mapper -> extension_constructor ->
       extension_constructor;
-    jkind_annotation: mapper -> Jkind.annotation -> Jkind.annotation;
+    jkind_annotation:
+      mapper -> Parsetree.jkind_annotation -> Parsetree.jkind_annotation;
     location: mapper -> Location.t -> Location.t;
     module_binding: mapper -> module_binding -> module_binding;
     module_coercion: mapper -> module_coercion -> module_coercion;
@@ -988,14 +989,14 @@ let value_binding sub x =
 
 let env _sub x = x
 
-let jkind_annotation sub (c, annot) =
+let jkind_annotation sub annot =
   (* map over locations contained within parsetree jkind annotation *)
   let ast_mapper =
     { Ast_mapper.default_mapper
       with location = (fun _this loc -> sub.location sub loc)
     }
   in
-  (c, ast_mapper.jkind_annotation ast_mapper annot)
+  ast_mapper.jkind_annotation ast_mapper annot
 
 let default =
   {

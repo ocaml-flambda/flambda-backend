@@ -261,7 +261,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      jkind of the variable put in manifests here is updated when constraints
      are checked and then unified with the real manifest and checked against the
      kind. *)
-  let type_jkind, type_jkind_annotation =
+  let type_jkind =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
       ~default:any
@@ -289,7 +289,6 @@ in
       type_arity = arity;
       type_kind = Type_abstract abstract_source;
       type_jkind;
-      type_jkind_annotation;
       type_private = sdecl.ptype_private;
       type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -511,6 +510,8 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
       Types.ca_modalities = ca.ca_modalities;
       ca_loc = ca.ca_loc;
       ca_type = ca.ca_type.ctyp_type;
+      ca_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+            (* Updated by [update_label_jkinds] *)
     }) tyl_gfl
   in
   tyl_gfl, tyl_gfl'
@@ -543,21 +544,7 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
 let make_constructor
       env loc ~cstr_path ~type_path ~unboxed type_params svars
       sargs sret_type =
-  let tvars =
-    List.map
-      (fun (v, l) ->
-        v.txt,
-        Option.map
-          (fun annot ->
-              let const =
-                Jkind.Const.of_user_written_annotation
-                  ~context:(Constructor_type_parameter (cstr_path, v.txt))
-                  annot
-              in
-              const, annot)
-          l)
-      svars
-  in
+  let tvars = List.map (fun (v, l) -> v.txt, l) svars in
   match sret_type with
   | None ->
       let args, targs =
@@ -784,8 +771,8 @@ let transl_declaration env sdecl (id, uid) =
   verify_unboxed_attr unboxed_attr sdecl;
   let jkind_from_annotation, jkind_annotation =
     match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
-    | Some (jkind, jkind_annotation) ->
-        Some jkind, Some jkind_annotation
+    | Some (jkind, annot) ->
+        Some jkind, annot
     | None -> None, None
   in
   let (tman, man) = match sdecl.ptype_manifest with
@@ -885,7 +872,8 @@ let transl_declaration env sdecl (id, uid) =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
         let rep, jkind =
           if unbox then
-            Variant_unboxed, any
+            Variant_unboxed,
+            Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
           else
             (* We mark all arg jkinds "any" here.  They are updated later,
                after the circular type checks make it safe to check jkinds.
@@ -915,13 +903,14 @@ let transl_declaration env sdecl (id, uid) =
             env None true lbls (Record { unboxed = unbox })
           in
           let rep, jkind =
+            if unbox then
+              Record_unboxed,
+              Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
+            else
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
                [Record_mixed].  Those cases are fixed up after we can get
                accurate jkinds for the fields, in [update_decl_jkind]. *)
-            if unbox then
-              Record_unboxed, any
-            else
               Record_boxed (Array.make (List.length lbls) any),
               Jkind.Builtin.value ~why:Boxed_record
           in
@@ -951,7 +940,6 @@ let transl_declaration env sdecl (id, uid) =
         type_arity = arity;
         type_kind = kind;
         type_jkind = jkind;
-        type_jkind_annotation = jkind_annotation;
         type_private = sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -993,7 +981,7 @@ let transl_declaration env sdecl (id, uid) =
         typ_kind = tkind;
         typ_private = sdecl.ptype_private;
         typ_attributes = sdecl.ptype_attributes;
-        typ_jkind_annotation = Option.map snd jkind_annotation;
+        typ_jkind_annotation = jkind_annotation
       }
     in
     let typ_shape =
@@ -1233,16 +1221,26 @@ let update_label_jkinds env loc lbls named =
    all arguments are void, useful for detecting enumerations that
    can be [immediate]. *)
 let update_constructor_arguments_jkinds env loc cd_args jkinds =
+  let update =
+    match jkinds with
+    | None -> fun _ _ -> ()
+    | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
+  in
   match cd_args with
-  | Types.Cstr_tuple tys ->
-    List.iteri (fun idx {Types.ca_type=ty; _} ->
-      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
-    cd_args, Array.for_all Jkind.is_void_defaulting jkinds
+  | Types.Cstr_tuple args ->
+    let args =
+      List.mapi (fun idx ({Types.ca_type; _} as arg) ->
+        let ca_jkind = Ctype.type_jkind env ca_type in
+        update idx ca_jkind;
+        {arg with ca_jkind}) args
+    in
+    Types.Cstr_tuple args,
+    List.for_all (fun { ca_jkind } -> Jkind.is_void_defaulting ca_jkind) args
   | Types.Cstr_record lbls ->
     let lbls, all_void =
       update_label_jkinds env loc lbls None
     in
-    jkinds.(0) <- Jkind.Builtin.value ~why:Boxed_record;
+    update 0 (Jkind.Builtin.value ~why:Boxed_record);
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =
@@ -1294,11 +1292,9 @@ module Element_repr = struct
   let classify env loc kloc ty jkind =
     if is_float env ty then Float_element
     else
-      let const_jkind = Jkind.default_to_value_and_get jkind in
-      let sort = Jkind.(Layout.Const.get_sort (Const.get_layout const_jkind)) in
-      let externality_upper_bound =
-        Jkind.Const.get_externality_upper_bound const_jkind
-      in
+      let layout = Jkind.get_layout_defaulting_to_value jkind in
+      let sort = Jkind.Layout.Const.get_sort layout in
+      let externality_upper_bound = Jkind.get_externality_upper_bound jkind in
       let base = match sort with
         | None ->
             Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
@@ -1399,18 +1395,17 @@ module Element_repr = struct
 end
 
 let update_constructor_representation
-    env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
+    env (cd_args : Types.constructor_arguments) ~loc
     ~is_extension_constructor
   =
   let flat_suffix =
-    let arg_jkinds = Array.to_list arg_jkinds in
     match cd_args with
     | Cstr_tuple arg_types_and_modes ->
         let arg_reprs =
-          List.map2 (fun {Types.ca_type=arg_type; _} arg_jkind ->
+          List.map (fun {Types.ca_type=arg_type; ca_jkind=arg_jkind; _} ->
             let kloc : jkind_sort_loc = Cstr_tuple { unboxed = false } in
             Element_repr.classify env loc kloc arg_type arg_jkind, arg_type)
-            arg_types_and_modes arg_jkinds
+            arg_types_and_modes
         in
         Element_repr.mixed_product_shape loc arg_reprs Cstr_tuple
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
@@ -1591,9 +1586,11 @@ let update_decl_jkind env dpath decl =
     match cstrs, rep with
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
-        | Cstr_tuple [{ca_type=ty; _}] -> begin
-            let jkind = Ctype.type_jkind env ty in
-            cstrs, Variant_unboxed, jkind
+        | Cstr_tuple [{ca_type=ty; _} as arg] -> begin
+            let ca_jkind = Ctype.type_jkind env ty in
+            [{ cstr with Types.cd_args =
+                           Cstr_tuple [{ arg with ca_jkind }] }],
+            Variant_unboxed, ca_jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
             let ld_jkind = Ctype.type_jkind env ld_type in
@@ -1617,10 +1614,10 @@ let update_decl_jkind env dpath decl =
           in
           let cd_args, all_void =
             update_constructor_arguments_jkinds env cstr.Types.cd_loc
-              cstr.Types.cd_args arg_jkinds
+              cstr.Types.cd_args (Some arg_jkinds)
           in
           let cstr_repr =
-            update_constructor_representation env cd_args arg_jkinds
+            update_constructor_representation env cd_args
               ~is_extension_constructor:false
               ~loc:cstr.Types.cd_loc
           in
@@ -2318,27 +2315,21 @@ let transl_extension_constructor_decl
       ~cstr_path:(Pident id) ~type_path ~unboxed:false typext_params
       svars sargs sret_type
   in
-  let num_args =
-    match targs with
-    | Cstr_tuple args -> List.length args
-    | Cstr_record _ -> 1
-  in
-  let jkinds = Array.make num_args (Jkind.Builtin.any ~why:Dummy_jkind) in
   let args, constant =
-    update_constructor_arguments_jkinds env loc args jkinds
+    update_constructor_arguments_jkinds env loc args None
   in
   let constructor_shape =
-    update_constructor_representation env args jkinds ~loc
+    update_constructor_representation env args ~loc
       ~is_extension_constructor:true
   in
-  args, jkinds, constructor_shape, constant, ret_type,
+  args, constructor_shape, constant, ret_type,
   Text_decl(tvars, targs, tret_type)
 
 let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
-  let args, arg_jkinds, shape, constant, ret_type, kind =
+  let args, shape, constant, ret_type, kind =
     match sext.pext_kind with
       Pext_decl(svars, sargs, sret_type) ->
       transl_extension_constructor_decl
@@ -2406,7 +2397,7 @@ let transl_extension_constructor ~scope env type_path type_params
         end;
         let path =
           match cdescr.cstr_tag with
-            Extension (path,_) -> path
+            Extension path -> path
           | _ -> assert false
         in
         let args =
@@ -2429,7 +2420,7 @@ let transl_extension_constructor ~scope env type_path type_params
               in
               Types.Cstr_record lbls
         in
-        args, cdescr.cstr_arg_jkinds, cdescr.cstr_shape,
+        args, cdescr.cstr_shape,
         cdescr.cstr_constant, ret_type,
         Text_rebind(path, lid)
   in
@@ -2437,7 +2428,6 @@ let transl_extension_constructor ~scope env type_path type_params
     { ext_type_path = type_path;
       ext_type_params = typext_params;
       ext_args = args;
-      ext_arg_jkinds = arg_jkinds;
       ext_shape = shape;
       ext_constant = constant;
       ext_ret_type = ret_type;
@@ -2771,7 +2761,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
-      let layout = Jkind_types.Sort.to_string (Base sort) in
+      let layout = Jkind_types.Sort.to_string_base sort in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
@@ -2824,7 +2814,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     then
       (* There are additional requirements if we are operating in
          upstream compatible mode. *)
-      let layout = Jkind_types.Sort.to_string (Base sort) in
+      let layout = Jkind_types.Sort.to_string_base sort in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Non_value_sort layout)));
@@ -3167,21 +3157,19 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-  let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
+  let type_kind, type_unboxed_default, type_jkind =
     if arity_ok then
       sig_decl.type_kind,
       sig_decl.type_unboxed_default,
-      sig_decl.type_jkind,
-      sig_decl.type_jkind_annotation
+      sig_decl.type_jkind
     else
-      Type_abstract Definition, false, sig_decl.type_jkind, None
+      Type_abstract Definition, false, sig_decl.type_jkind
   in
   let new_sig_decl =
     { type_params = params;
       type_arity = arity;
       type_kind;
       type_jkind;
-      type_jkind_annotation;
       type_private = priv;
       type_manifest = Some man;
       type_variance = [];
@@ -3221,7 +3209,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_arity = new_sig_decl.type_arity;
       type_kind = new_sig_decl.type_kind;
       type_jkind = new_sig_decl.type_jkind;
-      type_jkind_annotation = new_sig_decl.type_jkind_annotation;
       type_private = new_sig_decl.type_private;
       type_manifest = new_sig_decl.type_manifest;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
@@ -3246,7 +3233,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
-    typ_jkind_annotation = Option.map snd type_jkind_annotation;
+    typ_jkind_annotation = Jkind.get_annotation type_jkind;
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)
@@ -3262,7 +3249,6 @@ let transl_package_constraint ~loc ty =
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
-    type_jkind_annotation = None;
     type_private = Public;
     type_manifest = Some ty;
     type_variance = [];
@@ -3278,7 +3264,7 @@ let transl_package_constraint ~loc ty =
 
 (* Approximate a type declaration: just make all types abstract *)
 
-let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
+let abstract_type_decl ~injective ~jkind ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
@@ -3286,7 +3272,6 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_arity = arity;
       type_kind = Type_abstract Definition;
       type_jkind = jkind;
-      type_jkind_annotation = jkind_annotation;
       type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
@@ -3308,7 +3293,7 @@ let approx_type_decl sdecl_list =
        let id = Ident.create_scoped ~scope sdecl.ptype_name.txt in
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
-       let jkind, jkind_annotation =
+       let jkind =
          Jkind.of_type_decl_default
            ~context:(Type_declaration path)
            ~default:(Jkind.Builtin.value ~why:Default_type_jkind)
@@ -3318,7 +3303,7 @@ let approx_type_decl sdecl_list =
          List.map (fun (param, _) -> get_type_param_jkind path param)
            sdecl.ptype_params
        in
-       (id, abstract_type_decl ~injective ~jkind ~jkind_annotation ~params))
+       (id, abstract_type_decl ~injective ~jkind ~params))
     sdecl_list
 
 (* Check the well-formedness conditions on type abbreviations defined

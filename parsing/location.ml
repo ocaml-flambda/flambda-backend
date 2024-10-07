@@ -139,6 +139,7 @@ type 'a loc = {
 let mkloc txt loc = { txt ; loc }
 let mknoloc txt = mkloc txt none
 let get_txt { txt } = txt
+let get_loc { loc } = loc
 let map f { txt; loc} = {txt = f txt; loc}
 let compare_txt f { txt=t1 } { txt=t2 } = f t1 t2
 

@@ -313,7 +313,7 @@ type t4 = M4'.s t4_imm;;
 [%%expect{|
 module F4' :
   functor (X : sig type t : immediate end) ->
-    sig type s : immediate = Foo of X.t [@@unboxed] end
+    sig type s = Foo of X.t [@@unboxed] end
 module M4' : sig type s : immediate end
 type ('a : immediate) t4_imm
 type t4 = M4'.s t4_imm
@@ -401,7 +401,7 @@ Error: In this "with" constraint, the new definition of "t"
        is not included in
          type t : void
        The layout of the first is value
-         because it is the primitive immediate type int.
+         because it is the primitive type int.
        But the layout of the first must be a sublayout of void
          because of the definition of t at line 2, characters 2-15.
 |}];;

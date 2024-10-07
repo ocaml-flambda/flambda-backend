@@ -367,6 +367,18 @@ module Stdlib = struct
       in
       let a' = (Array.map [@inlined hint]) f' a in
       if !same then a else a'
+
+    let of_list_map f = function
+      | [] -> [| |]
+      | hd :: tl ->
+        let a = Array.make (1 + List.length tl) (f hd) in
+        let rec fill i = function
+          | [] -> a
+          | hd :: tl ->
+            Array.unsafe_set a i (f hd);
+            fill (i + 1) tl
+        in
+        fill 1 tl
   end
 
   module String = struct
@@ -484,16 +496,32 @@ module Stdlib = struct
   external compare : 'a -> 'a -> int = "%compare"
 
   module Monad = struct
-    module type Basic2 = sig
-      (** Multi parameter monad. The second parameter gets unified across all the computation.
-          This is used to encode monads working on a multi parameter data structure like
-          ([('a,'b) result]). *)
+    module type Basic = sig
+      type 'a t
 
+      val bind : 'a t -> ('a -> 'b t) -> 'b t
+      val return : 'a -> 'a t
+    end
+
+    module type Basic2 = sig
       type ('a, 'e) t
 
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
 
       val return : 'a -> ('a, _) t
+    end
+
+    module type S = sig
+      type 'a t
+
+      val bind : 'a t -> ('a -> 'b t) -> 'b t
+      val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+      val return : 'a -> 'a t
+      val map : ('a -> 'b) -> 'a t -> 'b t
+      val join : 'a t t -> 'a t
+      val ignore_m : 'a t -> unit t
+      val all : 'a t list -> 'a list t
+      val all_unit : unit t list -> unit t
     end
 
     module type S2 = sig
@@ -506,6 +534,28 @@ module Stdlib = struct
       val ignore_m : (_, 'e) t -> (unit, 'e) t
       val all : ('a, 'e) t list -> ('a list, 'e) t
       val all_unit : (unit, 'e) t list -> (unit, 'e) t
+    end
+
+    module Make (X : Basic) = struct
+      include X
+
+      let ( >>= ) t f = bind t f
+
+      let map f ma = ma >>= fun a -> return (f a)
+
+      let join t = t >>= fun t' -> t'
+      let ignore_m t = map (fun _ -> ()) t
+
+      let all =
+        let rec loop vs = function
+          | [] -> return (List.rev vs)
+          | t :: ts -> t >>= fun v -> loop (v :: vs) ts
+        in
+        fun ts -> loop [] ts
+
+      let rec all_unit = function
+        | [] -> return ()
+        | t :: ts -> t >>= fun () -> all_unit ts
     end
 
     module Make2 (X : Basic2) = struct
@@ -530,8 +580,13 @@ module Stdlib = struct
         | m :: ms -> bind m (fun _ -> all_unit ms)
     end
 
+    module Option = Make(struct
+        include Stdlib.Option
+        let return = some
+      end)
+
     module Result = Make2(struct
-        include Result
+        include Stdlib.Result
         let return = ok
       end)
   end

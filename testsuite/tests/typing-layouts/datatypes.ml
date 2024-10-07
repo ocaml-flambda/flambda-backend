@@ -395,7 +395,7 @@ Error: Layout mismatch in final type declaration consistency check.
            because of the definition of float64_t at line 2, characters 0-29.
          But the layout of 'a must overlap with value
            because it instantiates an unannotated type parameter of t8_5,
-           defaulted to layout value.
+           chosen to have layout value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
