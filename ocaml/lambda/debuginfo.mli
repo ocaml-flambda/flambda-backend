@@ -132,7 +132,14 @@ module Dbg : sig
   (** [compare] and [hash] ignore [dinfo_scopes] field of item *)
 
   val is_none : t -> bool
+
+  (** [compare] Inner-most inlined debug info is used first. Allocates. *)
   val compare : t -> t -> int
+
+  (** [compare_outer_first] Outer-most inlined debug info is used first.
+      Does not allocate. *)
+  val compare_outer_first : t -> t -> int
+
   val hash : t -> int
   val to_list : t -> item list
   val length : t -> int
