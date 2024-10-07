@@ -88,6 +88,8 @@ module Witnesses : sig
 
   val empty : t
 
+  val widen : t
+
   val is_empty : t -> bool
 
   val iter : t -> f:(Witness.t -> unit) -> unit
@@ -147,6 +149,8 @@ end = struct
   let lessequal = subset
 
   let create kind dbg = singleton (Witness.create dbg kind)
+
+  let widen = singleton (Witness.create Debuginfo.none Witness.Widen)
 
   let iter t ~f = iter f t
 
@@ -518,9 +522,7 @@ end = struct
 
     val get_unresolved_names : t -> String.Set.t
 
-    exception Widen
-
-    exception Widen_with_witness
+    exception Widen of Witnesses.t
   end = struct
     (* Join of two Transform with the same set of vars: merged both sets of Vars
        into one Transform in normal form, without loss of precision or
@@ -532,9 +534,7 @@ end = struct
 
     type t = Transform.t M.t
 
-    exception Widen
-
-    exception Widen_with_witness
+    exception Widen of Witnesses.t
 
     let maybe_widen t =
       match !Flambda_backend_flags.zero_alloc_checker_join with
@@ -543,8 +543,8 @@ end = struct
         if M.cardinal t > n
         then
           if M.exists (fun _var tr -> Transform.has_witnesses tr) t
-          then raise Widen_with_witness
-          else raise Widen
+          then raise (Widen Witnesses.widen)
+          else raise (Widen Witnesses.empty)
         else t
       | Error n ->
         if M.cardinal t > n
@@ -1113,12 +1113,8 @@ end = struct
      Someday it can be optimized using hash consing and bdd-like
      representation. *)
 
-  let widen_witness = Witnesses.create Witness.Widen Debuginfo.none
-
   let bounded_join f =
-    try Join (f ()) with
-    | Transforms.Widen -> Top Witnesses.empty
-    | Transforms.Widen_with_witness -> Top widen_witness
+    try Join (f ()) with Transforms.Widen witnesses -> Top witnesses
 
   (* Keep [join] and [lessequal] in sync. *)
   let join t1 t2 =
