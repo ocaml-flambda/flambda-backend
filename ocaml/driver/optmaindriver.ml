@@ -38,6 +38,7 @@ let main argv ppf =
   match
     Compenv.readenv ppf Before_args;
     Clflags.add_arguments __LOC__ (Arch.command_line_options @ Options.list);
+    Clflags.add_arguments __LOC__ Address_sanitizer.command_line_options;
     Clflags.add_arguments __LOC__
       ["-depend", Arg.Unit Makedepend.main_from_option,
        "<options> Compute dependencies \
