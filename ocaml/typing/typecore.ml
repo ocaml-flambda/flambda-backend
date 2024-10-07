@@ -6534,7 +6534,7 @@ and type_expect_
       else Location.todo_overwrite_not_implemented loc
   | Pexp_hole ->
       if not (Language_extension.is_enabled Overwriting) then
-        raise Syntaxerr.(Error(Not_expecting(loc, "wildcard _")))
+        raise Syntaxerr.(Error(Not_expecting(loc, "wildcard \"_\"")))
       else Location.todo_overwrite_not_implemented loc
 
 and expression_constraint pexp =
