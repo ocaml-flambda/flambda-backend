@@ -110,6 +110,8 @@ and 'a pattern_data =
     pat_env: Env.t;
     pat_attributes: attributes;
     pat_unique_barrier : Unique_barrier.t;
+    (** This tracks whether the scrutinee of the pattern is used uniquely
+        within the body of the pattern match. *)
    }
 
 and pat_extra =
