@@ -28,7 +28,7 @@ let for_fundecl ~get_file_id state (fundecl : L.fundecl) ~fun_end_label
   let linkage_name =
     match Debuginfo.Dbg.to_list (Debuginfo.get_dbg fundecl.fun_dbg) with
     | [item] ->
-      Debuginfo.Scoped_location.string_of_scopes item.dinfo_scopes
+      Debuginfo.Scoped_location.string_of_scopes ~include_zero_alloc:false item.dinfo_scopes
       |> Misc.remove_double_underscores
     (* XXX Not sure what to do in the cases below *)
     | [] | _ :: _ -> fun_name

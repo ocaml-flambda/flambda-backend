@@ -1248,7 +1248,8 @@ let lambda_of_loc kind sloc =
     Lconst (Const_immstring loc)
   | Loc_LINE -> Lconst (Const_base (Const_int lnum))
   | Loc_FUNCTION ->
-    let scope_name = Debuginfo.Scoped_location.string_of_scoped_location sloc in
+    let scope_name = Debuginfo.Scoped_location.string_of_scoped_location
+                       ~include_zero_alloc:false sloc in
     Lconst (Const_immstring scope_name)
 
 let caml_restore_raw_backtrace =

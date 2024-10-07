@@ -1581,7 +1581,9 @@ end = struct
       let scoped_name =
         t.fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
         |> List.map (fun dbg ->
-               Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+               Debuginfo.(
+                 Scoped_location.string_of_scopes ~include_zero_alloc:false
+                   dbg.dinfo_scopes))
         |> String.concat ","
       in
       Format.fprintf ppf
