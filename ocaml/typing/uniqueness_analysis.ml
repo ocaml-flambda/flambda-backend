@@ -111,7 +111,7 @@ module Maybe_aliased : sig
   type t
 
   type access =
-    | Read
+    | Read of Unique_barrier.t
     | Write
 
   val string_of_access : access -> string
@@ -119,7 +119,10 @@ module Maybe_aliased : sig
   (** The type representing a usage that could be either aliased or borrowed *)
 
   (** Extract an arbitrary occurrence from the usage *)
-  val extract_occurrence_access : t -> Occurrence.t * access
+  val extract_occurrence : t -> Occurrence.t
+
+  (** extract an arbitrary access from this usage *)
+  val extract_access : t -> access
 
   (** Add a barrier. The uniqueness mode represents the usage immediately
       following the current usage. If that mode is Unique, the current usage
@@ -130,13 +133,15 @@ module Maybe_aliased : sig
 
   val meet : t -> t -> t
 
-  val singleton : unique_barrier ref -> Occurrence.t -> access -> t
+  val singleton : Occurrence.t -> access -> t
 end = struct
   type access =
-    | Read
+    | Read of Unique_barrier.t
     | Write
 
-  let string_of_access = function Read -> "read from" | Write -> "written to"
+  let string_of_access = function
+    | Read _ -> "read from"
+    | Write -> "written to"
 
   (** list of occurences together with modes to be forced as borrowed in the
   future if needed. It is a list because of multiple control flows. For
@@ -145,19 +150,24 @@ end = struct
   is the meet of all modes in the list. (recall that borrowed > aliased).
   Therefore, if this virtual mode needs to be forced borrowed, the whole list
   needs to be forced borrowed. *)
-  type t = (unique_barrier ref * Occurrence.t * access) list
+  type t = (Occurrence.t * access) list
 
   let meet l0 l1 = l0 @ l1
 
-  let singleton r occ access = [r, occ, access]
+  let singleton occ access = [occ, access]
 
-  let extract_occurrence_access = function
+  let extract_occurrence = function [] -> assert false | (occ, _) :: _ -> occ
+
+  let extract_access = function
     | [] -> assert false
-    | (_, occ, access) :: _ -> occ, access
+    | (_, access) :: _ -> access
 
   let add_barrier t uniq =
     List.iter
-      (fun (barrier, _, _) -> barrier := Uniqueness.meet [!barrier; uniq])
+      (fun (_, access) ->
+        match access with
+        | Read barrier -> Unique_barrier.add_upper_bound uniq barrier
+        | _ -> ())
       t
 end
 
@@ -302,7 +312,7 @@ end = struct
   let extract_occurrence = function
     | Unused -> None
     | Borrowed occ -> Some occ
-    | Maybe_aliased t -> Some (Maybe_aliased.extract_occurrence_access t |> fst)
+    | Maybe_aliased t -> Some (Maybe_aliased.extract_occurrence t)
     | Aliased t -> Some (Aliased.extract_occurrence t)
     | Maybe_unique t -> Some (Maybe_unique.extract_occurrence t)
 
@@ -312,7 +322,10 @@ end = struct
     | Borrowed _, t | t, Borrowed _ -> t
     | Maybe_aliased l0, Maybe_aliased l1 ->
       Maybe_aliased (Maybe_aliased.meet l0 l1)
-    | Maybe_aliased _, t | t, Maybe_aliased _ -> t
+    | Maybe_aliased _, t | t, Maybe_aliased _ ->
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
+      t
     | Aliased _, t | t, Aliased _ -> t
     | Maybe_unique l0, Maybe_unique l1 -> Maybe_unique (Maybe_unique.meet l0 l1)
 
@@ -347,14 +360,14 @@ end = struct
     | Maybe_aliased t0, Maybe_aliased t1 ->
       Maybe_aliased (Maybe_aliased.meet t0 t1)
     | Maybe_aliased _, Aliased occ | Aliased occ, Maybe_aliased _ ->
-      (* The barrier stays empty; if there is any unique after this, it
-         will error *)
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
       Aliased occ
     | Maybe_aliased t0, Maybe_unique t1 | Maybe_unique t1, Maybe_aliased t0 ->
       (* t1 must be aliased *)
       force_aliased_multiuse t1 (Maybe_aliased t0) First;
-      (* The barrier stays empty; if there is any unique after this, it will
-         error *)
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
       aliased (Maybe_unique.extract_occurrence t1) Aliased.Forced
     | Aliased t0, Aliased _ -> Aliased t0
     | Aliased t0, Maybe_unique t1 ->
@@ -407,7 +420,10 @@ end = struct
     | Maybe_unique l, Borrowed occ ->
       force_aliased_multiuse l m1 First;
       aliased occ Aliased.Forced
-    | Aliased _, Maybe_aliased _ -> m0
+    | Aliased _, Maybe_aliased _ ->
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
+      m0
     | Maybe_unique l0, Maybe_aliased l1 ->
       (* Four cases:
           Aliased;Borrowed = Aliased
@@ -417,8 +433,10 @@ end = struct
 
           As you can see, we need to force the m0 to Aliased, and m1 needn't
           be constrained. The result is always Aliased.
+          The barrier stays empty; if there is any unique after this,
+          the analysis will error.
       *)
-      let occ, _ = Maybe_aliased.extract_occurrence_access l1 in
+      let occ = Maybe_aliased.extract_occurrence l1 in
       force_aliased_multiuse l0 m1 First;
       aliased occ Aliased.Forced
     | Aliased _, Aliased _ -> m0
@@ -441,7 +459,7 @@ module Projection : sig
     | Record_field of string
     | Construct_field of string * int
     | Variant_field of label
-    | Memory_address
+    | Memory_address (* this is rendered as clubsuit in the ICFP'24 paper *)
 
   module Map : Map.S with type key = t
 end = struct
@@ -766,7 +784,7 @@ module Paths : sig
   val choose : t -> t -> t
 
   val mark_implicit_borrow_memory_address :
-    Maybe_aliased.access -> Occurrence.t -> t -> UF.t
+    Occurrence.t -> Maybe_aliased.access -> t -> UF.t
 
   val mark_aliased : Occurrence.t -> Aliased.reason -> t -> UF.t
 end = struct
@@ -808,13 +826,9 @@ end = struct
 
   let fresh () = [UF.Path.fresh_root ()]
 
-  let mark_implicit_borrow_memory_address access occ paths =
-    (* Currently we just generate a dummy unique_barrier ref that won't be
-        consumed. The distinction between implicit and explicit borrowing is
-        still needed because they are handled differently in closures *)
-    let barrier = ref (Uniqueness.max |> Uniqueness.disallow_left) in
+  let mark_implicit_borrow_memory_address occ access paths =
     mark
-      (Maybe_aliased (Maybe_aliased.singleton barrier occ access))
+      (Maybe_aliased (Maybe_aliased.singleton occ access))
       (memory_address paths)
 
   let mark_aliased occ reason paths = mark (Usage.aliased occ reason) paths
@@ -857,9 +871,7 @@ module Value : sig
   val mark_maybe_unique : t -> UF.t
 
   (** Mark the memory_address of the value as implicitly borrowed
-      (borrow_or_aliased). We still ask for the [occ] argument, because
-      [Value.occ] is the occurrence of the value, not necessary the place where
-      it is borrowed. *)
+      (borrow_or_aliased). *)
   val mark_implicit_borrow_memory_address : Maybe_aliased.access -> t -> UF.t
 
   val mark_aliased : reason:boundary_reason -> t -> UF.t
@@ -890,7 +902,7 @@ end = struct
   let mark_implicit_borrow_memory_address access = function
     | Fresh -> UF.unused
     | Existing { paths; occ; _ } ->
-      Paths.mark_implicit_borrow_memory_address access occ paths
+      Paths.mark_implicit_borrow_memory_address occ access paths
 
   let mark_maybe_unique = function
     | Fresh -> UF.unused
@@ -1000,10 +1012,13 @@ let conjuncts_pattern_match l =
 let rec pattern_match_tuple pat values =
   match pat.pat_desc with
   | Tpat_or (pat0, pat1, _) ->
+    Unique_barrier.enable pat.pat_unique_barrier;
     let ext0, uf0 = pattern_match_tuple pat0 values in
     let ext1, uf1 = pattern_match_tuple pat1 values in
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
   | Tpat_tuple pats ->
+    (* No read: the tuple does not exist in memory *)
+    Unique_barrier.enable pat.pat_unique_barrier;
     List.map2
       (fun (_, pat) value ->
         let paths =
@@ -1025,22 +1040,40 @@ let rec pattern_match_tuple pat values =
 and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
   let loc = pat.pat_loc in
   let occ = Occurrence.mk loc in
+  (* To read from the allocation, we need to borrow its memory cell
+     and set the unique_barrier. However, we do not read in every case,
+     since the user might want use a wildcard for already-consumed data. *)
+  let no_borrow_memory_address () =
+    Unique_barrier.enable pat.pat_unique_barrier;
+    ignore (Unique_barrier.resolve pat.pat_unique_barrier)
+  in
+  let borrow_memory_address () =
+    Unique_barrier.enable pat.pat_unique_barrier;
+    Paths.mark_implicit_borrow_memory_address occ (Read pat.pat_unique_barrier)
+      paths
+  in
   match pat.pat_desc with
   | Tpat_or (pat0, pat1, _) ->
+    no_borrow_memory_address ();
     let ext0, uf0 = pattern_match_single pat0 paths in
     let ext1, uf1 = pattern_match_single pat1 paths in
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
-  | Tpat_any -> Ienv.Extension.empty, UF.unused
-  | Tpat_var (id, _, _, _) -> Ienv.Extension.singleton id paths, UF.unused
+  | Tpat_any ->
+    no_borrow_memory_address ();
+    Ienv.Extension.empty, UF.unused
+  | Tpat_var (id, _, _, _) ->
+    no_borrow_memory_address ();
+    Ienv.Extension.singleton id paths, UF.unused
   | Tpat_alias (pat', id, _, _, _) ->
+    no_borrow_memory_address ();
     let ext0 = Ienv.Extension.singleton id paths in
     let ext1, uf = pattern_match_single pat' paths in
     Ienv.Extension.conjunct ext0 ext1, uf
   | Tpat_constant _ ->
-    ( Ienv.Extension.empty,
-      Paths.mark_implicit_borrow_memory_address Read occ paths )
+    let uf_read = borrow_memory_address () in
+    Ienv.Extension.empty, uf_read
   | Tpat_construct (lbl, cd, pats, _) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read = borrow_memory_address () in
     let pats_args = List.combine pats cd.cstr_args in
     let ext, uf_pats =
       List.mapi
@@ -1053,7 +1086,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_variant (lbl, arg, _) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read = borrow_memory_address () in
     let ext, uf_arg =
       match arg with
       | Some arg ->
@@ -1063,7 +1096,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_arg
   | Tpat_record (pats, _) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read = borrow_memory_address () in
     let ext, uf_pats =
       List.map
         (fun (_, l, pat) ->
@@ -1074,7 +1107,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_array (_, _, pats) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read = borrow_memory_address () in
     let ext, uf_pats =
       List.map
         (fun pat ->
@@ -1085,13 +1118,15 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_lazy arg ->
+    no_borrow_memory_address ();
+    (* forced below: *)
     (* forcing a lazy expression is like calling a nullary-function *)
     let uf_force = Paths.mark_aliased occ Lazy paths in
     let paths = Paths.fresh () in
     let ext, uf_arg = pattern_match_single arg paths in
     ext, UF.par uf_force uf_arg
   | Tpat_tuple args ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read = borrow_memory_address () in
     let ext, uf_args =
       List.mapi
         (fun i (_, arg) ->
@@ -1102,6 +1137,8 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_args
   | Tpat_unboxed_tuple args ->
+    (* No borrow since unboxed data can not be consumed. *)
+    no_borrow_memory_address ();
     let ext, uf_args =
       List.mapi
         (fun i (_, arg, _) ->
@@ -1116,11 +1153,18 @@ let pattern_match pat = function
   | Match_tuple values -> pattern_match_tuple pat values
   | Match_single paths -> pattern_match_single pat paths
 
-(* We ignore exceptions in uniqueness analysis. *)
 let comp_pattern_match pat value =
-  match split_pattern pat with
-  | Some pat', _ -> pattern_match pat' value
-  | None, _ -> Ienv.Extension.empty, UF.unused
+  let vals, exns = split_pattern pat in
+  (* We ignore exceptions in uniqueness analysis,
+     since they can never contain unique values. *)
+  (match exns with
+  | Some exns ->
+    let _ = pattern_match exns (Match_single Paths.untracked) in
+    ()
+  | None -> ());
+  match vals with
+  | Some pat' -> pattern_match pat' value
+  | None -> Ienv.Extension.empty, UF.unused
 
 let value_of_ident ienv unique_use occ path =
   match path with
@@ -1187,7 +1231,8 @@ let lift_implicit_borrowing uf =
     (function
       | Maybe_aliased t ->
         (* implicit borrowing lifted. *)
-        let occ, access = Maybe_aliased.extract_occurrence_access t in
+        let occ = Maybe_aliased.extract_occurrence t in
+        let access = Maybe_aliased.extract_access t in
         Usage.aliased occ (Aliased.Lifted access)
       | m ->
         (* other usage stays the same *)
@@ -1283,9 +1328,12 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let value, uf_ext =
       match extended_expression with
       | None -> Value.fresh, UF.unused
-      | Some exp ->
+      | Some (exp, unique_barrier) ->
         let value, uf_exp = check_uniqueness_exp_as_value ienv exp in
-        let uf_read = Value.mark_implicit_borrow_memory_address Read value in
+        Unique_barrier.enable unique_barrier;
+        let uf_read =
+          Value.mark_implicit_borrow_memory_address (Read unique_barrier) value
+        in
         value, UF.par uf_exp uf_read
     in
     let uf_fields =
@@ -1418,14 +1466,20 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       | Some value -> value
     in
     value, UF.unused
-  | Texp_field (e, _, l, float) -> (
+  | Texp_field (e, _, l, float, unique_barrier) -> (
     let value, uf = check_uniqueness_exp_as_value ienv e in
     match Value.paths value with
-    | None -> Value.fresh, uf
+    | None ->
+      (* No barrier: the expression 'e' is not overwritable. *)
+      Unique_barrier.enable unique_barrier;
+      Value.fresh, uf
     | Some paths ->
       (* accessing the field meaning borrowing the parent record's mem
          block. Note that the field itself is not borrowed or used *)
-      let uf_read = Value.mark_implicit_borrow_memory_address Read value in
+      Unique_barrier.enable unique_barrier;
+      let uf_read =
+        Value.mark_implicit_borrow_memory_address (Read unique_barrier) value
+      in
       let uf_boxing, value =
         let occ = Occurrence.mk loc in
         let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in
@@ -1555,9 +1609,8 @@ let report_multi_use inner first_is_of_second =
   let here_usage = "used" in
   let there_usage =
     match there with
-    | Usage.Maybe_aliased t -> (
-      let _, access = Maybe_aliased.extract_occurrence_access t in
-      match access with Read -> "read from" | Write -> "written to")
+    | Usage.Maybe_aliased t ->
+      Maybe_aliased.string_of_access (Maybe_aliased.extract_access t)
     | Usage.Aliased t -> (
       match Aliased.reason t with
       | Forced | Lazy -> "used"

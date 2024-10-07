@@ -1784,7 +1784,7 @@ let build_or_pat env loc lid =
             let f = rf_either [ty] ~no_arg:false ~matched:true in
             (l, Some {pat_desc=Tpat_any; pat_loc=Location.none; pat_env=env;
                       pat_type=ty; pat_extra=[];
-                      pat_attributes=[]})
+                      pat_attributes=[];pat_unique_barrier=Unique_barrier.not_computed () })
             :: pats,
             (l, f) :: fields
         | _ -> pats, fields)
@@ -1804,7 +1804,8 @@ let build_or_pat env loc lid =
       (fun (l,p) ->
         {pat_desc=Tpat_variant(l,p,row'); pat_loc=gloc;
          pat_env=env; pat_type=ty;
-         pat_extra=[]; pat_attributes=[]})
+         pat_extra=[]; pat_attributes=[];
+         pat_unique_barrier=Unique_barrier.not_computed () })
       pats
   in
   match pats with
@@ -1818,7 +1819,7 @@ let build_or_pat env loc lid =
           (fun pat pat0 ->
             {pat_desc=Tpat_or(pat0,pat,Some row0); pat_extra=[];
              pat_loc=gloc; pat_env=env; pat_type=ty;
-             pat_attributes=[]})
+             pat_attributes=[]; pat_unique_barrier=Unique_barrier.not_computed () })
           pat pats in
       (path, rp { r with pat_loc = loc })
 
@@ -2525,7 +2526,8 @@ and type_pat_aux
       pat_loc = loc; pat_extra=[];
       pat_type = instance expected_ty;
       pat_attributes;
-      pat_env = !!penv }
+      pat_env = !!penv;
+      pat_unique_barrier = Unique_barrier.not_computed () }
   in
   let type_tuple_pat spl closed =
     (* CR layouts v5: consider sharing code with [type_unboxed_tuple_pat] below
@@ -2561,7 +2563,8 @@ and type_pat_aux
       pat_loc = loc; pat_extra=[];
       pat_type = newty (Ttuple (List.map (fun (lbl, p) -> lbl, p.pat_type) pl));
       pat_attributes = sp.ppat_attributes;
-      pat_env = !!penv }
+      pat_env = !!penv;
+      pat_unique_barrier = Unique_barrier.not_computed () }
   in
   let type_unboxed_tuple_pat spl closed =
     Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
@@ -2601,7 +2604,8 @@ and type_pat_aux
       pat_loc = loc; pat_extra=[];
       pat_type = ty;
       pat_attributes = sp.ppat_attributes;
-      pat_env = !!penv }
+      pat_env = !!penv;
+      pat_unique_barrier = Unique_barrier.not_computed () }
   in
   match Jane_syntax.Pattern.of_ast sp with
   | Some (jpat, attrs) -> begin
@@ -2619,7 +2623,8 @@ and type_pat_aux
             pat_loc = loc; pat_extra=[];
             pat_type = type_constant cst;
             pat_attributes = attrs;
-            pat_env = !!penv }
+            pat_env = !!penv;
+            pat_unique_barrier = Unique_barrier.not_computed () }
     end
   | None ->
   match sp.ppat_desc with
@@ -2629,7 +2634,8 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv }
+        pat_env = !!penv;
+        pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_var name ->
       let ty = instance expected_ty in
       let alloc_mode =
@@ -2643,7 +2649,8 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = ty;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv }
+        pat_env = !!penv;
+        pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_unpack name ->
       let t = instance expected_ty in
       begin match name.txt with
@@ -2654,7 +2661,8 @@ and type_pat_aux
             pat_extra=[Tpat_unpack, name.loc, sp.ppat_attributes];
             pat_type = t;
             pat_attributes = [];
-            pat_env = !!penv }
+            pat_env = !!penv;
+            pat_unique_barrier = Unique_barrier.not_computed () }
       | Some s ->
           let v = { name with txt = s } in
           (* We're able to pass ~is_module:true here without an error because
@@ -2668,7 +2676,8 @@ and type_pat_aux
             pat_extra=[Tpat_unpack, loc, sp.ppat_attributes];
             pat_type = t;
             pat_attributes = [];
-            pat_env = !!penv }
+            pat_env = !!penv;
+            pat_unique_barrier = Unique_barrier.not_computed () }
       end
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
@@ -2682,7 +2691,8 @@ and type_pat_aux
             pat_loc = loc; pat_extra=[];
             pat_type = q.pat_type;
             pat_attributes = sp.ppat_attributes;
-            pat_env = !!penv }
+            pat_env = !!penv;
+            pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_constant cst ->
       let cst = constant_or_raise !!penv loc cst in
       rvp @@ solve_expected {
@@ -2690,7 +2700,8 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = type_constant cst;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv }
+        pat_env = !!penv;
+        pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_interval (Pconst_char c1, Pconst_char c2) ->
       let open Ast_helper.Pat in
       let gloc = Location.ghostify loc in
@@ -2816,7 +2827,8 @@ and type_pat_aux
             pat_loc = loc; pat_extra=[];
             pat_type = instance expected_ty;
             pat_attributes = sp.ppat_attributes;
-            pat_env = !!penv }
+            pat_env = !!penv;
+            pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_variant(tag, sarg) ->
       assert (tag <> Parmatch.some_private_tag);
       let constant = (sarg = None) in
@@ -2833,7 +2845,8 @@ and type_pat_aux
         pat_loc = loc; pat_extra = [];
         pat_type = pat_type;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv }
+        pat_env = !!penv;
+        pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_record(lid_sp_list, closed) ->
       assert (lid_sp_list <> []);
       let expected_type, record_ty =
@@ -2866,6 +2879,7 @@ and type_pat_aux
           pat_type = instance record_ty;
           pat_attributes = sp.ppat_attributes;
           pat_env = !!penv;
+          pat_unique_barrier = Unique_barrier.not_computed ();
         }
       in
       let lbl_a_list =
@@ -2932,7 +2946,8 @@ and type_pat_aux
            pat_loc = loc; pat_extra = [];
            pat_type = instance expected_ty;
            pat_attributes = sp.ppat_attributes;
-           pat_env = !!penv }
+           pat_env = !!penv;
+           pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_lazy sp1 ->
       submode ~loc ~env:!!penv alloc_mode.mode mode_force_lazy;
       let nv = solve_Ppat_lazy ~refine:false loc penv expected_ty in
@@ -2943,7 +2958,8 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv }
+        pat_env = !!penv;
+        pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_constraint(sp_constrained, sty, ms) ->
       (* Pretend separate = true *)
       begin match sty with
@@ -2985,6 +3001,7 @@ and type_pat_aux
         pat_type = expected_ty;
         pat_env = !!penv;
         pat_attributes = sp.ppat_attributes;
+        pat_unique_barrier = Unique_barrier.not_computed ();
       }
   | Ppat_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
@@ -3318,7 +3335,8 @@ let rec check_counter_example_pat
   (* "make pattern" and "make pattern then continue" *)
   let mp ?(pat_type = expected_ty) desc =
     { pat_desc = desc; pat_loc = loc; pat_extra=[];
-      pat_type = instance pat_type; pat_attributes = []; pat_env = !!penv } in
+      pat_type = instance pat_type; pat_attributes = []; pat_env = !!penv;
+      pat_unique_barrier = Unique_barrier.not_computed () } in
   let mkp k ?pat_type desc = k (mp ?pat_type desc) in
   let must_backtrack_on_gadt =
     match info.splitting_mode with
@@ -3976,8 +3994,8 @@ let rec is_nonexpansive exp =
                lbl.lbl_mut = Immutable && is_nonexpansive exp
            | Kept _ -> true)
         fields
-      && is_nonexpansive_opt extended_expression
-  | Texp_field(exp, _, _, _) -> is_nonexpansive exp
+      && is_nonexpansive_opt (Option.map fst extended_expression)
+  | Texp_field(exp, _, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, _jkind, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -5753,7 +5771,8 @@ and type_expect_
                 end
             in
             let label_definitions = Array.map unify_kept lbl.lbl_all in
-            Some {exp with exp_type = ty_exp}, label_definitions
+            let ubr = Unique_barrier.not_computed () in
+            Some ({exp with exp_type = ty_exp}, ubr), label_definitions
       in
       let num_fields =
         match lbl_exp_list with [] -> assert false
@@ -5772,7 +5791,7 @@ and type_expect_
         exp_desc = Texp_record {
             fields; representation;
             extended_expression = opt_exp;
-            alloc_mode
+            alloc_mode;
           };
         exp_loc = loc; exp_extra = [];
         exp_type = instance ty_expected;
@@ -5822,7 +5841,7 @@ and type_expect_
           Non_boxing uu
       in
       rue {
-        exp_desc = Texp_field(record, lid, label, boxing);
+        exp_desc = Texp_field(record, lid, label, boxing, Unique_barrier.not_computed ());
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;
@@ -6508,7 +6527,7 @@ and type_expect_
       | Texp_variant (_, Some (_, alloc_mode))
       | Texp_record {alloc_mode = Some alloc_mode; _}
       | Texp_array (_, _, _, alloc_mode)
-      | Texp_field (_, _, _, Boxing (alloc_mode, _)) ->
+      | Texp_field (_, _, _, Boxing (alloc_mode, _), _) ->
         begin match Locality.submode Locality.local
           (Alloc.proj (Comonadic Areality) alloc_mode.mode) with
         | Ok () -> ()
@@ -7550,7 +7569,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
          pat_type = ty;
          pat_extra=[];
          pat_attributes = [];
-         pat_loc = Location.none; pat_env = env},
+         pat_loc = Location.none; pat_env = env;
+         pat_unique_barrier = Unique_barrier.not_computed () },
         {exp_type = ty; exp_loc = Location.none; exp_env = exp_env;
          exp_extra = []; exp_attributes = [];
          exp_desc =

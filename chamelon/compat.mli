@@ -103,6 +103,15 @@ type matched_expression_desc =
 
 val view_texp : expression_desc -> matched_expression_desc
 
+val mkpattern_data :
+  pat_desc:'a ->
+  pat_loc:Location.t ->
+  pat_extra:(pat_extra * Location.t * attribute list) list ->
+  pat_type:type_expr ->
+  pat_env:Env.t ->
+  pat_attributes:attribute list ->
+  'a pattern_data
+
 type tpat_var_identifier
 type tpat_alias_identifier
 type tpat_array_identifier

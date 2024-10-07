@@ -513,7 +513,7 @@ and expression i ppf x =
   | Texp_variant (l, eo) ->
       line i ppf "Texp_variant \"%s\"\n" l;
       option i expression_alloc_mode ppf eo;
-  | Texp_record { fields; representation; extended_expression; alloc_mode = am} ->
+  | Texp_record { fields; representation; extended_expression; alloc_mode = am } ->
       line i ppf "Texp_record\n";
       let i = i+1 in
       alloc_mode_option i ppf am;
@@ -522,8 +522,8 @@ and expression i ppf x =
       line i ppf "representation =\n";
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
-      option (i+1) expression ppf extended_expression;
-  | Texp_field (e, li, _, _) ->
+      option (i+1) expression ppf (Option.map fst extended_expression);
+  | Texp_field (e, li, _, _, _) ->
       line i ppf "Texp_field\n";
       expression i ppf e;
       longident i ppf li;

@@ -27,6 +27,7 @@ let omega = {
   pat_type = Ctype.none;
   pat_env = Env.empty;
   pat_attributes = [];
+  pat_unique_barrier = Unique_barrier.not_computed ();
 }
 
 let rec omegas i =

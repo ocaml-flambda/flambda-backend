@@ -647,6 +647,21 @@ type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
 
+type unique_barrier =
+  | May_be_pushed_down
+  | Must_stay_here
+
+let add_barrier_to_read ubr sem =
+  match ubr with
+  | May_be_pushed_down -> sem
+  | Must_stay_here -> Reads_vary
+
+let add_barrier_to_let_kind ubr str =
+  match ubr, str with
+  | May_be_pushed_down, str -> str
+  | Must_stay_here, Strict -> Strict
+  | Must_stay_here, (Alias|StrictOpt) -> StrictOpt
+
 type meth_kind = Self | Public | Cached
 
 let equal_meth_kind x y =
