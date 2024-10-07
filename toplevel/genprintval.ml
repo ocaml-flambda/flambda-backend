@@ -250,8 +250,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Print_as of string (* can't print *)
 
     let get_and_default_jkind_for_printing jkind =
-      let const = Jkind.default_to_value_and_get jkind in
-      let layout = Jkind.Const.get_layout const in
+      let layout = Jkind.get_layout_defaulting_to_value jkind in
       match layout with
       (* CR layouts v3.0: [Value_or_null] should probably require special
          printing to avoid descending into NULL. (This module uses

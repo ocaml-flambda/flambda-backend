@@ -397,15 +397,15 @@ end
     yet been determined. *)
 val get : 'd t -> Desc.t
 
-(** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
-    variable, it is set to [value] first. *)
-val default_to_value_and_get : 'd t -> Const.t
+(** [get_layout_defaulting_to_value] extracts a constant layout, defaulting
+    any sort variable to [value]. *)
+val get_layout_defaulting_to_value : 'd t -> Layout.Const.t
 
-(** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
+(** [default_to_value t] is [ignore (get_layout_defaulting_to_value t)] *)
 val default_to_value : 'd t -> unit
 
-(** [is_void t] is [Void = default_to_value_and_get t].  In particular, it will
-    default the jkind to value if needed to make this false. *)
+(** [is_void t] is [Void = get_layout_defaulting_to_value t].  In particular, it
+    will default the jkind to value if needed to make this false. *)
 val is_void_defaulting : 'd t -> bool
 (* CR layouts v5: When we have proper support for void, we'll want to change
    these three functions to default to void - it's the most efficient thing

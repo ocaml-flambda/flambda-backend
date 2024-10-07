@@ -113,8 +113,7 @@ let jkind_layout_default_to_value_and_check_not_void loc jkind =
       Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
     | Product ts -> List.exists contains_void ts
   in
-  let const = Jkind.default_to_value_and_get jkind in
-  let layout = Jkind.Const.get_layout const in
+  let layout = Jkind.get_layout_defaulting_to_value jkind in
   if contains_void layout then
     raise (Error (loc, Void_layout))
 ;;

@@ -1294,11 +1294,9 @@ module Element_repr = struct
   let classify env loc kloc ty jkind =
     if is_float env ty then Float_element
     else
-      let const_jkind = Jkind.default_to_value_and_get jkind in
-      let sort = Jkind.(Layout.Const.get_sort (Const.get_layout const_jkind)) in
-      let externality_upper_bound =
-        Jkind.Const.get_externality_upper_bound const_jkind
-      in
+      let layout = Jkind.get_layout_defaulting_to_value jkind in
+      let sort = Jkind.Layout.Const.get_sort layout in
+      let externality_upper_bound = Jkind.get_externality_upper_bound jkind in
       let base = match sort with
         | None ->
             Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
