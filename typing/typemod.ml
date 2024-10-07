@@ -1217,7 +1217,7 @@ and approx_sig_items env ssg=
                 | [] -> sg
                 | _ ->
                   let modalities =
-                    Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+                    Typemode.transl_modalities ~maturity:Stable Immutable [] moda
                   in
                   let recursive =
                     not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
@@ -1750,7 +1750,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
       match modalities with
       | [] -> has_sig_modalities, sig_modalities
       | _ ->
-        true, Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        true, Typemode.transl_modalities ~maturity:Stable Immutable [] modalities
     in
     let sg =
       if has_modalities then
@@ -2523,7 +2523,7 @@ let simplify_app_summary app_view = match app_view.arg with
     | false, None   -> Includemod.Error.Anonymous, mty
 
 let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
-  if Language_extension.(is_at_least Mode Alpha) then begin
+  if Language_extension.(is_at_least Mode Stable) then begin
     (* Upon construction, for comonadic (prescriptive) axes, module
     must be weaker than the values therein, for otherwise operations
     would be allowed to performed on the module (and extended to the
