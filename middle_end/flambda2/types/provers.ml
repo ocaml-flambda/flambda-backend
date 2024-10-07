@@ -697,7 +697,7 @@ let prove_is_immediates_array env t : unit proof_of_property =
         { is_null = Known false;
           non_null = Array { element_kind = Ok element_kind; _ }
         }) -> (
-    match K.With_subkind.subkind element_kind with
+    match K.With_subkind.non_null_value_subkind element_kind with
     | Tagged_immediate -> Proved ()
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
@@ -766,7 +766,7 @@ let prove_is_immutable_array_generic env t : _ generic_proof =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Value (Ok { is_null = Unknown; non_null = _ }) -> Need_meet
+  | Value (Ok { is_null = Unknown; non_null = _ }) -> Unknown
   | Value (Ok { is_null = Known true; non_null = _ }) -> Invalid
   | Value
       (Ok

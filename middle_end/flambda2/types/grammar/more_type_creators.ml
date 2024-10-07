@@ -308,10 +308,24 @@ let arity_of_list ts =
   Flambda_arity.create_singletons
     (List.map (fun ty -> Flambda_kind.With_subkind.anything (TG.kind ty)) ts)
 
+let maybe_null (nullable : Flambda_kind.With_subkind.Nullable.t) ty =
+  match TG.descr ty with
+  | Naked_immediate _ | Naked_float32 _ | Naked_float _ | Naked_int32 _
+  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ -> ty
+  | Value (Unknown | Bottom | Ok (Equals _)) -> ty
+  | Value (Ok (No_alias { non_null; is_null = _ })) ->
+    let is_null : _ Or_unknown.t =
+      match nullable with
+      | Non_nullable -> Known false
+      | Nullable -> Unknown
+    in
+    TG.create_from_head_value { non_null; is_null }
+
 let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     (kind : Flambda_kind.With_subkind.t) =
   (* CR mshinwell: use [alloc_mode] more *)
-  match Flambda_kind.With_subkind.subkind kind with
+  let non_null_type =
+  match Flambda_kind.With_subkind.non_null_value_subkind kind with
   | Anything -> (
     match Flambda_kind.With_subkind.kind kind with
     | Value -> TG.any_value
@@ -374,6 +388,8 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
   | Generic_array ->
     TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
       alloc_mode
+  in
+  maybe_null (Flambda_kind.With_subkind.nullable kind) non_null_type
 
 let unknown_types_from_arity arity =
   List.map

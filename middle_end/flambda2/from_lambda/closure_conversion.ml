@@ -717,7 +717,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       call args prim_native_repr_args []
   in
   let wrap_c_call acc ~handler_param ~code_after_call c_call =
-    let return_kind = Flambda_kind.With_subkind.create return_kind Anything in
+    let return_kind = Flambda_kind.With_subkind.create return_kind Anything Nullable in
     let params =
       [BP.create handler_param return_kind] |> Bound_parameters.create
     in
