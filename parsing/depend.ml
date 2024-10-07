@@ -313,6 +313,8 @@ let rec add_expr bv exp =
       end
   | Pexp_extension e -> handle_extension e
   | Pexp_stack e -> add_expr bv e
+  | Pexp_overwrite (x, e) -> add bv x; add_expr bv e
+  | Pexp_hole -> ()
   | Pexp_unreachable -> ()
   | Pexp_comprehension x -> add_comprehension_expr bv x
 
