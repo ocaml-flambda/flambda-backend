@@ -1662,7 +1662,7 @@ end = struct
                0\" flags.\n\
                The \"-zero-alloc-checker-join 0\" flag may substantially \
                increase compilation time.\n\
-               (widenning applied in function %s%s)" t.fun_name component_msg,
+               (widening applied in function %s%s)" t.fun_name component_msg,
             [] )
         | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
         | Extcall _ ->

@@ -6,4 +6,4 @@ Error: details are not available. This may be a false alarm due to conservative 
 Hint: for more precise results, recompile this function with
 "-function-layout topological" or "-zero-alloc-checker-join 0" flags.
 The "-zero-alloc-checker-join 0" flag may substantially increase compilation time.
-(widenning applied in function camlTest_bounded_join2.foo_HIDE_STAMP)
+(widening applied in function camlTest_bounded_join2.foo_HIDE_STAMP)
