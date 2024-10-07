@@ -27,8 +27,7 @@
    -nostdlib
    -safe-string
    -strict-formats
-   -allow-illegal-crossing
-   -extension-universe alpha))
+   -allow-illegal-crossing))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (preprocess
