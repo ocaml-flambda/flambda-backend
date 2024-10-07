@@ -81,7 +81,7 @@ let rec_info = Rec_info
 
 let to_lambda (t : t) : Lambda.layout =
   match t with
-  | Value -> Pvalue Pgenval
+  | Value -> Lambda.layout_any_value
   | Naked_number Naked_immediate ->
     Misc.fatal_error "Can't convert kind [Naked_immediate] to lambda layout"
   | Naked_number Naked_float -> Punboxed_float Pfloat64
@@ -537,7 +537,34 @@ module Boxable_number = struct
 end
 
 module With_subkind = struct
-  module Subkind = struct
+  module Nullable = struct
+    type t =
+      | Nullable
+      | Non_nullable
+
+    include Container_types.Make (struct
+      type nonrec t = t
+
+      let print ppf t =
+      match t with
+      | Nullable -> Format.fprintf ppf "|Null"
+      | Non_nullable -> ()
+
+      let compare t1 t2 =
+        match t1, t2 with
+        | Nullable, Nullable
+        | Non_nullable, Non_nullable ->
+          0
+        | Nullable, Non_nullable -> -1
+        | Non_nullable, Nullable -> 1
+
+      let equal t1 t2 = compare t1 t2 = 0
+
+      let hash = Hashtbl.hash
+    end)
+  end
+
+  module Non_null_value_subkind = struct
     type t =
       | Anything
       | Boxed_float32
@@ -550,7 +577,7 @@ module With_subkind = struct
       | Variant of
           { consts : Targetint_31_63.Set.t;
             non_consts :
-              (Block_shape.t * kind_and_subkind list) Tag.Scannable.Map.t
+              (Block_shape.t * full_kind list) Tag.Scannable.Map.t
           }
       | Float_block of { num_fields : int }
       | Float_array
@@ -563,9 +590,10 @@ module With_subkind = struct
       | Unboxed_nativeint_array
       | Unboxed_vec128_array
 
-    and kind_and_subkind =
+    and full_kind =
       { kind : kind;
-        subkind : t
+        value_subkind : t;
+        nullable : Nullable.t;
       }
 
     let rec compatible (t : t) ~(when_used_at : t) =
@@ -609,8 +637,8 @@ module With_subkind = struct
                 then false
                 else
                   List.for_all2
-                    (fun { kind = _; subkind = d }
-                         { kind = _; subkind = when_used_at } ->
+                    (fun { kind = _; value_subkind = d; nullable = _ }
+                         { kind = _; value_subkind = when_used_at; nullable = _ } ->
                       compatible d ~when_used_at)
                     fields1 fields2)
               field_lists1 field_lists2
@@ -669,7 +697,8 @@ module With_subkind = struct
           Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{1d54d}128%t" colour
             Flambda_colours.pop
         | Variant { consts; non_consts } ->
-          let print_field ppf { kind = _; subkind } = print ppf subkind in
+          (* CR vlaviron: print nullability *)
+          let print_field ppf { kind = _; value_subkind; nullable = _ } = print ppf value_subkind in
           Format.fprintf ppf "%t=Variant((consts (%a))@ (non_consts (%a)))%t"
             colour Targetint_31_63.Set.print consts
             (Tag.Scannable.Map.print (fun ppf (_shape, fields) ->
@@ -713,86 +742,86 @@ module With_subkind = struct
     end)
   end
 
-  type with_subkind = Subkind.kind_and_subkind
+  type full_kind = Non_null_value_subkind.full_kind
 
-  type t = with_subkind
+  type t = full_kind
 
-  let create (kind : kind) (subkind : Subkind.t) : t =
+  let create (kind : kind) (value_subkind : Non_null_value_subkind.t) (nullable : Nullable.t) : t =
     (match kind with
     | Value -> ()
     | Naked_number _ | Region | Rec_info -> (
-      match subkind with
-      | Anything -> ()
-      | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+      match value_subkind, nullable with
+      | Anything, Non_nullable -> ()
+      | (Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
       | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
       | Float_block _ | Float_array | Immediate_array | Value_array
       | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array ->
-        Misc.fatal_errorf "Subkind %a is not valid for kind %a" Subkind.print
-          subkind print kind));
-    { kind; subkind }
+      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array), _ ->
+        Misc.fatal_errorf "Subkind %a is not valid for kind %a" Non_null_value_subkind.print
+          value_subkind print kind
+      | _, Nullable ->
+        Misc.fatal_errorf "Kind %a cannot be Nullable" print kind));
+    { kind; value_subkind; nullable }
 
-  let anything kind = create kind Anything
+  let anything kind =
+    match kind with
+    | Value -> create kind Anything Nullable
+    | Naked_number _ | Region | Rec_info ->
+      create kind Anything Non_nullable
 
   let compatible (t : t) ~(when_used_at : t) =
     equal t.kind when_used_at.kind
-    && Subkind.compatible t.subkind ~when_used_at:when_used_at.subkind
+    && Non_null_value_subkind.compatible t.value_subkind ~when_used_at:when_used_at.value_subkind
 
   let kind (t : t) = t.kind
 
-  let subkind (t : t) = t.subkind
+  let non_null_value_subkind (t : t) = t.value_subkind
 
-  let any_value = create value Anything
+  let nullable (t : t) = t.nullable
 
-  let naked_immediate = create naked_immediate Anything
+  let any_value = create value Anything Nullable
 
-  let naked_float32 = create naked_float32 Anything
+  let naked_immediate = create naked_immediate Anything Non_nullable
 
-  let naked_float = create naked_float Anything
+  let naked_float32 = create naked_float32 Anything Non_nullable
 
-  let naked_int32 = create naked_int32 Anything
+  let naked_float = create naked_float Anything Non_nullable
 
-  let naked_int64 = create naked_int64 Anything
+  let naked_int32 = create naked_int32 Anything Non_nullable
 
-  let naked_nativeint = create naked_nativeint Anything
+  let naked_int64 = create naked_int64 Anything Non_nullable
 
-  let naked_vec128 = create naked_vec128 Anything
+  let naked_nativeint = create naked_nativeint Anything Non_nullable
 
-  let region = create region Anything
+  let naked_vec128 = create naked_vec128 Anything Non_nullable
 
-  let boxed_float32 = create value Boxed_float32
+  let region = create region Anything Non_nullable
 
-  let boxed_float = create value Boxed_float
+  let boxed_float32 = create value Boxed_float32 Non_nullable
 
-  let boxed_int32 = create value Boxed_int32
+  let boxed_float = create value Boxed_float Non_nullable
 
-  let boxed_int64 = create value Boxed_int64
+  let boxed_int32 = create value Boxed_int32 Non_nullable
 
-  let boxed_nativeint = create value Boxed_nativeint
+  let boxed_int64 = create value Boxed_int64 Non_nullable
 
-  let boxed_vec128 = create value Boxed_vec128
+  let boxed_nativeint = create value Boxed_nativeint Non_nullable
 
-  let tagged_immediate = create value Tagged_immediate
+  let boxed_vec128 = create value Boxed_vec128 Non_nullable
 
-  let rec_info = create rec_info Anything
+  let tagged_immediate = create value Tagged_immediate Non_nullable
 
-  let float_array = create value Float_array
+  let rec_info = create rec_info Anything Non_nullable
 
-  let immediate_array = create value Immediate_array
+  let float_array = create value Float_array Non_nullable
 
-  let value_array = create value Value_array
+  let immediate_array = create value Immediate_array Non_nullable
 
-  let generic_array = create value Generic_array
+  let value_array = create value Value_array Non_nullable
 
-  let unboxed_float32_array = create value Unboxed_float32_array
+  let generic_array = create value Generic_array Non_nullable
 
-  let unboxed_int32_array = create value Unboxed_int32_array
-
-  let unboxed_int64_array = create value Unboxed_int64_array
-
-  let unboxed_nativeint_array = create value Unboxed_nativeint_array
-
-  let unboxed_vec128_array = create value Unboxed_vec128_array
+  let unboxed_vec128_array = create value Unboxed_vec128_array Non_nullable
 
   let block tag fields =
     if List.exists (fun (t : t) -> not (equal t.kind Value)) fields
@@ -809,9 +838,10 @@ module With_subkind = struct
                Tag.Scannable.Map.singleton tag
                  (Block_shape.Scannable Value_only, fields)
            })
+        Non_nullable
     | None -> Misc.fatal_errorf "Tag %a is not scannable" Tag.print tag
 
-  let float_block ~num_fields = create value (Float_block { num_fields })
+  let float_block ~num_fields = create value (Float_block { num_fields }) Non_nullable
 
   let of_naked_number_kind (naked_number_kind : Naked_number_kind.t) =
     match naked_number_kind with
@@ -842,79 +872,89 @@ module With_subkind = struct
     | Naked_vec128 -> boxed_vec128
 
   let of_flat_suffix_element elt =
-    create (Flat_suffix_element0.kind elt) Anything
+    (* CR vlaviron: tagged immediates can be nullable and can appear in the flat suffix;
+       we need to properly propagate that *)
+    create (Flat_suffix_element0.kind elt) Anything Non_nullable
 
   let of_lambda_flat_element_kind elt =
     Flat_suffix_element0.from_lambda elt |> of_flat_suffix_element
 
   let rec from_lambda_value_kind (vk : Lambda.value_kind) =
-    match vk with
-    | Pgenval -> any_value
-    | Pboxedfloatval Pfloat64 -> boxed_float
-    | Pboxedfloatval Pfloat32 -> boxed_float32
-    | Pboxedintval Pint32 -> boxed_int32
-    | Pboxedintval Pint64 -> boxed_int64
-    | Pboxedintval Pnativeint -> boxed_nativeint
-    | Pboxedvectorval Pvec128 -> boxed_vec128
-    | Pintval -> tagged_immediate
-    | Pvariant { consts; non_consts } -> (
-      match consts, non_consts with
-      | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
-      | [], [(tag, shape)] when tag = Obj.double_array_tag ->
-        (* If we have [Obj.double_array_tag] here, this is always an all-float
-           block, not an array. *)
-        (* CR vlaviron: change the Lambda type *)
-        let num_fields =
-          match shape with
-          | Constructor_uniform fields -> List.length fields
-          | Constructor_mixed _ -> assert false
-        in
-        float_block ~num_fields
-      | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
-        let consts =
-          Targetint_31_63.Set.of_list
-            (List.map (fun const -> Targetint_31_63.of_int const) consts)
-        in
-        let non_consts =
-          List.fold_left
-            (fun non_consts (tag, shape) ->
-              match Tag.Scannable.create tag with
-              | Some tag ->
-                let shape_and_fields : Block_shape.t * _ =
-                  (* CR mshinwell/vlaviron: In both of these cases it would be
-                     nice to propagate immediacy information. *)
-                  match (shape : Lambda.constructor_shape) with
-                  | Constructor_uniform fields ->
-                    Scannable Value_only, List.map from_lambda_value_kind fields
-                  | Constructor_mixed { value_prefix; flat_suffix } ->
-                    let mixed_block_shape =
-                      Mixed_block_shape.from_lambda
-                        { value_prefix_len = List.length value_prefix;
-                          flat_suffix = Array.of_list flat_suffix
-                        }
-                    in
-                    let fields =
-                      List.map from_lambda_value_kind value_prefix
-                      @ List.map of_lambda_flat_element_kind flat_suffix
-                    in
-                    Scannable (Mixed_record mixed_block_shape), fields
-                in
-                Tag.Scannable.Map.add tag shape_and_fields non_consts
-              | None ->
-                Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
-            Tag.Scannable.Map.empty non_consts
-        in
-        create value (Variant { consts; non_consts }))
-    | Parrayval Pfloatarray -> float_array
-    | Parrayval Pintarray -> immediate_array
-    | Parrayval Paddrarray -> value_array
-    | Parrayval Pgenarray -> generic_array
-    | Parrayval (Punboxedfloatarray Pfloat64) -> float_array
-    | Parrayval (Punboxedfloatarray Pfloat32) -> unboxed_float32_array
-    | Parrayval (Punboxedintarray Pint32) -> unboxed_int32_array
-    | Parrayval (Punboxedintarray Pint64) -> unboxed_int64_array
-    | Parrayval (Punboxedintarray Pnativeint) -> unboxed_nativeint_array
-    | Parrayval (Punboxedvectorarray Pvec128) -> unboxed_vec128_array
+    let value_subkind : Non_null_value_subkind.t =
+      match vk.raw_kind with
+      | Pgenval -> Anything
+      | Pboxedfloatval Pfloat64 -> Boxed_float
+      | Pboxedfloatval Pfloat32 -> Boxed_float32
+      | Pboxedintval Pint32 -> Boxed_int32
+      | Pboxedintval Pint64 -> Boxed_int64
+      | Pboxedintval Pnativeint -> Boxed_nativeint
+      | Pboxedvectorval Pvec128 -> Boxed_vec128
+      | Pintval -> Tagged_immediate
+      | Pvariant { consts; non_consts } -> (
+          match consts, non_consts with
+          | [], [] -> Misc.fatal_error "[Pvariant] with no constructors at all"
+          | [], [(tag, shape)] when tag = Obj.double_array_tag ->
+            (* If we have [Obj.double_array_tag] here, this is always an all-float
+               block, not an array. *)
+            (* CR vlaviron: change the Lambda type *)
+            let num_fields =
+              match shape with
+              | Constructor_uniform fields -> List.length fields
+              | Constructor_mixed _ -> assert false
+            in
+            Float_block { num_fields }
+          | [], _ :: _ | _ :: _, [] | _ :: _, _ :: _ ->
+            let consts =
+              Targetint_31_63.Set.of_list
+                (List.map (fun const -> Targetint_31_63.of_int const) consts)
+            in
+            let non_consts =
+              List.fold_left
+                (fun non_consts (tag, shape) ->
+                   match Tag.Scannable.create tag with
+                   | Some tag ->
+                     let shape_and_fields : Block_shape.t * t list =
+                       (* CR mshinwell/vlaviron: In both of these cases it would be
+                          nice to propagate immediacy information. *)
+                       match (shape : Lambda.constructor_shape) with
+                       | Constructor_uniform fields ->
+                         Scannable Value_only, List.map from_lambda_value_kind fields
+                       | Constructor_mixed { value_prefix; flat_suffix } ->
+                         let mixed_block_shape =
+                           Mixed_block_shape.from_lambda
+                             { value_prefix_len = List.length value_prefix;
+                               flat_suffix = Array.of_list flat_suffix
+                             }
+                         in
+                         let fields =
+                           List.map from_lambda_value_kind value_prefix
+                           @ List.map of_lambda_flat_element_kind flat_suffix
+                         in
+                         Scannable (Mixed_record mixed_block_shape), fields
+                     in
+                     Tag.Scannable.Map.add tag shape_and_fields non_consts
+                   | None ->
+                     Misc.fatal_errorf "Non-scannable tag %d in [Pvariant]" tag)
+                Tag.Scannable.Map.empty non_consts
+            in
+            Variant { consts; non_consts })
+      | Parrayval Pfloatarray -> Float_array
+      | Parrayval Pintarray -> Immediate_array
+      | Parrayval Paddrarray -> Value_array
+      | Parrayval Pgenarray -> Generic_array
+      | Parrayval (Punboxedfloatarray Pfloat64) -> Float_array
+      | Parrayval (Punboxedfloatarray Pfloat32) -> Unboxed_float32_array
+      | Parrayval (Punboxedintarray Pint32) -> Unboxed_int32_array
+      | Parrayval (Punboxedintarray Pint64) -> Unboxed_int64_array
+      | Parrayval (Punboxedintarray Pnativeint) -> Unboxed_nativeint_array
+      | Parrayval (Punboxedvectorarray Pvec128) -> Unboxed_vec128_array
+    in
+    let nullable : Nullable.t =
+      match vk.nullable with
+      | Nullable -> Nullable
+      | Non_nullable -> Non_nullable
+    in
+    create value value_subkind nullable
 
   let from_lambda_values_and_unboxed_numbers_only (layout : Lambda.layout) =
     match layout with
@@ -934,50 +974,66 @@ module With_subkind = struct
   include Container_types.Make (struct
     type nonrec t = t
 
-    let print ppf ({ kind; subkind } : t) =
-      match kind, subkind with
-      | _, Anything -> print ppf kind
-      | Value, subkind ->
-        Format.fprintf ppf "@[%a%a@]" print kind Subkind.print subkind
+    let print ppf ({ kind; value_subkind; nullable } : t) =
+      match kind, value_subkind, nullable with
+      | _, Anything, Non_nullable -> print ppf kind
+      | Value, value_subkind, nullable ->
+        Format.fprintf ppf "@[%a%a%a@]" print kind Non_null_value_subkind.print value_subkind
+          Nullable.print nullable
       | ( (Naked_number _ | Region | Rec_info),
           ( Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
           | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-          | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
-            ) ) ->
+          | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array ),
+          Non_nullable )
+      | (Naked_number _ | Region | Rec_info), _, Nullable ->
         assert false
     (* see [create] *)
 
-    let compare ({ kind = kind1; subkind = subkind1 } : t)
-        ({ kind = kind2; subkind = subkind2 } : t) =
+    let compare ({ kind = kind1; value_subkind = value_subkind1; nullable = nullable1 } : t)
+        ({ kind = kind2; value_subkind = value_subkind2; nullable = nullable2 } : t) =
       let c = compare kind1 kind2 in
-      if c <> 0 then c else Subkind.compare subkind1 subkind2
+      if c <> 0 then c
+      else
+        let c = Non_null_value_subkind.compare value_subkind1 value_subkind2 in
+        if c <> 0 then c
+          else Nullable.compare nullable1 nullable2
 
     let equal t1 t2 = compare t1 t2 = 0
 
-    let hash ({ kind; subkind } : t) =
-      Hashtbl.hash (hash kind, Subkind.hash subkind)
+    let hash ({ kind; value_subkind; nullable } : t) =
+      Hashtbl.hash (hash kind, Non_null_value_subkind.hash value_subkind, Nullable.hash nullable)
   end)
 
   let has_useful_subkind_info (t : t) =
-    match t.subkind with
-    | Anything -> false
+    match t.kind with
+    | Value -> (
+    match t.value_subkind with
+    | Anything -> (
+        match t.nullable with
+        | Nullable -> false
+        | Non_nullable -> true)
     | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64 | Boxed_nativeint
     | Boxed_vec128 | Tagged_immediate | Variant _ | Float_block _ | Float_array
     | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
     | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Unboxed_vec128_array ->
-      true
+      true)
+    | Naked_number _ | Rec_info | Region -> false
 
-  let erase_subkind (t : t) : t = { t with subkind = Anything }
+  let erase_subkind (t : t) : t =
+    match t.kind with
+    | Value ->
+      { t with value_subkind = Anything; nullable = Nullable }
+    | Naked_number _ | Rec_info | Region -> t
 
   let equal_ignoring_subkind t1 t2 = equal (erase_subkind t1) (erase_subkind t2)
 
   let must_be_gc_scannable t =
     match kind t with
     | Value -> (
-      match subkind t with
+      match non_null_value_subkind t with
       | Tagged_immediate -> false
       | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
       | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
