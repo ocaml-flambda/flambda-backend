@@ -1277,22 +1277,10 @@ let for_object =
 (******************************)
 (* elimination and defaulting *)
 
-let default_to_value_and_get
-    { jkind =
-        { layout;
-          modes_upper_bounds;
-          externality_upper_bound;
-          nullability_upper_bound
-        };
-      _
-    } : Const.t =
-  { layout = Layout.default_to_value_and_get layout;
-    modes_upper_bounds;
-    externality_upper_bound;
-    nullability_upper_bound
-  }
+let get_layout_defaulting_to_value { jkind = { layout; _ }; _ } =
+  Layout.default_to_value_and_get layout
 
-let default_to_value t = ignore (default_to_value_and_get t)
+let default_to_value t = ignore (get_layout_defaulting_to_value t)
 
 let get t = Jkind_desc.get t.jkind
 
@@ -2161,5 +2149,3 @@ let () =
    outside of this file. *)
 
 type annotation = Const.t * Parsetree.jkind_annotation
-
-let default_to_value_and_get t = default_to_value_and_get t
