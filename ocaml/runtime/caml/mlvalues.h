@@ -599,6 +599,7 @@ CAMLextern value caml_set_oo_id(value obj);
    better by C formatters.)
  */
 #define Assert_mixed_block_layout_v2 _Static_assert(1, "")
+CAMLextern value mixed_block_layout_version;
 
 /* Header for out-of-heap blocks. */
 
