@@ -141,7 +141,7 @@ module Scoped_location = struct
       else
         str
 
-  let string_of_scopes ?(include_zero_alloc=false) =
+  let string_of_scopes ~include_zero_alloc =
     let module StringSet = Set.Make (String) in
     let repr = ref StringSet.empty in
     fun scopes ->
@@ -185,9 +185,9 @@ module Scoped_location = struct
     | Loc_unknown -> Location.none
     | Loc_known { loc; _ } -> loc
 
-  let string_of_scoped_location = function
+  let string_of_scoped_location ~include_zero_alloc = function
     | Loc_unknown -> "??"
-    | Loc_known { loc = _; scopes } -> string_of_scopes scopes
+    | Loc_known { loc = _; scopes } -> string_of_scopes ~include_zero_alloc scopes
 
   let map_scopes f t =
     match t with
