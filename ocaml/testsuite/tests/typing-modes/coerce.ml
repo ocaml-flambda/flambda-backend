@@ -14,8 +14,5 @@ module M = struct
 end
 
 [%%expect{|
-Line 6, characters 12-25:
-6 |   let _ = f (local_ 42.0)
-                ^^^^^^^^^^^^^
-Error: This value escapes its region.
+module M : sig val f : local_ 'a -> unit end
 |}]
