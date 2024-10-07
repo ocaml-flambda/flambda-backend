@@ -641,7 +641,7 @@ let prove_is_immediates_array_value _env
        that any value contained in this array must be an immediate. *)
     Proved ()
   | Array { element_kind = Ok element_kind; _ } -> (
-    match K.With_subkind.subkind element_kind with
+    match K.With_subkind.non_null_value_subkind element_kind with
     | Tagged_immediate -> Proved ()
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array

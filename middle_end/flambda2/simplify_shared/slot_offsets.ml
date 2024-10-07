@@ -893,7 +893,7 @@ end = struct
           | Naked_number Naked_vec128 -> 2, true
           | Value -> (
             match[@ocaml.warning "-4"]
-              Flambda_kind.With_subkind.subkind kind
+              Flambda_kind.With_subkind.non_null_value_subkind kind
             with
             | Tagged_immediate -> 1, true
             | _ -> 1, false)

@@ -256,7 +256,7 @@ let float32 f = f |> Numeric_types.Float32_by_bit_pattern.create
 
 let float f = f |> Numeric_types.Float_by_bit_pattern.create
 
-let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
+let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Non_null_value_subkind.t =
   function
   | Anything -> Anything
   | Boxed_float32 -> Boxed_float32
@@ -288,7 +288,7 @@ let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
 and value_kind_with_subkind :
     Fexpr.kind_with_subkind -> Flambda_kind.With_subkind.t = function
   | Value sk ->
-    Flambda_kind.With_subkind.create Flambda_kind.value (sk |> subkind)
+    Flambda_kind.With_subkind.create Flambda_kind.value (sk |> subkind) Nullable
   | Naked_number nnk -> Flambda_kind.With_subkind.of_naked_number_kind nnk
   | Region -> Flambda_kind.With_subkind.region
   | Rec_info -> Flambda_kind.With_subkind.rec_info
