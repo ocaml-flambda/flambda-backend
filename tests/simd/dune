@@ -20,9 +20,7 @@
  (names basic basic_u ops ops_u arrays arrays_u scalar_ops consts consts_u)
  (modules basic basic_u ops ops_u arrays arrays_u scalar_ops consts consts_u)
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
- (foreign_archives stubs)
- (ocamlopt_flags
-  (:standard -extension-universe beta)))
+ (foreign_archives stubs))
 
 (rule
  (enabled_if
@@ -153,7 +151,7 @@
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension-universe beta -nodynlink)))
+  (:standard -nodynlink)))
 
 (rule
  (enabled_if
@@ -231,9 +229,7 @@
  (modules probes)
  (enabled_if
   (<> %{system} macosx))
- (foreign_archives stubs)
- (ocamlopt_flags
-  (:standard -extension-universe beta)))
+ (foreign_archives stubs))
 
 (rule
  (targets
@@ -292,7 +288,7 @@
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension-universe beta -internal-assembler)))
+  (:standard -internal-assembler)))
 
 (rule
  (enabled_if

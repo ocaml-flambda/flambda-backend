@@ -2806,7 +2806,6 @@ let add_language_extension_types env =
   lazy
     Language_extension.(env
     |> add SIMD Stable Predef.add_simd_stable_extension_types
-    |> add SIMD Beta Predef.add_simd_beta_extension_types
     |> add Small_numbers Stable Predef.add_small_number_extension_types
     |> add Layouts Alpha Predef.add_or_null)
 

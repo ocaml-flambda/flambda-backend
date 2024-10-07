@@ -1,6 +1,11 @@
 (* TEST
- flags = "-extension layouts_beta -extension simd_beta";
- expect;
+ {
+   flags = "-extension layouts_beta -extension simd_beta";
+   expect;
+ }
+ {
+   expect;
+ }
 *)
 
 (* These tests show how potential ambiguities are resolved

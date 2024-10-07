@@ -132,9 +132,6 @@ val build_initial_env:
 val add_simd_stable_extension_types :
   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
 
-val add_simd_beta_extension_types :
-  (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
-
 (* Add small number types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the small numbers extension is on. *)
 val add_small_number_extension_types :
