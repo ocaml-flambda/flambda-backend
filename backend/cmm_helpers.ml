@@ -1041,7 +1041,7 @@ let array_indexing ?typ log2size ptr ofs dbg =
 
 let array_indexing ?elide_asan_check ?typ memory_access log2size ptr ofs dbg =
   let field_address = array_indexing ?typ log2size ptr ofs dbg in
-  if Config.with_address_sanitizer
+  if Address_sanitizer.is_enabled ()
      && log2size <= Address_sanitizer.max_supported_log2size
      && Option.is_none elide_asan_check
   then
@@ -1278,7 +1278,8 @@ let addr_array_initialize arr ofs newval dbg =
           alloc = false;
           ty_args = []
         },
-      [array_indexing ~elide_asan_check:() Store log2_size_addr arr ofs dbg; newval],
+      [ array_indexing ~elide_asan_check:() Store log2_size_addr arr ofs dbg;
+        newval ],
       dbg )
 
 (* low_32 x is a value which agrees with x on at least the low 32 bits *)

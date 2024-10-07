@@ -6,6 +6,20 @@ type memory_access =
 
 let max_supported_log2size = 4
 
+let is_enabled = ref Config.with_address_sanitizer
+
+let command_line_options =
+  [ ( "-fno-asan",
+      Arg.Clear is_enabled,
+      "Disable AddressSanitizer. This is only meaningful if the compiler was \
+       built with AddressSanitizer support enabled." ) ]
+
+(* Checking [Config.with_address_sanitizer] is redundant, but we do it because
+   it's a compile-time constant, so it enables the compiler to completely
+   optimize-out the AddressSanitizer code when the compiler was configured
+   without it. *)
+let[@inline always] is_enabled () = Config.with_address_sanitizer && !is_enabled
+
 let[@inline always] asan_report_extcall func =
   Cextcall
     { func;
