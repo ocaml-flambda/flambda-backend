@@ -203,10 +203,7 @@ and make_optimistic_vars_within_closure ~depth ~recursive tenv closures_entry =
           ~param_type:var_type
       in
       let kind =
-        K.With_subkind.create
-          (Flambda2_types.kind var_type)
-          Anything
-          Nullable
+        K.With_subkind.create (Flambda2_types.kind var_type) Anything Nullable
       in
       { epa; decision; kind })
     map

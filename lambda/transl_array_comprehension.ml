@@ -241,10 +241,7 @@ end = struct
        don't have to bind them first to avoid extra computation. *)
     Let_binding.let_one product
       (Lifthenelse
-         ( product.var / y = x,
-           product.var,
-           raise_overflow_exn ~loc,
-           layout_int ))
+         (product.var / y = x, product.var, raise_overflow_exn ~loc, layout_int))
 
   (** [safe_product_pos_vals ~loc xs] generates the lambda expression that
       computes the product of all the lambda values in [xs] assuming they are
@@ -556,7 +553,7 @@ let clause ~transl_exp ~scopes ~loc = function
         ( transl_exp ~scopes Jkind.Sort.for_predef_value cond,
           body,
           lambda_unit,
-          layout_unit)
+          layout_unit )
 
 (** The [array_sizing] type describes whether an array comprehension has been
     translated using the fixed-size array optimization ([Fixed_size]), or it has
@@ -796,7 +793,7 @@ let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
               Lsequence
                 ( Lassign (array_size.id, i 2 * array_size.var),
                   Lassign (array.id, Resizable_array.double ~loc array.var) ),
-              layout_unit),
+              layout_unit ),
           (* ...and then set the element now that the array is big enough *)
           set_element_raw elt )
   in
