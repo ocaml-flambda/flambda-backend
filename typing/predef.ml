@@ -539,10 +539,6 @@ let add_simd_stable_extension_types add_type env =
       ~jkind:(Jkind.of_const ~why:(Primitive ident_float64x2)
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-
-let add_simd_beta_extension_types add_type env =
-  let add_type = mk_add_type add_type in
-  env
   |> add_type ident_unboxed_int8x16
       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int8x16)
                 Jkind.Const.Builtin.vec128.jkind)

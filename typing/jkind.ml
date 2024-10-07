@@ -754,10 +754,7 @@ module Const = struct
       | "word" -> Builtin.word.jkind
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
-      | "vec128"
-        when Language_extension.(is_at_least Layouts Beta)
-             && Language_extension.(is_at_least SIMD Beta) ->
-        Builtin.vec128.jkind
+      | "vec128" -> Builtin.vec128.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
@@ -796,11 +793,11 @@ module Const = struct
   let get_required_layouts_level (_context : History.annotation_context)
       (jkind : t) : Language_extension.maturity =
     match jkind.layout, jkind.nullability_upper_bound with
-    | (Base (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
+    | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
     | Base Value, Non_null ->
       Stable
     | Base Void, _ | Base Value, Maybe_null -> Alpha
-    | Base Vec128, _ | Product _, _ -> Beta
+    | Product _, _ -> Beta
 
   let of_user_written_annotation ~context Location.{ loc; txt = annot } =
     let const = of_user_written_annotation_unchecked_level annot in
