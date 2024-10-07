@@ -57,7 +57,10 @@ module Witness = struct
   let compare { dbg = dbg1; kind = kind1 } { dbg = dbg2; kind = kind2 } =
     (* compare by [dbg] first to print the errors in the order they appear in
        the source file. *)
-    let c = Debuginfo.compare dbg1 dbg2 in
+    let c =
+      Debuginfo.Dbg.compare_outer_first (Debuginfo.get_dbg dbg1)
+        (Debuginfo.get_dbg dbg2)
+    in
     if c <> 0 then c else Stdlib.compare kind1 kind2
 
   let print_kind ppf kind =
@@ -1808,7 +1811,11 @@ end = struct
       (* Sort by function's location. If debuginfo is missing, keep sorted by
          function name. *)
       let compare t1 t2 =
-        let c = Debuginfo.compare t1.fun_dbg t2.fun_dbg in
+        let c =
+          Debuginfo.Dbg.compare
+            (Debuginfo.get_dbg t1.fun_dbg)
+            (Debuginfo.get_dbg t2.fun_dbg)
+        in
         if not (Int.equal c 0)
         then c
         else String.compare t1.fun_name t2.fun_name
