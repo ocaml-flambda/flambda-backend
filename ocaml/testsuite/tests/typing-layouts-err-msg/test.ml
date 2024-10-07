@@ -247,8 +247,8 @@ Error: Signature mismatch:
        is not included in
          type ('a : void) t = 'a
        The problem is in the kinds of a parameter:
-       The layout of 'a is void, because
-         of the definition of t at line 2, characters 2-25.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 8, characters 2-16.
+       The layout of 'a is void
+         because of the definition of t at line 2, characters 2-25.
+       But the layout of 'a must overlap with value
+         because of the definition of t at line 8, characters 2-16.
 |}]

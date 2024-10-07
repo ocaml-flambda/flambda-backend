@@ -795,10 +795,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-19.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-11.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-19.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-11.
 |}]
 
 
@@ -833,10 +833,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-19.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-16.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-19.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-16.
 |}]
 
 
@@ -862,7 +862,7 @@ Error: Signature mismatch:
        is not included in
          type 'a t constraint 'a = int
        Their parameters differ:
-       The type 'a is not equal to the type int
+       The type "'a" is not equal to the type "int"
 |}]
 
 module M : sig
@@ -896,10 +896,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = 'a
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-24.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-26.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-24.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-26.
 |}]
 
 module M : sig
@@ -938,10 +938,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t2
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t2 at line 2, characters 2-20.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t2 at line 6, characters 2-29.
+       The layout of 'a is any
+         because of the definition of t2 at line 2, characters 2-20.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t2 at line 6, characters 2-29.
 |}]
 
 module M : sig
@@ -975,10 +975,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = Mk of ('a -> 'a)
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-38.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-40.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-38.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-40.
 |}]
 
 module M : sig
@@ -1012,10 +1012,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = { x : 'a -> 'a; }
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-38.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-40.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-38.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-40.
 |}]
 
 module M : sig
@@ -1049,10 +1049,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = Mk of { x : 'a -> 'a; }
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-44.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-46.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-44.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-46.
 |}]
 
 module M : sig
@@ -1086,10 +1086,10 @@ Error: Signature mismatch:
        is not included in
          type (_ : any) t = Mk : 'a -> 'a t
        The problem is in the kinds of a parameter:
-       The layout of '_ is any, because
-         of the definition of t at line 2, characters 2-40.
-       But the layout of '_ must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-32.
+       The layout of _ is any
+         because of the definition of t at line 2, characters 2-40.
+       But the layout of _ must be a sublayout of value
+         because of the definition of t at line 4, characters 2-32.
 |}]
 
 module M : sig
@@ -1113,15 +1113,15 @@ Error: Signature mismatch:
        is not included in
          type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
        Constructors do not match:
-         Mk : 'a -> 'a t
+         "Mk : 'a -> 'a t"
        is not the same as:
-         Mk : ('a : immediate). 'a -> 'a t
-       The type 'a t is not equal to the type 'a0 t
+         "Mk : ('a : immediate). 'a -> 'a t"
+       The type "'a t" is not equal to the type "'a0 t"
        because the layouts of their variables are different.
-       The layout of 'a is value, because
-         of the definition of t at line 4, characters 2-50.
-       The layout of 'a0 is immediate, because
-         of the definition of t at line 2, characters 2-54.
+       The layout of 'a is value
+         because of the definition of t at line 4, characters 2-50.
+       The layout of 'a0 is immediate
+         because of the definition of t at line 2, characters 2-54.
 |}]
 
 module M : sig
@@ -1145,15 +1145,15 @@ Error: Signature mismatch:
        is not included in
          type (_ : any) t = Mk : 'a -> 'a t
        Constructors do not match:
-         Mk : ('a : immediate). 'a -> 'a t
+         "Mk : ('a : immediate). 'a -> 'a t"
        is not the same as:
-         Mk : 'a -> 'a t
-       The type 'a t is not equal to the type 'a0 t
+         "Mk : 'a -> 'a t"
+       The type "'a t" is not equal to the type "'a0 t"
        because the layouts of their variables are different.
-       The layout of 'a is immediate, because
-         of the definition of t at line 4, characters 2-54.
-       The layout of 'a0 is value, because
-         of the definition of t at line 2, characters 2-50.
+       The layout of 'a is immediate
+         because of the definition of t at line 4, characters 2-54.
+       The layout of 'a0 is value
+         because of the definition of t at line 2, characters 2-50.
 |}]
 
 module M : sig
@@ -1207,15 +1207,15 @@ Error: Signature mismatch:
        is not included in
          type t = Mk : ('a -> 'a) -> t
        Constructors do not match:
-         Mk : ('a : any). ('a -> 'a) -> t
+         "Mk : ('a : any). ('a -> 'a) -> t"
        is not the same as:
-         Mk : ('a -> 'a) -> t
-       The type 'a -> 'a is not equal to the type 'a0 -> 'a0
+         "Mk : ('a -> 'a) -> t"
+       The type "'a -> 'a" is not equal to the type "'a0 -> 'a0"
        because the layouts of their variables are different.
-       The layout of 'a is any, because
-         of the definition of t at line 4, characters 2-43.
-       The layout of 'a0 is value, because
-         of the definition of t at line 2, characters 2-45.
+       The layout of 'a is any
+         because of the definition of t at line 4, characters 2-43.
+       The layout of 'a0 is value
+         because of the definition of t at line 2, characters 2-45.
 |}]
 
 module M : sig
@@ -1239,15 +1239,15 @@ Error: Signature mismatch:
        is not included in
          type t = Mk : ('a : any). ('a -> 'a) -> t
        Constructors do not match:
-         Mk : ('a -> 'a) -> t
+         "Mk : ('a -> 'a) -> t"
        is not the same as:
-         Mk : ('a : any). ('a -> 'a) -> t
-       The type 'a -> 'a is not equal to the type 'a0 -> 'a0
+         "Mk : ('a : any). ('a -> 'a) -> t"
+       The type "'a -> 'a" is not equal to the type "'a0 -> 'a0"
        because the layouts of their variables are different.
-       The layout of 'a is value, because
-         of the definition of t at line 4, characters 2-45.
-       The layout of 'a0 is any, because
-         of the definition of t at line 2, characters 2-43.
+       The layout of 'a is value
+         because of the definition of t at line 4, characters 2-45.
+       The layout of 'a0 is any
+         because of the definition of t at line 2, characters 2-43.
 |}]
 
 module M : sig
@@ -1282,12 +1282,12 @@ Error: Signature mismatch:
        is not included in
          type 'a t constraint 'a = 'b -> 'c
        Their parameters differ:
-       The type 'b -> 'c is not equal to the type 'b0 -> 'c0
+       The type "'b -> 'c" is not equal to the type "'b0 -> 'c0"
        because the layouts of their variables are different.
-       The layout of 'b is value, because
-         of the definition of t at line 4, characters 2-56.
-       The layout of 'b0 is immediate, because
-         of the definition of t at line 2, characters 2-64.
+       The layout of 'b is value
+         because of the definition of t at line 4, characters 2-56.
+       The layout of 'b0 is immediate
+         because of the definition of t at line 2, characters 2-64.
 |}]
 
 module M : sig
@@ -1311,12 +1311,12 @@ Error: Signature mismatch:
        is not included in
          type 'a t constraint 'a = 'b -> 'c
        Their parameters differ:
-       The type 'b -> 'c is not equal to the type 'b0 -> 'c0
+       The type "'b -> 'c" is not equal to the type "'b0 -> 'c0"
        because the layouts of their variables are different.
-       The layout of 'b is immediate, because
-         of the definition of t at line 4, characters 2-64.
-       The layout of 'b0 is value, because
-         of the definition of t at line 2, characters 2-56.
+       The layout of 'b is immediate
+         because of the definition of t at line 4, characters 2-64.
+       The layout of 'b0 is value
+         because of the definition of t at line 2, characters 2-56.
 |}]
 
 module M : sig
@@ -1350,10 +1350,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = private 'a
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-32.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-26.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-32.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-26.
 |}]
 
 module M : sig
@@ -1387,10 +1387,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = private 'a
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-32.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-34.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-32.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-34.
 |}]
 
 type ('a : any) iddy = private 'a

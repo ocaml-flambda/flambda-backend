@@ -5126,7 +5126,7 @@ let rec rigidify_rec vars ty =
     end
 
 type var = { name : string option
-           ; original_jkind : Jkind.t
+           ; original_jkind : jkind_lr
            ; ty : type_expr }
 
 type t = var list

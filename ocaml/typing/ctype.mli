@@ -434,7 +434,7 @@ module Rigidify : sig
     (* A variable [ty] started with an [original_jkind] but now has a
        [inferred_jkind]. *)
     | Jkind_mismatch of
-        { original_jkind : jkind; inferred_jkind : jkind; ty : type_expr }
+        { original_jkind : jkind_lr; inferred_jkind : jkind_lr; ty : type_expr }
 
     (* No problems *)
     | All_good

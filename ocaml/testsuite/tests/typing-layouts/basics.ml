@@ -2074,10 +2074,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = 'a
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-24.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-26.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-24.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-26.
 |}]
 
 module M3 : sig
@@ -2101,10 +2101,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = 'a -> 'a
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-30.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-22.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-30.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-22.
 |}]
 
 module M4 : sig
@@ -2238,10 +2238,10 @@ Error: Signature mismatch:
        is not included in
          type ('a : any) t = K of ('a -> 'a)
        The problem is in the kinds of a parameter:
-       The layout of 'a is any, because
-         of the definition of t at line 2, characters 2-37.
-       But the layout of 'a must be a sublayout of value, because
-         of the definition of t at line 4, characters 2-29.
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-37.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-29.
 |}]
 
 module M9 : sig
