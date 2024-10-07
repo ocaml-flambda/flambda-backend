@@ -87,9 +87,11 @@ Error: Signature mismatch:
          type 'a t = 'a X.t
        is not included in
          type ('a : value_or_null) t
-       Their parameters differ:
-       The type "('a : value)" is not equal to the type "('a0 : value_or_null)"
-       because their layouts are different.
+       The problem is in the kinds of a parameter:
+       The kind of 'a is value_or_null
+         because of the definition of t at line 1, characters 39-66.
+       But the kind of 'a must be a subkind of value
+         because of the definition of t at line 1, characters 18-27.
 |}]
 
 (* Ttype parameters default to [value] for abstract types with equalities. *)
@@ -111,9 +113,6 @@ Error: This type "t_value_or_null" should be an instance of type "('a : value)"
          because of the definition of t at line 2, characters 2-16.
 |}]
 
-(* CR layouts v3.0: the sublayout check should accept this for backwards
-   compatibility. *)
-
 module M : sig
   type 'a t
 end = struct
@@ -121,22 +120,7 @@ end = struct
 end
 
 [%%expect{|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type ('a : value_or_null) t = 'a
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type ('a : value_or_null) t = 'a end
-       is not included in
-         sig type 'a t end
-       Type declarations do not match:
-         type ('a : value_or_null) t = 'a
-       is not included in
-         type 'a t
-       Their parameters differ:
-       The type "('a : value_or_null)" is not equal to the type "('a0 : value)"
-       because their layouts are different.
+module M : sig type 'a t end
 |}]
 
 (* Type parameters default to [value] for non-abstract types. *)

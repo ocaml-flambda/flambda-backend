@@ -182,6 +182,8 @@ module M : sig
 end = struct
   type ('b, 'a) t = A of 'a
 end;;
+(* CR reisenberg: This error message change is unfortunate. But so
+   is the original error message! Not quite sure what to do here. *)
 [%%expect {|
 Lines 3-5, characters 6-3:
 3 | ......struct
@@ -197,10 +199,10 @@ Error: Signature mismatch:
        is not included in
          type ('a, 'b) t = A of 'a
        Constructors do not match:
-         "A of 'a"
+         "A of 'b"
        is not the same as:
          "A of 'a"
-       The type "'a" is not equal to the type "'b"
+       The type "'b" is not equal to the type "'a"
 |}];;
 
 

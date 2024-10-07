@@ -69,7 +69,7 @@ Line 1, characters 34-36:
 1 | module type S1f'' = S1f with type 'a t = 'a list;;
                                       ^^
 Error: The type constraints are not consistent.
-       Type "('a : value)" is not compatible with type "('b : float64)"
+       Type "('a : value)" is not compatible with type "('a0 : float64)"
        The layout of 'a is float64
          because of the definition of t at line 2, characters 2-23.
        But the layout of 'a must overlap with value
@@ -103,51 +103,18 @@ module type S1_2' = sig type ('a : immediate) t = 'a list end
 module M1_2' : S1_2'
 |}]
 
-(* CR layouts - annoyingly, the immediate annotation on 'a is required.  We
-   can probably relax this so you don't have to label the parameter explcitly
-   and the jkind is determined from the signature.  But we anticipate it'll
-   require non-trivial refactoring of eqtype, so we've put it off for now. *)
 module M1_2'': S1_2' = struct
   type 'a t = 'a list
 end;;
 [%%expect{|
-Lines 1-3, characters 23-3:
-1 | .......................struct
-2 |   type 'a t = 'a list
-3 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = 'a list end
-       is not included in
-         S1_2'
-       Type declarations do not match:
-         type 'a t = 'a list
-       is not included in
-         type ('a : immediate) t = 'a list
-       The type "('a : value)" is not equal to the type "('a0 : immediate)"
-       because their layouts are different.
+module M1_2'' : S1_2'
 |}]
 
 module M1_2''' : S1_2 = struct
   type 'a t = 'a list
 end;;
 [%%expect{|
-Lines 1-3, characters 24-3:
-1 | ........................struct
-2 |   type 'a t = 'a list
-3 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = 'a list end
-       is not included in
-         S1_2
-       Type declarations do not match:
-         type 'a t = 'a list
-       is not included in
-         type ('a : immediate) t
-       Their parameters differ:
-       The type "('a : value)" is not equal to the type "('a0 : immediate)"
-       because their layouts are different.
+module M1_2''' : S1_2
 |}]
 
 (************************************************************************)
@@ -792,4 +759,679 @@ let m : (module S) =
 
 [%%expect{|
 val m : (module S) = <module>
+|}]
+
+(*********************************************)
+(* Test 13: contravariance of type arguments *)
+
+module M : sig
+  type 'a t
+end = struct
+  type ('a : any) t
+end
+
+[%%expect{|
+module M : sig type 'a t end
+|}]
+
+module M : sig
+  type ('a : any) t
+end = struct
+  type 'a t
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t end
+       is not included in
+         sig type ('a : any) t end
+       Type declarations do not match:
+         type 'a t
+       is not included in
+         type ('a : any) t
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-19.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-11.
+|}]
+
+
+module M : sig
+  type 'a t
+end = struct
+  type ('a : any) t = 'a
+end
+
+[%%expect{|
+module M : sig type 'a t end
+|}]
+
+module M : sig
+  type ('a : any) t
+end = struct
+  type 'a t = 'a
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t = 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a end
+       is not included in
+         sig type ('a : any) t end
+       Type declarations do not match:
+         type 'a t = 'a
+       is not included in
+         type ('a : any) t
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-19.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-16.
+|}]
+
+
+(* this should still fail, in order to remain upstream-compatible *)
+module M : sig
+  type 'a t constraint 'a = int
+end = struct
+  type 'a t
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t end
+       is not included in
+         sig type 'a t constraint 'a = int end
+       Type declarations do not match:
+         type 'a t
+       is not included in
+         type 'a t constraint 'a = int
+       Their parameters differ:
+       The type "'a" is not equal to the type "int"
+|}]
+
+module M : sig
+  type ('a : value) t = 'a
+end = struct
+  type ('a : any) t = 'a
+end
+
+[%%expect {|
+module M : sig type 'a t = 'a end
+|}]
+
+module M : sig
+  type ('a : any) t = 'a
+end = struct
+  type ('a : value) t = 'a
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a end
+       is not included in
+         sig type ('a : any) t = 'a end
+       Type declarations do not match:
+         type 'a t = 'a
+       is not included in
+         type ('a : any) t = 'a
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-24.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-26.
+|}]
+
+module M : sig
+  type ('a : value) t2
+  type ('a : value) t = 'a t2
+end = struct
+  type ('a : any) t
+  type ('a : any) t2 = 'a t
+end
+
+[%%expect {|
+module M : sig type 'a t2 type 'a t = 'a t2 end
+|}]
+
+module M : sig
+  type ('a : any) t2
+  type ('a : any) t = 'a t2
+end = struct
+  type ('a : value) t
+  type ('a : value) t2 = 'a t
+end
+
+[%%expect {|
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   type ('a : value) t
+6 |   type ('a : value) t2 = 'a t
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t type 'a t2 = 'a t end
+       is not included in
+         sig type ('a : any) t2 type ('a : any) t = 'a t2 end
+       Type declarations do not match:
+         type 'a t2 = 'a t
+       is not included in
+         type ('a : any) t2
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t2 at line 2, characters 2-20.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t2 at line 6, characters 2-29.
+|}]
+
+module M : sig
+  type ('a : value) t = Mk of ('a -> 'a)
+end = struct
+  type ('a : any) t = Mk of ('a -> 'a)
+end
+
+[%%expect {|
+module M : sig type 'a t = Mk of ('a -> 'a) end
+|}]
+
+module M : sig
+  type ('a : any) t = Mk of ('a -> 'a)
+end = struct
+  type ('a : value) t = Mk of ('a -> 'a)
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = Mk of ('a -> 'a)
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = Mk of ('a -> 'a) end
+       is not included in
+         sig type ('a : any) t = Mk of ('a -> 'a) end
+       Type declarations do not match:
+         type 'a t = Mk of ('a -> 'a)
+       is not included in
+         type ('a : any) t = Mk of ('a -> 'a)
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-38.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-40.
+|}]
+
+module M : sig
+  type ('a : value) t = { x : 'a -> 'a }
+end = struct
+  type ('a : any) t = { x : 'a -> 'a }
+end
+
+[%%expect {|
+module M : sig type 'a t = { x : 'a -> 'a; } end
+|}]
+
+module M : sig
+  type ('a : any) t = { x : 'a -> 'a }
+end = struct
+  type ('a : value) t = { x : 'a -> 'a }
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = { x : 'a -> 'a }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = { x : 'a -> 'a; } end
+       is not included in
+         sig type ('a : any) t = { x : 'a -> 'a; } end
+       Type declarations do not match:
+         type 'a t = { x : 'a -> 'a; }
+       is not included in
+         type ('a : any) t = { x : 'a -> 'a; }
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-38.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-40.
+|}]
+
+module M : sig
+  type ('a : value) t = Mk of { x : 'a -> 'a }
+end = struct
+  type ('a : any) t = Mk of { x : 'a -> 'a }
+end
+
+[%%expect {|
+module M : sig type 'a t = Mk of { x : 'a -> 'a; } end
+|}]
+
+module M : sig
+  type ('a : any) t = Mk of { x : 'a -> 'a }
+end = struct
+  type ('a : value) t = Mk of { x : 'a -> 'a }
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = Mk of { x : 'a -> 'a }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = Mk of { x : 'a -> 'a; } end
+       is not included in
+         sig type ('a : any) t = Mk of { x : 'a -> 'a; } end
+       Type declarations do not match:
+         type 'a t = Mk of { x : 'a -> 'a; }
+       is not included in
+         type ('a : any) t = Mk of { x : 'a -> 'a; }
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-44.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-46.
+|}]
+
+module M : sig
+  type _ t = Mk : 'a. 'a -> 'a t
+end = struct
+  type (_ : any) t = Mk : 'a. 'a -> 'a t
+end
+
+[%%expect {|
+module M : sig type _ t = Mk : 'a -> 'a t end
+|}]
+
+module M : sig
+  type (_ : any) t = Mk : 'a. 'a -> 'a t
+end = struct
+  type _ t = Mk : 'a. 'a -> 'a t
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type _ t = Mk : 'a. 'a -> 'a t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type _ t = Mk : 'a -> 'a t end
+       is not included in
+         sig type (_ : any) t = Mk : 'a -> 'a t end
+       Type declarations do not match:
+         type _ t = Mk : 'a -> 'a t
+       is not included in
+         type (_ : any) t = Mk : 'a -> 'a t
+       The problem is in the kinds of a parameter:
+       The layout of _ is any
+         because of the definition of t at line 2, characters 2-40.
+       But the layout of _ must be a sublayout of value
+         because of the definition of t at line 4, characters 2-32.
+|}]
+
+module M : sig
+  type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+end = struct
+  type (_ : any) t = Mk : ('a : value). 'a -> 'a t
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type (_ : any) t = Mk : ('a : value). 'a -> 'a t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type (_ : any) t = Mk : 'a -> 'a t end
+       is not included in
+         sig type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t end
+       Type declarations do not match:
+         type (_ : any) t = Mk : 'a -> 'a t
+       is not included in
+         type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+       Constructors do not match:
+         "Mk : 'a -> 'a t"
+       is not the same as:
+         "Mk : ('a : immediate). 'a -> 'a t"
+       The type "'a t" is not equal to the type "'a0 t"
+       because the layouts of their variables are different.
+       The layout of 'a is value
+         because of the definition of t at line 4, characters 2-50.
+       The layout of 'a0 is immediate
+         because of the definition of t at line 2, characters 2-54.
+|}]
+
+module M : sig
+  type (_ : any) t = Mk : ('a : value). 'a -> 'a t
+end = struct
+  type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t end
+       is not included in
+         sig type (_ : any) t = Mk : 'a -> 'a t end
+       Type declarations do not match:
+         type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+       is not included in
+         type (_ : any) t = Mk : 'a -> 'a t
+       Constructors do not match:
+         "Mk : ('a : immediate). 'a -> 'a t"
+       is not the same as:
+         "Mk : 'a -> 'a t"
+       The type "'a t" is not equal to the type "'a0 t"
+       because the layouts of their variables are different.
+       The layout of 'a is immediate
+         because of the definition of t at line 4, characters 2-54.
+       The layout of 'a0 is value
+         because of the definition of t at line 2, characters 2-50.
+|}]
+
+module M : sig
+  type (_ : any) t = Mk : ('a : value). 'a -> 'a t
+end = struct
+  type (_ : any) t = Mk : ('a : value). 'a -> 'a t
+end
+
+[%%expect {|
+module M : sig type (_ : any) t = Mk : 'a -> 'a t end
+|}]
+
+module M : sig
+  type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+end = struct
+  type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t
+end
+
+[%%expect {|
+module M : sig type (_ : any) t = Mk : ('a : immediate). 'a -> 'a t end
+|}]
+
+module M : sig
+  type t = Mk : ('a : any). ('a -> 'a) -> t
+end = struct
+  type t = Mk : ('a : any). ('a -> 'a) -> t
+end
+
+[%%expect {|
+module M : sig type t = Mk : ('a : any). ('a -> 'a) -> t end
+|}]
+
+module M : sig
+  type t = Mk : ('a : value). ('a -> 'a) -> t
+end = struct
+  type t = Mk : ('a : any). ('a -> 'a) -> t
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Mk : ('a : any). ('a -> 'a) -> t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Mk : ('a : any). ('a -> 'a) -> t end
+       is not included in
+         sig type t = Mk : ('a -> 'a) -> t end
+       Type declarations do not match:
+         type t = Mk : ('a : any). ('a -> 'a) -> t
+       is not included in
+         type t = Mk : ('a -> 'a) -> t
+       Constructors do not match:
+         "Mk : ('a : any). ('a -> 'a) -> t"
+       is not the same as:
+         "Mk : ('a -> 'a) -> t"
+       The type "'a -> 'a" is not equal to the type "'a0 -> 'a0"
+       because the layouts of their variables are different.
+       The layout of 'a is any
+         because of the definition of t at line 4, characters 2-43.
+       The layout of 'a0 is value
+         because of the definition of t at line 2, characters 2-45.
+|}]
+
+module M : sig
+  type t = Mk : ('a : any). ('a -> 'a) -> t
+end = struct
+  type t = Mk : ('a : value). ('a -> 'a) -> t
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Mk : ('a : value). ('a -> 'a) -> t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Mk : ('a -> 'a) -> t end
+       is not included in
+         sig type t = Mk : ('a : any). ('a -> 'a) -> t end
+       Type declarations do not match:
+         type t = Mk : ('a -> 'a) -> t
+       is not included in
+         type t = Mk : ('a : any). ('a -> 'a) -> t
+       Constructors do not match:
+         "Mk : ('a -> 'a) -> t"
+       is not the same as:
+         "Mk : ('a : any). ('a -> 'a) -> t"
+       The type "'a -> 'a" is not equal to the type "'a0 -> 'a0"
+       because the layouts of their variables are different.
+       The layout of 'a is value
+         because of the definition of t at line 4, characters 2-45.
+       The layout of 'a0 is any
+         because of the definition of t at line 2, characters 2-43.
+|}]
+
+module M : sig
+  type t = Mk : ('a : value). ('a -> 'a) -> t
+end = struct
+  type t = Mk : ('a : value). ('a -> 'a) -> t
+end
+
+[%%expect {|
+module M : sig type t = Mk : ('a -> 'a) -> t end
+|}]
+
+(* This would be safe to accept. *)
+module M : sig
+  type 'a t constraint 'a = ('b : immediate) -> ('c : immediate)
+end = struct
+  type 'a t constraint 'a = ('b : value) -> ('c : value)
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t constraint 'a = ('b : value) -> ('c : value)
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t constraint 'a = 'b -> 'c end
+       is not included in
+         sig type 'a t constraint 'a = 'b -> 'c end
+       Type declarations do not match:
+         type 'a t constraint 'a = 'b -> 'c
+       is not included in
+         type 'a t constraint 'a = 'b -> 'c
+       Their parameters differ:
+       The type "'b -> 'c" is not equal to the type "'b0 -> 'c0"
+       because the layouts of their variables are different.
+       The layout of 'b is value
+         because of the definition of t at line 4, characters 2-56.
+       The layout of 'b0 is immediate
+         because of the definition of t at line 2, characters 2-64.
+|}]
+
+module M : sig
+  type 'a t constraint 'a = ('b : value) -> ('c : value)
+end = struct
+  type 'a t constraint 'a = ('b : immediate) -> ('c : immediate)
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t constraint 'a = ('b : immediate) -> ('c : immediate)
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t constraint 'a = 'b -> 'c end
+       is not included in
+         sig type 'a t constraint 'a = 'b -> 'c end
+       Type declarations do not match:
+         type 'a t constraint 'a = 'b -> 'c
+       is not included in
+         type 'a t constraint 'a = 'b -> 'c
+       Their parameters differ:
+       The type "'b -> 'c" is not equal to the type "'b0 -> 'c0"
+       because the layouts of their variables are different.
+       The layout of 'b is immediate
+         because of the definition of t at line 4, characters 2-64.
+       The layout of 'b0 is value
+         because of the definition of t at line 2, characters 2-56.
+|}]
+
+module M : sig
+  type ('a : value) t = private 'a
+end = struct
+  type ('a : any) t = 'a
+end
+
+[%%expect {|
+module M : sig type 'a t = private 'a end
+|}]
+
+module M : sig
+  type ('a : any) t = private 'a
+end = struct
+  type ('a : value) t = 'a
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a end
+       is not included in
+         sig type ('a : any) t = private 'a end
+       Type declarations do not match:
+         type 'a t = 'a
+       is not included in
+         type ('a : any) t = private 'a
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-32.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-26.
+|}]
+
+module M : sig
+  type ('a : value) t = private 'a
+end = struct
+  type ('a : any) t = private 'a
+end
+
+[%%expect {|
+module M : sig type 'a t = private 'a end
+|}]
+
+module M : sig
+  type ('a : any) t = private 'a
+end = struct
+  type ('a : value) t = private 'a
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = private 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = private 'a end
+       is not included in
+         sig type ('a : any) t = private 'a end
+       Type declarations do not match:
+         type 'a t = private 'a
+       is not included in
+         type ('a : any) t = private 'a
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-32.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-34.
+|}]
+
+type ('a : any) iddy = private 'a
+
+[%%expect {|
+type ('a : any) iddy = private 'a
+|}]
+
+module M : sig
+  type ('a : value) t = private 'a
+end = struct
+  type ('a : any) t = 'a iddy
+end
+
+[%%expect {|
+module M : sig type 'a t = private 'a end
+|}]
+
+module M : sig
+  type ('a : any) t = private 'a
+end = struct
+  type ('a : value) t = 'a iddy
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a : value) t = 'a iddy
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = 'a iddy end
+       is not included in
+         sig type ('a : any) t = private 'a end
+       Type declarations do not match:
+         type 'a t = 'a iddy
+       is not included in
+         type ('a : any) t = private 'a
+       The problem is in the kinds of a parameter:
+       The layout of 'a is any
+         because of the definition of t at line 2, characters 2-32.
+       But the layout of 'a must be a sublayout of value
+         because of the definition of t at line 4, characters 2-31.
 |}]
