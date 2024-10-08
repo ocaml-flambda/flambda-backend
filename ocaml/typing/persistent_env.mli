@@ -35,29 +35,33 @@ type error =
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
         parameter : Global_module.Name.t;
-  }
+      }
   | Imported_module_has_no_such_parameter of
       { imported : Compilation_unit.Name.t;
         valid_parameters : Global_module.Name.t list;
         parameter : Global_module.Name.t;
         value : Global_module.Name.t;
-  }
-  | Not_compiled_as_argument of Compilation_unit.Name.t * filepath
+      }
+  | Not_compiled_as_argument of
+      { param : Global_module.Name.t;
+        value : Global_module.Name.t;
+        filename : filepath;
+      }
   | Argument_type_mismatch of
       { value : Global_module.Name.t;
         filename : filepath;
         expected : Global_module.Name.t;
         actual : Global_module.Name.t;
-  }
+      }
   | Inconsistent_global_name_resolution of
       { name : Global_module.Name.t;
         old_global : Global_module.t;
         new_global : Global_module.t;
         first_mentioned_by : Global_module.Name.t;
         now_mentioned_by : Global_module.Name.t;
-  }
+      }
   | Unbound_module_as_argument_value of
-       { instance : Global_module.Name.t; value : Global_module.Name.t; }
+      { instance : Global_module.Name.t; value : Global_module.Name.t; }
 
 
 

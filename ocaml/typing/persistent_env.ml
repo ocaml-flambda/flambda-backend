@@ -45,7 +45,11 @@ type error =
         parameter : Global_module.Name.t;
         value : Global_module.Name.t;
       }
-  | Not_compiled_as_argument of CU.Name.t * filepath
+  | Not_compiled_as_argument of
+      { param : Global_module.Name.t;
+        value : Global_module.Name.t;
+        filename : filepath;
+      }
   | Argument_type_mismatch of
       { value : Global_module.Name.t;
         filename : filepath;
@@ -510,15 +514,15 @@ and compute_global penv modname ~params check =
                         value = value |> Global_module.to_name;
                       })))
       ~both:
-        (fun (_param_name, expected_type_global) (_arg_name, arg_value_global) ->
+        (fun (param_name, expected_type_global) (_arg_name, arg_value_global) ->
             let arg_value = arg_value_global |> Global_module.to_name in
             let pn = find_pers_name ~allow_hidden:true penv check arg_value in
             let actual_type =
               match pn.pn_arg_for with
               | None ->
-                  let import = CU.Name.of_head_of_global_name arg_value in
                   error (Not_compiled_as_argument
-                           (import, pn.pn_import.imp_filename))
+                           { param = param_name; value = arg_value;
+                             filename = pn.pn_import.imp_filename })
               | Some ty -> ty
             in
             let actual_type_global =
@@ -970,12 +974,15 @@ let report_error ppf =
         (Style.as_inline_code Location.print_filename) filename
         (Style.as_inline_code Global_module.Name.print) modname
         (Style.as_inline_code Global_module.Name.print) modname
-  | Not_compiled_as_parameter(modname, filename) ->
+  | Not_compiled_as_parameter(modname, _filename) ->
       fprintf ppf
-        "@[<hov>The module %a@ is specified as a parameter, but %a@ \
-         was not compiled with -as-parameter.@]"
+        "@[<hov>The module %a@ is a parameter but is not declared as such for the\
+         current unit.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Compile the current unit with @{<inline_code>-parameter \
+           %a@}@]@]"
         (Style.as_inline_code Global_module.Name.print) modname
-        (Style.as_inline_code Location.print_filename) filename
+        Global_module.Name.print modname
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf
@@ -989,17 +996,16 @@ let report_error ppf =
         (Style.as_inline_code Global_module.Name.print) param
         (Style.as_inline_code Global_module.Name.print) param
   | Imported_module_has_no_such_parameter
-        { valid_parameters; imported = modname; parameter = param; value; } ->
-      fprintf ppf
-        "@[<hov>The module %a@ is given argument %a@ for parameter %a.@ "
-        (Style.as_inline_code CU.Name.print) modname
-        (Style.as_inline_code Global_module.Name.print) value
-        (Style.as_inline_code Global_module.Name.print) param;
-      begin match valid_parameters with
-      | [] ->
-          fprintf ppf "%a has no parameters."
-            (Style.as_inline_code CU.Name.print) modname
-      | _ ->
+        { valid_parameters; imported = modname; parameter = param; value = _; } ->
+      let pp_hint ppf () =
+        match valid_parameters with
+        | [] ->
+            fprintf ppf
+              "Compile %a@ with @{<inline_code>-parameter %a@} to make it a \
+               parameter."
+              (Style.as_inline_code CU.Name.print) modname
+              Global_module.Name.print param
+        | _ ->
           let print_params =
             Format.pp_print_list ~pp_sep:Format.pp_print_space
               (Style.as_inline_code Global_module.Name.print)
@@ -1007,18 +1013,27 @@ let report_error ppf =
           fprintf ppf "Valid parameters for %a:@ @[<hov>%a@]"
             (Style.as_inline_code CU.Name.print) modname
             print_params valid_parameters
-      end;
-      fprintf ppf "@]"
-  | Not_compiled_as_argument(modname, filename) ->
+      in
       fprintf ppf
-        "@[<hov>The module %a@ is specified as an instance argument, but %a@ \
-         was not compiled with -as-argument-for.@]"
+        "@[<hov>%a@ is not a valid parameter for the module %a.@]@.\
+         @[<hov>@{<hint>Hint@}: %a@]"
+        (Style.as_inline_code Global_module.Name.print) param
         (Style.as_inline_code CU.Name.print) modname
+        pp_hint ()
+  | Not_compiled_as_argument { param; value; filename } ->
+      fprintf ppf
+        "@[<hov>The module %a@ cannot be used as an argument for parameter\
+           %a.@]@.\
+         @[<hov>@{<hint>Hint@}: Compile %a with \
+           @{<inline_code>-as-argument-for %a@}.@]"
+        (Style.as_inline_code Global_module.Name.print) value
+        (Style.as_inline_code Global_module.Name.print) param
         (Style.as_inline_code Location.print_filename) filename
+        Global_module.Name.print param
   | Argument_type_mismatch { value; filename; expected; actual; } ->
       fprintf ppf
         "@[<hov>The module %a@ was expected to satisfy the parameter %a@ \
-         but %a@ was compiled with -as-argument-for %a.@]"
+         but %a@ was compiled to satisfy %a.@]"
         (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) expected
         (Style.as_inline_code Location.print_filename) filename

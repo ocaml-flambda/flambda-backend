@@ -1,5 +1,5 @@
 File "bad_instance_arg_name_not_found.ml", line 2, characters 2-35:
 2 |   Monoid_utils(Banana)(List_monoid) [@jane.non_erasable.instances]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The module "Monoid_utils" is given argument "List_monoid"
-       for parameter "Banana". Valid parameters for "Monoid_utils": "Monoid"
+Error: "Banana" is not a valid parameter for the module "Monoid_utils".
+Hint: Valid parameters for "Monoid_utils": "Monoid"

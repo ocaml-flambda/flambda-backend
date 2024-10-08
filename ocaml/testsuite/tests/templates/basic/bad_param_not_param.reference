@@ -1,5 +1,6 @@
 File "bad_param_not_param.mli", line 19, characters 17-25:
 19 | val frobnicate : Widget.t -> Widget.t
                       ^^^^^^^^
-Error: The module "Widget" is specified as a parameter, but "widget.cmi"
-       was not compiled with -as-parameter.
+Error: The module "Widget"
+       is a parameter but is not declared as such for thecurrent unit.
+Hint: Compile the current unit with "-parameter Widget"
