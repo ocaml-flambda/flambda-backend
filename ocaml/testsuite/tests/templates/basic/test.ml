@@ -156,9 +156,6 @@
        module = "ref_indirect.ml";
        ocamlc.byte;
 
-       (* [-no-code] and [-no-approx] are currently unimplemented (see PR 2737), which
-          sadly does make the reference file here a mite bloated and sensitive to
-          random changes in flambda2. *)
        program = "-no-code -no-approx ref_indirect.cmo ref_indirect.cmi";
        output = "ref_indirect.cmo.ocamlobjinfo.output";
        ocamlobjinfo;
@@ -425,15 +422,9 @@
        module = "ref_indirect.ml";
        ocamlopt.byte;
 
-       (* [-no-code] and [-no-approx] are currently unimplemented (see PR 2737), which
-          sadly does make the reference file here a mite bloated and sensitive to
-          random changes in flambda2. *)
        program = "-no-code -no-approx ref_indirect.cmx ref_indirect.cmi";
        output = "ref_indirect.cmx.ocamlobjinfo.output";
        ocamlobjinfo;
-
-       reason = "sensitive to runtime4 vs. runtime5; will be fixed by PR 2737";
-       skip;
 
        reference = "ref_indirect.cmx.ocamlobjinfo.reference";
        check-program-output;
