@@ -1,9 +1,9 @@
 (* TEST
- readonly_files = "pr2979.ml pr2979.mli";
+ readonly_files = "pr2978.ml pr2978.mli";
 setup-ocamlc.byte-build-env;
-module = "pr2979.mli";
+module = "pr2978.mli";
 ocamlc.byte;
-module = "pr2979.ml";
+module = "pr2978.ml";
 ocamlc.byte;
 check-ocamlc.byte-output;
 *)
