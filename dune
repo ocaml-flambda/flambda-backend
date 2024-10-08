@@ -93,6 +93,7 @@
   cfg_selectgen
   cfg_selection
   cfgize
+  address_sanitizer
   cmm_helpers
   cmm_builtins
   cmm_invariants

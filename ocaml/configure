@@ -753,6 +753,7 @@ flambda_invariants
 flambda2
 flambda
 cpp_mangling
+address_sanitizer
 frame_pointers
 no_partial_inlining_cflags
 custom_ops_struct_size
@@ -954,6 +955,7 @@ with_odoc
 enable_ocamltest
 enable_native_toplevel
 enable_frame_pointers
+enable_address_sanitizer
 enable_cpp_mangling
 enable_naked_pointers
 enable_naked_pointers_checker
@@ -1649,6 +1651,9 @@ Optional Features:
   --enable-native-toplevel
                           build the native toplevel
   --enable-frame-pointers use frame pointers in runtime and generated code
+  --enable-address-sanitizer
+                          use Address Sanitizer and alter codegen to expose
+                          native OCaml operations to ASAN
   --enable-cpp-mangling   use cpp mangling for exported symbols
   --disable-naked-pointers
                           do not allow naked pointers
@@ -3512,6 +3517,7 @@ LINEAR_MAGIC_NUMBER=Caml1999L550
 
 
 
+
 ## Generated files
 
 ac_config_files="$ac_config_files Makefile.build_config"
@@ -4012,6 +4018,13 @@ fi
 if test ${enable_frame_pointers+y}
 then :
   enableval=$enable_frame_pointers;
+fi
+
+
+# Check whether --enable-address-sanitizer was given.
+if test ${enable_address_sanitizer+y}
+then :
+  enableval=$enable_address_sanitizer;
 fi
 
 
@@ -20401,6 +20414,29 @@ else $as_nop
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: not using frame pointers" >&5
 printf "%s\n" "$as_me: not using frame pointers" >&6;}
   frame_pointers=false
+fi
+
+## Address Sanitizer
+
+if test x"$enable_address_sanitizer" = "xyes"
+then :
+  case "$host,$cc_basename" in #(
+  x86_64-*-linux*,gcc*|x86_64-*-linux*,clang*) :
+    common_cflags="$common_cflags -fsanitize=address -fsanitize-recover=address"
+       oc_ldflags="$oc_ldflags -fsanitize=address -fsanitize-recover=address"
+       address_sanitizer=true
+      printf "%s\n" "#define WITH_ADDRESS_SANITIZER 1" >>confdefs.h
+
+      { printf "%s\n" "$as_me:${as_lineno-$LINENO}: using Address Sanitizer" >&5
+printf "%s\n" "$as_me: using Address Sanitizer" >&6;} ;; #(
+  *) :
+    as_fn_error $? "Address Sanitizer is not supported on this platform" "$LINENO" 5
+   ;;
+esac
+else $as_nop
+  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: not using Address Sanitizer" >&5
+printf "%s\n" "$as_me: not using Address Sanitizer" >&6;}
+  address_sanitizer=false
 fi
 
 ## CPP mangling
