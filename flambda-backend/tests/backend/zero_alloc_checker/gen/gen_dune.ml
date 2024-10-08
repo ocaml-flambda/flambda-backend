@@ -210,4 +210,9 @@ let () =
   print_test_expected_output ~cutoff:default_cutoff
     ~extra_dep:None ~exit_code:2 "test_remove_inferred_assume";
   print_test "test_remove_inferred_assume_workaround.ml";
+  print_test_expected_output ~extra_flags:"-zero-alloc-assert all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail27";
+  print_test_expected_output ~extra_flags:"-zero-alloc-assert all_opt -zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail27_opt";
+  print_test_expected_output ~extra_flags:"-zero-alloc-assert default -zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail27_default";
+    print_test_expected_output ~extra_flags:"-zero-alloc-check default" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail28";
+  print_test_expected_output ~extra_flags:"-zero-alloc-check all" ~cutoff:default_cutoff ~extra_dep:None ~exit_code:2 "fail28_opt";
   ()
