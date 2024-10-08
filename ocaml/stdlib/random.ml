@@ -26,7 +26,7 @@ module State = struct
 
   open Bigarray
 
-  type t = (int64, int64_elt, c_layout) Array1.t
+  type t : value mod portable = (int64, int64_elt, c_layout) Array1.t
 
   external next: t -> (int64[@unboxed]) @@ portable
       = "caml_lxm_next" "caml_lxm_next_unboxed" [@@noalloc]
