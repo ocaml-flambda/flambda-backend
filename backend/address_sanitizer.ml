@@ -92,46 +92,33 @@ let slow_path_check memory_access ~log2size ~field_address ~shadow_value dbg =
 
 (** Implements [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#mapping]. *)
 let check memory_access ~log2size field_address dbg =
-  let field_address_tmp_var = Backend_var.create_local "field_address_tmp" in
-  Clet
-    ( Backend_var.With_provenance.create field_address_tmp_var,
-      field_address,
-      let field_address = Cvar field_address_tmp_var in
-      let shadow_value =
-        let shadow_address =
-          Cop
-            (* Shadow memory is by definition outside of the normal heap, hence
-               why this is unconditionally a [Caddi]. *)
-            ( Caddi
-              (* These constants come from
-                 [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *),
-              [ Cconst_int (0x7FFF8000, dbg);
-                Cop (Clsr, [field_address; Cconst_int (3, dbg)], dbg) ],
-              dbg )
-        in
-        Cop
-          ( Cload
-              { memory_chunk = Byte_signed;
-                mutability = Mutable;
-                is_atomic = false
-              },
-            [shadow_address],
-            dbg )
-      in
-      let shadow_value_tmp_var = Backend_var.create_local "shadow_value_tmp" in
-      Clet
-        ( Backend_var.With_provenance.create shadow_value_tmp_var,
-          shadow_value,
-          let shadow_value = Cvar shadow_value_tmp_var in
-          let is_valid =
-            Cop (Ccmpi Ceq, [shadow_value; Cconst_int (0, dbg)], dbg)
-          in
-          Cifthenelse
-            ( is_valid,
-              dbg,
-              Cconst_int (1, dbg),
-              dbg,
-              slow_path_check memory_access ~log2size ~field_address
-                ~shadow_value dbg,
-              dbg,
-              Any ) ) )
+  let shadow_value =
+    let shadow_address =
+      Cop
+        (* Shadow memory is by definition outside of the normal heap, hence why
+           this is unconditionally a [Caddi]. *)
+        ( Caddi
+          (* These constants come from
+             [https://github.com/google/sanitizers/wiki/AddressSanitizerAlgorithm#64-bit]. *),
+          [ Cconst_int (0x7FFF8000, dbg);
+            Cop (Clsr, [field_address; Cconst_int (3, dbg)], dbg) ],
+          dbg )
+    in
+    Cop
+      ( Cload
+          { memory_chunk = Byte_signed;
+            mutability = Mutable;
+            is_atomic = false
+          },
+        [shadow_address],
+        dbg )
+  in
+  let is_valid = Cop (Ccmpi Ceq, [shadow_value; Cconst_int (0, dbg)], dbg) in
+  Cifthenelse
+    ( is_valid,
+      dbg,
+      Cconst_int (1, dbg),
+      dbg,
+      slow_path_check memory_access ~log2size ~field_address ~shadow_value dbg,
+      dbg,
+      Any )
