@@ -782,8 +782,10 @@ and primitive_coercion =
 
 and signature = {
   sig_items : signature_item list;
+  sig_modalities : Mode.Modality.Value.Const.t;
   sig_type : Types.signature;
   sig_final_env : Env.t;
+  sig_sloc : Location.t;
 }
 
 and signature_item =

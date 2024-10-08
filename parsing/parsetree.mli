@@ -993,7 +993,12 @@ and functor_parameter =
             - [(X : MT)] when [name] is [Some X],
             - [(_ : MT)] when [name] is [None] *)
 
-and signature = signature_item list
+and signature =
+  {
+    psig_modalities : modalities;
+    psig_items : signature_item list;
+    psig_sloc : Location.t;
+  }
 
 and signature_item =
     {

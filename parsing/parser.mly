@@ -624,7 +624,9 @@ let wrap_mkstr_ext ~loc (item, ext) =
 let wrap_sig_ext ~loc body ext =
   match ext with
   | None -> body
-  | Some id -> ghsig ~loc (Psig_extension ((id, PSig [body]), []))
+  | Some id ->
+      ghsig ~loc (Psig_extension ((id, PSig {psig_items=[body];
+        psig_modalities=[]; psig_sloc=make_loc loc}), []))
 
 let wrap_mksig_ext ~loc (item, ext) =
   wrap_sig_ext ~loc (mksig ~loc item) ext
@@ -1934,8 +1936,10 @@ module_type:
 (* A signature, which appears between SIG and END (among other places),
    is a list of signature elements. *)
 signature:
-  extra_sig(flatten(signature_element*))
-    { $1 }
+  optional_atat_modalities_expr extra_sig(flatten(signature_element*))
+    { { psig_modalities = $1;
+        psig_items = $2;
+        psig_sloc = make_loc $sloc; } }
 ;
 
 (* A signature element is one of the following:

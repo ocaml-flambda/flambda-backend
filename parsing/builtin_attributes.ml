@@ -352,14 +352,14 @@ let check_deprecated_mutable_inclusion ~def ~use loc attrs1 attrs2 s =
       Location.deprecated ~def ~use loc
         (Printf.sprintf "mutating field %s" (cat s txt))
 
-let rec attrs_of_sig = function
+let rec attrs_of_sig_items = function
   | {psig_desc = Psig_attribute a} :: tl ->
-      a :: attrs_of_sig tl
+      a :: attrs_of_sig_items tl
   | _ ->
       []
 
-let alerts_of_sig ~mark sg =
-  let a = attrs_of_sig sg in
+let alerts_of_sig ~mark {psig_items; _} =
+  let a = attrs_of_sig_items psig_items in
   if mark then mark_alerts_used a;
   alerts_of_attrs a
 

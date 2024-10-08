@@ -807,7 +807,13 @@ let default_mapper =
     structure_item = M.map_structure_item;
     module_expr = M.map;
     module_expr_jane_syntax = M.map_ext;
-    signature = (fun this l -> List.map (this.signature_item this) l);
+    signature =
+      (fun this {psig_items; psig_modalities; psig_sloc} ->
+        let psig_modalities = this.modalities this psig_modalities in
+        let psig_items = List.map (this.signature_item this) psig_items in
+        let psig_sloc = this.location this psig_sloc in
+        {psig_items; psig_modalities; psig_sloc}
+      );
     signature_item = MT.map_signature_item;
     module_type = MT.map;
     with_constraint = MT.map_with_constraint;
@@ -1272,26 +1278,27 @@ let apply_lazy ~source ~target mapper =
     let fields = PpxContext.update_cookies fields in
     Str.attribute (PpxContext.mk fields) :: ast
   in
-  let iface ast =
-    let fields, ast =
-      match ast with
+  let iface {psig_items; psig_modalities; psig_sloc} =
+    let fields, psig_items =
+      match psig_items with
       | {psig_desc = Psig_attribute ({attr_name = {txt = "ocaml.ppx.context"};
                                       attr_payload = x;
                                       attr_loc = _})} :: l ->
           PpxContext.get_fields x, l
-      | _ -> [], ast
+      | _ -> [], psig_items
     in
     PpxContext.restore fields;
-    let ast =
+    let psig_items =
       try
         let mapper = mapper () in
-        mapper.signature mapper ast
+        List.map (mapper.signature_item mapper) psig_items
       with exn ->
         [{psig_desc = Psig_extension (extension_of_exn exn, []);
           psig_loc  = Location.none}]
     in
     let fields = PpxContext.update_cookies fields in
-    Sig.attribute (PpxContext.mk fields) :: ast
+    let psig_items = Sig.attribute (PpxContext.mk fields) :: psig_items in
+    {psig_items; psig_modalities; psig_sloc}
   in
 
   let ic = open_in_bin source in
@@ -1331,7 +1338,7 @@ let drop_ppx_context_str ~restore = function
       items
   | items -> items
 
-let drop_ppx_context_sig ~restore = function
+let drop_ppx_context_sig_items ~restore = function
   | {psig_desc = Psig_attribute
                    {attr_name = {Location.txt = "ocaml.ppx.context"};
                     attr_payload = a;
@@ -1342,12 +1349,19 @@ let drop_ppx_context_sig ~restore = function
       items
   | items -> items
 
+let drop_ppx_context_sig ~restore {psig_items; psig_modalities; psig_sloc} =
+  let psig_items = drop_ppx_context_sig_items ~restore psig_items in
+  {psig_items; psig_modalities; psig_sloc}
+
 let add_ppx_context_str ~tool_name ast =
   Ast_helper.Str.attribute (ppx_context ~tool_name ()) :: ast
 
-let add_ppx_context_sig ~tool_name ast =
-  Ast_helper.Sig.attribute (ppx_context ~tool_name ()) :: ast
+let add_ppx_context_sig_items ~tool_name ast =
+    Ast_helper.Sig.attribute (ppx_context ~tool_name ()) :: ast
 
+let add_ppx_context_sig ~tool_name {psig_items; psig_modalities; psig_sloc} =
+  let psig_items = add_ppx_context_sig_items ~tool_name psig_items in
+  {psig_items; psig_modalities; psig_sloc}
 
 let apply ~source ~target mapper =
   apply_lazy ~source ~target (fun () -> mapper)

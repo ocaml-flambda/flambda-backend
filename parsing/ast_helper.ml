@@ -318,6 +318,11 @@ module Sig = struct
       f_txt
 end
 
+module Sg = struct
+  let mk ?(loc = !default_loc) ?(modalities = []) a =
+    {psig_items = a; psig_modalities = modalities; psig_sloc = loc}
+end
+
 module Str = struct
   let mk ?(loc = !default_loc) d = {pstr_desc = d; pstr_loc = loc}
 
