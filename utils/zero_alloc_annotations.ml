@@ -61,3 +61,35 @@ module Check = struct
     \      \"all\" covers both \"opt\" and \"default\" and is intended for \
      optimized builds."
 end
+
+module Assert = struct
+  type t =
+    | Assert_default
+    | Assert_all
+    | Assert_all_opt
+
+  let all = [Assert_default; Assert_all; Assert_all_opt]
+
+  let to_string = function
+    | Assert_default -> "default"
+    | Assert_all -> "all"
+    | Assert_all_opt -> "all_opt"
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Assert_default, Assert_default -> true
+    | Assert_all, Assert_all -> true
+    | Assert_all_opt, Assert_all_opt -> true
+    | (Assert_default | Assert_all | Assert_all_opt), _ -> false
+
+  let of_string v =
+    let f t = if String.equal (to_string t) v then Some t else None in
+    List.find_map f all
+
+  let doc =
+    "\n\
+    \    The argument specifies which annotations to use: \n\
+    \      \"all\" is equivalent to adding [@@@zero_alloc all]\n\
+    \      \"all_opt\" is equiveintended to adding [@@@zero_alloc all_opt]\n\
+    \      \"default\" does not add any attributes."
+end

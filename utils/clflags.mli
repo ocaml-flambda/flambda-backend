@@ -317,6 +317,8 @@ val reset_arguments : unit -> unit
 
 (* [zero_alloc_check] specifies which zero_alloc attributes to check. *)
 val zero_alloc_check : Zero_alloc_annotations.Check.t ref
+(* [zero_alloc_assert] specifies which zero_alloc attributes to add. *)
+val zero_alloc_assert : Zero_alloc_annotations.Assert.t ref
 
 val no_auto_include_otherlibs : bool ref
 

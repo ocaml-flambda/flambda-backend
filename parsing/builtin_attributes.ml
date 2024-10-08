@@ -596,12 +596,12 @@ let zero_alloc_attribute (attr : Parsetree.attribute)  =
   let module A = Zero_alloc_annotations in
   parse_attribute_with_ident_payload attr
     ~name:"zero_alloc" ~f:(function
-      | "all" ->
-        Clflags.zero_alloc_check_assert_all := true
       | "check" -> Clflags.zero_alloc_check := A.Check.Check_default
       | "check_opt" -> Clflags.zero_alloc_check := A.Check.Check_opt_only
       | "check_all" -> Clflags.zero_alloc_check := A.Check.Check_all
       | "check_none" -> Clflags.zero_alloc_check := A.Check.No_check
+      | "all" -> Clflags.zero_alloc_assert := A.Assert.Assert_all
+      | "all_opt" -> Clflags.zero_alloc_assert := A.Assert.Assert_all_opt
       | _ ->
         warn_payload attr.attr_loc attr.attr_name.txt
           "Only 'all', 'check', 'check_opt', 'check_all', and 'check_none' are supported")
