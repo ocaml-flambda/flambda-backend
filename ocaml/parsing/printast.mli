@@ -23,7 +23,7 @@
 open Parsetree
 open Format
 
-val interface : formatter -> signature_item list -> unit
+val interface : formatter -> signature -> unit
 val implementation : formatter -> structure_item list -> unit
 val top_phrase : formatter -> toplevel_phrase -> unit
 val constant: formatter -> constant -> unit
@@ -34,4 +34,3 @@ val structure: int -> formatter -> structure -> unit
 val payload: int -> formatter -> payload -> unit
 val core_type: int -> formatter -> core_type -> unit
 val extension_constructor: int -> formatter -> extension_constructor -> unit
-

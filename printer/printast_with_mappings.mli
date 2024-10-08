@@ -23,7 +23,7 @@
 open Parsetree;;
 open Format;;
 
-val interface : formatter -> signature_item list -> unit;;
+val interface : formatter -> signature -> unit;;
 val implementation : formatter -> structure_item list -> unit;;
 val top_phrase : formatter -> toplevel_phrase -> unit;;
 

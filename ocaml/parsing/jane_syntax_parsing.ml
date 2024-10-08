@@ -679,8 +679,14 @@ module Signature_item0 = Make_with_extension_node (struct
   let make_extension_node = Ast_helper.Sig.extension
 
   let make_extension_use ~extension_node sigi =
+    let sg =
+      { psig_items = [extension_node; sigi];
+        psig_modalities = [];
+        psig_sloc = !Ast_helper.default_loc
+      }
+    in
     Ast_helper.Sig.include_
-      { pincl_mod = Ast_helper.Mty.signature [extension_node; sigi];
+      { pincl_mod = Ast_helper.Mty.signature sg;
         pincl_loc = !Ast_helper.default_loc;
         pincl_attributes = [];
         pincl_kind = Structure
@@ -692,7 +698,10 @@ module Signature_item0 = Make_with_extension_node (struct
         ( { pincl_mod =
               { pmty_desc =
                   Pmty_signature
-                    [{ psig_desc = Psig_extension (ext, []); _ }; sigi];
+                    { psig_items =
+                        [{ psig_desc = Psig_extension (ext, []); _ }; sigi];
+                      _
+                    };
                 _
               };
             pincl_kind = Structure;

@@ -450,8 +450,8 @@ val f1 : ('a : value_or_null). local_ 'a -> unit @@ global many = <fun>
 val f2 : unit -> unit @@ global many = <fun>
 |}]
 
-module type S = sig
-  module type S0 = sig
+module type S = sig @@ portable contended
+  module type S0 = sig @@ portable contended
     val x1 : string -> string @@ local
     val x2 : string -> string @@ portable
     val x3 : string -> string @@ nonportable
