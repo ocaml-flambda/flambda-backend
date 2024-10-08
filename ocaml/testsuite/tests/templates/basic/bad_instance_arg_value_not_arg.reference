@@ -1,4 +1,6 @@
-File "bad_instance_arg_value_not_arg.ml", line 1:
+File "bad_instance_arg_value_not_arg.ml", line 2, characters 2-57:
+2 |   Monoid_utils(Monoid)(Monoid_utils(Monoid)(List_monoid)) [@jane.non_erasable.instances]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The module "Monoid_utils"
        is specified as an instance argument, but "monoid_utils.cmi"
        was not compiled with -as-argument-for.

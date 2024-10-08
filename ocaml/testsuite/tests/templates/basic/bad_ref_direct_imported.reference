@@ -1,3 +1,5 @@
-File "bad_ref_direct_imported.ml", line 1:
+File "bad_ref_direct_imported.ml", line 7, characters 12-24:
+7 | let empty = Monoid.empty
+                ^^^^^^^^^^^^
 Error: The file "monoid.cmi" contains the interface of a parameter.
        "Monoid" is not declared as a parameter for the current unit (-parameter "Monoid").

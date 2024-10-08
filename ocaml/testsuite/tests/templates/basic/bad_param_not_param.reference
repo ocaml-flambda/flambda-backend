@@ -1,3 +1,5 @@
-File "bad_param_not_param.mli", line 1:
+File "bad_param_not_param.mli", line 19, characters 17-25:
+19 | val frobnicate : Widget.t -> Widget.t
+                      ^^^^^^^^
 Error: The module "Widget" is specified as a parameter, but "widget.cmi"
        was not compiled with -as-parameter.

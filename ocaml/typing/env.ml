@@ -762,6 +762,7 @@ type lookup_error =
       Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | Error_from_persistent_env of Persistent_env.error
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -3017,6 +3018,8 @@ let lookup_global_name_module
       | exception Not_found ->
           let s = Global_module.Name.to_string name in
           may_lookup_error errors loc env (Unbound_module (Lident s))
+      | exception Persistent_env.Error err ->
+          may_lookup_error errors loc env (Error_from_persistent_env err)
     end
 
 let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
@@ -4257,6 +4260,8 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+  | Error_from_persistent_env err ->
+      Persistent_env.report_error ppf err
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

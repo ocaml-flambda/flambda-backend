@@ -929,9 +929,6 @@ let save_cmi penv psig =
     )
     ~exceptionally:(fun () -> remove_file filename)
 
-(* TODO: These should really have locations in them where possible (adapting
-   [Typemod]'s [Error] constructor is probably the easiest path) *)
-
 let report_error ppf =
   let open Format in
   function
@@ -1046,6 +1043,11 @@ let () =
   Location.register_error_of_exn
     (function
       | Error err ->
+          (* Note that this module don't have location info in its errors, since
+             (unlike [Env]) it doesn't take [Location.t]s as arguments. However,
+             [Env] is often able to add location info to our errors by
+             re-raising them with the [Env.Error_from_persistent_env]
+             constructor. *)
           Some (Location.error_of_printer_file report_error err)
       | _ -> None
     )
