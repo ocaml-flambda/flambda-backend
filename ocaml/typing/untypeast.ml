@@ -441,7 +441,6 @@ let exp_extra sub (extra, loc, attrs) sexp =
     attrs := pexp_attributes @ !attrs;
     pexp_desc
   in
-  let add_loc x = mkloc x loc in
   let desc =
     match extra with
       Texp_coerce (cty1, cty2) ->
@@ -454,11 +453,11 @@ let exp_extra sub (extra, loc, attrs) sexp =
          Option.map (sub.typ sub) cty,
          Typemode.untransl_mode_annots ~loc modes)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
-    | Texp_newtype (s, None) ->
-        Pexp_newtype (add_loc s, sexp)
-    | Texp_newtype (s, Some (_, jkind)) ->
+    | Texp_newtype (_, label_loc, None, _) ->
+        Pexp_newtype (label_loc, sexp)
+    | Texp_newtype (_, label_loc, Some (_, jkind), _) ->
         Jane_syntax.Layouts.expr_of ~loc
-          (Lexp_newtype(add_loc s, jkind, sexp))
+          (Lexp_newtype(label_loc, jkind, sexp))
         |> add_jane_syntax_attributes
     | Texp_stack -> Pexp_stack sexp
   in
@@ -587,7 +586,7 @@ let expression sub exp =
                let default_arg = Option.map (sub.expr sub) default_arg in
                let newtypes =
                  List.map
-                   (fun (x, annot) ->
+                   (fun (_, x, annot, _) ->
                       { pparam_desc = Pparam_newtype (x, Option.map snd annot);
                         pparam_loc = x.loc;
                       })

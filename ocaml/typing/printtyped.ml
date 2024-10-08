@@ -427,8 +427,8 @@ and expression_extra i ppf x attrs =
       line i ppf "Texp_poly\n";
       attributes i ppf attrs;
       option i core_type ppf cto;
-  | Texp_newtype (s, lay) ->
-      line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
+  | Texp_newtype (_, s, lay, _) ->
+      line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s.txt, lay);
       attributes i ppf attrs;
   | Texp_stack ->
       line i ppf "Texp_stack\n";
