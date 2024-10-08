@@ -316,8 +316,7 @@ val print_arguments : string -> unit
 val reset_arguments : unit -> unit
 
 (* [zero_alloc_check] specifies which zero_alloc attributes to check. *)
-val zero_alloc_check : Zero_alloc_annotations.t ref
-val zero_alloc_check_assert_all : bool ref
+val zero_alloc_check : Zero_alloc_annotations.Check.t ref
 
 val no_auto_include_otherlibs : bool ref
 

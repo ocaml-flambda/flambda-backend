@@ -693,8 +693,7 @@ let create_usage_msg program =
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
 
-let zero_alloc_check = ref Zero_alloc_annotations.Check_default    (* -zero-alloc-check *)
-let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)
+let zero_alloc_check = ref Zero_alloc_annotations.Check.Check_default  (* -zero-alloc-check *)
 
 let no_auto_include_otherlibs = ref false      (* -no-auto-include-otherlibs *)
 
