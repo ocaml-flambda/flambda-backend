@@ -43,6 +43,14 @@
  (alias  runtest)
  (action (copy fail28.ml fail28_opt.ml )))
 
+(rule
+ (alias  runtest)
+ (action (copy fail29_opt.ml fail29_opt2.ml )))
+
+(rule
+ (alias  runtest)
+ (action (copy fail29_opt.mli fail29_opt2.mli )))
+
 ;; Tests whose outputs differ depending on stack_allocation configuration flag.
 ;; This condition is not expressible in "enable_if" clause
 ;; because dune does not support %{config:stack_allocation} yet.
