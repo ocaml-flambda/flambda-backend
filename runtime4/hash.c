@@ -175,6 +175,12 @@ CAMLexport uint32_t caml_hash_mix_string(uint32_t h, value s)
   return h;
 }
 
+/* A version of Whitehd_hd that's compatible with what upstream does.
+   This allows us to avoid changing the output of polymorphic hash,
+   at a performance cost to users of polymorphic hash.
+ */
+#define Stable_whitehd_hd(hd) ((Wosize_hd(hd) << 10) | Tag_hd(hd))
+
 /* Maximal size of the queue used for breadth-first traversal.  */
 #define HASH_QUEUE_SIZE 256
 /* Maximal number of Forward_tag links followed in one step */
@@ -274,7 +280,7 @@ CAMLprim value caml_hash_exn(value count, value limit, value seed, value obj)
         startenv = Start_env_closinfo(Closinfo_val(v));
         CAMLassert (startenv <= len);
         /* Mix in the tag and size, but do not count this towards [num] */
-        h = caml_hash_mix_uint32(h, Whitehd_hd(Hd_val(v)));
+        h = caml_hash_mix_uint32(h, Stable_whitehd_hd(Hd_val(v)));
         /* Mix the code pointers, closure info fields, and infix headers */
         for (i = 0; i < startenv; i++) {
           h = caml_hash_mix_intnat(h, Field(v, i));
@@ -294,7 +300,7 @@ CAMLprim value caml_hash_exn(value count, value limit, value seed, value obj)
 	  caml_invalid_argument("hash: mixed block value");
 	}
         /* Mix in the tag and size, but do not count this towards [num] */
-        h = caml_hash_mix_uint32(h, Whitehd_hd(Hd_val(v)));
+        h = caml_hash_mix_uint32(h, Stable_whitehd_hd(Hd_val(v)));
         /* Copy fields into queue, not exceeding the total size [sz] */
         for (i = 0, len = Wosize_val(v); i < len; i++) {
           if (wr >= sz) break;
