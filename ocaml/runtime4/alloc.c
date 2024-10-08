@@ -32,6 +32,10 @@
 #define Setup_for_gc
 #define Restore_after_gc
 
+/* When you update this macro, be sure to also update the exported value. */
+Assert_mixed_block_layout_v2;
+value caml_mixed_block_layout_version = 2;
+
 CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
                                            reserved_t reserved)
 {

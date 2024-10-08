@@ -110,10 +110,10 @@ bits  63    10 9     8 7   0
 
 For 64-bit architectures with mixed block support enabled:
   P = PROFINFO_WIDTH (as set by "configure", currently 8 bits)
-     +----------------+----------------+-------------+
-     | scannable size | wosize         | color | tag |
-     +----------------+----------------+-------------+
-bits  63        (64-P) (63-P)        10 9     8 7   0
+     +----- --+------------------------+-------------+
+     | wosize | scannable size         | color | tag |
+     +--------+------------------------+-------------+
+bits  63      (P+10)                 10 9     8 7   0
 
 Mixed block support uses the PROFINFO_WIDTH functionality
 originally built for Spacetime profiling, hence the odd name.
@@ -121,7 +121,7 @@ originally built for Spacetime profiling, hence the odd name.
 
 #define Tag_hd(hd) ((tag_t) ((hd) & 0xFF))
 
-#define Gen_profinfo_shift(width) (64 - (width))
+#define Gen_profinfo_shift(width) (10)
 #define Gen_profinfo_mask(width) ((1ull << (width)) - 1ull)
 #define Gen_profinfo_hd(width, hd) \
   (((mlsize_t) ((hd) >> (Gen_profinfo_shift(width)))) \
@@ -131,8 +131,9 @@ originally built for Spacetime profiling, hence the odd name.
 #define PROFINFO_SHIFT (Gen_profinfo_shift(PROFINFO_WIDTH))
 #define PROFINFO_MASK (Gen_profinfo_mask(PROFINFO_WIDTH))
 #define NO_PROFINFO 0
-#define Hd_no_profinfo(hd) ((hd) & ~(PROFINFO_MASK << PROFINFO_SHIFT))
-#define Allocated_wosize_hd(hd) ((mlsize_t) ((Hd_no_profinfo(hd)) >> 10))
+
+#define HD_WOSIZE_SHIFT (PROFINFO_SHIFT + PROFINFO_WIDTH)
+#define Allocated_wosize_hd(hd) ((mlsize_t) ((hd) >> HD_WOSIZE_SHIFT))
 #define Profinfo_hd(hd) (Gen_profinfo_hd(PROFINFO_WIDTH, hd))
 #else
 #define NO_PROFINFO 0
@@ -556,13 +557,14 @@ CAMLextern value caml_set_oo_id(value obj);
 
    Users can write:
 
-   Assert_mixed_block_layout_v1;
+   Assert_mixed_block_layout_v2;
 
    (Hack: we define using _Static_assert rather than just an empty
    definition so that users can write a semicolon, which is treated
    better by C formatters.)
  */
-#define Assert_mixed_block_layout_v1 _Static_assert(1, "")
+#define Assert_mixed_block_layout_v2 _Static_assert(1, "")
+CAMLextern value mixed_block_layout_version; /* To help us in coredumps. */
 
 /* Header for out-of-heap blocks. */
 
