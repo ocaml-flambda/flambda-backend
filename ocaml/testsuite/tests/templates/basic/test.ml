@@ -12,16 +12,22 @@
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \
    bad_ref_indirect.reference \
    category.ml category.mli \
+   category_b.mli \
+   category_b_of_category.ml category_b_of_category.mli \
+   category_intf.ml \
    category_of_monoid.ml category_of_monoid.mli \
    category_utils.ml category_utils.mli \
    chain.ml chain.mli \
    import.ml \
+   import_multi_arg.ml \
    list_element.mli \
    list_monoid.ml list_monoid.mli \
    main.ml main.mli main.reference \
+   main_multi_arg.ml main_multi_arg.mli main_multi_arg.reference \
    monoid.mli \
    monoid_of_semigroup.ml monoid_of_semigroup.mli \
    monoid_utils.ml monoid_utils.mli monoid_utils_as_program.reference \
+   product_category.ml product_category.mli \
    ref_indirect.ml \
    ref_indirect.cmo.ocamlobjinfo.reference \
    ref_indirect.cmx.ocamlobjinfo.reference \
@@ -102,9 +108,15 @@
      reference = "test_direct_access.reference";
      check-program-output;
    }{
+     flags = "-as-parameter";
      module = "semigroup.mli";
      ocamlc.byte;
 
+     flags = "";
+     module = "category_intf.ml";
+     ocamlc.byte;
+
+     flags = "-as-parameter";
      module = "category.mli";
      ocamlc.byte;
 
@@ -236,24 +248,59 @@
          module = "import.ml";
          ocamlc.byte;
 
-         flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
-         module = "main.mli";
-         ocamlc.byte;
          {
-           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
-           module = "main.ml";
+           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+           module = "main.mli";
            ocamlc.byte;
+           {
+             flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+             module = "main.ml";
+             ocamlc.byte;
 
-           compiler_reference = "main.reference";
-           check-ocamlc.byte-output;
+             compiler_reference = "main.reference";
+             check-ocamlc.byte-output;
+           }{
+             module = "main.ml";
+             ocamlc.byte;
+
+             program = "main.cmo main.cmi";
+             ocamlobjinfo;
+
+             check-program-output;
+           }
          }{
-           module = "main.ml";
+           flags = "-as-parameter";
+           module = "category_b.mli";
            ocamlc.byte;
 
-           program = "main.cmo main.cmi";
-           ocamlobjinfo;
+           flags = "-parameter Category -as-argument-for Category_b";
+           module = "category_b_of_category.mli category_b_of_category.ml";
+           ocamlc.byte;
 
-           check-program-output;
+           flags = "-parameter Category -parameter Category_b -as-argument-for Category";
+           module = "product_category.mli product_category.ml";
+           ocamlc.byte;
+
+           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+           module = "import_multi_arg.ml";
+           ocamlc.byte;
+
+           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+           module = "main_multi_arg.mli";
+           ocamlc.byte;
+
+           {
+             flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+             module = "main_multi_arg.ml";
+             compiler_output = "main_multi_arg.output";
+             ocamlc.byte;
+
+             compiler_reference = "main_multi_arg.reference";
+             check-ocamlc.byte-output;
+           }{
+             module = "main_multi_arg.ml";
+             ocamlc.byte;
+           }
          }
        }
      }
@@ -330,9 +377,15 @@
      reference = "test_direct_access.reference";
      check-program-output;
    }{
+     flags = "-as-parameter";
      module = "semigroup.mli";
      ocamlopt.byte;
 
+     flags = "";
+     module = "category_intf.ml";
+     ocamlc.byte;
+
+     flags = "-as-parameter";
      module = "category.mli";
      ocamlopt.byte;
 
@@ -467,19 +520,55 @@
          module = "import.ml";
          ocamlopt.byte;
 
-         flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
-         module = "main.mli";
-         ocamlopt.byte;
          {
-           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
-           module = "main.ml";
+           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+           module = "main.mli";
+           ocamlopt.byte;
+           {
+             flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+             module = "main.ml";
+             compiler_output = "main.output";
+             ocamlopt.byte;
+
+             compiler_reference = "main.reference";
+             check-ocamlopt.byte-output;
+           }{
+             module = "main.ml";
+             ocamlopt.byte;
+           }
+         }{
+           flags = "-as-parameter";
+           module = "category_b.mli";
            ocamlopt.byte;
 
-           compiler_reference = "main.reference";
-           check-ocamlopt.byte-output;
-         }{
-           module = "main.ml";
+           flags = "-parameter Category -as-argument-for Category_b";
+           module = "category_b_of_category.mli category_b_of_category.ml";
            ocamlopt.byte;
+
+           flags = "-parameter Category -parameter Category_b -as-argument-for Category";
+           module = "product_category.mli product_category.ml";
+           ocamlopt.byte;
+
+           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+           module = "import_multi_arg.ml";
+           ocamlopt.byte;
+
+           flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
+           module = "main_multi_arg.mli";
+           ocamlopt.byte;
+
+           {
+             flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute -i";
+             module = "main_multi_arg.ml";
+             compiler_output = "main_multi_arg.output";
+             ocamlopt.byte;
+
+             compiler_reference = "main_multi_arg.reference";
+             check-ocamlopt.byte-output;
+           }{
+             module = "main_multi_arg.ml";
+             ocamlopt.byte;
+           }
          }
        }
      }
