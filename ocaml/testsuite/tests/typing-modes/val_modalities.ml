@@ -792,3 +792,18 @@ end
 [%%expect{|
 module type T = sig val foo : 'a -> 'a @@ contended end
 |}]
+
+(* default modalities is a syntax sugar that doesn't constitute the meaning of
+   a module type *)
+module type SR = sig @@ portable
+  end
+
+module type SL = sig
+  end
+
+module F (X : SL) : SR = X
+[%%expect{|
+module type SR = sig end
+module type SL = sig end
+module F : functor (X : SL) -> SR
+|}]
