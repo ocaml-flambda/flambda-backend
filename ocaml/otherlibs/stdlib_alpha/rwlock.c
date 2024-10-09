@@ -56,7 +56,7 @@ CAMLprim value caml_ml_rwlock_rdlock(value wrapper)
   CAMLparam1(wrapper);
   sync_retcode retcode;
   sync_rwlock rwl = Rwlock_val(wrapper);
-  if (sync_rwlock_tryrdlock(rwl) != RWLOCK_PREVIOUSLY_UNLOCKED) {
+  if (sync_rwlock_tryrdlock(rwl) != RWLOCK_SUCCESS) {
     caml_enter_blocking_section();
     retcode = sync_rwlock_rdlock(rwl);
     caml_leave_blocking_section();
@@ -70,7 +70,7 @@ CAMLprim value caml_ml_rwlock_wrlock(value wrapper)
   CAMLparam1(wrapper);
   sync_retcode retcode;
   sync_rwlock rwl = Rwlock_val(wrapper);
-  if (sync_rwlock_trywrlock(rwl) != RWLOCK_PREVIOUSLY_UNLOCKED) {
+  if (sync_rwlock_trywrlock(rwl) != RWLOCK_SUCCESS) {
     caml_enter_blocking_section();
     retcode = sync_rwlock_wrlock(rwl);
     caml_leave_blocking_section();

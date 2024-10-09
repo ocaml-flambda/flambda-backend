@@ -143,7 +143,7 @@ module Rwlock = struct
         match f (ReaderPassword.unsafe_mk()) with
         | x -> Rw.unlock t.rwlock; x
         | exception exn ->
-          t.poisoned <- true;
+          (* Here we are not poisoning the RwLock, see [capsule.mli] for explanation *)
           Rw.unlock t.rwlock;
           reraise exn
 
