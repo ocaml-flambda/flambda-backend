@@ -13,7 +13,7 @@ typedef pthread_rwlock_t * sync_rwlock;
 
 typedef int sync_retcode;
 
-#define RWLOCK_PREVIOUSLY_UNLOCKED 0
+#define RWLOCK_SUCCESS 0
 
 Caml_inline int sync_rwlock_rdlock(sync_rwlock m)
 {

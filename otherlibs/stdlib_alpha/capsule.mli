@@ -132,12 +132,26 @@ module Rwlock : sig
         -> ('k Password.t @ local -> 'a) @ local
         -> 'a
         @@ portable
+    (** [with_write_lock rw f] tries to write acquire the rwlock [rw]. If [rw] is already
+        write or read locked, blocks the current thread until it's unlocked. If successful,
+        provides [f] a password for the capsule ['k] associated with [rw].
+
+        If [f] raises an exception, the mutex is marked as poisoned. *)
 
     val with_read_lock :
         'k t
         -> ('k ReaderPassword.t @ local -> 'a) @ local
         -> 'a
         @@ portable
+    (** [with_read_lock rw f] tries to read acquire the rwlock [rw]. If [rw] is already
+        write locked, increases the reader count by one until it's unlocked. If successful,
+        provides [f] a password for the capsule ['k] associated with [rw].
+
+        If [f] raises an exception, the reader-writer lock decreases the reader count,
+        and reraises the exception. Note that unlike [with_write_lock], [rw] is not
+        poisoned: doing so would create a data-race with other readers trying to read
+        from the [poison] bit. Since readers can't write into a capsule, they should not
+        be able to leave protected data in a bad state  *)
 
     val destroy : 'k t -> 'k Password.t @@ portable
 end
