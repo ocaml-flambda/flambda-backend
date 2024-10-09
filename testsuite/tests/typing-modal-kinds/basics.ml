@@ -27,6 +27,7 @@ end = struct
   let hide x = x
 end
 
+(* CR layouts v2.8: Change this to be layout bits64, not kind bits64 *)
 module Hidden_int64_u : sig
   type t : bits64
   val hide : int64# -> t
@@ -211,11 +212,7 @@ let hidden_int64_u_escape () =
   let local_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in x
 
 [%%expect{|
-Line 2, characters 65-66:
-2 |   let local_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in x
-                                                                     ^
-Error: This value escapes its region.
-  Hint: Cannot return a local value without an "exclave_" annotation.
+val hidden_int64_u_escape : unit -> Hidden_int64_u.t = <fun>
 |}]
 
 let float_u_record_escape =
@@ -372,10 +369,7 @@ let hidden_int64_u_duplicate () =
   let once_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in Int64_u.id x
 
 [%%expect{|
-Line 2, characters 75-76:
-2 |   let once_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in Int64_u.id x
-                                                                               ^
-Error: This value is "once" but expected to be "many".
+val hidden_int64_u_duplicate : unit -> Hidden_int64_u.t = <fun>
 |}]
 
 let float_u_record_duplicate =
@@ -567,8 +561,10 @@ Line 1, characters 66-67:
 
 let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
 
-(* CR layouts v2.8: this should succeed *)
+(* CR layouts v2.8: this should succeed in principal mode, too *)
 [%%expect{|
+val int64_u_unshare : unit -> int64# = <fun>
+|}, Principal{|
 Line 1, characters 84-85:
 1 | let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
                                                                                         ^
@@ -611,11 +607,18 @@ let hidden_int64_u_unshare () =
   let x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in
   Int64_u.ignore x; Int64_u.unique x
 
+(* CR layouts v2.8: This should fail when we use layout bits64 with hidden_int64 *)
 [%%expect{|
+val hidden_int64_u_unshare : unit -> Hidden_int64_u.t = <fun>
+|}, Principal{|
 Line 3, characters 35-36:
 3 |   Int64_u.ignore x; Int64_u.unique x
                                        ^
-Error: This value is "aliased" but expected to be "unique".
+Error: This value is used here as unique, but it has already been used:
+Line 3, characters 17-18:
+3 |   Int64_u.ignore x; Int64_u.unique x
+                     ^
+
 |}]
 
 let float_u_record_unshare =

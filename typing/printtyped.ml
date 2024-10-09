@@ -167,7 +167,7 @@ let typevar_jkind ~print_quote ppf (v, l) =
   in
   match l with
   | None -> fprintf ppf " %a" pptv v
-  | Some (_, jkind) ->
+  | Some jkind ->
       fprintf ppf " (%a : %a)"
         pptv v
         Pprintast.jkind_annotation jkind
@@ -226,8 +226,8 @@ let attributes i ppf l =
     Printast.payload (i + 1) ppf a.Parsetree.attr_payload
   ) l
 
-let jkind_annotation i ppf (jkind, _) =
-  line i ppf "%a" Jkind.Debug_printers.Const.t jkind
+let jkind_annotation i ppf jkind =
+  line i ppf "%a" Pprintast.jkind_annotation jkind
 
 let zero_alloc_assume i ppf : Zero_alloc.assume -> unit = function
     { strict; never_returns_normally; never_raises; arity; loc = _ } ->
@@ -427,8 +427,8 @@ and expression_extra i ppf x attrs =
       line i ppf "Texp_poly\n";
       attributes i ppf attrs;
       option i core_type ppf cto;
-  | Texp_newtype (_, s, lay, _) ->
-      line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s.txt, lay);
+  | Texp_newtype (_, s, k, _) ->
+      line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s.txt, k);
       attributes i ppf attrs;
   | Texp_stack ->
       line i ppf "Texp_stack\n";

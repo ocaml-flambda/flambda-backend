@@ -321,23 +321,24 @@ val of_new_legacy_sort_var :
     Defaulting the sort variable produces exactly [value].  *)
 val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> 'd t
 
-val of_const : why:History.creation_reason -> Const.t -> 'd t
+val of_const :
+  annotation:Parsetree.jkind_annotation option ->
+  why:History.creation_reason ->
+  Const.t ->
+  'd t
+
+val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd t
 
 (* CR layouts v2.8: remove this when printing is improved *)
 
-(** The [Jkind.Const.t] together with its user-written annotation. *)
-type annotation = Types.type_expr Jkind_types.annotation
-
 val of_annotation :
-  context:History.annotation_context ->
-  Parsetree.jkind_annotation ->
-  'd t * annotation
+  context:History.annotation_context -> Parsetree.jkind_annotation -> 'd t
 
 val of_annotation_option_default :
   default:'d t ->
   context:History.annotation_context ->
   Parsetree.jkind_annotation option ->
-  'd t * annotation option
+  'd t
 
 (** Find a jkind from a type declaration. Type declarations are special because
     the jkind may have been provided via [: jkind] syntax (which goes through
@@ -352,7 +353,7 @@ val of_annotation_option_default :
 val of_type_decl :
   context:History.annotation_context ->
   Parsetree.type_declaration ->
-  (jkind_l * annotation) option
+  (jkind_l * Parsetree.jkind_annotation option) option
 
 (** Find a jkind from a type declaration in the same way as [of_type_decl],
     defaulting to ~default.
@@ -363,7 +364,7 @@ val of_type_decl_default :
   context:History.annotation_context ->
   default:jkind_l ->
   Parsetree.type_declaration ->
-  jkind_l * annotation option
+  jkind_l
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)
@@ -439,6 +440,9 @@ val set_externality_upper_bound : jkind_r -> Externality.t -> jkind_r
     in the jkind lattice than they might need to be.
     *)
 val decompose_product : 'd t -> 'd t list option
+
+(** Get an annotation (that a user might write) for this [t]. *)
+val get_annotation : 'd t -> Parsetree.jkind_annotation option
 
 (*********************************)
 (* pretty printing *)
@@ -530,6 +534,11 @@ val is_max : jkind_r -> bool
 
 (** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : ('l * allowed) t -> bool
+
+(** Checks whether a jkind is [value]. This really should require a [jkind_lr],
+    but it works on any [jkind], because it's used in printing and is somewhat
+    unprincipled. *)
+val is_value_for_printing : 'd t -> bool
 
 (*********************************)
 (* debugging *)

@@ -1378,8 +1378,7 @@ let get_new_abstract_name env s =
   let index = Misc.find_first_mono check in
   name index
 
-let new_local_type ?(loc = Location.none) ?manifest_and_scope origin
-    jkind ~jkind_annot =
+let new_local_type ?(loc = Location.none) ?manifest_and_scope origin jkind =
   let manifest, expansion_scope =
     match manifest_and_scope with
       None -> None, Btype.lowest_level
@@ -1390,7 +1389,6 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin
     type_arity = 0;
     type_kind = Type_abstract origin;
     type_jkind = Jkind.disallow_right jkind;
-    type_jkind_annotation = jkind_annot;
     type_private = Public;
     type_manifest = manifest;
     type_variance = [];
@@ -1436,10 +1434,7 @@ let instance_constructor existential_treatment cstr =
                   (* Existential row variable *)
               | _ -> assert false
             in
-            let decl =
-              new_local_type (Existential cstr.cstr_name) jkind
-                ~jkind_annot:None
-            in
+            let decl = new_local_type (Existential cstr.cstr_name) jkind in
             let name = existential_name name_counter existential in
             let env = penv.env in
             let fresh_constr_scope = penv.equations_scope in
@@ -2891,9 +2886,7 @@ let reify uenv t =
   let fresh_constr_scope = get_equations_scope uenv in
   let create_fresh_constr lev name jkind =
     let name = match name with Some s -> "$'"^s | _ -> "$" in
-    let decl =
-      new_local_type Definition jkind ~jkind_annot:None
-    in
+    let decl = new_local_type Definition jkind in
     let env = get_env uenv in
     let new_name =
       (* unique names are needed only for error messages *)
@@ -3275,7 +3268,7 @@ let jkind_of_abstract_type_declaration env p =
        nice to eliminate the duplication, but is seems tricky to do so without
        complicating unify3. *)
     let typ = Env.find_type p env in
-    typ.type_jkind, typ.type_jkind_annotation
+    typ.type_jkind
   with
     Not_found -> assert false
 
@@ -3325,9 +3318,7 @@ let add_gadt_equation uenv source destination =
     (* Recording the actual jkind here is required, not just for efficiency.
        When we check the jkind later, we may not be able to see the local
        equation because of its scope. *)
-    let jkind, jkind_annot =
-      jkind_of_abstract_type_declaration env source
-    in
+    let jkind = jkind_of_abstract_type_declaration env source in
     add_jkind_equation ~reason:(Gadt_equation source)
       uenv destination jkind;
     (* Adding a jkind equation may change the uenv. *)
@@ -3337,7 +3328,6 @@ let add_gadt_equation uenv source destination =
         ~manifest_and_scope:(destination, expansion_scope)
         type_origin
         (Jkind.terrible_relax_l jkind)
-        ~jkind_annot
     in
     set_env uenv (Env.add_local_constraint source decl env);
     cleanup_abbrev ()
@@ -6686,7 +6676,6 @@ let nondep_type_decl env mid is_covariant decl =
       type_arity = decl.type_arity;
       type_kind = tk;
       type_jkind = decl.type_jkind;
-      type_jkind_annotation = decl.type_jkind_annotation;
       type_manifest = tm;
       type_private = priv;
       type_variance = decl.type_variance;

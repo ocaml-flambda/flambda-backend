@@ -85,7 +85,11 @@ let with_additional_action =
   let builtins =
     Jkind.Const.Builtin.all
     |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
-          builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+          builtin.jkind,
+          Jkind.of_const builtin.jkind
+            ~annotation:(Some { pjkind_loc = Location.none;
+                                pjkind_desc = Abbreviation builtin.name })
+            ~why:Jkind.History.Imported)
   in
   fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
@@ -109,8 +113,9 @@ let with_additional_action =
               List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
             in
             begin match builtin with
-            | Some (__, jkind) -> jkind
-            | None -> Jkind.of_const const ~why:Jkind.History.Imported
+            | Some (_, jkind) -> jkind
+            | None -> Jkind.of_const const ~annotation:None
+                        ~why:Jkind.History.Imported
             end
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
           | Product descs ->
@@ -563,8 +568,6 @@ let type_declaration' copy_scope s decl =
             prepare_jkind decl.type_loc decl.type_jkind
         | Duplicate_variables | No_action -> decl.type_jkind
       end;
-    (* CR layouts v10: Apply the substitution here, too *)
-    type_jkind_annotation = decl.type_jkind_annotation;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
     type_separability = decl.type_separability;

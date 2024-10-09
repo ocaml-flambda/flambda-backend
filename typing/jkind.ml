@@ -160,6 +160,14 @@ module Layout = struct
       (fun x -> Sort.Product x)
       (Misc.Stdlib.List.map_option to_sort ts)
 
+  let rec get : t -> Const.t option = function
+    | Any -> Some Any
+    | Sort s -> Const.of_sort s
+    | Product layouts ->
+      Option.map
+        (fun x -> Layout.Const.Product x)
+        (Misc.Stdlib.List.map_option get layouts)
+
   let sort_equal_result ~allow_mutation result =
     match (result : Sort.equate_result) with
     | (Equal_mutated_first | Equal_mutated_second | Equal_mutated_both)
@@ -276,8 +284,45 @@ module History = struct
   let has_warned t = t.has_warned
 end
 
-(* forward declare [Const.t] so we can use it for [Error.t] *)
+(*********************************)
+(* Main type declarations *)
+
 type const = type_expr Jkind_types.Const.t
+
+type 'd t = (type_expr, 'd) Jkind_types.t
+
+type jkind_l = (allowed * disallowed) t
+
+type jkind_r = (disallowed * allowed) t
+
+type packed = Pack : 'd t -> packed [@@unboxed]
+
+include Allowance.Magic_allow_disallow (struct
+  type (_, _, 'd) sided = 'd t
+
+  let disallow_right ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let disallow_left ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let allow_right ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let allow_left ({ jkind = { layout = _; _ }; _ } as t) = t
+end)
+
+let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
+
+let fresh_jkind jkind ~why =
+  { jkind; annotation = None; history = Creation why; has_warned = false }
+
+let fresh_jkind_annot jkind ~annotation ~why =
+  { jkind;
+    annotation = Some annotation;
+    history = Creation why;
+    has_warned = false
+  }
+
+let fresh_jkind_annot_opt jkind ~annotation ~why =
+  { jkind; annotation; history = Creation why; has_warned = false }
 
 (******************************)
 (*** user errors ***)
@@ -290,8 +335,8 @@ module Error = struct
         }
     | Unknown_jkind of Parsetree.jkind_annotation
     | Multiple_jkinds of
-        { from_annotation : const;
-          from_attribute : const
+        { from_annotation : Parsetree.jkind_annotation;
+          from_attribute : Builtin_attributes.jkind_attribute Location.loc
         }
 
   exception User_error of Location.t * t
@@ -468,8 +513,6 @@ module Const = struct
         name = "immediate64"
       }
 
-    (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
-       crossing first *)
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float64 =
       { jkind =
@@ -477,8 +520,6 @@ module Const = struct
         name = "float64"
       }
 
-    (* CR layouts v2.8: This should not mode cross, but we need syntax for mode
-       crossing first *)
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float32 =
       { jkind =
@@ -488,28 +529,28 @@ module Const = struct
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let word =
-      { jkind = of_layout (Base Word) ~mode_crossing:false ~nullability:Non_null;
+      { jkind = of_layout (Base Word) ~mode_crossing:true ~nullability:Non_null;
         name = "word"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
       { jkind =
-          of_layout (Base Bits32) ~mode_crossing:false ~nullability:Non_null;
+          of_layout (Base Bits32) ~mode_crossing:true ~nullability:Non_null;
         name = "bits32"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits64 =
       { jkind =
-          of_layout (Base Bits64) ~mode_crossing:false ~nullability:Non_null;
+          of_layout (Base Bits64) ~mode_crossing:true ~nullability:Non_null;
         name = "bits64"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let vec128 =
       { jkind =
-          of_layout (Base Vec128) ~mode_crossing:false ~nullability:Non_null;
+          of_layout (Base Vec128) ~mode_crossing:true ~nullability:Non_null;
         name = "vec128"
       }
 
@@ -527,7 +568,8 @@ module Const = struct
         float32;
         word;
         bits32;
-        bits64 ]
+        bits64;
+        vec128 ]
 
     (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
     let all_non_null =
@@ -544,7 +586,12 @@ module Const = struct
         float32;
         word;
         bits32;
-        bits64 ]
+        bits64;
+        vec128 ]
+
+    let of_attribute : Builtin_attributes.jkind_attribute -> t = function
+      | Immediate -> immediate
+      | Immediate64 -> immediate64
   end
 
   module To_out_jkind_const : sig
@@ -704,10 +751,6 @@ module Const = struct
   let format_no_hiding ppf jkind =
     To_out_jkind_const.convert ~allow_null:true jkind
     |> !Oprint.out_jkind_const ppf
-
-  let of_attribute : Builtin_attributes.jkind_attribute -> t = function
-    | Immediate -> Builtin.immediate.jkind
-    | Immediate64 -> Builtin.immediate64.jkind
 
   let jkind_of_product_annotations jkinds =
     let folder (layouts, mode_ub, ext_ub, null_ub)
@@ -981,31 +1024,42 @@ module Jkind_desc = struct
        jkinds. This is not great. We should, as part of a broader pass on error
        messages around product kinds, zip them up into some kind of product
        history. *)
-    let folder (layouts, mode_ub, ext_ub, null_ub)
+    let folder (layouts, annotations, mode_ub, ext_ub, null_ub)
         { jkind =
             { layout;
               modes_upper_bounds;
               externality_upper_bound;
               nullability_upper_bound
             };
+          annotation;
           history = _;
           has_warned = _
         } =
       ( layout :: layouts,
+        annotation :: annotations,
         Modes.join mode_ub modes_upper_bounds,
         Externality.join ext_ub externality_upper_bound,
         Nullability.join null_ub nullability_upper_bound )
     in
-    let layouts, mode_ub, ext_ub, null_ub =
+    let layouts, annotations, mode_ub, ext_ub, null_ub =
       List.fold_left folder
-        ([], Modes.min, Externality.min, Nullability.min)
+        ([], [], Modes.min, Externality.min, Nullability.min)
         jkinds
     in
-    { layout = Product (List.rev layouts);
-      modes_upper_bounds = mode_ub;
-      externality_upper_bound = ext_ub;
-      nullability_upper_bound = null_ub
-    }
+    let annotations = Misc.Stdlib.Monad.Option.all annotations in
+    let annotation =
+      Option.map
+        (fun annotations ->
+          Parsetree.
+            { pjkind_loc = Location.none; pjkind_desc = Product annotations })
+        annotations
+    in
+    ( { layout = Product (List.rev layouts);
+        modes_upper_bounds = mode_ub;
+        externality_upper_bound = ext_ub;
+        nullability_upper_bound = null_ub
+      },
+      annotation )
 
   (* Post-condition: If the result contains [Var v], then [!v] is [None]. *)
   let rec get_sort modes_upper_bounds externality_upper_bound
@@ -1065,37 +1119,17 @@ module Jkind_desc = struct
   end
 end
 
-type 'd t = (type_expr, 'd) Jkind_types.t
-
-type jkind_l = (allowed * disallowed) t
-
-type jkind_r = (disallowed * allowed) t
-
-type packed = Pack : 'd t -> packed [@@unboxed]
-
-include Allowance.Magic_allow_disallow (struct
-  type (_, _, 'd) sided = 'd t
-
-  let disallow_right ({ jkind = { layout = _; _ }; _ } as t) = t
-
-  let disallow_left ({ jkind = { layout = _; _ }; _ } as t) = t
-
-  let allow_right ({ jkind = { layout = _; _ }; _ } as t) = t
-
-  let allow_left ({ jkind = { layout = _; _ }; _ } as t) = t
-end)
-
-let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
-
-let fresh_jkind jkind ~why =
-  { jkind; history = Creation why; has_warned = false }
-
 (******************************)
 (* constants *)
+
+let mk_annot name =
+  Parsetree.{ pjkind_loc = Location.none; pjkind_desc = Abbreviation name }
 
 module Builtin = struct
   let any_dummy_jkind =
     { jkind = Jkind_desc.max;
+      annotation = None;
+      (* this should never get printed: it's a dummy *)
       history = Creation (Any_creation Dummy_jkind);
       has_warned = false
     }
@@ -1104,31 +1138,39 @@ module Builtin = struct
   let any ~(why : History.any_creation_reason) =
     match why with
     | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
-    | _ -> fresh_jkind Jkind_desc.Builtin.any ~why:(Any_creation why)
+    | _ ->
+      fresh_jkind_annot Jkind_desc.Builtin.any ~annotation:(mk_annot "any")
+        ~why:(Any_creation why)
 
   let value_v1_safety_check =
     { jkind = Jkind_desc.Builtin.value_or_null;
+      annotation = Some (mk_annot "value");
       history = Creation (Value_or_null_creation V1_safety_check);
       has_warned = false
     }
 
-  let void ~why = fresh_jkind Jkind_desc.Builtin.void ~why:(Void_creation why)
+  let void ~why =
+    fresh_jkind_annot Jkind_desc.Builtin.void ~annotation:(mk_annot "void")
+      ~why:(Void_creation why)
 
   let value_or_null ~why =
     match (why : History.value_or_null_creation_reason) with
     | V1_safety_check -> value_v1_safety_check
     | _ ->
-      fresh_jkind Jkind_desc.Builtin.value_or_null
-        ~why:(Value_or_null_creation why)
+      fresh_jkind_annot Jkind_desc.Builtin.value_or_null
+        ~annotation:(mk_annot "value_or_null") ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
-    fresh_jkind Jkind_desc.Builtin.value ~why:(Value_creation why)
+    fresh_jkind_annot Jkind_desc.Builtin.value ~annotation:(mk_annot "value")
+      ~why:(Value_creation why)
 
   let immediate ~why =
-    fresh_jkind Jkind_desc.Builtin.immediate ~why:(Immediate_creation why)
+    fresh_jkind_annot Jkind_desc.Builtin.immediate
+      ~annotation:(mk_annot "immediate") ~why:(Immediate_creation why)
 
   let product ~why ts =
-    fresh_jkind (Jkind_desc.product ts) ~why:(Product_creation why)
+    let desc, annotation = Jkind_desc.product ts in
+    fresh_jkind_annot_opt desc ~annotation ~why:(Product_creation why)
 end
 
 let add_mode_crossing t =
@@ -1158,7 +1200,7 @@ let of_new_legacy_sort_var ~why =
 
 let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
-let of_const ~why
+let of_const ~annotation ~why
     ({ layout;
        modes_upper_bounds;
        externality_upper_bound;
@@ -1171,67 +1213,54 @@ let of_const ~why
         externality_upper_bound;
         nullability_upper_bound
       };
+    annotation;
     history = Creation why;
     has_warned = false
   }
 
-let of_annotated_const ~context ~const ~const_loc =
-  of_const ~why:(Annotated (context, const_loc)) const
+let of_builtin ~why Const.Builtin.{ jkind; name } =
+  of_const ~annotation:(Some (mk_annot name)) ~why jkind
+
+let of_annotated_const ~context ~annotation ~const ~const_loc =
+  of_const ~annotation ~why:(Annotated (context, const_loc)) const
 
 let of_annotation ~context (annot : Parsetree.jkind_annotation) =
   let const = Const.of_user_written_annotation ~context annot in
-  let jkind = of_annotated_const ~const ~const_loc:annot.pjkind_loc ~context in
-  jkind, (const, annot)
+  of_annotated_const ~annotation:(Some annot) ~const ~const_loc:annot.pjkind_loc
+    ~context
 
-let of_annotation_option_default ~default ~context =
-  Option.fold ~none:(default, None) ~some:(fun annot ->
-      let t, annot = of_annotation ~context annot in
-      t, Some annot)
+let of_annotation_option_default ~default ~context = function
+  | None -> default
+  | Some annot -> of_annotation ~context annot
 
 let of_attribute ~context
     (attribute : Builtin_attributes.jkind_attribute Location.loc) =
-  let const = Const.of_attribute attribute.txt in
-  of_annotated_const ~context ~const ~const_loc:attribute.loc, const
+  let ({ jkind = const; name } : Const.Builtin.t) =
+    Const.Builtin.of_attribute attribute.txt
+  in
+  of_annotated_const ~context
+    ~annotation:(Some (mk_annot name))
+    ~const ~const_loc:attribute.loc
 
 let of_type_decl ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
-    Option.map
-      (fun annot -> of_annotation ~context annot)
-      decl.ptype_jkind_annotation
+    decl.ptype_jkind_annotation
+    |> Option.map (fun annot -> of_annotation ~context annot, annot)
   in
   let jkind_of_attribute =
     Builtin_attributes.jkind decl.ptype_attributes
-    |> Option.map (fun (attr : _ Location.loc) ->
-           let t, const = of_attribute ~context attr in
-           (* This is a bit of a lie: the "annotation" here is being
-              forged based on the jkind attribute. But: the jkind
-              annotation is just used in printing/untypeast, and the
-              all strings valid to use as a jkind attribute are
-              valid (and equivalent) to write as an annotation, so
-              this lie is harmless.
-           *)
-           let annot : Parsetree.jkind_annotation =
-             { pjkind_loc = attr.loc;
-               pjkind_desc =
-                 (let name =
-                    Builtin_attributes.jkind_attribute_to_string attr.txt
-                  in
-                  Parsetree.Abbreviation name)
-             }
-           in
-           t, (const, annot))
+    |> Option.map (fun attr -> (of_attribute ~context attr, None), attr)
   in
   match jkind_of_annotation, jkind_of_attribute with
   | None, None -> None
-  | (Some _ as x), None | None, (Some _ as x) -> x
-  | Some (_, (from_annotation, _)), Some (_, (from_attribute, _)) ->
+  | Some (jkind, annot), None -> Some (jkind, Some annot)
+  | None, Some (jkind_with_annot, _) -> Some jkind_with_annot
+  | Some (_, from_annotation), Some (_, from_attribute) ->
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
 let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
-  match of_type_decl ~context decl with
-  | Some (t, const) -> t, Some const
-  | None -> default, None
+  match of_type_decl ~context decl with Some (t, _) -> t | None -> default
 
 let for_boxed_record ~all_void =
   if all_void
@@ -1295,16 +1324,7 @@ let sort_of_jkind (t : jkind_l) : sort =
   in
   sort_of_layout t.jkind.layout
 
-let get_layout jk : Layout.Const.t option =
-  let rec aux : Layout.t -> Layout.Const.t option = function
-    | Any -> Some Any
-    | Sort s -> Layout.Const.of_sort s
-    | Product layouts ->
-      Option.map
-        (fun x -> Layout.Const.Product x)
-        (Misc.Stdlib.List.map_option aux layouts)
-  in
-  aux jk.jkind.layout
+let get_layout jk : Layout.Const.t option = Layout.get jk.jkind.layout
 
 let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
 
@@ -1312,6 +1332,8 @@ let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
 
 let set_externality_upper_bound jk externality_upper_bound =
   { jk with jkind = { jk.jkind with externality_upper_bound } }
+
+let get_annotation jk = jk.annotation
 
 let decompose_product ({ jkind; _ } as jk) =
   let mk_jkind layout = { jk with jkind = { jkind with layout } } in
@@ -1812,8 +1834,8 @@ end
 (* relations *)
 
 let equate_or_equal ~allow_mutation
-    { jkind = jkind1; history = _; has_warned = _ }
-    { jkind = jkind2; history = _; has_warned = _ } =
+    { jkind = jkind1; annotation = _; history = _; has_warned = _ }
+    { jkind = jkind2; annotation = _; history = _; has_warned = _ } =
   Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
@@ -1865,6 +1887,7 @@ let intersection_or_error ~reason t1 t2 =
   | Some jkind ->
     Ok
       { jkind;
+        annotation = None;
         history = combine_histories reason (Pack t1) (Pack t2);
         has_warned = t1.has_warned || t2.has_warned
       }
@@ -1920,6 +1943,24 @@ let is_max jkind = sub Builtin.any_dummy_jkind jkind
 
 let has_layout_any jkind =
   match jkind.jkind.layout with Any -> true | _ -> false
+
+let is_value_for_printing
+    { jkind =
+        { layout;
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        };
+      _
+    } =
+  match Layout.get layout with
+  | Some const ->
+    let value = Const.Builtin.value.jkind in
+    Layout.Const.equal const value.layout
+    && Modes.equal modes_upper_bounds value.modes_upper_bounds
+    && Externality.equal externality_upper_bound value.externality_upper_bound
+    && Nullability.equal nullability_upper_bound value.nullability_upper_bound
+  | None -> false
 
 (*********************************)
 (* debugging *)
@@ -2090,9 +2131,12 @@ module Debug_printers = struct
         history1 Jkind_desc.Debug_printers.t jkind2 history history2
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t ppf ({ jkind; history = h; has_warned = _ } : 'd t) : unit =
-    fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
-      Jkind_desc.Debug_printers.t jkind history h
+  let t ppf ({ jkind; annotation = a; history = h; has_warned = _ } : 'd t) :
+      unit =
+    fprintf ppf "@[<v 2>{ jkind = %a@,; annotation = %a@,; history = %a }@]"
+      Jkind_desc.Debug_printers.t jkind
+      (pp_print_option Pprintast.jkind_annotation)
+      a history h
 
   module Const = struct
     let t ppf (jkind : Const.t) =
@@ -2120,8 +2164,9 @@ let report_error ~loc : Error.t -> _ = function
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\
        This declaration has an layout annotation (%a) and a layout attribute \
-       ([@@@@%a]).@]"
-      Const.format_no_hiding from_annotation Const.format from_attribute
+       ([@@@@%s]).@]"
+      Pprintast.jkind_annotation from_annotation
+      (Builtin_attributes.jkind_attribute_to_string from_attribute.txt)
   | Insufficient_level { jkind; required_layouts_level } -> (
     let hint ppf =
       Format.fprintf ppf "You must enable -extension %s to use this feature."
@@ -2146,8 +2191,3 @@ let () =
   Location.register_error_of_exn (function
     | Error.User_error (loc, err) -> Some (report_error ~loc err)
     | _ -> None)
-
-(* CR layouts v2.8: Remove the definitions below by propagating changes
-   outside of this file. *)
-
-type annotation = Const.t * Parsetree.jkind_annotation

@@ -208,22 +208,6 @@ and ident_some = ident_create "Some"
 and ident_null = ident_create "Null"
 and ident_this = ident_create "This"
 
-let predef_jkind_annotation primitive =
-  Option.map
-    (fun (primitive : Jkind.Const.Builtin.t) ->
-       (* This is a bit of a hack: we're trying to figure out what a user
-          could have written on a predef type declaration to give it the
-          right kind. But this hack is OK as its result is just used in
-          printing/untypeast.
-       *)
-       let user_written : Parsetree.jkind_annotation =
-         { pjkind_desc = Abbreviation primitive.name;
-           pjkind_loc = Location.none;
-         }
-       in
-       primitive.jkind, user_written)
-    primitive
-
 let option_argument_jkind = Jkind.Builtin.value ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
@@ -236,19 +220,17 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
 let mk_add_type add_type
       ?manifest type_ident
       ?(kind=Type_abstract Definition)
-      ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
-      (* [jkind_annotation] is just used for printing. It's best to
-         provide it if the jkind is not implied by the kind of the
-         type, as then the type, if printed, will be clearer.
-      *)
-      ?jkind_annotation
+      ?jkind
       env =
+  let type_jkind = match jkind with
+    | None -> Jkind.Builtin.value ~why:(Primitive type_ident)
+    | Some k -> Jkind.of_builtin ~why:(Primitive type_ident) k
+  in
   let decl =
     {type_params = [];
      type_arity = 0;
      type_kind = kind;
-     type_jkind = jkind;
-     type_jkind_annotation = predef_jkind_annotation jkind_annotation;
+     type_jkind;
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
@@ -267,9 +249,6 @@ let mk_add_type add_type
 let mk_add_type1 add_type type_ident
       ?(kind=fun _ -> Type_abstract Definition)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
-      (* See the comment on the [jkind_annotation] argument to [mk_add_type]
-      *)
-      ?jkind_annotation
       ?(param_jkind=Jkind.Builtin.value ~why:(
         Type_argument {
           parent_path = Path.Pident type_ident;
@@ -283,7 +262,6 @@ let mk_add_type1 add_type type_ident
       type_arity = 1;
       type_kind = kind param;
       type_jkind = jkind;
-      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
       type_loc = Location.none;
       type_private = Asttypes.Public;
       type_manifest = None;
@@ -381,31 +359,15 @@ let build_initial_env add_type add_extension empty_env =
                       (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type ident_bool
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
-       ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
-  |> add_type ident_char ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_char))
-      ~jkind_annotation:Jkind.Const.Builtin.immediate
-  |> add_type ident_exn
-       ~kind:Type_open
-       ~jkind:(Jkind.Builtin.value ~why:Extensible_variant)
+       ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.value
   |> add_type ident_extension_constructor
-  |> add_type ident_float
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_float)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_floatarray
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_floatarray)
-               Jkind.Const.Builtin.mutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.mutable_data
-  |> add_type ident_int ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_int))
-      ~jkind_annotation:Jkind.Const.Builtin.immediate
-  |> add_type ident_int32
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_int32)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_int64
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_int64)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
+  |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_int32 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_int64 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -418,9 +380,7 @@ let build_initial_env add_type add_extension empty_env =
                                    unrestricted (type_list tvar) list_jkind]])
        ~jkind:list_jkind
   |> add_type ident_nativeint
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_nativeint)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+      ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -443,10 +403,11 @@ let build_initial_env add_type add_extension empty_env =
                ld_uid=Uid.of_predef_id id;
              }
          in
-         let immediate = Jkind.Builtin.value ~why:(Primitive ident_int) in
+         let immediate = Jkind.Builtin.immediate ~why:(Primitive ident_int) in
          let labels = List.map lbl [
-           ("pos_fname", type_string, (Jkind.of_const ~why:(Primitive ident_string)
-                                          Jkind.Const.Builtin.immutable_data.jkind));
+           ("pos_fname", type_string,
+            Jkind.of_builtin ~why:(Primitive ident_string)
+              Jkind.Const.Builtin.immutable_data);
            ("pos_lnum", type_int, immediate);
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
@@ -456,41 +417,16 @@ let build_initial_env add_type add_extension empty_env =
            (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
          )
        )
-       ~jkind:(Jkind.of_const ~why:(Primitive ident_lexing_position)
-                Jkind.Const.Builtin.immutable_data.jkind)
-       ~jkind_annotation:Jkind.Const.Builtin.word
-  |> add_type ident_string
-       ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
-                Jkind.Const.Builtin.immutable_data.jkind)
-       ~jkind_annotation:Jkind.Const.Builtin.word
-  |> add_type ident_unboxed_float
-       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float) Jkind.Const.Builtin.float64.jkind)
-       ~jkind_annotation:Jkind.Const.Builtin.float64
-  |> add_type ident_unboxed_nativeint
-       ~jkind:
-         (Jkind.add_mode_crossing
-           (Jkind.of_const ~why:(Primitive ident_unboxed_nativeint)
-               Jkind.Const.Builtin.word.jkind))
-       ~jkind_annotation:Jkind.Const.Builtin.word
-  |> add_type ident_unboxed_int32
-       ~jkind:
-         (Jkind.add_mode_crossing
-           (Jkind.of_const ~why:(Primitive ident_unboxed_int32)
-               Jkind.Const.Builtin.bits32.jkind))
-       ~jkind_annotation:Jkind.Const.Builtin.bits32
-  |> add_type ident_unboxed_int64
-       ~jkind:
-         (Jkind.add_mode_crossing
-           (Jkind.of_const ~why:(Primitive ident_unboxed_int64)
-               Jkind.Const.Builtin.bits64.jkind))
-       ~jkind_annotation:Jkind.Const.Builtin.bits64
-  |> add_type ident_bytes
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_bytes)
-               Jkind.Const.Builtin.mutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.mutable_data
+       ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_string ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_unboxed_float ~jkind:Jkind.Const.Builtin.float64
+  |> add_type ident_unboxed_nativeint ~jkind:Jkind.Const.Builtin.word
+  |> add_type ident_unboxed_int32 ~jkind:Jkind.Const.Builtin.bits32
+  |> add_type ident_unboxed_int64 ~jkind:Jkind.Const.Builtin.bits64
+  |> add_type ident_bytes ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []])
-       ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
+       ~jkind:Jkind.Const.Builtin.immediate
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),
@@ -517,72 +453,24 @@ let build_initial_env add_type add_extension empty_env =
 let add_simd_stable_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
-  |> add_type ident_int8x16
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_int8x16)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_int16x8
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_int16x8)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_int32x4
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_int32x4)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_int64x2
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_int64x2)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_float32x4
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_float32x4)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_float64x2
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_float64x2)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_int8x16
-      ~jkind:(Jkind.add_mode_crossing
-                (Jkind.of_const ~why:(Primitive ident_unboxed_int8x16)
-                   Jkind.Const.Builtin.vec128.jkind))
-      ~jkind_annotation:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int16x8
-      ~jkind:(Jkind.add_mode_crossing
-                (Jkind.of_const ~why:(Primitive ident_unboxed_int16x8)
-                   Jkind.Const.Builtin.vec128.jkind))
-      ~jkind_annotation:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int32x4
-      ~jkind:(Jkind.add_mode_crossing
-                (Jkind.of_const ~why:(Primitive ident_unboxed_int32x4)
-                   Jkind.Const.Builtin.vec128.jkind))
-      ~jkind_annotation:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_int64x2
-      ~jkind:(Jkind.add_mode_crossing
-                (Jkind.of_const ~why:(Primitive ident_unboxed_int64x2)
-                   Jkind.Const.Builtin.vec128.jkind))
-      ~jkind_annotation:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_float32x4
-      ~jkind:(Jkind.add_mode_crossing
-                (Jkind.of_const ~why:(Primitive ident_unboxed_float32x4)
-                   Jkind.Const.Builtin.vec128.jkind))
-      ~jkind_annotation:Jkind.Const.Builtin.vec128
-  |> add_type ident_unboxed_float64x2
-      ~jkind:(Jkind.add_mode_crossing
-                (Jkind.of_const ~why:(Primitive ident_unboxed_float64x2)
-                   Jkind.Const.Builtin.vec128.jkind))
-      ~jkind_annotation:Jkind.Const.Builtin.vec128
+  |> add_type ident_int8x16 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_int16x8 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_int32x4 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_int64x2 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_float32x4 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_float64x2 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_unboxed_int8x16 ~jkind:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_int16x8 ~jkind:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_int32x4 ~jkind:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_int64x2 ~jkind:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_float32x4 ~jkind:Jkind.Const.Builtin.vec128
+  |> add_type ident_unboxed_float64x2 ~jkind:Jkind.Const.Builtin.vec128
 
 let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
-  |> add_type ident_float32
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_float32)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_unboxed_float32
-       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float32)
-          Jkind.Const.Builtin.float32.jkind)
-       ~jkind_annotation:Jkind.Const.Builtin.float32
+  |> add_type ident_float32 ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type ident_unboxed_float32 ~jkind:Jkind.Const.Builtin.float32
 
 let or_null_kind tvar =
   variant [cstr ident_null [];

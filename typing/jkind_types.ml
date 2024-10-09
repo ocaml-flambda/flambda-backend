@@ -568,6 +568,7 @@ type 'type_expr history =
 
 type ('type_expr, 'd) t =
   { jkind : ('type_expr, 'd) Jkind_desc.t;
+    annotation : Parsetree.jkind_annotation option;
     history : 'type_expr history;
     has_warned : bool
   }
@@ -580,5 +581,3 @@ module Const = struct
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
 end
-
-type 'type_expr annotation = 'type_expr Const.t * Parsetree.jkind_annotation
