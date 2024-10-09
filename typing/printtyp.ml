@@ -1309,35 +1309,18 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let out_jkind_of_user_jkind jkind =
-  let rec out_jkind_const_of_user_jkind (jkind : Parsetree.jkind_annotation) : out_jkind_const =
-    match jkind.pjkind_desc with
-    | Default -> Ojkind_const_default
-    | Abbreviation abbrev -> Ojkind_const_abbreviation abbrev
-    | Mod (base, modes) ->
-      let base = out_jkind_const_of_user_jkind base in
-      let modes =
-        List.map (fun {txt = (Parsetree.Mode s); _} -> s) modes
-      in
-      Ojkind_const_mod (base, modes)
-    | Product ts ->
-      Ojkind_const_product (List.map out_jkind_const_of_user_jkind ts)
-    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
-  in
-  Ojkind_const (out_jkind_const_of_user_jkind jkind)
-
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+
+let rec out_jkind_of_desc : Jkind.Desc.t -> out_jkind = function
+  | Const jkind -> out_jkind_of_const_jkind jkind
+  | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
+  | Product jkinds ->
+    Ojkind_product (List.map out_jkind_of_desc jkinds)
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
-  let rec desc_to_out_jkind : Jkind.Desc.t -> out_jkind = function
-    | Const jkind -> out_jkind_of_const_jkind jkind
-    | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
-    | Product jkinds ->
-      Ojkind_product (List.map desc_to_out_jkind jkinds)
-  in
   let desc = Jkind.get jkind in
   let elide =
     match desc with
@@ -1350,7 +1333,7 @@ let out_jkind_option_of_jkind jkind =
       not !Clflags.verbose_types
     | Product _ -> false
   in
-  if elide then None else Some (desc_to_out_jkind desc)
+  if elide then None else Some (out_jkind_of_desc desc)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -1934,28 +1917,22 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let is_value =
-    match decl.type_jkind_annotation with
-    | Some (jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
-    | None -> false
-  in
-  let jkind_annotation = match ty, is_value, decl.type_has_illegal_crossings with
+  let is_value = Jkind.is_value_for_printing decl.type_jkind in
+  let otype_jkind =
+    match ty, is_value, decl.type_has_illegal_crossings with
     | (Otyp_abstract, false, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
         (* type_has_illegal_crossings corresponds to C1.2 *)
-        decl.type_jkind_annotation
+        Some (out_jkind_of_desc (Jkind.get decl.type_jkind))
     | _ -> None (* other cases have no jkind annotation *)
   in
     { otype_name = name;
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_jkind =
-        Option.map
-          (fun (_, user_annot) -> out_jkind_of_user_jkind user_annot)
-          jkind_annotation;
+      otype_jkind;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -2387,7 +2364,6 @@ let dummy =
     type_arity = 0;
     type_kind = Type_abstract Definition;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
-    type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
     type_variance = [];
@@ -2727,13 +2703,7 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let rec okind_of_desc : Jkind.Desc.t -> _ = function
-            | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
-            | Product ds ->
-              Ojkind_product (List.map okind_of_desc ds)
-          in
-          let okind = okind_of_desc (Jkind.get jkind) in
+          let okind = out_jkind_of_desc (Jkind.get jkind) in
           Otyp_jkind_annot (out, okind)
       | _ ->
           out

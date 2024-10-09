@@ -56,7 +56,6 @@ type cannot_quantify_reason =
    the body of the type *)
 type jkind_info =
   { original_jkind : jkind_lr;
-    jkind_annot : Jkind.annotation option;
     defaulted : bool;
   }
 
@@ -157,7 +156,8 @@ module TyVarEnv : sig
   val with_univars : poly_univars -> (unit -> 'a) -> 'a
   (* evaluate with a locally extended set of univars *)
 
-  val ttyp_poly_arg : poly_univars -> (string * Jkind.annotation option) list
+  val ttyp_poly_arg :
+    poly_univars -> (string * Parsetree.jkind_annotation option) list
   (* something suitable as an argument to [Ttyp_poly] *)
 
   val make_poly_univars : string Location.loc list -> poly_univars
@@ -326,26 +326,28 @@ end = struct
       ~finally:(fun () -> univars := old_univars)
 
   let ttyp_poly_arg (poly_univars : poly_univars) = List.map
-      (fun (name, pending_univar) -> name, pending_univar.jkind_info.jkind_annot)
+      (fun (name, pending_univar) ->
+        name,
+        Jkind.get_annotation pending_univar.jkind_info.original_jkind)
       poly_univars
 
   let mk_pending_univar name jkind jkind_info =
     { univar = newvar ~name jkind; associated = []; jkind_info }
 
-  let mk_poly_univars_tuple_with_jkind ~context var jkind =
+  let mk_poly_univars_tuple_with_jkind ~context var jkind_annot =
     let name = var.txt in
-    let original_jkind, jkind_annot =
-      Jkind.of_annotation ~context:(context name) jkind
+    let original_jkind =
+      Jkind.of_annotation ~context:(context name) jkind_annot
     in
-    let jkind_info =
-      { original_jkind; jkind_annot = Some jkind_annot; defaulted = false }
-    in
+    let jkind_info = { original_jkind; defaulted = false } in
     name, mk_pending_univar name original_jkind jkind_info
 
   let mk_poly_univars_tuple_without_jkind var =
     let name = var.txt in
     let original_jkind = Jkind.Builtin.value ~why:Univar in
-    let jkind_info = { original_jkind; jkind_annot = None; defaulted = true } in
+    let jkind_info =
+      { original_jkind; defaulted = true }
+    in
     name, mk_pending_univar name original_jkind jkind_info
 
   let make_poly_univars vars =
@@ -584,10 +586,8 @@ let transl_type_param env path jkind_default styp =
     match jkind_annot with
     | None -> jkind_default, None
     | Some jkind_annot ->
-        let jkind, jkind_annot =
-          Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot
-        in
-        jkind, Some jkind_annot
+      Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot,
+      Some jkind_annot
   in
   let attrs = styp.ptyp_attributes in
   match styp.ptyp_desc with
@@ -609,7 +609,7 @@ let transl_type_param env path jkind_default styp =
 
 let get_type_param_jkind path styp =
   let of_annotation jkind name =
-    let jkind, _ =
+    let jkind =
       Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind
     in
     jkind
@@ -711,10 +711,11 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         match jkind with
         | None -> TyVarEnv.new_jkind ~is_named:false policy, None
         | Some jkind ->
-            let tjkind, tjkind_annot =
-              jkind_of_annotation (Type_wildcard loc) styp.ptyp_attributes jkind
+            let tjkind =
+              jkind_of_annotation (Type_wildcard loc)
+                styp.ptyp_attributes jkind
             in
-            tjkind, Some tjkind_annot
+            tjkind, Some jkind
       in
       let ty = TyVarEnv.new_any_var loc env tjkind policy in
       ctyp (Ttyp_var (None, tjkind_annot)) ty
@@ -1078,9 +1079,9 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
     match jkind_annot_opt with
     | None -> None
     | Some jkind_annot ->
-      let jkind, annot = of_annot jkind_annot in
+      let jkind = of_annot jkind_annot in
       match constrain_type_jkind env ty jkind with
-      | Ok () -> Some annot
+      | Ok () -> Some jkind_annot
       | Error err ->
           raise (Error(jkind_annot.pjkind_loc, env, Bad_jkind_annot (ty, err)))
   in
@@ -1121,7 +1122,7 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
         let jkind_annot = match jkind_annot_opt with
         | None -> None
         | Some jkind_annot ->
-          let jkind, annot =
+          let jkind =
             jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
           in
           begin match constrain_type_jkind env t jkind with
@@ -1129,7 +1130,7 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
           | Error err ->
             raise (Error(jkind_annot.pjkind_loc, env, Bad_jkind_annot(t, err)))
           end;
-          Some annot
+          Some jkind_annot
         in
         cty, jkind_annot
       with Not_found ->
@@ -1139,10 +1140,10 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
               match jkind_annot_opt with
               | None -> Jkind.Builtin.any ~why:Dummy_jkind, None
               | Some jkind_annot ->
-                let jkind, annot =
+                let jkind =
                   jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
                 in
-                jkind, Some annot
+                jkind, Some jkind_annot
             in
             let t = newvar jkind in
             (* Use the whole location, which is used by [Type_mismatch]. *)
@@ -1174,8 +1175,9 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
         | None -> Misc.fatal_error "anonymous alias without layout annotation"
         | Some jkind_annot -> jkind_annot
       in
-      let jkind, annot =
-        jkind_of_annotation (Type_wildcard jkind_annot.pjkind_loc) attrs jkind_annot
+      let jkind =
+        jkind_of_annotation (Type_wildcard jkind_annot.pjkind_loc)
+          attrs jkind_annot
       in
       begin match constrain_type_jkind env cty_expr jkind with
       | Ok () -> ()
@@ -1183,7 +1185,7 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
         raise (Error(jkind_annot.pjkind_loc, env,
                      Bad_jkind_annot(cty_expr, err)))
       end;
-      cty, Some annot
+      cty, Some jkind_annot
   in
   Ttyp_alias (cty, name_opt, jkind_annot),
   cty.ctyp_type

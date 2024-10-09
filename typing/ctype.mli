@@ -180,8 +180,7 @@ val instance_list: type_expr list -> type_expr list
         (* Take an instance of a list of type schemes *)
 val new_local_type:
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
-        type_origin -> jkind_l -> jkind_annot:Jkind.annotation option ->
-        type_declaration
+        type_origin -> jkind_l -> type_declaration
 
 module Pattern_env : sig
   type t = private

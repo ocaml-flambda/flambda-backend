@@ -244,7 +244,8 @@ and exp_extra =
          *)
   | Texp_poly of core_type option
         (** Used for method bodies. *)
-  | Texp_newtype of Ident.t * string loc * Jkind.annotation option * Uid.t
+  | Texp_newtype of Ident.t * string loc *
+                    Parsetree.jkind_annotation option * Uid.t
         (** fun (type t : immediate) ->
 
         The [Ident.t] and [Uid.t] fields are unused by the compiler, but Merlin needs
@@ -475,7 +476,8 @@ and function_param =
     fp_sort: Jkind.sort;
     fp_mode: Mode.Alloc.l;
     fp_curry: function_curry;
-    fp_newtypes: (Ident.t * string loc * Jkind.annotation option * Uid.t) list;
+    fp_newtypes: (Ident.t * string loc *
+                  Parsetree.jkind_annotation option * Uid.t) list;
     (** [fp_newtypes] are the new type declarations that come *after* that
         parameter. The newtypes that come before the first parameter are
         placed as exp_extras on the Texp_function node. This is just used in
@@ -911,16 +913,17 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * Jkind.annotation option
+  | Ttyp_var of string option * Parsetree.jkind_annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of (string option * core_type) list
   | Ttyp_unboxed_tuple of (string option * core_type) list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string loc option * Jkind.annotation option
+  | Ttyp_alias of core_type * string loc option *
+                  Parsetree.jkind_annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * Jkind.annotation option) list * core_type
+  | Ttyp_poly of (string * Parsetree.jkind_annotation option) list * core_type
   | Ttyp_package of package_type
   | Ttyp_open of Path.t * Longident.t loc * core_type
   | Ttyp_call_pos
@@ -1002,7 +1005,7 @@ and constructor_declaration =
      cd_id: Ident.t;
      cd_name: string loc;
      cd_uid: Uid.t;
-     cd_vars: (string * Jkind.annotation option) list;
+     cd_vars: (string * Parsetree.jkind_annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -1049,7 +1052,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * Jkind.annotation option) list *
+    Text_decl of (string * Parsetree.jkind_annotation option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc

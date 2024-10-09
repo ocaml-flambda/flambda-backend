@@ -303,3 +303,10 @@ Error: Variables bound in a class must have layout value.
        But the kind of x must be a subkind of value
          because it's the type of a class field.
 |}]
+
+(* just checking printing *)
+type t_any_non_null : any_non_null
+
+[%%expect{|
+type t_any_non_null : any_non_null
+|}]

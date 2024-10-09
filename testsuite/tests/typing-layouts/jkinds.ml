@@ -217,14 +217,14 @@ Error: The layout of type "a" is value
 type a : value mod global unique many uncontended portable external_
 type b : value mod local aliased once contended nonportable internal = a
 [%%expect{|
-type a : value mod global unique many uncontended portable external_
+type a : immediate
 type b = a
 |}]
 
 type a : value mod global unique once uncontended portable external_
 type b : value mod local aliased many uncontended nonportable internal = a
 [%%expect{|
-type a : value mod global unique once uncontended portable external_
+type a : value mod global unique uncontended portable external_
 Line 2, characters 0-74:
 2 | type b : value mod local aliased many uncontended nonportable internal = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -246,7 +246,7 @@ type d : any = c
 [%%expect{|
 type a : any
 type b = a
-type c : any mod local aliased once contended nonportable internal
+type c : any
 type d = c
 |}]
 
@@ -280,7 +280,7 @@ type d : immediate = c
 [%%expect{|
 type a : immediate
 type b = a
-type c : value mod global unique many uncontended portable external_
+type c : immediate
 type d = c
 |}]
 
@@ -291,7 +291,7 @@ type d : immediate64 = c
 [%%expect{|
 type a : immediate64
 type b = a
-type c : value mod global unique many uncontended portable external64
+type c : immediate64
 type d = c
 |}]
 
@@ -302,7 +302,7 @@ type d : float64 = c
 [%%expect{|
 type a : float64
 type b = a
-type c : float64 mod global unique many uncontended portable external_
+type c : float64
 type d = c
 |}]
 
@@ -313,7 +313,7 @@ type d : float32 = c
 [%%expect{|
 type a : float32
 type b = a
-type c : float32 mod global unique many uncontended portable external_
+type c : float32
 type d = c
 |}]
 
@@ -324,7 +324,7 @@ type d : word = c
 [%%expect{|
 type a : word
 type b = a
-type c : word mod local aliased once contended nonportable internal
+type c : word
 type d = c
 |}]
 
@@ -335,7 +335,7 @@ type d : bits32 = c
 [%%expect{|
 type a : bits32
 type b = a
-type c : bits32 mod local aliased once contended nonportable internal
+type c : bits32
 type d = c
 |}]
 
@@ -346,7 +346,7 @@ type d : bits64 = c
 [%%expect{|
 type a : bits64
 type b = a
-type c : bits64 mod local aliased once contended nonportable internal
+type c : bits64
 type d = c
 |}]
 
@@ -1295,7 +1295,7 @@ type ('a : immediate) t = 'a
 type ('a : immediate) t = 'a
 type 'a t = 'a
 type 'a t = 'a
-type ('a : bits32 mod global unique) t = 'a
+type ('a : bits32) t = 'a
 |}]
 
 type ('a : bits32) t = ('a : word)

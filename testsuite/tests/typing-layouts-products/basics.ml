@@ -103,7 +103,7 @@ Line 2, characters 11-15:
                ^^^^
 Error: This type "bool" should be an instance of type "('a : value & bits64)"
        The layout of bool is value
-         because it's an enumeration variant type (all constructors are constant).
+         because it is the primitive type bool.
        But the layout of bool must be a sublayout of value & bits64
          because of the definition of t6 at line 1, characters 0-37.
 |}]
@@ -167,7 +167,7 @@ type t4 = t2 -> (t3 -> t3) -> t2
 [%%expect{|
 type t1 = #(int * bool) -> #(int * float# * #(int64# * string option))
 type t2 : value & float64
-type t3 : value & (float64 & immediate) & float64
+type t3 : value & (float64 & value) & float64
 type t4 = t2 -> (t3 -> t3) -> t2
 |}]
 
@@ -590,7 +590,7 @@ type t : immediate & (value & float64)
 let f_internal_kind_annot_does_not_mode_cross_local_2
   : local_ t -> t = fun x -> x
 [%%expect{|
-type t : immediate & (value & float64)
+type t : value & (value & float64)
 Line 3, characters 29-30:
 3 |   : local_ t -> t = fun x -> x
                                  ^
