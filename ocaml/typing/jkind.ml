@@ -288,7 +288,7 @@ module Error = struct
         { jkind : const;
           required_layouts_level : Language_extension.maturity
         }
-    | Unknown_jkind of Jane_syntax.Jkind.t
+    | Unknown_jkind of Parsetree.jkind_annotation
     | Multiple_jkinds of
         { from_annotation : const;
           from_attribute : const
@@ -733,7 +733,7 @@ module Const = struct
     }
 
   let rec of_user_written_annotation_unchecked_level
-      (jkind : Jane_syntax.Jkind.t) : t =
+      (jkind : Parsetree.jkind_annotation) : t =
     match jkind with
     | Abbreviation { txt = name; loc } -> (
       (* CR layouts v2.8: move this to predef *)
@@ -1188,10 +1188,9 @@ let of_attribute ~context
 
 let of_type_decl ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
-    Jane_syntax.Layouts.of_type_declaration decl
-    |> Option.map (fun (annot, attrs) ->
-           let t, const = of_annotation ~context annot in
-           t, const, attrs)
+    Option.map
+      (fun annot -> of_annotation ~context annot)
+      decl.ptype_jkind_annotation
   in
   let jkind_of_attribute =
     Builtin_attributes.jkind decl.ptype_attributes
@@ -1208,22 +1207,22 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
              Location.map
                (fun attr ->
                  let name = Builtin_attributes.jkind_attribute_to_string attr in
-                 Jane_syntax.Jkind.(Abbreviation (Const.mk name Location.none)))
+                 Parsetree.Abbreviation (Location.mknoloc name))
                attr
            in
-           t, (const, annot), decl.ptype_attributes)
+           t, (const, annot))
   in
   match jkind_of_annotation, jkind_of_attribute with
   | None, None -> None
   | (Some _ as x), None | None, (Some _ as x) -> x
-  | Some (_, (from_annotation, _), _), Some (_, (from_attribute, _), _) ->
+  | Some (_, (from_annotation, _)), Some (_, (from_attribute, _)) ->
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
 let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   match of_type_decl ~context decl with
-  | Some (t, const, attrs) -> t, Some const, attrs
-  | None -> default, None, decl.ptype_attributes
+  | Some (t, const) -> t, Some const
+  | None -> default, None
 
 let for_boxed_record ~all_void =
   if all_void
@@ -2136,6 +2135,6 @@ let () =
 (* CR layouts v2.8: Remove the definitions below by propagating changes
    outside of this file. *)
 
-type annotation = Const.t * Jane_syntax.Jkind.annotation
+type annotation = Const.t * Parsetree.jkind_annotation Location.loc
 
 let default_to_value_and_get t = default_to_value_and_get t

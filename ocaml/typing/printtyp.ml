@@ -1313,8 +1313,8 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
-  let rec out_jkind_const_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_const = function
+let out_jkind_of_user_jkind jkind =
+  let rec out_jkind_const_of_user_jkind : Parsetree.jkind_annotation -> out_jkind_const = function
     | Default -> Ojkind_const_default
     | Abbreviation abbrev -> Ojkind_const_abbreviation (abbrev :> string Location.loc).txt
     | Mod (base, modes) ->

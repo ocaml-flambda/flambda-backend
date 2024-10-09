@@ -81,15 +81,12 @@ module Example = struct
                          ; ptype_manifest = Some core_type
                          ; ptype_attributes = []
                          ; ptype_loc = loc
+                         ; ptype_jkind_annotation = Some (located Default)
                          }
   let tyvar            = "no_tyvars_require_extensions"
   let tyvar_of_name    = "no_tyvars_require_extensions"
-  let jkind            = Jane_syntax.Jkind.(
-                            With (
-                              Abbreviation
-                                (Const.mk "value" loc),
-                              core_type
-                            ))
+  let jkind : jkind_annotation =
+    With ( Abbreviation (located "value"), core_type)
 
   let mode = { Location.txt = (Parsetree.Mode "global"); loc }
 end

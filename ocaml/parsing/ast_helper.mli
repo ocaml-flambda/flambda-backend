@@ -68,8 +68,8 @@ module Typ :
     val mk: ?loc:loc -> ?attrs:attrs -> core_type_desc -> core_type
     val attr: core_type -> attribute -> core_type
 
-    val any: ?loc:loc -> ?attrs:attrs -> unit -> core_type
-    val var: ?loc:loc -> ?attrs:attrs -> string -> core_type
+    val any: ?loc:loc -> ?attrs:attrs -> jkind_annotation_opt -> core_type
+    val var: ?loc:loc -> ?attrs:attrs -> string -> jkind_annotation_opt -> core_type
     val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> core_type ->
       mode with_loc list -> mode with_loc list -> core_type
     val tuple: ?loc:loc -> ?attrs:attrs -> (string option * core_type) list -> core_type
@@ -79,11 +79,12 @@ module Typ :
     val object_: ?loc:loc -> ?attrs:attrs -> object_field list
                    -> closed_flag -> core_type
     val class_: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
-    val alias: ?loc:loc -> ?attrs:attrs -> core_type -> string with_loc
-               -> core_type
+    val alias: ?loc:loc -> ?attrs:attrs -> core_type -> string with_loc option
+               -> jkind_annotation_opt -> core_type
     val variant: ?loc:loc -> ?attrs:attrs -> row_field list -> closed_flag
                  -> label list option -> core_type
-    val poly: ?loc:loc -> ?attrs:attrs -> str list -> core_type -> core_type
+    val poly: ?loc:loc -> ?attrs:attrs ->
+      (str * jkind_annotation_opt) list -> core_type -> core_type
     val package: ?loc:loc -> ?attrs:attrs -> lid -> (lid * core_type) list
                  -> core_type
     val open_ : ?loc:loc -> ?attrs:attrs -> lid -> core_type -> core_type
@@ -193,7 +194,8 @@ module Exp:
     val poly: ?loc:loc -> ?attrs:attrs -> expression -> core_type option
               -> expression
     val object_: ?loc:loc -> ?attrs:attrs -> class_structure -> expression
-    val newtype: ?loc:loc -> ?attrs:attrs -> str -> expression -> expression
+    val newtype: ?loc:loc -> ?attrs:attrs -> str ->
+      jkind_annotation_opt -> expression  -> expression
     val pack: ?loc:loc -> ?attrs:attrs -> module_expr -> expression
     val open_: ?loc:loc -> ?attrs:attrs -> open_declaration -> expression
                -> expression
@@ -220,11 +222,14 @@ module Type:
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
       ?params:(core_type * (variance * injectivity)) list ->
       ?cstrs:(core_type * core_type * loc) list ->
-      ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type -> str ->
+      ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type ->
+      ?jkind_annotation:jkind_annotation with_loc
+      -> str ->
       type_declaration
 
     val constructor: ?loc:loc -> ?attrs:attrs -> ?info:info ->
-      ?vars:str list -> ?args:constructor_arguments -> ?res:core_type ->
+      ?vars:(str * jkind_annotation_opt) list ->
+      ?args:constructor_arguments -> ?res:core_type ->
       str ->
       constructor_declaration
 
@@ -250,7 +255,8 @@ module Te:
       str -> extension_constructor_kind -> extension_constructor
 
     val decl: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?info:info ->
-      ?vars:str list -> ?args:constructor_arguments -> ?res:core_type ->
+      ?vars:(str * jkind_annotation_opt) list ->
+      ?args:constructor_arguments -> ?res:core_type ->
       str ->
       extension_constructor
     val rebind: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?info:info ->
@@ -317,6 +323,8 @@ module Sig:
     val class_type: ?loc:loc -> class_type_declaration list -> signature_item
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> signature_item
     val attribute: ?loc:loc -> attribute -> signature_item
+    val kind_abbrev: ?loc:loc -> label with_loc -> jkind_annotation with_loc
+      -> signature_item
     val text: text -> signature_item list
   end
 
@@ -339,6 +347,8 @@ module Str:
     val class_type: ?loc:loc -> class_type_declaration list -> structure_item
     val include_: ?loc:loc -> include_declaration -> structure_item
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> structure_item
+    val kind_abbrev: ?loc:loc -> label with_loc -> jkind_annotation with_loc
+      -> structure_item
     val attribute: ?loc:loc -> attribute -> structure_item
     val text: text -> structure_item list
   end

@@ -26,7 +26,7 @@ let nested_pat_constraint loc =
        None
        [mode "bar"]
     )
-    (Some (H.Typ.mk Ptyp_any))
+    (Some (H.Typ.mk (Ptyp_any None)))
     [mode "foo"]
 
 (* Malformed labeled tuples *)

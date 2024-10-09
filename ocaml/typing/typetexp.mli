@@ -37,7 +37,7 @@ module TyVarEnv : sig
 
   val make_poly_univars_jkinds :
     context:(string -> Jkind.History.annotation_context) ->
-    (string Location.loc * Jane_syntax.Jkind.annotation option) list ->
+    (string Location.loc * Parsetree.jkind_annotation Location.loc option) list ->
     poly_univars
     (** remember that a list of strings connotes univars; this must
         always be paired with a [check_poly_univars]. *)

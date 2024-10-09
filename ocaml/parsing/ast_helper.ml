@@ -60,15 +60,15 @@ module Typ = struct
 
   let attr d a = {d with ptyp_attributes = d.ptyp_attributes @ [a]}
 
-  let any ?loc ?attrs () = mk ?loc ?attrs Ptyp_any
-  let var ?loc ?attrs a = mk ?loc ?attrs (Ptyp_var a)
+  let any ?loc ?attrs a = mk ?loc ?attrs (Ptyp_any a)
+  let var ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_var (a, b))
   let arrow ?loc ?attrs a b c d e = mk ?loc ?attrs (Ptyp_arrow (a, b, c, d, e))
   let tuple ?loc ?attrs a = mk ?loc ?attrs (Ptyp_tuple a)
   let unboxed_tuple ?loc ?attrs a = mk ?loc ?attrs (Ptyp_unboxed_tuple a)
   let constr ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_constr (a, b))
   let object_ ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_object (a, b))
   let class_ ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_class (a, b))
-  let alias ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_alias (a, b))
+  let alias ?loc ?attrs a b c = mk ?loc ?attrs (Ptyp_alias (a, b, c))
   let variant ?loc ?attrs a b c = mk ?loc ?attrs (Ptyp_variant (a, b, c))
   let poly ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_poly (a, b))
   let package ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_package (a, b))
@@ -84,20 +84,17 @@ module Typ = struct
     let check_variable vl loc v =
       if List.mem v vl then
         raise Syntaxerr.(Error(Variable_in_scope(loc,v))) in
+    let check_variable_opt vl v =
+      Option.iter (fun v -> check_variable vl v.loc v.txt) v
+    in
     let var_names = List.map Location.get_txt var_names in
     let rec loop t =
       let desc =
-        (* This *ought* to match on [Jane_syntax.Core_type.ast_of] first, but
-           that would be a dependency cycle -- [Jane_syntax] depends rather
-           crucially on [Ast_helper].  However, this just recurses looking for
-           constructors and variables, so it *should* be fine even so.  If
-           Jane-syntax embeddings ever change so that this breaks, we'll need to
-           resolve this knot. *)
         match t.ptyp_desc with
-        | Ptyp_any -> Ptyp_any
-        | Ptyp_var x ->
+        | Ptyp_any jkind -> Ptyp_any jkind
+        | Ptyp_var (x, jkind) ->
             check_variable var_names t.ptyp_loc x;
-            Ptyp_var x
+            Ptyp_var (x, jkind)
         | Ptyp_arrow (label,core_type,core_type',modes,modes') ->
             Ptyp_arrow(label, loop core_type, loop core_type', modes, modes')
         | Ptyp_tuple lst ->
@@ -106,25 +103,21 @@ module Typ = struct
           Ptyp_unboxed_tuple (List.map (fun (l, t) -> l, loop t) lst)
         | Ptyp_constr( { txt = Longident.Lident s }, [])
           when List.mem s var_names ->
-            Ptyp_var s
+            Ptyp_var (s, None)
         | Ptyp_constr(longident, lst) ->
             Ptyp_constr(longident, List.map loop lst)
         | Ptyp_object (lst, o) ->
             Ptyp_object (List.map loop_object_field lst, o)
         | Ptyp_class (longident, lst) ->
             Ptyp_class (longident, List.map loop lst)
-        (* A Ptyp_alias might be a jkind annotation (that is, it might have
-           attributes which mean it should be interpreted as a
-           [Jane_syntax.Layouts.Ltyp_alias]), but the code here still has the
-           correct behavior. *)
-        | Ptyp_alias(core_type, alias) ->
-            check_variable var_names alias.loc alias.txt;
-            Ptyp_alias(loop core_type, alias)
+        | Ptyp_alias(core_type, alias, jkind) ->
+            check_variable_opt var_names alias;
+            Ptyp_alias(loop core_type, alias, jkind)
         | Ptyp_variant(row_field_list, flag, lbl_lst_option) ->
             Ptyp_variant(List.map loop_row_field row_field_list,
                          flag, lbl_lst_option)
         | Ptyp_poly(string_lst, core_type) ->
-          List.iter (fun v ->
+          List.iter (fun (v, _jkind) ->
             check_variable var_names t.ptyp_loc v.txt) string_lst;
             Ptyp_poly(string_lst, loop core_type)
         | Ptyp_package(longident,lst) ->
@@ -224,7 +217,7 @@ module Exp = struct
   let lazy_ ?loc ?attrs a = mk ?loc ?attrs (Pexp_lazy a)
   let poly ?loc ?attrs a b = mk ?loc ?attrs (Pexp_poly (a, b))
   let object_ ?loc ?attrs a = mk ?loc ?attrs (Pexp_object a)
-  let newtype ?loc ?attrs a b = mk ?loc ?attrs (Pexp_newtype (a, b))
+  let newtype ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_newtype (a, b, c))
   let pack ?loc ?attrs a = mk ?loc ?attrs (Pexp_pack a)
   let open_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_open (a, b))
   let letop ?loc ?attrs let_ ands body =
@@ -297,6 +290,7 @@ module Sig = struct
   let class_ ?loc a = mk ?loc (Psig_class a)
   let class_type ?loc a = mk ?loc (Psig_class_type a)
   let extension ?loc ?(attrs = []) a = mk ?loc (Psig_extension (a, attrs))
+  let kind_abbrev ?loc a b = mk ?loc (Psig_kind_abbrev (a, b))
   let attribute ?loc a = mk ?loc (Psig_attribute a)
   let text txt =
     let f_txt = List.filter (fun ds -> docstring_body ds <> "") txt in
@@ -322,6 +316,7 @@ module Str = struct
   let class_type ?loc a = mk ?loc (Pstr_class_type a)
   let include_ ?loc a = mk ?loc (Pstr_include a)
   let extension ?loc ?(attrs = []) a = mk ?loc (Pstr_extension (a, attrs))
+  let kind_abbrev ?loc a b = mk ?loc (Pstr_kind_abbrev (a, b))
   let attribute ?loc a = mk ?loc (Pstr_attribute a)
   let text txt =
     let f_txt = List.filter (fun ds -> docstring_body ds <> "") txt in
@@ -540,6 +535,7 @@ module Type = struct
       ?(kind = Ptype_abstract)
       ?(priv = Public)
       ?manifest
+      ?jkind_annotation
       name =
     {
      ptype_name = name;
@@ -549,6 +545,7 @@ module Type = struct
      ptype_private = priv;
      ptype_manifest = manifest;
      ptype_attributes = add_text_attrs text (add_docs_attrs docs attrs);
+     ptype_jkind_annotation = jkind_annotation;
      ptype_loc = loc;
     }
 

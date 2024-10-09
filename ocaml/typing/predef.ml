@@ -217,7 +217,7 @@ let predef_jkind_annotation primitive =
           printing/untypeast.
        *)
        let user_written : _ Location.loc =
-         Jane_syntax.Jkind.(Abbreviation (Const.mk primitive.name Location.none))
+         Parsetree.Abbreviation (Location.mknoloc primitive.name)
          |> Location.mknoloc
        in
        primitive.jkind, user_written)

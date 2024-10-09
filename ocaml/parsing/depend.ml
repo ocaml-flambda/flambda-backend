@@ -95,19 +95,16 @@ let handle_extension ext =
 
 (* CR layouts: Remember to add this when jkinds can have module
    prefixes. *)
-let add_jkind _bv (_jkind : Jane_syntax.Jkind.annotation) = ()
+let add_jkind _bv (_jkind : jkind_annotation loc) = ()
 
 let add_vars_jkinds bv vars_jkinds =
   let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in
   List.iter add_one vars_jkinds
 
 let rec add_type bv ty =
-  match Jane_syntax.Core_type.of_ast ty with
-  | Some (jty, _attrs) -> add_type_jst bv jty
-  | None ->
   match ty.ptyp_desc with
-    Ptyp_any -> ()
-  | Ptyp_var _ -> ()
+    Ptyp_any jkind
+  | Ptyp_var (_, jkind) -> Option.iter (add_jkind bv) jkind
   | Ptyp_arrow(_, t1, t2, _, _) -> add_type bv t1; add_type bv t2
   | Ptyp_tuple tl -> add_type_labeled_tuple bv tl
   | Ptyp_unboxed_tuple tl -> add_type_labeled_tuple bv tl
@@ -118,32 +115,23 @@ let rec add_type bv ty =
          | Otag (_, t) -> add_type bv t
          | Oinherit t -> add_type bv t) fl
   | Ptyp_class(c, tl) -> add bv c; List.iter (add_type bv) tl
-  | Ptyp_alias(t, _) -> add_type bv t
+  | Ptyp_alias(t, _, jkind) ->
+      add_type bv t;
+      Option.iter (add_jkind bv) jkind
   | Ptyp_variant(fl, _, _) ->
       List.iter
         (fun {prf_desc; _} -> match prf_desc with
           | Rtag(_, _, stl) -> List.iter (add_type bv) stl
           | Rinherit sty -> add_type bv sty)
         fl
-  | Ptyp_poly(_, t) -> add_type bv t
+  | Ptyp_poly(bound_vars, t) ->
+      add_vars_jkinds bv bound_vars;
+      add_type bv t
   | Ptyp_package pt -> add_package_type bv pt
   | Ptyp_open (mod_ident, t) ->
     let bv = open_module bv mod_ident.txt in
     add_type bv t
   | Ptyp_extension e -> handle_extension e
-
-and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_layout typ -> add_type_jst_layouts bv typ
-
-and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
-  | Ltyp_var { name = _; jkind } ->
-    add_jkind bv jkind
-  | Ltyp_poly { bound_vars; inner_type } ->
-    add_vars_jkinds bv bound_vars;
-    add_type bv inner_type
-  | Ltyp_alias { aliased_type; name = _; jkind } ->
-    add_type bv aliased_type;
-    add_jkind bv jkind
 
 and add_type_labeled_tuple bv tl =
   List.iter (fun (_, ty) -> add_type bv ty) tl
@@ -178,19 +166,10 @@ let add_type_declaration bv td =
   | Ptype_open -> () in
   add_tkind td.ptype_kind
 
-let add_extension_constructor_jst bv :
-  Jane_syntax.Extension_constructor.t -> _ = function
-  | Jext_layout (Lext_decl (vars_jkinds, args, res)) ->
-    add_vars_jkinds bv vars_jkinds;
-    add_constructor_arguments bv args;
-    Option.iter (add_type bv) res
-
 let add_extension_constructor bv ext =
-  match Jane_syntax.Extension_constructor.of_ast ext with
-  | Some (jext, _attrs) -> add_extension_constructor_jst bv jext
-  | None ->
   match ext.pext_kind with
-    Pext_decl(_, args, rty) ->
+    Pext_decl(vars_jkinds, args, rty) ->
+      add_vars_jkinds bv vars_jkinds;
       add_constructor_arguments bv args;
       Option.iter (add_type bv) rty
   | Pext_rebind lid -> add bv lid
@@ -244,7 +223,6 @@ let rec add_pattern bv pat =
 and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
-  | Jpat_layout (Lpat_constant _) -> add_constant
 
 and add_pattern_labeled_tuple bv labeled_pl =
   List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
@@ -312,7 +290,9 @@ let rec add_expr bv exp =
   | Pexp_poly (e, t) -> add_expr bv e; add_opt add_type bv t
   | Pexp_object { pcstr_self = pat; pcstr_fields = fieldl } ->
       let bv = add_pattern bv pat in List.iter (add_class_field bv) fieldl
-  | Pexp_newtype (_, e) -> add_expr bv e
+  | Pexp_newtype (_, jkind, e) ->
+      Option.iter (add_jkind bv) jkind;
+      add_expr bv e
   | Pexp_pack m -> add_module_expr bv m
   | Pexp_open (o, e) ->
       let bv = open_declaration bv o in
@@ -340,7 +320,6 @@ let rec add_expr bv exp =
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
-  | Jexp_layout x -> add_layout_expr bv x
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -378,12 +357,6 @@ and add_comprehension_iterator bv : Jane_syntax.Comprehensions.iterator -> _ =
 and add_immutable_array_expr bv : Jane_syntax.Immutable_arrays.expression -> _ =
   function
   | Iaexp_immutable_array exprs -> List.iter (add_expr bv) exprs
-
-and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
-  | Lexp_constant _ -> add_constant
-  | Lexp_newtype (_, jkind, inner_expr) ->
-    add_jkind bv jkind;
-    add_expr bv inner_expr
 
 and add_labeled_tuple_expr bv el = List.iter (add_expr bv) (List.map snd el)
 
@@ -523,14 +496,7 @@ and add_include_description (bv, m) incl =
   let add = String.Map.fold String.Map.add m' in
   (add bv, add m)
 
-and add_sig_item_jst (bv, m) : Jane_syntax.Signature_item.t -> _ = function
-  | Jsig_layout (Lsig_kind_abbrev (_, jkind)) ->
-      add_jkind bv jkind; (bv, m)
-
 and add_sig_item (bv, m) item =
-  match Jane_syntax.Signature_item.of_ast item with
-  | Some jitem -> add_sig_item_jst (bv, m) jitem
-  | None ->
   match item.psig_desc with
     Psig_value vd ->
       add_type bv vd.pval_type; (bv, m)
@@ -582,6 +548,8 @@ and add_sig_item (bv, m) item =
   | Psig_extension (e, _) ->
       handle_extension e;
       (bv, m)
+  | Psig_kind_abbrev (_, jkind) ->
+      add_jkind bv jkind; (bv, m)
 
 and open_description bv od =
   let Node(s, m) = add_module_alias bv od.popen_expr in
@@ -675,14 +643,7 @@ and add_include_declaration (bv, m) incl =
   let add = String.Map.fold String.Map.add m' in
   (add bv, add m)
 
-and add_struct_item_jst (bv, m) : Jane_syntax.Structure_item.t -> _ = function
-  | Jstr_layout (Lstr_kind_abbrev (_name, jkind)) ->
-      add_jkind bv jkind; (bv, m)
-
 and add_struct_item (bv, m) item : _ String.Map.t * _ String.Map.t =
-  match Jane_syntax.Structure_item.of_ast item with
-  | Some jitem -> add_struct_item_jst (bv, m) jitem
-  | None ->
   match item.pstr_desc with
     Pstr_eval (e, _attrs) ->
       add_expr bv e; (bv, m)
@@ -737,6 +698,8 @@ and add_struct_item (bv, m) item : _ String.Map.t * _ String.Map.t =
   | Pstr_extension (e, _) ->
       handle_extension e;
       (bv, m)
+  | Pstr_kind_abbrev (_name, jkind) ->
+      add_jkind bv jkind; (bv, m)
 
 and add_use_file bv top_phrs =
   ignore (List.fold_left add_top_phrase bv top_phrs)
