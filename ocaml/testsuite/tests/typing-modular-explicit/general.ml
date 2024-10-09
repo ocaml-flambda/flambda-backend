@@ -38,9 +38,14 @@ val f2 : Int.t -> Bool.t -> Int.t * Bool.t = <fun>
 
 let f3 x y = (id (module Int : Typ) x, id (module Bool : Typ) y)
 
+(* To improve : this test currently fails because (module Int : Typ) is considered a first-class module *)
 [%%expect{|
-(* TODO : this test currently fails because (module Int : Typ) is considered a first-class module *)
-val f3 : Int.t -> Bool.t -> Int.t * Bool.t = <fun>
+Line 1, characters 17-35:
+1 | let f3 x y = (id (module Int : Typ) x, id (module Bool : Typ) y)
+                     ^^^^^^^^^^^^^^^^^^
+Error: This expression has type "(module T : Typ) -> T.t -> T.t"
+       but an expression was expected of type "(module Typ) -> 'a"
+       The module "T" would escape its scope
 |}]
 
 let merge (module T : Typ) x y = (id (module T) x, id (module T) y)
@@ -92,14 +97,12 @@ Error: The signature for this packaged module couldn't be inferred.
 
 let invalid_arg2 = f 3 4 (module Int)
 
-(* This error message should be improved! *)
 [%%expect{|
 Line 1, characters 23-24:
 1 | let invalid_arg2 = f 3 4 (module Int)
                            ^
-Error: This expression has type "(module M : Typ) -> M.t -> 'a * M.t"
-       but an expression was expected of type "(module Typ) -> 'b"
-       The module "M" would escape its scope
+Error: This expression has type "int" but an expression was expected of type
+         "(module Typ)"
 |}]
 
 (* Here we cannot extract the type of m *)
@@ -107,7 +110,6 @@ let invalid_arg3 =
   let m = (module Int : Typ) in
   f 3 m 4
 
-(* We could wish for a better error message like on upstream *)
 [%%expect{|
 Line 3, characters 6-7:
 3 |   f 3 m 4
@@ -123,14 +125,12 @@ let invalid_arg4 =
   let m = (module Int : Typ with type t = int) in
   f 3 m 4
 
-(* We could wish for a better error message like on upstream *)
 [%%expect{|
 Line 3, characters 6-7:
 3 |   f 3 m 4
           ^
-Error: This expression has type "(module M : Typ) -> M.t -> 'a * M.t"
-       but an expression was expected of type "(module Typ) -> 'b"
-       The module "M" would escape its scope
+Error: This expression has type "(module Typ with type t = int)"
+       but an expression was expected of type "(module Typ)"
 |}]
 
 
@@ -184,7 +184,40 @@ let foo f a =
   f ~a (fun x -> x)
 
 [%%expect{|
+Line 3, characters 7-19:
+3 |   f ~a (fun x -> x)
+           ^^^^^^^^^^^^
+Error: This expression should not be a function, the expected type is
+       "(module Typ)"
 |}]
+
+let foo2 f a =
+  let m = (module Int : Typ) in
+  let _ = (f ~a : (module M : Typ) -> M.t) in
+  f ~a m
+
+[%%expect{|
+Line 4, characters 7-8:
+4 |   f ~a m
+           ^
+Error: This expression has type "(module M : Typ) -> M.t"
+       but an expression was expected of type "(module Typ) -> 'a"
+       The module "M" would escape its scope
+|}]
+
+let foo3 f a =
+  let _ = (f ~a : (module M : Typ) -> M.t) in
+  f ~a (module Int)
+
+[%%expect{|
+Line 3, characters 7-19:
+3 |   f ~a (module Int)
+           ^^^^^^^^^^^^
+Error: This expression has type "(module M : Typ) -> M.t"
+       but an expression was expected of type "(module Typ) -> 'a"
+       The module "M" would escape its scope
+|}]
+
 
 let x_from_struct = id (module struct type t = int end) 3
 
@@ -202,7 +235,7 @@ Line 3, characters 35-48:
 3 | let x_from_generative_functor = id (module F ())
                                        ^^^^^^^^^^^^^
 Error:
-       The module T would escape its scope
+       The module "T" would escape its scope
   Attempted to remove dependency because
   could not extract path from module argument.
 |}]
@@ -421,6 +454,7 @@ Error: This expression has type "(module A/1 : Add) -> A/1.t -> A/1.t"
        but an expression was expected of type
          "(module A/2 : Add2) -> A/2.t -> A/2.t"
        Type "(module Add)" is not compatible with type "(module Add2)"
+       File "_none_", line 1:
          Definition of module "A/2"
 |}]
        (* Modules do not match: Add is not included in Add2

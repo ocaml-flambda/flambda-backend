@@ -3695,6 +3695,17 @@ let check_curried_application_complete ~env ~app_loc args =
   in
   loop false args
 
+let is_packing optional omittable sarg =
+  not optional && not omittable &&
+  match sarg.pexp_desc with
+  | Pexp_pack _me -> true
+  | Pexp_constraint ({ pexp_desc = Pexp_pack _me; _},
+        Some { ptyp_desc = Ptyp_package _pck_ty; _}, _) ->
+    false (* TODO : handle it later to have true here *)
+  | _ -> false
+
+let type_expect' : (?recarg:recarg -> Env.t -> expected_mode -> Parsetree.expression -> type_expected -> Typedtree.expression) ref = ref (fun ?recarg:_ _env -> assert false)
+
 let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar =
   let labels_match ~param ~arg =
     param = arg
@@ -3728,7 +3739,6 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
     match sargs with
     | [] -> ty_fun, mode_fun, List.rev rev_args
     | (lbl, sarg) :: rest ->
-        let (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res) =
           let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
           | Tvar _ ->
@@ -3748,7 +3758,10 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               let kind = (lbl, mode_arg, mode_ret) in
               unify env ty_fun
                 (newty (Tarrow(kind,ty_arg,ty_res,commu_var ())));
-              (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res)
+              let arg =
+                Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
+              in
+              loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
         | Tarrow ((l, mode_arg, mode_ret), ty_arg, ty_res, _)
           when labels_match ~param:l ~arg:lbl ->
             let sort_arg =
@@ -3757,10 +3770,24 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               | Error err -> raise(Error(funct.exp_loc, env,
                                          Function_type_not_rep (ty_arg,err)))
             in
-            (sort_arg, mode_arg, tpoly_get_mono ty_arg, mode_ret, ty_res)
-        | Tfunctor ((l, _, _), _, _, _)
+            let ty_arg_mono = tpoly_get_mono ty_arg in
+            let arg =
+              Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
+            in
+            loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
+        | Tfunctor ((l, mode_arg, _), _, (p, fl), _)
           when labels_match ~param:l ~arg:lbl ->
-            assert false (* TODO *)
+            begin
+              try
+                unify_to_arrow env ty_fun;
+                loop ty_fun mode_fun rev_args sargs
+              with Unify trace ->
+                let ty_arg = newgenty (Tpackage (p, fl)) in
+                let vmode , _ = Value.newvar_below (alloc_as_value mode_arg) in
+                let _ = !type_expect' env (mode_default vmode) sarg (mk_expected ty_arg) in
+                raise (Error(sarg.pexp_loc, env,
+                            Expr_type_clash(trace, None, None)))
+            end
         | td ->
             let ty_fun = match td with Tarrow _ -> newty td | _ -> ty_fun in
             let ty_res = remaining_function_type ty_fun mode_fun rev_args in
@@ -3779,13 +3806,16 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
                     res_ty = expand_head env ty_res;
                     previous_arg_loc;
                     extra_arg_loc = sarg.pexp_loc; }))
-        in
-        let arg =
-          Unknown_arg { sarg; ty_arg_mono; mode_fun; mode_arg; sort_arg }
-        in
-        loop ty_res mode_ret ((lbl, Arg arg) :: rev_args) rest
   in
   loop ty_fun mode_fun rev_args sargs
+
+type arrow_type =
+  | AT_Arrow of { ty_arg : type_expr; ty_ret : type_expr;
+                  ty_arg0 : type_expr; ty_ret0 : type_expr }
+  | AT_Functor of {
+    id : Ident.Unscoped.t; p : Path.t; fl : (Longident.t * type_expr) list; ty_ret : type_expr;
+    id0 : Ident.Unscoped.t; p0 : Path.t; fl0 : (Longident.t * type_expr) list; ty_ret0 : type_expr;
+  }
 
 let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret_tvar =
   let warned = ref false in
@@ -3796,207 +3826,86 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
       collect_unknown_apply_args env funct ty_fun0 mode_fun rev_args sargs ret_tvar
     in
     if sargs = [] then type_unknown_args () else
+    let sarg1 = match sargs with (_, sarg1) :: _ -> sarg1 | [] -> assert false in
     let ty_fun' = expand_head env ty_fun in
-    match get_desc ty_fun', get_desc (expand_head env ty_fun0), sargs with
-    | Tarrow (ad, ty_arg, ty_ret, com),
-      Tarrow (_, ty_arg0, ty_ret0, _),
-      (_, sarg1) :: _
-      when is_commu_ok com ->
-        let lv = get_level ty_fun' in
-        let (l, mode_arg, mode_ret) = ad in
-        let may_warn loc w =
-          if not !warned && !Clflags.principal && lv <> generic_level
-          then begin
-            warned := true;
-            Location.prerr_warning loc w
-          end
-        in
-        let sort_arg =
-          match type_sort ~why:Function_argument ~fixed:false env ty_arg with
-          | Ok sort -> sort
-          | Error err -> raise(Error(sarg1.pexp_loc, env,
-                                     Function_type_not_rep(ty_arg, err)))
-        in
-        let name = label_name l
-        and optional = is_optional l
-        and omittable = is_omittable l in
-        let use_arg ~commuted sarg l' =
-          let wrapped_in_some = optional && not (is_optional l') in
-          if wrapped_in_some then
-            may_warn sarg.pexp_loc
-              (Warnings.Not_principal "using an optional argument here");
-          Arg (Known_arg
-            { sarg; ty_arg; ty_arg0; commuted; sort_arg;
-              mode_fun; mode_arg; wrapped_in_some })
-        in
-        let eliminate_omittable_arg expected_label =
-          may_warn funct.exp_loc
-            (Warnings.Non_principal_labels "eliminated omittable argument");
-          Arg
-            (Eliminated_optional_arg
-               { mode_fun; ty_arg; mode_arg
-               ; sort_arg; level = lv; expected_label})
-        in
-        let remaining_sargs, arg =
-          if ignore_labels then begin
-            (* No reordering is allowed, process arguments in order *)
-            match sargs with
-            | [] -> assert false
-            | (l', sarg) :: remaining_sargs ->
-                if name = label_name l' || (not omittable && l' = Nolabel) then
-                  (remaining_sargs, use_arg ~commuted:false sarg l')
-                else if
-                  omittable &&
-                  not (List.exists (fun (l, _) -> name = label_name l)
-                         remaining_sargs) &&
-                  List.exists (function (Nolabel, _) -> true | _ -> false)
-                    sargs
+    let desc_fun' = get_desc ty_fun' in
+    let desc_fun0 = get_desc (expand_head env ty_fun0) in
+    let oad = match desc_fun', desc_fun0 with
+      | Tarrow (ad, ty_arg, ty_ret, com), Tarrow (_, ty_arg0, ty_ret0, _) when is_commu_ok com ->
+        Some (ad, AT_Arrow { ty_arg; ty_ret; ty_arg0; ty_ret0 })
+      | Tfunctor (ad, id, (p, fl), ty_ret), Tfunctor (_, id0, (p0, fl0), ty_ret0) ->
+        Some (ad, AT_Functor { id; p; fl; ty_ret; id0; p0; fl0; ty_ret0 })
+      | _ -> None
+    in
+    match oad with
+    | None -> type_unknown_args ()
+    | Some (ad, at) ->
+      let lv = get_level ty_fun' in
+      let (l, mode_arg, mode_ret) = ad in
+      let may_warn loc w =
+        if not !warned && !Clflags.principal && lv <> generic_level
+        then begin
+          warned := true;
+          Location.prerr_warning loc w
+        end
+      in
+      let name = label_name l
+      and optional = is_optional l
+      and omittable = is_omittable l in
+      let remaining_sargs, arg =
+        if ignore_labels then begin
+          (* No reordering is allowed, process arguments in order *)
+          match sargs with
+          | [] -> assert false
+          | (l', sarg) :: remaining_sargs ->
+              if name = label_name l' || (not omittable && l' = Nolabel) then
+                (remaining_sargs, Some(false, sarg, l'))
+              else if
+                omittable &&
+                not (List.exists (fun (l, _) -> name = label_name l)
+                        remaining_sargs) &&
+                List.exists (function (Nolabel, _) -> true | _ -> false)
+                  sargs
+              then
+                (sargs, None)
+              else
+                raise(Error(sarg.pexp_loc, env,
+                            Apply_wrong_label(l', ty_fun', omittable)))
+        end else
+          (* Arguments can be commuted, try to fetch the argument
+              corresponding to the first parameter. *)
+          match extract_label name sargs with
+          | Some (l', sarg, commuted, remaining_sargs) ->
+              if commuted then begin
+                may_warn sarg.pexp_loc
+                  (Warnings.Not_principal "commuting this argument")
+              end;
+              if not optional && is_optional l' then (
+                let label = Printtyp.string_of_label l in
+                if is_position l
                 then
-                  (sargs, eliminate_omittable_arg l)
+                  raise
+                    (Error
+                        ( sarg.pexp_loc
+                        , env
+                        , Nonoptional_call_pos_label label))
                 else
-                  raise(Error(sarg.pexp_loc, env,
-                              Apply_wrong_label(l', ty_fun', omittable)))
-          end else
-            (* Arguments can be commuted, try to fetch the argument
-               corresponding to the first parameter. *)
-            match extract_label name sargs with
-            | Some (l', sarg, commuted, remaining_sargs) ->
-                if commuted then begin
-                  may_warn sarg.pexp_loc
-                    (Warnings.Not_principal "commuting this argument")
-                end;
-                if not optional && is_optional l' then (
-                  let label = Printtyp.string_of_label l in
-                  if is_position l
-                  then
-                    raise
-                      (Error
-                         ( sarg.pexp_loc
-                         , env
-                         , Nonoptional_call_pos_label label))
-                  else
-                    Location.prerr_warning
-                      sarg.pexp_loc
-                      (Warnings.Nonoptional_label label));
-                remaining_sargs, use_arg ~commuted sarg l'
-            | None ->
-                sargs,
-                if omittable && List.mem_assoc Nolabel sargs then
-                  eliminate_omittable_arg l
-                else begin
-                  (* No argument was given for this parameter, we abstract over
-                     it. *)
-                  may_warn funct.exp_loc
-                    (Warnings.Non_principal_labels "commuted an argument");
-                  Omitted { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
-                end
-        in
-        loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
-    | Tfunctor (ad, id, (p, fl), ty_ret),
-      Tfunctor (_, id0, (p0, fl0), ty_ret0),
-      (_, sarg1) :: _ ->
-        let lv = get_level ty_fun' in
-        let (l, mode_arg, mode_ret) = ad in
-        let may_warn loc w =
-          if not !warned && !Clflags.principal && lv <> generic_level
-          then begin
-            warned := true;
-            Location.prerr_warning loc w
-          end
-        in
-        let sort_arg = match type_sort ~fixed:false ~why:Function_argument env (newmono (newty (Tpackage (p, fl)))) with
-          | Ok sort -> sort
-          | Error err -> raise(Error(sarg1.pexp_loc, env,
-                                    Function_type_not_rep(newmono (newty (Tpackage (p, fl))), err)))
-        in
-        let name = label_name l
-        and optional = is_optional l
-        and omittable = is_omittable l in
-        let is_packing sarg =
-          not optional && not omittable &&
-          match sarg.pexp_desc with
-          | Pexp_pack _me -> true
-          | Pexp_constraint ({ pexp_desc = Pexp_pack _me; _},
-                Some { ptyp_desc = Ptyp_package _pck_ty; _}, _) ->
-            false (* TODO : handle it later to have true here *)
-          | _ -> false
-        in
-        let me_opt =
-          if ignore_labels then begin
-            (* No reordering is allowed, process arguments in order *)
-            match sargs with
-            | [] -> assert false
-            | (l', sarg) :: remaining_sargs ->
-                if name = label_name l' || l' = Nolabel then
-                  Some (remaining_sargs, false, is_packing sarg, sarg)
-                else if
-                  omittable &&
-                  not (List.exists (fun (l, _) -> name = label_name l)
-                         remaining_sargs) &&
-                  List.exists (function (Nolabel, _) -> true | _ -> false)
-                    sargs
-                then
-                  None
-                else
-                  raise(Error(sarg.pexp_loc, env,
-                              Apply_wrong_label(l', ty_fun', omittable)))
-          end else
-            (* Arguments can be commuted, try to fetch the argument
-               corresponding to the first parameter. *)
-            match extract_label name sargs with
-            | Some (l', sarg, commuted, remaining_sargs) ->
-                if commuted then begin
-                  may_warn sarg.pexp_loc
-                    (Warnings.Not_principal "commuting this argument")
-                end;
-                if not optional && is_optional l' then
-                  Location.prerr_warning sarg.pexp_loc
-                    (Warnings.Nonoptional_label (Printtyp.string_of_label l));
-                Some (remaining_sargs, commuted, is_packing sarg, sarg)
-            | None -> None
-        in
-        let unify_to_arrows handler =
-          begin
-            try
-              unify_to_arrow env ty_fun';
-              unify_to_arrow env ty_fun0
-            with Unify trace -> handler trace
-          end
-        in
-        begin match me_opt with
-        | Some (remaining_sargs, commuted, true, sarg) ->
-          let texp =
-            match sarg.pexp_desc with
-            | Pexp_pack m ->
-                (* This is to prevent a principality warning because expected
-                  signature is not closed. *)
-                let (modl, fl') = !type_package env m p fl in
-                {
-                  exp_desc = Texp_pack modl;
-                  exp_loc = sarg.pexp_loc; exp_extra = [];
-                  exp_type = newty (Tpackage (p, fl'));
-                  exp_attributes = sarg.pexp_attributes;
-                  exp_env = env
-                }
-            | _ -> assert false (* TODO *)
+                  Location.prerr_warning
+                    sarg.pexp_loc
+                    (Warnings.Nonoptional_label label));
+              remaining_sargs, Some(commuted, sarg, l')
+          | None ->
+              sargs, None
+      in
+      match at with
+      | AT_Arrow { ty_arg; ty_ret; ty_arg0; ty_ret0 } ->
+          let sort_arg = match type_sort ~fixed:false ~why:Function_argument env ty_arg with
+            | Ok sort -> sort
+            | Error err -> raise(Error(sarg1.pexp_loc, env,
+                                      Function_type_not_rep(ty_arg, err)))
           in
-          let me = match texp.exp_desc with
-              Texp_pack {mod_desc = Tmod_constraint (me, _, _, _)} -> me
-            | _ -> assert false
-          in
-          let rec extract_path m =
-            match m.mod_desc with
-            | Tmod_ident (p, _) -> p
-            | Tmod_apply (p1, p2, _) ->
-                Path.Papply(extract_path p1, extract_path p2)
-            | Tmod_constraint (p, _, _, _) ->
-                extract_path p
-            | _ -> raise Not_found
-          in
-          let arg =
-            let ty_arg = newmono (newty2 ~level:(get_level ty_fun') (Tpackage (p, fl))) in
-            let ty_arg0 = newmono (newty2 ~level:(get_level ty_fun0) (Tpackage (p0, fl0))) in
-            let wrapped_in_some = optional in
+          let use_arg ~commuted sarg l' =
+            let wrapped_in_some = optional && not (is_optional l') in
             if wrapped_in_some then
               may_warn sarg.pexp_loc
                 (Warnings.Not_principal "using an optional argument here");
@@ -4004,46 +3913,129 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
               { sarg; ty_arg; ty_arg0; commuted; sort_arg;
                 mode_fun; mode_arg; wrapped_in_some })
           in
-          begin
-            try
-              let path = extract_path me in
-              let ty_res =
-                  Option.value ~default:ty_ret
-                      (instance_funct ~id_in:(Ident.of_unscoped id)
-                                      ~p_out:path ~fixed:false ty_ret) in
-              let ty_res0 =
-                  Option.value ~default:ty_ret0
-                      (instance_funct ~id_in:(Ident.of_unscoped id0)
-                                      ~p_out:path ~fixed:false ty_ret0) in
-              loop ty_res ty_res0 mode_ret ((l, arg) :: rev_args) remaining_sargs
-            with Not_found ->
+          let eliminate_omittable_arg expected_label =
+            may_warn funct.exp_loc
+              (Warnings.Non_principal_labels "eliminated omittable argument");
+            Arg
+              (Eliminated_optional_arg
+                { mode_fun; ty_arg; mode_arg
+                ; sort_arg; level = lv; expected_label})
+          in
+          let arg = match arg with
+          | Some (commuted, sarg, l') -> use_arg ~commuted sarg l'
+          | None ->
+            if omittable && List.mem_assoc Nolabel sargs then
+              eliminate_omittable_arg l
+            else begin
+              (* No argument was given for this parameter, we abstract over
+                it. *)
+              may_warn funct.exp_loc
+                (Warnings.Non_principal_labels "commuted an argument");
+              Omitted { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
+            end
+          in
+          loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
+      | AT_Functor { id; p; fl; ty_ret; id0; p0; fl0; ty_ret0 } ->
+          let sort_arg = match type_sort ~why:Function_argument ~fixed:false env (newmono (newty (Tpackage (p, fl)))) with
+            | Ok sort -> sort
+            | Error err -> raise(Error(sarg1.pexp_loc, env,
+                                      Function_type_not_rep(newmono (newty (Tpackage (p, fl))), err)))
+          in
+          let me_opt = match arg with
+            | Some (commuted, sarg, _l') ->
+                Some (commuted, is_packing optional omittable sarg, sarg)
+            | None -> None
+          in
+          let unify_to_arrows handler =
+            begin
               try
-                let env_t = Env.add_module (Ident.of_unscoped id) Mp_present
-                                            me.mod_type env in
-                let env_t0 = Env.add_module (Ident.of_unscoped id0) Mp_present
-                                            me.mod_type env in
-                identifier_escape env_t [id] ty_ret;
-                identifier_escape env_t0 [id0] ty_ret0;
-                loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
-              with Unify trace ->
-                raise (Error(sarg.pexp_loc, env,
-                      Cannot_infer_functor_path trace));
+                unify_to_arrow env ty_fun';
+                unify_to_arrow env ty_fun0
+              with Unify trace -> handler trace
+            end
+          in
+          begin match me_opt with
+          | Some (commuted, true, sarg) ->
+            let texp =
+              match sarg.pexp_desc with
+              | Pexp_pack m ->
+                  (* This is to prevent a principality warning because expected
+                    signature is not closed. *)
+                  let (modl, fl') = !type_package env m p fl in
+                  {
+                    exp_desc = Texp_pack modl;
+                    exp_loc = sarg.pexp_loc; exp_extra = [];
+                    exp_type = newty (Tpackage (p, fl'));
+                    exp_attributes = sarg.pexp_attributes;
+                    exp_env = env
+                  }
+              | _ -> assert false (* TODO *)
+            in
+            let me = match texp.exp_desc with
+                Texp_pack {mod_desc = Tmod_constraint (me, _, _, _)} -> me
+              | _ -> assert false
+            in
+            let rec extract_path m =
+              match m.mod_desc with
+              | Tmod_ident (p, _) -> p
+              | Tmod_apply (p1, p2, _) ->
+                  Path.Papply(extract_path p1, extract_path p2)
+              | Tmod_constraint (p, _, _, _) ->
+                  extract_path p
+              | _ -> raise Not_found
+            in
+            let arg =
+              let ty_arg = newmono (newty2 ~level:(get_level ty_fun') (Tpackage (p, fl))) in
+              let ty_arg0 = newmono (newty2 ~level:(get_level ty_fun0) (Tpackage (p0, fl0))) in
+              let wrapped_in_some = optional in
+              if wrapped_in_some then
+                may_warn sarg.pexp_loc
+                  (Warnings.Not_principal "using an optional argument here");
+              Arg (Known_arg
+                { sarg; ty_arg; ty_arg0; commuted; sort_arg;
+                  mode_fun; mode_arg; wrapped_in_some })
+            in
+            begin
+              try
+                let path = extract_path me in
+                let ty_res =
+                    Option.value ~default:ty_ret
+                        (instance_funct ~id_in:(Ident.of_unscoped id)
+                                        ~p_out:path ~fixed:false ty_ret) in
+                let ty_res0 =
+                    Option.value ~default:ty_ret0
+                        (instance_funct ~id_in:(Ident.of_unscoped id0)
+                                        ~p_out:path ~fixed:false ty_ret0) in
+                loop ty_res ty_res0 mode_ret ((l, arg) :: rev_args) remaining_sargs
+              with Not_found ->
+                try
+                  let env_t = Env.add_module (Ident.of_unscoped id) Mp_present
+                                              me.mod_type env in
+                  let env_t0 = Env.add_module (Ident.of_unscoped id0) Mp_present
+                                              me.mod_type env in
+                  identifier_escape env_t [id] ty_ret;
+                  identifier_escape env_t0 [id0] ty_ret0;
+                  loop ty_ret ty_ret0 mode_ret ((l, arg) :: rev_args) remaining_sargs
+                with Unify trace ->
+                  raise (Error(sarg.pexp_loc, env,
+                        Cannot_infer_functor_path trace));
+            end
+          | _ ->
+            unify_to_arrows begin fun trace ->
+              match me_opt with
+              | Some (_, _, sarg) ->
+                let ty_arg = newty (Tpackage (p, fl)) in
+                let vmode , _ = Value.newvar_below (alloc_as_value mode_arg) in
+                let _ = !type_expect' env (mode_default vmode) sarg (mk_expected ty_arg) in
+                raise (Error(sarg1.pexp_loc, env,
+                            Expr_type_clash(trace, None, None)))
+              | None ->
+                  let ty_res = remaining_function_type ty_fun' mode_fun rev_args in
+                  raise(Error(funct.exp_loc, env,
+                              Cannot_commute_label ty_res))
+            end;
+            loop ty_fun' ty_fun0 mode_fun rev_args sargs
           end
-        | _ ->
-          unify_to_arrows begin fun trace ->
-            match me_opt with
-            | Some (_, _, _, sarg) ->
-                raise (Error(sarg.pexp_loc, env,
-                             Expr_type_clash(trace, None, None)))
-            | None ->
-                let ty_res = remaining_function_type ty_fun' mode_fun rev_args in
-                raise(Error(funct.exp_loc, env,
-                            Cannot_commute_label ty_res))
-          end;
-          loop ty_fun' ty_fun0 mode_fun rev_args sargs
-        end
-    | _ ->
-        type_unknown_args ()
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
@@ -9885,6 +9877,7 @@ and type_send env loc explanation e met =
   in
   (obj,meth,typ)
 
+let () = type_expect' := type_expect
 
 let maybe_check_uniqueness_exp exp =
   if Language_extension.is_enabled Unique then
