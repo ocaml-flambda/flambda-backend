@@ -73,7 +73,7 @@ Line 1, characters 53-54:
 Error: This value is "coordinated_none" but expected to be "coordinated_read".
 |}]
 
-(* Closing over use of coordinated_write gives atomicallywrite *)
+(* Closing over use of coordinated_write gives coordinate_writing *)
 let foo () =
     let a = GhostUnitAtomic.make () in
     let bar () = GhostUnitAtomic.set a () in
