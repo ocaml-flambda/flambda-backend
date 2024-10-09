@@ -627,17 +627,7 @@ Caml_inline void extern_header(struct caml_extern_state* s,
   if (tag < 16 && sz < 8) {
     writebyte(s, PREFIX_SMALL_BLOCK + tag + (sz << 4));
   } else {
-    /* This is the equivalent of [Make_header] before our changes to reorder
-       mixed-block related fields.
-
-       Is marshalling guaranteed to be stable? I'm uncertain if there's a rule
-       about this or a guarantee made by Ocaml. But, as a matter of practice,
-       one can't build the compiler without crossming marshal/unmarshal
-       boundaries where one end is from system ocamlc and one end is from the
-       built one. As such, it is in practice unsafe to use our new headers in
-       marshalling.
-    */
-    header_t hd = (sz << 10) + tag;
+    header_t hd = Make_header(sz, tag, NOT_MARKABLE);
 #ifdef ARCH_SIXTYFOUR
     if (sz > 0x3FFFFF && (s->extern_flags & COMPAT_32))
       extern_failwith(s, "output_value: array cannot be read back on "

@@ -459,15 +459,13 @@ static void intern_rec(value *dest)
       case CODE_BLOCK32:
         header = (header_t) read32u();
         tag = Tag_hd(header);
-        /* See comment in extern.c extern_header() */
-        size = header >> 10;
+        size = Wosize_hd(header);
         goto read_block;
 #ifdef ARCH_SIXTYFOUR
       case CODE_BLOCK64:
         header = (header_t) read64u();
         tag = Tag_hd(header);
-        /* See comment in extern.c extern_header() */
-        size = header >> 10;
+        size = Wosize_hd(header);
         goto read_block;
 #endif
       case CODE_STRING8:

@@ -31,14 +31,11 @@ type header = {
   tag : int
 }
 
-(* for mixed block size *)
-let reserved_bits = 8
-
 let parse_header : nativeint -> header =
   fun header ->
     let wosize =
       Nativeint.to_int
-        (Nativeint.shift_right_logical header (10 + reserved_bits))
+        (Nativeint.shift_right_logical header 10)
     in
 
     let color =
