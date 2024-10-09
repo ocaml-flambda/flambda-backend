@@ -1,0 +1,4 @@
+File "stop_after_lambda_warn_error.ml", line 12, characters 5-12:
+12 | let[@inlined] f x = x
+          ^^^^^^^
+Error (warning 53 [misplaced-attribute]): the "inlined" attribute cannot appear in this context
