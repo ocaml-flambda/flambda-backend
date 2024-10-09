@@ -110,7 +110,7 @@ Line 2, characters 34-35:
 Error: The value "a" is coordinate_writing, so cannot be used inside a function that is coordinate_nothing.
 |}]
 
-(* Closing over use of coordinated_read gives atomicallyread *)
+(* Closing over use of coordinated_read gives coordinate_reading *)
 let foo () =
     let a = GhostUnitAtomic.make () in
     let bar () = GhostUnitAtomic.get a in
