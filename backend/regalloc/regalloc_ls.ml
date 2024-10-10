@@ -140,11 +140,18 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
     | 0 -> fatal "register class %d has no available registers" reg_class
     | num_available_registers ->
       let available = Array.make num_available_registers true in
+      let num_still_available = ref num_available_registers in
+      let set_not_available r =
+        let idx = r - first_available in
+        if idx < num_available_registers
+        then (
+          if available.(idx) then decr num_still_available;
+          available.(idx) <- false;
+          if !num_still_available = 0 then raise No_free_register)
+      in
       List.iter intervals.active ~f:(fun (interval : Interval.t) ->
           match interval.reg.loc with
-          | Reg r ->
-            if r - first_available < num_available_registers
-            then available.(r - first_available) <- false
+          | Reg r -> set_not_available r
           | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
@@ -152,7 +159,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           if r - first_available < num_available_registers
              && available.(r - first_available)
              && Interval.overlap itv interval
-          then available.(r - first_available) <- false
+          then set_not_available r
         | Stack _ | Unknown -> ()
       in
       List.iter intervals.inactive ~f:remove_bound_overlapping;
