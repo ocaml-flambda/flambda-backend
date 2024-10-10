@@ -321,3 +321,10 @@ module type S =
 module Make (Ord : OrderedType) : S with type elt = Ord.t
 (** Functor building an implementation of the set structure
    given a totally ordered type. *)
+
+module Make_portable (Ord : sig include OrderedType @@ portable end) : sig
+  include S @@ portable
+
+  val mk_empty : unit -> t @@ portable
+end with type elt = Ord.t
+     and type t = Make(Ord).t

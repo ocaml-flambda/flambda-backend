@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (* NOTE: If this file is hashtbl.mli, do not edit it directly! Instead,
    edit templates/hashtbl.template.mli and run tools/sync_stdlib_docs *)
 
@@ -58,12 +56,13 @@ open! Stdlib
 
 (** {1 Generic interface} *)
 
+include sig
 
 type (!'a, !'b) t
 (** The type of hash tables from type ['a] to type ['b]. *)
 
 val create : ?random: (* thwart tools/sync_stdlib_docs *) bool ->
-             int -> ('a, 'b) t @@ portable
+             int -> ('a, 'b) t
 (** [Hashtbl.create n] creates a new, empty hash table, with
    initial size [n].  For best results, [n] should be on the
    order of the expected number of elements that will be in
@@ -101,19 +100,19 @@ val create : ?random: (* thwart tools/sync_stdlib_docs *) bool ->
    @before 4.00 the [~random] parameter was not present and all
    hash tables were created in non-randomized mode. *)
 
-val clear : ('a, 'b) t -> unit @@ portable
+val clear : ('a, 'b) t -> unit
 (** Empty a hash table. Use [reset] instead of [clear] to shrink the
     size of the bucket table to its initial size. *)
 
-val reset : ('a, 'b) t -> unit @@ portable
+val reset : ('a, 'b) t -> unit
 (** Empty a hash table and shrink the size of the bucket table
     to its initial size.
     @since 4.00 *)
 
-val copy : ('a, 'b) t -> ('a, 'b) t @@ portable
+val copy : ('a, 'b) t -> ('a, 'b) t
 (** Return a copy of the given hashtable. *)
 
-val add : ('a, 'b) t -> 'a -> 'b -> unit @@ portable
+val add : ('a, 'b) t -> 'a -> 'b -> unit
 (** [Hashtbl.add tbl key data] adds a binding of [key] to [data]
    in table [tbl].
 
@@ -125,37 +124,37 @@ val add : ('a, 'b) t -> 'a -> 'b -> unit @@ portable
    If you desire the classic behavior of replacing elements,
    see {!replace}. *)
 
-val find : ('a, 'b) t -> 'a -> 'b @@ portable
+val find : ('a, 'b) t -> 'a -> 'b
 (** [Hashtbl.find tbl x] returns the current binding of [x] in [tbl],
    or raises [Not_found] if no such binding exists. *)
 
-val find_opt : ('a, 'b) t -> 'a -> 'b option @@ portable
+val find_opt : ('a, 'b) t -> 'a -> 'b option
 (** [Hashtbl.find_opt tbl x] returns the current binding of [x] in [tbl],
     or [None] if no such binding exists.
     @since 4.05 *)
 
-val find_all : ('a, 'b) t -> 'a -> 'b list @@ portable
+val find_all : ('a, 'b) t -> 'a -> 'b list
 (** [Hashtbl.find_all tbl x] returns the list of all data
    associated with [x] in [tbl].
    The current binding is returned first, then the previous
    bindings, in reverse order of introduction in the table. *)
 
-val mem : ('a, 'b) t -> 'a -> bool @@ portable
+val mem : ('a, 'b) t -> 'a -> bool
 (** [Hashtbl.mem tbl x] checks if [x] is bound in [tbl]. *)
 
-val remove : ('a, 'b) t -> 'a -> unit @@ portable
+val remove : ('a, 'b) t -> 'a -> unit
 (** [Hashtbl.remove tbl x] removes the current binding of [x] in [tbl],
    restoring the previous binding if it exists.
    It does nothing if [x] is not bound in [tbl]. *)
 
-val replace : ('a, 'b) t -> 'a -> 'b -> unit @@ portable
+val replace : ('a, 'b) t -> 'a -> 'b -> unit
 (** [Hashtbl.replace tbl key data] replaces the current binding of [key]
    in [tbl] by a binding of [key] to [data].  If [key] is unbound in [tbl],
    a binding of [key] to [data] is added to [tbl].
    This is functionally equivalent to {!remove}[ tbl key]
    followed by {!add}[ tbl key data]. *)
 
-val iter : ('a -> 'b -> unit) -> ('a, 'b) t -> unit @@ portable
+val iter : ('a -> 'b -> unit) -> ('a, 'b) t -> unit
 (** [Hashtbl.iter f tbl] applies [f] to all bindings in table [tbl].
    [f] receives the key as first argument, and the associated value
    as second argument. Each binding is presented exactly once to [f].
@@ -176,7 +175,7 @@ val iter : ('a -> 'b -> unit) -> ('a, 'b) t -> unit @@ portable
 *)
 
 val filter_map_inplace: ('a -> 'b -> 'b option) -> ('a, 'b) t ->
-    unit @@ portable
+    unit
 (** [Hashtbl.filter_map_inplace f tbl] applies [f] to all bindings in
     table [tbl] and update each binding depending on the result of
     [f].  If [f] returns [None], the binding is discarded.  If it
@@ -187,7 +186,7 @@ val filter_map_inplace: ('a -> 'b -> 'b option) -> ('a, 'b) t ->
     @since 4.03 *)
 
 val fold :
-  ('a -> 'b -> 'acc -> 'acc) -> ('a, 'b) t -> 'acc -> 'acc @@ portable
+  ('a -> 'b -> 'acc -> 'acc) -> ('a, 'b) t -> 'acc -> 'acc
 (** [Hashtbl.fold f tbl init] computes
    [(f kN dN ... (f k1 d1 init)...)],
    where [k1 ... kN] are the keys of all bindings in [tbl],
@@ -209,13 +208,13 @@ val fold :
    by [f] during the iteration.
 *)
 
-val length : ('a, 'b) t -> int @@ portable
+val length : ('a, 'b) t -> int
 (** [Hashtbl.length tbl] returns the number of bindings in [tbl].
    It takes constant time.  Multiple bindings are counted once each, so
    [Hashtbl.length] gives the number of times [Hashtbl.iter] calls its
    first argument. *)
 
-val randomize : unit -> unit @@ portable
+val randomize : unit -> unit
 (** After a call to [Hashtbl.randomize()], hash tables are created in
     randomized mode by default: {!create} returns randomized
     hash tables, unless the [~random:false] optional parameter is given.
@@ -234,13 +233,13 @@ val randomize : unit -> unit @@ portable
 
     @since 4.00 *)
 
-val is_randomized : unit -> bool @@ portable
+val is_randomized : unit -> bool
 (** Return [true] if the tables are currently created in randomized mode
     by default, [false] otherwise.
     @since 4.03 *)
 
 val rebuild : ?random (* thwart tools/sync_stdlib_docs *) :bool ->
-    ('a, 'b) t -> ('a, 'b) t @@ portable
+    ('a, 'b) t -> ('a, 'b) t
 (** Return a copy of the given hashtable.  Unlike {!copy},
     {!rebuild}[ h] re-hashes all the (key, value) entries of
     the original table [h].  The returned hash table is randomized if
@@ -271,7 +270,7 @@ type statistics = {
         [histo.(i)] is the number of buckets whose size is [i]. *)
 }
 
-val stats : ('a, 'b) t -> statistics @@ portable
+val stats : ('a, 'b) t -> statistics
 (** [Hashtbl.stats tbl] returns statistics about the table [tbl]:
    number of buckets, size of the biggest bucket, distribution of
    buckets by size.
@@ -279,7 +278,7 @@ val stats : ('a, 'b) t -> statistics @@ portable
 
 (** {1 Hash tables and Sequences} *)
 
-val to_seq : ('a,'b) t -> ('a * 'b) Seq.t @@ portable
+val to_seq : ('a,'b) t -> ('a * 'b) Seq.t
 (** Iterate on the whole table.  The order in which the bindings
     appear in the sequence is unspecified. However, if the table contains
     several bindings for the same key, they appear in reversed order of
@@ -290,28 +289,30 @@ val to_seq : ('a,'b) t -> ('a * 'b) Seq.t @@ portable
 
     @since 4.07 *)
 
-val to_seq_keys : ('a,_) t -> 'a Seq.t @@ portable
+val to_seq_keys : ('a,_) t -> 'a Seq.t
 (** Same as [Seq.map fst (to_seq m)]
     @since 4.07 *)
 
-val to_seq_values : (_,'b) t -> 'b Seq.t @@ portable
+val to_seq_values : (_,'b) t -> 'b Seq.t
 (** Same as [Seq.map snd (to_seq m)]
     @since 4.07 *)
 
-val add_seq : ('a,'b) t -> ('a * 'b) Seq.t -> unit @@ portable
+val add_seq : ('a,'b) t -> ('a * 'b) Seq.t -> unit
 (** Add the given bindings to the table, using {!add}
     @since 4.07 *)
 
-val replace_seq : ('a,'b) t -> ('a * 'b) Seq.t -> unit @@ portable
+val replace_seq : ('a,'b) t -> ('a * 'b) Seq.t -> unit
 (** Add the given bindings to the table, using {!replace}
     @since 4.07 *)
 
-val of_seq : ('a * 'b) Seq.t -> ('a, 'b) t @@ portable
+val of_seq : ('a * 'b) Seq.t -> ('a, 'b) t
 (** Build a table from the given bindings. The bindings are added
     in the same order they appear in the sequence, using {!replace_seq},
     which means that if two pairs have the same key, only the latest one
     will appear in the table.
     @since 4.07 *)
+
+end @@ portable
 
 (** {1 Functorial interface} *)
 
@@ -514,19 +515,20 @@ module MakeSeeded_portable (H : sig include SeededHashedType @@ portable end) : 
 
 (** {1 The polymorphic hash functions} *)
 
+include sig
 
-val hash : 'a -> int @@ portable
+val hash : 'a -> int
 (** [Hashtbl.hash x] associates a nonnegative integer to any value of
    any type. It is guaranteed that
    if [x = y] or [Stdlib.compare x y = 0], then [hash x = hash y].
    Moreover, [hash] always terminates, even on cyclic structures. *)
 
-val seeded_hash : int -> 'a -> int @@ portable
+val seeded_hash : int -> 'a -> int
 (** A variant of {!hash} that is further parameterized by
    an integer seed.
    @since 4.00 *)
 
-val hash_param : int -> int -> 'a -> int @@ portable
+val hash_param : int -> int -> 'a -> int
 (** [Hashtbl.hash_param meaningful total x] computes a hash value for [x],
    with the same properties as for [hash]. The two extra integer
    parameters [meaningful] and [total] give more precise control over
@@ -545,11 +547,13 @@ val hash_param : int -> int -> 'a -> int @@ portable
    choices, {!hash} and {!seeded_hash} take
    [meaningful = 10] and [total = 100]. *)
 
-val seeded_hash_param : int -> int -> int -> 'a -> int @@ portable
+val seeded_hash_param : int -> int -> int -> 'a -> int
 (** A variant of {!hash_param} that is further parameterized by
    an integer seed.  Usage:
    [Hashtbl.seeded_hash_param meaningful total seed x].
    @since 4.00 *)
+
+end @@ portable
 
 (** {1:examples Examples}
 

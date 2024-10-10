@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (* NOTE: If this file is map.mli, do not edit it directly! Instead,
    edit templates/map.template.mli and run tools/sync_stdlib_docs *)
 
@@ -289,8 +287,8 @@ module type S =
         [m1] contains all the bindings of [m] that satisfy the
         predicate [f], and [m2] is the map with all the bindings of
         [m] that do not satisfy [f].
-        @since 3.12
-     *)
+
+        @since 3.12 *)
 
     val split: key -> 'a t -> 'a t * 'a option * 'a t
     (** [split x m] returns a triple [(l, data, r)], where
