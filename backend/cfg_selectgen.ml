@@ -1504,8 +1504,34 @@ class virtual selector_generic =
         if false then Sub_cfg.dump body;
         (* CR xclerc for xclerc: implement polling insertion. *)
         let fun_poll = Lambda.Default_poll in
-        (* CR xclerc for xclerc: implement marking (calls). *)
-        let fun_contains_calls = false in
+        let fun_contains_calls =
+          DLL.exists body.Sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
+              block.is_trap_handler
+              || (match block.terminator.desc with
+                 | Never | Always _ | Parity_test _ | Truth_test _
+                 | Float_test _ | Int_test _ | Switch _ | Return ->
+                   false
+                 | Raise raise_kind -> (
+                   match raise_kind with
+                   | Lambda.Raise_notrace -> false
+                   | Lambda.Raise_regular | Lambda.Raise_reraise ->
+                     (* PR#6239 *)
+                     (* caml_stash_backtrace; we #mark_call rather than
+                        #mark_c_tailcall to get a good stack backtrace *)
+                     true)
+                 | Tailcall_self _ -> false
+                 | Tailcall_func _ -> false
+                 | Call_no_return _ -> true
+                 | Call _ -> true
+                 | Prim { op = Probe _ } -> true
+                 | Prim _ -> false
+                 | Specific_can_raise _ -> false)
+              || DLL.exists block.body
+                   ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+                     match instr.desc with
+                     | Op (Alloc _ | Poll) -> true
+                     | _ -> false))
+        in
         let cfg : Cfg.t =
           Cfg.create ~fun_name:f.Cmm.fun_name.sym_name ~fun_args:loc_arg
             ~fun_codegen_options:
@@ -1532,12 +1558,11 @@ class virtual selector_generic =
         Cfg.add_block_exn cfg tailrec_block;
         DLL.add_end layout tailrec_block.start;
         DLL.iter body.Sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
-            (* CR xclerc for xclerc: error out if a block ending with `Never` is
-               not empty? *)
             if block.terminator.desc <> Cfg.Never
             then (
               Cfg.add_block_exn cfg block;
-              DLL.add_end layout block.start));
+              DLL.add_end layout block.start)
+            else assert (DLL.is_empty block.body));
         Cfg.register_predecessors_for_all_blocks cfg;
         let cfg_with_layout =
           Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false
