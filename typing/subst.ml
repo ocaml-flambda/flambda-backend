@@ -498,12 +498,6 @@ let constructor_declaration copy_scope s c =
   }
 
 (* called only when additional_action is [Prepare_for_saving] *)
-let constructor_tag ~prepare_jkind loc = function
-  | Ordinary _ as tag -> tag
-  | Extension (path, lays) ->
-      Extension (path, Array.map (prepare_jkind loc) lays)
-
-(* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
   | Variant_unboxed -> Variant_unboxed
   | Variant_boxed cstrs_and_jkinds  ->
@@ -517,7 +511,7 @@ let variant_representation ~prepare_jkind loc = function
 let record_representation ~prepare_jkind loc = function
   | Record_unboxed -> Record_unboxed
   | Record_inlined (tag, constructor_rep, variant_rep) ->
-    Record_inlined (constructor_tag ~prepare_jkind loc tag,
+    Record_inlined (tag,
                     constructor_rep,
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
