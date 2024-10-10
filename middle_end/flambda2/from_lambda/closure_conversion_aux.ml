@@ -1051,7 +1051,12 @@ module Let_with_acc = struct
       | Prim (prim, _) -> Flambda_primitive.at_most_generative_effects prim
       | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> true
     in
-    if is_unused_singleton && has_no_effects
+    let keep_bindings_for_simplify =
+      (* When using Simplify, we don't delete unused bindings here, to increase
+         the chance that invalid code is actually simplified to [Invalid]. *)
+      not (Flambda_features.classic_mode ())
+    in
+    if is_unused_singleton && has_no_effects && not keep_bindings_for_simplify
     then acc, body
     else
       let cost_metrics_of_defining_expr =
