@@ -1454,6 +1454,7 @@ module Format_history = struct
     | Wildcard -> fprintf ppf "it's a _ in the type"
     | Unification_var -> fprintf ppf "it's a fresh unification variable"
     | Array_element -> fprintf ppf "it's the type of an array element"
+    | Old_style_unboxed_type -> fprintf ppf "it's an [@@@@unboxed] type"
 
   let rec format_annotation_context ppf : History.annotation_context -> unit =
     function
@@ -1947,6 +1948,7 @@ module Debug_printers = struct
     | Wildcard -> fprintf ppf "Wildcard"
     | Unification_var -> fprintf ppf "Unification_var"
     | Array_element -> fprintf ppf "Array_element"
+    | Old_style_unboxed_type -> fprintf ppf "Old_style_unboxed_type"
 
   let rec annotation_context ppf : History.annotation_context -> unit = function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p

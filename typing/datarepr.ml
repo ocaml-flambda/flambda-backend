@@ -108,10 +108,17 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let ty_res = newgenconstr ty_path decl.type_params in
   let cstr_shapes_and_arg_jkinds =
-    match rep with
-    | Variant_extensible -> assert false
-    | Variant_boxed x -> x
-    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
+    match rep, cstrs with
+    | Variant_extensible, _ -> assert false
+    | Variant_boxed x, _ -> x
+    | Variant_unboxed, [{ cd_args }] ->
+      begin match cd_args with
+      | Cstr_tuple [{ ca_jkind = jkind }]
+      | Cstr_record [{ ld_jkind = jkind }] ->
+        [| Constructor_uniform_value, [| jkind |] |]
+      | _ -> Misc.fatal_error "Multiple arguments in [@@unboxed] variant"
+      end
+    | _ -> Misc.fatal_error "Multiple constructors in [@@unboxed] variant"
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
