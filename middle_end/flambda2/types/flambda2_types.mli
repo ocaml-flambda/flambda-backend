@@ -654,21 +654,24 @@ val meet_is_naked_number_array :
 
 val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
-val meet_is_immutable_array :
-  Typing_env.t ->
-  t ->
-  (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
-  * t array
-  * Alloc_mode.For_types.t)
-  meet_shortcut
+module Array_contents : sig
+  type nonrec t = private
+    | Immutable of { fields : t array }
+    | Mutable
+end
 
-val prove_is_immutable_array :
-  Typing_env.t ->
-  t ->
-  (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
-  * t array
-  * Alloc_mode.For_types.t)
-  proof_of_property
+module Array_type : sig
+  type nonrec t = private
+    { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
+      length : t;
+      contents : Array_contents.t Or_unknown.t;
+      alloc_mode : Alloc_mode.For_types.t
+    }
+end
+
+val meet_is_array : Typing_env.t -> t -> Array_type.t meet_shortcut
+
+val prove_is_array : Typing_env.t -> t -> Array_type.t proof_of_property
 
 val meet_single_closures_entry :
   Typing_env.t ->

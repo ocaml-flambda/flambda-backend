@@ -964,14 +964,26 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     in
     (* CR mshinwell/vlaviron: if immutable array accesses were consistently
        setting [mutability] to [Immutable], we could restrict the following code
-       to immutable loads only and use [T.meet_is_immutable_array] instead. *)
-    match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
-    | Unknown -> contents_unknown ()
-    | Proved (elt_kind, fields, _mode) -> (
-      match elt_kind with
+       to immutable loads only and use [T.meet_is_array] instead. *)
+    match T.prove_is_array (DA.typing_env dacc) array_ty with
+    | Unknown
+    | Proved
+        { element_kind = _;
+          length = _;
+          contents = Known Mutable | Unknown;
+          alloc_mode = _
+        } ->
+      contents_unknown ()
+    | Proved
+        { element_kind;
+          length = _;
+          contents = Known (Immutable { fields });
+          alloc_mode = _
+        } -> (
+      match element_kind with
       | Unknown | Bottom -> contents_unknown ()
-      | Ok elt_kind -> (
-        if not (K.equal (K.With_subkind.kind elt_kind) result_kind)
+      | Ok element_kind -> (
+        if not (K.equal (K.With_subkind.kind element_kind) result_kind)
         then contents_unknown ()
         else
           match
