@@ -782,12 +782,12 @@ class virtual selector_generic =
               let env, r =
                 Select_utils.env_add_static_exception nfail rs env label
               in
-              env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
+              env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold, label)) map)
             (env, Int.Map.empty) handlers
         in
         let r_body, s_body = self#emit_sequence env body ~bound_name in
-        let translate_one_handler nfail (trap_info, (ids, rs, e2, _dbg, is_cold))
-            =
+        let translate_one_handler nfail
+            (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
           assert (List.length ids = List.length rs);
           let trap_stack =
             match (!trap_info : Select_utils.trap_stack_info) with
@@ -822,7 +822,7 @@ class virtual selector_generic =
                         [||] [||])
                   ids_and_rs)
           in
-          (nfail, trap_stack, is_cold), (r, s)
+          (nfail, trap_stack, is_cold, label), (r, s)
         in
         let rec build_all_reachable_handlers ~already_built ~not_built =
           let not_built, to_build =
@@ -850,7 +850,18 @@ class virtual selector_generic =
         assert (sub_cfg.exit.terminator.desc = Cfg.Never);
         let s_body : Sub_cfg.t = s_body#extract in
         let s_handlers =
-          List.map (fun (_, (_, sub_handler)) -> sub_handler#extract) l
+          List.map
+            (fun ((_, _, _, label), (_, sub_handler)) ->
+              let seq : Sub_cfg.t = sub_handler#extract in
+              let pre_entry : Cfg.basic_block =
+                Sub_cfg.make_empty_block ~label
+                  (Sub_cfg.make_instr (Cfg.Always seq.entry.start) [||] [||]
+                     Debuginfo.none)
+              in
+              DLL.add_begin seq.layout pre_entry;
+              let seq = { seq with entry = pre_entry } in
+              seq)
+            l
         in
         let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
         sub_cfg.exit.terminator
