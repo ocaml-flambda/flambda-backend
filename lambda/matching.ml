@@ -3134,8 +3134,8 @@ let split_extension_cases tag_lambda_list =
   List.partition_map
     (fun ({cstr_constant; cstr_tag}, act) ->
        match cstr_constant, cstr_tag with
-       | true, Extension (path,_) -> Left (path, act)
-       | false, Extension (path,_)-> Right (path, act)
+       | true, Extension path -> Left (path, act)
+       | false, Extension path -> Right (path, act)
        | _, Ordinary _ -> assert false)
     tag_lambda_list
 
