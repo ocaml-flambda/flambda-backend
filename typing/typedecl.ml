@@ -887,7 +887,8 @@ let transl_declaration env sdecl (id, uid) =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
         let rep, jkind =
           if unbox then
-            Variant_unboxed, any
+            Variant_unboxed,
+            Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
           else
             (* We mark all arg jkinds "any" here.  They are updated later,
                after the circular type checks make it safe to check jkinds.
@@ -917,13 +918,14 @@ let transl_declaration env sdecl (id, uid) =
             env None true lbls (Record { unboxed = unbox })
           in
           let rep, jkind =
+            if unbox then
+              Record_unboxed,
+              Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
+            else
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
                [Record_mixed].  Those cases are fixed up after we can get
                accurate jkinds for the fields, in [update_decl_jkind]. *)
-            if unbox then
-              Record_unboxed, any
-            else
               Record_boxed (Array.make (List.length lbls) any),
               Jkind.Builtin.value ~why:Boxed_record
           in

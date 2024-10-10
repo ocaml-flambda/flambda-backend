@@ -197,6 +197,7 @@ module History = struct
     | Wildcard
     | Unification_var
     | Array_element
+    | Old_style_unboxed_type
 
   type annotation_context =
     | Type_declaration of Path.t
