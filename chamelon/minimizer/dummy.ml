@@ -63,7 +63,7 @@ let unit_to_a =
 
 let dummy_core_typet : Parsetree.core_type =
   {
-    ptyp_desc = Ptyp_any;
+    ptyp_desc = Ptyp_any None;
     ptyp_loc_stack = [];
     ptyp_loc = Location.none;
     ptyp_attributes = [];
