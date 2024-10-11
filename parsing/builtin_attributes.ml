@@ -846,12 +846,30 @@ let filter_arity payload =
   in
   find_arity [] payload
 
+(* If "assume_unless_opt" is not found returns None, otherwise
+   returns the rest of the payload. Note it may change the order of the payload,
+   which is fine because we sort it later.  *)
+let filter_assume_unless_opt payload =
+  let rec find acc payload =
+    match payload with
+    | [] -> None
+    | "assume_unless_opt"::tl -> Some (acc @ tl)
+    | hd::tl -> find (hd::acc) tl
+  in
+  find [] payload
+
 let zero_alloc_lookup_table =
   (* These are the possible payloads (sans arity) paired with a function that
      returns the corresponding check_attribute, given the arity and the loc. *)
   [
     (["assume"],
      fun arity loc ->
+       Assume { strict = false; never_returns_normally = false;
+                never_raises = false;
+                arity; loc; });
+    (["assume_unless_opt"],
+     fun arity loc ->
+       (* same as "assume" *)
        Assume { strict = false; never_returns_normally = false;
                 never_raises = false;
                 arity; loc; });
@@ -898,7 +916,7 @@ let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
     | None -> warn ();  Default_zero_alloc
     | Some ca -> ca arity loc
 
-let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
+let parse_zero_alloc_attribute ~in_signature ~on_application ~default_arity attr =
   match attr with
   | None -> Default_zero_alloc
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
@@ -923,7 +941,7 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
         match filter_arity payload with
         | None -> default_arity, payload
         | Some (user_arity, payload) ->
-          if is_arity_allowed then
+          if in_signature then
             user_arity, payload
           else
             (warn_payload loc txt
@@ -931,12 +949,41 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
                 signatures";
              default_arity, payload)
       in
-      parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
+      let parse p =
+        parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) p
+      in
+      match filter_assume_unless_opt payload with
+      | None -> parse payload
+      | Some rest ->
+        if in_signature then
+          (warn_payload loc txt
+             "The payload \"assume_unless_opt\" is not supported \
+              in signatures.";
+           (* Treat [@zero_alloc assume_unless_opt] as [@zero_alloc] in signatures. *)
+           parse rest)
+        else
+          let no_other_payload = List.compare_length_with rest 0 = 0 in
+          if is_zero_alloc_check_enabled ~opt:true && no_other_payload then
+            (if on_application then
+               (* Treat is if there is no attribute.
+                  Check is not allowed on applications. *)
+               Default_zero_alloc
+             else
+               (* Treat [@zero_alloc assume_unless_opt] as [@zero_alloc],
+                  forcing the function to be checked.
+                  Setting [opt = false] to satisfy [@zero_alloc]
+                  and not only [@zero_alloc opt] on the corresponding signatures. *)
+               empty arity)
+          else
+            (* Treat "assume_unless_opt" as "assume".
+               Reuse standard parsing for better error messages. *)
+            parse payload
 
-let get_zero_alloc_attribute ~in_signature ~default_arity l =
+
+let get_zero_alloc_attribute ~in_signature ~on_application ~default_arity l =
   let attr = select_attribute is_zero_alloc_attribute l in
   let res =
-      parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
+      parse_zero_alloc_attribute ~in_signature ~on_application ~default_arity
         attr
   in
   (match attr, res with
@@ -961,6 +1008,7 @@ let zero_alloc_attribute_only_assume_allowed za =
     let name = "zero_alloc" in
     let msg = "Only the following combinations are supported in this context: \
                'zero_alloc assume', \
+               'zero_alloc assume_unless_opt', \
                `zero_alloc assume strict`, \
                `zero_alloc assume error`,\
                `zero_alloc assume never_returns_normally`,\
