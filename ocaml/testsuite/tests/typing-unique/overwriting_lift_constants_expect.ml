@@ -35,6 +35,7 @@ val update_with_constant : unique_ point -> point = <fun>
 *)
 
 (* In this test, the update function returns the same value each time *)
+(* CR uniqueness: I think p and q do not have to be the same here. *)
 let test =
   let p = { dim = 3; x = 1.0; y = 2.0; z = 3.0 } in
   let q = { dim = 3; x = 1.0; y = 2.0; z = 3.0 } in
@@ -118,7 +119,7 @@ val test : bool * bool = (false, true)
 *)
 
 (* Since the tail was marked unique, it can not be lifted out *)
-(* CR: is this right? See next test. *)
+(* CR uniqueness: is this right? See next test. *)
 let constant_list_unique x =
   let unique_ y = 2 :: [] in x :: y
 [%%expect{|
@@ -130,7 +131,7 @@ val constant_list_unique : int -> int list = <fun>
 |}]
 *)
 
-(* CR: I don't understand the old outcome of this test and
+(* CR uniqueness: I don't understand the old outcome of this test and
    it might have been a bug. I would expect (false, false) *)
 let test =
   List.hd (constant_list_unique 1) == List.hd (constant_list_unique 2),

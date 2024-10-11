@@ -4,6 +4,9 @@
    reference = "${test_source_directory}/rbtree.byte.reference";
 *)
 
+(* CR uniqueness: To run this test replace 'expect' above by 'native'
+   and delete the expect block. *)
+
 type color = Red | Black
 
 type ('k, 'v) tree =

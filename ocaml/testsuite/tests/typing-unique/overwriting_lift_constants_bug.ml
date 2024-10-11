@@ -4,6 +4,9 @@
    reference = "${test_source_directory}/overwriting_lift_constants_bug.reference";
 *)
 
+(* CR uniqueness: To run this test replace 'expect' above by 'native'
+   and delete the expect block. *)
+
 type point = { dim : int; x : float; y : float; z : float }
 
 let constant_lift b =
