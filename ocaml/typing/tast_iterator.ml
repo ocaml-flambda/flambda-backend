@@ -708,7 +708,13 @@ let value_binding sub ({vb_loc; vb_pat; vb_expr; vb_attributes; _} as vb) =
 let env _sub _ = ()
 
 let jkind_annotation sub ((_, l) : Jkind.annotation) =
-  sub.location sub l.pjkind_loc
+  (* iterate over locations contained within parsetree jkind annotation *)
+  let ast_iterator =
+    { Ast_iterator.default_iterator
+      with location = (fun _this loc -> sub.location sub loc)
+    }
+  in
+  ast_iterator.jkind_annotation ast_iterator l
 
 let item_declaration _sub _ = ()
 
