@@ -25,22 +25,23 @@ val create : dummy_toplevel_cont:Continuation.t -> Flow_types.Acc.t -> t
 
 val fixpoint :
   t ->
-  init:Variable.Set.t Continuation.Map.t ->
+  init:'a Continuation.Map.t ->
+  eq:('a -> 'a -> bool) ->
   f:
     (caller:Continuation.t ->
-    caller_set:Variable.Set.t ->
+    caller_set:'a ->
     callee:Continuation.t ->
-    callee_set:Variable.Set.t ->
-    Variable.Set.t) ->
-  Variable.Set.t Continuation.Map.t
+    callee_set:'a ->
+    'a) ->
+  'a Continuation.Map.t
 
 (** Run the required names analysis *)
 val compute_continuation_extra_args_for_aliases :
   speculative:bool ->
   required_names:Name.Set.t ->
   source_info:Flow_types.Acc.t ->
-  unboxed_blocks:Variable.Set.t ->
-  Variable.t Variable.Map.t ->
+  unboxed_blocks:Simple.Set.t ->
+  Simple.t Variable.Map.t ->
   t ->
   Flow_types.Continuation_param_aliases.t Continuation.Map.t
 

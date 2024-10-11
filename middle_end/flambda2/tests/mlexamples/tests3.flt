@@ -126,15 +126,18 @@ let code loopify(never) size(65) newer_version_of(foo_0)
     where k2 (apply_result) =
       ((let cond_result = %is_flat_float_array arr in
         switch cond_result
-          | 0 -> k3
-          | 1 -> k2)
-         where k3 =
+          | 0 -> k4
+          | 1 -> k3)
+         where k4 =
            let ifnot_result = %array_set arr.(i) <- apply_result in
-           cont k (0)
-         where k2 =
+           cont k2
+         where k3 =
            let prim = %unbox_float apply_result in
            let ifso_result = %array_set float arr.(i) <- prim in
-           cont k (0))
+           cont k2
+         where k2 =
+           let if_then_else_result = 0 in
+           cont k (if_then_else_result))
 in
 let $camlTests3__foo_2 = closure foo_0_1 @foo in
 let code loopify(never) size(33) newer_version_of(f_1)
