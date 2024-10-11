@@ -263,6 +263,8 @@ and expression_desc =
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
   | Texp_src_pos
+  | Texp_overwrite of Ident.t * Longident.t loc * unique_use * expression
+  | Texp_hole
 
 and ident_kind =
   | Id_value

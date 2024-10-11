@@ -626,7 +626,12 @@ and expression i ppf x =
       line i ppf "Texp_exclave";
       expression i ppf e;
   | Texp_src_pos ->
-    line i ppf "Texp_src_pos"
+      line i ppf "Texp_src_pos"
+  | Texp_overwrite (id, _, _, e) ->
+    line i ppf "Texp_overwrite %a\n" fmt_path (Path.Pident id);
+    expression i ppf e
+  | Texp_hole ->
+    line i ppf "Texp_hole"
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_ident x.val_id fmt_location

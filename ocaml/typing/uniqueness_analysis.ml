@@ -870,6 +870,9 @@ module Value : sig
   (** Mark the value as aliased_or_unique   *)
   val mark_maybe_unique : t -> UF.t
 
+  (** Mark the value's memory address as aliased_or_unique   *)
+  val mark_consumed_memory_address : t -> UF.t
+
   (** Mark the memory_address of the value as implicitly borrowed
       (borrow_or_aliased). *)
   val mark_implicit_borrow_memory_address : Maybe_aliased.access -> t -> UF.t
@@ -908,6 +911,13 @@ end = struct
     | Fresh -> UF.unused
     | Existing { paths; unique_use; occ } ->
       Paths.mark (Usage.maybe_unique unique_use occ) paths
+
+  let mark_consumed_memory_address = function
+    | Fresh -> UF.unused
+    | Existing { paths; unique_use; occ } ->
+      Paths.mark
+        (Usage.maybe_unique unique_use occ)
+        (Paths.memory_address paths)
 
   let mark_aliased ~reason = function
     | Fresh -> UF.unused
@@ -1446,6 +1456,20 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
   | Texp_probe_is_enabled _ -> UF.unused
   | Texp_exclave e -> check_uniqueness_exp ienv e
   | Texp_src_pos -> UF.unused
+  | Texp_overwrite (id, _, unique_use, e) ->
+    let loc = exp.exp_loc in
+    let occ = Occurrence.mk loc in
+    let value =
+      match value_of_ident ienv unique_use occ (Path.Pident id) with
+      | None ->
+        (* cross module access - don't track *)
+        Value.untracked unique_use occ
+      | Some value -> value
+    in
+    let uf_body = check_uniqueness_exp ienv e in
+    (* We first evaluate the body and then perform the overwrite: *)
+    UF.seq uf_body (Value.mark_consumed_memory_address value)
+  | Texp_hole -> UF.unused
 
 (**
 Corresponds to the first mode.

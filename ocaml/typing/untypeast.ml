@@ -762,6 +762,9 @@ let expression sub exp =
         pexp_attributes = [];
       }, [Nolabel, sub.expr sub exp])
     | Texp_src_pos -> Pexp_extension ({ txt = "src_pos"; loc }, PStr [])
+    | Texp_overwrite (_, lid, _, exp) ->
+        Pexp_overwrite(lid, sub.expr sub exp)
+    | Texp_hole -> Pexp_hole
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs:!attrs desc)
