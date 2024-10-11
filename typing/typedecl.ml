@@ -3243,14 +3243,31 @@ let transl_value_decl env loc ~sig_modalities valdecl =
       in
       let zero_alloc =
         match zero_alloc with
-        | Default_zero_alloc -> Zero_alloc.default
+        | Default_zero_alloc ->
+          (* We fabricate a "Check" attribute if a top-level annotation
+             specifies that all functions should be checked for zero alloc. *)
+          if default_arity = 0 then
+            Zero_alloc.default
+          else
+            let create_const ~opt =
+              Zero_alloc.create_const
+                (Check { strict = false;
+                         arity = default_arity;
+                         loc;
+                         opt })
+            in
+            (match !Clflags.zero_alloc_assert with
+             | Assert_default -> Zero_alloc.default
+             | Assert_all -> create_const ~opt:false
+             | Assert_all_opt -> create_const ~opt:true)
+        | Ignore_assert_all -> Zero_alloc.ignore_assert_all
         | Check za ->
           if default_arity = 0 && za.arity <= 0 then
             raise (Error(valdecl.pval_loc, Zero_alloc_attr_non_function));
           if za.arity <= 0 then
             raise (Error(valdecl.pval_loc, Zero_alloc_attr_bad_user_arity));
           Zero_alloc.create_const zero_alloc
-        | Assume _ | Ignore_assert_all ->
+        | Assume _ ->
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       in
       { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;

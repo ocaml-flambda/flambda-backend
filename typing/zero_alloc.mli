@@ -29,6 +29,10 @@ type t
    done. *)
 val default : t
 
+(* [ignore_assert_all] corresponds to [Ignore_assert_all], meaning no check will be
+   done even if [Clflags.zero_alloc_assert] is set to "all" or "all_opt". *)
+val ignore_assert_all : t
+
 val create_const : const -> t
 
 (* [create_var loc n] creates a variable. [loc] is the location of the function
