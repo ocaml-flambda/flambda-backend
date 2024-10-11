@@ -436,10 +436,33 @@ let () =
   let module M2 = Make_Unique_Okasaki(Ord) in
   let module M3 = Make_Tagged_Okasaki(Ord) in
   let module M4 = Make_Tagged_Bottom_Up(Ord) in
-  Printf.printf "%d\n" (work ~insert:M1.insert ~fold ~empty:Leaf);
-  Printf.printf "%d\n" (unique_work ~insert:M2.insert ~fold ~empty:Leaf);
-  Printf.printf "%d\n" (unique_work ~insert:M3.insert ~fold:tagged_fold ~empty:Leaf);
-  Printf.printf "%d\n" (unique_work ~insert:M4.insert ~fold:tagged_fold ~empty:Leaf);
+
+  let baseline_allocation = Gc.allocated_bytes() -. Gc.allocated_bytes() in
+  let bytes_per_word = Sys.word_size / 8 in
+  let node_size = 6 in
+  let compute_delta before after =
+    int_of_float ((after -. before) -. baseline_allocation) / bytes_per_word / node_size
+  in
+
+  let r1 = work ~insert:M1.insert ~fold ~empty:Leaf in
+
+  let before_r2 = Gc.allocated_bytes () in
+  let r2 = unique_work ~insert:M2.insert ~fold ~empty:Leaf in
+  let after_r2 = Gc.allocated_bytes () in
+  let delta_r2 = compute_delta before_r2 after_r2 in
+
+  let before_r3 = Gc.allocated_bytes () in
+  let r3 = unique_work ~insert:M3.insert ~fold:tagged_fold ~empty:Leaf in
+  let after_r3 = Gc.allocated_bytes () in
+  let delta_r3 = compute_delta before_r3 after_r3 in
+
+  let before_r4 = Gc.allocated_bytes () in
+  let r4 = unique_work ~insert:M4.insert ~fold:tagged_fold ~empty:Leaf in
+  let after_r4 = Gc.allocated_bytes () in
+  let delta_r4 = compute_delta before_r4 after_r4 in
+
+  Printf.printf "%d\n%d %d\n%d %d\n%d %d\n"
+    r1 r2 delta_r2 r3 delta_r3 r4 delta_r4
 
 [%%expect{|
 type color = Red | Black
