@@ -3,9 +3,9 @@
    expect;
 *)
 
-type record_update = { x : string }
+type record_update = { x : string; y : string }
 [%%expect{|
-type record_update = { x : string; }
+type record_update = { x : string; y : string; }
 |}]
 
 
@@ -30,40 +30,97 @@ Error: Unbound value "update"
 |}]
 
 (* Only global values may be written during overwrites,
-   since the GC does not allow heap-to-stack pointers. *)
+   since the GC does not allow heap-to-stack pointers.
+   However, it is fine if there are local values (like y here)
+   that are not overwritten. We test 2^3 configurations:
+   - the overwritten value can be local/global
+   - the resulting value can be local/global
+   - the value written in the record can be local/global *)
 
 let gc_soundness_bug (local_ unique_ r) (local_ x) =
-  exclave_ (overwrite_ r with { x })
+  exclave_ overwrite_ r with { x }
 [%%expect{|
-Line 2, characters 11-36:
-2 |   exclave_ (overwrite_ r with { x })
-               ^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 11-34:
+2 |   exclave_ overwrite_ r with { x }
+               ^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
-let gc_soundness_nobug (local_ unique_ r) x =
-  exclave_ (overwrite_ r with { x })
+let disallowed_by_locality (local_ unique_ r) (local_ x) =
+  overwrite_ r with { x }
 [%%expect{|
-Line 2, characters 11-36:
-2 |   exclave_ (overwrite_ r with { x })
-               ^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 2-25:
+2 |   overwrite_ r with { x }
+      ^^^^^^^^^^^^^^^^^^^^^^^
 Alert : Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
-let gc_soundness_nobug (local_ unique_ r) (local_ x) =
-  exclave_ ({ r with x })
+let gc_soundness_bug (unique_ r) (local_ x) =
+  exclave_ overwrite_ r with { x }
 [%%expect{|
-Line 2, characters 11-25:
-2 |   exclave_ ({ r with x })
-               ^^^^^^^^^^^^^^
-Warning 23 [useless-record-with]: all the fields are explicitly listed in this record:
-the 'with' clause is useless.
+Line 2, characters 11-34:
+2 |   exclave_ overwrite_ r with { x }
+               ^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
-val gc_soundness_nobug :
-  local_ unique_ record_update -> local_ string -> local_ record_update @@
-  global many = <fun>
+|}]
+
+let disallowed_by_locality (unique_ r) (local_ x) =
+  overwrite_ r with { x }
+[%%expect{|
+Line 2, characters 2-25:
+2 |   overwrite_ r with { x }
+      ^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let gc_soundness_no_bug (local_ unique_ r) x =
+  exclave_ overwrite_ r with { x }
+[%%expect{|
+Line 2, characters 11-34:
+2 |   exclave_ overwrite_ r with { x }
+               ^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let disallowed_by_locality (local_ unique_ r) x =
+  overwrite_ r with { x }
+[%%expect{|
+Line 2, characters 2-25:
+2 |   overwrite_ r with { x }
+      ^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let gc_soundness_no_bug (unique_ r) x =
+  exclave_ overwrite_ r with { x }
+[%%expect{|
+Line 2, characters 11-34:
+2 |   exclave_ overwrite_ r with { x }
+               ^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let gc_soundness_no_bug (unique_ r) x =
+  overwrite_ r with { x }
+[%%expect{|
+Line 2, characters 2-25:
+2 |   overwrite_ r with { x }
+      ^^^^^^^^^^^^^^^^^^^^^^^
+Alert : Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
