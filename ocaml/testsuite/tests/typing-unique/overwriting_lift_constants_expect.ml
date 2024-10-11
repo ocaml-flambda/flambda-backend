@@ -1,6 +1,5 @@
 (* TEST
-   flags += "-extension unique ";
-   flags += "-extension overwriting ";
+   flags += "-extension-universe alpha";
    expect;
 *)
 
@@ -97,7 +96,7 @@ val test : bool = true
 let constant_list x =
   x :: 2 :: []
 [%%expect{|
-val constant_list : int -> int list = <fun>
+val constant_list : int -> int list @@ global many = <fun>
 |}]
 (*
 [%%expect{|
@@ -110,7 +109,7 @@ let test =
   List.hd (constant_list 1) == List.hd (constant_list 2),
   List.tl (constant_list 1) == List.tl (constant_list 2)
 [%%expect{|
-val test : bool * bool = (false, true)
+val test : bool * bool @@ global many = (false, true)
 |}]
 (*
 [%%expect{|
@@ -123,7 +122,7 @@ val test : bool * bool = (false, true)
 let constant_list_unique x =
   let unique_ y = 2 :: [] in x :: y
 [%%expect{|
-val constant_list_unique : int -> int list = <fun>
+val constant_list_unique : int -> int list @@ global many = <fun>
 |}]
 (*
 [%%expect{|
@@ -137,7 +136,7 @@ let test =
   List.hd (constant_list_unique 1) == List.hd (constant_list_unique 2),
   List.tl (constant_list_unique 1) == List.tl (constant_list_unique 2)
 [%%expect{|
-val test : bool * bool = (false, true)
+val test : bool * bool @@ global many = (false, true)
 |}]
 (*
 [%%expect{|
@@ -150,7 +149,7 @@ let constant_list_unique2 x =
   let unique_ z = [] in
   let unique_ y = 2 :: z in x :: y
 [%%expect{|
-val constant_list_unique2 : int -> int list = <fun>
+val constant_list_unique2 : int -> int list @@ global many = <fun>
 |}]
 (*
 [%%expect{|
@@ -163,7 +162,7 @@ let test =
   List.hd (constant_list_unique2 1) == List.hd (constant_list_unique2 2),
   List.tl (constant_list_unique2 1) == List.tl (constant_list_unique2 2)
 [%%expect{|
-val test : bool * bool = (false, false)
+val test : bool * bool @@ global many = (false, false)
 |}]
 (*
 [%%expect{|

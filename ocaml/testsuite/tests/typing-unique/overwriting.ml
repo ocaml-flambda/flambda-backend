@@ -1,6 +1,5 @@
 (* TEST
-   flags += "-extension unique ";
-   flags += "-extension overwriting ";
+   flags += "-extension-universe alpha";
    expect;
 *)
 
@@ -65,6 +64,6 @@ Warning 23 [useless-record-with]: all the fields are explicitly listed in this r
 the 'with' clause is useless.
 
 val gc_soundness_nobug :
-  local_ unique_ record_update -> local_ string -> local_ record_update =
-  <fun>
+  local_ unique_ record_update -> local_ string -> local_ record_update @@
+  global many = <fun>
 |}]
