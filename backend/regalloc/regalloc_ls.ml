@@ -143,15 +143,15 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
       let num_still_available = ref num_available_registers in
       let set_not_available r =
         let idx = r - first_available in
-        if idx < num_available_registers
-        then (
-          if available.(idx) then decr num_still_available;
-          available.(idx) <- false;
-          if !num_still_available = 0 then raise No_free_register)
+        if available.(idx) then decr num_still_available;
+        available.(idx) <- false;
+        if !num_still_available = 0 then raise No_free_register
       in
       List.iter intervals.active ~f:(fun (interval : Interval.t) ->
           match interval.reg.loc with
-          | Reg r -> set_not_available r
+          | Reg r ->
+            if r - first_available < num_available_registers
+            then set_not_available r
           | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
@@ -166,7 +166,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
       List.iter intervals.fixed ~f:remove_bound_overlapping;
       let rec assign idx =
         if idx >= num_available_registers
-        then raise No_free_register
+        then Misc.fatal_error "No_free_register should have been raised earlier"
         else if available.(idx)
         then (
           reg.loc <- Reg (first_available + idx);
