@@ -105,8 +105,8 @@ and core_type =
     }
 
 and core_type_desc =
-  | Ptyp_any of jkind_annotation_opt (** [_] or [_ : k] *)
-  | Ptyp_var of string * jkind_annotation_opt
+  | Ptyp_any of jkind_annotation option (** [_] or [_ : k] *)
+  | Ptyp_var of string * jkind_annotation option
     (** A type variable such as ['a] or ['a : k] *)
   | Ptyp_arrow of arg_label * core_type * core_type * modes * modes
       (** [Ptyp_arrow(lbl, T1, T2, M1, M2)] represents:
@@ -151,7 +151,7 @@ and core_type_desc =
             - [T #tconstr]             when [l=[T]],
             - [(T1, ..., Tn) #tconstr] when [l=[T1 ; ... ; Tn]].
          *)
-  | Ptyp_alias of core_type * string loc option * jkind_annotation_opt
+  | Ptyp_alias of core_type * string loc option * jkind_annotation option
       (** [T as 'a] or [T as ('a : k)] or [T as (_ : k)].
 
           Invariant: the name or jkind annotation is non-None.
@@ -171,7 +171,7 @@ and core_type_desc =
                       when [flag]   is {{!Asttypes.closed_flag.Closed}[Closed]},
                        and [labels] is [Some ["X";"Y"]].
          *)
-  | Ptyp_poly of (string loc * jkind_annotation_opt) list * core_type
+  | Ptyp_poly of (string loc * jkind_annotation option) list * core_type
       (** ['a1 ... 'an. T]
           [('a1 : k1) ... ('an : kn). T]
 
@@ -479,7 +479,7 @@ and expression_desc =
            {{!class_field_kind.Cfk_concrete}[Cfk_concrete]} for methods (not
            values). *)
   | Pexp_object of class_structure  (** [object ... end] *)
-  | Pexp_newtype of string loc * jkind_annotation_opt * expression
+  | Pexp_newtype of string loc * jkind_annotation option * expression
       (** [fun (type t) -> E] or [fun (type t : k) -> E] *)
   | Pexp_pack of module_expr
       (** [(module ME)].
@@ -539,7 +539,7 @@ and function_param_desc =
       Note: If [E0] is provided, only
       {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
   *)
-  | Pparam_newtype of string loc * jkind_annotation_opt
+  | Pparam_newtype of string loc * jkind_annotation option
   (** [Pparam_newtype x] represents the parameter [(type x)].
       [x] carries the location of the identifier, whereas the [pparam_loc]
       on the enclosing [function_param] node is the location of the [(type x)]
@@ -621,7 +621,7 @@ and type_declaration =
      ptype_private: private_flag;  (** for [= private ...] *)
      ptype_manifest: core_type option;  (** represents [= T] *)
      ptype_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
-     ptype_jkind_annotation: jkind_annotation_opt; (** for [: jkind] *)
+     ptype_jkind_annotation: jkind_annotation option; (** for [: jkind] *)
      ptype_loc: Location.t;
     }
 (**
@@ -679,7 +679,7 @@ and label_declaration =
 and constructor_declaration =
     {
      pcd_name: string loc;
-     pcd_vars: (string loc * jkind_annotation_opt) list;
+     pcd_vars: (string loc * jkind_annotation option) list;
       (** jkind annotations are [C : ('a : kind1) ('a2 : kind2). ...] *)
      pcd_args: constructor_arguments;
      pcd_res: core_type option;
@@ -742,7 +742,7 @@ and type_exception =
 (** Definition of a new exception ([exception E]). *)
 
 and extension_constructor_kind =
-  | Pext_decl of (string loc * jkind_annotation_opt) list
+  | Pext_decl of (string loc * jkind_annotation option) list
                  * constructor_arguments * core_type option
       (** [Pext_decl(existentials, c_args, t_opt)]
           describes a new extension constructor. It can be:
@@ -1028,7 +1028,7 @@ and signature_item_desc =
       (** [class type ct1 = ... and ... and ctn = ...] *)
   | Psig_attribute of attribute  (** [[\@\@\@id]] *)
   | Psig_extension of extension * attributes  (** [[%%id]] *)
-  | Psig_kind_abbrev of string loc * jkind_annotation loc
+  | Psig_kind_abbrev of string loc * jkind_annotation
       (** [kind_abbrev_ name = k] *)
 
 and module_declaration =
@@ -1177,7 +1177,7 @@ and structure_item_desc =
   | Pstr_include of include_declaration  (** [include ME] *)
   | Pstr_attribute of attribute  (** [[\@\@\@id]] *)
   | Pstr_extension of extension * attributes  (** [[%%id]] *)
-  | Pstr_kind_abbrev of string loc * jkind_annotation loc
+  | Pstr_kind_abbrev of string loc * jkind_annotation
       (** [kind_abbrev_ name = k] *)
 
 and value_constraint =
@@ -1215,17 +1215,18 @@ and module_binding =
     }
 (** Values of type [module_binding] represents [module X = ME] *)
 
-and jkind_const_annotation  = string Location.loc
-
-and jkind_annotation =
+and jkind_annotation_desc =
   | Default
-  | Abbreviation of jkind_const_annotation
+  | Abbreviation of string
   | Mod of jkind_annotation * modes
   | With of jkind_annotation * core_type
   | Kind_of of core_type
   | Product of jkind_annotation list
 
-and jkind_annotation_opt = jkind_annotation loc option
+and jkind_annotation =
+  { pjkind_loc : Location.t
+  ; pjkind_desc : jkind_annotation_desc
+  }
 
 (** {1 Toplevel} *)
 

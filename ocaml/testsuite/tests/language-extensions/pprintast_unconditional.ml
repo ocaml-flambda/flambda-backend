@@ -81,12 +81,23 @@ module Example = struct
                          ; ptype_manifest = Some core_type
                          ; ptype_attributes = []
                          ; ptype_loc = loc
-                         ; ptype_jkind_annotation = Some (located Default)
+                         ; ptype_jkind_annotation =
+                             Some
+                               { pjkind_loc = loc;
+                                 pjkind_desc =  Default;
+                               }
                          }
   let tyvar            = "no_tyvars_require_extensions"
   let tyvar_of_name    = "no_tyvars_require_extensions"
-  let jkind : jkind_annotation =
-    With ( Abbreviation (located "value"), core_type)
+  let jkind_annotation : jkind_annotation =
+    { pjkind_loc = loc;
+      pjkind_desc =
+        With
+          ( { pjkind_loc = loc;
+              pjkind_desc = Abbreviation "value";
+            }
+          , core_type );
+    }
 
   let mode = { Location.txt = (Parsetree.Mode "global"); loc }
 end
@@ -163,7 +174,7 @@ end = struct
   let tyvar_of_name =
     test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name
   let tyvar = test "tyvar" tyvar Example.tyvar
-  let jkind = test "jkind" jkind Example.jkind
+  let jkind_annotation = test "jkind" jkind_annotation Example.jkind_annotation
   let mode = test "mode" mode Example.mode
 end
 

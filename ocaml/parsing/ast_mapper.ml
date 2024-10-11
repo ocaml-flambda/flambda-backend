@@ -102,11 +102,6 @@ let map_tuple3 f1 f2 f3 (x, y, z) = (f1 x, f2 y, f3 z)
 let map_opt f = function None -> None | Some x -> Some (f x)
 
 let map_loc sub {loc; txt} = {loc = sub.location sub loc; txt}
-let map_loc_txt sub f {loc; txt} =
-  {loc = sub.location sub loc; txt = f sub txt}
-
-let map_jkind_annotation_opt sub jkind =
-    map_opt (map_loc_txt sub sub.jkind_annotation) jkind
 
 module C = struct
   (* Constants *)
@@ -155,7 +150,7 @@ module T = struct
   let var_jkind sub (name, jkind_opt) =
     let name = map_loc sub name in
     let jkind_opt =
-      map_opt (map_loc_txt sub sub.jkind_annotation) jkind_opt
+      map_opt (sub.jkind_annotation sub) jkind_opt
     in
     (name, jkind_opt)
 
@@ -187,10 +182,10 @@ module T = struct
 
  *)
     | Ptyp_any jkind ->
-        let jkind = map_jkind_annotation_opt sub jkind in
+        let jkind = map_opt (sub.jkind_annotation sub) jkind in
         any ~loc ~attrs jkind
     | Ptyp_var (s, jkind) ->
-        let jkind = map_jkind_annotation_opt sub jkind in
+        let jkind = map_opt (sub.jkind_annotation sub) jkind in
         var ~loc ~attrs s jkind
     | Ptyp_arrow (lab, t1, t2, m1, m2) ->
         arrow ~loc ~attrs lab (sub.typ sub t1) (sub.typ sub t2) (sub.modes sub m1) (sub.modes sub m2)
@@ -205,7 +200,7 @@ module T = struct
         class_ ~loc ~attrs (map_loc sub lid) (List.map (sub.typ sub) tl)
     | Ptyp_alias (t, s, jkind) ->
         let s = map_opt (map_loc sub) s in
-        let jkind = map_jkind_annotation_opt sub jkind in
+        let jkind = map_opt (sub.jkind_annotation sub) jkind in
         alias ~loc ~attrs (sub.typ sub t) s jkind
     | Ptyp_variant (rl, b, ll) ->
         variant ~loc ~attrs (List.map (row_field sub) rl) b ll
@@ -213,7 +208,7 @@ module T = struct
         let sl =
           List.map (fun (var, jkind) ->
               map_loc sub var,
-              map_jkind_annotation_opt sub jkind)
+              map_opt (sub.jkind_annotation sub) jkind)
             sl
         in
         let t = sub.typ sub t in
@@ -235,7 +230,7 @@ module T = struct
        ptype_loc} =
     let loc = sub.location sub ptype_loc in
     let ptype_jkind_annotation =
-      map_jkind_annotation_opt sub ptype_jkind_annotation
+      map_opt (sub.jkind_annotation sub) ptype_jkind_annotation
     in
     let attrs = sub.attributes sub ptype_attributes in
     Type.mk ~loc ~attrs (map_loc sub ptype_name)
@@ -429,7 +424,7 @@ module MT = struct
         kind_abbrev
           ~loc
           (map_loc sub name)
-          (map_loc_txt sub sub.jkind_annotation jkind)
+          (sub.jkind_annotation sub jkind)
 
   let map_jane_syntax sub :
         Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t = function
@@ -513,7 +508,7 @@ module M = struct
         kind_abbrev
           ~loc
           (map_loc sub name)
-          (map_loc_txt sub sub.jkind_annotation jkind)
+          (sub.jkind_annotation sub jkind)
 end
 
 module E = struct
@@ -531,7 +526,7 @@ module E = struct
       | Pparam_newtype (newtype, jkind) ->
           Pparam_newtype
             ( map_loc sub newtype
-            , map_opt (map_loc_txt sub sub.jkind_annotation) jkind
+            , map_opt (sub.jkind_annotation sub) jkind
             )
     in
     { pparam_loc = loc; pparam_desc = desc }
@@ -673,7 +668,8 @@ module E = struct
         poly ~loc ~attrs (sub.expr sub e) (map_opt (sub.typ sub) t)
     | Pexp_object cls -> object_ ~loc ~attrs (sub.class_structure sub cls)
     | Pexp_newtype (s, jkind, e) ->
-        newtype ~loc ~attrs (map_loc sub s) (map_jkind_annotation_opt sub jkind)
+        newtype ~loc ~attrs (map_loc sub s)
+          (map_opt (sub.jkind_annotation sub) jkind)
           (sub.expr sub e)
     | Pexp_pack me -> pack ~loc ~attrs (sub.module_expr sub me)
     | Pexp_open (o, e) ->
@@ -1013,17 +1009,20 @@ let default_mapper =
          | PPat (x, g) -> PPat (this.pat this x, map_opt (this.expr this) g)
       );
 
-    jkind_annotation = (fun this ->
-      function
-      | Default -> Default
-      | Abbreviation s ->
-        Abbreviation (map_loc this s)
-      | Mod (t, mode_list) ->
-        Mod (this.jkind_annotation this t, this.modes this mode_list)
-      | With (t, ty) ->
-        With (this.jkind_annotation this t, this.typ this ty)
-      | Kind_of ty -> Kind_of (this.typ this ty)
-      | Product ts -> Product (List.map (this.jkind_annotation this) ts));
+    jkind_annotation = (fun this { pjkind_loc; pjkind_desc } ->
+      let pjkind_loc = this.location this pjkind_loc in
+      let pjkind_desc =
+        match pjkind_desc with
+        | Default -> Default
+        | Abbreviation (s : string) -> Abbreviation s
+        | Mod (t, mode_list) ->
+          Mod (this.jkind_annotation this t, this.modes this mode_list)
+        | With (t, ty) ->
+          With (this.jkind_annotation this t, this.typ this ty)
+        | Kind_of ty -> Kind_of (this.typ this ty)
+        | Product ts -> Product (List.map (this.jkind_annotation this) ts)
+      in
+      { pjkind_loc; pjkind_desc });
 
     expr_jane_syntax = E.map_jst;
     module_type_jane_syntax = MT.map_jane_syntax;

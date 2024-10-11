@@ -94,12 +94,6 @@ let iter_tuple3 f1 f2 f3 (x, y, z) = f1 x; f2 y; f3 z
 let iter_opt f = function None -> () | Some x -> f x
 
 let iter_loc sub {loc; txt = _} = sub.location sub loc
-let iter_loc_txt sub f { loc; txt } =
-  sub.location sub loc;
-  f sub txt
-
-let iter_jkind_opt sub jkind =
-  iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
 
 module T = struct
   (* Type expressions for the core language *)
@@ -126,12 +120,9 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let jkind_annotation sub =
-    iter_loc_txt sub sub.jkind_annotation
-
   let bound_var sub (_, jkind) = match jkind with
     | None -> ()
-    | Some annot -> jkind_annotation sub annot
+    | Some annot -> sub.jkind_annotation sub annot
 
   let iter_labeled_tuple sub tl = List.iter (iter_snd (sub.typ sub)) tl
 
@@ -140,7 +131,7 @@ module T = struct
     sub.attributes sub attrs;
     match desc with
     | Ptyp_any jkind
-    | Ptyp_var (_, jkind) -> iter_jkind_opt sub jkind
+    | Ptyp_var (_, jkind) -> Option.iter (sub.jkind_annotation sub) jkind
     | Ptyp_arrow (_lab, t1, t2, m1, m2) ->
         sub.typ sub t1; sub.typ sub t2;
         sub.modes sub m1; sub.modes sub m2
@@ -154,7 +145,7 @@ module T = struct
         iter_loc sub lid; List.iter (sub.typ sub) tl
     | Ptyp_alias (t, _, jkind) ->
         sub.typ sub t;
-        iter_jkind_opt sub jkind
+        Option.iter (sub.jkind_annotation sub) jkind
     | Ptyp_variant (rl, _b, _ll) ->
         List.iter (row_field sub) rl
     | Ptyp_poly (bound_vars, t) ->
@@ -346,7 +337,7 @@ module MT = struct
     | Psig_attribute x -> sub.attribute sub x
     | Psig_kind_abbrev (name, jkind) ->
         iter_loc sub name;
-        iter_loc_txt sub sub.jkind_annotation jkind
+        sub.jkind_annotation sub jkind
 
   let iter_jane_syntax sub : Jane_syntax.Module_type.t -> _ = function
     | Jmty_strengthen { mty; mod_id } ->
@@ -418,7 +409,7 @@ module M = struct
     | Pstr_attribute x -> sub.attribute sub x
     | Pstr_kind_abbrev (name, jkind) ->
         iter_loc sub name;
-        iter_loc_txt sub sub.jkind_annotation jkind
+        sub.jkind_annotation sub jkind
 end
 
 (* A no-op, but makes it clearer which jane syntax cases should have the same
@@ -471,7 +462,7 @@ module E = struct
           sub.pat sub pat
       | Pparam_newtype (newtype, jkind) ->
           iter_loc sub newtype;
-          iter_jkind_opt sub jkind
+          Option.iter (sub.jkind_annotation sub) jkind
 
   let iter_function_constraint sub : function_constraint -> _ =
     (* Enable warning 9 to ensure that the record pattern doesn't miss any
@@ -573,7 +564,7 @@ module E = struct
         sub.expr sub e; iter_opt (sub.typ sub) t
     | Pexp_object cls -> sub.class_structure sub cls
     | Pexp_newtype (_s, jkind, e) ->
-        iter_jkind_opt sub jkind;
+        Option.iter (sub.jkind_annotation sub) jkind;
         sub.expr sub e
     | Pexp_pack me -> sub.module_expr sub me
     | Pexp_open (o, e) ->
@@ -892,18 +883,19 @@ let default_iterator =
       );
 
     jkind_annotation =
-      (fun this -> function
-        | Default -> ()
-        | Abbreviation s ->
-          iter_loc this s
-        | Mod (t, mode_list) ->
-          this.jkind_annotation this t;
-          this.modes this mode_list
-        | With (t, ty) ->
-          this.jkind_annotation this t;
-          this.typ this ty
-        | Kind_of ty -> this.typ this ty
-        | Product ts -> List.iter (this.jkind_annotation this) ts);
+      (fun this { pjkind_loc; pjkind_desc } ->
+         this.location this pjkind_loc;
+         match pjkind_desc with
+         | Default -> ()
+         | Abbreviation (_ : string) -> ()
+         | Mod (t, mode_list) ->
+             this.jkind_annotation this t;
+             this.modes this mode_list
+         | With (t, ty) ->
+             this.jkind_annotation this t;
+             this.typ this ty
+         | Kind_of ty -> this.typ this ty
+         | Product ts -> List.iter (this.jkind_annotation this) ts);
 
     directive_argument =
       (fun this a ->

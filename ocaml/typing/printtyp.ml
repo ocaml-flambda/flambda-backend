@@ -1314,9 +1314,10 @@ let add_type_to_preparation = prepare_type
 let print_labels = ref true
 
 let out_jkind_of_user_jkind jkind =
-  let rec out_jkind_const_of_user_jkind : Parsetree.jkind_annotation -> out_jkind_const = function
+  let rec out_jkind_const_of_user_jkind (jkind : Parsetree.jkind_annotation) : out_jkind_const =
+    match jkind.pjkind_desc with
     | Default -> Ojkind_const_default
-    | Abbreviation abbrev -> Ojkind_const_abbreviation (abbrev :> string Location.loc).txt
+    | Abbreviation abbrev -> Ojkind_const_abbreviation abbrev
     | Mod (base, modes) ->
       let base = out_jkind_const_of_user_jkind base in
       let modes =
@@ -1327,7 +1328,7 @@ let out_jkind_of_user_jkind jkind =
       Ojkind_const_product (List.map out_jkind_const_of_user_jkind ts)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
-  Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)
+  Ojkind_const (out_jkind_const_of_user_jkind jkind)
 
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)

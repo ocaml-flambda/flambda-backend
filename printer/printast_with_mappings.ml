@@ -463,15 +463,14 @@ and expression i ppf x =
 and jkind_annotation_opt i ppf jkind =
   match jkind with
   | None -> ()
-  | Some jkind ->
-      line i ppf "jkind %a\n" fmt_location jkind.loc;
-      jkind_annotation (i+1) ppf jkind.txt
+  | Some jkind -> jkind_annotation (i+1) ppf jkind
 
 and jkind_annotation i ppf (jkind : jkind_annotation) =
-  match jkind with
+  line i ppf "jkind %a\n" fmt_location jkind.pjkind_loc;
+  match jkind.pjkind_desc with
   | Default -> line i ppf "Default\n"
   | Abbreviation jkind ->
-      line i ppf "Abbreviation \"%s\"\n" jkind.txt
+      line i ppf "Abbreviation \"%s\"\n" jkind
   | Mod (jkind, m) ->
       line i ppf "Mod\n";
       jkind_annotation (i+1) ppf jkind;
@@ -496,10 +495,7 @@ and function_param i ppf { pparam_desc = desc; pparam_loc = loc } =
       pattern (i+1) ppf p
   | Pparam_newtype (ty, jkind) ->
       line i ppf "Pparam_newtype \"%s\" %a\n" ty.txt fmt_location loc;
-      option (i+1)
-        (fun i ppf jkind -> jkind_annotation i ppf jkind.txt)
-        ppf
-        jkind
+      jkind_annotation_opt (i+1) ppf jkind
 
 and function_body i ppf body =
   match body with
@@ -907,7 +903,7 @@ and signature_item i ppf x =
       attribute i ppf "Psig_attribute" a
   | Psig_kind_abbrev (name, jkind) ->
       line i ppf "Psig_kind_abbrev \"%s\"\n" name.txt;
-      jkind_annotation i ppf jkind.txt
+      jkind_annotation i ppf jkind
   )
 
 and modtype_declaration i ppf = function
@@ -1034,7 +1030,7 @@ and structure_item i ppf x =
       attribute i ppf "Pstr_attribute" a
   | Pstr_kind_abbrev (name, jkind) ->
       line i ppf "Pstr_kind_abbrev \"%s\"\n" name.txt;
-      jkind_annotation i ppf jkind.txt
+      jkind_annotation i ppf jkind
   )
 
 and module_declaration i ppf pmd =

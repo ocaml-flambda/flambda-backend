@@ -734,8 +734,8 @@ module Const = struct
 
   let rec of_user_written_annotation_unchecked_level
       (jkind : Parsetree.jkind_annotation) : t =
-    match jkind with
-    | Abbreviation { txt = name; loc } -> (
+    match jkind.pjkind_desc with
+    | Abbreviation name -> (
       (* CR layouts v2.8: move this to predef *)
       match name with
       (* CR layouts v3.0: remove this hack once non-null jkinds are out of alpha.
@@ -755,7 +755,7 @@ module Const = struct
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
       | "vec128" -> Builtin.vec128.jkind
-      | _ -> raise ~loc (Unknown_jkind jkind))
+      | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
@@ -799,12 +799,13 @@ module Const = struct
     | Base Void, _ | Base Value, Maybe_null -> Alpha
     | Product _, _ -> Beta
 
-  let of_user_written_annotation ~context Location.{ loc; txt = annot } =
+  let of_user_written_annotation ~context (annot : Parsetree.jkind_annotation) =
     let const = of_user_written_annotation_unchecked_level annot in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
-      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
+      raise ~loc:annot.pjkind_loc
+        (Insufficient_level { jkind = const; required_layouts_level });
     const
 end
 
@@ -1171,9 +1172,9 @@ let of_const ~why
 let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
 
-let of_annotation ~context (annot : _ Location.loc) =
+let of_annotation ~context (annot : Parsetree.jkind_annotation) =
   let const = Const.of_user_written_annotation ~context annot in
-  let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
+  let jkind = of_annotated_const ~const ~const_loc:annot.pjkind_loc ~context in
   jkind, (const, annot)
 
 let of_annotation_option_default ~default ~context =
@@ -1194,7 +1195,7 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
   in
   let jkind_of_attribute =
     Builtin_attributes.jkind decl.ptype_attributes
-    |> Option.map (fun attr ->
+    |> Option.map (fun (attr : _ Location.loc) ->
            let t, const = of_attribute ~context attr in
            (* This is a bit of a lie: the "annotation" here is being
               forged based on the jkind attribute. But: the jkind
@@ -1203,12 +1204,14 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
               valid (and equivalent) to write as an annotation, so
               this lie is harmless.
            *)
-           let annot =
-             Location.map
-               (fun attr ->
-                 let name = Builtin_attributes.jkind_attribute_to_string attr in
-                 Parsetree.Abbreviation (Location.mknoloc name))
-               attr
+           let annot : Parsetree.jkind_annotation =
+             { pjkind_loc = attr.loc;
+               pjkind_desc =
+                 (let name =
+                    Builtin_attributes.jkind_attribute_to_string attr.txt
+                  in
+                  Parsetree.Abbreviation name)
+             }
            in
            t, (const, annot))
   in
@@ -2100,7 +2103,7 @@ let report_error ~loc : Error.t -> _ = function
       (* CR layouts v2.9: use the context to produce a better error message.
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
-      "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
+      "@[<v>Unknown layout %a@]" Pprintast.jkind_annotation jkind
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\
@@ -2135,6 +2138,6 @@ let () =
 (* CR layouts v2.8: Remove the definitions below by propagating changes
    outside of this file. *)
 
-type annotation = Const.t * Parsetree.jkind_annotation Location.loc
+type annotation = Const.t * Parsetree.jkind_annotation
 
 let default_to_value_and_get t = default_to_value_and_get t

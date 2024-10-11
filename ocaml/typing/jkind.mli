@@ -197,9 +197,7 @@ module Const : sig
   val get_externality_upper_bound : t -> Externality.t
 
   val of_user_written_annotation :
-    context:History.annotation_context ->
-    Parsetree.jkind_annotation Location.loc ->
-    t
+    context:History.annotation_context -> Parsetree.jkind_annotation -> t
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
@@ -332,13 +330,13 @@ type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
   context:History.annotation_context ->
-  Parsetree.jkind_annotation Location.loc ->
+  Parsetree.jkind_annotation ->
   'd t * annotation
 
 val of_annotation_option_default :
   default:'d t ->
   context:History.annotation_context ->
-  Parsetree.jkind_annotation_opt ->
+  Parsetree.jkind_annotation option ->
   'd t * annotation option
 
 (** Find a jkind from a type declaration. Type declarations are special because

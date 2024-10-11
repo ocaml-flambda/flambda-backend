@@ -707,7 +707,8 @@ let value_binding sub ({vb_loc; vb_pat; vb_expr; vb_attributes; _} as vb) =
 
 let env _sub _ = ()
 
-let jkind_annotation sub (_, l) = iter_loc sub l
+let jkind_annotation sub ((_, l) : Jkind.annotation) =
+  sub.location sub l.pjkind_loc
 
 let item_declaration _sub _ = ()
 

@@ -3861,8 +3861,8 @@ type_parameters:
       { ps }
 ;
 
-jkind:
-    jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
+jkind_desc:
+    jkind_annotation MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
       let modes =
         List.map
           (fun {txt; loc} -> {txt = Mode txt; loc})
@@ -3870,10 +3870,10 @@ jkind:
       in
       Mod ($1, modes)
     }
-  | jkind WITH core_type {
+  | jkind_annotation WITH core_type {
       With ($1, $3)
     }
-  | mkrhs(ident) {
+  | ident {
       Abbreviation $1
     }
   | KIND_OF ty=core_type {
@@ -3885,21 +3885,21 @@ jkind:
   | reverse_product_jkind %prec below_AMPERSAND {
       Product (List.rev $1)
     }
-  | LPAREN jkind RPAREN {
+  | LPAREN jkind_desc RPAREN {
       $2
     }
 ;
 
 reverse_product_jkind :
-  | jkind1 = jkind AMPERSAND jkind2 = jkind %prec prec_unboxed_product_kind
+  | jkind1 = jkind_annotation AMPERSAND jkind2 = jkind_annotation %prec prec_unboxed_product_kind
       { [jkind2; jkind1] }
   | jkinds = reverse_product_jkind
     AMPERSAND
-    jkind = jkind %prec prec_unboxed_product_kind
+    jkind = jkind_annotation %prec prec_unboxed_product_kind
     { jkind :: jkinds }
 
 jkind_annotation: (* : jkind_annotation *)
-  mkrhs(jkind) { $1 }
+  jkind_desc { { pjkind_loc = make_loc $sloc; pjkind_desc = $1 } }
 ;
 
 jkind_constraint:

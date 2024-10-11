@@ -581,5 +581,4 @@ module Const = struct
     }
 end
 
-type 'type_expr annotation =
-  'type_expr Const.t * Parsetree.jkind_annotation Location.loc
+type 'type_expr annotation = 'type_expr Const.t * Parsetree.jkind_annotation
