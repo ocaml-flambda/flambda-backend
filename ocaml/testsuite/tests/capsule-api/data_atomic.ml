@@ -1,6 +1,6 @@
 (* TEST
  include stdlib_alpha;
- flags = "-extension-universe alpha";
+ flags += "-extension-universe alpha";
  runtime5;
  { bytecode; }
  { native; }
@@ -10,25 +10,25 @@
 
 module Capsule = Stdlib_alpha.Capsule
 
-(* Dummy API to stand in for Atomic, here hardcoded to store unit *)
-module GhostUnitAtomic : sig
-  type t : atomically_mutable_data
+type 't myref = { mutable v : 't }
 
-  val make : unit -> t @ coordinated_write @@ portable coordinate_nothing
+module Atomic : sig
+  type !'a t : atomically_mutable_data
 
-  val get : t @ coordinated_read -> unit @ contended @@ portable coordinate_nothing
-
-  val set : t @ coordinated_write -> unit @ contended -> unit @@ portable coordinate_nothing
+  val make : 'a -> 'a t @@ portable coordinate_nothing
+  val get : 'a t @ coordinated_read -> 'a @@ portable coordinate_nothing
+  val set : 'a t -> 'a -> unit @@ portable coordinate_nothing
 end = struct
-  type t = unit
-  let make () = ()
-  let get _ = ()
-  let set _ _ = ()
+  type !'a t : atomically_mutable_data
+
+  external make : 'a -> 'a t @@ portable coordinate_nothing = "%makemutable"
+  external get : 'a t @ coordinated_read -> 'a @@ portable coordinate_nothing = "%atomic_load"
+  external ignore : 'a -> unit @@ portable coordinate_nothing = "%ignore"
+  external exchange : 'a t -> 'a -> 'a @@ portable coordinate_nothing = "%atomic_exchange"
+  let set r x = ignore (exchange r x)
 end
 
-type myintref = { mutable v : int }
-
-let a @ portable coordinated_write = GhostUnitAtomic.make ()
+let a @ portable coordinated_write = Atomic.make 42
 
 type 'a guarded =
   | Mk : 'k Capsule.Mutex.t * ('a, 'k) Capsule.Data.t -> 'a guarded
@@ -50,41 +50,43 @@ let map_with_guarded x
 ;;
 
 let atomic_then_id @ portable coordinate_writing =
-  fun w ->
-    GhostUnitAtomic.set a ();
-    GhostUnitAtomic.get a;  w
+  fun i w ->
+    Atomic.set a i; w
 
 (* [Data.create] *)
-let ptr : myintref guarded =
+let ptr : (int myref) guarded =
   let (P m) = Capsule.create_with_mutex () in
-  Mk (m, Capsule.Data.create (fun () -> atomic_then_id {v = 42}))
+  Mk (m, Capsule.Data.create (fun () -> atomic_then_id 41 {v = 42}))
 
 (* [Data.map] *)
-let ptr =
-  map_with_guarded ptr (fun pwd data -> Capsule.Data.map pwd atomic_then_id data)
+let ptr : (int myref) guarded =
+  map_with_guarded ptr (fun pwd data -> Capsule.Data.map pwd (atomic_then_id 42) data)
 ;;
 
 (* [Data.extract] *)
 let () =
   let v =
     with_guarded ptr (fun pwd data ->
-      Capsule.Data.extract pwd (fun w -> GhostUnitAtomic.set a (); w.v) data)
+      Capsule.Data.extract pwd (fun w -> Atomic.set a w.v; w.v) data)
   in
-  assert (v = 42)
+  assert (v = 42);
+  assert (Atomic.get a = 42)
 ;;
 
 (* values at kind [atomically_mutable_data] can be [Data.inject] into capsules,
   and can be used when [Data.project] out of a capsule *)
 let ptr' =
   let (Mk (m, _)) = ptr in
-  let a = GhostUnitAtomic.make () in
+  let a = Atomic.make 1 in
   let ptr = Capsule.Data.inject a in
   Mk (m, ptr)
 ;;
 
 let () =
   let a = with_guarded ptr' (fun _ data -> Capsule.Data.project data) in
-  GhostUnitAtomic.set a ()
+  Atomic.set a 9
+
+external (+) : int -> int -> int @@ portable = "%addint"
 
 let () =
   let (Mk (m, data1)) = ptr in
@@ -92,6 +94,6 @@ let () =
   let data3 = Capsule.Data.both data1 data2 in
   let a =
     Capsule.Mutex.with_lock m (fun pwd ->
-      Capsule.Data.extract pwd (fun (w,a) -> GhostUnitAtomic.set a (); w.v) data3)
+      Capsule.Data.extract pwd (fun (w,a) -> Atomic.set a w.v; w.v + 1) data3)
   in
-  assert (a = 42)
+  assert (a = 43)

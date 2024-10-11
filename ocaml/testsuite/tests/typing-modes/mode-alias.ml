@@ -1,35 +1,45 @@
 (* TEST
    include stdlib_stable;
+   flags = "-extension mode_alpha";
    expect;
 *)
 
-(* Let bindings *)
-let foo @ deterministic = ()
+(* Let bindings and modules *)
+
+module Foo : sig
+  val foo : 'a -> 'a @@ deterministic
+  val foo' : 'a -> 'a @@ constant
+  val bar : 'a @ constant -> int
+end = struct
+  let foo @ deterministic = fun x -> x
+  let foo' @ constant = fun x -> x
+  let bar = fun x -> 42
+end
 [%%expect{|
-val foo : unit = ()
+module Foo :
+  sig
+    val foo : 'a -> 'a @@ portable coordinate_nothing
+    val foo' : 'a -> 'a @@ contended coordinated_none
+    val bar : 'a @ contended coordinated_none -> int
+  end
 |}]
 
-let foo =
-  let _ @ constant = () in ()
+let foo (x @ deterministic) = x
 [%%expect{|
-val foo : unit = ()
+val foo : 'a @ portable coordinate_nothing -> 'a @@ global many = <fun>
 |}]
 
-let foo =
-  let _ @ constant deterministic = () in ()
+let foo (x @ constant) = x
 [%%expect{|
-val foo : unit = ()
+val foo : 'a @ contended coordinated_none -> 'a @ contended coordinated_none
+  @@ global many = <fun>
 |}]
 
-let foo : unit @@ deterministic = ()
+let foo (x @ constant deterministic) = x
 [%%expect{|
-val foo : unit = ()
-|}]
-
-let foo =
-  let _ : unit @@ constant = () in ()
-[%%expect{|
-val foo : unit = ()
+val foo :
+  'a @ portable contended coordinate_nothing coordinated_none ->
+  'a @ contended coordinated_none @@ global many = <fun>
 |}]
 
 type r = {
