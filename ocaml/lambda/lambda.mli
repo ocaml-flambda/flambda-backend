@@ -384,7 +384,19 @@ and array_index_kind =
   | Ptagged_int_index
   | Punboxed_int_index of unboxed_integer
 
+(** [Nullable] value kinds allow the special Null value in addition to the
+    values of its underlying type. [Non_nullable] only allows values of the
+    underlying type. *)
+and nullable =
+  | Nullable
+  | Non_nullable
+
 and value_kind =
+  { raw_kind : value_kind_non_null;
+    nullable : nullable;
+  }
+
+and value_kind_non_null =
   | Pgenval
   | Pintval
   | Pboxedfloatval of boxed_float
@@ -500,6 +512,8 @@ val compare_boxed_vector : boxed_vector -> boxed_vector -> int
 val print_boxed_vector : Format.formatter -> boxed_vector -> unit
 
 val must_be_value : layout -> value_kind
+
+val generic_value : value_kind
 
 (* This is the layout of ocaml values used as arguments to or returned from
    primitives for this [extern_repr].  So the legacy [Unboxed_float] - which is
