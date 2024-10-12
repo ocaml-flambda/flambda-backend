@@ -8,11 +8,11 @@ let ignore_local : 'a @ local -> unit = fun _ -> ()
 val ignore_local : local_ 'a -> unit = <fun>
 |}]
 
-let f = ref (stack_ (fun x -> x))
+let f = ref (stack_ fun x -> x)
 [%%expect{|
-Line 1, characters 20-32:
-1 | let f = ref (stack_ (fun x -> x))
-                        ^^^^^^^^^^^^
+Line 1, characters 20-30:
+1 | let f = ref (stack_ fun x -> x)
+                        ^^^^^^^^^^
 Error: This allocation cannot be on the stack.
 |}]
 
@@ -155,7 +155,7 @@ val f : unit -> local_ int * int = <fun>
 |}]
 
 let f () =
-    let g = stack_ (fun x -> x) in
+    let g = stack_ fun x -> x in
     g 42
 [%%expect{|
 Line 3, characters 4-5:
@@ -167,11 +167,11 @@ Error: This value escapes its region.
 |}]
 
 let f () =
-    (stack_ (fun x -> x)) 42
+    (stack_ fun x -> x) 42
 [%%expect{|
-Line 2, characters 12-24:
-2 |     (stack_ (fun x -> x)) 42
-                ^^^^^^^^^^^^
+Line 2, characters 12-22:
+2 |     (stack_ fun x -> x) 42
+                ^^^^^^^^^^
 Error: This allocation cannot be on the stack.
   Hint: This function cannot be stack-allocated,
   because it is the function in a tail call.
