@@ -119,7 +119,10 @@ let speculative_inlining dacc ~apply ~function_type ~simplify_expr ~return_arity
               return_arity
         in
         let uacc =
-          UA.create ~flow_result ~compute_slot_offsets:false uenv dacc
+          (* The value of [code_ids_kept_for_zero_alloc] will never be used
+             here. *)
+          UA.create ~flow_result ~compute_slot_offsets:false
+            ~code_ids_kept_for_zero_alloc:Code_id.Set.empty uenv dacc
         in
         rebuild uacc ~after_rebuild:(fun expr uacc -> expr, uacc))
   in

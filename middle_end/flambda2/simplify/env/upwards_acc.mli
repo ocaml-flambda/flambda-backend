@@ -22,6 +22,7 @@ val print : Format.formatter -> t -> unit
 val create :
   flow_result:Flow_types.Flow_result.t ->
   compute_slot_offsets:bool ->
+  code_ids_kept_for_zero_alloc:Code_id.Set.t ->
   Upwards_env.t ->
   Downwards_acc.t ->
   t
@@ -113,3 +114,5 @@ val mutable_unboxing_result : t -> Flow_types.Mutable_unboxing_result.t
 val set_resimplify : t -> t
 
 val resimplify : t -> bool
+
+val code_ids_kept_for_zero_alloc : t -> Code_id.Set.t
