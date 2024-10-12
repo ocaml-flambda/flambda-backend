@@ -1700,6 +1700,13 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     in
     if attr.stub || ((not attr.unbox_return) && not is_a_param_unboxed)
     then Normal_calling_convention
+    else if Flambda_features.classic_mode ()
+    then
+      (* Unboxing of arguments/returns in classic mode does not yield the
+         expected benefits, because that would require to inline and simplify
+         stubs or regenerate them on the fly at callsites. Therefore we disable
+         it in classic mode to avoid generating worse code. *)
+      Normal_calling_convention
     else
       let unboxed_function_slot =
         Function_slot.create
@@ -1712,7 +1719,9 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       in
       let unboxed_param (param : Lambda.lparam) =
         if param.attributes.unbox_param
-        then unboxing_kind param.layout
+        then
+          (* No limit is currently placed on the number of return values. *)
+          unboxing_kind param.layout
         else None
       in
       let unboxed_params =
@@ -1726,8 +1735,23 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
                  Misc.fatal_error "Trying to unbox an unboxed product.")
              params unarized_per_param)
       in
-      Unboxed_calling_convention
-        (unboxed_params, unboxed_return, unboxed_function_slot)
+      let non_unboxed_params_length =
+        List.fold_left (fun acc l -> acc + List.length l) 0 unarized_per_param
+      in
+      let unboxed_params_length =
+        List.fold_left
+          (fun length unboxed_param ->
+            match unboxed_param with
+            | None -> length
+            | Some unboxing_kind ->
+              length + Function_decl.num_params_for_unboxing_kind unboxing_kind)
+          0 unboxed_params
+      in
+      if non_unboxed_params_length + unboxed_params_length > 127
+      then Normal_calling_convention
+      else
+        Unboxed_calling_convention
+          (unboxed_params, unboxed_return, unboxed_function_slot)
   in
   let body_cont =
     match calling_convention with

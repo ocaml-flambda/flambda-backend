@@ -1222,7 +1222,7 @@ let message = function
       or move the attribute to the relevant callers of this function."
   | Unboxing_impossible ->
       Printf.sprintf
-        "This [@unboxed] attribute cannot be used.\n\
+        "This [@unboxable] attribute cannot be used.\n\
          The type of this value does not allow unboxing."
   | Mod_by_top modifier ->
       Printf.sprintf
