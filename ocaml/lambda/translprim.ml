@@ -342,6 +342,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   in
   let prim = match p.prim_name with
     | "%identity" -> Identity
+    | "%isout" -> Primitive (Pisout, 2)
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
     | "%bytes_of_string" -> Primitive (Pbytes_of_string, 1)
     | "%ignore" -> Primitive (Pignore, 1)
