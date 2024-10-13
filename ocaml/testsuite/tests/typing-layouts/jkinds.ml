@@ -385,74 +385,32 @@ type t = nativeint#
 
 type t : any mod global unique many uncontended portable external_ = int8x16#
 [%%expect{|
-Line 1, characters 0-77:
-1 | type t : any mod global unique many uncontended portable external_ = int8x16#
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int8x16#" is vec128
-         because it is the primitive type int8x16#.
-       But the kind of type "int8x16#" must be a subkind of
-         any mod global unique many uncontended portable external_
-         because of the definition of t at line 1, characters 0-77.
+type t = int8x16#
 |}]
 
 type t : any mod global unique many uncontended portable external_ = int16x8#
 [%%expect{|
-Line 1, characters 0-77:
-1 | type t : any mod global unique many uncontended portable external_ = int16x8#
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int16x8#" is vec128
-         because it is the primitive type int16x8#.
-       But the kind of type "int16x8#" must be a subkind of
-         any mod global unique many uncontended portable external_
-         because of the definition of t at line 1, characters 0-77.
+type t = int16x8#
 |}]
 
 type t : any mod global unique many uncontended portable external_ = int32x4#
 [%%expect{|
-Line 1, characters 0-77:
-1 | type t : any mod global unique many uncontended portable external_ = int32x4#
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int32x4#" is vec128
-         because it is the primitive type int32x4#.
-       But the kind of type "int32x4#" must be a subkind of
-         any mod global unique many uncontended portable external_
-         because of the definition of t at line 1, characters 0-77.
+type t = int32x4#
 |}]
 
 type t : any mod global unique many uncontended portable external_ = int64x2#
 [%%expect{|
-Line 1, characters 0-77:
-1 | type t : any mod global unique many uncontended portable external_ = int64x2#
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "int64x2#" is vec128
-         because it is the primitive type int64x2#.
-       But the kind of type "int64x2#" must be a subkind of
-         any mod global unique many uncontended portable external_
-         because of the definition of t at line 1, characters 0-77.
+type t = int64x2#
 |}]
 
 type t : any mod global unique many uncontended portable external_ = float32x4#
 [%%expect{|
-Line 1, characters 0-79:
-1 | type t : any mod global unique many uncontended portable external_ = float32x4#
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "float32x4#" is vec128
-         because it is the primitive type float32x4#.
-       But the kind of type "float32x4#" must be a subkind of
-         any mod global unique many uncontended portable external_
-         because of the definition of t at line 1, characters 0-79.
+type t = float32x4#
 |}]
 
 type t : any mod global unique many uncontended portable external_ = float64x2#
 [%%expect{|
-Line 1, characters 0-79:
-1 | type t : any mod global unique many uncontended portable external_ = float64x2#
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "float64x2#" is vec128
-         because it is the primitive type float64x2#.
-       But the kind of type "float64x2#" must be a subkind of
-         any mod global unique many uncontended portable external_
-         because of the definition of t at line 1, characters 0-79.
+type t = float64x2#
 |}]
 
 type indirect_int = int
