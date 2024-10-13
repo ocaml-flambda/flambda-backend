@@ -949,13 +949,14 @@ module Lattices_mono = struct
         unique_to_linear uniqueness,
         contended_to_portable contention )
 
-  let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
-   fun dst f a ->
+  let rec apply' : type a b d. int ref -> b obj -> (a, b, d) morph -> a -> b =
+   fun cnt dst f a ->
+    cnt := !cnt + 1;
     match f with
     | Compose (f, g) ->
       let mid = src dst f in
-      let g' = apply mid g in
-      let f' = apply dst f in
+      let g' = apply' cnt mid g in
+      let f' = apply' cnt dst f in
       f' (g' a)
     | Id -> a
     | Proj (_, ax) -> Axis.proj ax a
@@ -976,7 +977,15 @@ module Lattices_mono = struct
     | Map_comonadic f ->
       let dst0 = proj_obj Areality dst in
       let a0 = Axis.proj Areality a in
-      set_areality (apply dst0 f a0) a
+      set_areality (apply' cnt dst0 f a0) a
+
+  let apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
+   fun dst f a ->
+    let cnt = ref 0 in
+    let b = apply' cnt dst f a in
+    if !cnt > 8
+    then Misc.fatal_errorf "Morphism chain too long: %a" (print_morph dst) f
+    else b
 
   (** Compose m0 after m1. Returns [Some f] if the composition can be
     represented by [f] instead of [Compose m0 m1]. [None] otherwise. *)
@@ -1153,9 +1162,10 @@ module Lattices_mono = struct
     | Max_with ax -> Proj (dst, ax)
     | Compose (f, g) ->
       let mid = src dst f in
+      let src = src mid g in
       let f' = left_adjoint dst f in
       let g' = left_adjoint mid g in
-      Compose (g', f')
+      compose src g' f'
     | Join_with c -> Subtract c
     | Meet_with _c ->
       (* The downward closure of [Meet_with c]'s image is all [x <= c].
@@ -1183,9 +1193,10 @@ module Lattices_mono = struct
     | Min_with ax -> Proj (dst, ax)
     | Compose (f, g) ->
       let mid = src dst f in
+      let src = src mid g in
       let f' = right_adjoint dst f in
       let g' = right_adjoint mid g in
-      Compose (g', f')
+      compose src g' f'
     | Meet_with c -> Imply c
     | Subtract c -> Join_with c
     | Join_with _c ->
