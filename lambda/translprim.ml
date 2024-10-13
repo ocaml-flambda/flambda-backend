@@ -531,13 +531,13 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_nativeint)),
         3)
     | "%makearray_dynamic" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode), 2)
     | "%makearray_dynamic_uninit" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode), 1)
     | "%arrayblit" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Parrayblit (gen_array_set_kind (get_third_arg_mode ())), 5)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
