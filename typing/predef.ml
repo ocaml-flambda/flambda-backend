@@ -540,28 +540,34 @@ let add_simd_stable_extension_types add_type env =
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_int8x16
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int8x16)
-                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind:(Jkind.add_mode_crossing
+                (Jkind.of_const ~why:(Primitive ident_unboxed_int8x16)
+                   Jkind.Const.Builtin.vec128.jkind))
       ~jkind_annotation:Jkind.Const.Builtin.vec128
   |> add_type ident_unboxed_int16x8
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int16x8)
-                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind:(Jkind.add_mode_crossing
+                (Jkind.of_const ~why:(Primitive ident_unboxed_int16x8)
+                   Jkind.Const.Builtin.vec128.jkind))
       ~jkind_annotation:Jkind.Const.Builtin.vec128
   |> add_type ident_unboxed_int32x4
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int32x4)
-                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind:(Jkind.add_mode_crossing
+                (Jkind.of_const ~why:(Primitive ident_unboxed_int32x4)
+                   Jkind.Const.Builtin.vec128.jkind))
       ~jkind_annotation:Jkind.Const.Builtin.vec128
   |> add_type ident_unboxed_int64x2
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int64x2)
-                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind:(Jkind.add_mode_crossing
+                (Jkind.of_const ~why:(Primitive ident_unboxed_int64x2)
+                   Jkind.Const.Builtin.vec128.jkind))
       ~jkind_annotation:Jkind.Const.Builtin.vec128
   |> add_type ident_unboxed_float32x4
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float32x4)
-                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind:(Jkind.add_mode_crossing
+                (Jkind.of_const ~why:(Primitive ident_unboxed_float32x4)
+                   Jkind.Const.Builtin.vec128.jkind))
       ~jkind_annotation:Jkind.Const.Builtin.vec128
   |> add_type ident_unboxed_float64x2
-      ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float64x2)
-                Jkind.Const.Builtin.vec128.jkind)
+      ~jkind:(Jkind.add_mode_crossing
+                (Jkind.of_const ~why:(Primitive ident_unboxed_float64x2)
+                   Jkind.Const.Builtin.vec128.jkind))
       ~jkind_annotation:Jkind.Const.Builtin.vec128
 
 let add_small_number_extension_types add_type env =
