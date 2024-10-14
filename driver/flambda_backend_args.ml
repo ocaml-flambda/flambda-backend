@@ -318,6 +318,18 @@ let mk_flambda2_join_depth f =
     Flambda2.Default.join_depth
 ;;
 
+let mk_flambda2_reaper f =
+  "-flambda2-reaper", Arg.Unit f,
+  Printf.sprintf " Enable reaper pass%s (Flambda2 only)"
+    (format_default Flambda2.Default.enable_reaper)
+;;
+
+let mk_no_flambda2_reaper f =
+  "-no-flambda2-reaper", Arg.Unit f,
+  Printf.sprintf " Disable reaper pass%s (Flambda2 only)"
+    (format_not_default Flambda2.Default.enable_reaper)
+;;
+
 let mk_flambda2_expert_fallback_inlining_heuristic f =
   "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
   Printf.sprintf " Prevent inlining of functions\n\
@@ -758,6 +770,8 @@ module type Flambda_backend_options = sig
   val no_flambda2_backend_cse_at_toplevel : unit -> unit
   val flambda2_cse_depth : int -> unit
   val flambda2_join_depth : int -> unit
+  val flambda2_reaper : unit -> unit
+  val no_flambda2_reaper : unit -> unit
   val flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val flambda2_expert_inline_effects_in_cmm : unit -> unit
@@ -899,6 +913,8 @@ struct
       F.no_flambda2_backend_cse_at_toplevel;
     mk_flambda2_cse_depth F.flambda2_cse_depth;
     mk_flambda2_join_depth F.flambda2_join_depth;
+    mk_flambda2_reaper F.flambda2_reaper;
+    mk_no_flambda2_reaper F.no_flambda2_reaper;
     mk_flambda2_expert_fallback_inlining_heuristic
       F.flambda2_expert_fallback_inlining_heuristic;
     mk_no_flambda2_expert_fallback_inlining_heuristic
@@ -1103,6 +1119,8 @@ module Flambda_backend_options_impl = struct
     clear Flambda2.backend_cse_at_toplevel
   let flambda2_cse_depth n = Flambda2.cse_depth := Flambda_backend_flags.Set n
   let flambda2_join_depth n = Flambda2.join_depth := Flambda_backend_flags.Set n
+  let flambda2_reaper = set Flambda2.enable_reaper
+  let no_flambda2_reaper = clear Flambda2.enable_reaper
   let flambda2_expert_fallback_inlining_heuristic =
     set Flambda2.Expert.fallback_inlining_heuristic
   let no_flambda2_expert_fallback_inlining_heuristic =
