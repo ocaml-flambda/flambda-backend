@@ -204,22 +204,6 @@ module Module_type : AST with type ast = Parsetree.module_type
 
 module Module_expr : AST with type ast = Parsetree.module_expr
 
-module Signature_item : AST with type ast = Parsetree.signature_item
-
-module Structure_item : AST with type ast = Parsetree.structure_item
-
-module Core_type : AST with type ast = Parsetree.core_type
-
-module Constructor_argument : AST with type ast = Parsetree.core_type
-
-module Extension_constructor :
-  AST with type ast = Parsetree.extension_constructor
-
-module Constructor_declaration :
-  AST with type ast = Parsetree.constructor_declaration
-
-module Type_declaration : AST with type ast = Parsetree.type_declaration
-
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception (of an abstract type) at the provided location
     saying otherwise.  This is intended to be used in [jane_syntax.ml] when a

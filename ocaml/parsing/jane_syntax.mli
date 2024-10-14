@@ -210,17 +210,6 @@ end
 (******************************************)
 (* Individual syntactic categories *)
 
-(** Novel syntax in constructor arguments; this isn't a core AST type,
-    but captures where [global_] lives *)
-module Constructor_argument : sig
-  type t = |
-
-  include
-    AST
-      with type t := t * Parsetree.attributes
-       and type ast := Parsetree.core_type
-end
-
 (** Novel syntax in expressions *)
 module Expression : sig
   type t =

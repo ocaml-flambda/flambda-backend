@@ -511,14 +511,6 @@ module type AST = sig
   val of_ast : ast -> t option
 end
 
-module Constructor_argument = struct
-  type t = |
-
-  let of_ast_internal (feat : Feature.t) _carg = match feat with _ -> None
-
-  let of_ast = Constructor_argument.make_of_ast ~of_ast_internal
-end
-
 module Expression = struct
   type t =
     | Jexp_comprehension of Comprehensions.expression
