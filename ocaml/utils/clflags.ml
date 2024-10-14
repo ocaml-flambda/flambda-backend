@@ -444,7 +444,7 @@ let error_style_reader = {
   parse = (function
     | "contextual" -> Some Misc.Error_style.Contextual
     | "short" ->
-      (* Jane Street specific: This little bit of code suppresses the ["]
+      (* Jane Street specific: This little bit of code suppresses the quote
          marks in error messages. Remove this after we can get formatted
          output in our editors. *)
       let styles = Misc.Style.get_styles () in
