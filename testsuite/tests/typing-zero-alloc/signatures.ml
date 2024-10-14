@@ -46,16 +46,6 @@ Line 2, characters 2-40:
 Error: zero_alloc "assume" attributes are not supported in signatures
 |}]
 
-module type S_payloads_ignore = sig
-  val[@zero_alloc ignore] f : int -> int
-end
-[%%expect{|
-Line 2, characters 2-40:
-2 |   val[@zero_alloc ignore] f : int -> int
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: zero_alloc "ignore" attributes are not supported in signatures
-|}]
-
 (******************************)
 (* Test 2: allowed inclusions *)
 module type S_good_inc_base = sig
