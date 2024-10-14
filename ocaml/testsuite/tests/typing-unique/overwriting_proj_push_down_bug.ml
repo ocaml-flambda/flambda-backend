@@ -325,7 +325,7 @@ let swap_inner (t : tree) =
 val swap_inner : tree -> tree = <fun>
 |}]
 
-(* TODO: Update this test once overwriting is fully implemented.
+(* CR uniqueness: Update this test once overwriting is fully implemented.
 let swap_inner (t : tree) =
   match t with
   | Node { l = Node { r = lr } as l; r = Node { l = rl } as r } as t ->
