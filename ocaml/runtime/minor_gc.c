@@ -829,6 +829,11 @@ int caml_do_opportunistic_major_slice
 
 /* Make sure the minor heap is empty by performing a minor collection
    if needed.
+
+   This function also samples [caml_gc_mark_phase_requested] to see whether
+   [caml_mark_roots_stw] should be called. To guarantee that all domains
+   agree on whether the roots should be marked, this variable is sampled
+   only once, instead of having domains check it individually.
 */
 void caml_empty_minor_heap_setup(caml_domain_state* domain_unused,
                                  void* mark_requested) {
