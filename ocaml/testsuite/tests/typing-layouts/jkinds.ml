@@ -383,6 +383,36 @@ type t : any mod global unique many uncontended portable external_ = nativeint#
 type t = nativeint#
 |}]
 
+type t : any mod global unique many uncontended portable external_ = int8x16#
+[%%expect{|
+type t = int8x16#
+|}]
+
+type t : any mod global unique many uncontended portable external_ = int16x8#
+[%%expect{|
+type t = int16x8#
+|}]
+
+type t : any mod global unique many uncontended portable external_ = int32x4#
+[%%expect{|
+type t = int32x4#
+|}]
+
+type t : any mod global unique many uncontended portable external_ = int64x2#
+[%%expect{|
+type t = int64x2#
+|}]
+
+type t : any mod global unique many uncontended portable external_ = float32x4#
+[%%expect{|
+type t = float32x4#
+|}]
+
+type t : any mod global unique many uncontended portable external_ = float64x2#
+[%%expect{|
+type t = float64x2#
+|}]
+
 type indirect_int = int
 type t : any mod global unique many uncontended portable external_ = indirect_int
 [%%expect{|
