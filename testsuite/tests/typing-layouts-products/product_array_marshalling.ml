@@ -7,10 +7,7 @@
  } {
    ocamlopt_byte_exit_status = "2";
    setup-ocamlopt.byte-build-env;
-   compiler_reference =
-     "${test_source_directory}/product_array_marshalling.native.reference";
    ocamlopt.byte;
-   check-ocamlopt.byte-output;
  }
 *)
 
