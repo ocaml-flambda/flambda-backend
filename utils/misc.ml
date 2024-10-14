@@ -367,6 +367,18 @@ module Stdlib = struct
       in
       let a' = (Array.map [@inlined hint]) f' a in
       if !same then a else a'
+
+    let of_list_map f = function
+      | [] -> [| |]
+      | hd :: tl ->
+        let a = Array.make (1 + List.length tl) (f hd) in
+        let rec fill i = function
+          | [] -> a
+          | hd :: tl ->
+            Array.unsafe_set a i (f hd);
+            fill (i + 1) tl
+        in
+        fill 1 tl
   end
 
   module String = struct

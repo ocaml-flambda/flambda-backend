@@ -477,6 +477,13 @@ let label_declaration copy_scope s l =
 let constructor_argument copy_scope s ca =
   {
     ca_type = typexp copy_scope s ca.ca_loc ca.ca_type;
+    ca_jkind = begin match s.additional_action with
+      | Prepare_for_saving { prepare_jkind } ->
+        prepare_jkind ca.ca_loc ca.ca_jkind
+      (* CR layouts v2.8: This will have to be copied once we
+         have with-types. *)
+      | Duplicate_variables | No_action -> ca.ca_jkind
+    end;
     ca_loc = loc s ca.ca_loc;
     ca_modalities = ca.ca_modalities;
   }
@@ -640,11 +647,6 @@ let extension_constructor' copy_scope s ext =
     ext_type_params =
       List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
     ext_args = constructor_arguments copy_scope s ext.ext_args;
-    ext_arg_jkinds = begin match s.additional_action with
-      | Prepare_for_saving { prepare_jkind } ->
-          Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
-      | Duplicate_variables | No_action -> ext.ext_arg_jkinds
-    end;
     ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;
     ext_ret_type =

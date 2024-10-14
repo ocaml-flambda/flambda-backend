@@ -299,8 +299,8 @@ let mk_add_type1 add_type type_ident
   in
   add_type type_ident decl env
 
-let mk_add_extension add_extension id args jkinds =
-  Array.iter (fun jkind ->
+let mk_add_extension add_extension id args =
+  List.iter (fun (_, jkind) ->
       let raise_error () = Misc.fatal_error
           "sanity check failed: non-value jkind in predef extension \
             constructor; should this have Constructor_mixed shape?" in
@@ -315,21 +315,21 @@ let mk_add_extension add_extension id args jkinds =
                 raise_error ()
           end
       | _ -> raise_error ())
-    jkinds;
+    args;
   add_extension id
     { ext_type_path = path_exn;
       ext_type_params = [];
       ext_args =
         Cstr_tuple
           (List.map
-            (fun x ->
+            (fun (ca_type, ca_jkind) ->
               {
-                ca_type=x;
+                ca_type;
+                ca_jkind;
                 ca_modalities=Mode.Modality.Value.Const.id;
                 ca_loc=Location.none
               })
             args);
-      ext_arg_jkinds = jkinds;
       ext_shape = Constructor_uniform_value;
       ext_constant = args = [];
       ext_ret_type = None;
@@ -341,12 +341,24 @@ let mk_add_extension add_extension id args jkinds =
       ext_uid = Uid.of_predef_id id;
     }
 
-let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds)
+let variant constrs =
+  let mk_elt { cd_args } =
+    let jkinds = match cd_args with
+      | Cstr_tuple args ->
+        Misc.Stdlib.Array.of_list_map (fun { ca_jkind } -> ca_jkind) args
+      | Cstr_record lbls ->
+        Misc.Stdlib.Array.of_list_map (fun { ld_jkind } -> ld_jkind) lbls
+    in
+    Constructor_uniform_value, jkinds
+  in
+  Type_variant (constrs,
+                Variant_boxed (Misc.Stdlib.Array.of_list_map mk_elt constrs))
 
-let unrestricted tvar =
+let unrestricted tvar jkind =
   {ca_type=tvar;
-     ca_modalities=Mode.Modality.Value.Const.id;
-     ca_loc=Location.none}
+   ca_jkind=jkind;
+   ca_modalities=Mode.Modality.Value.Const.id;
+   ca_loc=Location.none}
 
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
@@ -354,6 +366,7 @@ let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
   and add_extension = mk_add_extension add_extension in
+  let list_jkind = Jkind.Builtin.value ~why:Boxed_variant in
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
@@ -367,9 +380,7 @@ let build_initial_env add_type add_extension empty_env =
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type ident_bool
-       ~kind:(variant [ cstr ident_false []; cstr ident_true []]
-                [| Constructor_uniform_value, [| |];
-                   Constructor_uniform_value, [| |] |])
+       ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
@@ -403,15 +414,9 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_nil [];
-                  cstr ident_cons [unrestricted tvar;
-                                   type_list tvar |> unrestricted]]
-           [| Constructor_uniform_value, [| |];
-              Constructor_uniform_value,
-                [| list_argument_jkind;
-                   Jkind.Builtin.value ~why:Boxed_variant;
-                |];
-           |] )
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
+                  cstr ident_cons [unrestricted tvar list_argument_jkind;
+                                   unrestricted (type_list tvar) list_jkind]])
+       ~jkind:list_jkind
   |> add_type ident_nativeint
       ~jkind:(Jkind.of_const ~why:(Primitive ident_nativeint)
                 Jkind.Const.Builtin.immutable_data.jkind)
@@ -420,10 +425,8 @@ let build_initial_env add_type add_extension empty_env =
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
-         variant [cstr ident_none []; cstr ident_some [unrestricted tvar]]
-           [| Constructor_uniform_value, [| |];
-              Constructor_uniform_value, [| option_argument_jkind |];
-           |])
+         variant [cstr ident_none [];
+                  cstr ident_some [unrestricted tvar option_argument_jkind]])
        ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
@@ -486,32 +489,30 @@ let build_initial_env add_type add_extension empty_env =
                Jkind.Const.Builtin.mutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.mutable_data
   |> add_type ident_unit
-       ~kind:(variant
-                [cstr ident_void []]
-                [| Constructor_uniform_value, [| |] |])
+       ~kind:(variant [cstr ident_void []])
        ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
-       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.Builtin.value ~why:Tuple |]
-  |> add_extension ident_division_by_zero [] [||]
-  |> add_extension ident_end_of_file [] [||]
-  |> add_extension ident_failure [type_string]
-       [| Jkind.Builtin.value ~why:(Primitive ident_string) |]
-  |> add_extension ident_invalid_argument [type_string]
-       [| Jkind.Builtin.value ~why:(Primitive ident_string) |]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),
+        Jkind.Builtin.value ~why:Tuple]
+  |> add_extension ident_division_by_zero []
+  |> add_extension ident_end_of_file []
+  |> add_extension ident_failure [type_string,
+       Jkind.Builtin.value ~why:(Primitive ident_string)]
+  |> add_extension ident_invalid_argument [type_string,
+       Jkind.Builtin.value ~why:(Primitive ident_string)]
   |> add_extension ident_match_failure
-       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.Builtin.value ~why:Tuple |]
-  |> add_extension ident_not_found [] [||]
-  |> add_extension ident_out_of_memory [] [||]
-  |> add_extension ident_stack_overflow [] [||]
-  |> add_extension ident_sys_blocked_io [] [||]
-  |> add_extension ident_sys_error [type_string]
-       [| Jkind.Builtin.value ~why:(Primitive ident_string) |]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),
+       Jkind.Builtin.value ~why:Tuple]
+  |> add_extension ident_not_found []
+  |> add_extension ident_out_of_memory []
+  |> add_extension ident_stack_overflow []
+  |> add_extension ident_sys_blocked_io []
+  |> add_extension ident_sys_error [type_string,
+       Jkind.Builtin.value ~why:(Primitive ident_string)]
   |> add_extension ident_undefined_recursive_module
-       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
-       [| Jkind.Builtin.value ~why:Tuple |]
+       [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),
+       Jkind.Builtin.value ~why:Tuple]
 
 let add_simd_stable_extension_types add_type env =
   let add_type = mk_add_type add_type in
@@ -584,10 +585,8 @@ let add_small_number_extension_types add_type env =
        ~jkind_annotation:Jkind.Const.Builtin.float32
 
 let or_null_kind tvar =
-  variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
-  [| Constructor_uniform_value, [| |];
-      Constructor_uniform_value, [| or_null_argument_jkind |];
-  |]
+  variant [cstr ident_null [];
+           cstr ident_this [unrestricted tvar or_null_argument_jkind]]
 
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
