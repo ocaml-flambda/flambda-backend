@@ -1069,8 +1069,8 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
             | Variant_boxed _ | Variant_extensible ->
-              Array.to_list (Array.map Jkind.sort_of_jkind
-                                          cstr.cstr_arg_jkinds)
+              (List.map (fun { ca_jkind } -> Jkind.sort_of_jkind ca_jkind )
+                 cstr.cstr_args)
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->

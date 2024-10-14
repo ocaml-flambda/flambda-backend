@@ -255,6 +255,8 @@ module Stdlib : sig
     val map_sharing : ('a -> 'a) -> 'a array -> 'a array
     (** [map_sharing f a] is [map f a]. If for all elements of the array
         [f e == e] then [map_sharing f a == a] *)
+
+    val of_list_map : ('a -> 'b) -> 'a list -> 'b array
   end
 
 (** {2 Extensions to the String module} *)

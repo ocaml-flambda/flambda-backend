@@ -511,6 +511,8 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
       Types.ca_modalities = ca.ca_modalities;
       ca_loc = ca.ca_loc;
       ca_type = ca.ca_type.ctyp_type;
+      ca_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+            (* Updated by [update_label_jkinds] *)
     }) tyl_gfl
   in
   tyl_gfl, tyl_gfl'
@@ -1233,16 +1235,26 @@ let update_label_jkinds env loc lbls named =
    all arguments are void, useful for detecting enumerations that
    can be [immediate]. *)
 let update_constructor_arguments_jkinds env loc cd_args jkinds =
+  let update =
+    match jkinds with
+    | None -> fun _ _ -> ()
+    | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
+  in
   match cd_args with
-  | Types.Cstr_tuple tys ->
-    List.iteri (fun idx {Types.ca_type=ty; _} ->
-      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
-    cd_args, Array.for_all Jkind.is_void_defaulting jkinds
+  | Types.Cstr_tuple args ->
+    let args =
+      List.mapi (fun idx ({Types.ca_type; _} as arg) ->
+        let ca_jkind = Ctype.type_jkind env ca_type in
+        update idx ca_jkind;
+        {arg with ca_jkind}) args
+    in
+    Types.Cstr_tuple args,
+    List.for_all (fun { ca_jkind } -> Jkind.is_void_defaulting ca_jkind) args
   | Types.Cstr_record lbls ->
     let lbls, all_void =
       update_label_jkinds env loc lbls None
     in
-    jkinds.(0) <- Jkind.Builtin.value ~why:Boxed_record;
+    update 0 (Jkind.Builtin.value ~why:Boxed_record);
     Types.Cstr_record lbls, all_void
 
 let assert_mixed_product_support =
@@ -1397,18 +1409,17 @@ module Element_repr = struct
 end
 
 let update_constructor_representation
-    env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
+    env (cd_args : Types.constructor_arguments) ~loc
     ~is_extension_constructor
   =
   let flat_suffix =
-    let arg_jkinds = Array.to_list arg_jkinds in
     match cd_args with
     | Cstr_tuple arg_types_and_modes ->
         let arg_reprs =
-          List.map2 (fun {Types.ca_type=arg_type; _} arg_jkind ->
+          List.map (fun {Types.ca_type=arg_type; ca_jkind=arg_jkind; _} ->
             let kloc : jkind_sort_loc = Cstr_tuple { unboxed = false } in
             Element_repr.classify env loc kloc arg_type arg_jkind, arg_type)
-            arg_types_and_modes arg_jkinds
+            arg_types_and_modes
         in
         Element_repr.mixed_product_shape loc arg_reprs Cstr_tuple
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
@@ -1589,9 +1600,11 @@ let update_decl_jkind env dpath decl =
     match cstrs, rep with
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
-        | Cstr_tuple [{ca_type=ty; _}] -> begin
-            let jkind = Ctype.type_jkind env ty in
-            cstrs, Variant_unboxed, jkind
+        | Cstr_tuple [{ca_type=ty; _} as arg] -> begin
+            let ca_jkind = Ctype.type_jkind env ty in
+            [{ cstr with Types.cd_args =
+                           Cstr_tuple [{ arg with ca_jkind }] }],
+            Variant_unboxed, ca_jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
             let ld_jkind = Ctype.type_jkind env ld_type in
@@ -1615,10 +1628,10 @@ let update_decl_jkind env dpath decl =
           in
           let cd_args, all_void =
             update_constructor_arguments_jkinds env cstr.Types.cd_loc
-              cstr.Types.cd_args arg_jkinds
+              cstr.Types.cd_args (Some arg_jkinds)
           in
           let cstr_repr =
-            update_constructor_representation env cd_args arg_jkinds
+            update_constructor_representation env cd_args
               ~is_extension_constructor:false
               ~loc:cstr.Types.cd_loc
           in
@@ -2316,27 +2329,21 @@ let transl_extension_constructor_decl
       ~cstr_path:(Pident id) ~type_path ~unboxed:false typext_params
       svars sargs sret_type
   in
-  let num_args =
-    match targs with
-    | Cstr_tuple args -> List.length args
-    | Cstr_record _ -> 1
-  in
-  let jkinds = Array.make num_args (Jkind.Builtin.any ~why:Dummy_jkind) in
   let args, constant =
-    update_constructor_arguments_jkinds env loc args jkinds
+    update_constructor_arguments_jkinds env loc args None
   in
   let constructor_shape =
-    update_constructor_representation env args jkinds ~loc
+    update_constructor_representation env args ~loc
       ~is_extension_constructor:true
   in
-  args, jkinds, constructor_shape, constant, ret_type,
+  args, constructor_shape, constant, ret_type,
   Text_decl(tvars, targs, tret_type)
 
 let transl_extension_constructor ~scope env type_path type_params
                                  typext_params priv sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
-  let args, arg_jkinds, shape, constant, ret_type, kind =
+  let args, shape, constant, ret_type, kind =
     match sext.pext_kind with
       Pext_decl(svars, sargs, sret_type) ->
       transl_extension_constructor_decl
@@ -2427,7 +2434,7 @@ let transl_extension_constructor ~scope env type_path type_params
               in
               Types.Cstr_record lbls
         in
-        args, cdescr.cstr_arg_jkinds, cdescr.cstr_shape,
+        args, cdescr.cstr_shape,
         cdescr.cstr_constant, ret_type,
         Text_rebind(path, lid)
   in
@@ -2435,7 +2442,6 @@ let transl_extension_constructor ~scope env type_path type_params
     { ext_type_path = type_path;
       ext_type_params = typext_params;
       ext_args = args;
-      ext_arg_jkinds = arg_jkinds;
       ext_shape = shape;
       ext_constant = constant;
       ext_ret_type = ret_type;

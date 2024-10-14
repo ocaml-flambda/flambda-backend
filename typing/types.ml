@@ -350,6 +350,7 @@ and constructor_argument =
   {
     ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
+    ca_jkind: jkind_l;
     ca_loc: Location.t;
   }
 
@@ -361,7 +362,6 @@ type extension_constructor =
   { ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_jkinds: jkind_l array;
     ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
@@ -581,7 +581,6 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: constructor_argument list; (* Type of the arguments *)
-    cstr_arg_jkinds: jkind_l array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)

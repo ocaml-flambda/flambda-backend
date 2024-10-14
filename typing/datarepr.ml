@@ -98,6 +98,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       [
         {
           ca_type = newgenconstr path type_params;
+          ca_jkind = jkind;
           ca_modalities = Mode.Modality.Value.Const.id;
           ca_loc = Location.none
         }
@@ -130,7 +131,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       | Some ty_res' -> ty_res'
       | None -> ty_res
     in
-    let cstr_shape, cstr_arg_jkinds = cstr_shapes_and_arg_jkinds.(src_index) in
+    let cstr_shape, _ = cstr_shapes_and_arg_jkinds.(src_index) in
     let cstr_constant = cstr_constant.(src_index) in
     let runtime_tag, const_tag, nonconst_tag =
       if cstr_constant
@@ -149,7 +150,6 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_res;
         cstr_existentials;
         cstr_args;
-        cstr_arg_jkinds;
         cstr_arity = List.length cstr_args;
         cstr_tag;
         cstr_repr = rep;
@@ -185,7 +185,6 @@ let extension_descr ~current_unit path_ext ext =
       cstr_res = ty_res;
       cstr_existentials = existentials;
       cstr_args;
-      cstr_arg_jkinds = ext.ext_arg_jkinds;
       cstr_arity = List.length cstr_args;
       cstr_tag;
       cstr_repr = Variant_extensible;

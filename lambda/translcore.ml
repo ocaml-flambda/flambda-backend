@@ -520,10 +520,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             of_location ~scopes e.exp_loc)
   | Texp_construct(_, cstr, args, alloc_mode) ->
       let args_with_sorts =
-        List.mapi (fun i e ->
-            let sort = Jkind.sort_of_jkind cstr.cstr_arg_jkinds.(i) in
+        List.map2 (fun { ca_jkind } e ->
+            let sort = Jkind.sort_of_jkind ca_jkind in
             e, sort)
-          args
+          cstr.cstr_args args
       in
       let ll =
         List.map (fun (e, sort) -> transl_exp ~scopes sort e) args_with_sorts
