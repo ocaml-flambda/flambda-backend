@@ -443,7 +443,18 @@ let error_style = ref None (* -error-style *)
 let error_style_reader = {
   parse = (function
     | "contextual" -> Some Misc.Error_style.Contextual
-    | "short" -> Some Misc.Error_style.Short
+    | "short" ->
+      (* Jane Street specific: This little bit of code suppresses the ["]
+         marks in error messages. Remove this after we can get formatted
+         output in our editors. *)
+      let styles = Misc.Style.get_styles () in
+      let styles =
+        { styles with inline_code =
+          { styles.inline_code with text_open = ""; text_close = "" } }
+      in
+      Misc.Style.set_styles styles;
+      (* End Jane Street specific code *)
+      Some Misc.Error_style.Short
     | _ -> None);
   print = (function
     | Misc.Error_style.Contextual -> "contextual"
