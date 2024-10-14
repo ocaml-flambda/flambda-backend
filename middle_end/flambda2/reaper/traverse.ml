@@ -205,28 +205,6 @@ and traverse_let denv acc let_expr : rev_expr =
 
 and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
     ~(default_bp : acc -> Graph.Dep.t -> unit) =
-  let known_field_of_block field block =
-    Simple.pattern_match field
-      ~name:(fun _ ~coercion:_ -> None)
-      ~const:(fun cst ->
-        Simple.pattern_match block
-          ~const:(fun _ -> None)
-            (* CR ncourant: it seems this const case can happen with the
-             * following code:
-             *
-             * let[@inline] f b x = if b then Lazy.force x else 0
-             * let g b = f b (lazy 0)
-             *
-             * It is unclear why it has not been transformed by an Invalid by
-             * simplify, however.
-             *)
-          ~name:(fun block ~coercion:_ ->
-            match[@ocaml.warning "-4"] Int_ids.Const.descr cst with
-            | Tagged_immediate i ->
-              let i = Targetint_31_63.to_int_exn i in
-              Some (i, block)
-            | _ -> assert false))
-  in
   let () =
     let kind = Flambda_primitive.result_kind' prim in
     let name =
@@ -258,15 +236,26 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
         ~const:(fun _ -> assert false)
     in
     default_bp acc (Field { relation = Value_slot value_slot; target = block })
-  | Binary (Block_load (_access_kind, _mutability), block, field) -> (
+  | Unary (Block_load { kind = _; mut = _; field }, block) ->
     (* Loads from mutable blocks are also tracked here. This is ok because
        stores automatically escape the block. CR ncourant: think about whether
        we can make stores only escape the corresponding fields of the block
        instead of the whole block. *)
-    match known_field_of_block field block with
-    | None -> default acc
-    | Some (field, block) ->
-      default_bp acc (Field { relation = Block field; target = block }))
+    Simple.pattern_match block
+      ~const:(fun _ ->
+        (* CR ncourant: it seems this const case can happen with the
+         * following code:
+         *
+         * let[@inline] f b x = if b then Lazy.force x else 0
+         * let g b = f b (lazy 0)
+         *
+         * It is unclear why it has not been transformed by an Invalid by
+         * simplify, however.
+         *)
+        default acc
+        )
+      ~name:(fun block ~coercion:_ ->
+      default_bp acc (Field { relation = Block (Targetint_31_63.to_int field); target = block }))
   | Unary (Is_int _, arg) ->
     Simple.pattern_match arg
       ~name:(fun name ~coercion:_ ->

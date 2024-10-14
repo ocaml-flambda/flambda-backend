@@ -159,6 +159,11 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
       List.map (rewrite_or_variable Targetint_32_64.zero env) fields
     in
     Static_const.immutable_nativeint_array fields
+  | Immutable_vec128_array fields ->
+    let fields =
+      List.map (rewrite_or_variable Vector_types.Vec128.Bit_pattern.zero env) fields
+    in
+    Static_const.immutable_vec128_array fields
   | Empty_array _ | Mutable_string _ | Immutable_string _ -> sc
 
 let rewrite_static_const_or_code kinds env (sc : Static_const_or_code.t) =
