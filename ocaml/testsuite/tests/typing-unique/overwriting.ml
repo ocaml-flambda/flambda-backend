@@ -3,6 +3,23 @@
    expect;
 *)
 
+(* CR uniqueness: More tests to consider adding here:
+   - overwriting tuples
+   - overwriting labeled tuples
+   - overwriting labeled tuples where only some labels are given
+   - overwriting tuples (and labeled ones) with the new .. syntax
+   - overwriting inline records (binding a variable to the whole constructor application,
+       like | (K { ... }) as v -> ...)
+   - overwriting inline records (binding a variable just to the inline record,
+       like | K r -> ...)
+   - overwriting constructor fields
+   - overwriting mutable fields (yes, this is a bit silly, but we should test it)
+   - overwriting immutable fields of records with mutable fields
+   - local variants of (some of) the above
+   - overwriting into a local record with a freshly-constructed bit of memory
+       (to make sure that inference does not locally allocate the new memory)
+*)
+
 type record_update = { x : string; y : string }
 [%%expect{|
 type record_update = { x : string; y : string; }

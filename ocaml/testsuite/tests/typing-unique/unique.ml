@@ -82,17 +82,17 @@ val dup : 'a -> once_ 'a * 'a = <fun>
 
 (* closing over unique values gives once closure  *)
 let f () =
-  let unique_ k = "foo" in
-  let g () = (unique_ k) ^ " bar" in
-  g () ^ g ()
+  let unique_ k = [1;2;3] in
+  let g () = (unique_ k) @ [1;2;3] in
+  g () @ g ()
 [%%expect{|
 Line 4, characters 9-10:
-4 |   g () ^ g ()
+4 |   g () @ g ()
              ^
 Error: This value is used here,
        but it is defined as once and has already been used:
 Line 4, characters 2-3:
-4 |   g () ^ g ()
+4 |   g () @ g ()
       ^
 
 |}]
@@ -100,29 +100,24 @@ Line 4, characters 2-3:
 (* but if the closure doesn't utilize the uniqueness,
   then it's not once *)
 let f () =
-  let unique_ k = "foo" in
-  let g () = k ^ " bar" in
-  g () ^ g ()
+  let unique_ k = [1;2;3] in
+  let g () = k @ [1;2;3] in
+  g () @ g ()
 [%%expect{|
-val f : unit -> string = <fun>
+val f : unit -> int list = <fun>
 |}]
 
 (* closing over once values gives once closure *)
 (* note that in g we don't annotate k; because once_ is already the most relaxed mode *)
 let f () =
-  let once_ k = "foo" in
-  let g () = k in
-  (g (), g () )
+  let once_ k = [1;2;3] in
+  let g () = k @ [1;2;3] in
+  g () @ g ()
 [%%expect{|
-Line 4, characters 9-10:
-4 |   (g (), g () )
-             ^
-Error: This value is used here,
-       but it is defined as once and has already been used:
-Line 4, characters 3-4:
-4 |   (g (), g () )
-       ^
-
+Line 3, characters 13-14:
+3 |   let g () = k @ [1;2;3] in
+                 ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 (* variables inside loops will be made both aliased and many *)
