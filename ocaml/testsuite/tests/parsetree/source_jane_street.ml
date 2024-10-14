@@ -1059,7 +1059,7 @@ let overwrite_constructor = function
 Line 2, characters 19-43:
 2 |     (a, b) as t -> overwrite_ t with (b, _)
                        ^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]

@@ -13,7 +13,7 @@ let overwrite_tuple = function
 Line 2, characters 17-41:
 2 |   (a, b) as t -> overwrite_ t with (b, _)
                      ^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
@@ -24,11 +24,12 @@ let overwrite_record = function
   { a; b } as t -> overwrite_ t with { b = a; a = _ }
 [%%expect{|
 type record = { a : int; b : int; }
-Line 4, characters 50-51:
+Line 4, characters 19-53:
 4 |   { a; b } as t -> overwrite_ t with { b = a; a = _ }
-                                                      ^
-Error: This expression has type "unit" but an expression was expected of type
-         "int"
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 let with_record = function
@@ -43,7 +44,7 @@ let overwrite_record = function
 Line 2, characters 21-48:
 2 |     { a; b } as t -> overwrite_ t with { b = a }
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}, Principal{|
@@ -55,7 +56,7 @@ Warning 18 [not-principal]: this type-based record disambiguation is not princip
 Line 2, characters 21-48:
 2 |     { a; b } as t -> overwrite_ t with { b = a }
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
@@ -87,7 +88,7 @@ let overwrite_variant = function
 Line 2, characters 20-47:
 2 |   `A (a, b) as t -> overwrite_ t with `A (b, _)
                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
@@ -132,22 +133,18 @@ Error: Syntax error: "wildcard "_"" not expected.
 
 let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
 [%%expect{|
-Line 1, characters 27-64:
+Line 1, characters 45-64:
 1 | let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                                                 ^^^^^^^^^^^^^^^^^^^
+Error: Syntax error: "tuple, constructor, record or variant" expected.
 |}]
 
 let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
 [%%expect{|
-Line 1, characters 29-77:
+Line 1, characters 47-77:
 1 | let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
-                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Syntax error: "tuple, constructor, record or variant" expected.
 |}]
 
 let overwrite_with_overwrite = function
@@ -156,5 +153,5 @@ let overwrite_with_overwrite = function
 Line 2, characters 39-68:
 2 |     { a; b } as t -> overwrite_ t with (overwrite_ t with { b = a })
                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Syntax error: "overwrite_" not expected.
+Error: Syntax error: "tuple, constructor, record or variant" expected.
 |}]

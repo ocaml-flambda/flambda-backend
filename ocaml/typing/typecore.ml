@@ -6573,12 +6573,13 @@ and type_expect_
       let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
       {exp with exp_extra}
   | Pexp_overwrite (lid, e) ->
-      begin match overwrite, Language_extension.is_enabled Overwriting with
-      | _, false ->
-        raise (Typetexp.Error (loc, env, Unsupported_extension Overwriting))
-      | Overwriting _, _ -> (* double overwrite: overwrite_ x with overwrite_ y with .. *)
-        raise Syntaxerr.(Error(Not_expecting(loc, "overwrite_")))
-      | NoOverwrite, true | Assigning(_), true -> () end;
+      if not (Language_extension.is_enabled Overwriting) then
+        raise (Typetexp.Error (loc, env, Unsupported_extension Overwriting));
+      begin match e.pexp_desc with
+      | (Pexp_tuple _ | Pexp_construct _ | Pexp_record _ | Pexp_variant _) -> ()
+      | _ ->
+        raise (Syntaxerr.(Error(Expecting(e.pexp_loc, "tuple, constructor, record or variant"))))
+      end;
       let ident, cell_exp, cell_mode, use =
         let path, (actual_mode : Env.actual_mode), desc, kind =
           type_ident env ~recarg lid
@@ -6624,7 +6625,7 @@ and type_expect_
       in
       (* The newly-written fields have to global to avoid heap-to-stack pointers.
          We enforce that here, by asking the allocation to be global.
-         CR uniqueness: this make the allocation be alloc_heap *)
+         CR uniqueness: this makes the allocation alloc_heap *)
       let fields_mode =
         mode_coerce (Value.max_with (Comonadic Areality) Regionality.global)
            expected_mode
@@ -6643,7 +6644,7 @@ and type_expect_
         (* CR uniqueness: check that the hole has the right type. *)
         { exp_desc = Texp_hole;
           exp_loc = loc; exp_extra = [];
-          exp_type = instance Predef.type_unit;
+          exp_type = ty_expected_explained.ty;
           exp_attributes = sexp.pexp_attributes;
           exp_env = env }
       | _ -> raise Syntaxerr.(Error(Not_expecting(loc, "wildcard \"_\"")))

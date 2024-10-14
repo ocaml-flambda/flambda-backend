@@ -1202,11 +1202,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       in
       Lconst(Const_block(0, cl))
   | Texp_overwrite (_id, _lid, _, _e) ->
-      Location.todo_overwrite_not_implemented e.exp_loc
+      Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
   | Texp_hole ->
-      Misc.fatal_error
-        "Translcore.transl_exp0: \
-         Descended into overwritten field Texp_hole"
+      Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
 
 and pure_module m =
   match m.mod_desc with

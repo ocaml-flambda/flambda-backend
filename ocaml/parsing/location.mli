@@ -397,4 +397,4 @@ val report_exception: formatter -> exn -> unit
 (** Reraise the exception if it is unknown. *)
 
 (** CR uniqueness: remove this *)
-val todo_overwrite_not_implemented : t -> 'a
+val todo_overwrite_not_implemented : ?kind:string -> t -> 'a
