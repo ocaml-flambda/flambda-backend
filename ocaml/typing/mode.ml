@@ -1874,6 +1874,11 @@ module Common (Obj : Obj) = struct
 
   let submode a b = try_with_log (submode_log a b)
 
+  let update_level i a =
+    let log' = ref S.empty_changes in
+    let log = Some log' in
+    (Solver.update_level i obj a ~log)
+
   let join l = Solver.join obj l
 
   let meet l = Solver.meet obj l
@@ -2522,6 +2527,10 @@ module Value_with (Areality : Areality) = struct
       | Ok () -> Ok ())
 
   let submode a b = try_with_log (submode_log a b)
+
+  let update_level i { monadic = monadic0; comonadic = comonadic0 } =
+    Monadic.update_level i monadic0;
+    Comonadic.update_level i comonadic0
 
   let equate a b = try_with_log (equate_from_submode submode_log a b)
 
