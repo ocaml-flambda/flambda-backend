@@ -336,8 +336,8 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
     Duplicate_array_kind (Naked_vec128s { length = None })
   | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
     Misc.fatal_error
-      "Lambda_to_flambda_primitives.convert_array_kind_to_duplicate_array_kind\
-       : unimplemented"
+      "Lambda_to_flambda_primitives.convert_array_kind_to_duplicate_array_kind: \
+       unimplemented"
 
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
