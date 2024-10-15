@@ -976,8 +976,7 @@ let get_tag ptr dbg =
         [Cop (Cadda, [ptr; Cconst_int (tag_offset, dbg)], dbg)],
         dbg )
 
-let get_size ptr dbg =
-  lsr_const (get_header_masked ptr dbg) 10 dbg
+let get_size ptr dbg = lsr_const (get_header_masked ptr dbg) 10 dbg
 
 (* Array indexing *)
 
@@ -995,11 +994,9 @@ let is_addr_array_hdr hdr dbg =
       [Cop (Cand, [hdr; Cconst_int (255, dbg)], dbg); floatarray_tag dbg],
       dbg )
 
-let addr_array_length_shifted hdr dbg =
-  lsr_const hdr wordsize_shift dbg
+let addr_array_length_shifted hdr dbg = lsr_const hdr wordsize_shift dbg
 
-let float_array_length_shifted hdr dbg =
-  lsr_const hdr numfloat_shift dbg
+let float_array_length_shifted hdr dbg = lsr_const hdr numfloat_shift dbg
 
 (* Produces a pointer to the element of the array [ptr] on the position [ofs]
    with the given element [log2size] log2 element size.
