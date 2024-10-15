@@ -423,7 +423,8 @@ let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
   | Default_zero_alloc -> []
   | Assume { strict; never_returns_normally; never_raises; loc } ->
     [Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }]
-  | Check { strict; loc } -> [Check_zero_alloc { strict; loc }]
+  | Check { strict; loc; custom_error_msg } ->
+    [Check_zero_alloc { strict; loc; custom_error_msg }]
 
 (* Translation of the bodies of functions. *)
 

@@ -3038,7 +3038,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
                            never_raises = _} ->
-                  Zero_alloc.create_const (Check { strict; arity; loc; opt = false })
+                  Zero_alloc.create_const
+                    (Check { strict; arity; loc; opt = false;
+                             custom_error_msg = None; })
                 | Ignore_assert_all -> Zero_alloc.default
               in
               let (first_loc, _, _) = List.hd id_info in

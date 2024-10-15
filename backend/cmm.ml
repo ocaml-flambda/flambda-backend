@@ -360,7 +360,9 @@ type codegen_option =
   | Assume_zero_alloc of { strict: bool; never_returns_normally: bool;
                            never_raises: bool;
                            loc: Location.t }
-  | Check_zero_alloc of { strict: bool; loc : Location.t; }
+  | Check_zero_alloc of { strict: bool; loc : Location.t;
+                          custom_error_msg : string option;
+                        }
 
 type fundecl =
   { fun_name: symbol;

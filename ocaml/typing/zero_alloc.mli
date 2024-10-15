@@ -3,6 +3,7 @@ type check = Builtin_attributes.zero_alloc_check =
     opt: bool;
     arity: int;
     loc: Location.t;
+    custom_error_msg : string option;
   }
 
 type assume = Builtin_attributes.zero_alloc_assume =
@@ -32,7 +33,7 @@ val default : t
 val create_const : const -> t
 
 (* [create_var loc n] creates a variable. [loc] is the location of the function
-   you are creating a variable for, and [n] is its syntactic arity of the
+   you are creating a variable for and [n] is its syntactic arity of the
    function the variable is being created for. *)
 val create_var : Location.t -> int -> t
 

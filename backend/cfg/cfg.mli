@@ -81,7 +81,8 @@ type codegen_option =
       }
   | Check_zero_alloc of
       { strict : bool;
-        loc : Location.t
+        loc : Location.t;
+        custom_error_msg : string option
       }
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list

@@ -706,6 +706,7 @@ type zero_alloc_check =
     opt: bool;
     arity: int;
     loc: Location.t;
+    custom_error_msg : string option;
   }
 
 type zero_alloc_assume =
@@ -778,11 +779,17 @@ let get_id_from_exp =
   | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
   | _ -> Result.Error ()
 
+type parsed_payload =
+  | Ident
+  | Const_int
+  | Const_string
+
 let get_id_or_constant_from_exp =
   let open Parsetree in
   function
-  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
-  | { pexp_desc = Pexp_constant (Pconst_integer (s,None)) } -> Result.Ok s
+  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok (Ident, id)
+  | { pexp_desc = Pexp_constant (Pconst_integer (s,None)) } -> Result.Ok (Const_int, s)
+  | { pexp_desc = Pexp_constant (Pconst_string (s,_loc,_so)) } -> Result.Ok (Const_string, s)
   | _ -> Result.Error ()
 
 let get_ids_and_constants_from_exp exp =
@@ -822,23 +829,31 @@ let parse_optional_id_payload txt loc ~empty cases payload =
       | Some r -> Ok r
       | None -> warn ()
 
+(* Looks for `custom_error_message string_literal` in payload. If present, this returns `n`
+   and an updated payload with `arity n` removed. Preserves the order of
+   the payload. *)
+let filter_custom_error_message payload =
+  let rec find_msg acc payload =
+    match payload with
+    | [] | [_] -> None
+    | (Ident, "custom_error_message")::(Const_string, msg)::payload ->
+      Some (msg, (List.rev acc) @ payload)
+    | s1::payload -> find_msg (s1 :: acc) payload
+  in
+  find_msg [] payload
+
 (* Looks for `arity n` in payload. If present, this returns `n` and an updated
    payload with `arity n` removed. Note it may change the order of the payload,
    which is fine because we sort it later. *)
 let filter_arity payload =
-  let is_arity s1 s2 =
-    match s1 with
-    | "arity" -> int_of_string_opt s2
-    | _ -> None
-  in
   let rec find_arity acc payload =
     match payload with
     | [] | [_] -> None
-    | s1 :: ((s2 :: payload) as payload') ->
-      begin match is_arity s1 s2 with
-      | Some n -> Some (n, acc @ payload)
-      | None -> find_arity (s1 :: acc) payload'
-      end
+    | (Ident, "arity") as s1 :: ((Const_int, n) :: payload) as payload' ->
+      (match int_of_string_opt n with
+       | Some n -> Some (n, acc @ payload)
+       | None -> find_arity (s1 :: acc) payload')
+    | s1::payload' -> find_arity (s1 :: acc) payload'
   in
   find_arity [] payload
 
@@ -847,43 +862,44 @@ let zero_alloc_lookup_table =
      returns the corresponding check_attribute, given the arity and the loc. *)
   [
     (["assume"],
-     fun arity loc ->
+     fun arity loc _ ->
        Assume { strict = false; never_returns_normally = false;
                 never_raises = false;
                 arity; loc; });
     (["strict"],
-     fun arity loc ->
-       Check { strict = true; opt = false; arity; loc; });
+     fun arity loc custom_error_msg ->
+       Check { strict = true; opt = false; arity; loc; custom_error_msg; });
     (["opt"],
-     fun arity loc ->
-       Check { strict = false; opt = true; arity; loc; });
+     fun arity loc custom_error_msg ->
+       Check { strict = false; opt = true; arity; loc; custom_error_msg; });
     (["opt"; "strict"; ],
-     fun arity loc ->
-       Check { strict = true; opt = true; arity; loc; });
+     fun arity loc custom_error_msg ->
+       Check { strict = true; opt = true; arity; loc; custom_error_msg; });
     (["assume"; "strict"],
-     fun arity loc ->
+     fun arity loc _ ->
        Assume { strict = true; never_returns_normally = false;
                 never_raises = false;
                 arity; loc; });
     (["assume"; "never_returns_normally"],
-     fun arity loc ->
+     fun arity loc _ ->
        Assume {  strict = false; never_returns_normally = true;
                 never_raises = false;
                 arity; loc; });
     (["assume"; "never_returns_normally"; "strict"],
-     fun arity loc ->
+     fun arity loc _ ->
        Assume { strict = true; never_returns_normally = true;
                 never_raises = false;
                 arity; loc; });
     (["assume"; "error"],
-     fun arity loc ->
+     fun arity loc _ ->
        Assume { strict = true; never_returns_normally = true;
                 never_raises = true;
                 arity; loc; });
-    (["ignore"], fun _ _ -> Ignore_assert_all)
+    (["ignore"], fun _ _ _ -> Ignore_assert_all)
   ]
 
-let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
+let parse_zero_alloc_payload ~loc ~arity ~custom_error_message
+      ~warn ~empty payload =
   (* This parses the remainder of the payload after arity has been parsed
      out. *)
   match payload with
@@ -892,7 +908,7 @@ let parse_zero_alloc_payload ~loc ~arity ~warn ~empty payload =
     let payload = List.sort String.compare payload in
     match List.assoc_opt payload zero_alloc_lookup_table with
     | None -> warn ();  Default_zero_alloc
-    | Some ca -> ca arity loc
+    | Some ca -> ca arity loc custom_error_message
 
 let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
   match attr with
@@ -901,20 +917,42 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
     let warn () =
       let ( %> ) f g x = g (f x) in
       let msg =
-        zero_alloc_lookup_table
+        let custom_payloads =
+          let fail _ _ _ = assert false in
+          [
+            (["arity <int_constant>"], fail);
+            (["custom_error_message <string_constant>"], fail)
+          ]
+        in
+        (zero_alloc_lookup_table@custom_payloads)
         |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
         |> String.concat ", "
         |> Printf.sprintf "It must be either %s or empty"
       in
       Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg))
     in
-    let empty arity =
-      Check { strict = false; opt = false; arity; loc; }
+    let empty arity custom_error_msg =
+      Check { strict = false; opt = false; arity; loc; custom_error_msg; }
     in
     match get_optional_payload get_ids_and_constants_from_exp payload with
     | Error () -> warn (); Default_zero_alloc
-    | Ok None -> empty default_arity
+    | Ok None -> empty default_arity None
     | Ok (Some payload) ->
+      let custom_error_message, payload =
+        match filter_custom_error_message payload with
+        | None -> None, payload
+        | Some (custom_error_message, payload) ->
+          let is_assume = function
+            | (Ident, ("assume" | "assume_unless_opt")) -> true
+            | _ -> false
+          in
+          if List.exists is_assume payload then
+            (warn_payload loc txt
+               "The \"custom_error_message\" payload is not supported with \"assume\".";
+             None, payload)
+          else
+            Some custom_error_message, payload
+      in
       let arity, payload =
         match filter_arity payload with
         | None -> default_arity, payload
@@ -927,7 +965,9 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
                 signatures";
              default_arity, payload)
       in
-      parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
+      let _, payload = List.split payload in
+      parse_zero_alloc_payload ~loc ~arity ~custom_error_message
+        ~warn ~empty:(empty arity custom_error_message) payload
 
 let get_zero_alloc_attribute ~in_signature ~default_arity l =
   let attr = select_attribute is_zero_alloc_attribute l in
