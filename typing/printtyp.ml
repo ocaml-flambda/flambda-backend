@@ -49,12 +49,8 @@ module Style = Misc.Style
 
    In this case, there is no way to know the jkind without the annotation.
 
-   (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
-   be impossible to deduce the jkind.  We thus defer to the user in determining
-   whether to print the jkind annotation.
-
    (* CR layouts v2.8: remove this case *)
-   (C1.3) The type has illegal mode crossings. In this case, the jkind is overridden by
+   (C1.2) The type has illegal mode crossings. In this case, the jkind is overridden by
    the user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
@@ -1943,12 +1939,12 @@ let tree_of_type_decl id decl =
     | Some (jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
     | None -> false
   in
-  let jkind_annotation = match ty, unboxed, is_value, decl.type_has_illegal_crossings with
-    | (Otyp_abstract, _, false, _) | (_, true, _, _) | (_, _, _, true) ->
+  let jkind_annotation = match ty, is_value, decl.type_has_illegal_crossings with
+    | (Otyp_abstract, false, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
-        (* type_has_illegal_crossings corresponds to C1.3 *)
+        (* type_has_illegal_crossings corresponds to C1.2 *)
         decl.type_jkind_annotation
     | _ -> None (* other cases have no jkind annotation *)
   in
