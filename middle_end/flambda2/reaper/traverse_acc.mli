@@ -24,12 +24,12 @@ type code_dep =
   }
 
 type apply_dep =
-  { apply_in_func : Code_id.t option;
+  { function_containing_apply_expr : Code_id.t option;
     apply_code_id : Code_id.t;
-    apply_params : Simple.t list;
+    apply_args : Simple.t list;
     apply_closure : Simple.t option;
-    apply_return : Variable.t list option;
-    apply_exn : Variable.t
+    params_of_apply_return_cont : Variable.t list option;
+    param_of_apply_exn_cont : Variable.t
   }
 
 type t

@@ -24,12 +24,12 @@ type code_dep =
   }
 
 type apply_dep =
-  { apply_in_func : Code_id.t option;
+  { function_containing_apply_expr : Code_id.t option;
     apply_code_id : Code_id.t;
-    apply_params : Simple.t list;
+    apply_args : Simple.t list;
     apply_closure : Simple.t option;
-    apply_return : Variable.t list option;
-    apply_exn : Variable.t
+    params_of_apply_return_cont : Variable.t list option;
+    param_of_apply_exn_cont : Variable.t
   }
 
 type t =
@@ -192,17 +192,17 @@ let record_set_of_closure_deps t =
 
 let deps t =
   List.iter
-    (fun { apply_in_func;
+    (fun { function_containing_apply_expr;
            apply_code_id;
-           apply_params;
+           apply_args;
            apply_closure;
-           apply_return;
-           apply_exn
+           params_of_apply_return_cont;
+           param_of_apply_exn_cont
          } ->
       let code_dep = find_code t apply_code_id in
       let add_cond_dep param name =
         let param = Name.var param in
-        match apply_in_func with
+        match function_containing_apply_expr with
         | None ->
           Graph.add_dep t.deps
             (Code_id_or_name.name param)
@@ -220,20 +220,20 @@ let deps t =
           Simple.pattern_match arg
             ~name:(fun name ~coercion:_ -> add_cond_dep param name)
             ~const:(fun _ -> ()))
-        code_dep.params apply_params;
+        code_dep.params apply_args;
       (match apply_closure with
       | None -> ()
       | Some apply_closure ->
         Simple.pattern_match apply_closure
           ~name:(fun name ~coercion:_ -> add_cond_dep code_dep.my_closure name)
           ~const:(fun _ -> ()));
-      (match apply_return with
+      (match params_of_apply_return_cont with
       | None -> ()
       | Some apply_return ->
         List.iter2
           (fun arg param -> add_cond_dep param (Name.var arg))
           code_dep.return apply_return);
-      add_cond_dep apply_exn (Name.var code_dep.exn))
+      add_cond_dep param_of_apply_exn_cont (Name.var code_dep.exn))
     t.apply_deps;
   record_set_of_closure_deps t;
   t.deps

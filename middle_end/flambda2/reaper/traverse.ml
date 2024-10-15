@@ -493,12 +493,12 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
     then (
       let apply_dep =
-        { Traverse_acc.apply_in_func = denv.current_code_id;
+        { Traverse_acc.function_containing_apply_expr = denv.current_code_id;
           apply_code_id = code_id;
-          apply_params = Apply.args apply;
+          apply_args = Apply.args apply;
           apply_closure = Apply.callee apply;
-          apply_return = return_args;
-          apply_exn = exn_arg
+          params_of_apply_return_cont = return_args;
+          param_of_apply_exn_cont = exn_arg
         }
       in
       Acc.add_apply apply_dep acc;
