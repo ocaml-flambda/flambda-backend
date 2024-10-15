@@ -1527,6 +1527,8 @@ module Format_history = struct
     | Probe -> format_with_notify_js ppf "it's a probe"
     | Captured_in_object ->
       fprintf ppf "it's the type of a variable captured in an object"
+    | Let_rec_variable v ->
+      fprintf ppf "it's the type of the recursive variable %s" (Ident.name v)
 
   let format_value_creation_reason ppf ~layout_or_kind :
       History.value_creation_reason -> _ = function
@@ -1577,8 +1579,6 @@ module Format_history = struct
       fprintf ppf
         "it's the type of the first argument to a function in a recursive \
          module"
-    | Let_rec_variable v ->
-      fprintf ppf "it's the type of the recursive variable %s" (Ident.name v)
     | Unknown s ->
       fprintf ppf
         "unknown @[(please alert the Jane Street@;\
@@ -1995,6 +1995,7 @@ module Debug_printers = struct
     | V1_safety_check -> fprintf ppf "V1_safety_check"
     | Probe -> fprintf ppf "Probe"
     | Captured_in_object -> fprintf ppf "Captured_in_object"
+    | Let_rec_variable v -> fprintf ppf "Let_rec_variable %a" Ident.print v
 
   let value_creation_reason ppf : History.value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
@@ -2025,7 +2026,6 @@ module Debug_printers = struct
     | Class_term_argument -> fprintf ppf "Class_term_argument"
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
-    | Let_rec_variable v -> fprintf ppf "Let_rec_variable %a" Ident.print v
     | Unknown s -> fprintf ppf "Unknown %s" s
 
   let product_creation_reason ppf : History.product_creation_reason -> _ =

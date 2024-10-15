@@ -462,3 +462,17 @@ Error: This type "t_any_non_null" should be an instance of type "('a : value)"
        But the layout of t_any_non_null must be a sublayout of value
          because of the definition of t1 at line 3, characters 0-66.
 |}]
+
+(* let-rec allows [value_or_null] *)
+let u () =
+  let rec x : t_value_or_null = assert false in
+  ()
+
+[%%expect{|
+Line 2, characters 10-11:
+2 |   let rec x : t_value_or_null = assert false in
+              ^
+Warning 26 [unused-var]: unused variable x.
+
+val u : unit -> unit = <fun>
+|}]
