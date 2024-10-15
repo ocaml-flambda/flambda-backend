@@ -184,6 +184,7 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
+  | Naked_vec128s
 
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float32
@@ -280,6 +281,11 @@ type array_kind_for_length = Flambda_primitive.Array_kind_for_length.t =
   | Float_array_opt_dynamic
 
 type unop =
+  | Block_load of
+      { kind : block_access_kind;
+        mut : mutability;
+        field : Targetint_31_63.t
+      }
   | Array_length of array_kind_for_length
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
@@ -364,8 +370,12 @@ type infix_binop =
   | Float_comp of float_bitwidth * unit comparison_behaviour
 
 type binop =
+  | Block_set of
+      { kind : block_access_kind;
+        init : init_or_assign;
+        field : Targetint_31_63.t
+      }
   | Array_load of array_kind * array_accessor_width * mutability
-  | Block_load of block_access_kind * mutability
   | Phys_equal of equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
   | Int_comp of standard_int * signed_or_unsigned comparison_behaviour
@@ -377,7 +387,6 @@ type binop =
 type ternop =
   (* CR mshinwell: Array_set should use "array_set_kind" *)
   | Array_set of array_kind * array_accessor_width * init_or_assign
-  | Block_set of block_access_kind * init_or_assign
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
 
 type varop =

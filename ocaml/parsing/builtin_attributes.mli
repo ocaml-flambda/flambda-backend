@@ -78,7 +78,8 @@ val register_attr : current_phase -> string Location.loc -> unit
 val mark_payload_attrs_used : Parsetree.payload -> unit
 
 (** Issue misplaced attribute warnings for all attributes created with
-    [mk_internal] but not yet marked used. *)
+    [mk_internal] but not yet marked used. Does nothing if compilation
+    is stopped before lambda due to command-line flags. *)
 val warn_unused : unit -> unit
 
 (** {3 Warning 53 helpers for environment attributes}
@@ -305,7 +306,14 @@ val get_zero_alloc_attribute :
 val zero_alloc_attribute_only_assume_allowed :
   zero_alloc_attribute -> zero_alloc_assume option
 
-val assume_zero_alloc : zero_alloc_assume -> Zero_alloc_utils.Assume_info.t
+(* [inferred] is true only for "assume" annotations added by the compiler onto
+   applications based on the type of the callee, to distinguish them from annotations
+   added by the user. Inferred annotations are removed if the callee is inlined, to ensure
+   that inlining and other middle-end optimizations preserve the relaxed meaning of
+   zero_alloc.  Note that "inferred" assume annotations are different assume annotations
+   "propagated" by the compiler from function definition to all primitives in the
+   function's body (via scopes / debug info). *)
+val assume_zero_alloc : inferred:bool -> zero_alloc_assume -> Zero_alloc_utils.Assume_info.t
 
 type tracing_probe =
   { name : string;

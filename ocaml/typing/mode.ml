@@ -15,8 +15,8 @@
 (* warn on fragile matches *)
 [@@@warning "+4"]
 
+open Allowance
 open Solver
-open Solver_intf
 open Mode_intf
 
 type nonrec allowed = allowed
@@ -278,6 +278,7 @@ module Lattices = struct
   module Contention = struct
     type t =
       | Contended
+      | Shared
       | Uncontended
 
     include Total (struct
@@ -292,20 +293,24 @@ module Lattices = struct
       let le a b =
         match a, b with
         | Uncontended, _ | _, Contended -> true
-        | Contended, Uncontended -> false
+        | _, Uncontended | Contended, _ -> false
+        | Shared, Shared -> true
 
       let join a b =
         match a, b with
         | Contended, _ | _, Contended -> Contended
+        | Shared, _ | _, Shared -> Shared
         | Uncontended, Uncontended -> Uncontended
 
       let meet a b =
         match a, b with
         | Uncontended, _ | _, Uncontended -> Uncontended
+        | Shared, _ | _, Shared -> Shared
         | Contended, Contended -> Contended
 
       let print ppf = function
         | Contended -> Format.fprintf ppf "contended"
+        | Shared -> Format.fprintf ppf "shared"
         | Uncontended -> Format.fprintf ppf "uncontended"
     end)
   end
@@ -880,6 +885,7 @@ module Lattices_mono = struct
 
   let contended_to_portable = function
     | Contention.Contended -> Portability.Portable
+    | Contention.Shared -> Portability.Nonportable
     | Contention.Uncontended -> Portability.Nonportable
 
   let local_to_regional = function

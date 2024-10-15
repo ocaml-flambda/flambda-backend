@@ -29,6 +29,7 @@ type t =
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
     code_ids_to_never_delete : Code_id.Set.t;
+    code_ids_never_simplified : Code_id.Set.t;
     slot_offsets : Slot_offsets.t Code_id.Map.t;
     debuginfo_rewrites : Debuginfo.t Simple.Map.t
   }
@@ -36,7 +37,7 @@ type t =
 let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_value_slots;
         lifted_constants; flow_acc; demoted_exn_handlers; code_ids_to_remember;
-        code_ids_to_never_delete; slot_offsets; debuginfo_rewrites } =
+        code_ids_to_never_delete; code_ids_never_simplified; slot_offsets; debuginfo_rewrites } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
       @[<hov 1>(continuation_uses_env@ %a)@]@ \
@@ -47,6 +48,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(code_ids_to_remember@ %a)@]@ \
       @[<hov 1>(code_ids_to_never_delete@ %a)@]@ \
+      @[<hov 1>(code_ids_never_simplified@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a)@ \
       @[<hov 1>(debuginfo_rewrites@ %a)@]\
       )@]"
@@ -59,6 +61,7 @@ let [@ocamlformat "disable"] print ppf
     Continuation.Set.print demoted_exn_handlers
     Code_id.Set.print code_ids_to_remember
     Code_id.Set.print code_ids_to_never_delete
+    Code_id.Set.print code_ids_never_simplified
     (Code_id.Map.print Slot_offsets.print) slot_offsets
     (Simple.Map.print Debuginfo.print_compact) debuginfo_rewrites
 
@@ -73,6 +76,7 @@ let create denv slot_offsets continuation_uses_env =
     demoted_exn_handlers = Continuation.Set.empty;
     code_ids_to_remember = Code_id.Set.empty;
     code_ids_to_never_delete = Code_id.Set.empty;
+    code_ids_never_simplified = Code_id.Set.empty;
     debuginfo_rewrites = Simple.Map.empty
   }
 
@@ -199,6 +203,17 @@ let code_ids_to_never_delete t = t.code_ids_to_never_delete
 
 let with_code_ids_to_never_delete t ~code_ids_to_never_delete =
   { t with code_ids_to_never_delete }
+
+let add_code_ids_never_simplified t ~old_code_ids =
+  { t with
+    code_ids_never_simplified =
+      Code_id.Set.union old_code_ids t.code_ids_never_simplified
+  }
+
+let code_ids_never_simplified t = t.code_ids_never_simplified
+
+let with_code_ids_never_simplified t ~code_ids_never_simplified =
+  { t with code_ids_never_simplified }
 
 let are_rebuilding_terms t = DE.are_rebuilding_terms t.denv
 

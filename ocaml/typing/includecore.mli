@@ -71,6 +71,7 @@ type record_mismatch =
   | Float_representation of position
   | Ufloat_representation of position
   | Mixed_representation of position
+  | Mixed_representation_with_flat_floats of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -107,6 +108,7 @@ type type_mismatch =
   | Kind of kind_mismatch
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
+  | Parameter_jkind of type_expr * Jkind.Violation.t
   | Private_variant of type_expr * type_expr * private_variant_mismatch
   | Private_object of type_expr * type_expr * private_object_mismatch
   | Variance

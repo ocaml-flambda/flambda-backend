@@ -417,7 +417,7 @@ Line 1, characters 40-42:
                                             ^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}];;
 
 
@@ -428,7 +428,7 @@ Line 1, characters 41-43:
                                              ^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       the corresponding unboxed types can be marked unboxed.
 |}];;
 
 (* module and abstract types *)

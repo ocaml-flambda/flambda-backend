@@ -185,6 +185,14 @@ type initialization_or_assignment =
   | Initialization
   | Assignment
 
+type vec128_type =
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
 type float_width =
   | Float64
   | Float32
@@ -219,8 +227,32 @@ type static_cast =
   | Int_of_float of float_width
   | Float_of_float32
   | Float32_of_float
-  | V128_of_scalar of Primitive.vec128_type
-  | Scalar_of_v128 of Primitive.vec128_type
+  | V128_of_scalar of vec128_type
+  | Scalar_of_v128 of vec128_type
+
+module Alloc_mode = struct
+  type t = Heap | Local
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Heap, Heap -> true
+    | Local, Local -> true
+    | Heap, Local -> false
+    | Local, Heap -> false
+
+  let print ppf t =
+    match t with
+    | Heap -> Format.fprintf ppf "Heap"
+    | Local -> Format.fprintf ppf "Local"
+
+  let is_local = function
+    | Heap -> false
+    | Local -> true
+
+  let is_heap = function
+    | Heap -> true
+    | Local -> false
+end
 
 type operation =
     Capply of machtype * Lambda.region_close
@@ -239,7 +271,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Lambda.alloc_mode
+  | Calloc of Alloc_mode.t
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -572,6 +604,16 @@ let equal_exttype left right =
   | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
 
+let equal_vec128_type v1 v2 =
+  match v1, v2 with
+  | Int8x16, Int8x16 -> true
+  | Int16x8, Int16x8 -> true
+  | Int32x4, Int32x4 -> true
+  | Int64x2, Int64x2 -> true
+  | Float32x4, Float32x4 -> true
+  | Float64x2, Float64x2 -> true
+  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ -> false
+
 let equal_float_width left right =
   match left, right with
   | Float64, Float64 -> true
@@ -601,8 +643,8 @@ let equal_static_cast (left : static_cast) (right : static_cast) =
   | Float_of_float32, Float_of_float32 -> true
   | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
   | Int_of_float f1, Int_of_float f2 -> equal_float_width f1 f2
-  | Scalar_of_v128 v1, Scalar_of_v128 v2 -> Primitive.equal_vec128_type v1 v2
-  | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Scalar_of_v128 v1, Scalar_of_v128 v2 -> equal_vec128_type v1 v2
+  | V128_of_scalar v1, V128_of_scalar v2 -> equal_vec128_type v1 v2
   | (Float32_of_float | Float_of_float32 |
      Float_of_int _ | Int_of_float _ |
      Scalar_of_v128 _ | V128_of_scalar _), _ -> false

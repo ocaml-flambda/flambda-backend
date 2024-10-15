@@ -377,9 +377,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
       end
     | Tpat_tuple list ->
-        Jane_syntax.Labeled_tuples.pat_of ~loc
-          (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed)
-        |> add_jane_syntax_attributes
+        Ppat_tuple
+          ( List.map (fun (label, p) -> label, sub.pat sub p) list
+          , Closed)
     | Tpat_unboxed_tuple list ->
         Ppat_unboxed_tuple
           (List.map (fun (label, p, _) -> label, sub.pat sub p) list,
@@ -398,7 +398,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
           match args with
             []    -> None
           | [arg] -> Some (sub.pat sub arg)
-          | args  -> Some (Pat.tuple ~loc (List.map (sub.pat sub) args))
+          | args  -> Some (Pat.tuple ~loc (List.map (fun p -> None, sub.pat sub p) args) Closed)
         in
         Ppat_construct (map_loc sub lid,
           match tyo, arg with
@@ -441,7 +441,6 @@ let exp_extra sub (extra, loc, attrs) sexp =
     attrs := pexp_attributes @ !attrs;
     pexp_desc
   in
-  let add_loc x = mkloc x loc in
   let desc =
     match extra with
       Texp_coerce (cty1, cty2) ->
@@ -454,11 +453,11 @@ let exp_extra sub (extra, loc, attrs) sexp =
          Option.map (sub.typ sub) cty,
          Typemode.untransl_mode_annots ~loc modes)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
-    | Texp_newtype (s, None) ->
-        Pexp_newtype (add_loc s, sexp)
-    | Texp_newtype (s, Some (_, jkind)) ->
+    | Texp_newtype (_, label_loc, None, _) ->
+        Pexp_newtype (label_loc, sexp)
+    | Texp_newtype (_, label_loc, Some (_, jkind), _) ->
         Jane_syntax.Layouts.expr_of ~loc
-          (Lexp_newtype(add_loc s, jkind, sexp))
+          (Lexp_newtype(label_loc, jkind, sexp))
         |> add_jane_syntax_attributes
     | Texp_stack -> Pexp_stack sexp
   in
@@ -587,7 +586,7 @@ let expression sub exp =
                let default_arg = Option.map (sub.expr sub) default_arg in
                let newtypes =
                  List.map
-                   (fun (x, annot) ->
+                   (fun (_, x, annot, _) ->
                       { pparam_desc = Pparam_newtype (x, Option.map snd annot);
                         pparam_loc = x.loc;
                       })
@@ -614,9 +613,7 @@ let expression sub exp =
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_tuple (list, _) ->
-        Jane_syntax.Labeled_tuples.expr_of ~loc
-          (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
-        |> add_jane_syntax_attributes
+        Pexp_tuple (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
     | Texp_unboxed_tuple list ->
         Pexp_unboxed_tuple
           (List.map (fun (lbl, e, _) -> lbl, sub.expr sub e) list)
@@ -627,7 +624,7 @@ let expression sub exp =
           | [ arg ] -> Some (sub.expr sub arg)
           | args ->
               Some
-                (Exp.tuple ~loc (List.map (sub.expr sub) args))
+                (Exp.tuple ~loc (List.map (fun e -> None, sub.expr sub e) args))
           ))
     | Texp_variant (label, expo) ->
         Pexp_variant (label, Option.map (fun (e, _) -> sub.expr sub e) expo)
@@ -1041,9 +1038,7 @@ let core_type sub ct =
         (* CR cgunn: recover mode annotation here *)
         Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2, [], [])
     | Ttyp_tuple list ->
-        Jane_syntax.Labeled_tuples.typ_of ~loc
-          (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
-        |> add_jane_syntax_attributes
+        Ptyp_tuple (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
     | Ttyp_unboxed_tuple list ->
         Ptyp_unboxed_tuple
           (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)

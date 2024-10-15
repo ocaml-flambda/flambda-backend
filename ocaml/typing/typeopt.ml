@@ -27,9 +27,11 @@ type error =
       Jkind.Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Jkind.Sort.t
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
+  | Simd_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
   | Unsupported_sort of Jkind.Sort.Const.t
-  | Unsupported_product_in_structure of Jkind.Sort.Const.t
+  | Unsupported_product_in_lazy of Jkind.Sort.Const.t
+  | Unsupported_product_in_array of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -117,9 +119,14 @@ type classification =
   | Float
   | Unboxed_float of unboxed_float
   | Unboxed_int of unboxed_integer
+  | Unboxed_vector of unboxed_vector
   | Lazy
   | Addr  (* anything except a float or a lazy *)
   | Any
+  | Product of Jkind.Sort.Const.t list
+  (* CR layouts v7.1: This [Product] case is always an error for now, but soon
+     we will support unboxed products in arrays and it will only sometimes be an
+     error. *)
 
 (* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
    Returning [Any] is safe, though may skip some optimizations. *)
@@ -141,7 +148,13 @@ let classify env loc ty sort : classification =
            || Path.same p Predef.path_nativeint
            || Path.same p Predef.path_float32
            || Path.same p Predef.path_int32
-           || Path.same p Predef.path_int64 then Addr
+           || Path.same p Predef.path_int64
+           || Path.same p Predef.path_int8x16
+           || Path.same p Predef.path_int16x8
+           || Path.same p Predef.path_int32x4
+           || Path.same p Predef.path_int64x2
+           || Path.same p Predef.path_float32x4
+           || Path.same p Predef.path_float64x2 then Addr
       else begin
         try
           match (Env.find_type p env).type_kind with
@@ -164,11 +177,11 @@ let classify env loc ty sort : classification =
   | Base Float32 -> Unboxed_float Pfloat32
   | Base Bits32 -> Unboxed_int Pint32
   | Base Bits64 -> Unboxed_int Pint64
+  | Base Vec128 -> Unboxed_vector Pvec128
   | Base Word -> Unboxed_int Pnativeint
   | Base Void as c ->
     raise (Error (loc, Unsupported_sort c))
-  | Product _ as c ->
-    raise (Error (loc, Unsupported_product_in_structure c))
+  | Product c -> Product c
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
@@ -187,12 +200,21 @@ let array_type_kind ~elt_sort env loc ty =
       | Int -> Pintarray
       | Unboxed_float f -> Punboxedfloatarray f
       | Unboxed_int i -> Punboxedintarray i
+      | Unboxed_vector v -> Punboxedvectorarray v
+      | Product cs ->
+        let kind = Jkind.Sort.Const.Product cs in
+        raise (Error (loc, Unsupported_product_in_array kind))
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->
       (* This can happen with e.g. Obj.field *)
       Pgenarray
+
+let array_type_mut env ty =
+  match scrape_poly env ty with
+  | Tconstr(p, [_], _) when Path.same p Predef.path_iarray -> Immutable
+  | _ -> Mutable
 
 let array_kind exp elt_sort =
   array_type_kind
@@ -263,7 +285,7 @@ let value_kind_of_value_jkind jkind =
   | Base Value, Internal -> Pgenval
   | Any, _
   | Product _, _
-  | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64) , _ ->
+  | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) , _ ->
     Misc.fatal_error "expected a layout of value"
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
@@ -396,17 +418,17 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
     num_nodes_visited, (Pboxedintval Pnativeint)
   | Tconstr(p, _, _) when Path.same p Predef.path_int8x16 ->
-    num_nodes_visited, (Pboxedvectorval (Pvec128 Int8x16))
+    num_nodes_visited, (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int16x8 ->
-    num_nodes_visited, (Pboxedvectorval (Pvec128 Int16x8))
+    num_nodes_visited, (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32x4 ->
-    num_nodes_visited, (Pboxedvectorval (Pvec128 Int32x4))
+    num_nodes_visited, (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64x2 ->
-    num_nodes_visited, (Pboxedvectorval (Pvec128 Int64x2))
+    num_nodes_visited, (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32x4 ->
-    num_nodes_visited, (Pboxedvectorval (Pvec128 Float32x4))
+    num_nodes_visited, (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float64x2 ->
-    num_nodes_visited, (Pboxedvectorval (Pvec128 Float64x2))
+    num_nodes_visited, (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
@@ -712,15 +734,18 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   | Base Bits64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint64
   | Base Float32 when Language_extension.(is_at_least Layouts Stable) &&
-                            Language_extension.(is_enabled Small_numbers) ->
+                      Language_extension.(is_enabled Small_numbers) ->
     Lambda.Punboxed_float Pfloat32
+  | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
+                     Language_extension.(is_at_least SIMD Stable) ->
+    Lambda.Punboxed_vector Pvec128
   | Product consts when Language_extension.(is_at_least Layouts Beta) ->
     (* CR layouts v7.1: assess whether it is important for performance to support
        deep value_kinds here *)
     Lambda.Punboxed_product
       (List.map (layout_of_const_sort_generic ~value_kind:(lazy Pgenval) ~error)
          consts)
-  | ((  Base (Void | Float32 | Float64 | Word | Bits32 | Bits64)
+  | ((  Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
       | Product _) as const) ->
     error const
 
@@ -734,6 +759,9 @@ let layout env loc sort ty =
         raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
       | Base Float32 as const ->
         raise (Error (loc, Small_number_sort_without_extension
+                             (Jkind.Sort.of_const const, Some ty)))
+      | Base Vec128 as const ->
+        raise (Error (loc, Simd_sort_without_extension
                              (Jkind.Sort.of_const const, Some ty)))
       | Base (Float64 | Word | Bits32 | Bits64) as const ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
@@ -756,6 +784,9 @@ let layout_of_sort loc sort =
     | Base Float32 as const ->
       raise (Error (loc, Small_number_sort_without_extension
                            (Jkind.Sort.of_const const, None)))
+    | Base Vec128 as const ->
+      raise (Error (loc, Simd_sort_without_extension
+                           (Jkind.Sort.of_const const, None)))
     | Base (Float64 | Word | Bits32 | Bits64) as const ->
       raise (Error (loc, Sort_without_extension
                            (Jkind.Sort.of_const const, Stable, None)))
@@ -764,9 +795,9 @@ let layout_of_sort loc sort =
                                                  Beta,
                                                  None))))
 
-let layout_of_base_sort b =
+let layout_of_const_sort c =
   layout_of_const_sort_generic
-    (Base b)
+    c
     ~value_kind:(lazy Pgenval)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"
@@ -797,10 +828,13 @@ let lazy_val_requires_forward env loc ty =
      Blocks with forward_tag can get scanned by the gc thus can't
      store unboxed values. Not boxing is also incorrect since the lazy
      type has layout [value] which is different from these unboxed layouts. *)
-  | Unboxed_float _ | Unboxed_int _ ->
+  | Unboxed_float _ | Unboxed_int _ | Unboxed_vector _ ->
     Misc.fatal_error "Unboxed value encountered inside lazy expression"
   | Float -> Config.flat_float_array
   | Addr | Int -> false
+  | Product cs ->
+    let kind = Jkind.Sort.Const.Product cs in
+    raise (Error (loc, Unsupported_product_in_lazy kind))
 
 (** The compilation of the expression [lazy e] depends on the form of e:
     constants, floats and identifiers are optimized.  The optimization must be
@@ -844,7 +878,7 @@ let rec layout_union l1 l2 =
   | Punboxed_int bi1, Punboxed_int bi2 ->
       if equal_boxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
-      Lambda.join_boxed_vector_layout vi1 vi2
+      if equal_boxed_vector vi1 vi2 then l1 else Ptop
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
       else Punboxed_product (List.map2 layout_union layouts1 layouts2)
@@ -902,7 +936,27 @@ let report_error ppf = function
               Language_extension.(is_enabled Small_numbers) with
         | false, true -> " layouts", "is", "this flag"
         | true, false -> " small_numbers", "is", "this flag"
-        | false, false -> "s layouts and small numbers", "are", "these flags"
+        | false, false -> "s layouts and small_numbers", "are", "these flags"
+        | true, true -> assert false
+      in
+      fprintf ppf
+        ",@ but this requires the extension%s, which %s not enabled.@ \
+         If you intended to use this layout, please add %s to your \
+         build file.@ \
+         Otherwise, please report this error to the Jane Street compilers team."
+        extension verb flags
+  | Simd_sort_without_extension (sort, ty) ->
+      fprintf ppf "Non-value layout %a detected" Jkind.Sort.format sort;
+      begin match ty with
+      | None -> ()
+      | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
+      end;
+      let extension, verb, flags =
+        match Language_extension.(is_at_least Layouts Stable),
+              Language_extension.(is_at_least SIMD Stable) with
+        | false, true -> " layouts", "is", "this flag"
+        | true, false -> " simd", "is", "this flag"
+        | false, false -> "s layouts and simd", "are", "these flags"
         | true, true -> assert false
       in
       fprintf ppf
@@ -918,11 +972,16 @@ let report_error ppf = function
   | Unsupported_sort const ->
       fprintf ppf "Layout %a is not supported yet."
         Jkind.Sort.Const.format const
-  | Unsupported_product_in_structure const ->
+  | Unsupported_product_in_lazy const ->
       fprintf ppf
-        "Product layout %a detected in structure in [Typeopt.Layout]@ \
+        "Product layout %a detected in [lazy] in [Typeopt.Layout]@ \
          Please report this error to the Jane Street compilers team."
         Jkind.Sort.Const.format const
+  | Unsupported_product_in_array const ->
+    fprintf ppf
+      "Unboxed products are not yet supported with array primitives.@ \
+       Here, layout %a was used."
+      Jkind.Sort.Const.format const
 
 let () =
   Location.register_error_of_exn

@@ -254,44 +254,44 @@ let closure_info ~(arity : arity) ~startenv ~is_last =
     ~arity:(arity.function_kind, arity.params_layout)
     ~startenv ~is_last
 
-let alloc_boxedfloat32_header mode dbg =
+let alloc_boxedfloat32_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedfloat32_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedfloat32_local_header, dbg)
+  | Heap -> Cconst_natint (boxedfloat32_header, dbg)
+  | Local -> Cconst_natint (boxedfloat32_local_header, dbg)
 
-let alloc_float_header mode dbg =
+let alloc_float_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (float_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (float_local_header, dbg)
+  | Heap -> Cconst_natint (float_header, dbg)
+  | Local -> Cconst_natint (float_local_header, dbg)
 
-let alloc_boxedvec128_header mode dbg =
+let alloc_boxedvec128_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedvec128_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedvec128_local_header, dbg)
+  | Heap -> Cconst_natint (boxedvec128_header, dbg)
+  | Local -> Cconst_natint (boxedvec128_local_header, dbg)
 
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
 
-let alloc_closure_header ~mode sz dbg =
-  match (mode : Lambda.alloc_mode) with
-  | Alloc_heap -> Cconst_natint (white_closure_header sz, dbg)
-  | Alloc_local -> Cconst_natint (local_closure_header sz, dbg)
+let alloc_closure_header ~(mode : Cmm.Alloc_mode.t) sz dbg =
+  match mode with
+  | Heap -> Cconst_natint (white_closure_header sz, dbg)
+  | Local -> Cconst_natint (local_closure_header sz, dbg)
 
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
 
-let alloc_boxedint32_header mode dbg =
+let alloc_boxedint32_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedint32_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedint32_local_header, dbg)
+  | Heap -> Cconst_natint (boxedint32_header, dbg)
+  | Local -> Cconst_natint (boxedint32_local_header, dbg)
 
-let alloc_boxedint64_header mode dbg =
+let alloc_boxedint64_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedint64_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedint64_local_header, dbg)
+  | Heap -> Cconst_natint (boxedint64_header, dbg)
+  | Local -> Cconst_natint (boxedint64_local_header, dbg)
 
-let alloc_boxedintnat_header mode dbg =
+let alloc_boxedintnat_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedintnat_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedintnat_local_header, dbg)
+  | Heap -> Cconst_natint (boxedintnat_header, dbg)
+  | Local -> Cconst_natint (boxedintnat_local_header, dbg)
 
 (* Integers *)
 
@@ -888,7 +888,9 @@ let float16_of_float dbg c =
 
 let box_complex dbg c_re c_im =
   Cop
-    (Calloc Lambda.alloc_heap, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
+    ( Calloc Cmm.Alloc_mode.Heap,
+      [alloc_floatarray_header 2 dbg; c_re; c_im],
+      dbg )
 
 let complex_re c dbg = Cop (mk_load_immut Double, [c], dbg)
 
@@ -988,6 +990,7 @@ let wordsize_shift = 9
 
 let numfloat_shift = 9 + log2_size_float - log2_size_addr
 
+<<<<<<< HEAD
 let is_addr_array_hdr hdr dbg =
   Cop
     ( Ccmpi Cne,
@@ -995,8 +998,32 @@ let is_addr_array_hdr hdr dbg =
       dbg )
 
 let addr_array_length_shifted hdr dbg = lsr_const hdr wordsize_shift dbg
+||||||| 5fd1f359e4
+let is_addr_array_hdr hdr dbg =
+  Cop
+    ( Ccmpi Cne,
+      [Cop (Cand, [hdr; Cconst_int (255, dbg)], dbg); floatarray_tag dbg],
+      dbg )
 
+let addr_array_length_shifted hdr dbg =
+  Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
+=======
+let addr_array_length_shifted hdr dbg =
+  Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
+>>>>>>> origin/main
+
+<<<<<<< HEAD
 let float_array_length_shifted hdr dbg = lsr_const hdr numfloat_shift dbg
+||||||| 5fd1f359e4
+let float_array_length_shifted hdr dbg =
+  Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg)
+
+let lsl_const c n dbg =
+  if n = 0 then c else Cop (Clsl, [c; Cconst_int (n, dbg)], dbg)
+=======
+let lsl_const c n dbg =
+  if n = 0 then c else Cop (Clsl, [c; Cconst_int (n, dbg)], dbg)
+>>>>>>> origin/main
 
 (* Produces a pointer to the element of the array [ptr] on the position [ofs]
    with the given element [log2size] log2 element size.
@@ -1092,6 +1119,10 @@ let custom_ops_unboxed_nativeint_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
+let custom_ops_unboxed_vec128_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_vec128_array_ops", Debuginfo.none)
+
 let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
     ~elements_per_word =
   (* Checking custom_ops is needed to determine if the array contains an odd or
@@ -1142,6 +1173,14 @@ let unboxed_int64_or_nativeint_array_length arr dbg =
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
   tag_int res dbg
+
+let unboxed_vec128_array_length arr dbg =
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int (lsr_int res (int ~dbg 1) dbg) dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -1413,6 +1452,32 @@ let setfield_unboxed_float32 arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
+(* Getters and setters for unboxed vec128 fields *)
+
+let get_field_unboxed_vec128 mutability ~block ~index_in_words dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let memory_chunk = Onetwentyeight_unaligned in
+  let field_address = array_indexing log2_size_addr block index_in_words dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  let field_address = array_indexing log2_size_addr arr index_in_words dbg in
+  return_unit dbg
+    (Cop
+       ( Cstore (Onetwentyeight_unaligned, Assignment),
+         [field_address; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)
@@ -1543,7 +1608,7 @@ module Extended_machtype = struct
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float Pfloat64 -> typ_float
     | Punboxed_float Pfloat32 -> typ_float32
-    | Punboxed_vector (Pvec128 _) -> typ_vec128
+    | Punboxed_vector Pvec128 -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
@@ -1580,7 +1645,7 @@ let unique_arity_identifier (arity : Cmm.machtype list) =
 let result_layout_suffix result =
   match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
 
-let send_function_name arity result (mode : Lambda.alloc_mode) =
+let send_function_name arity result (mode : Cmx_format.alloc_mode) =
   let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   global_symbol ("caml_send" ^ unique_arity_identifier arity ^ res ^ suff)
@@ -1658,12 +1723,12 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
     args_memory_chunks =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
-  if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
+  if Cmm.Alloc_mode.is_local mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
-      match mode with
-      | Lambda.Alloc_local -> local_block_header ~block_kind tag wordsize
-      | Lambda.Alloc_heap -> block_header ~block_kind tag wordsize
+      match (mode : Cmm.Alloc_mode.t) with
+      | Local -> local_block_header ~block_kind tag wordsize
+      | Heap -> block_header ~block_kind tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
@@ -1777,9 +1842,13 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
 
 (* Record application and currying functions *)
 
-let apply_function_name arity result (mode : Lambda.alloc_mode) =
+let apply_function_name arity result (mode : Cmx_format.alloc_mode) =
   let res = result_layout_suffix result in
-  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
+  let suff =
+    match mode with
+    | Cmx_format.Alloc_heap -> ""
+    | Cmx_format.Alloc_local -> "L"
+  in
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
 let apply_function_sym arity result mode =
@@ -1876,13 +1945,25 @@ let rec low_63 dbg e =
   | _ -> e
 
 (* CR-someday mshinwell/gbury: sign_extend_63 then tag_int should simplify to
-   just tag_int. Similarly, untag_int then sign_extend_63 should simplify to
-   untag_int. *)
+   just tag_int. *)
 let sign_extend_63 dbg e =
   check_64_bit_target "sign_extend_63";
-  let e = low_63 dbg e in
-  Cop
-    (Casr, [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)], dbg)
+  match e with
+  | Cop (Casr, [_; Cconst_int (n, _)], _) when n > 0 && n < 64 ->
+    (* [asr] by a positive constant is sign-preserving. However:
+
+       - Some architectures treat the shift length modulo the word size.
+
+       - OCaml does not define behavior of shifts by more than the word size.
+
+       So we don't make the simplification for shifts of length 64 or more. *)
+    e
+  | _ ->
+    let e = low_63 dbg e in
+    Cop
+      ( Casr,
+        [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
+        dbg )
 
 (* zero_extend_32 zero-extends values from 32 bits to the word size. *)
 let zero_extend_32 dbg e =
@@ -2607,13 +2688,13 @@ let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
           (apply_or_call_caml_apply result arity mut clos args pos mode dbg)
         ~body_nontail:
           (apply_or_call_caml_apply result arity mut clos args Rc_normal
-             Lambda.alloc_local dbg)
+             Cmx_format.Alloc_local dbg)
         old_region)
   | (arity, args), Some (arity', args') -> (
     let body old_region =
       bind "result"
         (call_caml_apply [| Val |] arity mut clos args Rc_normal
-           Lambda.alloc_local dbg) (fun clos ->
+           Cmx_format.Alloc_local dbg) (fun clos ->
           might_split_call_caml_apply ?old_region result arity' mut clos args'
             pos mode dbg)
     in
@@ -2627,7 +2708,7 @@ let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
        so, we close the region ourselves afterwards, as is already done inside
        [caml_apply]. *)
     match old_region, mode with
-    | None, Lambda.Alloc_heap when Config.stack_allocation ->
+    | None, Cmx_format.Alloc_heap when Config.stack_allocation ->
       let dbg = placeholder_dbg in
       bind "region"
         (Cop (Cbeginregion, [], dbg ()))
@@ -2763,7 +2844,7 @@ let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
  *        (app closN-1.code aN closN-1))))
  *)
 
-let apply_function_body arity result (mode : Lambda.alloc_mode) =
+let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
   let dbg = placeholder_dbg in
   let args = List.map (fun _ -> V.create_local "arg") arity in
   let clos = V.create_local "clos" in
@@ -2774,8 +2855,8 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
     then None
     else
       match mode with
-      | Alloc_heap -> Some (V.create_local "region")
-      | Alloc_local -> None
+      | Cmx_format.Alloc_heap -> Some (V.create_local "region")
+      | Cmx_format.Alloc_local -> None
   in
   let rec app_fun clos args =
     match args with
@@ -3128,8 +3209,8 @@ let intermediate_curry_functions ~nlocal ~arity result =
             V.create_local "arg", arg_type.(i))
       in
       let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
-      let mode : Lambda.alloc_mode =
-        if num >= narity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
+      let mode : Cmm.Alloc_mode.t =
+        if num >= narity - nlocal then Local else Heap
       in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
       let function_slot_size = if has_nary then 3 else 2 in
@@ -3227,8 +3308,9 @@ let raise_prim raise_kind arg dbg =
 
 let negint arg dbg = Cop (Csubi, [Cconst_int (2, dbg); arg], dbg)
 
-let arraylength kind arg dbg =
+let addr_array_length arg dbg =
   let hdr = get_header_masked arg dbg in
+<<<<<<< HEAD
   match (kind : Lambda.array_kind) with
   | Pgenarray ->
     let len =
@@ -3256,6 +3338,37 @@ let arraylength kind arg dbg =
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg
   | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
+||||||| 5fd1f359e4
+  match (kind : Lambda.array_kind) with
+  | Pgenarray ->
+    let len =
+      if wordsize_shift = numfloat_shift
+      then Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
+      else
+        bind "header" hdr (fun hdr ->
+            Cifthenelse
+              ( is_addr_array_hdr hdr dbg,
+                dbg,
+                Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg),
+                dbg,
+                Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg),
+                dbg,
+                Any ))
+    in
+    Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
+  | Paddrarray | Pintarray ->
+    Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Pfloatarray | Punboxedfloatarray Pfloat64 ->
+    (* Note: we only support 64 bit targets now, so this is ok for
+       Punboxedfloatarray *)
+    Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedfloatarray Pfloat32 -> unboxed_float32_array_length arg dbg
+  | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
+    unboxed_int64_or_nativeint_array_length arg dbg
+  | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
+=======
+  Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+>>>>>>> origin/main
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
@@ -4176,13 +4289,13 @@ let make_unboxed_int32_array_payload dbg unboxed_int32_list =
   in
   aux [] unboxed_int32_list
 
-let allocate_unboxed_int32_array ~elements (mode : Lambda.alloc_mode) dbg =
+let allocate_unboxed_int32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
   let num_elts, payload = make_unboxed_int32_array_payload dbg elements in
   let header =
     let size = 1 (* custom_ops field *) + List.length payload in
     match mode with
-    | Alloc_heap -> custom_header ~size
-    | Alloc_local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   let custom_ops =
     (* For odd-length unboxed int32 arrays there are 32 bits spare at the end of
@@ -4213,13 +4326,13 @@ let make_unboxed_float32_array_payload dbg unboxed_float32_list =
   in
   aux [] unboxed_float32_list
 
-let allocate_unboxed_float32_array ~elements (mode : Lambda.alloc_mode) dbg =
+let allocate_unboxed_float32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
   let num_elts, payload = make_unboxed_float32_array_payload dbg elements in
   let header =
     let size = 1 (* custom_ops field *) + List.length payload in
     match mode with
-    | Alloc_heap -> custom_header ~size
-    | Alloc_local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   let custom_ops =
     (* For odd-length unboxed float32 arrays there are 32 bits spare at the end
@@ -4231,12 +4344,12 @@ let allocate_unboxed_float32_array ~elements (mode : Lambda.alloc_mode) dbg =
   Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
 
 let allocate_unboxed_int64_or_nativeint_array custom_ops ~elements
-    (mode : Lambda.alloc_mode) dbg =
+    (mode : Cmm.Alloc_mode.t) dbg =
   let header =
     let size = 1 (* custom_ops field *) + List.length elements in
     match mode with
-    | Alloc_heap -> custom_header ~size
-    | Alloc_local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: elements, dbg)
 
@@ -4245,6 +4358,20 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
+
+let allocate_unboxed_vec128_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
+  let header =
+    let size =
+      1 (* custom_ops field *) + (ints_per_vec128 * List.length elements)
+    in
+    match mode with
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
+  in
+  Cop
+    ( Calloc mode,
+      Cconst_natint (header, dbg) :: custom_ops_unboxed_vec128_array :: elements,
+      dbg )
 
 (* Drop internal optional arguments from exported interface *)
 let block_header x y = block_header x y
@@ -4255,7 +4382,7 @@ let perform ~dbg eff =
   let cont =
     make_alloc dbg ~tag:Runtimetags.cont_tag
       [int_const dbg 0]
-      ~mode:Lambda.alloc_heap
+      ~mode:Cmm.Alloc_mode.Heap
   in
   (* Rc_normal means "allow tailcalls". Preventing them here by using Rc_nontail
      improves backtraces of paused fibers. *)

@@ -904,6 +904,7 @@ let rec choice ctx t =
     | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
     | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
+    | Punbox_vector _ | Pbox_vector (_, _)
 
     (* we don't handle array indices as destinations yet *)
     | (Pmakearray _ | Pduparray _)

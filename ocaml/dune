@@ -228,6 +228,7 @@
   ; manual update: mli only files
   annot
   outcometree
+  allowance
   ;; lambda/
   debuginfo
   lambda

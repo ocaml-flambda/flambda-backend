@@ -108,7 +108,7 @@ let jkind_layout_default_to_value_and_check_not_void loc jkind =
   let rec contains_void : Jkind.Layout.Const.t -> bool = function
     | Any -> false
     | Base Void -> true
-    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) -> false
     | Product [] ->
       Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
     | Product ts -> List.exists contains_void ts
@@ -2323,7 +2323,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as non_float ->
+                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word as non_float ->
                       flat_read_non_float non_float
                   | Float_boxed ->
                       (* TODO: could optimise to Alloc_local sometimes *)
@@ -2381,8 +2381,9 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
          array pattern, once that's available *)
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
+      let mut = if Types.is_mutable am then Mutable else Immutable in
       ( Lprim
-          (Parrayrefu (ref_kind, Ptagged_int_index),
+          (Parrayrefu (ref_kind, Ptagged_int_index, mut),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         (if Types.is_mutable am then StrictOpt else Alias),

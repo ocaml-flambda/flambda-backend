@@ -246,6 +246,9 @@ Error: Signature mismatch:
          type 'a t = 'a
        is not included in
          type ('a : void) t = 'a
-       The type "('a : value)" is not equal to the type "('a0 : void)"
-       because their layouts are different.
+       The problem is in the kinds of a parameter:
+       The layout of 'a is void
+         because of the definition of t at line 2, characters 2-25.
+       But the layout of 'a must overlap with value
+         because of the definition of t at line 8, characters 2-16.
 |}]

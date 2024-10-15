@@ -1,65 +1,64 @@
-let code `anon-fn[tests11.ml:15,52--67]_2` deleted in
-let code `anon-fn[tests11.ml:15,39--51]_3` deleted in
-let code `anon-fn[tests11.ml:15,2--70]_1` deleted in
+let code `fn[tests11.ml:15,52--67]_2` deleted in
+let code `fn[tests11.ml:15,39--51]_3` deleted in
+let code `fn[tests11.ml:15,2--70]_1` deleted in
 let code bar_0 deleted in
 let code map_foo_4 deleted in
-let code loopify(never) size(1) newer_version_of(`anon-fn[tests11.ml:15,39--51]_3`)
-      `anon-fn[tests11.ml:15,39--51]_3_1` (x)
-        my_closure my_region my_ghost_region my_depth
-        -> k * k1 =
-  cont k (x)
-in
-let $`camlTests11__anon-fn[tests11.ml:15,39--51]_7` =
-  closure `anon-fn[tests11.ml:15,39--51]_3_1`
-    @`anon-fn[tests11.ml:15,39--51]`
-in
-let code loopify(never) size(1) newer_version_of(`anon-fn[tests11.ml:15,52--67]_2`)
-      `anon-fn[tests11.ml:15,52--67]_2_1` (param : imm tagged)
+let code loopify(never) size(1) newer_version_of(`fn[tests11.ml:15,52--67]_2`)
+      `fn[tests11.ml:15,52--67]_2_1` (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 | 0 of val * val ] =
   cont k (0)
 in
-let $`camlTests11__anon-fn[tests11.ml:15,52--67]_6` =
-  closure `anon-fn[tests11.ml:15,52--67]_2_1`
-    @`anon-fn[tests11.ml:15,52--67]`
+let $`camlTests11__fn[tests11.ml:15,52--67]_6` =
+  closure `fn[tests11.ml:15,52--67]_2_1` @`fn[tests11.ml:15,52--67]`
 in
-let code loopify(never) size(7) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1`)
-      `anon-fn[tests11.ml:15,2--70]_1_1` (param : imm tagged)
+let code loopify(never) size(1) newer_version_of(`fn[tests11.ml:15,39--51]_3`)
+      `fn[tests11.ml:15,39--51]_3_1` (x)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
+  cont k (x)
+in
+let $`camlTests11__fn[tests11.ml:15,39--51]_7` =
+  closure `fn[tests11.ml:15,39--51]_3_1` @`fn[tests11.ml:15,39--51]`
+in
+let code loopify(never) size(7) newer_version_of(`fn[tests11.ml:15,2--70]_1`)
+      `fn[tests11.ml:15,2--70]_1_1` (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   let map_foo =
-    %project_value_slot `anon-fn[tests11.ml:15,2--70]`.map_foo my_closure
+    %project_value_slot `fn[tests11.ml:15,2--70]`.map_foo my_closure
   in
   apply inlined(never)
     map_foo
-      ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
-       $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
+      ($`camlTests11__fn[tests11.ml:15,39--51]_7`,
+       $`camlTests11__fn[tests11.ml:15,52--67]_6`,
        0)
       -> k * k1
 in
 let code inline(always) loopify(never) size(16) newer_version_of(bar_0)
-      bar_0_1 (map_foo) my_closure my_region my_ghost_region my_depth -> k * k1 =
-  let `anon-fn[tests11.ml:15,2--70]` =
-    closure `anon-fn[tests11.ml:15,2--70]_1_1`
-      @`anon-fn[tests11.ml:15,2--70]`
+      bar_0_1 (map_foo)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
+  let `fn[tests11.ml:15,2--70]` =
+    closure `fn[tests11.ml:15,2--70]_1_1` @`fn[tests11.ml:15,2--70]`
   with { map_foo = map_foo }
   in
-  cont k (`anon-fn[tests11.ml:15,2--70]`)
+  cont k (`fn[tests11.ml:15,2--70]`)
 in
 let $camlTests11__bar_5 = closure bar_0_1 @bar in
-let $camlTests11__map_foo_8 =
-  closure map_foo_4_1 @map_foo
-and code loopify(never) size(4) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1_1`)
-      `anon-fn[tests11.ml:15,2--70]_1_2` (param : imm tagged)
+let code loopify(never) size(4) newer_version_of(`fn[tests11.ml:15,2--70]_1_1`)
+      `fn[tests11.ml:15,2--70]_1_2` (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   apply direct(map_foo_4_1) inlined(never) inlining_state(depth(1))
     $camlTests11__map_foo_8 ~ depth do_not_inline -> do_not_inline
-      ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
-       $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
+      ($`camlTests11__fn[tests11.ml:15,39--51]_7`,
+       $`camlTests11__fn[tests11.ml:15,52--67]_6`,
        0)
       -> k * k1
+and $camlTests11__map_foo_8 =
+  closure map_foo_4_1 @map_foo
 and code rec loopify(never) size(69) newer_version_of(map_foo_4)
       map_foo_4_1 (f, seq, param : imm tagged)
         my_closure my_region my_ghost_region my_depth
@@ -78,40 +77,40 @@ and code rec loopify(never) size(69) newer_version_of(map_foo_4)
                 | 0 -> k3
                 | 1 -> k4)
                where k4 =
-                 let `anon-fn[tests11.ml:15,2--70]` =
-                   closure `anon-fn[tests11.ml:15,2--70]_1_2`
-                     @`anon-fn[tests11.ml:15,2--70]`
+                 let `fn[tests11.ml:15,2--70]` =
+                   closure `fn[tests11.ml:15,2--70]_1_3`
+                     @`fn[tests11.ml:15,2--70]`
                  with {
                    map_foo =
                      $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
                  }
                  in
-                 cont k2 (`anon-fn[tests11.ml:15,2--70]`)
+                 cont k2 (`fn[tests11.ml:15,2--70]`)
                where k3 =
-                 let `anon-fn[tests11.ml:15,2--70]` =
-                   closure `anon-fn[tests11.ml:15,2--70]_1_3`
-                     @`anon-fn[tests11.ml:15,2--70]`
+                 let `fn[tests11.ml:15,2--70]` =
+                   closure `fn[tests11.ml:15,2--70]_1_2`
+                     @`fn[tests11.ml:15,2--70]`
                  with {
                    map_foo =
                      $camlTests11__map_foo_8 ~ depth my_depth -> succ my_depth
                  }
                  in
-                 cont k2 (`anon-fn[tests11.ml:15,2--70]`))
+                 cont k2 (`fn[tests11.ml:15,2--70]`))
               where k2 (switch_result) =
-                ((let Pfield = %block_load (`*match*`, 0) in
+                ((let Pfield = %block_load (0) `*match*` in
                   apply f (Pfield) -> k2 * k1)
                    where k2 (apply_result) =
                      let Pmakeblock = %Block 0 (apply_result, switch_result)
                      in
                      cont k (Pmakeblock))))
-and code loopify(never) size(4) newer_version_of(`anon-fn[tests11.ml:15,2--70]_1_1`)
-      `anon-fn[tests11.ml:15,2--70]_1_3` (param : imm tagged)
+and code loopify(never) size(4) newer_version_of(`fn[tests11.ml:15,2--70]_1_1`)
+      `fn[tests11.ml:15,2--70]_1_3` (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   apply direct(map_foo_4_1) inlined(never) inlining_state(depth(1))
     $camlTests11__map_foo_8 ~ depth do_not_inline -> do_not_inline
-      ($`camlTests11__anon-fn[tests11.ml:15,39--51]_7`,
-       $`camlTests11__anon-fn[tests11.ml:15,52--67]_6`,
+      ($`camlTests11__fn[tests11.ml:15,39--51]_7`,
+       $`camlTests11__fn[tests11.ml:15,52--67]_6`,
        0)
       -> k * k1
 in

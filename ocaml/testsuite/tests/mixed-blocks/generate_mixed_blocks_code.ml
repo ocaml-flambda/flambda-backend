@@ -71,19 +71,22 @@ type flat_element =
   | Bits32
   | Bits64
   | Word
+  | Vec128
 
 let allowed_in_flat_float_block = function
   | Float64 | Float -> true
-  | Imm | Float32 | Bits32 | Bits64 | Word -> false
+  | Imm | Float32 | Bits32 | Bits64 | Word | Vec128 -> false
 
 let flat_element_is_unboxed = function
-  | Float64 | Float32 | Bits32 | Bits64 | Word -> true
+  | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 -> true
   | Imm | Float -> false
 
 let flat_element_is = ((=) : flat_element -> flat_element -> bool)
 let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
 
-let all_of_flat_element = [ Imm; Float64; Float32; Float; Bits32; Bits64; Word ]
+let all_flat_elements_bytecode = [ Imm; Float64; Float32; Float; Bits32; Bits64; Word ]
+
+let all_of_flat_element ~bytecode = if bytecode then all_flat_elements_bytecode else Vec128 :: all_flat_elements_bytecode
 
 type value_element =
   | Str
@@ -118,24 +121,24 @@ let enumeration_of_prefix all_of_mutability =
     | ((Str | Float), _) :: _ -> true)
 ;;
 
-let enumeration_of_suffix_except_all_floats_mixed
+let enumeration_of_suffix_except_all_floats_mixed ~bytecode
     all_of_mutability
   : _ Seq.t
   =
   let flat_element_except_float =
-    all_of_flat_element
+    all_of_flat_element ~bytecode
     |> List.filter ~f:(flat_element_is_not Float)
   in
   nonempty_list_enumeration_of_list
-    (list_product all_of_flat_element all_of_mutability)
+    (list_product (all_of_flat_element ~bytecode) all_of_mutability)
   |> Seq.filter (fun suffix ->
     List.exists (Nonempty_list.to_list suffix) ~f:(fun (elem, _) ->
       flat_element_is_unboxed elem))
 ;;
 
-let enumeration_of_all_floats_mixed_suffix =
+let enumeration_of_all_floats_mixed_suffix ~bytecode =
   let float_flat_element =
-    all_of_flat_element
+    all_of_flat_element ~bytecode
     |> List.filter ~f:allowed_in_flat_float_block
   in
   nonempty_list_enumeration_of_list
@@ -150,12 +153,12 @@ type block =
   ; suffix : suffix
   }
 
-let enumeration_of_mixed_blocks_except_all_floats_mixed
+let enumeration_of_mixed_blocks_except_all_floats_mixed ~bytecode
     all_of_mutability
   =
   Seq.product
    (enumeration_of_prefix all_of_mutability)
-   (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
+   (enumeration_of_suffix_except_all_floats_mixed ~bytecode all_of_mutability)
   |> Seq.filter (fun (prefix, suffix) ->
       let all_float_u_suffix =
         List.for_all (Nonempty_list.to_list suffix)
@@ -176,11 +179,11 @@ type constructor =
 
 type variant = constructor Nonempty_list.t
 
-let enumeration_of_cstr_tuples =
+let enumeration_of_cstr_tuples ~bytecode =
   let all_of_mutability = [ `Mutability_not_relevant ] in
   Seq.product
     (enumeration_of_prefix all_of_mutability)
-    (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
+    (enumeration_of_suffix_except_all_floats_mixed ~bytecode all_of_mutability)
   |> Seq.map (fun (prefix, suffix) ->
       let ignore_mut (x, `Mutability_not_relevant) = x in
       Cstr_tuple
@@ -188,25 +191,25 @@ let enumeration_of_cstr_tuples =
           cstr_suffix = Nonempty_list.map suffix ~f:ignore_mut;
         })
 
-let enumeration_of_cstr_records =
+let enumeration_of_cstr_records ~bytecode =
   Seq.product
     (enumeration_of_prefix all_of_mutability)
-    (enumeration_of_suffix_except_all_floats_mixed all_of_mutability)
+    (enumeration_of_suffix_except_all_floats_mixed ~bytecode all_of_mutability)
   |> Seq.map (fun (prefix, suffix) ->
       Cstr_record { prefix; suffix })
 
-let enumeration_of_mixed_variants =
-  Seq.interleave enumeration_of_cstr_tuples enumeration_of_cstr_records
+let enumeration_of_mixed_variants ~bytecode =
+  Seq.interleave (enumeration_of_cstr_tuples ~bytecode) (enumeration_of_cstr_records ~bytecode)
   |> nonempty_list_enumeration
 
-let enumeration_of_mixed_blocks_except_all_floats_mixed =
-  enumeration_of_mixed_blocks_except_all_floats_mixed
+let enumeration_of_mixed_blocks_except_all_floats_mixed ~bytecode =
+  enumeration_of_mixed_blocks_except_all_floats_mixed ~bytecode
     all_of_mutability
   |> Seq.map (fun (prefix, suffix) -> { prefix; suffix })
 
 
-let enumeration_of_all_floats_mixed_blocks =
-  enumeration_of_all_floats_mixed_suffix
+let enumeration_of_all_floats_mixed_blocks ~bytecode =
+  enumeration_of_all_floats_mixed_suffix ~bytecode
   |> Seq.map (fun suffix -> { prefix = []; suffix })
 ;;
 
@@ -219,6 +222,7 @@ type field_or_arg_type =
   | Bits32
   | Bits64
   | Word
+  | Vec128
 
 let type_to_creation_function = function
   | Imm -> "create_int ()"
@@ -229,6 +233,7 @@ let type_to_creation_function = function
   | Bits64 -> "create_int64_u ()"
   | Word -> "create_nativeint_u ()"
   | Str -> "create_string ()"
+  | Vec128 -> "create_int64x2 ()"
 
 let type_to_string = function
   | Imm -> "int"
@@ -239,6 +244,7 @@ let type_to_string = function
   | Bits64 -> "int64#"
   | Word -> "nativeint#"
   | Str -> "string"
+  | Vec128 -> "int64x2#"
 
 let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
   let checker, transformation =
@@ -251,6 +257,7 @@ let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
     | Bits32 -> "check_int32", Some "Stdlib_upstream_compatible.Int32_u.to_int32"
     | Bits64 -> "check_int64", Some "Stdlib_upstream_compatible.Int64_u.to_int64"
     | Word -> "check_int", Some "Stdlib_upstream_compatible.Nativeint_u.to_int"
+    | Vec128 -> "check_int64x2", Some "box_int64x2"
   in
   let transform access =
     match transformation with
@@ -277,6 +284,7 @@ let flat_element_to_type : flat_element -> field_or_arg_type = function
   | Bits64 -> Bits64
   | Bits32 -> Bits32
   | Word -> Word
+  | Vec128 -> Vec128
 
 module Mixed_record = struct
   type field =
@@ -293,7 +301,7 @@ module Mixed_record = struct
   let is_all_floats t =
     List.for_all t.fields ~f:(fun field ->
         match field.type_ with
-        | Imm | Str | Float32 | Bits32 | Bits64 | Word -> false
+        | Imm | Str | Float32 | Bits32 | Bits64 | Word | Vec128 -> false
         | Float | Float64 -> true)
 
   let of_block index { prefix; suffix } =
@@ -332,6 +340,7 @@ module Mixed_record = struct
             | Float -> "float"
             | Float64 -> "float_u"
             | Float32 -> "float32_u"
+            | Vec128 -> "int64x2_u"
           in
           let field =
             { type_ = flat_element_to_type elem;
@@ -575,14 +584,14 @@ let main n ~bytecode =
   let records =
     Seq.append
       (Seq.take n_all_floats_mixed
-        enumeration_of_all_floats_mixed_blocks)
+        (enumeration_of_all_floats_mixed_blocks ~bytecode))
       (Seq.take (n - n_all_floats_mixed)
-        enumeration_of_mixed_blocks_except_all_floats_mixed)
+        (enumeration_of_mixed_blocks_except_all_floats_mixed ~bytecode))
     |> List.of_seq
     |> List.mapi ~f:Type.record_of_block
   in
   let variants =
-    Seq.take n enumeration_of_mixed_variants
+    Seq.take n (enumeration_of_mixed_variants ~bytecode)
     |> List.of_seq
     |> List.mapi ~f:(fun i x -> Type.variant_of_block (i+n) x)
   in
@@ -612,12 +621,14 @@ let main n ~bytecode =
     List.iter2 values (List.tl values @ [ List.hd values]) ~f
   in
   line {|(* TEST
- flags = "-extension layouts_beta";
  include stdlib_stable;
  include stdlib_upstream_compatible;|};
   if bytecode then (
+    line {| flags = "-extension layouts_beta";|};
     line {| bytecode;|};
   ) else (
+    line {| modules = "stubs.c";|};
+    line {| flags = "-extension layouts_beta -extension simd_beta";|};
     line {| flambda2;|};
     line {| native;|};
   );
@@ -634,6 +645,31 @@ let main n ~bytecode =
   line {|let create_int32_u () = Stdlib_upstream_compatible.Int32_u.of_int32 (Random.int32 0x7FFF_FFFFl)|};
   line {|let create_int64_u () = Stdlib_upstream_compatible.Int64_u.of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL)|};
   line {|let create_nativeint_u () = Stdlib_upstream_compatible.Nativeint_u.of_nativeint (Random.nativeint 0x7FFF_FFFF_FFFF_FFFFn)|};
+  if not bytecode then (
+    line {|external box_int64x2 : int64x2# -> int64x2 = "%%box_vec128"|};
+    line {|external unbox_int64x2 : int64x2 -> int64x2# = "%%unbox_vec128"|};
+    line {|external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_sse2_vec128_interleave_low_64" [@@unboxed] [@@builtin]|};
+    line {|external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_sse2_vec128_interleave_high_64" [@@unboxed] [@@builtin]|};
+    line {|external int64x2_of_int64 : int64 -> int64x2# = "" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]|};
+    line {|external int64_of_int64x2 : int64x2# -> int64 = "" "caml_int64x2_low_to_int64" [@@unboxed] [@@builtin]|};
+    line {|let create_int64x2 () =
+      let a = int64x2_of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL) in
+      let b = int64x2_of_int64 (Random.int64 0x7FFF_FFFF_FFFF_FFFFL) in
+      interleave_low_64 a b|};
+    line {|let int64x2_equal a b =
+      let a = unbox_int64x2 a in
+      let b = unbox_int64x2 b in
+      let al = int64_of_int64x2 a in
+      let ah = int64_of_int64x2 (interleave_high_64 a a) in
+      let bl = int64_of_int64x2 b in
+      let bh = int64_of_int64x2 (interleave_high_64 b b) in
+      Int64.equal al bl && Int64.equal ah bh|};
+    line {|let int64x2_to_string a =
+      let a = unbox_int64x2 a in
+      let l = int64_of_int64x2 a in
+      let h = int64_of_int64x2 (interleave_high_64 a a) in
+      Int64.to_string h ^ ":" ^ Int64.to_string l|}
+  );
   line
     {|let check_gen ~equal ~to_string ~message y1 y2 =
   if equal y1 y2 then () else
@@ -655,6 +691,11 @@ let main n ~bytecode =
   line
    {|let check_int64 =
   check_gen ~equal:Int64.equal ~to_string:Int64.to_string|};
+  if not bytecode then (
+    line
+   {|let check_int64x2 =
+  check_gen ~equal:int64x2_equal ~to_string:int64x2_to_string|};
+  );
   line "";
   line "(* Helper functions for testing polymorphic copying. *)";
   line
@@ -782,6 +823,7 @@ let check_reachable_words expected actual message =
           (List.map t.fields ~f:(fun (field : Mixed_record.field) ->
             match field.type_ with
             | Imm -> ""
+            | Vec128 -> assert (not bytecode); " + 1"
             | Float64 ->
                 (* In bytecode, these fields aren't boxed and thus contribute
                     two words to the reachable words (the header and the

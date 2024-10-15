@@ -36,8 +36,9 @@ pm ::= portable | observing | nonportable
 em ::= external | external64 | internal
 
 (* monadic axes = descriptive axes *)
-um ::= unique | exclusive | aliased
-cm ::= uncontended | shared | contended
+(* These are *backwards* from the way the submode operation works in terms. *)
+um ::= aliased | exclusive | unique
+cm ::= contended | shared | uncontended
 
 m ::= lm | om | um | cm | pm | em
 modes, ms ::= [[ m ]]  (* [ms] is used when all modes are from the same axis *)
@@ -60,8 +61,7 @@ rec {
 
   field_types(sep) ::= [[ field_type | sep ]]
 
-  jkind ::= k | const_layout | kind_of_ τ | jkind mod modes | jkind with field_types(and)
-  (* we may leave out [mod], [with], and [@@] when nothing appears after them *)
+  jkind ::= k | const_layout | jkind mod modes
 
   type_param ::= 'a {{ : jkind }}
 }
@@ -80,8 +80,15 @@ type_kind ::=
   (* choose GADT notation as it subsumes non-GADT notation *)
   | ..
 
+jkind_scheme ::= kind_of_ τ | jkind with field_types(and)
+  (* we may leave out [with] and [@@] when nothing appears after them *)
+  (* These are kept separate from plain [jkind]s to aid in inference: we
+     can't have a join on the right of a subjkind check during inference.
+     The treatment below allowing [with] constraints on the right makes
+     sense only during module inclusion, when we are not doing inference. *)
+
 type_decl ::=
-  type {{ (type_params) }} t {{ : jkind }} {{ = {{ private }} τ }} {{ = type_kind }}
+  type {{ (type_params) }} t {{ : jkind_scheme }} {{ = {{ private }} τ }} {{ = type_kind }}
 
 type_subst ::=
   type {{ (type_params) }} t := τ
@@ -104,22 +111,28 @@ rec {
 
 Ξ ::= locality | onceness | uniqueness | contention | portability | externality
 layout ::= layout_of σ | const_layout
-κ ::= layout; ⟪m_Ξ with field_types⟫  (* syntax with ⟪ and ⟫ defined below *)
+
+  (* syntax with ⟪ and ⟫ defined below *)
+χ ::= layout; ⟪m_Ξ⟫                   (* translation of a [jkind] *)
+κ ::= layout; ⟪m_Ξ with field_types⟫  (* translation of a [jkind_scheme] *)
 (* we may leave out a [with] when there are no types afterwards *)
+(* The syntax for [χ] is a subsyntax for [κ]:
+     In premises, we may write [κ] where the grammar suggests we write [χ].
+     In conclusions, we may write [χ] where the grammar suggests we write [κ]. *)
 
 δ ::= (* left abstract; internal representation of a [type_kind] *)
 
-tconstr_jkind ::= π [[ 'a : κ ]]. κ₀
+tconstr_jkind ::= π [[ 'a : χ ]]. κ₀
   (* That should be a capital π, but that looks too much like ⨅. *)
 
 rec {
   type_binding ::=
-    | 'a : κ
+    | 'a : χ
     | t : tconstr_jkind            (* abstract type *)
-    | t = λ [[ 'a : κ ]]. τ        (* type abbreviation *)
-    | t := λ [[ 'a : κ ]]. τ       (* type substitution in a signature *)
-    | t := λ [[ 'a : κ ]]. δ : κ₀  (* quantified nominative type description *)
-    | k = κ                        (* kind abbreviation *)
+    | t = λ [[ 'a : χ ]]. τ        (* type abbreviation *)
+    | t := λ [[ 'a : χ ]]. τ       (* type substitution in a signature *)
+    | t := λ [[ 'a : χ ]]. δ : κ₀  (* quantified nominative type description *)
+    | k = χ                        (* kind abbreviation *)
     | M = Γ
   Γ ::= [[ type_binding | , ]]
 }
@@ -127,6 +140,35 @@ rec {
 μ ::= (* semantic modality *)
 q ::= best | not_best   (* quality of an inferred kind; best < not_best *)
 ```
+
+Mode crossing is not covered in this design. 
+
+However, it may be helpful to know that having e.g. `mod observing` in a kind
+means that `observing` is the upper bound for the locality mode of values whose
+types have that kind. For example, if `t : ... mod observing` and some
+expression `e` of type `t` has mode `nonportable` (the top mode), it actually
+has mode `observing`.  If `e'` of type `t` has mode `portable` (the bottom
+mode), that `e` is completely unaffected by the mode-crossing.  Other comonadic
+axes work similarly.
+
+Monadic axes are different, though: a kind with `mod exclusive` means that
+`exclusive` is a lower bound for mode requirements on terms whose types have
+that kind.  Suppose `t : ... mod exclusive`. If a context requires `e` of type
+`t` to have mode `unique` (the bottom mode), then actually having mode
+`exclusive` is sufficient. A requirement of `aliased` (the top mode) is
+completely unaffected.
+
+The key question: if `t : ... mod exclusive` and we have 
+`type ('a : ... mod aliased) t2`, is `t t2` valid? No! Even though
+`exclusive < aliased`. That's because `mod aliased` puts a *harder* requirement
+on its type (it must be agnostic between all of `unique`, `exclusive`, and
+`aliased`) than `mod exclusive` does (which says the type is agnostic between
+`unique` and `exclusive` only). This means that the subkind relation works
+backwards on monadic axes: `... mod aliased ≤ ... mod exclusive`. For this
+reason, in the presentation above, the monadic axis elements are listed in 
+reverse order: this document does not care about submoding or mode crossing
+directly, and writing the axes in reverse order gives us the right behavior
+on subkinding.
 
 Meta-syntax:
 
@@ -163,7 +205,8 @@ modalities `μ` (where `sup(μ) = ⊤`), `m ⊓ sup(μ) = m`. We thus do not nee
 modalities in internal kinds `κ`. We can thus simplify the definition of `κ` to
 
 ```
-modal_bound_Ξ ::= m_Ξ with [[ σ ]]
+modal_bound_item_Ξ ::= mode m_Ξ | with σ
+modal_bound_Ξ ::= [[ modal_bound_item_Ξ | ⊔ ]]
 κ ::= layout; ⟪modal_bound_Ξ⟫
 ```
 
@@ -178,42 +221,39 @@ is the identity. Put another way, this gets all the types from
 `field_types`, omitting those with a modality along `Ξ`.
 
 We write `Ξ(κ)` to denote the modal_bound in `κ` corresponding to axis `Ξ`,
-`mode(modal_bound)` to denote the mode stored in a modal bound,
-`with_types(modal_bound)` to denote the set of types stored in a modal bound,
-and `lay(κ)` to denote the layout in `κ`.
+and `lay(κ)` to denote the layout in `κ`. Similarly for `lay(χ)` and `Ξ(χ)`.
 
 Typing rules:
 
 ```
-rec {
-
-Γ ⊢ jkind ↠ κ  (* translate a user-written jkind to an internal κ *)
+Γ ⊢ jkind ↠ χ  (* translate a user-written jkind to an internal κ *)
 =============
 
-k = κ ∈ Γ
+k = χ ∈ Γ
 --------- K_ABBREV
-Γ ⊢ k ↠ κ
+Γ ⊢ k ↠ χ
 
 ---------------------------------------- K_LAYOUT
 Γ ⊢ const_layout ↠ const_layout; ⟪⊤_Ξ⟫
 
+Γ ⊢ jkind ↠ χ
+------------------------------------------------- K_MOD
+Γ ⊢ jkind mod modes ↠ lay(χ); ⟪Ξ(χ) ⊓ ⨅ extract(Ξ, modes)⟫
+
+
+rec {
+
+Γ ⊢ jkind_scheme ↠ κ  (* translate a user-written jkind scheme to an internal κ *)
+====================
+
 Γ ⊢ τ : κ
------------------------------------------- K_OF
+------------------------------------------ KS_OF
 Γ ⊢ kind_of_ τ ↠ layout_of τ; ⟪⊥_Ξ with τ⟫
 
-Γ ⊢ jkind ↠ κ
-------------------------------------------------- K_MOD
-Γ ⊢ jkind mod modes ↠ lay(κ); ⟪Ξ(κ) ⊓ ⨅ extract(Ξ, modes)⟫
-  (* CR reisenberg: This rule isn't right if κ already has [with] constraints; probably
-     should just forbid that syntactically. Not right: we can't meet out
-     the with-added modes because we don't really know what they are.
-     So we'd have to retain the [mod] clause just like we retain the
-     [with] clause, which is terrible. *)
-
-Γ ⊢ jkind ↠ κ
+Γ ⊢ jkind ↠ χ
 ∀ σᵢ ∈ field_types, Γ ⊢ σᵢ : κᵢ
----------------------------------------------------------------------- K_WITH
-Γ ⊢ jkind with field_types ↠ lay(κ); ⟪Ξ(κ) with types_for(Ξ, field_types)⟫
+---------------------------------------------------------------------- KS_WITH
+Γ ⊢ jkind with field_types ↠ lay(χ); ⟪Ξ(χ) with types_for(Ξ, field_types)⟫
 ```
 
 In `K_OF`, we produce a kind in terms of `τ`, not just `κ`. This allows us
@@ -272,13 +312,13 @@ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ ∈ Γ
 ----------------------------------------------------------------------------- T_ARROW
 Γ ⊢ σ₁ -> τ₂ : value; local; once; unique; uncontended; nonportable; internal {best}
 
-'a : κ ∈ Γ
+'a : χ ∈ Γ
 ---------- T_VAR
-Γ ⊢ 'a : κ {not_best}
+Γ ⊢ 'a : χ {not_best}
 
 Γ ⊢ τ : κ₁ {q}
-Γ ⊢ jkind ↠ κ₂
-Γ ⊢ κ₁ ≤ κ₂
+Γ ⊢ jkind ↠ χ₂
+Γ ⊢ κ₁ ≤ χ₂
 ------------------------- T_CONSTRAINT
 Γ ⊢ τ as (_ : jkind) : κ₁ {q}
 
@@ -287,8 +327,8 @@ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ ∈ Γ
 -------------- T_POLY_DEFAULT
 Γ ⊢ 'a. σ : κ {q}
 
-Γ ⊢ jkind ↠ κ₀
-Γ, 'a : κ₀ ⊢ σ : κ {q}
+Γ ⊢ jkind ↠ χ₀
+Γ, 'a : χ₀ ⊢ σ : κ {q}
 'a # κ
 ----------------------- T_POLY
 Γ ⊢ ('a : jkind). σ : κ {q}
@@ -334,78 +374,39 @@ const_layout₁ ≤ lay(κ₂)
 ------------------------------- LSUB_SIGMA_SIGMA
 Γ ⊢ layout_of σ₁ ≤ layout_of σ₂
 
-
-Γ ⊢ground_Ξ [[ σ ]] ↠ m_Ξ   (* ground out the `with` types *)
-=========================
-
-∀ i:
-  Γ ⊢ σᵢ : κᵢ
-  mᵢ_Ξ with [[ σᵢⱼ ]] = Ξ(κᵢ)
-  Γ ⊢ground_Ξ [[ σᵢⱼ ]] ↠ mᵢ'_Ξ
-  mᵢ''_Ξ = mᵢ_Ξ ⊔ mᵢ'_Ξ
----------------------------------------------- MG
-Γ ⊢ground_Ξ [[ σᵢ ]] ↠ ⨆ [[ mᵢ''_Ξ ]]
+Γ ⊢ σ₂ : κ₂
+lay(κ₂) is a sort  (* this relies on the discrete nature of the sort lattice *)
+                   (* if the sort lattice becomes non-discrete, use [best] *)
+Γ ⊢ layout_of σ₁ ≤ lay(κ₂)
+------------------------------- LSUB_SIGMA_SORT
+Γ ⊢ layout_of σ₁ ≤ layout_of σ₂
 
 
-Γ ⊢ modal_bound_Ξ ≤ m_Ξ   (* a modal bound is definitely less than m *)
-=======================
+Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ
+========================================
 
-m₁ ≤ m₂
-∀ i:
-  Γ ⊢ σᵢ : κᵢ
-  Ξ(κᵢ) ≤ m₂_Ξ
------------------------------ MB_SUB
-Γ ⊢ m₁_Ξ with [[ σᵢ ]] ≤ m₂_Ξ
+Γ ⊢ σ : κ {best}   (* another critical use of `best` *)
+Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ ⊔ Ξ(κ)
+----------------------------------------------- MB_EXPAND_R
+Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ ⊔ with σ
+  (* the [with σ] is nondeterministically chosen; order does not matter *)
 
+m₁_Ξ ≤ ⨆ [[ m₂ᵢ_Ξ ]]
+------------------------------------------------ MB_MODE
+Γ ⊢ mode m₁_Ξ ≤ modal_bound₂_Ξ ⊔ [[ mode m₂ᵢ_Ξ ]]
+  (* The list of [m₂ᵢ_Ξ] is nondeterministically chosen, but grabbing
+     them all is a good choice. *)
 
-Γ ⊢ modal_bound_Ξ ↝ modal_bound'_Ξ
-===================================
-  (* This defines a non-deterministic reduction relation on modal bounds.
-     We understand the `m_Ξ with σ₀ and [[ σᵢ ]]` notation to mean that
-     we non-deterministically select one σ₀ from the set of with-types;
-     there is no ordering implied here. *)
-  (* Conjecture: this reduction relation is confluent. *)
+Γ ⊢ σ₁ = σ₂
+-------------------------------------- MB_WITH
+Γ ⊢ with σ₁ ≤ modal_bound₂_Ξ ⊔ with σ₂
+  (* [with σ₂] nondeterministically chosen *)
 
-Γ ⊢ σ₀ : κ₀ {best}     (* another critical use of `best` *)
-m'_Ξ = m_Ξ ⊔ mode(Ξ(κ₀))
----------------------------------- MR_BEST
-Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m'_Ξ with with_types(Ξ(κ₀)) and [[ σᵢ ]]
-
-σ₀ ∈ [[ σᵢ ]]
------------------------------ MR_DUP
-Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m_Ξ with [[ σᵢ ]]
-
-Γ ⊢ σ₀ : κ₀
-Γ ⊢ Ξ(κ₀) ≤ m_Ξ
------------------------------------------------- MR_IGNORE
-Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m_Ξ with [[ σᵢ ]]
-
-(* We write `modal_bound_Ξ ↝ .` to denote that `modal_bound_Ξ` cannot step. *)
-
-
-Γ ⊢ modal_bound_Ξ ⤋ modal_bound'_Ξ
-===================================
-
-Γ ⊢ modal_bound_Ξ ↝* modal_bound'_Ξ
-Γ ⊢ modal_bound_Ξ ↝ .
------------------------------------ MR_REDUCE
-Γ ⊢ modal_bound_Ξ ⤋ modal_bound'_Ξ
-
-
-Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
-===========================================
-
-Γ ⊢ σ₁₀ = σ₂₀
-Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
------------------------------------------------------------ MSUB_MATCH
-Γ ⊢ m₁_Ξ with σ₁₀ and [[ σ₁ ]] ≤ m₂_Ξ with σ₂₀ and [[ σ₂ ]]
-  (* As elsewhere, the `with σ and [[ σ ]]` notation means to
-  non-deterministically select. *)
-
-Γ ⊢ground_Ξ [[ σ₁ ]] ↠ m₁'_Ξ
-(m₁_Ξ ⊔ m₁'_Ξ) ≤ m₂_Ξ
------------------------------ MSUB_BOUND
-Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ
+Γ ⊢ σ₁ : κ
+∀ modal_bound_item_Ξ ∈ Ξ(κ):
+  Γ ⊢ modal_bound_item_Ξ ≤ modal_bound₂_Ξ
+---------------------------- MB_EXPAND_L
+Γ ⊢ with σ₁ ≤ modal_bound₂_Ξ
 
 
 Γ ⊢ κ₁ ≤ κ₂
@@ -413,9 +414,8 @@ m'_Ξ = m_Ξ ⊔ mode(Ξ(κ₀))
 
 Γ ⊢ layout₁ ≤ layout₂
 ∀ Ξ:
-  Γ ⊢ modal_bound₁_Ξ ⤋ m₁_Ξ with [[ σ₁ ]]
-  Γ ⊢ modal_bound₂_Ξ ⤋ m₂_Ξ with [[ σ₂ ]]
-  Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
+  ∀ modal_bound_item₁_Ξ ∈ modal_bound₁_Ξ:
+    Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ
 --------------------------------------------------------- SUB
 Γ ⊢ layout₁; ⟪modal_bound₁_Ξ⟫ ≤ layout₂; ⟪modal_bound₂_Ξ⟫
 
@@ -463,31 +463,60 @@ m_portability = portable
 Γ ⊢tk .. ↠ δ : value; ⟪⊤_Ξ⟫
 
 
+Γ; tconstr_jkind ⊢tk type_kind ↠ δ  (* process [type_kind] with known jkind [κ] *)
+==================================
+
+∀ j:
+  field_typesⱼ = extract_types(constructor_argsⱼ)
+  ∀ σⱼₖ ∈ field_typesⱼ:
+    Γ ⊢ σⱼₖ : κⱼₖ
+  mⱼ_contention = if mutable ∈ constructor_argsⱼ then contended else uncontended
+  mⱼ_locality, mⱼ_externality = if (∀ k, κⱼₖ = void) ∨ [@@unboxed] then global, external else local, internal
+  mⱼ_uniqueness = if constructor_argsⱼ = record_kind ∧ ¬ [@@unboxed] then shared else unique
+  mⱼ_linearity = many
+  mⱼ_portability = portable
+  ∀ i (where τᵢ ∈ τsⱼ):
+    Γ ⊢ τᵢ : κᵢ
+    Γ ⊢ κᵢ ≤ χᵢ
+  κ₀' = κ₀{τsⱼ/[['aᵢ]]}
+  ∀ Ξ:
+    mode m_Ξ ≤ Ξ(κ₀')
+    ∀ σ ∈ types_for(Ξ, field_typesⱼ), with σ ≤ Ξ(κ₀')
+  value ≤ lay(κ₀')
+if [@@unboxed]:
+  n = 1
+  constructor_args₁ has exactly one field
+δ represents the type_kind
+---------------------------------------------------------------------- TK_GADT
+Γ; π [[ 'aᵢ : χᵢ ]]. κ₀ ⊢tk {{ private }} [[ Kⱼ : constructor_argsⱼ -> τsⱼ t ]]ₙ {{ [@@unboxed] }} ↠ δ
+
+(* No other rules necessary: non-variants can go by the normal ⊢tk relation *)
+
 Γ ⊢ δ₁ reexports δ₂
 ===================
 
 (* left abstract *)
 
 
-Γ ⊢?any type_params ↠ [[ 'aᵢ : κᵢ ]]  (* the [?any] is essentially an optional param *)
+Γ ⊢?any type_params ↠ [[ 'aᵢ : χᵢ ]]  (* the [?any] is essentially an optional param *)
 ====================================
 
 --------- P_EMPTY
 Γ ⊢?any ∅ ↠ ∅
 
-Γ, 'a : κ₀ ⊢?any type_params ↠ [[ 'bᵢ : κᵢ ]]
-κ₀ ≠ any
+Γ, 'a : χ₀ ⊢?any type_params ↠ [[ 'bᵢ : χᵢ ]]
+lay(χ₀) ≠ any
 -------------------------------------------- P_INFER
-Γ ⊢ 'a, type_params ↠ 'a : κ₀, [[ 'bᵢ : κᵢ ]]
+Γ ⊢ 'a, type_params ↠ 'a : χ₀, [[ 'bᵢ : χᵢ ]]
 
-Γ, 'a : κ₀ ⊢?any type_params ↠ [[ 'bᵢ : κᵢ ]]
+Γ, 'a : χ₀ ⊢?any type_params ↠ [[ 'bᵢ : χᵢ ]]
 -------------------------------------------- P_INFER_ANY
-Γ ⊢any 'a, type_params ↠ 'a : κ₀, [[ 'bᵢ : κᵢ ]]
+Γ ⊢any 'a, type_params ↠ 'a : χ₀, [[ 'bᵢ : χᵢ ]]
 
-Γ ⊢ jkind ↠ κ₀
-Γ, 'a : κ₀ ⊢?any type_params ↠ [[ 'bᵢ : κᵢ ]]
+Γ ⊢ jkind ↠ χ₀
+Γ, 'a : χ₀ ⊢?any type_params ↠ [[ 'bᵢ : χᵢ ]]
 ---------------------------------------- P_KINDED
-Γ ⊢?any 'a : jkind, type_params ↠ 'a : κ₀, [[ 'bᵢ : κᵢ ]]
+Γ ⊢?any 'a : jkind, type_params ↠ 'a : χ₀, [[ 'bᵢ : χᵢ ]]
 ```
 
 The `⊢any` variant allows us to infer `any` as the layout of a type
@@ -497,78 +526,86 @@ variable. It is used for e.g. `type 'a t := ...` in signatures.
 Γ ⊢ type_decl ↠ Γ'  (* translate a [type_decl] into a fresh env Γ' *)
 ==================
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
 ---------------------------------------------------------- D_ABSTRACT
-Γ ⊢ type type_params t ↠ t : π [[ 'aᵢ : κᵢ ]]. value; ⟪⊤_Ξ⟫
+Γ ⊢ type type_params t ↠ t : π [[ 'aᵢ : χᵢ ]]. value; ⟪⊤_Ξ⟫
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], t : tconstr_jkind ⊢ jkind ↠ κ₀  (* [t] may appear in its kind *)
-tconstr_jkind = π [[ 'aᵢ : κᵢ ]]. κ₀
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]], t : tconstr_jkind ⊢ jkind_scheme ↠ κ₀  (* [t] may appear in its kind *)
+tconstr_jkind = π [[ 'aᵢ : χᵢ ]]. κ₀
 ------------------------------------------------- D_KINDED
-Γ ⊢ type type_params t : jkind ↠ t : tconstr_jkind
+Γ ⊢ type type_params t : jkind_scheme ↠ t : tconstr_jkind
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ τ : κ₀
-Γ' = t = λ [[ 'aᵢ : κᵢ ]]. τ
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ τ : κ₀
+Γ' = t = λ [[ 'aᵢ : χᵢ ]]. τ
 --------------------------------------------- D_ABBREV
 Γ ⊢ type type_params t = τ ↠ Γ'
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ τ : κ₀
-Γ' = t : π [[ 'aᵢ : κᵢ ]]. κ₀   (* private: make [t] abstract in the result *)
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ τ : κ₀
+Γ' = t : π [[ 'aᵢ : χᵢ ]]. κ₀   (* private: make [t] abstract in the result *)
 ---------------------------------------- D_PRIVATE
 Γ ⊢ type type_params t = private τ ↠ Γ'
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢tk type_kind ↠ δ : κ₀
---------------------------------------------- D_NOMINATIVE
-Γ ⊢ type type_params t = type_kind ↠ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]], t : π [[ 'aᵢ : χᵢ ]]. κ₀ ⊢tk type_kind ↠ δ : κ₀
+------------------------------------------------------------------ D_NOMINATIVE
+Γ ⊢ type type_params t = type_kind ↠ t := λ [[ 'aᵢ : χᵢ ]]. δ : κ₀
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ τ : κ₀
-Γ' = t = λ [[ 'aᵢ : κᵢ ]]. τ
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ jkind ↠ κ₀'
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ κ₀ ≤ κ₀'
-------------------------------------- D_KINDED_ABBREV
-Γ ⊢ type type_params t : jkind = τ ↠ Γ'
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ τ : κ₀
+Γ' = t = λ [[ 'aᵢ : χᵢ ]]. τ
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ jkind_scheme ↠ κ₀'
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ κ₀ ≤ κ₀'
+---------------------------------------------- D_KINDED_ABBREV
+Γ ⊢ type type_params t : jkind_scheme = τ ↠ Γ'
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ τ : κ₀
-Γ' = t : π [[ 'aᵢ : κᵢ ]]. κ₀'        (* κ₀', not κ₀, for private abbrevs *)
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ jkind ↠ κ₀'
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ κ₀ ≤ κ₀'
---------------------------------------------- D_KINDED_PRIVATE
-Γ ⊢ type type_params t : jkind = private τ ↠ Γ'
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ τ : κ₀
+Γ' = t : π [[ 'aᵢ : χᵢ ]]. κ₀'        (* κ₀', not κ₀, for private abbrevs *)
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ jkind_scheme ↠ κ₀'
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ κ₀ ≤ κ₀'
+----------------------------------------------------- D_KINDED_PRIVATE
+Γ ⊢ type type_params t : jkind_scheme = private τ ↠ Γ'
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
 τ = [[ 'aᵢ ]] t'
-Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢ τ : κ₀
-Γ' = t = λ [[ 'aᵢ : κᵢ ]]. τ
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢tk type_kind ↠ δ : κ₀'
-t' := λ [[ 'aᵢ : κᵢ ]]. δ' : κ₀'' ∈ Γ
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ δ reexports δ'
+Γ, [[ 'aᵢ : χᵢ ]], t : π [[ 'aᵢ : χᵢ ]]. κ₀ ⊢ τ : κ₀
+Γ' = t = λ [[ 'aᵢ : χᵢ ]]. τ
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢tk type_kind ↠ δ : κ₀'
+t' := λ [[ 'aᵢ : χᵢ ]]. δ' : κ₀'' ∈ Γ
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ δ reexports δ'
 ----------------------------------------- D_REEXPORT
 Γ ⊢ type type_params t = τ = type_kind ↠ Γ'
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢tk type_kind ↠ δ : κ₀'
-Γ' = t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀'  (* inferred jkind, not user-written one *)
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ jkind ↠ κ₀
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ κ₀' ≤ κ₀
------------------------------------------------ D_KINDED_NOMINATIVE
-Γ ⊢ type type_params t : jkind = type_kind ↠ Γ'
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]], t : π [[ 'aᵢ : χᵢ ]]. κ₀' ⊢tk type_kind ↠ δ : κ₀'
+Γ' = t := λ [[ 'aᵢ : χᵢ ]]. δ : κ₀'  (* inferred jkind, not user-written one *)
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ jkind_scheme ↠ κ₀
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ κ₀' ≤ κ₀
+----------------------------------------------------- D_KINDED_NOMINATIVE
+Γ ⊢ type type_params t : jkind_scheme = type_kind ↠ Γ'
 
-Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
+(* This rule is to support using type refinements in GADT constructors to infer
+   a lower overall jkind; we can implement it later than the rest of the design *)
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]] ⊢ jkind_scheme ↠ κ₀    (* [t] is *not* in scope here *)
+Γ, [[ 'aᵢ : χᵢ ]], t : π [[ 'aᵢ : χᵢ ]]. κ₀; π [[ 'aᵢ : χᵢ ]]. κ₀ ⊢tk type_kind ↠ δ : κ₀
+----------------------------------------------- D_GADT
+Γ ⊢ type type_params t : jkind_scheme = type_kind ↠ Γ, t := λ [[ 'aᵢ : χᵢ ]]. δ : κ₀
+
+Γ ⊢ type_params ↠ [[ 'aᵢ : χᵢ ]]
 τ = [[ 'aᵢ ]] t'
-Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢ τ : κ₀
-Γ' = t = λ [[ 'aᵢ : κᵢ ]]. τ
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢tk type_kind ↠ δ : κ₀'
-t' := λ [[ 'aᵢ : κᵢ ]]. δ' ∈ Γ
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ δ reexports δ'
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ jkind ↠ κ₀''
-Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ κ₀ ≤ κ₀''
--------------------------------------------------- D_KINDED_REEXPORT
-Γ ⊢ type type_params t : jkind = τ = type_kind ↠ Γ'
+Γ, [[ 'aᵢ : χᵢ ]], t : π [[ 'aᵢ : χᵢ ]]. κ₀ ⊢ τ : κ₀
+Γ' = t = λ [[ 'aᵢ : χᵢ ]]. τ
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢tk type_kind ↠ δ : κ₀'
+t' := λ [[ 'aᵢ : χᵢ ]]. δ' ∈ Γ
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ δ reexports δ'
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ jkind_scheme ↠ κ₀''
+Γ, [[ 'aᵢ : χᵢ ]], Γ' ⊢ κ₀ ≤ κ₀''
+--------------------------------------------------------- D_KINDED_REEXPORT
+Γ ⊢ type type_params t : jkind_scheme = τ = type_kind ↠ Γ'
 
 
 Γ ⊢find t ∈ Γ₂ ↠ tconstr_jkind  (* find [t] in Γ₂ *)
@@ -579,13 +616,13 @@ t : tconstr_jkind ∈ Γ₂
 --------------------------- FIND_ABSTRACT
 Γ ⊢find t ∈ Γ₂ ↠ tconstr_jkind
 
-t = λ [[ 'aᵢ : κᵢ ]]. τ ∈ Γ₂
+t = λ [[ 'aᵢ : χᵢ ]]. τ ∈ Γ₂
 ------------------------------------- FIND_ABBREV
-Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : κᵢ ]]. layout_of τ; ⟪⊥_Ξ with τ⟫
+Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : χᵢ ]]. layout_of τ; ⟪⊥_Ξ with τ⟫
 
-t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀ ∈ Γ₂
+t := λ [[ 'aᵢ : χᵢ ]]. δ : κ₀ ∈ Γ₂
 --------------------------------------- FIND_NOMINATIVE
-Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : κᵢ ]]. κ₀
+Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : χᵢ ]]. κ₀
 
 
 Γ ⊢include type_binding ∈~ Γ₂
@@ -593,21 +630,21 @@ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀ ∈ Γ₂
      with ambient env Γ *)
 ====================================
 
-tconstr_jkind₁ = π [[ 'aᵢ : κ₁ᵢ ]]ₙ. κ₁₀
-Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : κ₂ᵢ ]]ₙ. κ₂₀
+tconstr_jkind₁ = π [[ 'aᵢ : χ₁ᵢ ]]ₙ. κ₁₀
+Γ ⊢find t ∈ Γ₂ ↠ π [[ 'aᵢ : χ₂ᵢ ]]ₙ. κ₂₀
 ∀ 1 ≤ j ≤ n:
-  Γ, [[ 'aᵢ : κ₁ᵢ ]]ⱼ₋₁ ⊢ κ₁ⱼ ≤ κ₂ⱼ
-    (* check with more restrictive κ₁ in env, not κ₂; this is also contravariant *)
-Γ, [[ 'aᵢ : κ₁ᵢ ]]ₙ ⊢ κ₂₀ ≤ κ₁₀
+  Γ, [[ 'aᵢ : χ₁ᵢ ]]ⱼ₋₁ ⊢ χ₁ⱼ ≤ χ₂ⱼ
+    (* check with more restrictive χ₁ in env, not χ₂; this is also contravariant *)
+Γ, [[ 'aᵢ : χ₁ᵢ ]]ₙ ⊢ κ₂₀ ≤ κ₁₀
 ------------------------------------------ INCL_ABSTRACT
 Γ ⊢include (t : tconstr_jkind₁) ∈~ Γ₂
 
-(t = λ [[ 'aᵢ : κ₂ᵢ ]]ₙ. τ₂) ∈ Γ₂
+(t = λ [[ 'aᵢ : χ₂ᵢ ]]ₙ. τ₂) ∈ Γ₂
 ∀ 1 ≤ j ≤ n:
-  Γ, [[ 'aᵢ : κ₁ᵢ ]]ⱼ₋₁ ⊢ κ₁ⱼ ≤ κ₂ⱼ
-Γ, [[ 'aᵢ : κ₁ᵢ ]]ₙ ⊢ τ₁ = τ₂
+  Γ, [[ 'aᵢ : χ₁ᵢ ]]ⱼ₋₁ ⊢ χ₁ⱼ ≤ χ₂ⱼ
+Γ, [[ 'aᵢ : χ₁ᵢ ]]ₙ ⊢ τ₁ = τ₂
 ----------------------------------------- INCL_ABBREV
-Γ ⊢include (t = λ [[ 'aᵢ : κ₁ᵢ ]]ₙ. τ₁) ∈~ Γ₂
+Γ ⊢include (t = λ [[ 'aᵢ : χ₁ᵢ ]]ₙ. τ₁) ∈~ Γ₂
 
 (* nothing to check for here *)
 ------------------------------------------ INCL_SUBST
@@ -635,12 +672,12 @@ TODO: More type_binding rules
 ---------------------- SIG_TYPE_DECL
 Γ ⊢sig type_decl ↠ Γ'
 
-Γ ⊢ jkind ↠ κ
+Γ ⊢ jkind ↠ χ
 ---------------------------------------- SIG_KIND_ABBREV
-Γ ⊢sig kind_abbrev_ k = jkind ↠ k = κ
+Γ ⊢sig kind_abbrev_ k = jkind ↠ k = χ
 
-Γ ⊢any type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]] ⊢ τ : κ₀
+Γ ⊢any type_params ↠ [[ 'aᵢ : χᵢ ]]
+Γ, [[ 'aᵢ : χᵢ ]] ⊢ τ : κ₀
 -------------------------------------------------- SIG_TYPE_SUBST
 Γ ⊢sig type type_params t := τ ↠ t := λ [[ 'aᵢ ]]. τ
 
@@ -662,9 +699,9 @@ rec {
 ------------------------- STRUCT_TYPE_DECL
 Γ ⊢struct type_decl ↠ Γ'
 
-Γ ⊢ jkind ↠ κ
+Γ ⊢ jkind ↠ χ
 ------------------------------------------- STRUCT_KIND_ABBREV
-Γ ⊢struct kind_abbrev_ k = jkind ↠ k = κ
+Γ ⊢struct kind_abbrev_ k = jkind ↠ k = χ
 
 Γ ⊢mty module_type ↠ Γ₁
 Γ ⊢mod module_expr ↠ Γ₂
@@ -683,6 +720,13 @@ rec {
 }
 
 ```
+
+# Properties
+
+Lemma (Borrowing is sound): If `Γ ⊢ σ : κ {best}` and `Γ ⊢ κ ≤ any mod global`,
+then `Γ ⊢ κ ≤ any mod unique`.
+
+Proof: TODO.
 
 # Examples
 

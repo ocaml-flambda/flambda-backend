@@ -99,7 +99,6 @@ type error =
     }
   | Null_arity_external
   | Missing_native_external
-  | Unboxed_product_in_external
   | Unbound_type_var of type_expr * type_declaration
   | Cannot_extend_private_type of Path.t
   | Not_extensible_type of Path.t
@@ -164,8 +163,16 @@ let get_unboxed_from_attributes sdecl =
 let make_params env path params =
   TyVarEnv.reset (); (* [transl_type_param] binds type variables *)
   let make_param (sty, v) =
+    (* Our choice for now is that if you want a parameter of jkind any, you have
+       to ask for it with an annotation.  Some restriction here seems necessary
+       for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
+       have jkind any).  But it might be possible to infer [any] in some
+       cases. *)
+    let jkind =
+      Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path)
+    in
     try
-      (transl_type_param env path sty, v)
+      (transl_type_param env path jkind sty, v)
     with Already_bound ->
       raise(Error(sty.ptyp_loc, Repeated_parameter))
   in
@@ -199,6 +206,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   if not needed then env else
   let arity = List.length sdecl.ptype_params in
   let path = Path.Pident id in
+  let any = Jkind.Builtin.any ~why:Initial_typedecl_env in
 
   (* There is some trickiness going on here with the jkind.  It expands on an
      old trick used in the manifest of [decl] below.
@@ -256,12 +264,17 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.Builtin.any ~why:Initial_typedecl_env)
+      ~default:any
       sdecl
   in
   let abstract_source, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
-    | None, _ | Some _, None -> Definition, Some (Ctype.newvar type_jkind)
+    (* Make a manifest with an unrestricted type variable. This type variable
+       essentially collects constraints that arise from the usage of the
+       type being constructed. Nothing is gained by using the jkind from
+       an annotation here, and doing so with separated left- and right-jkinds
+       is hard to do. *)
+    | None, _ | Some _, None -> Definition, Some (Ctype.newvar any)
     | Some _, Some reason -> reason, None
 in
   let type_params =
@@ -418,7 +431,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
     if not allow_unboxed then
       match Jkind.Sort.default_to_value_and_get s with
       | Base (Void | Value) -> ()
-      | Base (Float64 | Float32 | Word | Bits32 | Bits64)
+      | Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128)
       | Product _ as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
@@ -557,7 +570,7 @@ let make_constructor
   | Some sret_type ->
       (* if it's a generalized constructor we must first narrow and
          then widen so as to not introduce any new constraints *)
-      (* narrow and widen are now invoked through wrap_type_variable_scope *)
+      (* narrow and widen are now invoked through with_local_scope *)
       TyVarEnv.with_local_scope begin fun () ->
       let closed =
         match svars with
@@ -1042,7 +1055,8 @@ let rec check_constraints_rec env loc visited ty =
         | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
           let violation =
             Jkind.Violation.of_
-              (Not_a_subjkind (original_jkind, inferred_jkind))
+              (Not_a_subjkind (Jkind.disallow_right original_jkind,
+                               Jkind.disallow_left inferred_jkind))
           in
           raise (Error(loc, Jkind_mismatch_due_to_bad_inference
                             (ty, violation, Check_constraints)))
@@ -1142,7 +1156,7 @@ let narrow_to_manifest_jkind env loc decl =
   | None -> decl
   | Some ty ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    match Jkind.sub_with_history jkind' decl.type_jkind with
+    match Jkind.sub_jkind_l jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
       raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1156,7 +1170,7 @@ let check_kind_coherence env loc dpath decl =
   | (Type_variant _ | Type_record _ | Type_open), Some ty ->
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
-        begin match Jkind.sub_with_history jkind' decl.type_jkind with
+        begin match Jkind.sub_jkind_l jkind' decl.type_jkind with
         | Ok _ -> ()
         | Error v ->
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1280,6 +1294,7 @@ module Element_repr = struct
     | Float32
     | Bits32
     | Bits64
+    | Vec128
     | Word
 
   type t =
@@ -1328,6 +1343,7 @@ module Element_repr = struct
       | Word, _ -> Unboxed_element Word
       | Bits32, _ -> Unboxed_element Bits32
       | Bits64, _ -> Unboxed_element Bits64
+      | Vec128, _ -> Unboxed_element Vec128
       | Void, _ -> Element_without_runtime_component { loc; ty }
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
@@ -1335,6 +1351,7 @@ module Element_repr = struct
     | Float32 -> Float32
     | Bits32 -> Bits32
     | Bits64 -> Bits64
+    | Vec128 -> Vec128
     | Word -> Word
 
   let to_flat : _ -> flat_element option = function
@@ -1355,6 +1372,7 @@ module Element_repr = struct
       | [] -> None
       | (t1, t1_extra) :: ts ->
           match t1 with
+          | Float_element | Imm_element | Value_element -> find_flat_suffix ts
           | Unboxed_element unboxed ->
               let suffix =
                 List.map (fun (t2, t2_extra) ->
@@ -1366,19 +1384,7 @@ module Element_repr = struct
                           ~boxed:t2_extra)
                   ts
               in
-              Some (`Continue (unboxed_to_flat unboxed :: suffix))
-          | Float_element
-          | Imm_element
-          | Value_element as repr -> begin
-              match find_flat_suffix ts with
-              | None -> None
-              | Some `Stop _ as stop -> stop
-              | Some `Continue suffix ->
-                  Some (
-                    match to_flat repr with
-                    | None -> `Stop suffix
-                    | Some flat -> `Continue (flat :: suffix))
-            end
+              Some (unboxed_to_flat unboxed :: suffix)
           (* CR layouts v7: Supporting void with mixed blocks will require
              updating some assumptions in lambda, e.g. the translation
              of [value_prefix_len]. *)
@@ -1393,8 +1399,7 @@ module Element_repr = struct
     in
     match find_flat_suffix ts with
     | None -> None
-    | Some (`Continue flat_suffix | `Stop flat_suffix) ->
-        Some (Array.of_list flat_suffix)
+    | Some flat_suffix -> Some (Array.of_list flat_suffix)
 
   let mixed_product_shape loc ts kind ~on_flat_field_expected =
     let flat_suffix = mixed_product_flat_suffix ts ~on_flat_field_expected in
@@ -1513,7 +1518,7 @@ let update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Float32 | Bits32 | Bits64 | Word) ->
+           | Unboxed_element (Float32 | Bits32 | Bits64 | Vec128 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())
@@ -1686,8 +1691,10 @@ let update_decl_jkind env dpath decl =
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
-    begin match Jkind.sub_or_error new_jkind decl.type_jkind with
-    | Ok () -> ()
+    (* CR layouts v2.8: Consider making a function that doesn't compute
+       histories for this use-case, which doesn't need it. *)
+    begin match Jkind.sub_jkind_l new_jkind decl.type_jkind with
+    | Ok _ -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
     end;
@@ -2709,17 +2716,17 @@ let native_repr_of_type env kind ty sort_or_poly =
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
-    Some (Unboxed_vector (Pvec128 Int8x16))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
-    Some (Unboxed_vector (Pvec128 Int16x8))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x4 ->
-    Some (Unboxed_vector (Pvec128 Int32x4))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x2 ->
-    Some (Unboxed_vector (Pvec128 Int64x2))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x4 ->
-    Some (Unboxed_vector (Pvec128 Float32x4))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
-    Some (Unboxed_vector (Pvec128 Float64x2))
+    Some (Unboxed_vector Pvec128)
   | _ ->
     None
 
@@ -2784,8 +2791,8 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   | Native_repr_attr_absent, Poly ->
     Repr_poly
   | Native_repr_attr_absent, Sort (Base Value) ->
-    Same_as_ocaml_repr Value
-  | Native_repr_attr_absent, (Sort (Base sort)) ->
+    Same_as_ocaml_repr (Base Value)
+  | Native_repr_attr_absent, (Sort (Base sort as c)) ->
     (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
@@ -2793,9 +2800,23 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
-    Same_as_ocaml_repr sort
-  | Native_repr_attr_absent, (Sort (Product _)) ->
-    raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
+    Same_as_ocaml_repr c
+  | Native_repr_attr_absent, (Sort ((Product _) as c)) ->
+    (if Language_extension.erasable_extensions_only ()
+     then
+       (* CR layouts v7.1: Using an unboxed product in a C external is not
+          upstream compatible and should issue this warning.  Two problems: (1)
+          we can't test that yet, because products are not stable, and (2) we
+          _should_ allow them with built-ins like "%identity", but the current
+          mechanism doesn't allow for this (float# has the same problem). I
+          think (2) hasn't arisen much in practice because for other sorts you
+          can add an [@unboxed] annotation to suppress the warning, and because
+          in practice people use the layout_poly versions which do work fine. *)
+       let sort = Format.asprintf "%a" Jkind_types.Sort.Const.format c in
+       Location.prerr_warning core_type.ptyp_loc
+         (Warnings.Incompatible_with_upstream
+            (Warnings.Non_value_sort sort)));
+    Same_as_ocaml_repr c
   | Native_repr_attr_present kind, (Poly | Sort (Base Value))
   | Native_repr_attr_present (Untagged as kind), Sort _ ->
     begin match native_repr_of_type env kind ty sort_or_poly with
@@ -2803,7 +2824,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
     end
-  | Native_repr_attr_present Unboxed, (Sort (Base sort)) ->
+  | Native_repr_attr_present Unboxed, (Sort (Base sort as c)) ->
     (* We allow [@unboxed] on non-value sorts.
 
        This is to enable upstream-compatibility. We want the code to
@@ -2832,9 +2853,9 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Non_value_sort layout)));
-    Same_as_ocaml_repr sort
+    Same_as_ocaml_repr c
   | Native_repr_attr_present Unboxed, (Sort (Product _)) ->
-    raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
+    raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type Unboxed))
 
 let prim_const_mode m =
   match Mode.Locality.Guts.check_const m with
@@ -2905,16 +2926,14 @@ let check_unboxable env loc ty =
     all_unboxable_types
     ()
 
-let has_ty_var_with_layout_any env ty =
-  List.exists
-    (fun ty -> Jkind.has_layout_any (Ctype.estimate_type_jkind env ty))
-    (Ctype.free_variables ty)
+let has_ty_var_with_layout_any ty =
+  Ctype.exists_free_variable (fun _ jkind -> Jkind.has_layout_any jkind) ty
 
-let unexpected_layout_any_check prim env cty ty =
+let unexpected_layout_any_check prim cty ty =
   if Primitive.prim_can_contain_layout_any prim ||
      prim.prim_is_layout_poly then ()
   else
-  if has_ty_var_with_layout_any env ty then
+  if has_ty_var_with_layout_any ty then
     raise(Error (cty.ctyp_loc,
             Unexpected_layout_any_in_primitive(prim.prim_name)))
 
@@ -2978,9 +2997,9 @@ let unexpected_layout_any_check prim env cty ty =
    product. So we rule out some things here, but others must be caught much
    later, in translprim.
 *)
-let error_if_containing_unexpected_jkind prim env cty ty =
+let error_if_containing_unexpected_jkind prim cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
-  unexpected_layout_any_check prim env cty ty
+  unexpected_layout_any_check prim cty ty
 
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
@@ -3045,7 +3064,7 @@ let transl_value_decl env loc valdecl =
         Builtin_attributes.has_layout_poly valdecl.pval_attributes
       in
       if is_layout_poly &&
-         not (has_ty_var_with_layout_any env ty) then
+         not (has_ty_var_with_layout_any ty) then
         raise(Error(valdecl.pval_type.ptyp_loc, Useless_layout_poly));
       let native_repr_args, native_repr_res =
         parse_native_repr_attributes
@@ -3057,7 +3076,7 @@ let transl_value_decl env loc valdecl =
           ~native_repr_res
           ~is_layout_poly
       in
-      error_if_containing_unexpected_jkind prim env cty ty;
+      error_if_containing_unexpected_jkind prim cty ty;
       if prim.prim_arity = 0 &&
          (prim.prim_name = "" || prim.prim_name.[0] <> '%') then
         raise(Error(valdecl.pval_type.ptyp_loc, Null_arity_external));
@@ -3490,7 +3509,6 @@ let report_error ppf = function
       let get_jkind_error : _ Errortrace.elt -> _ = function
       | Bad_jkind (ty, violation) | Bad_jkind_sort (ty, violation) ->
         Some (ty, violation)
-      | Unequal_var_jkinds_with_no_history
       | Unequal_var_jkinds _ | Diff _ | Variant _ | Obj _
       | Escape _ | Incompatible_fields _ | Rec_occur _ -> None
       in
@@ -3546,9 +3564,6 @@ let report_error ppf = function
       fprintf ppf "@[<hv>An external function with more than 5 arguments \
                    requires a second stub function@ \
                    for native-code compilation@]"
-  | Unboxed_product_in_external ->
-      fprintf ppf "@[Unboxed product layouts are not supported in external \
-                   declarations@]"
   | Unbound_type_var (ty, decl) ->
       fprintf ppf "@[A type variable is unbound in this type declaration";
       begin match decl.type_kind, decl.type_manifest with
@@ -3689,7 +3704,7 @@ let report_error ppf = function
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
                    Only %a, %a, %a, %a, vector primitives, and@ \
-                   concrete unboxed types can be marked unboxed.@]"
+                   the corresponding unboxed types can be marked unboxed.@]"
         Style.inline_code "float"
         Style.inline_code "int32"
         Style.inline_code "int64"

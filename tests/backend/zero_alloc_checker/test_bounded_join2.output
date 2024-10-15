@@ -1,2 +1,9 @@
 File "test_bounded_join2.ml", line 8, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Test_bounded_join2.foo (camlTest_bounded_join2.foo_HIDE_STAMP)
+
+File "test_bounded_join2.ml", lines 8-29, characters 25-19:
+Error: details are not available. This may be a false alarm due to conservative analysis.
+Hint: for more precise results, recompile this function with
+"-function-layout topological" or "-zero-alloc-checker-join 0" flags.
+The "-zero-alloc-checker-join 0" flag may substantially increase compilation time.
+(widening applied in function camlTest_bounded_join2.foo_HIDE_STAMP)

@@ -58,7 +58,7 @@ let unbox_number ~dbg kind arg =
     C.unbox_int dbg primitive_kind arg
 
 let box_number ~dbg kind alloc_mode arg =
-  let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
+  let alloc_mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
   match (kind : K.Boxable_number.t) with
   | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
@@ -102,6 +102,7 @@ let mixed_block_kinds shape =
         | Naked_float32 -> KS.naked_float32
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
+        | Naked_vec128 -> KS.naked_vec128
         | Naked_nativeint -> KS.naked_nativeint)
       (Array.to_list (K.Mixed_block_shape.flat_suffix shape))
   in
@@ -109,7 +110,7 @@ let mixed_block_kinds shape =
 
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
+  let mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
   match (kind : P.Block_kind.t) with
   | Values (tag, _) ->
     let tag = Tag.Scannable.to_int tag in
@@ -126,47 +127,68 @@ let make_block ~dbg kind alloc_mode args =
     C.make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
-    ~block ~index =
+    ~block ~field =
   let mutability = Mutability.to_asttypes mutability in
-  let load_func =
+  let field = Targetint_31_63.to_int field in
+  let load_func, offset =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
-      C.get_field_computed Pointer
+      C.get_field_computed Pointer, field
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
-      C.get_field_computed Immediate
-    | Naked_floats _ -> C.unboxed_float_array_ref
-    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-      match field_kind with
-      | Tagged_immediate -> C.get_field_computed Immediate
-      | Naked_float -> C.unboxed_float_array_ref
-      | Naked_float32 -> C.get_field_unboxed_float32
-      | Naked_int32 -> C.get_field_unboxed_int32
-      | Naked_int64 | Naked_nativeint -> C.get_field_unboxed_int64_or_nativeint)
+      C.get_field_computed Immediate, field
+    | Naked_floats _ -> C.unboxed_float_array_ref, field
+    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+      let func =
+        (* CR-someday mslater: make these functions consistent *)
+        match field_kind with
+        | Tagged_immediate -> C.get_field_computed Immediate
+        | Naked_float -> C.unboxed_float_array_ref
+        | Naked_float32 -> C.get_field_unboxed_float32
+        | Naked_int32 -> C.get_field_unboxed_int32
+        | Naked_vec128 ->
+          fun mut ~block ~index dbg ->
+            C.get_field_unboxed_vec128 mut ~block ~index_in_words:index dbg
+        | Naked_int64 | Naked_nativeint ->
+          C.get_field_unboxed_int64_or_nativeint
+      in
+      let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
+      func, offset
   in
+  let index = C.int_const dbg offset in
   load_func mutability ~block ~index dbg
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
-    ~block ~index ~new_value =
+    ~block ~field ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
-  let set_func =
+  let field = Targetint_31_63.to_int field in
+  let set_func, offset =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
-      C.setfield_computed Pointer init_or_assign
+      C.setfield_computed Pointer init_or_assign, field
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
-      C.setfield_computed Immediate init_or_assign
-    | Naked_floats _ -> C.float_array_set
-    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-      match field_kind with
-      | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
-      | Naked_float -> C.float_array_set
-      | Naked_float32 -> C.setfield_unboxed_float32
-      | Naked_int32 -> C.setfield_unboxed_int32
-      | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint)
+      C.setfield_computed Immediate init_or_assign, field
+    | Naked_floats _ -> C.float_array_set, field
+    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+      let func =
+        (* CR-someday mslater: make these functions consistent *)
+        match field_kind with
+        | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
+        | Naked_float -> C.float_array_set
+        | Naked_float32 -> C.setfield_unboxed_float32
+        | Naked_int32 -> C.setfield_unboxed_int32
+        | Naked_vec128 ->
+          fun arr index_in_words newval dbg ->
+            C.setfield_unboxed_vec128 arr ~index_in_words newval dbg
+        | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint
+      in
+      let offset = Flambda_kind.Mixed_block_shape.offset_in_words shape field in
+      func, offset
   in
+  let index = C.int_const dbg offset in
   C.return_unit dbg (set_func block index new_value dbg)
 
 (* Array creation and access. For these functions, [index] is a tagged
@@ -174,7 +196,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
 
 let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
+  let mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
   match (kind : P.Array_kind.t) with
   | Immediates | Values -> C.make_alloc ~mode dbg ~tag:0 args
   | Naked_floats ->
@@ -184,6 +206,7 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
+  | Naked_vec128s -> C.allocate_unboxed_vec128_array ~elements:args mode dbg
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
@@ -191,13 +214,14 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
     (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
        width of floats is equal to the machine word width (see flambda2.ml). *)
     assert (C.wordsize_shift = C.numfloat_shift);
-    C.arraylength Paddrarray arr dbg
+    C.addr_array_length arr dbg
   | Naked_float32s -> C.unboxed_float32_array_length arr dbg
   | Naked_int32s -> C.unboxed_int32_array_length arr dbg
   | Naked_int64s | Naked_nativeints ->
     (* These need a special case as they are represented by custom blocks, even
        though the contents are of word width. *)
     C.unboxed_int64_or_nativeint_array_length arr dbg
+  | Naked_vec128s -> C.unboxed_vec128_array_length arr dbg
 
 let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
   let index =
@@ -241,6 +265,8 @@ let array_load ~dbg (kind : P.Array_kind.t)
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
   | (Naked_int32s | Naked_float32s), Vec128 ->
     array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
+  | Naked_vec128s, (Scalar | Vec128) ->
+    array_load_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
   | Values, Vec128 ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
@@ -273,6 +299,9 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
         new_value
     | (Naked_int32s | Naked_float32s), Vec128 ->
       array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
+        new_value
+    | Naked_vec128s, (Scalar | Vec128) ->
+      array_set_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
         new_value
     | Values _, Vec128 ->
       Misc.fatal_error "Attempted to store a SIMD vector to a value array."
@@ -699,6 +728,8 @@ let nullary_primitive _env res dbg prim =
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
+  | Block_load { kind; mut; field } ->
+    None, res, block_load ~dbg kind mut ~field ~block:arg
   | Duplicate_array _ | Duplicate_block _ | Obj_dup ->
     ( None,
       res,
@@ -821,7 +852,8 @@ let unary_primitive env res dbg f arg =
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
-  | Block_load (kind, mut) -> block_load ~dbg kind mut ~block:x ~index:y
+  | Block_set { kind; init; field } ->
+    block_set ~dbg kind init ~field ~block:x ~new_value:y
   | Array_load (kind, width, _mut) -> array_load ~dbg kind width ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y
@@ -845,8 +877,6 @@ let binary_primitive env dbg f x y =
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
-  | Block_set (block_access, init) ->
-    block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
   | Array_set (array_set_kind, width) ->
     array_set ~dbg array_set_kind width ~arr:x ~index:y ~new_value:z
   | Bytes_or_bigstring_set (kind, width) ->

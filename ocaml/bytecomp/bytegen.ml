@@ -145,6 +145,7 @@ let preserve_tailcall_for_prim = function
   | Pobj_magic _
   | Prunstack | Pperform | Presume | Preperform
   | Pbox_float (_, _) | Punbox_float _
+  | Pbox_vector (_, _) | Punbox_vector _
   | Pbox_int _ | Punbox_int _ ->
       true
   | Pbytes_to_string | Pbytes_of_string
@@ -505,15 +506,15 @@ let comp_primitive stack_info p sz args =
   (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
      array modes (allocation for [Parrayref{s,u}], modification for
      [Parrayset{s,u}]). *)
-  | Parrayrefs (Pgenarray_ref _, index_kind)
+  | Parrayrefs (Pgenarray_ref _, index_kind, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
                 | Punboxedfloatarray_ref (Pfloat64 | Pfloat32) | Punboxedintarray_ref _),
-                (Punboxed_int_index _ as index_kind)) ->
+                (Punboxed_int_index _ as index_kind), _) ->
       Kccall(indexing_primitive index_kind "caml_array_get", 2)
-  | Parrayrefs ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
+  | Parrayrefs ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index, _) ->
       Kccall("caml_floatarray_get", 2)
   | Parrayrefs ((Punboxedfloatarray_ref Pfloat32 | Punboxedintarray_ref _
-                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index) ->
+                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index, _) ->
       Kccall("caml_array_get_addr", 2)
   | Parraysets (Pgenarray_set _, index_kind)
   | Parraysets ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
@@ -526,15 +527,15 @@ let comp_primitive stack_info p sz args =
   | Parraysets ((Punboxedfloatarray_set Pfloat32 | Punboxedintarray_set _
                 | Paddrarray_set _ | Pintarray_set), Ptagged_int_index) ->
     Kccall("caml_array_set_addr", 3)
-  | Parrayrefu (Pgenarray_ref _, index_kind)
+  | Parrayrefu (Pgenarray_ref _, index_kind, _)
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
                 | Punboxedfloatarray_ref (Pfloat64 | Pfloat32) | Punboxedintarray_ref _),
-                (Punboxed_int_index _ as index_kind)) ->
+                (Punboxed_int_index _ as index_kind), _) ->
       Kccall(indexing_primitive index_kind "caml_array_unsafe_get", 2)
-  | Parrayrefu ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
+  | Parrayrefu ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index, _) ->
     Kccall("caml_floatarray_unsafe_get", 2)
   | Parrayrefu ((Punboxedfloatarray_ref Pfloat32 | Punboxedintarray_ref _
-                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index) -> Kgetvectitem
+                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index, _) -> Kgetvectitem
   | Parraysetu (Pgenarray_set _, index_kind)
   | Parraysetu ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
                 | Punboxedfloatarray_set (Pfloat64 | Pfloat32) | Punboxedintarray_set _),
@@ -544,6 +545,9 @@ let comp_primitive stack_info p sz args =
       Kccall("caml_floatarray_unsafe_set", 3)
   | Parraysetu ((Punboxedfloatarray_set Pfloat32 | Punboxedintarray_set _
                 | Paddrarray_set _ | Pintarray_set), Ptagged_int_index) -> Ksetvectitem
+  | Parrayrefs (Punboxedvectorarray_ref _, _, _) | Parraysets (Punboxedvectorarray_set _, _)
+  | Parrayrefu (Punboxedvectorarray_ref _, _, _) | Parraysetu (Punboxedvectorarray_set _, _) ->
+      fatal_error "SIMD is not supported in bytecode mode."
   | Pctconst c ->
      let const_name = match c with
        | Big_endian -> "big_endian"
@@ -634,8 +638,9 @@ let comp_primitive stack_info p sz args =
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
   | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
   | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-  | Punboxed_nativeint_array_set_128 _ ->
-    fatal_error "128-bit load/store is not supported in bytecode mode."
+  | Punboxed_nativeint_array_set_128 _
+  | Pbox_vector _ | Punbox_vector _ ->
+    fatal_error "SIMD is not supported in bytecode mode."
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if not (Target_system.is_64_bit ())
     then
@@ -879,6 +884,8 @@ let rec comp_expr stack_info env exp sz cont =
       | Pfloatarray | Punboxedfloatarray Pfloat64 ->
           comp_args stack_info env args sz
             (Kmakefloatblock(List.length args) :: cont)
+      | Punboxedvectorarray _ ->
+        fatal_error "SIMD is not supported in bytecode mode."
       | Pgenarray ->
           if args = []
           then Kmakeblock(0, 0) :: cont

@@ -1,49 +1,6 @@
 ##### All extensions enabled
 --------------------------------
 
-modality_record:
-  struct
-    type t =
-      {
-      global_ x: string ;
-      global_ y:
-        int @@ local many once shared unique portable nonportable contended uncontended
-        ;
-      z: bool @@ unique }
-  end
-
-modality_cstrarg:
-  struct
-    type t =
-      | Foo of global_ string * global_ string @@ portable *
-      string @@ portable 
-    type u =
-      | Foo: global_ string * global_ string -> u 
-  end
-
-modality_val:
-  sig
-    val t : string -> local_ string @@ foo bar
-    include S @@ bar foo
-    include functor S @@ foo foo
-  end
-
-local_exp: let x = foo (local_ x) in (local_ y)
-
-stack_exp:
-  let x = stack_ 42 in
-  let y = stack_ (f x) in let z = foo (stack_ 42) in foo (stack_ (f x))
-
-fun_with_modes_on_arg:
-  let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
-    ?f:(local_ f= 2) () = () in
-  f
-
-utuple_exp:
-  let #(x, y) : #(int * int) = #(1, 2) in
-  let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
-  (((x + y) + a) + b) + c
-
 longident: No.Longidents.Require.extensions
 
 expression: [x for x = 1 to 10]
@@ -93,30 +50,6 @@ type_declaration:  local_ ('a : value) -> unit
 string_of_expression: [x for x = 1 to 10]
 
 string_of_structure: include functor F
-
-modal_kind_struct:
-  struct
-    type 'a list : immutable_data with 'a
-    type ('a, 'b) either : immutable_data with ('a * 'b)
-    type 'a gel : kind_of_ 'a mod global
-    type 'a t : _
-    kind_abbrev_ immediate = value mod global unique many sync uncontended
-    kind_abbrev_ immutable_data = value mod sync uncontended many
-    kind_abbrev_ immutable = value mod uncontended
-    kind_abbrev_ data = value mod sync many
-  end
-
-modal_kind_sig:
-  sig
-    type 'a list : immutable_data with 'a
-    type ('a, 'b) either : immutable_data with ('a * 'b)
-    type 'a gel : kind_of_ 'a mod global
-    type 'a t : _
-    kind_abbrev_ immediate = value mod global unique many sync uncontended
-    kind_abbrev_ immutable_data = value mod sync uncontended many
-    kind_abbrev_ immutable = value mod uncontended
-    kind_abbrev_ data = value mod sync many
-  end
 
 tyvar_of_name: 'no_tyvars_require_extensions
 
@@ -131,49 +64,6 @@ mode: global
 ##### Extensions disallowed
 --------------------------------
 
-modality_record:
-  struct
-    type t =
-      {
-      global_ x: string ;
-      global_ y:
-        int @@ local many once shared unique portable nonportable contended uncontended
-        ;
-      z: bool @@ unique }
-  end
-
-modality_cstrarg:
-  struct
-    type t =
-      | Foo of global_ string * global_ string @@ portable *
-      string @@ portable 
-    type u =
-      | Foo: global_ string * global_ string -> u 
-  end
-
-modality_val:
-  sig
-    val t : string -> local_ string @@ foo bar
-    include S @@ bar foo
-    include functor S @@ foo foo
-  end
-
-local_exp: let x = foo (local_ x) in (local_ y)
-
-stack_exp:
-  let x = stack_ 42 in
-  let y = stack_ (f x) in let z = foo (stack_ 42) in foo (stack_ (f x))
-
-fun_with_modes_on_arg:
-  let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
-    ?f:(local_ f= 2) () = () in
-  f
-
-utuple_exp:
-  let #(x, y) : #(int * int) = #(1, 2) in
-  let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
-  (((x + y) + a) + b) + c
-
 longident: No.Longidents.Require.extensions
 
 expression: [x for x = 1 to 10]
@@ -223,30 +113,6 @@ type_declaration:  local_ ('a : value) -> unit
 string_of_expression: [x for x = 1 to 10]
 
 string_of_structure: include functor F
-
-modal_kind_struct:
-  struct
-    type 'a list : immutable_data with 'a
-    type ('a, 'b) either : immutable_data with ('a * 'b)
-    type 'a gel : kind_of_ 'a mod global
-    type 'a t : _
-    kind_abbrev_ immediate = value mod global unique many sync uncontended
-    kind_abbrev_ immutable_data = value mod sync uncontended many
-    kind_abbrev_ immutable = value mod uncontended
-    kind_abbrev_ data = value mod sync many
-  end
-
-modal_kind_sig:
-  sig
-    type 'a list : immutable_data with 'a
-    type ('a, 'b) either : immutable_data with ('a * 'b)
-    type 'a gel : kind_of_ 'a mod global
-    type 'a t : _
-    kind_abbrev_ immediate = value mod global unique many sync uncontended
-    kind_abbrev_ immutable_data = value mod sync uncontended many
-    kind_abbrev_ immutable = value mod uncontended
-    kind_abbrev_ data = value mod sync many
-  end
 
 tyvar_of_name: 'no_tyvars_require_extensions
 

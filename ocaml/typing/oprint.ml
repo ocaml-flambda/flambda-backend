@@ -281,6 +281,9 @@ let print_out_value ppf tree =
     | Oval_printer f -> f ppf
     | Oval_tuple tree_list ->
         fprintf ppf "@[<1>(%a)@]" (print_labeled_tree_list print_tree_1 ",") tree_list
+    | Oval_unboxed_tuple tree_list ->
+        fprintf ppf "@[<1>#(%a)@]" (print_labeled_tree_list print_tree_1 ",")
+          tree_list
     | tree -> fprintf ppf "@[<1>(%a)@]" (cautious print_tree_1) tree
   and print_fields first ppf =
     function
@@ -342,11 +345,13 @@ let print_out_jkind_const ppf ojkind =
     | Ojkind_const_default -> fprintf ppf "_"
     | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
     | Ojkind_const_mod (base, modes) ->
-      fprintf ppf "%a mod @[%a@]" (pp_element ~nested) base
-        (pp_print_list
-            ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
-            (fun ppf -> fprintf ppf "%s"))
-        modes
+      Misc.pp_parens_if nested (fun ppf (base, modes) ->
+        fprintf ppf "%a mod @[%a@]" (pp_element ~nested:true) base
+          (pp_print_list
+              ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
+              (fun ppf -> fprintf ppf "%s"))
+          modes
+      ) ppf (base, modes)
     | Ojkind_const_product ts ->
       let pp_sep ppf () = Format.fprintf ppf "@ & " in
       Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
