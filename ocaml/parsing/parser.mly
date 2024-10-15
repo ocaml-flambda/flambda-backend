@@ -3101,9 +3101,8 @@ let_binding_body_no_punning:
            ($1, $8, Some constraint')
          ]}
 
-         But this would require encoding [newtypes] (which, internally, may
-         associate a layout with a newtype) in Jane Syntax, which will require
-         a small amount of work.
+         But this would require adding a jkind field to [newtypes], which will require
+         a small amount of additional work.
 
          The [typloc] argument to [wrap_type_annotation] is used to make the
          location on the [core_type] node for the annotation match the upstream

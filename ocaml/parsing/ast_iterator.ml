@@ -120,7 +120,9 @@ module T = struct
     | Otag (_, t) -> sub.typ sub t
     | Oinherit t -> sub.typ sub t
 
-  let bound_var sub (_, jkind) = match jkind with
+  let bound_var sub (name, jkind) =
+    iter_loc sub name;
+    match jkind with
     | None -> ()
     | Some annot -> sub.jkind_annotation sub annot
 
@@ -563,7 +565,8 @@ module E = struct
     | Pexp_poly (e, t) ->
         sub.expr sub e; iter_opt (sub.typ sub) t
     | Pexp_object cls -> sub.class_structure sub cls
-    | Pexp_newtype (_s, jkind, e) ->
+    | Pexp_newtype (s, jkind, e) ->
+        iter_loc sub s;
         Option.iter (sub.jkind_annotation sub) jkind;
         sub.expr sub e
     | Pexp_pack me -> sub.module_expr sub me

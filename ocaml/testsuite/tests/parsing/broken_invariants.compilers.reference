@@ -36,4 +36,8 @@ Line 1, characters 9-28:
 Error: broken invariant in parsetree: Closed tuple patterns must have at least 2 components.
 File "_none_", line 1:
 Error: broken invariant in parsetree: Nested pattern constraints must all specify a type
+Line 2, characters 13-38:
+2 | let f (_ : [%alias_with_too_many_nones]) = ();;
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Alias types must have a name or a jkind.
 

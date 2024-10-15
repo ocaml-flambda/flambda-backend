@@ -163,24 +163,6 @@ module T = struct
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
     match desc with
-    (*
-  let map_jst_layouts sub :
-        Jane_syntax.Layouts.core_type -> Jane_syntax.Layouts.core_type =
-    function
-    | Ltyp_var { name; jkind } ->
-      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
-      Ltyp_var { name; jkind }
-    | Ltyp_poly { bound_vars; inner_type } ->
-      let bound_vars = map_bound_vars sub bound_vars in
-      let inner_type = sub.typ sub inner_type in
-      Ltyp_poly { bound_vars; inner_type }
-    | Ltyp_alias { aliased_type; name; jkind } ->
-      let aliased_type = sub.typ sub aliased_type in
-      let name = map_opt (map_loc sub) name in
-      let jkind = map_loc_txt sub sub.jkind_annotation jkind in
-      Ltyp_alias { aliased_type; name; jkind }
-
- *)
     | Ptyp_any jkind ->
         let jkind = map_opt (sub.jkind_annotation sub) jkind in
         any ~loc ~attrs jkind

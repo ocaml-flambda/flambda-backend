@@ -18,6 +18,9 @@ let functor_id loc = Location.mkloc
 let complex_record loc =
   H.Pat.record ~loc [functor_id loc, H.Pat.any ~loc () ] Asttypes.Closed
 
+let alias_with_too_many_nones loc =
+  H.Typ.alias ~loc (H.Typ.constr ~loc { txt = Lident "unit"; loc } []) None None
+
 let nested_pat_constraint loc =
   let mode s = Location.mkloc (Mode s) loc in
   H.Pat.constraint_
@@ -50,6 +53,8 @@ let expr mapper e =
 
 let typ mapper t =
   match t.ptyp_desc with
+  | Ptyp_extension ({txt="alias_with_too_many_nones";loc},_) ->
+      alias_with_too_many_nones loc
   | _ -> super.M.typ mapper t
 
 let pat mapper p =

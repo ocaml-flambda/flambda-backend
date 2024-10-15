@@ -93,14 +93,6 @@ let handle_extension ext =
   | _ ->
     ()
 
-(* CR layouts: Remember to add this when jkinds can have module
-   prefixes. *)
-let add_jkind _bv (_jkind : jkind_annotation) = ()
-
-let add_vars_jkinds bv vars_jkinds =
-  let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in
-  List.iter add_one vars_jkinds
-
 let rec add_type bv ty =
   match ty.ptyp_desc with
     Ptyp_any jkind
@@ -139,6 +131,25 @@ and add_type_labeled_tuple bv tl =
 and add_package_type bv (lid, l) =
   add bv lid;
   List.iter (add_type bv) (List.map (fun (_, e) -> e) l)
+
+(* CR layouts: Remember to add this when jkinds can have module
+   prefixes. *)
+and add_jkind bv (jkind : jkind_annotation) =
+  match jkind.pjkind_desc with
+  | Default -> ()
+  | Abbreviation _ -> ()
+  | Mod (jkind, (_ : modes)) -> add_jkind bv jkind
+  | With (jkind, typ) ->
+      add_jkind bv jkind;
+      add_type bv typ
+  | Kind_of typ ->
+      add_type bv typ
+  | Product jkinds ->
+      List.iter (fun jkind -> add_jkind bv jkind) jkinds
+
+and add_vars_jkinds bv vars_jkinds =
+  let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in
+  List.iter add_one vars_jkinds
 
 let add_opt add_fn bv = function
     None -> ()

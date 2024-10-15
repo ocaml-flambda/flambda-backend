@@ -91,8 +91,11 @@ module Typ = struct
     let rec loop t =
       let desc =
         match t.ptyp_desc with
-        | Ptyp_any jkind -> Ptyp_any jkind
+        | Ptyp_any jkind ->
+            let jkind = Option.map loop_jkind jkind in
+            Ptyp_any jkind
         | Ptyp_var (x, jkind) ->
+            let jkind = Option.map loop_jkind jkind in
             check_variable var_names t.ptyp_loc x;
             Ptyp_var (x, jkind)
         | Ptyp_arrow (label,core_type,core_type',modes,modes') ->
@@ -111,15 +114,20 @@ module Typ = struct
         | Ptyp_class (longident, lst) ->
             Ptyp_class (longident, List.map loop lst)
         | Ptyp_alias(core_type, alias, jkind) ->
+            let jkind = Option.map loop_jkind jkind in
             check_variable_opt var_names alias;
             Ptyp_alias(loop core_type, alias, jkind)
         | Ptyp_variant(row_field_list, flag, lbl_lst_option) ->
             Ptyp_variant(List.map loop_row_field row_field_list,
                          flag, lbl_lst_option)
-        | Ptyp_poly(string_lst, core_type) ->
-          List.iter (fun (v, _jkind) ->
-            check_variable var_names t.ptyp_loc v.txt) string_lst;
-            Ptyp_poly(string_lst, loop core_type)
+        | Ptyp_poly(var_lst, core_type) ->
+          let var_lst =
+            List.map (fun (v, jkind) ->
+              let jkind = Option.map loop_jkind jkind in
+              check_variable var_names t.ptyp_loc v.txt;
+              v, jkind) var_lst
+            in
+            Ptyp_poly(var_lst, loop core_type)
         | Ptyp_package(longident,lst) ->
             Ptyp_package(longident,List.map (fun (n,typ) -> (n,loop typ) ) lst)
         | Ptyp_open (mod_ident, core_type) ->
@@ -128,6 +136,17 @@ module Typ = struct
             Ptyp_extension (s, arg)
       in
       {t with ptyp_desc = desc}
+    and loop_jkind jkind =
+      let pjkind_desc =
+        match jkind.pjkind_desc with
+        | Default as x -> x
+        | Abbreviation _ as x -> x
+        | Mod (jkind, modes) -> Mod (loop_jkind jkind, modes)
+        | With (jkind, typ) -> With (loop_jkind jkind, loop typ)
+        | Kind_of typ -> Kind_of (loop typ)
+        | Product jkinds -> Product (List.map loop_jkind jkinds)
+      in
+      { jkind with pjkind_desc }
     and loop_row_field field =
       let prf_desc = match field.prf_desc with
         | Rtag(label,flag,lst) ->

@@ -20,6 +20,7 @@ let err = Syntaxerr.ill_formed_ast
 
 let empty_record loc = err loc "Records cannot be empty."
 let invalid_tuple loc = err loc "Tuples must have at least 2 components."
+let invalid_alias loc = err loc "Alias types must have a name or a jkind."
 let empty_open_tuple_pat loc =
   err loc "Open tuple patterns must have at least one component."
 let short_closed_tuple_pat loc =
@@ -60,6 +61,7 @@ let iterator =
     | Ptyp_tuple ([] | [_]) -> invalid_tuple loc
     | Ptyp_package (_, cstrs) ->
       List.iter (fun (id, _) -> simple_longident id) cstrs
+    | Ptyp_alias (_, None, None) -> invalid_alias loc
     | _ -> ()
   in
   let jpat _self (jpat : Jane_syntax.Pattern.t) =
