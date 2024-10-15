@@ -550,7 +550,7 @@ class virtual selector_generic =
               self#insert_move_results env loc_res rd stack_ofs;
               Select_utils.set_traps_for_raise env;
               Some rd
-            | Call { op = Direct _; label_after } ->
+            | Call { op = Direct sym; label_after } ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
               let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
@@ -624,7 +624,16 @@ class virtual selector_generic =
                 (Proc.loc_external_results (Reg.typv rd))
             in
             Select_utils.set_traps_for_raise env;
-            if returns then ret rd else None
+            if returns
+            then (
+              let dummy_block =
+                Sub_cfg.make_empty_block
+                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
+              in
+              DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
+              sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block };
+              ret rd)
+            else None
           | Basic (Op (Alloc { bytes = _; mode })) ->
             let rd = self#regs_for typ_val in
             let bytes = Select_utils.size_expr env (Ctuple new_args) in
@@ -1450,7 +1459,6 @@ class virtual selector_generic =
           Cmm.fundecl ->
           Cfg_with_layout.t =
       fun ~future_funcnames:_ f ->
-        reset_next_instr_id ();
         Select_utils.current_function_name := f.Cmm.fun_name.sym_name;
         Select_utils.current_function_is_check_enabled
           := Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
@@ -1501,7 +1509,7 @@ class virtual selector_generic =
         self#insert_moves env loc_arg rarg;
         self#emit_tail env f.Cmm.fun_body;
         let body = self#extract in
-        if false then Sub_cfg.dump body;
+        if true then Sub_cfg.dump body;
         (* CR xclerc for xclerc: implement polling insertion. *)
         let fun_poll = Lambda.Default_poll in
         let fun_contains_calls =
@@ -1523,8 +1531,8 @@ class virtual selector_generic =
                  | Tailcall_func _ -> false
                  | Call_no_return _ -> true
                  | Call _ -> true
+                 | Prim { op = External _ } -> true
                  | Prim { op = Probe _ } -> true
-                 | Prim _ -> false
                  | Specific_can_raise _ -> false)
               || DLL.exists block.body
                    ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
@@ -1560,6 +1568,7 @@ class virtual selector_generic =
         DLL.iter body.Sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
             if block.terminator.desc <> Cfg.Never
             then (
+              block.can_raise <- Cfg.can_raise_terminator block.terminator.desc;
               Cfg.add_block_exn cfg block;
               DLL.add_end layout block.start)
             else assert (DLL.is_empty block.body));

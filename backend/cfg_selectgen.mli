@@ -41,6 +41,8 @@ module Sub_cfg : sig
     t -> Cfg.terminator -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 end
 
+val reset_next_instr_id : unit -> unit
+
 class virtual selector_generic :
   object
     method is_store : Cfg.operation -> bool
