@@ -227,6 +227,9 @@ val set_field :
 (** Load a block's header *)
 val get_header : expression -> Debuginfo.t -> expression
 
+(** Same as [get_header], but also clear all reserved bits of the result *)
+val get_header_masked : expression -> Debuginfo.t -> expression
+
 (** Load a block's tag *)
 val get_tag : expression -> Debuginfo.t -> expression
 
