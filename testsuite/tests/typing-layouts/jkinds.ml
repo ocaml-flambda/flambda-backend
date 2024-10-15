@@ -1178,7 +1178,7 @@ Lines 1-2, characters 0-67:
 2 |   { x : 'a @@ global portable uncontended many unique } [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
-         defaulted to kind value.
+         chosen to have kind value.
        But the kind of type "t" must be a subkind of
          immutable_data mod global unique
          because of the annotation on the declaration of the type t.
@@ -1193,7 +1193,7 @@ Lines 1-2, characters 0-66:
 2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
-         defaulted to kind value.
+         chosen to have kind value.
        But the kind of type "t" must be a subkind of
          immutable_data mod global unique
          because of the annotation on the declaration of the type t.
@@ -1578,7 +1578,7 @@ Line 1, characters 0-52:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
-         defaulted to kind value.
+         chosen to have kind value.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]

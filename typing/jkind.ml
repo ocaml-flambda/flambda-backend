@@ -1651,7 +1651,7 @@ module Format_history = struct
           reason;
         match reason, jkind_desc with
         | Concrete_legacy_creation _, Const _ ->
-          fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
+          fprintf ppf ",@ chosen to have %s %a" layout_or_kind Desc.format
             jkind_desc
         | _ -> ())
     | Interact _ ->

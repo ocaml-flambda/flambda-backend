@@ -759,7 +759,7 @@ Error: The type constraints are not consistent.
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         chosen to have layout value.
 |}];;
 
 module type S8_5f = sig
@@ -856,7 +856,7 @@ Error: The type constraints are not consistent.
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         chosen to have layout value.
 |}];;
 
 module type S9_7f = sig
@@ -2367,7 +2367,7 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        message, so we'll say this instead:
          The kind of 'a t2 is value
            because it instantiates an unannotated type parameter of t2,
-           defaulted to kind value.
+           chosen to have kind value.
          But the kind of 'a t2 must be a subkind of immediate
            because of the annotation on the wildcard _ at line 1, characters 28-37.
        A good next step is to add a layout annotation on a parameter to
@@ -2406,7 +2406,7 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        message, so we'll say this instead:
          The kind of 'a t2 is value
            because it instantiates an unannotated type parameter of t2,
-           defaulted to kind value.
+           chosen to have kind value.
          But the kind of 'a t2 must be a subkind of immediate
            because of the annotation on the wildcard _ at line 1, characters 27-36.
        A good next step is to add a layout annotation on a parameter to
@@ -2436,7 +2436,7 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        message, so we'll say this instead:
          The kind of 'a t2 is value
            because it instantiates an unannotated type parameter of t2,
-           defaulted to kind value.
+           chosen to have kind value.
          But the kind of 'a t2 must be a subkind of immediate
            because of the annotation on the wildcard _ at line 1, characters 25-34.
        A good next step is to add a layout annotation on a parameter to

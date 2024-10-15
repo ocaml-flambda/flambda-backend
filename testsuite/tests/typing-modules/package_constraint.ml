@@ -174,7 +174,7 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        message, so we'll say this instead:
          The kind of 'a t2 is value
            because it instantiates an unannotated type parameter of t2,
-           defaulted to kind value.
+           chosen to have kind value.
          But the kind of 'a t2 must be a subkind of immediate
            because of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to
@@ -200,7 +200,7 @@ Error: Layout mismatch in checking consistency of mutually recursive groups.
        message, so we'll say this instead:
          The kind of 'a t2 is value
            because it instantiates an unannotated type parameter of t2,
-           defaulted to kind value.
+           chosen to have kind value.
          But the kind of 'a t2 must be a subkind of immediate
            because of the definition of t at line 2, characters 2-22.
        A good next step is to add a layout annotation on a parameter to
