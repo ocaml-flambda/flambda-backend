@@ -47,7 +47,7 @@ by a *type*. There is a small fixed set of layouts:
 
 Over time, we'll be adding more layouts here.
 
-# Layout annotation
+## Layout annotation
 
 You can annotate type variables of type declarations with a layout, like this:
 
@@ -107,6 +107,52 @@ Reference [the relevant section of the design proposal][kind annotation] for the
 The complete annotation design is not yet implemented and the syntax should be read
 with `kind ::= layout-name` for now. It also provides reasoning around some design
 decisions and contains additional examples.
+
+
+## Layouts in module inclusion
+
+This is accepted:
+
+```ocaml
+module M1 : sig
+  type t : value   (* You can leave off the [: value], which is assumed. *)
+end = struct
+  type t = int
+end
+```
+
+This makes sense because the layout of `int` is `immediate`, which is a sublayout
+of `value`. Even though users of `M1.t` will be expecting a `value`, the `immediate`
+they get works great. Thus, the layouts of type declarations are *covariant* in the module
+inclusion check: a module type `S1` is included in `S2` when the layout of a type `t`
+in `S1` is included in the layout of `t` in `S2`.
+
+Similarly, this is accepted:
+
+```ocaml
+module M2 : sig
+  type ('a : immediate) t
+end = struct
+  type ('a : value) t
+end
+```
+
+This makes sense because users of `M2.t` are required to supply an `immediate`; even
+though the definition of `M2.t` expects a `value`, the `immediate` it gets works great.
+Thus, the layouts of type declaration arguments are *contravariant* in the module
+inclusion check: a module type `S1` is included in `S2` when the layout of the argument
+to a type `t` in `S2` is included in the layout of that argument in `S1`.
+
+Contravariance in type arguments allows us to have
+
+```ocaml
+module Array : sig
+  type ('a : any) t = 'a array
+  (* ... *)
+end
+```
+
+and still pass `Array` to functors expecting a `type 'a t`, which assumes `('a : value)`.
 
 # Unboxed numbers
 
