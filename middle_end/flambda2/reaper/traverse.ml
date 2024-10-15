@@ -70,9 +70,9 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
 
 let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
     acc : unit =
-  (* Here and later in [traverse_call_kind], some dependencies are not immediately
-     registered, because the code, which is dominator-scoped, has not yet been seen
-     due to the traversal order. *)
+  (* Here and later in [traverse_call_kind], some dependencies are not
+     immediately registered, because the code, which is dominator-scoped, has
+     not yet been seen due to the traversal order. *)
   let funs =
     Function_declarations.funs (Set_of_closures.function_decls set_of_closures)
   in
@@ -253,10 +253,11 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
          * It is unclear why it has not been transformed by an Invalid by
          * simplify, however.
          *)
-        default acc
-        )
+        default acc)
       ~name:(fun block ~coercion:_ ->
-      default_bp acc (Field { relation = Block (Targetint_31_63.to_int field); target = block }))
+        default_bp acc
+          (Field
+             { relation = Block (Targetint_31_63.to_int field); target = block }))
   | Unary (Is_int _, arg) ->
     Simple.pattern_match arg
       ~name:(fun name ~coercion:_ ->

@@ -3,10 +3,12 @@ let[@inline never] dummy_float () = Sys.opaque_identity 0.
 let[@inline] bar flag a b c d e f g h i j k l m n o p q r s t =
   let[@inline never] gc () = Gc.full_major () in
   let[@inline never] foo a b c d e f g h i j k l m n o p q r s t =
-    gc (); a+a
+    gc ();
+    a + a
   in
-  let [@inline never] hide x = x in
-  let[@inline never][@local never] get_uu flag a b c d e f g h i j k l m n o p q r s t =
+  let[@inline never] hide x = x in
+  let[@inline never] [@local never] get_uu flag a b c d e f g h i j k l m n o p
+      q r s t =
     let a = Sys.opaque_identity a in
     let b = Sys.opaque_identity b in
     let c = Sys.opaque_identity c in
@@ -29,9 +31,24 @@ let[@inline] bar flag a b c d e f g h i j k l m n o p q r s t =
     let t = Sys.opaque_identity t in
     let z = dummy_float () in
     let vv1 = String.make 128 '\000' in
-    let[@inline available][@local never] uu = fun () -> let [@inline never][@local never] call_foo b c d e f g h i j k l m n o p q r s t  = Gc.full_major (); foo a b c d e f g h i j k l m n o p q r s t in if flag then (a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a*a) else call_foo b c d e f g h i j k l m n o p q r s t in
+    let[@inline available] [@local never] uu () =
+      let[@inline never] [@local never] call_foo b c d e f g h i j k l m n o p q
+          r s t =
+        Gc.full_major ();
+        foo a b c d e f g h i j k l m n o p q r s t
+      in
+      if flag
+      then
+        a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a
+        * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a
+        * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a
+        * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a
+        * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a * a
+        * a * a * a * a * a * a * a * a * a * a * a * a * a * a
+      else call_foo b c d e f g h i j k l m n o p q r s t
+    in
     let vv2 = String.make 129 '\000' in
-    (vv1, uu, vv2)
+    vv1, uu, vv2
   in
   let vv1, uu, vv2 = get_uu flag a b c d e f g h i j k l m n o p q r s t in
-  (vv1, uu (), vv2)
+  vv1, uu (), vv2

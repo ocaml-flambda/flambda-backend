@@ -259,118 +259,117 @@ module Graph = struct
       Code_id_or_name.name target
     | Use { target } | Block { target; _ } -> target
 
-   type nonrec elt = elt
+  type nonrec elt = elt
 
-let less_equal_elt e1 e2 =
-  match e1, e2 with
-  | Bottom, _ | _, Top -> true
-  | (Top | Fields _), Bottom | Top, Fields _ -> false
-  | Fields f1, Fields f2 ->
-    if f1 == f2
-    then true
-    else
-      let ok = ref true in
-      ignore
-        (Field.Map.merge
-           (fun _ e1 e2 ->
-             (match e1, e2 with
-             | None, _ -> ()
-             | Some _, None -> ok := false
-             | _, Some Field_top -> ()
-             | Some Field_top, _ -> ok := false
-             | Some (Field_vals e1), Some (Field_vals e2) ->
-               if not (Code_id_or_name.Set.subset e1 e2) then ok := false);
-             None)
-           f1 f2);
-      !ok
-
-let elt_deps elt =
-  match elt with
-  | Bottom | Top -> Code_id_or_name.Set.empty
-  | Fields f ->
-    Field.Map.fold
-      (fun _ v acc ->
-        match v with
-        | Field_top -> acc
-        | Field_vals v -> Code_id_or_name.Set.union v acc)
-      f Code_id_or_name.Set.empty
-
-let join_elt e1 e2 =
-  if e1 == e2
-  then e1
-  else
+  let less_equal_elt e1 e2 =
     match e1, e2 with
-    | Bottom, e | e, Bottom -> e
-    | Top, _ | _, Top -> Top
+    | Bottom, _ | _, Top -> true
+    | (Top | Fields _), Bottom | Top, Fields _ -> false
     | Fields f1, Fields f2 ->
-      Fields
-        (Field.Map.union
-           (fun _ e1 e2 ->
-             match e1, e2 with
-             | Field_top, _ | _, Field_top -> Some Field_top
-             | Field_vals e1, Field_vals e2 ->
-               Some (Field_vals (Code_id_or_name.Set.union e1 e2)))
-           f1 f2)
+      if f1 == f2
+      then true
+      else
+        let ok = ref true in
+        ignore
+          (Field.Map.merge
+             (fun _ e1 e2 ->
+               (match e1, e2 with
+               | None, _ -> ()
+               | Some _, None -> ok := false
+               | _, Some Field_top -> ()
+               | Some Field_top, _ -> ok := false
+               | Some (Field_vals e1), Some (Field_vals e2) ->
+                 if not (Code_id_or_name.Set.subset e1 e2) then ok := false);
+               None)
+             f1 f2);
+        !ok
 
+  let elt_deps elt =
+    match elt with
+    | Bottom | Top -> Code_id_or_name.Set.empty
+    | Fields f ->
+      Field.Map.fold
+        (fun _ v acc ->
+          match v with
+          | Field_top -> acc
+          | Field_vals v -> Code_id_or_name.Set.union v acc)
+        f Code_id_or_name.Set.empty
 
-let make_field_elt uses (k : Code_id_or_name.t) =
-  match Hashtbl.find_opt uses k with
-  | Some Top -> Field_top
-  | None | Some (Bottom | Fields _) ->
-    Field_vals (Code_id_or_name.Set.singleton k)
+  let join_elt e1 e2 =
+    if e1 == e2
+    then e1
+    else
+      match e1, e2 with
+      | Bottom, e | e, Bottom -> e
+      | Top, _ | _, Top -> Top
+      | Fields f1, Fields f2 ->
+        Fields
+          (Field.Map.union
+             (fun _ e1 e2 ->
+               match e1, e2 with
+               | Field_top, _ | _, Field_top -> Some Field_top
+               | Field_vals e1, Field_vals e2 ->
+                 Some (Field_vals (Code_id_or_name.Set.union e1 e2)))
+             f1 f2)
 
-let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
-  match elt with
-  | Bottom -> Bottom
-  | Top | Fields _ -> (
+  let make_field_elt uses (k : Code_id_or_name.t) =
+    match Hashtbl.find_opt uses k with
+    | Some Top -> Field_top
+    | None | Some (Bottom | Fields _) ->
+      Field_vals (Code_id_or_name.Set.singleton k)
+
+  let propagate uses (k : Code_id_or_name.t) (elt : elt) (dep : dep) : elt =
+    match elt with
+    | Bottom -> Bottom
+    | Top | Fields _ -> (
+      match dep with
+      | Alias _ -> elt
+      | Use _ -> Top
+      | Field { relation; _ } ->
+        Fields (Field.Map.singleton relation (make_field_elt uses k))
+      | Block { relation; _ } -> (
+        match elt with
+        | Bottom -> assert false
+        | Top -> Top
+        | Fields fields -> (
+          try
+            let elems =
+              match Field.Map.find_opt relation fields with
+              | None -> Code_id_or_name.Set.empty
+              | Some Field_top -> raise Exit
+              | Some (Field_vals s) -> s
+            in
+            Code_id_or_name.Set.fold
+              (fun n acc ->
+                join_elt acc
+                  (match Hashtbl.find_opt uses n with
+                  | None -> Bottom
+                  | Some e -> e))
+              elems Bottom
+          with Exit -> Top))
+      | Alias_if_def { if_defined; _ } -> (
+        match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
+        | None | Some Bottom -> Bottom
+        | Some (Fields _ | Top) -> elt)
+      | Propagate { source; _ } -> (
+        match Hashtbl.find_opt uses (Code_id_or_name.name source) with
+        | None -> Bottom
+        | Some elt -> elt))
+
+  let propagate_top uses (dep : dep) : bool =
     match dep with
-    | Alias _ -> elt
-    | Use _ -> Top
-    | Field { relation; _ } ->
-      Fields (Field.Map.singleton relation (make_field_elt uses k))
-    | Block { relation; _ } -> (
-      match elt with
-      | Bottom -> assert false
-      | Top -> Top
-      | Fields fields -> (
-        try
-          let elems =
-            match Field.Map.find_opt relation fields with
-            | None -> Code_id_or_name.Set.empty
-            | Some Field_top -> raise Exit
-            | Some (Field_vals s) -> s
-          in
-          Code_id_or_name.Set.fold
-            (fun n acc ->
-              join_elt acc
-                (match Hashtbl.find_opt uses n with
-                | None -> Bottom
-                | Some e -> e))
-            elems Bottom
-        with Exit -> Top))
+    | Alias _ -> true
+    | Use _ -> true
+    | Field _ -> false
+    | Block _ -> true
     | Alias_if_def { if_defined; _ } -> (
       match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
-      | None | Some Bottom -> Bottom
-      | Some (Fields _ | Top) -> elt)
+      | None | Some Bottom -> false
+      | Some (Fields _ | Top) -> true)
     | Propagate { source; _ } -> (
       match Hashtbl.find_opt uses (Code_id_or_name.name source) with
-      | None -> Bottom
-      | Some elt -> elt))
-
-let propagate_top uses (dep : dep) : bool =
-  match dep with
-  | Alias _ -> true
-  | Use _ -> true
-  | Field _ -> false
-  | Block _ -> true
-  | Alias_if_def { if_defined; _ } -> (
-    match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
-    | None | Some Bottom -> false
-    | Some (Fields _ | Top) -> true)
-  | Propagate { source; _ } -> (
-    match Hashtbl.find_opt uses (Code_id_or_name.name source) with
-    | None | Some (Bottom | Fields _) -> false
-    | Some Top -> true)
+      | None | Some (Bottom | Fields _) -> false
+      | Some Top -> true)
 
   let top = Top
 
@@ -384,18 +383,18 @@ let propagate_top uses (dep : dep) : bool =
 
   let less_equal _ elt1 elt2 = less_equal_elt elt1 elt2
 
-type state = (Code_id_or_name.t, elt) Hashtbl.t
+  type state = (Code_id_or_name.t, elt) Hashtbl.t
 
   let get state n =
     match Hashtbl.find_opt state n with None -> Bottom | Some elt -> elt
 
   let set state n elt = Hashtbl.replace state n elt
-
 end
 
 module Solver = Make_Fixpoint (Graph)
 
 type result = Graph.state
+
 let pp_result ppf (res : result) =
   let elts = List.of_seq @@ Hashtbl.to_seq res in
   let pp ppf l =
@@ -406,8 +405,6 @@ let pp_result ppf (res : result) =
     Format.pp_print_list ~pp_sep pp ppf l
   in
   Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
-
-
 
 let fixpoint (graph_new : Global_flow_graph.graph) =
   let result = Hashtbl.create 17 in

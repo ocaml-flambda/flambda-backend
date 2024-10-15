@@ -164,7 +164,8 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
         print_flambda "simplify" (Flambda_features.dump_simplify ()) ppf flambda;
         print_flexpect "simplify" ppf ~raw_flambda flambda;
         let flambda, free_names, all_code, slot_offsets =
-          if Flambda_features.enable_reaper () then begin
+          if Flambda_features.enable_reaper ()
+          then (
             let flambda, free_names, all_code, slot_offsets =
               Profile.record_call ~accumulate:true "reaper" (fun () ->
                   Flambda2_reaper.Reaper.run ~cmx_loader ~all_code flambda)
@@ -173,9 +174,8 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
               (Flambda_features.dump_flambda ())
               ppf flambda;
             print_flexpect "reaper" ppf ~raw_flambda flambda;
-            flambda, free_names, all_code, slot_offsets
-          end else
-            flambda, free_names, all_code, slot_offsets
+            flambda, free_names, all_code, slot_offsets)
+          else flambda, free_names, all_code, slot_offsets
         in
         let { Simplify.unit = flambda;
               exported_offsets;
