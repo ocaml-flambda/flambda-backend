@@ -550,7 +550,7 @@ class virtual selector_generic =
               self#insert_move_results env loc_res rd stack_ofs;
               Select_utils.set_traps_for_raise env;
               Some rd
-            | Call { op = Direct sym; label_after } ->
+            | Call { op = Direct _; label_after } ->
               let r1 = self#emit_tuple env new_args in
               let rd = self#regs_for ty in
               let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
