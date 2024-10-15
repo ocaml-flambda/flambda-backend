@@ -668,7 +668,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod global) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -676,7 +676,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod unique) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -684,7 +684,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod many) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -692,7 +692,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod portable) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -700,7 +700,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod uncontended) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -708,7 +708,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod external_) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -892,13 +892,13 @@ type t : any mod many = { x : int } [@@unboxed]
 type t : any mod unique = { x : int } [@@unboxed]
 type t : immediate = { x : int } [@@unboxed]
 [%%expect {|
-type t : any mod global = { x : int; } [@@unboxed]
-type t : any mod portable = { x : int; } [@@unboxed]
-type t : any mod uncontended = { x : int; } [@@unboxed]
-type t : any mod external_ = { x : int; } [@@unboxed]
-type t : any mod many = { x : int; } [@@unboxed]
-type t : any mod unique = { x : int; } [@@unboxed]
-type t : immediate = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 |}]
 
 type ('a : immediate) t : any mod global = { x : 'a } [@@unboxed]
@@ -909,13 +909,13 @@ type ('a : immediate) t : any mod many = { x : 'a } [@@unboxed]
 type ('a : immediate) t : any mod unique = { x : 'a } [@@unboxed]
 type ('a : immediate) t : immediate = { x : 'a } [@@unboxed]
 [%%expect {|
-type ('a : immediate) t : any mod global = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod portable = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod uncontended = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod external_ = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod many = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod unique = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : immediate = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
 |}]
 
 type u : value
@@ -993,7 +993,7 @@ type t : value mod global = { x : int } [@@unboxed]
 let f (x : _ as (_ : immediate)) : (_ as (_ : value mod many)) = x.x
 let v : (int as (_ : value mod portable)) = f { x = 5 }
 [%%expect {|
-type t : value mod global = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 val f : t -> int = <fun>
 val v : int = 5
 |}]
@@ -1135,7 +1135,7 @@ Error: The kind of type "t" is value
 type t : any mod portable = Foo of bool [@@unboxed]
 let x = (Foo true : _ as (_ : value mod portable uncontended unique))
 [%%expect {|
-type t : any mod portable = Foo of bool [@@unboxed]
+type t = Foo of bool [@@unboxed]
 val x : t = <unknown constructor>
 |}]
 (* CR layouts v2.8: This should be rejected once nominative types remember their kinds *)
@@ -1147,12 +1147,12 @@ type t : value mod portable = Foo of int [@@unboxed]
 type t : value mod uncontended = Foo of int [@@unboxed]
 type t : value mod external_ = Foo of int [@@unboxed]
 [%%expect {|
-type t : value mod global = Foo of int [@@unboxed]
-type t : value mod many = Foo of int [@@unboxed]
-type t : value mod unique = Foo of int [@@unboxed]
-type t : value mod portable = Foo of int [@@unboxed]
-type t : value mod uncontended = Foo of int [@@unboxed]
-type t : value mod external_ = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
 |}]
 
 type t : any mod portable = Foo of t_value [@@unboxed]
@@ -1207,12 +1207,12 @@ type ('a : value mod global) t : value mod global = Foo of 'a @@ global [@@unbox
 type ('a : immediate) t : immediate = Foo of 'a @@ global [@@unboxed]
 type ('a : value mod global) t : value mod global = Foo of 'a @@ local [@@unboxed]
 [%%expect {|
-type ('a : value mod global) t : value mod global = { global_ x : 'a; } [@@unboxed]
-type ('a : immediate) t : immediate = { global_ x : 'a; } [@@unboxed]
-type ('a : value mod global) t : value mod global = { x : 'a; } [@@unboxed]
-type ('a : value mod global) t : value mod global = Foo of global_ 'a [@@unboxed]
-type ('a : immediate) t : immediate = Foo of global_ 'a [@@unboxed]
-type ('a : value mod global) t : value mod global = Foo of 'a [@@unboxed]
+type ('a : value mod global) t = { global_ x : 'a; } [@@unboxed]
+type ('a : immediate) t = { global_ x : 'a; } [@@unboxed]
+type ('a : value mod global) t = { x : 'a; } [@@unboxed]
+type ('a : value mod global) t = Foo of global_ 'a [@@unboxed]
+type ('a : immediate) t = Foo of global_ 'a [@@unboxed]
+type ('a : value mod global) t = Foo of 'a [@@unboxed]
 |}]
 
 type ('a : value mod uncontended many) t : value mod uncontended many unique =

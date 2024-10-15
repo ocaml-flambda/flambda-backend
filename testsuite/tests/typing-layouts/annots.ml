@@ -1149,7 +1149,7 @@ val f : t -> t = <fun>
 type t : value = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : value = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -1157,7 +1157,7 @@ val f : t -> t = <fun>
 type t : immediate = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : immediate = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 
@@ -1296,7 +1296,7 @@ val f : t -> t = <fun>
 type t : value = Foo of int [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : value = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -1304,7 +1304,7 @@ val f : t -> t = <fun>
 type t : immediate = Foo of int [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : immediate = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
 val f : t -> t = <fun>
 |}]
 

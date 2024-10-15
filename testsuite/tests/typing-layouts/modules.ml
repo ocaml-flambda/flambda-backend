@@ -371,7 +371,7 @@ type t4 = M4'.s t4_imm;;
 [%%expect{|
 module F4' :
   functor (X : sig type t : immediate end) ->
-    sig type s : immediate = Foo of X.t [@@unboxed] end
+    sig type s = Foo of X.t [@@unboxed] end
 module M4' : sig type s : immediate end
 type ('a : immediate) t4_imm
 type t4 = M4'.s t4_imm

@@ -754,9 +754,9 @@ Error: The native code version of the primitive is mandatory
 |}]
 
 (* PR#7424 *)
-type 'a b : value = B of 'a b b [@@unboxed];;
+type 'a b = B of 'a b b [@@unboxed];;
 [%%expect{|
-type 'a b : value = B of 'a b b [@@unboxed]
+type 'a b = B of 'a b b [@@unboxed]
 |}]
 
 

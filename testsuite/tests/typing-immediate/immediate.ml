@@ -82,8 +82,8 @@ end;;
 [%%expect{|
 module Unboxed_valid :
   sig
-    type t : immediate = { x : int; } [@@unboxed]
-    type u : immediate = { x : s; } [@@unboxed]
+    type t = { x : int; } [@@unboxed]
+    type u = { x : s; } [@@unboxed]
     and s = int
   end
 |}];;
