@@ -223,6 +223,7 @@ module History = struct
     | V1_safety_check
     | Probe
     | Captured_in_object
+    | Let_rec_variable of Ident.t
 
   type value_creation_reason =
     | Class_let_binding
@@ -256,7 +257,6 @@ module History = struct
     | Class_term_argument
     | Debug_printer_argument
     | Recmod_fun_arg
-    | Let_rec_variable of Ident.t
     | Unknown of string (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =

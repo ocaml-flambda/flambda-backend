@@ -8552,7 +8552,9 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
              and route the appropriate sorts through to its uses. *)
           if is_recursive then begin
             List.iter (fun { pv_id; pv_loc; pv_type; _ } ->
-              let value = Jkind.Builtin.value ~why:(Let_rec_variable pv_id) in
+              let value =
+                Jkind.Builtin.value_or_null ~why:(Let_rec_variable pv_id)
+              in
               match constrain_type_jkind env pv_type value with
               | Ok () -> ()
               | Error e ->
