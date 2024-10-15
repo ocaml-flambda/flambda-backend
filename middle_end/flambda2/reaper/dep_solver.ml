@@ -233,6 +233,34 @@ let pp_elt ppf elt =
   | Fields fields ->
     Format.fprintf ppf "{ %a }" (Field.Map.print pp_field_elt) fields
 
+module Graph = struct
+  type graph = Global_flow_graph.graph
+
+  module Node = Code_id_or_name
+
+  type edge = Global_flow_graph.Dep.t
+
+  let fold_nodes graph f init =
+    Hashtbl.fold
+      (fun n _ acc -> f n acc)
+      graph.Global_flow_graph.name_to_dep init
+
+  let fold_edges graph n f init =
+    match Hashtbl.find_opt graph.Global_flow_graph.name_to_dep n with
+    | None -> init
+    | Some deps -> Global_flow_graph.Dep.Set.fold f deps init
+
+  let target (dep : dep) : Code_id_or_name.t =
+    match dep with
+    | Alias { target }
+    | Field { target; _ }
+    | Alias_if_def { target; _ }
+    | Propagate { target; _ } ->
+      Code_id_or_name.name target
+    | Use { target } | Block { target; _ } -> target
+
+   type nonrec elt = elt
+
 let less_equal_elt e1 e2 =
   match e1, e2 with
   | Bottom, _ | _, Top -> true
@@ -284,14 +312,6 @@ let join_elt e1 e2 =
                Some (Field_vals (Code_id_or_name.Set.union e1 e2)))
            f1 f2)
 
-let target (dep : dep) : Code_id_or_name.t =
-  match dep with
-  | Alias { target }
-  | Field { target; _ }
-  | Alias_if_def { target; _ }
-  | Propagate { target; _ } ->
-    Code_id_or_name.name target
-  | Use { target } | Block { target; _ } -> target
 
 let make_field_elt uses (k : Code_id_or_name.t) =
   match Hashtbl.find_opt uses k with
@@ -352,8 +372,30 @@ let propagate_top uses (dep : dep) : bool =
     | None | Some (Bottom | Fields _) -> false
     | Some Top -> true)
 
-type result = (Code_id_or_name.t, elt) Hashtbl.t
+  let top = Top
 
+  let is_top = function Top -> true | Bottom | Fields _ -> false
+
+  let is_bottom = function Bottom -> true | Top | Fields _ -> false
+
+  let widen _ ~old:elt1 elt2 = join_elt elt1 elt2
+
+  let join _ elt1 elt2 = join_elt elt1 elt2
+
+  let less_equal _ elt1 elt2 = less_equal_elt elt1 elt2
+
+type state = (Code_id_or_name.t, elt) Hashtbl.t
+
+  let get state n =
+    match Hashtbl.find_opt state n with None -> Bottom | Some elt -> elt
+
+  let set state n elt = Hashtbl.replace state n elt
+
+end
+
+module Solver = Make_Fixpoint (Graph)
+
+type result = Graph.state
 let pp_result ppf (res : result) =
   let elts = List.of_seq @@ Hashtbl.to_seq res in
   let pp ppf l =
@@ -365,54 +407,7 @@ let pp_result ppf (res : result) =
   in
   Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
 
-module Graph = struct
-  type graph = Global_flow_graph.graph
 
-  module Node = Code_id_or_name
-
-  type edge = Global_flow_graph.Dep.t
-
-  let fold_nodes graph f init =
-    Hashtbl.fold
-      (fun n _ acc -> f n acc)
-      graph.Global_flow_graph.name_to_dep init
-
-  let fold_edges graph n f init =
-    match Hashtbl.find_opt graph.Global_flow_graph.name_to_dep n with
-    | None -> init
-    | Some deps -> Global_flow_graph.Dep.Set.fold f deps init
-
-  let target = target
-
-  type nonrec elt = elt
-
-  type state = result
-
-  let top = Top
-
-  let is_top = function Top -> true | Bottom | Fields _ -> false
-
-  let is_bottom = function Bottom -> true | Top | Fields _ -> false
-
-  let elt_deps = elt_deps
-
-  let widen _ ~old:elt1 elt2 = join_elt elt1 elt2
-
-  let join _ elt1 elt2 = join_elt elt1 elt2
-
-  let less_equal _ elt1 elt2 = less_equal_elt elt1 elt2
-
-  let propagate = propagate
-
-  let propagate_top = propagate_top
-
-  let get state n =
-    match Hashtbl.find_opt state n with None -> Bottom | Some elt -> elt
-
-  let set state n elt = Hashtbl.replace state n elt
-end
-
-module Solver = Make_Fixpoint (Graph)
 
 let fixpoint (graph_new : Global_flow_graph.graph) =
   let result = Hashtbl.create 17 in

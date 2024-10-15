@@ -70,6 +70,9 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
 
 let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
     acc : unit =
+  (* Here and later in [traverse_call_kind], some dependencies are not immediately
+     registered, because the code, which is dominator-scoped, has not yet been seen
+     due to the traversal order. *)
   let funs =
     Function_declarations.funs (Set_of_closures.function_decls set_of_closures)
   in
@@ -183,12 +186,10 @@ and traverse_let denv acc let_expr : rev_expr =
             let static_const = Static_const.set_of_closures set_of_closures in
             Static_const static_const :: rev_group)
           ~block_like:(fun rev_group _symbol static_const ->
-            (* TODO: register make block deps *)
             Static_const static_const :: rev_group)
       in
       let group = List.rev rev_group in
       Static_consts group
-    (* TODO set_of_closures in Static_consts *)
     | Prim _ -> Named defining_expr
     | Simple _ -> Named defining_expr
     | Rec_info _ as defining_expr -> Named defining_expr
