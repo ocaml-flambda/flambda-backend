@@ -56,7 +56,8 @@ type codegen_option =
       }
   | Check_zero_alloc of
       { strict : bool;
-        loc : Location.t
+        loc : Location.t;
+        custom_error_msg : string option
       }
 
 let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
@@ -70,8 +71,9 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
     | Assume_zero_alloc { strict; never_returns_normally; never_raises; loc } ->
       Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }
       :: of_cmm_codegen_option tl
-    | Check_zero_alloc { strict; loc } ->
-      Check_zero_alloc { strict; loc } :: of_cmm_codegen_option tl
+    | Check_zero_alloc { strict; loc; custom_error_msg } ->
+      Check_zero_alloc { strict; loc; custom_error_msg }
+      :: of_cmm_codegen_option tl
     | Use_linscan_regalloc -> of_cmm_codegen_option tl)
 
 type t =

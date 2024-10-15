@@ -1443,14 +1443,21 @@ end = struct
       assume : bool;
       never_returns_normally : bool;
       never_raises : bool;
-      loc : Location.t
+      loc : Location.t;
           (** Source location of the annotation, used for error messages. *)
+      custom_error_msg : string option
     }
 
   let get_loc t = t.loc
 
   let expected_value
-      { strict; never_returns_normally; never_raises; assume = _; loc = _ } =
+      { strict;
+        never_returns_normally;
+        never_raises;
+        assume = _;
+        loc = _;
+        custom_error_msg = _
+      } =
     Value.of_annotation ~strict ~never_returns_normally ~never_raises
 
   let valid t v =
@@ -1472,13 +1479,14 @@ end = struct
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1487,7 +1495,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
         codegen_options
@@ -1504,13 +1513,14 @@ end = struct
       List.filter_map
         (fun (c : Cfg.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1519,7 +1529,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE -> None)
         codegen_options
