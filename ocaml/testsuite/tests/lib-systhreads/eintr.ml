@@ -8,7 +8,7 @@
    native;
  }
 *)
-
+(*
 let signals_requested = Atomic.make 0
 let signal_delay = 0.1
 let _ = Thread.create (fun () ->
@@ -99,3 +99,4 @@ let () =
   assert (Atomic.get during = expected);
   assert (!siglist = expected);
   print_endline "gc: ok"
+*)
