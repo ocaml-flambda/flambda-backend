@@ -3,9 +3,9 @@ module Global : sig
 end
 
 module Portable : sig
-  type 'a t = { portable : 'a @@ portable } [@@unboxed]
+  type 'a t : value mod portable = { portable : 'a @@ portable } [@@unboxed]
 end
 
 module Contended : sig
-  type 'a t = { contended : 'a @@ contended } [@@unboxed]
+  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
 end
