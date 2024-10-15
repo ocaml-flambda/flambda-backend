@@ -1,5 +1,5 @@
 File "fail19.ml", line 7, characters 5-15:
-Error: Annotation check for zero_alloc failed on function Fail19.foo (camlFail19.foo_HIDE_STAMP)
+Error: Annotation check for zero_alloc failed on function Fail19.foo (camlFail19.foo_HIDE_STAMP).
 
 File "fail19.ml", line 18, characters 5-26:
 Error: called function may allocate (external call to caml_make_vect) (fail19.ml:18,5--26;dep19.ml:1,38--74)
