@@ -147,6 +147,8 @@
   map.mli
   marshal.ml
   marshal.mli
+  modes.ml
+  modes.mli
   moreLabels.ml
   moreLabels.mli
   mutex.ml
@@ -304,6 +306,9 @@
   .stdlib.objs/byte/stdlib__Marshal.cmi
   .stdlib.objs/byte/stdlib__Marshal.cmt
   .stdlib.objs/byte/stdlib__Marshal.cmti
+  .stdlib.objs/byte/stdlib__Modes.cmi
+  .stdlib.objs/byte/stdlib__Modes.cmt
+  .stdlib.objs/byte/stdlib__Modes.cmti
   .stdlib.objs/byte/stdlib__MoreLabels.cmi
   .stdlib.objs/byte/stdlib__MoreLabels.cmt
   .stdlib.objs/byte/stdlib__MoreLabels.cmti
@@ -468,6 +473,7 @@
   .stdlib.objs/native/stdlib__Arg.cmx
   .stdlib.objs/native/stdlib__Callback.cmx
   .stdlib.objs/native/stdlib__Marshal.cmx
+  .stdlib.objs/native/stdlib__Modes.cmx
   .stdlib.objs/native/stdlib__BytesLabels.cmx
   .stdlib.objs/native/stdlib__Digest.cmx
   .stdlib.objs/native/stdlib__Domain.cmx
