@@ -1704,8 +1704,8 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; pvb_modes = mode
   | None ->
       (* CR layouts 1.5: We just need to check for [is_desugared_gadt] because
          the parser hasn't been upgraded to parse [let x : type a. ... = ...] as
-         [Pvb_constraint] as it has been upstream. Once we encode that with Jane
-         Syntax appropriately, we can delete this code.
+         [Pvb_constraint] as it has been upstream. Once we move to the 5.2
+         parsetree encoding of type annotations.
       *)
       let tyvars_str tyvars = List.map (fun v -> v.txt) tyvars in
       let tyvars_jkind_str tyvars = List.map (fun (v, _jkind) -> v.txt) tyvars in

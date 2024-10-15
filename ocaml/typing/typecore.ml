@@ -773,10 +773,13 @@ let constant_or_raise env loc cst =
        | Const_unboxed_int32 _
        | Const_unboxed_int64 _
        | Const_unboxed_nativeint _
-       | Const_unboxed_float _ ->
+       | Const_unboxed_float _
+       | Const_unboxed_float32 _ ->
            Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
              Language_extension.Stable
-       | _ -> ());
+       | Const_int _ | Const_char _ | Const_string _ | Const_float _
+       | Const_float32 _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ ->
+           ());
       c
   | Error err -> raise (Error (loc, env, err))
 
