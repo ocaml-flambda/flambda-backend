@@ -299,8 +299,8 @@ module Remote_value =
         flush !conn.io_out;
         let header = input_binary_int !conn.io_in in
         if header land 0xFF = Obj.double_array_tag && Sys.word_size = 32
-        then header lsr (11 + Config.reserved_header_bits)
-        else header lsr (10 + Config.reserved_header_bits)
+        then header lsr 11
+        else header lsr 10
 
     let field v n =
       match v with
