@@ -618,7 +618,13 @@ class virtual selector_generic =
               if keep_for_checking then true, typ_int else false, ty
             in
             let rd = self#regs_for ty in
-            let term = Cfg.Call_no_return { r with stack_ofs } in
+            let label = Cmm.new_label () in
+            let r = { r with stack_ofs } in
+            let term =
+              if keep_for_checking
+              then Cfg.Prim { op = Cfg.External r; label_after = label }
+              else Cfg.Call_no_return r
+            in
             let _ =
               self#insert_op_debug' env term dbg loc_arg
                 (Proc.loc_external_results (Reg.typv rd))
@@ -627,7 +633,7 @@ class virtual selector_generic =
             if returns
             then (
               let dummy_block =
-                Sub_cfg.make_empty_block
+                Sub_cfg.make_empty_block ~label
                   (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
               in
               DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
