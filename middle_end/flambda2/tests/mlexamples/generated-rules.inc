@@ -433,48 +433,48 @@
  (alias regen)
  (action (diff tests7.flt tests7.flt.new)))
 
-;(rule
-; (alias runtest)
-; (action
-;  (progn
-;   (run ../tools/flexpect.exe tests11.flt)
-;   (diff? tests11.flt tests11.flt.corrected))))
-;
-;(rule
-; (alias runtest)
-; (action
-;  (progn
-;   (run ../tools/roundtrip.exe tests11_in.fl)
-;   (diff? tests11_in.fl tests11_in.fl.corrected))))
-;
-;(rule
-; (alias runtest)
-; (action
-;  (progn
-;   (run ../tools/roundtrip.exe tests11_out.fl)
-;   (diff? tests11_out.fl tests11_out.fl.corrected))))
-;
-;(rule
-; (alias regen)
-; (targets tests11.flt.new tests11_in.fl.new tests11_out.fl.new)
-; (deps tests11.ml)
-; (action
-;   (run ocamlopt -c tests11.ml -nopervasives -nostdlib
-;        -drawfexpr-to tests11_in.fl.new
-;        -dfexpr-to tests11_out.fl.new
-;        -dflexpect-to tests11.flt.new)))
-;
-;(rule
-; (alias regen)
-; (action (diff tests11_in.fl tests11_in.fl.new)))
-;
-;(rule
-; (alias regen)
-; (action (diff tests11_out.fl tests11_out.fl.new)))
-;
-;(rule
-; (alias regen)
-; (action (diff tests11.flt tests11.flt.new)))
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe tests11.flt)
+   (diff? tests11.flt tests11.flt.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests11_in.fl)
+   (diff? tests11_in.fl tests11_in.fl.corrected))))
+
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/roundtrip.exe tests11_out.fl)
+   (diff? tests11_out.fl tests11_out.fl.corrected))))
+
+(rule
+ (alias regen)
+ (targets tests11.flt.new tests11_in.fl.new tests11_out.fl.new)
+ (deps tests11.ml)
+ (action
+   (run ocamlopt -c tests11.ml -nopervasives -nostdlib
+        -drawfexpr-to tests11_in.fl.new
+        -dfexpr-to tests11_out.fl.new
+        -dflexpect-to tests11.flt.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests11_in.fl tests11_in.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests11_out.fl tests11_out.fl.new)))
+
+(rule
+ (alias regen)
+ (action (diff tests11.flt tests11.flt.new)))
 
 (rule
  (alias runtest)
