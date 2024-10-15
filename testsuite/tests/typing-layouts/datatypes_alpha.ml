@@ -388,7 +388,7 @@ Error: Layout mismatch in final type declaration consistency check.
            because of the definition of void_t at line 1, characters 0-23.
          But the layout of 'a must overlap with value
            because it instantiates an unannotated type parameter of t8_5,
-           defaulted to layout value.
+           chosen to have layout value.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -409,7 +409,7 @@ Error: Layout mismatch in final type declaration consistency check.
        message, so we'll say this instead:
          The kind of 'a is value
            because it instantiates an unannotated type parameter of t10,
-           defaulted to kind value.
+           chosen to have kind value.
          But the kind of 'a must be a subkind of immediate
            because of the definition of imm_t at line 1, characters 0-27.
        A good next step is to add a layout annotation on a parameter to

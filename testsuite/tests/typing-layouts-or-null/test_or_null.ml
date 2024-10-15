@@ -196,7 +196,7 @@ Error: This expression has type "'a t" = "'a or_null"
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because it's the type of an array element,
-         defaulted to kind value.
+         chosen to have kind value.
 |}]
 
 type should_fail = float or_null array
@@ -256,7 +256,7 @@ Error: This expression has type "'a t" = "'a or_null"
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
          because it's the type of an array element,
-         defaulted to kind value.
+         chosen to have kind value.
 |}]
 
 type should_fail = float or_null array

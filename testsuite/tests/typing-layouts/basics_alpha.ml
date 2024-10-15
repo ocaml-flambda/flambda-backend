@@ -561,7 +561,7 @@ Error: The type constraints are not consistent.
          because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         chosen to have layout value.
 |}];;
 
 module type S8_5 = sig
@@ -676,7 +676,7 @@ Error: The type constraints are not consistent.
          because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         chosen to have layout value.
 |}];;
 
 module type S9_7 = sig
