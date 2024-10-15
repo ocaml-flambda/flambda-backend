@@ -82,6 +82,7 @@ module Typ :
     val class_: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
     val alias: ?loc:loc -> ?attrs:attrs -> core_type -> string with_loc option
                -> jkind_annotation option -> core_type
+    (* Invariant: One of the options must be [Some]. *)
     val variant: ?loc:loc -> ?attrs:attrs -> row_field list -> closed_flag
                  -> label list option -> core_type
     val poly: ?loc:loc -> ?attrs:attrs ->
