@@ -990,40 +990,7 @@ let wordsize_shift = 9
 
 let numfloat_shift = 9 + log2_size_float - log2_size_addr
 
-<<<<<<< HEAD
-let is_addr_array_hdr hdr dbg =
-  Cop
-    ( Ccmpi Cne,
-      [Cop (Cand, [hdr; Cconst_int (255, dbg)], dbg); floatarray_tag dbg],
-      dbg )
-
 let addr_array_length_shifted hdr dbg = lsr_const hdr wordsize_shift dbg
-||||||| 5fd1f359e4
-let is_addr_array_hdr hdr dbg =
-  Cop
-    ( Ccmpi Cne,
-      [Cop (Cand, [hdr; Cconst_int (255, dbg)], dbg); floatarray_tag dbg],
-      dbg )
-
-let addr_array_length_shifted hdr dbg =
-  Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
-=======
-let addr_array_length_shifted hdr dbg =
-  Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
->>>>>>> origin/main
-
-<<<<<<< HEAD
-let float_array_length_shifted hdr dbg = lsr_const hdr numfloat_shift dbg
-||||||| 5fd1f359e4
-let float_array_length_shifted hdr dbg =
-  Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg)
-
-let lsl_const c n dbg =
-  if n = 0 then c else Cop (Clsl, [c; Cconst_int (n, dbg)], dbg)
-=======
-let lsl_const c n dbg =
-  if n = 0 then c else Cop (Clsl, [c; Cconst_int (n, dbg)], dbg)
->>>>>>> origin/main
 
 (* Produces a pointer to the element of the array [ptr] on the position [ofs]
    with the given element [log2size] log2 element size.
@@ -3310,65 +3277,7 @@ let negint arg dbg = Cop (Csubi, [Cconst_int (2, dbg); arg], dbg)
 
 let addr_array_length arg dbg =
   let hdr = get_header_masked arg dbg in
-<<<<<<< HEAD
-  match (kind : Lambda.array_kind) with
-  | Pgenarray ->
-    let len =
-      if wordsize_shift = numfloat_shift
-      then addr_array_length_shifted hdr dbg
-      else
-        bind "header" hdr (fun hdr ->
-            Cifthenelse
-              ( is_addr_array_hdr hdr dbg,
-                dbg,
-                addr_array_length_shifted hdr dbg,
-                dbg,
-                float_array_length_shifted hdr dbg,
-                dbg,
-                Any ))
-    in
-    Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
-  | Paddrarray | Pintarray ->
-    Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Pfloatarray | Punboxedfloatarray Pfloat64 ->
-    (* Note: we only support 64 bit targets now, so this is ok for
-       Punboxedfloatarray *)
-    Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Punboxedfloatarray Pfloat32 -> unboxed_float32_array_length arg dbg
-  | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
-    unboxed_int64_or_nativeint_array_length arg dbg
-  | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
-||||||| 5fd1f359e4
-  match (kind : Lambda.array_kind) with
-  | Pgenarray ->
-    let len =
-      if wordsize_shift = numfloat_shift
-      then Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
-      else
-        bind "header" hdr (fun hdr ->
-            Cifthenelse
-              ( is_addr_array_hdr hdr dbg,
-                dbg,
-                Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg),
-                dbg,
-                Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg),
-                dbg,
-                Any ))
-    in
-    Cop (Cor, [len; Cconst_int (1, dbg)], dbg)
-  | Paddrarray | Pintarray ->
-    Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Pfloatarray | Punboxedfloatarray Pfloat64 ->
-    (* Note: we only support 64 bit targets now, so this is ok for
-       Punboxedfloatarray *)
-    Cop (Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
-  | Punboxedfloatarray Pfloat32 -> unboxed_float32_array_length arg dbg
-  | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
-    unboxed_int64_or_nativeint_array_length arg dbg
-  | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
-=======
   Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
->>>>>>> origin/main
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
