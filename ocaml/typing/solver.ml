@@ -656,6 +656,52 @@ module Solver_mono (C : Lattices_mono) = struct
       end
     end
 
+  let rec generalize_v
+      : type a. traversed:_ -> log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~traversed ~log dst ~current_level ~generic_level u ->
+      if Hashtbl.mem traversed u.id then ()
+      else begin
+        Hashtbl.add traversed u.id ();
+        let level = u.level in
+        if (level > current_level) && (level <> generic_level) then begin
+          (* we remember the reachable variables now since update_level_v
+          might remove some*)
+          let vupper = u.vupper in
+          let vlower = u.vlower in
+          update_level_v ~log dst (current_level + 1) u;
+          set_level ~log u generic_level;
+          List.iter (fun (Amorphvar (v, f)) ->
+            let src = C.src dst f in
+            generalize_v ~traversed ~log src ~current_level ~generic_level v)
+            vupper;
+          List.iter (fun (Amorphvar (v, f)) ->
+            let src = C.src dst f in
+            generalize_v ~traversed ~log src ~current_level ~generic_level v)
+            vlower
+        end
+      end
+
+  let generalize (type a l r) ~current_level ~generic_level (obj : a C.obj)
+      (a : (a, l * r) mode) ~traversed ~log =
+    match a with
+    | Amodevar (Amorphvar (v, f)) ->
+      let obj = C.src obj f in
+      generalize_v ~traversed ~log obj ~current_level ~generic_level v
+    | Amode _ -> ()
+    | Amodejoin (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_v ~traversed ~log obj ~current_level ~generic_level v)
+        mvs
+    | Amodemeet (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_v ~traversed ~log obj ~current_level ~generic_level v)
+        mvs
+
   let cnt_id = ref 0
 
   let fresh ?upper ?lower ?vlower ?vupper obj =
@@ -1047,6 +1093,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let update_level = S.update_level
 
+    let generalize = S.generalize
+
     let join = S.join
 
     let meet = S.meet
@@ -1110,6 +1158,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
         (S.submode obj m1 m0 ~log)
 
     let update_level = S.update_level
+
+    let generalize = S.generalize
 
     let join = S.meet
 

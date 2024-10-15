@@ -76,6 +76,13 @@ module type Common = sig
 
   val update_level : int -> ('l * 'r) t -> unit
 
+  val generalize :
+    current_level:int ->
+    generic_level:int ->
+    ('l * 'r) t ->
+    traversed:(int,unit) Hashtbl.t ->
+    unit
+
   val equate : lr -> lr -> (unit, equate_error) result
 
   val submode_exn : (allowed * 'r) t -> ('l * allowed) t -> unit

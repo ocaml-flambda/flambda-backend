@@ -284,6 +284,18 @@ module type Solver_polarized = sig
     log:changes ref option ->
     unit
 
+  (** Generalizes all reachable variables whose level is above [current_level],
+      by putting their level to [generic_level]. [traversed] tracks all the variables that
+      have already been generalized *)
+  val generalize :
+    current_level:int ->
+    generic_level:int ->
+    'a obj ->
+    ('a, 'l * 'r) mode ->
+    traversed:(int,unit) Hashtbl.t ->
+    log:changes ref option ->
+    unit
+
   (** Creates a new mode variable above the given mode and returns [true]. In
         the speical case where the given mode is top, returns the constant top
         and [false]. *)
