@@ -5169,25 +5169,83 @@ let split_function_ty
     expected_inner_mode; expected_pat_mode
   }
 
-let split_function_mty env ty_expected ~arg_label
-    ~in_function ~is_first_val_param
+type split_function_mty =
+  { (* The result of calling [Ctype.filter_arrow] on
+       [a_i -> a_{i+1} -> ... -> b].
+    *)
+    filtered_functor: filtered_functor;
+    (* [expected_pat_mode] and [expected_inner_mode] are the arguments you
+       should pass to [type_cases]. (As opposed to, say, using
+       [filtered_arrow.arg_mode] and [filtered_arrow.ret_mode].) They are
+       related to the [filtered_arrow] modes, but also consult whether mode
+       crossing is available or if the function has a region.
+      *)
+    expected_pat_mode: expected_pat_mode;
+    expected_inner_mode: Env.t -> type_expr -> expected_mode;
+    (* [alloc_mode] is the mode of [fun x_i ... x_n -> e].
+       This needs to be a left mode for the construction of the [fp_curry] field
+       of the outer function. *)
+    alloc_mode: Mode.Alloc.lr;
+  }
+
+let split_function_mty
+    env (expected_mode : expected_mode) ty_expected ~arg_label
+    ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
   =
-  with_local_level_iter ~post:generalize_structure begin fun () ->
-    try
-      let filtered = filter_functor env (instance ty_expected) arg_label in
-      match filtered.ret with
-      | None -> (filtered, [])
-      | Some (_, _, _, ty_ret) -> (filtered, [ty_ret])  
+  let alloc_mode =
+    (* Unlike most allocations which can be the highest mode allowed by
+       [expected_mode] and their [alloc_mode] identical to [expected_mode] ,
+       functions have more constraints. For example, an outer function needs
+       to be made global if its inner function is global. As a result, a
+       function deserves a separate allocation mode.
+    *)
+    let mode, _ = Value.newvar_below expected_mode.mode in
+    fst (register_allocation_value_mode mode)
+  in
+  if expected_mode.strictly_local then
+    Locality.submode_exn Locality.local (Alloc.proj (Comonadic Areality) alloc_mode);
+  let { ty = ty_fun; explanation }, loc_fun = in_function in
+  let separate = !Clflags.principal || Env.has_local_constraints env in
+  let { ret = _; arg_mode; ret_mode } as filtered_functor =
+  with_local_level_if separate begin fun () ->
+    try filter_functor env (instance ty_expected) arg_label
     with Filter_arrow_failed err ->
-        let { ty = ty_fun; explanation }, loc_fun =
-          in_function
-        in
         let err =
           error_of_filter_arrow_failure ~explanation ~first:is_first_val_param
             ty_fun err
         in
         raise (Error(loc_fun, env, err))
-  end
+  end ~post:(fun f -> match f.ret with
+        | Some (_, _, _, ty_ret) -> generalize_structure ty_ret | None -> ())
+  in
+  apply_mode_annots ~loc:loc_fun ~env mode_annots arg_mode;
+  let env =
+    match is_first_val_param with
+    | false -> env
+    | true ->
+        let env =
+          Env.add_closure_lock
+          (Function expected_mode.locality_context)
+          (alloc_as_value alloc_mode).comonadic
+          env
+        in
+        Env.add_region_lock env
+  in
+  let ret_value_mode = alloc_as_value ret_mode in
+  let expected_inner_mode env ty_ret =
+    if not is_final_val_param then
+      (* no need to check mode crossing in this case because ty_res always a
+      function *)
+      mode_default ret_value_mode
+    else
+      let ret_value_mode = mode_return ret_value_mode in
+      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
+      ret_value_mode
+  in
+  let arg_value_mode = alloc_to_value_l2r arg_mode in
+  let expected_pat_mode = simple_pat_mode arg_value_mode in
+
+  env, { filtered_functor; alloc_mode; expected_pat_mode; expected_inner_mode }
 
 type type_function_result_param =
   { param : function_param;
@@ -6978,6 +7036,7 @@ and type_function
       let typed_arg_label, pat =
         Typetexp.transl_label_from_pat arg_label pat
       in
+      let mode_annots = mode_annots_from_pat pat in
       let (name, pack) =
         match pat.ppat_desc with
           Ppat_constraint ({ppat_desc = Ppat_unpack ({txt = Some name; loc}); _}
@@ -6985,19 +7044,6 @@ and type_function
               -> ({txt = name; loc}, Some pack)
         | Ppat_unpack ({txt = Some name; loc}) -> ({txt = name; loc}, None)
         | _ -> assert false
-      in
-      let type_pack pack =
-          let pack = Typetexp.transl_simple_type env ~new_var_jkind:Any
-                                        ~closed:false Alloc.Const.legacy pack in
-          let pck_ty = match pack.ctyp_desc with
-            | Ttyp_package pack -> pack
-            | _ -> assert false
-          in
-          let path = pck_ty.pack_path in
-          let fl = match get_desc pack.ctyp_type with
-              Tpackage (_, fl) -> fl
-            | _ -> assert false
-          in (path, fl)
       in
       let is_final_val_param =
         match body with
@@ -7013,10 +7059,26 @@ and type_function
                 | Pparam_newtype _ -> true)
               rest
       in
-      let { arg_mode; ret_mode; ret } = split_function_mty env ty_expected
-              ~arg_label:typed_arg_label ~is_first_val_param:first ~in_function
+      let env, { filtered_functor = { arg_mode; ret_mode; ret };
+        expected_pat_mode; expected_inner_mode; alloc_mode } =
+        split_function_mty env expected_mode ty_expected
+              ~arg_label:typed_arg_label ~mode_annots ~is_first_val_param:first ~in_function
+              ~is_final_val_param
       in
-      let (id_expected_typ_opt, (path, fl)) =
+      let type_pack pack =
+        let pack = Typetexp.transl_simple_type env ~new_var_jkind:Any
+                                      ~closed:false Alloc.Const.legacy pack in
+        let pck_ty = match pack.ctyp_desc with
+          | Ttyp_package pack -> pack
+          | _ -> assert false
+        in
+        let path = pck_ty.pack_path in
+        let fl = match get_desc pack.ctyp_type with
+            Tpackage (_, fl) -> fl
+          | _ -> assert false
+        in (path, fl)
+    in
+    let (id_expected_typ_opt, (path, fl)) =
         match ret, pack with
         | None, None ->
           raise (Error (pparam_loc, env, Cannot_infer_signature))
@@ -7041,7 +7103,8 @@ and type_function
                 (Warnings.Not_principal "this module unpacking");
           (Some (id, ety), (path', fl'))
       in
-      !check_closed_package ~loc:name.loc ~env ~typ:(newty (Tpackage (path, fl))) fl;
+      let ty_arg = newty (Tpackage (path, fl)) in
+      !check_closed_package ~loc:name.loc ~env ~typ:ty_arg fl;
       let mty = !Ctype.modtype_of_package env pparam_loc path fl in
       let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
       let arg_md = {
@@ -7050,6 +7113,11 @@ and type_function
         md_loc = pparam_loc;
         md_uid = pv_uid;
       } in
+      let type_sort ~why env ty =
+        match Ctype.type_sort ~fixed:false ~why env ty with
+        | Ok sort -> sort
+        | Error err -> raise (Error (loc_fun, env, Function_type_not_rep (ty, err)))
+      in
       let { function_ = res_ty, params, body;
             newtypes; params_contain_gadt = contains_gadt;
             fun_alloc_mode; ret_info; }, s_ident, ret_sort =
@@ -7066,13 +7134,9 @@ and type_function
                                   ~p_out:(Pident s_ident) ~fixed:false ety)
             | None -> newvar (Jkind.Builtin.any ~why:Unification_var)
           in
-          let type_sort ~why ty =
-            match Ctype.type_sort ~why ~fixed:false env ty with
-            | Ok sort -> sort
-            | Error err -> raise (Error (loc_fun, env, Function_type_not_rep (ty, err)))
-          in
-          let ret_sort = type_sort ~why:Function_result expected_res in
-  
+          let ret_sort = type_sort ~why:Function_result new_env expected_res in
+          let _ = expected_inner_mode in
+          (* type_function new_env (expected_inner_mode new_env expected_res) expected_res *)
           type_function new_env (mode_default Value.legacy) expected_res
               rest body_constraint body ~first:false ~in_function,
           s_ident, ret_sort
@@ -7088,25 +7152,20 @@ and type_function
           | Some res_ty ->
               newgenty (Tfunctor (ad, ident, (path, fl), res_ty))
           | None ->
-              let pck_ty = newty (Tpackage (path, fl)) in
-              newgenty (Tarrow (ad, newmono pck_ty, res_ty, commu_ok))
+              newgenty (Tarrow (ad, newmono ty_arg, res_ty, commu_ok))
       in
       let exp_type = instance exp_type in
       unify_exp_types loc env exp_type (instance ty_expected);
-      let pat_desc = Tpat_var (s_ident, name, pv_uid, Value.disallow_right Value.legacy) in
+      let pat_desc = Tpat_var (s_ident, name, pv_uid, expected_pat_mode.mode) in
       let pattern = {
         pat_desc;
         pat_loc = pparam_loc;
-        pat_extra = [Tpat_unpack, pparam_loc, []];
-        pat_type = newty (Tpackage (path, fl));
+        pat_extra = [Tpat_unpack, pparam_loc, pat.ppat_attributes];
+        pat_type = ty_arg;
         pat_env = env;
         pat_attributes = []
       } in
       let fp_kind = Tparam_pat pattern in
-      let alloc_mode =
-        let mode, _ = Value.newvar_below expected_mode.mode in
-        fst (register_allocation_value_mode mode)
-      in
       let curry =
         match fun_alloc_mode with
         (* See the comment on the [fun_alloc_mode] field for its
@@ -7120,8 +7179,9 @@ and type_function
              uses the [arg_mode.comonadic] as a left mode, and
              [arg_mode.monadic] as a right mode, hence they need to be
              mode-crossed differently. *)
+          let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
           begin match
-            Alloc.submode (Alloc.close_over Alloc.legacy) fun_alloc_mode
+            Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
           with
             | Ok () -> ()
             | Error e ->
@@ -7136,17 +7196,17 @@ and type_function
           end;
           More_args {partial_mode = Alloc.disallow_right fun_alloc_mode}
       in
-      let (_, fp_sort) = Jkind.of_new_sort_var ~why:Function_argument in
+      let arg_sort = type_sort ~why:Function_argument env ty_arg in
       let param =
         { has_poly = false;
           param = { fp_kind;
-            fp_sort = fp_sort;
-            fp_mode = Alloc.disallow_right Alloc.legacy;
-            fp_curry = curry;
-            fp_arg_label = Nolabel;
+            fp_arg_label = typed_arg_label;
             fp_param = s_ident;
             fp_partial = Total;
             fp_newtypes = newtypes;
+            fp_sort = arg_sort;
+            fp_mode = Alloc.disallow_right arg_mode;
+            fp_curry = curry;
             fp_loc = pparam_loc;
           };
         }
@@ -7154,7 +7214,7 @@ and type_function
       let ret_info =
         match ret_info with
         | Some _ as x -> x
-        | None -> Some { ret_sort; ret_mode = Alloc.disallow_right Alloc.legacy }
+        | None -> Some { ret_sort; ret_mode = Alloc.disallow_right ret_mode }
       in
       { function_ = exp_type, param :: params, body;
         newtypes = []; params_contain_gadt = contains_gadt;

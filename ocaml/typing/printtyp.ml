@@ -1479,6 +1479,30 @@ let rec tree_of_typexp mode alloc_mode ty =
         let (rm, t2) = tree_of_ret_typ_mutating mode acc_mode (mret, ty2) in
         Btype.backtrack snap;
         Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
+    | Tfunctor ((l, marg, mret), id, (p, fl), ty) ->
+        (* In this branch we do some mutation that needs to be reverted, as
+           printing should not mutate states. *)
+        let snap = Btype.snapshot () in
+        let lab =
+          if !print_labels || is_omittable l then outcome_label l
+          else Nolabel
+        in
+        (* [marg] will contain undetermined axes. It would be imprecise if we
+           don't print anything for those axes, since user would interpret that
+           as legacy. The best we can do is to zap to legacy and if they do land
+           at legacy, we will be able to omit printing them. *)
+        let arg_mode = Alloc.zap_to_legacy marg in
+        let fenv env =
+          let mty = !Ctype.modtype_of_package env Location.none p fl in
+          Env.add_module ~arg:true (Ident.of_unscoped id) Mp_present mty env
+        in
+        let id = ident_name (Some Module) (Ident.of_unscoped id) in
+        let fl = tree_of_pack_fields mode fl in
+        let acc_mode = curry_mode alloc_mode arg_mode in
+        let (rm, ty) = wrap_env fenv (tree_of_ret_typ_mutating mode acc_mode) (mret, ty) in
+        Btype.backtrack snap;
+        Otyp_functor (lab, tree_of_modes arg_mode, Oide_ident id,
+                      (tree_of_path (Some Module_type) p, fl), rm, ty)
     | Ttuple labeled_tyl ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tunboxed_tuple labeled_tyl ->
@@ -1556,20 +1580,6 @@ let rec tree_of_typexp mode alloc_mode ty =
     | Tpackage (p, fl) ->
         let fl = tree_of_pack_fields mode fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
-    | Tfunctor ((l, _marg, _mret), id, (p, fl), ty) ->
-        let lab =
-          if !print_labels || is_omittable l then outcome_label l
-          else Nolabel
-        in
-        let fenv env =
-          let mty = !Ctype.modtype_of_package env Location.none p fl in
-          Env.add_module ~arg:true (Ident.of_unscoped id) Mp_present mty env
-        in
-        let id = ident_name (Some Module) (Ident.of_unscoped id) in
-        let fl = tree_of_pack_fields mode fl in
-        let ty = wrap_env fenv (tree_of_typexp mode Alloc.Const.legacy) ty in
-        Otyp_functor (lab, Oide_ident id,
-                      (tree_of_path (Some Module_type) p, fl), ty)
   in
   if List.memq px !delayed then delayed := List.filter ((!=) px) !delayed;
   alias_nongen_row mode px ty;
@@ -1634,7 +1644,7 @@ and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
     reverting them. *)
 and tree_of_ret_typ_mutating mode acc_mode (m, ty) =
   match get_desc ty with
-  | Tarrow _ -> begin
+  | Tarrow _ | Tfunctor _ -> begin
       (* We first try to equate [m] with the [acc_mode]; if that succeeds, we
         can omit parens and modes. *)
       match Alloc.equate (Alloc.of_const acc_mode) m with
@@ -2175,7 +2185,7 @@ let tree_of_value_description id decl =
   let apparent_arity =
     let rec count n typ =
       match get_desc typ with
-      | Tarrow (_,_,typ,_) -> count (n+1) typ
+      | Tarrow (_,_,typ,_) | Tfunctor (_, _, _, typ) -> count (n+1) typ
       | _ -> n
     in
     count 0 decl.val_type

@@ -297,11 +297,12 @@ let rec core_type i ppf x =
       line i ppf "Ttyp_open %a\n" fmt_path path;
       core_type i ppf t
   | Ttyp_call_pos -> line i ppf "Ttyp_call_pos\n";
-  | Ttyp_functor (lbl, id, { pack_path = s; pack_fields = l}, ct) ->
+  | Ttyp_functor (lbl, id, ({ pack_path = s; pack_fields = l}, attrs), ct) ->
       line i ppf "Ttyp_functor\n";
       arg_label i ppf lbl;
       line i ppf "module \"%a\" : %a" fmt_ident id.txt fmt_path s;
       list i package_with ppf l;
+      attributes i ppf attrs;
       core_type i ppf ct  
 
 and labeled_core_type i ppf (l, t) =

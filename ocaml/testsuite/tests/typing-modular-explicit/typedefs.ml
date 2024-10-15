@@ -49,7 +49,7 @@ type _ t2 = A : ((module M : T) -> M.t) t2
 type t3 = [ `A of (module M : T) -> (module N : T with type t = M.t) -> N.t ]
 type t4 = < m : (module M : T) -> M.t >
 type 'a t5 = (module M : T with type t = 'a) -> 'a -> 'a
-type 'a t6 = 'a -> ((module M : T with type t = 'a) -> 'a)
+type 'a t6 = 'a -> (module M : T with type t = 'a) -> 'a
 type t7 = < m : 'a. (module M : T with type t = 'a) -> 'a >
 type t8 =
     A of ((module T : T) -> (module A : Add with type t = T.t) -> A.t -> A.t)
@@ -63,6 +63,23 @@ type t10 =
   | B of
       ((module T/2 : T) ->
        (module A/2 : Add with type t = T/2.t) -> A/2.t -> A/2.t)
+|}]
+
+type 'a t6bis_compare = (module T with type t = int) -> (int as 'a)
+type 'a t6bis_good = (module M : T with type t = int) -> (M.t as 'a)
+(* Does not fail, but shouldn't it ? *)
+type 'a t6_fail = (module M : T) -> (M.t as 'a)
+
+[%%expect{|
+type 'a t6bis_compare = (module T with type t = int) -> 'a
+  constraint 'a = int
+type 'a t6bis_good = (module M : T with type t = int) -> M.t
+type 'a t6_fail = (module M : T) -> M.t
+|}, Principal{|
+type 'a t6bis_compare = (module T with type t = int) -> int
+  constraint 'a = int
+type 'a t6bis_good = (module M : T with type t = int) -> M.t
+type 'a t6_fail = (module M : T) -> M.t
 |}]
 
 (* Test about invalid types *)

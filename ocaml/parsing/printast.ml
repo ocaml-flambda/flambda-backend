@@ -215,12 +215,15 @@ let rec core_type i ppf x =
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension \"%s\"\n" s.txt;
       payload i ppf arg
-  | Ptyp_functor (lbl, name, (li, l), ct2) ->
+  | Ptyp_functor (lbl, name, ((li, l), attrs), ct2, m1, m2) ->
       line i ppf "Ptyp_functor\n";
       arg_label i ppf lbl;
       line i ppf "\"%s\" : %a\n" name.txt fmt_longident_loc li;
       list i package_with ppf l;
-      core_type i ppf ct2
+      attributes i ppf attrs;
+      modes i ppf m1;
+      core_type i ppf ct2;
+      modes i ppf m2
 
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident_loc s;

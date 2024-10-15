@@ -226,10 +226,13 @@ module T = struct
     | Ptyp_open (mod_ident, t) ->
         open_ ~loc ~attrs (map_loc sub mod_ident) (sub.typ sub t)
     | Ptyp_extension x -> extension ~loc ~attrs (sub.extension sub x)
-    | Ptyp_functor (lbl, s, (lid, l), t) ->
+    | Ptyp_functor (lbl, s, ((lid, l), attrs), t, m1, m2) ->
         functor_ ~loc ~attrs lbl (map_loc sub s)
-          (map_loc sub lid, List.map (map_tuple (map_loc sub) (sub.typ sub)) l)
+          ((map_loc sub lid, List.map (map_tuple (map_loc sub) (sub.typ sub)) l),
+           sub.attributes sub attrs)
           (sub.typ sub t)
+          (sub.modes sub m1)
+          (sub.modes sub m2)
 
   let map_type_declaration sub
      ({ptype_name; ptype_params; ptype_cstrs;

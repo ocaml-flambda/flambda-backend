@@ -227,7 +227,7 @@ let mktyp_curry typ loc =
 
 let maybe_curry_typ typ loc =
   match typ.ptyp_desc with
-  | Ptyp_arrow _ ->
+  | Ptyp_arrow _ | Ptyp_functor _ ->
       if List.exists is_curry_attr typ.ptyp_attributes then typ
       else mktyp_curry typ (make_loc loc)
   | _ -> typ
@@ -4368,17 +4368,37 @@ strict_function_or_labeled_tuple_type:
   (* TODO handle modes *)
   | mktyp(
       label = arg_label
-      LPAREN
-        MODULE _attrs = ext_attributes id = mkrhs(UIDENT) COLON
-        mty = module_type
-      RPAREN
+      mty_with_mode = with_optional_mode_expr(module_arg)
       MINUSGREATER
-      codomain = function_type
-        { let (lid, cstrs, _attrs) = package_type_of_module_type mty in
-          Ptyp_functor(label, id, (lid, cstrs), codomain) }
+      codomain = strict_function_or_labeled_tuple_type
+        { let (((attrs1, id, mty), _mty_loc), arg_modes) = mty_with_mode in
+          let (lid, cstrs, attrs2) = package_type_of_module_type mty in
+          let attrs = attrs1 @ attrs2 in
+          Ptyp_functor(label, id, ((lid, cstrs), attrs), codomain, arg_modes, []) }
+    )
+    { $1 }
+  | mktyp(
+      label = arg_label
+      mty_with_mode = with_optional_mode_expr(module_arg)
+      MINUSGREATER
+      codomain_with_modes = with_optional_mode_expr(tuple_type)
+        { let (((attrs1, id, mty), _mty_loc), arg_modes) = mty_with_mode in
+          let (codomain, codomain_loc), ret_modes = codomain_with_modes in
+          let (lid, cstrs, attrs2) = package_type_of_module_type mty in
+          let attrs = attrs1 @ attrs2 in
+          Ptyp_functor(label, id, ((lid, cstrs), attrs),
+              maybe_curry_typ codomain codomain_loc,
+              arg_modes,
+              ret_modes)
+        }
     )
     { $1 }
 ;
+
+%inline module_arg:
+  | LPAREN MODULE attrs = ext_attributes id = mkrhs(UIDENT) COLON
+      mty = module_type RPAREN
+      { (snd attrs, id, mty)}
 
 %inline strict_arg_label:
   | label = optlabel

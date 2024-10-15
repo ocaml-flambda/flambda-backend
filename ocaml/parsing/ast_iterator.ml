@@ -184,11 +184,14 @@ module T = struct
         iter_loc sub mod_ident;
         sub.typ sub t
     | Ptyp_extension x -> sub.extension sub x
-    | Ptyp_functor (_, s, (lid, l), t2) ->
+    | Ptyp_functor (_, s, ((lid, l), attrs), t2, m1, m2) ->
             iter_loc sub s;
             iter_loc sub lid;
+            sub.attributes sub attrs;
             List.iter (iter_tuple (iter_loc sub) (sub.typ sub)) l;
-            sub.typ sub t2
+            sub.typ sub t2;
+            sub.modes sub m1;
+            sub.modes sub m2
 
   let iter_type_declaration sub
      ({ptype_name; ptype_params; ptype_cstrs;

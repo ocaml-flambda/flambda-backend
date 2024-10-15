@@ -626,17 +626,32 @@ let get_type_param_name styp =
   | Ptyp_var name -> Some name
   | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
+type extracted_params =
+  | EParrow of Parsetree.core_type
+  | EPfunctor of filepath loc
+                * (Longident.t loc * (Longident.t loc * Parsetree.core_type) list)
+                * attributes
+
 let rec extract_params styp =
   match styp.ptyp_desc with
   | Ptyp_arrow (l, a, r, ma, mr) ->
       let arg_mode = Typemode.transl_alloc_mode ma in
       let params, ret, ret_mode =
         match r.ptyp_desc with
-        | Ptyp_arrow _ when not (Builtin_attributes.has_curry r.ptyp_attributes) ->
+        | Ptyp_arrow _ | Ptyp_functor _ when not (Builtin_attributes.has_curry r.ptyp_attributes) ->
           extract_params r
         | _ -> [], r, Typemode.transl_alloc_mode mr
       in
-      (l, arg_mode, a) :: params, ret, ret_mode
+      (l, arg_mode, EParrow a) :: params, ret, ret_mode
+  | Ptyp_functor (l, id, (pck_ty, attrs), r, ma, mr) ->
+      let arg_mode = Typemode.transl_alloc_mode ma in
+      let params, ret, ret_mode =
+        match r.ptyp_desc with
+        | Ptyp_arrow _ | Ptyp_functor _ when not (Builtin_attributes.has_curry r.ptyp_attributes) ->
+          extract_params r
+        | _ -> [], r, Typemode.transl_alloc_mode mr
+      in
+      (l, arg_mode, EPfunctor (id, pck_ty, attrs)) :: params, ret, ret_mode
   | _ -> assert false
 
 let check_arg_type styp =
@@ -720,11 +735,11 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
           styp.ptyp_attributes styp.ptyp_loc name None
       in
       ctyp desc typ
-  | Ptyp_arrow _ ->
+  | Ptyp_arrow _ | Ptyp_functor _ ->
       let args, ret, ret_mode = extract_params styp in
-      let rec loop acc_mode args =
+      let rec loop env acc_mode args =
         match args with
-        | (l, arg_mode, arg) :: rest ->
+        | (l, arg_mode, EParrow arg) :: rest ->
           check_arg_type arg;
           let l = transl_label l (Some arg) in
           let arg_cty =
@@ -738,7 +753,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             | [] -> ret_mode
             | _ :: _ -> acc_mode
           in
-          let ret_cty = loop acc_mode rest in
+          let ret_cty = loop env acc_mode rest in
           let arg_ty = arg_cty.ctyp_type in
           let arg_ty =
             if Btype.is_Tpoly arg_ty then arg_ty else newmono arg_ty
@@ -759,9 +774,49 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             newty (Tarrow(arrow_desc, arg_ty, ret_cty.ctyp_type, commu_ok))
           in
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
+        | (l, arg_mode, EPfunctor (name, (p, fl), attrs)) :: rest ->
+          let l = transl_label l None in
+          let acc_mode = curry_mode acc_mode arg_mode in
+          let ret_mode =
+            match rest with
+            | [] -> ret_mode
+            | _ :: _ -> acc_mode
+          in
+          let arg_mode = Alloc.of_const arg_mode in
+          let ret_mode = Alloc.of_const ret_mode in
+          let arrow_desc = (l, arg_mode, ret_mode) in
+          let ident = Ident.Unscoped.create name.txt in
+          let path, mty, ptys =
+            transl_package env ~policy ~row_context styp.ptyp_loc p fl in
+          let l' = List.map (fun (s, cty) -> (s.txt, cty.ctyp_type)) ptys in
+          let t = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
+          let scoped_ident, cty, ty =
+            with_local_level begin fun () ->
+              let scoped_ident =
+                Ident.create_scoped ~scope:(Ctype.get_current_level()) name.txt
+              in
+              let env = Env.add_module scoped_ident Mp_present mty env in
+              let cty = loop env acc_mode rest in
+              let ctyp_type =
+                  Option.value ~default:cty.ctyp_type
+                    (instance_funct ~id_in:scoped_ident ~p_out:(Pident (Ident.of_unscoped ident))
+                                    ~fixed:false cty.ctyp_type)
+              in
+              let ty = newty (Tfunctor (arrow_desc, ident, (path, l'), ctyp_type)) in
+              let _ = unify env ty t in
+              scoped_ident, cty, ty
+            end in
+          (* could also use [Location.mkloc scoped_ident name.loc] *)
+          (* TODO : need to choose what to use instead of sloc *)
+          ctyp (Ttyp_functor (l, {txt = scoped_ident; loc = name.loc}, ({
+                      pack_path = path;
+                      pack_type = mty;
+                      pack_fields = ptys;
+                      pack_txt = p
+                      }, attrs), cty)) ty
         | [] -> transl_type env ~policy ~row_context ret_mode ret
       in
-      loop mode args
+      loop env mode args
   | Ptyp_tuple stl ->
     let desc, typ =
       transl_type_aux_tuple env ~loc ~policy ~row_context stl
@@ -1028,38 +1083,6 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let cty = transl_type new_env ~policy ~row_context mode t in
       ctyp (Ttyp_open (path, mod_ident, cty)) cty.ctyp_type
-  | Ptyp_functor (arg_label, name, (p, l), st) ->
-    let path, mty, ptys =
-      transl_package env ~policy ~row_context styp.ptyp_loc p l in
-    let scoped_ident, cty =
-      with_local_level begin fun () ->
-        let scoped_ident =
-          Ident.create_scoped ~scope:(Ctype.get_current_level()) name.txt
-        in
-        let env = Env.add_module scoped_ident Mp_present mty env in
-        scoped_ident,
-          transl_type env ~policy ~row_context Alloc.Const.legacy st
-      end in
-    let ident = Ident.Unscoped.create name.txt in
-    let ctyp_type =
-        Option.value ~default:cty.ctyp_type
-          (instance_funct ~id_in:scoped_ident ~p_out:(Pident (Ident.of_unscoped ident))
-                          ~fixed:false cty.ctyp_type)
-    in
-    let l' = List.map (fun (s, cty) -> (s.txt, cty.ctyp_type)) ptys in
-    let arg_mode = Alloc.legacy in
-    let ret_mode = Alloc.legacy in
-    let lbl = transl_label arg_label None in
-    let arrow_desc = (lbl, arg_mode, ret_mode) in
-    let ty = newty (Tfunctor (arrow_desc, ident, (path, l'), ctyp_type)) in
-    (* could also use [Location.mkloc scoped_ident name.loc] *)
-    (* TODO : need to choose what to use instead of sloc *)
-    ctyp (Ttyp_functor (lbl, {txt = scoped_ident; loc = name.loc}, {
-                pack_path = path;
-                pack_type = mty;
-                pack_fields = ptys;
-                pack_txt = p
-                }, cty)) ty
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 

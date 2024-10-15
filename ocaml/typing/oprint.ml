@@ -505,9 +505,11 @@ and print_out_type_1 ppf =
       pp_print_space ppf ();
       print_out_ret rm ppf ty2;
       pp_close_box ppf ()
-  | Otyp_functor (lab, id, (p, fl), ty) ->
+  | Otyp_functor (lab, am, id, (p, fl), rm, ty) ->
       pp_open_box ppf 0;
       let print_type () =
+        let m_legacy, m_new = partition_modes am in
+        print_out_modes_legacy ppf m_legacy;
         pp_print_string ppf "(module ";
         print_ident ppf id;
         pp_print_string ppf " : ";
@@ -519,7 +521,9 @@ and print_out_type_1 ppf =
             fprintf ppf " %s type %s = %a" sep s print_out_type t
           )
           fl;
-        pp_print_string ppf ") ->"
+        pp_print_string ppf ")";
+        print_out_modes_new ppf m_new;
+        pp_print_string ppf " ->"
       in
       (match lab with
       | Nolabel -> print_type ()
@@ -531,7 +535,7 @@ and print_out_type_1 ppf =
       | Optional l ->
           pp_print_string ppf ("?" ^ l); pp_print_char ppf ':'; print_type ());
       pp_print_space  ppf ();
-      print_out_type_1 ppf ty;
+      print_out_ret rm ppf ty;
       pp_close_box ppf ()
   | ty -> print_out_type_2 ppf ty
 
@@ -540,7 +544,7 @@ and print_out_arg am ppf ty =
 
 and print_out_ret rm ppf =
   function
-  | Otyp_arrow _ as ty ->
+  | Otyp_arrow _ | Otyp_functor _ as ty ->
     begin match rm with
     | Orm_not_arrow _ -> assert false
     | Orm_no_parens ->
@@ -556,6 +560,10 @@ and print_out_ret rm ppf =
   | ty ->
     match rm with
     | Orm_not_arrow rm -> print_out_type_mode ~arg:false rm ppf ty
+    | _ ->
+      match ty with
+      | Otyp_functor _ -> assert false
+      | Otyp_alias _ -> assert false
     | _ -> assert false
 
 and print_out_type_2 ppf =

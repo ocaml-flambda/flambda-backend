@@ -65,8 +65,7 @@ let alpha_equiv (f : (module A : Add) -> A.t -> A.t) : (module T : Add) -> T.t -
 
 [%%expect{|
 val alpha_equiv :
-  ((module A : Add) -> A.t -> A.t) -> ((module T : Add) -> T.t -> T.t) =
-  <fun>
+  ((module A : Add) -> A.t -> A.t) -> (module T : Add) -> T.t -> T.t = <fun>
 |}]
 
 let apply_weird (module M : Typ) (f : (module M : Typ) -> _) (x : M.t) : M.t =
@@ -83,7 +82,7 @@ val apply_weird :
 let f x (module M : Typ) (y : M.t) = (x, y)
 
 [%%expect{|
-val f : 'a -> ((module M : Typ) -> M.t -> 'a * M.t) = <fun>
+val f : 'a -> (module M : Typ) -> M.t -> 'a * M.t = <fun>
 |}]
 
 let invalid_arg1 = f (module Int)
@@ -167,7 +166,7 @@ val apply_labelled_success : (module Typ with type t = int) -> int = <fun>
 let apply_opt (f : ?opt:int -> (module M : Typ) -> M.t) = f (module Int)
 
 [%%expect{|
-val apply_opt : (?opt:int -> ((module M : Typ) -> M.t)) -> Int.t = <fun>
+val apply_opt : (?opt:int -> (module M : Typ) -> M.t) -> Int.t = <fun>
 |}]
 
 let build_pair (module M : Typ) ~x ~y : M.t * M.t = (x, y)
@@ -468,13 +467,13 @@ let try_coerce7 (f : (module A : Add2) -> A.t -> A.t) : (module A : Add4) -> A.t
 [%%expect{|
 val coerce5 :
   ((module A/1 : Add) -> A/1.t -> A/1.t) ->
-  ((module A/2 : Add2) -> A/2.t -> A/2.t) = <fun>
+  (module A/2 : Add2) -> A/2.t -> A/2.t = <fun>
 val try_coerce6 :
   ((module A/1 : Add2) -> A/1.t -> A/1.t) ->
-  ((module A/2 : Add3) -> A/2.t -> A/2.t) = <fun>
+  (module A/2 : Add3) -> A/2.t -> A/2.t = <fun>
 val try_coerce7 :
   ((module A/1 : Add2) -> A/1.t -> A/1.t) ->
-  ((module A/2 : Add4) -> A/2.t -> A/2.t) = <fun>
+  (module A/2 : Add4) -> A/2.t -> A/2.t = <fun>
 |}]
 
 
@@ -496,7 +495,7 @@ let apply_with_annot f (module T : Typ) (x : T.t) : T.t =
 [%%expect{|
 val apply_with_annot :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
-  ((module T/2 : Typ) -> T/2.t -> T/2.t) = <fun>
+  (module T/2 : Typ) -> T/2.t -> T/2.t = <fun>
 |}, Principal{|
 Line 3, characters 4-14:
 3 |   f (module T) x
@@ -505,7 +504,7 @@ Warning 18 [not-principal]: this module packing is not principal.
 
 val apply_with_annot :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
-  ((module T/2 : Typ) -> T/2.t -> T/2.t) = <fun>
+  (module T/2 : Typ) -> T/2.t -> T/2.t = <fun>
 |}]
 
 (* (type a) -> a -> a -> a *)
@@ -536,7 +535,7 @@ let apply_small_annot2 (f : (module T : Typ) -> T.t -> T.t) g (module T : Typ) x
 val apply_small_annot2 :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
   ((module T/2 : Typ) -> T/2.t -> T/2.t) ->
-  ((module T/3 : Typ) -> T/3.t -> T/3.t) = <fun>
+  (module T/3 : Typ) -> T/3.t -> T/3.t = <fun>
 |}, Principal{|
 Line 3, characters 4-14:
 3 |   g (module T) x
@@ -546,7 +545,7 @@ Warning 18 [not-principal]: this module packing is not principal.
 val apply_small_annot2 :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
   ((module T/2 : Typ) -> T/2.t -> T/2.t) ->
-  ((module T/3 : Typ) -> T/3.t -> T/3.t) = <fun>
+  (module T/3 : Typ) -> T/3.t -> T/3.t = <fun>
 |}]
 
 
@@ -782,7 +781,7 @@ let typing_order1 f = (f (module Int) 3, id' f)
 [%%expect{|
 val id' :
   ((module T/1 : Typ) -> T/1.t -> T/1.t) ->
-  ((module T/2 : Typ) -> T/2.t -> T/2.t) = <fun>
+  (module T/2 : Typ) -> T/2.t -> T/2.t = <fun>
 Line 5, characters 25-37:
 5 | let typing_order1 f = (f (module Int) 3, id' f)
                              ^^^^^^^^^^^^

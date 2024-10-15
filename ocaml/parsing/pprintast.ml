@@ -480,10 +480,10 @@ and core_type ctxt f x =
     | Ptyp_arrow (l, ct1, ct2, m1, m2) ->
         pp f "@[<2>%a@;->@;%a@]" (* FIXME remove parens later *)
           (type_with_label ctxt) (l,(ct1,m1)) (return_type ctxt) (ct2,m2)
-    | Ptyp_functor (label, name, pack, ct) ->
+    | Ptyp_functor (label, name, (pack, _attrs), ct2, _m1, m2) ->
       pp f "@[<2>%a@;->@;%a@]"
           (package_with_label ctxt) (label, (name, pack))
-          (core_type ctxt) ct
+          (return_type ctxt) (ct2, m2)
     | Ptyp_alias (ct, s) ->
         pp f "@[<2>%a@;as@;%a@]" (core_type1 ctxt) ct tyvar s.txt
     | Ptyp_poly ([], ct) ->

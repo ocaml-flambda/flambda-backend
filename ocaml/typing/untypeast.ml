@@ -1035,7 +1035,7 @@ let core_type sub ct =
           (Ltyp_var { name; jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_arrow (arg_label, ct1, ct2) ->
-        (* CR cgunn: recover mode annotation here *)
+        (* CR cgunn: recover mode annotation here and with Tfunctor *)
         Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2, [], [])
     | Ttyp_tuple list ->
         Ptyp_tuple (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
@@ -1070,9 +1070,12 @@ let core_type sub ct =
     | Ttyp_open (_path, mod_ident, t) -> Ptyp_open (mod_ident, sub.typ sub t)
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
-    | Ttyp_functor (arg_label, name, pack, ct) ->
+    | Ttyp_functor (arg_label, name, (pack, attrs), ct) ->
+        (* CR cgunn: recover mode annotation here and with Tarrow *)
         let name = Location.mkloc (Ident.name name.txt) name.loc in
-        Ptyp_functor (label arg_label, name, sub.package_type sub pack, sub.typ sub ct)
+        Ptyp_functor (label arg_label, name,
+          (sub.package_type sub pack, sub.attributes sub attrs),
+          sub.typ sub ct, [], [])
   in
   Typ.mk ~loc ~attrs:!attrs desc
 

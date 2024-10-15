@@ -185,7 +185,7 @@ and core_type_desc =
   | Ptyp_package of package_type  (** [(module S)]. *)
   | Ptyp_open of Longident.t loc * core_type (** [M.(T)] *)
   | Ptyp_extension of extension  (** [[%id]]. *)
-  | Ptyp_functor of arg_label * string loc * package_type * core_type
+  | Ptyp_functor of arg_label * string loc * (package_type * attributes) * core_type * modes * modes
         (** [{M : S} -> ...] *)
 
 and arg_label = Asttypes.arg_label =

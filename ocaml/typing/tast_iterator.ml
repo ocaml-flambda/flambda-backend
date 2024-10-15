@@ -655,8 +655,9 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       iter_loc sub mod_ident;
       sub.typ sub t
   | Ttyp_call_pos -> ()
-  | Ttyp_functor (_, _, pack, ct) ->
+  | Ttyp_functor (_, _, (pack, attrs), ct) ->
       sub.package_type sub pack;
+      sub.attributes sub attrs;
       sub.typ sub ct
 
 let class_structure sub {cstr_self; cstr_fields; _} =

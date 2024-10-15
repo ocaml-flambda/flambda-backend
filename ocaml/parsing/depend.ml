@@ -131,7 +131,7 @@ let rec add_type bv ty =
     let bv = open_module bv mod_ident.txt in
     add_type bv t
   | Ptyp_extension e -> handle_extension e
-  | Ptyp_functor (_, _, pt, t2) -> add_package_type bv pt; add_type bv t2
+  | Ptyp_functor (_, _, (pt, _), t2, _, _) -> add_package_type bv pt; add_type bv t2
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ

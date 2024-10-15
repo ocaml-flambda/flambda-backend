@@ -909,9 +909,10 @@ let typ sub x =
         Ttyp_package (sub.package_type sub pack)
     | Ttyp_open (path, mod_ident, t) ->
         Ttyp_open (path, map_loc sub mod_ident, sub.typ sub t)
-    | Ttyp_functor (lbl, id, pack, t) ->
+    | Ttyp_functor (lbl, id, (pack, attrs), t) ->
         Ttyp_functor (lbl, map_loc sub id,
-                      sub.package_type sub pack, sub.typ sub t)
+                      (sub.package_type sub pack, sub.attributes sub attrs),
+                      sub.typ sub t)
   in
   let ctyp_attributes = sub.attributes sub x.ctyp_attributes in
   {x with ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes}
