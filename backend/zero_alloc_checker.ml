@@ -1402,6 +1402,8 @@ module Annotation : sig
 
   val get_loc : t -> Location.t
 
+  val get_custom_error_msg : t -> string option
+
   val find : Cmm.codegen_option list -> string -> Debuginfo.t -> t option
 
   val of_cfg : Cfg.codegen_option list -> string -> Debuginfo.t -> t option
@@ -1449,6 +1451,8 @@ end = struct
     }
 
   let get_loc t = t.loc
+
+  let get_custom_error_msg t = t.custom_error_msg
 
   let expected_value
       { strict;
@@ -1610,9 +1614,12 @@ end = struct
         |> String.concat ","
       in
       Format.fprintf ppf
-        "Annotation check for zero_alloc%s failed on function %s (%s)"
+        "Annotation check for zero_alloc%s failed on function %s (%s).%s"
         (if Annotation.is_strict t.a then " strict" else "")
         scoped_name t.fun_name
+        (match Annotation.get_custom_error_msg t.a with
+        | None -> ""
+        | Some msg -> "\n" ^ msg)
     in
     Location.error_of_printer ~loc print_annotated_fun ()
 
