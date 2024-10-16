@@ -741,3 +741,34 @@ module type S' =
       end
   end
 |}]
+
+
+(* interaction between open and locks *)
+module M_nonportable = struct
+    let f @ nonportable = fun () -> ()
+end
+
+module M_portable = struct
+    let f @ portable = fun () -> ()
+    end
+[%%expect{|
+module M_nonportable : sig val f : unit -> unit @@ global many end
+module M_portable : sig val f : unit -> unit @@ global many portable end
+|}]
+
+let (foo @ portable) () =
+    let open M_nonportable in
+    let _ = f in
+    ()
+[%%expect{|
+val foo : unit -> unit @@ global many = <fun>
+|}]
+
+let (_foo @ portable) () =
+    let open M_portable in
+    let _ = f in
+    ()
+
+[%%expect{|
+val _foo : unit -> unit @@ global many = <fun>
+|}]
