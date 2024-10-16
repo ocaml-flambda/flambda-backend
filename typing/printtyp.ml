@@ -1435,7 +1435,9 @@ let rec tree_of_typexp mode alloc_mode ty =
         let arg_mode = Alloc.zap_to_legacy marg in
         let t1 =
           if is_optional l then
-            match get_desc (tpoly_get_mono ty1) with
+            match
+              get_desc (Ctype.expand_head !printing_env (tpoly_get_mono ty1))
+            with
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode arg_mode ty
@@ -2273,7 +2275,7 @@ let rec tree_of_class_type mode params =
       in
       let tr =
        if is_optional l then
-         match get_desc ty with
+         match get_desc (Ctype.expand_head !printing_env ty) with
          | Tconstr(path, [ty], _) when Path.same path Predef.path_option ->
              tree_of_typexp mode ty
          | _ -> Otyp_stuff "<hidden>"
