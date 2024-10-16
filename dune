@@ -16,6 +16,8 @@
 ; Since upstream has the middle end code inside ocamloptcomp, we do the
 ; same for the moment.
 
+(copy_files# asmcomp/*.ml{,i})
+
 (copy_files# backend/*.ml{,i})
 
 (copy_files# backend/cfg/*.ml{,i})
