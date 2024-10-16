@@ -1714,10 +1714,16 @@ and transl_function ~in_new_scope ~scopes e params body
   let zero_alloc : Lambda.zero_alloc_attribute =
     match (zero_alloc : Builtin_attributes.zero_alloc_attribute) with
     | Default_zero_alloc ->
-      if !Clflags.zero_alloc_check_assert_all &&
-         Builtin_attributes.is_zero_alloc_check_enabled ~opt:false
-      then Check { strict = false; loc = e.exp_loc }
-      else Default_zero_alloc
+      (match !Clflags.zero_alloc_assert with
+       | Assert_default -> Default_zero_alloc
+       | Assert_all ->
+         if Builtin_attributes.is_zero_alloc_check_enabled ~opt:false
+         then Check { strict = false; loc = e.exp_loc }
+         else Default_zero_alloc
+       | Assert_all_opt ->
+         if Builtin_attributes.is_zero_alloc_check_enabled ~opt:true
+         then Check { strict = false; loc = e.exp_loc }
+         else Default_zero_alloc)
     | Check { strict; opt; arity = _; loc } ->
       if Builtin_attributes.is_zero_alloc_check_enabled ~opt
       then Check { strict; loc }
