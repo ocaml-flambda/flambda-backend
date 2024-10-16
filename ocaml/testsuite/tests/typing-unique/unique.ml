@@ -110,12 +110,12 @@ val f : unit -> int list = <fun>
 (* closing over once values gives once closure *)
 (* note that in g we don't annotate k; because once_ is already the most relaxed mode *)
 let f () =
-  let once_ k = [1;2;3] in
-  let g () = k @ [1;2;3] in
+  let once_ k = [(fun x -> x)] in
+  let g () = k @ [(fun x -> x)] in
   g () @ g ()
 [%%expect{|
 Line 3, characters 13-14:
-3 |   let g () = k @ [1;2;3] in
+3 |   let g () = k @ [(fun x -> x)] in
                  ^
 Error: This value is "once" but expected to be "many".
 |}]

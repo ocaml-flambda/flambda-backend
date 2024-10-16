@@ -19,10 +19,10 @@ let fconstant_lift b =
   let unique_ p = { x = 1.0; y = 2.0; z = 3.0 } in
   if b then p else overwrite_ p with { x = 2.0 }
 
-type mpoint = { dim : int; x : float#; y : float#; z : float# }
+type mpoint = { dim : int option; x : float#; y : float#; z : float# }
 
 let mconstant_lift b =
-  let unique_ p = { dim = 3; x = #1.0; y = #2.0; z = #3.0 } in
+  let unique_ p = { dim = Some 3; x = #1.0; y = #2.0; z = #3.0 } in
   if b then p else overwrite_ p with { x = #2.0 }
 
 type ufpoint = { x : float#; y : float#; z : float# }
