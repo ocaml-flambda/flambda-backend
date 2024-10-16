@@ -505,8 +505,20 @@ let string_accessor_width ppf saw =
     | One_twenty_eight { aligned = false } -> "128u"
     | One_twenty_eight { aligned = true } -> "128a")
 
-let array_accessor_width ~space ppf (aw : array_accessor_width) =
-  let str = match aw with Scalar -> None | Vec128 -> Some "vec128" in
+let array_load_kind ~space ppf (load_kind : array_load_kind) =
+  let str =
+    match[@ocaml.warning "-fragile-match"] load_kind with
+    | Naked_vec128s -> Some "vec128"
+    | _ -> None
+  in
+  pp_option ~space Format.pp_print_string ppf str
+
+let array_set_kind ~space ppf (set_kind : array_set_kind) =
+  let str =
+    match[@ocaml.warning "-fragile-match"] set_kind with
+    | Naked_vec128s -> Some "vec128"
+    | _ -> None
+  in
   pp_option ~space Format.pp_print_string ppf str
 
 let binop ppf binop a b =
@@ -514,7 +526,7 @@ let binop ppf binop a b =
   | Array_load (ak, width, mut) ->
     Format.fprintf ppf "@[<2>%%array_load%a%a%a@ %a.(%a)@]"
       (array_kind ~space:Before) ak (mutability ~space:Before) mut
-      (array_accessor_width ~space:Before)
+      (array_load_kind ~space:Before)
       width simple a simple b
   | Block_set { kind; init; field } ->
     Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
@@ -608,11 +620,18 @@ let unop ppf u =
 
 let ternop ppf t a1 a2 a3 =
   match t with
-  | Array_set (ak, width, ia) ->
+  | Array_set (ak, set_kind) ->
+    let ia =
+      match set_kind with
+      | Values ia -> ia
+      | Immediates | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ->
+        Initialization (* Will be ignored anyway *)
+    in
     Format.fprintf ppf "@[<2>%%array_set%a%a@ %a.(%a) %a %a@]"
       (array_kind ~space:Before) ak
-      (array_accessor_width ~space:Before)
-      width simple a1 simple a2 init_or_assign ia simple a3
+      (array_set_kind ~space:Before)
+      set_kind simple a1 simple a2 init_or_assign ia simple a3
   | Bytes_or_bigstring_set (blv, saw) ->
     let prim =
       match blv with Bytes -> "%bytes_set" | Bigstring -> "%bigstring_set"

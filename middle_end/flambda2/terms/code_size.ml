@@ -143,7 +143,7 @@ let box_number kind =
 let block_load (kind : Flambda_primitive.Block_access_kind.t) =
   match kind with Values _ | Naked_floats _ | Mixed _ -> 1
 
-let array_load (kind : Flambda_primitive.Array_kind.t) =
+let array_load (kind : Flambda_primitive.Array_load_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
   | Naked_floats | Values -> 1
@@ -386,7 +386,7 @@ let unary_prim_size prim =
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
   | Block_set { kind; init; _ } -> block_set kind init
-  | Array_load (kind, _width, _mut) -> array_load kind
+  | Array_load (_kind, load_kind, _mut) -> array_load load_kind
   | String_or_bigstring_load (kind, width) ->
     string_or_bigstring_load kind width
   | Bigarray_load (_dims, (Complex32 | Complex64), _layout) ->
@@ -408,7 +408,7 @@ let binary_prim_size prim =
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
-  | Array_set (kind, _width) -> array_set kind
+  | Array_set (_kind, set_kind) -> array_set set_kind
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set kind width
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 3 block_load + 2 block_set *)
