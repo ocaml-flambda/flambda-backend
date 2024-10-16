@@ -23,35 +23,22 @@ let overwrite_record = function
   { a; b } as t -> overwrite_ t with { b = a; a = _ }
 [%%expect{|
 type record = { a : int; b : int; }
-Line 4, characters 19-53:
+Line 4, characters 50-51:
 4 |   { a; b } as t -> overwrite_ t with { b = a; a = _ }
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                                                      ^
+Error: This expression has type "record" but an expression was expected of type
+         "int"
 |}]
 
 let with_record = function
     { a; b } as t -> { t with b = a }
 [%%expect{|
-val with_record : record -> record = <fun>
+val with_record : record -> record @@ global many = <fun>
 |}]
 
 let overwrite_record = function
     { a; b } as t -> overwrite_ t with { b = a }
 [%%expect{|
-Line 2, characters 21-48:
-2 |     { a; b } as t -> overwrite_ t with { b = a }
-                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
-|}, Principal{|
-Line 2, characters 39-48:
-2 |     { a; b } as t -> overwrite_ t with { b = a }
-                                           ^^^^^^^^^
-Warning 18 [not-principal]: this type-based record disambiguation is not principal.
-
 Line 2, characters 21-48:
 2 |     { a; b } as t -> overwrite_ t with { b = a }
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -84,12 +71,10 @@ Error: This expression has type "constructor" which is not a record type.
 let overwrite_variant = function
   `A (a, b) as t -> overwrite_ t with `A (b, _)
 [%%expect{|
-Line 2, characters 20-47:
+Line 2, characters 38-47:
 2 |   `A (a, b) as t -> overwrite_ t with `A (b, _)
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                                          ^^^^^^^^^
+Error: Syntax error: "tuple, constructor or record" expected.
 |}]
 
 let overwrite_in_match = function
@@ -135,7 +120,7 @@ let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
 Line 1, characters 45-64:
 1 | let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
                                                  ^^^^^^^^^^^^^^^^^^^
-Error: Syntax error: "tuple, constructor, record or variant" expected.
+Error: Syntax error: "tuple, constructor or record" expected.
 |}]
 
 let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
@@ -143,7 +128,7 @@ let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
 Line 1, characters 47-77:
 1 | let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Syntax error: "tuple, constructor, record or variant" expected.
+Error: Syntax error: "tuple, constructor or record" expected.
 |}]
 
 let overwrite_with_overwrite = function
@@ -152,5 +137,5 @@ let overwrite_with_overwrite = function
 Line 2, characters 39-68:
 2 |     { a; b } as t -> overwrite_ t with (overwrite_ t with { b = a })
                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Syntax error: "tuple, constructor, record or variant" expected.
+Error: Syntax error: "tuple, constructor or record" expected.
 |}]

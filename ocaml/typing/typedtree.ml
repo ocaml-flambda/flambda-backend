@@ -264,7 +264,7 @@ and expression_desc =
   | Texp_exclave of expression
   | Texp_src_pos
   | Texp_overwrite of Ident.t * Longident.t loc * unique_use * expression
-  | Texp_hole
+  | Texp_hole of unique_use
 
 and ident_kind =
   | Id_value

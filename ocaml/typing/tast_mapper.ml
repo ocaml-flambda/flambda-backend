@@ -603,7 +603,7 @@ let expr sub x =
     | Texp_src_pos -> Texp_src_pos
     | Texp_overwrite (path, lid, uu, exp) ->
         Texp_overwrite (path, map_loc sub lid, uu, sub.expr sub exp)
-    | Texp_hole -> Texp_hole
+    | Texp_hole use -> Texp_hole use
   in
   let exp_attributes = sub.attributes sub x.exp_attributes in
   {x with exp_loc; exp_extra; exp_desc; exp_env; exp_attributes}

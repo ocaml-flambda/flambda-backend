@@ -450,7 +450,7 @@ and expression_desc =
        Position argument in function application *)
   | Texp_overwrite of Ident.t * Longident.t loc * unique_use * expression
         (** overwrite_ x with exp *)
-  | Texp_hole (** _ *)
+  | Texp_hole of unique_use (** _ *)
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }

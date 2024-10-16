@@ -461,10 +461,6 @@ module Tag : sig
 
   type t =
     | Unknown  (** default: we don't know the tag *)
-    | Unknowable
-        (** If a tag is overwritten, but we can not learn the old tag
-            (eg. because the analysis has reached the toplevel),
-            we will fail. *)
     | TagKnown of Longident.t loc
         (** We have learned the old tag (eg. from a pattern match). *)
     | OverwrittenAs of Longident.t loc
@@ -490,10 +486,14 @@ module Tag : sig
 
   (** Parallel composition *)
   val par : t -> t -> t
+
+  (** We may not overwrite a tag we don't know.
+      At the end of the analysis, this function should
+      be called to ensure all overwrites are on known tags. *)
+  val check_no_remaining_overwritten_as : t -> unit
 end = struct
   type t =
     | Unknown
-    | Unknowable
     | TagKnown of Longident.t loc
     | OverwrittenAs of Longident.t loc
 
@@ -527,16 +527,13 @@ end = struct
   let rec par t0 t1 =
     match t0, t1 with
     | Unknown, t1 -> t1
-    | Unknowable, OverwrittenAs l1 ->
-      raise (Error (ChangedTag { old_tag = None; new_tag = l1 }))
-    | Unknowable, (Unknown | Unknowable | TagKnown _) -> t1
-    | TagKnown _, (Unknown | Unknowable) -> par t1 t0
+    | TagKnown _, Unknown -> par t1 t0
     | TagKnown l0, TagKnown l1 -> if equal_tag l0 l1 then t0 else Unknown
     | TagKnown l0, OverwrittenAs l1 ->
       if equal_tag l0 l1
       then t0
       else raise (Error (ChangedTag { old_tag = Some l0; new_tag = l1 }))
-    | OverwrittenAs _, (Unknown | Unknowable | TagKnown _) -> par t1 t0
+    | OverwrittenAs _, (Unknown | TagKnown _) -> par t1 t0
     | OverwrittenAs l0, OverwrittenAs l1 ->
       if equal_tag l0 l1
       then t0
@@ -544,6 +541,12 @@ end = struct
         raise (Error (IncompatibleOverwrites { left_tag = l0; right_tag = l1 }))
 
   let seq = par
+
+  let check_no_remaining_overwritten_as t =
+    match t with
+    | OverwrittenAs l0 ->
+      raise (Error (ChangedTag { old_tag = None; new_tag = l0 }))
+    | _ -> ()
 end
 
 module Projection : sig
@@ -653,6 +656,9 @@ module Usage_tree : sig
 
   (** Runs a function through the tree; the function must be monotone *)
   val mapi : (Path.t -> Usage.t -> Usage.t) -> t -> t
+
+  (** Check that all overwrites are on known tags *)
+  val check_no_remaining_overwritten_as : t -> unit
 end = struct
   (** Represents a tree of usage. Each node records the choose on all possible
      execution paths. As a result, trees such as `S -> U` is valid, even though
@@ -738,6 +744,13 @@ end = struct
         children = Projection.Map.singleton proj (singleton leaf tag path);
         tag = Tag.Unknown
       }
+
+  let rec check_no_remaining_overwritten_as { children; tag } =
+    Projection.Map.iter
+      (fun _ t -> check_no_remaining_overwritten_as t)
+      children;
+    try Tag.check_no_remaining_overwritten_as tag
+    with Tag.Error error -> raise (Error (OverwriteChangedTag error))
 end
 
 (** Lift Usage_tree to forest *)
@@ -778,6 +791,9 @@ module Usage_forest : sig
 
   (** Run a function through a forest. The function must be monotone *)
   val map : (Usage.t -> Usage.t) -> t -> t
+
+  (** Check that all overwrites are on known tags *)
+  val check_no_remaining_overwritten_as : t -> unit
 end = struct
   module Root_id = struct
     module T = struct
@@ -841,6 +857,11 @@ end = struct
   let map f =
     Root_id.Map.mapi (fun _root tree ->
         Usage_tree.mapi (fun _projs usage -> f usage) tree)
+
+  let check_no_remaining_overwritten_as t =
+    Root_id.Map.iter
+      (fun _ t -> Usage_tree.check_no_remaining_overwritten_as t)
+      t
 end
 
 module UF = Usage_forest
@@ -1369,6 +1390,11 @@ let lift_implicit_borrowing uf =
         m)
     uf
 
+let descend proj overwrite =
+  match overwrite with
+  | None -> None
+  | Some paths -> Some (Paths.child proj paths)
+
 (* There are two modes our algorithm will work at.
 
    In the first mode, we care about if the expression can be considered as
@@ -1381,7 +1407,7 @@ let lift_implicit_borrowing uf =
    using a.x.y. This mode is used in most occasions. *)
 
 (** Corresponds to the second mode *)
-let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
+let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
   match exp.exp_desc with
   | Texp_ident _ ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
@@ -1447,13 +1473,30 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     (* we don't know how much of e will be run; safe to assume all of them *)
     UF.seq uf_body uf_cases
   | Texp_tuple (es, _) ->
-    UF.pars (List.map (fun (_, e) -> check_uniqueness_exp ienv e) es)
+    UF.pars
+      (List.mapi
+         (fun i (_, e) ->
+           check_uniqueness_exp ienv
+             ~overwrite:(descend (Projection.Tuple_field i) overwrite)
+             e)
+         es)
   | Texp_unboxed_tuple es ->
     UF.pars (List.map (fun (_, e, _) -> check_uniqueness_exp ienv e) es)
-  | Texp_construct (_, _, es, _) ->
-    UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
+  | Texp_construct (lbl, _, es, _) ->
+    let name = Longident.last lbl.txt in
+    UF.pars
+      (List.mapi
+         (fun i e ->
+           check_uniqueness_exp
+             ~overwrite:
+               (descend (Projection.Construct_field (name, i)) overwrite)
+             ienv e)
+         es)
   | Texp_variant (_, None) -> UF.unused
-  | Texp_variant (_, Some (arg, _)) -> check_uniqueness_exp ienv arg
+  | Texp_variant (l, Some (arg, _)) ->
+    check_uniqueness_exp ienv
+      ~overwrite:(descend (Projection.Variant_field l) overwrite)
+      arg
   | Texp_record { fields; extended_expression } ->
     let value, uf_ext =
       match extended_expression with
@@ -1476,7 +1519,11 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
                 unique_use
             in
             Value.mark_maybe_unique value
-          | _, Overridden (_, e) -> check_uniqueness_exp ienv e)
+          | l, Overridden (_, e) ->
+            check_uniqueness_exp ienv
+              ~overwrite:
+                (descend (Projection.Record_field l.lbl_name) overwrite)
+              e)
         fields
     in
     UF.par uf_ext (UF.pars (Array.to_list uf_fields))
@@ -1593,10 +1640,15 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
         Value.overwrite_tag (mknoloc (Longident.Lident tag)) value
       | _ -> UF.unused
     in
-    let uf_body = check_uniqueness_exp ienv e in
+    let uf_body = check_uniqueness_exp ienv ~overwrite:(Value.paths value) e in
     (* We first evaluate the body and then perform the overwrite: *)
     UF.seq uf_tag (UF.seq uf_body (Value.mark_consumed_memory_address value))
-  | Texp_hole -> UF.unused
+  | Texp_hole use -> (
+    match overwrite with
+    | None -> assert false
+    | Some p ->
+      let occ = Occurrence.mk exp.exp_loc in
+      Paths.mark (Usage.maybe_unique use occ) Tag.Unknown p)
 
 (**
 Corresponds to the first mode.
@@ -1749,11 +1801,13 @@ and check_uniqueness_binding_op ienv bo =
   UF.par uf_path uf_exp
 
 let check_uniqueness_exp exp =
-  let _ = check_uniqueness_exp Ienv.empty exp in
+  let uf = check_uniqueness_exp Ienv.empty exp in
+  UF.check_no_remaining_overwritten_as uf;
   ()
 
 let check_uniqueness_value_bindings vbs =
-  let _ = check_uniqueness_value_bindings Ienv.empty vbs in
+  let _, uf = check_uniqueness_value_bindings Ienv.empty vbs in
+  UF.check_no_remaining_overwritten_as uf;
   ()
 
 let report_multi_use inner first_is_of_second =

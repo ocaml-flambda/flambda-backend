@@ -33,7 +33,7 @@ let update (unique_ r : record_update) =
 Line 2, characters 10-41:
 2 |   let x = overwrite_ r with { x = "foo" }
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
@@ -57,45 +57,37 @@ Error: Unbound value "update"
 let gc_soundness_bug (local_ unique_ r) (local_ x) =
   exclave_ overwrite_ r with { x }
 [%%expect{|
-Line 2, characters 11-34:
+Line 2, characters 31-32:
 2 |   exclave_ overwrite_ r with { x }
-               ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                                   ^
+Error: This value escapes its region.
 |}]
 
 let disallowed_by_locality (local_ unique_ r) (local_ x) =
   overwrite_ r with { x }
 [%%expect{|
-Line 2, characters 2-25:
+Line 2, characters 22-23:
 2 |   overwrite_ r with { x }
-      ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                          ^
+Error: This value escapes its region.
 |}]
 
 let gc_soundness_bug (unique_ r) (local_ x) =
   exclave_ overwrite_ r with { x }
 [%%expect{|
-Line 2, characters 11-34:
+Line 2, characters 31-32:
 2 |   exclave_ overwrite_ r with { x }
-               ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                                   ^
+Error: This value escapes its region.
 |}]
 
 let disallowed_by_locality (unique_ r) (local_ x) =
   overwrite_ r with { x }
 [%%expect{|
-Line 2, characters 2-25:
+Line 2, characters 22-23:
 2 |   overwrite_ r with { x }
-      ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                          ^
+Error: This value escapes its region.
 |}]
 
 let gc_soundness_no_bug (local_ unique_ r) x =
@@ -104,7 +96,7 @@ let gc_soundness_no_bug (local_ unique_ r) x =
 Line 2, characters 11-34:
 2 |   exclave_ overwrite_ r with { x }
                ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
@@ -115,7 +107,7 @@ let disallowed_by_locality (local_ unique_ r) x =
 Line 2, characters 2-25:
 2 |   overwrite_ r with { x }
       ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
@@ -126,7 +118,7 @@ let gc_soundness_no_bug (unique_ r) x =
 Line 2, characters 11-34:
 2 |   exclave_ overwrite_ r with { x }
                ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
@@ -137,7 +129,7 @@ let gc_soundness_no_bug (unique_ r) x =
 Line 2, characters 2-25:
 2 |   overwrite_ r with { x }
       ^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]

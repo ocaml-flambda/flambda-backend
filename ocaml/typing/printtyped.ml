@@ -630,7 +630,7 @@ and expression i ppf x =
   | Texp_overwrite (id, _, _, e) ->
     line i ppf "Texp_overwrite %a\n" fmt_path (Path.Pident id);
     expression i ppf e
-  | Texp_hole ->
+  | Texp_hole _ ->
     line i ppf "Texp_hole"
 
 and value_description i ppf x =

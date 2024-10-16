@@ -229,7 +229,7 @@ let iter_on_occurrences
       | Texp_object _ | Texp_pack _ | Texp_letop _ | Texp_unreachable
       | Texp_list_comprehension _ | Texp_array_comprehension _ | Texp_probe _
       | Texp_probe_is_enabled _ | Texp_exclave _
-      | Texp_open _ | Texp_src_pos | Texp_hole -> ());
+      | Texp_open _ | Texp_src_pos | Texp_hole _ -> ());
       default_iterator.expr sub e);
 
   (* Remark: some types get iterated over twice due to how constraints are

@@ -194,7 +194,7 @@ let classify_expression : Typedtree.expression -> sd =
       Dynamic
 
     | Texp_overwrite _
-    | Texp_hole ->
+    | Texp_hole _ ->
       Dynamic (* Disallowed for now *)
 
     | Texp_for _
@@ -993,7 +993,7 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_exclave e -> expression e
     | Texp_src_pos -> empty
     | Texp_overwrite (_, _, _, e) -> expression e
-    | Texp_hole -> empty
+    | Texp_hole _ -> empty
 
 (* Function bodies.
     G |-{body} b : m

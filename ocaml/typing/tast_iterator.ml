@@ -430,7 +430,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_overwrite(_, lid, _, exp) ->
     iter_loc sub lid;
     sub.expr sub exp
-  | Texp_hole -> ()
+  | Texp_hole _ -> ()
 
 
 let package_type sub {pack_fields; pack_txt; _} =

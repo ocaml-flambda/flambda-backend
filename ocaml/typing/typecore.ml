@@ -675,25 +675,20 @@ let optimise_allocations () =
     !allocations;
   reset_allocations ()
 
-(** This state machine is used to determine whether we are currently
-    overwriting an allocation. Its transition diagram is:
-    NoOverwrite --{Texp_overwrite}--> Overwriting
-                --{Texp_record/Texp_tuple}--> Assigning
-                --{any expression}--> NoOverwrite *)
 type overwrite =
-  | NoOverwrite
-  | Overwriting of Ident.t * Typedtree.expression * Value.lr
-    (** ident to be overwritten, expression and mode of inlined record *)
-  | Assigning of Value.lr
-    (** mode of the field accesses; CR uniqueness: also include type information *)
+  | No_overwrite
+  | Overwriting of Location.t * Types.type_expr * Value.l
+    (** location of variable, type of variable, mode of kept fields *)
 
-let assign ?recarg = function
-  | NoOverwrite -> NoOverwrite
-  | Assigning(m) -> Assigning(m)
-  | Overwriting(_, _, m) as o ->
-      match recarg with
-      | Some Required -> o (* Preserve old status for inlined record *)
-      | _ -> Assigning(m)
+let assign_children n f = function
+  | No_overwrite -> List.init n (fun _ -> No_overwrite)
+  | Overwriting(loc, typ, mode) -> f loc typ mode
+
+let rec can_be_overwritten = function
+  | Pexp_stack e -> can_be_overwritten e.pexp_desc
+  | Pexp_constraint (e, _, _) -> can_be_overwritten e.pexp_desc
+  | (Pexp_tuple _ | Pexp_construct _ | Pexp_record _) -> true
+  | _ -> false
 
 (* Typing of constants *)
 
@@ -4075,7 +4070,7 @@ let rec is_nonexpansive exp =
     false
   | Texp_exclave e -> is_nonexpansive e
   | Texp_overwrite (_, _, _, e) -> is_nonexpansive e
-  | Texp_hole -> true
+  | Texp_hole _ -> true
 
 and is_nonexpansive_mod mexp =
   match mexp.mod_desc with
@@ -4523,7 +4518,7 @@ let check_partial_application ~statement exp =
             | Texp_ident _ | Texp_constant _ | Texp_tuple _
             | Texp_unboxed_tuple _
             | Texp_construct _ | Texp_variant _ | Texp_record _
-            | Texp_overwrite _ | Texp_hole
+            | Texp_overwrite _ | Texp_hole _
             | Texp_field _ | Texp_setfield _ | Texp_array _
             | Texp_list_comprehension _ | Texp_array_comprehension _
             | Texp_while _ | Texp_for _ | Texp_instvar _
@@ -5194,7 +5189,7 @@ let add_zero_alloc_attribute expr attributes =
     end
   | _ -> expr
 
-let rec type_exp ?recarg ?(overwrite=NoOverwrite) env expected_mode sexp =
+let rec type_exp ?recarg ?(overwrite=No_overwrite) env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg ~overwrite env expected_mode sexp
     (mk_expected (newvar (Jkind.Builtin.any ~why:Dummy_jkind)))
@@ -5206,7 +5201,7 @@ let rec type_exp ?recarg ?(overwrite=NoOverwrite) env expected_mode sexp =
    at [generic_level] (but its variables no higher than [!current_level]).
  *)
 
-and type_expect ?recarg ?(overwrite=NoOverwrite) env
+and type_expect ?recarg ?(overwrite=No_overwrite) env
       (expected_mode : expected_mode) sexp ty_expected_explained =
   let previous_saved_types = Cmt_format.get_saved_types () in
   let exp =
@@ -5220,7 +5215,7 @@ and type_expect ?recarg ?(overwrite=NoOverwrite) env
   exp
 
 and type_expect_
-    ?(recarg=Rejected) ?(overwrite=NoOverwrite)
+    ?(recarg=Rejected) ?(overwrite=No_overwrite)
     env (expected_mode : expected_mode) sexp ty_expected_explained =
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let loc = sexp.pexp_loc in
@@ -5611,7 +5606,7 @@ and type_expect_
           with
             Rpresent (Some ty), Rpresent (Some ty0) ->
               let alloc_mode, argument_mode = register_allocation expected_mode in
-              let arg = type_argument ~overwrite env argument_mode sarg ty ty0 in
+              let arg = type_argument env argument_mode sarg ty ty0 in
               re { exp_desc = Texp_variant(l, Some (arg, alloc_mode));
                    exp_loc = loc; exp_extra = [];
                    exp_type = ty_expected0;
@@ -5653,10 +5648,7 @@ and type_expect_
       assert (lid_sexp_list <> []);
       let opt_exp =
         match opt_sexp with
-        | None ->
-          begin match overwrite with
-          | Overwriting (_, exp, mode) -> Some (exp, mode)
-          | _ -> None end
+        | None -> None
         | Some sexp ->
             let exp, mode =
               with_local_level_if_principal begin fun () ->
@@ -5668,26 +5660,28 @@ and type_expect_
             Some (exp, mode)
       in
       let ty_record, expected_type =
-        let expected_opath =
-          match extract_concrete_record env ty_expected with
-          | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty_expected)
+        let extract_record loc ty error =
+          match extract_concrete_record env ty with
+          | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty)
           | Maybe_a_record_type -> None
           | Not_a_record_type ->
-            let error =
-              Wrong_expected_kind(Record, Expression explanation, ty_expected)
-            in
             raise (Error (loc, env, error))
+        in
+        let expected_opath =
+          extract_record loc ty_expected
+            (Wrong_expected_kind(Record, Expression explanation, ty_expected))
         in
         let opt_exp_opath =
           match opt_exp with
-          | None -> None
+          | None ->
+            begin match overwrite with
+            | No_overwrite -> None
+            | Overwriting (loc, ty, _) ->
+                extract_record loc ty (Expr_not_a_record_type ty)
+            end
           | Some (exp, _) ->
-            match extract_concrete_record env exp.exp_type with
-            | Record_type (p0, p, _, _) -> Some (p0, p, is_principal exp.exp_type)
-            | Maybe_a_record_type -> None
-            | Not_a_record_type ->
-              let error = Expr_not_a_record_type exp.exp_type in
-              raise (Error (exp.exp_loc, env, error))
+              extract_record exp.exp_loc exp.exp_type
+                (Expr_not_a_record_type exp.exp_type)
         in
         match expected_opath, opt_exp_opath with
         | None, None ->
@@ -5702,7 +5696,7 @@ and type_expect_
             in
             ty, opt_exp_opath
       in
-      let closed = (opt_sexp = None) in
+      let closed = (opt_sexp = None && overwrite = No_overwrite) in
       let lbl_a_list =
         wrap_disambiguate "This record expression is expected to have"
           (mk_expected ty_record)
@@ -5746,8 +5740,32 @@ and type_expect_
             (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
             lbl_exp_list
         in
-        match opt_exp with
-          None ->
+        let unify_kept loc ty_exp mode lbl =
+          let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
+          unify_exp_types loc env ty_exp ty_res1;
+          match matching_label lbl with
+          | lid, _lbl, lbl_exp ->
+              (* do not connect result types for overridden labels *)
+              Overridden (lid, lbl_exp)
+          | exception Not_found -> begin
+              let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
+              unify_exp_types loc env ty_arg1 ty_arg2;
+              with_explanation (fun () ->
+                unify_exp_types loc env (instance ty_expected) ty_res2);
+              check_project_mutability ~loc ~env lbl.lbl_mut mode;
+              let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
+              check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
+              let argument_mode =
+                mode_modality lbl.lbl_modalities argument_mode
+              in
+              submode ~loc ~env mode argument_mode;
+              Kept (ty_arg1, lbl.lbl_mut,
+                    unique_use ~loc ~env mode
+                      (as_single_mode argument_mode))
+            end
+        in
+        match opt_exp, overwrite with
+          None, No_overwrite ->
             let label_definitions =
               Array.map (fun lbl ->
                   match matching_label lbl with
@@ -5770,33 +5788,13 @@ and type_expect_
                 lbl.lbl_all
             in
             None, label_definitions
-        | Some (exp, mode) ->
+        | None, Overwriting (loc, ty, mode) ->
+          let ty_exp = instance ty in
+          let label_definitions = Array.map (unify_kept loc ty_exp mode) lbl.lbl_all in
+          None, label_definitions
+        | Some (exp, mode), _ ->
             let ty_exp = instance exp.exp_type in
-            let unify_kept lbl =
-              let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
-              unify_exp_types exp.exp_loc env ty_exp ty_res1;
-              match matching_label lbl with
-              | lid, _lbl, lbl_exp ->
-                  (* do not connect result types for overridden labels *)
-                  Overridden (lid, lbl_exp)
-              | exception Not_found -> begin
-                  let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
-                  unify_exp_types loc env ty_arg1 ty_arg2;
-                  with_explanation (fun () ->
-                    unify_exp_types loc env (instance ty_expected) ty_res2);
-                  check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-                  check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
-                  let argument_mode =
-                    mode_modality lbl.lbl_modalities argument_mode
-                  in
-                  submode ~loc ~env mode argument_mode;
-                  Kept (ty_arg1, lbl.lbl_mut,
-                        unique_use ~loc ~env mode
-                          (as_single_mode argument_mode))
-                end
-            in
-            let label_definitions = Array.map unify_kept lbl.lbl_all in
+            let label_definitions = Array.map (unify_kept loc ty_exp mode) lbl.lbl_all in
             let ubr = Unique_barrier.not_computed () in
             Some ({exp with exp_type = ty_exp}, ubr), label_definitions
       in
@@ -6024,7 +6022,7 @@ and type_expect_
         Builtin_attributes.error_message_attr sexp.pexp_attributes in
       let explanation = Option.map (fun msg -> Error_message_attr msg)
                           error_message_attr_opt in
-      let arg = type_argument ?explanation env expected_mode sarg ty (instance ty) in
+      let arg = type_argument ~overwrite ?explanation env expected_mode sarg ty (instance ty) in
       rue {
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
@@ -6543,7 +6541,7 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
   | Pexp_stack e ->
-      let exp = type_expect env expected_mode e ty_expected_explained in
+      let exp = type_expect ~overwrite env expected_mode e ty_expected_explained in
       let unsupported category =
         raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
       in
@@ -6575,63 +6573,41 @@ and type_expect_
   | Pexp_overwrite (lid, e) ->
       if not (Language_extension.is_enabled Overwriting) then
         raise (Typetexp.Error (loc, env, Unsupported_extension Overwriting));
-      begin match e.pexp_desc with
-      | (Pexp_tuple _ | Pexp_construct _ | Pexp_record _ | Pexp_variant _) -> ()
-      | _ ->
-        raise (Syntaxerr.(Error(Expecting(e.pexp_loc, "tuple, constructor, record or variant"))))
-      end;
-      let ident, cell_exp, cell_mode, use =
-        let path, (actual_mode : Env.actual_mode), desc, kind =
+      if not (can_be_overwritten e.pexp_desc) then
+        raise (Syntaxerr.(Error(Expecting(e.pexp_loc, "tuple, constructor or record"))));
+      let ident, cell_type, cell_mode, use =
+        let path, (actual_mode : Env.actual_mode), desc, _kind =
           type_ident env ~recarg lid
         in
         let ident = match path with
           | Path.Pident i -> i
           | _ ->
-            raise Syntaxerr.(Error(Not_expecting(loc, "Overwrite of " ^ Path.name path)))
+            raise Syntaxerr.(Error(Not_expecting(loc, "Overwrite of path " ^ Path.name path)))
         in
-        let exp, mode =
-          with_local_level_if_principal begin fun () ->
-            (* We enforce: actual_mode <= cell_mode <= unique /\ expected_regionality *)
-            let cell_mode = Value.newvar () in
-            Value.submode_exn cell_mode
-              (Value.max_with (Monadic Uniqueness) Uniqueness.unique);
-            Value.submode_exn cell_mode
-              (Value.max_with (Comonadic Areality)
-                 (Value.proj (Comonadic Areality) expected_mode.mode));
-            let expected_mode = mode_default cell_mode in
-            actual_submode ~loc ~env actual_mode expected_mode;
-            (* CR uniqueness: need to check that tag is correct *)
-            (* CR uniqueness: need the path of the inlined record *)
-            let exp_desc = Texp_ident(path, lid, desc, kind,
-                                  unique_use ~loc ~env actual_mode.mode
-                                    (as_single_mode expected_mode))
-            in
-            let exp = rue {
-              exp_desc; exp_loc = loc; exp_extra = [];
-              exp_type = desc.val_type;
-              exp_attributes = sexp.pexp_attributes;
-              exp_env = env }
-            in
-            (* Later on, we will enforce: cell_mode <= expected_mode of kept fields.
-               But we set the expected_mode to global below, so we will ignore
-               areality in that check. *)
-            let cell_mode =
-              Value.meet_with (Comonadic Areality) Regionality.Const.Global cell_mode
-            in
-            exp, cell_mode
-          end ~post:(fun (exp, _) -> generalize_structure_exp exp)
+        let mode =
+          (* We enforce: actual_mode <= cell_mode <= unique /\ expected_regionality *)
+          let cell_mode = Value.newvar () in
+          Value.submode_exn cell_mode
+            (Value.max_with (Monadic Uniqueness) Uniqueness.unique);
+          Value.submode_exn cell_mode
+            (Value.max_with (Comonadic Areality)
+               (Value.proj (Comonadic Areality) expected_mode.mode));
+          (* Later on, we will enforce: cell_mode <= expected_mode of kept fields.
+             But we set the expected_mode to global below, so we will ignore
+             areality in that check. *)
+          Value.meet_with (Comonadic Areality) Regionality.Const.Global cell_mode
         in
-        ident, exp, mode, unique_use ~loc ~env actual_mode.mode (as_single_mode expected_mode)
+        ident, desc.val_type, mode, unique_use ~loc ~env actual_mode.mode (as_single_mode expected_mode)
       in
       (* The newly-written fields have to global to avoid heap-to-stack pointers.
          We enforce that here, by asking the allocation to be global.
          CR uniqueness: this makes the allocation alloc_heap *)
-      let fields_mode =
+      let alloc_mode =
         mode_coerce (Value.max_with (Comonadic Areality) Regionality.global)
            expected_mode
       in
-      let overwrite = Overwriting (ident, cell_exp, cell_mode) in
-      let alloc = type_expect ~overwrite env fields_mode e ty_expected_explained in
+      let overwrite = Overwriting (loc, cell_type, cell_mode) in
+      let alloc = type_expect ~overwrite env alloc_mode e ty_expected_explained in
       rue { exp_desc = Texp_overwrite(ident, lid, use, alloc);
             exp_loc = loc; exp_extra = [];
             exp_type = alloc.exp_type;
@@ -6639,10 +6615,11 @@ and type_expect_
             exp_env = env }
   | Pexp_hole ->
       begin match overwrite, Language_extension.is_enabled Overwriting with
-      | Assigning(mode), true ->
-        submode ~loc ~env ~reason:Other mode expected_mode;
-        (* CR uniqueness: check that the hole has the right type. *)
-        { exp_desc = Texp_hole;
+      | Overwriting(old_loc, typ, mode), true ->
+        with_explanation (fun () -> unify_exp_types loc env typ (instance ty_expected));
+        submode ~loc:old_loc ~env mode expected_mode;
+        let use = unique_use ~loc ~env mode expected_mode.mode in
+        { exp_desc = Texp_hole use;
           exp_loc = loc; exp_extra = [];
           exp_type = ty_expected_explained.ty;
           exp_attributes = sexp.pexp_attributes;
@@ -7456,7 +7433,7 @@ and type_option_some env expected_mode sarg ty ty0 =
 
 (* [expected_mode] is the expected mode of the field. It's already adjusted for
    allocation, mutation and modalities. *)
-and type_label_exp ?(overwrite = NoOverwrite) create env (arg_mode : expected_mode) loc ty_expected
+and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
@@ -7533,7 +7510,7 @@ and type_label_exp ?(overwrite = NoOverwrite) create env (arg_mode : expected_mo
   in
   (lid, label, arg)
 
-and type_argument ?explanation ?recarg ?(overwrite = NoOverwrite) env
+and type_argument ?explanation ?recarg ?(overwrite = No_overwrite) env
       (mode : expected_mode) sarg ty_expected' ty_expected =
   (* ty_expected' may be generic *)
   let no_labels ty =
@@ -7604,7 +7581,7 @@ and type_argument ?explanation ?recarg ?(overwrite = NoOverwrite) env
               |> mode_morph (fun _mode -> exp_mode)
               |> expect_mode_cross env ty_expected'
             in
-            type_exp ~overwrite:(assign overwrite) env expected_mode sarg)
+            type_exp ~overwrite env expected_mode sarg)
       in
       let rec make_args args ty_fun =
         match get_desc (expand_head env ty_fun) with
@@ -7741,7 +7718,7 @@ and type_argument ?explanation ?recarg ?(overwrite = NoOverwrite) env
       end
   | None ->
       let mode = expect_mode_cross env ty_expected' mode in
-      let texp = type_expect ?recarg ~overwrite:(assign ?recarg overwrite) env mode sarg
+      let texp = type_expect ?recarg ~overwrite env mode sarg
         (mk_expected ?explanation ty_expected') in
       unify_exp env texp ty_expected;
       texp
@@ -7957,15 +7934,26 @@ and type_tuple ~overwrite ~loc ~env ~(expected_mode : expected_mode) ~ty_expecte
         List.init arity (fun _ -> argument_mode)
   in
   let types_and_modes = List.combine labeled_subtypes argument_modes in
+  let overwrites = assign_children arity (fun loc typ mode ->
+    let labeled_subtypes =
+      List.map (fun (label, _) -> label,
+                                  newgenvar (Jkind.Builtin.value_or_null ~why:Tuple_element))
+      sexpl
+    in
+    let to_unify = newgenty (Ttuple labeled_subtypes) in
+    with_explanation explanation (fun () ->
+      unify_exp_types loc env to_unify typ);
+    List.map (fun (_, typ) -> Overwriting (loc, typ, mode)) labeled_subtypes) overwrite
+  in
   let expl =
     List.map2
-      (fun (label, body) ((_, ty), argument_mode) ->
+      (fun (label, body) (((_, ty), argument_mode), overwrite) ->
         Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
                                 Language_extension.Labeled_tuples ()) label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
-          (label, type_expect ~overwrite:(assign overwrite) env argument_mode body (mk_expected ty)))
-      sexpl types_and_modes
+          (label, type_expect ~overwrite env argument_mode body (mk_expected ty)))
+      sexpl (List.combine types_and_modes overwrites)
   in
   re {
     exp_desc = Texp_tuple (expl, alloc_mode);
