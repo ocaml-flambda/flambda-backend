@@ -30,28 +30,63 @@ exception Error = Polling.Error
    H is "unsafe", therefore, if starting from H we can loop infinitely without
    crossing an Alloc or Poll instruction. *)
 
+module Back_edge_sources : sig
+  type t
+
+  val create : Cfg.t -> Cfg_loop_infos.EdgeSet.t -> t
+
+  val add : t -> 'a Cfg.instruction -> t
+
+  val mem : t -> 'a Cfg.instruction -> bool
+
+  val empty : t
+
+  val union : t -> t -> t
+
+  val subset : t -> t -> bool
+end = struct
+  module Int = Numbers.Int
+  include Int.Set
+
+  let create cfg back_edges =
+    let get_terminator_id (edge : Cfg_loop_infos.Edge.t) : int =
+      let block = Cfg.get_block_exn cfg edge.src in
+      block.terminator.id
+    in
+    Cfg_loop_infos.EdgeSet.elements back_edges
+    |> List.map ~f:get_terminator_id
+    |> Int.Set.of_list
+
+  let mem t (instruction : 'a Cfg.instruction) = Int.Set.mem instruction.id t
+
+  let add t (instruction : 'a Cfg.instruction) = Int.Set.add instruction.id t
+end
+
 module Unsafe_or_safe_domain = struct
-  type t = Polling.Unsafe_or_safe.t
+  type t = Back_edge_sources.t
 
-  let bot = Polling.Unsafe_or_safe.bot
+  (* Compute backward-reachability from the sources of all back edges. The
+     abstract value represents individual back edges that are reachable from
+     each program point, without going through a "safe" instruction. *)
+  let bot = Back_edge_sources.empty
 
-  let join = Polling.Unsafe_or_safe.join
+  let join t1 t2 = Back_edge_sources.union t1 t2
 
-  let less_equal = Polling.Unsafe_or_safe.lessequal
+  let less_equal t1 t2 = Back_edge_sources.subset t1 t2
 end
 
 module Unsafe_or_safe_transfer = struct
   type domain = Unsafe_or_safe_domain.t
 
-  type context = unit
+  type context = Back_edge_sources.t
 
   type error = |
 
   let basic :
       domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
-   fun dom instr () ->
+   fun dom instr _back_edge_sources ->
     match[@ocaml.warning "-4"] instr.desc with
-    | Op (Poll | Alloc _) -> Ok Safe
+    | Op (Poll | Alloc _) -> Ok Unsafe_or_safe_domain.bot
     | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       Ok dom
 
@@ -61,34 +96,36 @@ module Unsafe_or_safe_transfer = struct
       Cfg.terminator Cfg.instruction ->
       context ->
       (domain, error) result =
-   fun dom ~exn term () ->
+   fun dom ~exn term back_edge_sources ->
     match term.desc with
     | Never -> assert false
-    | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ ->
-      Ok dom
     | Raise _ -> Ok exn
-    | Tailcall_self _ | Tailcall_func _ | Return -> Ok Safe
-    | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
-      if Cfg.can_raise_terminator term.desc
+    | Tailcall_self _ | Tailcall_func _ | Return -> Ok Unsafe_or_safe_domain.bot
+    | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+    | Switch _ | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+      if Back_edge_sources.mem back_edge_sources term
+      then Ok (Back_edge_sources.add dom term)
+      else if Cfg.can_raise_terminator term.desc
       then Ok (Unsafe_or_safe_domain.join dom exn)
       else Ok dom
 
   let exception_ : domain -> context -> (domain, error) result =
-   fun dom () -> Ok dom
+   fun dom _back_edge_sources -> Ok dom
 end
 
 module PolledLoopsAnalysis =
   Cfg_dataflow.Backward (Unsafe_or_safe_domain) (Unsafe_or_safe_transfer)
 
 let polled_loops_analysis :
-    Cfg_with_layout.t -> PolledLoopsAnalysis.domain Label.Tbl.t =
- fun cfg_with_layout ->
+    Cfg_with_layout.t ->
+    Back_edge_sources.t ->
+    PolledLoopsAnalysis.domain Label.Tbl.t =
+ fun cfg_with_layout back_edge_sources ->
   let init : Unsafe_or_safe_domain.t = Unsafe_or_safe_domain.bot in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   match
-    PolledLoopsAnalysis.run ~init ~map:PolledLoopsAnalysis.Block ~exnescape:Safe
-      cfg ()
+    PolledLoopsAnalysis.run ~init ~map:PolledLoopsAnalysis.Block
+      ~exnescape:Unsafe_or_safe_domain.bot cfg back_edge_sources
   with
   | Ok res -> res
   | Aborted _ -> .
@@ -197,15 +234,13 @@ let instr_cfg_with_layout :
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg_loop_infos.EdgeSet.fold
     (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
+      let after = Cfg.get_block_exn cfg src in
       let needs_poll =
-        match Label.Tbl.find_opt block_needs_poll dst with
-        | None -> assert false
-        | Some Safe -> false
-        | Some Unsafe -> true
+        let reachable_back_edge_sources = Label.Tbl.find block_needs_poll dst in
+        Back_edge_sources.mem reachable_back_edge_sources after.terminator
       in
       if needs_poll
       then (
-        let after = Cfg.get_block_exn cfg src in
         let cfg_infos = Regalloc_utils.collect_cfg_infos cfg_with_layout in
         let next_instruction_id = ref (succ cfg_infos.max_instruction_id) in
         let next_instruction_id () =
@@ -332,11 +367,14 @@ let instrument_fundecl :
   if is_disabled cfg.fun_name
   then cfg_with_layout
   else
-    let block_needs_poll = polled_loops_analysis cfg_with_layout in
     (* CR-soon xclerc for xclerc: consider using `Cfg_with_infos` to cache the
        computations *)
     let doms = Cfg_dominators.build cfg in
     let back_edges = Cfg_loop_infos.compute_back_edges cfg doms in
+    let back_edge_sources = Back_edge_sources.create cfg back_edges in
+    let block_needs_poll =
+      polled_loops_analysis cfg_with_layout back_edge_sources
+    in
     let added_poll =
       instr_cfg_with_layout cfg_with_layout ~block_needs_poll ~back_edges
     in
