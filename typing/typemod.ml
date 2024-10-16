@@ -535,8 +535,9 @@ let () = Env.check_well_formed_module := check_well_formed_module
 
 let type_decl_is_alias sdecl = (* assuming no explicit constraint *)
   let eq_vars x y =
-    match Jane_syntax.Core_type.of_ast x, Jane_syntax.Core_type.of_ast y with
-    (* a jkind annotation on either type variable might mean this definition
+    (* Why not handle jkind annotations?
+
+       a jkind annotation on either type variable might mean this definition
        is not an alias. Example: {v
          type ('a : value) t
          type ('a : immediate) t2 = ('a : immediate) t
@@ -546,10 +547,8 @@ let type_decl_is_alias sdecl = (* assuming no explicit constraint *)
        conservatively say that any jkind annotations block alias
        detection.
     *)
-    | (Some _, _) | (_, Some _) -> false
-    | None, None ->
     match x.ptyp_desc, y.ptyp_desc with
-    | Ptyp_var sx, Ptyp_var sy -> sx = sy
+    | Ptyp_var (sx, None), Ptyp_var (sy, None) -> sx = sy
     | _, _ -> false
   in
   match sdecl.ptype_manifest with
@@ -1114,18 +1113,10 @@ and approx_module_declaration env pmd =
     md_uid = Uid.internal_not_actually_unique;
   }
 
-and approx_sig_jst' _env (jitem : Jane_syntax.Signature_item.t) _srem =
-  match jitem with
-  | Jsig_layout (Lsig_kind_abbrev _) ->
-      Misc.fatal_error "kind_abbrev not supported!"
-
 and approx_sig env ssg =
   match ssg with
     [] -> []
   | item :: srem ->
-      match Jane_syntax.Signature_item.of_ast item with
-      | Some jitem -> approx_sig_jst' env jitem srem
-      | None ->
       match item.psig_desc with
       | Psig_type (rec_flag, sdecls) ->
           let decls = Typedecl.approx_type_decl sdecls in
@@ -1238,6 +1229,8 @@ and approx_sig env ssg =
             ]
           ) decls [rem]
           |> List.flatten
+      | Psig_kind_abbrev _ ->
+          Misc.fatal_error "kind_abbrev not supported!"
       | _ ->
           approx_sig env srem
 
@@ -1766,17 +1759,8 @@ and transl_signature env sg =
     mksig (Tsig_include (incl, modalities)) env loc, sg, newenv
   in
 
-  let transl_sig_item_jst ~loc:_ _env _sig_acc : Jane_syntax.Signature_item.t -> _ =
-    function
-    | Jsig_layout (Lsig_kind_abbrev _) ->
-        Misc.fatal_error "kind_abbrev not supported!"
-  in
-
   let transl_sig_item env sig_acc item =
     let loc = item.psig_loc in
-    match Jane_syntax.Signature_item.of_ast item with
-    | Some jitem -> transl_sig_item_jst ~loc env sig_acc jitem
-    | None ->
     match item.psig_desc with
     | Psig_value sdesc ->
         let (tdesc, newenv) =
@@ -2035,6 +2019,8 @@ and transl_signature env sg =
         mksig (Tsig_attribute attr) env loc, [], env
     | Psig_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
+    | Psig_kind_abbrev _ ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
   let rec transl_sig env sig_items sig_type = function
     | [] -> List.rev sig_items, List.rev sig_type, env
@@ -2950,12 +2936,6 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     Tstr_include incl, sg, shape, new_env
   in
 
-  let type_str_item_jst ~loc:_ _env _shape_map jitem _sig_acc =
-    match (jitem : Jane_syntax.Structure_item.t) with
-    | Jstr_layout (Lstr_kind_abbrev _) ->
-        Misc.fatal_error "kind_abbrev not supported!"
-  in
-
   let force_toplevel =
     (* A couple special cases are needed for the toplevel:
 
@@ -2969,11 +2949,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
   in
 
   let type_str_item
-        env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+        env shape_map {pstr_loc = loc; pstr_desc = desc} sig_acc =
     let md_mode = Mode.Value.legacy in
-    match Jane_syntax.Structure_item.of_ast item with
-    | Some jitem -> type_str_item_jst ~loc env shape_map jitem sig_acc
-    | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
         let expr, sort =
@@ -3342,6 +3319,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         || not (Warnings.is_active (Misplaced_attribute "")) then
           Builtin_attributes.mark_alert_used x;
         Tstr_attribute x, [], shape_map, env
+    | Pstr_kind_abbrev _ ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
   let toplevel_sig = Option.value toplevel ~default:[] in
   let rec type_struct env shape_map sstr str_acc sig_acc

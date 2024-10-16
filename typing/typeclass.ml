@@ -2137,7 +2137,7 @@ let check_recmod_decl env sdecl =
 (* Approximate the class declaration as class ['params] id = object end *)
 let approx_class sdecl =
   let open Ast_helper in
-  let self' = Typ.any () in
+  let self' = Typ.any None in
   let clty' = Cty.signature ~loc:sdecl.pci_expr.pcty_loc (Csig.mk self' []) in
   { sdecl with pci_expr = clty' }
 

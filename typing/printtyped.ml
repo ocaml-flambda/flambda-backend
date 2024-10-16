@@ -170,7 +170,7 @@ let typevar_jkind ~print_quote ppf (v, l) =
   | Some (_, jkind) ->
       fprintf ppf " (%a : %a)"
         pptv v
-        Pprintast.jkind jkind.txt
+        Pprintast.jkind_annotation jkind
 
 let tuple_component_label i ppf = function
   | None -> line i ppf "Label: None\n"

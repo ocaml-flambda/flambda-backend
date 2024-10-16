@@ -216,9 +216,10 @@ let predef_jkind_annotation primitive =
           right kind. But this hack is OK as its result is just used in
           printing/untypeast.
        *)
-       let user_written : _ Location.loc =
-         Jane_syntax.Jkind.(Abbreviation (Const.mk primitive.name Location.none))
-         |> Location.mknoloc
+       let user_written : Parsetree.jkind_annotation =
+         { pjkind_desc = Abbreviation primitive.name;
+           pjkind_loc = Location.none;
+         }
        in
        primitive.jkind, user_written)
     primitive

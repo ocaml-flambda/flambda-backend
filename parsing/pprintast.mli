@@ -63,5 +63,5 @@ val tyvar: Format.formatter -> string -> unit
       special treatment required for the single quote character in second
       position, or for keywords by escaping them with \#. No-op on "_". *)
 
-val jkind : Format.formatter -> Jane_syntax.Jkind.t -> unit
+val jkind_annotation : Format.formatter -> Parsetree.jkind_annotation -> unit
 val mode : Format.formatter -> Parsetree.mode Location.loc -> unit
