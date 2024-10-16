@@ -1,6 +1,5 @@
 (* TEST
-   flags += "-extension unique ";
-   flags += "-extension overwriting";
+   flags += "-extension-universe alpha";
    expect;
 *)
 
