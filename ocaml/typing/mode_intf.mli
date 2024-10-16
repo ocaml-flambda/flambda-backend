@@ -83,6 +83,12 @@ module type Common = sig
     traversed:(int,unit) Hashtbl.t ->
     unit
 
+  val instantiate :
+    current_level:int ->
+    generic_level:int ->
+    ('l * 'r) t ->
+    ('l * 'r) t
+
   val equate : lr -> lr -> (unit, equate_error) result
 
   val submode_exn : (allowed * 'r) t -> ('l * allowed) t -> unit

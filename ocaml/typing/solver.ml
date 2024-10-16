@@ -92,7 +92,10 @@ module Solver_mono (C : Lattices_mono) = struct
            but not necessarily [v.upper <= f u.upper].
          - for all [f u \in v.vlower] and [g w \in v.vupper] we
            have either [g'f \in w.vlower] or [f'g \in u.vupper]. *)
-      id : int  (** For identification/printing *)
+      id : int;  (** For identification/printing *)
+      mutable optcopy : 'a var option
+      (** Similar to Tsubst in a type, the [optcopy] field holds an optional copy used
+          during instantiation *)
     }
 
   and 'b lmorphvar = ('b, left_only) morphvar
@@ -110,6 +113,7 @@ module Solver_mono (C : Lattices_mono) = struct
     | Cvlower : 'a var * 'a lmorphvar list -> change
     | Cvupper : 'a var * 'a rmorphvar list -> change
     | Clevel : 'a var * int -> change
+    | Coptcopy : 'a var * 'a var option -> change
 
   type changes = change list
 
@@ -119,6 +123,7 @@ module Solver_mono (C : Lattices_mono) = struct
     | Cvlower (v, vlower) -> v.vlower <- vlower
     | Cvupper (v, vupper) -> v.vupper <- vupper
     | Clevel (v, level) -> v.level <- level
+    | Coptcopy (v, copy) -> v.optcopy <- copy
 
   let empty_changes = []
 
@@ -320,6 +325,12 @@ module Solver_mono (C : Lattices_mono) = struct
     | None -> ()
     | Some log -> log := Cvupper (v, v.vupper) :: !log);
     v.vupper <- vupper
+
+  (** Function used internally by copy, where [changes] maintains the cleanup once
+      the copy is done. Unlike other setters, the [changes] is here mandatory *)
+  let set_optcopy ~changes v copy =
+    changes := Coptcopy (v, v.optcopy) :: !changes;
+    v.optcopy <- copy
 
   (** Returns [Ok ()] if success; [Error x] if failed, and [x] is the next best
     (read: strictly lower) guess to replace the constant argument that MIGHT
@@ -686,7 +697,72 @@ module Solver_mono (C : Lattices_mono) = struct
     let lower = Option.value lower ~default:(C.min obj) in
     let vlower = Option.value vlower ~default:[] in
     let vupper = Option.value vupper ~default:[] in
-    { level; upper; lower; vlower; vupper; id }
+    let optcopy = None in
+    { level; upper; lower; vlower; vupper; id; optcopy }
+
+  let rec copy_mid_v
+    : type a. changes:_ -> a C.obj -> generic_level:int -> current_level:int -> a var -> a var =
+  fun ~changes obj ~generic_level ~current_level v ->
+    if v.level <> generic_level then v
+    else begin
+      match v.optcopy with
+      | Some v' -> v'
+      | None ->
+        let copy = fresh ?upper:(Some v.upper) ?lower:(Some v.lower) obj in
+        set_optcopy ~changes v (Some copy);
+        let vupper = List.map
+          (fun (Amorphvar (u, f)) ->
+            let src = C.src obj f in
+            let ucopy = copy_mid_v ~changes src ~generic_level ~current_level u in
+            (Amorphvar (ucopy, f)))
+          v.vupper;
+        in
+        let vlower = List.map
+          (fun (Amorphvar (u, f)) ->
+            let src = C.src obj f in
+            let ucopy = copy_mid_v ~changes src ~generic_level ~current_level u in
+            (Amorphvar (ucopy, f)))
+          v.vlower
+        in
+        copy.level <- generic_level;
+        copy.vupper <- vupper;
+        copy.vlower <- vlower;
+        update_level_v ~log:None obj current_level copy;
+        copy
+    end
+
+  let copy_v
+    : type a. a C.obj -> current_level:int -> generic_level:int -> a var -> a var =
+  fun obj ~current_level ~generic_level v ->
+    let changes = ref [] in
+    let vcopy = copy_mid_v ~changes obj ~generic_level ~current_level v in
+    undo_changes !changes;
+    vcopy
+
+  let instantiate (type a l r) ~current_level ~generic_level (obj : a C.obj)
+      (a : (a, l * r) mode) : (a, l * r) mode =
+    match a with
+    | Amodevar (Amorphvar (v, f)) ->
+      let obj = C.src obj f in
+      let vcopy = copy_v obj ~generic_level ~current_level v in
+      Amodevar (Amorphvar (vcopy, f))
+    | Amode a -> Amode a
+    | Amodejoin (a, mvs) ->
+      let mvscopy = List.map
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          let vcopy = copy_v obj ~generic_level ~current_level v in
+          (Amorphvar (vcopy, f))) mvs
+      in
+      Amodejoin (a, mvscopy)
+    | Amodemeet (a, mvs) ->
+      let mvscopy = List.map
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          let vcopy = copy_v obj ~generic_level ~current_level v in
+          (Amorphvar (vcopy, f))) mvs
+      in
+      Amodemeet (a, mvscopy)
 
   let update_level (type a l r) (level : int) (obj : a C.obj) (a : (a, l * r) mode) ~log =
     match a with
@@ -1076,6 +1152,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let generalize = S.generalize
 
+    let instantiate = S.instantiate
+
     let join = S.join
 
     let meet = S.meet
@@ -1141,6 +1219,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
     let update_level = S.update_level
 
     let generalize = S.generalize
+
+    let instantiate = S.instantiate
 
     let join = S.meet
 

@@ -299,6 +299,15 @@ module type Solver_polarized = sig
     log:changes ref option ->
     unit
 
+  (** Copies all reachable variables whose level is at [generic_level],
+      and puts the level of the copy to [current_level]. Returns the copied mode *)
+  val instantiate :
+    current_level:int ->
+    generic_level:int ->
+    'a obj ->
+    ('a, 'l * 'r) mode ->
+    ('a, 'l * 'r) mode
+
   (** Creates a new mode variable above the given mode and returns [true]. In
         the speical case where the given mode is top, returns the constant top
         and [false]. *)
