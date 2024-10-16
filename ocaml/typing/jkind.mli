@@ -197,7 +197,7 @@ module Const : sig
   val get_externality_upper_bound : t -> Externality.t
 
   val of_user_written_annotation :
-    context:History.annotation_context -> Jane_syntax.Jkind.annotation -> t
+    context:History.annotation_context -> Parsetree.jkind_annotation -> t
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
@@ -330,13 +330,13 @@ type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
   context:History.annotation_context ->
-  Jane_syntax.Jkind.annotation ->
+  Parsetree.jkind_annotation ->
   'd t * annotation
 
 val of_annotation_option_default :
   default:'d t ->
   context:History.annotation_context ->
-  Jane_syntax.Jkind.annotation option ->
+  Parsetree.jkind_annotation option ->
   'd t * annotation option
 
 (** Find a jkind from a type declaration. Type declarations are special because
@@ -345,17 +345,14 @@ val of_annotation_option_default :
     attributes, and [of_type_decl] needs to look in two different places on the
     [type_declaration] to account for these two alternatives.
 
-    Returns the jkind, the user-written annotation, and the remaining unconsumed
-    attributes. (The attributes include old-style [[@@immediate]] or
-    [[@@immediate64]] attributes if those are present, but excludes any
-    attribute used by Jane Syntax to encode a [: jkind]-style jkind.)
+    Returns the jkind and the user-written annotation.
 
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
   context:History.annotation_context ->
   Parsetree.type_declaration ->
-  (jkind_l * annotation * Parsetree.attributes) option
+  (jkind_l * annotation) option
 
 (** Find a jkind from a type declaration in the same way as [of_type_decl],
     defaulting to ~default.
@@ -366,7 +363,7 @@ val of_type_decl_default :
   context:History.annotation_context ->
   default:jkind_l ->
   Parsetree.type_declaration ->
-  jkind_l * annotation option * Parsetree.attributes
+  jkind_l * annotation option
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)

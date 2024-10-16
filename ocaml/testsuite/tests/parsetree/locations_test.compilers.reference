@@ -96,6 +96,7 @@ Ptop_def
             pext_kind =
               Pext_decl
                 []
+                []
                 None
   ]
 
@@ -244,7 +245,10 @@ Ptop_def
             pattern (//toplevel//[2,1+4]..[2,1+5])
               Ppat_var "x" (//toplevel//[2,1+4]..[2,1+5])
             core_type (//toplevel//[2,1+16]..[2,1+22]) ghost
-              Ptyp_poly 'a
+              Ptyp_poly
+              [
+                var: a
+              ]
               core_type (//toplevel//[2,1+16]..[2,1+22])
                 Ptyp_arrow
                 Nolabel
@@ -330,7 +334,10 @@ Ptop_def
                               []
                       Some
                         core_type (//toplevel//[3,16+9]..[4,46+14]) ghost
-                          Ptyp_poly 'a
+                          Ptyp_poly
+                          [
+                            var: a
+                          ]
                           core_type (//toplevel//[3,16+21]..[3,16+27])
                             Ptyp_arrow
                             Nolabel
@@ -1536,7 +1543,12 @@ Ptop_def
             pattern (//toplevel//[2,1+4]..[2,1+5])
               Ppat_var "a" (//toplevel//[2,1+4]..[2,1+5])
             core_type (//toplevel//[2,1+20]..[2,1+24]) ghost
-              Ptyp_poly 'a 'b 'c
+              Ptyp_poly
+              [
+                var: a
+                var: b
+                var: c
+              ]
               core_type (//toplevel//[2,1+20]..[2,1+24])
                 Ptyp_constr "unit" (//toplevel//[2,1+20]..[2,1+24])
                 []

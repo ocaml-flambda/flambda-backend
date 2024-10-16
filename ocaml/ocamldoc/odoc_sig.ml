@@ -556,20 +556,12 @@ module Analyser =
            pmty_attributes = []
          }
 
-    let filter_out_erased_item_from_signature_jst _erased _acc
-      : Jane_syntax.Signature_item.t -> _ = function
-      | Jsig_layout (Lsig_kind_abbrev _) ->
-        Misc.fatal_error "Lsig_kind_abbrev"
-
     let filter_out_erased_items_from_signature erased signature =
       if Name.Map.is_empty erased then signature
       else List.fold_right (fun sig_item acc ->
         let take_item psig_desc = { sig_item with Parsetree.psig_desc } :: acc in
-        match Jane_syntax.Signature_item.of_ast sig_item with
-        | Some jsig_item ->
-            filter_out_erased_item_from_signature_jst erased acc jsig_item
-        | None ->
         match sig_item.Parsetree.psig_desc with
+        | Parsetree.Psig_kind_abbrev _ -> Misc.fatal_error "Psig_kind_abbrev"
         | Parsetree.Psig_attribute _
         | Parsetree.Psig_extension _
         | Parsetree.Psig_value _
@@ -886,18 +878,13 @@ module Analyser =
       in
       (0, env, [ Element_included_module im ]) (* FIXME : extend the environment? How? *)
 
-    and analyse_signature_item_desc_jst _env _signat _table _current_module_name
-        _sig_item_loc _pos_start_ele _pos_end_ele _pos_limit _comment_opt
-        : Jane_syntax.Signature_item.t -> _ = function
-      | Jsig_layout (Lsig_kind_abbrev _) ->
-        Misc.fatal_error "Lsig_kind_abbrev"
-
     (** Analyse the given signature_item_desc to create the corresponding module element
        (with the given attached comment).*)
     and analyse_signature_item_desc env _signat table current_module_name
         sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt sig_item_desc =
         match sig_item_desc with
-          Parsetree.Psig_value value_desc ->
+        | Parsetree.Psig_kind_abbrev _ -> Misc.fatal_error "Psig_kind_abbrev"
+        | Parsetree.Psig_value value_desc ->
             let name_pre = value_desc.Parsetree.pval_name in
             let type_expr =
               try Signature_search.search_value table name_pre.txt
@@ -1608,17 +1595,10 @@ module Analyser =
 
     and analyse_signature_item env _signat table current_module_name
         sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt sig_item =
-        match Jane_syntax.Signature_item.of_ast sig_item with
-        | Some jsig_item ->
-            analyse_signature_item_desc_jst
-              env _signat table current_module_name
-              sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt
-              jsig_item
-        | None ->
-            analyse_signature_item_desc
-              env _signat table current_module_name
-              sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt
-              sig_item.Parsetree.psig_desc
+      analyse_signature_item_desc
+        env _signat table current_module_name
+        sig_item_loc pos_start_ele pos_end_ele pos_limit comment_opt
+        sig_item.Parsetree.psig_desc
 
     (** Return a module_type_kind from a Parsetree.module_type and a Types.module_type *)
     and analyse_module_type_kind

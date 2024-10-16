@@ -163,4 +163,4 @@ module Const : sig
 end
 
 (** CR layouts v2.8: remove this when printing is improved *)
-type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
+type 'type_expr annotation = 'type_expr Const.t * Parsetree.jkind_annotation

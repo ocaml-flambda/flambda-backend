@@ -92,8 +92,7 @@ type mapper = {
       thus the thing being included might be a functor and not a plain module
       type *)
 
-  jkind_annotation:
-    mapper -> Jane_syntax.Jkind.t -> Jane_syntax.Jkind.t;
+  jkind_annotation: mapper -> jkind_annotation -> jkind_annotation;
   label_declaration: mapper -> label_declaration -> label_declaration;
   location: mapper -> Location.t -> Location.t;
   module_binding: mapper -> module_binding -> module_binding;
@@ -124,19 +123,11 @@ type mapper = {
 
   expr_jane_syntax:
     mapper -> Jane_syntax.Expression.t -> Jane_syntax.Expression.t;
-  extension_constructor_jane_syntax:
-    mapper ->
-    Jane_syntax.Extension_constructor.t -> Jane_syntax.Extension_constructor.t;
   module_type_jane_syntax: mapper ->
     Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
   module_expr_jane_syntax: mapper ->
     Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
   pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
-  signature_item_jane_syntax: mapper ->
-    Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;
-  structure_item_jane_syntax: mapper ->
-    Jane_syntax.Structure_item.t -> Jane_syntax.Structure_item.t;
-  typ_jane_syntax: mapper -> Jane_syntax.Core_type.t -> Jane_syntax.Core_type.t;
 }
 (** A mapper record implements one "method" per syntactic category,
     using an open recursion style: each method takes as its first
