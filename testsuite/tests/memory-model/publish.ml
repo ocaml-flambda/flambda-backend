@@ -1,9 +1,8 @@
 (* TEST
  modules = "opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml";
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
  not-bsd;
  no-tsan; (* tsan detects data races and fails *)
+ runtime5;
  {
    not-windows;
    bytecode;
