@@ -59,6 +59,21 @@ module Password : sig
 
 end
 
+(** ReaderPasswords represent read access to a capsule. *)
+module ReaderPassword : sig
+
+    type 'k t
+    (** ['k t] is the type of "reader passwords" representing the ability of the
+        current domain to have [shared] access to the capsule ['k]. As with [Password.t],
+        they don't have a runtime representation and they can't be passed between
+        domains.
+
+        Obtaining a ['k t] requires read acquire the reader-writer lock associate
+        with ['k]. *)
+end
+
+val weaken_password : 'k Password.t @ local -> 'k ReaderPassword.t @ local @@ portable
+
   (** Mutual exclusion primtives for controlling uncontended access to a capsule.
 
       Requires OCaml 5 runtime. *)
@@ -96,8 +111,56 @@ module Mutex : sig
         It marks the lock as poisoned. *)
 end
 
+module Rwlock : sig
+
+    type 'k t : value mod portable uncontended
+    (** ['k t] is the type of the reader-writer lock that controls reader and writer
+        access to the capsule ['k]. This reader-writer lock can be created when creating
+        the capsule ['k] using {!create_with_rwlock} *)
+
+    type packed : value mod portable uncontended = P : 'k t -> packed
+    (** [packed] is the type of a reader-writer lock for some unknown capsule.
+        Unpacking one provides a ['k Rwlock.t] together with a fresh existential type
+        brand for ['k]. *)
+
+    exception Poisoned
+    (** Reader-writer locks can get marked as poisoned. Any operations on a poisoned
+        reader-writer lock raise the [Poisoned] exception. *)
+
+    val with_write_lock :
+        'k t
+        -> ('k Password.t @ local -> 'a) @ local
+        -> 'a
+        @@ portable
+    (** [with_write_lock rw f] tries to write acquire the rwlock [rw]. If [rw] is already
+        write or read locked, blocks the current thread until it's unlocked. If successful,
+        provides [f] a password for the capsule ['k] associated with [rw].
+
+        If [f] raises an exception, the mutex is marked as poisoned. *)
+
+    val with_read_lock :
+        'k t
+        -> ('k ReaderPassword.t @ local -> 'a) @ local
+        -> 'a
+        @@ portable
+    (** [with_read_lock rw f] tries to read acquire the rwlock [rw]. If [rw] is already
+        write locked, increases the reader count by one until it's unlocked. If successful,
+        provides [f] a password for the capsule ['k] associated with [rw].
+
+        If [f] raises an exception, the reader-writer lock decreases the reader count,
+        and reraises the exception. Note that unlike [with_write_lock], [rw] is not
+        poisoned: doing so would create a data-race with other readers trying to read
+        from the [poison] bit. Since readers can't write into a capsule, they should not
+        be able to leave protected data in a bad state  *)
+
+    val destroy : 'k t -> 'k Password.t @@ portable
+end
+
 val create_with_mutex : unit -> Mutex.packed @@ portable
 (** [create_with_mutex ()] creates a new capsule with an associated mutex. *)
+
+val create_with_rwlock : unit -> Rwlock.packed @@ portable
+(** [create_with_rwlock ()] creates a new capsule with an associated reader-writer lock. *)
 
 (** Pointers to data within a capsule. *)
 module Data : sig
@@ -184,4 +247,27 @@ module Data : sig
     (** [expose p t] retrieves the value stored by [Ptr.t]. It requires
         a [global] [Password.t] leaked by [Mutex.destroy]. *)
 
+    val map_shared :
+      ('a : value mod portable) 'b 'k.
+      'k ReaderPassword.t @ local
+      -> ('a @ shared -> 'b) @ local portable
+      -> ('a, 'k) t
+      -> ('b, 'k) t
+      @@ portable
+    (** [map_shared p f t] applies [f] to the shared parts of [p] within the capsule ['k],
+        creating a pointer to the result. Since [nonportable] functions may enclose
+        [uncontended] (and thus write) access to data, ['a] must cross [portability] *)
+
+    val extract_shared :
+      ('a : value mod portable) 'b 'k.
+      'k ReaderPassword.t @ local
+      -> ('a @ shared -> 'b @ portable contended) @ local portable
+      -> ('a, 'k) t
+      -> 'b @ portable contended
+      @@ portable
+    (** [extract p f t] applies [f] to the value of [t] within
+        the capsule ['k] and returns the result. The result is within ['k]
+        so it must be [portable] and it is marked [contended]. Since [nonportable]
+        functions may enclose [uncontended] (and thus write) access to data,
+        ['a] must cross [portability] *)
   end
