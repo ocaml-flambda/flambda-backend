@@ -64,8 +64,8 @@ static_assert(sizeof(pool) == Bsize_wsize(POOL_HEADER_WSIZE), "");
 #define POOL_SLAB_WOFFSET(sz) (POOL_HEADER_WSIZE + wastage_sizeclass[sz])
 #define POOL_FIRST_BLOCK(p, sz) ((header_t*)(p) + POOL_SLAB_WOFFSET(sz))
 #define POOL_END(p) ((header_t*)(p) + POOL_WSIZE)
-#define POOL_BLOCKS(p) ((POOL_WSIZE - POOL_HEADER_WSIZE) / \
-                        wsize_sizeclass[(p)->sz])
+#define POOL_BLOCKS(sz) ((POOL_WSIZE - POOL_HEADER_WSIZE) / \
+                         wsize_sizeclass[sz])
 
 typedef struct large_alloc {
   caml_domain_state* owner;
@@ -1090,9 +1090,6 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
     /* We count the live blocks we have in the full pools */
     int total_live_blocks = full_pools * pool_blocks;
 
-#ifdef DEBUG
-    int total_free_blocks = 0;
-#endif
     while (cur_pool) {
       header_t* p = POOL_FIRST_BLOCK(cur_pool, sz_class);
       header_t* end = POOL_END(cur_pool);
@@ -1103,9 +1100,6 @@ void compact_phase_one_mark(struct caml_heap_state* heap) {
 
         /* A zero header in a shared heap pool indicates an empty space */
         if (!h) {
-#ifdef DEBUG
-          total_free_blocks++;
-#endif
         } else if (Has_status_hd(h, caml_global_heap_state.UNMARKED)) {
           total_live_blocks++;
         }
@@ -1330,7 +1324,7 @@ int compact_phase_two_mark(int participating_count,
 void compact_release_freelist(void) {
     pool* cur_pool;
 
-    caml_plat_lock(&pool_freelist.lock);
+    caml_plat_lock_blocking(&pool_freelist.lock);
 
     int i = 0;
     int free_pools_count = compact_count_pools(pool_freelist.free);
@@ -1506,18 +1500,18 @@ void caml_compact_heap(caml_domain_state* domain_state,
 
   caml_global_barrier(participating_count);
   compact_run_phase(heap, participating_count, participants);
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
 
   if( participants[0] == Caml_state ) {
     should_run_phase_two =
       compact_phase_two_mark(participating_count, participants);
   }
 
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
   if( should_run_phase_two ) {
     compact_run_phase(heap, participating_count, participants);
   }
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
 
   if( participants[0] == Caml_state ) {
     compact_release_freelist();
@@ -1530,7 +1524,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
    there should always be an available free list */
 static pool* acquire_pool_from_free(caml_domain_state* domain_state,
                                     sizeclass sz) {
-  caml_plat_lock(&pool_freelist.lock);
+  caml_plat_lock_blocking(&pool_freelist.lock);
   pool* p = pool_freelist.free;
 
   CAMLassert(p);
@@ -1561,7 +1555,7 @@ void compact_run_phase(struct caml_heap_state* heap,
     pool* evac_pool_last = NULL;
     pool* to_pool = NULL;
 
-    #if DEBUG
+    #ifdef DEBUG
     compact_debug_check_pools(heap->unswept_avail_pools[sz_class], 0);
     compact_debug_check_pools(heap->unswept_full_pools[sz_class], 1);
     #endif
@@ -1608,7 +1602,7 @@ void compact_run_phase(struct caml_heap_state* heap,
     /* There may be pools with an evacuate flag set in the pool_freelist.free
       but it's fine to ignore them here as this is a no-op. */
 
-    #if DEBUG
+    #ifdef DEBUG
     compact_debug_check_pools(evac_pool, 0);
     compact_debug_check_pools(to_pool, 0);
     #endif
@@ -1783,7 +1777,6 @@ void compact_run_phase(struct caml_heap_state* heap,
   /* Third step: move all evacuated pools to the pool freelist */
 
   pool* cur_pool = domain_evac_pools;
-  uintnat freed_pools = 0;
   while (cur_pool) {
     pool* next_pool = cur_pool->next;
 
@@ -1796,11 +1789,10 @@ void compact_run_phase(struct caml_heap_state* heap,
 
     pool_release(heap, cur_pool, cur_pool->sz);
     cur_pool = next_pool;
-    freed_pools++;
   }
 
   CAML_EV_END(EV_COMPACT_RELEASE);
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
 
   caml_gc_log("Compacting heap complete");
   CAML_EV_END(EV_COMPACT);
