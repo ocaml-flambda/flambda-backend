@@ -68,14 +68,13 @@ let rec env_from_summary sum subst =
       | Env_cltype (s, id, desc) ->
           Env.add_cltype id (Subst.cltype_declaration subst desc)
                          (env_from_summary s subst)
-      | Env_open(s, path) ->
+      | Env_open(s, lid) ->
           let env = env_from_summary s subst in
-          let path' = Subst.module_path subst path in
-          begin match Env.open_signature Asttypes.Override path' env with
-          | Ok env -> env
-          | Error `Functor -> assert false
-          | Error `Not_found -> raise (Error (Module_not_found path'))
-          end
+          let _, t =
+            Env.open_signature ~used_slot:(ref false) ~loc:Location.none
+              ~toplevel:false Asttypes.Override (Location.mknoloc lid) env
+          in
+          t
       | Env_functor_arg(Env_module(s, id, pres, desc), id')
             when Ident.same id id' ->
           let desc =

@@ -2964,7 +2964,7 @@ and type_pat_aux
       Pattern_env.set_env penv new_env;
       let p = type_pat tps category ~penv p expected_ty in
       let new_env = !!penv in
-      begin match Env.remove_last_open path new_env with
+      begin match Env.remove_last_open new_env with
       | None -> assert false
       | Some closed_env -> Pattern_env.set_env penv closed_env
       end;

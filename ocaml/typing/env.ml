@@ -148,7 +148,7 @@ type summary =
   | Env_modtype of summary * Ident.t * modtype_declaration
   | Env_class of summary * Ident.t * class_declaration
   | Env_cltype of summary * Ident.t * class_type_declaration
-  | Env_open of summary * Path.t
+  | Env_open of summary * Longident.t
   | Env_functor_arg of summary * Ident.t
   | Env_constraints of summary * type_declaration Path.Map.t
   | Env_copy_types of summary
@@ -226,9 +226,9 @@ module TycompTbl =
         opened = Some {using; components; root; next};
       }
 
-    let remove_last_open rt tbl =
+    let remove_last_open tbl =
       match tbl.opened with
-      | Some {root; next; _} when Path.same rt root ->
+      | Some {next; _} ->
           { next with current =
             Ident.fold_all Ident.add tbl.current next.current }
       | _ ->
@@ -374,6 +374,10 @@ module IdTbl =
 
           next: ('lock, 'a, 'b) t;
           (** The table before opening the module. *)
+
+          locks: 'lock list;
+          (** The locks from the definition of [root] to this [open], in
+              that order. *)
         }
 
       | Map of {
@@ -396,7 +400,7 @@ module IdTbl =
     let remove id tbl =
       {tbl with current = Ident.remove id tbl.current}
 
-    let add_open slot wrap root components next =
+    let add_open slot wrap root components locks next =
       let using =
         match slot with
         | None -> None
@@ -404,12 +408,12 @@ module IdTbl =
       in
       {
         current = Ident.empty;
-        layer = Open {using; root; components; next};
+        layer = Open {using; root; components; next; locks};
       }
 
-    let remove_last_open rt tbl =
+    let remove_last_open tbl =
       match tbl.layer with
-      | Open {root; next; _} when Path.same rt root ->
+      | Open {next; _} ->
           { next with current =
             Ident.fold_all Ident.add tbl.current next.current }
       | _ ->
@@ -459,10 +463,10 @@ module IdTbl =
         Ok (Pident id, macc, desc)
       with Not_found ->
         begin match tbl.layer with
-        | Open {using; root; next; components} ->
+        | Open {using; root; next; components; locks} ->
             begin try
               let descr = wrap (NameMap.find name components) in
-              let res = Pdot (root, name), macc, descr in
+              let res = Pdot (root, name), (locks @ macc), descr in
               if mark then begin match using with
               | None -> ()
               | Some f -> begin match
@@ -3273,11 +3277,19 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
 
 (* Open a signature path *)
 
-let add_components slot root env0 comps =
+let open_signature ~errors ~loc slot lid env0 =
+  let (root, locks, comps) =
+    lookup_structure_components ~errors ~use:true ~loc lid env0
+  in
   let add_l w comps env0 =
     TycompTbl.add_open slot w root comps env0
   in
-  let add w comps env0 = IdTbl.add_open slot w root comps env0 in
+  let add_v w comps env0 =
+    IdTbl.add_open slot w root comps locks env0
+  in
+  let add w comps env0 =
+    IdTbl.add_open slot w root comps ([] : empty list) env0
+  in
   let constrs =
     add_l (fun x -> `Constructor x) comps.comp_constrs env0.constrs
   in
@@ -3285,7 +3297,7 @@ let add_components slot root env0 comps =
     add_l (fun x -> `Label x) comps.comp_labels env0.labels
   in
   let values =
-    add (fun x -> `Value x) comps.comp_values env0.values
+    add_v (fun x -> `Value x) comps.comp_values env0.values
   in
   let types =
     add (fun x -> `Type x) comps.comp_types env0.types
@@ -3294,16 +3306,17 @@ let add_components slot root env0 comps =
     add (fun x -> `Module_type x) comps.comp_modtypes env0.modtypes
   in
   let classes =
-    add (fun x -> `Class x) comps.comp_classes env0.classes
+    add_v (fun x -> `Class x) comps.comp_classes env0.classes
   in
   let cltypes =
     add (fun x -> `Class_type x) comps.comp_cltypes env0.cltypes
   in
   let modules =
-    add (fun x -> `Module x) comps.comp_modules env0.modules
+    add_v (fun x -> `Module x) comps.comp_modules env0.modules
   in
+  root,
   { env0 with
-    summary = Env_open(env0.summary, root);
+    summary = Env_open(env0.summary, lid);
     constrs;
     labels;
     values;
@@ -3314,20 +3327,11 @@ let add_components slot root env0 comps =
     modules;
   }
 
-let open_signature slot root env0 : (_,_) result =
-  match get_components_res (find_module_components root env0) with
-  | Error _ -> Error `Not_found
-  | exception Not_found -> Error `Not_found
-  | Ok (Functor_comps _) -> Error `Functor
-  | Ok (Structure_comps comps) ->
-    Ok (add_components slot root env0 comps)
-
-let remove_last_open root env0 =
+let remove_last_open env0 =
   let rec filter_summary summary =
     match summary with
       Env_empty -> raise Exit
-    | Env_open (s, p) ->
-        if Path.same p root then s else raise Exit
+    | Env_open (s, _) -> s
     | Env_value _
     | Env_type _
     | Env_extension _
@@ -3345,8 +3349,8 @@ let remove_last_open root env0 =
   in
   match filter_summary env0.summary with
   | summary ->
-      let rem_l tbl = TycompTbl.remove_last_open root tbl
-      and rem tbl = IdTbl.remove_last_open root tbl in
+      let rem_l tbl = TycompTbl.remove_last_open tbl
+      and rem tbl = IdTbl.remove_last_open tbl in
       Some { env0 with
              summary;
              constrs = rem_l env0.constrs;
@@ -3362,20 +3366,18 @@ let remove_last_open root env0 =
 
 (* Open a signature from a file *)
 
-let open_pers_signature name env =
-  match open_signature None (Pident(Ident.create_persistent name)) env with
-  | (Ok _ | Error `Not_found as res) -> res
-  | Error `Functor -> assert false
-        (* a compilation unit cannot refer to a functor *)
+let open_pers_signature ~loc lid env =
+  open_signature ~errors:false ~loc None lid env
 
 let open_signature
-    ?(used_slot = ref false)
-    ?(loc = Location.none) ?(toplevel = false)
-    ovf root env =
+    ~used_slot
+    ~loc ~toplevel
+    ovf lid env =
+  let lid_s = Format.asprintf "%a" Pprintast.longident lid.txt in
   let unused =
     match ovf with
-    | Asttypes.Fresh -> Warnings.Unused_open (Path.name root)
-    | Asttypes.Override -> Warnings.Unused_open_bang (Path.name root)
+    | Asttypes.Fresh -> Warnings.Unused_open lid_s
+    | Asttypes.Override -> Warnings.Unused_open_bang lid_s
   in
   let warn_unused =
     Warnings.is_active unused
@@ -3413,9 +3415,9 @@ let open_signature
       end;
       used := true
     in
-    open_signature (Some slot) root env
+    open_signature ~errors:true ~loc:lid.loc (Some slot) lid.txt env
   end
-  else open_signature None root env
+  else open_signature ~errors:true ~loc:lid.loc None lid.txt env
 
 (* General forms of the lookup functions *)
 

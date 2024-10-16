@@ -199,16 +199,8 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
 
 (* Compute the environment after opening a module *)
 
-let type_open_ ?used_slot ?toplevel ovf env loc lid =
-  let path, _ =
-    Env.lookup_module_path ~lock:false ~load:true ~loc:lid.loc lid.txt env
-  in
-  match Env.open_signature ~loc ?used_slot ?toplevel ovf path env with
-  | Ok env -> path, env
-  | Error _ ->
-      let md = Env.find_module path env in
-      ignore (extract_sig_open env lid.loc md.md_type);
-      assert false
+let type_open_ ?(used_slot=ref false) ?(toplevel=false) ovf env loc lid =
+  Env.open_signature ~loc ~used_slot ~toplevel ovf lid env
 
 let initial_env ~loc ~initially_opened_module
     ~open_implicit_modules =

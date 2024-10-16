@@ -36,7 +36,7 @@ type summary =
   | Env_modtype of summary * Ident.t * modtype_declaration
   | Env_class of summary * Ident.t * class_declaration
   | Env_cltype of summary * Ident.t * class_type_declaration
-  | Env_open of summary * Path.t
+  | Env_open of summary * Longident.t
   (** The string set argument of [Env_open] represents a list of module names
       to skip, i.e. that won't be imported in the toplevel namespace. *)
   | Env_functor_arg of summary * Ident.t
@@ -407,14 +407,14 @@ val add_signature_lazy: Subst.Lazy.signature_item list -> t -> t
    Used to implement open. Returns None if the path refers to a functor,
    not a structure. *)
 val open_signature:
-    ?used_slot:bool ref ->
-    ?loc:Location.t -> ?toplevel:bool ->
-    Asttypes.override_flag -> Path.t ->
-    t -> (t, [`Not_found | `Functor]) result
+    used_slot:bool ref ->
+    loc:Location.t -> toplevel:bool ->
+    Asttypes.override_flag -> Longident.t Location.loc ->
+    t -> Path.t * t
 
-val open_pers_signature: string -> t -> (t, [`Not_found]) result
+val open_pers_signature: loc:Location.t -> Longident.t -> t -> Path.t * t
 
-val remove_last_open: Path.t -> t -> t option
+val remove_last_open: t -> t option
 
 (* Insertion by name *)
 

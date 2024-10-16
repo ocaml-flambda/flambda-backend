@@ -761,7 +761,10 @@ let (foo @ portable) () =
     let _ = f in
     ()
 [%%expect{|
-val foo : unit -> unit @@ global many = <fun>
+Line 3, characters 12-13:
+3 |     let _ = f in
+                ^
+Error: The value "f" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 let (_foo @ portable) () =
