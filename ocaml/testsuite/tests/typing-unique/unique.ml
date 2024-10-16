@@ -82,28 +82,42 @@ val dup : 'a -> once_ 'a * 'a = <fun>
 
 (* closing over unique values gives once closure  *)
 let f () =
-  let unique_ k = "foo" in
-  let g () = (unique_ k) ^ (unique_ k) in
-  g () ^ g ()
+  let unique_ k = [1;2;3] in
+  let g () = (unique_ k) @ [1;2;3] in
+  g () @ g ()
 [%%expect{|
-Line 3, characters 27-38:
-3 |   let g () = (unique_ k) ^ (unique_ k) in
-                               ^^^^^^^^^^^
-Error: This value is used here, but it has already been used as unique:
-Line 3, characters 13-24:
-3 |   let g () = (unique_ k) ^ (unique_ k) in
-                 ^^^^^^^^^^^
+Line 4, characters 9-10:
+4 |   g () @ g ()
+             ^
+Error: This value is used here,
+       but it is defined as once and has already been used:
+Line 4, characters 2-3:
+4 |   g () @ g ()
+      ^
 
 |}]
 
 (* but if the closure doesn't utilize the uniqueness,
   then it's not once *)
 let f () =
-  let unique_ k = "foo" in
-  let g () = k ^ k in
-  g () ^ g ()
+  let unique_ k = [1;2;3] in
+  let g () = k @ [1;2;3] in
+  g () @ g ()
 [%%expect{|
-val f : unit -> string = <fun>
+val f : unit -> int list = <fun>
+|}]
+
+(* closing over once values gives once closure *)
+(* note that in g we don't annotate k; because once_ is already the most relaxed mode *)
+let f () =
+  let once_ k = [(fun x -> x)] in
+  let g () = k @ [(fun x -> x)] in
+  g () @ g ()
+[%%expect{|
+Line 3, characters 13-14:
+3 |   let g () = k @ [(fun x -> x)] in
+                 ^
+Error: This value is "once" but expected to be "many".
 |}]
 
 (* variables inside loops will be made both aliased and many *)
@@ -173,37 +187,6 @@ let f =
 val f : unit = ()
 |}]
 
-(* the following is howerver fine, because g doesn't use the uniqueness of k;
-in fact, the k inside g is just aliased.
-    *)
-let f () =
-  let unique_ k = "foo" in
-  let g () = k ^ k in
-  (* k is unique, and thus g is once *)
-  g () ^ g ()
-[%%expect{|
-val f : unit -> string = <fun>
-|}]
-
-(* closing over once values gives once closure *)
-(* note that in g we don't annotate k; becaue once_ is already the most relaxed mode
-    *)
-let f () =
-  let once_ k = "foo" in
-  let g () = k in
-  (g (), g () )
-[%%expect{|
-Line 4, characters 9-10:
-4 |   (g (), g () )
-             ^
-Error: This value is used here,
-       but it is defined as once and has already been used:
-Line 4, characters 3-4:
-4 |   (g (), g () )
-       ^
-
-|}]
-
 let x = "foo"
 [%%expect{|
 val x : string = "foo"
@@ -219,9 +202,9 @@ Error: This value is "once" but expected to be "many".
 |}]
 
 (* the following is fine - we relax many to once *)
-let foo y = once_ x
+let foo () = once_ x
 [%%expect{|
-val foo : 'a -> once_ string = <fun>
+val foo : unit -> once_ string = <fun>
 |}]
 
 (* top-level must be aliased; the following unique is weakened to aliased *)
@@ -232,11 +215,11 @@ val foo : string = "foo"
 
 
 (* the following is bad - trying to tighten aliased to unique *)
-let foo y = unique_ x
+let foo () = unique_ x
 [%%expect{|
-Line 1, characters 20-21:
-1 | let foo y = unique_ x
-                        ^
+Line 1, characters 21-22:
+1 | let foo () = unique_ x
+                         ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
@@ -264,7 +247,7 @@ module M : sig val drop : unique_ 'a -> unique_ unit end
 
 (* In the following we won't use module *)
 (* printed modes are imprecise *)
-let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
+let unique_id : unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
 val unique_id : unique_ 'a -> unique_ 'a = <fun>
 |}]
@@ -327,19 +310,6 @@ Error: This expression has type "unique_ 'a -> 'a"
        but an expression was expected of type "'b -> unique_ 'c"
 |}]
 
-type record_update = { x : string }
-[%%expect{|
-type record_update = { x : string; }
-|}]
-
-let update2 = update { x = "bar" }
-[%%expect{|
-Line 1, characters 14-20:
-1 | let update2 = update { x = "bar" }
-                  ^^^^^^
-Error: Unbound value "update"
-|}]
-
 let inf1 (unique_ x : float) = unique_ let y = x in y
 [%%expect{|
 val inf1 : unique_ float -> float = <fun>
@@ -399,24 +369,6 @@ val ul : local_ unique_ 'a -> local_ 'a = <fun>
 let ul_ret x = exclave_ unique_ x
 [%%expect{|
 val ul_ret : unique_ 'a -> local_ 'a = <fun>
-|}]
-
-type point = { x : float; y : float }
-[%%expect{|
-type point = { x : float; y : float; }
-|}]
-
-let overwrite_point t =
-  unique_ ({t with y = 0.5}, {t with x = 0.5})
-[%%expect{|
-val overwrite_point : unique_ point -> point * point = <fun>
-|}]
-
-let gc_soundness_nobug (local_ unique_ p) (local_ f) =
-  exclave_ { p with x = f }
-[%%expect{|
-val gc_soundness_nobug : local_ unique_ point -> local_ float -> local_ point =
-  <fun>
 |}]
 
 let rec foo =
@@ -522,16 +474,16 @@ Line 4, characters 25-28:
 
 let curry =
   let unique_ x = "foo" in
-  let foo y = unique_ x in
-  (foo 1, foo 2)
+  let foo () = unique_ x in
+  (foo (), foo ())
 [%%expect{|
-Line 4, characters 10-13:
-4 |   (foo 1, foo 2)
-              ^^^
+Line 4, characters 11-14:
+4 |   (foo (), foo ())
+               ^^^
 Error: This value is used here,
        but it is defined as once and has already been used:
 Line 4, characters 3-6:
-4 |   (foo 1, foo 2)
+4 |   (foo (), foo ())
        ^^^
 
 |}]

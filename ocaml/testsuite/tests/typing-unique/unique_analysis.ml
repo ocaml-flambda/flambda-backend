@@ -8,7 +8,7 @@
    -extension layouts_beta *)
 
 (* First some helper functions *)
-let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
+let unique_id : unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
 val unique_id : unique_ 'a -> unique_ 'a = <fun>
 |}]
@@ -39,9 +39,8 @@ let branching (unique_ x) = unique_ if true then x else x
 val branching : unique_ 'a -> 'a = <fun>
 |}]
 
-(* whether we constrain uniqueness or linearity is irrelavant
-   for testing uniqueness analysis. Therefore, in the rest we
-   will only constrain uniqueness *)
+(* Uniqueness and linearity have similar restrictions on control-flow.
+   Therefore, in the rest we will only constrain uniqueness *)
 let branching (once_ x) = if true then x else x
 [%%expect{|
 val branching : once_ 'a -> once_ 'a = <fun>
@@ -240,8 +239,6 @@ Line 4, characters 50-51:
 
 |}]
 
-(* for some reason the following error message is missing "another use". Don't
-know what's wrong *)
 let mark_top_aliased =
   let unique_ xs = 2 :: 3 :: [] in
   match xs with
@@ -578,7 +575,7 @@ type r_aliased = { x : Value.t; y : Value.t @@ many aliased; }
 let foo () =
   let r = {x = Value.mk (); y = Value.mk ()} in
   ignore (aliased_id r.y);
-  (* the following is allowed, because using r uniquely implies using r.x
+  (* the following is allowed, because using r uniquely implies using r.y
      aliased *)
   ignore (unique_id r)
 [%%expect{|
@@ -664,7 +661,7 @@ let foo () =
   let r = R_aliased (Value.mk (), Value.mk ()) in
   let R_aliased (_, y) = r in
   ignore (aliased_id y);
-  (* the following is allowed, because using r uniquely implies using r.x
+  (* the following is allowed, because using r uniquely implies using r.y
      aliased *)
   ignore (unique_id r)
 [%%expect{|
@@ -743,7 +740,7 @@ Line 4, characters 20-21:
 type r = {x : float; y : float}
 
 (* CR zqian: The following should pass but doesn't, because the uniqueness
-   analysis doesn't support mode crossing. The following involes sequencing the
+   analysis doesn't support mode crossing. The following involves sequencing the
    maybe_unique usage of [r.x] and the maybe_unique usage of [r] as a whole.
    Sequencing them will force both to be aliased and many. The [unique_use] in
    [r.x] is mode-crossed (being an unboxed float) so is fine. The [unique_use]
