@@ -36,6 +36,8 @@ structure_item: ;;[x for x = 1 to 10]
 
 signature_item: module M : sig include functor F end
 
+signature_items: module M : sig include functor F end
+
 binding: [:_:] = [x for x = 1 to 10]
 
 payload: include functor F
@@ -98,6 +100,8 @@ module_type: sig include functor F end
 structure_item: ;;[x for x = 1 to 10]
 
 signature_item: module M : sig include functor F end
+
+signature_items: module M : sig include functor F end
 
 binding: [:_:] = [x for x = 1 to 10]
 
