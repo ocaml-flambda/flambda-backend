@@ -1,7 +1,4 @@
-(* TEST
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
-*)
+(* TEST *)
 let num_domains = 2
 
 let release = Atomic.make false
