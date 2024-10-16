@@ -33,6 +33,8 @@ type error =
   | Illegal_void_record_field
   | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of type_expr
+  | Unboxed_vector_in_array_comprehension
+  | Unboxed_product_in_array_comprehension
 
 exception Error of Location.t * error
 
@@ -794,7 +796,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Lconst(Const_float_array(List.map extract_float cl))
                 | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
-                | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _ ->
+                | Punboxedfloatarray _ | Punboxedintarray _
+                | Punboxedvectorarray _
+                | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
                   Misc.fatal_error "Use flambda2 for unboxed arrays"
             in
             if Types.is_mutable amut then duparray_to_mutable const else const
@@ -812,6 +816,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          way *)
       let loc = of_location ~scopes e.exp_loc in
       let array_kind = Typeopt.array_kind e elt_sort in
+      begin match array_kind with
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+      | Punboxedfloatarray _ | Punboxedintarray _ -> ()
+      | Punboxedvectorarray _ ->
+        raise (Error(e.exp_loc, Unboxed_vector_in_array_comprehension))
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        raise (Error(e.exp_loc, Unboxed_product_in_array_comprehension))
+      end;
       Transl_array_comprehension.comprehension
         ~transl_exp ~scopes ~loc ~array_kind comp
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
@@ -2301,6 +2313,14 @@ let report_error ppf = function
         "Void detected in translation for type %a:@ Please report this error \
          to the Jane Street compilers team."
         Printtyp.type_expr ty
+  | Unboxed_vector_in_array_comprehension ->
+      fprintf ppf
+        "Array comprehensions are not yet supported for arrays of unboxed \
+         vectors."
+  | Unboxed_product_in_array_comprehension ->
+      fprintf ppf
+        "Array comprehensions are not yet supported for arrays of unboxed \
+         products."
 
 let () =
   Location.register_error_of_exn
