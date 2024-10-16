@@ -460,6 +460,9 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
       let v = Bound_var.var v in
       if is_var_used env v then default () else erase ())
   | Let_cont { cont; parent; handler } ->
+    (* CR ncourant: remove unused parameters of the continuation. Note that
+       there are complexities in doing this, due to the return continuations
+       given to function calls being fixed-arity. *)
     let cont_handler =
       let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
       let handler = rebuild_expr kinds env expr in
