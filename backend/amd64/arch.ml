@@ -288,8 +288,9 @@ let win64 =
   | "win64" | "mingw64" | "cygwin" -> true
   | _                   -> false
 
-(* Specific operations that are pure *)
 
+(* Specific operations that are pure *)
+(* Keep in sync with [of_specific_operation] *)
 let operation_is_pure = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _  -> true
@@ -300,7 +301,7 @@ let operation_is_pure = function
   | Isimd op -> Simd.is_pure op
 
 (* Specific operations that can raise *)
-
+(* Keep in sync with [of_specific_operation] *)
 let operation_can_raise = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _
@@ -309,6 +310,7 @@ let operation_can_raise = function
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Icldemote _ | Iprefetch _ -> false
 
+(* Keep in sync with [of_specific_operation] *)
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _
@@ -433,59 +435,184 @@ let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (
   | Iindexed2scaled (scale1, _), Iindexed2scaled (scale2, _) ->
     Int.compare scale1 scale2
 
-let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
-  match addressing_mode_1, addressing_mode_2 with
-  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
-    match global1, global2 with
-    | Global, Global | Local, Local ->
-      if symbol1 = symbol2 then Some (Int.compare n1 n2) else None
-    | Global, Local | Local, Global -> None)
-  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
-  | Iindexed2 n1, Iindexed2 n2 -> Some (Int.compare n1 n2)
-  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
-    let scale_compare = scale1 - scale2 in
-    if scale_compare = 0 then Some (Int.compare n1 n2) else None
-  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
-    let scale_compare = scale1 - scale2 in
-    if scale_compare = 0 then Some (Int.compare n1 n2) else None
-  | Ibased _, _ -> None
-  | Iindexed _, _ -> None
-  | Iindexed2 _, _ -> None
-  | Iscaled _, _ -> None
-  | Iindexed2scaled _, _ -> None
+(* let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+ *   match addressing_mode_1, addressing_mode_2 with
+ *   | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+ *     match global1, global2 with
+ *     | Global, Global | Local, Local ->
+ *       if symbol1 = symbol2 then Some (Int.compare n1 n2) else None
+ *     | Global, Local | Local, Global -> None)
+ *   | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
+ *   | Iindexed2 n1, Iindexed2 n2 -> Some (Int.compare n1 n2)
+ *   | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+ *     let scale_compare = scale1 - scale2 in
+ *     if scale_compare = 0 then Some (Int.compare n1 n2) else None
+ *   | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+ *     let scale_compare = scale1 - scale2 in
+ *     if scale_compare = 0 then Some (Int.compare n1 n2) else None
+ *   | Ibased _, _ -> None
+ *   | Iindexed _, _ -> None
+ *   | Iindexed2 _, _ -> None
+ *   | Iscaled _, _ -> None
+ *   | Iindexed2scaled _, _ -> None *)
 
 let addressing_offset_in_bytes
       (addressing_mode_1: addressing_mode)
-      (addressing_mode_2 : addressing_mode) =
+      (addressing_mode_2 : addressing_mode)
+      ~arg_offset_in_bytes
+      args_1
+      args_2
+  =
+  let address_arg_offset_in_bytes index =
+    arg_offset_in_bytes args_1.(index) args_2.(index)
+  in
   match addressing_mode_1, addressing_mode_2 with
-  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
-    match global1, global2 with
-    | Global, Global | Local, Local ->
-      if symbol1 = symbol2 then Some (n2 - n1) else None
-    | Global, Local | Local, Global -> None)
-  | Iindexed n1, Iindexed n2 -> Some (n2 - n1)
-  | Iindexed2 n1, Iindexed2 n2 -> Some (n2 - n1)
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) ->
+    (* symbol + displ *)
+    (match global1, global2 with
+     | Global, Global | Local, Local ->
+       if String.equal symbol1 symbol2 then Some (n2 - n1) else None
+     | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 ->
+    (* reg + displ *)
+    (match address_arg_offset_in_bytes 0 with
+     | Some base_off -> Some (base_off + (n2 - n1))
+     | None -> None)
+  | Iindexed2 n1, Iindexed2 n2 ->
+    (* reg + reg + displ *)
+    (match address_arg_offset_in_bytes 0, address_arg_offset_in_bytes 1 with
+     | Some arg0_offset, Some arg1_offset ->
+       Some (arg0_offset + arg1_offset + (n2 - n1))
+     | (None, _|Some _, _) -> None)
   | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
-    let scale_compare = scale1 - scale2 in
-    if scale_compare = 0 then Some (n2 - n1) else None
+    (* reg * scale + displ *)
+    if not (Int.compare scale1 scale2 = 0) then None
+    else
+      (match address_arg_offset_in_bytes 0 with
+       | Some offset -> Some ((offset * scale1) + (n2 - n1))
+       | None -> None)
   | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
-    let scale_compare = scale1 - scale2 in
-    if scale_compare = 0 then Some (n2 - n1) else None
+    (* reg + reg * scale + displ *)
+    if not (Int.compare scale1 scale2 = 0) then None else
+      (match address_arg_offset_in_bytes 0, address_arg_offset_in_bytes 1 with
+       | Some arg0_offset, Some arg1_offset ->
+         Some (arg0_offset + (arg1_offset*scale1) + (n2 - n1))
+       | (None, _|Some _, _) -> None)
   | Ibased _, _ -> None
   | Iindexed _, _ -> None
   | Iindexed2 _, _ -> None
   | Iscaled _, _ -> None
   | Iindexed2scaled _, _ -> None
 
+(* CR gyorsh: remove *)
 let can_cross_loads_or_stores (specific_operation : specific_operation) =
   match specific_operation with
   | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ | Irdtsc
   | Irdpmc | Ilfence | Isfence | Imfence | Ipause -> false
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> true
 
+(* CR gyorsh: remove *)
 let preserves_alloc_freshness (op : specific_operation) =
   match op with
   | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ibswap _ | Isextend32
   | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
     true
   | Ifloatarithmem _ | Isimd _ -> false
+
+module Memory_access = struct
+  module Init_or_assign = struct
+    type t =
+      | Initialization
+      | Assignment
+  end
+
+  type desc =
+    | Alloc
+    | Arbitrary
+    | Read of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_mutable: bool;
+          is_atomic: bool;
+        }
+    | Write of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          init_or_assign : Init_or_assign.t
+        }
+    | Read_and_write of
+        {
+          width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_atomic: bool;
+        }
+
+  type t =
+    { desc : desc;
+      first_memory_arg_index : int
+    }
+
+  let create ?(first_memory_arg_index=0) desc =
+    Some { desc; first_memory_arg_index; }
+
+  let desc t = t.desc
+
+  let first_memory_arg_index t = t.first_memory_arg_index
+
+  (* Keep in sync with [operation_is_pure], [operation_can_raise],
+     [operation_allocates]. *)
+  let of_specific_operation : specific_operation -> t option =
+    fun op ->
+    match op with
+    | Istore_int (_n, addressing_mode, is_assignment) ->
+      let desc =
+        Write { width_in_bits = 64;
+                addressing_mode;
+                init_or_assign = if is_assignment then Assignment else Initialization
+              }
+      in
+      create ~first_memory_arg_index:0 desc
+    | Ifloatarithmem (float_width, _float_op, addressing_mode) ->
+      let width_in_bits =
+        match float_width with
+        | Float64 -> 64
+        | Float32 -> 32
+      in
+      let is_mutable =
+        (* CR-someday gyorsh: conservative, propagate mutability of Ifloatarithmem from
+           selecton to make it precise. *)
+        true
+      in
+      let desc =
+        Read {
+          width_in_bits; addressing_mode; is_mutable; is_atomic = false;
+        }
+      in
+      create ~first_memory_arg_index:1 desc
+    | Ioffset_loc (_n, addressing_mode) ->
+      let desc =
+        Read_and_write { width_in_bits = 64;
+                         addressing_mode;
+                         is_atomic = false;
+                       }
+      in
+      create desc
+    | Iprefetch  { is_write = _; locality = _; addr = _ } ->
+      (* Conservative, to prevent reordering anything around this instruction.
+         Using [addressing_mode] is tricky because it need not be the start of the
+         prefetch cache line and the interval would depend on cache line size. *)
+      create Arbitrary
+    | Irdtsc
+    | Irdpmc
+    | Ilfence | Isfence | Imfence | Ipause ->
+      (* Conservative, don't reorder around timing or ordering instructions. *)
+      create Arbitrary
+    | Isimd op ->
+      (* Conservative. we don't have any simd operations with memory operations
+         at the moment. *)
+      if Simd.is_pure op
+      then None
+      else create Arbitrary
+    | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> None
+
+end

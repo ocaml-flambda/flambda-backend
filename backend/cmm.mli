@@ -390,6 +390,7 @@ type phrase =
   | Cdata of data_item list
 
 val width_in_bits : memory_chunk -> int
+val atomic_bitwidth_to_bits : atomic_bitwidth -> int
 
 val ccatch :
      Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
@@ -434,3 +435,4 @@ val equal_memory_chunk : memory_chunk -> memory_chunk -> bool
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 
 val caml_flambda2_invalid : string
+val is_val : machtype_component -> bool

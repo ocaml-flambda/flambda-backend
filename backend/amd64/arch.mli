@@ -144,9 +144,15 @@ val float_cond_and_need_swap
 
 val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
 
-val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option
+(* val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option *)
 
-val addressing_offset_in_bytes : addressing_mode -> addressing_mode -> int option
+val addressing_offset_in_bytes
+  : addressing_mode
+  -> addressing_mode
+  -> arg_offset_in_bytes:('a -> 'a -> int option)
+  -> 'a array
+  -> 'a array
+  -> int option
 
 (** returns true only if this specific operation commutes with load instructions and
     store instructions *)
@@ -156,3 +162,43 @@ val can_cross_loads_or_stores : specific_operation -> bool
     allocation and will not load a previously stored address *)
 val preserves_alloc_freshness : specific_operation -> bool
 
+(* CR gyorsh: split out into [vectorize_utils.ml] and [arch/vectorize_specific.ml]
+   to avoid duplicating this type in each target. *)
+module Memory_access : sig
+  module Init_or_assign : sig
+    type t =
+      | Initialization
+      | Assignment
+  end
+
+  type desc =
+    | Alloc
+    | Arbitrary
+    | Read of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_mutable: bool;
+          is_atomic: bool;
+        }
+    | Write of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          init_or_assign : Init_or_assign.t
+        }
+    | Read_and_write of
+        {
+          width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_atomic: bool;
+        }
+
+  type t
+
+  val create : ?first_memory_arg_index:int -> desc -> t option
+
+  val desc : t -> desc
+
+  val first_memory_arg_index : t -> int
+
+  val of_specific_operation : specific_operation -> t option
+end

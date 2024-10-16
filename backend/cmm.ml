@@ -391,6 +391,12 @@ let width_in_bits (memory_chunk : memory_chunk) : int =
   | Word_int | Word_val | Double -> 64
   | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 128
 
+let atomic_bitwidth_to_bits (b : atomic_bitwidth) =
+  match b with
+  | Thirtytwo -> 32
+  | Sixtyfour -> 64
+  | Word -> 64
+
 let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)
 
@@ -743,3 +749,8 @@ let equal_integer_comparison left right =
     false
 
 let caml_flambda2_invalid = "caml_flambda2_invalid"
+
+let is_val (m: machtype_component) =
+  match m with
+  | Val -> true
+  | Addr | Int | Float | Vec128 | Float32 -> false

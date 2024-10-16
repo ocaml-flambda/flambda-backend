@@ -128,3 +128,41 @@ val can_cross_loads_or_stores : specific_operation -> bool
 
 val preserves_alloc_freshness : specific_operation -> bool
 
+module Memory_access : sig
+  module Init_or_assign : sig
+    type t =
+      | Initialization
+      | Assignment
+  end
+
+  type desc =
+    | Alloc
+    | Arbitrary
+    | Read of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_mutable: bool;
+          is_atomic: bool;
+        }
+    | Write of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          init_or_assign : Init_or_assign.t
+        }
+    | Read_and_write of
+        {
+          width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_atomic: bool;
+        }
+
+  type t
+
+  val create : ?first_memory_arg_index:int -> desc -> t option
+
+  val desc : t -> desc
+
+  val first_memory_arg_index : t -> int
+
+  val of_specific_operation : specific_operation -> t option
+end

@@ -477,7 +477,8 @@ type width =
   | W64
 
 type register =
-  (* Registers used in vectorized instruction(s) of one scalar instruction *)
+  (* Registers used in vectorized instruction(s) of one scalar instruction
+     group. *)
   | New of int
     (* The n-th new temporary register used in the vectorized instructions *)
   | Argument of int
@@ -503,6 +504,9 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
   (* Assumes cfg_ops are isomorphic *)
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
+  let same_width memory_chunk =
+    Int.equal width_in_bits (Cmm.width_in_bits memory_chunk)
+  in
   let width_type =
     match width_in_bits with
     | 64 -> W64
@@ -653,35 +657,41 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
     assert (arg_count = 0 && res_count = 1);
     let consts = List.map extract_const_int cfg_ops in
     create_const_vec consts
-  | Load { memory_chunk = _; addressing_mode; mutability; is_atomic } ->
-    let num_args_addressing = Arch.num_args_addressing addressing_mode in
-    assert (arg_count = num_args_addressing && res_count = 1);
-    let operation =
-      Cfg.Load
-        { memory_chunk = Onetwentyeight_unaligned;
-          addressing_mode;
-          mutability;
-          is_atomic
-        }
-    in
-    Some
-      [ { operation;
-          arguments = Array.init num_args_addressing (fun i -> Original i);
-          results = [| Result 0 |]
-        } ]
-  | Store (_, addressing_mode, is_assignment) ->
-    let num_args_addressing = Arch.num_args_addressing addressing_mode in
-    assert (arg_count = num_args_addressing + 1 && res_count = 0);
-    let operation =
-      Cfg.Store (Onetwentyeight_unaligned, addressing_mode, is_assignment)
-    in
-    Some
-      [ { operation;
-          arguments =
-            Array.append [| Argument 0 |]
-              (Array.init num_args_addressing (fun i -> Original (i + 1)));
-          results = [||]
-        } ]
+  | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
+    if not (same_width memory_chunk)
+    then None
+    else
+      let num_args_addressing = Arch.num_args_addressing addressing_mode in
+      assert (arg_count = num_args_addressing && res_count = 1);
+      let operation =
+        Cfg.Load
+          { memory_chunk = Onetwentyeight_unaligned;
+            addressing_mode;
+            mutability;
+            is_atomic
+          }
+      in
+      Some
+        [ { operation;
+            arguments = Array.init num_args_addressing (fun i -> Original i);
+            results = [| Result 0 |]
+          } ]
+  | Store (memory_chunk, addressing_mode, is_assignment) ->
+    if not (same_width memory_chunk)
+    then None
+    else
+      let num_args_addressing = Arch.num_args_addressing addressing_mode in
+      assert (arg_count = num_args_addressing + 1 && res_count = 0);
+      let operation =
+        Cfg.Store (Onetwentyeight_unaligned, addressing_mode, is_assignment)
+      in
+      Some
+        [ { operation;
+            arguments =
+              Array.append [| Argument 0 |]
+                (Array.init num_args_addressing (fun i -> Original (i + 1)));
+            results = [||]
+          } ]
   | Intop intop -> vectorize_intop intop
   | Intop_imm (intop, _) -> (
     let extract_intop_imm_int (op : Cfg.operation) =

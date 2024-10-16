@@ -12,6 +12,8 @@ asm_targets/**/*.ml
 asm_targets/**/*.mli
 cfg/**/*.ml
 cfg/**/*.mli
+cfg/vectorize.ml
+cfg/vectorize.mli
 cfg_selectgen.ml
 cfg_selectgen.mli
 cfg_selection.mli

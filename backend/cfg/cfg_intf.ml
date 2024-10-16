@@ -30,6 +30,20 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module S = struct
+  type memory_access =
+    | No_memory_access
+    | Arbitrary
+    | Read of
+        { memory_chunk : Cmm.memory_chunk;
+          addressing_mode : Arch.addressing_mode;
+          mutability : Mach.mutable_flag
+        }
+    | Write of
+        { memory_chunk : Cmm.memory_chunk;
+          addressing_mode : Arch.addressing_mode;
+          is_assignment : bool (* false means initialization *)
+        }
+
   type func_call_operation =
     | Indirect
     | Direct of Cmm.symbol
@@ -89,14 +103,14 @@ module S = struct
     | Active
 
   type 'a instruction =
-    { desc : 'a;
+    { id : int;
+      desc : 'a;
       mutable arg : Reg.t array;
       mutable res : Reg.t array;
       mutable dbg : Debuginfo.t;
       mutable fdo : Fdo_info.t;
       mutable live : Reg.Set.t;
       mutable stack_offset : int;
-      id : int;
       mutable irc_work_list : irc_work_list;
       mutable ls_order : int;
       mutable available_before : Reg_availability_set.t option;

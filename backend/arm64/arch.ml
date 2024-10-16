@@ -341,28 +341,87 @@ let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
   | _, Iindexed _ -> 1
   | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
 
-let compare_addressing_mode_displ (addressing_mode_1: addressing_mode)
-      (addressing_mode_2 : addressing_mode) =
-  match addressing_mode_1, addressing_mode_2 with
-  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
-  | Ibased (var1, n1), Ibased (var2, n2) ->
-    if String.compare var1 var2 = 0 then Some (Int.compare n1 n2) else None
-  | Iindexed _ , _ -> None
-  | Ibased _ , _ -> None
-
-let addressing_offset_in_bytes (addressing_mode_1: addressing_mode)
-      (addressing_mode_2 : addressing_mode) =
+let addressing_offset_in_bytes _ _  _  _ _ =
   None   (* conservative *)
 
+(* CR gyorsh: remove *)
 let can_cross_loads_or_stores (specific_operation : specific_operation) =
   match specific_operation with
   | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
   | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
     false   (* conservative *)
 
+(* CR gyorsh: remove *)
 let preserves_alloc_freshness (op : specific_operation) =
   match op with
   | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
   | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
     false   (* conservative *)
 
+module Memory_access = struct
+
+  module Init_or_assign = struct
+    type t =
+      | Initialization
+      | Assignment
+  end
+
+  type desc =
+    | Alloc
+    | Arbitrary
+    | Read of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_mutable: bool;
+          is_atomic: bool;
+        }
+    | Write of
+        { width_in_bits : int;
+          addressing_mode : addressing_mode;
+          init_or_assign : Init_or_assign.t
+        }
+    | Read_and_write of
+        {
+          width_in_bits : int;
+          addressing_mode : addressing_mode;
+          is_atomic: bool;
+        }
+
+  type t
+
+  val create : ?first_memory_arg_index:int -> desc -> t option
+
+  val desc : t -> desc
+
+  val first_memory_arg_index : t -> int
+
+  val of_specific_operation : specific_operation -> t option
+  type t =
+    { desc : desc;
+      first_memory_arg_index : int
+    }
+
+  let desc t = t.desc
+
+  let first_memory_arg_index t = t.first_memory_arg_index
+
+  (* Keep in sync with [operation_is_pure], [operation_can_raise],
+     [operation_allocates]. *)
+  let of_specific_operation : Arch.specific_operation -> Vectorize_utils.Memory_access.t =
+    fun op ->
+    let create ?(first_memory_arg_index=0) desc =
+      Some { desc; first_memory_arg_index; }
+    in
+    match op with
+    | Ifar_poll _ ->
+      (* Conservative, don't reorder across poll instructions. In practice, there are
+         not many poll instructions present at this stage,
+         because poll insertion pass currently happens after vectorize. *)
+      create Arbitrary
+    | Ifar_alloc _ -> create Alloc
+      (* Conservative. we don't have any specific operations with memory
+         operations at the moment. *)
+      if Simd.is_pure op
+      then None
+      else create Aribtrary
+end
