@@ -203,6 +203,7 @@ type item = {
   dinfo_scopes: Scoped_location.scopes;
   dinfo_uid: string option;
   dinfo_function_symbol: string option;
+  dinfo_dir: string option;
 }
 
 let item_with_uid_and_function_symbol item ~dinfo_uid ~dinfo_function_symbol =
@@ -237,6 +238,8 @@ module Dbg = struct
        let c = Int.compare d1.dinfo_end_bol d2.dinfo_end_bol in
        if c <> 0 then c else
        let c = Int.compare d1.dinfo_end_line d2.dinfo_end_line in
+       if c <> 0 then c else
+       let c = Option.compare String.compare d1.dinfo_dir d2.dinfo_dir in
        if c <> 0 then c else
        loop ds1 ds2
     in
@@ -312,6 +315,7 @@ let item_from_location ~scopes loc =
     dinfo_scopes = scopes;
     dinfo_uid = None;
     dinfo_function_symbol = None;
+    dinfo_dir = !Clflags.directory;
   }
 
 let from_location = function
@@ -357,44 +361,53 @@ let compare { dbg = dbg1; assume_zero_alloc = a1; }
   let res = Dbg.compare dbg1 dbg2 in
   if res <> 0 then res else ZA.Assume_info.compare a1 a2
 
-let print_item ppf item =
+let print_item ~include_dir ppf item =
+  let file = item.dinfo_file in
+  let file =
+    match item.dinfo_dir with
+    | None -> file
+    | Some dir -> if include_dir then Filename.concat dir file else file
+  in
   Format.fprintf ppf "%a:%i"
-    Location.print_filename item.dinfo_file
+    Location.print_filename file
     item.dinfo_line;
   if item.dinfo_char_start >= 0 then begin
     Format.fprintf ppf ",%i--%i" item.dinfo_char_start item.dinfo_char_end
   end
 
-let rec print_compact ppf t =
-  match t with
-  | [] -> ()
-  | [item] -> print_item ppf item
-  | item::t ->
-    print_item ppf item;
-    Format.fprintf ppf ";";
-    print_compact ppf t
-
-let print_compact ppf { dbg; } = print_compact ppf dbg
-
-let rec print_compact_extended ppf t =
+let rec print ~sep ~fs_prefix ~include_dir ~include_uid
+          ~include_fs ~include_scope ppf t =
   let print_item item =
-    print_item ppf item;
+    print_item ~include_dir ppf item;
     (match item.dinfo_uid with
     | None -> ()
-    | Some uid -> Format.fprintf ppf "[%s]" uid);
+    | Some uid ->
+      if include_uid then Format.fprintf ppf "[%s]" uid);
+    if include_scope then
+      Format.fprintf ppf "[%s]"
+        (Scoped_location.string_of_scopes item.dinfo_scopes);
     (match item.dinfo_function_symbol with
     | None -> ()
-    | Some function_symbol -> Format.fprintf ppf "[FS=%s]" function_symbol)
+    | Some function_symbol ->
+      if include_fs then Format.fprintf ppf "[%s%s]" fs_prefix function_symbol)
   in
   match t with
   | [] -> ()
   | [item] -> print_item item
   | item::t ->
     print_item item;
-    Format.fprintf ppf ";";
-    print_compact_extended ppf t
+    Format.fprintf ppf "%s" sep;
+    print ~sep ~fs_prefix ~include_dir ~include_uid ~include_fs ~include_scope ppf t
 
-let print_compact_extended ppf { dbg; } = print_compact_extended ppf dbg
+let[@inline always] print_with_defaults ~include_uid ~include_fs ppf dbg =
+  print ~sep:";" ~fs_prefix:"FS=" ~include_uid ~include_fs ~include_dir:false
+    ~include_scope:false ppf dbg
+
+let print_compact_extended ppf { dbg; } =
+  print_with_defaults ~include_uid:true ~include_fs:true ppf dbg
+
+let print_compact ppf { dbg; } =
+  print_with_defaults ~include_uid:false ~include_fs:false ppf dbg
 
 let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2 } =

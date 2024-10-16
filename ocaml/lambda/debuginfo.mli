@@ -79,6 +79,7 @@ type item = private {
       set to [Some] by Flambda 2. *)
   dinfo_uid: string option;
   dinfo_function_symbol: string option;
+  dinfo_dir: string option;
 }
 
 val item_with_uid_and_function_symbol : item -> dinfo_uid:string option
@@ -121,6 +122,9 @@ val print_compact : Format.formatter -> t -> unit
 
 (** Like [print_compact] but also prints uid and function symbol info. *)
 val print_compact_extended : Format.formatter -> t -> unit
+
+val print : sep:string -> fs_prefix:string -> include_dir:bool -> include_uid:bool
+  -> include_fs:bool -> include_scope:bool -> Format.formatter -> item list -> unit
 
 val merge : into:t -> t -> t
 
