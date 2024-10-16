@@ -56,7 +56,7 @@ let test_out ?(flags = []) filename =
   let rec big n = if n <= 0 then A else H(n, big(n-1)) in
   Marshal.to_channel oc (big 1000) flags;
   Marshal.to_channel oc y (Marshal.No_sharing :: flags);
-  Marshal.to_channel oc fib (Marshal.Closures :: flags);
+  Marshal.to_channel oc fib (Marshal.Closures[@alert "-deprecated"] :: flags);
   Marshal.to_channel oc (Int32.of_string "0") flags;
   Marshal.to_channel oc (Int32.of_string "123456") flags;
   Marshal.to_channel oc (Int32.of_string "-123456") flags;
@@ -502,21 +502,21 @@ end
 (* Test for objects *)
 let test_objects () =
   let x = new foo in
-  let s = Marshal.to_string x [Marshal.Closures] in
+  let s = Marshal.to_string x [Marshal.Closures[@alert "-deprecated"]] in
   let x = Marshal.from_string s 0 in
   test 500 (x#test1 = "foobar");
   test 501 (x#test2 = false);
   test 502 (x#test3 = "foobar");
   test 503 (x#test4 = 42L);
   let x = new bar in
-  let s = Marshal.to_string x [Marshal.Closures] in
+  let s = Marshal.to_string x [Marshal.Closures[@alert "-deprecated"]] in
   let x = Marshal.from_string s 0 in
   test 504 (x#test1 = "footest5test3test442");
   test 505 (x#test2 = false);
   test 506 (x#test3 = "footest5test3test442");
   test 507 (x#test4 = 42L);
   let x0 = new foobar in
-  let s = Marshal.to_string x0 [Marshal.Closures] in
+  let s = Marshal.to_string x0 [Marshal.Closures[@alert "-deprecated"]] in
   let x = Marshal.from_string s 0 in
   test 508 (x#test1 = "footest5test3test442");
   test 509 (x#test2 = false);
@@ -537,7 +537,7 @@ let test_infix () =
     then t
     else odd (n-1)
   in
-  let s = Marshal.to_string (odd, even) [Marshal.Closures] in
+  let s = Marshal.to_string (odd, even) [Marshal.Closures[@alert "-deprecated"]] in
   let (odd', even': (int -> bool) * (int -> bool)) = Marshal.from_string s 0 in
   test 600 (odd' 41 = true);
   test 601 (odd' 41 = odd 41);
@@ -556,7 +556,7 @@ let test_mutual_rec_regression () =
   let g () = () in
   let f q = if test_list q then g () in
 
-  test 700 (try ignore (Marshal.to_string f [Marshal.Closures]); true
+  test 700 (try ignore (Marshal.to_string f [Marshal.Closures[@alert "-deprecated"]]); true
             with _ -> false)
 
 let test_end_of_file_regression () =

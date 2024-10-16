@@ -57,7 +57,8 @@ open! Stdlib
 
 type extern_flags =
     No_sharing                          (** Don't preserve sharing *)
-  | Closures                            (** Send function closures *)
+  | Closures [@deprecated "Marshaling closures is unsafe."]
+                                        (** Send function closures *)
   | Compat_32                           (** Ensure 32-bit compatibility *)
 
 (** The flags to the [Marshal.to_*] functions below. *)
