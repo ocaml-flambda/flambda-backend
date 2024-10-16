@@ -32,7 +32,7 @@ module Scoped_location : sig
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;
                assume_zero_alloc: ZA.Assume_info.t}
 
-  val string_of_scopes : scopes -> string
+  val string_of_scopes : ?include_zero_alloc:bool -> scopes -> string
 
   val compilation_unit : scopes -> Compilation_unit.t option
 
@@ -79,6 +79,7 @@ type item = private {
       set to [Some] by Flambda 2. *)
   dinfo_uid: string option;
   dinfo_function_symbol: string option;
+  dinfo_dir: string option;
 }
 
 val item_with_uid_and_function_symbol : item -> dinfo_uid:string option
@@ -122,6 +123,9 @@ val print_compact : Format.formatter -> t -> unit
 (** Like [print_compact] but also prints uid and function symbol info. *)
 val print_compact_extended : Format.formatter -> t -> unit
 
+val print : sep:string -> fs_prefix:string -> include_dir:bool -> include_uid:bool
+  -> include_fs:bool -> include_scope:bool -> Format.formatter -> item list -> unit
+
 val merge : into:t -> t -> t
 
 val assume_zero_alloc : t -> ZA.Assume_info.t
@@ -132,7 +136,14 @@ module Dbg : sig
   (** [compare] and [hash] ignore [dinfo_scopes] field of item *)
 
   val is_none : t -> bool
+
+  (** [compare] Inner-most inlined debug info is used first. Allocates. *)
   val compare : t -> t -> int
+
+  (** [compare_outer_first] Outer-most inlined debug info is used first.
+      Does not allocate. *)
+  val compare_outer_first : t -> t -> int
+
   val hash : t -> int
   val to_list : t -> item list
   val length : t -> int

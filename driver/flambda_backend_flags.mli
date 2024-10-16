@@ -55,6 +55,7 @@ type zero_alloc_checker_details_cutoff =
 
 val zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff ref
 val default_zero_alloc_checker_details_cutoff : zero_alloc_checker_details_cutoff
+val zero_alloc_checker_details_extra : bool ref
 
 type zero_alloc_checker_join =
   | Keep_all

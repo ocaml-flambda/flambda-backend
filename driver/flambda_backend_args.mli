@@ -67,6 +67,8 @@ module type Flambda_backend_options = sig
   val disable_zero_alloc_checker : unit -> unit
   val disable_precise_zero_alloc_checker : unit -> unit
   val zero_alloc_checker_details_cutoff : int -> unit
+  val zero_alloc_checker_details_extra : unit -> unit
+  val no_zero_alloc_checker_details_extra : unit -> unit
   val zero_alloc_checker_join : int -> unit
 
   val function_layout : string -> unit

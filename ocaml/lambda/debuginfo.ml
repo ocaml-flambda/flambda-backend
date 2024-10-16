@@ -133,16 +133,19 @@ module Scoped_location = struct
     | Empty -> ZA.Assume_info.none
     | Cons { assume_zero_alloc; _ } -> assume_zero_alloc
 
-  let string_of_scopes = function
+  let string_of_scopes ~include_zero_alloc = function
     | Empty -> "<unknown>"
     | Cons {str; assume_zero_alloc; _} ->
-      str^(ZA.Assume_info.to_string assume_zero_alloc)
+      if include_zero_alloc then
+        str^(ZA.Assume_info.to_string assume_zero_alloc)
+      else
+        str
 
-  let string_of_scopes =
+  let string_of_scopes ?(include_zero_alloc=false) =
     let module StringSet = Set.Make (String) in
     let repr = ref StringSet.empty in
     fun scopes ->
-      let res = string_of_scopes scopes in
+      let res = string_of_scopes scopes ~include_zero_alloc in
       match StringSet.find_opt res !repr with
       | Some x -> x
       | None ->
@@ -203,6 +206,7 @@ type item = {
   dinfo_scopes: Scoped_location.scopes;
   dinfo_uid: string option;
   dinfo_function_symbol: string option;
+  dinfo_dir: string option;
 }
 
 let item_with_uid_and_function_symbol item ~dinfo_uid ~dinfo_function_symbol =
@@ -211,12 +215,7 @@ let item_with_uid_and_function_symbol item ~dinfo_uid ~dinfo_function_symbol =
 module Dbg = struct
  type t = item list
 
-  (* CR-someday afrisch: FWIW, the current compare function does not seem very
-     good, since it reverses the two lists. I don't know how long the lists are,
-     nor if the specific currently implemented ordering is useful in other
-     contexts, but if one wants to use Map, a more efficient comparison should
-     be considered. *)
-  let compare dbg1 dbg2 =
+  let compare_aux dbg1 dbg2 =
     let rec loop ds1 ds2 =
       match ds1, ds2 with
       | [], [] -> 0
@@ -238,9 +237,21 @@ module Dbg = struct
        if c <> 0 then c else
        let c = Int.compare d1.dinfo_end_line d2.dinfo_end_line in
        if c <> 0 then c else
+       let c = Option.compare String.compare d1.dinfo_dir d2.dinfo_dir in
+       if c <> 0 then c else
        loop ds1 ds2
     in
-    loop (List.rev dbg1) (List.rev dbg2)
+    loop dbg1 dbg2
+
+  (* CR-someday afrisch: FWIW, the current compare function does not seem very
+     good, since it reverses the two lists. I don't know how long the lists are,
+     nor if the specific currently implemented ordering is useful in other
+     contexts, but if one wants to use Map, a more efficient comparison should
+     be considered. *)
+  let compare dbg1 dbg2 = compare_aux (List.rev dbg1) (List.rev dbg2)
+
+  (* Outermost inlined location first. *)
+  let compare_outer_first dbg1 dbg2 = compare_aux dbg1 dbg2
 
   let is_none dbg =
     match dbg with
@@ -312,6 +323,7 @@ let item_from_location ~scopes loc =
     dinfo_scopes = scopes;
     dinfo_uid = None;
     dinfo_function_symbol = None;
+    dinfo_dir = !Clflags.directory;
   }
 
 let from_location = function
@@ -365,36 +377,44 @@ let print_item ppf item =
     Format.fprintf ppf ",%i--%i" item.dinfo_char_start item.dinfo_char_end
   end
 
-let rec print_compact ppf t =
-  match t with
-  | [] -> ()
-  | [item] -> print_item ppf item
-  | item::t ->
-    print_item ppf item;
-    Format.fprintf ppf ";";
-    print_compact ppf t
-
-let print_compact ppf { dbg; } = print_compact ppf dbg
-
-let rec print_compact_extended ppf t =
+let rec print ~sep ~fs_prefix ~include_dir ~include_uid
+          ~include_fs ~include_scope ppf t =
   let print_item item =
+    (match item.dinfo_dir with
+     | None -> ()
+     | Some dir ->
+       if include_dir then
+         Format.fprintf ppf "%a/" Location.print_filename dir);
     print_item ppf item;
     (match item.dinfo_uid with
     | None -> ()
-    | Some uid -> Format.fprintf ppf "[%s]" uid);
+    | Some uid ->
+      if include_uid then Format.fprintf ppf "[%s]" uid);
+    if include_scope then
+      Format.fprintf ppf "[%s]"
+        (Scoped_location.string_of_scopes item.dinfo_scopes);
     (match item.dinfo_function_symbol with
     | None -> ()
-    | Some function_symbol -> Format.fprintf ppf "[FS=%s]" function_symbol)
+    | Some function_symbol ->
+      if include_fs then Format.fprintf ppf "[%s%s]" fs_prefix function_symbol)
   in
   match t with
   | [] -> ()
   | [item] -> print_item item
   | item::t ->
     print_item item;
-    Format.fprintf ppf ";";
-    print_compact_extended ppf t
+    Format.fprintf ppf "%s" sep;
+    print ~sep ~fs_prefix ~include_dir ~include_uid ~include_fs ~include_scope ppf t
 
-let print_compact_extended ppf { dbg; } = print_compact_extended ppf dbg
+let[@inline always] print_with_defaults ~include_uid ~include_fs ppf dbg =
+  print ~sep:";" ~fs_prefix:"FS=" ~include_uid ~include_fs ~include_dir:false
+    ~include_scope:false ppf dbg
+
+let print_compact_extended ppf { dbg; } =
+  print_with_defaults ~include_uid:true ~include_fs:true ppf dbg
+
+let print_compact ppf { dbg; } =
+  print_with_defaults ~include_uid:false ~include_fs:false ppf dbg
 
 let merge ~into:{ dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2 } =

@@ -1,0 +1,32 @@
+File "test_sort_witnesses.ml", line 40, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_sort_witnesses.compute (camlTest_sort_witnesses.compute_HIDE_STAMP)
+
+File "test_sort_witnesses.ml", line 47, characters 10-16:
+Error: allocation of 16 bytes
+inlined from
+test_sort_witnesses.ml:36,19--43[Test_sort_witnesses.S.to_float_option][camlTest_sort_witnesses.to_float_option_HIDE_STAMP]
+test_sort_witnesses.ml:42,4--30[Test_sort_witnesses.compute.size][camlTest_sort_witnesses.size_HIDE_STAMP]
+test_sort_witnesses.ml:47,10--16[Test_sort_witnesses.compute]
+
+File "test_sort_witnesses.ml", line 47, characters 10-16:
+Error: allocation of 16 bytes
+inlined from
+test_sort_witnesses.ml:24,35--77[Test_sort_witnesses.Int.to_float][camlTest_sort_witnesses.to_float_HIDE_STAMP]
+test_sort_witnesses.ml:36,24--43[Test_sort_witnesses.S.to_float_option][camlTest_sort_witnesses.to_float_option_HIDE_STAMP]
+test_sort_witnesses.ml:42,4--30[Test_sort_witnesses.compute.size][camlTest_sort_witnesses.size_HIDE_STAMP]
+test_sort_witnesses.ml:47,10--16[Test_sort_witnesses.compute]
+
+File "test_sort_witnesses.ml", line 48, characters 10-16:
+Error: allocation of 16 bytes
+inlined from
+test_sort_witnesses.ml:36,19--43[Test_sort_witnesses.S.to_float_option][camlTest_sort_witnesses.to_float_option_HIDE_STAMP]
+test_sort_witnesses.ml:42,4--30[Test_sort_witnesses.compute.size][camlTest_sort_witnesses.size_HIDE_STAMP]
+test_sort_witnesses.ml:48,10--16[Test_sort_witnesses.compute]
+
+File "test_sort_witnesses.ml", line 48, characters 10-16:
+Error: allocation of 16 bytes
+inlined from
+test_sort_witnesses.ml:24,35--77[Test_sort_witnesses.Int.to_float][camlTest_sort_witnesses.to_float_HIDE_STAMP]
+test_sort_witnesses.ml:36,24--43[Test_sort_witnesses.S.to_float_option][camlTest_sort_witnesses.to_float_option_HIDE_STAMP]
+test_sort_witnesses.ml:42,4--30[Test_sort_witnesses.compute.size][camlTest_sort_witnesses.size_HIDE_STAMP]
+test_sort_witnesses.ml:48,10--16[Test_sort_witnesses.compute]

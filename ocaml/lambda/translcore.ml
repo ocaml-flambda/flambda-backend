@@ -1188,8 +1188,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let pos =
         match !Clflags.directory with
         | None -> pos
-        | Some directory ->
-          let pos_fname = directory ^ "/" ^ pos.pos_fname in
+        | Some _ ->
+          let pos_fname = Clflags.prepend_directory pos.pos_fname in
           { pos with pos_fname }
       in
       let cl =

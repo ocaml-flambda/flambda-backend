@@ -57,7 +57,10 @@ module Witness = struct
   let compare { dbg = dbg1; kind = kind1 } { dbg = dbg2; kind = kind2 } =
     (* compare by [dbg] first to print the errors in the order they appear in
        the source file. *)
-    let c = Debuginfo.compare dbg1 dbg2 in
+    let c =
+      Debuginfo.Dbg.compare_outer_first (Debuginfo.get_dbg dbg1)
+        (Debuginfo.get_dbg dbg2)
+    in
     if c <> 0 then c else Stdlib.compare kind1 kind2
 
   let print_kind ppf kind =
@@ -1607,8 +1610,24 @@ end = struct
     let pp_inlined_dbg ppf dbg =
       (* Show inlined locations, if dbg has more than one item. The first item
          will be shown at the start of the error message. *)
-      if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
-      then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
+      let items = Debuginfo.to_items dbg in
+      if List.compare_length_with items 1 > 0
+      then
+        (* Print the inlined stack starting from the innermost frame, i.e., the
+           location that directly contains the witness instruction before
+           inlining. *)
+        let items = List.rev items in
+        if !Flambda_backend_flags.zero_alloc_checker_details_extra
+        then
+          Format.fprintf ppf "\ninlined from\n%a"
+            (Debuginfo.print ~sep:"\n" ~fs_prefix:"" ~include_dir:true
+               ~include_fs:true ~include_uid:false ~include_scope:true)
+            items
+        else
+          Format.fprintf ppf " (%a)"
+            (Debuginfo.print ~sep:";" ~fs_prefix:"" ~include_dir:true
+               ~include_fs:false ~include_uid:false ~include_scope:false)
+            items
     in
     let print_comballoc dbg =
       match dbg with
@@ -1718,7 +1737,11 @@ end = struct
       (* Sort by function's location. If debuginfo is missing, keep sorted by
          function name. *)
       let compare t1 t2 =
-        let c = Debuginfo.compare t1.fun_dbg t2.fun_dbg in
+        let c =
+          Debuginfo.Dbg.compare
+            (Debuginfo.get_dbg t1.fun_dbg)
+            (Debuginfo.get_dbg t2.fun_dbg)
+        in
         if not (Int.equal c 0)
         then c
         else String.compare t1.fun_name t2.fun_name

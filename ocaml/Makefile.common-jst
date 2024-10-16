@@ -34,7 +34,7 @@ define dune_runtime_stdlib_context
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
   (env (_
-    (flags (:standard -warn-error +A))
+    (flags (:standard -directory stdlib -warn-error +A))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
@@ -47,7 +47,7 @@ define dune_main_context
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/runtime_stdlib_install/lib/ocaml_runtime_stdlib")))
   (env (_
-    (flags (:standard -warn-error +A))
+    (flags (:standard -directory compiler-distro -warn-error +A))
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
