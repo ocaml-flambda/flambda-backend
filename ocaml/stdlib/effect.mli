@@ -42,7 +42,7 @@ external perform : 'a t -> 'a @@ portable = "%perform"
 module Deep : sig
   (** Deep handlers *)
 
-  type ('a,'b) continuation
+  type ('a,'b) continuation : value mod uncontended
   (** [('a,'b) continuation] is a delimited continuation that expects a ['a]
       value and returns a ['b] value. *)
 
@@ -79,6 +79,13 @@ module Deep : sig
   val match_with: ('c -> 'a) -> 'c -> ('a,'b) handler -> 'b @@ portable
   (** [match_with f v h] runs the computation [f v] in the handler [h]. *)
 
+  type ('a,'b) handler_portable =
+    { retc: 'a -> 'b @@ portable;
+      exnc: exn -> 'b @@ portable;
+      effc: 'c.'c t -> (('c,'b) continuation @ portable -> 'b) option @@ portable }
+
+  val match_with_portable: ('c -> 'a) @ portable -> 'c -> ('a,'b) handler_portable -> 'b @@ portable
+
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b, 'a) continuation -> 'a) option }
   (** ['a effect_handler] is a deep handler with an identity value handler
@@ -87,6 +94,11 @@ module Deep : sig
 
   val try_with: ('b -> 'a) -> 'b -> 'a effect_handler -> 'a @@ portable
   (** [try_with f v h] runs the computation [f v] under the handler [h]. *)
+
+  type 'a effect_handler_portable =
+    { effc: 'b. 'b t -> (('b, 'a) continuation @ portable -> 'a) option @@ portable }
+
+  val try_with_portable: ('b -> 'a) @ portable -> 'b -> 'a effect_handler_portable -> 'a @@ portable
 
   external get_callstack :
     ('a,'b) continuation -> int -> Printexc.raw_backtrace @@ portable =

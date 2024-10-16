@@ -104,8 +104,8 @@ val spawn : (unit -> 'a) -> 'a t
     @raise Failure if the program has insufficient resources to create another
     domain. *)
 
-val spawn_safe : (unit -> 'a) @ portable -> 'a t
-val spawn_with_dls : (DLS.password -> 'a) @ portable -> 'a t
+val spawn_safe : (unit -> 'a) @ portable -> 'a t @@ portable
+val spawn_with_dls : (DLS.password -> 'a) @ portable -> 'a t @@ portable
 
 val join : 'a t -> 'a @@ portable
 (** [join d] blocks until domain [d] runs to completion. If [d] results in a

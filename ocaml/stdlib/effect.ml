@@ -44,15 +44,22 @@ external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b @@ portable = "%run
 
 module Deep = struct
 
-  type ('a,'b) continuation
+  type ('a,'b) continuation : value mod uncontended
   type last_fiber
 
   external take_cont_noexc : ('a, 'b) continuation -> ('a, 'b) stack @@ portable =
     "caml_continuation_use_noexc" [@@noalloc]
+
   external alloc_stack :
     ('a -> 'b) ->
     (exn -> 'b) ->
     ('c t -> ('c, 'b) continuation -> last_fiber -> 'b) ->
+    ('a, 'b) stack @@ portable = "caml_alloc_stack"
+
+  external alloc_stack_portable :
+    ('a -> 'b) @ portable ->
+    (exn -> 'b) @ portable ->
+    ('c t -> ('c, 'b) continuation @ portable -> last_fiber -> 'b) @ portable ->
     ('a, 'b) stack @@ portable = "caml_alloc_stack"
 
   let continue k v = resume (take_cont_noexc k) (fun x -> x) v
@@ -79,6 +86,21 @@ module Deep = struct
     let s = alloc_stack handler.retc handler.exnc effc in
     runstack s comp arg
 
+  type ('a,'b) handler_portable =
+    { retc: 'a -> 'b @@ portable;
+      exnc: exn -> 'b @@ portable;
+      effc: 'c.'c t -> (('c,'b) continuation @ portable -> 'b) option @@ portable }
+
+  let match_with_portable comp arg (handler : _ handler_portable) =
+    let handle = handler.effc in
+    let effc eff k last_fiber =
+      match handle eff with
+      | Some f -> f k
+      | None -> reperform eff k last_fiber
+    in
+    let s = alloc_stack_portable handler.retc handler.exnc effc in
+    runstack s comp arg
+
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b,'a) continuation -> 'a) option }
 
@@ -89,6 +111,19 @@ module Deep = struct
       | None -> reperform eff k last_fiber
     in
     let s = alloc_stack (fun x -> x) (fun e -> raise e) effc' in
+    runstack s comp arg
+
+  type 'a effect_handler_portable =
+    { effc: 'b. 'b t -> (('b,'a) continuation @ portable -> 'a) option @@ portable }
+
+  let try_with_portable comp arg handler =
+    let handle = handler.effc in
+    let effc' eff k last_fiber =
+      match handle eff with
+      | Some f -> f k
+      | None -> reperform eff k last_fiber
+    in
+    let s = alloc_stack_portable (fun x -> x) (fun e -> raise e) effc' in
     runstack s comp arg
 
   external get_callstack :
