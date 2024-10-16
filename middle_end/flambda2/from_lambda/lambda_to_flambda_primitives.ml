@@ -141,6 +141,8 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
+  (* CR mshinwell/ncourant: split into a two-level type so that
+     [Naked_floats_to_be_boxed] is separate *)
   type t =
     | Immediates
     | Values
@@ -863,6 +865,7 @@ let check_array_access ~dbg ~array (array_kind : P.Array_kind_for_length.t)
 let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
     (array_ref_kind : Array_ref_kind.t) ~current_region : H.expr_primitive list
     =
+  (* CR mshinwell/ncourant: can we avoid taking [array_kind] here? *)
   let mut : Mutability.t =
     match mut with
     | Immutable | Immutable_unique -> Immutable
