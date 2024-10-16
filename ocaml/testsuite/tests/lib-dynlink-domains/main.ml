@@ -1,10 +1,5 @@
 (* TEST
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
-*)
-
-(* BACKPORT
-(* TEST
+ runtime5;
  include dynlink;
  libraries = "";
  readonly_files = "store.ml main.ml Plugin_0.ml Plugin_0_0.ml Plugin_0_0_0.ml Plugin_0_0_0_0.ml Plugin_0_0_0_1.ml Plugin_0_0_0_2.ml Plugin_1.ml Plugin_1_0.ml Plugin_1_0_0.ml Plugin_1_0_0_0.ml Plugin_1_1.ml Plugin_1_2.ml Plugin_1_2_0.ml Plugin_1_2_0_0.ml Plugin_1_2_1.ml Plugin_1_2_2.ml Plugin_1_2_2_0.ml Plugin_1_2_3.ml Plugin_1_2_3_0.ml";
@@ -228,5 +223,3 @@ let stored = Atomic.get Store.store
 let stored_set = String_set.of_list stored
 let () =
   List.iter (Printf.printf "%s\n") (String_set.elements stored_set)
-
-*)

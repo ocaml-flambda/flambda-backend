@@ -1,7 +1,8 @@
 (* TEST
  ocamlopt_flags += " -O3 ";
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 let rec safe_force l =
   try Lazy.force l with

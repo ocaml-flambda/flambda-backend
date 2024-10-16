@@ -829,8 +829,19 @@ int caml_do_opportunistic_major_slice
 
 /* Make sure the minor heap is empty by performing a minor collection
    if needed.
+
+   This function also samples [caml_gc_mark_phase_requested] to see whether
+   [caml_mark_roots_stw] should be called. To guarantee that all domains
+   agree on whether the roots should be marked, this variable is sampled
+   only once, instead of having domains check it individually.
 */
-void caml_empty_minor_heap_setup(caml_domain_state* domain_unused) {
+void caml_empty_minor_heap_setup(caml_domain_state* domain_unused,
+                                 void* mark_requested) {
+  /* Check whether the mark phase has been requested */
+  *((uintnat*)mark_requested) =
+    atomic_load_relaxed(&caml_gc_mark_phase_requested)
+    ? atomic_exchange(&caml_gc_mark_phase_requested, 0)
+    : 0;
   /* Increment the total number of minor collections done in the program */
   nonatomic_increment_counter (&caml_minor_collections_count);
   caml_plat_barrier_reset(&minor_gc_end_barrier);
@@ -839,7 +850,7 @@ void caml_empty_minor_heap_setup(caml_domain_state* domain_unused) {
 /* must be called within a STW section */
 static void
 caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
-                                         void* unused,
+                                         void* mark_requested_ptr,
                                          int participating_count,
                                          caml_domain_state** participating)
 {
@@ -851,12 +862,19 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
     caml_fatal_error("Minor GC triggered recursively");
   Caml_state->in_minor_collection = 1;
 
+  /* mark_requested_ptr must be read before minor GC barrier */
+  uintnat mark_requested = *(uintnat*)mark_requested_ptr;
+
   if( participating[0] == domain ) {
     nonatomic_increment_counter(&caml_minor_cycles_started);
   }
 
   caml_gc_log("running stw empty_minor_heap_promote");
   caml_empty_minor_heap_promote(domain, participating_count, participating);
+
+  /* while the minor heap is empty, allow the major GC to mark roots */
+  if (mark_requested)
+    caml_mark_roots_stw(participating_count, participating);
 
   CAML_EV_BEGIN(EV_MINOR_FINALIZED);
   caml_gc_log("finalizing dead minor custom blocks");
@@ -887,11 +905,12 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   Caml_state->in_minor_collection = 0;
 }
 
-static void caml_stw_empty_minor_heap (caml_domain_state* domain, void* unused,
+static void caml_stw_empty_minor_heap (caml_domain_state* domain,
+                                       void* mark_requested,
                                        int participating_count,
                                        caml_domain_state** participating)
 {
-  caml_stw_empty_minor_heap_no_major_slice(domain, unused,
+  caml_stw_empty_minor_heap_no_major_slice(domain, mark_requested,
                                            participating_count, participating);
 }
 
@@ -902,13 +921,14 @@ void caml_empty_minor_heap_no_major_slice_from_stw(
   int participating_count,
   caml_domain_state** participating)
 {
+  static uintnat mark_requested; /* written by only one domain */
   Caml_global_barrier_if_final(participating_count) {
-    caml_empty_minor_heap_setup(domain);
+    caml_empty_minor_heap_setup(domain, &mark_requested);
   }
 
   /* if we are entering from within a major GC STW section then
      we do not schedule another major collection slice */
-  caml_stw_empty_minor_heap_no_major_slice(domain, (void*)0,
+  caml_stw_empty_minor_heap_no_major_slice(domain, &mark_requested,
                                            participating_count, participating);
 }
 
@@ -920,9 +940,11 @@ int caml_try_empty_minor_heap_on_all_domains (void)
   #endif
 
   caml_gc_log("requesting stw empty_minor_heap");
+  uintnat mark_requested;
   return caml_try_run_on_all_domains_with_spin_work(
     1, /* synchronous */
-    &caml_stw_empty_minor_heap, 0, /* stw handler */
+    &caml_stw_empty_minor_heap, /* stw handler */
+    &mark_requested,
     &caml_empty_minor_heap_setup, /* leader setup */
     &caml_do_opportunistic_major_slice, 0 /* enter spin work */);
     /* leaves when done by default*/

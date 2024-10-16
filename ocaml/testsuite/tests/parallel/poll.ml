@@ -1,8 +1,8 @@
 (* TEST
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
+ poll-insertion;
  include unix;
  hasunix;
+ runtime5;
  {
    bytecode;
  }{

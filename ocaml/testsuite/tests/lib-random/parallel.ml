@@ -1,7 +1,6 @@
 (* TEST
  include unix;
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
+ runtime5;
  libunix;
  {
    bytecode;

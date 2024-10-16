@@ -1,7 +1,6 @@
 (* TEST
+ runtime5;
  include unix;
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
  hasunix;
  not-windows;
  {

@@ -291,6 +291,9 @@ void caml_request_major_slice (int global)
   }else{
     Caml_state->requested_major_slice = 1;
   }
+  /* Beginning the mark phase requires emptying the minor heap */
+  if (atomic_load_relaxed(&caml_gc_mark_phase_requested))
+    Caml_state->requested_minor_gc = 1;
   caml_interrupt_self();
 }
 

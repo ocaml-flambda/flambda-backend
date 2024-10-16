@@ -1,8 +1,9 @@
 (* TEST
- reason = "CR ocaml 5 domains: re-enable this test";
  modules = "intextaux_par.c";
- no-tsan; (* Takes too much time and memory with tsan *)
- skip;
+ no-tsan;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 (* Test for output_value / input_value *)

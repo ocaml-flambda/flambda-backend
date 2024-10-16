@@ -1,7 +1,8 @@
 (* TEST
  modules = "recommended_domain_count_cstubs.c";
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 external get_max_domains : unit -> int = "caml_get_max_domains"

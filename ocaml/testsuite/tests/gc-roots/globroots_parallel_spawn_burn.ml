@@ -1,8 +1,9 @@
 (* TEST
  flags += " -w a ";
  modules = "globrootsprim.c globroots.ml";
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 open Globroots
