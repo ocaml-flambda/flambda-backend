@@ -1,0 +1,5 @@
+File "fail27_default.ml", line 16, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Fail27_default.only_check_me_in_opt (camlFail27_default.only_check_me_in_opt_HIDE_STAMP)
+
+File "fail27_default.ml", line 17, characters 2-11:
+Error: allocation of 32 bytes

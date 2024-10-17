@@ -1,0 +1,26 @@
+File "fail27.ml", line 1, characters 8-19:
+Error: Annotation check for zero_alloc failed on function Fail27.foo (camlFail27.foo_HIDE_STAMP)
+
+File "fail27.ml", line 1, characters 14-19:
+Error: allocation of 24 bytes
+
+File "fail27.ml", line 3, characters 8-19:
+Error: Annotation check for zero_alloc failed on function Fail27.bar (camlFail27.bar_HIDE_STAMP)
+
+File "fail27.ml", line 3, characters 14-19:
+Error: allocation of 24 bytes
+
+File "fail27.ml", line 3, characters 17-19:
+Error: allocation of 24 bytes
+
+File "fail27.ml", lines 5-11, characters 10-15:
+Error: Annotation check for zero_alloc failed on function Fail27.outer (camlFail27.outer_HIDE_STAMP)
+
+File "fail27.ml", line 11, characters 2-15:
+Error: called function may allocate (direct tailcall camlFail27.inner_HIDE_STAMP)
+
+File "fail27.ml", lines 7-9, characters 60-30:
+Error: Annotation check for zero_alloc failed on function Fail27.outer.inner (camlFail27.inner_HIDE_STAMP)
+
+File "fail27.ml", line 8, characters 18-23:
+Error: allocation of 24 bytes

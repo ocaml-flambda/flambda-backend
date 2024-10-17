@@ -64,6 +64,7 @@ let set_change_log f = log_change := f
 let create_const x = Const x
 let create_var loc arity = Var { loc; arity; desc = None }
 let default = Const Default_zero_alloc
+let ignore_assert_all = Const Ignore_assert_all
 
 let get (t : t) =
   match t with
@@ -110,9 +111,8 @@ let sub_const_const_exn za1 za2 =
        error. It's essential for the soundness of the way we (will, in the next
        PR) use zero_alloc in signatures that the apparent arity of the type in
        the signature matches the syntactic arity of the function.
-     - [ignore] can not appear in zero_alloc attributes in signatures, and is
-       erased from structure items when computing their signature, so we don't
-       need to consider it here.
+     - [ignore] is erased from structure items when computing their signature,
+       so we don't need to consider it here.
      *)
   let open Builtin_attributes in
   (* abstract domain check *)
@@ -197,9 +197,9 @@ let sub_exn za1 za2 =
     *)
     if not (za1 == za2) then
       Misc.fatal_error "zero_alloc: variable constraint"
-  | _, Const (Ignore_assert_all | Assume _) ->
+  | _, Const (Assume _) ->
     Misc.fatal_error "zero_alloc: invalid constraint"
-  | _, (Const Default_zero_alloc) -> ()
+  | _, (Const (Default_zero_alloc | Ignore_assert_all)) -> ()
   | Var v, Const c -> sub_var_const_exn v c
   | Const c1, Const c2 -> sub_const_const_exn c1 c2
 

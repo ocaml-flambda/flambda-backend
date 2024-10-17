@@ -1,0 +1,15 @@
+File "test_assume_unless_opt_on_call2.ml", line 6, characters 8-18:
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+It must be either 'assume', 'assume_unless_opt', 'strict', 'opt', 'opt strict', 'assume strict', 'assume never_returns_normally', 'assume never_returns_normally strict', 'assume error', 'ignore' or empty
+
+File "test_assume_unless_opt_on_call2.ml", line 3, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_assume_unless_opt_on_call2.bar (camlTest_assume_unless_opt_on_call2.bar_HIDE_STAMP)
+
+File "test_assume_unless_opt_on_call2.ml", line 3, characters 25-63:
+Error: allocation of 24 bytes (test_assume_unless_opt_on_call2.ml:3,25--63;test_assume_unless_opt_on_call2.ml:1,12--17)
+
+File "test_assume_unless_opt_on_call2.ml", line 5, characters 5-15:
+Error: Annotation check for zero_alloc failed on function Test_assume_unless_opt_on_call2.test_warning (camlTest_assume_unless_opt_on_call2.test_warning_HIDE_STAMP)
+
+File "test_assume_unless_opt_on_call2.ml", line 6, characters 2-63:
+Error: allocation of 24 bytes (test_assume_unless_opt_on_call2.ml:6,2--63;test_assume_unless_opt_on_call2.ml:1,12--17)

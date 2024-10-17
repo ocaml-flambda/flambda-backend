@@ -1,0 +1,11 @@
+File "fail28.ml", line 21, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Fail28.check_me_strict (camlFail28.check_me_strict_HIDE_STAMP)
+
+File "fail28.ml", line 23, characters 22-60:
+Error: called function may allocate on a path to exceptional return (indirect call)
+
+File "fail28.ml", line 23, characters 13-61:
+Error: allocation of 24 bytes on a path to exceptional return
+
+File "fail28.ml", line 23, characters 22-60:
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (fail28.ml:23,22--60;printf.ml:48,18--43;printf.ml:46,2--31)
