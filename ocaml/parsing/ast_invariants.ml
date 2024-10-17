@@ -64,10 +64,6 @@ let iterator =
     | Ptyp_alias (_, None, None) -> invalid_alias loc
     | _ -> ()
   in
-  let jpat _self (jpat : Jane_syntax.Pattern.t) =
-    match jpat with
-    | Jpat_immutable_array (Iapat_immutable_array _)-> ()
-  in
   let pat self pat =
     begin match pat.ppat_desc with
     | Ppat_construct (_, Some (_, ({ppat_desc = Ppat_tuple _} as p)))
@@ -77,9 +73,6 @@ let iterator =
         super.pat self pat
     end;
     let loc = pat.ppat_loc in
-    match Jane_syntax.Pattern.of_ast pat with
-    | Some (jpat_, _attrs) -> jpat self jpat_
-    | None ->
     match pat.ppat_desc with
     | Ppat_tuple (lt, op) -> begin
         match lt, op with
@@ -104,17 +97,6 @@ let iterator =
       end
     | _ -> ()
   in
-  let jexpr _self loc (jexp : Jane_syntax.Expression.t) =
-    match jexp with
-    | Jexp_comprehension
-        ( Cexp_list_comprehension {clauses = []; body = _}
-        | Cexp_array_comprehension (_, {clauses = []; body = _}) )
-      ->
-        empty_comprehension loc
-    | Jexp_comprehension _
-    | Jexp_immutable_array _
-      -> ()
-  in
   let expr self exp =
     begin match exp.pexp_desc with
     | Pexp_construct (_, Some ({pexp_desc = Pexp_tuple _} as e))
@@ -124,9 +106,6 @@ let iterator =
         super.expr self exp
     end;
     let loc = exp.pexp_loc in
-    match Jane_syntax.Expression.of_ast exp with
-    | Some (jexp, _attrs) -> jexpr self exp.pexp_loc jexp
-    | None ->
     match exp.pexp_desc with
     | Pexp_tuple ([] | [_]) -> invalid_tuple loc
     | Pexp_record ([], _) -> empty_record loc
@@ -147,6 +126,11 @@ let iterator =
               | { pparam_desc = Pparam_val _ } -> false)
             params
         then function_without_value_parameters loc
+    | Pexp_comprehension
+        ( Pcomp_list_comprehension {pcomp_clauses = []}
+        | Pcomp_array_comprehension (_, {pcomp_clauses = []}) )
+      ->
+        empty_comprehension loc
     | _ -> ()
   in
   let extension_constructor self ec =
