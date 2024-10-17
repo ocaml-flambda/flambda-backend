@@ -427,6 +427,10 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_probe_is_enabled _ -> ()
   | Texp_exclave exp -> sub.expr sub exp
   | Texp_src_pos -> ()
+  | Texp_overwrite(exp1, exp2) ->
+    sub.expr sub exp1;
+    sub.expr sub exp2
+  | Texp_hole _ -> ()
 
 
 let package_type sub {pack_fields; pack_txt; _} =

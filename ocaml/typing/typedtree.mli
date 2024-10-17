@@ -448,6 +448,8 @@ and expression_desc =
     (* A source position value which has been automatically inferred, either
        as a result of [%call_pos] occuring in an expression, or omission of a
        Position argument in function application *)
+  | Texp_overwrite of expression * expression (** overwrite_ exp with exp *)
+  | Texp_hole of unique_use (** _ *)
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }
