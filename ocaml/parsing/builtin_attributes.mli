@@ -13,35 +13,40 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Support for some of the builtin attributes
+(** Support for the builtin attributes:
 
-    - ocaml.deprecated
-    - ocaml.alert
-    - ocaml.error
-    - ocaml.ppwarning
-    - ocaml.warning
-    - ocaml.warnerror
-    - ocaml.explicit_arity (for camlp4/camlp5)
-    - ocaml.warn_on_literal_pattern
-    - ocaml.deprecated_mutable
-    - ocaml.boxed / ocaml.unboxed
-    - ocaml.nolabels
-    - ocaml.inline
     - ocaml.afl_inst_ratio
+    - ocaml.alert
+    - ocaml.boxed
+    - ocaml.deprecated
+    - ocaml.deprecated_mutable
+    - ocaml.explicit_arity
     - ocaml.flambda_o3
     - ocaml.flambda_oclassic
-    - jkind attributes:
-      - ocaml.any
-      - ocaml.value
-      - ocaml.void
-      - ocaml.immediate
-      - ocaml.immediate64
+    - ocaml.immediate
+    - ocaml.immediate64
+    - ocaml.inline
+    - ocaml.inlined
+    - ocaml.noalloc
+    - ocaml.poll
+    - ocaml.ppwarning
+    - ocaml.specialise
+    - ocaml.specialised
+    - ocaml.tailcall
+    - ocaml.tail_mod_cons
+    - ocaml.unboxed
+    - ocaml.untagged
+    - ocaml.unrolled
+    - ocaml.warnerror
+    - ocaml.warning
+    - ocaml.warn_on_literal_pattern
 
     {b Warning:} this module is unstable and part of
   {{!Compiler_libs}compiler-libs}.
 
 *)
 
+(** {2 Attribute tracking for warning 53} *)
 
 (** [register_attr] must be called on the locations of all attributes that
     should be tracked for the purpose of misplaced attribute warnings.  In
@@ -50,41 +55,24 @@
     attribute (because these may be left behind by a ppx and intentionally
     ignored by the compiler).
 
-    The [attr_tracking_time] argument indicates when the attr is being added for
-    tracking - either when it is created in the parser or when we see it while
-    running the check in the [Ast_invariants] module.  This ensures that we
-    track only attributes from the final version of the parse tree: we skip
-    adding attributes at parse time if we can see that a ppx will be run later,
-    because the [Ast_invariants] check is always run on the result of a ppx.
+    The [current_phase] argument indicates when this function is being called
+    - either when an attribute is created in the parser or when we see an
+    attribute while running the check in the [Ast_invariants] module.  This is
+    used to ensure that we track only attributes from the final version of the
+    parse tree: we skip adding attributes seen at parse time if we can see that
+    a ppx will be run later, because the [Ast_invariants] check is always run on
+    the result of a ppx.
 
     Note that the [Ast_invariants] check is also run on parse trees created from
     marshalled ast files if no ppx is being used, ensuring we don't miss
     attributes in that case.
 *)
-type attr_tracking_time = Parser | Invariant_check
-val register_attr : attr_tracking_time -> string Location.loc -> unit
-
-(** Marks alert attributes used for the purposes of misplaced attribute
-    warnings.  Call this when moving things with alert attributes into the
-    environment. *)
-val mark_alert_used : Parsetree.attribute -> unit
-val mark_alerts_used : Parsetree.attributes -> unit
-
-(** Zero_alloc attributes are checked
-    in late stages of compilation in the backend.
-    Registering them helps detect code that is not checked,
-    because it is optimized away by the middle-end.  *)
-val register_zero_alloc_attribute : string Location.loc -> unit
-val mark_zero_alloc_attribute_checked : string -> Location.t -> unit
-
-(** Marks "warn_on_literal_pattern" attributes used for the purposes of
-    misplaced attribute warnings.  Call this when moving things with alert
-    attributes into the environment. *)
-val mark_warn_on_literal_pattern_used : Parsetree.attributes -> unit
+type current_phase = Parser | Invariant_check
+val register_attr : current_phase -> string Location.loc -> unit
 
 (** Marks the attributes hiding in the payload of another attribute used, for
     the purposes of misplaced attribute warnings (see comment on
-    [attr_tracking_time] above).  In the parser, it's simplest to add these to
+    [current_phase] above).  In the parser, it's simplest to add these to
     the table and remove them later, rather than threading through state
     tracking whether we're in an attribute payload. *)
 val mark_payload_attrs_used : Parsetree.payload -> unit
@@ -92,7 +80,48 @@ val mark_payload_attrs_used : Parsetree.payload -> unit
 (** Issue misplaced attribute warnings for all attributes created with
     [mk_internal] but not yet marked used. *)
 val warn_unused : unit -> unit
+
+(** {3 Warning 53 helpers for environment attributes}
+
+    Some attributes, like deprecation markers, do not affect the compilation of
+    the definition on which they appear, but rather result in warnings on future
+    uses of that definition.  This is implemented by moving the raw attributes
+    into the environment, where they will be noticed on future accesses.
+
+    To make misplaced attribute warnings work appropriately for these
+    attributes, we mark them "used" when they are moved into the environment.
+    This is done with the helper functions in this section.
+*)
+
+(** Marks the attribute used for the purposes of misplaced attribute warnings if
+    it is an alert.  Call this when moving things allowed to have alert
+    attributes into the environment. *)
+val mark_alert_used : Parsetree.attribute -> unit
+
+(** The same as [List.iter mark_alert_used]. *)
+val mark_alerts_used : Parsetree.attributes -> unit
+
+(** Marks "warn_on_literal_pattern" attributes used for the purposes of
+    misplaced attribute warnings.  Call this when moving constructors into the
+    environment. *)
+val mark_warn_on_literal_pattern_used : Parsetree.attributes -> unit
+
+(** Marks "deprecated_mutable" attributes used for the purposes of misplaced
+    attribute warnings.  Call this when moving labels of mutable fields into the
+    environment. *)
+val mark_deprecated_mutable_used : Parsetree.attributes -> unit
+
+(** {3 Warning 53 helpers for zero alloc}
+
+    Zero_alloc attributes are checked
+    in late stages of compilation in the backend.
+    Registering them helps detect code that is not checked,
+    because it is optimized away by the middle-end.  *)
+val register_zero_alloc_attribute : string Location.loc -> unit
+val mark_zero_alloc_attribute_checked : string -> Location.t -> unit
 val warn_unchecked_zero_alloc_attribute : unit -> unit
+
+(** {2 Helpers for alert and warning attributes} *)
 
 val check_alerts: Location.t -> Parsetree.attributes -> string -> unit
 val check_alerts_inclusion:
@@ -101,8 +130,8 @@ val check_alerts_inclusion:
 
 (** Find alerts (and mark them used, wrt misplaced attribute warnings) *)
 val alerts_of_attrs: Parsetree.attributes -> Misc.alerts
-val alerts_of_sig: Parsetree.signature -> Misc.alerts
-val alerts_of_str: Parsetree.structure -> Misc.alerts
+val alerts_of_sig: mark:bool -> Parsetree.signature -> Misc.alerts
+val alerts_of_str: mark:bool -> Parsetree.structure -> Misc.alerts
 
 val check_deprecated_mutable:
     Location.t -> Parsetree.attributes -> string -> unit
@@ -134,40 +163,33 @@ val warning_scope:
       is executed.
   *)
 
-(** [has_attribute names attrs] is true if an attribute named in [names] is
-    present in [attrs].  It marks that attribute used for the purposes of
-    misplaced attribute warnings. *)
-val has_attribute : string list -> Parsetree.attributes -> bool
+(** {2 Helpers for searching for particular attributes} *)
 
-module Attributes_filter : sig
-  type t
+(** [has_attribute name attrs] is true if an attribute with name [name] or
+    ["ocaml." ^ name] is present in [attrs].  It marks that attribute used for
+    the purposes of misplaced attribute warnings. *)
+val has_attribute : string -> Parsetree.attributes -> bool
 
-  val create : (string list * bool) list -> t
-end
+(** [select_attributes actions attrs] finds the elements of [attrs] that appear
+    in [actions] and either returns them or just marks them used, according to
+    the corresponding [attr_action].
 
-(** [filter_attributes (Attributes_filter.create nms_and_conds) attrs] finds
-    those attrs which appear in one of the sublists of nms_and_conds with
-    cond=true.
+    Each element [(nm, action)] of the [actions] list is an attribute along with
+    an [attr_action] specifying what to do with that attribute.  The action is
+    used to accommodate different compiler configurations.  If an attribute is
+    used only in some compiler configurations, it's important that we still look
+    for it and mark it used when compiling with other configurations.
+    Otherwise, we would issue spurious misplaced attribute warnings. *)
+type attr_action = Mark_used_only | Return
+val select_attributes :
+  (string * attr_action) list -> Parsetree.attributes -> Parsetree.attributes
 
-    Each element [(nms, conds)] of the [nms_and_conds] list is a list of
-    attribute names along with a boolean indicating whether to include
-    attributes with those names in the output.  The boolean is used to
-    accomodate different compiler configurations (e.g., we may want to check for
-    "unrolled" only in the case where flambda or flambda2 is configured).  We
-    handle this by taking a bool, rather than simply passing fewer nms in those
-    cases, to support misplaced attribute warnings - the attribute should not
-    count as misplaced if the compiler could use it in some configuration.
-*)
-val filter_attributes :
-  ?mark:bool ->
-  Attributes_filter.t -> Parsetree.attributes -> Parsetree.attributes
-
-(** [find_attribute] behaves like [filter_attribute], except that it returns at
-    most one matching attribute and issues a "duplicated attribute" warning if
-    there are multiple matches. *)
-val find_attribute :
-  ?mark_used:bool -> Attributes_filter.t -> Parsetree.attributes ->
-  Parsetree.attribute option
+(** [attr_equals_builtin attr s] is true if the name of the attribute is [s] or
+    ["ocaml." ^ s].  This is useful for manually inspecting attribute names, but
+    note that doing so will not result in marking the attribute used for the
+    purpose of warning 53, so it is usually preferrable to use [has_attribute]
+    or [select_attributes]. *)
+val attr_equals_builtin : Parsetree.attribute -> string -> bool
 
 val warn_on_literal_pattern: Parsetree.attributes -> bool
 val explicit_arity: Parsetree.attributes -> bool
@@ -283,7 +305,14 @@ val get_zero_alloc_attribute :
 val zero_alloc_attribute_only_assume_allowed :
   zero_alloc_attribute -> zero_alloc_assume option
 
-val assume_zero_alloc : zero_alloc_assume -> Zero_alloc_utils.Assume_info.t
+(* [inferred] is true only for "assume" annotations added by the compiler onto
+   applications based on the type of the callee, to distinguish them from annotations
+   added by the user. Inferred annotations are removed if the callee is inlined, to ensure
+   that inlining and other middle-end optimizations preserve the relaxed meaning of
+   zero_alloc.  Note that "inferred" assume annotations are different assume annotations
+   "propagated" by the compiler from function definition to all primitives in the
+   function's body (via scopes / debug info). *)
+val assume_zero_alloc : inferred:bool -> zero_alloc_assume -> Zero_alloc_utils.Assume_info.t
 
 type tracing_probe =
   { name : string;

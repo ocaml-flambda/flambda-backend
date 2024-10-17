@@ -29,7 +29,7 @@ type t =
   | Global_with_args of global
       (* must have non-empty [args] *)
 and global = Global_module.Name.t = private
-  { head: string; args: (global * global) list }
+  { head: string; args: Global_module.Name.argument list }
 
 (* A stamp of 0 denotes a persistent identifier *)
 
@@ -163,7 +163,7 @@ let is_instance = function
   | _ -> false
 
 let to_global = function
-  | Global head -> Some (Global_module.Name.create_exn head [])
+  | Global head -> Some (Global_module.Name.create_no_args head)
   | Global_with_args g -> Some g
   | _ -> None
 

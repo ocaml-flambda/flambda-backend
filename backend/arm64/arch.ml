@@ -331,3 +331,34 @@ let operation_allocates = function
   | Ishiftarith (_, _)
   | Isignext _
   | Ibswap _ -> false
+
+(* See `amd64/arch.ml`. *)
+
+let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Iindexed _, Iindexed _ -> 0
+  | Iindexed _ , _ -> -1
+  | _, Iindexed _ -> 1
+  | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
+
+let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
+  | Ibased (var1, n1), Ibased (var2, n2) ->
+    if String.compare var1 var2 = 0 then Some (Int.compare n1 n2) else None
+  | Iindexed _ , _ -> None
+  | Ibased _ , _ -> None
+
+let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) = None
+
+let can_cross_loads_or_stores (specific_operation : specific_operation) =
+  match specific_operation with
+  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
+  | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
+    true
+
+let may_break_alloc_freshness (specific_operation : specific_operation) =
+  match specific_operation with
+  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
+  | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
+    false

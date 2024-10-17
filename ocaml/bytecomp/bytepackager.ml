@@ -29,13 +29,24 @@ let rec rev_append_map f l rest =
   | x :: xs -> rev_append_map f xs (f x :: rest)
 
 type error =
-    Forward_reference of string * Ident.t
-  | Multiple_definition of string * Ident.t
+    Forward_reference of string * CU.t
+  | Multiple_definition of string * CU.t
   | Not_an_object_file of string
-  | Illegal_renaming of Compilation_unit.Name.t * string * string
+  | Illegal_renaming of CU.t * string * CU.t
   | File_not_found of string
 
 exception Error of error
+
+type mapped_compunit = {
+  processed : bool
+}
+
+let record_as_processed mapping cu =
+  let update_processed = function
+    | Some { processed = false } -> Some { processed = true }
+    | Some { processed = true } | None -> assert false
+  in
+  CU.Name.Map.update (CU.name cu) update_processed mapping
 
 type state = {
   relocs : (reloc_info * int) list; (** accumulated reloc info *)
@@ -44,6 +55,8 @@ type state = {
   primitives : string list;         (** accumulated primitives *)
   offset : int;                     (** offset of the current unit *)
   subst : Subst.t;                  (** Substitution for debug event *)
+  mapping : mapped_compunit CU.Name.Map.t;
+  (** Says whether a [CU.Name.t] has already been seen during packing *)
 }
 
 let empty_state = {
@@ -52,6 +65,7 @@ let empty_state = {
   debug_dirs = String.Set.empty;
   primitives = [];
   offset = 0;
+  mapping = CU.Name.Map.empty;
   subst = Subst.identity;
 }
 
@@ -60,6 +74,18 @@ let empty_state = {
 let rename_relocation base (rel, ofs) =
   (* Nothing to do here following the symbols patches *)
   rel, base + ofs
+
+(* XXX mshinwell: the above function in runtime5 has:
+
+  (* PR#5276: unique-ize dotted global names, which appear if one of
+    the units being consolidated is itself a packed module. *)
+  let make_compunit_name_unique cu =
+    if CU.is_packed cu
+    then CU (packagename ^ "." ^ (CU.name cu))
+    else cu
+  in
+
+*)
 
 (* Record and update a debugging event *)
 
@@ -73,15 +99,18 @@ type pack_member_kind = PM_intf | PM_impl of compilation_unit_descr
 
 type pack_member =
   { pm_file: string;
-    pm_name: Compilation_unit.Name.t;
+    pm_packed_name : CU.t;
     pm_kind: pack_member_kind }
 
-let read_member_info file =
-  let name = String.capitalize_ascii(Filename.basename(chop_extensions file)) in
-  let name = Compilation_unit.Name.of_string name in
+let read_member_info ~packed_compilation_unit file =
+  let member_artifact = Unit_info.Artifact.from_filename file in
+  let member_name =
+    Unit_info.Artifact.modname member_artifact |> CU.Name.of_string
+  in
+  let packed_name = CU.create_child packed_compilation_unit member_name in
   let kind =
     (* PR#7479: make sure it is either a .cmi or a .cmo *)
-    if Filename.check_suffix file ".cmi" then
+    if Unit_info.is_cmi member_artifact then
       PM_intf
     else begin
       let ic = open_in_bin file in
@@ -94,12 +123,17 @@ let read_member_info file =
         let compunit_pos = input_binary_int ic in
         seek_in ic compunit_pos;
         let compunit = (input_value ic : compilation_unit_descr) in
-        if not (CU.Name.equal (CU.name compunit.cu_name) name)
-        then raise(Error(Illegal_renaming(name, file,
-          CU.name_as_string compunit.cu_name)));
+        if not (CU.Name.equal (CU.name compunit.cu_name) member_name)
+        then begin
+          raise(Error(Illegal_renaming (packed_name, file, compunit.cu_name)))
+        end;
         PM_impl compunit)
-    end in
-  { pm_file = file; pm_name = name; pm_kind = kind }
+    end
+  in
+  { pm_file = file;
+    pm_packed_name = packed_name;
+    pm_kind = kind;
+  }
 
 (* Read the bytecode from a .cmo file.
    Write bytecode to channel [oc].
@@ -121,13 +155,21 @@ let process_append_bytecode oc state objfile compunit =
     let events, debug_dirs =
       if !Clflags.debug && compunit.cu_debug > 0 then begin
         seek_in ic compunit.cu_debug;
-        let unit_events = (input_value ic : debug_event list) in
+        (* CR ocaml 5 compressed-marshal:
+        let unit_events = (Compression.input_value ic : debug_event list) in
+        *)
+        let unit_events = (Marshal.from_channel ic : debug_event list) in
         let events =
           rev_append_map
             (relocate_debug state.offset state.subst)
             unit_events
             state.events in
-        let unit_debug_dirs = (input_value ic : string list) in
+        let unit_debug_dirs =
+          (* CR ocaml 5 compressed-marshal:
+          (Compression.input_value ic : string list)
+          *)
+          (Marshal.from_channel ic : string list)
+        in
         let debug_dirs =
           String.Set.union
             state.debug_dirs
@@ -153,33 +195,29 @@ let process_append_pack_member packagename oc state m =
   | PM_impl compunit ->
       let state =
         process_append_bytecode oc state m.pm_file compunit in
-      let id =
-        Ident.create_persistent
-          (m.pm_name |> Compilation_unit.Name.to_string)
-      in
       let root = Path.Pident (Ident.create_persistent packagename) in
+      let mapping = record_as_processed state.mapping m.pm_packed_name in
       let subst =
-        Subst.add_module id (Path.Pdot (root, Ident.name id)) state.subst in
-      { state with subst }
+        let name = CU.name m.pm_packed_name |> CU.Name.to_string in
+        Subst.add_module (Ident.create_persistent name)
+          (Path.Pdot (root, name)) state.subst
+      in
+      { state with subst; mapping }
 
 (* Generate the code that builds the tuple representing the package module *)
 
-let build_global_target ~ppf_dump oc target_name state members coercion =
-  let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
-  let compilation_unit =
-    Compilation_unit.create for_pack_prefix
-      (target_name |> Compilation_unit.Name.of_string)
-  in
-  let unit_of_name name = Compilation_unit.create_child compilation_unit name in
-  let components =
+let build_global_target ~ppf_dump oc ~packed_compilation_unit state members
+      coercion =
+   let components =
     List.map
       (fun m ->
         match m.pm_kind with
         | PM_intf -> None
-        | PM_impl _ -> Some (m.pm_name |> unit_of_name))
-      members in
+        | PM_impl _ -> Some m.pm_packed_name)
+      members
+  in
   let main_module_block_size, lam =
-    Translmod.transl_package components compilation_unit coercion
+    Translmod.transl_package components packed_compilation_unit coercion
       ~style:Set_global_to_block
   in
   if !Clflags.dump_rawlambda then
@@ -187,8 +225,7 @@ let build_global_target ~ppf_dump oc target_name state members coercion =
   let lam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then
     Format.fprintf ppf_dump "%a@." Printlambda.lambda lam;
-  let instrs =
-    Bytegen.compile_implementation target_name lam in
+  let instrs = Bytegen.compile_implementation packed_compilation_unit lam in
   let size, pack_relocs, pack_events, pack_debug_dirs =
     Emitcode.to_packed_file oc instrs in
   let events = List.rev_append pack_events state.events in
@@ -197,37 +234,45 @@ let build_global_target ~ppf_dump oc target_name state members coercion =
     rev_append_map
       (fun (r, ofs) -> (r, state.offset + ofs))
       pack_relocs state.relocs in
-  { state with events; debug_dirs; relocs; offset = state.offset + size},
+  { state with events; debug_dirs; relocs; offset = state.offset + size },
   main_module_block_size
 
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
-let package_object_files ~ppf_dump files targetfile targetname coercion =
-  let members = map_left_right read_member_info files in
-  let required_globals =
-    List.fold_right (fun compunit required_globals -> match compunit with
+let package_object_files ~ppf_dump files target coercion =
+  let targetfile = Unit_info.Artifact.filename target in
+  let packed_compilation_unit_name =
+    CU.Name.of_string (Unit_info.Artifact.modname target)
+  in
+  let packed_compilation_unit =
+    let prefix = CU.Prefix.from_clflags () in
+    CU.create prefix packed_compilation_unit_name
+  in
+  let members =
+    map_left_right (read_member_info ~packed_compilation_unit) files
+  in
+  let required_compunits =
+    List.fold_right (fun compunit required_compunits ->
+        match compunit with
         | { pm_kind = PM_intf } ->
-            required_globals
-        | { pm_kind = PM_impl { cu_required_globals; cu_reloc } } ->
-            let ids_to_remove (rel, _pos) =
+            required_compunits
+        | { pm_kind = PM_impl { cu_required_compunits; cu_reloc } } ->
+            let cus_to_remove (rel, _pos) =
               match rel with
-                Reloc_setglobal id -> [id]
-              | _ -> []
+              | Reloc_setcompunit cu -> [cu]
+              | Reloc_literal _ | Reloc_getcompunit _ | Reloc_getpredef _
+              | Reloc_primitive _ -> []
             in
-            let ids_to_remove =
-              List.concat_map ids_to_remove cu_reloc
-              |> Ident.Set.of_list
+            let cus_to_remove =
+              List.concat_map cus_to_remove cu_reloc
+              |> CU.Set.of_list
             in
-            let required_globals =
-              let keep cu =
-                not (Ident.Set.mem (cu |> CU.to_global_ident_for_bytecode)
-                       ids_to_remove)
-              in
-              Compilation_unit.Set.filter keep required_globals
+            let required_compunits =
+              let keep cu = not (CU.Set.mem cu cus_to_remove) in
+              CU.Set.filter keep required_compunits
             in
-            List.fold_right Compilation_unit.Set.add cu_required_globals
-              required_globals)
-      members Compilation_unit.Set.empty
+            List.fold_right CU.Set.add cu_required_compunits required_compunits)
+      members CU.Set.empty
   in
   let oc = open_out_bin targetfile in
   Fun.protect ~finally:(fun () -> close_out oc) (fun () ->
@@ -235,51 +280,58 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let pos_depl = pos_out oc in
     output_binary_int oc 0;
     let pos_code = pos_out oc in
-    let state = empty_state in
     let state =
-      List.fold_left (process_append_pack_member targetname oc) state members in
+      let mapping =
+        List.map
+          (fun m -> CU.name m.pm_packed_name, { processed = false })
+          members
+        |> CU.Name.Map.of_list in
+      { empty_state with mapping } in
+    let state =
+      List.fold_left (process_append_pack_member targetfile oc) state members
+    in
     let state, main_module_block_size =
-      build_global_target ~ppf_dump oc targetname state members coercion in
+      build_global_target ~ppf_dump oc ~packed_compilation_unit state
+        members coercion
+    in
     let pos_debug = pos_out oc in
     (* CR mshinwell: Compression not supported in the OCaml 4 runtime
     if !Clflags.debug && state.events <> [] then begin
-      Marshal.(to_channel oc (List.rev state.events) [Compression]);
-      Marshal.(to_channel oc (String.Set.elements state.debug_dirs)
-                             [Compression]);
+      Compression.output_value oc (List.rev state.events);
+      Compression.output_value oc (String.Set.elements state.debug_dirs)
     end;
     *)
     let force_link =
       List.exists (function
           | {pm_kind = PM_impl {cu_force_link}} -> cu_force_link
-          | _ -> false) members in
+          | _ -> false) members
+    in
     let pos_final = pos_out oc in
     let imports =
-      let unit_names =
-        List.map (fun m -> m.pm_name) members in
+      let unit_names = List.map (fun m -> CU.name m.pm_packed_name) members in
       List.filter
         (fun import -> not (List.mem (Import_info.name import) unit_names))
-        (Bytelink.extract_crc_interfaces()) in
-    let for_pack_prefix = CU.Prefix.from_clflags () in
-    let modname = targetname |> CU.Name.of_string in
-    let cu_name = CU.create for_pack_prefix modname in
+        (Bytelink.extract_crc_interfaces())
+    in
+    let import_info_for_the_pack_itself =
+      let crc = Env.crc_of_unit packed_compilation_unit_name in
+      Import_info.create packed_compilation_unit_name
+        ~crc_with_unit:(Some (packed_compilation_unit, crc))
+    in
     let format : Lambda.module_block_format =
       (* Open modules not supported with packs, so always just a record *)
       Mb_record { mb_size = main_module_block_size }
     in
     let compunit =
-      { cu_name;
+      { cu_name = packed_compilation_unit;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev state.relocs;
         cu_arg_descr = None;
-        cu_imports =
-          Array.of_list
-            ((Import_info.create modname
-               ~crc_with_unit:(Some (cu_name, Env.crc_of_unit modname)))
-              :: imports);
+        cu_imports = Array.of_list (import_info_for_the_pack_itself :: imports);
         cu_format = format;
         cu_primitives = List.rev state.primitives;
-        cu_required_globals = Compilation_unit.Set.elements required_globals;
+        cu_required_compunits = CU.Set.elements required_compunits;
         cu_force_link = force_link;
         cu_debug = if pos_final > pos_debug then pos_debug else 0;
         cu_debugsize = pos_final - pos_debug } in
@@ -298,44 +350,47 @@ let package_files ~ppf_dump initial_env files targetfile =
          try Load_path.find f
          with Not_found -> raise(Error(File_not_found f)))
       files in
-  let prefix = chop_extensions targetfile in
-  let targetcmi = prefix ^ ".cmi" in
-  let targetname = String.capitalize_ascii(Filename.basename prefix) in
-    let comp_unit =
-      Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
-        (targetname |> Compilation_unit.Name.of_string)
-    in
-    Compilation_unit.set_current (Some comp_unit);
+  let target = Unit_info.Artifact.from_filename targetfile in
+  let comp_unit =
+    CU.create (CU.Prefix.from_clflags ())
+      (Unit_info.Artifact.modname target |> CU.Name.of_string)
+  in
+  CU.set_current (Some comp_unit);
   Misc.try_finally (fun () ->
       let coercion =
-        Typemod.package_units initial_env files targetcmi comp_unit in
-      package_object_files ~ppf_dump files targetfile targetname coercion
+        Typemod.package_units initial_env files (Unit_info.companion_cmi target)
+          comp_unit
+      in
+      package_object_files ~ppf_dump files target coercion
     )
     ~exceptionally:(fun () -> remove_file targetfile)
 
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
-    Forward_reference(file, ident) ->
-      fprintf ppf "Forward reference to %s in file %a" (Ident.name ident)
-        Location.print_filename file
-  | Multiple_definition(file, ident) ->
-      fprintf ppf "File %a redefines %s"
-        Location.print_filename file
-        (Ident.name ident)
+    Forward_reference(file, compunit) ->
+      fprintf ppf "Forward reference to %a in file %a"
+        (Style.as_inline_code CU.print) compunit
+        (Style.as_inline_code Location.print_filename) file
+  | Multiple_definition(file, compunit) ->
+      fprintf ppf "File %a redefines %a"
+        (Style.as_inline_code Location.print_filename) file
+        (Style.as_inline_code CU.print) compunit
   | Not_an_object_file file ->
       fprintf ppf "%a is not a bytecode object file"
-        Location.print_filename file
-  | Illegal_renaming(name, file, id) ->
+        (Style.as_inline_code Location.print_filename) file
+  | Illegal_renaming(name, file, compunit) ->
       fprintf ppf "Wrong file naming: %a@ contains the code for\
-                   @ %a when %s was expected"
-        Location.print_filename file
-        Compilation_unit.Name.print name
-        id
+                   @ %a when %a was expected"
+        (Style.as_inline_code Location.print_filename) file
+        (Style.as_inline_code CU.print) name
+        (Style.as_inline_code CU.print) compunit
   | File_not_found file ->
-      fprintf ppf "File %s not found" file
+      fprintf ppf "File %a not found"
+        Style.inline_code file
 
 let () =
   Location.register_error_of_exn

@@ -49,8 +49,7 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-       |> Bytegen.compile_implementation
-            (i.module_name |> Compilation_unit.name_as_string)
+       |> Bytegen.compile_implementation i.module_name
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode ->
           let arg_descr = make_arg_descr ~param:as_arg_for ~arg_block_field in
@@ -71,15 +70,17 @@ let to_bytecode i Typedtree.{structure; coercion; argument_interface; _} =
 
 let emit_bytecode i
       (bytecode, required_globals, module_block_format, arg_descr) =
-  let cmofile = cmo i in
-  let oc = open_out_bin cmofile in
+  let cmo = Unit_info.cmo i.target in
+  let oc = open_out_bin (Unit_info.Artifact.filename cmo) in
   Misc.try_finally
     ~always:(fun () -> close_out oc)
-    ~exceptionally:(fun () -> Misc.remove_file cmofile)
+    ~exceptionally:(fun () ->
+       Misc.remove_file (Unit_info.Artifact.filename cmo)
+    )
     (fun () ->
        bytecode
        |> Profile.(record ~accumulate:true generate)
-         (Emitcode.to_file oc i.module_name cmofile ~required_globals
+         (Emitcode.to_file oc i.module_name cmo ~required_globals
             ~module_block_format ~arg_descr);
     )
 

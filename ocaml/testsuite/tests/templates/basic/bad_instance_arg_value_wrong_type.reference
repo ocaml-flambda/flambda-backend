@@ -1,3 +1,5 @@
-File "bad_instance_arg_value_wrong_type.ml", line 1:
-Error: The module List_monoid was expected to satisfy the parameter Category
-       but list_monoid.cmi was compiled with -as-argument-for Monoid.
+File "bad_instance_arg_value_wrong_type.ml", line 2, characters 2-39:
+2 |   Category_utils(Category)(List_monoid) [@jane.non_erasable.instances]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The module "List_monoid" was expected to satisfy the parameter "Category"
+       but "list_monoid.cmi" was compiled to satisfy "Monoid".

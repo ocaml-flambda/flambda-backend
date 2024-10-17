@@ -29,7 +29,6 @@ type error =
   | Assembler_error of string
   | File_not_found of string
 
-
 exception Error of error
 
 (* Read the unit information from a .cmx file. *)
@@ -42,11 +41,10 @@ type pack_member =
     pm_kind: pack_member_kind }
 
 let read_member_info pack_path file = (
-  let name =
-    String.capitalize_ascii(Filename.basename(chop_extensions file))
-    |> CU.Name.of_string in
+  let unit_info = Unit_info.Artifact.from_filename file in
+  let name = Unit_info.Artifact.modname unit_info |> CU.Name.of_string in
   let kind =
-    if Filename.check_suffix file ".cmi" then
+    if Unit_info.is_cmi unit_info then
       PM_intf
     else begin
       let (info, crc) = Compilenv.read_unit_info file in
@@ -86,17 +84,18 @@ let check_units members =
 type flambda2 =
   ppf_dump:Format.formatter ->
   prefixname:string ->
-  filename:string ->
   keep_symbol_tables:bool ->
   Lambda.program ->
   Cmm.phrase list
 
-let make_package_object unix ~ppf_dump members targetobj targetname coercion
+let make_package_object unix ~ppf_dump members target coercion
       ~(flambda2 : flambda2) =
-  Profile.record_call (Printf.sprintf "pack(%s)" targetname) (fun () ->
+  let pack_name =
+    Printf.sprintf "pack(%s)" (Unit_info.Artifact.modname target) in
+  Profile.record_call pack_name (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
-      then Filename.remove_extension targetobj ^ ".pack" ^ Config.ext_obj
+      then Unit_info.Artifact.prefix target ^ ".pack" ^ Config.ext_obj
       else
         (* Put the full name of the module in the temporary file name
            to avoid collisions with MSVC's link /lib in case of successive
@@ -115,7 +114,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
           | PM_impl _ -> Some(CU.create_child (CU.get_current_exn ()) m.pm_name))
         members in
     let for_pack_prefix = CU.Prefix.from_clflags () in
-    let modname = CU.Name.of_string targetname in
+    let modname = CU.Name.of_string (Unit_info.Artifact.modname target) in
     let compilation_unit = CU.create for_pack_prefix modname in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Compilation_unit.Set.empty in
@@ -148,7 +147,7 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
       Direct_to_cmm (flambda2 ~keep_symbol_tables:true)
     in
     Asmgen.compile_implementation ~pipeline unix
-      ~filename:targetname
+      ~sourcefile:(Unit_info.Artifact.source_file target)
       ~prefixname
       ~ppf_dump
       program;
@@ -157,7 +156,8 @@ let make_package_object unix ~ppf_dump members targetobj targetname coercion
         (fun m -> Filename.remove_extension m.pm_file ^ Config.ext_obj)
         (List.filter (fun m -> m.pm_kind <> PM_intf) members) in
     let exitcode =
-      Ccomp.call_linker Ccomp.Partial targetobj (objtemp :: objfiles) ""
+      Ccomp.call_linker Ccomp.Partial (Unit_info.Artifact.filename target)
+        (objtemp :: objfiles) ""
     in
     remove_file objtemp;
     if not (exitcode = 0) then raise(Error Linking_error);
@@ -227,18 +227,17 @@ let build_package_cmx members cmxfile ~main_module_block_size =
 
 (* Make the .cmx and the .o for the package *)
 
-let package_object_files unix ~ppf_dump files targetcmx
-                         targetobj targetname coercion ~flambda2 =
+let package_object_files unix ~ppf_dump files target
+                         targetcmx coercion ~flambda2 =
   let pack_path =
     let for_pack_prefix = CU.Prefix.from_clflags () in
-    let name = targetname |> CU.Name.of_string in
+    let name = Unit_info.Artifact.modname target |> CU.Name.of_string in
     CU.create for_pack_prefix name
   in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
   let main_module_block_size =
-    make_package_object unix ~ppf_dump members targetobj targetname coercion
-      ~flambda2
+    make_package_object unix ~ppf_dump members target coercion ~flambda2
   in
   build_package_cmx members targetcmx ~main_module_block_size
 
@@ -251,45 +250,52 @@ let package_files unix ~ppf_dump initial_env files targetcmx ~flambda2 =
         try Load_path.find f
         with Not_found -> raise(Error(File_not_found f)))
       files in
-  let prefix = chop_extensions targetcmx in
-  let targetcmi = prefix ^ ".cmi" in
-  let targetobj = Filename.remove_extension targetcmx ^ Config.ext_obj in
-  let targetname = String.capitalize_ascii(Filename.basename prefix) in
+  let cmx = Unit_info.Artifact.from_filename targetcmx in
+  let cmi = Unit_info.companion_cmi cmx in
+  let obj = Unit_info.companion_obj cmx in
   (* Set the name of the current "input" *)
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
   let comp_unit =
     let for_pack_prefix = CU.Prefix.from_clflags () in
-    CU.create for_pack_prefix (CU.Name.of_string targetname)
+    CU.create for_pack_prefix
+      (CU.Name.of_string (Unit_info.Artifact.modname cmi))
   in
   Compilenv.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =
-        Typemod.package_units initial_env files targetcmi comp_unit in
-      package_object_files unix ~ppf_dump files targetcmx targetobj targetname
+        Typemod.package_units initial_env files cmi comp_unit in
+      package_object_files unix ~ppf_dump files obj targetcmx
         coercion ~flambda2
     )
-    ~exceptionally:(fun () -> remove_file targetcmx; remove_file targetobj)
+    ~exceptionally:(fun () ->
+        remove_file targetcmx; remove_file (Unit_info.Artifact.filename obj)
+      )
 
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
     Illegal_renaming(name, file, id) ->
       fprintf ppf "Wrong file naming: %a@ contains the code for\
                    @ %a when %a was expected"
-        Location.print_filename file CU.Name.print name CU.Name.print id
+        (Style.as_inline_code Location.print_filename) file
+        (Style.as_inline_code CU.Name.print) name
+        (Style.as_inline_code CU.Name.print) id
   | Forward_reference(file, ident) ->
-      fprintf ppf "Forward reference to %a in file %a" CU.Name.print ident
-        Location.print_filename file
+      fprintf ppf "Forward reference to %a in file %a"
+        (Style.as_inline_code CU.Name.print) ident
+        (Style.as_inline_code Location.print_filename) file
   | Wrong_for_pack(file, path) ->
       fprintf ppf "File %a@ was not compiled with the `-for-pack %a' option"
-        Location.print_filename file Compilation_unit.print path
+        (Style.as_inline_code Location.print_filename) file
+        (Style.as_inline_code CU.print) path
   | File_not_found file ->
-      fprintf ppf "File %s not found" file
+      fprintf ppf "File %a not found" Style.inline_code file
   | Assembler_error file ->
-      fprintf ppf "Error while assembling %s" file
+      fprintf ppf "Error while assembling %a" Style.inline_code file
   | Linking_error ->
       fprintf ppf "Error during partial linking"
 

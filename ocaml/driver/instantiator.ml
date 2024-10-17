@@ -44,8 +44,10 @@ let instantiate
       arg_param, (unit_infos.ui_unit, arg_block_field)
   in
   let arg_info = List.map arg_info_of_cm_path args in
-  let arg_pairs : (CU.t * CU.t) list =
-    List.map (fun (param, (value, _)) -> CU.of_global_name param, value)
+  let arg_pairs : CU.argument list =
+    List.map
+      (fun (param, (value, _)) : CU.argument ->
+         { param = CU.of_global_name param; value })
       arg_info
   in
   let arg_map : (CU.t * int) Global_module.Name.Map.t =
@@ -87,7 +89,9 @@ let instantiate
       end
   in
   let arg_subst : Global_module.subst =
-    Global_module.Name.Map.of_list global.visible_args
+    global.visible_args
+    |> List.map (fun ({ param; value } : Global_module.argument) -> param, value)
+    |> Global_module.Name.Map.of_list
   in
   let runtime_params, main_module_block_size =
     match unit_infos.ui_format with

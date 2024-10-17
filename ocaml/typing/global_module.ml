@@ -6,35 +6,68 @@ let pp_concat pp ppf list =
 type ('name, 'value) duplicate =
   | Duplicate of { name : 'name; value1 : 'value; value2 : 'value }
 
+module Argument = struct
+  type ('param, 'value) t = {
+    param : 'param;
+    value : 'value;
+  }
+
+  let compare cmp_param cmp_value
+        { param = param1; value = value1 }
+        { param = param2; value = value2 } =
+    match cmp_param param1 param2 with
+    | 0 -> cmp_value value1 value2
+    | c -> c
+end
+
 let check_uniqueness_of_sorted l ~cmp =
   let rec loop n1 v1 l =
-    match l with
+    match (l : (_, _) Argument.t list) with
     | [] -> Ok ()
-    | (n2, v2) :: l ->
+    | { param = n2; value = v2 } :: l ->
       if cmp n1 n2 = 0 then
         Error (Duplicate { name = n1; value1 = v1; value2 = v2 })
       else
         loop n2 v2 l
   in
-  match l with
+  match (l : (_, _) Argument.t list) with
   | [] -> Ok ()
-  | (n1, v1) :: l -> loop n1 v1 l
+  | { param = n1; value = v1 } :: l -> loop n1 v1 l
 
 let sort_and_check_uniqueness l ~cmp =
-  let l = List.stable_sort (fun (n1, _) (n2, _) -> cmp n1 n2) l in
+  let open Argument in
+  let l = List.stable_sort (fun arg1 arg2 -> cmp arg1.param arg2.param) l in
   check_uniqueness_of_sorted l ~cmp |> Result.map (fun () -> l)
+
+let check_uniqueness_of_merged (type n v)
+      (l1 : (n, v) Argument.t list) l2 ~(cmp : n -> n -> int) =
+  let open Argument in
+  let exception Found_duplicate of (n, v) duplicate in
+  match
+    Misc.Stdlib.List.merge_iter l1 l2
+      ~cmp:(fun arg1 arg2 -> cmp arg1.param arg2.param)
+      ~left_only:ignore
+      ~right_only:ignore
+      ~both:(fun { param = name; value = value1 } { value = value2; _ } ->
+          raise (Found_duplicate (Duplicate { name; value1; value2 })))
+  with
+  | () -> Ok ()
+  | exception Found_duplicate dup -> Error dup
 
 module Name : sig
   type t = private {
     head : string;
-    args : (t * t) list;
+    args : argument list;
   }
+  and argument = (t, t) Argument.t
 
-  val create : string -> (t * t) list -> (t, (t, t) duplicate) Result.t
+  val create : string -> argument list -> (t, (t, t) duplicate) Result.t
 
-  val create_exn : string -> (t * t) list -> t
+  val create_exn : string -> argument list -> t
 
-  val unsafe_create_unchecked : string -> (t * t) list -> t
+  val create_no_args : string -> t
+
+  val unsafe_create_unchecked : string -> argument list -> t
 
   val to_string : t -> string
 
@@ -42,8 +75,9 @@ module Name : sig
 end = struct
   type t = {
     head : string;
-    args : (t * t) list;
+    args : argument list;
   }
+  and argument = (t, t) Argument.t
 
   include Identifiable.Make (struct
     type nonrec t = t
@@ -56,10 +90,7 @@ end = struct
         match String.compare head1 head2 with
         | 0 -> List.compare compare_arg args1 args2
         | c -> c
-    and compare_arg (name1, arg1) (name2, arg2) =
-      match compare name1 name2 with
-      | 0 -> compare arg1 arg2
-      | c -> c
+    and compare_arg arg1 arg2 = Argument.compare compare compare arg1 arg2
 
     let equal t1 t2 = compare t1 t2 = 0
 
@@ -72,7 +103,7 @@ end = struct
           Format.fprintf ppf "@[<hov 1>%s%a@]"
             head
             (pp_concat print_arg_pair) args
-    and print_arg_pair ppf (name, arg) =
+    and print_arg_pair ppf ({ param = name; value = arg } : argument) =
       Format.fprintf ppf "[%a:%a]" print name print arg
 
     let output = print |> Misc.output_of_print
@@ -91,12 +122,16 @@ end = struct
       Misc.fatal_errorf "Names of instance arguments must be unique:@ %a"
         print { head; args }
 
+  let create_no_args head = create_exn head []
+
   let unsafe_create_unchecked head args = { head; args }
 
   let to_string = print |> Misc.to_string_of_print
 end
 
-let compare_arg_name (name1, _) (name2, _) = Name.compare name1 name2
+let compare_arg_name arg1 arg2 =
+   let open Argument in
+   Name.compare arg1.param arg2.param
 
 let rec list_similar f list1 list2 =
   match list1, list2 with
@@ -107,31 +142,33 @@ let rec list_similar f list1 list2 =
 module T0 : sig
   type t = private {
     head : string;
-    visible_args : (Name.t * t) list;
-    hidden_args : (Name.t * t) list;
+    visible_args : argument list;
+    hidden_args : argument list;
   }
+  and argument = (Name.t, t) Argument.t
 
   include Identifiable.S with type t := t
 
   val create
      : string
-    -> (Name.t * t) list
-    -> hidden_args:(Name.t * t) list
+    -> argument list
+    -> hidden_args:argument list
     -> (t, (Name.t, t) duplicate) Result.t
 
   val create_exn
      : string
-    -> (Name.t * t) list
-    -> hidden_args:(Name.t * t) list
+    -> argument list
+    -> hidden_args:argument list
     -> t
 
   val to_name : t -> Name.t
 end = struct
   type t = {
     head : string;
-    visible_args : (Name.t * t) list;
-    hidden_args : (Name.t * t) list;
+    visible_args : argument list;
+    hidden_args : argument list;
   }
+  and argument = (Name.t, t) Argument.t
 
   include Identifiable.Make (struct
     type nonrec t = t
@@ -148,10 +185,7 @@ end = struct
             | c -> c
           end
         | c -> c
-    and compare_pairs (param1, value1) (param2, value2) =
-      match Name.compare param1 param2 with
-      | 0 -> compare value1 value2
-      | c -> c
+    and compare_pairs arg1 arg2 = Argument.compare Name.compare compare arg1 arg2
 
     let equal t1 t2 = compare t1 t2 = 0
 
@@ -161,7 +195,9 @@ end = struct
       hidden_args = []
       && String.equal head name_head
       && list_similar equal_looking_args visible_args name_args
-    and equal_looking_args (name1, value1) (name2, value2) =
+    and equal_looking_args
+          ({ param = name1; value = value1 } : argument)
+          ({ param = name2; value = value2 } : Name.argument) =
       Name.equal name1 name2 && equal_looking value1 value2
 
     let rec print ppf { head; visible_args; hidden_args } =
@@ -169,9 +205,9 @@ end = struct
         head
         (pp_concat print_visible_pair) visible_args
         (pp_concat print_hidden_pair) hidden_args
-    and print_visible_pair ppf (name, value) =
+    and print_visible_pair ppf ({ param = name; value } : argument) =
       Format.fprintf ppf "[%a:%a]" Name.print name print value
-    and print_hidden_pair ppf (name, value) =
+    and print_hidden_pair ppf ({ param = name; value } : argument) =
       if equal_looking value name then
         Format.fprintf ppf "{%a}" Name.print name
       else
@@ -186,9 +222,7 @@ end = struct
     let (let*) = Result.bind in
     let* visible_args = sort_and_check_uniqueness visible_args ~cmp:Name.compare in
     let* hidden_args = sort_and_check_uniqueness hidden_args ~cmp:Name.compare in
-    (* This should check that visible and hidden args don't overlap.
-       Fortunately, we don't ever parse these directly from the user, so there
-       isn't much chance of an overlap actually happening. *)
+    let* () = check_uniqueness_of_merged visible_args hidden_args ~cmp:Name.compare in
     Ok { head; visible_args; hidden_args }
 
   let create_exn head visible_args ~hidden_args =
@@ -204,8 +238,8 @@ end = struct
   let rec to_name ({ head; visible_args; hidden_args = _ }) : Name.t =
     (* Safe because we already checked the names in this exact argument list *)
     Name.unsafe_create_unchecked head (List.map arg_to_name visible_args)
-  and arg_to_name (name, value) =
-    name, to_name value
+  and arg_to_name ({ param = name; value } : argument) : Name.argument =
+    { param = name; value = to_name value }
 end
 
 include T0
@@ -224,9 +258,11 @@ let rec subst0 (t : t) (s : subst) ~changed =
 and subst0_inside { head; visible_args; hidden_args } s ~changed =
   let matching_hidden_args, non_matching_hidden_args =
     List.partition_map
-      (fun ((name, value) as pair) ->
+      (fun (({ param = name; value } : argument) as pair) ->
           match Subst.find_opt (to_name value) s with
-          | Some rhs -> changed := true; Left (name, rhs)
+          | Some rhs ->
+            changed := true;
+            Left ({ param = name; value = rhs } : argument)
           | None -> Right pair)
       hidden_args
   in
@@ -237,7 +273,9 @@ and subst0_inside { head; visible_args; hidden_args } s ~changed =
   in
   create_exn head visible_args ~hidden_args
 and subst0_alist l s ~changed =
-  List.map (fun (name, value) -> name, subst0 value s ~changed) l
+  List.map
+    (fun (arg : argument) -> { arg with value = subst0 arg.value s ~changed })
+  l
 
 let subst t s =
   let changed = ref false in
@@ -260,8 +298,9 @@ let check s args =
   Name.Set.subset (Name.Map.keys s) param_set
 
 let rec is_complete t =
+  let open Argument in
   match t.hidden_args with
-  | [] -> List.for_all (fun (_, value) -> is_complete value) t.visible_args
+  | [] -> List.for_all (fun { value; _ } -> is_complete value) t.visible_args
   | _ -> false
 
 let has_arguments t =

@@ -206,8 +206,8 @@ let operation d = function
       match mutability with
       | Asttypes.Immutable -> Printf.sprintf "load %s" (chunk memory_chunk)
       | Asttypes.Mutable   -> Printf.sprintf "load_mut %s" (chunk memory_chunk))
-  | Calloc Alloc_heap -> "alloc" ^ location d
-  | Calloc Alloc_local -> "alloc_local" ^ location d
+  | Calloc Alloc_mode.Heap -> "alloc" ^ location d
+  | Calloc Alloc_mode.Local -> "alloc_local" ^ location d
   | Cstore (c, init) ->
     let init =
       match init with
@@ -271,6 +271,7 @@ let operation d = function
   | Ctuple_field (field, _ty) ->
     to_string "tuple_field %i" field
   | Cdls_get -> "dls_get"
+  | Cpoll -> "poll"
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

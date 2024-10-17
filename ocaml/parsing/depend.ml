@@ -52,8 +52,6 @@ let rec lookup_map lid m =
   | Ldot (l, s) -> String.Map.find s (get_map (lookup_map l m))
   | Lapply _    -> raise Not_found
 
-(* Collect free module identifiers in the a.s.t. *)
-
 let free_structure_names = ref String.Set.empty
 
 let add_names s =
@@ -111,7 +109,8 @@ let rec add_type bv ty =
     Ptyp_any -> ()
   | Ptyp_var _ -> ()
   | Ptyp_arrow(_, t1, t2, _, _) -> add_type bv t1; add_type bv t2
-  | Ptyp_tuple tl -> List.iter (add_type bv) tl
+  | Ptyp_tuple tl -> add_type_labeled_tuple bv tl
+  | Ptyp_unboxed_tuple tl -> add_type_labeled_tuple bv tl
   | Ptyp_constr(c, tl) -> add bv c; List.iter (add_type bv) tl
   | Ptyp_object (fl, _) ->
       List.iter
@@ -128,11 +127,13 @@ let rec add_type bv ty =
         fl
   | Ptyp_poly(_, t) -> add_type bv t
   | Ptyp_package pt -> add_package_type bv pt
+  | Ptyp_open (mod_ident, t) ->
+    let bv = open_module bv mod_ident.txt in
+    add_type bv t
   | Ptyp_extension e -> handle_extension e
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ
-  | Jtyp_tuple x -> add_type_jst_labeled_tuple bv x
 
 and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
   | Ltyp_var { name = _; jkind } ->
@@ -144,8 +145,8 @@ and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
     add_type bv aliased_type;
     add_jkind bv jkind
 
-and add_type_jst_labeled_tuple bv : Jane_syntax.Labeled_tuples.core_type -> _ =
-  fun tl -> List.iter (fun (_, ty) -> add_type bv ty) tl
+and add_type_labeled_tuple bv tl =
+  List.iter (fun (_, ty) -> add_type bv ty) tl
 
 and add_package_type bv (lid, l) =
   add bv lid;
@@ -217,7 +218,8 @@ let rec add_pattern bv pat =
   | Ppat_alias(p, _) -> add_pattern bv p
   | Ppat_interval _
   | Ppat_constant _ -> ()
-  | Ppat_tuple pl -> List.iter (add_pattern bv) pl
+  | Ppat_tuple (pl, _) -> add_pattern_labeled_tuple bv pl
+  | Ppat_unboxed_tuple (pl, _)-> add_pattern_labeled_tuple bv pl
   | Ppat_construct(c, opt) ->
       add bv c;
       add_opt
@@ -243,8 +245,9 @@ and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
   | Jpat_layout (Lpat_constant _) -> add_constant
-  | Jpat_tuple (labeled_pl, _) ->
-      List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
+
+and add_pattern_labeled_tuple bv labeled_pl =
+  List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
 
 let add_pattern bv pat =
   pattern_bv := bv;
@@ -268,7 +271,8 @@ let rec add_expr bv exp =
       add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
   | Pexp_match(e, pel) -> add_expr bv e; add_cases bv pel
   | Pexp_try(e, pel) -> add_expr bv e; add_cases bv pel
-  | Pexp_tuple el -> List.iter (add_expr bv) el
+  | Pexp_tuple el -> add_labeled_tuple_expr bv el
+  | Pexp_unboxed_tuple el -> add_labeled_tuple_expr bv el
   | Pexp_construct(c, opte) -> add bv c; add_opt add_expr bv opte
   | Pexp_variant(_, opte) -> add_opt add_expr bv opte
   | Pexp_record(lblel, opte) ->
@@ -337,7 +341,6 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
-  | Jexp_tuple x -> add_labeled_tuple_expr bv x
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -382,8 +385,7 @@ and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
     add_jkind bv jkind;
     add_expr bv inner_expr
 
-and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.expression -> _ =
-  function el -> List.iter (add_expr bv) (List.map snd el)
+and add_labeled_tuple_expr bv el = List.iter (add_expr bv) (List.map snd el)
 
 and add_function_param bv param =
   match param.pparam_desc with
@@ -406,6 +408,7 @@ and add_function_constraint bv { mode_annotations = _; type_constraint } =
   | Pcoerce (ty1, ty2) ->
       add_opt add_type bv ty1;
       add_type bv ty2
+
 and add_cases bv cases =
   List.iter (add_case bv) cases
 
@@ -521,10 +524,6 @@ and add_include_description (bv, m) incl =
   (add bv, add m)
 
 and add_sig_item_jst (bv, m) : Jane_syntax.Signature_item.t -> _ = function
-  | Jsig_include_functor (Ifsig_include_functor incl) ->
-      (* It seems to be correct to treat [include functor] the same as
-         [include], but it's possible we could do something cleverer. *)
-      add_include_description (bv, m) incl
   | Jsig_layout (Lsig_kind_abbrev (_, jkind)) ->
       add_jkind bv jkind; (bv, m)
 
@@ -573,7 +572,7 @@ and add_sig_item (bv, m) item =
       (bv, m)
   | Psig_open od ->
       (open_description bv od, m)
-  | Psig_include incl ->
+  | Psig_include (incl, _) ->
       add_include_description (bv, m) incl
   | Psig_class cdl ->
       List.iter (add_class_description bv) cdl; (bv, m)
@@ -677,10 +676,6 @@ and add_include_declaration (bv, m) incl =
   (add bv, add m)
 
 and add_struct_item_jst (bv, m) : Jane_syntax.Structure_item.t -> _ = function
-  | Jstr_include_functor (Ifstr_include_functor incl) ->
-      (* It seems to be correct to treat [include functor] the same as
-         [include], but it's possible we could do something cleverer. *)
-      add_include_declaration (bv, m) incl
   | Jstr_layout (Lstr_kind_abbrev (_name, jkind)) ->
       add_jkind bv jkind; (bv, m)
 

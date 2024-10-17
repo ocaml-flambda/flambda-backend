@@ -34,6 +34,8 @@ module Example = struct
   let modality_val  = parse module_type
     "sig \
       val t : string -> string @ local @@ foo bar \
+      include S @@ bar foo
+      include functor S @@ foo foo
      end"
 
   let local_exp = parse expression "let x = foo (local_ x) in local_ y"
@@ -46,6 +48,14 @@ module Example = struct
     "let f (a @ local) ~(b @ local) ?(c @ local) \
           ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
            () = () in f"
+  let utuple_exp = parse expression
+    "let #(x,y) : #(int * int) = #(1,2) in \
+     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in \
+     let #(i,j) : ('b : value mod m & (value mod l)) = #(6,7) in \
+     let #(s,t) : ('c : value mod m & value mod l) = #(7,8) in \
+     let #(k,l) : ('d : value with t & (value with t)) = #(6,7) in \
+     let #(u,v) : ('e : value with t & value with t) = #(7,8) in \
+     x + y + a + b + c + i + j + s + t + k + l + u + v"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -70,6 +80,11 @@ module Example = struct
       kind_abbrev_ immutable = value mod uncontended \
       kind_abbrev_ data = value mod sync many \
     end"
+
+  let instance_name =
+    parse module_expr "\
+      Base(Name1)(Value1)(Name2)(Value2(Name2_1)(Value2_1)) \
+        [@jane.non_erasable.instances]"
 
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
@@ -131,6 +146,7 @@ module Example = struct
                          ; ptype_loc = loc
                          }
   let tyvar            = "no_tyvars_require_extensions"
+  let tyvar_of_name    = "no_tyvars_require_extensions"
   let jkind            = Jane_syntax.Jkind.(
                             With (
                               Abbreviation
@@ -193,6 +209,7 @@ end = struct
   let local_exp = test "local_exp" expression Example.local_exp
   let stack_exp = test "stack_exp" expression Example.stack_exp
   let fun_with_modes_on_arg = test "fun_with_modes_on_arg" expression Example.fun_with_modes_on_arg
+  let utuple_exp = test "utuple_exp" expression Example.utuple_exp
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
@@ -219,7 +236,10 @@ end = struct
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
   let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
   let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
+  let instance_name = test "instance_name" module_expr Example.instance_name
 
+  let tyvar_of_name =
+    test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name
   let tyvar = test "tyvar" tyvar Example.tyvar
   let jkind = test "jkind" jkind Example.jkind
   let mode = test "mode" mode Example.mode

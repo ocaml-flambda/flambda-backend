@@ -139,17 +139,22 @@ val mk_compare_float32s_untagged :
 (** Convert a tagged integer into a raw integer with boolean meaning *)
 val test_bool : Debuginfo.t -> expression -> expression
 
+(** Conversions for 16-bit floats *)
+val float_of_float16 : Debuginfo.t -> expression -> expression
+
+val float16_of_float : Debuginfo.t -> expression -> expression
+
 (** Float boxing and unboxing *)
-val box_float32 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+val box_float32 : Debuginfo.t -> Cmm.Alloc_mode.t -> expression -> expression
 
 val unbox_float32 : Debuginfo.t -> expression -> expression
 
-val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+val box_float : Debuginfo.t -> Cmm.Alloc_mode.t -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
 
 (** Vector boxing and unboxing *)
-val box_vec128 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+val box_vec128 : Debuginfo.t -> Cmm.Alloc_mode.t -> expression -> expression
 
 val unbox_vec128 : Debuginfo.t -> expression -> expression
 
@@ -227,7 +232,7 @@ val unboxed_float_array_ref :
   expression
 
 val float_array_ref :
-  Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
+  Cmm.Alloc_mode.t -> expression -> expression -> Debuginfo.t -> expression
 
 val addr_array_set_heap :
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -311,7 +316,7 @@ end
 
 (** Allocate a block of regular values with the given tag *)
 val make_alloc :
-  mode:Lambda.alloc_mode ->
+  mode:Cmm.Alloc_mode.t ->
   Debuginfo.t ->
   tag:int ->
   expression list ->
@@ -319,30 +324,37 @@ val make_alloc :
 
 (** Allocate a block of unboxed floats with the given tag *)
 val make_float_alloc :
-  mode:Lambda.alloc_mode ->
+  mode:Cmm.Alloc_mode.t ->
   Debuginfo.t ->
   tag:int ->
   expression list ->
   expression
 
-module Flat_suffix_element : sig
-  type t =
-    | Tagged_immediate
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_int64_or_nativeint
-end
+(** Allocate a closure block, to hold a set of closures.
 
-(** Allocate an mixed block of the corresponding tag and shape. Initial values
-    of the flat suffix should be provided unboxed. *)
+    This takes a list of expressions [exprs] and a list of [memory_chunk]s
+    that correspond pairwise.  Both lists must be the same length.
+
+    The list of expressions includes _all_ fields of the closure block,
+    including the code pointers and closure information fields. *)
+val make_closure_alloc :
+  mode:Cmm.Alloc_mode.t ->
+  Debuginfo.t ->
+  tag:int ->
+  expression list ->
+  memory_chunk list ->
+  expression
+
+(** Allocate an mixed block of the corresponding tag and scannable prefix size.
+    The [memory_chunk] list should give the memory_chunk corresponding to
+    each element from the [expression] list. *)
 val make_mixed_alloc :
-  mode:Lambda.alloc_mode ->
+  mode:Cmm.Alloc_mode.t ->
   Debuginfo.t ->
   tag:int ->
   value_prefix_size:int ->
-  flat_suffix:Flat_suffix_element.t array ->
   expression list ->
+  memory_chunk list ->
   expression
 
 (** Sys.opaque_identity *)
@@ -396,7 +408,7 @@ val zero_extend_63 : Debuginfo.t -> expression -> expression
 val box_int_gen :
   Debuginfo.t ->
   Primitive.boxed_integer ->
-  Lambda.alloc_mode ->
+  Cmm.Alloc_mode.t ->
   expression ->
   expression
 
@@ -528,7 +540,7 @@ val send :
   expression list ->
   Extended_machtype.t list ->
   Extended_machtype.t ->
-  Lambda.region_close * Lambda.alloc_mode ->
+  Lambda.region_close * Cmx_format.alloc_mode ->
   Debuginfo.t ->
   expression
 
@@ -861,7 +873,7 @@ val indirect_call :
   dbg:Debuginfo.t ->
   Extended_machtype.t ->
   Lambda.region_close ->
-  Lambda.alloc_mode ->
+  Cmx_format.alloc_mode ->
   expression ->
   Extended_machtype.t list ->
   expression list ->
@@ -873,7 +885,7 @@ val indirect_full_call :
   dbg:Debuginfo.t ->
   Extended_machtype.t ->
   Lambda.region_close ->
-  Lambda.alloc_mode ->
+  Cmx_format.alloc_mode ->
   expression ->
   Extended_machtype.t list ->
   expression list ->
@@ -976,10 +988,10 @@ val curry_function :
   Lambda.function_kind * Cmm.machtype list * Cmm.machtype -> Cmm.phrase list
 
 val send_function :
-  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+  Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode -> Cmm.phrase
 
 val apply_function :
-  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+  Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode -> Cmm.phrase
 
 (* Atomics *)
 
@@ -1014,6 +1026,7 @@ val resume :
   stack:expression ->
   f:expression ->
   arg:expression ->
+  last_fiber:expression ->
   expression
 
 val reperform :
@@ -1026,22 +1039,22 @@ val reperform :
 (** Allocate a block to hold an unboxed float32 array for the given number of
     elements. *)
 val allocate_unboxed_float32_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Allocate a block to hold an unboxed int32 array for the given number of
     elements. *)
 val allocate_unboxed_int32_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Allocate a block to hold an unboxed int64 array for the given number of
     elements. *)
 val allocate_unboxed_int64_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Allocate a block to hold an unboxed nativeint array for the given number of
     elements. *)
 val allocate_unboxed_nativeint_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Compute the length of an unboxed float32 array. *)
 val unboxed_float32_array_length : expression -> Debuginfo.t -> expression
@@ -1130,3 +1143,5 @@ val setfield_unboxed_float32 : ternary_primitive
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
 
 val dls_get : dbg:Debuginfo.t -> expression
+
+val poll : dbg:Debuginfo.t -> expression

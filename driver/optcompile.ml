@@ -55,15 +55,16 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline ~as_arg_for =
            Asmgen.compile_implementation
              unix
              ~pipeline
-             ~filename:i.source_file
-             ~prefixname:i.output_prefix
+             ~sourcefile:(Some (Unit_info.source_file i.target))
+             ~prefixname:(Unit_info.prefix i.target)
              ~ppf_dump:i.ppf_dump
              program);
            let arg_descr =
              make_arg_descr ~param:as_arg_for
                ~arg_block_field:program.arg_block_field
            in
-           Compilenv.save_unit_info (cmx i)
+           Compilenv.save_unit_info
+             (Unit_info.Artifact.filename (Unit_info.cmx i.target))
              ~module_block_format:program.module_block_format
              ~arg_descr)
 
@@ -76,7 +77,6 @@ let compile_from_typed i typed ~transl_style ~unix ~pipeline ~as_arg_for =
 type flambda2 =
   ppf_dump:Format.formatter ->
   prefixname:string ->
-  filename:string ->
   keep_symbol_tables:bool ->
   Lambda.program ->
   Cmm.phrase list
@@ -85,7 +85,8 @@ type flambda2 =
 let emit unix i =
   Compilenv.reset i.module_name;
   Asmgen.compile_implementation_linear unix
-    i.output_prefix ~progname:i.source_file
+    (Unit_info.prefix i.target)
+    ~progname:(Unit_info.source_file i.target)
 
 type starting_point =
   | Parsing

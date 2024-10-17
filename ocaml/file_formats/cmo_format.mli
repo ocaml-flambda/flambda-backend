@@ -15,13 +15,19 @@
 
 (* Symbol table information for .cmo and .cma files *)
 
+(* Predefined symbols as represented in CMO files *)
+
+type predef =
+  | Predef_exn of string [@@unboxed]
+
 (* Relocation information *)
 
 type reloc_info =
-    Reloc_literal of Obj.t                  (* structured constant *)
-  | Reloc_getglobal of Ident.t              (* reference to a global *)
-  | Reloc_setglobal of Ident.t              (* definition of a global *)
-  | Reloc_primitive of string               (* C primitive number *)
+  | Reloc_literal of Obj.t (* structured constant *)
+  | Reloc_getcompunit of Compilation_unit.t (* reference to a compunit *)
+  | Reloc_getpredef of predef (* reference to a predef *)
+  | Reloc_setcompunit of Compilation_unit.t (* definition of a compunit *)
+  | Reloc_primitive of string (* C primitive number *)
 
 (* Descriptor for compilation units *)
 
@@ -35,7 +41,7 @@ type compilation_unit_descr =
                                            parameter it implements *)
     cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
     cu_format: Lambda.module_block_format;
-    cu_required_globals: Compilation_unit.t list;
+    cu_required_compunits: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects
                                            must occur before this one. *)

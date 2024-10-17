@@ -201,7 +201,8 @@ let simple ?consider_inlining_effectful_expressions ~dbg env res s =
 let name_static res name =
   Name.pattern_match name
     ~var:(fun v -> `Var v)
-    ~symbol:(fun s -> `Data [symbol_address (To_cmm_result.symbol res s)])
+    ~symbol:(fun s ->
+      `Static_data [symbol_address (To_cmm_result.symbol res s)])
 
 let const_static cst =
   match Reg_width_const.descr cst with
@@ -235,7 +236,7 @@ let const_static cst =
 let simple_static res s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ -> name_static res n)
-    ~const:(fun c -> `Data (const_static c))
+    ~const:(fun c -> `Static_data (const_static c))
 
 let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
   (* Note that [To_cmm_primitive] relies on this function translating the
@@ -425,3 +426,15 @@ let extended_machtype_of_return_arity arity =
   | arity ->
     (* Functions returning multiple values *)
     List.map extended_machtype_of_kind arity |> Array.concat
+
+let alloc_mode_for_applications_to_cmx t =
+  match t with
+  | Alloc_mode.For_applications.Local _ -> Cmx_format.Alloc_local
+  | Alloc_mode.For_applications.Heap -> Cmx_format.Alloc_heap
+
+let alloc_mode_for_allocations_to_cmm t =
+  match t with
+  | Alloc_mode.For_allocations.Heap -> Cmm.Alloc_mode.Heap
+  | Alloc_mode.For_allocations.Local _ ->
+    assert (Flambda_features.stack_allocation_enabled ());
+    Cmm.Alloc_mode.Local

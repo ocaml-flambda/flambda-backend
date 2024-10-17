@@ -202,6 +202,15 @@ type static_cast =
   | V128_of_scalar of Primitive.vec128_type
   | Scalar_of_v128 of Primitive.vec128_type
 
+module Alloc_mode : sig
+  type t = Heap | Local
+
+  val equal : t -> t -> bool
+  val print : Format.formatter -> t -> unit
+  val is_local : t -> bool
+  val is_heap  : t -> bool
+end
+
 type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
@@ -223,7 +232,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Lambda.alloc_mode
+  | Calloc of Alloc_mode.t
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool }  | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -253,6 +262,7 @@ type operation =
   | Ctuple_field of int * machtype array
       (* the [machtype array] refers to the whole tuple *)
   | Cdls_get
+  | Cpoll
 
 (* This is information used exclusively during construction of cmm terms by
    cmmgen, and thus irrelevant for selectgen and flambda2. *)
@@ -370,6 +380,8 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
+
+val width_in_bytes : memory_chunk -> int
 
 val ccatch :
      label * (Backend_var.With_provenance.t * machtype) list

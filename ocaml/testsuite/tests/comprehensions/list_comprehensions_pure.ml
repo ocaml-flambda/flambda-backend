@@ -244,8 +244,8 @@ Warning 26 [unused-var]: unused variable a.
 Line 1, characters 12-15:
 1 | [x for x in 100];;
                 ^^^
-Error: This expression has type int but an expression was expected of type
-         'a list
+Error: This expression has type "int" but an expression was expected of type
+         "'a list"
        because it is in a for-in iterator in a list comprehension
 |}];;
 
@@ -256,8 +256,8 @@ Error: This expression has type int but an expression was expected of type
 Line 1, characters 12-16:
 1 | [x for x in [||]];;
                 ^^^^
-Error: This expression has type 'a array
-       but an expression was expected of type 'b list
+Error: This expression has type "'a array"
+       but an expression was expected of type "'b list"
        because it is in a for-in iterator in a list comprehension
 |}];;
 
@@ -269,8 +269,8 @@ let empty = [||] in
 Line 2, characters 12-17:
 2 | [x for x in empty];;
                 ^^^^^
-Error: This expression has type 'a array
-       but an expression was expected of type 'b list
+Error: This expression has type "'a array"
+       but an expression was expected of type "'b list"
        because it is in a for-in iterator in a list comprehension
 |}];;
 
@@ -279,8 +279,8 @@ Array.length [i for i = 0 to 3];;
 Line 1, characters 13-31:
 1 | Array.length [i for i = 0 to 3];;
                  ^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'a list
-       but an expression was expected of type 'b array
+Error: This expression has type "'a list"
+       but an expression was expected of type "'b array"
 |}];;
 
 (* to/downto are only for ints *)
@@ -290,8 +290,8 @@ Error: This expression has type 'a list
 Line 1, characters 11-14:
 1 | [x for x = 1.5 to 4.2];;
                ^^^
-Error: This expression has type float but an expression was expected of type
-         int
+Error: This expression has type "float" but an expression was expected of type
+         "int"
        because it is in a range-based for iterator start index in a comprehension
 |}];;
 
@@ -300,8 +300,8 @@ Error: This expression has type float but an expression was expected of type
 Line 1, characters 11-14:
 1 | [x for x = 4.2 downto 1.5];;
                ^^^
-Error: This expression has type float but an expression was expected of type
-         int
+Error: This expression has type "float" but an expression was expected of type
+         "int"
        because it is in a range-based for iterator start index in a comprehension
 |}];;
 
@@ -364,7 +364,7 @@ Error: Modules are not allowed in this pattern.
 Line 1, characters 0-37:
 1 | [i for i = 1 to 3 and i = 3 downto 1];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Variable i is bound several times in this matching
+Error: Variable "i" is bound several times in this matching
 |}];;
 
 [i for i = 1 to 3 and i in [10; 20; 30]];;
@@ -372,7 +372,7 @@ Error: Variable i is bound several times in this matching
 Line 1, characters 22-23:
 1 | [i for i = 1 to 3 and i in [10; 20; 30]];;
                           ^
-Error: Variable i is bound several times in this matching
+Error: Variable "i" is bound several times in this matching
 |}];;
 
 [i for i in [1; 2; 3] and i = 3 downto 1];;
@@ -380,7 +380,7 @@ Error: Variable i is bound several times in this matching
 Line 1, characters 0-41:
 1 | [i for i in [1; 2; 3] and i = 3 downto 1];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Variable i is bound several times in this matching
+Error: Variable "i" is bound several times in this matching
 |}];;
 
 [i for i in [1; 2; 3] and i in [10; 20; 30]];;
@@ -388,7 +388,7 @@ Error: Variable i is bound several times in this matching
 Line 1, characters 26-27:
 1 | [i for i in [1; 2; 3] and i in [10; 20; 30]];;
                               ^
-Error: Variable i is bound several times in this matching
+Error: Variable "i" is bound several times in this matching
 |}];;
 
 [i for i, j in [1, 10; 2, 20; 3, 30] and k, i in [10, 1; 20, 2; 30, 3]];
@@ -396,7 +396,7 @@ Error: Variable i is bound several times in this matching
 Line 1, characters 44-45:
 1 | [i for i, j in [1, 10; 2, 20; 3, 30] and k, i in [10, 1; 20, 2; 30, 3]];
                                                 ^
-Error: Variable i is bound several times in this matching
+Error: Variable "i" is bound several times in this matching
 |}];;
 
 (* Variables bind from left to right, not right to left *)
@@ -406,8 +406,8 @@ Error: Variable i is bound several times in this matching
 Line 1, characters 25-30:
 1 | [outer,inner for outer = inner to 3 for inner = 1 to 3];;
                              ^^^^^
-Error: Unbound value inner
-Hint: Did you mean incr?
+Error: Unbound value "inner"
+Hint: Did you mean "incr"?
 |}];;
 
 (* The element type is handled correctly *)
@@ -417,8 +417,8 @@ true :: [i for i = 0 to 10];;
 Line 1, characters 9-10:
 1 | true :: [i for i = 0 to 10];;
              ^
-Error: This expression has type int but an expression was expected of type
-         bool
+Error: This expression has type "int" but an expression was expected of type
+         "bool"
 |}];;
 
 (******************************************************************************)
@@ -442,7 +442,7 @@ val x : M.t list = [M.A; M.A; M.A]
 Line 1, characters 1-2:
 1 | [A for _ = 1 to 3];;
      ^
-Error: Unbound constructor A
+Error: Unbound constructor "A"
 |}];;
 
 M.B :: [A for _ = 1 to 3];;

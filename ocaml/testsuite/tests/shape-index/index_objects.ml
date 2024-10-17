@@ -1,15 +1,18 @@
 (* TEST
- flags = "-bin-annot -bin-annot-occurrences";
- compile_only = "true";
- readonly_files = "index_objects.ml";
- all_modules = "index_objects.ml";
- setup-ocamlc.byte-build-env;
- ocamlc.byte;
- program = "-quiet -index -decls index_objects.cmt";
- output = "out_objinfo";
- check-ocamlc.byte-output;
- ocamlobjinfo;
- check-program-output;
+
+flags = "-bin-annot -bin-annot-occurrences";
+compile_only = "true";
+readonly_files = "index_objects.ml";
+setup-ocamlc.byte-build-env;
+all_modules = "index_objects.ml";
+ocamlc.byte;
+check-ocamlc.byte-output;
+
+program = "-quiet -index -decls index_objects.cmt";
+output = "out_objinfo";
+ocamlobjinfo;
+
+check-program-output;
 *)
 
 let o = object

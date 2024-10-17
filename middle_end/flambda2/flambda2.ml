@@ -82,7 +82,7 @@ let print_flexpect name main_dump_ppf ~raw_flambda:old_unit new_unit =
     ~header:("Before and after " ^ name)
     ~f:pp_flambda_as_flexpect (old_unit, new_unit)
 
-let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
+let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
     (program : Lambda.program) =
   let compilation_unit = program.compilation_unit in
   let module_block_size_in_words =
@@ -99,7 +99,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
      processing time because there may be an [@@@flambda_oclassic] or
      [@@@flambda_o3] attribute. *)
   if Flambda_features.classic_mode () then Clflags.use_linscan := true;
-  Misc.Color.setup (Flambda_features.colour ());
+  Misc.Style.setup (Flambda_features.colour ());
   (* CR-someday mshinwell: Note for future WebAssembly work: this thing about
      the length of arrays will need fixing, I don't think it only applies to the
      Cmm translation.

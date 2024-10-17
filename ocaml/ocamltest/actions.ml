@@ -80,4 +80,4 @@ module ActionSet = Set.Make
   let compare = compare
 end)
 
-let _ = Variables.register_variable action_name
+let init () = Variables.register_variable action_name

@@ -15,7 +15,7 @@
 
 #define CAML_INTERNALS
 
-#if _MSC_VER >= 1400 && _MSC_VER < 1700
+#if defined(_MSC_VER) && _MSC_VER >= 1400 && _MSC_VER < 1700
 /* Microsoft introduced a regression in Visual Studio 2005 (technically it's
    not present in the Windows Server 2003 SDK which has a pre-release version)
    and the abort function ceased to be declared __declspec(noreturn). This was
@@ -225,8 +225,14 @@ void caml_flambda2_invalid (value message)
 {
   fprintf (stderr, "[ocaml] [flambda2] Invalid code:\n%s\n\n",
     String_val(message));
-  fprintf (stderr, "This might have arisen from a wrong use of [Obj.magic].\n");
-  fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
+  fprintf (stderr,
+    "This might have arisen from a wrong use of [%%identity],\n");
+  fprintf (stderr,
+    "for example confusing arrays and records, or non-mixed and\n");
+  fprintf (stderr,
+    "mixed blocks.\n");
+  fprintf (stderr,
+    "Consider using [Obj.magic], [Obj.repr] and/or [Obj.obj].\n");
   abort ();
 }
 
@@ -294,4 +300,9 @@ CAMLprim value caml_get_continuation_callstack(void)
 CAMLprim value caml_continuation_use_and_update_handler_noexc(void)
 {
   caml_fatal_error("Effects not implemented in runtime4");
+}
+
+CAMLprim value caml_domain_dls_compare_and_set(void)
+{
+  caml_fatal_error("Domains not implemented in runtime4");
 }

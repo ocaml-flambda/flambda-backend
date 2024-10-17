@@ -65,19 +65,37 @@ let print_global_name_binding global =
 let print_line name =
   printf "\t%s\n" name
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+||||||| 2572783060
+=======
 let print_global_as_name_line glob =
   (* Type will change soon for parameterised libraries *)
   printf "\t%a\n" Compilation_unit.Name.output glob
 
+>>>>>>> ocaml-jst/flambda-patches
 let print_required_global id =
   printf "\t%a\n" Compilation_unit.output id
+||||||| 121bedcfd2
+let print_required_global id =
+  printf "\t%s\n" (Ident.name id)
+=======
+let print_required_compunit (Compunit cu_name) =
+  printf "\t%s\n" cu_name
+>>>>>>> 5.2.0
 
 let print_cmo_infos cu =
+<<<<<<< HEAD
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
+||||||| 121bedcfd2
+  printf "Unit name: %s\n" cu.cu_name;
+=======
+  printf "Unit name: %s\n" (Symtable.Compunit.name cu.cu_name);
+>>>>>>> 5.2.0
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
   print_string "Required globals:\n";
-  List.iter print_required_global cu.cu_required_globals;
+  List.iter print_required_compunit cu.cu_required_compunits;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
     | [] -> printf "no\n"
@@ -103,7 +121,20 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
+<<<<<<< HEAD
 let print_cmi_infos name crcs kind params global_name_bindings =
+||||||| 4753683d0c
+let print_cmi_infos name crcs kind params =
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+let print_cmi_infos name crcs kind =
+||||||| 2572783060
+let print_cmi_infos name crcs kind =
+=======
+let print_cmi_infos name crcs kind params =
+>>>>>>> ocaml-jst/flambda-patches
+>>>>>>> instance-syntax^^
   if not !quiet then begin
     let open Cmi_format in
     printf "Unit name: %a\n" Compilation_unit.Name.output name;
@@ -120,9 +151,23 @@ let print_cmi_infos name crcs kind params global_name_bindings =
     printf "Globals in scope:\n";
     Array.iter print_global_name_binding global_name_bindings
   end
+||||||| 121bedcfd2
+let print_cmi_infos name crcs =
+  printf "Unit name: %s\n" name;
+  printf "Interfaces imported:\n";
+  List.iter print_name_crc crcs
+=======
+let print_cmi_infos name crcs =
+  if not !quiet then begin
+    printf "Unit name: %s\n" name;
+    printf "Interfaces imported:\n";
+    List.iter print_name_crc crcs
+  end
+>>>>>>> 5.2.0
 
 let print_cmt_infos cmt =
   let open Cmt_format in
+<<<<<<< HEAD
   if not !quiet then begin
     printf "Cmt unit name: %a\n" Compilation_unit.output cmt.cmt_modname;
     print_string "Cmt interfaces imported:\n";
@@ -141,11 +186,47 @@ let print_cmt_infos cmt =
       | None -> ""
       | Some crc -> string_of_crc crc);
   end;
+||||||| 121bedcfd2
+  printf "Cmt unit name: %s\n" cmt.cmt_modname;
+  print_string "Cmt interfaces imported:\n";
+  List.iter print_name_crc cmt.cmt_imports;
+  printf "Source file: %s\n"
+         (match cmt.cmt_sourcefile with None -> "(none)" | Some f -> f);
+  printf "Compilation flags:";
+  Array.iter print_spaced_string cmt.cmt_args;
+  printf "\nLoad path:";
+  List.iter print_spaced_string cmt.cmt_loadpath;
+  printf "\n";
+  printf "cmt interface digest: %s\n"
+    (match cmt.cmt_interface_digest with
+     | None -> ""
+     | Some crc -> string_of_crc crc);
+=======
+  if not !quiet then begin
+    printf "Cmt unit name: %s\n" cmt.cmt_modname;
+    print_string "Cmt interfaces imported:\n";
+    List.iter print_name_crc cmt.cmt_imports;
+    printf "Source file: %s\n"
+          (match cmt.cmt_sourcefile with None -> "(none)" | Some f -> f);
+    printf "Compilation flags:";
+    Array.iter print_spaced_string cmt.cmt_args;
+    printf "\nLoad path:\n  Visible:";
+    List.iter print_spaced_string cmt.cmt_loadpath.visible;
+    printf "\n  Hidden:";
+    List.iter print_spaced_string cmt.cmt_loadpath.hidden;
+    printf "\n";
+    printf "cmt interface digest: %s\n"
+      (match cmt.cmt_interface_digest with
+      | None -> ""
+      | Some crc -> string_of_crc crc);
+  end;
+>>>>>>> 5.2.0
   if !shape then begin
     printf "Implementation shape: ";
     (match cmt.cmt_impl_shape with
     | None -> printf "(none)\n"
     | Some shape -> Format.printf "\n%a" Shape.print shape)
+<<<<<<< HEAD
   end;
   if !index then begin
     printf "Indexed shapes:\n";
@@ -193,6 +274,56 @@ let print_cmt_infos cmt =
         pp_loc loc)
       cmt.cmt_uid_to_decl;
       Format.print_flush ()
+||||||| 121bedcfd2
+=======
+  end;
+  if !index then begin
+    printf "Indexed shapes:\n";
+    List.iter (fun (loc, item) ->
+      let pp_loc fmt { Location.txt; loc } =
+        Format.fprintf fmt "%a (%a)"
+          Pprintast.longident txt Location.print_loc loc
+      in
+      Format.printf "@[<hov 2>%a:@ %a@]@;"
+        Shape_reduce.print_result item pp_loc loc)
+      cmt.cmt_ident_occurrences;
+    Format.print_flush ()
+  end;
+  if !decls then begin
+    printf "\nUid of decls:\n";
+    Shape.Uid.Tbl.iter (fun uid item ->
+      let loc = match (item : Typedtree.item_declaration) with
+        | Value vd -> vd.val_name
+        | Value_binding vb ->
+          let (_, name, _, _) =
+            List.hd (Typedtree.let_bound_idents_full [vb])
+          in
+          name
+        | Type td -> td.typ_name
+        | Constructor cd -> cd.cd_name
+        | Extension_constructor ec -> ec.ext_name
+        | Label ld -> ld.ld_name
+        | Module md ->
+          { md.md_name with
+            txt = Option.value md.md_name.txt ~default:"_" }
+        | Module_substitution ms -> ms.ms_name
+        | Module_binding mb ->
+          { mb.mb_name with
+            txt = Option.value mb.mb_name.txt ~default:"_" }
+        | Module_type mtd -> mtd.mtd_name
+        | Class cd -> cd.ci_id_name
+        | Class_type ctd -> ctd.ci_id_name
+      in
+      let pp_loc fmt { Location.txt; loc } =
+        Format.fprintf fmt "%s (%a)"
+           txt Location.print_loc loc
+      in
+      Format.printf "@[<hov 2>%a:@ %a@]@;"
+        Shape.Uid.print uid
+        pp_loc loc)
+      cmt.cmt_uid_to_decl;
+      Format.print_flush ()
+>>>>>>> 5.2.0
   end
 
 let print_cms_infos cms =
@@ -218,7 +349,10 @@ let print_general_infos name crc defines cmi cmx =
 let print_global_table table =
   printf "Globals defined:\n";
   Symtable.iter_global_map
-    (fun id _ -> print_line (Ident.name id))
+    (fun global _ ->
+       print_line
+         (Format.asprintf "%a" Symtable.Global.description global)
+    )
     table
 
 open Cmx_format

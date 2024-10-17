@@ -222,6 +222,30 @@ type static_cast =
   | V128_of_scalar of Primitive.vec128_type
   | Scalar_of_v128 of Primitive.vec128_type
 
+module Alloc_mode = struct
+  type t = Heap | Local
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Heap, Heap -> true
+    | Local, Local -> true
+    | Heap, Local -> false
+    | Local, Heap -> false
+
+  let print ppf t =
+    match t with
+    | Heap -> Format.fprintf ppf "Heap"
+    | Local -> Format.fprintf ppf "Local"
+
+  let is_local = function
+    | Heap -> false
+    | Local -> true
+
+  let is_heap = function
+    | Heap -> true
+    | Local -> false
+end
+
 type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
@@ -239,7 +263,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Lambda.alloc_mode
+  | Calloc of Alloc_mode.t
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
@@ -267,6 +291,7 @@ type operation =
   | Cbeginregion | Cendregion
   | Ctuple_field of int * machtype array
   | Cdls_get
+  | Cpoll
 
 type kind_for_unboxing =
   | Any
@@ -356,6 +381,14 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
+
+let width_in_bytes (memory_chunk : memory_chunk) : int =
+  match memory_chunk with
+  | Byte_unsigned | Byte_signed -> 1
+  | Sixteen_unsigned | Sixteen_signed -> 2
+  | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
+  | Word_int | Word_val | Double -> 8
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
 
 let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)

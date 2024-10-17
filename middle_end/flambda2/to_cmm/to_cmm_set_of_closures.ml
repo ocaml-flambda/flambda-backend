@@ -97,7 +97,7 @@ module Make_layout_filler (P : sig
     To_cmm_env.t ->
     To_cmm_result.t ->
     Simple.t ->
-    [`Data of cmm_term list | `Var of Variable.t]
+    [`Expr of cmm_term | `Static_data of cmm_term list | `Var of Variable.t]
     * To_cmm_env.free_vars
     * To_cmm_env.t
     * To_cmm_result.t
@@ -121,6 +121,7 @@ end) : sig
     prev_updates:To_cmm_env.expr_with_info option ->
     (int * Slot_offsets.Layout.slot) list ->
     P.cmm_term list
+    * Cmm.memory_chunk list
     * To_cmm_env.free_vars
     * int
     * Env.t
@@ -128,20 +129,24 @@ end) : sig
     * Ece.t
     * To_cmm_env.expr_with_info option
 end = struct
+  let rev_append_chunks ~for_static_sets l chunks =
+    match for_static_sets with None -> List.rev_append l chunks | Some _ -> []
+
   (* The [offset]s here are measured in units of words. *)
   let fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
-      ~slot_offset updates slot =
+      chunk_acc ~slot_offset updates slot =
     match (slot : Slot_offsets.Layout.slot) with
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       ( field :: acc,
+        rev_append_chunks ~for_static_sets [Cmm.Word_int] chunk_acc,
         Backend_var.Set.empty,
         slot_offset + 1,
         env,
         res,
         Ece.pure,
         updates )
-    | Value_slot { value_slot; is_scanned; size = _ } ->
+    | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
       if (not
@@ -154,9 +159,15 @@ end = struct
           "Value slot %a not of kind Value (%a) but is visible by GC"
           Simple.print simple Debuginfo.print_compact dbg;
       let contents, free_vars, env, res, eff = P.simple ~dbg env res simple in
-      let env, res, fields, updates =
+      let env, res, fields, chunk_acc, updates =
         match contents with
-        | `Data fields -> env, res, fields, updates
+        | `Expr field ->
+          let chunk = C.memory_chunk_of_kind kind in
+          let chunk_acc =
+            rev_append_chunks ~for_static_sets [chunk] chunk_acc
+          in
+          env, res, [field], chunk_acc, updates
+        | `Static_data fields -> env, res, fields, chunk_acc, updates
         | `Var v -> (
           (* We should only get here in the static allocation case. *)
           match for_static_sets with
@@ -194,11 +205,13 @@ end = struct
                 ~index:(slot_offset - function_slot_offset_for_updates)
                 ~prev_updates:updates
             in
-            env, res, [P.int ~dbg 1n], updates)
+            let fields = List.init size (fun _ -> P.int ~dbg 1n) in
+            env, res, fields, chunk_acc, updates)
       in
       ( List.rev_append fields acc,
+        chunk_acc,
         free_vars,
-        slot_offset + 1,
+        slot_offset + size,
         env,
         res,
         eff,
@@ -243,6 +256,9 @@ end = struct
             P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
           in
           ( acc,
+            rev_append_chunks ~for_static_sets
+              [Cmm.Word_int; Cmm.Word_int]
+              chunk_acc,
             Backend_var.Set.empty,
             slot_offset + size,
             env,
@@ -265,6 +281,9 @@ end = struct
             :: acc
           in
           ( acc,
+            rev_append_chunks ~for_static_sets
+              [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
+              chunk_acc,
             Backend_var.Set.empty,
             slot_offset + size,
             env,
@@ -283,14 +302,22 @@ end = struct
             ~arity:(if size = 2 then 1 else 2)
             ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
         in
-        let acc =
+        let acc, chunk_acc =
           match size with
-          | 2 -> P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+          | 2 ->
+            ( P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
+              rev_append_chunks ~for_static_sets
+                [Cmm.Word_int; Cmm.Word_int]
+                chunk_acc )
           | 3 ->
-            P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+            ( P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
+              rev_append_chunks ~for_static_sets
+                [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
+                chunk_acc )
           | _ -> assert false
         in
         ( acc,
+          chunk_acc,
           Backend_var.Set.empty,
           slot_offset + size,
           env,
@@ -299,38 +326,49 @@ end = struct
           updates ))
 
   let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env res
-      effs acc updates ~free_vars ~starting_offset slots =
+      effs acc chunk_acc updates ~free_vars ~starting_offset slots =
     match slots with
-    | [] -> List.rev acc, free_vars, starting_offset, env, res, effs, updates
+    | [] ->
+      ( List.rev acc,
+        List.rev chunk_acc,
+        free_vars,
+        starting_offset,
+        env,
+        res,
+        effs,
+        updates )
     | (slot_offset, slot) :: slots ->
-      let acc =
+      let acc, chunk_acc =
         if starting_offset > slot_offset
         then
           Misc.fatal_errorf "Starting offset %d is past slot offset %d"
             starting_offset slot_offset
         else if starting_offset = slot_offset
-        then acc
+        then acc, chunk_acc
         else
           (* The space between slot offsets has to be padded with precisely the
              value tagged 0, as it is scanned by the GC during compaction. This
              value can't be confused with either infix headers or inverted
              pointers, as noted in the comment in compact.c *)
-          List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
-          @ acc
+          ( List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
+            @ acc,
+            rev_append_chunks ~for_static_sets
+              (List.init (slot_offset - starting_offset) (fun _ -> Cmm.Word_int))
+              chunk_acc )
       in
-      let acc, slot_free_vars, next_offset, env, res, eff, updates =
+      let acc, chunk_acc, slot_free_vars, next_offset, env, res, eff, updates =
         fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
-          ~slot_offset updates slot
+          chunk_acc ~slot_offset updates slot
       in
       let free_vars = Backend_var.Set.union free_vars slot_free_vars in
       let effs = Ece.join eff effs in
       fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs
-        acc updates ~free_vars ~starting_offset:next_offset slots
+        acc chunk_acc updates ~free_vars ~starting_offset:next_offset slots
 
   let fill_layout for_static_sets decls dbg ~startenv value_slots env res effs
       ~prev_updates slots =
     fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs []
-      prev_updates ~free_vars:Backend_var.Set.empty ~starting_offset:0 slots
+      [] prev_updates ~free_vars:Backend_var.Set.empty ~starting_offset:0 slots
 end
 
 (* Filling-up of dynamically-allocated sets of closures. *)
@@ -350,7 +388,7 @@ module Dynamic = Make_layout_filler (struct
     let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
       C.simple ~dbg env res simple
     in
-    `Data [cmm], free_vars, env, res, effs
+    `Expr cmm, free_vars, env, res, effs
 
   let infix_header ~dbg ~function_slot_offset =
     C.alloc_infix_header function_slot_offset dbg
@@ -547,11 +585,17 @@ let let_static_set_of_closures0 env res closure_symbols
       closure_symbol_for_updates
     }
   in
-  let l, free_vars, length, env, res, _effs, updates =
+  let l, memory_chunks, free_vars, length, env, res, _effs, updates =
     Static.fill_layout (Some for_static_sets) decls dbg
       ~startenv:layout.startenv value_slots env res Ece.pure ~prev_updates
       layout.slots
   in
+  (match memory_chunks with
+  | [] -> ()
+  | _ :: _ ->
+    Misc.fatal_errorf
+      "Broken internal invariant: Static sets of closures do not need a list \
+       of memory chunks");
   if not (Backend_var.Set.is_empty free_vars)
   then
     Misc.fatal_errorf
@@ -650,7 +694,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
-  let l, free_vars, _offset, env, res, effs, updates =
+  let l, memory_chunks, free_vars, _offset, env, res, effs, updates =
     Dynamic.fill_layout None decl_map dbg ~startenv:layout.startenv value_slots
       env res effs ~prev_updates:None layout.slots
   in
@@ -658,9 +702,9 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let csoc =
     assert (List.compare_length_with l 0 > 0);
     let tag = Tag.(to_int closure_tag) in
-    C.make_alloc
-      ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
-      dbg ~tag l
+    C.make_closure_alloc
+      ~mode:(C.alloc_mode_for_allocations_to_cmm closure_alloc_mode)
+      dbg ~tag l memory_chunks
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let defining_expr = Env.simple csoc free_vars in

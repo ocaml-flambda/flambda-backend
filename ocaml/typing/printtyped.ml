@@ -118,6 +118,11 @@ let fmt_private_flag f x =
   | Public -> fprintf f "Public"
   | Private -> fprintf f "Private"
 
+let fmt_partiality f x =
+  match x with
+  | Total -> ()
+  | Partial -> fprintf f " (Partial)"
+
 let line i f s (*...*) =
   fprintf f "%s" (String.make (2*i) ' ');
   fprintf f s (*...*)
@@ -248,6 +253,9 @@ let rec core_type i ppf x =
   | Ttyp_tuple l ->
       line i ppf "Ttyp_tuple\n";
       list i labeled_core_type ppf l;
+  | Ttyp_unboxed_tuple l ->
+      line i ppf "Ttyp_unboxed_tuple\n";
+      list i labeled_core_type ppf l;
   | Ttyp_constr (li, _, l) ->
       line i ppf "Ttyp_constr %a\n" fmt_path li;
       list i core_type ppf l;
@@ -272,7 +280,10 @@ let rec core_type i ppf x =
       line i ppf "Ttyp_class %a\n" fmt_path li;
       list i core_type ppf l;
   | Ttyp_alias (ct, s, jkind) ->
-      line i ppf "Ttyp_alias \"%s\"\n" (Option.value s ~default:"_");
+      line i ppf "Ttyp_alias \"%s\"\n"
+        (match s with
+         | None -> "_"
+         | Some { txt; loc = _ } -> txt);
       core_type i ppf ct;
       option i jkind_annotation ppf jkind
   | Ttyp_poly (sl, ct) ->
@@ -282,6 +293,9 @@ let rec core_type i ppf x =
   | Ttyp_package { pack_path = s; pack_fields = l } ->
       line i ppf "Ttyp_package %a\n" fmt_path s;
       list i package_with ppf l;
+  | Ttyp_open (path, _mod_ident, t) ->
+      line i ppf "Ttyp_open %a\n" fmt_path path;
+      core_type i ppf t
   | Ttyp_call_pos -> line i ppf "Ttyp_call_pos\n";
 
 and labeled_core_type i ppf (l, t) =
@@ -315,6 +329,9 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   | Tpat_tuple (l) ->
       line i ppf "Tpat_tuple\n";
       list i labeled_pattern ppf l;
+  | Tpat_unboxed_tuple (l) ->
+      line i ppf "Tpat_unboxed_tuple\n";
+      list i labeled_pattern_with_sorts ppf l;
   | Tpat_construct (li, _, po, vto) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
       list i pattern ppf po;
@@ -353,6 +370,13 @@ and labeled_pattern : type k . _ -> _ -> string option * k general_pattern -> un
     tuple_component_label i ppf label;
     pattern i ppf x
 
+and labeled_pattern_with_sorts :
+  type k . _ -> _ -> string option * k general_pattern * Jkind.sort -> unit =
+  fun i ppf (label, x, sort) ->
+    tuple_component_label i ppf label;
+    pattern i ppf x;
+    line i ppf "%a\n" Jkind.Sort.format sort
+
 and pattern_extra i ppf (extra_pat, _, attrs) =
   match extra_pat with
   | Tpat_unpack ->
@@ -376,9 +400,11 @@ and function_body i ppf (body : function_body) =
       expression (i+1) ppf e
   | Tfunction_cases
       { fc_cases; fc_loc; fc_exp_extra; fc_attributes; fc_arg_mode;
-        fc_arg_sort; fc_param = _; fc_partial = _; fc_env = _; fc_ret_type = _ }
+        fc_arg_sort; fc_param = _; fc_partial; fc_env = _; fc_ret_type = _ }
     ->
-      line i ppf "Tfunction_cases %a\n" fmt_location fc_loc;
+      line i ppf "Tfunction_cases%a %a\n"
+        fmt_partiality fc_partial
+        fmt_location fc_loc;
       alloc_mode_raw i ppf fc_arg_mode;
       line i ppf "%a\n" Jkind.Sort.format fc_arg_sort;
       attributes (i+1) ppf fc_attributes;
@@ -463,8 +489,9 @@ and expression i ppf x =
       Option.iter (zero_alloc_assume i ppf) za;
       expression i ppf e;
       list i label_x_apply_arg ppf l;
-  | Texp_match (e, sort, l, _partial) ->
-      line i ppf "Texp_match\n";
+  | Texp_match (e, sort, l, partial) ->
+      line i ppf "Texp_match%a\n"
+        fmt_partiality partial;
       expression i ppf e;
       line i ppf "%a\n" Jkind.Sort.format sort;
       list i case ppf l;
@@ -476,6 +503,9 @@ and expression i ppf x =
       line i ppf "Texp_tuple\n";
       alloc_mode i ppf am;
       list i labeled_expression ppf l;
+  | Texp_unboxed_tuple l ->
+      line i ppf "Texp_unboxed_tuple\n";
+      list i labeled_sorted_expression ppf l;
   | Texp_construct (li, _, eo, am) ->
       line i ppf "Texp_construct %a\n" fmt_longident li;
       alloc_mode_option i ppf am;
@@ -571,8 +601,9 @@ and expression i ppf x =
   | Texp_pack me ->
       line i ppf "Texp_pack";
       module_expr i ppf me
-  | Texp_letop {let_; ands; param = _; body; partial = _} ->
-      line i ppf "Texp_letop";
+  | Texp_letop {let_; ands; param = _; body; partial } ->
+      line i ppf "Texp_letop%a"
+        fmt_partiality partial;
       binding_op (i+1) ppf let_;
       list (i+1) binding_op ppf ands;
       case i ppf body
@@ -614,10 +645,12 @@ and function_param i ppf x =
   arg_label i ppf p;
   match x.fp_kind with
   | Tparam_pat pat ->
-      line i ppf "Param_pat\n";
+      line i ppf "Param_pat%a\n"
+        fmt_partiality x.fp_partial;
       pattern (i+1) ppf pat
   | Tparam_optional_default (pat, expr, sort) ->
-      line i ppf "Param_optional_default\n";
+      line i ppf "Param_optional_default%a\n"
+        fmt_partiality x.fp_partial;
       line i ppf "%a\n" Jkind.Sort.format sort;
       pattern (i+1) ppf pat;
       expression (i+1) ppf expr
@@ -919,7 +952,7 @@ and signature_item i ppf x =
         fmt_override_flag od.open_override
         fmt_path (fst od.open_expr);
       attributes i ppf od.open_attributes
-  | Tsig_include incl ->
+  | Tsig_include (incl, _) ->
       line i ppf "Tsig_include\n";
       attributes i ppf incl.incl_attributes;
       module_type i ppf incl.incl_mod
@@ -1155,9 +1188,13 @@ and label_x_apply_arg i ppf (l, e) =
   (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
 
 and labeled_expression i ppf (l, e) =
-  line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
   expression (i+1) ppf e;
+
+and labeled_sorted_expression i ppf (l, e, s) =
+  tuple_component_label i ppf l;
+  expression (i+1) ppf e;
+  line i ppf "%a\n" Jkind.Sort.format s;
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;

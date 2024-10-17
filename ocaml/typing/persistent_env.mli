@@ -35,29 +35,33 @@ type error =
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
         parameter : Global_module.Name.t;
-  }
+      }
   | Imported_module_has_no_such_parameter of
       { imported : Compilation_unit.Name.t;
         valid_parameters : Global_module.Name.t list;
         parameter : Global_module.Name.t;
         value : Global_module.Name.t;
-  }
-  | Not_compiled_as_argument of Compilation_unit.Name.t * filepath
+      }
+  | Not_compiled_as_argument of
+      { param : Global_module.Name.t;
+        value : Global_module.Name.t;
+        filename : filepath;
+      }
   | Argument_type_mismatch of
       { value : Global_module.Name.t;
         filename : filepath;
         expected : Global_module.Name.t;
         actual : Global_module.Name.t;
-  }
+      }
   | Inconsistent_global_name_resolution of
       { name : Global_module.Name.t;
         old_global : Global_module.t;
         new_global : Global_module.t;
         first_mentioned_by : Global_module.Name.t;
         now_mentioned_by : Global_module.Name.t;
-  }
+      }
   | Unbound_module_as_argument_value of
-       { instance : Global_module.Name.t; value : Global_module.Name.t; }
+      { instance : Global_module.Name.t; value : Global_module.Name.t; }
 
 
 
@@ -111,9 +115,10 @@ type 'a sig_reader =
 (* CR-someday lmaurer: [add_binding] is apparently always false, including in the
    [-instantiate] branch. We should remove this parameter. *)
 val read : 'a t -> 'a sig_reader
-  -> Global_module.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
-val find : allow_hidden:bool
-  -> 'a t -> 'a sig_reader -> Global_module.Name.t -> 'a
+  -> Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+  -> Subst.Lazy.signature
+val find : allow_hidden:bool -> 'a t -> 'a sig_reader
+  -> Global_module.Name.t -> 'a
 
 val find_in_cache : 'a t -> Global_module.Name.t -> 'a option
 

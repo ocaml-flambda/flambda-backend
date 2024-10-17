@@ -21,7 +21,12 @@ modality_cstrarg:
       | Foo: global_ string * global_ string -> u 
   end
 
-modality_val: sig val t : string -> local_ string @@ foo bar end
+modality_val:
+  sig
+    val t : string -> local_ string @@ foo bar
+    include S @@ bar foo
+    include functor S @@ foo foo
+  end
 
 local_exp: let x = foo (local_ x) in (local_ y)
 
@@ -33,6 +38,15 @@ fun_with_modes_on_arg:
   let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
     ?f:(local_ f= 2) () = () in
   f
+
+utuple_exp:
+  let #(x, y) : #(int * int) = #(1, 2) in
+  let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
+  let #(i, j) : ('b : (value mod m) & (value mod l)) = #(6, 7) in
+  let #(s, t) : ('c : ((value mod m) & value) mod l) = #(7, 8) in
+  let #(k, l) : ('d : (value with t) & (value with t)) = #(6, 7) in
+  let #(u, v) : ('e : ((value with t) & value) with t) = #(7, 8) in
+  (((((((((((x + y) + a) + b) + c) + i) + j) + s) + t) + k) + l) + u) + v
 
 longident: No.Longidents.Require.extensions
 
@@ -107,6 +121,12 @@ modal_kind_sig:
     kind_abbrev_ immutable = value mod uncontended
     kind_abbrev_ data = value mod sync many
   end
+
+instance_name:
+  ((((((Base)(Name1))(Value1))(Name2))(((Value2)(Name2_1))(Value2_1)))
+  [@jane.non_erasable.instances ])
+
+tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
 
@@ -139,7 +159,12 @@ modality_cstrarg:
       | Foo: global_ string * global_ string -> u 
   end
 
-modality_val: sig val t : string -> local_ string @@ foo bar end
+modality_val:
+  sig
+    val t : string -> local_ string @@ foo bar
+    include S @@ bar foo
+    include functor S @@ foo foo
+  end
 
 local_exp: let x = foo (local_ x) in (local_ y)
 
@@ -151,6 +176,15 @@ fun_with_modes_on_arg:
   let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
     ?f:(local_ f= 2) () = () in
   f
+
+utuple_exp:
+  let #(x, y) : #(int * int) = #(1, 2) in
+  let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
+  let #(i, j) : ('b : (value mod m) & (value mod l)) = #(6, 7) in
+  let #(s, t) : ('c : ((value mod m) & value) mod l) = #(7, 8) in
+  let #(k, l) : ('d : (value with t) & (value with t)) = #(6, 7) in
+  let #(u, v) : ('e : ((value with t) & value) with t) = #(7, 8) in
+  (((((((((((x + y) + a) + b) + c) + i) + j) + s) + t) + k) + l) + u) + v
 
 longident: No.Longidents.Require.extensions
 
@@ -225,6 +259,12 @@ modal_kind_sig:
     kind_abbrev_ immutable = value mod uncontended
     kind_abbrev_ data = value mod sync many
   end
+
+instance_name:
+  ((((((Base)(Name1))(Value1))(Name2))(((Value2)(Name2_1))(Value2_1)))
+  [@jane.non_erasable.instances ])
+
+tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
 

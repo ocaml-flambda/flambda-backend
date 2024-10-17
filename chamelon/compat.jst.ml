@@ -6,7 +6,7 @@ let dummy_jkind = Jkind.Builtin.value ~why:(Unknown "dummy_layout")
 let dummy_value_mode = Value.disallow_right Value.legacy
 
 let dummy_alloc_mode =
-  { mode = Alloc.disallow_left Alloc.legacy; closure_context = None }
+  { mode = Alloc.disallow_left Alloc.legacy; locality_context = None }
 
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
@@ -16,7 +16,7 @@ let mkTarrow (label, t1, t2, comm) =
 
 type texp_ident_identifier = ident_kind * unique_use
 
-let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
+let mkTexp_ident ?id:(ident_kind, uu = (Id_value, aliased_many_use))
     (path, longident, vd) =
   Texp_ident (path, longident, vd, ident_kind, uu)
 
@@ -408,7 +408,7 @@ let mkTtyp_var s = Ttyp_var (Some s, None)
 
 let is_type_name_used desc typ_name =
   match desc with
-  | Ttyp_alias (_, Some s, _) -> s = typ_name
+  | Ttyp_alias (_, Some s, _) -> s.txt = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
 

@@ -105,13 +105,6 @@ module For_applications = struct
       | Alloc_local ->
         Local { region = current_region; ghost_region = current_ghost_region }
 
-  let to_lambda t =
-    match t with
-    | Heap -> Lambda.alloc_heap
-    | Local _ ->
-      assert (Flambda_features.stack_allocation_enabled ());
-      Lambda.alloc_local
-
   let free_names t =
     match t with
     | Heap -> Name_occurrences.empty
@@ -175,13 +168,6 @@ module For_allocations = struct
       match mode with
       | Alloc_heap -> Heap
       | Alloc_local -> Local { region = current_region }
-
-  let to_lambda t =
-    match t with
-    | Heap -> Lambda.alloc_heap
-    | Local _ ->
-      assert (Flambda_features.stack_allocation_enabled ());
-      Lambda.alloc_local
 
   let free_names t =
     match t with

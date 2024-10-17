@@ -10,13 +10,13 @@ Interfaces imported:
 	00000000000000000000000000000000	Monoid
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Implementations imported:
-Flambda 2 unit (with no export information)
-Currying functions:
+Runtime parameters:
+	Monoid_utils
+Flambda 2 unit with export information
+Currying functions: 2L0
 Apply functions:
 Send functions:
 Force link: no
-Function summaries for static checks:
-		camlRef_indirect__entry = 0x15
 File ref_indirect.cmi
 Unit name: Ref_indirect
 Is parameter: no
@@ -28,3 +28,5 @@ Interfaces imported:
 	00000000000000000000000000000000	Monoid_utils
 	00000000000000000000000000000000	Monoid
 	00000000000000000000000000000000	CamlinternalFormatBasics
+Globals in scope:
+	Monoid_utils{Monoid}

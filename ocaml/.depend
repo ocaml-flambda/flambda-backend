@@ -6881,6 +6881,7 @@ driver/compile_common.cmx : \
 driver/compile_common.cmi : \
     typing/typedtree.cmi \
     parsing/parsetree.cmi \
+    utils/misc.cmi \
     typing/env.cmi \
     utils/compilation_unit.cmi
 driver/compmisc.cmo : \

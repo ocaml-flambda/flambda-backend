@@ -152,11 +152,18 @@ let enter info =
 let slot_for_literal sc =
   enter (Reloc_literal (Symtable.transl_const sc));
   out_int 0
-and slot_for_getglobal id =
-  enter (Reloc_getglobal id);
+and slot_for_getglobal cu =
+  let reloc_info = Reloc_getcompunit cu in
+  enter reloc_info;
   out_int 0
-and slot_for_setglobal id =
-  enter (Reloc_setglobal id);
+and slot_for_getpredef id =
+  let name = Ident.name id in
+  let reloc_info = Reloc_getpredef (Predef_exn name) in
+  enter reloc_info;
+  out_int 0
+and slot_for_setglobal cu =
+  let reloc_info = Reloc_setcompunit cu in
+  enter reloc_info;
   out_int 0
 and slot_for_c_prim name =
   enter (Reloc_primitive name);
@@ -241,8 +248,9 @@ let emit_instr = function
       if ofs = -3 || ofs = 0 || ofs = 3
       then out (opOFFSETCLOSURE0 + ofs / 3)
       else (out opOFFSETCLOSURE; out_int ofs)
-  | Kgetglobal q -> out opGETGLOBAL; slot_for_getglobal q
-  | Ksetglobal q -> out opSETGLOBAL; slot_for_setglobal q
+  | Kgetglobal cu -> out opGETGLOBAL; slot_for_getglobal cu
+  | Ksetglobal cu -> out opSETGLOBAL; slot_for_setglobal cu
+  | Kgetpredef id -> out opGETGLOBAL; slot_for_getpredef id
   | Kconst sc ->
       begin match sc with
         Const_base(Const_int i) when is_immed i ->
@@ -407,7 +415,7 @@ let rec emit = function
 
 (* Emission to a file *)
 
-let to_file outchan unit_name objfile ~required_globals ~module_block_format
+let to_file outchan cu artifact_info ~required_globals ~module_block_format
           ~arg_descr code =
   init();
   Fun.protect ~finally:clear (fun () ->
@@ -419,15 +427,15 @@ let to_file outchan unit_name objfile ~required_globals ~module_block_format
   LongString.output outchan !out_buffer 0 !out_position;
   let (pos_debug, size_debug) =
     if !Clflags.debug then begin
+      let filename = Unit_info.Artifact.filename artifact_info in
       debug_dirs := String.Set.add
-        (Filename.dirname (Location.absolute_path objfile))
+          (Filename.dirname (Location.absolute_path filename))
         !debug_dirs;
       let p = pos_out outchan in
       (* CR ocaml 5 compressed-marshal mshinwell:
          Compression not supported in the OCaml 4 runtime
-      Marshal.(to_channel outchan !events [Compression]);
-      Marshal.(to_channel outchan (String.Set.elements !debug_dirs)
-                          [Compression]);
+      Compression.output_value outchan !events;
+      Compression.output_value outchan (String.Set.elements !debug_dirs);
       *)
 (* BACKPORT BEGIN *)
       Marshal.(to_channel outchan !events []);
@@ -438,7 +446,7 @@ let to_file outchan unit_name objfile ~required_globals ~module_block_format
     end else
       (0, 0) in
   let compunit =
-    { cu_name = unit_name;
+    { cu_name = cu;
       cu_pos = pos_code;
       cu_codesize = !out_position;
       cu_reloc = List.rev !reloc_info;
@@ -447,7 +455,7 @@ let to_file outchan unit_name objfile ~required_globals ~module_block_format
       cu_format = module_block_format;
       cu_primitives = List.map Primitive.byte_name
                                !Translmod.primitive_declarations;
-      cu_required_globals = Compilation_unit.Set.elements required_globals;
+      cu_required_compunits = Compilation_unit.Set.elements required_globals;
       cu_force_link = !Clflags.link_everything;
       cu_debug = pos_debug;
       cu_debugsize = size_debug } in
@@ -457,7 +465,8 @@ let to_file outchan unit_name objfile ~required_globals ~module_block_format
        See doc-comment for [Types.abbrev_memo] *)
     Btype.cleanup_abbrev ();
     marshal_to_channel_with_possibly_32bit_compat
-      ~filename:objfile ~kind:"bytecode unit"
+      ~filename:(Unit_info.Artifact.filename artifact_info)
+      ~kind:"bytecode unit"
       outchan compunit
   in
   seek_out outchan pos_depl;
@@ -465,11 +474,10 @@ let to_file outchan unit_name objfile ~required_globals ~module_block_format
 
 (* Emission to a memory block *)
 
-let to_memory init_code fun_code =
+let to_memory instrs =
   init();
   Fun.protect ~finally:clear (fun () ->
-  emit init_code;
-  emit fun_code;
+  emit instrs;
   let code = LongString.create !out_position in
   LongString.blit !out_buffer 0 code 0 !out_position;
   let reloc = List.rev !reloc_info in

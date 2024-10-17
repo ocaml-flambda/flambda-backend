@@ -281,7 +281,7 @@ let intop (op : Mach.integer_operation) =
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
 
-let dump_op ppf = function
+let dump_operation ppf = function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
@@ -315,15 +315,15 @@ let dump_op ppf = function
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
   | Dls_get -> Format.fprintf ppf "dls_get"
   | Poll -> Format.fprintf ppf "poll"
-  | Alloc { bytes; dbginfo = _; mode = Alloc_heap } ->
+  | Alloc { bytes; dbginfo = _; mode = Heap } ->
     Format.fprintf ppf "alloc %i" bytes
-  | Alloc { bytes; dbginfo = _; mode = Alloc_local } ->
+  | Alloc { bytes; dbginfo = _; mode = Local } ->
     Format.fprintf ppf "alloc_local %i" bytes
 
 let dump_basic ppf (basic : basic) =
   let open Format in
   match basic with
-  | Op op -> dump_op ppf op
+  | Op op -> dump_operation ppf op
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"

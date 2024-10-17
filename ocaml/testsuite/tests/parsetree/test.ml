@@ -52,7 +52,7 @@ let to_tmp_file print_fun ast =
   close_out oc;
   fn
 
-let test parse_fun pprint print map filename ~extra_checks =
+let test parse_fun pprint print map filename =
   match from_file parse_fun filename with
   | exception exn ->
       Printf.printf "%s: FAIL, CANNOT PARSE\n" filename;
@@ -60,14 +60,6 @@ let test parse_fun pprint print map filename ~extra_checks =
       print_endline "====================================================="
   | ast ->
       let str = to_string pprint ast in
-      begin
-        match extra_checks (to_string print ast) str with
-        | Ok () -> ()
-        | Error reason ->
-            Printf.printf "%s: FAIL, %s\n" filename reason;
-            print_endline str;
-            print_endline"====================================================="
-      end;
       match from_string parse_fun str with
       | exception exn ->
           Printf.printf "%s: FAIL, CANNOT REPARSE\n" filename;
@@ -87,14 +79,14 @@ let test parse_fun pprint print map filename ~extra_checks =
             print_endline"====================================================="
           end
 
-let test parse_fun pprint print map filename ~extra_checks =
-  try test parse_fun pprint print map filename ~extra_checks
+let test parse_fun pprint print map filename =
+  try test parse_fun pprint print map filename
   with exn -> report_err exn
 
-let rec process path ~extra_checks =
+let rec process path =
   if Sys.is_directory path then
     let files = Sys.readdir path in
-    Array.iter (fun s -> process (Filename.concat path s) ~extra_checks) files
+    Array.iter (fun s -> process (Filename.concat path s)) files
   else if Filename.check_suffix path ".ml" then
     test
       Parse.implementation
@@ -102,7 +94,6 @@ let rec process path ~extra_checks =
       Printast.implementation
       (fun mapper -> mapper.Ast_mapper.structure)
       path
-      ~extra_checks
   else if Filename.check_suffix path ".mli" then
     test
       Parse.interface
@@ -110,85 +101,12 @@ let rec process path ~extra_checks =
       Printast.interface
       (fun mapper -> mapper.Ast_mapper.signature)
       path
-      ~extra_checks
-
-let process ?(extra_checks = fun _ _ -> Ok ()) text = process text ~extra_checks
-
-(* Produce an error if any attribute/extension node does not start with the
-   text prefix.
-
-   This over-conservatively produces an error for attributes/extension nodes
-   that don't appear literally as '[@' or '[%' followed immediately by an
-   identifier.  Some things that aren't handled:
-      - [@ blah]
-      - [% blah]
-      - [@@blah]
-      - [%%blah]
-
-  We've chosen to keep those constructs out of the test file in preference
-  to updating this logic to properly handle them (which is hard).
-*)
-let check_all_printed_attributes_and_extensions_start_with text ~prefix =
-  let check introduction_string =
-    String.split_on_char '[' text
-    |> List.for_all (fun s ->
-        if String.starts_with s ~prefix:introduction_string
-        then String.starts_with s ~prefix:(introduction_string ^ prefix)
-        else true)
-  in
-  if check "%" && check "@"
-  then Ok ()
-  else
-      Error
-        (Printf.sprintf
-          "Pprintast produced an extension node or attribute that doesn't \
-           begin with `%s'"
-           prefix)
-;;
-
-let check_all_ast_attributes_and_extensions_start_with raw_parsetree_str ~prefixes =
-  (* Sadly can't use Ast_mapper here because it decodes Jane Syntax by default and
-     we will need quite a bit of code duplication for it to work for this use case. *)
-  let check introduction_string =
-    Misc.Stdlib.String.split_on_string ~split_on:(introduction_string ^ " \"")
-      raw_parsetree_str
-    |> List.tl
-    |> List.for_all (fun s ->
-          List.exists
-            (fun prefix -> String.starts_with s ~prefix)
-            prefixes)
-  in
-  if check "extension" && check "attribute"
-  then Ok ()
-  else
-      Error
-        (Printf.sprintf
-          "Printast produced an extension node or attribute that doesn't \
-           begin with one of [%s]"
-           (String.concat ", " prefixes))
-;;
 
 let () =
   process "source.ml";
   Language_extension.set_universe_and_enable_all
     Language_extension.Universe.maximal;
-  process "source_jane_street.ml" ~extra_checks:(fun raw_parsetree_str text ->
-  (* Additionally check that:
-
-     1. Jane Street language extensions only use "extension." and "jane." prefixed
-     attributes and exntensions for its parsetree encoding. This is important for
-     ppx support.
-
-     2. Printing Jane Street language extensions produces no more
-     attributes or extension nodes than the input program, all of whose
-     attributes begin with "test". This ensures that Jane Syntax attributes
-     aren't printed.
-   *)
-    Result.bind
-      (check_all_ast_attributes_and_extensions_start_with raw_parsetree_str
-        ~prefixes:["extension."; "jane."; "test."])
-      (fun () -> check_all_printed_attributes_and_extensions_start_with text
-                    ~prefix:"test"));
+  process "source_jane_street.ml";
   (* Additionally check that merely parsing doesn't attempt
      to check extensions enabledness. This is actually an important property.
      That's because ppxes run the parser code in a separate process from the

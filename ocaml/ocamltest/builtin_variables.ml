@@ -114,7 +114,8 @@ let test_fail = Variables.make ("TEST_FAIL",
 let timeout = Variables.make ("timeout",
   "Maximal execution time for every command (in seconds)")
 
-let _ = List.iter Variables.register_variable
+let init () =
+  List.iter Variables.register_variable
   [
     arguments;
     cwd;

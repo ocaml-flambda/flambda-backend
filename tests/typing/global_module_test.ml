@@ -2,9 +2,13 @@ module Test_data = struct
   open Global_module
 
   open struct
-    let n ?(args = []) head : Name.t = Name.create_exn head args
+    let args_of_pairs pairs =
+      List.map (fun (param, value) -> { Argument.param; value }) pairs
 
-    let g ?(vis = []) ?(hid = []) head = create_exn head vis ~hidden_args:hid
+    let n ?(args = []) head : Name.t = Name.create_exn head (args_of_pairs args)
+
+    let g ?(vis = []) ?(hid = []) head =
+      create_exn head (args_of_pairs vis) ~hidden_args:(args_of_pairs hid)
   end
 
   let [@ocamlformat "disable"] () =

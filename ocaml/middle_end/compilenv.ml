@@ -96,8 +96,65 @@ let current_unit =
     ui_export_info = default_ui_export_info;
     ui_for_pack = None }
 
+<<<<<<< HEAD
 let reset compilation_unit =
+<<<<<<< HEAD
   Infos_table.clear global_infos_table;
+||||||| a54ec041ff
+  CU.Name.Tbl.clear global_infos_table;
+=======
+  CU.Name.Tbl.clear global_infos_table;
+||||||| 121bedcfd2
+let concat_symbol unitname id =
+  unitname ^ "." ^ id
+
+let symbolname_for_pack pack name =
+  match pack with
+  | None -> name
+  | Some p -> concat_symbol p name
+
+let unit_id_from_name name = Ident.create_persistent name
+
+let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
+  let prefix = "caml" ^ unitname in
+  match idopt with
+  | None -> prefix
+  | Some id -> concat_symbol prefix id
+
+let current_unit_linkage_name () =
+  Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
+
+let reset ?packname name =
+  Hashtbl.clear global_infos_table;
+=======
+let symbol_separator =
+  match Config.ccomp_type with
+  | "msvc" -> '$' (* MASM does not allow for dots in symbol names *)
+  | _ -> '.'
+
+let concat_symbol unitname id =
+  Printf.sprintf "%s%c%s" unitname symbol_separator id
+
+let symbolname_for_pack pack name =
+  match pack with
+  | None -> name
+  | Some p -> concat_symbol p name
+
+let unit_id_from_name name = Ident.create_persistent name
+
+let make_symbol ?(unitname = current_unit.ui_symbol) idopt =
+  let prefix = "caml" ^ unitname in
+  match idopt with
+  | None -> prefix
+  | Some id -> concat_symbol prefix id
+
+let current_unit_linkage_name () =
+  Linkage_name.create (make_symbol ~unitname:current_unit.ui_symbol None)
+
+let reset ?packname name =
+  Hashtbl.clear global_infos_table;
+>>>>>>> 5.2.0
+>>>>>>> upstream/main
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
@@ -146,6 +203,7 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
+<<<<<<< HEAD
 let equal_args (name1, value1) (name2, value2) =
   CU.equal name1 name2 && CU.equal value1 value2
 
@@ -153,6 +211,10 @@ let equal_up_to_pack_prefix cu1 cu2 =
   CU.Name.equal (CU.name cu1) (CU.name cu2)
   && List.equal equal_args (CU.instance_arguments cu1) (CU.instance_arguments cu2)
 
+||||||| a54ec041ff
+=======
+<<<<<<< HEAD
+>>>>>>> upstream/main
 let get_unit_info comp_unit =
   (* If this fails, it likely means that someone didn't call
      [CU.which_cmx_file]. *)
@@ -162,6 +224,21 @@ let get_unit_info comp_unit =
      that. *)
   if equal_up_to_pack_prefix comp_unit current_unit.ui_unit
   then
+||||||| 121bedcfd2
+let get_global_info global_ident = (
+  let modname = Ident.name global_ident in
+  if modname = current_unit.ui_name then
+=======
+(* Referring to a packed unit is only allowed from a unit that will
+   ultimately end up in the same pack, including through nested packs. *)
+let is_import_from_same_pack ~imported ~current =
+  String.equal imported current
+  || String.starts_with ~prefix:(imported ^ ".") current
+
+let get_global_info global_ident = (
+  let modname = Ident.name global_ident in
+  if modname = current_unit.ui_name then
+>>>>>>> 5.2.0
     Some current_unit
   else begin
     let name = CU.to_global_name_without_prefix comp_unit in
@@ -173,7 +250,19 @@ let get_unit_info comp_unit =
         else begin
           try
             let filename =
+<<<<<<< HEAD
               Load_path.find_uncap (CU.base_filename comp_unit ^ ".cmx") in
+||||||| a54ec041ff
+              Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
+=======
+<<<<<<< HEAD
+              Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
+||||||| 121bedcfd2
+              Load_path.find_uncap (modname ^ ".cmx") in
+=======
+              Load_path.find_normalized (modname ^ ".cmx") in
+>>>>>>> 5.2.0
+>>>>>>> upstream/main
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
@@ -189,7 +278,15 @@ let get_unit_info comp_unit =
                    for_pack_prefix current_unit.ui_unit
              with
              | None, _ -> ()
+<<<<<<< HEAD
              | Some p1, Some p2 when CU.Prefix.equal p1 p2 -> ()
+||||||| 121bedcfd2
+             | Some p1, Some p2 when String.equal p1 p2 -> ()
+=======
+             | Some p1, Some p2 when
+                 is_import_from_same_pack ~imported:p1 ~current:p2 ->
+                 ()
+>>>>>>> 5.2.0
              | Some p1, p2 ->
                raise (Error (Mismatching_for_pack
                         (filename, p1, CU.name current_unit.ui_unit, p2))));
@@ -387,30 +484,66 @@ let require_global global_ident =
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
   | Not_a_unit_info filename ->
       fprintf ppf "%a@ is not a compilation unit description."
-        Location.print_filename filename
+        (Style.as_inline_code Location.print_filename) filename
   | Corrupted_unit_info filename ->
       fprintf ppf "Corrupted compilation unit description@ %a"
-        Location.print_filename filename
+        (Style.as_inline_code Location.print_filename) filename
   | Illegal_renaming(name, modname, filename) ->
       fprintf ppf "%a@ contains the description for unit\
+<<<<<<< HEAD
                    @ %a when %a was expected"
         Location.print_filename filename
         CU.print name
         CU.print modname
+||||||| 121bedcfd2
+                   @ %s when %s was expected"
+        Location.print_filename filename name modname
+=======
+                   @ %a when %a was expected"
+        (Style.as_inline_code Location.print_filename) filename
+        Style.inline_code name
+        Style.inline_code modname
+>>>>>>> 5.2.0
   | Mismatching_for_pack(filename, pack_1, current_unit, None) ->
+<<<<<<< HEAD
       fprintf ppf "%a@ was built with -for-pack %a, but the \
                    @ current unit %a is not"
         Location.print_filename filename CU.Prefix.print pack_1
           CU.Name.print current_unit
+||||||| 121bedcfd2
+      fprintf ppf "%a@ was built with -for-pack %s, but the \
+                   @ current unit %s is not"
+        Location.print_filename filename pack_1 current_unit
+=======
+      fprintf ppf "%a@ was built with %a, but the \
+                   @ current unit %a is not"
+        (Style.as_inline_code Location.print_filename) filename
+        Style.inline_code ("-for-pack " ^ pack_1)
+        Style.inline_code current_unit
+>>>>>>> 5.2.0
   | Mismatching_for_pack(filename, pack_1, current_unit, Some pack_2) ->
+<<<<<<< HEAD
       fprintf ppf "%a@ was built with -for-pack %a, but the \
                    @ current unit %a is built with -for-pack %a"
         Location.print_filename filename CU.Prefix.print pack_1
           CU.Name.print current_unit CU.Prefix.print pack_2
+||||||| 121bedcfd2
+      fprintf ppf "%a@ was built with -for-pack %s, but the \
+                   @ current unit %s is built with -for-pack %s"
+        Location.print_filename filename pack_1 current_unit pack_2
+=======
+      fprintf ppf "%a@ was built with %a, but the \
+                   @ current unit %a is built with %a"
+        (Style.as_inline_code Location.print_filename) filename
+        Style.inline_code ("-for-pack " ^ pack_1)
+        Style.inline_code current_unit
+        Style.inline_code ("-for-pack " ^ pack_2)
+>>>>>>> 5.2.0
 
 let () =
   Location.register_error_of_exn

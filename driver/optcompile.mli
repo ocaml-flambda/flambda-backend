@@ -22,7 +22,6 @@ val implementation
   -> flambda2:(
     ppf_dump:Format.formatter ->
     prefixname:string ->
-    filename:string ->
     keep_symbol_tables:bool ->
     Lambda.program ->
     Cmm.phrase list)
@@ -35,7 +34,6 @@ val instance
   -> flambda2:(
     ppf_dump:Format.formatter ->
     prefixname:string ->
-    filename:string ->
     keep_symbol_tables:bool ->
     Lambda.program ->
     Cmm.phrase list)

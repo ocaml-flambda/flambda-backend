@@ -13,5 +13,5 @@ solver.ml
 solver.mli
 typemode.mli
 typemode.ml
-typemodifier.mli
-typemodifier.ml
+jkind_axis.mli
+jkind_axis.ml

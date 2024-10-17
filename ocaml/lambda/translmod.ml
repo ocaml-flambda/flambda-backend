@@ -164,7 +164,8 @@ and apply_coercion_result loc strict funct params args cc_res =
              ~attr:{ default_function_attribute with
                         is_a_functor = true;
                         zero_alloc = Default_zero_alloc;
-                        stub = true; }
+                        stub = true;
+                        may_fuse_arity = true; }
              ~loc
              ~mode:alloc_heap
              ~ret_mode:alloc_heap
@@ -2097,6 +2098,7 @@ let transl_instance instance_unit ~runtime_args ~main_module_block_size
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let print_cycle ppf cycle =
   let print_ident ppf (x,_) = Format.pp_print_string ppf (Ident.name x) in
@@ -2112,18 +2114,20 @@ let explanation_submsg (id, unsafe_info) =
   | Unnamed -> assert false (* can't be part of a cycle. *)
   | Unsafe {reason;loc;subid} ->
       let print fmt =
-        let printer = Format.dprintf fmt (Ident.name id) (Ident.name subid) in
+        let printer = Format.dprintf fmt
+            Style.inline_code (Ident.name id)
+            Style.inline_code (Ident.name subid) in
         Location.mkloc printer loc in
       match reason with
       | Unsafe_module_binding ->
-          print "Module %s defines an unsafe module, %s ."
-      | Unsafe_functor -> print "Module %s defines an unsafe functor, %s ."
+          print "Module %a defines an unsafe module, %a ."
+      | Unsafe_functor -> print "Module %a defines an unsafe functor, %a ."
       | Unsafe_typext ->
-          print "Module %s defines an unsafe extension constructor, %s ."
-      | Unsafe_non_function -> print "Module %s defines an unsafe value, %s ."
+          print "Module %a defines an unsafe extension constructor, %a ."
+      | Unsafe_non_function -> print "Module %a defines an unsafe value, %a ."
       | Unsafe_non_value_arg ->
-        print "Module %s defines a function whose first argument \
-               is not a value, %s ."
+        print "Module %a defines a function whose first argument \
+               is not a value, %a ."
 
 let report_error loc = function
   | Circular_dependency cycle ->
@@ -2134,7 +2138,8 @@ let report_error loc = function
          There are no safe modules in this cycle@ %a."
         print_cycle cycle Misc.print_see_manual manual_ref
   | Conflicting_inline_attributes ->
-      Location.errorf "@[Conflicting 'inline' attributes@]"
+      Location.errorf "@[Conflicting %a attributes@]"
+        Style.inline_code "inline"
   | Non_value_jkind (ty, sort) ->
       Location.errorf
         "Non-value sort %a detected in [translmod] in type %a:@ \
