@@ -32,6 +32,8 @@ val array_type_mut : Env.t -> Types.type_expr -> Lambda.mutable_flag
 val array_kind_of_elt :
   elt_sort:(Jkind.Sort.Const.t option)
   -> Env.t -> Location.t -> Types.type_expr -> Lambda.array_kind
+val array_kind_of_array_type :
+  Env.t -> Location.t -> Types.type_expr -> Lambda.array_kind option
 val array_kind :
   Typedtree.expression -> Jkind.Sort.Const.t -> Lambda.array_kind
 val array_pattern_kind :

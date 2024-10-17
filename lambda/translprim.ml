@@ -533,6 +533,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%makearray_dynamic" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode), 2)
+    | "%makearray_dynamic_uninit" ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Primitive (Pmakearray_dynamic (gen_array_kind, mode), 1)
     | "%arrayblit" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
       Primitive (Parrayblit (gen_array_set_kind (get_third_arg_mode ())), 5)
@@ -1229,9 +1232,9 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
-  | Primitive (Pmakearray_dynamic (at, mode), arity),
-    _ :: p2 :: _ -> begin
+  | Primitive (Pmakearray_dynamic (at, mode), 2), _ :: p2 :: [] -> begin
       let loc = to_location loc in
+      (* CR mshinwell: rename array_type -> array_kind *)
       let array_type =
         glb_array_type loc at
           (array_kind_of_elt ~elt_sort:None env loc p2)
@@ -1239,8 +1242,28 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       let array_mut = array_type_mut env rest_ty in
       unboxed_product_iarray_check loc array_type array_mut;
       if at = array_type then None
-      else Some (Primitive (Pmakearray_dynamic (array_type, mode), arity))
+      else Some (Primitive (Pmakearray_dynamic (array_type, mode), 2))
     end
+  | Primitive (Pmakearray_dynamic (at, mode), 1), _ :: [] -> begin
+      let loc = to_location loc in
+      match is_function_type env ty with
+      | None -> None
+      | Some (_, array_type) ->
+        match array_kind_of_array_type env loc array_type with
+        | None ->
+          (* XXX mshinwell: should this produce an error? *)
+          None
+        | Some array_type ->
+          let array_type = glb_array_type loc at array_type in
+          let array_mut = array_type_mut env rest_ty in
+          unboxed_product_iarray_check loc array_type array_mut;
+          if at = array_type then None
+          else Some (Primitive (Pmakearray_dynamic (array_type, mode), 1))
+    end
+  | Primitive (Pmakearray_dynamic _, arity), args ->
+    Misc.fatal_errorf
+      "Wrong arity for Pmakearray_dynamic (arity=%d, args length %d)"
+      arity (List.length args)
   | Primitive (Parrayblit st, arity),
     _p1 :: _ :: p2 :: _ ->
     let loc = to_location loc in

@@ -247,6 +247,14 @@ let array_kind_of_elt ~elt_sort env loc ty =
   | Unboxed_vector v -> Punboxedvectorarray v
   | Product c -> c
 
+let array_kind_of_array_type env loc ty =
+  match scrape_poly env ty with
+  | Tconstr(p, [elt_ty], _)
+      when Path.same p Predef.path_iarray
+        || Path.same p Predef.path_array ->
+    Some (array_kind_of_elt ~elt_sort:None env loc elt_ty)
+  | _ -> None
+
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
   | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->

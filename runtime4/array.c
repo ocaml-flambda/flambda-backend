@@ -467,6 +467,7 @@ static value make_vect_gen(value len, value init, int local)
   CAMLreturn (res);
 }
 
+// XXX mshinwell: add caml_makearray_dynamic for runtime4
 
 CAMLprim value caml_make_vect(value len, value init)
 {
@@ -963,3 +964,6 @@ CAMLprim value caml_array_unsafe_set_indexed_by_nativeint(value, value, value);
 Array_access_index_by(int64, int64_t, Int64_val)
 Array_access_index_by(int32, int32_t, Int32_val)
 Array_access_index_by(nativeint, intnat, Nativeint_val)
+
+// XXX mshinwell: add the %makearray_dynamic prims here for runtime4
+// once the runtime5 versions have been reviewed and tested

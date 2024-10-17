@@ -46,4 +46,4 @@ val transform_primitive :
   Lambda.primitive ->
   Lambda.lambda list ->
   Lambda.scoped_location ->
-  primitive_transform_result
+  Lambda_to_flambda_env.t * primitive_transform_result

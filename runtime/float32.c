@@ -853,7 +853,7 @@ CAMLexport const struct custom_operations caml_unboxed_float32_array_ops[2] = {
     custom_fixed_length_default },
 };
 
-CAMLprim value caml_make_unboxed_float32_vect(value len)
+static value caml_make_unboxed_float32_vect0(value len, int local)
 {
   /* This is only used on 64-bit targets. */
 
@@ -863,8 +863,23 @@ CAMLprim value caml_make_unboxed_float32_vect(value len)
   /* [num_fields] does not include the custom operations field. */
   mlsize_t num_fields = num_elements / 2 + num_elements % 2;
 
-  return caml_alloc_custom(&caml_unboxed_float32_array_ops[num_elements % 2],
-                           num_fields * sizeof(value), 0, 0);
+  const struct custom_operations* ops =
+    &caml_unboxed_float32_array_ops[num_elements % 2];
+
+  if (local)
+    return caml_alloc_custom_local(ops, num_fields * sizeof(value), 0, 0);
+  else
+    return caml_alloc_custom(ops, num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_float32_vect(value len)
+{
+  return caml_make_unboxed_float32_vect0(len, 0);
+}
+
+CAMLprim value caml_make_unboxed_float32_vect_local(value len)
+{
+  return caml_make_unboxed_float32_vect0(len, 1);
 }
 
 CAMLprim value caml_make_unboxed_float32_vect_bytecode(value len)
