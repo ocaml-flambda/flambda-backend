@@ -217,21 +217,4 @@ let add_deps t bound_to deps =
   let tbl = t.name_to_dep in
   inserts tbl bound_to deps
 
-let add_let_dep t bp dep =
-  let tbl = t.name_to_dep in
-  let bound_to = Bound_pattern.free_names bp in
-  let f () bound_to = insert tbl (Code_id_or_name.name bound_to) dep in
-  Name_occurrences.fold_names bound_to ~f ~init:()
-
-let add_cont_dep t bp dep =
-  let tbl = t.name_to_dep in
-  insert tbl (Code_id_or_name.var bp) (Alias { target = dep })
-
-let add_func_param t ~param ~arg =
-  let tbl = t.name_to_dep in
-  insert tbl (Code_id_or_name.var param) (Alias { target = arg })
-
 let add_use t dep = Hashtbl.replace t.used dep ()
-
-let add_called t code_id =
-  Hashtbl.replace t.used (Code_id_or_name.code_id code_id) ()

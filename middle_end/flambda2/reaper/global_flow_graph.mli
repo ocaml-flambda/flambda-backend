@@ -78,12 +78,4 @@ val add_dep : graph -> Code_id_or_name.t -> Dep.t -> unit
 
 val add_deps : graph -> Code_id_or_name.t -> Dep.Set.t -> unit
 
-val add_let_dep : graph -> Bound_pattern.t -> Dep.t -> unit
-
-val add_cont_dep : graph -> Int_ids.Variable.t -> Name.t -> unit
-
-val add_func_param : graph -> param:Int_ids.Variable.t -> arg:Name.t -> unit
-
 val add_use : graph -> Code_id_or_name.t -> unit
-
-val add_called : graph -> Code_id.t -> unit

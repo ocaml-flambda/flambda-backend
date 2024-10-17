@@ -99,13 +99,14 @@ let record_deps ~denv:_ code_id_or_name deps t =
 
 let cont_dep ~denv:_ pat dep t =
   Simple.pattern_match dep
-    ~name:(fun name ~coercion:_ -> Graph.add_cont_dep t.deps pat name)
+    ~name:(fun name ~coercion:_ ->
+      Graph.add_dep t.deps (Code_id_or_name.var pat) (Alias { target = name }))
     ~const:(fun _ -> ())
 
 let func_param_dep ~denv:_ param arg t =
-  Graph.add_func_param t.deps
-    ~param:(Bound_parameter.var param)
-    ~arg:(Name.var arg)
+  Graph.add_dep t.deps
+    (Code_id_or_name.var (Bound_parameter.var param))
+    (Alias { target = Name.var arg })
 
 let root v t = Graph.add_use t.deps (Code_id_or_name.var v)
 
@@ -125,7 +126,7 @@ let used_code_id code_id t =
 
 let called ~(denv : Traverse_denv.t) code_id t =
   match denv.current_code_id with
-  | None -> Graph.add_called t.deps code_id
+  | None -> used_code_id code_id t
   | Some code_id2 ->
     Graph.add_dep t.deps
       (Code_id_or_name.code_id code_id2)
