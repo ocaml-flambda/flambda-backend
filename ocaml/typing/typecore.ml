@@ -4068,7 +4068,8 @@ let rec is_nonexpansive exp =
   | Texp_extension_constructor _ ->
     false
   | Texp_exclave e -> is_nonexpansive e
-  | Texp_overwrite (_, _, _, e) -> is_nonexpansive e
+  | Texp_overwrite (exp1, exp2) ->
+      is_nonexpansive exp1 && is_nonexpansive exp2
   | Texp_hole _ -> true
 
 and is_nonexpansive_mod mexp =
@@ -5747,9 +5748,9 @@ and type_expect_
             (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
             lbl_exp_list
         in
-        let unify_kept loc ty_exp mode lbl =
+        let unify_kept loc exp_loc ty_exp mode lbl =
           let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
-          unify_exp_types loc env ty_exp ty_res1;
+          unify_exp_types exp_loc env ty_exp ty_res1;
           match matching_label lbl with
           | lid, _lbl, lbl_exp ->
               (* do not connect result types for overridden labels *)
@@ -5761,7 +5762,7 @@ and type_expect_
                 unify_exp_types loc env (instance ty_expected) ty_res2);
               check_project_mutability ~loc ~env lbl.lbl_mut mode;
               let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-              check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
+              check_construct_mutability ~loc:exp_loc ~env lbl.lbl_mut argument_mode;
               let argument_mode =
                 mode_modality lbl.lbl_modalities argument_mode
               in
@@ -5795,13 +5796,13 @@ and type_expect_
                 lbl.lbl_all
             in
             None, label_definitions
-        | None, Overwriting (loc, ty, mode) ->
+        | None, Overwriting (loc', ty, mode) ->
             let ty_exp = instance ty in
-            let label_definitions = Array.map (unify_kept loc ty_exp mode) lbl.lbl_all in
+            let label_definitions = Array.map (unify_kept loc loc' ty_exp mode) lbl.lbl_all in
             None, label_definitions
         | Some (exp, mode), _ ->
             let ty_exp = instance exp.exp_type in
-            let label_definitions = Array.map (unify_kept loc ty_exp mode) lbl.lbl_all in
+            let label_definitions = Array.map (unify_kept loc exp.exp_loc ty_exp mode) lbl.lbl_all in
             let ubr = Unique_barrier.not_computed () in
             Some ({exp with exp_type = ty_exp}, ubr), label_definitions
       in
@@ -6577,53 +6578,51 @@ and type_expect_
       end;
       let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
       {exp with exp_extra}
-  | Pexp_overwrite (lid, e) ->
+  | Pexp_overwrite (exp1, exp2) ->
       if not (Language_extension.is_enabled Overwriting) then
         raise (Typetexp.Error (loc, env, Unsupported_extension Overwriting));
-      if not (can_be_overwritten e.pexp_desc) then
-        raise (Syntaxerr.(Error(Expecting(e.pexp_loc, "tuple, constructor or record"))));
-      let ident, cell_type, cell_mode, use =
-        let path, (actual_mode : Env.actual_mode), desc, _kind =
-          type_ident env ~recarg lid
+      if not (can_be_overwritten exp2.pexp_desc) then
+        raise (Syntaxerr.(Error(Expecting(exp2.pexp_loc, "tuple, constructor or record"))));
+      let cell_mode =
+        let cell_mode = Value.newvar () in
+        (* The overwritten cell has to be unique
+           and should have the areality expected here: *)
+        Value.submode_exn cell_mode
+          (Value.max_with (Monadic Uniqueness) Uniqueness.unique);
+        Regionality.submode_exn
+          (Value.proj (Comonadic Areality) cell_mode)
+          (Value.proj (Comonadic Areality) expected_mode.mode);
+        cell_mode
+      in
+      let cell_type =
+        (* CR uniqueness: this could be the jkind of exp2 *)
+        { ty = newvar (Jkind.Builtin.value ~why:Boxed_record);
+          explanation = None }
+      in
+      let exp1 = type_expect env (mode_default cell_mode) exp1 cell_type in
+      let exp2 =
+        (* The newly-written fields have to global to avoid heap-to-stack pointers.
+           We enforce that here, by asking the allocation to be global.
+           This makes the block alloc_heap, but we ignore that information anyway. *)
+        let exp2_mode =
+          mode_coerce
+            (Value.max_with (Comonadic Areality) Regionality.global)
+            expected_mode
         in
-        let ident = match path with
-          | Path.Pident i -> i
-          | _ ->
-            raise Syntaxerr.(Error(Not_expecting(loc, "Overwrite of path " ^ Path.name path)))
-        in
-        let mode =
-          let cell_mode = Value.newvar () in
-          (* The cell has to be unique: *)
-          Value.submode_exn cell_mode
-            (Value.max_with (Monadic Uniqueness) Uniqueness.unique);
-          (* The cell has the right locality in this context: *)
-          Regionality.submode_exn
-            (Value.proj (Comonadic Areality) cell_mode)
-            (Value.proj (Comonadic Areality) expected_mode.mode);
-          (* The cell_mode is a lower bound on the mode of the overwritten cell: *)
-          actual_submode ~loc ~env actual_mode (mode_default cell_mode);
-          (* Later on, we will enforce: cell_mode <= expected_mode of kept fields.
-             But since we set the expected_mode to global below, we will ignore
-             regionality information in that check. That allows us to have local kept
-             fields (as long as the cell is allowed to be local) *)
+        (* Later on, we will enforce: fields_mode <= expected_mode of kept fields.
+           But since we set the expected_mode to be global, we will ignore
+           regionality information in that check. That allows us to have local kept
+           fields (as long as the cell is allowed to be local) *)
+        let fields_mode =
           Value.meet_with (Comonadic Areality) Regionality.Const.Global cell_mode
+            |> Value.disallow_right
         in
-        let unique_use =
-          unique_use ~loc ~env actual_mode.mode (as_single_mode (mode_default mode))
-        in
-        ident, desc.val_type, mode, unique_use
+        let overwrite = Overwriting (exp1.exp_loc, exp1.exp_type, fields_mode) in
+        type_expect ~overwrite env exp2_mode exp2 ty_expected_explained
       in
-      (* The newly-written fields have to global to avoid heap-to-stack pointers.
-         We enforce that here, by asking the allocation to be global.
-         This makes the block alloc_heap, but we ignore that information anyway. *)
-      let alloc_mode =
-        mode_coerce (Value.max_with (Comonadic Areality) Regionality.global) expected_mode
-      in
-      let overwrite = Overwriting (loc, cell_type, cell_mode |> Value.disallow_right) in
-      let alloc = type_expect ~overwrite env alloc_mode e ty_expected_explained in
-      re { exp_desc = Texp_overwrite(ident, lid, use, alloc);
+      re { exp_desc = Texp_overwrite(exp1, exp2);
             exp_loc = loc; exp_extra = [];
-            exp_type = alloc.exp_type;
+            exp_type = exp2.exp_type;
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
   | Pexp_hole ->

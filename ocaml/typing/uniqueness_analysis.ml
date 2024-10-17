@@ -511,7 +511,8 @@ end = struct
 
   (* Only the last part of the longident matters at runtime;
      eg. [List.Cons] and [Cons] are the same tag. *)
-  let equal_tag l0 l1 = Longident.last l0.txt == Longident.last l1.txt
+  let equal_tag l0 l1 =
+    String.equal (Longident.last l0.txt) (Longident.last l1.txt)
 
   let choose t0 t1 =
     match t0, t1 with
@@ -524,16 +525,19 @@ end = struct
     | _, OverwrittenAs _ -> t1
     | _, _ -> Unknown
 
-  let rec par t0 t1 =
+  let par t0 t1 =
     match t0, t1 with
     | Unknown, t1 -> t1
-    | TagKnown _, Unknown -> par t1 t0
+    | _, Unknown -> t0
     | TagKnown l0, TagKnown l1 -> if equal_tag l0 l1 then t0 else Unknown
     | TagKnown l0, OverwrittenAs l1 ->
       if equal_tag l0 l1
       then t0
       else raise (Error (ChangedTag { old_tag = Some l0; new_tag = l1 }))
-    | OverwrittenAs _, (Unknown | TagKnown _) -> par t1 t0
+    | OverwrittenAs l0, TagKnown l1 ->
+      if equal_tag l0 l1
+      then t1
+      else raise (Error (ChangedTag { old_tag = Some l1; new_tag = l0 }))
     | OverwrittenAs l0, OverwrittenAs l1 ->
       if equal_tag l0 l1
       then t0
@@ -1623,26 +1627,20 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
   | Texp_probe_is_enabled _ -> UF.unused
   | Texp_exclave e -> check_uniqueness_exp ienv e
   | Texp_src_pos -> UF.unused
-  | Texp_overwrite (id, _, unique_use, e) ->
-    let loc = exp.exp_loc in
-    let occ = Occurrence.mk loc in
-    let value =
-      match value_of_ident ienv unique_use occ (Path.Pident id) with
-      | None ->
-        (* cross module access - don't track *)
-        Value.untracked unique_use occ
-      | Some value -> value
-    in
+  | Texp_overwrite (e1, e2) ->
+    let value, uf = check_uniqueness_exp_as_value ienv e1 in
     let uf_tag =
-      match exp.exp_desc with
+      match e2.exp_desc with
       | Texp_construct (tag, _, _, _) -> Value.overwrite_tag tag value
       | Texp_variant (tag, _) ->
         Value.overwrite_tag (mknoloc (Longident.Lident tag)) value
-      | _ -> UF.unused
+      | Texp_record _ | Texp_tuple _ -> UF.unused
+      | _ ->
+        Misc.fatal_error "Uniqueness analysis: overwrite of unexpected term"
     in
-    let uf_body = check_uniqueness_exp ienv ~overwrite:(Value.paths value) e in
+    let uf_body = check_uniqueness_exp ienv ~overwrite:(Value.paths value) e2 in
     (* We first evaluate the body and then perform the overwrite: *)
-    UF.seq uf_tag (UF.seq uf_body (Value.mark_consumed_memory_address value))
+    UF.seqs [uf; uf_tag; uf_body; Value.mark_consumed_memory_address value]
   | Texp_hole use -> (
     match overwrite with
     | None -> assert false
@@ -1734,7 +1732,7 @@ and check_uniqueness_value_bindings ienv vbs =
   in
   Ienv.Extension.conjuncts exts, UF.pars uf_vbs
 
-(* type signature needed because high-ranked *)
+(* type signature needed because invoked on both value and computation patterns *)
 and check_uniqueness_cases_gen :
       'a.
       ('a Typedtree.general_pattern -> _ -> _) -> _ -> _ -> 'a case list -> _ =
@@ -1890,9 +1888,10 @@ let report_tag_change (err : Tag.error) =
     let right_tag_txt = Format.dprintf "%a" Pprintast.longident right_tag.txt in
     let sub = [Location.msg ~loc:left_tag.loc ""] in
     Location.errorf ~loc:right_tag.loc ~sub
-      "@[Overwrite may not change the tag but here overwrites use the tags %t \
-       and %t.\n\
-       Hint: did you forget a pattern-match?@]" left_tag_txt right_tag_txt
+      "@[The same allocation gets overwritten using different tags %t and %t.\n\
+       Hint: overwrites may not change the tag; did you forget a \
+       pattern-match?@]"
+      left_tag_txt right_tag_txt
   | ChangedTag { old_tag; new_tag } ->
     let new_tag_txt = Format.dprintf "%a" Pprintast.longident new_tag.txt in
     let old_tag_txt =

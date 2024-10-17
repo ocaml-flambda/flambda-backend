@@ -1201,7 +1201,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         ]
       in
       Lconst(Const_block(0, cl))
-  | Texp_overwrite (_id, _lid, _, _e) ->
+  | Texp_overwrite (_, _) ->
       Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
   | Texp_hole _ ->
       Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc

@@ -992,7 +992,11 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_probe_is_enabled _ -> empty
     | Texp_exclave e -> expression e
     | Texp_src_pos -> empty
-    | Texp_overwrite (_, _, _, e) -> expression e
+    | Texp_overwrite (exp1, exp2) ->
+      join [
+        expression exp1 << Dereference;
+        expression exp2
+      ]
     | Texp_hole _ -> empty
 
 (* Function bodies.

@@ -592,3 +592,10 @@ Line 2, characters 11-19:
                ^^^^^^^^
 
 |}]
+
+(* Shadowing of unique variables *)
+let shadow x =
+  x, (let x = (1, 2) in x)
+[%%expect{|
+val shadow : 'a -> 'a * (int * int) = <fun>
+|}]

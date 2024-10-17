@@ -25,7 +25,6 @@ type record_update = { x : string; y : string }
 type record_update = { x : string; y : string; }
 |}]
 
-
 let update (unique_ r : record_update) =
   let x = overwrite_ r with { x = "foo" }
   in x.x
@@ -38,13 +37,8 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
-let update2 = update { x = "bar" }
-[%%expect{|
-Line 1, characters 14-20:
-1 | let update2 = update { x = "bar" }
-                  ^^^^^^
-Error: Unbound value "update"
-|}]
+(*************************************)
+(* Checking uniqueness of overwrites *)
 
 let id = function x -> x
 
@@ -54,9 +48,9 @@ let overwrite_shared (r : record_update) =
   in x.x
 [%%expect{|
 val id : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
-Line 5, characters 10-41:
+Line 5, characters 21-22:
 5 |   let x = overwrite_ r with { x = "foo" }
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                         ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
@@ -68,11 +62,14 @@ Line 3, characters 11-12:
 3 |   in (x.x, r.x)
                ^
 Error: This value is read from here, but it has already been used as unique:
-Line 2, characters 10-41:
+Line 2, characters 21-22:
 2 |   let x = overwrite_ r with { x = "foo" }
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                         ^
 
 |}]
+
+(**************************************)
+(* Checking regionality of overwrites *)
 
 (* Only global values may be written during overwrites,
    since the GC does not allow heap-to-stack pointers.
@@ -130,7 +127,7 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 |}]
 
 (* This code should fail if we used a real allocation { r with x } here.
-   But we don't: the overwritten record is regional in this case, since
+   But we don't: the overwritten record may be regional in this case since
    no allocation takes place. We check two related cases below. *)
 let returning_regional (local_ unique_ r) x =
   overwrite_ r with { x }
@@ -147,9 +144,9 @@ let disallowed_by_locality (local_ unique_ r) x =
   let r = stack_ { x = ""; y = "" } in
   overwrite_ r with { x }
 [%%expect{|
-Line 3, characters 2-25:
+Line 3, characters 13-14:
 3 |   overwrite_ r with { x }
-      ^^^^^^^^^^^^^^^^^^^^^^^
+                 ^
 Error: This value escapes its region.
 |}]
 
@@ -184,4 +181,267 @@ Line 2, characters 2-25:
 Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
+|}]
+
+(*******************************)
+(* Type-checking strong update *)
+
+type 'a eq = { eq0 : 'a; eq1 : 'a }
+type 'a pair = 'a * 'a
+[%%expect{|
+type 'a eq = { eq0 : 'a; eq1 : 'a; }
+type 'a pair = 'a * 'a
+|}]
+
+let update eq =
+  overwrite_ eq with { eq0 = "foo" }
+[%%expect{|
+Line 2, characters 2-36:
+2 |   overwrite_ eq with { eq0 = "foo" }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update eq =
+  overwrite_ eq with { eq0 = "foo"; eq1 = 1 }
+[%%expect{|
+Line 2, characters 42-43:
+2 |   overwrite_ eq with { eq0 = "foo"; eq1 = 1 }
+                                              ^
+Error: This expression has type "int" but an expression was expected of type
+         "string"
+|}]
+
+let update () =
+  let eq = { eq0 = "foo" ; eq1 = "bar" } in
+  { eq with eq0 = 1 }
+[%%expect{|
+Line 3, characters 2-21:
+3 |   { eq with eq0 = 1 }
+      ^^^^^^^^^^^^^^^^^^^
+Error: This expression has type "int eq" but an expression was expected of type
+         "string eq"
+       Type "int" is not compatible with type "string"
+|}]
+
+let update () =
+  let eq = { eq0 = "foo" ; eq1 = "bar" } in
+  overwrite_ eq with { eq0 = 1 }
+[%%expect{|
+Line 3, characters 21-32:
+3 |   overwrite_ eq with { eq0 = 1 }
+                         ^^^^^^^^^^^
+Error: This expression has type "int eq" but an expression was expected of type
+         "string eq"
+       Type "int" is not compatible with type "string"
+|}]
+
+let update () =
+  let eq = { eq0 = "foo" ; eq1 = "bar" } in
+  overwrite_ eq with { eq0 = 1; eq1 = 2 }
+[%%expect{|
+Line 3, characters 2-41:
+3 |   overwrite_ eq with { eq0 = 1; eq1 = 2 }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update : _ pair @ unique -> _ pair = function eq ->
+  overwrite_ eq with ("foo", _)
+[%%expect{|
+Line 2, characters 2-31:
+2 |   overwrite_ eq with ("foo", _)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update : _ pair @ unique -> _ pair = function eq ->
+  overwrite_ eq with ("foo", 1)
+[%%expect{|
+Line 2, characters 29-30:
+2 |   overwrite_ eq with ("foo", 1)
+                                 ^
+Error: This expression has type "int" but an expression was expected of type
+         "string"
+|}]
+
+let update : unit -> _ pair = function eq ->
+  let eq : string pair = ("foo", "bar") in
+  overwrite_ eq with (1, _)
+[%%expect{|
+Line 3, characters 25-26:
+3 |   overwrite_ eq with (1, _)
+                             ^
+Error: This expression has type "string" but an expression was expected of type
+         "int"
+|}]
+
+let update : unit -> _ pair = function eq ->
+  let eq : string pair = ("foo", "bar") in
+  overwrite_ eq with (1, 2)
+[%%expect{|
+Line 3, characters 2-27:
+3 |   overwrite_ eq with (1, 2)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+(*************************************)
+(* Other edge-cases of type checking *)
+
+type constr = Constr1 of { x : string } | Constr2 of { x : int }
+
+let update c =
+  match c with
+  | Constr1 _ -> overwrite_ c with Constr1 { x = "" }
+  | Constr2 _ -> overwrite_ c with Constr2 { x = 2 }
+[%%expect{|
+type constr = Constr1 of { x : string; } | Constr2 of { x : int; }
+Line 6, characters 35-42:
+6 |   | Constr2 _ -> overwrite_ c with Constr2 { x = 2 }
+                                       ^^^^^^^
+Error: The same allocation gets overwritten using different tags Constr1 and Constr2.
+Hint: overwrites may not change the tag; did you forget a pattern-match?
+Line 5, characters 35-42:
+5 |   | Constr1 _ -> overwrite_ c with Constr1 { x = "" }
+                                       ^^^^^^^
+
+|}]
+
+(***********************************)
+(* Checking that tags don't change *)
+
+type options = OptionA of string | OptionB of string
+[%%expect{|
+type options = OptionA of string | OptionB of string
+|}]
+
+(* CR uniqueness: fix this test (see check_uniqueness_cases_gen) *)
+let id = function
+  | OptionA s as v -> overwrite_ v with OptionA s
+  | OptionB s as v -> overwrite_ v with OptionB s
+[%%expect{|
+Line 3, characters 40-47:
+3 |   | OptionB s as v -> overwrite_ v with OptionB s
+                                            ^^^^^^^
+Error: The same allocation gets overwritten using different tags OptionA and OptionB.
+Hint: overwrites may not change the tag; did you forget a pattern-match?
+Line 2, characters 40-47:
+2 |   | OptionA s as v -> overwrite_ v with OptionA s
+                                            ^^^^^^^
+
+|}]
+
+let id v =
+  match v with
+  | OptionA s -> overwrite_ v with OptionA s
+  | OptionB s -> overwrite_ v with OptionB s
+[%%expect{|
+Line 4, characters 35-42:
+4 |   | OptionB s -> overwrite_ v with OptionB s
+                                       ^^^^^^^
+Error: The same allocation gets overwritten using different tags OptionA and OptionB.
+Hint: overwrites may not change the tag; did you forget a pattern-match?
+Line 3, characters 35-42:
+3 |   | OptionA s -> overwrite_ v with OptionA s
+                                       ^^^^^^^
+
+|}]
+
+let swap = function
+  | OptionA s as v -> overwrite_ v with OptionB s
+  | OptionB s as v -> overwrite_ v with OptionA s
+[%%expect{|
+Line 3, characters 40-47:
+3 |   | OptionB s as v -> overwrite_ v with OptionA s
+                                            ^^^^^^^
+Error: The same allocation gets overwritten using different tags OptionB and OptionA.
+Hint: overwrites may not change the tag; did you forget a pattern-match?
+Line 2, characters 40-47:
+2 |   | OptionA s as v -> overwrite_ v with OptionB s
+                                            ^^^^^^^
+
+|}]
+
+let swap v =
+  match v with
+  | OptionA s -> overwrite_ v with OptionB s
+  | OptionB s -> overwrite_ v with OptionA s
+[%%expect{|
+Line 4, characters 35-42:
+4 |   | OptionB s -> overwrite_ v with OptionA s
+                                       ^^^^^^^
+Error: The same allocation gets overwritten using different tags OptionB and OptionA.
+Hint: overwrites may not change the tag; did you forget a pattern-match?
+Line 3, characters 35-42:
+3 |   | OptionA s -> overwrite_ v with OptionB s
+                                       ^^^^^^^
+
+|}]
+
+let choose_in_branch v =
+  match v with
+  | OptionA s ->
+      if String.equal s ""
+      then overwrite_ v with OptionA s
+      else overwrite_ v with OptionB s
+  | OptionB _ -> v
+[%%expect{|
+Line 6, characters 29-36:
+6 |       else overwrite_ v with OptionB s
+                                 ^^^^^^^
+Error: The same allocation gets overwritten using different tags OptionA and OptionB.
+Hint: overwrites may not change the tag; did you forget a pattern-match?
+Line 5, characters 29-36:
+5 |       then overwrite_ v with OptionA s
+                                 ^^^^^^^
+
+|}]
+
+type options_record = { x : options }
+
+let nested_path_correct r =
+  match r with
+  | { x = OptionA s } -> overwrite_ r.x with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+type options_record = { x : options; }
+Line 5, characters 25-54:
+5 |   | { x = OptionA s } -> overwrite_ r.x with OptionA s
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let nested_path_wrong r =
+  match r with
+  | { x = OptionA s } -> overwrite_ r.x with OptionB s
+  | _ -> OptionB ""
+[%%expect{|
+Line 3, characters 45-52:
+3 |   | { x = OptionA s } -> overwrite_ r.x with OptionB s
+                                                 ^^^^^^^
+Error: Overwrite may not change the tag to OptionB.
+Hint: The old tag of this allocation is OptionA.
+|}]
+
+(* Unsupported *)
+let let_bound_path () =
+  let r = { x = OptionA "foo" } in
+  overwrite_ r.x with OptionA "bar"
+[%%expect{|
+Line 3, characters 22-29:
+3 |   overwrite_ r.x with OptionA "bar"
+                          ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation is unknown.
 |}]

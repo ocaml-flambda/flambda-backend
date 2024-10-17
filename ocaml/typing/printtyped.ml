@@ -627,9 +627,10 @@ and expression i ppf x =
       expression i ppf e;
   | Texp_src_pos ->
       line i ppf "Texp_src_pos"
-  | Texp_overwrite (id, _, _, e) ->
-    line i ppf "Texp_overwrite %a\n" fmt_path (Path.Pident id);
-    expression i ppf e
+  | Texp_overwrite (e1, e2) ->
+    line i ppf "Texp_overwrite\n";
+    expression i ppf e1;
+    expression i ppf e2
   | Texp_hole _ ->
     line i ppf "Texp_hole"
 
