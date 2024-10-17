@@ -296,7 +296,7 @@ let add_event ev =
       to prevent the debugger to stop at every single allocation. *)
 let add_pseudo_event loc modname c =
   if !Clflags.debug then
-    let ev_defname = string_of_scoped_location loc in
+    let ev_defname = string_of_scoped_location ~include_zero_alloc:false loc in
     let ev =
       { ev_pos = 0;                   (* patched in emitcode *)
         ev_module = Compilation_unit.full_path_as_string modname;
@@ -1136,7 +1136,7 @@ let rec comp_expr stack_info env exp sz cont =
         fatal_error "Bytegen.comp_expr: assign"
       end
   | Levent(lam, lev) ->
-      let ev_defname = string_of_scoped_location lev.lev_loc in
+      let ev_defname = string_of_scoped_location ~include_zero_alloc:false lev.lev_loc in
       let event kind info =
         { ev_pos = 0;                   (* patched in emitcode *)
           ev_module = Compilation_unit.full_path_as_string !compunit_name;

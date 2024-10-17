@@ -326,7 +326,10 @@ let emit_frames a =
     a.efa_def_label lbl;
     let rec emit rs d rest =
       let open Debuginfo in
-      let defname = Scoped_location.string_of_scopes d.dinfo_scopes in
+      let defname =
+        Scoped_location.string_of_scopes ~include_zero_alloc:false
+          d.dinfo_scopes
+      in
       let char_end = d.dinfo_char_end + d.dinfo_start_bol - d.dinfo_end_bol in
       let is_fully_packable =
         d.dinfo_line <= 0xFFF

@@ -1239,7 +1239,8 @@ let rec lam ppf = function
         fprintf ppf "@[<2>(%s <unknown location>@ %a)@]" kind lam expr
       | Loc_known {scopes; loc} ->
         fprintf ppf "@[<2>(%s %s %s(%i)%s:%i-%i@ %a)@]" kind
-                (Debuginfo.Scoped_location.string_of_scopes scopes)
+                (Debuginfo.Scoped_location.string_of_scopes
+                   ~include_zero_alloc:true scopes)
                 loc.Location.loc_start.Lexing.pos_fname
                 loc.Location.loc_start.Lexing.pos_lnum
                 (if loc.Location.loc_ghost then "<ghost>" else "")
