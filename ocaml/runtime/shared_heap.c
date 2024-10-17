@@ -441,6 +441,7 @@ static void* pool_allocate(struct caml_heap_state* local, sizeclass sz) {
 static void* large_allocate(struct caml_heap_state* local, mlsize_t sz) {
   large_alloc* a = malloc(sz + LARGE_ALLOC_HEADER_SZ);
   if (!a) return NULL;
+  madvise(a, sz + LARGE_ALLOC_HEADER_SZ, MADV_HUGEPAGE);
   local->stats.large_words += Wsize_bsize(sz + LARGE_ALLOC_HEADER_SZ);
   if (local->stats.large_words > local->stats.large_max_words)
     local->stats.large_max_words = local->stats.large_words;

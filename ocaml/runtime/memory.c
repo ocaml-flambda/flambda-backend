@@ -699,6 +699,7 @@ CAMLexport void caml_stat_create_pool(void)
     pool = malloc(SIZEOF_POOL_BLOCK);
     if (pool == NULL)
       caml_fatal_out_of_memory ();
+    madvise(pool, SIZEOF_POOL_BLOCK, MADV_HUGEPAGE);
 #ifdef DEBUG
     pool->magic = Debug_pool_magic;
 #endif
