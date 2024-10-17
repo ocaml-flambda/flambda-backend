@@ -368,15 +368,16 @@ let clear_demoted_trap_action_and_patch_unused_exn_bucket uacc apply_cont =
 
 (* Warning: This function relies on [T.meet_is_flat_float_array], which could
    return any kind for empty arrays. So this function is only safe for
-   operations that are invalid on empty arrays. *)
+   operations that are invalid on empty arrays.
+   [T.meet_is_non_empty_naked_number_array] also has the same restriction. *)
 let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
     _ Or_bottom.t =
   let typing_env = DA.typing_env dacc in
   let for_naked_number kind : _ Or_bottom.t =
-    match T.meet_is_naked_number_array typing_env array_ty kind with
-    | Known_result true -> Ok array_kind
+    match T.meet_is_non_empty_naked_number_array kind typing_env array_ty with
+    | Known_result () -> Ok array_kind
     | Need_meet -> Ok array_kind
-    | Known_result false | Invalid -> Bottom
+    | Invalid -> Bottom
   in
   match array_kind with
   | Naked_floats -> for_naked_number Naked_float
@@ -388,7 +389,7 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   | Immediates -> (
     (* The only thing worth checking is for float arrays, as that would allow us
        to remove the branch *)
-    match T.meet_is_naked_number_array typing_env array_ty Naked_float with
+    match T.meet_is_flat_float_array typing_env array_ty with
     | Known_result false | Need_meet -> Ok array_kind
     | Known_result true | Invalid -> Bottom)
   | Values -> (
@@ -399,7 +400,7 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       Ok P.Array_kind.Immediates
     | Unknown -> (
       (* Check for float arrays *)
-      match T.meet_is_naked_number_array typing_env array_ty Naked_float with
+      match T.meet_is_flat_float_array typing_env array_ty with
       | Known_result false | Need_meet -> Ok array_kind
       | Known_result true | Invalid -> Bottom))
 
