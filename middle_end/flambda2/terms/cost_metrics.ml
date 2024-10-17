@@ -73,7 +73,7 @@ let set_of_closures ~find_code_characteristics set_of_closures =
       (fun _ (code_id : Function_declarations.code_id_in_function_declaration)
            (metrics, num_words) ->
         match code_id with
-        | Deleted { function_slot_size } ->
+        | Deleted { function_slot_size; _ } ->
           metrics, Stdlib.( + ) num_words function_slot_size
         | Code_id code_id ->
           let { cost_metrics; params_arity } =

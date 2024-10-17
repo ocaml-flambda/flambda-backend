@@ -2258,6 +2258,25 @@ let args t =
   | Ternary (_, x0, x1, x2) -> [x0; x1; x2]
   | Variadic (_, xs) -> xs
 
+let map_args f t =
+  match t with
+  | Nullary _ -> t
+  | Unary (p, x0) ->
+    let x0' = f x0 in
+    if x0 == x0' then t else Unary (p, x0')
+  | Binary (p, x0, x1) ->
+    let x0' = f x0 in
+    let x1' = f x1 in
+    if x0 == x0' && x1 == x1' then t else Binary (p, x0', x1')
+  | Ternary (p, x0, x1, x2) ->
+    let x0' = f x0 in
+    let x1' = f x1 in
+    let x2' = f x2 in
+    if x0 == x0' && x1 == x1' && x2 == x2' then t else Ternary (p, x0', x1', x2')
+  | Variadic (p, xs) ->
+    let xs' = Misc.Stdlib.List.map_sharing f xs in
+    if xs == xs' then t else Variadic (p, xs')
+
 let result_kind (t : t) =
   match t with
   | Nullary prim -> result_kind_of_nullary_primitive prim

@@ -521,6 +521,8 @@ include Contains_ids.S with type t := t
 
 val args : t -> Simple.t list
 
+val map_args : (Simple.t -> Simple.t) -> t -> t
+
 (** Simpler version (e.g. for [Inlining_cost]), where only the actual primitive
     matters, not the arguments. *)
 module Without_args : sig

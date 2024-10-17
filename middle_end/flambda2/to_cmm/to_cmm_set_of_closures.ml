@@ -290,7 +290,7 @@ end = struct
             res,
             Ece.pure,
             updates ))
-      | Deleted { function_slot_size } ->
+      | Deleted { function_slot_size; _ } ->
         if size <> function_slot_size
         then
           Misc.fatal_errorf
@@ -534,20 +534,16 @@ let layout_for_set_of_closures env set =
     (Set_of_closures.value_slots set)
 
 let debuginfo_for_set_of_closures env set =
-  let code_ids_in_set =
+  let dbg =
     Set_of_closures.function_decls set
     |> Function_declarations.funs |> Function_slot.Map.data
-    |> List.filter_map
+    |> List.map
          (fun (code_id : Function_declarations.code_id_in_function_declaration)
          ->
            match code_id with
-           | Deleted _ -> None
-           | Code_id code_id -> Some code_id)
-  in
-  let dbg =
-    List.map
-      (fun code_id -> Env.get_code_metadata env code_id |> Code_metadata.dbg)
-      code_ids_in_set
+           | Deleted { dbg; _ } -> dbg
+           | Code_id code_id ->
+             Code_metadata.dbg (Env.get_code_metadata env code_id))
     |> List.sort Debuginfo.compare
   in
   (* Choose the debuginfo with the earliest source location. *)

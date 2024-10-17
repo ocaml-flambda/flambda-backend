@@ -443,7 +443,7 @@ let optionalarg ((f : ?foo:local_ int -> unit -> unit), n) =
 let[@inline never] optarg ?(n = 0) () = n
 
 let[@inline never] optionaleta () =
-  let[@inline never] use_clos (f : unit -> int) = () in
+  let[@opaque] use_clos (f : unit -> int) = () in
   use_clos (Sys.opaque_identity optarg);
   use_clos (Sys.opaque_identity optarg);
   ()

@@ -36,6 +36,8 @@ val cse_depth : unit -> int
 
 val join_depth : unit -> int
 
+val enable_reaper : unit -> bool
+
 val flat_float_array : unit -> bool
 
 val function_result_types : is_a_functor:bool -> bool
@@ -78,6 +80,10 @@ val dump_flexpect : unit -> dump_target
 val dump_slot_offsets : unit -> bool
 
 val dump_flow : unit -> bool
+
+val dump_simplify : unit -> bool
+
+val dump_reaper : unit -> bool
 
 val freshen_when_printing : unit -> bool
 

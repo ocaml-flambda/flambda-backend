@@ -49,6 +49,9 @@ let module_symbol t = t.module_symbol
 
 let used_value_slots t = t.used_value_slots
 
+let with_used_value_slots t used_value_slots =
+  { t with used_value_slots = Known used_value_slots }
+
 let [@ocamlformat "disable"] print ppf
       { return_continuation; exn_continuation; toplevel_my_region;
         toplevel_my_ghost_region; body; module_symbol; used_value_slots;

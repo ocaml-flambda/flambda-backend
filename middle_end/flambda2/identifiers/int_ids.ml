@@ -847,6 +847,61 @@ module Code_id_or_symbol = struct
       symbols Set.empty
 end
 
+module Code_id_or_name = struct
+  type t = Table_by_int_id.Id.t
+
+  let code_id code_id = code_id
+
+  let name name = name
+
+  let var var = var
+
+  let symbol symbol = symbol
+
+  let pattern_match t ~code_id ~var ~symbol =
+    let flags = Table_by_int_id.Id.flags t in
+    if flags = Code_id_data.flags
+    then code_id t
+    else if flags = Symbol_data.flags
+    then symbol t
+    else if flags = Variable_data.flags
+    then var t
+    else
+      Misc.fatal_errorf "Code_id_or_symbol 0x%x with wrong flags 0x%x" t flags
+
+  module T0 = struct
+    let compare = Id.compare
+
+    let equal = Id.equal
+
+    let hash = Id.hash
+
+    let print ppf t =
+      pattern_match t
+        ~code_id:(fun code_id ->
+          Format.fprintf ppf "@[<hov 1>(code_id@ %a)@]" Code_id.print code_id)
+        ~symbol:(fun symbol ->
+          Format.fprintf ppf "@[<hov 1>(symbol@ %a)@]" Symbol.print symbol)
+        ~var:(fun var ->
+          Format.fprintf ppf "@[<hov 1>(var@ %a)@]" Variable.print var)
+  end
+
+  include T0
+
+  module T = struct
+    type nonrec t = t
+
+    include T0
+  end
+
+  module Tree = Patricia_tree.Make (struct
+    let print = print
+  end)
+
+  module Set = Tree.Set
+  module Map = Tree.Map
+end
+
 let initialise () =
   Const.initialise ();
   Variable.initialise ();

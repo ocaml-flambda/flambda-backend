@@ -1,0 +1,52 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_reaper)
+ (wrapped true)
+ (instrumentation (backend bisect_ppx))
+ (flags
+  (:standard
+   -principal
+   -open
+   Flambda2_algorithms
+   -open
+   Flambda2_bound_identifiers
+   -open
+   Flambda2_cmx
+   -open
+   Flambda2_identifiers
+   -open
+   Flambda2_kinds
+   -open
+   Flambda2_lattices
+   -open
+   Flambda2_numbers
+   -open
+   Flambda2_nominal
+   -open
+   Flambda2_term_basics
+   -open
+   Flambda2_terms
+   -open
+   Flambda2_simplify_shared
+   -open
+   Flambda2_types
+   -open
+   Flambda2_ui))
+ (ocamlopt_flags
+  (:standard -O3))
+ (libraries
+  ocamlcommon
+  flambda2_algorithms
+  flambda2_bound_identifiers
+  flambda2_cmx
+  flambda2_identifiers
+  flambda2_kinds
+  flambda2_lattices
+  flambda2_nominal
+  flambda2_numbers
+  flambda2_term_basics
+  flambda2_terms
+  flambda2_simplify_shared
+  flambda2_types
+  flambda2_ui))
