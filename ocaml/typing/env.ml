@@ -148,7 +148,7 @@ type summary =
   | Env_modtype of summary * Ident.t * modtype_declaration
   | Env_class of summary * Ident.t * class_declaration
   | Env_cltype of summary * Ident.t * class_type_declaration
-  | Env_open of summary * Longident.t
+  | Env_open of summary * Path.t
   | Env_functor_arg of summary * Ident.t
   | Env_constraints of summary * type_declaration Path.Map.t
   | Env_copy_types of summary
@@ -3277,10 +3277,7 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
 
 (* Open a signature path *)
 
-let open_signature ~errors ~loc slot lid env0 =
-  let (root, locks, comps) =
-    lookup_structure_components ~errors ~use:true ~loc lid env0
-  in
+let add_components slot root env0 comps locks =
   let add_l w comps env0 =
     TycompTbl.add_open slot w root comps env0
   in
@@ -3314,9 +3311,8 @@ let open_signature ~errors ~loc slot lid env0 =
   let modules =
     add_v (fun x -> `Module x) comps.comp_modules env0.modules
   in
-  root,
   { env0 with
-    summary = Env_open(env0.summary, lid);
+    summary = Env_open(env0.summary, root);
     constrs;
     labels;
     values;
@@ -3326,6 +3322,16 @@ let open_signature ~errors ~loc slot lid env0 =
     cltypes;
     modules;
   }
+
+let open_signature_by_path path env0 =
+  let comps = find_structure_components path env0 in
+  add_components None path env0 comps []
+
+let open_signature ~errors ~loc slot lid env0 =
+  let (root, locks, comps) =
+    lookup_structure_components ~errors ~use:true ~loc lid env0
+  in
+  root, add_components slot root env0 comps locks
 
 let remove_last_open env0 =
   let rec filter_summary summary =

@@ -36,7 +36,7 @@ type summary =
   | Env_modtype of summary * Ident.t * modtype_declaration
   | Env_class of summary * Ident.t * class_declaration
   | Env_cltype of summary * Ident.t * class_type_declaration
-  | Env_open of summary * Longident.t
+  | Env_open of summary * Path.t
   (** The string set argument of [Env_open] represents a list of module names
       to skip, i.e. that won't be imported in the toplevel namespace. *)
   | Env_functor_arg of summary * Ident.t
@@ -45,6 +45,7 @@ type summary =
   | Env_persistent of summary * Ident.t
   | Env_value_unbound of summary * string * value_unbound_reason
   | Env_module_unbound of summary * string * module_unbound_reason
+  (* CR zqian: track [add_lock] as well *)
 
 type address =
   | Aunit of Compilation_unit.t
@@ -411,6 +412,9 @@ val open_signature:
     loc:Location.t -> toplevel:bool ->
     Asttypes.override_flag -> Longident.t Location.loc ->
     t -> Path.t * t
+
+(* CR zqian: locks beyond the open are not tracked. Fix that. *)
+val open_signature_by_path: Path.t -> t -> t
 
 val open_pers_signature: loc:Location.t -> Longident.t -> t -> Path.t * t
 
