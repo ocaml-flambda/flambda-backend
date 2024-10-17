@@ -7,6 +7,7 @@
    bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
    bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
    bad_instance_repeated_arg_name.ml bad_instance_repeated_arg_name.reference \
+   bad_instance_wrong_mode.ml bad_instance_wrong_mode.reference \
    bad_param_param.mli bad_param_param.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_direct_imported.ml bad_ref_direct_imported.reference \
@@ -209,6 +210,15 @@
        ocamlc.byte;
 
        compiler_reference = "bad_instance_arg_value_not_found.reference";
+       check-ocamlc.byte-output;
+     }{
+       flags = "-parameter List_element";
+       module = "bad_instance_wrong_mode.ml";
+       compiler_output = "bad_instance_wrong_mode.output";
+       ocamlc_byte_exit_status = "2";
+       ocamlc.byte;
+
+       compiler_reference = "bad_instance_wrong_mode.reference";
        check-ocamlc.byte-output;
      }{
        flags = "-parameter Semigroup";
@@ -475,6 +485,15 @@
        ocamlopt.byte;
 
        compiler_reference = "bad_instance_arg_value_not_found.reference";
+       check-ocamlopt.byte-output;
+     }{
+       flags = "-parameter List_element";
+       module = "bad_instance_wrong_mode.ml";
+       compiler_output = "bad_instance_wrong_mode.output";
+       ocamlopt_byte_exit_status = "2";
+       ocamlopt.byte;
+
+       compiler_reference = "bad_instance_wrong_mode.reference";
        check-ocamlopt.byte-output;
      }{
        flags = "-parameter Semigroup";
