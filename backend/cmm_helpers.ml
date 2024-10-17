@@ -1161,19 +1161,19 @@ let unboxed_mutable_float_array_ref arr ofs dbg =
 let unboxed_immutable_float_array_ref arr ofs dbg =
   Cop (mk_load_immut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
-let unboxed_mutable_float32_unboxed_product_array_ref arr index dbg =
+let unboxed_mutable_float32_unboxed_product_array_ref arr ~element_num dbg =
   bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
+      bind "index" element_num (fun index ->
           Cop
             (* XXX mshinwell for mslater: is Float32 correct? *)
             ( mk_load_mut (Single { reg = Float32 }),
               [array_indexing log2_size_float arr index dbg],
               dbg )))
 
-let unboxed_mutable_float32_unboxed_product_array_set arr ~index ~new_value dbg
-    =
+let unboxed_mutable_float32_unboxed_product_array_set arr ~element_num
+    ~new_value dbg =
   bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
+      bind "index" element_num (fun index ->
           bind "new_value" new_value (fun new_value ->
               Cop
                 (* XXX mshinwell for mslater: is Float32 correct? *)
@@ -1306,20 +1306,23 @@ let unboxed_int32_array_ref =
      [Thirtytwo_signed] load. *)
   unboxed_packed_array_ref ~memory_chunk:Thirtytwo_signed ~elements_per_word:2
 
-let unboxed_mutable_int32_unboxed_product_array_ref arr index dbg =
+let unboxed_mutable_int32_unboxed_product_array_ref arr ~element_num dbg =
   bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
-          Cop
-            ( mk_load_mut Thirtytwo_signed,
-              [array_indexing log2_size_addr arr index dbg],
-              dbg )))
+      bind "index" element_num (fun index ->
+          sign_extend_32 dbg
+            (Cop
+               ( mk_load_mut Thirtytwo_signed,
+                 [array_indexing log2_size_addr arr index dbg],
+                 dbg ))))
 
-let unboxed_mutable_int32_unboxed_product_array_set arr ~index ~new_value dbg =
+let unboxed_mutable_int32_unboxed_product_array_set arr ~element_num ~new_value
+    dbg =
   bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
+      bind "index" element_num (fun index ->
           bind "new_value" new_value (fun new_value ->
+              let new_value = sign_extend_32 dbg new_value in
               Cop
-                ( Cstore (Thirtytwo_signed, Assignment),
+                ( Cstore (Word_int, Assignment),
                   [array_indexing log2_size_addr arr index dbg; new_value],
                   dbg ))))
 
@@ -1328,9 +1331,9 @@ let unboxed_float32_array_ref =
     ~memory_chunk:(Single { reg = Float32 })
     ~elements_per_word:2
 
-let unboxed_int64_or_nativeint_array_ref ~has_custom_ops arr index dbg =
+let unboxed_int64_or_nativeint_array_ref ~has_custom_ops arr ~element_num dbg =
   bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
+      bind "index" element_num (fun index ->
           let index =
             if has_custom_ops
             then

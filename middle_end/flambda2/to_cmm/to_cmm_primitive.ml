@@ -295,19 +295,22 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
   | (Values | Immediates | Unboxed_product _), Immediates ->
     C.int_array_ref arr index dbg
   | (Naked_int64s | Naked_nativeints), (Naked_int64s | Naked_nativeints) ->
-    C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:true arr index dbg
+    C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:true arr
+      ~element_num:index dbg
   | Unboxed_product _, (Naked_int64s | Naked_nativeints) ->
-    C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:false arr index dbg
+    C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:false arr
+      ~element_num:index dbg
   | (Values | Immediates | Unboxed_product _), Values ->
     C.addr_array_ref arr index dbg
   | Naked_floats, Naked_floats | Unboxed_product _, Naked_floats ->
     C.unboxed_float_array_ref Mutable ~block:arr ~index dbg
   | Naked_float32s, Naked_float32s -> C.unboxed_float32_array_ref arr index dbg
   | Unboxed_product _, Naked_float32s ->
-    C.unboxed_mutable_float32_unboxed_product_array_ref arr index dbg
+    C.unboxed_mutable_float32_unboxed_product_array_ref arr ~element_num:index
+      dbg
   | Naked_int32s, Naked_int32s -> C.unboxed_int32_array_ref arr index dbg
   | Unboxed_product _, Naked_int32s ->
-    C.unboxed_mutable_int32_unboxed_product_array_ref arr index dbg
+    C.unboxed_mutable_int32_unboxed_product_array_ref arr ~element_num:index dbg
   | (Immediates | Naked_floats), Naked_vec128s ->
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
   | (Naked_int64s | Naked_nativeints), Naked_vec128s ->
@@ -378,12 +381,13 @@ let array_set0 ~dbg (array_kind : P.Array_kind.t)
   | Naked_float32s, Naked_float32s ->
     C.unboxed_float32_array_set arr ~index ~new_value dbg
   | Unboxed_product _, Naked_float32s ->
-    C.unboxed_mutable_float32_unboxed_product_array_set arr ~index ~new_value
-      dbg
+    C.unboxed_mutable_float32_unboxed_product_array_set arr ~element_num:index
+      ~new_value dbg
   | Naked_int32s, Naked_int32s ->
     C.unboxed_int32_array_set arr ~index ~new_value dbg
   | Unboxed_product _, Naked_int32s ->
-    C.unboxed_mutable_int32_unboxed_product_array_set arr ~index ~new_value dbg
+    C.unboxed_mutable_int32_unboxed_product_array_set arr ~element_num:index
+      ~new_value dbg
   | (Immediates | Naked_floats), Naked_vec128s ->
     array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
       new_value
