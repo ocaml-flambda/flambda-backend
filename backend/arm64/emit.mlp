@@ -1238,6 +1238,14 @@ let emit_instr i =
         sc_max_frame_size_in_bytes = max_frame_size_bytes;
       }
 
+let emit_instr i =
+  try emit_instr i
+  with exn -> (
+    Format.eprintf "Exception whilst emitting instruction:@ %a\n"
+      Printlinear.instr i;
+    raise exn
+  )
+
 (* Emission of an instruction sequence *)
 
 let rec emit_all i =
