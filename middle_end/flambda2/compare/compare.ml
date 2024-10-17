@@ -1266,16 +1266,19 @@ and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
       in
       Continuation.Sort.equal (sort handler1) (sort handler2)
     in
+    (* Note: the order here is important, due to the dominator-scoping of
+       symbols. Indeed, we need to ensure walk both bodies first to ensure the
+       environment contains the definitions of symbols. *)
     Non_rec.pattern_match_pair handler1 handler2 ~f:(fun cont ~body1 ~body2 ->
-        pairs ~f1:cont_handlers ~f2:exprs env
-          (Non_rec.handler handler1, body1)
-          (Non_rec.handler handler2, body2)
+        pairs ~f1:exprs ~f2:cont_handlers env
+          (body1, Non_rec.handler handler1)
+          (body2, Non_rec.handler handler2)
         |> Comparison.add_condition
              ~approximant:(fun () ->
-               ( subst_cont_handler env (Non_rec.handler handler1),
-                 subst_expr env body1 ))
+               ( subst_expr env body1,
+                 subst_cont_handler env (Non_rec.handler handler1) ))
              ~cond:sorts_match
-        |> Comparison.map ~f:(fun (handler, body) ->
+        |> Comparison.map ~f:(fun (body, handler) ->
                Let_cont.create_non_recursive cont handler ~body
                  ~free_names_of_body:Unknown))
   | Recursive handlers1, Recursive handlers2 ->
