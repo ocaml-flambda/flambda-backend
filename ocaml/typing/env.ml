@@ -3373,8 +3373,8 @@ let remove_last_open root env0 =
 
 (* Open a signature from a file *)
 
-let open_pers_signature ~loc lid env =
-  open_signature ~errors:false ~loc None lid env
+let open_pers_signature name env =
+  open_signature ~errors:false ~loc:Location.none None (Lident name) env
 
 let open_signature
     ~used_slot

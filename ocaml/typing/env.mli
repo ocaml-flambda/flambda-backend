@@ -416,7 +416,7 @@ val open_signature:
 (* CR zqian: locks beyond the open are not tracked. Fix that. *)
 val open_signature_by_path: Path.t -> t -> t
 
-val open_pers_signature: loc:Location.t -> Longident.t -> t -> Path.t * t
+val open_pers_signature: string -> t -> Path.t * t
 
 val remove_last_open: Path.t -> t -> t option
 
