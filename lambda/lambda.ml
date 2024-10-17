@@ -943,6 +943,10 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
 
 let lambda_unit = Lconst const_unit
 
+let of_bool = function
+  | true -> Lconst (const_int 1)
+  | false -> Lconst (const_int 0)
+
 (* CR vlaviron: review the following cases *)
 let non_null_value raw_kind =
   Pvalue { raw_kind; nullable = Non_nullable }
@@ -2479,3 +2483,42 @@ let rec try_to_find_location lam =
 
 let try_to_find_debuginfo lam =
   Debuginfo.from_location (try_to_find_location lam)
+
+let rec count_initializers_scannable
+      (scannable : scannable_product_element_kind) =
+  match scannable with
+  | Pint_scannable | Paddr_scannable -> 1
+  | Pproduct_scannable scannables ->
+    List.fold_left
+      (fun acc scannable -> acc + count_initializers_scannable scannable)
+      0 scannables
+
+let rec count_initializers_ignorable
+    (ignorable : ignorable_product_element_kind) =
+  match ignorable with
+  | Pint_ignorable | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> 1
+  | Pproduct_ignorable ignorables ->
+    List.fold_left
+      (fun acc ignorable -> acc + count_initializers_ignorable ignorable)
+      0 ignorables
+
+let count_initializers_array_kind (lambda_array_kind : array_kind) =
+  match lambda_array_kind with
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+  | Punboxedintarray _ | Punboxedvectorarray _ -> 1
+  | Pgcscannableproductarray scannables ->
+    List.fold_left
+      (fun acc scannable -> acc + count_initializers_scannable scannable)
+      0 scannables
+  | Pgcignorableproductarray ignorables ->
+    List.fold_left
+      (fun acc ignorable -> acc + count_initializers_ignorable ignorable)
+      0 ignorables
+
+let rec ignorable_product_element_kind_involves_int
+    (kind : ignorable_product_element_kind) =
+  match kind with
+  | Pint_ignorable -> true
+  | Punboxedfloat_ignorable _ | Punboxedint_ignorable _ -> false
+  | Pproduct_ignorable kinds ->
+    List.exists ignorable_product_element_kind_involves_int kinds

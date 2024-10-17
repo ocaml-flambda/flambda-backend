@@ -1418,7 +1418,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               Variadic (Make_array (Values, mutability, mode), args),
               [K.With_subkind.any_value] ) ]))
   | Pmakearray_dynamic (_lambda_array_kind, _mode), _ ->
-    Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
+    Misc.fatal_error
+      "Lambda_to_flambda_primitives.convert_lprim: Pmakearray_dynamic should \
+       have been expanded in [Lambda_to_flambda]"
   | Parrayblit _array_set_kind, _ ->
     Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
@@ -1951,6 +1953,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
     [checked_arith_op ~dbg None Div None arg1 arg2 ~current_region]
+  | Pmodint Unsafe, [[arg1]; [arg2]] ->
+    [H.Binary (Int_arith (I.Tagged_immediate, Mod), arg1, arg2)]
   | Pmodint Safe, [[arg1]; [arg2]] ->
     [checked_arith_op ~dbg None Mod None arg1 arg2 ~current_region]
   | Pdivbint { size = Pint32; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
@@ -2316,8 +2320,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
          targets";
     [Unary (Reinterpret_64_bit_word Tagged_int63_as_unboxed_int64, i)]
-  | ( ( Pmodint Unsafe
-      | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
+  | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),
       _ ) ->

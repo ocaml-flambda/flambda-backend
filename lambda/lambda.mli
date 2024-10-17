@@ -179,6 +179,9 @@ type primitive =
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
   | Pmakearray_dynamic of array_kind * locality_mode
+  (** For [Pmakearray_dynamic], if the array kind specifies an unboxed
+      product, the float array optimization will never apply -- even if such
+      unboxed product is a singleton. *)
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
@@ -913,6 +916,8 @@ val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
 
+val of_bool : bool -> lambda
+
 val layout_unit : layout
 val layout_int : layout
 val layout_array : array_kind -> layout
@@ -1172,3 +1177,7 @@ val try_to_find_location : lambda -> scoped_location
 val try_to_find_debuginfo : lambda -> Debuginfo.t
 
 val primitive_can_raise : primitive -> bool
+
+val count_initializers_array_kind : array_kind -> int
+val ignorable_product_element_kind_involves_int :
+  ignorable_product_element_kind -> bool

@@ -406,6 +406,25 @@ CAMLprim value caml_floatarray_create_local(value len)
   return caml_alloc_local (wosize, Double_array_tag);
 }
 
+CAMLprim value caml_floatarray_create_and_initialize(value len, double init)
+{
+  value v = caml_floatarray_create(len);
+  for (mlsize_t i = 0; i < Long_val(len); i++) {
+    Store_double_field(v, i, init);
+  }
+  return v;
+}
+
+CAMLprim value caml_floatarray_create_local_and_initialize(value len,
+  double init)
+{
+  value v = caml_floatarray_create_local(len);
+  for (mlsize_t i = 0; i < Long_val(len); i++) {
+    Store_double_field(v, i, init);
+  }
+  return v;
+}
+
 /* [len] is a [value] representing number of words or floats */
 static value make_vect_gen(value len, value init, int local)
 {
@@ -469,6 +488,139 @@ CAMLprim value caml_make_local_vect(value len, value init)
   return make_vect_gen(len, init, 1);
 }
 
+CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
+  value v_num_initializers, value v_is_local,
+  value v_non_unarized_length)
+{
+  // Some of this is similar to [caml_make_vect], above.
+  // This function is only used for native code.
+
+  mlsize_t num_initializers = Val_long(v_num_initializers);
+  int is_local = Bool_val(v_is_local);
+  mlsize_t non_unarized_length = Long_val(v_non_unarized_length);
+
+  value res;
+  mlsize_t size;
+
+  if (sizeof(uintnat) != sizeof(double)) {
+    // Just make things easy as regards maximum array lengths for now.
+    // This should have been caught in [Lambda_to_flambda].
+    caml_invalid_argument(
+      "%makearray_dynamic: only supported on 64-bit targets "
+        "(this is a compiler bug)");
+  }
+
+  int tag = 0;
+  // These arrays are always mixed blocks without packing.
+  // This currently differs from e.g. int32# array, which is allocated as a
+  // custom block, and is packed.
+  int reserved = Reserved_mixed_block_scannable_wosize_native(0);
+
+  size = non_unarized_length * num_initializers;
+  if (size == 0) {
+    res = Atom(0);
+  } else if (num_initializers < 1) {
+    // This could happen with void layouts.  We don't rule it out in
+    // [Lambda_to_flambda] since it is in fact ok, if the size is zero.
+    caml_invalid_argument(
+      "%makearray_dynamic: the only array that can be initialized with "
+      "nothing is a zero-length array");
+  } else if (size > Max_array_wosize) {
+    caml_invalid_argument(
+      "%makearray_dynamic: array size too large (> Max_array_wosize)");
+  } else if (is_local) {
+    res = caml_alloc_local_reserved(size, tag, reserved);
+  } else if (size <= Max_young_wosize) {
+    res = caml_alloc_small_with_reserved(size, tag, reserved);
+  } else {
+    res = caml_alloc_shr_reserved(size, tag, reserved);
+  }
+
+  // XXX mshinwell: should we do this?  Unclear if it happens in the cases
+  // for other layouts, we need to check
+  /* Give the GC a chance to run, and run memprof callbacks */
+  if (!is_local) caml_process_pending_actions ();
+
+  return res;
+}
+
+CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
+  value v_init, value v_is_local, value v_non_unarized_length)
+{
+  // Some of this is similar to [caml_make_vect], above.
+
+  mlsize_t num_initializers = Wosize_val(v_init);
+  int is_local = Bool_val(v_is_local);
+  mlsize_t non_unarized_length = Long_val(v_non_unarized_length);
+
+  value res;
+  mlsize_t size, i;
+
+  // N.B. [v_init] may be on the local stack!
+
+  if (sizeof(uintnat) != sizeof(double)) {
+    // Just make things easy as regards maximum array lengths for now.
+    // This should have been caught in [Lambda_to_flambda].
+    caml_invalid_argument(
+      "%makearray_dynamic: only supported on 64-bit targets "
+        "(this is a compiler bug)");
+  }
+
+  int tag = 0;
+
+  size = non_unarized_length * num_initializers;
+  if (size == 0) {
+    res = Atom(0);
+  } else if (num_initializers < 1) {
+    // This could happen with void layouts.  We don't rule it out in
+    // [Lambda_to_flambda] since it is in fact ok, if the size is zero.
+    caml_invalid_argument(
+      "%makearray_dynamic: the only array that can be initialized with "
+      "nothing is a zero-length array");
+  } else if (size > Max_array_wosize) {
+    caml_invalid_argument(
+      "%makearray_dynamic: array size too large (> Max_array_wosize)");
+  } else if (is_local) {
+    res = caml_alloc_local(size, tag);
+    for (i = 0; i < size; i++) {
+      Field(res, i) = Field(v_init, i % num_initializers);
+    }
+  } else if (size <= Max_young_wosize) {
+    res = caml_alloc_small(size, tag);
+    for (i = 0; i < size; i++) {
+      Field(res, i) = Field(v_init, i % num_initializers);
+    }
+  } else {
+    int move_init_to_major = 0;
+    for (mlsize_t i = 0; i < non_unarized_length; i++) {
+      if (Is_block(Field(v_init, i)) && Is_young(Field(v_init, i))) {
+        move_init_to_major = 1;
+      }
+    }
+    if (move_init_to_major) {
+      /* We don't want to create so many major-to-minor references,
+         so the contents of [v_init] are moved to the major heap by doing
+         a minor GC. */
+      CAML_EV_COUNTER (EV_C_FORCE_MINOR_MAKE_VECT, 1);
+      caml_minor_collection ();
+    }
+    for (mlsize_t i = 0; i < non_unarized_length; i++) {
+      CAMLassert(!(Is_block(Field(v_init, i)) && Is_young(Field(v_init, i))));
+    }
+    res = caml_alloc_shr(size, tag);
+    /* We now know that everything in [v_init] is not in the minor heap, so
+       there is no need to call [caml_initialize]. */
+    for (i = 0; i < size; i++) {
+      Field(res, i) = Field(v_init, i % num_initializers);
+    }
+  }
+
+  /* Give the GC a chance to run, and run memprof callbacks */
+  if (!is_local) caml_process_pending_actions ();
+
+  return res;
+}
+
 /* [len] is a [value] representing number of floats */
 /* [ int -> float array ] */
 CAMLprim value caml_make_float_vect(value len)
@@ -492,18 +644,34 @@ CAMLprim value caml_make_float_vect(value len)
 #endif
 }
 
-CAMLprim value caml_make_unboxed_int32_vect(value len)
+static value caml_make_unboxed_int32_vect0(value len, int local)
 {
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_unboxed_int32_array_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_int32_array_wosize)
+    caml_invalid_argument("Array.make");
 
   /* [num_fields] does not include the custom operations field. */
   mlsize_t num_fields = num_elements / 2 + num_elements % 2;
 
-  return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
-                           num_fields * sizeof(value), 0, 0);
+  struct custom_operations* ops =
+    &caml_unboxed_int32_array_ops[num_elements % 2];
+
+  if (local)
+    return caml_alloc_custom_local(ops, num_fields * sizeof(value), 0, 0);
+  else
+    return caml_alloc_custom(ops, num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int32_vect(value len)
+{
+  return caml_make_unboxed_int32_vect0(len, 0);
+}
+
+CAMLprim value caml_make_local_unboxed_int32_vect(value len)
+{
+  return caml_make_unboxed_int32_vect0(len, 1);
 }
 
 CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
@@ -511,14 +679,28 @@ CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
   return caml_make_vect(len, caml_copy_int32(0));
 }
 
-CAMLprim value caml_make_unboxed_int64_vect(value len)
+static value caml_make_unboxed_int64_vect0(value len, int local)
 {
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_unboxed_int64_array_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_int64_array_wosize)
+    caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_int64_array_ops;
 
-  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+  if (local)
+    return caml_alloc_custom_local(ops, num_elements * sizeof(value), 0, 0);
+  else
+    return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int64_vect(value len)
+{
+  return caml_make_unboxed_int64_vect0(len, 0);
+}
+
+CAMLprim value caml_make_local_unboxed_int64_vect(value len)
+{
+  return caml_make_unboxed_int64_vect0(len, 1);
 }
 
 CAMLprim value caml_make_unboxed_int64_vect_bytecode(value len)
@@ -526,21 +708,45 @@ CAMLprim value caml_make_unboxed_int64_vect_bytecode(value len)
   return caml_make_vect(len, caml_copy_int64(0));
 }
 
-CAMLprim value caml_make_unboxed_nativeint_vect(value len)
+static value caml_make_unboxed_nativeint_vect0(value len, int local)
 {
   /* This is only used on 64-bit targets. */
 
   mlsize_t num_elements = Long_val(len);
-  if (num_elements > Max_unboxed_nativeint_array_wosize) caml_invalid_argument("Array.make");
+  if (num_elements > Max_unboxed_nativeint_array_wosize)
+    caml_invalid_argument("Array.make");
 
   struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
 
-  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+  if (local)
+    return caml_alloc_custom_local(ops, num_elements * sizeof(value), 0, 0);
+  else
+    return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect(value len)
+{
+  return caml_make_unboxed_nativeint_vect0(len, 0);
+}
+
+CAMLprim value caml_make_local_unboxed_nativeint_vect(value len)
+{
+  return caml_make_unboxed_nativeint_vect0(len, 1);
 }
 
 CAMLprim value caml_make_unboxed_nativeint_vect_bytecode(value len)
 {
   return caml_make_vect(len, caml_copy_nativeint(0));
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect_and_initialize(value len,
+    value init)
+{
+  value v = caml_make_unboxed_nativeint_vect(len);
+  for (mlsize_t i = 0; i < Long_val(len); i++) {
+    ((intnat*) (Data_custom_val (v)))[i] = Nativeint_val(init);
+  }
+  return v;
 }
 
 /* This primitive is used internally by the compiler to compile
