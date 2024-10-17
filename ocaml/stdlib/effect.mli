@@ -80,11 +80,11 @@ module Deep : sig
   (** [match_with f v h] runs the computation [f v] in the handler [h]. *)
 
   type ('a,'b) handler_portable =
-    { retc: 'a -> 'b @@ portable;
-      exnc: exn -> 'b @@ portable;
-      effc: 'c.'c t -> (('c,'b) continuation @ portable -> 'b) option @@ portable }
+    { retc: 'a -> 'b;
+      exnc: exn -> 'b;
+      effc: 'c.'c t @ contended -> (('c,'b) continuation @ portable -> 'b) option }
 
-  val match_with_portable: ('c -> 'a) @ portable -> 'c -> ('a,'b) handler_portable -> 'b @@ portable
+  val match_with_portable: ('c @ contended -> 'a) @ portable -> 'c @ contended -> ('a,'b) handler_portable -> 'b @@ portable
 
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b, 'a) continuation -> 'a) option }
@@ -96,9 +96,9 @@ module Deep : sig
   (** [try_with f v h] runs the computation [f v] under the handler [h]. *)
 
   type 'a effect_handler_portable =
-    { effc: 'b. 'b t -> (('b, 'a) continuation @ portable -> 'a) option @@ portable }
+    { effc: 'b. 'b t @ contended -> (('b, 'a) continuation @ portable -> 'a) option }
 
-  val try_with_portable: ('b -> 'a) @ portable -> 'b -> 'a effect_handler_portable -> 'a @@ portable
+  val try_with_portable: ('c @ contended -> 'a) @ portable -> 'c @ contended -> 'a effect_handler_portable -> 'a @@ portable
 
   external get_callstack :
     ('a,'b) continuation -> int -> Printexc.raw_backtrace @@ portable =
