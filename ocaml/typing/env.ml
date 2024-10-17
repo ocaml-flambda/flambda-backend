@@ -488,6 +488,18 @@ module IdTbl =
     let find_name_and_locks wrap ~mark name tbl =
       find_name_and_locks wrap ~mark name tbl []
 
+    (** Find all the locks in the context. Equivalent to [find_name_and_locks]
+        on a missing name. *)
+    let rec get_all_locks tbl macc =
+      match tbl.layer with
+      | Open {next; _}
+      | Map {next; _} -> get_all_locks next macc
+      | Lock {lock; next} -> get_all_locks next (lock :: macc)
+      | Nothing -> macc
+
+    let get_all_locks tbl =
+      get_all_locks tbl []
+
     (** Find item by name whose accesses are not affected by locks, and thus
         shouldn't encounter any locks. *)
     let find_name wrap ~mark name tbl =
@@ -762,6 +774,7 @@ type lookup_error =
       Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | Error_from_persistent_env of Persistent_env.error
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -3003,6 +3016,25 @@ type _ load =
   | Load : module_data load
   | Don't_load : unit load
 
+let lookup_global_name_module
+      (type a) (load : a load) ~errors ~use ~loc name env =
+  match load with
+  | Don't_load ->
+      check_pers_mod ~allow_hidden:false ~loc name;
+      (() : a)
+  | Load -> begin
+      match find_pers_mod ~allow_hidden:false name with
+      | mda ->
+          let path = Pident(Ident.create_global name) in
+          use_module ~use ~loc path mda;
+          (mda : a)
+      | exception Not_found ->
+          let s = Global_module.Name.to_string name in
+          may_lookup_error errors loc env (Unbound_module (Lident s))
+      | exception Persistent_env.Error err ->
+          may_lookup_error errors loc env (Error_from_persistent_env err)
+    end
+
 let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   let path, locks, data =
     match find_name_module ~mark:use s env.modules with
@@ -3020,20 +3052,13 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   | Mod_unbound reason ->
       report_module_unbound ~errors ~loc env reason
   | Mod_persistent -> begin
-      (* Currently there are never instance arguments *)
+      (* This is only used when processing [Longident.t]s, which never have
+         instance arguments *)
       let name = Global_module.Name.create_no_args s in
-      match load with
-      | Don't_load ->
-          check_pers_mod ~allow_hidden:false ~loc name;
-          path, locks, (() : a)
-      | Load -> begin
-          match find_pers_mod ~allow_hidden:false name with
-          | mda ->
-              use_module ~use ~loc path mda;
-              path, locks, (mda : a)
-          | exception Not_found ->
-              may_lookup_error errors loc env (Unbound_module (Lident s))
-        end
+      let a =
+        lookup_global_name_module load ~errors ~use ~loc name env
+      in
+      path, locks, a
     end
 
 let escape_mode ~errors ~env ~loc ~item ~lid vmode escaping_context =
@@ -3419,6 +3444,12 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
 
 (* General forms of the lookup functions *)
 
+let walk_locks_for_module_lookup ~errors ~lock ~loc ~env ~lid locks =
+  if lock then
+    walk_locks ~errors ~loc ~env ~item:Module ~lid mda_mode None locks
+  else
+    mode_default mda_mode
+
 let lookup_module_path ~errors ~use ~lock ~loc ~load lid env : Path.t * _ =
   let path, locks =
     match lid with
@@ -3440,11 +3471,27 @@ let lookup_module_path ~errors ~use ~lock ~loc ~load lid env : Path.t * _ =
         let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
         Papply(path_f, path_arg), []
   in
+  let vmode = walk_locks_for_module_lookup ~errors ~lock ~loc ~lid ~env locks in
+  path, vmode
+
+let lookup_module_instance_path ~errors ~use ~lock ~loc ~load name env =
+  (* Perform all the same side effects that a lookup on a global would have *)
+  if !Clflags.transparent_modules && not load then
+    lookup_global_name_module Don't_load ~errors ~use ~loc name env
+  else
+    ignore
+      (lookup_global_name_module Load ~errors ~use ~loc name env : module_data);
+  let path = Pident (Ident.create_global name) in
+  (* The locks are whatever locks we would find if we went through
+     [lookup_module_path] on a module not found in the environment *)
+  let locks = IdTbl.get_all_locks env.modules in
   let vmode =
-    if lock then
-      walk_locks ~errors ~loc ~env ~item:Module ~lid mda_mode None locks
-    else
-      mode_default mda_mode
+    let lid : Longident.t =
+      (* This is only used for error reporting. Probably in the long term we
+         want [Longident.t] to include instance names *)
+      Lident (name |> Global_module.Name.to_string)
+    in
+    walk_locks_for_module_lookup ~errors ~lock ~loc ~lid ~env locks
   in
   path, vmode
 
@@ -3631,6 +3678,12 @@ let find_cltype_index id env = find_index_tbl id env.cltypes
 let lookup_module_path ?(use=true) ?(lock=use) ~loc ~load lid env =
   let path, vmode =
     lookup_module_path ~errors:true ~use ~lock ~loc ~load lid env
+  in
+  path, vmode.mode
+
+let lookup_module_instance_path ?(use=true) ?(lock=use) ~loc ~load lid env =
+  let path, vmode =
+    lookup_module_instance_path ~errors:true ~use ~lock ~loc ~load lid env
   in
   path, vmode.mode
 
@@ -4235,6 +4288,8 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ)) err
+  | Error_from_persistent_env err ->
+      Persistent_env.report_error ppf err
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

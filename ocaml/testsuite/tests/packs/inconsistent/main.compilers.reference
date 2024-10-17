@@ -1,3 +1,5 @@
-File "main.ml", line 1:
+File "main.ml", line 28, characters 11-30:
+28 | module _ = Use_member_directly
+                ^^^^^^^^^^^^^^^^^^^
 Error: The file subdir/use_member_directly.cmi
        is imported both as "Pack.Member" and as "Member".
