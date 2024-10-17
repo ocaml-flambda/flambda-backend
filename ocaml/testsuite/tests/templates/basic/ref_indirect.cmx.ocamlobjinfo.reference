@@ -11,6 +11,7 @@ Interfaces imported:
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Implementations imported:
 Runtime parameters:
+	Monoid
 	Monoid_utils
 Flambda 2 unit with export information
 Currying functions: 2L0

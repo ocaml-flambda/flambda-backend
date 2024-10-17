@@ -864,6 +864,18 @@ let is_imported_parameter penv modname =
   | None -> false
 
 let runtime_parameters {persistent_structures; _} =
+  (* This over-approximates the runtime parameters that are actually needed:
+     some modules get looked at during type checking but aren't relevant to
+     generated lambda code. This is increasingly true with modes and layouts: we
+     might need to check [P.t]'s layout but never end up using [P] directly, in
+     which case `P` will end up a runtime parameter that's not needed.
+
+     On the other hand, extra parameters here don't necessarily hurt much: they
+     make [-instantiate] work harder but inlining should eliminate the actual
+     runtime performance hit. If we do end up caring, probably what we need is
+     to coordinate with [Translmod] so that we're asking "what all did we access
+     during lambda generation?" rather than "what all did anyone ask about
+     ever?". *)
   persistent_structures
   |> Hashtbl.to_seq_values
   |> Seq.filter_map
