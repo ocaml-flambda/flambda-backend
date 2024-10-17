@@ -225,9 +225,9 @@ type lookup_error =
   | Masked_self_variable of Longident.t
   | Masked_ancestor_variable of Longident.t
   | Structure_used_as_functor of Longident.t
-  | Abstract_used_as_functor of Longident.t
+  | Abstract_used_as_functor of Longident.t * Path.t
   | Functor_used_as_structure of Longident.t
-  | Abstract_used_as_structure of Longident.t
+  | Abstract_used_as_structure of Longident.t * Path.t
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
