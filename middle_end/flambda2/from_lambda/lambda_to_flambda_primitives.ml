@@ -141,18 +141,21 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
-  (* CR mshinwell/ncourant: split into a two-level type so that
-     [Naked_floats_to_be_boxed] is separate *)
-  type t =
+  (* CR mshinwell/ncourant: just use [P.Array_ref_kind.t] if that can be
+     engineered, and the same for the set kind. *)
+  type no_float_array_opt =
     | Immediates
     | Values
-    | Naked_floats_to_be_boxed of L.locality_mode
     | Naked_floats
     | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
     | Naked_vec128s
+
+  type t =
+    | No_float_array_opt of no_float_array_opt
+    | Naked_floats_to_be_boxed of L.locality_mode
 end
 
 type converted_array_ref_kind =
@@ -171,53 +174,69 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
 
        check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_ref mode
-  | Paddrarray_ref -> Array_ref_kind Values
-  | Pintarray_ref -> Array_ref_kind Immediates
+  | Paddrarray_ref -> Array_ref_kind (No_float_array_opt Values)
+  | Pintarray_ref -> Array_ref_kind (No_float_array_opt Immediates)
   | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
-  | Punboxedfloatarray_ref Pfloat64 -> Array_ref_kind Naked_floats
-  | Punboxedfloatarray_ref Pfloat32 -> Array_ref_kind Naked_float32s
-  | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
-  | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
-  | Punboxedintarray_ref Pnativeint -> Array_ref_kind Naked_nativeints
-  | Punboxedvectorarray_ref Pvec128 -> Array_ref_kind Naked_vec128s
+  | Punboxedfloatarray_ref Pfloat64 ->
+    Array_ref_kind (No_float_array_opt Naked_floats)
+  | Punboxedfloatarray_ref Pfloat32 ->
+    Array_ref_kind (No_float_array_opt Naked_float32s)
+  | Punboxedintarray_ref Pint32 ->
+    Array_ref_kind (No_float_array_opt Naked_int32s)
+  | Punboxedintarray_ref Pint64 ->
+    Array_ref_kind (No_float_array_opt Naked_int64s)
+  | Punboxedintarray_ref Pnativeint ->
+    Array_ref_kind (No_float_array_opt Naked_nativeints)
+  | Punboxedvectorarray_ref Pvec128 ->
+    Array_ref_kind (No_float_array_opt Naked_vec128s)
 
 let convert_array_ref_kind_to_array_kind (array_ref_kind : Array_ref_kind.t) :
     P.Array_kind.t =
   match array_ref_kind with
-  | Values -> Values
-  | Immediates -> Immediates
-  | Naked_floats | Naked_floats_to_be_boxed _ -> Naked_floats
-  | Naked_float32s -> Naked_float32s
-  | Naked_int32s -> Naked_int32s
-  | Naked_int64s -> Naked_int64s
-  | Naked_nativeints -> Naked_nativeints
-  | Naked_vec128s -> Naked_vec128s
+  | Naked_floats_to_be_boxed _ -> Naked_floats
+  | No_float_array_opt nfo -> (
+    match nfo with
+    | Values -> Values
+    | Immediates -> Immediates
+    | Naked_floats -> Naked_floats
+    | Naked_float32s -> Naked_float32s
+    | Naked_int32s -> Naked_int32s
+    | Naked_int64s -> Naked_int64s
+    | Naked_nativeints -> Naked_nativeints
+    | Naked_vec128s -> Naked_vec128s)
 
 let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
     =
   match convert_array_ref_kind array_ref_kind with
   | Float_array_opt_dynamic_ref _ -> Float_array_opt_dynamic
-  | Array_ref_kind Values -> Array_kind Values
-  | Array_ref_kind Immediates -> Array_kind Immediates
-  | Array_ref_kind (Naked_floats | Naked_floats_to_be_boxed _) ->
-    Array_kind Naked_floats
-  | Array_ref_kind Naked_float32s -> Array_kind Naked_float32s
-  | Array_ref_kind Naked_int32s -> Array_kind Naked_int32s
-  | Array_ref_kind Naked_int64s -> Array_kind Naked_int64s
-  | Array_ref_kind Naked_nativeints -> Array_kind Naked_nativeints
-  | Array_ref_kind Naked_vec128s -> Array_kind Naked_vec128s
+  | Array_ref_kind array_ref_kind -> (
+    match array_ref_kind with
+    | Naked_floats_to_be_boxed _ -> Array_kind Naked_floats
+    | No_float_array_opt nfo -> (
+      match nfo with
+      | Values -> Array_kind Values
+      | Immediates -> Array_kind Immediates
+      | Naked_floats -> Array_kind Naked_floats
+      | Naked_float32s -> Array_kind Naked_float32s
+      | Naked_int32s -> Array_kind Naked_int32s
+      | Naked_int64s -> Array_kind Naked_int64s
+      | Naked_nativeints -> Array_kind Naked_nativeints
+      | Naked_vec128s -> Array_kind Naked_vec128s))
 
 module Array_set_kind = struct
-  type t =
+  type no_float_array_opt =
     | Immediates
     | Values of P.Init_or_assign.t
     | Naked_floats
-    | Naked_floats_to_be_unboxed
     | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
     | Naked_vec128s
+
+  type t =
+    | No_float_array_opt of no_float_array_opt
+    | Naked_floats_to_be_unboxed
 end
 
 type converted_array_set_kind =
@@ -234,41 +253,53 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
     Float_array_opt_dynamic_set (Alloc_mode.For_assignments.from_lambda mode)
   | Paddrarray_set mode ->
     Array_set_kind
-      (Values (Assignment (Alloc_mode.For_assignments.from_lambda mode)))
-  | Pintarray_set -> Array_set_kind Immediates
+      (No_float_array_opt
+         (Values (Assignment (Alloc_mode.For_assignments.from_lambda mode))))
+  | Pintarray_set -> Array_set_kind (No_float_array_opt Immediates)
   | Pfloatarray_set -> Array_set_kind Naked_floats_to_be_unboxed
-  | Punboxedfloatarray_set Pfloat64 -> Array_set_kind Naked_floats
-  | Punboxedfloatarray_set Pfloat32 -> Array_set_kind Naked_float32s
-  | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
-  | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
-  | Punboxedintarray_set Pnativeint -> Array_set_kind Naked_nativeints
-  | Punboxedvectorarray_set Pvec128 -> Array_set_kind Naked_vec128s
+  | Punboxedfloatarray_set Pfloat64 ->
+    Array_set_kind (No_float_array_opt Naked_floats)
+  | Punboxedfloatarray_set Pfloat32 ->
+    Array_set_kind (No_float_array_opt Naked_float32s)
+  | Punboxedintarray_set Pint32 ->
+    Array_set_kind (No_float_array_opt Naked_int32s)
+  | Punboxedintarray_set Pint64 ->
+    Array_set_kind (No_float_array_opt Naked_int64s)
+  | Punboxedintarray_set Pnativeint ->
+    Array_set_kind (No_float_array_opt Naked_nativeints)
+  | Punboxedvectorarray_set Pvec128 ->
+    Array_set_kind (No_float_array_opt Naked_vec128s)
 
 let convert_array_set_kind_to_array_kind (array_set_kind : Array_set_kind.t) :
     P.Array_kind.t =
   match array_set_kind with
-  | Values _ -> Values
-  | Immediates -> Immediates
-  | Naked_floats | Naked_floats_to_be_unboxed -> Naked_floats
-  | Naked_float32s -> Naked_float32s
-  | Naked_int32s -> Naked_int32s
-  | Naked_int64s -> Naked_int64s
-  | Naked_nativeints -> Naked_nativeints
-  | Naked_vec128s -> Naked_vec128s
+  | Naked_floats_to_be_unboxed -> Naked_floats
+  | No_float_array_opt nfo -> (
+    match nfo with
+    | Values _ -> Values
+    | Immediates -> Immediates
+    | Naked_floats -> Naked_floats
+    | Naked_float32s -> Naked_float32s
+    | Naked_int32s -> Naked_int32s
+    | Naked_int64s -> Naked_int64s
+    | Naked_nativeints -> Naked_nativeints
+    | Naked_vec128s -> Naked_vec128s)
 
 let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
     =
   match convert_array_set_kind array_set_kind with
   | Float_array_opt_dynamic_set _ -> Float_array_opt_dynamic
-  | Array_set_kind (Values _) -> Array_kind Values
-  | Array_set_kind Immediates -> Array_kind Immediates
-  | Array_set_kind (Naked_floats | Naked_floats_to_be_unboxed) ->
-    Array_kind Naked_floats
-  | Array_set_kind Naked_float32s -> Array_kind Naked_float32s
-  | Array_set_kind Naked_int32s -> Array_kind Naked_int32s
-  | Array_set_kind Naked_int64s -> Array_kind Naked_int64s
-  | Array_set_kind Naked_nativeints -> Array_kind Naked_nativeints
-  | Array_set_kind Naked_vec128s -> Array_kind Naked_vec128s
+  | Array_set_kind Naked_floats_to_be_unboxed -> Array_kind Naked_floats
+  | Array_set_kind (No_float_array_opt nfo) -> (
+    match nfo with
+    | Values _ -> Array_kind Values
+    | Immediates -> Array_kind Immediates
+    | Naked_floats -> Array_kind Naked_floats
+    | Naked_float32s -> Array_kind Naked_float32s
+    | Naked_int32s -> Array_kind Naked_int32s
+    | Naked_int64s -> Array_kind Naked_int64s
+    | Naked_nativeints -> Array_kind Naked_nativeints
+    | Naked_vec128s -> Array_kind Naked_vec128s)
 
 type converted_duplicate_array_kind =
   | Duplicate_array_kind of P.Duplicate_array_kind.t
@@ -872,25 +903,23 @@ let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
     | Mutable -> Mutable
   in
   match array_ref_kind with
-  | Immediates ->
-    [Binary (Array_load (array_kind, Immediates, mut), array, index)]
-  | Values -> [Binary (Array_load (array_kind, Values, mut), array, index)]
   | Naked_floats_to_be_boxed mode ->
     [ box_float mode
         (Binary (Array_load (array_kind, Naked_floats, mut), array, index))
         ~current_region ]
-  | Naked_floats ->
-    [Binary (Array_load (array_kind, Naked_floats, mut), array, index)]
-  | Naked_float32s ->
-    [Binary (Array_load (array_kind, Naked_float32s, mut), array, index)]
-  | Naked_int32s ->
-    [Binary (Array_load (array_kind, Naked_int32s, mut), array, index)]
-  | Naked_int64s ->
-    [Binary (Array_load (array_kind, Naked_int64s, mut), array, index)]
-  | Naked_nativeints ->
-    [Binary (Array_load (array_kind, Naked_nativeints, mut), array, index)]
-  | Naked_vec128s ->
-    [Binary (Array_load (array_kind, Naked_vec128s, mut), array, index)]
+  | No_float_array_opt nfo ->
+    let array_load_kind : P.Array_load_kind.t =
+      match nfo with
+      | Immediates -> Immediates
+      | Values -> Values
+      | Naked_floats -> Naked_floats
+      | Naked_float32s -> Naked_float32s
+      | Naked_int32s -> Naked_int32s
+      | Naked_int64s -> Naked_int64s
+      | Naked_nativeints -> Naked_nativeints
+      | Naked_vec128s -> Naked_vec128s
+    in
+    [Binary (Array_load (array_kind, array_load_kind, mut), array, index)]
 
 let array_load_unsafe ~array ~index ~mut array_kind array_load_kind
     ~current_region =
@@ -912,14 +941,16 @@ let array_set_unsafe dbg ~array ~index array_kind
   match array_set_kind with
   | Naked_floats_to_be_unboxed ->
     normal_case Naked_floats (List.map unbox_float new_values)
-  | Immediates -> normal_case Immediates new_values
-  | Values init_or_assign -> normal_case (Values init_or_assign) new_values
-  | Naked_floats -> normal_case Naked_floats new_values
-  | Naked_float32s -> normal_case Naked_float32s new_values
-  | Naked_int32s -> normal_case Naked_int32s new_values
-  | Naked_int64s -> normal_case Naked_int64s new_values
-  | Naked_nativeints -> normal_case Naked_nativeints new_values
-  | Naked_vec128s -> normal_case Naked_vec128s new_values
+  | No_float_array_opt nfo -> (
+    match nfo with
+    | Immediates -> normal_case Immediates new_values
+    | Values init_or_assign -> normal_case (Values init_or_assign) new_values
+    | Naked_floats -> normal_case Naked_floats new_values
+    | Naked_float32s -> normal_case Naked_float32s new_values
+    | Naked_int32s -> normal_case Naked_int32s new_values
+    | Naked_int64s -> normal_case Naked_int64s new_values
+    | Naked_nativeints -> normal_case Naked_nativeints new_values
+    | Naked_vec128s -> normal_case Naked_vec128s new_values)
 
 let array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values =
   array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values
@@ -938,7 +969,8 @@ let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
       ( Unary (Is_flat_float_array, array),
         f P.Array_kind.Naked_floats
           (Array_ref_kind.Naked_floats_to_be_boxed mode),
-        f P.Array_kind.Values (Array_ref_kind.Values : Array_ref_kind.t),
+        f P.Array_kind.Values
+          (Array_ref_kind.No_float_array_opt Values : Array_ref_kind.t),
         [K.With_subkind.any_value] )
 
 let[@inline always] match_on_array_set_kind ~array array_set_kind f :
@@ -954,7 +986,8 @@ let[@inline always] match_on_array_set_kind ~array array_set_kind f :
       ( Unary (Is_flat_float_array, array),
         f P.Array_kind.Naked_floats Array_set_kind.Naked_floats_to_be_unboxed,
         f P.Array_kind.Values
-          (Array_set_kind.Values (Assignment mode) : Array_set_kind.t),
+          (Array_set_kind.No_float_array_opt (Values (Assignment mode))
+            : Array_set_kind.t),
         [K.With_subkind.tagged_immediate] )
 
 (* Safe arith (div/mod by zero) *)
