@@ -42,10 +42,10 @@ type apply_dep =
     param_of_apply_exn_cont : Variable.t
   }
 
-type closure_dep = {
-  let_bound_name_of_the_closure : Name.t ;
-  closure_code_id : Code_id.t ;
-}
+type closure_dep =
+  { let_bound_name_of_the_closure : Name.t;
+    closure_code_id : Code_id.t
+  }
 
 type t =
   { mutable code : code_dep Code_id.Map.t;
@@ -141,11 +141,13 @@ let called ~(denv : Env.t) code_id t =
 let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
 let add_set_of_closures_dep let_bound_name_of_the_closure closure_code_id t =
-  t.set_of_closures_dep <- { let_bound_name_of_the_closure; closure_code_id } :: t.set_of_closures_dep
+  t.set_of_closures_dep
+    <- { let_bound_name_of_the_closure; closure_code_id }
+       :: t.set_of_closures_dep
 
 let record_set_of_closure_deps t =
   List.iter
-    (fun {let_bound_name_of_the_closure = name; closure_code_id = code_id} ->
+    (fun { let_bound_name_of_the_closure = name; closure_code_id = code_id } ->
       match find_code t code_id with
       | exception Not_found ->
         assert (

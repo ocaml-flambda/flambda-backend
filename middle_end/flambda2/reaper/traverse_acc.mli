@@ -54,8 +54,7 @@ val alias_kind : Name.t -> Simple.t -> t -> unit
 
 val kinds : t -> Flambda_kind.t Name.Map.t
 
-val record_dep :
-  denv:Env.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
+val record_dep : denv:Env.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
 
 val record_deps :
   denv:Env.t -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit

@@ -219,7 +219,7 @@ type field_elt =
 type elt =
   | Top  (** Value completely accessed *)
   | Fields of field_elt Field.Map.t
-  (** Only the given fields are accessed, each field either being completely accessed for [Field_top]
+      (** Only the given fields are accessed, each field either being completely accessed for [Field_top]
       or corresponding to the union of all the elements corresponding to all the
       [Code_id_or_name.t] in the set for [Field_vals]. *)
   | Bottom  (** Value not accessed *)

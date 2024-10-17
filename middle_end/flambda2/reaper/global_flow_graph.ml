@@ -139,8 +139,9 @@ module Dep = struct
           Propagate { target = target2; source = source2 } ) ->
         let c = Name.compare target1 target2 in
         if c <> 0 then c else Name.compare source1 source2
-      | (Alias _ | Use _ | Accessor _ | Constructor _ | Alias_if_def _ | Propagate _), _
-        ->
+      | ( ( Alias _ | Use _ | Accessor _ | Constructor _ | Alias_if_def _
+          | Propagate _ ),
+          _ ) ->
         Int.compare (numbering t1) (numbering t2)
 
     let equal x y = compare x y = 0
@@ -152,7 +153,8 @@ module Dep = struct
       | Use { target } ->
         Format.fprintf ppf "Use %a" Code_id_or_name.print target
       | Accessor { target; relation } ->
-        Format.fprintf ppf "Accessor %a %a" Field.print relation Name.print target
+        Format.fprintf ppf "Accessor %a %a" Field.print relation Name.print
+          target
       | Constructor { target; relation } ->
         Format.fprintf ppf "Constructor %a %a" Field.print relation
           Code_id_or_name.print target

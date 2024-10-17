@@ -26,7 +26,7 @@ module Field : sig
     | Is_int (* value checked for [Is_int] *)
     | Get_tag (* tag of the value is read *)
     | Apply of return_kind
-    (* Returns of functions: either exn path or nth value for normal returns *)
+  (* Returns of functions: either exn path or nth value for normal returns *)
 
   val equal : t -> t -> bool
 
@@ -49,21 +49,23 @@ module Dep : sig
         { target : Code_id_or_name.t;
           relation : Field.t
         }
-    (* The source is obtained from the target by building a value with this relation
-       
-       Note: in general there are multiple such dependencies with the same source, since
-       a block has multiple fields for instance *)
+    (* The source is obtained from the target by building a value with this
+       relation
+
+       Note: in general there are multiple such dependencies with the same
+       source, since a block has multiple fields for instance *)
     | Alias_if_def of
         { target : Name.t;
           if_defined : Code_id.t
         }
-    (* If [if_defined] is not bottom, then this is equivalent to an alias to [target] *)
+    (* If [if_defined] is not bottom, then this is equivalent to an alias to
+       [target] *)
     | Propagate of
         { target : Name.t;
           source : Name.t
         }
-    (* If the source this not bottom, then [source] is an alias to [target] (counterpart
-       of [Alias_if_def], always generated in pairs) *)
+  (* If the source this not bottom, then [source] is an alias to [target]
+     (counterpart of [Alias_if_def], always generated in pairs) *)
 
   val print : Format.formatter -> t -> unit
 

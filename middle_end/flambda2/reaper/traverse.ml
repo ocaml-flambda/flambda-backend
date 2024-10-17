@@ -137,7 +137,8 @@ and traverse_let denv acc let_expr : rev_expr =
   let default_bp acc dep =
     let bound_to = Bound_pattern.free_names bound_pattern in
     Name_occurrences.fold_names bound_to
-      ~f:(fun () bound_to -> Acc.record_dep ~denv (Code_id_or_name.name bound_to) dep acc)
+      ~f:(fun () bound_to ->
+        Acc.record_dep ~denv (Code_id_or_name.name bound_to) dep acc)
       ~init:()
   in
   let default acc =
@@ -220,7 +221,8 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
         Simple.pattern_match field
           ~name:(fun name ~coercion:_ ->
             default_bp acc
-              (Constructor { relation = Block i; target = Code_id_or_name.name name }))
+              (Constructor
+                 { relation = Block i; target = Code_id_or_name.name name }))
           ~const:(fun _ -> ()))
       fields
   | Unary (Project_function_slot { move_from = _; move_to }, block) ->
@@ -229,14 +231,16 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
         ~name:(fun name ~coercion:_ -> name)
         ~const:(fun _ -> assert false)
     in
-    default_bp acc (Accessor { relation = Function_slot move_to; target = block })
+    default_bp acc
+      (Accessor { relation = Function_slot move_to; target = block })
   | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
     let block =
       Simple.pattern_match block
         ~name:(fun name ~coercion:_ -> name)
         ~const:(fun _ -> assert false)
     in
-    default_bp acc (Accessor { relation = Value_slot value_slot; target = block })
+    default_bp acc
+      (Accessor { relation = Value_slot value_slot; target = block })
   | Unary (Block_load { kind = _; mut = _; field }, block) ->
     (* Loads from mutable blocks are also tracked here. This is ok because
        stores automatically escape the block. CR ncourant: think about whether
@@ -330,11 +334,13 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
             Simple.pattern_match
               (Simple.With_debuginfo.simple field)
               ~name:(fun field_name ~coercion:_ ->
-                Acc.record_dep ~denv (Code_id_or_name.name name)
+                Acc.record_dep ~denv
+                  (Code_id_or_name.name name)
                   (Constructor
                      { relation = Block i;
                        target = Code_id_or_name.name field_name
-                     }) acc)
+                     })
+                  acc)
               ~const:(fun _ -> ()))
           fields
       | Set_of_closures _ -> assert false
@@ -621,13 +627,17 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   else
     List.iter2
       (fun param arg ->
-         Acc.record_dep ~denv (Code_id_or_name.var (Bound_parameter.var param)) (Alias { target = Name.var arg }) acc)
+        Acc.record_dep ~denv
+          (Code_id_or_name.var (Bound_parameter.var param))
+          (Alias { target = Name.var arg })
+          acc)
       (Bound_parameters.to_list params)
       code_dep.params;
   if is_opaque
   then Acc.used ~denv (Simple.var code_dep.my_closure) acc
   else
-    Acc.record_dep ~denv (Code_id_or_name.var my_closure)
+    Acc.record_dep ~denv
+      (Code_id_or_name.var my_closure)
       (Alias { target = Name.var code_dep.my_closure })
       acc;
   let body = traverse denv acc body in
