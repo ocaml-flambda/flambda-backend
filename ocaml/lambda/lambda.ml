@@ -189,6 +189,7 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode
   | Pduparray of array_kind * mutable_flag
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
@@ -402,6 +403,8 @@ and array_kind =
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
   | Punboxedvectorarray of unboxed_vector
+  | Pgcscannableproductarray of scannable_product_element_kind list
+  | Pgcignorableproductarray of ignorable_product_element_kind list
 
 and array_ref_kind =
   | Pgenarray_ref of locality_mode
@@ -411,6 +414,8 @@ and array_ref_kind =
   | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
   | Punboxedvectorarray_ref of unboxed_vector
+  | Pgcscannableproductarray_ref of scannable_product_element_kind list
+  | Pgcignorableproductarray_ref of ignorable_product_element_kind list
 
 and array_set_kind =
   | Pgenarray_set of modify_mode
@@ -420,6 +425,20 @@ and array_set_kind =
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
   | Punboxedvectorarray_set of unboxed_vector
+  | Pgcscannableproductarray_set of
+      modify_mode * scannable_product_element_kind list
+  | Pgcignorableproductarray_set of ignorable_product_element_kind list
+
+and ignorable_product_element_kind =
+  | Pint_ignorable
+  | Punboxedfloat_ignorable of unboxed_float
+  | Punboxedint_ignorable of unboxed_integer
+  | Pproduct_ignorable of ignorable_product_element_kind list
+
+and scannable_product_element_kind =
+  | Pint_scannable
+  | Paddr_scannable
+  | Pproduct_scannable of scannable_product_element_kind list
 
 and array_index_kind =
   | Ptagged_int_index
@@ -1701,15 +1720,20 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
+  | Pmakearray_dynamic (_, m) -> Some m
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
-      | Punboxedvectorarray_ref _), _, _)
+      | Punboxedvectorarray_ref _
+      | Pgcscannableproductarray_ref _
+      | Pgcignorableproductarray_ref _), _, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
-      | Punboxedvectorarray_ref _), _, _) -> None
+      | Punboxedvectorarray_ref _
+      | Pgcscannableproductarray_ref _
+      | Pgcignorableproductarray_ref _), _, _) -> None
   | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
   | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
   | Pisint _ | Pisout -> None
@@ -1852,15 +1876,32 @@ let layout_of_extern_repr : extern_repr -> _ = function
   | Unboxed_integer bi -> layout_boxedint bi
   | Same_as_ocaml_repr s -> layout_of_const_sort s
 
+let rec layout_of_scannable_kinds kinds =
+  Punboxed_product (List.map layout_of_scannable_kind kinds)
+
+and layout_of_scannable_kind = function
+  | Pint_scannable -> layout_int
+  | Paddr_scannable -> layout_value_field
+  | Pproduct_scannable kinds -> layout_of_scannable_kinds kinds
+
+let rec layout_of_ignorable_kinds kinds =
+  Punboxed_product (List.map layout_of_ignorable_kind kinds)
+
+and layout_of_ignorable_kind = function
+  | Pint_ignorable -> layout_int
+  | Punboxedfloat_ignorable f -> layout_unboxed_float f
+  | Punboxedint_ignorable i -> layout_unboxed_int i
+  | Pproduct_ignorable kinds -> layout_of_ignorable_kinds kinds
+
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
   | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
   | Pgenarray_ref _ | Paddrarray_ref -> layout_value_field
-  | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
-  | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
-  | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
+  | Punboxedintarray_ref i -> layout_unboxed_int i
   | Punboxedvectorarray_ref bv -> layout_unboxed_vector bv
+  | Pgcscannableproductarray_ref kinds -> layout_of_scannable_kinds kinds
+  | Pgcignorableproductarray_ref kinds -> layout_of_ignorable_kinds kinds
 
 let layout_of_mixed_field (kind : mixed_block_read) =
   match kind with
@@ -1895,8 +1936,8 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_nativeint_array_set_128 _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
-  | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
-  | Pmakeufloatblock _ | Pmakemixedblock _
+  | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pmakearray_dynamic _
+  | Pduprecord _ | Pmakeufloatblock _ | Pmakemixedblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_value_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
@@ -2069,6 +2110,8 @@ let array_ref_kind mode = function
   | Punboxedintarray int_kind -> Punboxedintarray_ref int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_ref float_kind
   | Punboxedvectorarray vec_kind -> Punboxedvectorarray_ref vec_kind
+  | Pgcscannableproductarray kinds -> Pgcscannableproductarray_ref kinds
+  | Pgcignorableproductarray kinds -> Pgcignorableproductarray_ref kinds
 
 let array_set_kind mode = function
   | Pgenarray -> Pgenarray_set mode
@@ -2078,6 +2121,8 @@ let array_set_kind mode = function
   | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_set float_kind
   | Punboxedvectorarray vec_kind -> Punboxedvectorarray_set vec_kind
+  | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
+  | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)

@@ -178,6 +178,7 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
@@ -357,6 +358,8 @@ and array_kind =
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
   | Punboxedvectorarray of unboxed_vector
+  | Pgcscannableproductarray of scannable_product_element_kind list
+  | Pgcignorableproductarray of ignorable_product_element_kind list
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
@@ -368,6 +371,8 @@ and array_ref_kind =
   | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
   | Punboxedvectorarray_ref of unboxed_vector
+  | Pgcscannableproductarray_ref of scannable_product_element_kind list
+  | Pgcignorableproductarray_ref of ignorable_product_element_kind list
 
 (** When updating an array that might contain pointers, we need to know what
     mode they're at; otherwise, access is uniform. *)
@@ -379,6 +384,20 @@ and array_set_kind =
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
   | Punboxedvectorarray_set of unboxed_vector
+  | Pgcscannableproductarray_set of
+      modify_mode * scannable_product_element_kind list
+  | Pgcignorableproductarray_set of ignorable_product_element_kind list
+
+and ignorable_product_element_kind =
+  | Pint_ignorable
+  | Punboxedfloat_ignorable of unboxed_float
+  | Punboxedint_ignorable of unboxed_integer
+  | Pproduct_ignorable of ignorable_product_element_kind list
+
+and scannable_product_element_kind =
+  | Pint_scannable
+  | Paddr_scannable
+  | Pproduct_scannable of scannable_product_element_kind list
 
 and array_index_kind =
   | Ptagged_int_index

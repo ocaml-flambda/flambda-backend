@@ -194,6 +194,37 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
 (* Array creation and access. For these functions, [index] is a tagged
    integer. *)
 
+let make_non_scannable_unboxed_product_array ~dbg kind mode args =
+  let element_kinds_per_non_unarized_element =
+    P.Array_kind.element_kinds kind
+  in
+  let mem_chunks_per_non_unarized_element =
+    List.map C.memory_chunk_of_kind element_kinds_per_non_unarized_element
+  in
+  let num_mem_chunks_per_non_unarized_element =
+    List.length mem_chunks_per_non_unarized_element
+  in
+  if List.length args mod num_mem_chunks_per_non_unarized_element <> 0
+  then
+    Misc.fatal_errorf
+      "Number of unarized arguments (%a) to [make_array] is not a multiple of \
+       the number of memory chunks (%d) formed from the array kind (%a)"
+      (Format.pp_print_list Printcmm.expression)
+      args
+      (List.length mem_chunks_per_non_unarized_element)
+      P.Array_kind.print kind;
+  let mem_chunks_per_non_unarized_element =
+    Array.of_list mem_chunks_per_non_unarized_element
+  in
+  let mem_chunks =
+    List.mapi
+      (fun i _arg ->
+        let index = i mod num_mem_chunks_per_non_unarized_element in
+        mem_chunks_per_non_unarized_element.(index))
+      args
+  in
+  C.make_mixed_alloc ~mode dbg ~tag:0 ~value_prefix_size:0 args mem_chunks
+
 let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
@@ -207,12 +238,22 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
   | Naked_vec128s -> C.allocate_unboxed_vec128_array ~elements:args mode dbg
+  | Unboxed_product _ ->
+    if P.Array_kind.must_be_gc_scannable kind
+    then C.make_alloc ~mode dbg ~tag:0 args
+    else make_non_scannable_unboxed_product_array ~dbg kind mode args
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
-  | Immediates | Values | Naked_floats ->
+  | Immediates | Values | Naked_floats | Unboxed_product _ ->
     (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
-       width of floats is equal to the machine word width (see flambda2.ml). *)
+       width of floats is equal to the machine word width (see flambda2.ml).
+
+       For unboxed products, note that [Array_length] in [Flambda_primitive] is
+       a unarized-array-length operation, that arrays of unboxed products are
+       represented by mixed blocks with tag zero (not custom blocks), and that
+       arrays of unboxed products are not packed in any way (e.g. int32#
+       elements occupy 64 bits). *)
     assert (C.wordsize_shift = C.numfloat_shift);
     C.addr_array_length arr dbg
   | Naked_float32s -> C.unboxed_float32_array_length arr dbg
@@ -251,14 +292,25 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
     (load_kind : P.Array_load_kind.t) ~arr ~index =
   (* CR mshinwell: refactor this function in the same way as [block_load] *)
   match array_kind, load_kind with
-  | (Values | Immediates), Immediates -> C.int_array_ref arr index dbg
+  | (Values | Immediates | Unboxed_product _), Immediates ->
+    C.int_array_ref arr index dbg
   | (Naked_int64s | Naked_nativeints), (Naked_int64s | Naked_nativeints) ->
-    C.unboxed_int64_or_nativeint_array_ref arr index dbg
-  | (Values | Immediates), Values -> C.addr_array_ref arr index dbg
-  | Naked_floats, Naked_floats ->
+    C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:true arr
+      ~element_num:index dbg
+  | Unboxed_product _, (Naked_int64s | Naked_nativeints) ->
+    C.unboxed_int64_or_nativeint_array_ref ~has_custom_ops:false arr
+      ~element_num:index dbg
+  | (Values | Immediates | Unboxed_product _), Values ->
+    C.addr_array_ref arr index dbg
+  | Naked_floats, Naked_floats | Unboxed_product _, Naked_floats ->
     C.unboxed_float_array_ref Mutable ~block:arr ~index dbg
   | Naked_float32s, Naked_float32s -> C.unboxed_float32_array_ref arr index dbg
+  | Unboxed_product _, Naked_float32s ->
+    C.unboxed_mutable_float32_unboxed_product_array_ref arr ~element_num:index
+      dbg
   | Naked_int32s, Naked_int32s -> C.unboxed_int32_array_ref arr index dbg
+  | Unboxed_product _, Naked_int32s ->
+    C.unboxed_mutable_int32_unboxed_product_array_ref arr ~element_num:index dbg
   | (Immediates | Naked_floats), Naked_vec128s ->
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
   | (Naked_int64s | Naked_nativeints), Naked_vec128s ->
@@ -297,6 +349,12 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
       Debuginfo.print_compact dbg
   | Values, Naked_vec128s ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
+  | Unboxed_product _, Naked_vec128s ->
+    (* CR mshinwell: should this be supported? *)
+    Misc.fatal_errorf
+      "Loading of SIMD vectors from unboxed product arrays is not currently \
+       supported:@ %a"
+      Debuginfo.print_compact dbg
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   (* CR mshinwell: refactor this function in the same way as [block_load] *)
@@ -308,16 +366,28 @@ let addr_array_store init ~arr ~index ~new_value dbg =
 let array_set0 ~dbg (array_kind : P.Array_kind.t)
     (set_kind : P.Array_set_kind.t) ~arr ~index ~new_value =
   match array_kind, set_kind with
-  | (Values | Immediates), Immediates -> C.int_array_set arr index new_value dbg
-  | (Values | Immediates), Values init ->
+  | (Values | Immediates | Unboxed_product _), Immediates ->
+    C.int_array_set arr index new_value dbg
+  | (Values | Immediates | Unboxed_product _), Values init ->
     addr_array_store init ~arr ~index ~new_value dbg
   | (Naked_int64s | Naked_nativeints), (Naked_int64s | Naked_nativeints) ->
-    C.unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg
-  | Naked_floats, Naked_floats -> C.float_array_set arr index new_value dbg
+    C.unboxed_int64_or_nativeint_array_set ~has_custom_ops:true arr ~index
+      ~new_value dbg
+  | Unboxed_product _, (Naked_int64s | Naked_nativeints) ->
+    C.unboxed_int64_or_nativeint_array_set ~has_custom_ops:false arr ~index
+      ~new_value dbg
+  | Naked_floats, Naked_floats | Unboxed_product _, Naked_floats ->
+    C.float_array_set arr index new_value dbg
   | Naked_float32s, Naked_float32s ->
     C.unboxed_float32_array_set arr ~index ~new_value dbg
+  | Unboxed_product _, Naked_float32s ->
+    C.unboxed_mutable_float32_unboxed_product_array_set arr ~element_num:index
+      ~new_value dbg
   | Naked_int32s, Naked_int32s ->
     C.unboxed_int32_array_set arr ~index ~new_value dbg
+  | Unboxed_product _, Naked_int32s ->
+    C.unboxed_mutable_int32_unboxed_product_array_set arr ~element_num:index
+      ~new_value dbg
   | (Immediates | Naked_floats), Naked_vec128s ->
     array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
       new_value
@@ -360,6 +430,12 @@ let array_set0 ~dbg (array_kind : P.Array_kind.t)
       Debuginfo.print_compact dbg
   | Values, Naked_vec128s ->
     Misc.fatal_error "Attempted to store a SIMD vector to a value array."
+  | Unboxed_product _, Naked_vec128s ->
+    (* CR mshinwell: should this be supported? *)
+    Misc.fatal_errorf
+      "Storing of SIMD vectors from unboxed product arrays is not currently \
+       supported:@ %a"
+      Debuginfo.print_compact dbg
 
 let array_set ~dbg array_kind set_kind ~arr ~index ~new_value =
   array_set0 ~dbg array_kind set_kind ~arr ~index ~new_value
