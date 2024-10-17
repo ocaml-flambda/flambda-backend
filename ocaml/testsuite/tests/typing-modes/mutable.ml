@@ -1,5 +1,5 @@
 (* TEST
- flags = "-extension unique -w +53";
+ flags = "-w +53";
  expect;
 *)
 
