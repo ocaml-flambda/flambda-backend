@@ -965,6 +965,7 @@ and type_kind =
     Ttype_abstract
   | Ttype_variant of constructor_declaration list
   | Ttype_record of label_declaration list
+  | Ttype_record_flat of label_declaration list
   | Ttype_open
 
 and label_declaration =

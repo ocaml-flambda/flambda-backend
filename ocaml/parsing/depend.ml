@@ -175,6 +175,8 @@ let add_type_declaration bv td =
       List.iter (add_constructor_decl bv) cstrs
   | Ptype_record lbls ->
       List.iter (fun pld -> add_type bv pld.pld_type) lbls
+  | Ptype_record_flat lbls ->
+      List.iter (fun pld -> add_type bv pld.pld_type) lbls
   | Ptype_open -> () in
   add_tkind td.ptype_kind
 
@@ -276,6 +278,9 @@ let rec add_expr bv exp =
   | Pexp_construct(c, opte) -> add bv c; add_opt add_expr bv opte
   | Pexp_variant(_, opte) -> add_opt add_expr bv opte
   | Pexp_record(lblel, opte) ->
+      List.iter (fun (lbl, e) -> add bv lbl; add_expr bv e) lblel;
+      add_opt add_expr bv opte
+  | Pexp_record_flat(lblel, opte) ->
       List.iter (fun (lbl, e) -> add bv lbl; add_expr bv e) lblel;
       add_opt add_expr bv opte
   | Pexp_field(e, fld) -> add_expr bv e; add bv fld

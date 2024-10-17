@@ -740,6 +740,7 @@ rule token = parse
   | "("  { LPAREN }
   | ")"  { RPAREN }
   | "#(" { HASHLPAREN }
+  | "#{" { HASHLBRACE }
   | "*"  { STAR }
   | ","  { COMMA }
   | "->" { MINUSGREATER }

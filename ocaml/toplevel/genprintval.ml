@@ -519,6 +519,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           env path decl.type_params ty_list
                           lbl_list pos obj rep
                     end
+                | {type_kind = Type_record_flat(_, Record_flat _)} ->
+                    assert false
                 | {type_kind = Type_open} ->
                     tree_of_extension path ty_list depth obj
               with

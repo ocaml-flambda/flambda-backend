@@ -1301,7 +1301,7 @@ and find_cstr path name env =
   match tda.tda_descriptions with
   | Type_variant (cstrs, _) ->
       List.find (fun cstr -> cstr.cstr_name = name) cstrs
-  | Type_record _ | Type_abstract _ | Type_open -> raise Not_found
+  | Type_record _ | Type_record_flat _ | Type_abstract _ | Type_open -> raise Not_found
 
 
 
@@ -1912,6 +1912,16 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
+              | Type_record_flat (_, repr) ->
+                  let lbls = List.map snd
+                    (Datarepr.labels_of_type path final_decl)
+                  in
+                  List.iter
+                    (fun descr ->
+                      c.comp_labels <-
+                        add_to_tbl descr.lbl_name descr c.comp_labels)
+                    lbls;
+                  Type_record_flat (lbls, repr)
               | Type_abstract r -> Type_abstract r
               | Type_open -> Type_open
             in
@@ -2161,6 +2171,13 @@ and store_type ~check id info shape env =
     | Type_record (_, repr) ->
         let labels = Datarepr.labels_of_type path info in
         Type_record (List.map snd labels, repr),
+        List.fold_left
+          (fun env (lbl_id, lbl) ->
+            store_label ~check info id lbl_id lbl env)
+          env labels
+    | Type_record_flat (_, repr) ->
+        let labels = Datarepr.labels_of_type path info in
+        Type_record_flat (List.map snd labels, repr),
         List.fold_left
           (fun env (lbl_id, lbl) ->
             store_label ~check info id lbl_id lbl env)
@@ -3537,7 +3554,8 @@ let lookup_all_labels_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
   | Type_variant _ | Type_abstract _ | Type_open -> []
-  | Type_record (lbls, _) ->
+  | Type_record (lbls, _)
+  | Type_record_flat (lbls, _) ->
       List.map
         (fun lbl ->
            let use_fun () = use_label ~use ~loc usage env lbl in
@@ -3558,7 +3576,7 @@ let lookup_constructor ~errors ~use ~loc usage lid env =
 let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_record _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_record_flat _ | Type_abstract _ | Type_open -> []
   | Type_variant (cstrs, _) ->
       List.map
         (fun cstr ->

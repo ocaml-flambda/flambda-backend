@@ -29,6 +29,7 @@ type native_repr_kind = Unboxed | Untagged
 type jkind_sort_loc =
   | Cstr_tuple of { unboxed : bool }
   | Record of { unboxed : bool }
+  | Record_flat_sort
   | Inlined_record of { unboxed : bool }
   | Mixed_product
   | External
@@ -208,6 +209,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let path = Path.Pident id in
   let any = Jkind.Builtin.any ~why:Initial_typedecl_env in
 
+  (* CR rtjoa: read *)
   (* There is some trickiness going on here with the jkind.  It expands on an
      old trick used in the manifest of [decl] below.
 
@@ -469,6 +471,7 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
       )
   in
   let lbls = List.map mk lbls in
+  (* CR rtjoa: what is labels'? *)
   let lbls' =
     List.map
       (fun ld ->
@@ -642,6 +645,7 @@ let verify_unboxed_attr unboxed_attr sdecl =
         | [{pld_mutable = Mutable}] -> bad "it is mutable"
         | [{pld_mutable = Immutable}] -> ()
       end
+    | Ptype_record_flat _ -> bad "cannot used unboxed attribute on already-unboxed record"
     | Ptype_variant constructors -> begin match constructors with
         | [] -> bad "it has no constructor"
         | (_::_::_) -> bad "it has more than one constructor"
@@ -664,6 +668,7 @@ let verify_unboxed_attr unboxed_attr sdecl =
       end
   end
 
+(* CR rtjoa: read *)
 (* Note [Default jkinds in transl_declaration]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    For every type declaration we create in transl_declaration, we must
@@ -939,6 +944,15 @@ let transl_declaration env sdecl (id, uid) =
               Jkind.Builtin.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
+      | Ptype_record_flat lbls ->
+          let lbls, lbls' =
+            transl_labels ~new_var_jkind:Any ~allow_unboxed:true
+            env None true lbls (Record { unboxed = unbox })
+          in
+          let jkind_ls = List.map (fun _ -> Jkind.Builtin.value ~why:Object) lbls in
+          let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
+          let rep = Record_flat (Array.of_list jkind_ls) in
+          Ttype_record_flat lbls, Type_record_flat(lbls', rep), jkind
       | Ptype_open ->
         Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
       in
@@ -1013,7 +1027,8 @@ let transl_declaration env sdecl (id, uid) =
       let uid = decl.typ_type.type_uid in
       match decl.typ_type.type_kind with
       | Type_variant (cstrs, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Type_record (labels, _) -> Shape.str ~uid (shape_map_labels labels)
+      | Type_record (labels, _)
+      | Type_record_flat (labels, _) -> Shape.str ~uid (shape_map_labels labels)
       | Type_abstract _ | Type_open -> Shape.leaf uid
     in
     decl, typ_shape
@@ -1097,7 +1112,7 @@ let check_constraints env sdecl (_, decl) =
   | Type_variant (l, _rep) ->
       let find_pl = function
           Ptype_variant pl -> pl
-        | Ptype_record _ | Ptype_abstract | Ptype_open -> assert false
+        | Ptype_record _ | Ptype_record_flat _ | Ptype_abstract | Ptype_open -> assert false
       in
       let pl = find_pl sdecl.ptype_kind in
       let pl_index =
@@ -1131,8 +1146,15 @@ let check_constraints env sdecl (_, decl) =
         l
   | Type_record (l, _) ->
       let find_pl = function
-          Ptype_record pl -> pl
-        | Ptype_variant _ | Ptype_abstract | Ptype_open -> assert false
+        | Ptype_record pl -> pl
+        | Ptype_record_flat _ | Ptype_variant _ | Ptype_abstract | Ptype_open -> assert false
+      in
+      let pl = find_pl sdecl.ptype_kind in
+      check_constraints_labels env visited l pl
+  | Type_record_flat (l, _) ->
+      let find_pl = function
+        | Ptype_record_flat pl -> pl
+        | Ptype_record _ | Ptype_variant _ | Ptype_abstract | Ptype_open -> assert false
       in
       let pl = find_pl sdecl.ptype_kind in
       check_constraints_labels env visited l pl
@@ -1598,6 +1620,19 @@ let update_decl_jkind env dpath decl =
         "Typedecl.update_record_kind: unexpected record representation"
   in
 
+  let update_record_flat_kind loc lbls rep =
+    match lbls, rep with
+    | _, Record_flat jkinds ->
+      let lbls, all_void =
+        update_label_jkinds env loc lbls (Some jkinds)
+      in
+      assert (not all_void);
+      let jkind_ls = Array.of_list (List.map (fun lbl -> lbl.ld_jkind) lbls) in
+      let jkind = Jkind.Builtin.product ~why:Unboxed_record (List.map (fun lbl -> lbl.ld_jkind) lbls) in
+      let rep = Record_flat jkind_ls in
+      lbls, rep, jkind
+  in
+
   (* returns updated constructors, updated rep, and updated jkind *)
   let update_variant_kind cstrs rep =
     (* CR layouts: factor out duplication *)
@@ -1667,6 +1702,20 @@ let update_decl_jkind env dpath decl =
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
       { decl with type_kind = Type_record (lbls, rep);
+                  type_jkind;
+                  type_has_illegal_crossings },
+      type_jkind
+    (* CR layouts v3.0: handle this case in [update_variant_jkind] when
+       [Variant_with_null] introduced.
+
+       No updating required for [or_null_reexport], and we must not
+       incorrectly override the jkind to [non_null].
+    *)
+    (* CR rtjoa:  *)
+    | Type_record_flat (lbls, rep) ->
+      let lbls, rep, type_jkind = update_record_flat_kind decl.type_loc lbls rep in
+      let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      { decl with type_kind = Type_record_flat (lbls, rep);
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
@@ -2070,7 +2119,9 @@ let check_duplicates sdecl_list =
             with Not_found ->
               Hashtbl.add constrs pcd.pcd_name.txt sdecl.ptype_name.txt)
           cl
-    | Ptype_record fl ->
+     | Ptype_record fl
+     (* CR rtjoa:  *)
+     | Ptype_record_flat fl->
         List.iter
           (fun {pld_name=cname;pld_loc=loc} ->
             try
@@ -3735,6 +3786,8 @@ let report_error ppf = function
     let s =
       match kloc with
       | Mixed_product -> "Structures with non-value elements"
+      (* CR rtjoa:   *)
+      | Record_flat_sort -> "Record_flat_sort"
       | Cstr_tuple _ -> "Constructor argument types"
       | Inlined_record { unboxed = false }
       | Record { unboxed = false } -> "Record element types"
@@ -3746,7 +3799,7 @@ let report_error ppf = function
     let extra =
       match kloc with
       | Mixed_product
-      | Cstr_tuple _ | Record _ | Inlined_record _ | External -> dprintf ""
+      | Cstr_tuple _ | Record _ | Inlined_record _ | External | Record_flat_sort -> dprintf ""
       | External_with_layout_poly -> dprintf
         "@ (locally-scoped type variables with layout 'any' are@ \
           made representable by %a)"
@@ -3771,6 +3824,8 @@ let report_error ppf = function
       | Inlined_record { unboxed = true } -> "Unboxed inlined records"
       | Record { unboxed = false } -> "Records"
       | Record { unboxed = true }-> "Unboxed records"
+      (* CR rtjoa:   *)
+      | Record_flat_sort -> "Actually unboxed records"
       | Cstr_tuple { unboxed = false } -> "Variants"
       | Cstr_tuple { unboxed = true } -> "Unboxed variants"
       | External | External_with_layout_poly -> assert false

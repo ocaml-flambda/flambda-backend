@@ -251,6 +251,8 @@ let type_kind sub tk = match tk with
       Ptype_variant (List.map (sub.constructor_declaration sub) list)
   | Ttype_record list ->
       Ptype_record (List.map (sub.label_declaration sub) list)
+  | Ttype_record_flat list ->
+      Ptype_record_flat (List.map (sub.label_declaration sub) list)
   | Ttype_open -> Ptype_open
 
 let constructor_argument sub {ca_loc; ca_type; ca_modalities} =
