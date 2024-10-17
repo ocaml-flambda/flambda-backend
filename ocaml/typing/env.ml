@@ -488,6 +488,18 @@ module IdTbl =
     let find_name_and_locks wrap ~mark name tbl =
       find_name_and_locks wrap ~mark name tbl []
 
+    (** Find all the locks in the context. Equivalent to [find_name_and_locks]
+        on a missing name. *)
+    let rec get_all_locks tbl macc =
+      match tbl.layer with
+      | Open {next; _}
+      | Map {next; _} -> get_all_locks next macc
+      | Lock {lock; next} -> get_all_locks next (lock :: macc)
+      | Nothing -> macc
+
+    let get_all_locks tbl =
+      get_all_locks tbl []
+
     (** Find item by name whose accesses are not affected by locks, and thus
         shouldn't encounter any locks. *)
     let find_name wrap ~mark name tbl =
@@ -3005,16 +3017,17 @@ type _ load =
   | Don't_load : unit load
 
 let lookup_global_name_module
-      (type a) (load : a load) ~errors ~use ~loc path name env =
+      (type a) (load : a load) ~errors ~use ~loc name env =
   match load with
   | Don't_load ->
       check_pers_mod ~allow_hidden:false ~loc name;
-      path, (() : a)
+      (() : a)
   | Load -> begin
       match find_pers_mod ~allow_hidden:false name with
       | mda ->
+          let path = Pident(Ident.create_global name) in
           use_module ~use ~loc path mda;
-          path, (mda : a)
+          (mda : a)
       | exception Not_found ->
           let s = Global_module.Name.to_string name in
           may_lookup_error errors loc env (Unbound_module (Lident s))
@@ -3042,8 +3055,8 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
       (* This is only used when processing [Longident.t]s, which never have
          instance arguments *)
       let name = Global_module.Name.create_no_args s in
-      let path, a =
-        lookup_global_name_module load ~errors ~use ~loc path name env
+      let a =
+        lookup_global_name_module load ~errors ~use ~loc name env
       in
       path, locks, a
     end
@@ -3431,6 +3444,12 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
 
 (* General forms of the lookup functions *)
 
+let walk_locks_for_module_lookup ~errors ~lock ~loc ~env ~lid locks =
+  if lock then
+    walk_locks ~errors ~loc ~env ~item:Module ~lid mda_mode None locks
+  else
+    mode_default mda_mode
+
 let lookup_module_path ~errors ~use ~lock ~loc ~load lid env : Path.t * _ =
   let path, locks =
     match lid with
@@ -3452,23 +3471,29 @@ let lookup_module_path ~errors ~use ~lock ~loc ~load lid env : Path.t * _ =
         let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
         Papply(path_f, path_arg), []
   in
-  let vmode =
-    if lock then
-      walk_locks ~errors ~loc ~env ~item:Module ~lid mda_mode None locks
-    else
-      mode_default mda_mode
-  in
+  let vmode = walk_locks_for_module_lookup ~errors ~lock ~loc ~lid ~env locks in
   path, vmode
 
-let lookup_module_instance_path ~errors ~use ~loc ~load name env : Path.t =
-  (* Since [name] is always global, we know that the path is just [name] and we
-     could just return it, but going through the usual sequence ensures that all
-     the same checks and error reporting happen as for a normal identifier. *)
-  let path = Pident (Ident.create_global name) in
+let lookup_module_instance_path ~errors ~use ~lock ~loc ~load name env =
+  (* Perform all the same side effects that a lookup on a global would have *)
   if !Clflags.transparent_modules && not load then
-    fst (lookup_global_name_module Don't_load ~errors ~use ~loc path name env)
+    lookup_global_name_module Don't_load ~errors ~use ~loc name env
   else
-    fst (lookup_global_name_module Load ~errors ~use ~loc path name env)
+    ignore
+      (lookup_global_name_module Load ~errors ~use ~loc name env : module_data);
+  let path = Pident (Ident.create_global name) in
+  (* The locks are whatever locks we would find if we went through
+     [lookup_module_path] on a module not found in the environment *)
+  let locks = IdTbl.get_all_locks env.modules in
+  let vmode =
+    let lid : Longident.t =
+      (* This is only used for error reporting. Probably in the long term we
+         want [Longident.t] to include instance names *)
+      Lident (name |> Global_module.Name.to_string)
+    in
+    walk_locks_for_module_lookup ~errors ~lock ~loc ~lid ~env locks
+  in
+  path, vmode
 
 let lookup_value_lazy ~errors ~use ~loc lid env =
   match lid with
@@ -3656,8 +3681,11 @@ let lookup_module_path ?(use=true) ?(lock=use) ~loc ~load lid env =
   in
   path, vmode.mode
 
-let lookup_module_instance_path ?(use=true) ~loc ~load lid env =
-  lookup_module_instance_path ~errors:true ~use ~loc ~load lid env
+let lookup_module_instance_path ?(use=true) ?(lock=use) ~loc ~load lid env =
+  let path, vmode =
+    lookup_module_instance_path ~errors:true ~use ~lock ~loc ~load lid env
+  in
+  path, vmode.mode
 
 let lookup_module ?(use=true) ?(lock=use) ~loc lid env =
   let path, desc, vmode = lookup_module ~errors:true ~use ~lock ~loc lid env in

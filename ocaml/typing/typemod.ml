@@ -2627,10 +2627,11 @@ and type_module_extension_aux ~alias sttn env smod
   function
   | Emod_instance (Imod_instance glob) ->
       let glob = instance_name ~loc:smod.pmod_loc env glob in
-      let path =
+      let path, mode =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
           glob env
       in
+      Mode.Value.submode_exn mode Mode.Value.legacy;
       let lid =
         (* Only used by [untypeast] *)
         let name =

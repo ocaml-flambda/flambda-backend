@@ -282,7 +282,8 @@ val lookup_module_path:
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
 val lookup_module_instance_path:
-  ?use:bool -> loc:Location.t -> load:bool -> Global_module.Name.t -> t -> Path.t
+  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool ->
+  Global_module.Name.t -> t -> Path.t * Mode.Value.l
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
