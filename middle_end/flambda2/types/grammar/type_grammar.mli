@@ -41,7 +41,12 @@ type t = private
   | Rec_info of head_of_kind_rec_info Type_descr.t
   | Region of head_of_kind_region Type_descr.t
 
-and head_of_kind_value = private
+and head_of_kind_value =
+  { non_null : head_of_kind_value_non_null;
+    is_null : bool Or_unknown.t (* CR vlaviron: define a dedicated type *)
+  }
+
+and head_of_kind_value_non_null = private
   | Variant of
       { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
@@ -628,6 +633,45 @@ val apply_coercion_head_of_kind_region :
 
 module Head_of_kind_value : sig
   type t = head_of_kind_value
+
+  val create_variant :
+    is_unique:bool ->
+    blocks:Row_like_for_blocks.t Or_unknown.t ->
+    immediates:flambda_type Or_unknown.t ->
+    t
+
+  val create_mutable_block : Alloc_mode.For_types.t -> t
+
+  (* CR-someday mshinwell: these alloc mode params should probably be
+     labelled *)
+  val create_boxed_float32 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_float : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_int32 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_int64 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_nativeint : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_vec128 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_tagged_immediate : Targetint_31_63.t -> t
+
+  val create_closures : Row_like_for_closures.t -> Alloc_mode.For_types.t -> t
+
+  val create_string : String_info.Set.t -> t
+
+  val create_array_with_contents :
+    element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
+    length:flambda_type ->
+    array_contents Or_unknown.t ->
+    Alloc_mode.For_types.t ->
+    t
+end
+
+module Head_of_kind_value_non_null : sig
+  type t = head_of_kind_value_non_null
 
   val create_variant :
     is_unique:bool ->

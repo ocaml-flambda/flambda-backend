@@ -181,7 +181,9 @@ end = struct
               let module UK = C.Update_kind in
               match KS.kind kind with
               | Value ->
-                if KS.Subkind.equal (KS.subkind kind) Tagged_immediate
+                if KS.Non_null_value_subkind.equal
+                     (KS.non_null_value_subkind kind)
+                     Tagged_immediate
                 then UK.tagged_immediates
                 else UK.pointers
               | Naked_number Naked_immediate

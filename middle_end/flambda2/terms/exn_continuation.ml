@@ -106,7 +106,7 @@ let apply_renaming ({ exn_handler; extra_args } as t) renaming =
 let arity t =
   let extra_args = List.map (fun (_simple, kind) -> kind) t.extra_args in
   let exn_bucket_kind =
-    Flambda_kind.With_subkind.create Flambda_kind.value Anything
+    Flambda_kind.With_subkind.create Flambda_kind.value Anything Non_nullable
   in
   Flambda_arity.create_singletons (exn_bucket_kind :: extra_args)
 

@@ -421,7 +421,8 @@ let is_default_kind_with_subkind (k : Flambda_kind.With_subkind.t) =
   Flambda_kind.is_value (Flambda_kind.With_subkind.kind k)
   && not (Flambda_kind.With_subkind.has_useful_subkind_info k)
 
-let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
+let rec subkind (k : Flambda_kind.With_subkind.Non_null_value_subkind.t) :
+    Fexpr.subkind =
   match k with
   | Anything -> Anything
   | Boxed_float32 -> Boxed_float32
@@ -457,7 +458,8 @@ and variant_subkind consts non_consts : Fexpr.subkind =
 and kind_with_subkind (k : Flambda_kind.With_subkind.t) :
     Fexpr.kind_with_subkind =
   match Flambda_kind.With_subkind.kind k with
-  | Value -> Value (subkind (Flambda_kind.With_subkind.subkind k))
+  | Value ->
+    Value (subkind (Flambda_kind.With_subkind.non_null_value_subkind k))
   | Naked_number nnk -> Naked_number nnk
   | Region -> Region
   | Rec_info -> Rec_info

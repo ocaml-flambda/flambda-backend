@@ -1136,7 +1136,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
                                   Jkind.Sort.for_block_element typ))
           fields
       in
-      let useful = List.exists (fun knd -> knd <> Pgenval) shape in
+      let useful = List.exists (fun knd -> knd <> Lambda.generic_value) shape in
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
       else None
