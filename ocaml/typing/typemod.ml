@@ -1594,7 +1594,7 @@ let mksig desc env loc =
   Cmt_format.add_saved_type (Cmt_format.Partial_signature_item sg);
   sg
 
-(* let signature sg = List.map (fun item -> item.sig_type) sg *)
+(* let signature sg = List.map (fun item -> item.sg_type) sg *)
 
 let rec transl_modtype env smty =
   Builtin_attributes.warning_scope smty.pmty_attributes
@@ -1620,7 +1620,7 @@ and transl_modtype_aux env smty =
         smty.pmty_attributes
   | Pmty_signature ssg ->
       let sg = transl_signature env ssg in
-      mkmty (Tmty_signature sg) (Mty_signature sg.sig_type) env loc
+      mkmty (Tmty_signature sg) (Mty_signature sg.sg_type) env loc
         smty.pmty_attributes
   | Pmty_functor(sarg_opt, sres) ->
       let t_arg, ty_arg, newenv =
@@ -1793,12 +1793,12 @@ and transl_signature env sg =
         List.iter (fun td ->
           Signature_names.check_type names td.typ_loc td.typ_id;
         ) decls;
-        let sig_items =
+        let sg_items =
           map_rec_type_with_row_types ~rec_flag
             (fun rs td -> Sig_type(td.typ_id, td.typ_type, rs, Exported))
             decls
         in
-        mksig (Tsig_type (rec_flag, decls)) env loc, sig_items, newenv
+        mksig (Tsig_type (rec_flag, decls)) env loc, sg_items, newenv
     | Psig_typesubst sdecls ->
         let (decls, newenv, _shapes) =
           Typedecl.transl_type_decl env Nonrecursive sdecls
@@ -1940,7 +1940,7 @@ and transl_signature env sg =
         List.iter (fun (id, md, _uid) ->
           Signature_names.check_module names md.md_loc id;
         ) decls;
-        let sig_items =
+        let sg_items =
           map_rec (fun rs (id, md, uid) ->
             let d = {Types.md_type = md.md_type.mty_type;
                      md_attributes = md.md_attributes;
@@ -1951,7 +1951,7 @@ and transl_signature env sg =
             decls []
         in
         mksig (Tsig_recmodule (List.map (fun (md, _, _) -> md) tdecls)) env loc,
-        sig_items,
+        sg_items,
         newenv
     | Psig_modtype pmtd ->
         let newenv, mtd, decl = transl_modtype_decl env pmtd in
@@ -2036,13 +2036,13 @@ and transl_signature env sg =
     | Psig_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
   in
-  let rec transl_sig env sig_items sig_type = function
-    | [] -> List.rev sig_items, List.rev sig_type, env
+  let rec transl_sig env sg_items sg_type = function
+    | [] -> List.rev sg_items, List.rev sg_type, env
     | item :: srem ->
-      let new_item , new_types , env = transl_sig_item env sig_type item in
+      let new_item , new_types , env = transl_sig_item env sg_type item in
       transl_sig env
-        (new_item :: sig_items)
-        (List.rev_append new_types sig_type)
+        (new_item :: sg_items)
+        (List.rev_append new_types sg_type)
         srem
   in
   let previous_saved_types = Cmt_format.get_saved_types () in
@@ -2053,7 +2053,7 @@ and transl_signature env sg =
        in
        let rem = Signature_names.simplify final_env names rem in
        let sg =
-         { sig_items = trem; sig_type = rem; sig_final_env = final_env }
+         { sg_items = trem; sg_type = rem; sg_final_env = final_env }
        in
        Cmt_format.set_saved_types
          ((Cmt_format.Partial_signature sg) :: previous_saved_types);
@@ -3872,7 +3872,7 @@ let type_interface ~sourcefile modulename env ast =
     !Clflags.as_argument_for
     |> Option.map (fun name -> Global_module.Name.create_no_args name)
   in
-  ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
+  ignore (check_argument_type_if_given env sourcefile sg.sg_type arg_type
           : Typedtree.argument_interface option);
   sg
 

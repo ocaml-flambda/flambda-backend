@@ -784,7 +784,7 @@ let module_type_declaration sub mtd =
     (map_loc sub mtd.mtd_name)
 
 let signature sub sg =
-  List.map (sub.signature_item sub) sg.sig_items
+  List.map (sub.signature_item sub) sg.sg_items
 
 let signature_item sub item =
   let loc = sub.location sub item.sig_loc in
