@@ -32,8 +32,13 @@ let subst t (args : (Global_module.Name.t * Global_module.t) list) =
       let add_and_update_binding subst bound_global =
         let name = Global_module.to_name bound_global in
         if Global_module.Name.Map.mem name arg_subst then
-          (* This will be handled by [add_arg] below *)
-          subst, None
+          (* This shouldn't happen: only globals with hidden arguments should be
+             in [bound_globals], and parameters shouldn't have arguments.
+             Previous code that was meant to handle parameterised parameters
+             was simply saying [subst, None] here since [add_arg] would handle
+             adding to [subst] and we can drop the global from [bound_globals]
+             if we're substituting for it. *)
+          Misc.fatal_error "Unexpected parameterised parameter"
         else
           begin
             let value, changed = Global_module.subst bound_global arg_subst in

@@ -100,7 +100,7 @@ type global_name_info = {
 (* Data relating directly to a .cmi - does not depend on arguments *)
 type import = {
   imp_is_param : bool;
-  imp_params : Global_module.t list;
+  imp_params : Global_module.t list; (* CR lmaurer: Should be [Parameter_name.t list] *)
   imp_arg_for : Global_module.Name.t option;
   imp_impl : CU.t option; (* None iff import is a parameter *)
   imp_raw_sign : Signature_with_global_bindings.t;
@@ -117,8 +117,8 @@ type import_info =
   | Found of import
 
 (* Data relating to a global name (possibly with arguments) but not necessarily
-   a value in scope. For example, if we've encountered a parameter module only
-   by seeing it used as the name of an argument in a [Global_module.Name.t], we
+   a value in scope. For example, if we've encountered a module only by seeing
+   it used as the name or value of an argument in a [Global_module.Name.t], we
    won't bind it or construct a [pers_struct] for it but it will have a
    [pers_name]. *)
 type pers_name = {
@@ -452,9 +452,12 @@ let check_for_unset_parameters penv global =
              parameter = value_name;
            }))
     global.Global_module.hidden_args;
-  (* The visible arguments in [global] must also satisfy the subset rule.
-     However, these will already have been checked since [compute_global] loads
-     all argument names and values. *)
+  (* The names of the visible arguments in [global] are excluded from the subset
+     rule: we can refer to [A[P:B]] even if we don't take [P] as a parameter.
+     The _values_ of visible arguments do need to be checked: if [B] takes [Q]
+     as a parameter and we don't, then [A[P:B]] is still an error. However,
+     these values will already have been checked since [compute_global] loads
+     all argument names and values. Therefore we're already done. *)
   ()
 
 let rec global_of_global_name penv ~check name =
@@ -477,18 +480,21 @@ and compute_global penv modname ~params check =
   in
   let subst : Global_module.subst = Global_module.Name.Map.of_list arg_global_by_param_name in
   if check && modname.Global_module.Name.args <> [] then begin
-    (* Produce the expected type of each argument. This takes into account
+    (* A paragraph for the future that I don't want to lose track of:
+
+       Produce the expected type of each argument. This takes into account
        substitutions among the parameter types: if the parameters are T and
        To_string[T] and the arguments are [Int] and [Int_to_string], we want to
        check that [Int] has type [T] and that [Int_to_string] has type
        [To_string[T\Int]].
 
-       This currently won't actually do anything because parameters aren't
-       interdependent, but it's a tricky bit of dependent type theory that I'm
-       happy to have written down now. *)
+       For now, our parameters don't take parameters, so we can just assert that
+       the parameter name has no argumentS and keep it as the expected type. *)
     let expected_type_by_param_name =
       List.map
-        (fun param -> Global_module.to_name param, Global_module.subst_inside param subst)
+        (fun param ->
+           assert (not (Global_module.has_arguments param));
+           Global_module.to_name param, param)
         params
     in
     let compare_by_param (param1, _) (param2, _) =
