@@ -775,3 +775,17 @@ let (_foo @ portable) () =
 [%%expect{|
 val _foo : unit -> unit @@ global many = <fun>
 |}]
+
+let () =
+  let open M_nonportable in
+  let (foo @ portable) () =
+    let _ = f in
+    ()
+  in
+  ()
+[%%expect{|
+Line 4, characters 12-13:
+4 |     let _ = f in
+                ^
+Error: The value "f" is nonportable, so cannot be used inside a function that is portable.
+|}]
