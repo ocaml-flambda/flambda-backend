@@ -110,6 +110,11 @@ struct stack_info** caml_alloc_stack_cache (void)
   return stack_cache;
 }
 
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+// See [alloc_for_stack], below.
+static const size_t stack_extra_size_for_mmap = 2 * 1024 * 1024;
+#endif
+
 Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
 {
 #ifdef USE_MMAP_MAP_STACK
@@ -136,32 +141,31 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
    * A signal handler for segfault will be installed, that will check if
    * the invalid address is in the range we protect, and will raise a stack
    * overflow exception accordingly.
-   *
-   * The sequence of steps to achieve that is loosely based on the glibc
-   * code (See nptl/allocatestack.c):
-   * - first, we mmap the memory for the stack, with PROT_NONE so that
-   *   the allocated memory is not committed;
-   * - second, we madvise to not use huge pages for this memory chunk;
-   * - third, we restore the read/write permissions for the whole memory
-   *   chunk;
-   * - finally, we disable the read/write permissions again, but only
-   *   for the page that will act as the guard.
-   *
-   * The reasoning behind this convoluted process is that if we only
-   * mmap and then mprotect, we incur the risk of splitting a huge page
-   * and losing its benefits while causing more bookkeeping.
    */
   size_t bsize = Bsize_wsize(wosize);
+
+  // If we were using this for arm64, another 8 bytes is needed below
+  // (at a lower address than) the struct stack_handler, to obtain the
+  // correct alignment.
+  bsize += sizeof(struct stack_handler) + 8;
+
   int page_size = getpagesize();
   int num_pages = (bsize + page_size - 1) / page_size;
 
-  // If we were using this for arm64, another 8 bytes is needed before
-  // the struct stack_handler.
-  CAMLassert(sizeof(struct stack_info) + 8 + sizeof(struct stack_handler)
-             < page_size);
-  // We need two clear pages in order to be able to guarantee we can create
-  // a guard page which is page-aligned.
-  size_t len = (num_pages + 4) * page_size;
+  CAMLassert(sizeof(struct stack_info) <= page_size);
+  // We need one extra page for the guard, and another for the [stack_info].
+  size_t len = (num_pages + 2) * page_size;
+
+  // We add 2Mb to the total size we are going to mmap to ensure that, no
+  // matter what the alignment of the mmapped region is with respect to a
+  // 2Mb huge page boundary, the guard page will never be coalesced by the
+  // transparent huge pages infrastructure into the same 2Mb huge page as the
+  // next (normal) page below the guard.  This should ensure that the
+  // mprotect of the guard page (which splits huge pages or renders them
+  // ineligible for later coalescing) does not disturb existing huge page
+  // assignments.
+  // We could take the size of the [struct stack_info] away from [extra_size]
+  // (see diagram below), but this seems like unnecessary complexity.
 
   // Stack layout (higher addresses are at the top):
   //
@@ -173,29 +177,24 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   // -------------------- <- page-aligned
   // guard page
   // -------------------- <- page-aligned
-  // ... (for alignment)
+  // padding to one page
   // struct stack_info
-  // -------------------- <- block, possibly unaligned
+  // -------------------- <- [block], page-aligned
+  // 2Mb (= extra_size)
+  // -------------------- <- [stack], returned from [mmap], page-aligned
+  char* stack;
+  stack = caml_mem_map(len + stack_extra_size_for_mmap, 0);
+  if (stack == MAP_FAILED) {
+    return NULL;
+  }
+  // mmap is always expected to return a page-aligned value.
+  CAMLassert((uintnat)stack % page_size == 0);
 
-  struct stack_info* block;
-  block = mmap(NULL, len, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_STACK,
-               -1, 0);
-  if (block == MAP_FAILED) {
-    return NULL;
-  }
-  if (madvise (block, len, MADV_NOHUGEPAGE)) {
-    munmap(block, len);
-    return NULL;
-  }
-  if (mprotect(block, len, PROT_READ | PROT_WRITE)) {
-    munmap(block, len);
-    return NULL;
-  }
+  struct stack_info* block =
+    (struct stack_info*) (stack + stack_extra_size_for_mmap);
 
-  // Note that there is no assumption here on the alignment of the return
-  // value from [mmap].  See the definition of [Protected_stack_page].
   if (mprotect(Protected_stack_page(block, page_size), page_size, PROT_NONE)) {
-    munmap(block, len);
+    caml_mem_unmap(stack, len + stack_extra_size_for_mmap);
     return NULL;
   }
 
@@ -939,7 +938,9 @@ void caml_free_stack (struct stack_info* stack)
     munmap(stack, stack->size);
 #else
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-    munmap(stack, stack->size);
+    // See [alloc_for_stack].
+    char* mmap_base = ((char *) stack) - stack_extra_size_for_mmap;
+    caml_mem_unmap(mmap_base, stack->size + stack_extra_size_for_mmap);
 #else
     caml_stat_free(stack);
 #endif
