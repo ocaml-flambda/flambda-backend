@@ -150,7 +150,7 @@ let record_set_of_closure_deps t =
            block. *)
         Graph.add_dep t.deps
           (Code_id_or_name.name name)
-          (Block
+          (Constructor
              { relation = Code_of_closure; target = Code_id_or_name.name name })
       | code_dep ->
         Graph.add_dep t.deps
@@ -164,12 +164,12 @@ let record_set_of_closure_deps t =
               (Variable.create (Printf.sprintf "partial_apply_%i" i))
           in
           Graph.add_dep t.deps !acc
-            (Block { relation = Apply (Normal 0); target = tmp_name });
+            (Constructor { relation = Apply (Normal 0); target = tmp_name });
           (* The code_id needs to stay alive even if the function is only
              partially applied, as the arity is needed at runtime in that
              case. *)
           Graph.add_dep t.deps !acc
-            (Block
+            (Constructor
                { relation = Code_of_closure;
                  target = Code_id_or_name.code_id code_id
                });
@@ -178,14 +178,14 @@ let record_set_of_closure_deps t =
         List.iteri
           (fun i v ->
             Graph.add_dep t.deps !acc
-              (Block
+              (Constructor
                  { relation = Apply (Normal i); target = Code_id_or_name.var v }))
           code_dep.return;
         Graph.add_dep t.deps !acc
-          (Block
+          (Constructor
              { relation = Apply Exn; target = Code_id_or_name.var code_dep.exn });
         Graph.add_dep t.deps !acc
-          (Block
+          (Constructor
              { relation = Code_of_closure;
                target = Code_id_or_name.code_id code_id
              }))

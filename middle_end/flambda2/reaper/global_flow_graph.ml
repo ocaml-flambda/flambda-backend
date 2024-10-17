@@ -92,11 +92,11 @@ module Dep = struct
     type t =
       | Alias of { target : Name.t }
       | Use of { target : Code_id_or_name.t }
-      | Field of
+      | Accessor of
           { target : Name.t;
             relation : Field.t
           }
-      | Block of
+      | Constructor of
           { target : Code_id_or_name.t;
             relation : Field.t
           }
@@ -113,8 +113,8 @@ module Dep = struct
       let numbering = function
         | Alias _ -> 0
         | Use _ -> 1
-        | Field _ -> 2
-        | Block _ -> 3
+        | Accessor _ -> 2
+        | Constructor _ -> 3
         | Alias_if_def _ -> 4
         | Propagate _ -> 5
       in
@@ -123,12 +123,12 @@ module Dep = struct
         Name.compare target1 target2
       | Use { target = target1 }, Use { target = target2 } ->
         Code_id_or_name.compare target1 target2
-      | ( Field { target = target1; relation = relation1 },
-          Field { target = target2; relation = relation2 } ) ->
+      | ( Accessor { target = target1; relation = relation1 },
+          Accessor { target = target2; relation = relation2 } ) ->
         let c = Name.compare target1 target2 in
         if c <> 0 then c else Field.compare relation1 relation2
-      | ( Block { target = target1; relation = relation1 },
-          Block { target = target2; relation = relation2 } ) ->
+      | ( Constructor { target = target1; relation = relation1 },
+          Constructor { target = target2; relation = relation2 } ) ->
         let c = Code_id_or_name.compare target1 target2 in
         if c <> 0 then c else Field.compare relation1 relation2
       | ( Alias_if_def { target = target1; if_defined = if_defined1 },
@@ -139,7 +139,7 @@ module Dep = struct
           Propagate { target = target2; source = source2 } ) ->
         let c = Name.compare target1 target2 in
         if c <> 0 then c else Name.compare source1 source2
-      | (Alias _ | Use _ | Field _ | Block _ | Alias_if_def _ | Propagate _), _
+      | (Alias _ | Use _ | Accessor _ | Constructor _ | Alias_if_def _ | Propagate _), _
         ->
         Int.compare (numbering t1) (numbering t2)
 
@@ -151,10 +151,10 @@ module Dep = struct
       | Alias { target } -> Format.fprintf ppf "Alias %a" Name.print target
       | Use { target } ->
         Format.fprintf ppf "Use %a" Code_id_or_name.print target
-      | Field { target; relation } ->
-        Format.fprintf ppf "Field %a %a" Field.print relation Name.print target
-      | Block { target; relation } ->
-        Format.fprintf ppf "Block %a %a" Field.print relation
+      | Accessor { target; relation } ->
+        Format.fprintf ppf "Accessor %a %a" Field.print relation Name.print target
+      | Constructor { target; relation } ->
+        Format.fprintf ppf "Constructor %a %a" Field.print relation
           Code_id_or_name.print target
       | Alias_if_def { target; if_defined } ->
         Format.fprintf ppf "Alias_if_def %a %a" Name.print target Code_id.print

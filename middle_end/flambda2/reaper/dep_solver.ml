@@ -253,11 +253,11 @@ module Graph = struct
   let target (dep : dep) : Code_id_or_name.t =
     match dep with
     | Alias { target }
-    | Field { target; _ }
+    | Accessor { target; _ }
     | Alias_if_def { target; _ }
     | Propagate { target; _ } ->
       Code_id_or_name.name target
-    | Use { target } | Block { target; _ } -> target
+    | Use { target } | Constructor { target; _ } -> target
 
   type nonrec elt = elt
 
@@ -325,9 +325,9 @@ module Graph = struct
       match dep with
       | Alias _ -> elt
       | Use _ -> Top
-      | Field { relation; _ } ->
+      | Accessor { relation; _ } ->
         Fields (Field.Map.singleton relation (make_field_elt uses k))
-      | Block { relation; _ } -> (
+      | Constructor { relation; _ } -> (
         match elt with
         | Bottom -> assert false
         | Top -> Top
@@ -360,8 +360,8 @@ module Graph = struct
     match dep with
     | Alias _ -> true
     | Use _ -> true
-    | Field _ -> false
-    | Block _ -> true
+    | Accessor _ -> false
+    | Constructor _ -> true
     | Alias_if_def { if_defined; _ } -> (
       match Hashtbl.find_opt uses (Code_id_or_name.code_id if_defined) with
       | None | Some Bottom -> false

@@ -38,11 +38,11 @@ module Dep : sig
   type t =
     | Alias of { target : Name.t }
     | Use of { target : Code_id_or_name.t }
-    | Field of
+    | Accessor of
         { target : Name.t;
           relation : Field.t
         }
-    | Block of
+    | Constructor of
         { target : Code_id_or_name.t;
           relation : Field.t
         }

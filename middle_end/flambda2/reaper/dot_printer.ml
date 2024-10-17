@@ -54,9 +54,9 @@ module P = struct
 
   let dep_names (dep : Graph.Dep.t) =
     match dep with
-    | Graph.Dep.Alias { target } | Graph.Dep.Field { target; _ } ->
+    | Graph.Dep.Alias { target } | Graph.Dep.Accessor { target; _ } ->
       [Code_id_or_name.name target]
-    | Graph.Dep.Use { target } | Graph.Dep.Block { target; _ } -> [target]
+    | Graph.Dep.Use { target } | Graph.Dep.Constructor { target; _ } -> [target]
     | Graph.Dep.Alias_if_def { target; if_defined } ->
       [Code_id_or_name.name target; Code_id_or_name.code_id if_defined]
     | Graph.Dep.Propagate { target; source } ->
@@ -91,8 +91,8 @@ module P = struct
       match dst with
       | Alias { target } -> "black", [Code_id_or_name.name target]
       | Use { target } -> "red", [target]
-      | Field { target; _ } -> "green", [Code_id_or_name.name target]
-      | Block { target; _ } -> "blue", [target]
+      | Accessor { target; _ } -> "green", [Code_id_or_name.name target]
+      | Constructor { target; _ } -> "blue", [target]
       | Alias_if_def { target; _ } -> "pink", [Code_id_or_name.name target]
       | Propagate { target; _ } -> "brown", [Code_id_or_name.name target]
     in
