@@ -252,7 +252,7 @@ typedef uint64_t uintnat;
 
 /* Default setting for the ratio of custom garbage to major heap size.
    Documented in gc.mli */
-#define Custom_major_ratio_def 44
+#define Custom_major_ratio_def 10000
 
 /* Default setting for the ratio of custom garbage to minor heap size.
    Documented in gc.mli */
