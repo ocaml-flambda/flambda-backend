@@ -191,6 +191,7 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * locality_mode
   | Pmakearray_dynamic of array_kind * locality_mode
   | Pduparray of array_kind * mutable_flag
+  | Parrayblit of array_set_kind (* Kind of the dest array. *)
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -1790,6 +1791,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pmakearray_dynamic (_, m) -> Some m
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
+  | Parrayblit _
   | Parraysetu _ | Parraysets _
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
@@ -2004,6 +2006,7 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
   | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
   | Punboxed_nativeint_array_set_128 _
+  | Parrayblit _
     -> layout_unit
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pmakearray_dynamic _

@@ -183,6 +183,10 @@ type primitive =
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
+  | Parrayblit of array_set_kind
+  (** For [Parrayblit], we record the [array_set_kind] of the destination
+      array. We check that the source array has the same shape, but do not
+      need to know anything about its locality. *)
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind

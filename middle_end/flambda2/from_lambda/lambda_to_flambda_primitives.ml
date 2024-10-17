@@ -1184,6 +1184,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               [K.With_subkind.any_value] ) ]))
   | Pmakearray_dynamic (_lambda_array_kind, _mode), _ ->
     Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
+  | Parrayblit _array_set_kind, _ ->
+    Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
   | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
   | Pduprecord (repr, num_fields), [[arg]] ->

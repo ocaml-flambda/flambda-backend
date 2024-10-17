@@ -1806,3 +1806,106 @@ Line 4, characters 39-73:
 Error: Unboxed vector types are not yet supported in arrays of unboxed
        products.
 |}]
+
+(**********************)
+(* Test 22: arrayblit *)
+
+(* An array poly version works at valid product layouts. *)
+external[@layout_poly] blit :
+  ('a : any_non_null) . 'a array -> int -> 'a array -> int -> int -> unit =
+  "%arrayblit"
+
+let f_scannable (x : #(int * float * string) array) = blit x 0 x 2 3
+
+let f_ignorable (x : #(float# * int * int64# * bool) array) = blit x 0 x 2 3
+[%%expect{|
+external blit :
+  ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit
+  = "%arrayblit" [@@layout_poly]
+val f_scannable : #(int * float * string) array -> unit = <fun>
+val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
+|}]
+
+(* But not on the bad ones. *)
+let f_bad (x : #(string * float#) array) = blit x 0 x 2 3
+[%%expect{|
+Line 1, characters 43-57:
+1 | let f_bad (x : #(string * float#) array) = blit x 0 x 2 3
+                                               ^^^^^^^^^^^^^^
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
+|}]
+
+(* And similarly if we specialize it at declaration time. *)
+external blit_scannable :
+  #(int * float * string) array -> int -> #(int * float * string) array
+  -> int -> int -> unit =
+  "%arrayblit"
+let blit_scannable_app a1 i1 a2 i2 len = blit_scannable a1 i2 a2 i2 len
+
+external blit_ignorable :
+  #(float# * int * int64# * bool) array -> int
+  -> #(float# * int * int64# * bool) array -> int -> int -> unit =
+  "%arrayblit"
+let blit_ignorable_app a1 i1 a2 i2 len = blit_ignorable a1 i1 a2 i2 len
+[%%expect{|
+external blit_scannable :
+  #(int * float * string) array ->
+  int -> #(int * float * string) array -> int -> int -> unit = "%arrayblit"
+val blit_scannable_app :
+  ('a : value_or_null).
+    #(int * float * string) array ->
+    'a -> #(int * float * string) array -> int -> int -> unit =
+  <fun>
+external blit_ignorable :
+  #(float# * int * int64# * bool) array ->
+  int -> #(float# * int * int64# * bool) array -> int -> int -> unit
+  = "%arrayblit"
+val blit_ignorable_app :
+  #(float# * int * int64# * bool) array ->
+  int -> #(float# * int * int64# * bool) array -> int -> int -> unit = <fun>
+|}]
+
+external blit_bad :
+  #(string * float#) array -> int -> #(string * float#) array
+  -> int -> int -> unit =
+  "%arrayblit"
+let blit_bad_app a1 i1 a2 i2 len = blit_bad a1 i1 a2 i2 len
+[%%expect{|
+external blit_bad :
+  #(string * float#) array ->
+  int -> #(string * float#) array -> int -> int -> unit = "%arrayblit"
+Line 5, characters 35-59:
+5 | let blit_bad_app a1 i1 a2 i2 len = blit_bad a1 i1 a2 i2 len
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
+|}]
+
+(* Unboxed vectors are also rejected. *)
+let f_bad (x : #(int * int32x4#) array) = blit x 0 x 2 3
+[%%expect{|
+Line 1, characters 42-56:
+1 | let f_bad (x : #(int * int32x4#) array) = blit x 0 x 2 3
+                                              ^^^^^^^^^^^^^^
+Error: Unboxed vector types are not yet supported in arrays of unboxed
+       products.
+|}]
+
+external blit_ignorable_with_vec :
+  #(int * int32x4#) array -> int -> #(int * int32x4#) array
+  -> int -> int -> unit =
+  "%arrayblit"
+let blit_ignorable_with_vec_app x = blit_ignorable_with_vec x 0 x 2 3
+[%%expect{|
+external blit_ignorable_with_vec :
+  #(int * int32x4#) array ->
+  int -> #(int * int32x4#) array -> int -> int -> unit = "%arrayblit"
+Line 5, characters 36-69:
+5 | let blit_ignorable_with_vec_app x = blit_ignorable_with_vec x 0 x 2 3
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Unboxed vector types are not yet supported in arrays of unboxed
+       products.
+|}]

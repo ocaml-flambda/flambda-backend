@@ -260,6 +260,7 @@ let compute_static_size lam =
             Misc.fatal_error "size_of_primitive"
         end
     | Pmakearray_dynamic _ -> Misc.fatal_error "size_of_primitive"
+    | Parrayblit _ -> Constant
     | Pduparray _ ->
         (* The size has to be recovered from the size of the argument *)
         begin match args with

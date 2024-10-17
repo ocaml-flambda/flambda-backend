@@ -169,7 +169,7 @@ let preserve_tailcall_for_prim = function
   | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Pmakearray_dynamic _
+  | Pmakearray_dynamic _ | Parrayblit _
   | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _
   | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
   | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
@@ -699,6 +699,15 @@ let comp_primitive stack_info p sz args =
     | Alloc_heap -> Kccall("caml_make_vect", 2)
     | Alloc_local -> Kccall("caml_make_local_vect", 2)
     end
+  | Parrayblit(kind) ->
+    begin match kind with
+    | Punboxedvectorarray_set _ ->
+      fatal_error "SIMD is not supported in bytecode mode."
+    | Pgenarray_set _ | Pintarray_set | Paddrarray_set _
+    | Punboxedintarray_set _ | Pfloatarray_set | Punboxedfloatarray_set _
+    | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ -> ()
+    end;
+    Kccall("caml_array_blit", 5)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)

@@ -326,6 +326,14 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         Misc.fatal_errorf "Primitive \"%s\" unexpectedly had zero arguments"
           p.prim_name
   in
+  let get_third_arg_mode () =
+    match arg_modes with
+    | _ :: _ :: mode :: _ -> mode
+    | _ ->
+        Misc.fatal_errorf "Primitive \"%s\" unexpectedly had fewer than three \
+                           arguments"
+          p.prim_name
+  in
   let lambda_prim = to_lambda_prim p ~poly_sort in
   let layout =
     (* Extract the result layout of the primitive.  This can be a non-value
@@ -509,7 +517,13 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
         3)
     | "%makearray_dynamic" ->
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
+        Language_extension.Alpha;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode), 2)
+    | "%arrayblit" ->
+      Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
+        Language_extension.Alpha;
+      Primitive (Parrayblit (gen_array_set_kind (get_third_arg_mode ())), 5)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%obj_set_field" ->
@@ -1139,7 +1153,10 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     | Some (p1, rhs) ->
       match is_function_type env rhs with
       | None -> [p1]
-      | Some (p2, _) -> [p1;p2]
+      | Some (p2, rhs) ->
+        match is_function_type env rhs with
+        | None -> [p1;p2]
+        | Some (p3, _) -> [p1;p2;p3]
   in
   match prim, param_tys with
   | Primitive (Psetfield(n, Pointer, init), arity), [_; p2] -> begin
@@ -1208,6 +1225,19 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if at = array_type then None
       else Some (Primitive (Pmakearray_dynamic (array_type, mode), arity))
     end
+  | Primitive (Parrayblit st, arity),
+    _p1 :: _ :: p2 :: _ ->
+    let loc = to_location loc in
+    (* We only use the kind of one of two input arrays here. If you've bound the
+       "%arrayblit" primitive with a sane type, both arrays have the same array
+       kind.  If you haven't, then taking the glb of both would be just as
+       likely to compound your error (e.g., by treating a Pgenarray as a
+       Pfloatarray) as to help you. *)
+    let array_type =
+      glb_array_set_type loc st (array_type_kind ~elt_sort:None env loc p2)
+    in
+    if st = array_type then None
+    else Some (Primitive (Parrayblit array_type, arity))
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
@@ -1744,6 +1774,7 @@ let lambda_primitive_needs_event_after = function
       ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
        | Punboxedintarray _ | Punboxedvectorarray _
        | Pgcscannableproductarray _ | Pgcignorableproductarray _), _)
+  | Parrayblit _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _

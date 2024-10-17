@@ -670,6 +670,7 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
+  | Parrayblit sk -> fprintf ppf "arrayblit[%a]" array_set_kind sk
   | Parrayrefu (rk, idx, mut) -> fprintf ppf "%s.unsafe_get[%a indexed by %a]"
                                  (array_mut mut)
                                  array_ref_kind rk
@@ -987,6 +988,7 @@ let name_of_primitive = function
   | Pmakearray _ -> "Pmakearray"
   | Pmakearray_dynamic _ -> "Pmakearray_dynamic"
   | Pduparray _ -> "Pduparray"
+  | Parrayblit _ -> "Parrayblit"
   | Parrayrefu _ -> "Parrayrefu"
   | Parraysetu _ -> "Parraysetu"
   | Parrayrefs _ -> "Parrayrefs"
