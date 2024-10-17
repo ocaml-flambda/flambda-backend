@@ -264,11 +264,13 @@ let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
   | Type_variant (cstrs,rep) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
-  | Type_record _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_record_flat _ | Type_abstract _ | Type_open -> []
 
 let labels_of_type ty_path decl =
   match decl.type_kind with
   | Type_record(labels, rep) ->
       label_descrs (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
+  | Type_record_flat(_labels, _rep) ->
+      assert false
   | Type_variant _ | Type_abstract _ | Type_open -> []

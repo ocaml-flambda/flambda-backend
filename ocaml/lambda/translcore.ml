@@ -637,8 +637,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
-          Record_boxed _
-        | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
+      Record_boxed _
+      | Record_inlined (_, Constructor_uniform_value, Variant_boxed _)
+          ->
           Lprim (Pfield (lbl.lbl_pos, maybe_pointer e, sem), [targ],
                  of_location ~scopes e.exp_loc)
         | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> targ
@@ -703,7 +704,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let access =
         match lbl.lbl_repres with
           Record_boxed _
-        | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
+        | Record_inlined (_, Constructor_uniform_value, Variant_boxed _)
+          ->
           Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
         | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
           assert false

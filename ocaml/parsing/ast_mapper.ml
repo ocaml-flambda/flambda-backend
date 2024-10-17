@@ -260,6 +260,7 @@ module T = struct
     | Ptype_variant l ->
         Ptype_variant (List.map (sub.constructor_declaration sub) l)
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
+    | Ptype_record_flat l -> Ptype_record_flat (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
   let map_constructor_argument sub x =
@@ -704,6 +705,9 @@ module E = struct
         variant ~loc ~attrs lab (map_opt (sub.expr sub) eo)
     | Pexp_record (l, eo) ->
         record ~loc ~attrs (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
+          (map_opt (sub.expr sub) eo)
+    | Pexp_record_flat (l, eo) ->
+        record_flat ~loc ~attrs (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
           (map_opt (sub.expr sub) eo)
     | Pexp_field (e, lid) ->
         field ~loc ~attrs (sub.expr sub e) (map_loc sub lid)

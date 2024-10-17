@@ -411,6 +411,8 @@ module Analyser =
 
       | Parsetree.Ptype_record label_declaration_list ->
           (0, Record.(doc parsetree) pos_end label_declaration_list)
+      (* CR rtjoa:   *)
+      | Parsetree.Ptype_record_flat _ -> assert false
       | Parsetree.Ptype_open ->
           (0, [])
 

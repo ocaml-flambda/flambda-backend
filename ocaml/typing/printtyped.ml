@@ -682,6 +682,9 @@ and type_kind i ppf x =
   | Ttype_record l ->
       line i ppf "Ttype_record\n";
       list (i+1) label_decl ppf l;
+  | Ttype_record_flat l ->
+      line i ppf "Ttype_record_flat\n";
+      list (i+1) label_decl ppf l;
   | Ttype_open ->
       line i ppf "Ttype_open\n"
 

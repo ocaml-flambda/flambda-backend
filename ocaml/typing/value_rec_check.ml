@@ -747,7 +747,7 @@ let rec expression : Typedtree.expression -> term_judg =
                     representation = rep } ->
         let field_mode i = match rep with
           | Record_float | Record_ufloat -> Dereference
-          | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> Return
+          | Record_unboxed | Record_inlined (_, _, Variant_unboxed)
           | Record_boxed _ | Record_inlined (_, Constructor_uniform_value, _) ->
               Guard
           | Record_inlined (_, Constructor_mixed mixed_shape, _)

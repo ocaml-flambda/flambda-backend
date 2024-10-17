@@ -160,7 +160,7 @@ let classify env loc ty sort : classification =
           match (Env.find_type p env).type_kind with
           | Type_abstract _ ->
               Any
-          | Type_record _ | Type_variant _ | Type_open ->
+          | Type_record _ | Type_record_flat _ | Type_variant _ | Type_open ->
               Addr
         with Not_found ->
           (* This can happen due to e.g. missing -I options,
@@ -620,15 +620,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
   match rep with
-  | (Record_unboxed | (Record_inlined (_, _, Variant_unboxed))) -> begin
-      (* CR layouts v1.5: This should only be reachable in the case of a missing
-         cmi, according to the comment on scrape_ty.  Reevaluate whether it's
-         needed when we deal with missing cmis. *)
-      match labels with
-      | [{ld_type}] ->
-        value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
-      | [] | _ :: _ :: _ -> assert false
-    end
+  | (Record_unboxed | (Record_inlined (_, _, Variant_unboxed)))
   | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
   | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
       let is_mutable =
@@ -640,9 +632,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       else
         let num_nodes_visited, fields =
           match rep with
-          | Record_unboxed ->
-              (* The outer match guards against this *)
-              assert false
+          | Record_unboxed
           | Record_inlined (_, Constructor_uniform_value, _)
           | Record_boxed _ | Record_float | Record_ufloat ->
               let num_nodes_visited, fields =

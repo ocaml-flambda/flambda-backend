@@ -77,6 +77,7 @@ type native_repr_kind = Unboxed | Untagged
 type jkind_sort_loc =
   | Cstr_tuple of { unboxed : bool }
   | Record of { unboxed : bool }
+  | Record_flat_sort
   | Inlined_record of { unboxed : bool }
   | Mixed_product
   | External
