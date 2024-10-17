@@ -922,19 +922,18 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pmakearray (array_kind, _, _mode) ->
         let array_kind = Empty_array_kind.of_lambda array_kind in
         register_const0 acc (Static_const.empty_array array_kind) "empty_array"
-      | Pmakearray_dynamic (_array_kind, _mode) ->
-        Misc.fatal_error "Closure_conversion.close_primitive: unimplemented"
       | Parrayblit _array_set_kind ->
         Misc.fatal_error "Closure_conversion.close_primitive: unimplemented"
-      | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
-      | Parray_to_iarray | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _
-      | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
-      | Pfloatfield _ | Psetfloatfield _ | Pduprecord _ | Pccall _ | Praise _
-      | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor | Pnot | Pnegint
-      | Pmixedfield _ | Psetmixedfield _ | Paddint | Psubint | Pmulint
-      | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
-      | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _
-      | Pcompare_bints _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
+      | Pmakearray_dynamic _ | Pbytes_to_string | Pbytes_of_string
+      | Parray_of_iarray | Parray_to_iarray | Pignore | Pgetglobal _
+      | Psetglobal _ | Pgetpredef _ | Pfield _ | Pfield_computed _ | Psetfield _
+      | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+      | Pccall _ | Praise _ | Pufloatfield _ | Psetufloatfield _ | Psequand
+      | Psequor | Pnot | Pnegint | Pmixedfield _ | Psetmixedfield _ | Paddint
+      | Psubint | Pmulint | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint
+      | Plslint | Plsrint | Pasrint | Pintcomp _ | Pcompare_ints
+      | Pcompare_floats _ | Pcompare_bints _ | Poffsetint _ | Poffsetref _
+      | Pintoffloat _
       | Pfloatofint (_, _)
       | Pfloatoffloat32 _ | Pfloat32offloat _
       | Pnegfloat (_, _)

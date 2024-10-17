@@ -688,6 +688,8 @@ let comp_primitive stack_info p sz args =
        blocks that can't be marshalled. We've decided to ignore that problem in
        the short term, as it's unlikely to cause issues - see the internal arrays
        epic for out plan to deal with it. *)
+    (* XXX mshinwell: this needs special handling for the case where the
+       initializer is absent (%makearray_dynamic_uninit) *)
     begin match kind with
     | Punboxedvectorarray _ ->
       fatal_error "SIMD is not supported in bytecode mode."
