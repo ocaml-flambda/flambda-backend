@@ -319,7 +319,8 @@ and pattern_desc =
 
            Invariant: [n > 0]
          *)
-  | Ppat_array of pattern list  (** Pattern [[| P1; ...; Pn |]] *)
+  | Ppat_array of mutable_flag * pattern list
+      (** Pattern [[| P1; ...; Pn |]] or [[: P1; ...; Pn :]] *)
   | Ppat_or of pattern * pattern  (** Pattern [P1 | P2] *)
   | Ppat_constraint of pattern * core_type option * modes
       (** [Ppat_constraint(tyopt, modes)] represents:
@@ -439,7 +440,8 @@ and expression_desc =
   | Pexp_field of expression * Longident.t loc  (** [E.l] *)
   | Pexp_setfield of expression * Longident.t loc * expression
       (** [E1.l <- E2] *)
-  | Pexp_array of expression list  (** [[| E1; ...; En |]] *)
+  | Pexp_array of mutable_flag * expression list
+      (** [[| E1; ...; En |]] or [[: E1; ...; En :]] *)
   | Pexp_ifthenelse of expression * expression * expression option
       (** [if E1 then E2 else E3] *)
   | Pexp_sequence of expression * expression  (** [E1; E2] *)
@@ -496,6 +498,12 @@ and expression_desc =
   | Pexp_extension of extension  (** [[%id]] *)
   | Pexp_unreachable  (** [.] *)
   | Pexp_stack of expression (** stack_ exp *)
+  | Pexp_comprehension of comprehension_expression
+    (** [[? BODY ...CLAUSES... ?]], where:
+          - [?] is either [""] (list), [:] (immutable array), or [|] (array).
+          - [BODY] is an expression.
+          - [CLAUSES] is a series of [comprehension_clause].
+    *)
 
 and case =
     {
@@ -589,6 +597,43 @@ and function_constraint =
     type_constraint : type_constraint;
   }
 (** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
+
+and comprehension_iterator =
+  | Pcomp_range of
+      { start : expression;
+        stop : expression;
+        direction : direction_flag
+      }
+    (** "= START to STOP" (direction = Upto)
+        "= START downto STOP" (direction = Downto) *)
+  | Pcomp_in of expression  (** "in EXPR" *)
+
+(** [@...] PAT (in/=) ... *)
+and comprehension_clause_binding =
+  { pcomp_cb_pattern : pattern;
+    pcomp_cb_iterator : comprehension_iterator;
+    pcomp_cb_attributes : attribute list
+  }
+
+and comprehension_clause =
+  | Pcomp_for of comprehension_clause_binding list
+      (** "for PAT (in/=) ... and PAT (in/=) ... and ..."; must be nonempty *)
+  | Pcomp_when of expression  (** "when EXPR" *)
+
+and comprehension =
+  { pcomp_body : expression;
+      (** The body/generator of the comprehension *)
+    pcomp_clauses : comprehension_clause list;
+      (** The clauses of the comprehension; must be nonempty *)
+  }
+
+and comprehension_expression =
+  | Pcomp_list_comprehension of comprehension (** [[BODY ...CLAUSES...]] *)
+  | Pcomp_array_comprehension of mutable_flag * comprehension
+      (** [[|BODY ...CLAUSES...|]] (flag = Mutable)
+          [[:BODY ...CLAUSES...:]] (flag = Immutable)
+          (only allowed with [-extension immutable_arrays])
+      *)
 
 (** {2 Value descriptions} *)
 

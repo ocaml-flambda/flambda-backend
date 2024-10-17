@@ -41,65 +41,6 @@
 (*********************************************)
 (* Individual features *)
 
-(** The ASTs for list and array comprehensions *)
-module Comprehensions : sig
-  type iterator =
-    | Range of
-        { start : Parsetree.expression;
-          stop : Parsetree.expression;
-          direction : Asttypes.direction_flag
-        }
-        (** "= START to STOP" (direction = Upto)
-        "= START downto STOP" (direction = Downto) *)
-    | In of Parsetree.expression  (** "in EXPR" *)
-
-  (* In [Typedtree], the [pattern] moves into the [iterator]. *)
-
-  (** [@...] PAT (in/=) ... *)
-  type clause_binding =
-    { pattern : Parsetree.pattern;
-      iterator : iterator;
-      attributes : Parsetree.attribute list
-    }
-
-  type clause =
-    | For of clause_binding list
-        (** "for PAT (in/=) ... and PAT (in/=) ... and ..."; must be nonempty *)
-    | When of Parsetree.expression  (** "when EXPR" *)
-
-  type comprehension =
-    { body : Parsetree.expression;
-          (** The body/generator of the comprehension *)
-      clauses : clause list
-          (** The clauses of the comprehension; must be nonempty *)
-    }
-
-  type expression =
-    | Cexp_list_comprehension of comprehension  (** [BODY ...CLAUSES...] *)
-    | Cexp_array_comprehension of Asttypes.mutable_flag * comprehension
-        (** [|BODY ...CLAUSES...|] (flag = Mutable)
-        [:BODY ...CLAUSES...:] (flag = Immutable)
-          (only allowed with [-extension immutable_arrays]) *)
-
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
-end
-
-(** The ASTs for immutable arrays.  When we merge this upstream, we'll merge
-    these into the existing [P{exp,pat}_array] constructors by adding a
-    [mutable_flag] argument (just as we did with [T{exp,pat}_array]). *)
-module Immutable_arrays : sig
-  type expression =
-    | Iaexp_immutable_array of Parsetree.expression list
-        (** [: E1; ...; En :] *)
-
-  type pattern =
-    | Iapat_immutable_array of Parsetree.pattern list  (** [: P1; ...; Pn :] **)
-
-  val expr_of : loc:Location.t -> expression -> Parsetree.expression
-
-  val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
-end
-
 (** The attribute placed on the inner [Ptyp_arrow] node in [x -> (y -> z)]
     (meaning the [y -> z] node) to indicate parenthesization. This is relevant
     for locals, as [local_ x -> (y -> z)] is different than
@@ -209,34 +150,6 @@ end
 
 (******************************************)
 (* Individual syntactic categories *)
-
-(** Novel syntax in expressions *)
-module Expression : sig
-  type t =
-    | Jexp_comprehension of Comprehensions.expression
-    | Jexp_immutable_array of Immutable_arrays.expression
-
-  include
-    AST
-      with type t := t * Parsetree.attributes
-       and type ast := Parsetree.expression
-
-  val expr_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.expression
-end
-
-(** Novel syntax in patterns *)
-module Pattern : sig
-  type t = Jpat_immutable_array of Immutable_arrays.pattern
-
-  include
-    AST
-      with type t := t * Parsetree.attributes
-       and type ast := Parsetree.pattern
-
-  val pat_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.pattern
-end
 
 (** Novel syntax in module types *)
 module Module_type : sig

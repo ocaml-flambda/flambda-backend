@@ -618,9 +618,6 @@ and return_type ctxt f (x, m) =
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
 and pattern ctxt f x =
-  match Jane_syntax.Pattern.of_ast x with
-  | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
-  | None ->
   if x.ppat_attributes <> [] then begin
     pp f "((%a)%a)" (pattern ctxt) {x with ppat_attributes=[]}
       (attributes ctxt) x.ppat_attributes
@@ -649,8 +646,8 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
            ({ txt = Lident("::") ;_},
             Some ([], inner_pat));
        ppat_attributes = []} ->
-      begin match Jane_syntax.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
-      | None, Ppat_tuple([None, pat1; None, pat2], Closed) ->
+      begin match inner_pat.ppat_desc with
+      | Ppat_tuple([None, pat1; None, pat2], Closed) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
       | _ -> pattern1 ctxt f p
       end
@@ -693,16 +690,21 @@ and labeled_pattern1 ctxt (f:Format.formatter) (label, x) : unit =
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
-  else match Jane_syntax.Pattern.of_ast x with
-    | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
-    | None ->
-    match x.ppat_desc with
+  else match x.ppat_desc with
     | Ppat_construct (({txt=Lident ("()"|"[]"|"true"|"false" as x);_}), None) ->
         pp f  "%s" x
     | Ppat_any -> pp f "_";
     | Ppat_var ({txt = txt;_}) -> ident_of_name f txt
-    | Ppat_array l ->
-        pp f "@[<2>[|%a|]@]"  (list (pattern1 ctxt) ~sep:";") l
+    | Ppat_array (mut, l) ->
+        let punct =
+          match mut with
+          | Mutable -> '|'
+          | Immutable -> ':'
+        in
+        pp f "@[<2>[%c%a%c]@]"
+          punct
+          (list (pattern1 ctxt) ~sep:";") l
+          punct
     | Ppat_unpack { txt = None } ->
         pp f "(module@ _)@ "
     | Ppat_unpack { txt = Some s } ->
@@ -761,11 +763,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_extension e -> extension ctxt f e
     | Ppat_open (lid, p) ->
         let with_paren =
-        match Jane_syntax.Pattern.of_ast p with
-        | Some (jpat, _attrs) -> begin match jpat with
-        | Jpat_immutable_array (Iapat_immutable_array _) -> false
-        end
-        | None -> match p.ppat_desc with
+        match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
         | Ppat_construct (({txt=Lident ("()"|"[]"|"true"|"false");_}), None) ->
             false
@@ -773,15 +771,6 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         pp f "@[<2>%a.%a @]" longident_loc lid
           (paren with_paren @@ pattern1 ctxt) p
     | _ -> paren true (pattern ctxt) f x
-
-and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
-  if attrs <> [] then
-    pp f "((%a)%a)" (pattern_jane_syntax ctxt []) pat
-      (attributes ctxt) attrs
-  else
-    match pat with
-    | Jpat_immutable_array (Iapat_immutable_array l) ->
-        pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
 
 and labeled_tuple_pattern ctxt f ~unboxed l closed =
   let closed_flag ppf = function
@@ -875,7 +864,7 @@ and sugar_expr ctxt f e =
           | Ldot (Lident "Bigarray", "Array3"), i1 :: i2 :: i3 :: rest ->
             print ".{" "," "}" (simple_expr ctxt) [i1; i2; i3] rest
           | Ldot (Lident "Bigarray", "Genarray"),
-            {pexp_desc = Pexp_array indexes; pexp_attributes = []} :: rest ->
+            {pexp_desc = Pexp_array (_, indexes); pexp_attributes = []} :: rest ->
               print ".{" "," "}" (simple_expr ctxt) indexes rest
           | _ -> false
         end
@@ -888,7 +877,7 @@ and sugar_expr ctxt f e =
           let multi_indices = String.contains s ';' in
           let i =
               match i.pexp_desc with
-                | Pexp_array l when multi_indices -> l
+                | Pexp_array (_, l) when multi_indices -> l
                 | _ -> [ i ] in
           let assign = last_is '-' s in
           let kind =
@@ -912,9 +901,6 @@ and sugar_expr ctxt f e =
   | _ -> false
 
 and expression ctxt f x =
-  match Jane_syntax.Expression.of_ast x with
-  | Some (jexpr, attrs) -> jane_syntax_expr ctxt attrs f jexpr
-  | None ->
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
       (attributes ctxt) x.pexp_attributes
@@ -1162,9 +1148,16 @@ and simple_expr ctxt f x =
         pp f "@[<hv0>@[<hv2>{@;%a%a@]@;}@]"(* "@[<hov2>{%a%a}@]" *)
           (option ~last:" with@;" (simple_expr ctxt)) eo
           (list longident_x_expression ~sep:";@;") l
-    | Pexp_array (l) ->
-        pp f "@[<0>@[<2>[|%a|]@]@]"
+    | Pexp_array (mut, l) ->
+        let punct = match mut with
+          | Immutable -> ':'
+          | Mutable -> '|'
+        in
+        pp f "@[<0>@[<2>[%c%a%c]@]@]"
+          punct
           (list (simple_expr (under_semi ctxt)) ~sep:";") l
+          punct
+    | Pexp_comprehension comp -> comprehension_expr ctxt f comp
     | Pexp_while (e1, e2) ->
         let fmt : (_,_,_) format = "@[<2>while@;%a@;do@;%a@;done@]" in
         pp f fmt (expression ctxt) e1 (expression ctxt) e2
@@ -2139,19 +2132,11 @@ and directive_argument f x =
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 
-and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
-  if attrs <> [] then
-    pp f "((%a)@,%a)" (jane_syntax_expr ctxt []) jexp
-      (attributes ctxt) attrs
-  else match jexp with
-  | Jexp_comprehension x -> comprehension_expr ctxt f x
-  | Jexp_immutable_array x -> immutable_array_expr ctxt f x
-
-and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
+and comprehension_expr ctxt f cexp =
   let punct, comp = match cexp with
-    | Cexp_list_comprehension  comp ->
+    | Pcomp_list_comprehension  comp ->
         "", comp
-    | Cexp_array_comprehension (amut, comp) ->
+    | Pcomp_array_comprehension (amut, comp) ->
         let punct = match amut with
           | Mutable  -> "|"
           | Immutable -> ":"
@@ -2161,42 +2146,38 @@ and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   comprehension ctxt f ~open_:("[" ^ punct) ~close:(punct ^ "]") comp
 
 and comprehension ctxt f ~open_ ~close cexp =
-  let Jane_syntax.Comprehensions.{ body; clauses } = cexp in
+  let { pcomp_body = body; pcomp_clauses = clauses } = cexp in
   pp f "@[<hv0>@[<hv2>%s%a@ @[<hv2>%a@]%s@]@]"
     open_
     (expression ctxt) body
     (list ~sep:"@ " (comprehension_clause ctxt)) clauses
     close
 
-and comprehension_clause ctxt f (x : Jane_syntax.Comprehensions.clause) =
+and comprehension_clause ctxt f x =
   match x with
-  | For bindings ->
+  | Pcomp_for bindings ->
       pp f "@[for %a@]" (list ~sep:"@]@ @[and " (comprehension_binding ctxt)) bindings
-  | When cond ->
+  | Pcomp_when cond ->
       pp f "@[when %a@]" (expression ctxt) cond
 
 and comprehension_binding ctxt f x =
-  let Jane_syntax.Comprehensions.{ pattern = pat; iterator; attributes = attrs } = x in
+  let { pcomp_cb_pattern = pat;
+        pcomp_cb_iterator = iterator;
+        pcomp_cb_attributes = attrs } = x in
   pp f "%a%a %a"
     (attributes ctxt) attrs
     (pattern ctxt) pat
     (comprehension_iterator ctxt) iterator
 
-and comprehension_iterator ctxt f (x : Jane_syntax.Comprehensions.iterator) =
+and comprehension_iterator ctxt f x =
   match x with
-  | Range { start; stop; direction } ->
+  | Pcomp_range { start; stop; direction } ->
       pp f "=@ %a %a%a"
         (expression ctxt) start
         direction_flag direction
         (expression ctxt) stop
-  | In seq ->
+  | Pcomp_in seq ->
       pp f "in %a" (expression ctxt) seq
-
-and immutable_array_expr ctxt f (x : Jane_syntax.Immutable_arrays.expression) =
-  match x with
-  | Iaexp_immutable_array elts ->
-      pp f "@[<0>@[<2>[:%a:]@]@]"
-         (list (simple_expr (under_semi ctxt)) ~sep:";") elts
 
 and function_param ctxt f { pparam_desc; pparam_loc = _ } =
   match pparam_desc with
