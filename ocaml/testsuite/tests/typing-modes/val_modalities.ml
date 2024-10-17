@@ -789,3 +789,13 @@ Line 4, characters 12-13:
                 ^
 Error: The value "f" is nonportable, so cannot be used inside a function that is portable.
 |}]
+
+let () =
+  let open M_portable in
+  let (_foo @ portable) () =
+    let _ = f in
+    ()
+  in
+  ()
+[%%expect{|
+|}]
