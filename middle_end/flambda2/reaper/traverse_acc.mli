@@ -44,18 +44,13 @@ val alias_kind : Name.t -> Simple.t -> t -> unit
 
 val kinds : t -> Flambda_kind.t Name.Map.t
 
-val record_dep : denv:Traverse_denv.t -> Name.t -> Graph.Dep.t -> t -> unit
-
-val record_dep' :
+val record_dep :
   denv:Traverse_denv.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
 
 val record_deps :
   denv:Traverse_denv.t -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit
 
-val cont_dep : denv:Traverse_denv.t -> Variable.t -> Simple.t -> t -> unit
-
-val func_param_dep :
-  denv:Traverse_denv.t -> Bound_parameter.t -> Variable.t -> t -> unit
+val alias_dep : denv:Traverse_denv.t -> Variable.t -> Simple.t -> t -> unit
 
 val root : Variable.t -> t -> unit
 

@@ -29,7 +29,7 @@ let apply_cont_deps denv acc apply_cont =
   let args = Apply_cont_expr.args apply_cont in
   let params = Continuation.Map.find cont denv.conts in
   let (Normal params) = params in
-  List.iter2 (fun param dep -> Acc.cont_dep ~denv param dep acc) params args
+  List.iter2 (fun param dep -> Acc.alias_dep ~denv param dep acc) params args
 
 let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   let return =
@@ -137,7 +137,7 @@ and traverse_let denv acc let_expr : rev_expr =
   let default_bp acc dep =
     let bound_to = Bound_pattern.free_names bound_pattern in
     Name_occurrences.fold_names bound_to
-      ~f:(fun () bound_to -> Acc.record_dep ~denv bound_to dep acc)
+      ~f:(fun () bound_to -> Acc.record_dep ~denv (Code_id_or_name.name bound_to) dep acc)
       ~init:()
   in
   let default acc =
@@ -302,7 +302,6 @@ and traverse_set_of_closures denv acc ~(bound_pattern : Bound_pattern.t)
   record_set_of_closures_deps ~denv names_and_function_slots set_of_closures acc
 
 and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
-  let record acc name dep = Acc.record_dep ~denv name dep acc in
   let bound_static =
     match bound_pattern with
     | Static b -> b
@@ -331,11 +330,11 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
             Simple.pattern_match
               (Simple.With_debuginfo.simple field)
               ~name:(fun field_name ~coercion:_ ->
-                record acc name
+                Acc.record_dep ~denv (Code_id_or_name.name name)
                   (Constructor
                      { relation = Block i;
                        target = Code_id_or_name.name field_name
-                     }))
+                     }) acc)
               ~const:(fun _ -> ()))
           fields
       | Set_of_closures _ -> assert false
@@ -478,7 +477,7 @@ and traverse_apply denv acc apply : rev_expr =
     | [] -> assert false
     | exn_param :: extra_params ->
       List.iter2
-        (fun param (arg, _kind) -> Acc.cont_dep ~denv param arg acc)
+        (fun param (arg, _kind) -> Acc.alias_dep ~denv param arg acc)
         extra_params extra_args;
       exn_param
   in
@@ -522,20 +521,20 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     Acc.used ~denv (Simple.var calls_are_not_pure) acc;
     for i = 1 to Flambda_arity.num_params arity - 1 do
       let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
-      Acc.record_dep' ~denv (Code_id_or_name.var v)
+      Acc.record_dep ~denv (Code_id_or_name.var v)
         (Accessor { relation = Apply (Normal 0); target = !partial_apply })
         acc;
-      Acc.record_dep' ~denv
+      Acc.record_dep ~denv
         (Code_id_or_name.var exn_arg)
         (Accessor { relation = Apply Exn; target = !partial_apply })
         acc;
-      Acc.record_dep' ~denv
+      Acc.record_dep ~denv
         (Code_id_or_name.var calls_are_not_pure)
         (Accessor { relation = Code_of_closure; target = !partial_apply })
         acc;
       partial_apply := Name.var v
     done;
-    Acc.record_dep' ~denv
+    Acc.record_dep ~denv
       (Code_id_or_name.var calls_are_not_pure)
       (Accessor { relation = Code_of_closure; target = !partial_apply })
       acc;
@@ -544,12 +543,12 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     | Some return_args ->
       List.iteri
         (fun i return_arg ->
-          Acc.record_dep' ~denv
+          Acc.record_dep ~denv
             (Code_id_or_name.var return_arg)
             (Accessor { relation = Apply (Normal i); target = !partial_apply })
             acc)
         return_args);
-    Acc.record_dep' ~denv
+    Acc.record_dep ~denv
       (Code_id_or_name.var exn_arg)
       (Accessor { relation = Apply Exn; target = !partial_apply })
       acc
@@ -621,13 +620,14 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
     List.iter (fun arg -> Acc.used ~denv (Simple.var arg) acc) code_dep.params
   else
     List.iter2
-      (fun param arg -> Acc.func_param_dep ~denv param arg acc)
+      (fun param arg ->
+         Acc.record_dep ~denv (Code_id_or_name.var (Bound_parameter.var param)) (Alias { target = Name.var arg }) acc)
       (Bound_parameters.to_list params)
       code_dep.params;
   if is_opaque
   then Acc.used ~denv (Simple.var code_dep.my_closure) acc
   else
-    Acc.record_dep ~denv (Name.var my_closure)
+    Acc.record_dep ~denv (Code_id_or_name.var my_closure)
       (Alias { target = Name.var code_dep.my_closure })
       acc;
   let body = traverse denv acc body in

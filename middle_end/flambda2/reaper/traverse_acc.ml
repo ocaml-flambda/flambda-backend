@@ -87,26 +87,17 @@ let add_code code_id dep t = t.code <- Code_id.Map.add code_id dep t.code
 
 let find_code t code_id = Code_id.Map.find code_id t.code
 
-let record_dep ~denv:_ name dep t =
-  let name = Code_id_or_name.name name in
-  Graph.add_dep t.deps name dep
-
-let record_dep' ~denv:_ code_id_or_name dep t =
+let record_dep ~denv:_ code_id_or_name dep t =
   Graph.add_dep t.deps code_id_or_name dep
 
 let record_deps ~denv:_ code_id_or_name deps t =
   Graph.add_deps t.deps code_id_or_name deps
 
-let cont_dep ~denv:_ pat dep t =
+let alias_dep ~denv:_ pat dep t =
   Simple.pattern_match dep
     ~name:(fun name ~coercion:_ ->
       Graph.add_dep t.deps (Code_id_or_name.var pat) (Alias { target = name }))
     ~const:(fun _ -> ())
-
-let func_param_dep ~denv:_ param arg t =
-  Graph.add_dep t.deps
-    (Code_id_or_name.var (Bound_parameter.var param))
-    (Alias { target = Name.var arg })
 
 let root v t = Graph.add_use t.deps (Code_id_or_name.var v)
 
