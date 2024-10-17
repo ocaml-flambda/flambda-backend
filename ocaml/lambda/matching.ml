@@ -2033,15 +2033,12 @@ let get_mod_field modname field =
        Env.add_persistent_structure mod_ident
          (Lazy.force Env.initial)
      in
-     match Env.open_pers_signature modname env with
-     | Error `Not_found ->
-         fatal_errorf "Module %s unavailable." modname
-     | Ok env -> (
-         match Env.find_value_by_name (Longident.Lident field) env with
-         | exception Not_found ->
-             fatal_errorf "Primitive %s.%s not found." modname field
-         | path, _ -> transl_value_path Loc_unknown env path
-       ))
+     let _, env = Env.open_pers_signature modname env in
+     match Env.find_value_by_name (Longident.Lident field) env with
+     | exception Not_found ->
+         fatal_errorf "Primitive %s.%s not found." modname field
+     | path, _ -> transl_value_path Loc_unknown env path
+    )
 
 let code_force_lazy_block = get_mod_field "CamlinternalLazy" "force_lazy_block"
 

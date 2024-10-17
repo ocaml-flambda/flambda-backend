@@ -741,3 +741,61 @@ module type S' =
       end
   end
 |}]
+
+
+(* interaction between open and locks *)
+module M_nonportable = struct
+    let f @ nonportable = fun () -> ()
+end
+
+module M_portable = struct
+    let f @ portable = fun () -> ()
+    end
+[%%expect{|
+module M_nonportable : sig val f : unit -> unit @@ global many end
+module M_portable : sig val f : unit -> unit @@ global many portable end
+|}]
+
+let (foo @ portable) () =
+    let open M_nonportable in
+    let _ = f in
+    ()
+[%%expect{|
+Line 3, characters 12-13:
+3 |     let _ = f in
+                ^
+Error: The value "f" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let (_foo @ portable) () =
+    let open M_portable in
+    let _ = f in
+    ()
+
+[%%expect{|
+val _foo : unit -> unit @@ global many = <fun>
+|}]
+
+let () =
+  let open M_nonportable in
+  let (foo @ portable) () =
+    let _ = f in
+    ()
+  in
+  ()
+[%%expect{|
+Line 4, characters 12-13:
+4 |     let _ = f in
+                ^
+Error: The value "f" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let () =
+  let open M_portable in
+  let (_foo @ portable) () =
+    let _ = f in
+    ()
+  in
+  ()
+[%%expect{|
+|}]

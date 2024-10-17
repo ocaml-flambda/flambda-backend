@@ -71,11 +71,7 @@ let rec env_from_summary sum subst =
       | Env_open(s, path) ->
           let env = env_from_summary s subst in
           let path' = Subst.module_path subst path in
-          begin match Env.open_signature Asttypes.Override path' env with
-          | Ok env -> env
-          | Error `Functor -> assert false
-          | Error `Not_found -> raise (Error (Module_not_found path'))
-          end
+          Env.open_signature_by_path path' env
       | Env_functor_arg(Env_module(s, id, pres, desc), id')
             when Ident.same id id' ->
           let desc =

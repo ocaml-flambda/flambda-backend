@@ -374,6 +374,10 @@ module IdTbl =
 
           next: ('lock, 'a, 'b) t;
           (** The table before opening the module. *)
+
+          locks: 'lock list;
+          (** The locks from the definition of [root] to this [open], in
+              that order. *)
         }
 
       | Map of {
@@ -396,7 +400,7 @@ module IdTbl =
     let remove id tbl =
       {tbl with current = Ident.remove id tbl.current}
 
-    let add_open slot wrap root components next =
+    let add_open slot wrap root components locks next =
       let using =
         match slot with
         | None -> None
@@ -404,7 +408,7 @@ module IdTbl =
       in
       {
         current = Ident.empty;
-        layer = Open {using; root; components; next};
+        layer = Open {using; root; components; next; locks};
       }
 
     let remove_last_open rt tbl =
@@ -459,10 +463,10 @@ module IdTbl =
         Ok (Pident id, macc, desc)
       with Not_found ->
         begin match tbl.layer with
-        | Open {using; root; next; components} ->
+        | Open {using; root; next; components; locks} ->
             begin try
               let descr = wrap (NameMap.find name components) in
-              let res = Pdot (root, name), macc, descr in
+              let res = Pdot (root, name), (locks @ macc), descr in
               if mark then begin match using with
               | None -> ()
               | Some f -> begin match
@@ -640,7 +644,7 @@ and module_components_repr =
   | Functor_comps of functor_components
 
 and module_components_failure =
-  | No_components_abstract
+  | No_components_abstract of Path.t
   | No_components_alias of Path.t
 
 and structure_components = {
@@ -735,6 +739,14 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
+type structure_components_reason =
+  | Project
+  | Open
+
+let print_structure_components_reason ppf = function
+  | Project -> Format.fprintf ppf "have any components"
+  | Open -> Format.fprintf ppf "be opend"
+
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -750,9 +762,9 @@ type lookup_error =
   | Masked_self_variable of Longident.t
   | Masked_ancestor_variable of Longident.t
   | Structure_used_as_functor of Longident.t
-  | Abstract_used_as_functor of Longident.t
-  | Functor_used_as_structure of Longident.t
-  | Abstract_used_as_structure of Longident.t
+  | Abstract_used_as_functor of Longident.t * Path.t
+  | Functor_used_as_structure of Longident.t * structure_components_reason
+  | Abstract_used_as_structure of Longident.t * Path.t * structure_components_reason
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
@@ -2022,7 +2034,7 @@ let rec components_of_module_maker
           fcomp_shape = cm_shape;
           fcomp_cache = Hashtbl.create 17;
           fcomp_subst_cache = Hashtbl.create 17 })
-  | Mty_ident _ | Mty_strengthen _ -> Error No_components_abstract
+  | Mty_ident p | Mty_strengthen (_, p, _) -> Error (No_components_abstract p)
   | Mty_alias p -> Error (No_components_alias p)
 
 (* Insertion of bindings by identifier + path *)
@@ -2593,152 +2605,6 @@ let enter_unbound_module name reason env =
     modules = IdTbl.add id (Mod_unbound reason) env.modules;
     summary = Env_module_unbound(env.summary, name, reason) }
 
-(* Open a signature path *)
-
-let add_components slot root env0 comps =
-  let add_l w comps env0 =
-    TycompTbl.add_open slot w root comps env0
-  in
-  let add w comps env0 = IdTbl.add_open slot w root comps env0 in
-  let constrs =
-    add_l (fun x -> `Constructor x) comps.comp_constrs env0.constrs
-  in
-  let labels =
-    add_l (fun x -> `Label x) comps.comp_labels env0.labels
-  in
-  let values =
-    add (fun x -> `Value x) comps.comp_values env0.values
-  in
-  let types =
-    add (fun x -> `Type x) comps.comp_types env0.types
-  in
-  let modtypes =
-    add (fun x -> `Module_type x) comps.comp_modtypes env0.modtypes
-  in
-  let classes =
-    add (fun x -> `Class x) comps.comp_classes env0.classes
-  in
-  let cltypes =
-    add (fun x -> `Class_type x) comps.comp_cltypes env0.cltypes
-  in
-  let modules =
-    add (fun x -> `Module x) comps.comp_modules env0.modules
-  in
-  { env0 with
-    summary = Env_open(env0.summary, root);
-    constrs;
-    labels;
-    values;
-    types;
-    modtypes;
-    classes;
-    cltypes;
-    modules;
-  }
-
-let open_signature slot root env0 : (_,_) result =
-  match get_components_res (find_module_components root env0) with
-  | Error _ -> Error `Not_found
-  | exception Not_found -> Error `Not_found
-  | Ok (Functor_comps _) -> Error `Functor
-  | Ok (Structure_comps comps) ->
-    Ok (add_components slot root env0 comps)
-
-let remove_last_open root env0 =
-  let rec filter_summary summary =
-    match summary with
-      Env_empty -> raise Exit
-    | Env_open (s, p) ->
-        if Path.same p root then s else raise Exit
-    | Env_value _
-    | Env_type _
-    | Env_extension _
-    | Env_module _
-    | Env_modtype _
-    | Env_class _
-    | Env_cltype _
-    | Env_functor_arg _
-    | Env_constraints _
-    | Env_persistent _
-    | Env_copy_types _
-    | Env_value_unbound _
-    | Env_module_unbound _ ->
-        map_summary filter_summary summary
-  in
-  match filter_summary env0.summary with
-  | summary ->
-      let rem_l tbl = TycompTbl.remove_last_open root tbl
-      and rem tbl = IdTbl.remove_last_open root tbl in
-      Some { env0 with
-             summary;
-             constrs = rem_l env0.constrs;
-             labels = rem_l env0.labels;
-             values = rem env0.values;
-             types = rem env0.types;
-             modtypes = rem env0.modtypes;
-             classes = rem env0.classes;
-             cltypes = rem env0.cltypes;
-             modules = rem env0.modules; }
-  | exception Exit ->
-      None
-
-(* Open a signature from a file *)
-
-let open_pers_signature name env =
-  match open_signature None (Pident(Ident.create_persistent name)) env with
-  | (Ok _ | Error `Not_found as res) -> res
-  | Error `Functor -> assert false
-        (* a compilation unit cannot refer to a functor *)
-
-let open_signature
-    ?(used_slot = ref false)
-    ?(loc = Location.none) ?(toplevel = false)
-    ovf root env =
-  let unused =
-    match ovf with
-    | Asttypes.Fresh -> Warnings.Unused_open (Path.name root)
-    | Asttypes.Override -> Warnings.Unused_open_bang (Path.name root)
-  in
-  let warn_unused =
-    Warnings.is_active unused
-  and warn_shadow_id =
-    Warnings.is_active (Warnings.Open_shadow_identifier ("", ""))
-  and warn_shadow_lc =
-    Warnings.is_active (Warnings.Open_shadow_label_constructor ("",""))
-  in
-  if not toplevel && not loc.Location.loc_ghost
-     && (warn_unused || warn_shadow_id || warn_shadow_lc)
-  then begin
-    let used = used_slot in
-    if warn_unused then
-      !add_delayed_check_forward
-        (fun () ->
-           if not !used then begin
-             used := true;
-             Location.prerr_warning loc unused
-           end
-        );
-    let shadowed = ref [] in
-    let slot s b =
-      begin match check_shadowing env b with
-      | Some kind when
-          ovf = Asttypes.Fresh && not (List.mem (kind, s) !shadowed) ->
-          shadowed := (kind, s) :: !shadowed;
-          let w =
-            match kind with
-            | "label" | "constructor" ->
-                Warnings.Open_shadow_label_constructor (kind, s)
-            | _ -> Warnings.Open_shadow_identifier (kind, s)
-          in
-          Location.prerr_warning loc w
-      | _ -> ()
-      end;
-      used := true
-    in
-    open_signature (Some slot) root env
-  end
-  else open_signature None root env
-
 (* Read a signature from a file *)
 let read_signature modname cmi ~add_binding =
   let mty = read_pers_mod modname cmi ~add_binding in
@@ -3224,16 +3090,16 @@ let rec lookup_module_components ~errors ~use ~loc lid env =
         !components_of_functor_appl' ~loc ~f_path ~f_comp ~arg env in
       Papply (f_path, arg), [], comps
 
-and lookup_structure_components ~errors ~use ~loc lid env =
+and lookup_structure_components ~errors ~use ~loc ?(reason = Project) lid env =
   let path, locks, comps = lookup_module_components ~errors ~use ~loc lid env in
   match get_components_res comps with
   | Ok (Structure_comps comps) -> path, locks, comps
   | Ok (Functor_comps _) ->
-      may_lookup_error errors loc env (Functor_used_as_structure lid)
-  | Error No_components_abstract ->
-      may_lookup_error errors loc env (Abstract_used_as_structure lid)
+      may_lookup_error errors loc env (Functor_used_as_structure (lid, reason))
+  | Error (No_components_abstract p) ->
+      may_lookup_error errors loc env (Abstract_used_as_structure (lid, p, reason))
   | Error (No_components_alias p) ->
-      may_lookup_error errors loc env (Cannot_scrape_alias(lid, p))
+      may_lookup_error errors loc env (Cannot_scrape_alias (lid, p))
 
 and get_functor_components ~errors ~loc lid env comps =
   match get_components_res comps with
@@ -3245,10 +3111,10 @@ and get_functor_components ~errors ~loc lid env comps =
     end
   | Ok (Structure_comps _) ->
       may_lookup_error errors loc env (Structure_used_as_functor lid)
-  | Error No_components_abstract ->
-      may_lookup_error errors loc env (Abstract_used_as_functor lid)
+  | Error (No_components_abstract p) ->
+      may_lookup_error errors loc env (Abstract_used_as_functor (lid, p))
   | Error (No_components_alias p) ->
-      may_lookup_error errors loc env (Cannot_scrape_alias(lid, p))
+      may_lookup_error errors loc env (Cannot_scrape_alias (lid, p))
 
 and lookup_all_args ~errors ~use ~loc lid0 env =
   let rec loop_lid_arg args = function
@@ -3416,6 +3282,157 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
                let use_fun () = use_constructor ~use ~loc usage env cda in
                (cda.cda_description, use_fun))
             cstrs
+
+(* Open a signature path *)
+
+let add_components slot root env0 comps locks =
+  let add_l w comps env0 =
+    TycompTbl.add_open slot w root comps env0
+  in
+  let add_v w comps env0 =
+    IdTbl.add_open slot w root comps locks env0
+  in
+  let add w comps env0 =
+    IdTbl.add_open slot w root comps ([] : empty list) env0
+  in
+  let constrs =
+    add_l (fun x -> `Constructor x) comps.comp_constrs env0.constrs
+  in
+  let labels =
+    add_l (fun x -> `Label x) comps.comp_labels env0.labels
+  in
+  let values =
+    add_v (fun x -> `Value x) comps.comp_values env0.values
+  in
+  let types =
+    add (fun x -> `Type x) comps.comp_types env0.types
+  in
+  let modtypes =
+    add (fun x -> `Module_type x) comps.comp_modtypes env0.modtypes
+  in
+  let classes =
+    add_v (fun x -> `Class x) comps.comp_classes env0.classes
+  in
+  let cltypes =
+    add (fun x -> `Class_type x) comps.comp_cltypes env0.cltypes
+  in
+  let modules =
+    add_v (fun x -> `Module x) comps.comp_modules env0.modules
+  in
+  { env0 with
+    summary = Env_open(env0.summary, root);
+    constrs;
+    labels;
+    values;
+    types;
+    modtypes;
+    classes;
+    cltypes;
+    modules;
+  }
+
+let open_signature_by_path path env0 =
+  let comps = find_structure_components path env0 in
+  add_components None path env0 comps []
+
+let open_signature ~errors ~loc slot lid env0 =
+  let (root, locks, comps) =
+    lookup_structure_components ~errors ~use:true ~loc ~reason:Open lid env0
+  in
+  root, add_components slot root env0 comps locks
+
+let remove_last_open root env0 =
+  let rec filter_summary summary =
+    match summary with
+      Env_empty -> raise Exit
+    | Env_open (s, p) ->
+        if Path.same p root then s else raise Exit
+    | Env_value _
+    | Env_type _
+    | Env_extension _
+    | Env_module _
+    | Env_modtype _
+    | Env_class _
+    | Env_cltype _
+    | Env_functor_arg _
+    | Env_constraints _
+    | Env_persistent _
+    | Env_copy_types _
+    | Env_value_unbound _
+    | Env_module_unbound _ ->
+        map_summary filter_summary summary
+  in
+  match filter_summary env0.summary with
+  | summary ->
+      let rem_l tbl = TycompTbl.remove_last_open root tbl
+      and rem tbl = IdTbl.remove_last_open root tbl in
+      Some { env0 with
+             summary;
+             constrs = rem_l env0.constrs;
+             labels = rem_l env0.labels;
+             values = rem env0.values;
+             types = rem env0.types;
+             modtypes = rem env0.modtypes;
+             classes = rem env0.classes;
+             cltypes = rem env0.cltypes;
+             modules = rem env0.modules; }
+  | exception Exit ->
+      None
+
+(* Open a signature from a file *)
+
+let open_pers_signature name env =
+  open_signature ~errors:false ~loc:Location.none None (Lident name) env
+
+let open_signature
+    ~used_slot
+    ~loc ~toplevel
+    ovf lid env =
+  let lid_s = Format.asprintf "%a" Pprintast.longident lid.txt in
+  let unused =
+    match ovf with
+    | Asttypes.Fresh -> Warnings.Unused_open lid_s
+    | Asttypes.Override -> Warnings.Unused_open_bang lid_s
+  in
+  let warn_unused =
+    Warnings.is_active unused
+  and warn_shadow_id =
+    Warnings.is_active (Warnings.Open_shadow_identifier ("", ""))
+  and warn_shadow_lc =
+    Warnings.is_active (Warnings.Open_shadow_label_constructor ("",""))
+  in
+  if not toplevel && not loc.Location.loc_ghost
+     && (warn_unused || warn_shadow_id || warn_shadow_lc)
+  then begin
+    let used = used_slot in
+    if warn_unused then
+      !add_delayed_check_forward
+        (fun () ->
+           if not !used then begin
+             used := true;
+             Location.prerr_warning loc unused
+           end
+        );
+    let shadowed = ref [] in
+    let slot s b =
+      begin match check_shadowing env b with
+      | Some kind when
+          ovf = Asttypes.Fresh && not (List.mem (kind, s) !shadowed) ->
+          shadowed := (kind, s) :: !shadowed;
+          let w =
+            match kind with
+            | "label" | "constructor" ->
+                Warnings.Open_shadow_label_constructor (kind, s)
+            | _ -> Warnings.Open_shadow_identifier (kind, s)
+          in
+          Location.prerr_warning loc w
+      | _ -> ()
+      end;
+      used := true
+    in
+    open_signature ~errors:true ~loc:lid.loc (Some slot) lid.txt env
+  end
+  else open_signature ~errors:true ~loc:lid.loc None lid.txt env
 
 (* General forms of the lookup functions *)
 
@@ -4155,18 +4172,22 @@ let report_lookup_error _loc env ppf = function
      fprintf ppf "Illegal recursive module reference"
   | Structure_used_as_functor lid ->
       fprintf ppf "@[The module %a is a structure, it cannot be applied@]"
+      (Style.as_inline_code !print_longident) lid
+  | Abstract_used_as_functor (lid, p) ->
+      fprintf ppf "@[The module %a is of abstract type %a, it cannot be applied@]"
         (Style.as_inline_code !print_longident) lid
-  | Abstract_used_as_functor lid ->
-      fprintf ppf "@[The module %a is abstract, it cannot be applied@]"
-        (Style.as_inline_code !print_longident) lid
-  | Functor_used_as_structure lid ->
+        (Style.as_inline_code !print_path) p
+  | Functor_used_as_structure (lid, reason) ->
       fprintf ppf "@[The module %a is a functor, \
-                   it cannot have any components@]"
+                   it cannot %a@]"
         (Style.as_inline_code !print_longident) lid
-  | Abstract_used_as_structure lid ->
-      fprintf ppf "@[The module %a is abstract, \
-                   it cannot have any components@]"
+        print_structure_components_reason reason
+  | Abstract_used_as_structure (lid, p, reason) ->
+      fprintf ppf "@[The module %a is of abstract type %a, \
+                   it cannot %a@]"
         (Style.as_inline_code !print_longident) lid
+        (Style.as_inline_code !print_path) p
+        print_structure_components_reason reason
   | Generative_used_as_applicative lid ->
       fprintf ppf "@[The functor %a is generative,@ it@ cannot@ be@ \
                    applied@ in@ type@ expressions@]"
