@@ -373,13 +373,14 @@ let index_occurrences binary_annots =
   let index : (Longident.t Location.loc * Shape_reduce.result) list ref =
     ref []
   in
-  let f ~namespace env path lid =
-    match Env.shape_of_path ~namespace env path with
-    | exception Not_found -> ()
-    | { uid = Some (Predef _); _ } -> ()
-    | path_shape ->
-      let result = Shape_reduce.local_reduce_for_uid env path_shape in
-      index := (lid, result) :: !index
+  let f ~namespace env path (lid : _ Location.loc) =
+    if not (Location.is_none lid.loc) then
+      match Env.shape_of_path ~namespace env path with
+      | exception Not_found -> ()
+      | { uid = Some (Predef _); _ } -> ()
+      | path_shape ->
+        let result = Shape_reduce.local_reduce_for_uid env path_shape in
+        index := (lid, result) :: !index
   in
   iter_on_annots (iter_on_occurrences ~f) binary_annots;
   Array.of_list !index
