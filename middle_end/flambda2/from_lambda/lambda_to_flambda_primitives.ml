@@ -198,7 +198,8 @@ let convert_array_ref_kind_to_array_kind (array_ref_kind : Array_ref_kind.t) :
     match nfo with
     | Values -> Values
     | Immediates -> Immediates
-    | Naked_floats | Naked_float32s -> Naked_float32s
+    | Naked_floats -> Naked_floats
+    | Naked_float32s -> Naked_float32s
     | Naked_int32s -> Naked_int32s
     | Naked_int64s -> Naked_int64s
     | Naked_nativeints -> Naked_nativeints
