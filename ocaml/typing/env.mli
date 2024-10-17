@@ -210,6 +210,10 @@ type lock_item =
   | Module
   | Class
 
+type structure_components_reason =
+  | Project
+  | Open
+
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -226,8 +230,8 @@ type lookup_error =
   | Masked_ancestor_variable of Longident.t
   | Structure_used_as_functor of Longident.t
   | Abstract_used_as_functor of Longident.t * Path.t
-  | Functor_used_as_structure of Longident.t
-  | Abstract_used_as_structure of Longident.t * Path.t
+  | Functor_used_as_structure of Longident.t * structure_components_reason
+  | Abstract_used_as_structure of Longident.t * Path.t * structure_components_reason
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t

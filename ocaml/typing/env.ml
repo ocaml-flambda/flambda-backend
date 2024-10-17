@@ -739,6 +739,14 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
+type structure_components_reason =
+  | Project
+  | Open
+
+let print_structure_components_reason ppf = function
+  | Project -> Format.fprintf ppf "have any components"
+  | Open -> Format.fprintf ppf "be opend"
+
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -755,8 +763,8 @@ type lookup_error =
   | Masked_ancestor_variable of Longident.t
   | Structure_used_as_functor of Longident.t
   | Abstract_used_as_functor of Longident.t * Path.t
-  | Functor_used_as_structure of Longident.t
-  | Abstract_used_as_structure of Longident.t * Path.t
+  | Functor_used_as_structure of Longident.t * structure_components_reason
+  | Abstract_used_as_structure of Longident.t * Path.t * structure_components_reason
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
@@ -3082,14 +3090,14 @@ let rec lookup_module_components ~errors ~use ~loc lid env =
         !components_of_functor_appl' ~loc ~f_path ~f_comp ~arg env in
       Papply (f_path, arg), [], comps
 
-and lookup_structure_components ~errors ~use ~loc lid env =
+and lookup_structure_components ~errors ~use ~loc ?(reason = Project) lid env =
   let path, locks, comps = lookup_module_components ~errors ~use ~loc lid env in
   match get_components_res comps with
   | Ok (Structure_comps comps) -> path, locks, comps
   | Ok (Functor_comps _) ->
-      may_lookup_error errors loc env (Functor_used_as_structure lid)
+      may_lookup_error errors loc env (Functor_used_as_structure (lid, reason))
   | Error (No_components_abstract p) ->
-      may_lookup_error errors loc env (Abstract_used_as_structure (lid, p))
+      may_lookup_error errors loc env (Abstract_used_as_structure (lid, p, reason))
   | Error (No_components_alias p) ->
       may_lookup_error errors loc env (Cannot_scrape_alias (lid, p))
 
@@ -3329,7 +3337,7 @@ let open_signature_by_path path env0 =
 
 let open_signature ~errors ~loc slot lid env0 =
   let (root, locks, comps) =
-    lookup_structure_components ~errors ~use:true ~loc lid env0
+    lookup_structure_components ~errors ~use:true ~loc ~reason:Open lid env0
   in
   root, add_components slot root env0 comps locks
 
@@ -4169,15 +4177,17 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "@[The module %a is of abstract type %a, it cannot be applied@]"
         (Style.as_inline_code !print_longident) lid
         (Style.as_inline_code !print_path) p
-  | Functor_used_as_structure lid ->
+  | Functor_used_as_structure (lid, reason) ->
       fprintf ppf "@[The module %a is a functor, \
-                   it cannot be used as a structure@]"
+                   it cannot %a@]"
         (Style.as_inline_code !print_longident) lid
-  | Abstract_used_as_structure (lid, p) ->
+        print_structure_components_reason reason
+  | Abstract_used_as_structure (lid, p, reason) ->
       fprintf ppf "@[The module %a is of abstract type %a, \
-                   it cannot be used as a structure@]"
+                   it cannot %a@]"
         (Style.as_inline_code !print_longident) lid
         (Style.as_inline_code !print_path) p
+        print_structure_components_reason reason
   | Generative_used_as_applicative lid ->
       fprintf ppf "@[The functor %a is generative,@ it@ cannot@ be@ \
                    applied@ in@ type@ expressions@]"
