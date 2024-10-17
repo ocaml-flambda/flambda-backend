@@ -264,6 +264,7 @@
   compmisc
   makedepend
   compile_common
+  instantiator
   ; manual update: mli only files
   annot
   value_rec_types
@@ -284,6 +285,7 @@
  (modules
   ;; bytecomp/
   bytegen
+  byteinstantiator
   bytelibrarian
   bytelink
   bytepackager

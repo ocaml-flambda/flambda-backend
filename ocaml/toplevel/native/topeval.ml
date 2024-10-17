@@ -104,6 +104,7 @@ let load_lambda ppf ~compilation_unit ~required_globals phrase_name lam size =
     { Lambda.
       code = slam;
       main_module_block_size = size;
+      arg_block_field = None;
       compilation_unit;
       required_globals;
     }
@@ -212,7 +213,8 @@ let execute_phrase print_outcome ppf phr =
         if Config.flambda then
           let { Lambda.compilation_unit; main_module_block_size = size;
                 required_globals; code = res } =
-            Translmod.transl_implementation phrase_comp_unit (str, Tcoerce_none)
+            Translmod.transl_implementation phrase_comp_unit
+              (str, Tcoerce_none, None)
               ~style:Plain_block
           in
           remember compilation_unit sg';
