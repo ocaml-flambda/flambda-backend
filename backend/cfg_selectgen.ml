@@ -1012,8 +1012,6 @@ class virtual selector_generic =
                  desc = Always s1.entry.start;
                  id = next_instr_id ()
                };
-          DLL.iter s1.layout ~f:(fun (block : Cfg.basic_block) ->
-              if block.can_raise then block.exn <- Some s2.entry.start);
           DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
           let join_block =
@@ -1413,8 +1411,6 @@ class virtual selector_generic =
                  desc = Always s1.entry.start;
                  id = next_instr_id ()
                };
-          DLL.iter s1.layout ~f:(fun (block : Cfg.basic_block) ->
-              if block.can_raise then block.exn <- Some s2.entry.start);
           DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
           let dummy_block =
@@ -1575,9 +1571,17 @@ class virtual selector_generic =
             if block.terminator.desc <> Cfg.Never
             then (
               block.can_raise <- Cfg.can_raise_terminator block.terminator.desc;
+              if block.terminator.desc = Cfg.Return
+              then
+                DLL.add_end block.body
+                  (Sub_cfg.make_instr Cfg.Reloadretaddr [||] [||] Debuginfo.none);
               Cfg.add_block_exn cfg block;
               DLL.add_end layout block.start)
             else assert (DLL.is_empty block.body));
+        (* note: `Cfgize.Stack_offset_and_exn.update_cfg` may add edges to the
+           graph, and should hence be executed before
+           `Cfg.register_predecessors_for_all_blocks`. *)
+        Cfgize.Stack_offset_and_exn.update_cfg cfg;
         Cfg.register_predecessors_for_all_blocks cfg;
         let cfg_with_layout =
           Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false
@@ -1585,7 +1589,6 @@ class virtual selector_generic =
         in
         (* CR xclerc for xclerc: Regalloc_irc_utils.log_cfg_with_infos ~indent:1
            (Cfg_with_infos.make cfg_with_layout); *)
-        Cfgize.Stack_offset_and_exn.update_cfg cfg;
         Merge_straightline_blocks.run cfg_with_layout;
         Eliminate_dead_code.run_dead_block cfg_with_layout;
         Simplify_terminator.run cfg;

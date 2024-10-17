@@ -20,7 +20,9 @@
 open Arch
 open Selection_utils
 
-let specific x = Cfg_selectgen.Basic (Op (Specific x))
+let specific x =
+  assert (not (Arch.operation_can_raise x));
+  Cfg_selectgen.Basic (Op (Specific x))
 
 let pseudoregs_for_operation op arg res =
   match (op : Cfg.operation) with
