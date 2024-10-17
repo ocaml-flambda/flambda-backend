@@ -226,9 +226,9 @@ module TycompTbl =
         opened = Some {using; components; root; next};
       }
 
-    let remove_last_open tbl =
+    let remove_last_open rt tbl =
       match tbl.opened with
-      | Some {next; _} ->
+      | Some {root; next; _} when Path.same rt root ->
           { next with current =
             Ident.fold_all Ident.add tbl.current next.current }
       | _ ->
@@ -411,9 +411,9 @@ module IdTbl =
         layer = Open {using; root; components; next; locks};
       }
 
-    let remove_last_open tbl =
+    let remove_last_open rt tbl =
       match tbl.layer with
-      | Open {next; _} ->
+      | Open {root; next; _} when Path.same rt root ->
           { next with current =
             Ident.fold_all Ident.add tbl.current next.current }
       | _ ->
@@ -3333,11 +3333,12 @@ let open_signature ~errors ~loc slot lid env0 =
   in
   root, add_components slot root env0 comps locks
 
-let remove_last_open env0 =
+let remove_last_open root env0 =
   let rec filter_summary summary =
     match summary with
       Env_empty -> raise Exit
-    | Env_open (s, _) -> s
+    | Env_open (s, p) ->
+        if Path.same p root then s else raise Exit
     | Env_value _
     | Env_type _
     | Env_extension _
@@ -3355,8 +3356,8 @@ let remove_last_open env0 =
   in
   match filter_summary env0.summary with
   | summary ->
-      let rem_l tbl = TycompTbl.remove_last_open tbl
-      and rem tbl = IdTbl.remove_last_open tbl in
+      let rem_l tbl = TycompTbl.remove_last_open root tbl
+      and rem tbl = IdTbl.remove_last_open root tbl in
       Some { env0 with
              summary;
              constrs = rem_l env0.constrs;
