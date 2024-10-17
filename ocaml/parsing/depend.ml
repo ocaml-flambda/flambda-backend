@@ -175,6 +175,8 @@ let add_type_declaration bv td =
       List.iter (add_constructor_decl bv) cstrs
   | Ptype_record lbls ->
       List.iter (fun pld -> add_type bv pld.pld_type) lbls
+  | Ptype_record_flat lbls ->
+      List.iter (fun pld -> add_type bv pld.pld_type) lbls
   | Ptype_open -> () in
   add_tkind td.ptype_kind
 
@@ -225,7 +227,7 @@ let rec add_pattern bv pat =
       add_opt
         (fun bv (_,p) -> add_pattern bv p)
         bv opt
-  | Ppat_record(pl, _) ->
+  | Ppat_record(pl, _) | Ppat_record_flat(pl, _) ->
       List.iter (fun (lbl, p) -> add bv lbl; add_pattern bv p) pl
   | Ppat_array pl -> List.iter (add_pattern bv) pl
   | Ppat_or(p1, p2) -> add_pattern bv p1; add_pattern bv p2
@@ -278,8 +280,12 @@ let rec add_expr bv exp =
   | Pexp_record(lblel, opte) ->
       List.iter (fun (lbl, e) -> add bv lbl; add_expr bv e) lblel;
       add_opt add_expr bv opte
-  | Pexp_field(e, fld) -> add_expr bv e; add bv fld
-  | Pexp_setfield(e1, fld, e2) -> add_expr bv e1; add bv fld; add_expr bv e2
+  | Pexp_record_flat(lblel, opte) ->
+      List.iter (fun (lbl, e) -> add bv lbl; add_expr bv e) lblel;
+      add_opt add_expr bv opte
+  | Pexp_field(e, fld) | Pexp_field_flat(e, fld) -> add_expr bv e; add bv fld
+  | Pexp_setfield(e1, fld, e2) | Pexp_setfield_flat(e1, fld, e2) ->
+      add_expr bv e1; add bv fld; add_expr bv e2
   | Pexp_array el -> List.iter (add_expr bv) el
   | Pexp_ifthenelse(e1, e2, opte3) ->
       add_expr bv e1; add_expr bv e2; add_opt add_expr bv opte3

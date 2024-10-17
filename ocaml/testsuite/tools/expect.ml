@@ -278,9 +278,11 @@ let eval_expect_file _fname ~file_contents =
 let output_slice oc s a b =
   output_string oc (String.sub s ~pos:a ~len:(b - a))
 
+let foo = ref ""
+
 let output_corrected oc ~file_contents correction =
-  let output_body oc { str; tag } =
-    Printf.fprintf oc "{%s|%s|%s}" tag str tag
+  let output_body oc { _str; tag } =
+    Printf.fprintf oc "{%s|%s|%s}" tag !foo tag
   in
   let ofs =
     List.fold_left correction.corrected_expectations ~init:0
@@ -312,6 +314,7 @@ let process_expect_file fname =
     | exception e -> close_in ic; raise e
   in
   let correction = eval_expect_file fname ~file_contents in
+  foo := file_contents;
   write_corrected ~file:corrected_fname ~file_contents correction
 
 let repo_root = ref None

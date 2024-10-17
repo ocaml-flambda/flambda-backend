@@ -105,6 +105,22 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
           fprintf ppf "@[{%a%t}@]"
             pretty_lvals filtered_lvs elision_mark
       end
+  | Tpat_record_flat (lvs,_) ->
+      let filtered_lvs = List.filter
+          (function
+            | (_,_,{pat_desc=Tpat_any}) -> false (* do not show lbl=_ *)
+            | _ -> true) lvs in
+      begin match filtered_lvs with
+      | [] -> fprintf ppf "#{ _ }"
+      | (_, lbl, _) :: q ->
+          let elision_mark ppf =
+            (* we assume that there is no label repetitions here *)
+             if Array.length lbl.lbl_all > 1 + List.length q then
+               fprintf ppf ";@ _@ "
+             else () in
+          fprintf ppf "@[#{%a%t}@]"
+            pretty_lvals filtered_lvs elision_mark
+      end
   | Tpat_array (am, _arg_sort, vs) ->
       let punct = if Types.is_mutable am then '|' else ':' in
       fprintf ppf "@[[%c %a %c]@]" punct (pretty_vals " ;") vs punct
@@ -166,7 +182,8 @@ and pretty_labeled_val_sort ppf (l, p, _) =
   end;
   pretty_val ppf p
 
-and pretty_lvals ppf = function
+and pretty_lvals : 'a. _ -> (_ * 'a gen_label_description * _) list -> _ =
+  fun ppf -> function
   | [] -> ()
   | [_,lbl,v] ->
       fprintf ppf "%s=%a" lbl.lbl_name pretty_val v

@@ -67,7 +67,7 @@ val diff: t -> t -> Ident.t list
 val same_type_declarations: t -> t -> bool
 
 type type_descr_kind =
-  (label_description, constructor_description) type_kind
+  (label_description, label_flat_description, constructor_description) type_kind
 
   (* alias for compatibility *)
 type type_descriptions = type_descr_kind
@@ -103,6 +103,7 @@ val find_cltype: Path.t -> t -> class_type_declaration
 
 val find_ident_constructor: Ident.t -> t -> constructor_description
 val find_ident_label: Ident.t -> t -> label_description
+val find_ident_label_flat: Ident.t -> t -> label_flat_description
 
 val find_type_expansion:
     Path.t -> t -> type_expr list * type_expr * int
@@ -167,6 +168,8 @@ type label_usage =
     Projection | Mutation | Construct | Exported_private | Exported
 val mark_label_used:
     label_usage -> label_declaration -> unit
+val mark_label_flat_used:
+    label_usage -> label_declaration -> unit
 
 (* Lookup by long identifiers *)
 
@@ -214,6 +217,7 @@ type lookup_error =
   | Unbound_type of Longident.t
   | Unbound_constructor of Longident.t
   | Unbound_label of Longident.t
+  | Unbound_label_flat of Longident.t
   | Unbound_module of Longident.t
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
@@ -303,6 +307,17 @@ val lookup_all_labels_from_type:
   ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
   (label_description * (unit -> unit)) list
 
+val lookup_label_flat:
+  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
+  label_flat_description
+val lookup_all_label_flats:
+  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
+  ((label_flat_description * (unit -> unit)) list,
+   Location.t * t * lookup_error) result
+val lookup_all_label_flats_from_type:
+  ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
+  (label_flat_description * (unit -> unit)) list
+
 val lookup_instance_variable:
   ?use:bool -> loc:Location.t -> string -> t ->
   Path.t * Asttypes.mutable_flag * string * type_expr
@@ -324,6 +339,8 @@ val find_constructor_by_name:
   Longident.t -> t -> constructor_description
 val find_label_by_name:
   Longident.t -> t -> label_description
+val find_label_flat_by_name:
+  Longident.t -> t -> label_flat_description
 
 (** The [find_*_index] functions computes a "namespaced" De Bruijn index
     of an identifier in a given environment. In other words, it returns how many

@@ -430,7 +430,7 @@ let in_pervasives p =
 
 let is_datatype decl=
   match decl.type_kind with
-    Type_record _ | Type_variant _ | Type_open -> true
+    Type_record _ | Type_record_flat _ | Type_variant _ | Type_open -> true
   | Type_abstract _ -> false
 
 
@@ -712,6 +712,8 @@ let closed_type_decl decl =
           )
           v
     | Type_record(r, _rep) ->
+        List.iter (fun l -> close_type l.ld_type) r
+    | Type_record_flat(r, _rep) ->
         List.iter (fun l -> close_type l.ld_type) r
     | Type_open -> ()
     end;
@@ -1486,6 +1488,12 @@ let map_kind f = function
           (fun l ->
              {l with ld_type = f l.ld_type}
           ) fl, rr)
+  | Type_record_flat (fl, rr) ->
+      Type_record_flat (
+        List.map
+          (fun l ->
+             {l with ld_type = f l.ld_type}
+          ) fl, rr)
 
 
 let instance_declaration decl =
@@ -1640,6 +1648,21 @@ let instance_label ~fixed lbl =
     let ty_res = copy copy_scope lbl.lbl_res in
     (vars, ty_arg, ty_res)
   )
+
+let instance_label_flat ~fixed lbl =
+  For_copy.with_scope (fun copy_scope ->
+    let vars, ty_arg =
+      match get_desc lbl.lbl_arg with
+        Tpoly (ty, tl) ->
+          instance_poly' copy_scope ~keep_names:false ~fixed tl ty
+      | _ ->
+          [], copy copy_scope lbl.lbl_arg
+    in
+    (* call [copy] after [instance_poly] to avoid introducing [Tsubst] *)
+    let ty_res = copy copy_scope lbl.lbl_res in
+    (vars, ty_arg, ty_res)
+  )
+
 
 let prim_mode mvar = function
   | Primitive.Prim_global, _ -> Locality.allow_right Locality.global
@@ -2263,6 +2286,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                let ty = expand_head_opt env ty in
                loop ~fuel ~expanded:true ty (estimate_type_jkind env ty) jkind
              else
+               (* CR rtjoa: unbox once *)
                begin match unbox_once env ty with
                | Missing path -> Error (Jkind.Violation.of_ ~missing_cmi:path
                                           (Not_a_subjkind (ty's_jkind, jkind)))
@@ -3180,6 +3204,10 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
       match decl.type_kind, decl'.type_kind with
       | Type_record (lst,r), Type_record (lst',r')
         when equal_record_representation r r' ->
+          mcomp_list type_pairs env tl1 tl2;
+          mcomp_record_description type_pairs env lst lst'
+      | Type_record_flat (lst,r), Type_record_flat (lst',r')
+        when equal_record_flat_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_record_description type_pairs env lst lst'
       | Type_variant (v1,r), Type_variant (v2,r')

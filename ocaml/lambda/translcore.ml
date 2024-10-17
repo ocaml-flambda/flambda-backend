@@ -629,6 +629,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
+  | Texp_record_flat {fields; representation; extended_expression; alloc_mode} ->
+      transl_record_flat ~scopes e.exp_loc e.exp_env
+        (Option.map transl_alloc_mode alloc_mode)
+        fields representation extended_expression
   | Texp_field(arg, id, lbl, float) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
@@ -690,6 +694,23 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
       end
+  | Texp_field_flat(arg, _id, lbl, _float) ->
+      (* CR rtjoa: need to do more checks? like check_record_field? *)
+      (* CR rtjoa: singleton case *)
+      assert (not (Types.is_mutable lbl.lbl_mut));
+      (match lbl.lbl_repres with Record_flat _  -> ());
+      let layouts =
+        Array.map (fun lbl ->
+          Jkind.sort_of_jkind lbl.lbl_jkind |>
+          Typeopt.layout_of_sort e.exp_loc)
+          lbl.lbl_all
+        |> Array.to_list
+      in
+      let jkind = Jkind.Builtin.product ~why:Unboxed_record (Array.map (fun lbl -> lbl.lbl_jkind) lbl.lbl_all |> Array.to_list) in
+      let arg_sort : Jkind.Sort.t = Jkind.sort_of_jkind jkind in
+      let targ = transl_exp ~scopes arg_sort arg in
+      Lprim (Punboxed_product_field (lbl.lbl_pos, layouts), [targ],
+              of_location ~scopes e.exp_loc)
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
          representability on construction, [sort_of_jkind] will be unsafe here.
@@ -732,6 +753,24 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            in
            Psetmixedfield(lbl.lbl_pos, write, shape, mode)
         end
+      in
+      Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
+                     transl_exp ~scopes lbl_sort newval],
+            of_location ~scopes e.exp_loc)
+  | Texp_setfield_flat(arg, arg_mode, id, lbl, newval) ->
+      (* CR layouts v2.5: When we allow `any` in record fields and check
+         representability on construction, [sort_of_jkind] will be unsafe here.
+         Probably we should add a sort to `Texp_setfield` in the typed tree,
+         then. *)
+      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+      check_record_field_sort id.loc lbl_sort;
+      let mode =
+        Assignment (transl_modify_mode arg_mode)
+      in
+      let access =
+        match lbl.lbl_repres with
+        | Record_flat _ ->
+          Psetfield(lbl.lbl_pos, maybe_pointer newval, mode)
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
                      transl_exp ~scopes lbl_sort newval],
@@ -2038,6 +2077,55 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                    of_location ~scopes loc),
              Array.fold_left update_field (Lvar copy_id) fields)
     end
+  end
+
+(* CR rtjoa: wrong *)
+and transl_record_flat ~scopes loc env _mode fields repres opt_init_expr =
+  assert (not (Array.exists (fun (lbl, _) -> Types.is_mutable lbl.lbl_mut) fields));
+  (match repres with | Record_flat _ -> ());
+  let init_id = Ident.create_local "init" in
+  let shape =
+    Array.map
+      (fun (lbl, definition) ->
+          let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+          match definition with
+          | Kept (typ, _mut, _) -> layout env lbl.lbl_loc lbl_sort typ
+          | Overridden (_lid, expr) -> layout_exp lbl_sort expr)
+      fields
+    |> Array.to_list
+  in
+  let _sorts =
+    Array.mapi (fun _i (lbl, _definition) -> Jkind.sort_of_jkind lbl.lbl_jkind) fields
+    |> Array.to_list
+  in
+  let ll =
+    Array.mapi
+      (fun i (lbl, definition) ->
+          match definition with
+          | Kept (_typ, _mut, _) ->
+            let access = Punboxed_product_field (i, shape) in
+            Lprim (access, [Lvar init_id], of_location ~scopes loc)
+          | Overridden (_lid, expr) ->
+            let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+            transl_exp ~scopes lbl_sort expr)
+      fields
+    |> Array.to_list
+  in
+  let lam =
+
+    Lprim(Pmake_unboxed_product shape, ll, of_location ~scopes loc)
+      in
+  begin match opt_init_expr with
+
+    None -> lam
+  | Some init_expr ->
+    (* CR rtjoa: this is not right if functional update changes the sort (not possible wo layout polymorphism) *)
+    let init_expr_jkind = Jkind.Builtin.product ~why:Unboxed_record (Array.map (fun (lbl,_) -> lbl.lbl_jkind) fields |> Array.to_list) in
+    let init_expr_sort : Jkind.Sort.t = Jkind.sort_of_jkind init_expr_jkind in
+    (* let sorts = Array.map (fun (lbl, _) -> lbl.lbl_jkind |> Jkind.sort_of_jkind) fields in *)
+    let layout =
+      layout_exp init_expr_sort init_expr in
+    Llet(Strict, layout, init_id, transl_exp ~scopes init_expr_sort init_expr, lam)
   end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =

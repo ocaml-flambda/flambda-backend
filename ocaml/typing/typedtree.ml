@@ -107,6 +107,10 @@ and 'k pattern_desc =
       (Longident.t loc * label_description * value general_pattern) list *
         closed_flag ->
       value pattern_desc
+  | Tpat_record_flat :
+      (Longident.t loc * label_flat_description * value general_pattern) list *
+        closed_flag ->
+      value pattern_desc
   | Tpat_array :
       mutability * Jkind.sort * value general_pattern list -> value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
@@ -171,10 +175,21 @@ and expression_desc =
       extended_expression : expression option;
       alloc_mode : alloc_mode option
     }
+  | Texp_record_flat of {
+      fields : ( Types.label_flat_description * record_label_definition ) array;
+      representation : Types.record_flat_representation;
+      extended_expression : expression option;
+      alloc_mode : alloc_mode option
+    }
   | Texp_field of
       expression * Longident.t loc * label_description * texp_field_boxing
+  | Texp_field_flat of
+      (* expression * Jkind.sort * Longident.t loc * label_flat_description * texp_field_boxing *)
+      expression * Longident.t loc * label_flat_description * texp_field_boxing
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
+  | Texp_setfield_flat of
+      expression * Mode.Locality.l * Longident.t loc * label_flat_description * expression
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutability * Jkind.sort * comprehension
@@ -669,24 +684,26 @@ and value_description =
     val_attributes: attribute list;
     }
 
+(* CR rtjoa:  *)
 and type_declaration =
-  { typ_id: Ident.t;
+  { typ_id: Ident.t; (* added *)
     typ_name: string loc;
     typ_params: (core_type * (variance * injectivity)) list;
-    typ_type: Types.type_declaration;
+    typ_type: Types.type_declaration; (* added *)
     typ_cstrs: (core_type * core_type * Location.t) list;
     typ_kind: type_kind;
     typ_private: private_flag;
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attribute list;
-    typ_jkind_annotation: Jane_syntax.Jkind.annotation option;
+    typ_jkind_annotation: Jane_syntax.Jkind.annotation option; (* added *)
    }
 
 and type_kind =
     Ttype_abstract
   | Ttype_variant of constructor_declaration list
   | Ttype_record of label_declaration list
+  | Ttype_record_flat of label_declaration list
   | Ttype_open
 
 and label_declaration =
@@ -868,6 +885,7 @@ let rec classify_pattern_desc : type k . k pattern_desc -> k pattern_category =
   | Tpat_construct _ -> Value
   | Tpat_variant _ -> Value
   | Tpat_record _ -> Value
+  | Tpat_record_flat _ -> Value
   | Tpat_array _ -> Value
   | Tpat_lazy _ -> Value
   | Tpat_any -> Value
@@ -900,6 +918,8 @@ let shallow_iter_pattern_desc
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
       List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
+  | Tpat_record_flat (lbl_pat_list, _) ->
+      List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
   | Tpat_array (_, _, patl) -> List.iter f.f patl
   | Tpat_lazy p -> f.f p
   | Tpat_any
@@ -923,6 +943,8 @@ let shallow_map_pattern_desc
         (List.map (fun (label, pat, sort) -> label, f.f pat, sort) pats)
   | Tpat_record (lpats, closed) ->
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
+  | Tpat_record_flat (lpats, closed) ->
+      Tpat_record_flat (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
       Tpat_construct (lid, c, List.map f.f pats, ty)
   | Tpat_array (am, arg_sort, pats) ->
@@ -1027,6 +1049,10 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->
+          List.iter (fun (_, lbl, pat) ->
+            (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
+            lbl_pat_list
+      | Tpat_record_flat (lbl_pat_list, _) ->
           List.iter (fun (_, lbl, pat) ->
             (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
             lbl_pat_list

@@ -222,6 +222,7 @@ let type_kind sub = function
   | Ttype_abstract -> Ttype_abstract
   | Ttype_variant list -> Ttype_variant (List.map (constructor_decl sub) list)
   | Ttype_record list -> Ttype_record (List.map (label_decl sub) list)
+  | Ttype_record_flat list -> Ttype_record_flat (List.map (label_decl sub) list)
   | Ttype_open -> Ttype_open
 
 let type_declaration sub x =
@@ -312,6 +313,8 @@ let pat
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 (map_loc sub) id (sub.pat sub)) l, closed)
+    | Tpat_record_flat (l, closed) ->
+        Tpat_record_flat (List.map (tuple3 (map_loc sub) id (sub.pat sub)) l, closed)
     | Tpat_array (am, arg_sort, l) -> Tpat_array (am, arg_sort, List.map (sub.pat sub) l)
     | Tpat_alias (p, id, s, uid, m) ->
         Tpat_alias (sub.pat sub p, id, map_loc sub s, uid, m)
@@ -488,10 +491,33 @@ let expr sub x =
           extended_expression = Option.map (sub.expr sub) extended_expression;
           alloc_mode
         }
+    (* CR rtjoa:  *)
+    | Texp_record_flat { fields; representation; extended_expression; alloc_mode } ->
+        let fields = Array.map (function
+            | label, Kept (t, mut, uu) -> label, Kept (t, mut, uu)
+            | label, Overridden (lid, exp) ->
+                label, Overridden (map_loc sub lid, sub.expr sub exp))
+            fields
+        in
+        Texp_record_flat {
+          fields; representation;
+          extended_expression = Option.map (sub.expr sub) extended_expression;
+          alloc_mode
+        }
     | Texp_field (exp, lid, ld, float) ->
         Texp_field (sub.expr sub exp, map_loc sub lid, ld, float)
+    | Texp_field_flat (exp, lid, ld, float) ->
+        Texp_field_flat (sub.expr sub exp, map_loc sub lid, ld, float)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
+          sub.expr sub exp1,
+          am,
+          map_loc sub lid,
+          ld,
+          sub.expr sub exp2
+        )
+    | Texp_setfield_flat (exp1, am, lid, ld, exp2) ->
+        Texp_setfield_flat (
           sub.expr sub exp1,
           am,
           map_loc sub lid,

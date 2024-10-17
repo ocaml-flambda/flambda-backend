@@ -25,6 +25,9 @@ val extension_descr:
 val labels_of_type:
   Path.t -> type_declaration ->
   (Ident.t * label_description) list
+val label_flats_of_type:
+  Path.t -> type_declaration ->
+  (Ident.t * label_flat_description) list
 val constructors_of_type:
   current_unit:Compilation_unit.t option -> Path.t -> type_declaration ->
   (Ident.t * constructor_description) list
