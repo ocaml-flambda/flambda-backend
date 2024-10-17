@@ -44,6 +44,7 @@ val switch_for_if_then_else :
 val transform_primitive :
   Lambda_to_flambda_env.t ->
   Lambda.primitive ->
+  (* CR mshinwell: consider [Ident.t list] instead for the arguments. *)
   Lambda.lambda list ->
   Lambda.scoped_location ->
-  primitive_transform_result
+  Lambda_to_flambda_env.t * primitive_transform_result
