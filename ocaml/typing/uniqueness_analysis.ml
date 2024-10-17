@@ -663,6 +663,9 @@ module Usage_tree : sig
 
   (** Check that all overwrites are on known tags *)
   val check_no_remaining_overwritten_as : t -> unit
+
+  (** Remove all usage information except tags *)
+  val extract_tags : t -> t
 end = struct
   (** Represents a tree of usage. Each node records the choose on all possible
      execution paths. As a result, trees such as `S -> U` is valid, even though
@@ -755,6 +758,10 @@ end = struct
       children;
     try Tag.check_no_remaining_overwritten_as tag
     with Tag.Error error -> raise (Error (OverwriteChangedTag error))
+
+  let rec extract_tags { children; tag } =
+    let children = Projection.Map.map extract_tags children in
+    { children; tag; usage = Unused }
 end
 
 (** Lift Usage_tree to forest *)
@@ -798,6 +805,9 @@ module Usage_forest : sig
 
   (** Check that all overwrites are on known tags *)
   val check_no_remaining_overwritten_as : t -> unit
+
+  (** Remove all usage information except tags *)
+  val extract_tags : t -> t
 end = struct
   module Root_id = struct
     module T = struct
@@ -866,6 +876,8 @@ end = struct
     Root_id.Map.iter
       (fun _ t -> Usage_tree.check_no_remaining_overwritten_as t)
       t
+
+  let extract_tags t = Root_id.Map.map Usage_tree.extract_tags t
 end
 
 module UF = Usage_forest
@@ -1749,16 +1761,20 @@ and check_uniqueness_cases_gen :
              | None -> UF.unused
              | Some g -> check_uniqueness_exp (Ienv.extend ienv ext) g
            in
-           ext, UF.par uf_lhs uf_guard)
+           ext, (uf_lhs, uf_guard))
          cases)
   in
+  let uf_lhss, uf_guards = List.split uf_pats in
+  let uf_lhss_tags = List.map UF.extract_tags uf_lhss in
   (* we then evaluate all RHS, in _parallel_ *)
   let uf_cases =
     List.map2
       (fun ext case -> check_uniqueness_exp (Ienv.extend ienv ext) case.c_rhs)
       exts cases
   in
-  UF.seq (UF.pars uf_pats) (UF.chooses uf_cases)
+  UF.seq
+    (UF.pars (List.map2 UF.par uf_lhss uf_guards))
+    (UF.chooses (List.map2 UF.seq uf_lhss_tags uf_cases))
 
 and check_uniqueness_cases ienv value cases =
   check_uniqueness_cases_gen pattern_match ienv value cases

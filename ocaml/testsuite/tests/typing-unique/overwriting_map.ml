@@ -31,9 +31,10 @@ let () =
   Printf.printf "%15s: %s\n" "List.map" msg
 
 [%%expect{|
-Line 3, characters 46-48:
+Line 3, characters 22-57:
 3 |   | hd :: tl as xs -> overwrite_ xs with f hd :: map f tl
-                                                  ^^
-Error: Overwrite may not change the tag to (::).
-Hint: The old tag of this allocation is unknown.
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]

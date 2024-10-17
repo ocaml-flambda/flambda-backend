@@ -305,14 +305,11 @@ let update c =
   | Constr2 _ -> overwrite_ c with Constr2 { x = 2 }
 [%%expect{|
 type constr = Constr1 of { x : string; } | Constr2 of { x : int; }
-Line 6, characters 35-42:
-6 |   | Constr2 _ -> overwrite_ c with Constr2 { x = 2 }
-                                       ^^^^^^^
-Error: The same allocation gets overwritten using different tags Constr1 and Constr2.
-Hint: overwrites may not change the tag; did you forget a pattern-match?
-Line 5, characters 35-42:
+Line 5, characters 17-53:
 5 |   | Constr1 _ -> overwrite_ c with Constr1 { x = "" }
-                                       ^^^^^^^
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
@@ -324,19 +321,15 @@ type options = OptionA of string | OptionB of string
 type options = OptionA of string | OptionB of string
 |}]
 
-(* CR uniqueness: fix this test (see check_uniqueness_cases_gen) *)
 let id = function
   | OptionA s as v -> overwrite_ v with OptionA s
   | OptionB s as v -> overwrite_ v with OptionB s
 [%%expect{|
-Line 3, characters 40-47:
-3 |   | OptionB s as v -> overwrite_ v with OptionB s
-                                            ^^^^^^^
-Error: The same allocation gets overwritten using different tags OptionA and OptionB.
-Hint: overwrites may not change the tag; did you forget a pattern-match?
-Line 2, characters 40-47:
+Line 2, characters 22-49:
 2 |   | OptionA s as v -> overwrite_ v with OptionA s
-                                            ^^^^^^^
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
@@ -345,14 +338,11 @@ let id v =
   | OptionA s -> overwrite_ v with OptionA s
   | OptionB s -> overwrite_ v with OptionB s
 [%%expect{|
-Line 4, characters 35-42:
-4 |   | OptionB s -> overwrite_ v with OptionB s
-                                       ^^^^^^^
-Error: The same allocation gets overwritten using different tags OptionA and OptionB.
-Hint: overwrites may not change the tag; did you forget a pattern-match?
-Line 3, characters 35-42:
+Line 3, characters 17-44:
 3 |   | OptionA s -> overwrite_ v with OptionA s
-                                       ^^^^^^^
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
@@ -360,15 +350,11 @@ let swap = function
   | OptionA s as v -> overwrite_ v with OptionB s
   | OptionB s as v -> overwrite_ v with OptionA s
 [%%expect{|
-Line 3, characters 40-47:
-3 |   | OptionB s as v -> overwrite_ v with OptionA s
-                                            ^^^^^^^
-Error: The same allocation gets overwritten using different tags OptionB and OptionA.
-Hint: overwrites may not change the tag; did you forget a pattern-match?
 Line 2, characters 40-47:
 2 |   | OptionA s as v -> overwrite_ v with OptionB s
                                             ^^^^^^^
-
+Error: Overwrite may not change the tag to OptionB.
+Hint: The old tag of this allocation is OptionA.
 |}]
 
 let swap v =
@@ -376,15 +362,11 @@ let swap v =
   | OptionA s -> overwrite_ v with OptionB s
   | OptionB s -> overwrite_ v with OptionA s
 [%%expect{|
-Line 4, characters 35-42:
-4 |   | OptionB s -> overwrite_ v with OptionA s
-                                       ^^^^^^^
-Error: The same allocation gets overwritten using different tags OptionB and OptionA.
-Hint: overwrites may not change the tag; did you forget a pattern-match?
 Line 3, characters 35-42:
 3 |   | OptionA s -> overwrite_ v with OptionB s
                                        ^^^^^^^
-
+Error: Overwrite may not change the tag to OptionB.
+Hint: The old tag of this allocation is OptionA.
 |}]
 
 let choose_in_branch v =

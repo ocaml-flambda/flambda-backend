@@ -5760,9 +5760,9 @@ and type_expect_
               unify_exp_types loc env ty_arg1 ty_arg2;
               with_explanation (fun () ->
                 unify_exp_types loc env (instance ty_expected) ty_res2);
-              check_project_mutability ~loc ~env lbl.lbl_mut mode;
+              check_project_mutability ~loc:exp_loc ~env lbl.lbl_mut mode;
               let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-              check_construct_mutability ~loc:exp_loc ~env lbl.lbl_mut argument_mode;
+              check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
               let argument_mode =
                 mode_modality lbl.lbl_modalities argument_mode
               in

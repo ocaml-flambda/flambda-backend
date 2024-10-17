@@ -519,9 +519,10 @@ module Make_Okasaki :
       val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@
         global many
     end
-Line 110, characters 34-38:
+Line 110, characters 16-52:
 110 |     | Node _ -> overwrite_ t with Node { color = c }
-                                        ^^^^
-Error: Overwrite may not change the tag to Node.
-Hint: The old tag of this allocation is unknown.
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
