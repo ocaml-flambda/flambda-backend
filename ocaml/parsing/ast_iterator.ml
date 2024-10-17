@@ -44,7 +44,6 @@ type iterator = {
   constructor_declaration: iterator -> constructor_declaration -> unit;
   directive_argument: iterator -> directive_argument -> unit;
   expr: iterator -> expression -> unit;
-  expr_jane_syntax: iterator -> Jane_syntax.Expression.t -> unit;
   extension: iterator -> extension -> unit;
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
@@ -63,7 +62,6 @@ type iterator = {
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
-  pat_jane_syntax: iterator -> Jane_syntax.Pattern.t -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
@@ -421,39 +419,29 @@ let iter_constant = ()
 module E = struct
   (* Value expressions for the core language *)
 
-  module C = Jane_syntax.Comprehensions
-  module IA = Jane_syntax.Immutable_arrays
-
-  let iter_iterator sub : C.iterator -> _ = function
-    | Range { start; stop; direction = _ } ->
+  let iter_iterator sub = function
+    | Pcomp_range { start; stop; direction = _ } ->
       sub.expr sub start;
       sub.expr sub stop
-    | In expr -> sub.expr sub expr
+    | Pcomp_in expr -> sub.expr sub expr
 
   let iter_clause_binding sub
-        ({ pattern; iterator; attributes } :
-           C.clause_binding) =
-    sub.pat sub pattern;
-    iter_iterator sub iterator;
-    sub.attributes sub attributes
+      { pcomp_cb_pattern; pcomp_cb_iterator; pcomp_cb_attributes } =
+    sub.pat sub pcomp_cb_pattern;
+    iter_iterator sub pcomp_cb_iterator;
+    sub.attributes sub pcomp_cb_attributes
 
-  let iter_clause sub : C.clause -> _ = function
-    | For cbs -> List.iter (iter_clause_binding sub) cbs
-    | When expr -> sub.expr sub expr
+  let iter_clause sub = function
+    | Pcomp_for cbs -> List.iter (iter_clause_binding sub) cbs
+    | Pcomp_when expr -> sub.expr sub expr
 
-  let iter_comp sub
-        ({ body; clauses } : C.comprehension) =
-    sub.expr sub body;
-    List.iter (iter_clause sub) clauses
+  let iter_comp sub { pcomp_body; pcomp_clauses } =
+    sub.expr sub pcomp_body;
+    List.iter (iter_clause sub) pcomp_clauses
 
-  let iter_comp_exp sub : C.expression -> _ = function
-    | Cexp_list_comprehension comp -> iter_comp sub comp
-    | Cexp_array_comprehension (_mut, comp) -> iter_comp sub comp
-
-  let iter_iarr_exp sub : IA.expression -> _ = function
-    | Iaexp_immutable_array elts ->
-      List.iter (sub.expr sub) elts
-
+  let iter_comp_exp sub = function
+    | Pcomp_list_comprehension comp -> iter_comp sub comp
+    | Pcomp_array_comprehension (_mut, comp) -> iter_comp sub comp
 
   let iter_function_param sub : function_param -> _ =
     fun { pparam_loc = loc; pparam_desc = desc } ->
@@ -488,18 +476,8 @@ module E = struct
 
   let iter_labeled_tuple sub el = List.iter (iter_snd (sub.expr sub)) el
 
-  let iter_jst sub : Jane_syntax.Expression.t -> _ = function
-    | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
-    | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
-
-  let iter sub
-      ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
+  let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
     sub.location sub loc;
-    match Jane_syntax.Expression.of_ast expr with
-    | Some (jexp, attrs) ->
-        sub.attributes sub attrs;
-        sub.expr_jane_syntax sub jexp
-    | None ->
     sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
@@ -530,7 +508,7 @@ module E = struct
     | Pexp_setfield (e1, lid, e2) ->
         sub.expr sub e1; iter_loc sub lid;
         sub.expr sub e2
-    | Pexp_array el -> List.iter (sub.expr sub) el
+    | Pexp_array (_mut, el) -> List.iter (sub.expr sub) el
     | Pexp_ifthenelse (e1, e2, e3) ->
         sub.expr sub e1; sub.expr sub e2;
         iter_opt (sub.expr sub) e3
@@ -579,6 +557,7 @@ module E = struct
     | Pexp_extension x -> sub.extension sub x
     | Pexp_unreachable -> ()
     | Pexp_stack e -> sub.expr sub e
+    | Pexp_comprehension e -> iter_comp_exp sub e
 
   let iter_binding_op sub {pbop_op; pbop_pat; pbop_exp; pbop_loc} =
     iter_loc sub pbop_op;
@@ -591,25 +570,10 @@ end
 module P = struct
   (* Patterns *)
 
-  module IA = Jane_syntax.Immutable_arrays
-
-  let iter_iapat sub : IA.pattern -> _ = function
-    | Iapat_immutable_array elts ->
-      List.iter (sub.pat sub) elts
-
   let iter_labeled_tuple sub pl = List.iter (iter_snd (sub.pat sub)) pl
 
-  let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
-    | Jpat_immutable_array iapat -> iter_iapat sub iapat
-
-  let iter sub
-        ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
+  let iter sub {ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} =
     sub.location sub loc;
-    match Jane_syntax.Pattern.of_ast pat with
-    | Some (jpat, attrs) ->
-        sub.attributes sub attrs;
-        sub.pat_jane_syntax sub jpat
-    | None ->
     sub.attributes sub attrs;
     match desc with
     | Ppat_any -> ()
@@ -629,7 +593,7 @@ module P = struct
     | Ppat_variant (_l, p) -> iter_opt (sub.pat sub) p
     | Ppat_record (lpl, _cf) ->
         List.iter (iter_tuple (iter_loc sub) (sub.pat sub)) lpl
-    | Ppat_array pl -> List.iter (sub.pat sub) pl
+    | Ppat_array (_mut, pl) -> List.iter (sub.pat sub) pl
     | Ppat_or (p1, p2) -> sub.pat sub p1; sub.pat sub p2
     | Ppat_constraint (p, t, m) ->
         sub.pat sub p; Option.iter (sub.typ sub) t; sub.modes sub m;
@@ -747,9 +711,7 @@ let default_iterator =
       );
 
     pat = P.iter;
-    pat_jane_syntax = P.iter_jst;
     expr = E.iter;
-    expr_jane_syntax = E.iter_jst;
     binding_op = E.iter_binding_op;
 
     module_declaration =

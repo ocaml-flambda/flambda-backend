@@ -349,13 +349,15 @@ module Generic_array = struct
       (** An array literal with a local open, [Module.[? x; y; z ?]] (only valid
           in expressions) *)
 
-    let to_desc (open_ : string) (close : string) array t =
+    let to_desc (open_ : string) (close : string) mut t =
+        let array elts = Pexp_array (mut, elts) in
         match t with
         | Simple x -> Simple.to_ast open_ close array x
         | Opened_literal (od, startpos, endpos, elts) ->
           Pexp_open (od, mkexp ~loc:(startpos, endpos) (array elts))
 
-    let to_expression (open_ : string) (close : string) array ~loc t =
+    let to_expression (open_ : string) (close : string) mut ~loc t =
+      let array ~loc elts = mkexp ~loc (Pexp_array (mut, elts)) in
       match t with
       | Simple x -> Simple.to_ast open_ close (array ~loc) x
       | Opened_literal (od, startpos, endpos, elts) ->
@@ -364,15 +366,10 @@ module Generic_array = struct
 
   module Pattern = struct
     type t = pattern Simple.t
-    let to_ast open_ close array (t : t) =
-      Simple.to_ast open_ close array t
+    let to_ast open_ close mut (t : t) =
+      Simple.to_ast open_ close (fun elts -> Ppat_array (mut, elts)) t
   end
 end
-
-let ppat_iarray loc elts =
-  Jane_syntax.Immutable_arrays.pat_of
-    ~loc:(make_loc loc)
-    (Iapat_immutable_array elts)
 
 let expecting_loc (loc : Location.t) (nonterm : string) =
     raise Syntaxerr.(Error(Expecting(loc, nonterm)))
@@ -448,14 +445,11 @@ type ('dot,'index) array_family = {
 }
 
 let bigarray_untuplify exp =
-  match Jane_syntax.Expression.of_ast exp with
-  | Some _ -> [exp]
-  | None ->
-     match exp.pexp_desc with
-     | Pexp_tuple explist when
-            List.for_all (function None, _ -> true | _ -> false) explist ->
-        List.map (fun (_, e) -> e) explist
-     | _ -> [exp]
+  match exp.pexp_desc with
+  | Pexp_tuple explist when
+        List.for_all (function None, _ -> true | _ -> false) explist ->
+    List.map (fun (_, e) -> e) explist
+  | _ -> [exp]
 
 (* Immutable array indexing is a regular operator, so it doesn't need a special
    case here *)
@@ -484,7 +478,7 @@ let builtin_arraylike_index loc paren_kind index = match paren_kind with
      | [x] -> One, [Nolabel, x]
      | [x;y] -> Two, [Nolabel, x; Nolabel, y]
      | [x;y;z] -> Three, [Nolabel, x; Nolabel, y; Nolabel, z]
-     | coords -> Many, [Nolabel, ghexp ~loc (Pexp_array coords)]
+     | coords -> Many, [Nolabel, ghexp ~loc (Pexp_array (Mutable, coords))]
 
 let builtin_indexing_operators : (unit, expression) array_family  =
   { index = builtin_arraylike_index; name = builtin_arraylike_name }
@@ -512,7 +506,7 @@ let user_index loc _ index =
      ([a.%[1;2;3;4]]) *)
   match index with
     | [a] -> One, [Nolabel, a]
-    | l -> Many, [Nolabel, mkexp ~loc (Pexp_array l)]
+    | l -> Many, [Nolabel, mkexp ~loc (Pexp_array (Mutable, l))]
 
 let user_indexing_operators:
       (Longident.t option * string, expression list) array_family
@@ -2838,11 +2832,8 @@ simple_expr:
       { Generic_array.Expression.to_expression
           "[:" ":]"
           ~loc:$sloc
-          (fun ~loc elts ->
-             Jane_syntax.Immutable_arrays.expr_of
-               ~loc:(make_loc loc)
-               (Iaexp_immutable_array elts))
-        $1
+          Immutable
+          $1
       }
   | constant { mkexp ~loc:$sloc (Pexp_constant $1) }
   | comprehension_expr { $1 }
@@ -2870,14 +2861,14 @@ simple_expr:
 
 comprehension_iterator:
   | EQUAL expr direction_flag expr
-      { Jane_syntax.Comprehensions.Range { start = $2 ; stop = $4 ; direction = $3 } }
+      { Pcomp_range { start = $2 ; stop = $4 ; direction = $3 } }
   | IN expr
-      { Jane_syntax.Comprehensions.In $2 }
+      { Pcomp_in $2 }
 ;
 
 comprehension_clause_binding:
   | attributes pattern comprehension_iterator
-      { Jane_syntax.Comprehensions.{ pattern = $2 ; iterator = $3 ; attributes = $1 } }
+      { { pcomp_cb_pattern = $2 ; pcomp_cb_iterator = $3 ; pcomp_cb_attributes = $1 } }
   (* We can't write [[e for local_ x = 1 to 10]], because the [local_] has to
      move to the RHS and there's nowhere for it to move to; besides, you never
      want that [int] to be [local_].  But we can parse [[e for local_ x in xs]].
@@ -2887,37 +2878,36 @@ comprehension_clause_binding:
       { let expr =
           mkexp_with_modes ~loc:$sloc ~exp:$5 ~cty:None ~modes:[$2]
         in
-        Jane_syntax.Comprehensions.
-          { pattern    = $3
-          ; iterator   = In expr
-          ; attributes = $1
-          }
+        { pcomp_cb_pattern    = $3
+        ; pcomp_cb_iterator   = Pcomp_in expr
+        ; pcomp_cb_attributes = $1
+        }
       }
 ;
 
 comprehension_clause:
   | FOR separated_nonempty_llist(AND, comprehension_clause_binding)
-      { Jane_syntax.Comprehensions.For $2 }
+      { Pcomp_for $2 }
   | WHEN expr
-      { Jane_syntax.Comprehensions.When $2 }
+      { Pcomp_when $2 }
 
 %inline comprehension(lbracket, rbracket):
   lbracket expr nonempty_llist(comprehension_clause) rbracket
-    { Jane_syntax.Comprehensions.{ body = $2; clauses = $3 } }
+    { { pcomp_body = $2; pcomp_clauses = $3 } }
 ;
 
 %inline comprehension_ext_expr:
   | comprehension(LBRACKET,RBRACKET)
-      { Jane_syntax.Comprehensions.Cexp_list_comprehension  $1 }
+      { Pcomp_list_comprehension  $1 }
   | comprehension(LBRACKETBAR,BARRBRACKET)
-      { Jane_syntax.Comprehensions.Cexp_array_comprehension (Mutable, $1) }
+      { Pcomp_array_comprehension (Mutable, $1) }
   | comprehension(LBRACKETCOLON,COLONRBRACKET)
-      { Jane_syntax.Comprehensions.Cexp_array_comprehension (Immutable, $1) }
+      { Pcomp_array_comprehension (Immutable, $1) }
 ;
 
 %inline comprehension_expr:
   comprehension_ext_expr
-    { Jane_syntax.Comprehensions.expr_of ~loc:(make_loc $sloc) $1 }
+    { mkexp ~loc:$sloc (Pexp_comprehension $1) }
 ;
 
 %inline array_simple(ARR_OPEN, ARR_CLOSE, contents_semi_list):
@@ -3004,7 +2994,7 @@ comprehension_clause:
   | array_exprs(LBRACKETBAR, BARRBRACKET)
       { Generic_array.Expression.to_desc
           "[|" "|]"
-          (fun elts -> Pexp_array elts)
+          Mutable
           $1
       }
   | LBRACKET expr_semi_list RBRACKET
@@ -3651,19 +3641,19 @@ simple_delimited_pattern:
     | array_patterns(LBRACKETBAR, BARRBRACKET)
         { Generic_array.Pattern.to_ast
             "[|" "|]"
-            (fun elts -> Ppat_array elts)
+            Mutable
+            $1
+        }
+    | array_patterns(LBRACKETCOLON, COLONRBRACKET)
+        { Generic_array.Pattern.to_ast
+            "[:" ":]"
+            Immutable
             $1
         }
     | HASHLPAREN reversed_labeled_tuple_pattern(pattern) RPAREN
         { let (closed, fields) = $2 in
           Ppat_unboxed_tuple (List.rev fields, closed) }
   ) { $1 }
-  | array_patterns(LBRACKETCOLON, COLONRBRACKET)
-      { Generic_array.Pattern.to_ast
-          "[:" ":]"
-          (ppat_iarray $sloc)
-          $1
-      }
 
 %inline pattern_semi_list:
   ps = separated_or_terminated_nonempty_list(SEMI, pattern)

@@ -199,9 +199,6 @@ let pattern_bv = ref String.Map.empty
 let add_constant = ()
 
 let rec add_pattern bv pat =
-  match Jane_syntax.Pattern.of_ast pat with
-  | Some (jpat, _attrs) -> add_pattern_jane_syntax bv jpat
-  | None      ->
   match pat.ppat_desc with
     Ppat_any -> ()
   | Ppat_var _ -> ()
@@ -217,7 +214,7 @@ let rec add_pattern bv pat =
         bv opt
   | Ppat_record(pl, _) ->
       List.iter (fun (lbl, p) -> add bv lbl; add_pattern bv p) pl
-  | Ppat_array pl -> List.iter (add_pattern bv) pl
+  | Ppat_array (_, pl) -> List.iter (add_pattern bv) pl
   | Ppat_or(p1, p2) -> add_pattern bv p1; add_pattern bv p2
   | Ppat_constraint(p, ty, _) ->
       add_pattern bv p;
@@ -231,9 +228,6 @@ let rec add_pattern bv pat =
   | Ppat_open ( m, p) -> let bv = open_module bv m.txt in add_pattern bv p
   | Ppat_exception p -> add_pattern bv p
   | Ppat_extension e -> handle_extension e
-and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
-  | Jpat_immutable_array (Iapat_immutable_array pl) ->
-      List.iter (add_pattern bv) pl
 
 and add_pattern_labeled_tuple bv labeled_pl =
   List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
@@ -244,9 +238,6 @@ let add_pattern bv pat =
   !pattern_bv
 
 let rec add_expr bv exp =
-  match Jane_syntax.Expression.of_ast exp with
-  | Some (jexp, _attrs) -> add_expr_jane_syntax bv jexp
-  | None ->
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
   | Pexp_constant _ -> add_constant
@@ -269,7 +260,7 @@ let rec add_expr bv exp =
       add_opt add_expr bv opte
   | Pexp_field(e, fld) -> add_expr bv e; add bv fld
   | Pexp_setfield(e1, fld, e2) -> add_expr bv e1; add bv fld; add_expr bv e2
-  | Pexp_array el -> List.iter (add_expr bv) el
+  | Pexp_array (_, el) -> List.iter (add_expr bv) el
   | Pexp_ifthenelse(e1, e2, opte3) ->
       add_expr bv e1; add_expr bv e2; add_opt add_expr bv opte3
   | Pexp_sequence(e1, e2) -> add_expr bv e1; add_expr bv e2
@@ -327,47 +318,35 @@ let rec add_expr bv exp =
   | Pexp_extension e -> handle_extension e
   | Pexp_stack e -> add_expr bv e
   | Pexp_unreachable -> ()
+  | Pexp_comprehension x -> add_comprehension_expr bv x
 
-and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
-  | Jexp_comprehension x -> add_comprehension_expr bv x
-  | Jexp_immutable_array x -> add_immutable_array_expr bv x
+and add_comprehension_expr bv = function
+  | Pcomp_list_comprehension comp -> add_comprehension bv comp
+  | Pcomp_array_comprehension (_, comp) -> add_comprehension bv comp
 
-and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
-  function
-  | Cexp_list_comprehension comp -> add_comprehension bv comp
-  | Cexp_array_comprehension (_, comp) -> add_comprehension bv comp
+and add_comprehension bv { pcomp_body; pcomp_clauses } =
+  let bv = List.fold_left add_comprehension_clause bv pcomp_clauses in
+  add_expr bv pcomp_body
 
-and add_comprehension bv
-      ({ body; clauses } : Jane_syntax.Comprehensions.comprehension) =
-  let bv = List.fold_left add_comprehension_clause bv clauses in
-  add_expr bv body
-
-and add_comprehension_clause bv : Jane_syntax.Comprehensions.clause -> _ =
-  function
+and add_comprehension_clause bv = function
     (* fold_left here is a little suspicious, because the different
        clauses should be interpreted in parallel. But this treatment
        echoes the treatment in [Pexp_let] (in [add_bindings]). *)
-  | For cbs -> List.fold_left add_comprehension_clause_binding bv cbs
-  | When expr -> add_expr bv expr; bv
+  | Pcomp_for cbs -> List.fold_left add_comprehension_clause_binding bv cbs
+  | Pcomp_when expr -> add_expr bv expr; bv
 
 and add_comprehension_clause_binding bv
-      ({ pattern; iterator; attributes = _ } :
-         Jane_syntax.Comprehensions.clause_binding) =
-  let bv = add_pattern bv pattern in
-  add_comprehension_iterator bv iterator;
+      { pcomp_cb_pattern; pcomp_cb_iterator; pcomp_cb_attributes = _ } =
+  let bv = add_pattern bv pcomp_cb_pattern in
+  add_comprehension_iterator bv pcomp_cb_iterator;
   bv
 
-and add_comprehension_iterator bv : Jane_syntax.Comprehensions.iterator -> _ =
-  function
-  | Range { start; stop; direction = _ } ->
+and add_comprehension_iterator bv = function
+  | Pcomp_range { start; stop; direction = _ } ->
     add_expr bv start;
     add_expr bv stop
-  | In expr ->
+  | Pcomp_in expr ->
     add_expr bv expr
-
-and add_immutable_array_expr bv : Jane_syntax.Immutable_arrays.expression -> _ =
-  function
-  | Iaexp_immutable_array exprs -> List.iter (add_expr bv) exprs
 
 and add_labeled_tuple_expr bv el = List.iter (add_expr bv) (List.map snd el)
 

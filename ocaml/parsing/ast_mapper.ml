@@ -86,13 +86,10 @@ type mapper = {
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
 
-  expr_jane_syntax:
-    mapper -> Jane_syntax.Expression.t -> Jane_syntax.Expression.t;
   module_type_jane_syntax: mapper
     -> Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
   module_expr_jane_syntax: mapper
     -> Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
-  pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
 }
 
 let map_fst f (x, y) = (f x, y)
@@ -496,9 +493,6 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  module C = Jane_syntax.Comprehensions
-  module IA = Jane_syntax.Immutable_arrays
-
   let map_function_param sub { pparam_loc = loc; pparam_desc = desc } =
     let loc = sub.location sub loc in
     let desc =
@@ -531,55 +525,38 @@ module E = struct
       type_constraint = map_type_constraint sub type_constraint;
     }
 
-  let map_iterator sub : C.iterator -> C.iterator = function
-    | Range { start; stop; direction } ->
-      Range { start = sub.expr sub start;
-              stop = sub.expr sub stop;
-              direction }
-    | In expr -> In (sub.expr sub expr)
+  let map_iterator sub = function
+    | Pcomp_range { start; stop; direction } ->
+      Pcomp_range { start = sub.expr sub start;
+                    stop = sub.expr sub stop;
+                    direction }
+    | Pcomp_in expr -> Pcomp_in (sub.expr sub expr)
 
-  let map_clause_binding sub : C.clause_binding -> C.clause_binding = function
-    | { pattern; iterator; attributes } ->
-      { pattern = sub.pat sub pattern;
-        iterator = map_iterator sub iterator;
-        attributes = sub.attributes sub attributes }
+  let map_clause_binding sub = function
+    | { pcomp_cb_pattern; pcomp_cb_iterator; pcomp_cb_attributes } ->
+      { pcomp_cb_pattern = sub.pat sub pcomp_cb_pattern;
+        pcomp_cb_iterator = map_iterator sub pcomp_cb_iterator;
+        pcomp_cb_attributes = sub.attributes sub pcomp_cb_attributes }
 
-  let map_clause sub : C.clause -> C.clause = function
-    | For cbs -> For (List.map (map_clause_binding sub) cbs)
-    | When expr -> When (sub.expr sub expr)
+  let map_clause sub = function
+    | Pcomp_for cbs -> Pcomp_for (List.map (map_clause_binding sub) cbs)
+    | Pcomp_when expr -> Pcomp_when (sub.expr sub expr)
 
-  let map_comp sub : C.comprehension -> C.comprehension = function
-    | { body; clauses } -> { body = sub.expr sub body;
-                            clauses = List.map (map_clause sub) clauses }
+  let map_comp sub = function
+    | { pcomp_body; pcomp_clauses } ->
+        { pcomp_body = sub.expr sub pcomp_body;
+          pcomp_clauses = List.map (map_clause sub) pcomp_clauses }
 
-  let map_cexp sub : C.expression -> C.expression = function
-    | Cexp_list_comprehension comp ->
-      Cexp_list_comprehension (map_comp sub comp)
-    | Cexp_array_comprehension (mut, comp) ->
-      Cexp_array_comprehension (mut, map_comp sub comp)
-
-  let map_iaexp sub : IA.expression -> IA.expression = function
-    | Iaexp_immutable_array elts ->
-      Iaexp_immutable_array (List.map (sub.expr sub) elts)
+  let map_cexp sub = function
+    | Pcomp_list_comprehension comp ->
+      Pcomp_list_comprehension (map_comp sub comp)
+    | Pcomp_array_comprehension (mut, comp) ->
+      Pcomp_array_comprehension (mut, map_comp sub comp)
 
   let map_ltexp sub el = List.map (map_snd (sub.expr sub)) el
-
-  let map_jst sub : Jane_syntax.Expression.t -> Jane_syntax.Expression.t =
-    function
-    | Jexp_comprehension x -> Jexp_comprehension (map_cexp sub x)
-    | Jexp_immutable_array x -> Jexp_immutable_array (map_iaexp sub x)
-
-  let map sub
-        ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as exp) =
+  let map sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
     let open Exp in
     let loc = sub.location sub loc in
-    match Jane_syntax.Expression.of_ast exp with
-    | Some (jexp, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
-        Jane_syntax.Expression.expr_of ~loc ~attrs
-          (sub.expr_jane_syntax sub jexp)
-    end
-    | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
     | Pexp_ident x -> ident ~loc ~attrs (map_loc sub x)
@@ -613,7 +590,7 @@ module E = struct
     | Pexp_setfield (e1, lid, e2) ->
         setfield ~loc ~attrs (sub.expr sub e1) (map_loc sub lid)
           (sub.expr sub e2)
-    | Pexp_array el -> array ~loc ~attrs (List.map (sub.expr sub) el)
+    | Pexp_array (mut, el) -> array ~loc ~attrs mut (List.map (sub.expr sub) el)
     | Pexp_ifthenelse (e1, e2, e3) ->
         ifthenelse ~loc ~attrs (sub.expr sub e1) (sub.expr sub e2)
           (map_opt (sub.expr sub) e3)
@@ -662,6 +639,7 @@ module E = struct
     | Pexp_extension x -> extension ~loc ~attrs (sub.extension sub x)
     | Pexp_unreachable -> unreachable ~loc ~attrs ()
     | Pexp_stack e -> stack ~loc ~attrs (sub.expr sub e)
+    | Pexp_comprehension c -> comprehension ~loc ~attrs (map_cexp sub c)
 
   let map_binding_op sub {pbop_op; pbop_pat; pbop_exp; pbop_loc} =
     let open Exp in
@@ -676,27 +654,11 @@ end
 module P = struct
   (* Patterns *)
 
-  module IA = Jane_syntax.Immutable_arrays
-
-  let map_iapat sub : IA.pattern -> IA.pattern = function
-    | Iapat_immutable_array elts ->
-      Iapat_immutable_array (List.map (sub.pat sub) elts)
-
   let map_ltpat sub pl = List.map (map_snd (sub.pat sub)) pl
 
-  let map_jst sub : Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t = function
-    | Jpat_immutable_array x -> Jpat_immutable_array (map_iapat sub x)
-
-  let map sub
-        ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
+  let map sub {ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} =
     let open Pat in
     let loc = sub.location sub loc in
-    match Jane_syntax.Pattern.of_ast pat with
-    | Some (jpat, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
-        Jane_syntax.Pattern.pat_of ~loc ~attrs (sub.pat_jane_syntax sub jpat)
-    end
-    | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
@@ -717,7 +679,7 @@ module P = struct
     | Ppat_record (lpl, cf) ->
         record ~loc ~attrs
                (List.map (map_tuple (map_loc sub) (sub.pat sub)) lpl) cf
-    | Ppat_array pl -> array ~loc ~attrs (List.map (sub.pat sub) pl)
+    | Ppat_array (mut, pl) -> array ~loc ~attrs mut (List.map (sub.pat sub) pl)
     | Ppat_or (p1, p2) -> or_ ~loc ~attrs (sub.pat sub p1) (sub.pat sub p2)
     | Ppat_constraint (p, t, m) ->
         constraint_ ~loc ~attrs (sub.pat sub p) (Option.map (sub.typ sub) t) (sub.modes sub m)
@@ -1006,9 +968,7 @@ let default_mapper =
       in
       { pjkind_loc; pjkind_desc });
 
-    expr_jane_syntax = E.map_jst;
     module_type_jane_syntax = MT.map_jane_syntax;
-    pat_jane_syntax = P.map_jst;
 
     modes = (fun this m ->
       List.map (map_loc this) m);
