@@ -376,6 +376,14 @@ and expression_desc =
             or [None] if it is [Record_unboxed],
             in which case it does not need allocation.
           *)
+  (* | Texp_record_flat of {
+   *     fields : ( Types.label_flat_description * record_label_definition ) array;
+   *     representation : Types.record_flat_representation;
+   *     extended_expression : expression option;
+   *     alloc_mode : alloc_mode option
+   *   }
+   *       (** CR rtjoa: document
+   *         *) *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
       texp_field_boxing
     (** [texp_field_boxing] provides extra information depending on if the
@@ -965,6 +973,7 @@ and type_kind =
     Ttype_abstract
   | Ttype_variant of constructor_declaration list
   | Ttype_record of label_declaration list
+  | Ttype_record_flat of label_declaration list
   | Ttype_open
 
 and label_declaration =

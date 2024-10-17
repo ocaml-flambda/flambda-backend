@@ -918,6 +918,7 @@ let unboxed_type sloc lident tys =
 %token GREATERRBRACE          ">}"
 %token GREATERRBRACKET        ">]"
 %token HASHLPAREN             "#("
+%token HASHLBRACE             "#{"
 %token IF                     "if"
 %token IN                     "in"
 %token INCLUDE                "include"
@@ -1086,7 +1087,7 @@ The precedences must be listed from low to high.
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
-          LBRACKETPERCENT QUOTED_STRING_EXPR STACK HASHLPAREN
+          LBRACKETPERCENT QUOTED_STRING_EXPR STACK HASHLBRACE HASHLPAREN
 
 
 /* Entry points */
@@ -3001,12 +3002,19 @@ comprehension_clause:
   | LBRACE record_expr_content RBRACE
       { let (exten, fields) = $2 in
         Pexp_record(fields, exten) }
+  | HASHLBRACE record_expr_content_no_with RBRACE
+      { let (exten, fields) = $2 in
+        Pexp_record_flat(fields, exten) }
   | LBRACE record_expr_content error
       { unclosed "{" $loc($1) "}" $loc($3) }
   | od=open_dot_declaration DOT LBRACE record_expr_content RBRACE
       { let (exten, fields) = $4 in
         Pexp_open(od, mkexp ~loc:($startpos($3), $endpos)
                         (Pexp_record(fields, exten))) }
+  | od=open_dot_declaration DOT HASHLBRACE record_expr_content RBRACE
+      { let (exten, fields) = $4 in
+        Pexp_open(od, mkexp ~loc:($startpos($3), $endpos)
+                        (Pexp_record_flat(fields, exten))) }
   | mod_longident DOT LBRACE record_expr_content error
       { unclosed "{" $loc($3) "}" $loc($5) }
   | array_exprs(LBRACKETBAR, BARRBRACKET)
@@ -3371,6 +3379,10 @@ record_expr_content:
   eo = ioption(terminated(simple_expr, WITH))
   fields = separated_or_terminated_nonempty_list(SEMI, record_expr_field)
     { eo, fields }
+;
+%inline record_expr_content_no_with:
+  fields = separated_or_terminated_nonempty_list(SEMI, record_expr_field)
+    { None, fields }
 ;
 %inline record_expr_field:
   | label = mkrhs(label_longident)
@@ -3846,6 +3858,11 @@ nonempty_type_kind:
     priv = inline_private_flag
     LBRACE ls = label_declarations RBRACE
       { (Ptype_record ls, priv, oty) }
+  | oty = type_synonym
+    priv = inline_private_flag
+    HASHLBRACE ls = label_declarations RBRACE
+      { (Ptype_record_flat ls, priv, oty) }
+
 ;
 %inline type_synonym:
   ioption(terminated(core_type, EQUAL))

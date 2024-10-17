@@ -67,7 +67,7 @@ val diff: t -> t -> Ident.t list
 val same_type_declarations: t -> t -> bool
 
 type type_descr_kind =
-  (label_description, constructor_description) type_kind
+  (label_description, label_flat_description, constructor_description) type_kind
 
   (* alias for compatibility *)
 type type_descriptions = type_descr_kind
@@ -103,6 +103,7 @@ val find_cltype: Path.t -> t -> class_type_declaration
 
 val find_ident_constructor: Ident.t -> t -> constructor_description
 val find_ident_label: Ident.t -> t -> label_description
+(* val find_ident_label_flat: Ident.t -> t -> label_flat_description *)
 
 val find_type_expansion:
     Path.t -> t -> type_expr list * type_expr * int
@@ -292,16 +293,20 @@ val lookup_all_constructors_from_type:
   ?use:bool -> loc:Location.t -> constructor_usage -> Path.t -> t ->
   (constructor_description * (unit -> unit)) list
 
+type _ which_label_lookup =
+  | Label_lookup : record_representation which_label_lookup
+  | Label_flat_lookup : record_flat_representation which_label_lookup
+
 val lookup_label:
-  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
-  label_description
+  'rcd. ?use:bool -> loc:Location.t -> 'rcd which_label_lookup -> label_usage -> Longident.t -> t ->
+  'rcd gen_label_description
 val lookup_all_labels:
-  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
-  ((label_description * (unit -> unit)) list,
+  'rcd. ?use:bool -> loc:Location.t -> 'rcd which_label_lookup -> label_usage -> Longident.t -> t ->
+  (('rcd gen_label_description * (unit -> unit)) list,
    Location.t * t * lookup_error) result
 val lookup_all_labels_from_type:
-  ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
-  (label_description * (unit -> unit)) list
+  'rcd. ?use:bool -> loc:Location.t -> 'rcd which_label_lookup -> label_usage -> Path.t -> t ->
+  ('rcd gen_label_description * (unit -> unit)) list
 
 val lookup_instance_variable:
   ?use:bool -> loc:Location.t -> string -> t ->

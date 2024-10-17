@@ -192,12 +192,14 @@ type privacy_mismatch =
 type type_kind =
   | Kind_abstract
   | Kind_record
+  | Kind_record_flat
   | Kind_variant
   | Kind_open
 
 let of_kind = function
   | Type_abstract _ -> Kind_abstract
   | Type_record (_, _) -> Kind_record
+  | Type_record_flat (_, _) -> Kind_record_flat
   | Type_variant (_, _) -> Kind_variant
   | Type_open -> Kind_open
 
@@ -530,6 +532,8 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
   let kind_to_string = function
   | Kind_abstract -> "abstract"
   | Kind_record -> "a record"
+  (* CR rtjoa:   *)
+  | Kind_record_flat -> "an unboxed record!"
   | Kind_variant -> "a variant"
   | Kind_open -> "an extensible variant" in
   pr "%s is %s, but %s is %s."
@@ -733,6 +737,16 @@ module Record_diffing = struct
           "Impossible: the only way for mixed blocks to differ in \
            representation is if one is a flat float record with a boxed float \
            field, and the other isn't."
+
+  let compare_with_representation_flat ~loc env params1 params2 l r rep1 rep2 =
+    if not (equal ~loc env params1 params2 l r) then
+      let patch = diffing loc env params1 params2 l r in
+      Some (Record_mismatch (Label_mismatch patch))
+    else
+     match rep1, rep2 with
+       (* CR rtjoa: check jkinds *)
+     | Record_flat _jkinds1, Record_flat _jkinds2 -> None
+
 
   let compare_with_representation ~loc env params1 params2 l r rep1 rep2 =
     if not (equal ~loc env params1 params2 l r) then
@@ -947,6 +961,7 @@ let privacy_mismatch env decl1 decl2 =
   | Private, Public -> begin
       match decl1.type_kind, decl2.type_kind with
       | Type_record  _, Type_record  _ -> Some Private_record_type
+      | Type_record_flat  _, Type_record_flat  _ -> assert false
       | Type_variant _, Type_variant _ -> Some Private_variant_type
       | Type_open,      Type_open      -> Some Private_extensible_variant
       | Type_abstract _, Type_abstract _
@@ -1130,6 +1145,7 @@ let type_manifest env ty1 ty2 priv2 kind2 =
 
    This is perfectly safe -- [F] will use [X.t] only with [value]s, which is
    fine because [X.t] works with [any] type -- but requires contravariance.
+   CR rtjoa: need to understand intuitively why this is safe...
 
    So this is our approach:
 
@@ -1299,6 +1315,23 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           if equality then mark Env.Exported labels2
         end;
         Record_diffing.compare_with_representation ~loc env
+          decl1.type_params decl2.type_params
+          labels1 labels2
+          rep1 rep2
+    (* CR rtjoa:  *)
+    | (Type_record_flat(labels1,rep1), Type_record_flat(labels2,rep2)) ->
+        if mark then begin
+          let mark usage lbls =
+            List.iter (Env.mark_label_used usage) lbls
+          in
+          let usage : Env.label_usage =
+            if decl2.type_private = Public then Env.Exported
+            else Env.Exported_private
+          in
+          mark usage labels1;
+          if equality then mark Env.Exported labels2
+        end;
+        Record_diffing.compare_with_representation_flat ~loc env
           decl1.type_params decl2.type_params
           labels1 labels2
           rep1 rep2

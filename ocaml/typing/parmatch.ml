@@ -910,7 +910,7 @@ let pat_of_constrs ex_pat cstrs =
 
 let pats_of_type env ty =
   match Ctype.extract_concrete_typedecl env ty with
-  | Typedecl (_, path, {type_kind = Type_variant _ | Type_record _}) ->
+  | Typedecl (_, path, {type_kind = Type_variant _ | Type_record _ | Type_record_flat _ }) ->
       begin match Env.find_type_descrs path env with
       | Type_variant (cstrs,_) when List.length cstrs <= 1 ||
         (* Only explode when all constructors are GADTs *)
@@ -923,6 +923,8 @@ let pats_of_type env ty =
               labels
           in
           [make_pat (Tpat_record (fields, Closed)) ty env]
+      | Type_record_flat (_labels, _) ->
+          assert false
       | Type_variant _ | Type_abstract _ | Type_open -> [omega]
       end
   | Has_no_typedecl ->

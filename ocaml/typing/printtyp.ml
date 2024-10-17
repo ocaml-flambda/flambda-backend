@@ -1849,6 +1849,8 @@ let prepare_decl id decl =
         cstrs
   | Type_record(l, _rep) ->
       List.iter (fun l -> prepare_type l.ld_type) l
+  | Type_record_flat(l, _rep) ->
+      List.iter (fun l -> prepare_type l.ld_type) l
   | Type_open -> ()
   end;
   ty_manifest, params
@@ -1867,6 +1869,8 @@ let tree_of_type_decl id decl =
         Type_abstract _ ->
           decl.type_manifest = None || decl.type_private = Private
       | Type_record _ ->
+          decl.type_private = Private
+      | Type_record_flat _ ->
           decl.type_private = Private
       | Type_variant (tll, _rep) ->
           decl.type_private = Private ||
@@ -1928,6 +1932,10 @@ let tree_of_type_decl id decl =
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
         decl.type_private,
         (match rep with Record_unboxed -> true | _ -> false)
+    | Type_record_flat(lbls, Record_flat _) ->
+        tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
+        decl.type_private,
+        true
     | Type_open ->
         tree_of_manifest Otyp_open,
         decl.type_private,

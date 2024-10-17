@@ -213,7 +213,8 @@ module T = struct
     | Ptype_abstract -> ()
     | Ptype_variant l ->
         List.iter (sub.constructor_declaration sub) l
-    | Ptype_record l -> List.iter (sub.label_declaration sub) l
+    | Ptype_record l | Ptype_record_flat l ->
+        List.iter (sub.label_declaration sub) l
     | Ptype_open -> ()
 
   let iter_constructor_argument sub {pca_type; pca_loc; pca_modalities} =
@@ -592,7 +593,8 @@ module E = struct
         iter_loc sub lid; iter_opt (sub.expr sub) arg
     | Pexp_variant (_lab, eo) ->
         iter_opt (sub.expr sub) eo
-    | Pexp_record (l, eo) ->
+    | Pexp_record (l, eo)
+    | Pexp_record_flat (l, eo) ->
         List.iter (iter_tuple (iter_loc sub) (sub.expr sub)) l;
         iter_opt (sub.expr sub) eo
     | Pexp_field (e, lid) ->

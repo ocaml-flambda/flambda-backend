@@ -669,24 +669,26 @@ and value_description =
     val_attributes: attribute list;
     }
 
+(* CR rtjoa:  *)
 and type_declaration =
-  { typ_id: Ident.t;
+  { typ_id: Ident.t; (* added *)
     typ_name: string loc;
     typ_params: (core_type * (variance * injectivity)) list;
-    typ_type: Types.type_declaration;
+    typ_type: Types.type_declaration; (* added *)
     typ_cstrs: (core_type * core_type * Location.t) list;
     typ_kind: type_kind;
     typ_private: private_flag;
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attribute list;
-    typ_jkind_annotation: Jane_syntax.Jkind.annotation option;
+    typ_jkind_annotation: Jane_syntax.Jkind.annotation option; (* added *)
    }
 
 and type_kind =
     Ttype_abstract
   | Ttype_variant of constructor_declaration list
   | Ttype_record of label_declaration list
+  | Ttype_record_flat of label_declaration list
   | Ttype_open
 
 and label_declaration =

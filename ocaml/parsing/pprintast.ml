@@ -2080,6 +2080,9 @@ and type_declaration ctxt f x =
     | Ptype_abstract -> ()
     | Ptype_record l ->
         pp f "%t%t@;%a" intro priv (record_declaration ctxt) l
+    | Ptype_record_flat l ->
+      (* CR rtjoa:  *)
+        pp f "flat %t%t@;%a" intro priv (record_declaration ctxt) l
     | Ptype_open -> pp f "%t%t@;.." intro priv
   in
   let constraints f =

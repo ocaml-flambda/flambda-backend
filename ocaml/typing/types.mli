@@ -553,11 +553,12 @@ type type_declaration =
     (* CR layouts v2.8: remove type_has_illegal_crossings *)
   }
 
-and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and ('lbl, 'cstr) type_kind =
+and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
   | Type_record of 'lbl list  * record_representation
+  | Type_record_flat of 'lbl_flat list * record_flat_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
@@ -618,6 +619,9 @@ and record_representation =
   (* The record contains a mix of values and unboxed elements. The block
      is tagged such that polymorphic operations will not work.
   *)
+
+and record_flat_representation =
+  | Record_flat of jkind_l array
 
 and variant_representation =
   | Variant_unboxed
@@ -883,10 +887,13 @@ val may_equal_constr :
 val equal_record_representation :
   record_representation -> record_representation -> bool
 
+val equal_record_flat_representation :
+  record_flat_representation -> record_flat_representation -> bool
+
 val equal_variant_representation :
   variant_representation -> variant_representation -> bool
 
-type label_description =
+type 'a gen_label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
@@ -896,8 +903,8 @@ type label_description =
     lbl_jkind : jkind_l;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
-    lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for outer record *)
+    lbl_all: 'a gen_label_description array;   (* All the labels in this type *)
+    lbl_repres: 'a;  (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
@@ -906,6 +913,10 @@ type label_description =
 (* CR layouts v5: once we allow [any] in record fields, change [lbl_jkind] to
    be a [sort option].  This will allow a fast path for representability checks
    at record construction, and currently only the sort is used anyway. *)
+
+type label_description = record_representation gen_label_description
+
+type label_flat_description = record_flat_representation gen_label_description
 
 (** The special value we assign to lbl_pos for label descriptions corresponding
     to void types, because they can't sensibly be projected.

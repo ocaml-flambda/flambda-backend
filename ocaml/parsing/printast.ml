@@ -326,6 +326,10 @@ and expression i ppf x =
       line i ppf "Pexp_record\n";
       list i longident_x_expression ppf l;
       option i expression ppf eo;
+  | Pexp_record_flat (l, eo) ->
+      line i ppf "Pexp_record_flat\n";
+      list i longident_x_expression ppf l;
+      option i expression ppf eo;
   | Pexp_field (e, li) ->
       line i ppf "Pexp_field\n";
       expression i ppf e;
@@ -536,6 +540,10 @@ and type_kind i ppf x =
       list (i+1) constructor_decl ppf l;
   | Ptype_record l ->
       line i ppf "Ptype_record\n";
+      list (i+1) label_decl ppf l;
+  | Ptype_record_flat l ->
+      (* CR rtjoa:  *)
+      line i ppf "Ptype_record_flat\n";
       list (i+1) label_decl ppf l;
   | Ptype_open ->
       line i ppf "Ptype_open\n";

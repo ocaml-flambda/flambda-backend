@@ -193,6 +193,7 @@ let type_kind sub = function
   | Ttype_abstract -> ()
   | Ttype_variant list -> List.iter (constructor_decl sub) list
   | Ttype_record list -> List.iter (label_decl sub) list
+  | Ttype_record_flat list -> List.iter (label_decl sub) list
   | Ttype_open -> ()
 
 let type_declaration sub x =

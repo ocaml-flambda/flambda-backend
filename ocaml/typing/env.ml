@@ -595,7 +595,7 @@ module IdTbl =
   end
 
 type type_descr_kind =
-  (label_description, constructor_description) type_kind
+  (label_description, label_flat_description, constructor_description) type_kind
 
 type type_descriptions = type_descr_kind
 
@@ -605,6 +605,7 @@ type t = {
   values: (lock, value_entry, value_data) IdTbl.t;
   constrs: constructor_data TycompTbl.t;
   labels: label_data TycompTbl.t;
+  label_flats: label_flat_description TycompTbl.t;
   types: (empty, type_data, type_data) IdTbl.t;
   modules: (lock, module_entry, module_data) IdTbl.t;
   modtypes: (empty, modtype_data, modtype_data) IdTbl.t;
@@ -646,7 +647,9 @@ and module_components_failure =
 and structure_components = {
   mutable comp_values: value_data NameMap.t;
   mutable comp_constrs: constructor_data list NameMap.t;
+  (* CR rtjoa:  *)
   mutable comp_labels: label_data list NameMap.t;
+  mutable comp_label_flats: label_flat_description list NameMap.t;
   mutable comp_types: type_data NameMap.t;
   mutable comp_modules: module_data NameMap.t;
   mutable comp_modtypes: modtype_data NameMap.t;
@@ -726,6 +729,7 @@ let empty_structure =
     comp_values = NameMap.empty;
     comp_constrs = NameMap.empty;
     comp_labels = NameMap.empty;
+    comp_label_flats = NameMap.empty;
     comp_types = NameMap.empty;
     comp_modules = NameMap.empty; comp_modtypes = NameMap.empty;
     comp_classes = NameMap.empty;
@@ -812,6 +816,9 @@ let check_shadowing env = function
   | `Label (Some (l1, l2))
     when not (!same_constr env l1.lbl_res l2.lbl_res) ->
       Some "label"
+  | `LabelFlat (Some (l1, l2))
+    when not (!same_constr env l1.lbl_res l2.lbl_res) ->
+      Some "label_flat"
   | `Value (Some (Val_unbound _, _)) -> None
   | `Value (Some (_, _)) -> Some "value"
   | `Type (Some _) -> Some "type"
@@ -821,14 +828,14 @@ let check_shadowing env = function
   | `Module_type (Some _) -> Some "module type"
   | `Class (Some _) -> Some "class"
   | `Class_type (Some _) -> Some "class type"
-  | `Constructor _ | `Label _
+  | `Constructor _ | `Label _ | `LabelFlat _
   | `Value None | `Type None | `Module None | `Module_type None
   | `Class None | `Class_type None | `Component None ->
       None
 
 let empty = {
   values = IdTbl.empty; constrs = TycompTbl.empty;
-  labels = TycompTbl.empty; types = IdTbl.empty;
+  labels = TycompTbl.empty; label_flats = TycompTbl.empty; types = IdTbl.empty;
   modules = IdTbl.empty; modtypes = IdTbl.empty;
   classes = IdTbl.empty; cltypes = IdTbl.empty;
   summary = Env_empty; local_constraints = Path.Map.empty;
@@ -1301,7 +1308,7 @@ and find_cstr path name env =
   match tda.tda_descriptions with
   | Type_variant (cstrs, _) ->
       List.find (fun cstr -> cstr.cstr_name = name) cstrs
-  | Type_record _ | Type_abstract _ | Type_open -> raise Not_found
+  | Type_record _ | Type_record_flat _ | Type_abstract _ | Type_open -> raise Not_found
 
 
 
@@ -1349,6 +1356,9 @@ let find_ident_constructor id env =
 
 let find_ident_label id env =
   TycompTbl.find_same id env.labels
+
+(* let find_ident_label_flat id env =
+ *   TycompTbl.find_same id env.labels *)
 
 let find_type p env =
   (find_type_data p env).tda_declaration
@@ -1418,6 +1428,7 @@ let reset_probes () = probes := String.Set.empty
 let add_probe name = probes := String.Set.add name !probes
 let has_probe name = String.Set.mem name !probes
 
+(* CR rtjoa:  *)
 let find_shape env (ns : Shape.Sig_component_kind.t) id =
   match ns with
   | Type ->
@@ -1840,6 +1851,10 @@ let is_identchar c =
   | _ ->
     false
 
+type _ which_label_lookup =
+  | Label_lookup : record_representation which_label_lookup
+  | Label_flat_lookup : record_flat_representation which_label_lookup
+
 let rec components_of_module_maker
           {cm_env; cm_prefixing_subst;
            cm_path; cm_addr; cm_mty; cm_shape} : _ result =
@@ -1848,7 +1863,8 @@ let rec components_of_module_maker
       let c =
         { comp_values = NameMap.empty;
           comp_constrs = NameMap.empty;
-          comp_labels = NameMap.empty; comp_types = NameMap.empty;
+          comp_labels = NameMap.empty; comp_label_flats = NameMap.empty;
+          comp_types = NameMap.empty;
           comp_modules = NameMap.empty; comp_modtypes = NameMap.empty;
           comp_classes = NameMap.empty; comp_cltypes = NameMap.empty }
       in
@@ -1912,6 +1928,16 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
+              | Type_record_flat (_, repr) ->
+                  let (lbls : label_flat_description list) = List.map snd
+                    (Datarepr.label_flats_of_type path final_decl)
+                  in
+                  List.iter
+                    (fun descr ->
+                      c.comp_label_flats <-
+                        add_to_tbl descr.lbl_name descr c.comp_label_flats)
+                    lbls;
+                  Type_record_flat (lbls, repr)
               | Type_abstract r -> Type_abstract r
               | Type_open -> Type_open
             in
@@ -2140,6 +2166,42 @@ and store_label ~check type_decl type_id lbl_id lbl env =
     labels = TycompTbl.add lbl_id lbl env.labels;
   }
 
+
+and store_label_flat ~check type_decl type_id lbl_id lbl env =
+  Builtin_attributes.warning_scope lbl.lbl_attributes (fun () ->
+  if check && not type_decl.type_loc.Location.loc_ghost
+     && Warnings.is_active (Warnings.Unused_field ("", Unused))
+  then begin
+    let ty_name = Ident.name type_id in
+    let priv = type_decl.type_private in
+    let name = lbl.lbl_name in
+    let loc = lbl.lbl_loc in
+    let mut = lbl.lbl_mut in
+    let k = lbl.lbl_uid in
+    if not (Types.Uid.Tbl.mem !used_labels k) then
+      let used = label_usages () in
+      Types.Uid.Tbl.add !used_labels k
+        (add_label_usage used);
+      if not (ty_name = "" || ty_name.[0] = '_' || name.[0] = '_')
+      then !add_delayed_check_forward
+          (fun () ->
+            Option.iter
+              (fun complaint ->
+                 if not (is_in_signature env) then
+                   Location.prerr_warning
+                     loc (Warnings.Unused_field(name, complaint)))
+              (label_usage_complaint priv mut used))
+  end);
+  Builtin_attributes.mark_alerts_used lbl.lbl_attributes;
+  begin match lbl.lbl_mut with
+    | Mutable _ ->
+      Builtin_attributes.mark_deprecated_mutable_used lbl.lbl_attributes;
+    | Immutable -> ()
+  end;
+  { env with
+    label_flats = TycompTbl.add lbl_id lbl env.label_flats;
+  }
+
 and store_type ~check id info shape env =
   let loc = info.type_loc in
   if check then
@@ -2164,6 +2226,13 @@ and store_type ~check id info shape env =
         List.fold_left
           (fun env (lbl_id, lbl) ->
             store_label ~check info id lbl_id lbl env)
+          env labels
+    | Type_record_flat (_, repr) ->
+        let labels = Datarepr.label_flats_of_type path info in
+        Type_record_flat (List.map snd labels, repr),
+        List.fold_left
+          (fun env (lbl_id, lbl) ->
+            store_label_flat ~check info id lbl_id lbl env)
           env labels
     | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
@@ -2606,6 +2675,9 @@ let add_components slot root env0 comps =
   let labels =
     add_l (fun x -> `Label x) comps.comp_labels env0.labels
   in
+  let label_flats =
+    add_l (fun x -> `LabelFlat x) comps.comp_label_flats env0.label_flats
+  in
   let values =
     add (fun x -> `Value x) comps.comp_values env0.values
   in
@@ -2628,6 +2700,7 @@ let add_components slot root env0 comps =
     summary = Env_open(env0.summary, root);
     constrs;
     labels;
+    label_flats;
     values;
     types;
     modtypes;
@@ -2673,6 +2746,7 @@ let remove_last_open root env0 =
              summary;
              constrs = rem_l env0.constrs;
              labels = rem_l env0.labels;
+             label_flats = rem_l env0.label_flats;
              values = rem env0.values;
              types = rem env0.types;
              modtypes = rem env0.modtypes;
@@ -3183,8 +3257,16 @@ let lookup_ident_cltype ~errors ~use ~loc s env =
   | exception Not_found ->
       may_lookup_error errors loc env (Unbound_cltype (Lident s))
 
-let lookup_all_ident_labels ~errors ~use ~loc usage s env =
-  match TycompTbl.find_all ~mark:use s env.labels with
+let f : type rcd . use:_ -> rcd which_label_lookup -> _ -> _ -> (rcd gen_label_description * (unit -> unit)) list =
+    fun ~use which s env ->
+    match which with
+    | Label_lookup ->
+      TycompTbl.find_all ~mark:use s env.labels
+    | Label_flat_lookup ->
+      TycompTbl.find_all ~mark:use s env.label_flats
+
+let lookup_all_ident_labels (type rcd) ~errors ~use ~loc (which : rcd which_label_lookup) usage s env =
+  match f ~use which s env with
   | [] -> may_lookup_error errors loc env (Unbound_label (Lident s))
   | lbls -> begin
       List.map
@@ -3196,6 +3278,21 @@ let lookup_all_ident_labels ~errors ~use ~loc usage s env =
            (lbl, use_fn))
         lbls
     end
+
+(* let lookup_all_ident_label_flats ~errors ~use ~loc usage s env =
+ *   match TycompTbl.find_all ~mark:use s env.label_flats with
+ *   | [] -> may_lookup_error errors loc env (Unbound_label (Lident s))
+ *   | lbls -> begin
+ *       List.map
+ *         (fun (lbl, use_fn) ->
+ *            let use_fn () =
+ *              use_label ~use ~loc usage env lbl;
+ *              use_fn ()
+ *            in
+ *            (lbl, use_fn))
+ *         lbls
+ *     end *)
+
 
 let lookup_all_ident_constructors ~errors ~use ~loc usage s env =
   match TycompTbl.find_all ~mark:use s env.constrs with
@@ -3387,9 +3484,15 @@ let lookup_dot_cltype ~errors ~use ~loc l s env =
   | exception Not_found ->
       may_lookup_error errors loc env (Unbound_cltype (Ldot(l, s)))
 
-let lookup_all_dot_labels ~errors ~use ~loc usage l s env =
+let get_comp_labels :
+  type rcd. _ -> _ -> rcd which_label_lookup -> rcd gen_label_description list
+  = fun comps s -> function
+  | Label_lookup -> NameMap.find s comps.comp_labels
+  | Label_flat_lookup -> NameMap.find s comps.comp_label_flats
+
+let lookup_all_dot_labels ~errors ~use ~loc which usage l s env =
   let (_, _, comps) = lookup_structure_components ~errors ~use ~loc l env in
-  match NameMap.find s comps.comp_labels with
+  match get_comp_labels comps s which with
   | [] | exception Not_found ->
       may_lookup_error errors loc env (Unbound_label (Ldot(l, s)))
   | lbls ->
@@ -3522,18 +3625,18 @@ let lookup_cltype ~errors ~use ~loc lid env =
   | Ldot(l, s) -> lookup_dot_cltype ~errors ~use ~loc l s env
   | Lapply _ -> assert false
 
-let lookup_all_labels ~errors ~use ~loc usage lid env =
+let lookup_all_labels ~errors ~use ~loc which usage lid env =
   match lid with
-  | Lident s -> lookup_all_ident_labels ~errors ~use ~loc usage s env
-  | Ldot(l, s) -> lookup_all_dot_labels ~errors ~use ~loc usage l s env
+  | Lident s -> lookup_all_ident_labels ~errors ~use ~loc which usage s env
+  | Ldot(l, s) -> lookup_all_dot_labels ~errors ~use ~loc which usage l s env
   | Lapply _ -> assert false
 
-let lookup_label ~errors ~use ~loc usage lid env =
-  match lookup_all_labels ~errors ~use ~loc usage lid env with
+let lookup_label ~errors ~use ~loc which usage lid env =
+  match lookup_all_labels ~errors ~use ~loc which usage lid env with
   | [] -> assert false
   | (desc, use) :: _ -> use (); desc
 
-let lookup_all_labels_from_type ~use ~loc usage ty_path env =
+let lookup_all_labels_from_type ~use ~loc which usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
   | Type_variant _ | Type_abstract _ | Type_open -> []
@@ -3543,6 +3646,7 @@ let lookup_all_labels_from_type ~use ~loc usage ty_path env =
            let use_fun () = use_label ~use ~loc usage env lbl in
            (lbl, use_fun))
         lbls
+  | Type_record_flat (_, _) -> []
 
 let lookup_all_constructors ~errors ~use ~loc usage lid env =
   match lid with
@@ -3558,7 +3662,7 @@ let lookup_constructor ~errors ~use ~loc usage lid env =
 let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_record _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_record_flat _ | Type_abstract _ | Type_open -> []
   | Type_variant (cstrs, _) ->
       List.map
         (fun cstr ->
@@ -3844,6 +3948,8 @@ and fold_constructors f =
     (fun cda acc -> f cda.cda_description acc)
 and fold_labels f =
   find_all_simple_list (fun env -> env.labels) (fun sc -> sc.comp_labels) f
+(* and fold_label_flats f =
+ *   find_all_simple_list (fun env -> env.label_flats) (fun sc -> sc.comp_label_flats) f *)
 and fold_types f =
   find_all wrap_identity
     (fun env -> env.types) (fun sc -> sc.comp_types)
