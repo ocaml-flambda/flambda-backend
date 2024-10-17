@@ -685,7 +685,6 @@ let assign_children n f = function
   | Overwriting(loc, typ, mode) -> f loc typ mode
 
 let rec can_be_overwritten = function
-  | Pexp_stack e -> can_be_overwritten e.pexp_desc
   | Pexp_constraint (e, _, _) -> can_be_overwritten e.pexp_desc
   | (Pexp_tuple _ | Pexp_construct _ | Pexp_record _) -> true
   | _ -> false
@@ -5715,12 +5714,20 @@ and type_expect_
         else
           None, expected_mode
       in
-      let type_label_exp ((_, label, _) as x) =
+      let type_label_exp overwrite ((_, label, _) as x) =
         check_construct_mutability ~loc ~env label.lbl_mut argument_mode;
         let argument_mode = mode_modality label.lbl_modalities argument_mode in
         type_label_exp ~overwrite true env argument_mode loc ty_record x
       in
-      let lbl_exp_list = List.map type_label_exp lbl_a_list in
+      let overwrites =
+        assign_children (List.length lbl_a_list)
+          (fun loc ty mode -> (* only change mode heree, see type_label_exp *)
+             List.map (fun (_, label, _) ->
+                let mode = Modality.Value.Const.apply label.lbl_modalities mode in
+                 Overwriting(loc, ty, mode)) lbl_a_list)
+          overwrite
+      in
+      let lbl_exp_list = List.map2 type_label_exp overwrites lbl_a_list in
       with_explanation (fun () ->
         unify_exp_types loc env (instance ty_record) (instance ty_expected));
       (* note: check_duplicates would better be implemented in
@@ -5789,9 +5796,9 @@ and type_expect_
             in
             None, label_definitions
         | None, Overwriting (loc, ty, mode) ->
-          let ty_exp = instance ty in
-          let label_definitions = Array.map (unify_kept loc ty_exp mode) lbl.lbl_all in
-          None, label_definitions
+            let ty_exp = instance ty in
+            let label_definitions = Array.map (unify_kept loc ty_exp mode) lbl.lbl_all in
+            None, label_definitions
         | Some (exp, mode), _ ->
             let ty_exp = instance exp.exp_type in
             let label_definitions = Array.map (unify_kept loc ty_exp mode) lbl.lbl_all in
@@ -6585,30 +6592,36 @@ and type_expect_
             raise Syntaxerr.(Error(Not_expecting(loc, "Overwrite of path " ^ Path.name path)))
         in
         let mode =
-          (* We enforce: actual_mode <= cell_mode <= unique /\ expected_regionality *)
           let cell_mode = Value.newvar () in
+          (* The cell has to be unique: *)
           Value.submode_exn cell_mode
             (Value.max_with (Monadic Uniqueness) Uniqueness.unique);
-          Value.submode_exn cell_mode
-            (Value.max_with (Comonadic Areality)
-               (Value.proj (Comonadic Areality) expected_mode.mode));
+          (* The cell has the right locality in this context: *)
+          Regionality.submode_exn
+            (Value.proj (Comonadic Areality) cell_mode)
+            (Value.proj (Comonadic Areality) expected_mode.mode);
+          (* The cell_mode is a lower bound on the mode of the overwritten cell: *)
+          actual_submode ~loc ~env actual_mode (mode_default cell_mode);
           (* Later on, we will enforce: cell_mode <= expected_mode of kept fields.
-             But we set the expected_mode to global below, so we will ignore
-             areality in that check. *)
+             But since we set the expected_mode to global below, we will ignore
+             regionality information in that check. That allows us to have local kept
+             fields (as long as the cell is allowed to be local) *)
           Value.meet_with (Comonadic Areality) Regionality.Const.Global cell_mode
         in
-        ident, desc.val_type, mode, unique_use ~loc ~env actual_mode.mode (as_single_mode expected_mode)
+        let unique_use =
+          unique_use ~loc ~env actual_mode.mode (as_single_mode (mode_default mode))
+        in
+        ident, desc.val_type, mode, unique_use
       in
       (* The newly-written fields have to global to avoid heap-to-stack pointers.
          We enforce that here, by asking the allocation to be global.
-         CR uniqueness: this makes the allocation alloc_heap *)
+         This makes the block alloc_heap, but we ignore that information anyway. *)
       let alloc_mode =
-        mode_coerce (Value.max_with (Comonadic Areality) Regionality.global)
-           expected_mode
+        mode_coerce (Value.max_with (Comonadic Areality) Regionality.global) expected_mode
       in
-      let overwrite = Overwriting (loc, cell_type, cell_mode) in
+      let overwrite = Overwriting (loc, cell_type, cell_mode |> Value.disallow_right) in
       let alloc = type_expect ~overwrite env alloc_mode e ty_expected_explained in
-      rue { exp_desc = Texp_overwrite(ident, lid, use, alloc);
+      re { exp_desc = Texp_overwrite(ident, lid, use, alloc);
             exp_loc = loc; exp_extra = [];
             exp_type = alloc.exp_type;
             exp_attributes = sexp.pexp_attributes;
@@ -7471,6 +7484,33 @@ and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_m
         else
           raise (Error(lid.loc, env, Private_label(lid.txt, ty_expected)));
       let snap = if vars = [] then None else Some (Btype.snapshot ()) in
+      let overwrite =
+        List.hd (assign_children 1
+          (fun loc ty mode -> (* mode is correct already, see Pexp_record *)
+             let (_, ty_arg) =
+               with_local_level_iter_if separate begin fun () ->
+                 let (vars, ty_arg, ty_res) =
+                   with_local_level_iter_if separate ~post:generalize_structure
+                     begin fun () ->
+                       let ((_, ty_arg, ty_res) as r) =
+                         instance_label ~fixed:true label in
+                       (r, [ty_arg; ty_res])
+                     end
+                 in
+                 begin try
+                   unify env (instance ty_res) (instance ty)
+                 with Unify err ->
+                   raise (Error(lid.loc, env, Label_mismatch(lid.txt, err)))
+                 end;
+                 (* Instantiate so that we can generalize internal nodes *)
+                 let ty_arg = instance ty_arg in
+                 ((vars, ty_arg), [ty_arg])
+               end
+                 ~post:generalize_structure
+             in
+             [Overwriting(loc, ty_arg, mode)])
+          overwrite)
+      in
       let arg = type_argument ~overwrite env arg_mode sarg ty_arg (instance ty_arg) in
       (vars, ty_arg, snap, arg)
     end
@@ -8123,12 +8163,48 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
        let alloc_mode, argument_mode = register_allocation expected_mode in
        argument_mode, Some alloc_mode
   in
+  let overwrites =
+    assign_children constr.cstr_arity
+      (fun loc ty mode ->
+         let ty_args, _, _ =
+           with_local_level_if separate begin fun () ->
+             let ty_args, ty_res, texp =
+               with_local_level_if separate begin fun () ->
+                 let (ty_args, ty_res, _) =
+                   instance_constructor Keep_existentials_flexible constr
+                 in
+                 let texp =
+                   re {
+                     exp_desc = Texp_construct(lid, constr, [], None);
+                     exp_loc = loc; exp_extra = [];
+                     exp_type = ty_res;
+                     exp_attributes = attrs;
+                     exp_env = env } in
+                 (ty_args, ty_res, texp)
+               end
+               ~post: begin fun (_, ty_res, texp) ->
+                 generalize_structure ty_res;
+                 with_explanation explanation (fun () ->
+                   unify_exp env {texp with exp_type = instance ty_res} (instance ty));
+               end
+             in
+             (ty_args, ty_res, texp)
+           end
+             ~post:(fun (ty_args, ty_res, _) ->
+               generalize_structure ty_res;
+               List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
+         in
+         List.map (fun ty_arg ->
+           let mode = Modality.Value.Const.apply ty_arg.Types.ca_modalities mode in
+           Overwriting (loc, ty_arg.Types.ca_type, mode)) ty_args)
+      overwrite
+  in
   let args =
     List.map2
-      (fun e ({Types.ca_type=ty; ca_modalities=gf; _},t0) ->
+      (fun e (({Types.ca_type=ty; ca_modalities=gf; _},t0), overwrite) ->
          let argument_mode = mode_modality gf argument_mode in
          type_argument ~recarg ~overwrite env argument_mode e ty t0)
-      sargs (List.combine ty_args ty_args0)
+      sargs (List.combine (List.combine ty_args ty_args0) overwrites)
   in
   if constr.cstr_private = Private then
     begin match constr.cstr_repr with

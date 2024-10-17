@@ -23,11 +23,12 @@ let overwrite_record = function
   { a; b } as t -> overwrite_ t with { b = a; a = _ }
 [%%expect{|
 type record = { a : int; b : int; }
-Line 4, characters 50-51:
+Line 4, characters 19-53:
 4 |   { a; b } as t -> overwrite_ t with { b = a; a = _ }
-                                                      ^
-Error: This expression has type "record" but an expression was expected of type
-         "int"
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 let with_record = function
@@ -56,7 +57,9 @@ type constructor = C of { a : int; b : int; }
 Line 4, characters 21-57:
 4 |   C { a; b } as t -> overwrite_ t with C { b = a; a = _ }
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "constructor" which is not a record type.
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 let overwrite_constructor = function
@@ -65,7 +68,9 @@ let overwrite_constructor = function
 Line 2, characters 23-52:
 2 |     C { a; b } as t -> overwrite_ t with C { b = a }
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "constructor" which is not a record type.
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 let overwrite_variant = function
@@ -85,7 +90,9 @@ let overwrite_in_match = function
 Line 3, characters 10-46:
 3 |     match overwrite_ t with C { b = a; a = _ } with
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "constructor" which is not a record type.
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 (****************)

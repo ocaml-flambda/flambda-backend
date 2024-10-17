@@ -114,24 +114,30 @@ module Make_Unique_Okasaki(Ord : Map.OrderedType) = struct
 
   let fold = fold
 
+  let set_color c t =
+    match t with
+    | Node _ -> overwrite_ t with Node { color = c }
+                                | Leaf -> assert false
+
+let set_black = set_color Black
+let set_red = set_color Red
+
   (* t is black and its left child is red *)
   let balance_left t =
     match t with
-    | Node t ->
-        begin match t.left with
-        | Node { left = Node { color = Red } as ll } as l ->
+    | Node { left = l } ->
+        begin match l with
+        | Node { left = Node { color = Red } as ll; right = lr } ->
             overwrite_ l with
               Node { color = Red;
                      left  = overwrite_ ll with Node { color = Black };
-                     right = overwrite_ t  with Node { color = Black; left = l.right } }
-        | Node { right = Node { color = Red } as lr } as l ->
+                     right = overwrite_ t  with Node { color = Black; left = lr } }
+        | Node { right = Node { color = Red; left = lrl; right = lrr } as lr } ->
             overwrite_ lr with
               Node { color = Red;
-                     left  = overwrite_ l with Node { color = Black; right = lr.left };
-                     right = overwrite_ t with Node { color = Black; left = lr.right } }
-        | Node l ->
-            overwrite_ t with
-              Node { color = Black; left = overwrite_ l with Node { color = Red } }
+                     left  = overwrite_ l with Node { color = Black; right = lrl };
+                     right = overwrite_ t with Node { color = Black; left = lrr } }
+        | Node _ -> overwrite_ t with Node { color = Black; left = set_red l }
         | Leaf -> assert false
         end
     | Leaf -> assert false
@@ -139,21 +145,19 @@ module Make_Unique_Okasaki(Ord : Map.OrderedType) = struct
   (* t is black and its right child is red *)
   let balance_right t =
     match t with
-    | Node t ->
-        begin match t.right with
-        | Node { right = Node { color = Red } as rr } as r ->
+    | Node { right = r } ->
+        begin match r with
+        | Node { right = Node { color = Red } as rr; left = rl } ->
             overwrite_ r with
               Node { color = Red;
-                     left  = overwrite_ t  with Node { color = Black; right = r.left };
+                     left  = overwrite_ t  with Node { color = Black; right = rl };
                      right = overwrite_ rr with Node { color = Black } }
-        | Node { left = Node { color = Red } as rl } as r ->
+        | Node { left = Node { color = Red; left = rll; right = rlr } as rl } as r ->
             overwrite_ rl with
               Node { color = Red;
-                     left  = overwrite_ t with Node { color = Black; right = rl.left };
-                     right = overwrite_ r with Node { color = Black; left = rl.right } }
-        | Node r ->
-            overwrite_ t with
-              Node { color = Black; right = overwrite_ r with Node { color = Red } }
+                     left  = overwrite_ t with Node { color = Black; right = rll };
+                     right = overwrite_ r with Node { color = Black; left = rlr } }
+        | Node _ -> overwrite_ t with Node { color = Black; right = set_red r }
         | Leaf -> assert false
         end
     | Leaf -> assert false
@@ -161,24 +165,19 @@ module Make_Unique_Okasaki(Ord : Map.OrderedType) = struct
   let[@tail_mod_cons] rec ins k v t =
     match t with
     | Leaf -> Node { color = Red; left = Leaf; key = k; value = v; right = Leaf }
-    | Node t ->
-        match Ord.compare k t.key with
+    | Node { key; left; right } ->
+        match Ord.compare k key with
         | c when c < 0 -> begin
-            match t.left with
+            match left with
             | Node { color = Red } ->
-                balance_left (overwrite_ t with Node { left = ins k v t.left }) [@nontail]
-            | _ -> overwrite_ t with Node { left = ins k v t.left } end
+                balance_left (overwrite_ t with Node { left = ins k v left }) [@nontail]
+            | _ -> overwrite_ t with Node { left = ins k v left } end
         | c when c > 0 -> begin
-            match t.right with
+            match right with
             | Node { color = Red } ->
-                balance_right (overwrite_ t with Node { right = ins k v t.right }) [@nontail]
-            | _ -> overwrite_ t with Node { right = ins k v t.right } end
-        | _ (* k == t.key *) -> overwrite_ t with Node { value = v }
-
-  let set_black t =
-    match t with
-    | Node _ as t -> overwrite_ t with Node { color = Black }
-    | Leaf -> assert false
+                balance_right (overwrite_ t with Node { right = ins k v right }) [@nontail]
+            | _ -> overwrite_ t with Node { right = ins k v right } end
+        | _ (* k == key *) -> overwrite_ t with Node { value = v }
 
   let insert k v t = set_black (ins k v t)
 end
@@ -232,7 +231,7 @@ module Make_Tagged_Okasaki(Ord : Map.OrderedType) = struct
   (* t is black and its left child is red *)
   let balance_left t =
     match t with
-    | Node ({ color = Black } as t) ->
+    | Node { color = Black } as t ->
         begin match t.left with
         | Node { color = Red; left = Node { color = Red } as ll } as l ->
             overwrite_ l with
@@ -254,7 +253,7 @@ module Make_Tagged_Okasaki(Ord : Map.OrderedType) = struct
   (* t is black and its right child is red *)
   let balance_right t =
     match t with
-    | Node ({ color = Black } as t) ->
+    | Node { color = Black } as t ->
         begin match t.right with
         | Node { color = Red; right = Node { color = Red } as rr } as r ->
             overwrite_ r with
@@ -520,10 +519,10 @@ module Make_Okasaki :
       val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@
         global many
     end
-Lines 114-117, characters 12-88:
-114 | ............overwrite_ l with
-115 |               Node { color = Red;
-116 |                      left  = overwrite_ ll with Node { color = Black };
-117 |                      right = overwrite_ t  with Node { color = Black; left = l.right } }
-Error: This expression has type "('a, 'b) tree" which is not a record type.
+Line 110, characters 16-52:
+110 |     | Node _ -> overwrite_ t with Node { color = c }
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
