@@ -141,6 +141,8 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
+  (* CR mshinwell/ncourant: just use [P.Array_ref_kind.t] if that can be
+     engineered, and the same for the set kind. *)
   type no_float_array_opt =
     | Immediates
     | Values
@@ -904,23 +906,19 @@ let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
     [ box_float mode
         (Binary (Array_load (array_kind, Naked_floats, mut), array, index))
         ~current_region ]
-  | No_float_array_opt nfo -> (
-    match nfo with
-    | Immediates ->
-      [Binary (Array_load (array_kind, Immediates, mut), array, index)]
-    | Values -> [Binary (Array_load (array_kind, Values, mut), array, index)]
-    | Naked_floats ->
-      [Binary (Array_load (array_kind, Naked_floats, mut), array, index)]
-    | Naked_float32s ->
-      [Binary (Array_load (array_kind, Naked_float32s, mut), array, index)]
-    | Naked_int32s ->
-      [Binary (Array_load (array_kind, Naked_int32s, mut), array, index)]
-    | Naked_int64s ->
-      [Binary (Array_load (array_kind, Naked_int64s, mut), array, index)]
-    | Naked_nativeints ->
-      [Binary (Array_load (array_kind, Naked_nativeints, mut), array, index)]
-    | Naked_vec128s ->
-      [Binary (Array_load (array_kind, Naked_vec128s, mut), array, index)])
+  | No_float_array_opt nfo ->
+    let array_load_kind : P.Array_load_kind.t =
+      match nfo with
+      | Immediates -> Immediates
+      | Values -> Values
+      | Naked_floats -> Naked_floats
+      | Naked_float32s -> Naked_float32s
+      | Naked_int32s -> Naked_int32s
+      | Naked_int64s -> Naked_int64s
+      | Naked_nativeints -> Naked_nativeints
+      | Naked_vec128s -> Naked_vec128s
+    in
+    [Binary (Array_load (array_kind, array_load_kind, mut), array, index)]
 
 let array_load_unsafe ~array ~index ~mut array_kind array_load_kind
     ~current_region =
