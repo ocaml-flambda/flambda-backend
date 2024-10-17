@@ -373,9 +373,8 @@ let index_occurrences binary_annots =
   let index : (Longident.t Location.loc * Shape_reduce.result) list ref =
     ref []
   in
-  let f ~namespace env path lid =
-    let not_ghost { Location.loc = { loc_ghost; _ }; _ } = not loc_ghost in
-    if not_ghost lid then
+  let f ~namespace env path (lid : _ Location.loc) =
+    if not (Location.is_none lid.loc) then
       match Env.shape_of_path ~namespace env path with
       | exception Not_found -> ()
       | { uid = Some (Predef _); _ } -> ()
