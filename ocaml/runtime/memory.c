@@ -696,8 +696,10 @@ static void unlink_pool_block(struct pool_block *pb)
 CAMLexport void caml_stat_create_pool(void)
 {
   if (pool == NULL) {
-    pool = malloc(SIZEOF_POOL_BLOCK);
-    if (pool == NULL)
+    struct pool_block* pool;
+    pool = mmap(NULL, SIZEOF_POOL_BLOCK, PROT_READ | PROT_WRITE,
+                MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    if (pool == MAP_FAILED)
       caml_fatal_out_of_memory ();
 #ifdef DEBUG
     pool->magic = Debug_pool_magic;
@@ -714,7 +716,7 @@ CAMLexport void caml_stat_destroy_pool(void)
     pool->prev->next = NULL;
     while (pool != NULL) {
       struct pool_block *next = pool->next;
-      free(pool);
+      /* Leak pool */
       pool = next;
     }
     pool = NULL;
@@ -812,12 +814,15 @@ CAMLexport caml_stat_block caml_stat_resize_noexc(caml_stat_block b, asize_t sz)
   else {
     struct pool_block *pb = get_pool_block(b);
     struct pool_block *pb_new;
+
     /* Unlinking the block because it can be freed by realloc
        while other domains access the pool concurrently. */
     unlink_pool_block(pb);
     /* Reallocating */
-    pb_new = realloc(pb, sz + SIZEOF_POOL_BLOCK);
-    if (pb_new == NULL) {
+    /* We leak the old pb */
+    pb_new = mmap(NULL, sz + SIZEOF_POOL_BLOCK, PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
+    if (pb_new == MAP_FAILED) {
       /* The old block is still there, relinking it */
       link_pool_block(pb);
       return NULL;
