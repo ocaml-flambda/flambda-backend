@@ -694,3 +694,8 @@ let zero_alloc_check = ref Zero_alloc_annotations.Check_default    (* -zero-allo
 let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)
 
 let no_auto_include_otherlibs = ref false      (* -no-auto-include-otherlibs *)
+
+let prepend_directory file_name =
+  match !directory with
+  | Some directory -> Filename.concat directory file_name
+  | None -> file_name
