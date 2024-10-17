@@ -3969,11 +3969,6 @@ let package_units initial_env objfiles target_cmi modulename =
     Tcoerce_none
   end
 
-let type_instance _env _comp_unit : Typedtree.module_coercion =
-  (* TODO: This will be non-trivial once [-as-argument-for] is in *)
-
-  (* An instance will never have a .cmi of its own *)
-  Tcoerce_none
 
 (* Error report *)
 
