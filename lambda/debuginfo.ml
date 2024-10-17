@@ -211,12 +211,7 @@ let item_with_uid_and_function_symbol item ~dinfo_uid ~dinfo_function_symbol =
 module Dbg = struct
  type t = item list
 
-  (* CR-someday afrisch: FWIW, the current compare function does not seem very
-     good, since it reverses the two lists. I don't know how long the lists are,
-     nor if the specific currently implemented ordering is useful in other
-     contexts, but if one wants to use Map, a more efficient comparison should
-     be considered. *)
-  let compare dbg1 dbg2 =
+  let[@inline always] compare_aux dbg1 dbg2 =
     let rec loop ds1 ds2 =
       match ds1, ds2 with
       | [], [] -> 0
@@ -240,7 +235,17 @@ module Dbg = struct
        if c <> 0 then c else
        loop ds1 ds2
     in
-    loop (List.rev dbg1) (List.rev dbg2)
+    loop dbg1 dbg2
+
+  (* CR-someday afrisch: FWIW, the current compare function does not seem very
+     good, since it reverses the two lists. I don't know how long the lists are,
+     nor if the specific currently implemented ordering is useful in other
+     contexts, but if one wants to use Map, a more efficient comparison should
+     be considered. *)
+  let compare dbg1 dbg2 = compare_aux (List.rev dbg1) (List.rev dbg2)
+
+  (* Outermost inlined location first. *)
+  let compare_outer_first dbg1 dbg2 = compare_aux dbg1 dbg2
 
   let is_none dbg =
     match dbg with
