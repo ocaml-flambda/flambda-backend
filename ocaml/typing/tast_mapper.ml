@@ -617,9 +617,9 @@ let binding_op sub x =
   { x with bop_loc; bop_op_name; bop_exp = sub.expr sub x.bop_exp }
 
 let signature sub x =
-  let sig_final_env = sub.env sub x.sig_final_env in
-  let sig_items = List.map (sub.signature_item sub) x.sig_items in
-  {x with sig_items; sig_final_env}
+  let sg_final_env = sub.env sub x.sg_final_env in
+  let sg_items = List.map (sub.signature_item sub) x.sg_items in
+  {x with sg_items; sg_final_env}
 
 let sig_include_infos sub x =
   let incl_loc = sub.location sub x.incl_loc in

@@ -508,9 +508,9 @@ and primitive_coercion =
   }
 
 and signature = {
-  sig_items : signature_item list;
-  sig_type : Types.signature;
-  sig_final_env : Env.t;
+  sg_items : signature_item list;
+  sg_type : Types.signature;
+  sg_final_env : Env.t;
 }
 
 and signature_item =

@@ -907,7 +907,7 @@ and module_type i ppf x =
     module_type i ppf mt;
     line i ppf "%a\n" fmt_path li;
 
-and signature i ppf x = list i signature_item ppf x.sig_items
+and signature i ppf x = list i signature_item ppf x.sg_items
 
 and signature_item i ppf x =
   line i ppf "signature_item %a\n" fmt_location x.sig_loc;
@@ -1210,7 +1210,7 @@ and label_x_bool_x_core_type_list i ppf x =
       line i ppf "Tinherit\n";
       core_type (i+1) ppf ct
 
-let interface ppf x = list 0 signature_item ppf x.sig_items
+let interface ppf x = list 0 signature_item ppf x.sg_items
 
 let implementation ppf x = list 0 structure_item ppf x.str_items
 
