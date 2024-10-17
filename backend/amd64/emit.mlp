@@ -1875,6 +1875,14 @@ let emit_instr ~first ~fallthrough i =
   | Lstackcheck { max_frame_size_bytes; } ->
     emit_stack_check ~size_in_bytes:max_frame_size_bytes ~save_registers:(not first)
 
+let emit_instr ~first ~fallthrough i =
+  try emit_instr ~first ~fallthrough i
+  with exn -> (
+    Format.eprintf "Exception whilst emitting instruction:@ %a\n"
+      Printlinear.instr i;
+    raise exn
+  )
+
 let rec emit_all ~first ~fallthrough i =
   match i.desc with
   | Lend -> ()
