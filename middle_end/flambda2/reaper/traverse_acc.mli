@@ -15,6 +15,16 @@
 
 module Graph = Global_flow_graph
 
+module Env : sig
+  type cont_kind = Normal of Variable.t list
+
+  type t =
+    { parent : Rev_expr.rev_expr_holed;
+      conts : cont_kind Continuation.Map.t;
+      current_code_id : Code_id.t option
+    }
+end
+
 type code_dep =
   { arity : [`Complex] Flambda_arity.t;
     params : Variable.t list;
@@ -45,20 +55,20 @@ val alias_kind : Name.t -> Simple.t -> t -> unit
 val kinds : t -> Flambda_kind.t Name.Map.t
 
 val record_dep :
-  denv:Traverse_denv.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
+  denv:Env.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
 
 val record_deps :
-  denv:Traverse_denv.t -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit
+  denv:Env.t -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit
 
-val alias_dep : denv:Traverse_denv.t -> Variable.t -> Simple.t -> t -> unit
+val alias_dep : denv:Env.t -> Variable.t -> Simple.t -> t -> unit
 
 val root : Variable.t -> t -> unit
 
-val used : denv:Traverse_denv.t -> Simple.t -> t -> unit
+val used : denv:Env.t -> Simple.t -> t -> unit
 
 val used_code_id : Code_id.t -> t -> unit
 
-val called : denv:Traverse_denv.t -> Code_id.t -> t -> unit
+val called : denv:Env.t -> Code_id.t -> t -> unit
 
 val add_apply : apply_dep -> t -> unit
 

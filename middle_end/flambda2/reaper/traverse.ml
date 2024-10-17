@@ -15,14 +15,14 @@
 
 open! Flambda.Import
 open! Rev_expr
-open! Traverse_denv
+open! Traverse_acc.Env
 module Acc = Traverse_acc
 module Graph = Global_flow_graph
 module Dot = Dot_printer
 
-type denv = Traverse_denv.t
+type denv = Acc.Env.t
 
-type acc = Traverse_acc.t
+type acc = Acc.t
 
 let apply_cont_deps denv acc apply_cont =
   let cont = Apply_cont_expr.continuation apply_cont in

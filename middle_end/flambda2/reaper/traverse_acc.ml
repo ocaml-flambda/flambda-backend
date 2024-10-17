@@ -15,6 +15,16 @@
 
 module Graph = Global_flow_graph
 
+module Env = struct
+  type cont_kind = Normal of Variable.t list
+
+  type t =
+    { parent : Rev_expr.rev_expr_holed;
+      conts : cont_kind Continuation.Map.t;
+      current_code_id : Code_id.t option
+    }
+end
+
 type code_dep =
   { arity : [`Complex] Flambda_arity.t;
     params : Variable.t list;
@@ -101,7 +111,7 @@ let alias_dep ~denv:_ pat dep t =
 
 let root v t = Graph.add_use t.deps (Code_id_or_name.var v)
 
-let used ~(denv : Traverse_denv.t) dep t =
+let used ~(denv : Env.t) dep t =
   Simple.pattern_match dep
     ~name:(fun name ~coercion:_ ->
       match denv.current_code_id with
@@ -115,7 +125,7 @@ let used ~(denv : Traverse_denv.t) dep t =
 let used_code_id code_id t =
   Graph.add_use t.deps (Code_id_or_name.code_id code_id)
 
-let called ~(denv : Traverse_denv.t) code_id t =
+let called ~(denv : Env.t) code_id t =
   match denv.current_code_id with
   | None -> used_code_id code_id t
   | Some code_id2 ->
