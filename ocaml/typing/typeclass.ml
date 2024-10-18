@@ -1695,12 +1695,12 @@ let class_infos define_class kind
       let ci_params =
         let make_param (sty, v) =
           try
-            let param = transl_type_param env (Pident ty_id) sty in
+            let jkind = Jkind.Builtin.value ~why:Class_type_argument in
+            let param = transl_type_param env (Pident ty_id) jkind sty in
             (* CR layouts: we require class type parameters to be values, but
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
-            Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.Builtin.value ~why:Class_type_argument));
+            Ctype.unify env param.ctyp_type (Ctype.newvar jkind);
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -2137,7 +2137,7 @@ let check_recmod_decl env sdecl =
 (* Approximate the class declaration as class ['params] id = object end *)
 let approx_class sdecl =
   let open Ast_helper in
-  let self' = Typ.any () in
+  let self' = Typ.any None in
   let clty' = Cty.signature ~loc:sdecl.pci_expr.pcty_loc (Csig.mk self' []) in
   { sdecl with pci_expr = clty' }
 

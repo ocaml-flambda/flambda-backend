@@ -53,7 +53,8 @@ type texp_function_param_identifier = {
   param_sort : Jkind.Sort.t;
   param_mode : Alloc.l;
   param_curry : function_curry;
-  param_newtypes : (string Location.loc * Jkind.annotation option) list;
+  param_newtypes :
+    (Ident.t * string Location.loc * Jkind.annotation option * Uid.t) list;
 }
 
 type texp_function_param = {

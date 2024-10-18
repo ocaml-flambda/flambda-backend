@@ -251,6 +251,10 @@ module Expert = struct
   let shorten_symbol_names () =
     !Flambda_backend_flags.Flambda2.Expert.shorten_symbol_names
     |> with_default ~f:(fun d -> d.shorten_symbol_names)
+
+  let cont_lifting_budget () =
+    !Flambda_backend_flags.Flambda2.Expert.cont_lifting_budget
+    |> with_default ~f:(fun d -> d.cont_lifting_budget)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

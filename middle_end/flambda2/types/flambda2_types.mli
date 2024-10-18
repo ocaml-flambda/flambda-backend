@@ -225,6 +225,8 @@ module Typing_env : sig
 
   val free_names_transitive : t -> flambda_type -> Name_occurrences.t
 
+  val bump_current_level_scope : t -> t
+
   module Alias_set : sig
     type t
 
@@ -405,6 +407,8 @@ val this_naked_int32 : Numeric_types.Int32.t -> t
 val this_naked_int64 : Numeric_types.Int64.t -> t
 
 val this_naked_nativeint : Targetint_32_64.t -> t
+
+val this_naked_vec128 : Vector_types.Vec128.Bit_pattern.t -> t
 
 val this_rec_info : Rec_info_expr.t -> t
 
@@ -776,6 +780,8 @@ type to_lift = private
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
+  | Immutable_vec128_array of
+      { fields : Vector_types.Vec128.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 

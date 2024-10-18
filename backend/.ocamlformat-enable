@@ -10,8 +10,6 @@ arm64/simd*.ml
 arm64/stack_check.ml
 asm_targets/**/*.ml
 asm_targets/**/*.mli
-asmgen.ml
-asmgen.mli
 cfg/**/*.ml
 cfg/**/*.mli
 cfg_selectgen.ml

@@ -7,19 +7,6 @@ open Asttypes
 open Parsetree
 open Docstrings
 
-module Constant : sig
-  type t = private
-    | Value of constant
-    | Unboxed of Jane_syntax.Layouts.constant
-
-  type loc := Lexing.position * Lexing.position
-
-  val value : Parsetree.constant -> t
-  val unboxed : Jane_syntax.Layouts.constant -> t
-  val to_expression : loc:loc -> t -> expression
-  val to_pattern : loc:loc -> t -> pattern
-end
-
 type let_binding =
   { lb_pattern: pattern;
     lb_expression: expression;

@@ -108,7 +108,7 @@ let jkind_layout_default_to_value_and_check_not_void loc jkind =
   let rec contains_void : Jkind.Layout.Const.t -> bool = function
     | Any -> false
     | Base Void -> true
-    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) -> false
     | Product [] ->
       Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
     | Product ts -> List.exists contains_void ts
@@ -2033,15 +2033,12 @@ let get_mod_field modname field =
        Env.add_persistent_structure mod_ident
          (Lazy.force Env.initial)
      in
-     match Env.open_pers_signature modname env with
-     | Error `Not_found ->
-         fatal_errorf "Module %s unavailable." modname
-     | Ok env -> (
-         match Env.find_value_by_name (Longident.Lident field) env with
-         | exception Not_found ->
-             fatal_errorf "Primitive %s.%s not found." modname field
-         | path, _ -> transl_value_path Loc_unknown env path
-       ))
+     let _, env = Env.open_pers_signature modname env in
+     match Env.find_value_by_name (Longident.Lident field) env with
+     | exception Not_found ->
+         fatal_errorf "Primitive %s.%s not found." modname field
+     | path, _ -> transl_value_path Loc_unknown env path
+    )
 
 let code_force_lazy_block = get_mod_field "CamlinternalLazy" "force_lazy_block"
 
@@ -2323,7 +2320,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               else
                 let read =
                   match flat_suffix.(pos - value_prefix_len) with
-                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Word as non_float ->
+                  | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word as non_float ->
                       flat_read_non_float non_float
                   | Float_boxed ->
                       (* TODO: could optimise to Alloc_local sometimes *)

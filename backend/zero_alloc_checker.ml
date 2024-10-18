@@ -45,6 +45,7 @@ module Witness = struct
         { name : string;
           handler_code_sym : string
         }
+    | Widen
 
   type t =
     { dbg : Debuginfo.t;
@@ -72,6 +73,7 @@ module Witness = struct
     | Arch_specific -> fprintf ppf "arch specific operation"
     | Probe { name; handler_code_sym } ->
       fprintf ppf "probe \"%s\" handler %s" name handler_code_sym
+    | Widen -> fprintf ppf "widen"
 
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a {%a}@," print_kind kind Debuginfo.print_compact dbg
@@ -85,6 +87,8 @@ module Witnesses : sig
   type t
 
   val empty : t
+
+  val widen : t
 
   val is_empty : t -> bool
 
@@ -145,6 +149,8 @@ end = struct
   let lessequal = subset
 
   let create kind dbg = singleton (Witness.create dbg kind)
+
+  let widen = singleton (Witness.create Debuginfo.none Witness.Widen)
 
   let iter t ~f = iter f t
 
@@ -516,7 +522,7 @@ end = struct
 
     val get_unresolved_names : t -> String.Set.t
 
-    exception Widen
+    exception Widen of Witnesses.t
   end = struct
     (* Join of two Transform with the same set of vars: merged both sets of Vars
        into one Transform in normal form, without loss of precision or
@@ -528,12 +534,18 @@ end = struct
 
     type t = Transform.t M.t
 
-    exception Widen
+    exception Widen of Witnesses.t
 
     let maybe_widen t =
       match !Flambda_backend_flags.zero_alloc_checker_join with
       | Keep_all -> t
-      | Widen n -> if M.cardinal t > n then raise Widen else t
+      | Widen n ->
+        if M.cardinal t > n
+        then
+          if M.exists (fun _var tr -> Transform.has_witnesses tr) t
+          then raise (Widen Witnesses.widen)
+          else raise (Widen Witnesses.empty)
+        else t
       | Error n ->
         if M.cardinal t > n
         then
@@ -1102,7 +1114,7 @@ end = struct
      representation. *)
 
   let bounded_join f =
-    try Join (f ()) with Transforms.Widen -> Top Witnesses.empty
+    try Join (f ()) with Transforms.Widen witnesses -> Top witnesses
 
   (* Keep [join] and [lessequal] in sync. *)
   let join t1 t2 =
@@ -1581,7 +1593,9 @@ end = struct
       let scoped_name =
         t.fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
         |> List.map (fun dbg ->
-               Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+               Debuginfo.(
+                 Scoped_location.string_of_scopes ~include_zero_alloc:false
+                   dbg.dinfo_scopes))
         |> String.concat ","
       in
       Format.fprintf ppf
@@ -1625,7 +1639,6 @@ end = struct
     in
     let print_witness (w : Witness.t) ~component =
       (* print location of the witness, print witness description. *)
-      let loc = Debuginfo.to_location w.dbg in
       let component_msg =
         if String.equal "" component
         then component
@@ -1638,6 +1651,17 @@ end = struct
           ( Format.dprintf "%a%s%s" Witness.print_kind w.kind component_msg
               comballoc_msg,
             sub )
+        | Widen ->
+          ( Format.dprintf
+              "details are not available. This may be a false alarm due to \
+               conservative analysis.\n\
+               Hint: for more precise results, recompile this function with\n\
+               \"-function-layout topological\" or \"-zero-alloc-checker-join \
+               0\" flags.\n\
+               The \"-zero-alloc-checker-join 0\" flag may substantially \
+               increase compilation time.\n\
+               (widening applied in function %s%s)" t.fun_name component_msg,
+            [] )
         | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
         | Extcall _ ->
           ( Format.dprintf "called function may allocate%s (%a)" component_msg
@@ -1648,9 +1672,11 @@ end = struct
               Witness.print_kind w.kind,
             [] )
       in
+      let dbg = if Debuginfo.is_none w.dbg then t.fun_dbg else w.dbg in
+      let loc = Debuginfo.to_location dbg in
       let pp ppf () =
         print_main_msg ppf;
-        pp_inlined_dbg ppf w.dbg
+        pp_inlined_dbg ppf dbg
       in
       Location.error_of_printer ~loc ~sub pp ()
     in
@@ -2115,6 +2141,7 @@ end = struct
     { dst with div }
 
   let transform t ~next ~exn ~(effect : Value.t) desc dbg =
+    report t effect ~msg:"transform effect" ~desc dbg;
     let next = transform_return ~effect:effect.nor next in
     let exn = transform_return ~effect:effect.exn exn in
     report t next ~msg:"transform new next" ~desc dbg;
@@ -2148,6 +2175,9 @@ end = struct
 
   (** Summary of target specific operations. *)
   let transform_specific t s ~next ~exn dbg =
+    let desc = "Arch.specific_operation" in
+    report t next ~msg:"transform_specific next" ~desc dbg;
+    report t exn ~msg:"transform_specific exn" ~desc dbg;
     let can_raise = Arch.operation_can_raise s in
     let effect =
       let w = create_witnesses t Arch_specific dbg in
@@ -2161,7 +2191,7 @@ end = struct
         let div = V.bot in
         { Value.nor; exn; div }
     in
-    transform t ~next ~exn ~effect "Arch.specific_operation" dbg
+    transform t ~next ~exn ~effect desc dbg
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
@@ -2264,7 +2294,12 @@ end = struct
       | Iexit _ ->
         report t next ~msg:"transform" ~desc:"iexit" i.dbg;
         next
-      | Iifthenelse _ | Iswitch _ -> next
+      | Iifthenelse _ ->
+        report t next ~msg:"transform" ~desc:"ifthenelse" i.dbg;
+        next
+      | Iswitch _ ->
+        report t next ~msg:"transform" ~desc:"switch" i.dbg;
+        next
       | Icatch (_rc, _ts, _, _body) ->
         report t next ~msg:"transform" ~desc:"catch" i.dbg;
         next

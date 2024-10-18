@@ -256,6 +256,7 @@ type type_mismatch =
   | Kind of kind_mismatch
   | Constraint of Errortrace.equality_error
   | Manifest of Errortrace.equality_error
+  | Parameter_jkind of type_expr * Jkind.Violation.t
   | Private_variant of type_expr * type_expr * private_variant_mismatch
   | Private_object of type_expr * type_expr * private_object_mismatch
   | Variance
@@ -555,6 +556,10 @@ let report_type_mismatch first second decl env ppf err =
       report_type_inequality env ppf err
   | Manifest err ->
       report_type_inequality env ppf err
+  | Parameter_jkind (ty, v) ->
+      pr "The problem is in the kinds of a parameter:@,";
+      Jkind.Violation.report_with_offender
+        ~offender:(fun pp -> Printtyp.type_expr pp ty) ppf v
   | Private_variant (_ty1, _ty2, mismatch) ->
       report_private_variant_mismatch first second decl env ppf mismatch
   | Private_object (_ty1, _ty2, mismatch) ->
@@ -607,6 +612,8 @@ module Record_diffing = struct
             let tl1 = params1 @ [ld1.ld_type] in
             let tl2 = params2 @ [ld2.ld_type] in
             begin
+            (* Allow renaming: this gets called for inline records in GADT
+               constructors that may have existentials. *)
             match Ctype.equal env true tl1 tl2 with
             | exception Ctype.Equality err ->
                 Some (Type err : label_mismatch)
@@ -796,6 +803,9 @@ module Variant_diffing = struct
           and arg2_tys, arg2_gfs = List.split (List.map type_and_mode arg2)
           in
           (* Ctype.equal must be called on all arguments at once, cf. PR#7378 *)
+          (* Allow renaming: in the GADT case, these arguments are distinct from
+             type parameters (which have been unified). See also
+             Note [Contravariance of type parameter jkinds]. *)
           match Ctype.equal env true (params1 @ arg1_tys) (params2 @ arg2_tys) with
           | exception Ctype.Equality err -> Some (Type err)
           | () -> List.combine arg1_gfs arg2_gfs
@@ -813,8 +823,13 @@ module Variant_diffing = struct
   let compare_constructors ~loc env params1 params2 res1 res2 args1 args2 =
     match res1, res2 with
     | Some r1, Some r2 ->
+        (* Allow renaming here: variables in GADT-syntax constructors are
+           distinct from the variables in type parameters *)
         begin match Ctype.equal env true [r1] [r2] with
         | exception Ctype.Equality err -> Some (Type err)
+              (* Pass the result types in this call to
+                 [compare_constructor_arguments], so that the call to [Ctype.equal]
+                 can see the entire scope of the variables *)
         | () -> compare_constructor_arguments ~loc env [r1] [r2] args1 args2
         end
     | Some _, None -> Some (Explicit_return_type First)
@@ -958,7 +973,7 @@ let privacy_mismatch env decl1 decl2 =
   | _, _ ->
       None
 
-let private_variant env row1 params1 row2 params2 =
+let private_variant env row1 row2 =
     let r1, r2, pairs =
       Ctype.merge_row_fields (row_fields row1) (row_fields row2)
     in
@@ -991,7 +1006,7 @@ let private_variant env row1 params1 row2 params2 =
     let rec loop tl1 tl2 pairs =
       match pairs with
       | [] -> begin
-          match Ctype.equal env true tl1 tl2 with
+          match Ctype.equal env false tl1 tl2 with
           | exception Ctype.Equality err ->
               Some (Types err : private_variant_mismatch)
           | () -> None
@@ -1030,9 +1045,9 @@ let private_variant env row1 params1 row2 params2 =
               Some (Missing (First, s) : private_variant_mismatch)
         end
     in
-    loop params1 params2 pairs
+    loop [] [] pairs
 
-let private_object env fields1 params1 fields2 params2 =
+let private_object env fields1 fields2 =
   let pairs, _miss1, miss2 = Ctype.associate_fields fields1 fields2 in
   let err =
     match miss2 with
@@ -1044,18 +1059,18 @@ let private_object env fields1 params1 fields2 params2 =
     List.split (List.map (fun (_,_,t1,_,t2) -> t1, t2) pairs)
   in
   begin
-    match Ctype.equal env true (params1 @ tl1) (params2 @ tl2) with
+    match Ctype.equal env false tl1 tl2 with
     | exception Ctype.Equality err -> Some (Types err)
     | () -> None
   end
 
-let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
+let type_manifest env ty1 ty2 priv2 kind2 =
   let ty1' = Ctype.expand_head env ty1 and ty2' = Ctype.expand_head env ty2 in
   match get_desc ty1', get_desc ty2' with
   | Tvariant row1, Tvariant row2
     when is_absrow env (row_more row2) -> begin
-      assert (Ctype.is_equal env true (ty1::params1) (row_more row2::params2));
-      match private_variant env row1 params1 row2 params2 with
+      assert (Ctype.is_equal env false [ty1] [row_more row2]);
+      match private_variant env row1 row2 with
       | None -> None
       | Some err -> Some (Private_variant(ty1, ty2, err))
     end
@@ -1063,8 +1078,8 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
     when is_absrow env (snd (Ctype.flatten_fields fi2)) -> begin
       let (fields2,rest2) = Ctype.flatten_fields fi2 in
       let (fields1,_) = Ctype.flatten_fields fi1 in
-      assert (Ctype.is_equal env true (ty1::params1) (rest2::params2));
-      match private_object env fields1 params1 fields2 params2 with
+      assert (Ctype.is_equal env false [ty1] [rest2]);
+      match private_object env fields1 fields2 with
       | None -> None
       | Some err -> Some (Private_object(ty1, ty2, err))
     end
@@ -1084,14 +1099,100 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
       in
       match
         if is_private_abbrev_2 then
-          Ctype.equal_private env params1 ty1 params2 ty2
+          Ctype.equal_private env ty1 ty2
         else
-          Ctype.equal env true (params1 @ [ty1]) (params2 @ [ty2])
+          Ctype.equal env false [ty1] [ty2]
       with
       | exception Ctype.Equality err -> Some (Manifest err)
       | () -> None
     end
 
+(* Note [Contravariance of type parameter jkinds]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   The goal of this function is to check whether every possible instantiation of
+   decl2 is also a valid instantiation of decl1. Ideally, we would just make
+   that check directly, by taking the type parameters of decl2, instantiating
+   them with fresh constants (throughout the manifest/kind of decl2), and then
+   unifying decl2 with an instance'd decl1. The problem with this approach is
+   that it is not upstream-compatible: upstream requires that the constraints of
+   decl1 and decl2 match exactly, even though this is more than is necessary for
+   soundness.
+
+   On the other hand, we really want to support contravariance of jkinds in type
+   parameters, to allow something like this:
+
+   {[
+     module F (X : sig type ('a : value) t ... end) = ...
+     module Array = struct type ('a : any) t ... end
+     module M = F(Array)
+   ]}
+
+   This is perfectly safe -- [F] will use [X.t] only with [value]s, which is
+   fine because [X.t] works with [any] type -- but requires contravariance.
+
+   So this is our approach:
+
+   1. Check the type parameters for equality (allowing renaming), but skipping
+   any jkind checks. We must allow renaming because the decls will bind separate
+   variables, and we skip the jkind checks precisely because we don't wish to
+   require the jkinds be equal.
+
+   2. Copy the two declarations. This allows us to unify parts of the copies
+   without affecting the originals. We use [generic_instance_declaration]
+   instead of [instance_declaration] because generic variables are not treated
+   as weakly polymorphic by the pretty printer. That's the only reason to be
+   generic here: levels simply don't matter in this bit.
+
+   3. Rigidify the type parameters of decl2. We want to make sure any possible
+   instantiation of decl2 is a legal instantiation of decl1, so if unification
+   affects the type parameters of decl2, that's an error. (Alternative: we could
+   reify instead of rigidify. But rigidify seems simpler, given that it does not
+   need to extend the env.)
+
+   (Perhaps surprisingly, rigidify does not actually make things rigid. Instead,
+   it remembers the variables free in a type and then can check after a
+   unification to see whether any of them changed. This check is Step 6 in this
+   Note.)
+
+   4. Unify the type parameters of decl1 and decl2. This unification can fail
+   only by a jkind problem: anything else would have been caught by the equality
+   check in Step 1. An outright jkind problem will raise [Unify], and this gets
+   reported to the user. To format the error message well, we can safely search
+   only for a [Bad_jkind] event; it has to be there somewhere. There also might
+   be a jkind mismatch which causes the jkind of a variable in decl2 to be
+   lowered; this gets caught by the call to [all_distinct_vars_with_original_jkinds]
+   in Step 6.
+
+   5. Check the type definitions. This includes doing all the checks on both the
+   manifest and the kind. These checks use Ctype.equal. Importantly, this happens
+   *after* unifying the type parameters, allowing an example like
+
+   {[
+     module M : sig
+       type ('a : value) t = 'a
+     end = struct
+       type ('a : any) t = 'a
+     end
+   ]}
+
+   A naive check that the jkind of the structure's [t] is less than that of the
+   sig's [t] would fail: the structure's [t] has jkind [any] while the sig has
+   jkind [value]. But it's actually all OK: because we have unified the parameters,
+   the jkind of the struct will be [value], and then we'll check that [value]
+   is a subjkind of [value], and the definition will be accepted.
+
+   One worry might be about existential variables. Might they get unified? No.
+   These, by definition, do not appear in the type parameters. And because all
+   checks on the type definition bodies are done with [Ctype.equal], we know the
+   existentials will remain untouched.
+
+   6. Call [all_distinct_vars_with_original_jkinds]. This is the counterpart to
+   Step 3 that checks that none of the type variables in decl2 needed to have
+   their jkinds changed during unification.
+   *)
+
+(* See Note [Contravariance of type parameter jkinds]. *)
 let type_declarations ?(equality = false) ~loc env ~mark name
       decl1 path decl2 =
   Builtin_attributes.check_alerts_inclusion
@@ -1101,6 +1202,42 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     decl1.type_attributes decl2.type_attributes
     name;
   if decl1.type_arity <> decl2.type_arity then Some Arity else
+  (* Step 1 from the Note *)
+  let err =
+    match Ctype.equal ~do_jkind_check:false env true
+            decl1.type_params decl2.type_params with
+    | exception Ctype.Equality err -> Some (Constraint err)
+    | () -> None
+  in
+  if err <> None then err else
+  (* Step 2 from the Note *)
+  let decl1 = Ctype.generic_instance_declaration decl1 in
+  let decl2 = Ctype.generic_instance_declaration decl2 in
+  (* Step 3 from the Note *)
+  let rigidity_info = Ctype.Rigidify.rigidify_list decl2.type_params in
+  (* Step 4 from the Note *)
+  let err =
+    match
+      List.iter2 (Ctype.unify env) decl1.type_params decl2.type_params
+    with
+      | exception Ctype.Unify err ->
+        let get_jkind_violation = function
+          | Errortrace.Bad_jkind (ty, v) -> Some (Parameter_jkind (ty, v))
+          | _ -> None
+        in
+        begin match List.find_map get_jkind_violation err.trace with
+        | Some _ as err -> err
+        | None -> Misc.fatal_errorf
+                    "Unification in type_declarations failed, \
+                     but not with Bad_jkind:@;<1 2>%t"
+              (fun ppf -> Printtyp.report_unification_error ppf env err
+               (fun ppf -> Format.fprintf ppf "The type")
+               (fun ppf -> Format.fprintf ppf "does not unify with the type"))
+        end
+      | () -> None
+  in
+  if err <> None then err else
+  (* Step 5 from the Note *)
   let err =
     match privacy_mismatch env decl1 decl2 with
     | Some err -> Some (Privacy err)
@@ -1108,25 +1245,16 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   in
   if err <> None then err else
   let err = match (decl1.type_manifest, decl2.type_manifest) with
-      (_, None) ->
-        begin
-          match Ctype.equal env true decl1.type_params decl2.type_params with
-          | exception Ctype.Equality err -> Some (Constraint err)
-          | () -> None
-        end
+      (_, None) -> None
     | (Some ty1, Some ty2) ->
-         type_manifest env ty1 decl1.type_params ty2 decl2.type_params
-           decl2.type_private decl2.type_kind
+         type_manifest env ty1 ty2 decl2.type_private decl2.type_kind
     | (None, Some ty2) ->
         let ty1 =
           Btype.newgenty (Tconstr(path, decl2.type_params, ref Mnil))
         in
-        match Ctype.equal env true decl1.type_params decl2.type_params with
-        | exception Ctype.Equality err -> Some (Constraint err)
-        | () ->
-          match Ctype.equal env false [ty1] [ty2] with
-          | exception Ctype.Equality err -> Some (Manifest err)
-          | () -> None
+        match Ctype.equal env false [ty1] [ty2] with
+        | exception Ctype.Equality err -> Some (Manifest err)
+        | () -> None
   in
   if err <> None then err else
   let err = match (decl1.type_kind, decl2.type_kind) with
@@ -1178,6 +1306,21 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     | (_, _) -> Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))
   in
   if err <> None then err else
+  (* Step 6 from the Note *)
+  match Ctype.Rigidify.all_distinct_vars_with_original_jkinds env rigidity_info with
+  | Unification_failure { name; ty }
+    (* This should be caught by the call to Ctype.equal above *)
+    -> Misc.fatal_errorf
+         "Unification failure in type inclusion rigidity check:@;\
+          %s unified with %a."
+         (match name with None -> "_" | Some n -> "'" ^ n)
+         Printtyp.type_expr ty
+  | Jkind_mismatch { original_jkind; inferred_jkind; ty } ->
+     Some (Parameter_jkind
+             (ty, Jkind.Violation.of_
+                    (Not_a_subjkind (Jkind.disallow_right original_jkind,
+                                     Jkind.disallow_left inferred_jkind))))
+  | All_good ->
   let abstr = Btype.type_kind_is_abstract decl2 && decl2.type_manifest = None in
   let need_variance =
     abstr || decl1.type_private = Private || decl1.type_kind = Type_open in

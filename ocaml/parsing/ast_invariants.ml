@@ -20,6 +20,7 @@ let err = Syntaxerr.ill_formed_ast
 
 let empty_record loc = err loc "Records cannot be empty."
 let invalid_tuple loc = err loc "Tuples must have at least 2 components."
+let invalid_alias loc = err loc "Alias types must have a name or a jkind."
 let empty_open_tuple_pat loc =
   err loc "Open tuple patterns must have at least one component."
 let short_closed_tuple_pat loc =
@@ -53,26 +54,19 @@ let iterator =
     | Ptype_record [] -> empty_record loc
     | _ -> ()
   in
-  let jtyp _self (jtyp : Jane_syntax.Core_type.t) =
-    match jtyp with
-    | Jtyp_layout (Ltyp_var _ | Ltyp_poly _ | Ltyp_alias _) -> ()
-  in
   let typ self ty =
     super.typ self ty;
     let loc = ty.ptyp_loc in
-    match Jane_syntax.Core_type.of_ast ty with
-    | Some (jtyp_, _attrs) -> jtyp self jtyp_
-    | None ->
     match ty.ptyp_desc with
     | Ptyp_tuple ([] | [_]) -> invalid_tuple loc
     | Ptyp_package (_, cstrs) ->
       List.iter (fun (id, _) -> simple_longident id) cstrs
+    | Ptyp_alias (_, None, None) -> invalid_alias loc
     | _ -> ()
   in
   let jpat _self (jpat : Jane_syntax.Pattern.t) =
     match jpat with
     | Jpat_immutable_array (Iapat_immutable_array _)-> ()
-    | Jpat_layout (Lpat_constant _) -> ()
   in
   let pat self pat =
     begin match pat.ppat_desc with
@@ -119,7 +113,6 @@ let iterator =
         empty_comprehension loc
     | Jexp_comprehension _
     | Jexp_immutable_array _
-    | Jexp_layout _
       -> ()
   in
   let expr self exp =

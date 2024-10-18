@@ -1,7 +1,8 @@
 name: Syntax changes reminder
 
 on:
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
     paths:
       - 'ocaml/parsing/parser.mly'
 
@@ -22,13 +23,13 @@ jobs:
           This PR modifies the parser. Please check that the following tests are updated:
 
           - [ ] \`parsetree/source_jane_street.ml\`
-          - [ ] \`language-extensions/pprintast_unconditional.ml\`
 
-          Both of these tests should have examples of every new bit of syntax you are adding. Feel free to just check these boxes if your PR does not actually change the syntax (because it is refactoring the parser, say)."
+          This test should have examples of every new bit of syntax you are adding. Feel free to just check the box if your PR does not actually change the syntax (because it is refactoring the parser, say)."
 
            # Check if comment already exists
           if ! gh pr view $PR_NUMBER --json comments -q '.comments[].body' --repo $REPO | grep -q "Parser Change Checklist"; then
             gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
+            echo "Comment added successfully."
           else
             echo "Comment already exists. Skipping."
           fi

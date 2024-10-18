@@ -636,6 +636,7 @@
                 pext_kind =
                   Pext_decl
                     []
+                    []
                     None
             ]
           ptyext_private = Public
@@ -705,6 +706,7 @@
               pext_name = "X"
               pext_kind =
                 Pext_decl
+                  []
                   []
                   None
     ]
@@ -864,6 +866,7 @@
                         pext_kind =
                           Pext_decl
                             []
+                            []
                             None
                     ]
                   ptyext_private = Public
@@ -881,6 +884,7 @@
                       pext_name = "X"
                       pext_kind =
                         Pext_decl
+                          []
                           []
                           None
             ]

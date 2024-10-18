@@ -4,13 +4,16 @@
    expect;
 *)
 
-(* This file is two tests in one! It's both an expect-test, run in the
-   normal way. It *also* is processed by [test.ml] (in this same directory)
-   to make sure that Pprintast round-trips. *)
-
 (* There should be examples of all Jane Street syntax here. This file can
    thus additionally serve as a cheap-and-cheerful documentation for all of
    our features. *)
+
+(* This file is three tests in one!
+    - It's an expect-test, run in the normal way.
+    - It is processed by [test.ml] (in this same directory) to make sure that Pprintast round-trips.
+    - It is processed by [test_ppx.ml] (in this same directory) to make sure that ppxes run properly
+      on examples of Jane Street syntax.
+*)
 
 (***********)
 (* Layouts *)
@@ -845,9 +848,34 @@ result: 7
 (***************)
 (* Modal kinds *)
 
-(* CR layouts v2.8: add examples like the ones in
-  [pprintast_unconditional.ml] when modal kind syntax is fully
-  implemented. [test_ppx.ml] currently fails. *)
+module _ : sig
+  type 'a list : immutable_data with 'a
+  type ('a, 'b) either : immutable_data with 'a * 'b
+  type 'a gel : kind_of_ 'a mod global
+  type 'a t : _
+  kind_abbrev_ immediate = value mod global unique many sync uncontended
+  kind_abbrev_ immutable_data = value mod sync uncontended many
+  kind_abbrev_ immutable = value mod uncontended
+  kind_abbrev_ data = value mod sync many
+end = struct
+  type 'a list : immutable_data with 'a
+  type ('a, 'b) either : immutable_data with 'a * 'b
+  type 'a gel : kind_of_ 'a mod global
+  type 'a t : _
+  kind_abbrev_ immediate = value mod global unique many sync uncontended
+  kind_abbrev_ immutable_data = value mod sync uncontended many
+  kind_abbrev_ immutable = value mod uncontended
+  kind_abbrev_ data = value mod sync many
+end
+
+(* CR layouts v2.8: Expect this output to change once modal kinds are
+   supported. *)
+
+[%%expect{|
+>> Fatal error: XXX unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}]
 
 (**************************)
 (* Polymorphic parameters *)
@@ -955,4 +983,52 @@ Error: This expression has type "float#" but an expression was expected of type
          need a value
 |}]
 
+(*********************************)
+(* Instance names as identifiers *)
 
+module Base (_ : sig end) (_ : sig end) (_ : sig end) (_ : sig end) = struct end
+module Name1 = struct end
+module Name2 = struct end
+module Value1 = struct end
+module Value2 (_ : sig end) (_ : sig end) = struct end
+module Name2_1 = struct end
+module Name2_1 = struct end
+
+module _ = Base(Name1)(Value1)(Name2)(Value2(Name2_1)(Value2_1)) [@jane.non_erasable.instances]
+
+
+[%%expect{|
+module Base : sig end -> sig end -> sig end -> sig end -> sig end
+module Name1 : sig end
+module Name2 : sig end
+module Value1 : sig end
+module Value2 : sig end -> sig end -> sig end
+module Name2_1 : sig end
+module Name2_1 : sig end
+>> Fatal error: Unimplemented: instance identifier
+                Base[Name1:Value1][Name2:Value2[Name2_1:Value2_1]]
+Uncaught exception: Misc.Fatal_error
+
+|}](*********)
+(* modes *)
+
+module type S = sig
+  val bar : 'a -> 'a
+  module M : sig
+    val foo : 'a -> 'a
+  end
+end
+
+module type S' = sig
+  include [@no_recursive_modalities] S @@ portable
+end
+
+[%%expect{|
+module type S =
+  sig val bar : 'a -> 'a module M : sig val foo : 'a -> 'a end end
+module type S' =
+  sig
+    val bar : 'a -> 'a @@ portable
+    module M : sig val foo : 'a -> 'a end
+  end
+|}]

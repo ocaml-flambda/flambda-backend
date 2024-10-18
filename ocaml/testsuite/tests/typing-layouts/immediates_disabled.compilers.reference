@@ -1,4 +1,5 @@
-File "immediates.ml", line 29, characters 0-30:
+File "immediates.ml", line 29, characters 9-18:
 29 | type a : immediate = A | B | C
-     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The extension "layouts" is disabled and cannot be used
+              ^^^^^^^^^
+Error: The appropriate layouts extension is not enabled.
+       You must enable -extension layouts to use this feature.

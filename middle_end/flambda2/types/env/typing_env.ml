@@ -44,6 +44,8 @@ module One_level : sig
     t -> used_value_slots:Value_slot.Set.t -> t
 
   val canonicalise : t -> Simple.t -> Simple.t
+
+  val bump_scope : t -> t
 end = struct
   type t =
     { scope : Scope.t;
@@ -51,12 +53,16 @@ end = struct
       just_after_level : Cached_level.t
     }
 
-  let print ~min_binding_time ppf { scope = _; level; just_after_level } =
+  let print ~min_binding_time ppf { scope; level; just_after_level } =
     let restrict_to = TEL.defined_names level in
     if Name.Set.is_empty restrict_to
-    then Format.fprintf ppf "@[<hov 0>%a@]" TEL.print level
+    then
+      Format.fprintf ppf "@[<hov 0>((scope@ %a)@ %a)@]" Scope.print scope
+        TEL.print level
     else
-      Format.fprintf ppf "@[<hov 0>@[<hov 1>(defined_vars@ %a)@]@ %a@]"
+      Format.fprintf ppf
+        "@[<hov 0>@[<hov 1>((scope@ %a)@ (defined_vars@ %a))@]@ %a@]"
+        Scope.print scope
         (Cached_level.print_name_modes ~restrict_to ~min_binding_time)
         just_after_level TEL.print level
 
@@ -93,6 +99,8 @@ end = struct
     { t with just_after_level }
 
   let canonicalise t = Cached_level.canonicalise t.just_after_level
+
+  let bump_scope t = { t with scope = Scope.next t.scope }
 end
 
 type t =
@@ -1034,6 +1042,9 @@ let code_age_relation t = t.code_age_relation
 
 let with_code_age_relation t code_age_relation = { t with code_age_relation }
 
+let bump_current_level_scope t =
+  { t with current_level = One_level.bump_scope t.current_level }
+
 let cut t ~cut_after =
   let current_scope = current_scope t in
   if Scope.( >= ) cut_after current_scope
@@ -1148,6 +1159,39 @@ let aliases_of_simple t ~min_name_mode simple =
 
 let aliases_of_simple_allowable_in_types t simple =
   aliases_of_simple t ~min_name_mode:Name_mode.in_types simple
+
+let compute_joined_aliases base_env alias_candidates envs_at_uses =
+  let aliases_at_first_use, aliases_at_other_uses =
+    match List.map aliases envs_at_uses with
+    | hd :: tl -> hd, tl
+    | [] -> Misc.fatal_error "Empty uses in join"
+  in
+  let new_aliases =
+    Name.Set.fold
+      (fun name new_aliases ->
+        let alias_set =
+          List.fold_left
+            (fun alias_set aliases ->
+              Aliases.Alias_set.inter alias_set
+                (Aliases.get_aliases aliases (Simple.name name)))
+            (Aliases.get_aliases aliases_at_first_use (Simple.name name))
+            aliases_at_other_uses
+        in
+        let alias_set =
+          Aliases.Alias_set.filter alias_set ~f:(fun simple ->
+              mem_simple base_env simple
+              && not (Simple.equal simple (Simple.name name)))
+        in
+        if Aliases.Alias_set.is_empty alias_set
+        then new_aliases
+        else
+          Aliases.add_alias_set
+            ~binding_time_resolver:base_env.binding_time_resolver
+            ~binding_times_and_modes:(names_to_types base_env) new_aliases name
+            alias_set)
+      alias_candidates (aliases base_env)
+  in
+  with_aliases base_env ~aliases:new_aliases
 
 let closure_env t =
   increment_scope { t with min_binding_time = t.next_binding_time }

@@ -30,6 +30,7 @@ extern gc_phase_t caml_gc_phase;
 Caml_inline int caml_marking_started(void) {
   return caml_gc_phase != Phase_sweep_main;
 }
+extern atomic_uintnat caml_gc_mark_phase_requested;
 
 intnat caml_opportunistic_major_work_available (caml_domain_state*);
 void caml_opportunistic_major_collection_slice (intnat);
@@ -45,7 +46,7 @@ void caml_teardown_major_gc(void);
 void caml_darken(void*, value, volatile value* ignored);
 void caml_darken_cont(value);
 void caml_mark_root(value, value*);
-void caml_empty_mark_stack(void);
+void caml_mark_roots_stw(int, caml_domain_state**);
 void caml_finish_major_cycle(int force_compaction);
 #ifdef DEBUG
 int caml_mark_stack_is_empty(void);

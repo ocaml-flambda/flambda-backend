@@ -58,14 +58,14 @@ jobs:
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5 --enable-poll-insertion
             os: ubuntu-latest
             build_ocamlparam: ''
-            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
+            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_debug
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
             use_runtime: d
-            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
+            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
 
           - name: flambda2_frame_pointers_oclassic_polling
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion

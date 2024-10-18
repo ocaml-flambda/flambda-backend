@@ -36,7 +36,7 @@ Line 1, characters 32-34:
 1 | module type S1'' = S1 with type 'a t = 'a list;;
                                     ^^
 Error: The type constraints are not consistent.
-       Type "('a : value)" is not compatible with type "('b : void)"
+       Type "('a : value)" is not compatible with type "('a0 : void)"
        The layout of 'a is void
          because of the definition of t at line 10, characters 2-20.
        But the layout of 'a must overlap with value
@@ -70,29 +70,11 @@ module type S1_2' = sig type ('a : immediate) t = 'a list end
 module M1_2' : S1_2'
 |}]
 
-(* CR layouts - annoyingly, the immediate annotation on 'a is required.  We
-   can probably relax this so you don't have to label the parameter explcitly
-   and the jkind is determined from the signature.  But we anticipate it'll
-   require non-trivial refactoring of eqtype, so we've put it off for now. *)
 module M1_2'': S1_2' = struct
   type 'a t = 'a list
 end;;
 [%%expect{|
-Lines 1-3, characters 23-3:
-1 | .......................struct
-2 |   type 'a t = 'a list
-3 | end..
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = 'a list end
-       is not included in
-         S1_2'
-       Type declarations do not match:
-         type 'a t = 'a list
-       is not included in
-         type ('a : immediate) t = 'a list
-       The type "('a : value)" is not equal to the type "('a0 : immediate)"
-       because their layouts are different.
+module M1_2'' : S1_2'
 |}]
 
 (************************************************************************)

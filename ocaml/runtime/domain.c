@@ -1031,8 +1031,6 @@ struct domain_startup_params {
 
 static void* backup_thread_func(void* v)
 {
-  // single-domain hack
-  caml_fatal_error("backup thread not allowed to run");
   dom_internal* di = (dom_internal*)v;
   uintnat msg;
   struct interruptor* s = &di->interruptor;
@@ -1591,7 +1589,7 @@ int caml_try_run_on_all_domains_with_spin_work(
   int sync,
   void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
   void* data,
-  void (*leader_setup)(caml_domain_state*),
+  void (*leader_setup)(caml_domain_state*, void*),
   int (*enter_spin_callback)(caml_domain_state*, void*),
   void* enter_spin_data)
 {
@@ -1659,7 +1657,7 @@ int caml_try_run_on_all_domains_with_spin_work(
   }
 
   if( leader_setup ) {
-    leader_setup(domain_state);
+    leader_setup(domain_state, data);
   }
 
 #ifdef DEBUG
@@ -1726,7 +1724,7 @@ int caml_try_run_on_all_domains_with_spin_work(
 int caml_try_run_on_all_domains(
   void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
   void* data,
-  void (*leader_setup)(caml_domain_state*))
+  void (*leader_setup)(caml_domain_state*, void*))
 {
   return
       caml_try_run_on_all_domains_with_spin_work(1,
@@ -1738,7 +1736,7 @@ int caml_try_run_on_all_domains(
 int caml_try_run_on_all_domains_async(
   void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
   void* data,
-  void (*leader_setup)(caml_domain_state*))
+  void (*leader_setup)(caml_domain_state*, void*))
 {
   return
       caml_try_run_on_all_domains_with_spin_work(0,

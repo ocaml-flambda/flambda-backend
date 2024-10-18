@@ -86,8 +86,10 @@ let project_tuple ~dbg ~size ~field tuple =
       }
   in
   let mutability : Mutability.t = Immutable in
-  let index = Simple.const_int (Targetint_31_63.of_int field) in
-  let prim = P.Binary (Block_load (bak, mutability), tuple, index) in
+  let field = Targetint_31_63.of_int field in
+  let prim =
+    P.Unary (Block_load { kind = bak; mut = mutability; field }, tuple)
+  in
   Named.create_prim prim dbg
 
 let split_direct_over_application apply
@@ -382,6 +384,7 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   | Naked_int32s -> for_naked_number Naked_int32
   | Naked_int64s -> for_naked_number Naked_int64
   | Naked_nativeints -> for_naked_number Naked_nativeint
+  | Naked_vec128s -> for_naked_number Naked_vec128
   | Immediates -> (
     (* The only thing worth checking is for float arrays, as that would allow us
        to remove the branch *)

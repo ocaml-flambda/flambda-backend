@@ -123,22 +123,19 @@ let rec extract_letop_patterns n pat =
 (** Mapping functions. *)
 
 let constant = function
-  | Const_char c -> `Parsetree (Pconst_char c)
-  | Const_string (s,loc,d) -> `Parsetree (Pconst_string (s,loc,d))
-  | Const_int i -> `Parsetree (Pconst_integer (Int.to_string i, None))
-  | Const_int32 i -> `Parsetree (Pconst_integer (Int32.to_string i, Some 'l'))
-  | Const_int64 i -> `Parsetree (Pconst_integer (Int64.to_string i, Some 'L'))
-  | Const_nativeint i -> `Parsetree (Pconst_integer (Nativeint.to_string i, Some 'n'))
-  | Const_float f -> `Parsetree (Pconst_float (f,None))
-  | Const_float32 f -> `Parsetree (Pconst_float (f, Some 's'))
-  | Const_unboxed_float f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, None))
-  | Const_unboxed_float32 f -> `Jane_syntax (Jane_syntax.Layouts.Float (f, Some 's'))
-  | Const_unboxed_int32 i ->
-    `Jane_syntax (Jane_syntax.Layouts.Integer (Int32.to_string i, 'l'))
-  | Const_unboxed_int64 i ->
-    `Jane_syntax (Jane_syntax.Layouts.Integer (Int64.to_string i, 'L'))
-  | Const_unboxed_nativeint i ->
-    `Jane_syntax (Jane_syntax.Layouts.Integer (Nativeint.to_string i, 'n'))
+  | Const_char c -> Pconst_char c
+  | Const_string (s,loc,d) -> Pconst_string (s,loc,d)
+  | Const_int i -> Pconst_integer (Int.to_string i, None)
+  | Const_int32 i -> Pconst_integer (Int32.to_string i, Some 'l')
+  | Const_int64 i -> Pconst_integer (Int64.to_string i, Some 'L')
+  | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, Some 'n')
+  | Const_float f -> Pconst_float (f,None)
+  | Const_float32 f -> Pconst_float (f, Some 's')
+  | Const_unboxed_float f -> Pconst_unboxed_float (f, None)
+  | Const_unboxed_float32 f -> Pconst_unboxed_float (f, Some 's')
+  | Const_unboxed_int32 i -> Pconst_unboxed_integer (Int32.to_string i, 'l')
+  | Const_unboxed_int64 i -> Pconst_unboxed_integer (Int64.to_string i, 'L')
+  | Const_unboxed_nativeint i -> Pconst_unboxed_integer (Nativeint.to_string i, 'n')
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;
@@ -229,7 +226,7 @@ let type_parameter sub (ct, v) = (sub.typ sub ct, v)
 let type_declaration sub decl =
   let loc = sub.location sub decl.typ_loc in
   let attrs = sub.attributes sub decl.typ_attributes in
-  Jane_syntax.Layouts.type_declaration_of
+  Type.mk
     ~loc ~attrs
     ~params:(List.map (type_parameter sub) decl.typ_params)
     ~cstrs:(
@@ -239,10 +236,9 @@ let type_declaration sub decl =
         decl.typ_cstrs)
     ~kind:(sub.type_kind sub decl.typ_kind)
     ~priv:decl.typ_private
-    ~manifest:(Option.map (sub.typ sub) decl.typ_manifest)
+    ?manifest:(Option.map (sub.typ sub) decl.typ_manifest)
     ~docs:Docstrings.empty_docs
-    ~text:None
-    ~jkind:decl.typ_jkind_annotation
+    ?jkind_annotation:decl.typ_jkind_annotation
     (map_loc sub decl.typ_name)
 
 let type_kind sub tk = match tk with
@@ -266,11 +262,10 @@ let constructor_declaration sub cd =
   let loc = sub.location sub cd.cd_loc in
   let attrs = sub.attributes sub cd.cd_attributes in
   let vars_jkinds = List.map (var_jkind ~loc) cd.cd_vars in
-  Jane_syntax.Layouts.constructor_declaration_of ~loc ~attrs
-    ~vars_jkinds
+  Type.constructor ~loc ~attrs
+    ~vars:vars_jkinds
     ~args:(constructor_arguments sub cd.cd_args)
-    ~res:(Option.map (sub.typ sub) cd.cd_res)
-    ~info:Docstrings.empty_info
+    ?res:(Option.map (sub.typ sub) cd.cd_res)
     (map_loc sub cd.cd_name)
 
 let mutable_ (mut : Types.mutability) : mutable_flag =
@@ -317,8 +312,7 @@ let extension_constructor sub ext =
     let vs = List.map (var_jkind ~loc) vs in
     let args = constructor_arguments sub args in
     let ret = Option.map (sub.typ sub) ret in
-    Jane_syntax.Extension_constructor.extension_constructor_of
-      ~loc ~name ~attrs (Jext_layout (Lext_decl (vs, args, ret)))
+    Te.constructor ~loc ~attrs name (Pext_decl (vs, args, ret))
   | Text_rebind (_p, lid) ->
     Te.constructor ~loc ~attrs name (Pext_rebind (map_loc sub lid))
 
@@ -370,12 +364,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
 
     | Tpat_alias (pat, _id, name, _uid, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
-    | Tpat_constant cst ->
-      begin match constant cst with
-      | `Parsetree cst -> Ppat_constant cst
-      | `Jane_syntax cst ->
-        Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
-      end
+    | Tpat_constant cst -> Ppat_constant (constant cst)
     | Tpat_tuple list ->
         Ppat_tuple
           ( List.map (fun (label, p) -> label, sub.pat sub p) list
@@ -432,16 +421,6 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
 let exp_extra sub (extra, loc, attrs) sexp =
   let loc = sub.location sub loc in
   let attrs = sub.attributes sub attrs in
-  let attrs = ref attrs in
-  (* Hack so we can return an extra value out of the [match] expression for Jane
-     Street internal expressions without needing to modify every case, which
-     would open us up to more merge conflicts.
-  *)
-  let add_jane_syntax_attributes { pexp_attributes; pexp_desc; _ } =
-    attrs := pexp_attributes @ !attrs;
-    pexp_desc
-  in
-  let add_loc x = mkloc x loc in
   let desc =
     match extra with
       Texp_coerce (cty1, cty2) ->
@@ -454,15 +433,11 @@ let exp_extra sub (extra, loc, attrs) sexp =
          Option.map (sub.typ sub) cty,
          Typemode.untransl_mode_annots ~loc modes)
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
-    | Texp_newtype (s, None) ->
-        Pexp_newtype (add_loc s, sexp)
-    | Texp_newtype (s, Some (_, jkind)) ->
-        Jane_syntax.Layouts.expr_of ~loc
-          (Lexp_newtype(add_loc s, jkind, sexp))
-        |> add_jane_syntax_attributes
+    | Texp_newtype (_, label_loc, jkind, _) ->
+        Pexp_newtype (label_loc, Option.map snd jkind, sexp)
     | Texp_stack -> Pexp_stack sexp
   in
-  Exp.mk ~loc ~attrs:!attrs desc
+  Exp.mk ~loc ~attrs desc
 
 let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
   {
@@ -532,12 +507,7 @@ let expression sub exp =
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _, _) -> Pexp_ident (map_loc sub lid)
-    | Texp_constant cst ->
-      begin match constant cst with
-      | `Parsetree cst -> Pexp_constant cst
-      | `Jane_syntax cst ->
-        Jane_syntax.Layouts.expr_of ~loc (Lexp_constant cst) |> add_jane_syntax_attributes
-      end
+    | Texp_constant cst -> Pexp_constant (constant cst)
     | Texp_let (rec_flag, list, exp) ->
         Pexp_let (rec_flag,
           List.map (sub.value_binding sub) list,
@@ -587,7 +557,7 @@ let expression sub exp =
                let default_arg = Option.map (sub.expr sub) default_arg in
                let newtypes =
                  List.map
-                   (fun (x, annot) ->
+                   (fun (_, x, annot, _) ->
                       { pparam_desc = Pparam_newtype (x, Option.map snd annot);
                         pparam_loc = x.loc;
                       })
@@ -1019,22 +989,9 @@ let class_type_field sub ctf =
 let core_type sub ct =
   let loc = sub.location sub ct.ctyp_loc in
   let attrs = sub.attributes sub ct.ctyp_attributes in
-  let attrs = ref attrs in
-  (* Hack so we can return an extra value out of the [match] expression for Jane
-     Street internal expressions without needing to modify every case, which
-     would open us up to more merge conflicts.
-  *)
-  let add_jane_syntax_attributes { ptyp_attributes; ptyp_desc; _ } =
-    attrs := ptyp_attributes @ !attrs;
-    ptyp_desc
-  in
   let desc = match ct.ctyp_desc with
-    | Ttyp_var (None, None) -> Ptyp_any
-    | Ttyp_var (Some s, None) -> Ptyp_var s
-    | Ttyp_var (name, Some (_, jkind_annotation)) ->
-        Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_var { name; jkind = jkind_annotation }) |>
-        add_jane_syntax_attributes
+    | Ttyp_var (None, jkind) -> Ptyp_any (Option.map snd jkind)
+    | Ttyp_var (Some s, jkind) -> Ptyp_var (s, Option.map snd jkind)
     | Ttyp_arrow (arg_label, ct1, ct2) ->
         (* CR cgunn: recover mode annotation here *)
         Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2, [], [])
@@ -1051,28 +1008,21 @@ let core_type sub ct =
           (List.map (sub.object_field sub) list, o)
     | Ttyp_class (_path, lid, list) ->
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
-    | Ttyp_alias (ct, Some s, None) ->
-        Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, name, Some (_, jkind_annotation)) ->
-        Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_alias { aliased_type = sub.typ sub ct; name;
-                        jkind = jkind_annotation }) |>
-        add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
-      Misc.fatal_error "anonymous alias without layout annotation in Untypeast"
+        Misc.fatal_error "anonymous alias without layout annotation in Untypeast"
+    | Ttyp_alias (ct, s, jkind) ->
+        Ptyp_alias (sub.typ sub ct, s, Option.map snd jkind)
     | Ttyp_variant (list, bool, labels) ->
         Ptyp_variant (List.map (sub.row_field sub) list, bool, labels)
     | Ttyp_poly (list, ct) ->
         let bound_vars = List.map (var_jkind ~loc) list in
-        Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
-        add_jane_syntax_attributes
+        Ptyp_poly (bound_vars, sub.typ sub ct)
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
     | Ttyp_open (_path, mod_ident, t) -> Ptyp_open (mod_ident, sub.typ sub t)
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
   in
-  Typ.mk ~loc ~attrs:!attrs desc
+  Typ.mk ~loc ~attrs desc
 
 let class_structure sub cs =
   let rec remove_self = function

@@ -318,3 +318,5 @@ val zero_alloc_check : Zero_alloc_annotations.t ref
 val zero_alloc_check_assert_all : bool ref
 
 val no_auto_include_otherlibs : bool ref
+
+val prepend_directory : string -> string
