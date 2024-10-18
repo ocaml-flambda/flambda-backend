@@ -201,10 +201,19 @@ val has_boxed: Parsetree.attributes -> bool
 val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
+(** The attribute placed on the inner [Ptyp_arrow] node in [x -> (y -> z)]
+    (meaning the [y -> z] node) to indicate parenthesization. This is relevant
+    for locals, as [local_ x -> (y -> z)] is different than
+    [local_ x -> y -> z].
+*)
+val curry_attr_name : string
+val curry_attr : Location.t -> Parsetree.attribute
+
 val has_no_mutable_implied_modalities: Parsetree.attributes -> bool
 val has_local_opt: Parsetree.attributes -> bool
 val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
+
 val has_or_null_reexport : Parsetree.attributes -> bool
 
 val tailcall : Parsetree.attributes ->
