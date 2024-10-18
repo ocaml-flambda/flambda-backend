@@ -61,7 +61,6 @@ type iterator = {
   module_expr_jane_syntax: iterator -> Jane_syntax.Module_expr.t -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
-  module_type_jane_syntax: iterator -> Jane_syntax.Module_type.t -> unit;
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;

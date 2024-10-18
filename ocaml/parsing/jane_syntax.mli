@@ -41,16 +41,6 @@
 (*********************************************)
 (* Individual features *)
 
-(** The ASTs for module type strengthening. *)
-module Strengthen : sig
-  type module_type =
-    { mty : Parsetree.module_type;
-      mod_id : Longident.t Location.loc
-    }
-
-  val mty_of : loc:Location.t -> module_type -> Parsetree.module_type
-end
-
 module Instances : sig
   (** The name of an instance module. Gets converted to [Global.Name.t] in the
       flambda-backend compiler. *)
@@ -139,19 +129,6 @@ end
 
 (******************************************)
 (* Individual syntactic categories *)
-
-(** Novel syntax in module types *)
-module Module_type : sig
-  type t = Jmty_strengthen of Strengthen.module_type
-
-  include
-    AST
-      with type t := t * Parsetree.attributes
-       and type ast := Parsetree.module_type
-
-  val mty_of :
-    loc:Location.t -> attrs:Parsetree.attributes -> t -> Parsetree.module_type
-end
 
 (** Novel syntax in module expressions *)
 module Module_expr : sig

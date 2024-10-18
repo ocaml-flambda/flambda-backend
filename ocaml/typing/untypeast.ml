@@ -825,11 +825,8 @@ let module_type (sub : mapper) mty =
   | Tmty_typeof mexpr ->
     Mty.mk ~loc ~attrs (Pmty_typeof (sub.module_expr sub mexpr))
   | Tmty_strengthen (mtype, _path, lid) ->
-      Jane_syntax.Module_type.mty_of ~loc ~attrs
-        (Jane_syntax.Module_type.Jmty_strengthen
-            { mty = sub.module_type sub mtype;
-              mod_id = map_loc sub lid
-            })
+      Mty.mk ~loc ~attrs
+        (Pmty_strengthen (sub.module_type sub mtype, map_loc sub lid))
 
 let with_constraint sub (_path, lid, cstr) =
   match cstr with

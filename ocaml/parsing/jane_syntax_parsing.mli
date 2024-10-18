@@ -196,12 +196,6 @@ module type AST = sig
     'a option
 end
 
-module Expression : AST with type ast = Parsetree.expression
-
-module Pattern : AST with type ast = Parsetree.pattern
-
-module Module_type : AST with type ast = Parsetree.module_type
-
 module Module_expr : AST with type ast = Parsetree.module_expr
 
 (** Require that an extension is enabled for at least the provided level, or
