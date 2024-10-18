@@ -1094,14 +1094,20 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
                 function - if it remains [Default_zero_alloc], translcore adds
                 the check. *)
              let arity = function_arity fn.params fn.body in
-             if !Clflags.zero_alloc_check_assert_all && arity > 0 then
-               Zero_alloc.create_const
-                 (Check { strict = false;
-                          arity;
-                          loc = Location.none;
-                          opt = false })
-             else
+             if arity <= 0 then
                fn.zero_alloc
+             else
+               let create_const ~opt =
+                 Zero_alloc.create_const
+                   (Check { strict = false;
+                            arity;
+                            loc = Location.none;
+                            opt })
+               in
+               (match !Clflags.zero_alloc_assert with
+                | Assert_default -> fn.zero_alloc
+                | Assert_all -> create_const ~opt:false
+                | Assert_all_opt -> create_const ~opt:true)
            | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc
          in
          Ident.Map.add id zero_alloc checks
