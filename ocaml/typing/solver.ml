@@ -33,17 +33,37 @@ type 'a error =
     right : 'a
   }
 
-(** Map the function to the list, and returns the first [Error] found;
-    Returns [Ok ()] if no error. *)
-let rec find_error (f : 'x -> ('a, 'b) Result.t) : 'x list -> ('a, 'b) Result.t
-    = function
-  | [] -> Ok ()
-  | x :: rest -> (
-    match f x with Ok () -> find_error f rest | Error _ as e -> e)
-
 module Solver_mono (C : Lattices_mono) = struct
+  type any_morph = Any_morph : ('a, 'b, 'd) C.morph -> any_morph
+
+  module VarMap = Map.Make (struct
+    type t = int * any_morph
+
+    let compare (i1, m1) (i2, m2) =
+      match Int.compare i1 i2 with 0 -> compare m1 m2 | i -> i
+  end)
+
+  (** Map the function to the list, and returns the first [Error] found;
+      Returns [Ok ()] if no error. *)
+  let find_error (f : 'x -> ('a, 'b) Result.t) (t : 'x VarMap.t) :
+      ('a, 'b) Result.t =
+    let r = ref (Ok ()) in
+    let _ =
+      VarMap.for_all
+        (fun _ x ->
+          match f x with
+          | Ok () -> true
+          | Error _ as e ->
+            r := e;
+            false)
+        t
+    in
+    !r
+
+  let var_map_to_list t = VarMap.fold (fun _ a xs -> a :: xs) t []
+
   type 'a var =
-    { mutable vlower : 'a lmorphvar list;
+    { mutable vlower : 'a lmorphvar VarMap.t;
           (** A list of variables directly under the current variable.
         Each is a pair [f] [v], and we have [f v <= u] where [u] is the current
         variable.
@@ -79,12 +99,14 @@ module Solver_mono (C : Lattices_mono) = struct
   and ('b, 'd) morphvar =
     | Amorphvar : 'a var * ('a, 'b, 'd) C.morph -> ('b, 'd) morphvar
 
+  let get_key (Amorphvar (v, m)) = v.id, Any_morph m
+
   module VarSet = Set.Make (Int)
 
   type change =
     | Cupper : 'a var * 'a -> change
     | Clower : 'a var * 'a -> change
-    | Cvlower : 'a var * 'a lmorphvar list -> change
+    | Cvlower : 'a var * 'a lmorphvar VarMap.t -> change
 
   type changes = change list
 
@@ -105,11 +127,11 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amode : 'a -> ('a, 'l * 'r) mode
     | Amodevar : ('a, 'd) morphvar -> ('a, 'd) mode
     | Amodejoin :
-        'a * ('a, 'l * disallowed) morphvar list
+        'a * ('a, 'l * disallowed) morphvar VarMap.t
         -> ('a, 'l * disallowed) mode
         (** [Amodejoin a [mv0, mv1, ..]] represents [a join mv0 join mv1 join ..] *)
     | Amodemeet :
-        'a * ('a, disallowed * 'r) morphvar list
+        'a * ('a, disallowed * 'r) morphvar VarMap.t
         -> ('a, disallowed * 'r) mode
         (** [Amodemeet a [mv0, mv1, ..]] represents [a meet mv0 meet mv1 meet ..]. *)
 
@@ -143,7 +165,8 @@ module Solver_mono (C : Lattices_mono) = struct
       else
         let traversed = VarSet.add v.id traversed in
         let p = print_morphvar ~traversed obj in
-        Format.fprintf ppf "{%a}" (Format.pp_print_list p) v.vlower
+        Format.fprintf ppf "{%a}" (Format.pp_print_list p)
+          (var_map_to_list v.vlower)
 
   and print_morphvar :
       type a d. ?traversed:VarSet.t -> a C.obj -> _ -> (a, d) morphvar -> _ =
@@ -165,13 +188,13 @@ module Solver_mono (C : Lattices_mono) = struct
         (Format.pp_print_list
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ",")
            (print_morphvar ?traversed obj))
-        mvs
+        (var_map_to_list mvs)
     | Amodemeet (a, mvs) ->
       Format.fprintf ppf "meet(%a,%a)" (C.print obj) a
         (Format.pp_print_list
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ",")
            (print_morphvar ?traversed obj))
-        mvs
+        (var_map_to_list mvs)
 
   module Morphvar = Magic_allow_disallow (struct
     type ('a, _, 'd) sided = ('a, 'd) morphvar constraint 'd = 'l * 'r
@@ -202,27 +225,31 @@ module Solver_mono (C : Lattices_mono) = struct
       function
       | Amode c -> Amode c
       | Amodevar mv -> Amodevar (Morphvar.allow_left mv)
-      | Amodejoin (c, mvs) -> Amodejoin (c, List.map Morphvar.allow_left mvs)
+      | Amodejoin (c, mvs) -> Amodejoin (c, VarMap.map Morphvar.allow_left mvs)
 
     let allow_right : type a l r. (a, l * allowed) mode -> (a, l * r) mode =
       function
       | Amode c -> Amode c
       | Amodevar mv -> Amodevar (Morphvar.allow_right mv)
-      | Amodemeet (c, mvs) -> Amodemeet (c, List.map Morphvar.allow_right mvs)
+      | Amodemeet (c, mvs) -> Amodemeet (c, VarMap.map Morphvar.allow_right mvs)
 
     let disallow_left : type a l r. (a, l * r) mode -> (a, disallowed * r) mode
         = function
       | Amode c -> Amode c
       | Amodevar mv -> Amodevar (Morphvar.disallow_left mv)
-      | Amodejoin (c, mvs) -> Amodejoin (c, List.map Morphvar.disallow_left mvs)
-      | Amodemeet (c, mvs) -> Amodemeet (c, List.map Morphvar.disallow_left mvs)
+      | Amodejoin (c, mvs) ->
+        Amodejoin (c, VarMap.map Morphvar.disallow_left mvs)
+      | Amodemeet (c, mvs) ->
+        Amodemeet (c, VarMap.map Morphvar.disallow_left mvs)
 
     let disallow_right : type a l r. (a, l * r) mode -> (a, l * disallowed) mode
         = function
       | Amode c -> Amode c
       | Amodevar mv -> Amodevar (Morphvar.disallow_right mv)
-      | Amodejoin (c, mvs) -> Amodejoin (c, List.map Morphvar.disallow_right mvs)
-      | Amodemeet (c, mvs) -> Amodemeet (c, List.map Morphvar.disallow_right mvs)
+      | Amodejoin (c, mvs) ->
+        Amodejoin (c, VarMap.map Morphvar.disallow_right mvs)
+      | Amodemeet (c, mvs) ->
+        Amodemeet (c, VarMap.map Morphvar.disallow_right mvs)
   end)
 
   let mlower dst (Amorphvar (var, morph)) = C.apply dst morph var.lower
@@ -246,9 +273,9 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amode a -> Amode (C.apply dst morph a)
     | Amodevar mv -> Amodevar (apply_morphvar dst morph mv)
     | Amodejoin (a, vs) ->
-      Amodejoin (C.apply dst morph a, List.map (apply_morphvar dst morph) vs)
+      Amodejoin (C.apply dst morph a, VarMap.map (apply_morphvar dst morph) vs)
     | Amodemeet (a, vs) ->
-      Amodemeet (C.apply dst morph a, List.map (apply_morphvar dst morph) vs)
+      Amodemeet (C.apply dst morph a, VarMap.map (apply_morphvar dst morph) vs)
 
   (** Arguments are not checked and used directly. They must satisfy the
       INVARIANT listed above. *)
@@ -283,7 +310,7 @@ module Solver_mono (C : Lattices_mono) = struct
      then Error v.upper
      else (
        update_lower ~log obj v a';
-       if C.le obj v.upper v.lower then set_vlower ~log v [];
+       if C.le obj v.upper v.lower then set_vlower ~log v VarMap.empty;
        Ok ())
 
   let submode_cmv :
@@ -330,7 +357,7 @@ module Solver_mono (C : Lattices_mono) = struct
                   then update_lower ~log obj v mu_lower);
                 r)
        in
-       if C.le obj v.upper v.lower then set_vlower ~log v [];
+       if C.le obj v.upper v.lower then set_vlower ~log v VarMap.empty;
        r)
 
   and submode_mvc :
@@ -371,8 +398,6 @@ module Solver_mono (C : Lattices_mono) = struct
       disallow_left (disallow_right mv0) == disallow_left (disallow_right mv1))
     || match C.eq_morph f0 f1 with None -> false | Some Refl -> v0 == v1
 
-  let exists mu mvs = List.exists (fun mv -> eq_morphvar mv mu) mvs
-
   let submode_mvmv (type a) ~log (dst : a C.obj) (Amorphvar (v, f) as mv)
       (Amorphvar (u, g) as mu) =
     if C.le dst (mupper dst mv) (mlower dst mu)
@@ -398,7 +423,8 @@ module Solver_mono (C : Lattices_mono) = struct
           let src = C.src dst g in
           let g'f = C.compose src g' (C.disallow_right f) in
           let x = Amorphvar (v, g'f) in
-          if not (exists x u.vlower) then set_vlower ~log u (x :: u.vlower);
+          if not (VarMap.exists (fun _ mv -> eq_morphvar mv x) u.vlower)
+          then set_vlower ~log u (VarMap.add (get_key x) x u.vlower);
           Ok ())
 
   let cnt_id = ref 0
@@ -408,7 +434,7 @@ module Solver_mono (C : Lattices_mono) = struct
     cnt_id := id + 1;
     let upper = Option.value upper ~default:(C.max obj) in
     let lower = Option.value lower ~default:(C.min obj) in
-    let vlower = Option.value vlower ~default:[] in
+    let vlower = Option.value vlower ~default:VarMap.empty in
     { upper; lower; vlower; id }
 
   let submode (type a r l) (obj : a C.obj) (a : (a, allowed * r) mode)
@@ -462,20 +488,14 @@ module Solver_mono (C : Lattices_mono) = struct
                       find_error (fun mv -> submode_mvmv ~log obj mv mu) mvs)
                     mus)))
 
-  let cons_dedup x xs = if exists x xs then xs else x :: xs
+  let cons_dedup x xs = VarMap.add (get_key x) x xs
 
-  (* Similar to [List.rev_append] but dedup the result (assuming both inputs are
-     deduped) *)
-  let rev_append_dedup l0 l1 =
-    let rec loop rest acc =
-      match rest with [] -> acc | x :: xs -> loop xs (cons_dedup x acc)
-    in
-    loop l0 l1
+  let union_prefer_left t0 t1 = VarMap.union (fun _ a _b -> Some a) t0 t1
 
   let join (type a r) obj l =
     let rec loop :
         a ->
-        (a, allowed * disallowed) morphvar list ->
+        (a, allowed * disallowed) morphvar VarMap.t ->
         (a, allowed * r) mode list ->
         (a, allowed * disallowed) mode =
      fun a mvs rest ->
@@ -493,14 +513,14 @@ module Solver_mono (C : Lattices_mono) = struct
           | Amodevar mv ->
             loop (C.join obj a (mlower obj mv)) (cons_dedup mv mvs) xs
           | Amodejoin (b, mvs') ->
-            loop (C.join obj a b) (rev_append_dedup mvs' mvs) xs)
+            loop (C.join obj a b) (union_prefer_left mvs' mvs) xs)
     in
-    loop (C.min obj) [] l
+    loop (C.min obj) VarMap.empty l
 
   let meet (type a l) obj l =
     let rec loop :
         a ->
-        (a, disallowed * allowed) morphvar list ->
+        (a, disallowed * allowed) morphvar VarMap.t ->
         (a, l * allowed) mode list ->
         (a, disallowed * allowed) mode =
      fun a mvs rest ->
@@ -518,9 +538,9 @@ module Solver_mono (C : Lattices_mono) = struct
           | Amodevar mv ->
             loop (C.meet obj a (mupper obj mv)) (cons_dedup mv mvs) xs
           | Amodemeet (b, mvs') ->
-            loop (C.meet obj a b) (rev_append_dedup mvs' mvs) xs)
+            loop (C.meet obj a b) (union_prefer_left mvs' mvs) xs)
     in
-    loop (C.max obj) [] l
+    loop (C.max obj) VarMap.empty l
 
   let get_conservative_ceil : type a l r. a C.obj -> (a, l * r) mode -> a =
    fun obj m ->
@@ -528,9 +548,9 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amode a -> a
     | Amodevar mv -> mupper obj mv
     | Amodemeet (a, mvs) ->
-      List.fold_left (fun acc mv -> C.meet obj acc (mupper obj mv)) a mvs
+      VarMap.fold (fun _ mv acc -> C.meet obj acc (mupper obj mv)) mvs a
     | Amodejoin (a, mvs) ->
-      List.fold_left (fun acc mv -> C.join obj acc (mupper obj mv)) a mvs
+      VarMap.fold (fun _ mv acc -> C.join obj acc (mupper obj mv)) mvs a
 
   let get_conservative_floor : type a l r. a C.obj -> (a, l * r) mode -> a =
    fun obj m ->
@@ -538,9 +558,9 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amode a -> a
     | Amodevar mv -> mlower obj mv
     | Amodejoin (a, mvs) ->
-      List.fold_left (fun acc mv -> C.join obj acc (mupper obj mv)) a mvs
+      VarMap.fold (fun _ mv acc -> C.join obj acc (mupper obj mv)) mvs a
     | Amodemeet (a, mvs) ->
-      List.fold_left (fun acc mv -> C.meet obj acc (mlower obj mv)) a mvs
+      VarMap.fold (fun _ mv acc -> C.meet obj acc (mlower obj mv)) mvs a
 
   (* Due to our biased implementation, the ceil is precise. *)
   let get_ceil = get_conservative_ceil
@@ -596,13 +616,13 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amodevar mv -> zap_to_floor_morphvar obj mv ~commit:log
     | Amodejoin (a, mvs) ->
       let floor =
-        List.fold_left
-          (fun acc mv ->
+        VarMap.fold
+          (fun _ mv acc ->
             C.join obj acc (zap_to_floor_morphvar obj mv ~commit:None))
-          a mvs
+          mvs a
       in
-      List.iter
-        (fun mv -> assert (submode_mvc obj mv floor ~log |> Result.is_ok))
+      VarMap.iter
+        (fun _ mv -> assert (submode_mvc obj mv floor ~log |> Result.is_ok))
         mvs;
       floor
 
@@ -612,10 +632,10 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amode a -> a
     | Amodevar mv -> zap_to_floor_morphvar obj mv ~commit:None
     | Amodejoin (a, mvs) ->
-      List.fold_left
-        (fun acc mv ->
+      VarMap.fold
+        (fun _ mv acc ->
           C.join obj acc (zap_to_floor_morphvar obj mv ~commit:None))
-        a mvs
+        mvs a
 
   let print :
       type a l r.
@@ -639,7 +659,11 @@ module Solver_mono (C : Lattices_mono) = struct
       (* [~lower] is not precise (because [mlower mv] is not precise), but
          it doesn't need to be *)
       ( Amodevar
-          (Amorphvar (fresh ~lower:(mlower obj mv) ~vlower:[mv] obj, C.id)),
+          (Amorphvar
+             ( fresh ~lower:(mlower obj mv)
+                 ~vlower:(VarMap.singleton (get_key mv) mv)
+                 obj,
+               C.id )),
         true )
     | Amodejoin (a, mvs) ->
       (* [~lower] is not precise here, but it doesn't need to be *)
@@ -660,8 +684,8 @@ module Solver_mono (C : Lattices_mono) = struct
       let u = fresh obj in
       let mu = Amorphvar (u, C.id) in
       assert (Result.is_ok (submode_mvc obj ~log:None mu a));
-      List.iter
-        (fun mv -> assert (Result.is_ok (submode_mvmv obj ~log:None mu mv)))
+      VarMap.iter
+        (fun _ mv -> assert (Result.is_ok (submode_mvmv obj ~log:None mu mv)))
         mvs;
       allow_left (Amodevar mu), true
 end
