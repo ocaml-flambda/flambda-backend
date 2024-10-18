@@ -130,11 +130,14 @@ Error: The type "'a" does not expand to a polymorphic variant type
 Hint: Did you mean "`a"?
 |}]
 
+(* CR reisenberg: This test is disabled. It only barely works in `main`
+   anyway, as evidenced by https://github.com/ocaml/ocaml/issues/13369
 (* PR#5927 *)
 type 'a foo = 'a constraint 'a = [< `Tag of & int];;
 [%%expect{|
 type 'a foo = 'a constraint 'a = [< `Tag of & int ]
 |}]
+*)
 
 (* PR#7704 *)
 type t = private [> `A of string ];;

@@ -1,11 +1,11 @@
-let $camlTests15__empty_array12 = Empty_array in
-let $camlTests15__immstring16 = "tests15.ml" in
-let $camlTests15__const_block18 = Block 0 ($camlTests15__immstring16, 2, 52)
+let $camlTests15__empty_array14 = Empty_array in
+let $camlTests15__immstring18 = "tests15.ml" in
+let $camlTests15__const_block20 = Block 0 ($camlTests15__immstring18, 2, 52)
 in
-let $camlTests15__Pmakeblock21 =
-  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block18)
+let $camlTests15__Pmakeblock23 =
+  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block20)
 in
-let $camlTests15__immstring67 = " \\ \n " in
+let $camlTests15__immstring75 = " \\ \n " in
 let code size(18)
       list_to_array_0 (param : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
         my_closure my_region my_ghost_region my_depth
@@ -18,9 +18,9 @@ let code size(18)
      | 0 -> k2
      | 1 -> k3)
     where k3 =
-      cont k ($camlTests15__empty_array12)
+      cont k ($camlTests15__empty_array14)
     where k2 =
-      cont k1 pop(regular k1) ($camlTests15__Pmakeblock21)
+      cont k1 pop(regular k1) ($camlTests15__Pmakeblock23)
 in
 let code size(18)
       is_c_1
@@ -41,13 +41,14 @@ let code size(18)
     where k2 =
       cont k (0)
 in
-let code size(5)
+let code size(6)
       set_to_x_2 (b, i : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %untag_imm 120 in
-  let Pbytessetu = %bytes_set 8 b.(i) prim in
+  let prim_1 = %num_conv (imm tagged -> imm) i in
+  let Pbytessetu = %bytes_set 8 b.(prim_1) prim in
   cont k (Pbytessetu)
 in
 let code size(3)
@@ -100,19 +101,19 @@ in
       classical_id,
       swapped,
       negate,
-      $camlTests15__immstring67,
+      $camlTests15__immstring75,
       foo)
  in
  cont k (Pmakeblock))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(8) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(8) (module_block, 1) in
-    let field_2 = %block_load tag(0) size(8) (module_block, 2) in
-    let field_3 = %block_load tag(0) size(8) (module_block, 3) in
-    let field_4 = %block_load tag(0) size(8) (module_block, 4) in
-    let field_5 = %block_load tag(0) size(8) (module_block, 5) in
-    let field_6 = $camlTests15__immstring67 in
-    let field_7 = %block_load tag(0) size(8) (module_block, 7) in
+    let field_0 = %block_load tag(0) size(8) (0) module_block in
+    let field_1 = %block_load tag(0) size(8) (1) module_block in
+    let field_2 = %block_load tag(0) size(8) (2) module_block in
+    let field_3 = %block_load tag(0) size(8) (3) module_block in
+    let field_4 = %block_load tag(0) size(8) (4) module_block in
+    let field_5 = %block_load tag(0) size(8) (5) module_block in
+    let field_6 = $camlTests15__immstring75 in
+    let field_7 = %block_load tag(0) size(8) (7) module_block in
     let $camlTests15 =
       Block 0 (field_0,
                field_1,

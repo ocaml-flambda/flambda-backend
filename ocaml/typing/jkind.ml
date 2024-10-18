@@ -76,6 +76,8 @@ module Layout = struct
 
       let bits64 = Base Sort.Bits64
 
+      let vec128 = Base Sort.Vec128
+
       let of_base : Sort.base -> t = function
         | Value -> value
         | Void -> void
@@ -84,6 +86,7 @@ module Layout = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
     end
 
     include Static
@@ -285,7 +288,7 @@ module Error = struct
         { jkind : const;
           required_layouts_level : Language_extension.maturity
         }
-    | Unknown_jkind of Jane_syntax.Jkind.t
+    | Unknown_jkind of Parsetree.jkind_annotation
     | Multiple_jkinds of
         { from_annotation : const;
           from_attribute : const
@@ -501,6 +504,13 @@ module Const = struct
       { jkind =
           of_layout (Base Bits64) ~mode_crossing:false ~nullability:Non_null;
         name = "bits64"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let vec128 =
+      { jkind =
+          of_layout (Base Vec128) ~mode_crossing:false ~nullability:Non_null;
+        name = "vec128"
       }
 
     let all =
@@ -723,9 +733,9 @@ module Const = struct
     }
 
   let rec of_user_written_annotation_unchecked_level
-      (jkind : Jane_syntax.Jkind.t) : t =
-    match jkind with
-    | Abbreviation { txt = name; loc } -> (
+      (jkind : Parsetree.jkind_annotation) : t =
+    match jkind.pjkind_desc with
+    | Abbreviation name -> (
       (* CR layouts v2.8: move this to predef *)
       match name with
       (* CR layouts v3.0: remove this hack once non-null jkinds are out of alpha.
@@ -744,7 +754,8 @@ module Const = struct
       | "word" -> Builtin.word.jkind
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
-      | _ -> raise ~loc (Unknown_jkind jkind))
+      | "vec128" -> Builtin.vec128.jkind
+      | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
@@ -782,18 +793,19 @@ module Const = struct
   let get_required_layouts_level (_context : History.annotation_context)
       (jkind : t) : Language_extension.maturity =
     match jkind.layout, jkind.nullability_upper_bound with
-    | (Base (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
+    | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
     | Base Value, Non_null ->
       Stable
     | Base Void, _ | Base Value, Maybe_null -> Alpha
     | Product _, _ -> Beta
 
-  let of_user_written_annotation ~context Location.{ loc; txt = annot } =
+  let of_user_written_annotation ~context (annot : Parsetree.jkind_annotation) =
     let const = of_user_written_annotation_unchecked_level annot in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
-      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
+      raise ~loc:annot.pjkind_loc
+        (Insufficient_level { jkind = const; required_layouts_level });
     const
 end
 
@@ -1047,7 +1059,27 @@ module Jkind_desc = struct
   end
 end
 
-type t = type_expr Jkind_types.t
+type 'd t = (type_expr, 'd) Jkind_types.t
+
+type jkind_l = (allowed * disallowed) t
+
+type jkind_r = (disallowed * allowed) t
+
+type packed = Pack : 'd t -> packed [@@unboxed]
+
+include Allowance.Magic_allow_disallow (struct
+  type (_, _, 'd) sided = 'd t
+
+  let disallow_right ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let disallow_left ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let allow_right ({ jkind = { layout = _; _ }; _ } as t) = t
+
+  let allow_left ({ jkind = { layout = _; _ }; _ } as t) = t
+end)
+
+let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
 
 let fresh_jkind jkind ~why =
   { jkind; history = Creation why; has_warned = false }
@@ -1140,9 +1172,9 @@ let of_const ~why
 let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
 
-let of_annotation ~context (annot : _ Location.loc) =
+let of_annotation ~context (annot : Parsetree.jkind_annotation) =
   let const = Const.of_user_written_annotation ~context annot in
-  let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
+  let jkind = of_annotated_const ~const ~const_loc:annot.pjkind_loc ~context in
   jkind, (const, annot)
 
 let of_annotation_option_default ~default ~context =
@@ -1157,14 +1189,13 @@ let of_attribute ~context
 
 let of_type_decl ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
-    Jane_syntax.Layouts.of_type_declaration decl
-    |> Option.map (fun (annot, attrs) ->
-           let t, const = of_annotation ~context annot in
-           t, const, attrs)
+    Option.map
+      (fun annot -> of_annotation ~context annot)
+      decl.ptype_jkind_annotation
   in
   let jkind_of_attribute =
     Builtin_attributes.jkind decl.ptype_attributes
-    |> Option.map (fun attr ->
+    |> Option.map (fun (attr : _ Location.loc) ->
            let t, const = of_attribute ~context attr in
            (* This is a bit of a lie: the "annotation" here is being
               forged based on the jkind attribute. But: the jkind
@@ -1173,26 +1204,28 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
               valid (and equivalent) to write as an annotation, so
               this lie is harmless.
            *)
-           let annot =
-             Location.map
-               (fun attr ->
-                 let name = Builtin_attributes.jkind_attribute_to_string attr in
-                 Jane_syntax.Jkind.(Abbreviation (Const.mk name Location.none)))
-               attr
+           let annot : Parsetree.jkind_annotation =
+             { pjkind_loc = attr.loc;
+               pjkind_desc =
+                 (let name =
+                    Builtin_attributes.jkind_attribute_to_string attr.txt
+                  in
+                  Parsetree.Abbreviation name)
+             }
            in
-           t, (const, annot), decl.ptype_attributes)
+           t, (const, annot))
   in
   match jkind_of_annotation, jkind_of_attribute with
   | None, None -> None
   | (Some _ as x), None | None, (Some _ as x) -> x
-  | Some (_, (from_annotation, _), _), Some (_, (from_attribute, _), _) ->
+  | Some (_, (from_annotation, _)), Some (_, (from_attribute, _)) ->
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
 let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   match of_type_decl ~context decl with
-  | Some (t, const, attrs) -> t, Some const, attrs
-  | None -> default, None, decl.ptype_attributes
+  | Some (t, const) -> t, Some const
+  | None -> default, None
 
 let for_boxed_record ~all_void =
   if all_void
@@ -1243,7 +1276,7 @@ let get t = Jkind_desc.get t.jkind
 
 (* CR layouts: this function is suspect; it seems likely to reisenberg
    that refactoring could get rid of it *)
-let sort_of_jkind (t : t) : sort =
+let sort_of_jkind (t : jkind_l) : sort =
   let rec sort_of_layout (t : Layout.t) =
     match t with
     | Any -> Misc.fatal_error "Jkind.sort_of_jkind"
@@ -1623,10 +1656,9 @@ module Format_history = struct
   (* this isn't really formatted for user consumption *)
   let format_history_tree ~intro ~layout_or_kind ppf t =
     let rec in_order ppf = function
-      | Interact
-          { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ } ->
-        fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
-          format_interact_reason reason in_order rhs_history
+      | Interact { reason; history1; history2; jkind1 = _; jkind2 = _ } ->
+        fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order history1
+          format_interact_reason reason in_order history2
       | Creation c -> format_creation_reason ppf ~layout_or_kind c
     in
     fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
@@ -1649,8 +1681,8 @@ module Violation = struct
   open Format
 
   type violation =
-    | Not_a_subjkind of t * t
-    | No_intersection of t * t
+    | Not_a_subjkind of jkind_l * jkind_r
+    | No_intersection of packed * jkind_r
 
   type nonrec t =
     { violation : violation;
@@ -1694,7 +1726,7 @@ module Violation = struct
       | Const _ | Product _ ->
         dprintf "%s a sub%s of %a" verb layout_or_kind format_layout_or_kind k2
     in
-    let k1, k2, fmt_k1, fmt_k2, missing_cmi_option =
+    let Pack k1, k2, fmt_k1, fmt_k2, missing_cmi_option =
       match t with
       | { violation = Not_a_subjkind (k1, k2); missing_cmi } -> (
         let missing_cmi =
@@ -1708,20 +1740,20 @@ module Violation = struct
         in
         match missing_cmi with
         | None ->
-          ( k1,
+          ( Pack k1,
             k2,
             dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
             subjkind_format "is not" k2,
             None )
         | Some p ->
-          ( k1,
+          ( Pack k1,
             k2,
             dprintf "an unknown %s" layout_or_kind,
             subjkind_format "might not be" k2,
             Some p ))
-      | { violation = No_intersection (k1, k2); missing_cmi } ->
+      | { violation = No_intersection (Pack k1, k2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
-        ( k1,
+        ( Pack k1,
           k2,
           dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
           dprintf "does not overlap with %a" format_layout_or_kind k2,
@@ -1774,11 +1806,11 @@ let equate_or_equal ~allow_mutation
   Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
-let equal = equate_or_equal ~allow_mutation:true
+let equal t1 t2 = equate_or_equal ~allow_mutation:true t1 t2
 
 let () = Types.set_jkind_equal equal
 
-let equate = equate_or_equal ~allow_mutation:true
+let equate t1 t2 = equate_or_equal ~allow_mutation:true t1 t2
 
 (* Not all jkind history reasons are created equal. Some are more helpful than others.
     This function encodes that information.
@@ -1792,25 +1824,25 @@ let score_reason = function
   | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
   | _ -> 0
 
-let combine_histories reason lhs rhs =
+let combine_histories reason (Pack k1) (Pack k2) =
   if flattened_histories
   then
-    match Desc.sub (Jkind_desc.get lhs.jkind) (Jkind_desc.get rhs.jkind) with
-    | Less -> lhs.history
+    match Desc.sub (Jkind_desc.get k1.jkind) (Jkind_desc.get k2.jkind) with
+    | Less -> k1.history
     | Not_le ->
-      rhs.history
+      k2.history
       (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
     | Equal ->
-      if score_reason lhs.history >= score_reason rhs.history
-      then lhs.history
-      else rhs.history
+      if score_reason k1.history >= score_reason k2.history
+      then k1.history
+      else k2.history
   else
     Interact
       { reason;
-        lhs_jkind = lhs.jkind;
-        lhs_history = lhs.history;
-        rhs_jkind = rhs.jkind;
-        rhs_history = rhs.history
+        jkind1 = Pack k1.jkind;
+        history1 = k1.history;
+        jkind2 = Pack k2.jkind;
+        history2 = k2.history
       }
 
 let has_intersection t1 t2 =
@@ -1818,13 +1850,23 @@ let has_intersection t1 t2 =
 
 let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
-  | None -> Error (Violation.of_ (No_intersection (t1, t2)))
+  | None -> Error (Violation.of_ (No_intersection (Pack t1, t2)))
   | Some jkind ->
     Ok
       { jkind;
-        history = combine_histories reason t1 t2;
+        history = combine_histories reason (Pack t1) (Pack t2);
         has_warned = t1.has_warned || t2.has_warned
       }
+
+let intersect_l_l ~reason t1 t2 =
+  (* CR layouts v2.8: Do something cleverer here once we have more
+     expressive l-kinds. *)
+  intersection_or_error ~reason t1 (terrible_relax_l t2)
+
+let has_intersection_l_l t1 t2 =
+  (* CR layouts v2.8: Do something cleverer here once we have more
+     expressive l-kinds. *)
+  has_intersection (terrible_relax_l t1) (terrible_relax_l t2)
 
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
@@ -1848,10 +1890,13 @@ let sub_or_error t1 t2 =
   | Sub -> Ok ()
   | _ -> Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
-let sub_with_history sub super =
+(* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
+   kind polymorphism design. *)
+let sub_jkind_l sub super =
+  let super = terrible_relax_l super in
   match check_sub sub super with
   | Less | Equal ->
-    Ok { sub with history = combine_histories Subjkind sub super }
+    Ok { sub with history = combine_histories Subjkind (Pack sub) (Pack super) }
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 let is_void_defaulting = function
@@ -2019,15 +2064,21 @@ module Debug_printers = struct
     | Subjkind -> fprintf ppf "Subjkind"
 
   let rec history ppf = function
-    | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
+    | Interact
+        { reason;
+          jkind1 = Pack jkind1;
+          history1;
+          jkind2 = Pack jkind2;
+          history2
+        } ->
       fprintf ppf
-        "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
-         rhs_jkind = %a;@ rhs_history = %a}@]"
-        interact_reason reason Jkind_desc.Debug_printers.t lhs_jkind history
-        lhs_history Jkind_desc.Debug_printers.t rhs_jkind history rhs_history
+        "Interact {@[reason = %a;@ jkind1 = %a;@ history1 = %a;@ jkind2 = %a;@ \
+         history2 = %a}@]"
+        interact_reason reason Jkind_desc.Debug_printers.t jkind1 history
+        history1 Jkind_desc.Debug_printers.t jkind2 history history2
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
+  let t ppf ({ jkind; history = h; has_warned = _ } : 'd t) : unit =
     fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
       Jkind_desc.Debug_printers.t jkind history h
 
@@ -2052,7 +2103,7 @@ let report_error ~loc : Error.t -> _ = function
       (* CR layouts v2.9: use the context to produce a better error message.
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
-      "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
+      "@[<v>Unknown layout %a@]" Pprintast.jkind_annotation jkind
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\
@@ -2087,6 +2138,6 @@ let () =
 (* CR layouts v2.8: Remove the definitions below by propagating changes
    outside of this file. *)
 
-type annotation = Const.t * Jane_syntax.Jkind.annotation
+type annotation = Const.t * Parsetree.jkind_annotation
 
 let default_to_value_and_get t = default_to_value_and_get t

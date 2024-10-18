@@ -160,6 +160,7 @@ Error: Signature mismatch:
          type 'a t = 'a E.t = A of 'a | B
        is not included in
          type 'a t = 'a constraint 'a = [> `Foo ]
+       Their parameters differ:
        The type "'a" is not equal to the type "[> `Foo ]"
 |}];;
 
@@ -224,6 +225,7 @@ Error: Signature mismatch:
          type 'a t = 'a E3.t = A of 'a | B
        is not included in
          type 'a t = 'a constraint 'a = [< `Foo ]
+       Their parameters differ:
        The type "'a" is not equal to the type "[< `Foo ]"
 |}];;
 

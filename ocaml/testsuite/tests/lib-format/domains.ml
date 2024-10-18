@@ -1,6 +1,7 @@
 (* TEST
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 (** Test that domains stdout and stderr are flushed at domain exit *)

@@ -29,6 +29,7 @@ module type Sort = sig
     | Word  (** Unboxed native-size integers *)
     | Bits32  (** Unboxed 32-bit integers *)
     | Bits64  (** Unboxed 64-bit integers *)
+    | Vec128  (** Unboxed 128-bit simd vectors *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var
@@ -41,6 +42,22 @@ module type Sort = sig
     val equal : t -> t -> bool
 
     val format : Format.formatter -> t -> unit
+
+    val value : t
+
+    val void : t
+
+    val float64 : t
+
+    val float32 : t
+
+    val word : t
+
+    val bits32 : t
+
+    val bits64 : t
+
+    val vec128 : t
 
     module Debug_printers : sig
       val t : Format.formatter -> t -> unit

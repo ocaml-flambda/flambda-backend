@@ -199,16 +199,8 @@ let extract_sig_functor_open funct_body env loc mty sig_acc =
 
 (* Compute the environment after opening a module *)
 
-let type_open_ ?used_slot ?toplevel ovf env loc lid =
-  let path, _ =
-    Env.lookup_module_path ~lock:false ~load:true ~loc:lid.loc lid.txt env
-  in
-  match Env.open_signature ~loc ?used_slot ?toplevel ovf path env with
-  | Ok env -> path, env
-  | Error _ ->
-      let md = Env.find_module path env in
-      ignore (extract_sig_open env lid.loc md.md_type);
-      assert false
+let type_open_ ?(used_slot=ref false) ?(toplevel=false) ovf env loc lid =
+  Env.open_signature ~loc ~used_slot ~toplevel ovf lid env
 
 let initial_env ~loc ~initially_opened_module
     ~open_implicit_modules =
@@ -535,8 +527,9 @@ let () = Env.check_well_formed_module := check_well_formed_module
 
 let type_decl_is_alias sdecl = (* assuming no explicit constraint *)
   let eq_vars x y =
-    match Jane_syntax.Core_type.of_ast x, Jane_syntax.Core_type.of_ast y with
-    (* a jkind annotation on either type variable might mean this definition
+    (* Why not handle jkind annotations?
+
+       a jkind annotation on either type variable might mean this definition
        is not an alias. Example: {v
          type ('a : value) t
          type ('a : immediate) t2 = ('a : immediate) t
@@ -546,10 +539,8 @@ let type_decl_is_alias sdecl = (* assuming no explicit constraint *)
        conservatively say that any jkind annotations block alias
        detection.
     *)
-    | (Some _, _) | (_, Some _) -> false
-    | None, None ->
     match x.ptyp_desc, y.ptyp_desc with
-    | Ptyp_var sx, Ptyp_var sy -> sx = sy
+    | Ptyp_var (sx, None), Ptyp_var (sy, None) -> sx = sy
     | _, _ -> false
   in
   match sdecl.ptype_manifest with
@@ -994,7 +985,8 @@ let map_ext fn exts =
   | [] -> []
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
-let apply_modalities_signature modalities sg =
+let rec apply_modalities_signature ~recursive env modalities sg =
+  let env = Env.add_signature sg env in
   List.map (function
   | Sig_value (id, vd, vis) ->
       let val_modalities =
@@ -1005,7 +997,26 @@ let apply_modalities_signature modalities sg =
       in
       let vd = {vd with val_modalities} in
       Sig_value (id, vd, vis)
-  | item -> item) sg
+  | Sig_module (id, pres, md, rec_, vis) when recursive ->
+      let md_type = apply_modalities_module_type env modalities md.md_type in
+      let md = {md with md_type} in
+      Sig_module (id, pres, md, rec_, vis)
+  | item -> item
+  ) sg
+
+and apply_modalities_module_type env modalities = function
+  | Mty_ident p ->
+      let mtd = Env.find_modtype p env in
+      begin match mtd.mtd_type with
+      | None -> Mty_ident p
+      | Some mty -> apply_modalities_module_type env modalities mty
+      end
+  | Mty_strengthen (mty, p, alias) ->
+      Mty_strengthen (apply_modalities_module_type env modalities mty, p, alias)
+  | Mty_signature sg ->
+      let sg = apply_modalities_signature ~recursive:true env modalities sg in
+      Mty_signature sg
+  | (Mty_functor _ | Mty_alias _) as mty -> mty
 
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
@@ -1094,18 +1105,10 @@ and approx_module_declaration env pmd =
     md_uid = Uid.internal_not_actually_unique;
   }
 
-and approx_sig_jst' _env (jitem : Jane_syntax.Signature_item.t) _srem =
-  match jitem with
-  | Jsig_layout (Lsig_kind_abbrev _) ->
-      Misc.fatal_error "kind_abbrev not supported!"
-
 and approx_sig env ssg =
   match ssg with
     [] -> []
   | item :: srem ->
-      match Jane_syntax.Signature_item.of_ast item with
-      | Some jitem -> approx_sig_jst' env jitem srem
-      | None ->
       match item.psig_desc with
       | Psig_type (rec_flag, sdecls) ->
           let decls = Typedecl.approx_type_decl sdecls in
@@ -1182,7 +1185,8 @@ and approx_sig env ssg =
       | Psig_open sod ->
           let _, env = type_open_descr env sod in
           approx_sig env srem
-      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind; _}, moda) ->
+      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind;
+            pincl_attributes=attrs}, moda) ->
           begin match kind with
           | Functor ->
               Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
@@ -1191,10 +1195,18 @@ and approx_sig env ssg =
               let mty = approx_modtype env mod_ in
               let scope = Ctype.create_scope () in
               let sg = extract_sig env loc mty in
-              let modalities =
-                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+              let sg =
+                match moda with
+                | [] -> sg
+                | _ ->
+                  let modalities =
+                    Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+                  in
+                  let recursive =
+                    not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
+                  in
+                  apply_modalities_signature ~recursive env modalities sg
               in
-              let sg = apply_modalities_signature modalities sg in
               let sg, newenv = Env.enter_signature ~scope sg env in
               sg @ approx_sig newenv srem
           end
@@ -1209,6 +1221,8 @@ and approx_sig env ssg =
             ]
           ) decls [rem]
           |> List.flatten
+      | Psig_kind_abbrev _ ->
+          Misc.fatal_error "kind_abbrev not supported!"
       | _ ->
           approx_sig env srem
 
@@ -1709,10 +1723,19 @@ and transl_signature env sg =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    let sg, modalities =
+      match modalities with
+      | [] -> sg, Mode.Modality.Value.Const.id
+      | _ ->
+        let modalities =
+          Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        in
+        let recursive =
+          not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
+            sincl.pincl_attributes
+        in
+        apply_modalities_signature ~recursive env modalities sg, modalities
     in
-    let sg = apply_modalities_signature modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
       (Signature_names.check_sig_item names loc)
@@ -1728,17 +1751,8 @@ and transl_signature env sg =
     mksig (Tsig_include (incl, modalities)) env loc, sg, newenv
   in
 
-  let transl_sig_item_jst ~loc:_ _env _sig_acc : Jane_syntax.Signature_item.t -> _ =
-    function
-    | Jsig_layout (Lsig_kind_abbrev _) ->
-        Misc.fatal_error "kind_abbrev not supported!"
-  in
-
   let transl_sig_item env sig_acc item =
     let loc = item.psig_loc in
-    match Jane_syntax.Signature_item.of_ast item with
-    | Some jitem -> transl_sig_item_jst ~loc env sig_acc jitem
-    | None ->
     match item.psig_desc with
     | Psig_value sdesc ->
         let (tdesc, newenv) =
@@ -1997,6 +2011,8 @@ and transl_signature env sg =
         mksig (Tsig_attribute attr) env loc, [], env
     | Psig_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
+    | Psig_kind_abbrev _ ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
   let rec transl_sig env sig_items sig_type = function
     | [] -> List.rev sig_items, List.rev sig_type, env
@@ -2408,7 +2424,7 @@ let modtype_of_package env loc p fl =
 let package_subtype env p1 fl1 p2 fl2 =
   let mkmty p fl =
     let fl =
-      List.filter (fun (_n,t) -> Ctype.free_variables t = []) fl in
+      List.filter (fun (_n,t) -> Ctype.closed_type_expr t) fl in
     modtype_of_package env Location.none p fl
   in
   match mkmty p1 fl1, mkmty p2 fl2 with
@@ -2596,7 +2612,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       let mty =
         match get_desc (Ctype.expand_head env exp.exp_type) with
           Tpackage (p, fl) ->
-            if List.exists (fun (_n, t) -> Ctype.free_variables t <> []) fl then
+            if List.exists (fun (_n, t) -> not (Ctype.closed_type_expr t)) fl
+            then
               raise (Error (smod.pmod_loc, env,
                             Incomplete_packed_module exp.exp_type));
             if !Clflags.principal &&
@@ -2627,10 +2644,11 @@ and type_module_extension_aux ~alias sttn env smod
   function
   | Emod_instance (Imod_instance glob) ->
       let glob = instance_name ~loc:smod.pmod_loc env glob in
-      let path =
+      let path, mode =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
           glob env
       in
+      Mode.Value.submode_exn mode Mode.Value.legacy;
       let lid =
         (* Only used by [untypeast] *)
         let name =
@@ -2923,12 +2941,6 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     Tstr_include incl, sg, shape, new_env
   in
 
-  let type_str_item_jst ~loc:_ _env _shape_map jitem _sig_acc =
-    match (jitem : Jane_syntax.Structure_item.t) with
-    | Jstr_layout (Lstr_kind_abbrev _) ->
-        Misc.fatal_error "kind_abbrev not supported!"
-  in
-
   let force_toplevel =
     (* A couple special cases are needed for the toplevel:
 
@@ -2942,11 +2954,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
   in
 
   let type_str_item
-        env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+        env shape_map {pstr_loc = loc; pstr_desc = desc} sig_acc =
     let md_mode = Mode.Value.legacy in
-    match Jane_syntax.Structure_item.of_ast item with
-    | Some jitem -> type_str_item_jst ~loc env shape_map jitem sig_acc
-    | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
         let expr, sort =
@@ -2961,7 +2970,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           begin match Jkind.Sort.default_to_value_and_get sort with
           | Base Value -> ()
           | Product _
-          | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64) ->
+          | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) ->
             raise (Error (sexpr.pexp_loc, env, Toplevel_unnamed_nonvalue sort))
           end;
         Tstr_eval (expr, sort, attrs), [], shape_map, env
@@ -2980,7 +2989,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               begin match Jkind.Sort.default_to_value_and_get vb.vb_sort with
               | Base Value -> ()
               | Product _
-              | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64) ->
+              | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) ->
                 raise (Error (vb.vb_loc, env,
                               Toplevel_unnamed_nonvalue vb.vb_sort))
               end
@@ -3315,6 +3324,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         || not (Warnings.is_active (Misplaced_attribute "")) then
           Builtin_attributes.mark_alert_used x;
         Tstr_attribute x, [], shape_map, env
+    | Pstr_kind_abbrev _ ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
   let toplevel_sig = Option.value toplevel ~default:[] in
   let rec type_struct env shape_map sstr str_acc sig_acc

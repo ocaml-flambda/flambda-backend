@@ -287,7 +287,7 @@ let extra sub = function
 let function_param sub { fp_loc; fp_kind; fp_newtypes; _ } =
   sub.location sub fp_loc;
   List.iter
-    (fun (var, annot) ->
+    (fun (_, var, annot, _) ->
        iter_loc sub var;
        Option.iter (sub.jkind_annotation sub) annot)
     fp_newtypes;
@@ -707,7 +707,14 @@ let value_binding sub ({vb_loc; vb_pat; vb_expr; vb_attributes; _} as vb) =
 
 let env _sub _ = ()
 
-let jkind_annotation sub (_, l) = iter_loc sub l
+let jkind_annotation sub ((_, l) : Jkind.annotation) =
+  (* iterate over locations contained within parsetree jkind annotation *)
+  let ast_iterator =
+    { Ast_iterator.default_iterator
+      with location = (fun _this loc -> sub.location sub loc)
+    }
+  in
+  ast_iterator.jkind_annotation ast_iterator l
 
 let item_declaration _sub _ = ()
 

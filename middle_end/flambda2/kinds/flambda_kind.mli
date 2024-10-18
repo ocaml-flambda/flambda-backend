@@ -83,6 +83,7 @@ type flat_suffix_element = private
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
+  | Naked_vec128
 
 module Mixed_block_shape : sig
   type t
@@ -94,6 +95,10 @@ module Mixed_block_shape : sig
   val value_prefix_size : t -> int
 
   val flat_suffix : t -> flat_suffix_element array
+
+  val size_in_words : t -> int
+
+  val offset_in_words : t -> int -> int
 
   val equal : t -> t -> bool
 
@@ -218,6 +223,7 @@ module With_subkind : sig
       | Unboxed_int32_array
       | Unboxed_int64_array
       | Unboxed_nativeint_array
+      | Unboxed_vec128_array
 
     include Container_types.S with type t := t
   end
@@ -295,6 +301,10 @@ module With_subkind : sig
   include Container_types.S with type t := t
 
   val equal_ignoring_subkind : t -> t -> bool
+
+  val must_be_gc_scannable : t -> bool
+
+  val may_be_gc_scannable : t -> bool
 end
 
 module Flat_suffix_element : sig

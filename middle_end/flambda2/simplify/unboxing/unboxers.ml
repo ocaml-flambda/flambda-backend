@@ -160,8 +160,7 @@ end
 
 module Field = struct
   let unboxing_prim bak ~block ~index =
-    let field_const = Simple.const (Const.tagged_immediate index) in
-    P.Binary (Block_load (bak, Immutable), block, field_const)
+    P.Unary (Block_load { kind = bak; mut = Immutable; field = index }, block)
 
   let unboxer ~poison_const bak ~index =
     { var_name = "field_at_use";

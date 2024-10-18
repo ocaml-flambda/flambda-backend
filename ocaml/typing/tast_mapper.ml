@@ -349,8 +349,8 @@ let function_param sub
   in
   let fp_newtypes =
     List.map
-      (fun (var, annot) ->
-         map_loc sub var, Option.map (sub.jkind_annotation sub) annot)
+      (fun (id, var, annot, uid) ->
+         id, map_loc sub var, Option.map (sub.jkind_annotation sub) annot, uid)
       fp_newtypes
   in
   { fp_kind;
@@ -987,7 +987,14 @@ let value_binding sub x =
 
 let env _sub x = x
 
-let jkind_annotation sub (c, l) = (c, map_loc sub l)
+let jkind_annotation sub (c, annot) =
+  (* map over locations contained within parsetree jkind annotation *)
+  let ast_mapper =
+    { Ast_mapper.default_mapper
+      with location = (fun _this loc -> sub.location sub loc)
+    }
+  in
+  (c, ast_mapper.jkind_annotation ast_mapper annot)
 
 let default =
   {

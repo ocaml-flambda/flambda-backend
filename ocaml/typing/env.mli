@@ -45,6 +45,7 @@ type summary =
   | Env_persistent of summary * Ident.t
   | Env_value_unbound of summary * string * value_unbound_reason
   | Env_module_unbound of summary * string * module_unbound_reason
+  (* CR zqian: track [add_lock] as well *)
 
 type address = Persistent_env.address =
   | Aunit of Compilation_unit.t
@@ -209,6 +210,10 @@ type lock_item =
   | Module
   | Class
 
+type structure_components_reason =
+  | Project
+  | Open
+
 type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
@@ -224,9 +229,9 @@ type lookup_error =
   | Masked_self_variable of Longident.t
   | Masked_ancestor_variable of Longident.t
   | Structure_used_as_functor of Longident.t
-  | Abstract_used_as_functor of Longident.t
-  | Functor_used_as_structure of Longident.t
-  | Abstract_used_as_structure of Longident.t
+  | Abstract_used_as_functor of Longident.t * Path.t
+  | Functor_used_as_structure of Longident.t * structure_components_reason
+  | Abstract_used_as_structure of Longident.t * Path.t * structure_components_reason
   | Generative_used_as_applicative of Longident.t
   | Illegal_reference_to_recursive_module
   | Cannot_scrape_alias of Longident.t * Path.t
@@ -282,7 +287,8 @@ val lookup_module_path:
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
 val lookup_module_instance_path:
-  ?use:bool -> loc:Location.t -> load:bool -> Global_module.Name.t -> t -> Path.t
+  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool ->
+  Global_module.Name.t -> t -> Path.t * Mode.Value.l
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
@@ -418,12 +424,15 @@ val add_signature_lazy: Subst.Lazy.signature_item list -> t -> t
    Used to implement open. Returns None if the path refers to a functor,
    not a structure. *)
 val open_signature:
-    ?used_slot:bool ref ->
-    ?loc:Location.t -> ?toplevel:bool ->
-    Asttypes.override_flag -> Path.t ->
-    t -> (t, [`Not_found | `Functor]) result
+    used_slot:bool ref ->
+    loc:Location.t -> toplevel:bool ->
+    Asttypes.override_flag -> Longident.t Location.loc ->
+    t -> Path.t * t
 
-val open_pers_signature: string -> t -> (t, [`Not_found]) result
+(* CR zqian: locks beyond the open are not tracked. Fix that. *)
+val open_signature_by_path: Path.t -> t -> t
+
+val open_pers_signature: string -> t -> Path.t * t
 
 val remove_last_open: Path.t -> t -> t option
 
@@ -599,7 +608,7 @@ val scrape_alias:
 val same_constr: (t -> type_expr -> type_expr -> bool) ref
 (* Forward declaration to break mutual recursion with Ctype. *)
 val constrain_type_jkind:
-  (t -> type_expr -> jkind -> (unit, Jkind.Violation.t) result) ref
+  (t -> type_expr -> jkind_r -> (unit, Jkind.Violation.t) result) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)
 val print_longident: (Format.formatter -> Longident.t -> unit) ref
 (* Forward declaration to break mutual recursion with Printtyp. *)

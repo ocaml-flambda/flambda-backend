@@ -776,7 +776,9 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
   | Pbox_float (_, _)
-  | Punbox_float _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+  | Punbox_float _
+  | Pbox_vector (_, _)
+  | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
@@ -1673,7 +1675,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       Some (Unboxed_number bn)
     | Pvalue (Pboxedvectorval bv) ->
       let bn : Flambda_kind.Boxable_number.t =
-        match bv with Pvec128 _ -> Naked_vec128
+        match bv with Pvec128 -> Naked_vec128
       in
       Some (Unboxed_number bn)
     | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)

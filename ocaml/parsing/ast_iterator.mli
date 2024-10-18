@@ -52,7 +52,7 @@ type iterator = {
   extension_constructor: iterator -> extension_constructor -> unit;
   include_declaration: iterator -> include_declaration -> unit;
   include_description: iterator -> include_description -> unit;
-  jkind_annotation: iterator -> Jane_syntax.Jkind.t -> unit;
+  jkind_annotation: iterator -> jkind_annotation -> unit;
   label_declaration: iterator -> label_declaration -> unit;
   location: iterator -> Location.t -> unit;
   module_binding: iterator -> module_binding -> unit;
@@ -70,14 +70,11 @@ type iterator = {
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
-  signature_item_jane_syntax: iterator -> Jane_syntax.Signature_item.t -> unit;
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
-  structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   toplevel_directive: iterator -> toplevel_directive -> unit;
   toplevel_phrase: iterator -> toplevel_phrase -> unit;
   typ: iterator -> core_type -> unit;
-  typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
   type_declaration: iterator -> type_declaration -> unit;

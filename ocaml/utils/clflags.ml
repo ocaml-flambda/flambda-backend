@@ -444,7 +444,18 @@ let error_style = ref None (* -error-style *)
 let error_style_reader = {
   parse = (function
     | "contextual" -> Some Misc.Error_style.Contextual
-    | "short" -> Some Misc.Error_style.Short
+    | "short" ->
+      (* Jane Street specific: This little bit of code suppresses the quote
+         marks in error messages. Remove this after we can get formatted
+         output in our editors. *)
+      let styles = Misc.Style.get_styles () in
+      let styles =
+        { styles with inline_code =
+          { styles.inline_code with text_open = ""; text_close = "" } }
+      in
+      Misc.Style.set_styles styles;
+      (* End Jane Street specific code *)
+      Some Misc.Error_style.Short
     | _ -> None);
   print = (function
     | Misc.Error_style.Contextual -> "contextual"
@@ -684,3 +695,8 @@ let zero_alloc_check = ref Zero_alloc_annotations.Check_default    (* -zero-allo
 let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)
 
 let no_auto_include_otherlibs = ref false      (* -no-auto-include-otherlibs *)
+
+let prepend_directory file_name =
+  match !directory with
+  | Some directory -> Filename.concat directory file_name
+  | None -> file_name

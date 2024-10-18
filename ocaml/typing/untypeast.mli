@@ -84,5 +84,4 @@ val untype_signature : ?mapper:mapper -> Typedtree.signature -> signature
 val untype_expression : ?mapper:mapper -> Typedtree.expression -> expression
 val untype_pattern : ?mapper:mapper -> _ Typedtree.general_pattern -> pattern
 
-val constant : Typedtree.constant ->
-  [ `Parsetree of Parsetree.constant | `Jane_syntax of Jane_syntax.Layouts.constant ]
+val constant : Typedtree.constant -> Parsetree.constant

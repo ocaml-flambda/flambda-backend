@@ -87,6 +87,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   let dacc = DA.with_denv dacc denv in
   let code_ids_to_remember = DA.code_ids_to_remember outer_dacc in
   let code_ids_to_never_delete = DA.code_ids_to_never_delete outer_dacc in
+  let code_ids_never_simplified = DA.code_ids_never_simplified outer_dacc in
   let used_value_slots = DA.used_value_slots outer_dacc in
   let shareable_constants = DA.shareable_constants outer_dacc in
   let slot_offsets = DA.slot_offsets outer_dacc in
@@ -96,9 +97,11 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   dacc
   |> DA.with_code_ids_to_remember ~code_ids_to_remember
   |> DA.with_code_ids_to_never_delete ~code_ids_to_never_delete
+  |> DA.with_code_ids_never_simplified ~code_ids_never_simplified
   |> DA.with_used_value_slots ~used_value_slots
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
+  |> DA.reset_continuation_lifting_budget
 
 let extract_accumulators_from_function outer_dacc ~dacc_after_body
     ~uacc_after_upwards_traversal =
@@ -115,6 +118,9 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
   in
   let code_ids_to_remember = DA.code_ids_to_remember dacc_after_body in
   let code_ids_to_never_delete = DA.code_ids_to_never_delete dacc_after_body in
+  let code_ids_never_simplified =
+    DA.code_ids_never_simplified dacc_after_body
+  in
   let used_value_slots = UA.used_value_slots uacc_after_upwards_traversal in
   let shareable_constants =
     UA.shareable_constants uacc_after_upwards_traversal
@@ -128,6 +134,7 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
       lifted_consts_this_function
     |> DA.with_code_ids_to_remember ~code_ids_to_remember
     |> DA.with_code_ids_to_never_delete ~code_ids_to_never_delete
+    |> DA.with_code_ids_never_simplified ~code_ids_never_simplified
     |> DA.with_used_value_slots ~used_value_slots
     |> DA.with_shareable_constants ~shareable_constants
     |> DA.with_slot_offsets ~slot_offsets
@@ -292,6 +299,7 @@ let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
         (Continuation_uses.get_uses uses)
         ~is_recursive:false ~params:return_cont_params ~env_at_fork
         ~consts_lifted_during_body:lifted_consts_this_function
+        ~lifted_cont_extra_params_and_args:EPA.empty
     in
     let bound_params_and_results =
       Bound_parameters.append params return_cont_params

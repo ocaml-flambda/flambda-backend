@@ -1091,7 +1091,7 @@ end = struct
   (* We map from types to names, but not directly; we also store a substitution,
      which maps from types to types.  The lookup process is
      "type -> apply substitution -> find name".  The substitution is presumed to
-     be acyclic. *)
+     be one-shot. *)
   let names = ref ([] : (transient_expr * string) list)
   let name_subst = ref ([] : (transient_expr * transient_expr) list)
   let name_counter = ref 0
@@ -1128,9 +1128,9 @@ end = struct
           printer_iter_type_expr add_named_vars ty
     end
 
-  let rec substitute ty =
+  let substitute ty =
     match List.assq ty !name_subst with
-    | ty' -> substitute ty'
+    | ty' -> ty'
     | exception Not_found -> ty
 
   let add_subst subst =
@@ -1313,10 +1313,11 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
-  let rec out_jkind_const_of_user_jkind : Jane_syntax.Jkind.t -> out_jkind_const = function
+let out_jkind_of_user_jkind jkind =
+  let rec out_jkind_const_of_user_jkind (jkind : Parsetree.jkind_annotation) : out_jkind_const =
+    match jkind.pjkind_desc with
     | Default -> Ojkind_const_default
-    | Abbreviation abbrev -> Ojkind_const_abbreviation (abbrev :> string Location.loc).txt
+    | Abbreviation abbrev -> Ojkind_const_abbreviation abbrev
     | Mod (base, modes) ->
       let base = out_jkind_const_of_user_jkind base in
       let modes =
@@ -1327,7 +1328,7 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
       Ojkind_const_product (List.map out_jkind_const_of_user_jkind ts)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
-  Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)
+  Ojkind_const (out_jkind_const_of_user_jkind jkind)
 
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
@@ -1435,7 +1436,9 @@ let rec tree_of_typexp mode alloc_mode ty =
         let arg_mode = Alloc.zap_to_legacy marg in
         let t1 =
           if is_optional l then
-            match get_desc (tpoly_get_mono ty1) with
+            match
+              get_desc (Ctype.expand_head !printing_env (tpoly_get_mono ty1))
+            with
             | Tconstr(path, [ty], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode arg_mode ty
@@ -2273,7 +2276,7 @@ let rec tree_of_class_type mode params =
       in
       let tr =
        if is_optional l then
-         match get_desc ty with
+         match get_desc (Ctype.expand_head !printing_env ty) with
          | Tconstr(path, [ty], _) when Path.same path Predef.path_option ->
              tree_of_typexp mode ty
          | _ -> Otyp_stuff "<hidden>"
@@ -3088,12 +3091,11 @@ let explanation (type variety) intro prev env
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
       let fmt_history t l ppf =
         Jkind.(format_history ~intro:(
-          dprintf "The layout of %a is %a" type_expr t format l) ppf l)
+          dprintf "The layout of %a is %a" prepared_type_expr t format l) ppf l)
       in
-      Some (dprintf "@ because their layouts are different.@ @[<v>%t@;%t@]"
+      Some (dprintf "@ because the layouts of their variables are different.\
+                     @ @[<v>%t@;%t@]"
               (fmt_history t1 l1) (fmt_history t2 l2))
-  | Errortrace.Unequal_var_jkinds_with_no_history ->
-      Some (dprintf "@ because their layouts are different.")
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)
@@ -3157,8 +3159,7 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       tr
   in
   let jkind_error = match Misc.last tr with
-    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _
-           | Unequal_var_jkinds_with_no_history) ->
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)
@@ -3204,9 +3205,9 @@ let report_error trace_format ppf mode env tr
     error trace_format mode subst env tr txt1 ppf txt2
       type_expected_explanation)
 
-let report_unification_error
+let report_unification_error ?type_expected_explanation
       ppf env ({trace} : Errortrace.unification_error) =
-  report_error Unification ppf Type env
+  report_error ?type_expected_explanation Unification ppf Type env
     ?subst:None trace
 
 let report_equality_error

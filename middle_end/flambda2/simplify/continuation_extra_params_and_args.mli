@@ -39,9 +39,13 @@ type t = private
 
 val print : Format.formatter -> t -> unit
 
-val empty : t
-
 val is_empty : t -> bool
+
+(** {2 Creating an EPA} *)
+
+(** {3 First way to create an EPA} *)
+
+val empty : t
 
 val add :
   t ->
@@ -49,6 +53,15 @@ val add :
   extra_param:Bound_parameter.t ->
   extra_args:Extra_arg.t Apply_cont_rewrite_id.Map.t ->
   t
+
+(** {3 Another way to create an EPA} *)
+
+val init_with_params_only : Bound_parameters.t -> t
+
+val add_args_for_all_params :
+  t -> Apply_cont_rewrite_id.t -> Extra_arg.t list -> t
+
+(** {2 Other functions} *)
 
 val concat : outer:t -> inner:t -> t
 

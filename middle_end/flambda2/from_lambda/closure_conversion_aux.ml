@@ -70,7 +70,7 @@ module IR = struct
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode;
+      mode : Lambda.locality_mode;
       region : Ident.t;
       ghost_region : Ident.t;
       args_arity : [`Complex] Flambda_arity.t;
@@ -516,8 +516,8 @@ module Acc = struct
          mode, but they are not currently provided with approximations. *)
       | Immutable_float_array _ | Immutable_float32_array _
       | Immutable_value_array _ | Empty_array _ | Immutable_int32_array _
-      | Immutable_int64_array _ | Immutable_nativeint_array _ | Mutable_string _
-      | Immutable_string _ ->
+      | Immutable_int64_array _ | Immutable_nativeint_array _
+      | Immutable_vec128_array _ | Mutable_string _ | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =
@@ -753,7 +753,7 @@ module Function_decls = struct
       { name : Ident.t;
         kind : Flambda_kind.With_subkind.t;
         attributes : Lambda.parameter_attribute;
-        mode : Lambda.alloc_mode
+        mode : Lambda.locality_mode
       }
 
     type unboxing_kind =
@@ -784,9 +784,9 @@ module Function_decls = struct
         attr : Lambda.function_attribute;
         loc : Lambda.scoped_location;
         recursive : Recursive.t;
-        closure_alloc_mode : Lambda.alloc_mode;
+        closure_alloc_mode : Lambda.locality_mode;
         first_complex_local_param : int;
-        result_mode : Lambda.alloc_mode;
+        result_mode : Lambda.locality_mode;
         contains_no_escaping_local_allocs : bool
       }
 
@@ -883,7 +883,7 @@ module Function_decls = struct
   type t =
     { function_decls : Function_decl.t list;
       all_free_idents : Ident.Set.t;
-      alloc_mode : Lambda.alloc_mode
+      alloc_mode : Lambda.locality_mode
     }
 
   let alloc_mode t = t.alloc_mode
@@ -1051,7 +1051,12 @@ module Let_with_acc = struct
       | Prim (prim, _) -> Flambda_primitive.at_most_generative_effects prim
       | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> true
     in
-    if is_unused_singleton && has_no_effects
+    let keep_bindings_for_simplify =
+      (* When using Simplify, we don't delete unused bindings here, to increase
+         the chance that invalid code is actually simplified to [Invalid]. *)
+      not (Flambda_features.classic_mode ())
+    in
+    if is_unused_singleton && has_no_effects && not keep_bindings_for_simplify
     then acc, body
     else
       let cost_metrics_of_defining_expr =

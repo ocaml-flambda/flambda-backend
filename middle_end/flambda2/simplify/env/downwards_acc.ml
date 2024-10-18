@@ -29,14 +29,25 @@ type t =
     demoted_exn_handlers : Continuation.Set.t;
     code_ids_to_remember : Code_id.Set.t;
     code_ids_to_never_delete : Code_id.Set.t;
+    code_ids_never_simplified : Code_id.Set.t;
     slot_offsets : Slot_offsets.t Code_id.Map.t;
-    debuginfo_rewrites : Debuginfo.t Simple.Map.t
+    debuginfo_rewrites : Debuginfo.t Simple.Map.t;
+    are_lifting_conts : Are_lifting_conts.t;
+    lifted_continuations : (DE.t * Original_handlers.t) list;
+    (* head of the list is the innermost continuation being lifted *)
+    continuation_lifting_budget : int
   }
+
+let print_lifted_cont ppf (denv, original_handlers) =
+  Format.fprintf ppf
+    "@[<hov 1>(@[<hov 1>(denv %a)@]@ @[<hov 1>(original_handlers %a)@])@]"
+    DE.print denv Original_handlers.print original_handlers
 
 let [@ocamlformat "disable"] print ppf
       { denv; continuation_uses_env; shareable_constants; used_value_slots;
         lifted_constants; flow_acc; demoted_exn_handlers; code_ids_to_remember;
-        code_ids_to_never_delete; slot_offsets; debuginfo_rewrites } =
+        code_ids_to_never_delete; code_ids_never_simplified; slot_offsets; debuginfo_rewrites;
+        are_lifting_conts; lifted_continuations; continuation_lifting_budget; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(denv@ %a)@]@ \
       @[<hov 1>(continuation_uses_env@ %a)@]@ \
@@ -47,8 +58,12 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(code_ids_to_remember@ %a)@]@ \
       @[<hov 1>(code_ids_to_never_delete@ %a)@]@ \
+      @[<hov 1>(code_ids_never_simplified@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a)@ \
-      @[<hov 1>(debuginfo_rewrites@ %a)@]\
+      @[<hov 1>(debuginfo_rewrites@ %a)@]@ \
+      @[<hov 1>(are_lifting_conts@ %a)@]@ \
+      @[<hov 1>(lifted_continuations@ %a)@]@ \
+      @[<hov 1>(continuation_lifting_budget %d)@]\
       )@]"
     DE.print denv
     CUE.print continuation_uses_env
@@ -59,8 +74,13 @@ let [@ocamlformat "disable"] print ppf
     Continuation.Set.print demoted_exn_handlers
     Code_id.Set.print code_ids_to_remember
     Code_id.Set.print code_ids_to_never_delete
+    Code_id.Set.print code_ids_never_simplified
     (Code_id.Map.print Slot_offsets.print) slot_offsets
     (Simple.Map.print Debuginfo.print_compact) debuginfo_rewrites
+    Are_lifting_conts.print are_lifting_conts
+    (Format.pp_print_list ~pp_sep:Format.pp_print_space
+       print_lifted_cont) lifted_continuations
+    continuation_lifting_budget
 
 let create denv slot_offsets continuation_uses_env =
   { denv;
@@ -73,7 +93,11 @@ let create denv slot_offsets continuation_uses_env =
     demoted_exn_handlers = Continuation.Set.empty;
     code_ids_to_remember = Code_id.Set.empty;
     code_ids_to_never_delete = Code_id.Set.empty;
-    debuginfo_rewrites = Simple.Map.empty
+    code_ids_never_simplified = Code_id.Set.empty;
+    debuginfo_rewrites = Simple.Map.empty;
+    are_lifting_conts = Are_lifting_conts.no_lifting;
+    lifted_continuations = [];
+    continuation_lifting_budget = Flambda_features.Expert.cont_lifting_budget ()
   }
 
 let denv t = t.denv
@@ -200,6 +224,17 @@ let code_ids_to_never_delete t = t.code_ids_to_never_delete
 let with_code_ids_to_never_delete t ~code_ids_to_never_delete =
   { t with code_ids_to_never_delete }
 
+let add_code_ids_never_simplified t ~old_code_ids =
+  { t with
+    code_ids_never_simplified =
+      Code_id.Set.union old_code_ids t.code_ids_never_simplified
+  }
+
+let code_ids_never_simplified t = t.code_ids_never_simplified
+
+let with_code_ids_never_simplified t ~code_ids_never_simplified =
+  { t with code_ids_never_simplified }
+
 let are_rebuilding_terms t = DE.are_rebuilding_terms t.denv
 
 let demote_exn_handler t cont =
@@ -226,3 +261,40 @@ let merge_debuginfo_rewrite t ~bound_to dbg =
     debuginfo_rewrites =
       Simple.Map.add (* or replace *) bound_to dbg t.debuginfo_rewrites
   }
+
+let are_lifting_conts t = t.are_lifting_conts
+
+let with_are_lifting_conts t are_lifting_conts = { t with are_lifting_conts }
+
+let get_and_clear_lifted_continuations t =
+  { t with lifted_continuations = [] }, t.lifted_continuations
+
+let add_lifted_continuation denv original_handlers t =
+  { t with
+    lifted_continuations = (denv, original_handlers) :: t.lifted_continuations
+  }
+
+(* Invariant: budget < 0 means no limit on cont lifting *)
+let get_continuation_lifting_budget t =
+  let budget = t.continuation_lifting_budget in
+  if budget < 0 then max_int else budget
+
+let reset_continuation_lifting_budget t =
+  let continuation_lifting_budget =
+    Flambda_features.Expert.cont_lifting_budget ()
+  in
+  { t with continuation_lifting_budget }
+
+let decrease_continuation_lifting_budget t cost =
+  if t.continuation_lifting_budget < 0
+  then t
+  else
+    { t with
+      continuation_lifting_budget = max 0 (t.continuation_lifting_budget - cost)
+    }
+
+let prepare_for_speculative_inlining dacc =
+  let dacc =
+    map_denv ~f:DE.set_do_not_rebuild_terms_and_disable_inlining dacc
+  in
+  with_are_lifting_conts dacc Are_lifting_conts.no_lifting

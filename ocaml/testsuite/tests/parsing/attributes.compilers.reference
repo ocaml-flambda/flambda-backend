@@ -12,6 +12,7 @@
           pext_kind =
             Pext_decl
               []
+              []
               None
   structure_item (attributes.ml[10,150+0]..[10,150+44])
     Pstr_exception
@@ -25,6 +26,7 @@
           pext_name = "Bar"
           pext_kind =
             Pext_decl
+              []
               [
                 (attributes.ml[10,150+17]..[10,150+29])
                   core_type (attributes.ml[10,150+18]..[10,150+21])
@@ -156,6 +158,7 @@
                   pext_name = "Bar"
                   pext_kind =
                     Pext_decl
+                      []
                       [
                         (attributes.ml[37,450+19]..[37,450+31])
                           core_type (attributes.ml[37,450+20]..[37,450+23])

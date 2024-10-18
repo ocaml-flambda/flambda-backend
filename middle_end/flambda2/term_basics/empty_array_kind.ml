@@ -19,6 +19,7 @@ type t =
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
+  | Naked_vec128s
 
 let print ppf t =
   match t with
@@ -27,6 +28,7 @@ let print ppf t =
   | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
   | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
   | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
+  | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
 
 let compare = Stdlib.compare
 
@@ -40,9 +42,7 @@ let of_element_kind t =
   | Naked_number Naked_int32 -> Naked_int32s
   | Naked_number Naked_int64 -> Naked_int64s
   | Naked_number Naked_nativeint -> Naked_nativeints
-  | Naked_number Naked_vec128 ->
-    Misc.fatal_errorf
-      "Arrays cannot yet contain elements of kind unboxed vec128"
+  | Naked_number Naked_vec128 -> Naked_vec128s
   | Region | Rec_info ->
     Misc.fatal_errorf
       "Arrays cannot contain elements of kind region or rec_info"
@@ -56,3 +56,4 @@ let of_lambda array_kind =
   | Punboxedintarray Pint32 -> Naked_int32s
   | Punboxedintarray Pint64 -> Naked_int64s
   | Punboxedintarray Pnativeint -> Naked_nativeints
+  | Punboxedvectorarray Pvec128 -> Naked_vec128s

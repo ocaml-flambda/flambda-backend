@@ -747,22 +747,15 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
     if Language_extension.is_enabled Small_numbers then Ok (Const_float32 f)
     else Error (Float32_literal f)
   | Pconst_float (f,Some c) -> Error (Unknown_literal (f, c))
-
-let constant_or_raise env loc cst =
-  match constant cst with
-  | Ok c -> c
-  | Error err -> raise (Error (loc, env, err))
-
-let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, error) result
-  = function
-  | Float (f, None) -> Ok (Const_unboxed_float f)
-  | Float (f, Some 's') ->
-    if Language_extension.is_enabled Small_numbers then Ok (Const_unboxed_float32 f)
-    else Error (Float32_literal (Misc.format_as_unboxed_literal f))
-  | Float (x, Some c) ->
-    Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
-  | Integer (i, suffix) ->
-    begin match constant_integer i ~suffix with
+  | Pconst_unboxed_float (f, None) ->
+      Ok (Const_unboxed_float f)
+  | Pconst_unboxed_float (f, Some 's') ->
+      if Language_extension.is_enabled Small_numbers then Ok (Const_unboxed_float32 f)
+      else Error (Float32_literal (Misc.format_as_unboxed_literal f))
+  | Pconst_unboxed_float (x, Some c) ->
+      Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
+  | Pconst_unboxed_integer (i, suffix) ->
+      begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
       | Ok (Int64 v) -> Ok (Const_unboxed_int64 v)
       | Ok (Nativeint v) -> Ok (Const_unboxed_nativeint v)
@@ -770,12 +763,24 @@ let unboxed_constant : Jane_syntax.Layouts.constant -> (Typedtree.constant, erro
       | Error Int64_literal_overflow -> Error (Literal_overflow "int64#")
       | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint#")
       | Error Unknown_constant_literal ->
-        Error (Unknown_literal (Misc.format_as_unboxed_literal i, suffix))
-    end
+          Error (Unknown_literal (Misc.format_as_unboxed_literal i, suffix))
+      end
 
-let unboxed_constant_or_raise env loc cst =
-  match unboxed_constant cst with
-  | Ok c -> c
+let constant_or_raise env loc cst =
+  match constant cst with
+  | Ok c ->
+      (match c with
+       | Const_unboxed_int32 _
+       | Const_unboxed_int64 _
+       | Const_unboxed_nativeint _
+       | Const_unboxed_float _
+       | Const_unboxed_float32 _ ->
+           Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
+             Language_extension.Stable
+       | Const_int _ | Const_char _ | Const_string _ | Const_float _
+       | Const_float32 _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ ->
+           ());
+      c
   | Error err -> raise (Error (loc, env, err))
 
 (* Specific version of type_option, using newty rather than newgenty *)
@@ -853,7 +858,9 @@ let has_poly_constraint spat =
   | _ -> false
 
 (** Mode cross a left mode *)
-let mode_cross_left env ty mode =
+(* This is very similar to Ctype.mode_cross_left_alloc. Any bugs here are likely
+   bugs there, too. *)
+let mode_cross_left_value env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
@@ -865,7 +872,7 @@ let mode_cross_left env ty mode =
 
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
   : Env.actual_mode =
-  let mode = mode_cross_left env ty actual_mode.mode in
+  let mode = mode_cross_left_value env ty actual_mode.mode in
   {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
@@ -882,6 +889,8 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   { monadic; comonadic }
 
 (** Mode cross a right mode *)
+(* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
+   there, too. *)
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
@@ -1308,7 +1317,7 @@ and build_as_type_and_mode_extra env p ~mode : _ -> _ * _ = function
   | (Tpat_constraint {ctyp_type = ty; _}, _, _) :: rest ->
       (* If the type constraint is ground, then this is the best type
          we can return, so just return an instance (cf. #12313) *)
-      if free_variables ty = [] then instance ty, mode else
+      if closed_type_expr ty then instance ty, mode else
       (* Otherwise we combine the inferred type for the pattern with
          then non-ground constraint in a non-ambivalent way *)
       let as_ty, as_mode = build_as_type_and_mode_extra env p rest ~mode in
@@ -2398,7 +2407,6 @@ let rec has_literal_pattern p =
 and has_literal_pattern_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array ps) ->
      List.exists has_literal_pattern ps
-  | Jpat_layout (Lpat_constant _) -> true
 
 and has_literal_pattern_labeled_tuple labeled_ps =
      List.exists (fun (_, p) -> has_literal_pattern p) labeled_ps
@@ -2608,14 +2616,6 @@ and type_pat_aux
       match jpat with
       | Jpat_immutable_array (Iapat_immutable_array spl) ->
           type_pat_array Immutable spl attrs
-      | Jpat_layout (Lpat_constant cst) ->
-          let cst = unboxed_constant_or_raise !!penv loc cst in
-          rvp @@ solve_expected {
-            pat_desc = Tpat_constant cst;
-            pat_loc = loc; pat_extra=[];
-            pat_type = type_constant cst;
-            pat_attributes = attrs;
-            pat_env = !!penv }
     end
   | None ->
   match sp.ppat_desc with
@@ -2628,7 +2628,9 @@ and type_pat_aux
         pat_env = !!penv }
   | Ppat_var name ->
       let ty = instance expected_ty in
-      let alloc_mode = mode_cross_left !!penv expected_ty alloc_mode.mode in
+      let alloc_mode =
+        mode_cross_left_value !!penv expected_ty alloc_mode.mode
+      in
       let id, uid =
         enter_variable tps loc name alloc_mode ty sp.ppat_attributes
       in
@@ -2667,7 +2669,7 @@ and type_pat_aux
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
-      let mode = mode_cross_left !!penv expected_ty mode in
+      let mode = mode_cross_left_value !!penv expected_ty mode in
       let id, uid =
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
           sp.ppat_attributes
@@ -2746,8 +2748,7 @@ and type_pat_aux
           None -> []
         | Some sarg' ->
         match Jane_syntax.Pattern.of_ast sarg' with
-        | Some ((Jpat_immutable_array _, _)
-               | (Jpat_layout _, _)) -> [sarg']
+        | Some (Jpat_immutable_array _, _) -> [sarg']
         | None -> match sarg' with
         | {ppat_desc = Ppat_tuple (spl, _)} as sp when
             constr.cstr_arity > 1 ||
@@ -3131,7 +3132,6 @@ let rec pat_tuple_arity spat =
 
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
-  | Jpat_layout (Lpat_constant _) -> Not_local_tuple
 
 let rec cases_tuple_arity cases =
   match cases with
@@ -3339,11 +3339,7 @@ let rec check_counter_example_pat
       end
   | Tpat_alias (p, _, _, _, _) -> check_rec ~info p expected_ty k
   | Tpat_constant cst ->
-      let cst =
-        match Untypeast.constant cst with
-        | `Parsetree cst -> constant_or_raise !!penv loc cst
-        | `Jane_syntax cst -> unboxed_constant_or_raise !!penv loc cst
-      in
+      let cst = constant_or_raise !!penv loc (Untypeast.constant cst) in
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
   | Tpat_tuple tpl ->
       let tpl_ann =
@@ -4119,9 +4115,6 @@ let loc_rest_of_function
 let approx_type_default () = newvar (Jkind.Builtin.any ~why:Dummy_jkind)
 
 let rec approx_type env sty =
-  match Jane_syntax.Core_type.of_ast sty with
-  | Some (jty, attrs) -> approx_type_jst env attrs jty
-  | None ->
   match sty.ptyp_desc with
   | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty, arg_mode, _) ->
       let p = Typetexp.transl_label p (Some arg_sty) in
@@ -4164,14 +4157,8 @@ let rec approx_type env sty =
       end
   | _ -> approx_type_default ()
 
-and approx_type_jst _env _attrs : Jane_syntax.Core_type.t -> _ = function
-  | Jtyp_layout (Ltyp_var _) -> approx_type_default ()
-  | Jtyp_layout (Ltyp_poly _) -> approx_type_default ()
-  | Jtyp_layout (Ltyp_alias _) -> approx_type_default ()
-
 let type_pattern_approx_jane_syntax : Jane_syntax.Pattern.t -> _ = function
-  | Jpat_immutable_array _
-  | Jpat_layout (Lpat_constant _) -> ()
+  | Jpat_immutable_array _ -> ()
 
 let type_pattern_approx env spat ty_expected =
   match Jane_syntax.Pattern.of_ast spat with
@@ -4283,9 +4270,7 @@ and type_approx_aux_jane_syntax
   =
   match jexp with
   | Jexp_comprehension _
-  | Jexp_immutable_array _
-  | Jexp_layout (Lexp_constant _)
-  | Jexp_layout (Lexp_newtype _) -> ()
+  | Jexp_immutable_array _ -> ()
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
@@ -4382,7 +4367,7 @@ let check_univars env kind exp ty_expected vars =
             *)
             match get_desc (expand_head env var) with
             | Tvar { jkind = jkind2; } -> begin
-                match check_type_jkind env uvar jkind2 with
+                match check_type_jkind env uvar (Jkind.disallow_left jkind2) with
                 | Ok _ -> ()
                 | Error err ->
                   error exp_ty ty_expected
@@ -4565,7 +4550,6 @@ let shallow_iter_ppat_labeled_tuple f lst = List.iter (fun (_,p) -> f p) lst
 
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
-  | Jpat_layout (Lpat_constant _) -> ()
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
@@ -4629,7 +4613,7 @@ let may_contain_gadts p =
 let turn_let_into_match p =
   exists_ppat (fun p ->
     match Jane_syntax.Pattern.of_ast p with
-    | Some ((Jpat_layout _ | Jpat_immutable_array _), _) -> false
+    | Some (Jpat_immutable_array _, _) -> false
     | None -> match p.ppat_desc with
     | Ppat_construct _ -> true
     | Ppat_tuple (_, Open) -> true
@@ -4743,8 +4727,7 @@ let rec is_inferred sexp =
 
 and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension _
-  | Jexp_immutable_array _
-  | Jexp_layout (Lexp_constant _ | Lexp_newtype _) -> false
+  | Jexp_immutable_array _ -> false
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -5003,7 +4986,7 @@ type type_function_result =
   { function_ :
       type_expr * type_function_result_param list * function_body;
     (* The uninterrupted prefix of newtypes of the parameter suffix. *)
-    newtypes: (string loc * Jkind.annotation option) list;
+    newtypes: (Ident.t * string loc * Jkind.annotation option * Uid.t) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
     params_contain_gadt: contains_gadt;
     (* The alloc mode of the "rest of the function". None only for recursive
@@ -5057,7 +5040,8 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_modes=
   | Some (Pvc_constraint { locally_abstract_univars;typ}) ->
       let loc = Location.merge [ loc; pat.ppat_loc ] in
       let expr = Exp.constraint_ ~loc expr (Some typ) modes in
-      List.fold_right (Exp.newtype ~loc) locally_abstract_univars expr
+      let mk_newtype name body = Exp.newtype ~loc name None body in
+      List.fold_right mk_newtype locally_abstract_univars expr
 
 let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_modes = modes; _ } as vb) =
@@ -5078,7 +5062,8 @@ let vb_pat_constraint
         Pat.constraint_ ~loc pat (Some typ) modes
     | Some (Pvc_constraint {locally_abstract_univars=vars; typ }), _, _ ->
         let varified = Typ.varify_constructors vars typ in
-        let t = Typ.poly ~loc:typ.ptyp_loc vars varified in
+        let vars_jkinds = List.map (fun var -> var, None) vars in
+        let t = Typ.poly ~loc:typ.ptyp_loc vars_jkinds varified in
         let loc =  Location.merge [ loc; t.ptyp_loc ] in
         Pat.constraint_ ~loc pat (Some t) modes
     | None, (Ppat_any | Ppat_constraint _), _ -> maybe_add_modes_constraint pat
@@ -5795,7 +5780,7 @@ and type_expect_
           | Record_mixed mixed -> begin
               match Types.get_mixed_product_element mixed label.lbl_num with
               | Flat_suffix Float_boxed -> true
-              | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Word) -> false
+              | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Vec128 | Word) -> false
               | Value_prefix -> false
             end
           | _ -> false
@@ -5803,14 +5788,14 @@ and type_expect_
         match is_float_boxing with
         | true ->
           let alloc_mode, argument_mode = register_allocation expected_mode in
-          let mode = mode_cross_left env Predef.type_unboxed_float mode in
+          let mode = mode_cross_left_value env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu =
             unique_use ~loc ~env mode (as_single_mode argument_mode)
           in
           Boxing (alloc_mode, uu)
         | false ->
-          let mode = mode_cross_left env ty_arg mode in
+          let mode = mode_cross_left_value env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
           Non_boxing uu
@@ -6283,9 +6268,9 @@ and type_expect_
       in
       re { exp with exp_extra =
              (Texp_poly cty, loc, sexp.pexp_attributes) :: exp.exp_extra }
-  | Pexp_newtype(name, sbody) ->
+  | Pexp_newtype(name, jkind, sbody) ->
     type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes:sexp.pexp_attributes
-      name None sbody
+      name jkind sbody
   | Pexp_pack m ->
       (* CR zqian: pass [expected_mode] to [type_package] *)
       submode ~loc ~env Value.legacy expected_mode;
@@ -6553,7 +6538,10 @@ and type_coerce
   match sty with
   | None ->
     let (cty', ty', force) =
-      Typetexp.transl_simple_type_delayed env type_mode sty'
+      with_local_level begin fun () ->
+        Typetexp.transl_simple_type_delayed env type_mode sty'
+      end
+      ~post:(fun (_, ty, _) -> generalize_structure ty)
     in
     let arg, arg_type, gen =
       let lv = get_current_level () in
@@ -6569,8 +6557,8 @@ and type_coerce
           (* prerr_endline "self coercion"; *)
           r := loc :: !r;
           force ()
-      | _ when free_variables ~env arg_type = []
-            && free_variables ~env ty' = [] ->
+      | _ when closed_type_expr ~env arg_type
+            && closed_type_expr ~env ty' ->
           if not gen && (* first try a single coercion *)
             let snap = snapshot () in
             let ty, _b = enlarge_type env ty' in
@@ -6612,7 +6600,9 @@ and type_coerce
         end
       in
       begin try
-        let force'' = subtype env (instance ty) (instance ty') in
+        let force'' =
+          subtype env (generic_instance ty) (generic_instance ty')
+        in
         force (); force' (); force'' ()
       with Subtype err ->
         raise (Error (loc, env, Not_subtype err))
@@ -6738,7 +6728,7 @@ and type_function
   | { pparam_desc = Pparam_newtype (newtype_var, jkind_annot) } :: rest ->
       (* Check everything else in the scope of (type a). *)
       let (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
-          exp_type, jkind_annot =
+          exp_type, jkind_annot, id, uid =
         type_newtype env newtype_var jkind_annot (fun env ->
           let { function_ = exp_type, params, body;
                 newtypes; params_contain_gadt = contains_gadt;
@@ -6755,7 +6745,7 @@ and type_function
           (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
           exp_type)
       in
-      let newtype = newtype_var, jkind_annot in
+      let newtype = id, newtype_var, jkind_annot, uid in
       with_explanation ty_fun.explanation (fun () ->
           unify_exp_types loc env exp_type (instance ty_expected));
       { function_ = exp_type, params, body;
@@ -7715,7 +7705,7 @@ and type_application env app_loc expected_mode position_and_mode
       let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) ret_mode) in
       let mode_res =
-        mode_cross_left env ty_ret (alloc_as_value ret_mode)
+        mode_cross_left_value env ty_ret (alloc_as_value ret_mode)
       in
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
@@ -7777,7 +7767,7 @@ and type_application env app_loc expected_mode position_and_mode
       in
       let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) mode_ret) in
       let mode_ret =
-        mode_cross_left env ty_ret (alloc_as_value mode_ret)
+        mode_cross_left_value env ty_ret (alloc_as_value mode_ret)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
@@ -7927,8 +7917,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     | Some se -> begin
         match Jane_syntax.Expression.of_ast se with
         | Some (( Jexp_comprehension _
-                | Jexp_immutable_array _
-                | Jexp_layout _), _) -> [se]
+                | Jexp_immutable_array _), _) -> [se]
         | None -> match se.pexp_desc with
         | Pexp_tuple sel when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
@@ -8344,7 +8333,7 @@ and map_half_typed_cases
 *)
 and type_newtype
   : type a. _ -> _ -> _ -> (Env.t -> a * type_expr)
-    -> a * type_expr * Jkind.annotation option =
+    -> a * type_expr * Jkind.annotation option * Ident.t * Uid.t =
   fun env name jkind_annot_opt type_body  ->
   let { txt = name; loc = name_loc } : _ Location.loc = name in
   let jkind, jkind_annot =
@@ -8379,13 +8368,14 @@ and type_newtype
     in
     let ety = Subst.type_expr Subst.identity exp_type in
     replace ety;
-    (result, ety, jkind_annot)
+    let uid = decl.type_uid in
+    (result, ety, jkind_annot, id, uid)
   end
 
 (** [type_newtype] where the "body" is just an expression. *)
 and type_newtype_expr
     ~loc ~env ~expected_mode ~rue ~attributes name jkind_annot_opt sbody =
-  let body, ety, jkind_annot =
+  let body, ety, jkind_annot, id, uid =
     type_newtype env name jkind_annot_opt (fun env ->
       let expr = type_exp env expected_mode sbody in
       expr, expr.exp_type)
@@ -8394,7 +8384,7 @@ and type_newtype_expr
      any new extra node in the typed AST. *)
   rue { body with exp_loc = loc; exp_type = ety;
         exp_extra =
-        (Texp_newtype (name.txt, jkind_annot),
+        (Texp_newtype (id, name, jkind_annot, uid),
          loc, attributes) :: body.exp_extra }
 
 (* Typing of match cases *)
@@ -8501,13 +8491,11 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | None      -> match sexp.pexp_desc with
     | Pexp_function _ -> true
     | Pexp_constraint (e, _, _)
-    | Pexp_newtype (_, e) -> sexp_is_fun e
+    | Pexp_newtype (_, _, e) -> sexp_is_fun e
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension _
-    | Jexp_immutable_array _
-    | Jexp_layout (Lexp_constant _) -> false
-    | Jexp_layout (Lexp_newtype (_, _, e)) -> sexp_is_fun e
+    | Jexp_immutable_array _ -> false
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -8962,9 +8950,6 @@ and type_expect_jane_syntax
   | Jexp_immutable_array x ->
       type_immutable_array
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes x
-  | Jexp_layout x ->
-      type_jkind_expr
-        ~loc ~env ~expected_mode ~ty_expected ~explanation ~rue ~attributes x
 
 and type_expect_mode ~loc ~env ~(modes : Alloc.Const.Option.t) expected_mode =
     let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
@@ -9097,7 +9082,8 @@ and type_n_ary_function
         exp_loc = loc;
         exp_extra =
           List.map
-            (fun ({ txt; loc }, layout) -> Texp_newtype (txt, layout), loc, [])
+            (fun (id, txt_loc, layout, uid) ->
+              Texp_newtype (id, txt_loc, layout, uid), txt_loc.loc, [])
             newtypes;
         exp_type;
         exp_attributes = attributes;
@@ -9373,24 +9359,6 @@ and type_immutable_array
         ~mutability:Immutable
         ~attributes
         elts
-
-and type_jkind_expr
-      ~loc ~env ~expected_mode ~ty_expected:_ ~explanation:_ ~rue ~attributes
-  : Jane_syntax.Layouts.expression -> _ = function
-  | Lexp_constant x -> type_unboxed_constant ~loc ~env ~rue ~attributes x
-  | Lexp_newtype (name, jkind_annot, sbody) ->
-    type_newtype_expr ~loc ~env ~expected_mode ~rue ~attributes
-      name (Some jkind_annot) sbody
-
-and type_unboxed_constant ~loc ~env ~rue ~attributes cst =
-  let cst = unboxed_constant_or_raise env loc cst in
-  rue {
-    exp_desc = Texp_constant cst;
-    exp_loc = loc;
-    exp_extra = [];
-    exp_type = type_constant cst;
-    exp_attributes = attributes;
-    exp_env = env }
 
 (* Typing of method call *)
 and type_send env loc explanation e met =
