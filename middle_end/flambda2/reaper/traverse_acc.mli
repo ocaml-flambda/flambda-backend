@@ -15,6 +15,11 @@
 
 module Graph = Global_flow_graph
 
+type continuation_info = {
+  is_exn_handler : bool;
+  params : Bound_parameters.t;
+}
+
 module Env : sig
   type cont_kind = Normal of Variable.t list
 
@@ -68,6 +73,14 @@ val used : denv:Env.t -> Simple.t -> t -> unit
 val used_code_id : Code_id.t -> t -> unit
 
 val called : denv:Env.t -> Code_id.t -> t -> unit
+
+val fixed_arity_continuation : t -> Continuation.t -> unit
+
+val fixed_arity_continuations : t -> Continuation.Set.t
+
+val continuation_info : t -> Continuation.t -> continuation_info -> unit
+
+val get_continuation_info : t -> continuation_info Continuation.Map.t
 
 val add_apply : apply_dep -> t -> unit
 

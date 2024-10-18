@@ -15,6 +15,11 @@
 
 module Graph = Global_flow_graph
 
+type continuation_info = {
+  is_exn_handler : bool;
+  params : Bound_parameters.t;
+}
+
 module Env = struct
   type cont_kind = Normal of Variable.t list
 
@@ -52,7 +57,9 @@ type t =
     mutable apply_deps : apply_dep list;
     mutable set_of_closures_dep : closure_dep list;
     deps : Graph.graph;
-    mutable kinds : Flambda_kind.t Name.Map.t
+    mutable kinds : Flambda_kind.t Name.Map.t;
+    mutable fixed_arity_conts : Continuation.Set.t;
+    mutable continuation_info : continuation_info Continuation.Map.t
   }
 
 let code_deps t = t.code
@@ -62,7 +69,9 @@ let create () =
     apply_deps = [];
     set_of_closures_dep = [];
     deps = Graph.create ();
-    kinds = Name.Map.empty
+    kinds = Name.Map.empty;
+    fixed_arity_conts = Continuation.Set.empty;
+    continuation_info = Continuation.Map.empty
   }
 
 let kinds t = t.kinds
@@ -137,6 +146,16 @@ let called ~(denv : Env.t) code_id t =
     Graph.add_dep t.deps
       (Code_id_or_name.code_id code_id2)
       (Graph.Dep.Use { target = Code_id_or_name.code_id code_id })
+
+let fixed_arity_continuation t k =
+  t.fixed_arity_conts <- Continuation.Set.add k t.fixed_arity_conts
+
+let fixed_arity_continuations t = t.fixed_arity_conts
+
+let continuation_info t k info =
+  t.continuation_info <- Continuation.Map.add k info t.continuation_info
+
+let get_continuation_info t = t.continuation_info
 
 let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 

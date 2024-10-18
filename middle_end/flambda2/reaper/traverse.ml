@@ -360,6 +360,10 @@ and traverse_let_cont denv acc (let_cont : Let_cont.t) : rev_expr =
 and traverse_let_cont_non_recursive denv acc cont ~body handler =
   let cont_handler = Non_recursive_let_cont_handler.handler handler in
   let traverse handler acc =
+    Acc.continuation_info acc cont
+      { params = handler.bound_parameters;
+        is_exn_handler = Continuation_handler.is_exn_handler cont_handler
+      };
     let conts =
       Continuation.Map.add cont
         (Normal (Bound_parameters.vars handler.bound_parameters))
@@ -390,6 +394,10 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
   let conts =
     Continuation.Map.fold
       (fun cont (_, bp, _) conts ->
+        Acc.continuation_info acc cont
+          { params = Bound_parameters.append invariant_params bp;
+            is_exn_handler = false
+          };
         Continuation.Map.add cont
           (Normal (invariant_params_vars @ Bound_parameters.vars bp))
           conts)
@@ -470,6 +478,7 @@ and traverse_apply denv acc apply : rev_expr =
     match Apply.continuation apply with
     | Never_returns -> None
     | Return cont -> (
+      Acc.fixed_arity_continuation acc cont;
       match Continuation.Map.find cont denv.conts with
       | Normal params -> Some params)
   in
@@ -654,6 +663,14 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   in
   { params_and_body; code_metadata; free_names_of_params_and_body }
 
+type result =
+  { holed : Rev_expr.t;
+    deps : Global_flow_graph.graph;
+    kinds : Flambda_kind.t Name.Map.t;
+    fixed_arity_continuations : Continuation.Set.t;
+    continuation_info : Acc.continuation_info Continuation.Map.t
+  }
+
 let run (unit : Flambda_unit.t) =
   let acc = Acc.create () in
   let create_holed () =
@@ -673,8 +690,10 @@ let run (unit : Flambda_unit.t) =
   let holed = Profile.record_call ~accumulate:false "down" create_holed in
   let deps = Acc.deps acc in
   let kinds = Acc.kinds acc in
+  let fixed_arity_continuations = Acc.fixed_arity_continuations acc in
+  let continuation_info = Acc.get_continuation_info acc in
   let () =
     let debug_print = Flambda_features.dump_reaper () in
     if false && debug_print then Dot.print_dep (Acc.code_deps acc, deps)
   in
-  holed, deps, kinds
+  { holed; deps; kinds; fixed_arity_continuations; continuation_info }

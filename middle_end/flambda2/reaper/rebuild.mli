@@ -21,6 +21,8 @@ type result =
   }
 
 val rebuild :
+  continuation_info:Traverse_acc.continuation_info Continuation.Map.t ->
+  fixed_arity_continuations:Continuation.Set.t ->
   Flambda_kind.t Name.Map.t ->
   Dep_solver.result ->
   (Code_id.t -> Code_metadata.t) ->

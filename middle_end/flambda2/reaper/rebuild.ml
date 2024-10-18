@@ -28,7 +28,7 @@ let all_code = ref Code_id.Map.empty
 type env =
   { uses : Dep_solver.result;
     get_code_metadata : Code_id.t -> Code_metadata.t;
-    cont_params_to_keep : bool list Continuation.Map.t;
+    cont_params_to_keep : bool list Continuation.Map.t
   }
 
 let is_used (env : env) cn = Hashtbl.mem env.uses cn
@@ -245,16 +245,21 @@ let rewrite_named kinds env (named : Named.t) =
   | Rec_info r -> Named.create_rec_info r
 
 let select_list_elements to_select l =
-   List.filter_map (fun (x, to_select) -> if to_select then Some x else None) (List.combine l to_select)
+  List.filter_map
+    (fun (x, to_select) -> if to_select then Some x else None)
+    (List.combine l to_select)
 
 let rewrite_apply_cont_expr kinds env ac =
   let cont = Apply_cont_expr.continuation ac in
   let args = Apply_cont_expr.args ac in
   let args =
-    try (* only for testing, TODO remove this try/with *)
-    let args_to_keep = Continuation.Map.find cont env.cont_params_to_keep in
-    select_list_elements args_to_keep args
-    with Not_found -> args
+    try
+      (* only for testing, TODO remove this try/with *)
+      let args_to_keep = Continuation.Map.find cont env.cont_params_to_keep in
+      select_list_elements args_to_keep args
+    with Not_found ->
+      Format.eprintf "Missing cont: %a@." Continuation.print cont;
+      args
   in
   let args = List.map (rewrite_simple kinds env) args in
   Apply_cont_expr.with_continuation_and_args ac cont ~args
@@ -312,12 +317,27 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
       in
       let exn_continuation = Apply.exn_continuation apply in
       let exn_continuation =
-        Exn_continuation.create
-          ~exn_handler:(Exn_continuation.exn_handler exn_continuation)
-          ~extra_args:
-            (List.map
-               (fun (simple, kind) -> rewrite_simple kinds env simple, kind)
-               (Exn_continuation.extra_args exn_continuation))
+        let exn_handler = Exn_continuation.exn_handler exn_continuation in
+        let extra_args =
+          let selected_extra_args =
+            let extra_args = Exn_continuation.extra_args exn_continuation in
+            try
+              let args_to_keep =
+                Continuation.Map.find exn_handler env.cont_params_to_keep
+                |> List.tl
+                (* This contains the exn argument that is not part of the extra
+                   args *)
+              in
+              select_list_elements args_to_keep extra_args
+            with Not_found ->
+              (* Not defined in cont_params_to_keep *)
+              extra_args
+          in
+          List.map
+            (fun (simple, kind) -> rewrite_simple kinds env simple, kind)
+            selected_extra_args
+        in
+        Exn_continuation.create ~exn_handler ~extra_args
       in
       let apply =
         Apply.create
@@ -472,17 +492,16 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
       if is_var_used env v then default () else erase ())
   | Let_cont { cont; parent; handler } ->
     let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
-    (* Unfortunately, this causes failures due to continuations that have forced arity such as continuations that are given as return continuations... *)
     let parameters_to_keep =
-      List.mapi (fun i param ->
-        (is_exn_handler && i = 0) || is_var_used env (Bound_parameter.var param)
-      ) (Bound_parameters.to_list bound_parameters)
+      Continuation.Map.find cont env.cont_params_to_keep
     in
-    let env = { env with cont_params_to_keep = Continuation.Map.add cont parameters_to_keep env.cont_params_to_keep } in
     let cont_handler =
       let handler = rebuild_expr kinds env expr in
-      RE.create_continuation_handler (Bound_parameters.create (select_list_elements parameters_to_keep (Bound_parameters.to_list bound_parameters))) ~handler ~is_exn_handler
-        ~is_cold
+      RE.create_continuation_handler
+        (Bound_parameters.create
+           (select_list_elements parameters_to_keep
+              (Bound_parameters.to_list bound_parameters)))
+        ~handler ~is_exn_handler ~is_cold
     in
     let let_cont_expr =
       RE.create_non_recursive_let_cont cont cont_handler ~body:hole
@@ -510,10 +529,27 @@ type result =
     slot_offsets : Slot_offsets.t
   }
 
-let rebuild kinds solved_dep get_code_metadata holed =
+let rebuild ~continuation_info ~fixed_arity_continuations kinds
+    (solved_dep : Dep_solver.result) get_code_metadata holed =
   all_slot_offsets := Slot_offsets.empty;
   all_code := Code_id.Map.empty;
-  let env = { uses = solved_dep; get_code_metadata; cont_params_to_keep = Continuation.Map.empty } in
+  let cont_params_to_keep =
+    Continuation.Map.mapi
+      (fun cont (info : Traverse_acc.continuation_info) ->
+        let keep_all_parameters =
+          Continuation.Set.mem cont fixed_arity_continuations
+        in
+        List.mapi
+          (fun i param ->
+            let is_var_used =
+              Hashtbl.mem solved_dep
+                (Code_id_or_name.var (Bound_parameter.var param))
+            in
+            keep_all_parameters || (info.is_exn_handler && i = 0) || is_var_used)
+          (Bound_parameters.to_list info.params))
+      continuation_info
+  in
+  let env = { uses = solved_dep; get_code_metadata; cont_params_to_keep } in
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () ->
         rebuild_expr kinds env holed)

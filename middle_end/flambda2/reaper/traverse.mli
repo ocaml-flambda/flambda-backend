@@ -13,6 +13,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-val run :
-  Flambda_unit.t ->
-  Rev_expr.t * Global_flow_graph.graph * Flambda_kind.t Name.Map.t
+type result =
+  { holed : Rev_expr.t;
+    deps : Global_flow_graph.graph;
+    kinds : Flambda_kind.t Name.Map.t;
+    fixed_arity_continuations : Continuation.Set.t;
+    continuation_info : Traverse_acc.continuation_info Continuation.Map.t
+  }
+
+val run : Flambda_unit.t -> result

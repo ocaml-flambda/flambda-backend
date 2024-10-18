@@ -25,7 +25,10 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
 
 let run ~cmx_loader ~all_code (unit : Flambda_unit.t) =
   let debug_print = Flambda_features.dump_reaper () in
-  let holed, deps, kinds = Traverse.run unit in
+  let Traverse.
+        { holed; deps; kinds; fixed_arity_continuations; continuation_info } =
+    Traverse.run unit
+  in
   if debug_print
   then Format.printf "USED %a@." Global_flow_graph.pp_used_graph deps;
   let solved_dep = Dep_solver.fixpoint deps in
@@ -36,7 +39,8 @@ let run ~cmx_loader ~all_code (unit : Flambda_unit.t) =
     then Dot_printer.print_solved_dep solved_dep (Code_id.Map.empty, deps)
   in
   let Rebuild.{ body; free_names; all_code; slot_offsets } =
-    Rebuild.rebuild kinds solved_dep
+    Rebuild.rebuild ~fixed_arity_continuations ~continuation_info kinds
+      solved_dep
       (fun code_id ->
         Code_or_metadata.code_metadata (Exported_code.find_exn all_code code_id))
       holed
