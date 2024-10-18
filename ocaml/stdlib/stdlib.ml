@@ -623,6 +623,7 @@ module Buffer         = Buffer
 module Bytes          = Bytes
 module BytesLabels    = BytesLabels
 module Callback       = Callback
+module Capsule        = Capsule
 module Char           = Char
 module Complex        = Complex
 module Condition      = Condition

@@ -1405,6 +1405,7 @@ module Bool           = Bool
 module Buffer         = Buffer
 module Bytes          = Bytes
 module BytesLabels    = BytesLabels
+module Capsule        = Capsule
 module Callback       = Callback
 module Char           = Char
 module Complex        = Complex
