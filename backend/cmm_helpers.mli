@@ -1078,14 +1078,85 @@ val unboxed_vec128_array_length : expression -> Debuginfo.t -> expression
 val unboxed_float32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+(** Read an unboxed float32 from a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The float32 is expected to be in the least significant bits of the
+    64-bit field.
+
+    The zero-indexed element number is specified as a tagged immediate.
+    This always coincides with the index in words.
+*)
+val unboxed_mutable_float32_unboxed_product_array_ref :
+  expression -> element_num:expression -> Debuginfo.t -> expression
+
+(** Write an unboxed float32 into a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+    This always coincides with the index in words.
+
+    The float32 will be written to the least significant bits of the
+    64-bit field.  The top 32 bits of the written word are undefined.
+*)
+val unboxed_mutable_float32_unboxed_product_array_set :
+  expression ->
+  element_num:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
 (** Read from an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+(* XXX mshinwell: are the sign extension semantics for the following two
+   functions reasonable? *)
+
+(** Read an unboxed int32 from a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+    This always coincides with the index in words.
+
+    The returned value is always sign extended, but it is not assumed that
+    the 64-bit field in the array contains a sign-extended representation.
+*)
+val unboxed_mutable_int32_unboxed_product_array_ref :
+  expression -> element_num:expression -> Debuginfo.t -> expression
+
+(** Write an unboxed int32 into a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+    This always coincides with the index in words.
+
+    The write is done as a 64-bit write of a sign-extended version of the
+    supplied [new_value].
+*)
+val unboxed_mutable_int32_unboxed_product_array_set :
+  expression ->
+  element_num:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
 (** Read from an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+
+    The zero-indexed element number is specified as a tagged immediate.
+    This coincides with the index in words iff [has_custom_ops] is [false].
+*)
 val unboxed_int64_or_nativeint_array_ref :
-  expression -> expression -> Debuginfo.t -> expression
+  has_custom_ops:bool ->
+  expression ->
+  element_num:expression ->
+  Debuginfo.t ->
+  expression
 
 (** Update an unboxed float32 array (without bounds check). *)
 val unboxed_float32_array_set :
@@ -1104,8 +1175,14 @@ val unboxed_int32_array_set :
   expression
 
 (** Update an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+*)
 val unboxed_int64_or_nativeint_array_set :
+  has_custom_ops:bool ->
   expression ->
   index:expression ->
   new_value:expression ->

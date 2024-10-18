@@ -62,6 +62,7 @@ and head_of_kind_value = private
   | String of String_info.Set.t
   | Array of
       { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
+        (* CR mshinwell: add support for tracking unboxed product arrays *)
         length : t;
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
