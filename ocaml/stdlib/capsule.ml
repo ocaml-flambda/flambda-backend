@@ -123,3 +123,17 @@ module Data = struct
 
   let expose _ t = unsafe_get t
 end
+
+module Condition = struct
+  type 'k t : value mod portable uncontended
+
+  external create : unit -> 'k t @@ portable = "caml_ml_condition_new"
+  external wait : 'k t -> M.t -> unit @@ portable = "caml_ml_condition_wait"
+  external signal : 'k t -> unit @@ portable = "caml_ml_condition_signal"
+  external broadcast : 'k t -> unit @@ portable = "caml_ml_condition_broadcast"
+
+  let wait t (mut : 'k Mutex.t) _password =
+    (* mut is locked, so it must not be poisoned *)
+    wait t mut.mutex
+
+end

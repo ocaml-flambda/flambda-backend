@@ -185,3 +185,41 @@ module Data : sig
         a [global] [Password.t] leaked by [Mutex.destroy]. *)
 
   end
+
+module Condition : sig
+  (** The type of condition variables. *)
+  type 'k t : value mod portable uncontended
+
+  (**[create()] creates and returns a new condition variable.
+    This condition variable should be associated (in the programmer's mind)
+    with a certain mutex [m] and with a certain property {i P} of the data
+    structure that is protected by the mutex [m]. *)
+  val create : unit -> 'k t @@ portable
+
+  (**The call [wait c m] is permitted only if [m] is the mutex associated
+    with the condition variable [c], and only if [m] is currently locked.
+    This call atomically unlocks the mutex [m] and suspends the
+    current thread on the condition variable [c]. This thread can
+    later be woken up after the condition variable [c] has been signaled
+    via {!signal} or {!broadcast}; however, it can also be woken up for
+    no reason. The mutex [m] is locked again before [wait] returns. One
+    cannot assume that the property {i P} associated with the condition
+    variable [c] holds when [wait] returns; one must explicitly test
+    whether {i P} holds after calling [wait]. *)
+  val wait : 'k t -> 'k Mutex.t -> 'k Password.t @ local -> unit @@ portable
+
+  (**[signal c] wakes up one of the threads waiting on the condition
+    variable [c], if there is one. If there is none, this call has
+    no effect.
+
+    It is recommended to call [signal c] inside a critical section,
+    that is, while the mutex [m] associated with [c] is locked. *)
+  val signal : 'k t -> unit @@ portable
+
+  (**[broadcast c] wakes up all threads waiting on the condition
+    variable [c]. If there are none, this call has no effect.
+
+    It is recommended to call [broadcast c] inside a critical section,
+    that is, while the mutex [m] associated with [c] is locked. *)
+  val broadcast : 'k t -> unit @@ portable
+end
