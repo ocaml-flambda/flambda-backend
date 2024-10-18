@@ -661,12 +661,18 @@ let has_local_opt attrs =
 let has_layout_poly attrs =
   has_attribute "layout_poly" attrs
 
+let curry_attr_name = "extension.curry"
+
 let has_curry attrs =
-  has_attribute Jane_syntax.Arrow_curry.curry_attr_name attrs
+  has_attribute curry_attr_name attrs
   || has_attribute "curry" attrs
 
 let has_or_null_reexport attrs =
   has_attribute "or_null_reexport" attrs
+
+let curry_attr loc =
+  Ast_helper.Attr.mk ~loc:Location.none (Location.mkloc curry_attr_name loc) (PStr [])
+;;
 
 let tailcall attr =
   let has_nontail = has_attribute "nontail" attr in

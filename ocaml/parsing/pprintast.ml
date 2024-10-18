@@ -116,7 +116,7 @@ let protect_longident ppf print_longident longprefix txt =
       fprintf ppf "%a.(%s)" print_longident longprefix txt
 
 let is_curry_attr attr =
-  attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
+  attr.attr_name.txt = Builtin_attributes.curry_attr_name
 
 let filter_curry_attrs attrs =
   List.filter (fun attr -> not (is_curry_attr attr)) attrs
