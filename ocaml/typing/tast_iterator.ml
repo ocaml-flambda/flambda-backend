@@ -438,9 +438,9 @@ let binding_op sub {bop_loc; bop_op_name; bop_exp; _} =
   iter_loc sub bop_op_name;
   sub.expr sub bop_exp
 
-let signature sub {sig_items; sig_final_env; _} =
-  sub.env sub sig_final_env;
-  List.iter (sub.signature_item sub) sig_items
+let signature sub {sg_items; sg_final_env; _} =
+  sub.env sub sg_final_env;
+  List.iter (sub.signature_item sub) sg_items
 
 let sig_include_infos sub {incl_loc; incl_mod; incl_attributes; incl_kind; _} =
   sub.location sub incl_loc;

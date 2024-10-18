@@ -70,7 +70,7 @@ let typecheck_intf info ast =
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
   let alerts = Builtin_attributes.alerts_of_sig ~mark:true ast in
-  let sg = tsg.Typedtree.sig_type in
+  let sg = tsg.Typedtree.sg_type in
   if !Clflags.print_types then
     Printtyp.wrap_printing_env ~error:false info.env (fun () ->
         Format.(fprintf std_formatter) "%a@."
@@ -96,7 +96,7 @@ let emit_signature info alerts tsg =
         Normal { cmi_impl = info.module_name; cmi_arg_for }
       end
     in
-    Env.save_signature ~alerts tsg.Typedtree.sig_type
+    Env.save_signature ~alerts tsg.Typedtree.sg_type
       (Compilation_unit.name info.module_name) kind
       (Unit_info.cmi info.target)
   in
