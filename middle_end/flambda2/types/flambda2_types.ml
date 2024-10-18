@@ -45,6 +45,22 @@ type typing_env = Typing_env.t
 type typing_env_extension = Typing_env_extension.t
 
 include Type_grammar
+
+module Array_contents = struct
+  type nonrec t = array_contents =
+    | Immutable of { fields : t array }
+    | Mutable
+end
+
+module Array_type = struct
+  type nonrec t = array_type =
+    { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
+      length : t;
+      contents : array_contents Or_unknown.t;
+      alloc_mode : Alloc_mode.For_types.t
+    }
+end
+
 include More_type_creators
 include Expand_head
 include Meet_and_join
