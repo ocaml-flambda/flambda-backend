@@ -1,4 +1,6 @@
-File "bad_ref_indirect.ml", line 1:
+File "bad_ref_indirect.ml", line 1, characters 13-32:
+1 | let concat = Monoid_utils.concat
+                 ^^^^^^^^^^^^^^^^^^^
 Error: The module "Monoid_utils" is not accessible because it takes "Monoid"
        as a parameter and the current unit does not.
 Hint: Pass `-parameter "Monoid"` to add "Monoid" as a parameter
