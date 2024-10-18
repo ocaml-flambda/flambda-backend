@@ -63,14 +63,6 @@ module _ = Language_extension
      appearing later in the attribute list should be interpreted first.
 *)
 
-module Arrow_curry = struct
-  let curry_attr_name = "extension.curry"
-
-  let curry_attr loc =
-    Ast_helper.Attr.mk ~loc:Location.none (Location.mkloc curry_attr_name loc) (PStr [])
-  ;;
-end
-
 (** Module strengthening *)
 module Strengthen = struct
   type nonrec module_type =
