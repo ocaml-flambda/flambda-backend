@@ -52,19 +52,21 @@ let main argv ppf =
     if
       List.length
         (List.filter (fun x -> !x)
-           [make_archive;make_package;Compenv.stop_early;output_c_object])
+           [make_archive;make_package;Compenv.stop_early;output_c_object;
+            instantiate])
         > 1
     then begin
       let module P = Clflags.Compiler_pass in
       match !stop_after with
       | None ->
           Compenv.fatal
-            "Please specify at most one of -pack, -a, -c, -output-obj";
+            "Please specify at most one of -pack, -a, -c, -output-obj, \
+             -instantiate";
       | Some ((P.Parsing | P.Typing | P.Lambda) as p) ->
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
           "Options -i and -stop-after (%s) \
-           are  incompatible with -pack, -a, -output-obj"
+           are  incompatible with -pack, -a, -output-obj, -instantiate"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:false))
       | Some (P.Middle_end | P.Scheduling | P.Simplify_cfg | P.Emit | P.Selection) ->
@@ -85,6 +87,23 @@ let main argv ppf =
       Compmisc.with_ppf_dump ~file_prefix:extracted_output (fun ppf_dump ->
         Bytepackager.package_files ~ppf_dump (Compmisc.initial_env ())
           revd (extracted_output));
+      Warnings.check_fatal ();
+    end
+    else if !instantiate then begin
+      Compmisc.init_path ();
+      (* Requiring [-o] isn't really necessary, but we don't intend for humans
+         to be invoking [-instantiate] by hand, and computing the correct value
+         here would be awkward *)
+      let target = Compenv.extract_output !output_name in
+      let src, args =
+        match Compenv.get_objfiles ~with_ocamlparam:false with
+        | [] | [_] ->
+            Printf.ksprintf Compenv.fatal
+              "Must specify at least two .cmo files with -instantiate"
+        | src :: args ->
+            src, args
+      in
+      Byteinstantiator.instantiate ~src ~args target;
       Warnings.check_fatal ();
     end
     else if not !Compenv.stop_early && !objfiles <> [] then begin

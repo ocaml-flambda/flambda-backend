@@ -54,6 +54,11 @@ module type Map = sig
 
   val of_list : (key * 'a) list -> 'a t
 
+  type 'a duplicate =
+    | Duplicate of { key : key; value1 : 'a; value2 : 'a }
+
+  val of_list_checked : (key * 'a) list -> ('a t, 'a duplicate) Result.t
+
   (** [disjoint_union m1 m2] contains all bindings from [m1] and
       [m2]. If some binding is present in both and the associated
       value is not equal, a Fatal_error is raised *)

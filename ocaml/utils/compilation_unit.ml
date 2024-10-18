@@ -239,7 +239,7 @@ end = struct
     | Global of Global_module.Name.t
 
   (* type t = Bare_name of Name.t [@@unboxed] | With_prefix of with_prefix |
-     Global of Global.Name.t *)
+     Global of Global_module.Name.t *)
   and t = Obj.t
 
   (* Some manual inlining is done here to ensure good performance under
@@ -439,6 +439,11 @@ let of_string str =
   in
   create for_pack_prefix name
 
+let of_complete_global_exn glob =
+  if not (Global_module.is_complete glob)
+  then Misc.fatal_errorf "of_complete_global_exn@ %a" Global_module.print glob;
+  of_global_name (glob |> Global_module.to_name)
+
 let dummy = create Prefix.empty (Name.of_string "*none*")
 
 let predef_exn = create Prefix.empty Name.predef_exn
@@ -485,15 +490,15 @@ include Identifiable.Make (struct
   and hash_arg { param; value } = Hashtbl.hash (hash param, hash value)
 end)
 
-let full_path_as_string t =
-  (* We take care not to break sharing when the prefix is empty. However we
-     can't share in the case where there is a prefix. *)
-  if Prefix.is_empty (for_pack_prefix t)
-  then Name.to_string (name t)
-  else Format.asprintf "%a" print t
-
 let is_instance t =
   match instance_arguments t with [] -> false | _ :: _ -> true
+
+let full_path_as_string t =
+  (* We take care not to break sharing when the prefix is empty. However we
+     can't share in the case where there is a prefix or arguments. *)
+  if Prefix.is_empty (for_pack_prefix t) && not (is_instance t)
+  then Name.to_string (name t)
+  else Format.asprintf "%a" print t
 
 let create_instance t arguments =
   let { for_pack_prefix; name; arguments = existing_arguments } = descr t in
@@ -541,6 +546,7 @@ let base_filename t =
         String.make (depth + 1) '-' ^ (value |> Name.to_string))
   in
   String.concat "" ((name |> Name.to_string) :: arg_segments)
+  |> String.uncapitalize_ascii
 
 let is_parent t ~child =
   List.equal Name.equal (full_path t) (Prefix.to_list (for_pack_prefix child))

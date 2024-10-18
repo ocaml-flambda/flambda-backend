@@ -10,8 +10,11 @@ Interfaces imported:
 	00000000000000000000000000000000	Monoid
 	00000000000000000000000000000000	CamlinternalFormatBasics
 Implementations imported:
-Flambda 2 unit (with no export information)
-Currying functions:
+Runtime parameters:
+	Monoid
+	Monoid_utils
+Flambda 2 unit with export information
+Currying functions: 2L0
 Apply functions:
 Send functions:
 Force link: no
