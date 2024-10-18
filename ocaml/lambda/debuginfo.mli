@@ -32,7 +32,7 @@ module Scoped_location : sig
     | Cons of {item: scope_item; str: string; str_fun: string; name : string; prev: scopes;
                assume_zero_alloc: ZA.Assume_info.t}
 
-  val string_of_scopes : scopes -> string
+  val string_of_scopes : include_zero_alloc:bool -> scopes -> string
 
   val compilation_unit : scopes -> Compilation_unit.t option
 
@@ -59,7 +59,7 @@ module Scoped_location : sig
 
   val of_location : scopes:scopes -> Location.t -> t
   val to_location : t -> Location.t
-  val string_of_scoped_location : t -> string
+  val string_of_scoped_location : include_zero_alloc:bool -> t -> string
 
   val map_scopes : (scopes:scopes -> scopes) -> t -> t
 end

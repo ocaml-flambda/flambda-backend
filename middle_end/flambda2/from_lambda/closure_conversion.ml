@@ -2921,7 +2921,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
          provided_arity = %a@ missing_arity (unarized) = (%a)@ \
          missing_param_modes = (%a)"
         Ident.print apply.func
-        (Debuginfo.Scoped_location.string_of_scoped_location apply.loc)
+        (Debuginfo.Scoped_location.string_of_scoped_location
+           ~include_zero_alloc:false apply.loc)
         Flambda_arity.print provided_arity
         (Format.pp_print_list ~pp_sep:Format.pp_print_space
            Flambda_kind.With_subkind.print)
