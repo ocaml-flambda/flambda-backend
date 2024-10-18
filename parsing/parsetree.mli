@@ -1030,6 +1030,8 @@ and module_type_desc =
   | Pmty_typeof of module_expr  (** [module type of ME] *)
   | Pmty_extension of extension  (** [[%id]] *)
   | Pmty_alias of Longident.t loc  (** [(module M)] *)
+  (*_ [Pmty_strengthen] might be a better fit for [with_constraint] *)
+  | Pmty_strengthen of module_type * Longident.t loc (** [MT with S] *)
 
 and functor_parameter =
   | Unit  (** [()] *)

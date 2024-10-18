@@ -1025,9 +1025,6 @@ and apply_modalities_module_type env modalities = function
    making them abstract otherwise. *)
 
 let rec approx_modtype env smty =
-  match Jane_syntax.Module_type.of_ast smty with
-  | Some (jmty, _attrs) -> approx_modtype_jane_syntax env jmty
-  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path =
@@ -1084,18 +1081,16 @@ let rec approx_modtype env smty =
       mty
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
-
-and approx_modtype_jane_syntax env = function
-  | Jane_syntax.Module_type.Jmty_strengthen { mty = smty; mod_id } ->
-    let mty = approx_modtype env smty in
-    let path, _ =
-      (* CR-someday: potentially improve error message for strengthening with
-         a mutually recursive module. *)
-      Env.lookup_module_path ~use:false ~load:false
-        ~loc:mod_id.loc mod_id.txt env
-    in
-    let aliasable = (not (Env.is_functor_arg path env)) in
-    Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
+  | Pmty_strengthen (smty, mod_id) ->
+      let mty = approx_modtype env smty in
+      let path, _ =
+        (* CR-someday: potentially improve error message for strengthening with
+           a mutually recursive module. *)
+        Env.lookup_module_path ~use:false ~load:false
+          ~loc:mod_id.loc mod_id.txt env
+      in
+      let aliasable = (not (Env.is_functor_arg path env)) in
+      Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
 
 and approx_module_declaration env pmd =
   {
@@ -1591,9 +1586,6 @@ and transl_modtype_functor_arg env sarg =
 
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
-  match Jane_syntax.Module_type.of_ast smty with
-  | Some (jmty, _attrs) -> transl_modtype_jane_syntax_aux ~loc env jmty
-  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path = transl_modtype_longident loc env lid.txt in
@@ -1654,9 +1646,9 @@ and transl_modtype_aux env smty =
       mkmty (Tmty_typeof tmty) mty env loc smty.pmty_attributes
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
-
-and transl_modtype_jane_syntax_aux ~loc env = function
-  | Jane_syntax.Module_type.Jmty_strengthen { mty ; mod_id } ->
+  | Pmty_strengthen (mty, mod_id) ->
+      Language_extension.assert_enabled ~loc:smty.pmty_loc
+        Module_strengthening ();
       let tmty = transl_modtype_aux env mty in
       let path, md, _ =
         Env.lookup_module ~use:false ~loc:mod_id.loc mod_id.txt env

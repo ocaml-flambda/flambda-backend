@@ -1410,9 +1410,6 @@ and kind_abbrev ctxt f name jkind =
     (jkind_annotation ctxt) jkind
 
 and module_type ctxt f x =
-    match Jane_syntax.Module_type.of_ast x with
-    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
-    | None ->
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
@@ -1434,20 +1431,12 @@ and module_type ctxt f x =
         pp f "@[<hov2>%a@ with@ %a@]"
           (module_type1 ctxt) mt
           (list (with_constraint ctxt) ~sep:"@ and@ ") l
-    | _ -> module_type1 ctxt f x
-
-and module_type_jane_syntax ctxt attrs f (mty : Jane_syntax.Module_type.t) =
-  if attrs <> [] then
-    pp f "((%a)%a)"
-      (module_type_jane_syntax ctxt []) mty
-      (attributes ctxt) attrs
-  else
-    match mty with
-    | Jmty_strengthen { mty; mod_id } ->
+    | Pmty_strengthen (mty, mod_id) ->
         pp f "@[<hov2>%a@ with@ %a@]"
           (module_type1 ctxt) mty
           longident_loc mod_id
 
+    | _ -> module_type1 ctxt f x
 and with_constraint ctxt f = function
   | Pwith_type (li, ({ptype_params= ls ;_} as td)) ->
       pp f "type@ %a %a =@ %a"
@@ -1469,9 +1458,6 @@ and with_constraint ctxt f = function
 
 
 and module_type1 ctxt f x =
-  match Jane_syntax.Module_type.of_ast x with
-  | Some (jmty, attrs) -> module_type_jane_syntax1 ctxt attrs f jmty
-  | None ->
   if x.pmty_attributes <> [] then module_type ctxt f x
   else match x.pmty_desc with
     | Pmty_ident li ->
@@ -1485,11 +1471,6 @@ and module_type1 ctxt f x =
         pp f "@[<hov2>module@ type@ of@ %a@]" (module_expr ctxt) me
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
-
-and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
-  function
-  | Jmty_strengthen _ as jmty ->
-      paren true (module_type_jane_syntax ctxt attrs) f jmty
 
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
 

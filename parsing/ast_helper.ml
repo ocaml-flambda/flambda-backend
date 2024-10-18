@@ -274,6 +274,7 @@ module Mty = struct
   let with_ ?loc ?attrs a b = mk ?loc ?attrs (Pmty_with (a, b))
   let typeof_ ?loc ?attrs a = mk ?loc ?attrs (Pmty_typeof a)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmty_extension a)
+  let strengthen ?loc ?attrs a b = mk ?loc ?attrs (Pmty_strengthen (a, b))
 end
 
 module Mod = struct

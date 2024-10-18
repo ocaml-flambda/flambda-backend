@@ -121,8 +121,6 @@ type mapper = {
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
 
-  module_type_jane_syntax: mapper ->
-    Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
   module_expr_jane_syntax: mapper ->
     Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
 }

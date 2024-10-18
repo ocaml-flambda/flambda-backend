@@ -875,6 +875,9 @@ and module_type i ppf x =
   | Pmty_extension (s, arg) ->
       line i ppf "Pmod_extension \"%s\"\n" s.txt;
       payload i ppf arg
+  | Pmty_strengthen (m, lid) ->
+      line i ppf "Pmty_strengthen %a\n" fmt_longident lid.txt;
+      module_type i ppf m;
   )
 
 and signature i ppf x = list i signature_item ppf x

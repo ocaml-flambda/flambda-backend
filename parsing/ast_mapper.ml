@@ -86,8 +86,6 @@ type mapper = {
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
 
-  module_type_jane_syntax: mapper
-    -> Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
   module_expr_jane_syntax: mapper
     -> Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
 }
@@ -330,17 +328,9 @@ let map_functor_param sub = function
 module MT = struct
   (* Type expressions for the module language *)
 
-  let map sub
-        ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
+  let map sub {pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} =
     let open Mty in
     let loc = sub.location sub loc in
-    match Jane_syntax.Module_type.of_ast mty with
-    | Some (jmty, attrs) -> begin
-        let attrs = sub.attributes sub attrs in
-        Jane_syntax.Module_type.mty_of ~loc ~attrs
-          (sub.module_type_jane_syntax sub jmty)
-      end
-    | None ->
     let attrs = sub.attributes sub attrs in
     match desc with
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
@@ -355,6 +345,10 @@ module MT = struct
           (List.map (sub.with_constraint sub) l)
     | Pmty_typeof me -> typeof_ ~loc ~attrs (sub.module_expr sub me)
     | Pmty_extension x -> extension ~loc ~attrs (sub.extension sub x)
+    | Pmty_strengthen (mty, mod_id) ->
+        strengthen ~loc ~attrs
+          (sub.module_type sub mty)
+          (map_loc sub mod_id)
 
   let map_with_constraint sub = function
     | Pwith_type (lid, d) ->
@@ -404,13 +398,6 @@ module MT = struct
           ~loc
           (map_loc sub name)
           (sub.jkind_annotation sub jkind)
-
-  let map_jane_syntax sub :
-        Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t = function
-    | Jmty_strengthen { mty; mod_id } ->
-       let mty = sub.module_type sub mty in
-       let mod_id = map_loc sub mod_id in
-       Jmty_strengthen { mty; mod_id }
 end
 
 
@@ -967,8 +954,6 @@ let default_mapper =
         | Product ts -> Product (List.map (this.jkind_annotation this) ts)
       in
       { pjkind_loc; pjkind_desc });
-
-    module_type_jane_syntax = MT.map_jane_syntax;
 
     modes = (fun this m ->
       List.map (map_loc this) m);

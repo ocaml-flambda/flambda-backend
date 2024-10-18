@@ -402,9 +402,6 @@ and add_binding_op bv bv' pbop =
   add_pattern bv' pbop.pbop_pat
 
 and add_modtype bv mty =
-  match Jane_syntax.Module_type.of_ast mty with
-  | Some (jmty, _attrs) -> add_modtype_jane_syntax bv jmty
-  | None ->
   match mty.pmty_desc with
     Pmty_ident l -> add bv l
   | Pmty_alias l -> add_module_path bv l
@@ -434,11 +431,9 @@ and add_modtype bv mty =
         cstrl
   | Pmty_typeof m -> add_module_expr bv m
   | Pmty_extension e -> handle_extension e
-
-and add_modtype_jane_syntax bv : Jane_syntax.Module_type.t -> _ = function
-  | Jmty_strengthen { mty; mod_id } ->
-     add_modtype bv mty;
-     add_module_path bv mod_id
+  | Pmty_strengthen (mty, mod_id) ->
+      add_modtype bv mty;
+      add_module_path bv mod_id
 
 and add_module_alias bv l =
   (* If we are in delayed dependencies mode, we delay the dependencies
@@ -452,9 +447,6 @@ and add_module_alias bv l =
     | _ -> add_module_path bv l; bound (* cannot delay *)
 
 and add_modtype_binding bv mty =
-  match Jane_syntax.Module_type.of_ast mty with
-  | Some (jmty, _attrs) -> add_modtype_jane_syntax_binding bv jmty
-  | None ->
   match mty.pmty_desc with
     Pmty_alias l ->
       add_module_alias bv l
@@ -462,16 +454,13 @@ and add_modtype_binding bv mty =
       make_node (add_signature_binding bv s)
   | Pmty_typeof modl ->
       add_module_binding bv modl
+  | Pmty_strengthen (mty, mod_id) ->
+      (* treat like a [with] constraint *)
+      add_modtype bv mty;
+      add_module_path bv mod_id;
+      bound
   | _ ->
       add_modtype bv mty; bound
-
-and add_modtype_jane_syntax_binding bv : Jane_syntax.Module_type.t -> _ =
-  function
-  | Jmty_strengthen { mty; mod_id } ->
-     (* treat like a [with] constraint *)
-     add_modtype bv mty;
-     add_module_path bv mod_id;
-     bound
 
 and add_signature bv sg =
   ignore (add_signature_binding bv sg)

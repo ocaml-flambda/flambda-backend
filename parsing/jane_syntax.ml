@@ -63,36 +63,6 @@ module _ = Language_extension
      appearing later in the attribute list should be interpreted first.
 *)
 
-(** Module strengthening *)
-module Strengthen = struct
-  type nonrec module_type =
-    { mty : Parsetree.module_type
-    ; mod_id : Longident.t Location.loc
-    }
-
-  let feature : Feature.t = Language_extension Module_strengthening
-
-  (* Encoding: [S with M] becomes [functor (_ : S) -> (module M)], where
-     the [(module M)] is a [Pmty_alias].  This isn't syntax we can write, but
-     [(module M)] can be the inferred type for [M], so this should be fine. *)
-
-  let mty_of ~loc { mty; mod_id } =
-    (* See Note [Wrapping with make_entire_jane_syntax] *)
-    Module_type.make_entire_jane_syntax ~loc feature (fun () ->
-      Ast_helper.Mty.functor_
-        (Named (Location.mknoloc None, mty))
-        (Ast_helper.Mty.alias mod_id))
-  ;;
-
-  (* Returns remaining unconsumed attributes *)
-  let of_mty mty =
-    match mty.pmty_desc with
-    | Pmty_functor (Named (_, mty), { pmty_desc = Pmty_alias mod_id }) ->
-      { mty; mod_id }, mty.pmty_attributes
-    | _ -> failwith "Malformed strengthened module type"
-  ;;
-end
-
 module Instances = struct
   type instance =
     { head : string
@@ -171,33 +141,6 @@ module type AST = sig
   type ast
 
   val of_ast : ast -> t option
-end
-
-module Module_type = struct
-  type t = Jmty_strengthen of Strengthen.module_type
-
-  let of_ast_internal (feat : Feature.t) mty =
-    match feat with
-    | Language_extension Module_strengthening ->
-      let mty, attrs = Strengthen.of_mty mty in
-      Some (Jmty_strengthen mty, attrs)
-    | _ -> None
-  ;;
-
-  let of_ast = Module_type.make_of_ast ~of_ast_internal
-
-  let mty_of ~loc ~attrs t =
-    let mty =
-      match t with
-      | Jmty_strengthen x -> Strengthen.mty_of ~loc x
-    in
-    (* Performance hack: save an allocation if [attrs] is empty. *)
-    match attrs with
-    | [] -> mty
-    | _ :: _ as attrs ->
-      (* See Note [Outer attributes at end] *)
-      { mty with pmty_attributes = mty.pmty_attributes @ attrs }
-  ;;
 end
 
 module Module_expr = struct
