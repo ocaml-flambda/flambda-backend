@@ -341,7 +341,16 @@ and integer_comparison =
 and float_comparison =
     CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
 
+and nullable =
+  | Nullable
+  | Non_nullable
+
 and value_kind =
+  { raw_kind : value_kind_non_null;
+    nullable : nullable;
+  }
+
+and value_kind_non_null =
   | Pgenval
   | Pintval
   | Pboxedfloatval of boxed_float
@@ -462,6 +471,11 @@ and raise_kind =
   | Raise_reraise
   | Raise_notrace
 
+let generic_value =
+  { raw_kind = Pgenval;
+    nullable = Nullable;
+  }
+
 let equal_boxed_integer = Primitive.equal_boxed_integer
 
 let equal_boxed_float = Primitive.equal_boxed_float
@@ -474,7 +488,14 @@ let print_boxed_vector ppf t =
   match t with
   | Pvec128 -> Format.pp_print_string ppf "Vec128"
 
-let rec equal_value_kind x y =
+let equal_nullable x y =
+  match x, y with
+  | Nullable, Nullable
+  | Non_nullable, Non_nullable -> true
+  | Nullable, Non_nullable
+  | Non_nullable, Nullable -> false
+
+let rec equal_value_kind_non_null x y =
   match x, y with
   | Pgenval, Pgenval -> true
   | Pboxedfloatval f1, Pboxedfloatval f2 -> equal_boxed_float f1 f2
@@ -496,6 +517,10 @@ let rec equal_value_kind x y =
            non_consts1 non_consts2
   | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
       | Parrayval _ | Pboxedvectorval _), _ -> false
+
+and equal_value_kind x y =
+  equal_value_kind_non_null x.raw_kind y.raw_kind
+  && equal_nullable x.nullable y.nullable
 
 and equal_constructor_shape x y =
   match x, y with
@@ -541,7 +566,7 @@ let must_be_value layout =
       (* Here, we want to get the [value_kind] corresponding to
          a [Pbottom] layout. Anything will do, we return [Pgenval]
          as a default. *)
-      Pgenval
+      generic_value
   | _ -> Misc.fatal_error "Layout is not a value"
 
 type structured_constant =
@@ -834,45 +859,57 @@ let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
 
 let lambda_unit = Lconst const_unit
 
-let layout_unit = Pvalue Pintval
-let layout_int = Pvalue Pintval
-let layout_array kind = Pvalue (Parrayval kind)
-let layout_block = Pvalue Pgenval
+(* CR vlaviron: review the following cases *)
+let non_null_value raw_kind =
+  Pvalue { raw_kind; nullable = Non_nullable }
+let nullable_value raw_kind =
+  Pvalue { raw_kind; nullable = Nullable }
+
+let layout_unit = non_null_value Pintval
+let layout_int = non_null_value Pintval
+let layout_array kind = non_null_value (Parrayval kind)
+let layout_block = non_null_value Pgenval
 let layout_list =
-  Pvalue (Pvariant { consts = [0] ;
-                     non_consts = [0, Constructor_uniform [Pgenval; Pgenval]] })
-let layout_tuple_element = Pvalue Pgenval
-let layout_value_field = Pvalue Pgenval
-let layout_tmc_field = Pvalue Pgenval
-let layout_optional_arg = Pvalue Pgenval
-let layout_variant_arg = Pvalue Pgenval
-let layout_exception = Pvalue Pgenval
-let layout_function = Pvalue Pgenval
-let layout_object = Pvalue Pgenval
-let layout_class = Pvalue Pgenval
-let layout_module = Pvalue Pgenval
-let layout_module_field = Pvalue Pgenval
-let layout_functor = Pvalue Pgenval
-let layout_boxed_float f = Pvalue (Pboxedfloatval f)
+  non_null_value
+    (Pvariant
+       { consts = [0];
+         non_consts =
+           [0,
+            Constructor_uniform
+              [generic_value;
+               { generic_value with nullable = Non_nullable}]] })
+let layout_tuple_element = nullable_value Pgenval
+let layout_value_field = nullable_value Pgenval
+let layout_tmc_field = nullable_value Pgenval
+let layout_optional_arg = non_null_value Pgenval
+let layout_variant_arg = nullable_value Pgenval
+let layout_exception = non_null_value Pgenval
+let layout_function = non_null_value Pgenval
+let layout_object = non_null_value Pgenval
+let layout_class = non_null_value Pgenval
+let layout_module = non_null_value Pgenval
+let layout_module_field = nullable_value Pgenval
+let layout_functor = non_null_value Pgenval
+let layout_boxed_float f = non_null_value (Pboxedfloatval f)
 let layout_unboxed_float f = Punboxed_float f
 let layout_unboxed_nativeint = Punboxed_int Pnativeint
 let layout_unboxed_int32 = Punboxed_int Pint32
 let layout_unboxed_int64 = Punboxed_int Pint64
-let layout_string = Pvalue Pgenval
+let layout_string = non_null_value Pgenval
 let layout_unboxed_int ubi = Punboxed_int ubi
-let layout_boxedint bi = Pvalue (Pboxedintval bi)
+let layout_boxedint bi = non_null_value (Pboxedintval bi)
 
 let layout_unboxed_vector = function
   | Pvec128 -> Punboxed_vector Pvec128
 
 let layout_boxed_vector = function
-  | Pvec128 -> Pvalue (Pboxedvectorval Pvec128)
+  | Pvec128 -> non_null_value (Pboxedvectorval Pvec128)
 
-let layout_lazy = Pvalue Pgenval
-let layout_lazy_contents = Pvalue Pgenval
-let layout_any_value = Pvalue Pgenval
+let layout_lazy = nullable_value Pgenval
+let layout_lazy_contents = nullable_value Pgenval
+let layout_any_value = nullable_value Pgenval
 let layout_letrec = layout_any_value
-let layout_probe_arg = Pvalue Pgenval
+let layout_probe_arg = nullable_value Pgenval
 let layout_unboxed_product layouts = Punboxed_product layouts
 
 (* CR ncourant: use [Ptop] or remove this as soon as possible. *)
@@ -1814,23 +1851,25 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       Some alloc_heap
 
 let constant_layout: constant -> layout = function
-  | Const_int _ | Const_char _ -> Pvalue Pintval
-  | Const_string _ -> Pvalue Pgenval
-  | Const_int32 _ -> Pvalue (Pboxedintval Pint32)
-  | Const_int64 _ -> Pvalue (Pboxedintval Pint64)
-  | Const_nativeint _ -> Pvalue (Pboxedintval Pnativeint)
+  | Const_int _ | Const_char _ -> non_null_value Pintval
+  | Const_string _ -> non_null_value Pgenval
+  | Const_int32 _ -> non_null_value (Pboxedintval Pint32)
+  | Const_int64 _ -> non_null_value (Pboxedintval Pint64)
+  | Const_nativeint _ -> non_null_value (Pboxedintval Pnativeint)
   | Const_unboxed_int32 _ -> Punboxed_int Pint32
   | Const_unboxed_int64 _ -> Punboxed_int Pint64
   | Const_unboxed_nativeint _ -> Punboxed_int Pnativeint
-  | Const_float _ -> Pvalue (Pboxedfloatval Pfloat64)
-  | Const_float32 _ -> Pvalue (Pboxedfloatval Pfloat32)
+  | Const_float _ -> non_null_value (Pboxedfloatval Pfloat64)
+  | Const_float32 _ -> non_null_value (Pboxedfloatval Pfloat32)
   | Const_unboxed_float _ -> Punboxed_float Pfloat64
   | Const_unboxed_float32 _ -> Punboxed_float Pfloat32
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
-  | Const_mixed_block _ | Const_block _ | Const_immstring _ -> Pvalue Pgenval
-  | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
+  | Const_mixed_block _ | Const_block _ | Const_immstring _ ->
+    non_null_value Pgenval
+  | Const_float_array _ | Const_float_block _ ->
+    non_null_value (Parrayval Pfloatarray)
 
 let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   match c with
