@@ -25,9 +25,37 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        *
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
-type t = Check_default | Check_all | Check_opt_only | No_check
-val all : t list
-val to_string : t -> string
-val of_string : string -> t option
-val equal : t -> t -> bool
-val doc : string
+module Check : sig
+  type t =
+    | Check_default
+    | Check_all
+    | Check_opt_only
+    | No_check
+
+  val all : t list
+
+  val to_string : t -> string
+
+  val of_string : string -> t option
+
+  val equal : t -> t -> bool
+
+  val doc : string
+end
+
+module Assert : sig
+  type t =
+    | Assert_default
+    | Assert_all
+    | Assert_all_opt
+
+  val all : t list
+
+  val to_string : t -> string
+
+  val of_string : string -> t option
+
+  val equal : t -> t -> bool
+
+  val doc : string
+end

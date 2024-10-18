@@ -1,0 +1,15 @@
+File "test_assume_unless_opt_sig2.ml", line 19, characters 29-39:
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+The payload "assume_unless_opt" is not supported in signatures.
+
+File "test_assume_unless_opt_sig2.ml", line 4, characters 22-32:
+Error: Annotation check for zero_alloc failed on function Test_assume_unless_opt_sig2.Test_fail_in_opt_only.foo (camlTest_assume_unless_opt_sig2.foo_HIDE_STAMP)
+
+File "test_assume_unless_opt_sig2.ml", line 4, characters 60-65:
+Error: allocation of 24 bytes
+
+File "test_assume_unless_opt_sig2.ml", line 21, characters 22-32:
+Error: Annotation check for zero_alloc failed on function Test_assume_unless_opt_sig2.Test_error.foo (camlTest_assume_unless_opt_sig2.foo_HIDE_STAMP)
+
+File "test_assume_unless_opt_sig2.ml", line 21, characters 60-65:
+Error: allocation of 24 bytes

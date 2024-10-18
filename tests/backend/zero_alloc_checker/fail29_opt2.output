@@ -1,0 +1,38 @@
+File "fail29_opt2.ml", line 1, characters 8-19:
+Error: Annotation check for zero_alloc failed on function Fail29_opt2.foo (camlFail29_opt2.foo_HIDE_STAMP)
+
+File "fail29_opt2.ml", line 1, characters 14-19:
+Error: allocation of 24 bytes
+
+File "fail29_opt2.ml", line 3, characters 8-19:
+Error: Annotation check for zero_alloc failed on function Fail29_opt2.bar (camlFail29_opt2.bar_HIDE_STAMP)
+
+File "fail29_opt2.ml", line 3, characters 14-19:
+Error: allocation of 24 bytes
+
+File "fail29_opt2.ml", line 3, characters 17-19:
+Error: allocation of 24 bytes
+
+File "fail29_opt2.ml", lines 5-11, characters 10-15:
+Error: Annotation check for zero_alloc failed on function Fail29_opt2.outer (camlFail29_opt2.outer_HIDE_STAMP)
+
+File "fail29_opt2.ml", line 11, characters 2-15:
+Error: called function may allocate (direct tailcall camlFail29_opt2.inner_HIDE_STAMP)
+
+File "fail29_opt2.ml", lines 16-17, characters 25-11:
+Error: Annotation check for zero_alloc failed on function Fail29_opt2.only_check_me_in_opt (camlFail29_opt2.only_check_me_in_opt_HIDE_STAMP)
+
+File "fail29_opt2.ml", line 17, characters 2-11:
+Error: allocation of 32 bytes
+
+File "fail29_opt2.ml", line 19, characters 5-15:
+Error: Annotation check for zero_alloc strict failed on function Fail29_opt2.check_me_strict (camlFail29_opt2.check_me_strict_HIDE_STAMP)
+
+File "fail29_opt2.ml", line 21, characters 22-60:
+Error: called function may allocate on a path to exceptional return (indirect call)
+
+File "fail29_opt2.ml", line 21, characters 13-61:
+Error: allocation of 24 bytes on a path to exceptional return
+
+File "fail29_opt2.ml", line 21, characters 22-60:
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (fail29_opt2.ml:21,22--60;printf.ml:48,18--43;printf.ml:46,2--31)

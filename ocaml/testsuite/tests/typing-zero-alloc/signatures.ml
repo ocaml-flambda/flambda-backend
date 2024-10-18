@@ -46,14 +46,18 @@ Line 2, characters 2-40:
 Error: zero_alloc "assume" attributes are not supported in signatures
 |}]
 
-module type S_payloads_ignore = sig
-  val[@zero_alloc ignore] f : int -> int
+module type S_payloads_assume_unless_opt = sig
+  val[@zero_alloc assume_unless_opt] f : int -> int
 end
 [%%expect{|
-Line 2, characters 2-40:
-2 |   val[@zero_alloc ignore] f : int -> int
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: zero_alloc "ignore" attributes are not supported in signatures
+Line 2, characters 7-17:
+2 |   val[@zero_alloc assume_unless_opt] f : int -> int
+           ^^^^^^^^^^
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+The payload "assume_unless_opt" is not supported in signatures.
+
+module type S_payloads_assume_unless_opt =
+  sig val f : int -> int [@@zero_alloc] end
 |}]
 
 (******************************)

@@ -62,6 +62,7 @@ module type Flambda_backend_options = sig
 
   val heap_reduction_threshold : int -> unit
   val zero_alloc_check : string -> unit
+  val zero_alloc_assert : string -> unit
 
   val dzero_alloc : unit -> unit
   val disable_zero_alloc_checker : unit -> unit

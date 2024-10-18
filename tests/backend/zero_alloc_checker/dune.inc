@@ -1136,3 +1136,277 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_remove_inferred_assume_workaround.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail27.output.corrected)
+ (deps (:ml fail27.ml) filter.sh)
+ (action
+   (with-outputs-to fail27.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-assert all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail27.output fail27.output.corrected)
+ (action (diff fail27.output fail27.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail27_opt.output.corrected)
+ (deps (:ml fail27_opt.ml) filter.sh)
+ (action
+   (with-outputs-to fail27_opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-assert all_opt -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail27_opt.output fail27_opt.output.corrected)
+ (action (diff fail27_opt.output fail27_opt.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail27_default.output.corrected)
+ (deps (:ml fail27_default.ml) filter.sh)
+ (action
+   (with-outputs-to fail27_default.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-assert default -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail27_default.output fail27_default.output.corrected)
+ (action (diff fail27_default.output fail27_default.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail28.output.corrected)
+ (deps (:ml fail28.ml) filter.sh)
+ (action
+   (with-outputs-to fail28.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail28.output fail28.output.corrected)
+ (action (diff fail28.output fail28.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail28_opt.output.corrected)
+ (deps (:ml fail28_opt.ml) filter.sh)
+ (action
+   (with-outputs-to fail28_opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail28_opt.output fail28_opt.output.corrected)
+ (action (diff fail28_opt.output fail28_opt.output.corrected)))
+
+(rule
+ (alias runtest)
+ (deps fail29.mli)
+ (target fail29.cmi)
+ (enabled_if (= %{context_name} "main"))
+ (action (run %{bin:ocamlopt.opt} fail29.mli -g -c -opaque -stop-after typing -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail29.output.corrected)
+ (deps fail29.cmi (:ml fail29.ml) filter.sh)
+ (action
+   (with-outputs-to fail29.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail29.output fail29.output.corrected)
+ (action (diff fail29.output fail29.output.corrected)))
+
+(rule
+ (alias runtest)
+ (deps fail29_opt.mli)
+ (target fail29_opt.cmi)
+ (enabled_if (= %{context_name} "main"))
+ (action (run %{bin:ocamlopt.opt} fail29_opt.mli -g -c -opaque -stop-after typing -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail29_opt.output.corrected)
+ (deps fail29_opt.cmi (:ml fail29_opt.ml) filter.sh)
+ (action
+   (with-outputs-to fail29_opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail29_opt.output fail29_opt.output.corrected)
+ (action (diff fail29_opt.output fail29_opt.output.corrected)))
+
+(rule
+ (alias runtest)
+ (deps fail29_opt2.mli)
+ (target fail29_opt2.cmi)
+ (enabled_if (= %{context_name} "main"))
+ (action (run %{bin:ocamlopt.opt} fail29_opt2.mli -g -c -opaque -stop-after typing -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets fail29_opt2.output.corrected)
+ (deps fail29_opt2.cmi (:ml fail29_opt2.ml) filter.sh)
+ (action
+   (with-outputs-to fail29_opt2.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps fail29_opt2.output fail29_opt2.output.corrected)
+ (action (diff fail29_opt2.output fail29_opt2.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_unless_opt.output.corrected)
+ (deps (:ml test_assume_unless_opt.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_unless_opt.output test_assume_unless_opt.output.corrected)
+ (action (diff test_assume_unless_opt.output test_assume_unless_opt.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_unless_opt.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_unless_opt_sig.output.corrected)
+ (deps (:ml test_assume_unless_opt_sig.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_sig.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 0
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_unless_opt_sig.output test_assume_unless_opt_sig.output.corrected)
+ (action (diff test_assume_unless_opt_sig.output test_assume_unless_opt_sig.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_unless_opt_sig2.output.corrected)
+ (deps (:ml test_assume_unless_opt_sig2.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_sig2.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_unless_opt_sig2.output test_assume_unless_opt_sig2.output.corrected)
+ (action (diff test_assume_unless_opt_sig2.output test_assume_unless_opt_sig2.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_unless_opt_on_call.output.corrected)
+ (deps (:ml test_assume_unless_opt_on_call.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_on_call.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_unless_opt_on_call.output test_assume_unless_opt_on_call.output.corrected)
+ (action (diff test_assume_unless_opt_on_call.output test_assume_unless_opt_on_call.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_assume_unless_opt_on_call2.output.corrected)
+ (deps (:ml test_assume_unless_opt_on_call2.ml) filter.sh)
+ (action
+   (with-outputs-to test_assume_unless_opt_on_call2.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_assume_unless_opt_on_call2.output test_assume_unless_opt_on_call2.output.corrected)
+ (action (diff test_assume_unless_opt_on_call2.output test_assume_unless_opt_on_call2.output.corrected)))
