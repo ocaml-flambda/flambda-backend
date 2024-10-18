@@ -92,20 +92,20 @@ open! Stdlib
    @since 4.07 Moved from otherlibs to stdlib.
 *)
 
-type float32_elt = Float32_elt
-type float64_elt = Float64_elt
-type int8_signed_elt = Int8_signed_elt
-type int8_unsigned_elt = Int8_unsigned_elt
-type int16_signed_elt = Int16_signed_elt
-type int16_unsigned_elt = Int16_unsigned_elt
-type int32_elt = Int32_elt
-type int64_elt = Int64_elt
-type int_elt = Int_elt
-type nativeint_elt = Nativeint_elt
-type complex32_elt = Complex32_elt
-type complex64_elt = Complex64_elt
+type float32_elt : value mod portable uncontended = Float32_elt
+type float64_elt : value mod portable uncontended = Float64_elt
+type int8_signed_elt : value mod portable uncontended = Int8_signed_elt
+type int8_unsigned_elt : value mod portable uncontended = Int8_unsigned_elt
+type int16_signed_elt : value mod portable uncontended = Int16_signed_elt
+type int16_unsigned_elt : value mod portable uncontended = Int16_unsigned_elt
+type int32_elt : value mod portable uncontended = Int32_elt
+type int64_elt : value mod portable uncontended = Int64_elt
+type int_elt : value mod portable uncontended = Int_elt
+type nativeint_elt : value mod portable uncontended = Nativeint_elt
+type complex32_elt : value mod portable uncontended = Complex32_elt
+type complex64_elt : value mod portable uncontended = Complex64_elt
 
-type ('a, 'b) kind =
+type ('a, 'b) kind : value mod portable uncontended =
   | Float32 : (float, float32_elt) kind
   | Float64 : (float, float64_elt) kind
   | Int8_signed : (int, int8_signed_elt) kind
@@ -211,10 +211,10 @@ val kind_size_in_bytes : ('a, 'b) kind -> int @@ portable
 
 (** {1 Array layouts} *)
 
-type c_layout = C_layout_typ (**)
+type c_layout : value mod portable uncontended = C_layout_typ (**)
 (** See {!type:Bigarray.fortran_layout}.*)
 
-type fortran_layout = Fortran_layout_typ (**)
+type fortran_layout : value mod portable uncontended = Fortran_layout_typ (**)
 (** To facilitate interoperability with existing C and Fortran code,
    this library supports two different memory layouts for Bigarrays,
    one compatible with the C conventions,
@@ -245,12 +245,12 @@ type fortran_layout = Fortran_layout_typ (**)
    re-exported as values below for backward-compatibility reasons.
 *)
 
-type 'a layout =
+type 'a layout : value mod portable uncontended =
     C_layout: c_layout layout
   | Fortran_layout: fortran_layout layout
 
-val c_layout : c_layout layout @@ portable
-val fortran_layout : fortran_layout layout @@ portable
+val c_layout : c_layout layout
+val fortran_layout : fortran_layout layout
 
 
 (** {1 Generic arrays (of arbitrarily many dimensions)} *)

@@ -28,7 +28,7 @@ type (!'a : value mod portable) t : value mod portable uncontended
 (* CR tdelvecchio: weaken to [portable with 'a] *)
 
 (** Create an atomic reference. *)
-val make : 'a -> 'a t @@ portable
+val make : 'a @ contended -> 'a t @@ portable
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -42,7 +42,7 @@ val make : 'a -> 'a t @@ portable
     enhance performance.
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
-val make_contended : 'a -> 'a t @@ portable
+val make_contended : 'a @ contended -> 'a t @@ portable
 
 (** Get the current value of the atomic reference. *)
 val get : 'a t -> 'a

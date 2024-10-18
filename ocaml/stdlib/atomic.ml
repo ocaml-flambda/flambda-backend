@@ -14,8 +14,8 @@
 
 type (!'a : value mod portable) t : value mod portable uncontended
 
-external make : 'a -> 'a t @@ portable = "%makemutable"
-external make_contended : 'a -> 'a t @@ portable = "caml_atomic_make_contended"
+external make : 'a @ contended -> 'a t @@ portable = "%makemutable"
+external make_contended : 'a @ contended -> 'a t @@ portable = "caml_atomic_make_contended"
 external get : 'a t -> 'a = "%atomic_load"
 external get_safe : 'a t -> 'a @ contended @@ portable = "%atomic_load"
 external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
