@@ -20,10 +20,17 @@ type 'a t =
   | Bottom
 
 let print f ppf t =
+  let colour = Flambda_colours.top_or_bottom_type in
   match t with
-  | Unknown -> Format.pp_print_string ppf "Unknown"
-  | Ok contents -> Format.fprintf ppf "@[(Ok %a)@]" f contents
-  | Bottom -> Format.pp_print_string ppf "Bottom"
+  | Unknown ->
+    if Flambda_features.unicode ()
+    then Format.fprintf ppf "%t@<1>\u{22a4}%t" colour Flambda_colours.pop
+    else Format.fprintf ppf "%tT%t" colour Flambda_colours.pop
+  | Bottom ->
+    if Flambda_features.unicode ()
+    then Format.fprintf ppf "%t@<1>\u{22a5}%t" colour Flambda_colours.pop
+    else Format.fprintf ppf "%t_|_%t" colour Flambda_colours.pop
+  | Ok contents -> Format.fprintf ppf "@[(%a)@]" f contents
 
 let equal eq_contents t1 t2 =
   match t1, t2 with

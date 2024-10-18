@@ -615,9 +615,7 @@ let simplify_is_flat_float_array dacc ~original_term ~arg:_ ~arg_ty ~result_var
   (* CR mshinwell: see CRs in lambda_to_flambda_primitives.ml
 
      assert (Flambda_features.flat_float_array ()); *)
-  match
-    T.meet_is_naked_number_array (DA.typing_env dacc) arg_ty Naked_float
-  with
+  match T.meet_is_flat_float_array (DA.typing_env dacc) arg_ty with
   | Known_result is_flat_float_array ->
     let imm = Targetint_31_63.bool is_flat_float_array in
     let ty = T.this_naked_immediate imm in
@@ -750,9 +748,8 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
       ~try_reify:true dacc
   | Unknown -> (
     match T.prove_strings typing_env arg_ty with
-    | Proved (Heap, _) -> elide_primitive ()
-    | Proved ((Heap_or_local | Local), _) | Unknown ->
-      SPR.create_unknown dacc ~result_var K.value ~original_term)
+    | Proved _ -> elide_primitive ()
+    | Unknown -> SPR.create_unknown dacc ~result_var K.value ~original_term)
 
 let simplify_get_header ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
     ~result_var =
