@@ -487,9 +487,70 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 (*******************************)
 (* Overwriting inlined records *)
 
-(* CR uniqueness *)
+type constructor_update = Con of { x : string; y : string }
+[%%expect{|
+type constructor_update = Con of { x : string; y : string; }
+|}]
 
-(******************************)
-(* Overwriting mutable fields *)
+let update = function
+  | (Con _ as c) ->
+    let x = overwrite_ c with Con { x = "foo" } in
+    x
+[%%expect{|
+Line 3, characters 12-47:
+3 |     let x = overwrite_ c with Con { x = "foo" } in
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
-(* CR uniqueness *)
+|}]
+
+let update = function
+  | (Con c1 as c) ->
+    let x = overwrite_ c with Con { c1 with x = "foo" } in
+    x
+[%%expect{|
+Line 3, characters 12-55:
+3 |     let x = overwrite_ c with Con { c1 with x = "foo" } in
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update = function
+  | (Con c) ->
+    let x = overwrite_ c with { x = "foo" } in
+    x
+[%%expect{|
+Line 3, characters 23-24:
+3 |     let x = overwrite_ c with { x = "foo" } in
+                           ^
+Error: This form is not allowed as the type of the inlined record could escape.
+|}]
+
+let update = function
+  | (Con c) ->
+    let x = Con (overwrite_ c with { x = "foo" }) in
+    x
+[%%expect{|
+Line 3, characters 16-49:
+3 |     let x = Con (overwrite_ c with { x = "foo" }) in
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update = function
+  | (Con c) ->
+    let x = Con (overwrite_ c with { c with x = "foo" }) in
+    x
+[%%expect{|
+Line 3, characters 16-56:
+3 |     let x = Con (overwrite_ c with { c with x = "foo" }) in
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]

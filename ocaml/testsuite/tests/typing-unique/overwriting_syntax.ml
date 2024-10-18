@@ -3,6 +3,14 @@
    expect;
 *)
 
+(* CR uniqueness: It would be nice to also support the following syntactic forms:
+     overwrite_ e with (~x:5, ..)
+     overwrite_ e with { x = 4; _ }
+
+   This would require us to allow general patterns as the top-level second argument to
+   overwrite_ with. However, all overwritten fields should continue to be expressions.
+*)
+
 (******************)
 (* Usage examples *)
 

@@ -328,6 +328,22 @@ let swap_inner (t : tree) =
 val swap_inner : tree -> tree @@ global many = <fun>
 |}]
 
+(* CR uniqueness: Update this test once overwriting is fully implemented.
+   let swap_inner (t : tree) =
+   match t with
+   | Node { l = Node { r = lr } as l; r = Node { l = rl } as r } as t ->
+   overwrite_ t with
+   Node { l = overwrite_ l with Node { r = rl; };
+   r = overwrite_ r with Node { l = lr; }}
+   | _ -> t
+   [%%expect{|
+
+   |}]
+*)
+
+(***********************)
+(* Barriers for guards *)
+
 let match_guard r =
   match r with
   | { y } when String.equal y "" ->
@@ -376,15 +392,69 @@ Line 3, characters 41-42:
 
 |}]
 
-(* CR uniqueness: Update this test once overwriting is fully implemented.
-let swap_inner (t : tree) =
-  match t with
-  | Node { l = Node { r = lr } as l; r = Node { l = rl } as r } as t ->
-      overwrite_ t with
-        Node { l = overwrite_ l with Node { r = rl; };
-               r = overwrite_ r with Node { l = lr; }}
-  | _ -> t
+(********************************************)
+(* Global allocations in overwritten fields *)
+
+type option_record = { x : string option; y : string option @@ many aliased }
 [%%expect{|
+0
+type option_record = {
+  x : string option;
+  y : string option @@ many aliased;
+}
+|}]
+
+let check_heap_alloc_in_overwrite (unique_ r : option_record) =
+  overwrite_ r with { x = Some "" }
+[%%expect{|
+Line 2, characters 2-35:
+2 |   overwrite_ r with { x = Some "" }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
-*)
+
+let check_heap_alloc_in_overwrite (unique_ r : option_record) =
+  overwrite_ r with { y = Some "" }
+[%%expect{|
+Line 2, characters 2-35:
+2 |   overwrite_ r with { y = Some "" }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+(*******************************)
+(* Overwrite of mutable fields *)
+
+type mutable_record = { mutable x : string; y : string }
+[%%expect{|
+0
+type mutable_record = { mutable x : string; y : string; }
+|}]
+
+let update (unique_ r : mutable_record) =
+  let x = overwrite_ r with { x = "foo" } in
+x.x
+[%%expect{|
+Line 2, characters 10-41:
+2 |   let x = overwrite_ r with { x = "foo" } in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update (unique_ r : mutable_record) =
+  let x = overwrite_ r with { y = "foo" } in
+x.x
+[%%expect{|
+Line 2, characters 10-41:
+2 |   let x = overwrite_ r with { y = "foo" } in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]

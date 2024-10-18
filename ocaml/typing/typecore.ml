@@ -6599,7 +6599,7 @@ and type_expect_
         { ty = newvar (Jkind.Builtin.value ~why:Boxed_record);
           explanation = None }
       in
-      let exp1 = type_expect env (mode_default cell_mode) exp1 cell_type in
+      let exp1 = type_expect ~recarg env (mode_default cell_mode) exp1 cell_type in
       let exp2 =
         (* The newly-written fields have to global to avoid heap-to-stack pointers.
            We enforce that here, by asking the allocation to be global.
@@ -6618,7 +6618,7 @@ and type_expect_
             |> Value.disallow_right
         in
         let overwrite = Overwriting (exp1.exp_loc, exp1.exp_type, fields_mode) in
-        type_expect ~overwrite env exp2_mode exp2 ty_expected_explained
+        type_expect ~recarg ~overwrite env exp2_mode exp2 ty_expected_explained
       in
       re { exp_desc = Texp_overwrite(exp1, exp2);
             exp_loc = loc; exp_extra = [];
@@ -8148,7 +8148,9 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
       begin match sargs with
       | [{pexp_desc =
             Pexp_ident _ |
-            Pexp_record (_, (Some {pexp_desc = Pexp_ident _}| None))}] ->
+            Pexp_record (_, (Some {pexp_desc = Pexp_ident _}| None)) |
+            Pexp_overwrite (_, {pexp_desc =
+              Pexp_record (_, (Some {pexp_desc = Pexp_ident _}| None))})}] ->
         Required
       | _ ->
         raise (Error(loc, env, Inlined_record_expected))
