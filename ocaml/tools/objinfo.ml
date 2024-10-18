@@ -188,56 +188,6 @@ let print_cmt_infos cmt =
         pp_loc loc)
       cmt.cmt_uid_to_decl;
       Format.print_flush ()
-||||||| 121bedcfd2
-=======
-  end;
-  if !index then begin
-    printf "Indexed shapes:\n";
-    List.iter (fun (loc, item) ->
-      let pp_loc fmt { Location.txt; loc } =
-        Format.fprintf fmt "%a (%a)"
-          Pprintast.longident txt Location.print_loc loc
-      in
-      Format.printf "@[<hov 2>%a:@ %a@]@;"
-        Shape_reduce.print_result item pp_loc loc)
-      cmt.cmt_ident_occurrences;
-    Format.print_flush ()
-  end;
-  if !decls then begin
-    printf "\nUid of decls:\n";
-    Shape.Uid.Tbl.iter (fun uid item ->
-      let loc = match (item : Typedtree.item_declaration) with
-        | Value vd -> vd.val_name
-        | Value_binding vb ->
-          let (_, name, _, _) =
-            List.hd (Typedtree.let_bound_idents_full [vb])
-          in
-          name
-        | Type td -> td.typ_name
-        | Constructor cd -> cd.cd_name
-        | Extension_constructor ec -> ec.ext_name
-        | Label ld -> ld.ld_name
-        | Module md ->
-          { md.md_name with
-            txt = Option.value md.md_name.txt ~default:"_" }
-        | Module_substitution ms -> ms.ms_name
-        | Module_binding mb ->
-          { mb.mb_name with
-            txt = Option.value mb.mb_name.txt ~default:"_" }
-        | Module_type mtd -> mtd.mtd_name
-        | Class cd -> cd.ci_id_name
-        | Class_type ctd -> ctd.ci_id_name
-      in
-      let pp_loc fmt { Location.txt; loc } =
-        Format.fprintf fmt "%s (%a)"
-           txt Location.print_loc loc
-      in
-      Format.printf "@[<hov 2>%a:@ %a@]@;"
-        Shape.Uid.print uid
-        pp_loc loc)
-      cmt.cmt_uid_to_decl;
-      Format.print_flush ()
->>>>>>> 5.2.0
   end
 
 let print_cms_infos cms =
