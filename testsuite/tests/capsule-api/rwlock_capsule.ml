@@ -74,7 +74,7 @@ let with_write_guarded x (f : 'k . 'k Capsule.Password.t @ local -> ('a, 'k) Cap
   Capsule.Rwlock.with_write_lock m (fun k -> f k p)
 ;;
 
-let with_read_guarded x (f : 'k . 'k Capsule.ReaderPassword.t @ local -> ('a, 'k) Capsule.Data.t -> 'b) =
+let with_read_guarded x (f : 'k . 'k Capsule.Password.Shared.t @ local -> ('a, 'k) Capsule.Data.t -> 'b) =
   let (Mk (m, p)) = x in
   Capsule.Rwlock.with_read_lock m (fun k -> f k p)
 ;;
@@ -143,10 +143,20 @@ let () =
     let ptr' = Capsule.Data.map_shared k (fun (r @ shared) -> { v = r.v + 3}) p in
     assert (Capsule.Data.extract_shared k read_ref ptr' = 20))
 
-(* Using a Password.t as a ReaderPassword.t *)
+(* Using a Password.t as a Password.Shared.t *)
 let () =
   with_write_guarded ptr (fun k p ->
-    assert (Capsule.Data.extract_shared (Capsule.weaken_password k) read_ref p = 15))
+    assert (Capsule.Data.extract_shared (Capsule.Password.shared k) read_ref p = 15))
+
+(* [access_shared] and [unwrap_shared]. *)
+let () =
+  with_read_guarded ptr2 (fun k p ->
+    let ptr' =
+      Capsule.access_shared k (fun a ->
+          let r = Capsule.Data.unwrap_shared a p in
+          Capsule.Data.wrap a { v = r.v + 3 })
+    in
+    assert (Capsule.Data.extract_shared k read_ref ptr' = 20))
 
 exception Leak of int myref
 
@@ -154,7 +164,7 @@ exception Leak of int myref
 let () =
   with_write_guarded ptr (fun k p ->
     match Capsule.Data.iter k (fun r -> reraise (Leak r)) p with
-    | exception Capsule.Data.Contended (Leak r) -> ()
+    | exception Capsule.Contended (Leak r) -> ()
     | _ -> assert false)
 ;;
 
@@ -168,11 +178,11 @@ let ptr2 =
 ;;
 
 
-(* [expose]. *)
+(* [destroy]. *)
 let () =
   let (Mk (m, p)) = ptr2 in
-  let k = Capsule.Rwlock.destroy m in
-  let (r1, r2) = Capsule.Data.expose k p in
+  let a = Capsule.Rwlock.destroy m in
+  let (r1, r2) = Capsule.Data.unwrap a p in
   assert (read_ref r1 = 15 && read_ref r2 = 3)
 ;;
 

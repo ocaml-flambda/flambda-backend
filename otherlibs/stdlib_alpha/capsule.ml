@@ -12,34 +12,90 @@
 (*                                                                        *)
 (**************************************************************************)
 
+
+module Access : sig
+  (* CR layouts v5: this should have layout [void], but
+     [void] can't be used for function argument and return types yet. *)
+  type 'k t : value mod global portable many unique
+
+  type packed = P : 'k t -> packed
+
+  (* Can break soundness. *)
+  val unsafe_mk : unit -> 'k t @@ portable
+
+  val equality_witness : 'k t -> 'j t -> ('k, 'j) Type.eq @@ portable
+end = struct
+  type dummy
+
+  type 'k t = T : dummy t
+
+  type packed = P : 'k t -> packed
+
+  external unsafe_rebrand : 'k t -> 'j t @@ portable = "%identity"
+
+  let unsafe_mk (type k) () : k t = unsafe_rebrand T
+
+  let equality_witness (type k j) (T : k t) (T : j t) : (k, j) Type.eq =
+    Type.Equal
+
+end
+
+let current () = Access.P (Access.unsafe_mk ())
+
+type initial
+
+let initial = Access.unsafe_mk ()
+
 module Password : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t
+  type 'k t : value mod portable many unique uncontended
 
   (* Can break the soundness of the API. *)
   val unsafe_mk : unit -> 'k t @@ portable
+
+  module Shared : sig
+    (* CR layouts v5: this should have layout [void], but
+       [void] can't be used for function argument and return types yet. *)
+    type 'k t
+
+    (* Can break the soundness of the API. *)
+    val unsafe_mk : unit -> 'k t @@ portable
+  end
+
+  val shared : 'k t @ local -> 'k Shared.t @ local @@ portable
 end = struct
   type 'k t = unit
 
   let unsafe_mk () = ()
+
+  module Shared = struct
+    type 'k t = unit
+
+    let unsafe_mk () = ()
+  end
+
+  let shared () = ()
+
 end
 
-module ReaderPassword : sig
-  (* CR layouts v5: this should have layout [void], but
-     [void] can't be used for function argument and return types yet. *)
-  type 'k t
+(* Like [Stdlib.raise], but [portable], and the value
+   it never returns is also [portable] *)
+external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
-  (* Can break the soundness of the API. *)
-  val unsafe_mk : unit -> 'k t @@ portable
-end = struct
-  type 'k t = unit
+exception Contended of exn @@ contended
 
-  let unsafe_mk () = ()
-end
+let access (type k) (_ : k Password.t) f =
+  let c : k Access.t = Access.unsafe_mk () in
+  match f c with
+  | res -> res
+  | exception exn -> reraise (Contended exn)
 
-let weaken_password : 'k Password.t @ local -> 'k ReaderPassword.t @ local @@ portable =
-  fun _ -> ReaderPassword.unsafe_mk ()
+let access_shared (type k) (_ : k Password.Shared.t) f =
+  let c : k Access.t = Access.unsafe_mk () in
+  match f c with
+  | res -> res
+  | exception exn -> reraise (Contended exn)
 
 (* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
@@ -57,10 +113,6 @@ module Rw = struct
   external lock_write: t -> unit @@ portable = "caml_ml_rwlock_wrlock"
   external unlock: t -> unit @@ portable = "caml_ml_rwlock_unlock"
 end
-
-(* Like [Stdlib.raise], but [portable], and the value
-   it never returns is also [portable] *)
-external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
 module Mutex = struct
 
@@ -102,7 +154,7 @@ module Mutex = struct
     | false ->
       t.poisoned <- true;
       M.unlock t.mutex;
-      Password.unsafe_mk ()
+      Access.unsafe_mk ()
 end
 
 module Rwlock = struct
@@ -132,7 +184,7 @@ module Rwlock = struct
 
   let with_read_lock :
     'k t
-    -> ('k ReaderPassword.t @ local -> 'a) @ local
+    -> ('k Password.Shared.t @ local -> 'a) @ local
     -> 'a
     @@ portable
     = fun t f ->
@@ -140,7 +192,7 @@ module Rwlock = struct
       match t.poisoned with
       | true -> Rw.unlock t.rwlock; reraise Poisoned
       | false ->
-        match f (ReaderPassword.unsafe_mk()) with
+        match f (Password.Shared.unsafe_mk()) with
         | x -> Rw.unlock t.rwlock; x
         | exception exn ->
           (* Here we are not poisoning the RwLock, see [capsule.mli] for explanation *)
@@ -156,7 +208,7 @@ module Rwlock = struct
     | false ->
       t.poisoned <- true;
       Rw.unlock t.rwlock;
-      Password.unsafe_mk ()
+      Access.unsafe_mk ()
 
 end
 
@@ -169,11 +221,15 @@ let create_with_rwlock () =
 module Data = struct
   type ('a, 'k) t : value mod portable uncontended
 
-  exception Contended of exn @@ contended
-
   external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
 
   external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
+
+  let wrap _ t = unsafe_mk t
+
+  let unwrap _ t = unsafe_get t
+
+  let unwrap_shared _ t = unsafe_get t
 
   let create f = unsafe_mk (f ())
 
@@ -204,8 +260,6 @@ module Data = struct
     try f v with
     | exn -> reraise (Contended exn)
 
-  let expose _ t = unsafe_get t
-
   let map_shared _ f t =
     let v = unsafe_get t in
     match f v with
@@ -216,4 +270,5 @@ module Data = struct
     let v = unsafe_get t in
     try f v with
     | exn -> reraise (Contended exn)
+
 end
