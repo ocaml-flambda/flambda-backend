@@ -58,7 +58,6 @@ type iterator = {
   module_expr_jane_syntax: iterator -> Jane_syntax.Module_expr.t -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
-  module_type_jane_syntax: iterator -> Jane_syntax.Module_type.t -> unit;
   open_declaration: iterator -> open_declaration -> unit;
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
@@ -274,14 +273,8 @@ let iter_functor_param sub = function
 module MT = struct
   (* Type expressions for the module language *)
 
-  let iter sub
-        ({pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} as mty) =
+  let iter sub {pmty_desc = desc; pmty_loc = loc; pmty_attributes = attrs} =
     sub.location sub loc;
-    match Jane_syntax.Module_type.of_ast mty with
-    | Some (jmty, attrs) ->
-        sub.attributes sub attrs;
-        sub.module_type_jane_syntax sub jmty
-    | None ->
     sub.attributes sub attrs;
     match desc with
     | Pmty_ident s -> iter_loc sub s
@@ -295,6 +288,9 @@ module MT = struct
         List.iter (sub.with_constraint sub) l
     | Pmty_typeof me -> sub.module_expr sub me
     | Pmty_extension x -> sub.extension sub x
+    | Pmty_strengthen (mty, mod_id) ->
+        sub.module_type sub mty;
+        iter_loc sub mod_id
 
   let iter_with_constraint sub = function
     | Pwith_type (lid, d) ->
@@ -338,11 +334,6 @@ module MT = struct
     | Psig_kind_abbrev (name, jkind) ->
         iter_loc sub name;
         sub.jkind_annotation sub jkind
-
-  let iter_jane_syntax sub : Jane_syntax.Module_type.t -> _ = function
-    | Jmty_strengthen { mty; mod_id } ->
-       iter sub mty;
-       iter_loc sub mod_id
 end
 
 
@@ -678,7 +669,6 @@ let default_iterator =
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;
-    module_type_jane_syntax = MT.iter_jane_syntax;
     with_constraint = MT.iter_with_constraint;
     class_declaration =
       (fun this -> CE.class_infos this (this.class_expr this));

@@ -866,6 +866,7 @@ module Analyser =
             | _ -> "??"
             end
         | Parsetree.Pmty_extension _ -> assert false
+        | Parsetree.Pmty_strengthen _ -> failwith "strengthen not implemented yet"
       in
       let name = f incl.Parsetree.pincl_mod.Parsetree.pmty_desc in
       let full_name = Odoc_env.full_module_or_module_type_name env name in
@@ -1603,10 +1604,6 @@ module Analyser =
     (** Return a module_type_kind from a Parsetree.module_type and a Types.module_type *)
     and analyse_module_type_kind
       ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
-      match Jane_syntax.Module_type.of_ast module_type with
-      | Some (Jmty_strengthen _, _attrs) ->
-          failwith "strengthen not implemented yet"
-      | None ->
       match module_type.Parsetree.pmty_desc with
         Parsetree.Pmty_ident longident ->
           let name =
@@ -1701,14 +1698,11 @@ module Analyser =
           Module_type_typeof s
 
       | Parsetree.Pmty_extension _ -> assert false
+      | Parsetree.Pmty_strengthen _ -> failwith "strengthen not implemented yet"
 
     (** analyse of a Parsetree.module_type and a Types.module_type.*)
     and analyse_module_kind
         ?(erased = Name.Map.empty) env current_module_name module_type sig_module_type =
-      match Jane_syntax.Module_type.of_ast module_type with
-      | Some (Jmty_strengthen _, _attrs) ->
-          failwith "strengthen not implemented yet"
-      | None ->
       match module_type.Parsetree.pmty_desc with
       | Parsetree.Pmty_ident _longident ->
           let k = analyse_module_type_kind env current_module_name module_type sig_module_type in
@@ -1798,7 +1792,7 @@ module Analyser =
           Module_typeof s
 
       | Parsetree.Pmty_extension _ -> assert false
-
+      | Parsetree.Pmty_strengthen _ -> failwith "strengthen not implemented yet"
 
     (** Analyse of a Parsetree.class_type and a Types.class_type to return a couple
        (class parameters, class_kind).*)
