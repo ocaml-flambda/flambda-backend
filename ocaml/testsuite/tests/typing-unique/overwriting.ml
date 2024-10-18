@@ -3,34 +3,17 @@
    expect;
 *)
 
-(* CR uniqueness: More tests to consider adding here:
-   - overwriting tuples
-   - overwriting labeled tuples
-   - overwriting labeled tuples where only some labels are given
-   - overwriting tuples (and labeled ones) with the new .. syntax
-   - overwriting inline records (binding a variable to the whole constructor application,
-       like | (K { ... }) as v -> ...)
-   - overwriting inline records (binding a variable just to the inline record,
-       like | K r -> ...)
-   - overwriting constructor fields
-   - overwriting mutable fields (yes, this is a bit silly, but we should test it)
-   - overwriting immutable fields of records with mutable fields
-   - local variants of (some of) the above
-   - overwriting into a local record with a freshly-constructed bit of memory
-       (to make sure that inference does not locally allocate the new memory)
-*)
-
 type record_update = { x : string; y : string }
 [%%expect{|
 type record_update = { x : string; y : string; }
 |}]
 
 let update (unique_ r : record_update) =
-  let x = overwrite_ r with { x = "foo" }
-  in x.x
+  let x = overwrite_ r with { x = "foo" } in
+  x.x
 [%%expect{|
 Line 2, characters 10-41:
-2 |   let x = overwrite_ r with { x = "foo" }
+2 |   let x = overwrite_ r with { x = "foo" } in
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
@@ -44,26 +27,26 @@ let id = function x -> x
 
 let overwrite_shared (r : record_update) =
   let r = id r in
-  let x = overwrite_ r with { x = "foo" }
-  in x.x
+  let x = overwrite_ r with { x = "foo" } in
+  x.x
 [%%expect{|
 val id : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
 Line 5, characters 21-22:
-5 |   let x = overwrite_ r with { x = "foo" }
+5 |   let x = overwrite_ r with { x = "foo" } in
                          ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let overwrite_shared (r : record_update) =
-  let x = overwrite_ r with { x = "foo" }
-  in (x.x, r.x)
+  let x = overwrite_ r with { x = "foo" } in
+  x.x, r.x
 [%%expect{|
-Line 3, characters 11-12:
-3 |   in (x.x, r.x)
-               ^
+Line 3, characters 7-8:
+3 |   x.x, r.x
+           ^
 Error: This value is read from here, but it has already been used as unique:
 Line 2, characters 21-22:
-2 |   let x = overwrite_ r with { x = "foo" }
+2 |   let x = overwrite_ r with { x = "foo" } in
                          ^
 
 |}]
@@ -427,3 +410,86 @@ Line 3, characters 22-29:
 Error: Overwrite may not change the tag to OptionA.
 Hint: The old tag of this allocation is unknown.
 |}]
+
+(********************************)
+(* Overwriting (labeled) tuples *)
+
+type tuple_unlabeled = string * string
+[%%expect{|
+type tuple_unlabeled = string * string
+|}]
+
+let update (unique_ r : tuple_unlabeled) : tuple_unlabeled =
+  let x = overwrite_ r with ("foo", _) in
+  x
+[%%expect{|
+Line 2, characters 10-38:
+2 |   let x = overwrite_ r with ("foo", _) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update (unique_ r : tuple_unlabeled) : tuple_unlabeled =
+  let x = overwrite_ r with ("foo", "bar") in
+  x
+[%%expect{|
+Line 2, characters 10-42:
+2 |   let x = overwrite_ r with ("foo", "bar") in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+type tuple_labeled = x:string * y:string
+[%%expect{|
+type tuple_labeled = x:string * y:string
+|}]
+
+let update (unique_ r : tuple_labeled) : tuple_labeled =
+  let x = overwrite_ r with (~x:"foo", _) in
+  x
+[%%expect{|
+Line 2, characters 21-22:
+2 |   let x = overwrite_ r with (~x:"foo", _) in
+                         ^
+Error: This expression has type "x:string * 'a"
+       but an expression was expected of type
+         "tuple_labeled" = "x:string * y:string"
+|}]
+
+let update (unique_ r : tuple_labeled) : tuple_labeled =
+  let x = overwrite_ r with (~x:"foo", ~y:(_)) in
+  x
+[%%expect{|
+Line 2, characters 10-46:
+2 |   let x = overwrite_ r with (~x:"foo", ~y:(_)) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update (unique_ r : tuple_labeled) : tuple_labeled =
+  let x = overwrite_ r with (~x:"foo", ~y:"bar") in
+  x
+[%%expect{|
+Line 2, characters 10-48:
+2 |   let x = overwrite_ r with (~x:"foo", ~y:"bar") in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+(*******************************)
+(* Overwriting inlined records *)
+
+(* CR uniqueness *)
+
+(******************************)
+(* Overwriting mutable fields *)
+
+(* CR uniqueness *)
