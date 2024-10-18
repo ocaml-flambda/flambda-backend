@@ -1005,10 +1005,10 @@ module Value1 : sig end
 module Value2 : sig end -> sig end -> sig end
 module Name2_1 : sig end
 module Name2_1 : sig end
->> Fatal error: Unimplemented: instance identifier
-                Base[Name1:Value1][Name2:Value2[Name2_1:Value2_1]]
-Uncaught exception: Misc.Fatal_error
-
+Line 9, characters 11-64:
+9 | module _ = Base(Name1)(Value1)(Name2)(Value2(Name2_1)(Value2_1)) [@jane.non_erasable.instances]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Unbound module "Base[Name1:Value1][Name2:Value2[Name2_1:Value2_1]]"
 |}](*********)
 (* modes *)
 
