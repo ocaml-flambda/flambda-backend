@@ -15,25 +15,6 @@
 let overhead block slot obj =
   1. -. float_of_int((block / slot) * obj) /. float_of_int block
 
-<<<<<<< HEAD
-let max_overhead = 0.101
-
-(*
-  Prevention of false sharing requires certain sizeclasses to be present. This
-  ensures they are generated.
-  Runtime has a constructor for atomics (`caml_atomic_make_contended`), which
-  aligns them with cache lines to avoid false sharing. The implementation
-  relies on the fact that pools are cache-aligned by design and slots of
-  appropriate size maintain this property. To be precise, slots whose size is a
-  multiple of cache line are laid out in such a way, that their boundaries
-  coincide with boundaries between cache lines.
-*)
-let required_for_contended_atomic = function
-  | 16 | 32 -> true
-  | _ -> false
-||||||| 121bedcfd2
-let max_overhead = 0.10
-=======
 let max_overhead = 0.101
 
 (*
@@ -50,7 +31,6 @@ let max_overhead = 0.101
 let required_for_contended_atomic = function
   | 16 | 32 -> true
   | _ -> false
->>>>>>> 5.2.0
 
 let rec blocksizes block slot = function
   | 0 -> []
@@ -71,9 +51,9 @@ let rec findi_acc i p = function
   | x :: xs -> if p x then i else findi_acc (i + 1) p xs
 let findi = findi_acc 0
 
-let arena = 4096
+let arena = 4096 * (65536 / 128)
 let header_size = 4
-let max_slot = 128
+let max_slot = 65536
 let avail_arena = arena - header_size
 let sizes = List.rev (blocksizes avail_arena max_int max_slot)
 
