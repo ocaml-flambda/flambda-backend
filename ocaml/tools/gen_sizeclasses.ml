@@ -90,8 +90,8 @@ let _ =
   printf "#define NUM_SIZECLASSES %d\n" (List.length sizes);
   printf "static const unsigned int \
 wsize_sizeclass[NUM_SIZECLASSES] =@[<2>{ %a };@]\n" print_list sizes;
-  printf "static const unsigned char \
+  printf "static const unsigned int \
 wastage_sizeclass[NUM_SIZECLASSES] =@[<2>{ %a };@]\n" print_list wastage;
-  printf "static const unsigned char \
+  printf "static const unsigned int \
 sizeclass_wsize[SIZECLASS_MAX + 1] =@[<2>{ %a };@]\n"
     print_list (255 :: size_slots 1);
