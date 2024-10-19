@@ -25,6 +25,10 @@ type 'a t = 'a Language_extension_kernel.t =
   | Small_numbers : maturity t
   | Instances : unit t
 
+(** Require that an extension is enabled for at least the provided level, or
+    else throw an exception at the provided location saying otherwise. *)
+val assert_enabled : loc:Location.t -> 'a t -> 'a -> unit
+
 (** Existentially packed language extension *)
 module Exist : sig
   type 'a extn = 'a t
@@ -157,4 +161,17 @@ module For_pprintast : sig
 
   (** Raises if called more than once ever. *)
   val make_printer_exporter : unit -> printer_exporter
+end
+
+(** Expose the exception type raised by [assert_extension_enabled] to help
+    the exception printer. *)
+module Error : sig
+  type error = private
+    | Disabled_extension :
+        { ext : _ t;
+          maturity : maturity option
+        }
+        -> error
+
+  type exn += private Error of Location.t * error
 end

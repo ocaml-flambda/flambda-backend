@@ -58,7 +58,7 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
     annot : m Axis_pair.t =
   Option.iter
     (fun maturity ->
-      Jane_syntax_parsing.assert_extension_enabled ~loc:annot.loc Mode maturity)
+      Language_extension.assert_enabled ~loc:annot.loc Mode maturity)
     required_mode_maturity;
   match Axis_pair.of_string annot.txt, annot_type with
   | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found) ->

@@ -162,7 +162,6 @@
   builtin_attributes
   ast_invariants
   depend
-  jane_syntax_parsing
   parser_types ; manual update: mli only files asttypes parsetree
   ;; TYPING
   ident
