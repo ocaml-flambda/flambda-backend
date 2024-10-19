@@ -55,7 +55,6 @@ type iterator = {
   module_declaration: iterator -> module_declaration -> unit;
   module_substitution: iterator -> module_substitution -> unit;
   module_expr: iterator -> module_expr -> unit;
-  module_expr_jane_syntax: iterator -> Jane_syntax.Module_expr.t -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
   open_declaration: iterator -> open_declaration -> unit;
@@ -340,27 +339,9 @@ end
 module M = struct
   (* Value expressions for the module language *)
 
-  module I = Jane_syntax.Instances
-
-  let iter_instance _sub : I.instance -> _ = function
-    | _ ->
-        (* CR lmaurer: Implement this. Might want to change the [instance] type to have
-           Ids with locations in them rather than just raw strings. *)
-        ()
-
-  let iter_instance_expr sub : I.module_expr -> _ = function
-    | Imod_instance i -> iter_instance sub i
-
-  let iter_ext sub : Jane_syntax.Module_expr.t -> _ = function
-    | Emod_instance i -> iter_instance_expr sub i
-
-  let iter sub
-        ({pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} as expr) =
+  let iter sub {pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} =
     sub.location sub loc;
     sub.attributes sub attrs;
-    match Jane_syntax.Module_expr.of_ast expr with
-    | Some ext -> sub.module_expr_jane_syntax sub ext
-    | None ->
     match desc with
     | Pmod_ident x -> iter_loc sub x
     | Pmod_structure str -> sub.structure sub str
@@ -376,6 +357,9 @@ module M = struct
         sub.module_expr sub m; sub.module_type sub mty
     | Pmod_unpack e -> sub.expr sub e
     | Pmod_extension x -> sub.extension sub x
+    | Pmod_instance _ -> ()
+        (* CR lmaurer: Implement this. Might want to change the [instance] type
+           to have Ids with locations in them rather than just raw strings. *)
 
   let iter_structure_item sub {pstr_loc = loc; pstr_desc = desc} =
     sub.location sub loc;
@@ -665,7 +649,6 @@ let default_iterator =
     structure = (fun this l -> List.iter (this.structure_item this) l);
     structure_item = M.iter_structure_item;
     module_expr = M.iter;
-    module_expr_jane_syntax = M.iter_ext;
     signature = (fun this l -> List.iter (this.signature_item this) l);
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;

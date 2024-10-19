@@ -307,6 +307,7 @@ module Mod:
       module_expr
     val unpack: ?loc:loc -> ?attrs:attrs -> expression -> module_expr
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> module_expr
+    val instance: ?loc:loc -> ?attrs:attrs -> module_instance -> module_expr
   end
 
 (** Signature items *)

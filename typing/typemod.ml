@@ -349,7 +349,7 @@ let path_is_strict_prefix =
        && list_is_strict_prefix l1 ~prefix:l2
 
 let rec instance_name ~loc env syntax =
-  let ({ head; args } : Jane_syntax.Instances.instance) = syntax in
+  let { pmod_instance_head = head; pmod_instance_args = args } = syntax in
   let args =
     List.map
       (fun (param, value) : Global_module.Name.argument ->
@@ -2517,10 +2517,6 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
-  match Jane_syntax.Module_expr.of_ast smod with
-    Some ext ->
-      type_module_extension_aux ~alias sttn env smod ext
-  | None ->
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, mode =
@@ -2661,12 +2657,10 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.leaf_for_unpack
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
-
-and type_module_extension_aux ~alias sttn env smod
-      : Jane_syntax.Module_expr.t -> _ =
-  function
-  | Emod_instance (Imod_instance glob) ->
+  | Pmod_instance glob ->
       ignore (alias, sttn);
+      Jane_syntax_parsing.assert_extension_enabled ~loc:smod.pmod_loc Instances
+        ();
       let glob = instance_name ~loc:smod.pmod_loc env glob in
       Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
         Global_module.Name.print glob

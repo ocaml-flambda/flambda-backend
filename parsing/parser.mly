@@ -813,6 +813,47 @@ let package_type_of_module_type pmty =
   | _ ->
       err pmty.pmty_loc Neither_identifier_nor_with_type
 
+(* There's no dedicated syntax for module instances. Functor application
+   syntax is translated into a module instance expression.
+*)
+let pmod_instance : module_expr -> module_expr_desc =
+  let raise_malformed_instance loc =
+    raise (Syntaxerr.Error (Malformed_instance_identifier loc))
+  in
+  let head_of_ident (lid : Longident.t Location.loc) =
+    match lid with
+    | { txt = Lident s; loc = _ } -> s
+    | { txt = _; loc } ->  raise_malformed_instance loc
+  in
+  let gather_args mexpr =
+    let rec loop mexpr acc =
+      match mexpr with
+      | { pmod_desc = Pmod_apply (f, v); _ } ->
+         (match f.pmod_desc with
+          | Pmod_apply (f, n) -> loop f ((n, v) :: acc)
+          | _ -> raise_malformed_instance f.pmod_loc)
+      | head -> head, acc
+    in
+    loop mexpr []
+  in
+  let string_of_module_expr mexpr =
+    match mexpr.pmod_desc with
+    | Pmod_ident i -> head_of_ident i
+    | _ -> raise_malformed_instance mexpr.pmod_loc
+  in
+  let rec instance_of_module_expr mexpr =
+    match gather_args mexpr with
+    | { pmod_desc = Pmod_ident i; _ }, args ->
+        let head = head_of_ident i in
+        let args = List.map instances_of_arg_pair args in
+        { pmod_instance_head = head; pmod_instance_args = args }
+    | { pmod_loc; _ }, _ -> raise_malformed_instance pmod_loc
+  and instances_of_arg_pair (n, v) =
+    string_of_module_expr n, instance_of_module_expr v
+  in
+  fun mexpr -> Pmod_instance (instance_of_module_expr mexpr)
+;;
+
 let mk_directive_arg ~loc k =
   { pdira_desc = k;
     pdira_loc = make_loc loc;
@@ -1585,7 +1626,12 @@ module_expr:
   | me = paren_module_expr
       { me }
   | me = module_expr attr = attribute
-      { Mod.attr me attr }
+      { match attr with
+        | { attr_name = { txt = "jane.non_erasable.instances"; loc = _ };
+            attr_payload = PStr [];
+          } -> mkmod ~loc:$sloc (pmod_instance me)
+        | attr -> Mod.attr me attr
+      }
   | mkmod(
       (* A module identifier. *)
       x = mkrhs(mod_longident)

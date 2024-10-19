@@ -291,6 +291,7 @@ module Mod = struct
   let constraint_ ?loc ?attrs m mty = mk ?loc ?attrs (Pmod_constraint (m, mty))
   let unpack ?loc ?attrs e = mk ?loc ?attrs (Pmod_unpack e)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmod_extension a)
+  let instance ?loc ?attrs a = mk ?loc ?attrs (Pmod_instance a)
 end
 
 module Sig = struct

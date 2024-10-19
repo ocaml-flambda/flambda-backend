@@ -85,9 +85,6 @@ type mapper = {
   value_binding: mapper -> value_binding -> value_binding;
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
-
-  module_expr_jane_syntax: mapper
-    -> Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
 }
 
 let map_fst f (x, y) = (f x, y)
@@ -402,33 +399,10 @@ end
 
 
 module M = struct
-  module I = Jane_syntax.Instances
-
-  (* Value expressions for the module language *)
-  let map_instance _sub : I.instance -> I.instance = function
-    | i ->
-      (* CR lmaurer: Implement this. Might want to change the [instance] type to have
-        Ids with locations in them rather than just raw strings. *)
-      i
-
-  let map_instance_expr sub : I.module_expr -> I.module_expr = function
-    | Imod_instance i -> Imod_instance (map_instance sub i)
-
-  let map_ext sub : Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t =
-    function
-    | Emod_instance i -> Emod_instance (map_instance_expr sub i)
-
-  let map sub
-        ({pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} as mexpr) =
+  let map sub {pmod_loc = loc; pmod_desc = desc; pmod_attributes = attrs} =
     let open Mod in
     let loc = sub.location sub loc in
     let attrs = sub.attributes sub attrs in
-    match Jane_syntax.Module_expr.of_ast mexpr with
-    | Some ext -> begin
-        match sub.module_expr_jane_syntax sub ext with
-        | Emod_instance i -> Jane_syntax.Instances.module_expr_of ~loc i
-      end
-    | None ->
     match desc with
     | Pmod_ident x -> ident ~loc ~attrs (map_loc sub x)
     | Pmod_structure str -> structure ~loc ~attrs (sub.structure sub str)
@@ -445,6 +419,10 @@ module M = struct
                     (sub.module_type sub mty)
     | Pmod_unpack e -> unpack ~loc ~attrs (sub.expr sub e)
     | Pmod_extension x -> extension ~loc ~attrs (sub.extension sub x)
+    | Pmod_instance x ->
+        (* CR lmaurer: Implement this. Might want to change the [instance] type
+           to have Ids with locations in them rather than just raw strings. *)
+        instance ~loc ~attrs x
 
   let map_structure_item sub {pstr_loc = loc; pstr_desc = desc} =
     let open Str in
@@ -755,7 +733,6 @@ let default_mapper =
     structure = (fun this l -> List.map (this.structure_item this) l);
     structure_item = M.map_structure_item;
     module_expr = M.map;
-    module_expr_jane_syntax = M.map_ext;
     signature = (fun this l -> List.map (this.signature_item this) l);
     signature_item = MT.map_signature_item;
     module_type = MT.map;

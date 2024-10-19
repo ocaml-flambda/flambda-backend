@@ -38,6 +38,7 @@ type error =
   | Invalid_package_type of Location.t * invalid_package_type
   | Removed_string_set of Location.t
   | Missing_unboxed_literal_suffix of Location.t
+  | Malformed_instance_identifier of Location.t
 
 exception Error of error
 exception Escape_error

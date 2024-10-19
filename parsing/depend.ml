@@ -573,6 +573,8 @@ and add_module_expr bv modl =
       add_expr bv e
   | Pmod_extension e ->
       handle_extension e
+  (* CR nroberts for lmaurer: what should happen here?  *)
+  | Pmod_instance _ -> ()
 
 and add_class_type bv cty =
   match cty.pcty_desc with

@@ -120,9 +120,6 @@ type mapper = {
   value_binding: mapper -> value_binding -> value_binding;
   value_description: mapper -> value_description -> value_description;
   with_constraint: mapper -> with_constraint -> with_constraint;
-
-  module_expr_jane_syntax: mapper ->
-    Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
 }
 (** A mapper record implements one "method" per syntactic category,
     using an open recursion style: each method takes as its first

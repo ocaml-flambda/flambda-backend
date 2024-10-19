@@ -1012,7 +1012,18 @@ and module_expr i ppf x =
   | Pmod_extension (s, arg) ->
       line i ppf "Pmod_extension \"%s\"\n" s.txt;
       payload i ppf arg
+  | Pmod_instance instance ->
+      line i ppf "Pmod_instance\n";
+      module_instance i ppf instance
   )
+
+and module_instance i ppf { pmod_instance_head; pmod_instance_args } =
+  line i ppf "head=%s\n" pmod_instance_head;
+  list i (fun i ppf (name, arg) ->
+      line i ppf "name=%s\n" name;
+      module_instance i ppf arg)
+    ppf
+    pmod_instance_args
 
 and structure i ppf x = list i structure_item ppf x
 
