@@ -17,7 +17,7 @@ module Graph = Global_flow_graph
 
 type continuation_info = {
   is_exn_handler : bool;
-  params : Bound_parameters.t;
+  params : Variable.t list;
 }
 
 module Env = struct

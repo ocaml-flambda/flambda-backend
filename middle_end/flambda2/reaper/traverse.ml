@@ -361,7 +361,7 @@ and traverse_let_cont_non_recursive denv acc cont ~body handler =
   let cont_handler = Non_recursive_let_cont_handler.handler handler in
   let traverse handler acc =
     Acc.continuation_info acc cont
-      { params = handler.bound_parameters;
+      { params = Bound_parameters.vars handler.bound_parameters;
         is_exn_handler = Continuation_handler.is_exn_handler cont_handler
       };
     let conts =
@@ -394,13 +394,9 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
   let conts =
     Continuation.Map.fold
       (fun cont (_, bp, _) conts ->
-        Acc.continuation_info acc cont
-          { params = Bound_parameters.append invariant_params bp;
-            is_exn_handler = false
-          };
-        Continuation.Map.add cont
-          (Normal (invariant_params_vars @ Bound_parameters.vars bp))
-          conts)
+        let params = invariant_params_vars @ Bound_parameters.vars bp in
+        Acc.continuation_info acc cont { params; is_exn_handler = false };
+        Continuation.Map.add cont (Normal params) conts)
       handlers denv.conts
   in
   (* Record kinds of bound parameters *)
@@ -622,6 +618,10 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
     Continuation.Map.of_list
       [return_continuation, Normal return; exn_continuation, Normal [exn]]
   in
+  Acc.continuation_info acc return_continuation
+    { is_exn_handler = false; params = return };
+  Acc.continuation_info acc exn_continuation
+    { is_exn_handler = true; params = [exn] };
   let denv = { parent = Up; conts; current_code_id = Some code_id } in
   if is_opaque
   then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
@@ -683,6 +683,10 @@ let run (unit : Flambda_unit.t) =
         [ Flambda_unit.return_continuation unit, Normal [dummy_toplevel_return];
           Flambda_unit.exn_continuation unit, Normal [dummy_toplevel_exn] ]
     in
+    Acc.continuation_info acc (Flambda_unit.return_continuation unit)
+      { is_exn_handler = false; params = [dummy_toplevel_return] };
+    Acc.continuation_info acc (Flambda_unit.exn_continuation unit)
+      { is_exn_handler = true; params = [dummy_toplevel_exn] };
     traverse
       { parent = Up; conts; current_code_id = None }
       acc (Flambda_unit.body unit)

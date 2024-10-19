@@ -542,11 +542,10 @@ let rebuild ~continuation_info ~fixed_arity_continuations kinds
         List.mapi
           (fun i param ->
             let is_var_used =
-              Hashtbl.mem solved_dep
-                (Code_id_or_name.var (Bound_parameter.var param))
+              Hashtbl.mem solved_dep (Code_id_or_name.var param)
             in
             keep_all_parameters || (info.is_exn_handler && i = 0) || is_var_used)
-          (Bound_parameters.to_list info.params))
+          info.params)
       continuation_info
   in
   let env = { uses = solved_dep; get_code_metadata; cont_params_to_keep } in
