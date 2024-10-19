@@ -1185,6 +1185,17 @@ and module_expr_desc =
   | Pmod_constraint of module_expr * module_type  (** [(ME : MT)] *)
   | Pmod_unpack of expression  (** [(val E)] *)
   | Pmod_extension of extension  (** [[%id]] *)
+  | Pmod_instance of module_instance
+      (** [Foo(Param1)(Arg1(Param2)(Arg2)) [@jane.non_erasable.instances]]
+
+          The name of an instance module. Gets converted to [Global.Name.t] in
+          the flambda-backend compiler. *)
+
+and module_instance =
+  { pmod_instance_head : string;
+    pmod_instance_args : (string * module_instance) list
+  }
+  (** [M(P1)(MI1)...(Pn)(MIn)] *)
 
 and structure = structure_item list
 

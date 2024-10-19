@@ -486,7 +486,6 @@
   ; Note that Dune doesn't allow globbing in the path part of the filename,
   ; so this is a bit more repetitive than it could be. Also, as far as I can
   ; tell, (glob_files_rec) simply doesn't work.
-  ocaml/jane_syntax.mli
   (glob_files *.mli)
   (glob_files .ocamloptcomp.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files .ocamloptcomp.objs/native/*.cmx)

@@ -97,7 +97,6 @@
   pprintast
   syntaxerr
   jane_syntax_parsing
-  jane_syntax
   ast_iterator
   ast_helper
   ast_mapper
@@ -585,7 +584,6 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Zero_alloc_utils.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_helper.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax_parsing.cmo
-  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jane_syntax.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ast_iterator.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Builtin_attributes.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Pprintast.cmo
@@ -682,7 +680,6 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax_parsing.cmx
-  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jane_syntax.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_iterator.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Builtin_attributes.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Pprintast.cmx
