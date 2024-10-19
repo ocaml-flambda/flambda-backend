@@ -40,24 +40,67 @@
     this interface we will often use ['k] to refer to the capsule associated
     with that brand. *)
 
-(** Passwords represent access to a capsule. *)
+(** Converters can wrap and unwrap [Data.t] values from the current
+    capsule. *)
+module Converter : sig
+
+    (* CR layouts v5: this should have layout [void], but
+       [void] can't be used for function argument and return types yet. *)
+    type 'k t : value mod global portable many unique
+    (** ['k t] is the type of "converters" that can wrap and unwrap
+        [Data.t] values. An [uncontended] ['k t] indicates that ['k] is the
+        current capsule.  *)
+
+    type packed = P : 'k t -> packed
+    (** [packed] is the type of a converter for some unknown capsule.
+        Unpacking one provides a ['k t] together with a fresh
+        existential type brand for ['k]. *)
+
+end
+
+(** Obtain a converter for the current capsule. Since we do not
+    know the brand for the current capsule, we receive a fresh
+    one. *)
+val current : unit -> Converter.packed @@ portable
+
+(** The brand for the initial capsule. *)
+type initial
+
+(** A converter for the initial capsule *)
+val initial : initial Converter.t
+
+exception Contended of exn @@ contended
+(** If a function accessing the contents of the capsule raises an
+   exception, it is wrapped in [Contended] to avoid leaking access to
+   the data. *)
+
+(** Passwords represent permission to access to a capsule. *)
 module Password : sig
 
     (* CR layouts v5: this should have layout [void], but
        [void] can't be used for function argument and return types yet. *)
-    type 'k t
-    (** ['k t] is the type of "passwords" representing
-        the ability of the current domain to have [uncontended]
-        access to the capsule ['k]. They don't have a runtime representation,
-        and can't be passed between domains. Just as we don't share passwords
-        between people, we don't share [Password.t]s between domains.
+    type 'k t : value mod portable many unique uncontended
+  (** ['k t] is the type of "passwords" representing permission for the
+     current fiber to have [uncontended] access to the capsule
+     ['k]. They don't have a runtime representation. They are only ever
+     avilable at locally, so that they cannot move between fibers.
+     Just as we don't share passwords between people, we don't share
+     [Password.t]s between fibers.
 
-        Obtaining a ['k t] requires acquiring the mutex associated with ['k],
-        and modes prevent retaining the [t] after releasing the mutex. This
-        guarantees that uncontended access to the capsule is only granted
-        to a single domain at once. *)
+     Obtaining a ['k t] requires acquiring the mutex associated with
+     ['k], and modes prevent retaining the [t] after releasing the
+     mutex. This guarantees that uncontended access to the capsule is
+     only granted to a single domain at once. *)
 
 end
+
+val access :
+  'k Password.t @ local
+  -> ('k Converter.t -> 'a @ portable) @ local portable
+  -> 'a @ contended
+(** [access p f] runs [f] within the capsule ['k], providing it with a
+   converter for ['k]. The result is within ['k] so it must be
+   [portable] and it is marked [contended]. *)
 
   (** Mutual exclusion primtives for controlling uncontended access to a capsule.
 
@@ -91,9 +134,10 @@ module Mutex : sig
 
         If [m] is already locked by the current thread, raises [Sys_error]. *)
 
-    val destroy : 'k t -> 'k Password.t @@ portable
-    (** [destroy m] acquires the mutex [m] and leaks its password.
-        It marks the lock as poisoned. *)
+    val destroy : 'k t -> 'k Converter.t @@ portable
+    (** [destroy m] acquires the mutex [m] and merges the capsule ['k]
+        with the current capsule by leaking a converter. It marks the
+        lock as poisoned. *)
 end
 
 val create_with_mutex : unit -> Mutex.packed @@ portable
@@ -108,9 +152,21 @@ module Data : sig
         Operations on [('a, 'k) t] require a ['k Password.t],
         created from the ['k Mutex.t]. *)
 
-    exception Contended of exn @@ contended
-    (** If a function accessing the contents of the capsule raises an exception,
-        it is wrapped in [Contended] to avoid leaking access to the data. *)
+    val wrap :
+      'k Converter.t @ local
+      -> 'a
+      -> ('a, 'k) t
+      @@ portable
+    (** [wrap c v] is a pointer to a value [v] from the current
+       capsule. *)
+
+    val unwrap :
+      'k Converter.t @ local
+      -> ('a, 'k) t
+      -> 'a
+      @@ portable
+    (** [unwrap c t] returns the value of [t] which is from the current
+       capsule. *)
 
     val create :
       (unit -> 'a) @ local portable
@@ -118,7 +174,6 @@ module Data : sig
       @@ portable
     (** [create f] runs [f] within the capsule ['k] and creates
         a pointer to the result of [f]. *)
-
 
     val map :
       'k Password.t @ local
@@ -176,12 +231,5 @@ module Data : sig
       @@ portable
     (** [iter] is [extract] with result type specialized to [unit]. *)
 
-    val expose :
-      'k Password.t
-      -> ('a, 'k) t
-      -> 'a
-      @@ portable
-    (** [expose p t] retrieves the value stored by [Ptr.t]. It requires
-        a [global] [Password.t] leaked by [Mutex.destroy]. *)
+end
 
-  end

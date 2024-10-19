@@ -12,10 +12,34 @@
 (*                                                                        *)
 (**************************************************************************)
 
+
+module Converter : sig
+  (* CR layouts v5: this should have layout [void], but
+     [void] can't be used for function argument and return types yet. *)
+  type 'k t : value mod global portable many unique
+
+  type packed = P : 'k t -> packed
+
+  (* Can break the soundness of the API. *)
+  val unsafe_mk : unit -> 'k t @@ portable
+end = struct
+  type 'k t = unit
+
+  type packed = P : 'k t -> packed
+
+  let unsafe_mk () = ()
+end
+
+let current () = Converter.P (Converter.unsafe_mk ())
+
+type initial
+
+let initial = Converter.unsafe_mk ()
+
 module Password : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t
+  type 'k t : value mod portable many unique uncontended
 
   (* Can break the soundness of the API. *)
   val unsafe_mk : unit -> 'k t @@ portable
@@ -25,6 +49,18 @@ end = struct
   let unsafe_mk () = ()
 end
 
+(* Like [Stdlib.raise], but [portable], and the value
+   it never returns is also [portable] *)
+external reraise : exn -> 'a @ portable @@ portable = "%reraise"
+
+exception Contended of exn @@ contended
+
+let access (type k) (_ : k Password.t) f =
+  let c : k Converter.t = Converter.unsafe_mk () in
+  match f c with
+  | res -> res
+  | exception exn -> reraise (Contended exn)
+
 (* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
   type t : value mod portable uncontended
@@ -32,10 +68,6 @@ module M = struct
   external lock: t -> unit @@ portable = "caml_ml_mutex_lock"
   external unlock: t -> unit @@ portable = "caml_ml_mutex_unlock"
 end
-
-(* Like [Stdlib.raise], but [portable], and the value
-   it never returns is also [portable] *)
-external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
 module Mutex = struct
 
@@ -77,7 +109,7 @@ module Mutex = struct
     | false ->
       t.poisoned <- true;
       M.unlock t.mutex;
-      Password.unsafe_mk ()
+      Converter.unsafe_mk ()
 end
 
 let create_with_mutex () =
@@ -86,11 +118,13 @@ let create_with_mutex () =
 module Data = struct
   type ('a, 'k) t : value mod portable uncontended
 
-  exception Contended of exn @@ contended
-
   external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
 
   external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
+
+  let wrap _ t = unsafe_mk t
+
+  let unwrap _ t = unsafe_get t
 
   let create f = unsafe_mk (f ())
 
@@ -121,5 +155,4 @@ module Data = struct
     try f v with
     | exn -> reraise (Contended exn)
 
-  let expose _ t = unsafe_get t
 end
