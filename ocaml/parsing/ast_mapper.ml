@@ -669,10 +669,10 @@ module CE = struct
     | Pcl_structure s ->
         structure ~loc ~attrs (sub.class_structure sub s)
     | Pcl_fun (lab, e, p, ce) ->
-        (fun_ ~loc ~attrs lab
+        fun_ ~loc ~attrs lab
           (map_opt (sub.expr sub) e)
           (sub.pat sub p)
-          (sub.class_expr sub ce) [@alert "-prefer_jane_syntax"])
+          (sub.class_expr sub ce)
     | Pcl_apply (ce, l) ->
         apply ~loc ~attrs (sub.class_expr sub ce)
           (List.map (map_snd (sub.expr sub)) l)

@@ -387,10 +387,6 @@ module M = struct
         sub.jkind_annotation sub jkind
 end
 
-(* A no-op, but makes it clearer which jane syntax cases should have the same
-   handling as core-language cases. *)
-let iter_constant = ()
-
 module E = struct
   (* Value expressions for the core language *)
 
@@ -456,7 +452,7 @@ module E = struct
     sub.attributes sub attrs;
     match desc with
     | Pexp_ident x -> iter_loc sub x
-    | Pexp_constant _ -> iter_constant
+    | Pexp_constant _ -> ()
     | Pexp_let (_r, vbs, e) ->
         List.iter (sub.value_binding sub) vbs;
         sub.expr sub e
@@ -554,7 +550,7 @@ module P = struct
     | Ppat_any -> ()
     | Ppat_var s -> iter_loc sub s
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
-    | Ppat_constant _ -> iter_constant
+    | Ppat_constant _ -> ()
     | Ppat_interval _ -> ()
     | Ppat_tuple (pl, _) -> iter_labeled_tuple sub pl
     | Ppat_unboxed_tuple (pl, _) -> iter_labeled_tuple sub pl

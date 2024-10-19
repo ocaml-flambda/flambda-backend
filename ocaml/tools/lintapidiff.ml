@@ -124,17 +124,9 @@ module Ast = struct
     let info = f inherits name.loc attrs in
     IdMap.add id info map
 
-  let add_item ~f:_ _path _inherits map
-      : Jane_syntax.Signature_item.t -> _ = function
-    | Jsig_include_functor (Ifsig_include_functor _incl) ->
-        map
-
   let rec add_item ~f path inherits map item =
     let rec add_module_type path ty (inherits, map) =
       let self = add_item ~f path inherits in
-      match Jane_syntax.Module_type.of_ast ty with
-      | Some _ -> .
-      | None ->
       match ty.pmty_desc with
       | Pmty_signature lst -> List.fold_left self map lst
       | Pmty_functor ((Named ({txt = Some txt0},_)),m) ->
@@ -158,9 +150,6 @@ module Ast = struct
       in
       enter_path  path name m.pmd_type m.pmd_attributes map
     in
-    match Jane_syntax.Signature_item.of_ast item with
-    | Some jitem -> add_item_jst ~f path inherits map jitem
-    | None ->
     match item.psig_desc with
     | Psig_value vd ->
         add_path ~f "value" path vd.pval_name vd.pval_attributes inherits map

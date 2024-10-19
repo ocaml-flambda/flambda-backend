@@ -194,10 +194,6 @@ let add_type_exception bv te =
 
 let pattern_bv = ref String.Map.empty
 
-(* A no-op, but makes it clearer which jane syntax cases should have the same
-   handling as core-language cases. *)
-let add_constant = ()
-
 let rec add_pattern bv pat =
   match pat.ppat_desc with
     Ppat_any -> ()
@@ -240,7 +236,7 @@ let add_pattern bv pat =
 let rec add_expr bv exp =
   match exp.pexp_desc with
     Pexp_ident l -> add bv l
-  | Pexp_constant _ -> add_constant
+  | Pexp_constant _ -> ()
   | Pexp_let(rf, pel, e) ->
       let bv = add_bindings rf bv pel in add_expr bv e
   | Pexp_function (params, constraint_, body) ->
