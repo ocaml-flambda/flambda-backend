@@ -77,10 +77,6 @@ let test ~here ?(universe_for_parsing = Language_extension.Universe.No_extension
           print_endline str;
           print_endline "====================================================="
       | ast2 ->
-          (* We can remove this when ast_mapper no longer checks extension enabledness. This should
-             happen when Jane_syntax is good and dead.
-           *)
-          Language_extension.(set_universe_and_enable_all Universe.maximal);
           let ast = map remove_locs remove_locs ast in
           let ast2 = map remove_locs remove_locs ast2 in
           if ast <> ast2 then begin
