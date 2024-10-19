@@ -775,7 +775,7 @@ let constant_or_raise env loc cst =
        | Const_unboxed_nativeint _
        | Const_unboxed_float _
        | Const_unboxed_float32 _ ->
-           Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
+           Language_extension.assert_enabled ~loc Layouts
              Language_extension.Stable
        | Const_int _ | Const_char _ | Const_string _ | Const_float _
        | Const_float32 _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ ->
@@ -2533,8 +2533,7 @@ and type_pat_aux
       (* If it's a principally-known tuple pattern, try to reorder *)
       | Ttuple labeled_tl when is_principal expected_ty ->
         begin match closed with
-        | Open -> Jane_syntax_parsing.assert_extension_enabled ~loc
-                    Language_extension.Labeled_tuples ()
+        | Open -> Language_extension.assert_enabled ~loc Labeled_tuples ()
         | Closed -> ()
         end;
         reorder_pat loc penv spl closed labeled_tl expected_ty
@@ -2549,8 +2548,9 @@ and type_pat_aux
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode) ->
-        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
-                                Language_extension.Labeled_tuples ()) lbl;
+        Option.iter (fun _ ->
+            Language_extension.assert_enabled ~loc Labeled_tuples ())
+          lbl;
         lbl, type_pat tps Value ~alloc_mode p t)
         spl_ann
     in
@@ -2562,15 +2562,14 @@ and type_pat_aux
       pat_env = !!penv }
   in
   let type_unboxed_tuple_pat spl closed =
-    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
+    Language_extension.assert_enabled ~loc Layouts
       Language_extension.Beta;
     let args =
       match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
       | Tunboxed_tuple labeled_tl when is_principal expected_ty ->
                 begin match closed with
-        | Open -> Jane_syntax_parsing.assert_extension_enabled ~loc
-                    Language_extension.Labeled_tuples ()
+        | Open -> Language_extension.assert_enabled ~loc Labeled_tuples ()
         | Closed -> ()
         end;
         reorder_pat loc penv spl closed labeled_tl expected_ty
@@ -2586,8 +2585,9 @@ and type_pat_aux
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode, sort) ->
-        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
-                                Language_extension.Labeled_tuples ()) lbl;
+        Option.iter (fun _ ->
+            Language_extension.assert_enabled ~loc Labeled_tuples ())
+          lbl;
         lbl, type_pat tps Value ~alloc_mode p t, sort)
         spl_ann
     in
@@ -5778,8 +5778,7 @@ and type_expect_
         match mut with
         | Mutable -> Mutable Alloc.Comonadic.Const.legacy
         | Immutable ->
-            Jane_syntax_parsing.assert_extension_enabled ~loc Immutable_arrays
-              ();
+            Language_extension.assert_enabled ~loc Immutable_arrays ();
             Immutable
       in
       type_generic_array
@@ -6454,7 +6453,7 @@ and type_expect_
       let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
       {exp with exp_extra}
   | Pexp_comprehension comp ->
-      Jane_syntax_parsing.assert_extension_enabled ~loc Comprehensions ();
+      Language_extension.assert_enabled ~loc Comprehensions ();
       type_comprehension_expr
         ~loc
         ~env
@@ -7771,8 +7770,9 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let expl =
     List.map2
       (fun (label, body) ((_, ty), argument_mode) ->
-        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
-                                Language_extension.Labeled_tuples ()) label;
+        Option.iter (fun _ ->
+             Language_extension.assert_enabled ~loc Labeled_tuples ())
+          label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty)))
@@ -7788,8 +7788,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
 
 and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
       ~explanation ~attributes sexpl =
-  Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
-    Language_extension.Beta;
+  Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
   let arity = List.length sexpl in
   assert (arity >= 2);
   let argument_mode = expected_mode.mode in
@@ -7827,8 +7826,9 @@ and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let expl =
     List.map2
       (fun (label, body) ((_, ty, sort), argument_mode) ->
-        Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
-                                Language_extension.Labeled_tuples ()) label;
+        Option.iter (fun _ ->
+             Language_extension.assert_enabled ~loc Labeled_tuples ())
+          label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty), sort))
@@ -9126,8 +9126,7 @@ and type_comprehension_expr ~loc ~env ~ty_expected ~attributes cexpr =
         let container_type, mut = match amut with
           | Mutable   -> Predef.type_array, Mutable Alloc.Comonadic.Const.legacy
           | Immutable ->
-              Jane_syntax_parsing.assert_extension_enabled ~loc Immutable_arrays
-                ();
+              Language_extension.assert_enabled ~loc Immutable_arrays ();
               Predef.type_iarray, Immutable
         in
         (Array_comprehension mut : comprehension_type),

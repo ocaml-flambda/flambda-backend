@@ -1184,7 +1184,7 @@ and approx_sig env ssg =
             pincl_attributes=attrs}, moda) ->
           begin match kind with
           | Functor ->
-              Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
+              Language_extension.assert_enabled ~loc Include_functor ();
               raise (Error(loc, env, Recursive_include_functor))
           | Structure ->
               let mty = approx_modtype env mod_ in
@@ -1707,7 +1707,7 @@ and transl_signature env sg =
     let incl_kind, sg =
       match sincl.pincl_kind with
       | Functor ->
-        Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
+        Language_extension.assert_enabled ~loc Include_functor ();
         let sg, incl_kind =
           extract_sig_functor_open false env smty.pmty_loc mty sig_acc
         in
@@ -2659,8 +2659,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
   | Pmod_instance glob ->
       ignore (alias, sttn);
-      Jane_syntax_parsing.assert_extension_enabled ~loc:smod.pmod_loc Instances
-        ();
+      Language_extension.assert_enabled ~loc:smod.pmod_loc Instances ();
       let glob = instance_name ~loc:smod.pmod_loc env glob in
       Misc.fatal_errorf "@[<hv>Unimplemented: instance identifier@ %a@]"
         Global_module.Name.print glob
@@ -2888,7 +2887,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     let incl_kind, sg =
       match sincl.pincl_kind with
       | Functor ->
-        Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
+        Language_extension.assert_enabled ~loc Include_functor ();
         let sg, incl_kind =
           extract_sig_functor_open funct_body env smodl.pmod_loc
             modl.mod_type sig_acc
