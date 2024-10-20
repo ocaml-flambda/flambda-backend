@@ -285,7 +285,7 @@ and expression_desc =
       (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
           fun P0 P1 -> E                             (body = Tfunction_body _)
           This construct has the same arity as the originating
-          {{!Jane_syntax.Expression.Jexp_n_ary_function}[Jexp_n_ary_function]}.
+          {{!Parsetree.Pexp_function}[Pexp_function]}.
           Arity determines when side-effects for effectful parameters are run
           (e.g. optional argument defaults, matching against lazy patterns).
           Parameters' effects are run left-to-right when an n-ary function is
