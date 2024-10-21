@@ -1,7 +1,7 @@
 #**************************************************************************
 #*                                                                        *
 #*                                 OCaml                                  *
-#*                                                                        *
+#*   Derived from the work of:                                            *
 #*                 Damien Doligez, projet Gallium, INRIA                  *
 #*                                                                        *
 #*   Copyright 2015 Institut National de Recherche en Informatique et     *
@@ -22,9 +22,10 @@
 *.lib
 *.dll
 *.la
-*.cm[ioxat]
+*.cm[ioxats]
 *.cmx[as]
 *.cmti
+*.cmsi
 *.annot
 *.exe
 *.exe.manifest
@@ -41,12 +42,22 @@ META
 
 # local to root directory
 
-/.dep
+_build/
+_build_upstream/
+.rsync-output
+.rsync-output-compare
+_compare/
+_runtest/
+autom4te.cache
+_install/
+_coverage/
+_profile/
 /Makefile.build_config
 /Makefile.config
 /autom4te.cache
 /ocamlc
 /config.cache
+/configure
 /ocaml-*.cache
 /config.log
 /config.status
@@ -65,6 +76,24 @@ META
 /_install
 /_runtest
 /_opam
+
+/oc_cflags.sexp
+/oc_cppflags.sexp
+/sharedlib_cflags.sexp
+
+# Jane Street Merlin support
+/.local-merlin-binaries
+/.local-ocaml-lib
+
+# Debugger support
+ocamlc
+ocamlopt
+.ocamldebug
+
+# Artifacts made during bootstrapping
+ocaml/otherlibs/dynlink/byte/dynlink.mli
+ocaml/otherlibs/dynlink/native/dynlink.mli
+ocaml/primitives.new
 
 # specific files and patterns in sub-directories
 
