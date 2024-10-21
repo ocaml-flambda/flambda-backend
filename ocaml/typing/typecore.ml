@@ -5796,13 +5796,17 @@ and type_expect_
                 lbl.lbl_all
             in
             None, label_definitions
-        | None, Overwriting (loc', ty, mode) ->
-            let ty_exp = instance ty in
-            let label_definitions = Array.map (unify_kept loc loc' ty_exp mode) lbl.lbl_all in
+        | None, Overwriting (exp_loc, exp_type, mode) ->
+            let ty_exp = instance exp_type in
+            let label_definitions =
+              Array.map (unify_kept loc exp_loc ty_exp mode) lbl.lbl_all
+            in
             None, label_definitions
         | Some (exp, mode), _ ->
             let ty_exp = instance exp.exp_type in
-            let label_definitions = Array.map (unify_kept loc exp.exp_loc ty_exp mode) lbl.lbl_all in
+            let label_definitions =
+              Array.map (unify_kept loc exp.exp_loc ty_exp mode) lbl.lbl_all
+            in
             let ubr = Unique_barrier.not_computed () in
             Some ({exp with exp_type = ty_exp}, ubr), label_definitions
       in
@@ -6549,7 +6553,7 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
   | Pexp_stack e ->
-      let exp = type_expect ~overwrite env expected_mode e ty_expected_explained in
+      let exp = type_expect env expected_mode e ty_expected_explained in
       let unsupported category =
         raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
       in
@@ -6596,12 +6600,11 @@ and type_expect_
       in
       let cell_type =
         (* CR uniqueness: this could be the jkind of exp2 *)
-        { ty = newvar (Jkind.Builtin.value ~why:Boxed_record);
-          explanation = None }
+        mk_expected (newvar (Jkind.Builtin.value ~why:Boxed_record))
       in
       let exp1 = type_expect ~recarg env (mode_default cell_mode) exp1 cell_type in
       let exp2 =
-        (* The newly-written fields have to global to avoid heap-to-stack pointers.
+        (* The newly-written fields have to be global to avoid heap-to-stack pointers.
            We enforce that here, by asking the allocation to be global.
            This makes the block alloc_heap, but we ignore that information anyway. *)
         let exp2_mode =
@@ -6609,10 +6612,13 @@ and type_expect_
             (Value.max_with (Comonadic Areality) Regionality.global)
             expected_mode
         in
-        (* Later on, we will enforce: fields_mode <= expected_mode of kept fields.
-           But since we set the expected_mode to be global, we will ignore
-           regionality information in that check. That allows us to have local kept
-           fields (as long as the cell is allowed to be local) *)
+        (* When typing holes, we will enforce: fields_mode <= expected_mode.
+           But since we set the expected_mode to be global above, this would make
+           all holes global and thus prevent us from keeping any old values as holes
+           if the cell is local! However, it is sound for kept fields to be local,
+           since they don't involve a write and can't create heap-to-stack pointers.
+           And we have also checked above that for regionality cell_mode <= expected_mode.
+           Therefore, we can safely ignore regionality when checking the mode of holes. *)
         let fields_mode =
           Value.meet_with (Comonadic Areality) Regionality.Const.Global cell_mode
             |> Value.disallow_right
@@ -6626,11 +6632,12 @@ and type_expect_
             exp_attributes = sexp.pexp_attributes;
             exp_env = env }
   | Pexp_hole ->
-      begin match overwrite, Language_extension.is_enabled Overwriting with
-      | Overwriting(old_loc, typ, mode), true ->
+      begin match overwrite with
+      | Overwriting(old_loc, typ, fields_mode) ->
+        assert (Language_extension.is_enabled Overwriting);
         with_explanation (fun () -> unify_exp_types loc env typ (instance ty_expected));
-        submode ~loc:old_loc ~env mode expected_mode;
-        let use = unique_use ~loc ~env mode expected_mode.mode in
+        submode ~loc:old_loc ~env fields_mode expected_mode;
+        let use = unique_use ~loc ~env fields_mode expected_mode.mode in
         { exp_desc = Texp_hole use;
           exp_loc = loc; exp_extra = [];
           exp_type = ty_expected_explained.ty;

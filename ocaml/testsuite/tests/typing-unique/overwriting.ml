@@ -20,6 +20,18 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+let update (unique_ r : record_update) =
+  let x = overwrite_ r with ({ x = "foo" } : record_update) in
+  x.x
+[%%expect{|
+Line 2, characters 10-59:
+2 |   let x = overwrite_ r with ({ x = "foo" } : record_update) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
 (*************************************)
 (* Checking uniqueness of overwrites *)
 
@@ -300,6 +312,68 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+(*******************************)
+(* Mode-checking strong update *)
+
+type moded_record = { a : (int -> int) option; b : int -> int @@ portable }
+[%%expect{|
+type moded_record = { a : (int -> int) option; b : int -> int @@ portable; }
+|}]
+
+let update : moded_record @ unique once -> moded_record @ many = function mr ->
+  overwrite_ mr with { a = None; b = Fun.id }
+[%%expect{|
+Line 2, characters 37-43:
+2 |   overwrite_ mr with { a = None; b = Fun.id }
+                                         ^^^^^^
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
+let update : moded_record @ unique once -> moded_record @ many = function mr ->
+  overwrite_ mr with { a = None; b = _ }
+[%%expect{|
+Line 2, characters 13-15:
+2 |   overwrite_ mr with { a = None; b = _ }
+                 ^^
+Error: This value is "once" but expected to be "many".
+|}]
+
+let update : moded_record @ unique nonportable -> moded_record @ portable =
+  function mr ->
+    let portable_fun : int -> int @@ portable = function x -> x in
+    overwrite_ mr with { a = None; b = portable_fun }
+[%%expect{|
+Line 4, characters 4-53:
+4 |     overwrite_ mr with { a = None; b = portable_fun }
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update : moded_record @ unique nonportable -> moded_record @ portable =
+  function mr ->
+    let nonportable_fun : int -> int @@ nonportable = function x -> x in
+    overwrite_ mr with { a = None; b = nonportable_fun }
+[%%expect{|
+Line 4, characters 39-54:
+4 |     overwrite_ mr with { a = None; b = nonportable_fun }
+                                           ^^^^^^^^^^^^^^^
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
+(* This works since the kept field has the portable modality: *)
+let update : moded_record @ unique nonportable -> moded_record @ portable =
+  function mr -> overwrite_ mr with { a = None; b = _ }
+[%%expect{|
+Line 2, characters 17-55:
+2 |   function mr -> overwrite_ mr with { a = None; b = _ }
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
 (*************************************)
 (* Other edge-cases of type checking *)
 
@@ -544,6 +618,26 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+(***********************************)
+(* Syntax to be supported later on *)
+
+(* CR uniqueness: It would be nice for one of these two pieces of syntax to work.
+   Currently these are syntax errors. *)
+
+(*
+let update (unique_ r : tuple_labeled) : tuple_labeled =
+  let x = overwrite_ r with (~x:"foo", ..) in
+  x
+[%%expect{|
+|}]
+
+let update (unique_ r : tuple_labeled) : tuple_labeled =
+  let x = overwrite_ r with (~x:"foo") in
+  x
+[%%expect{|
+|}]
+*)
+
 (*******************************)
 (* Overwriting inlined records *)
 
@@ -551,6 +645,9 @@ type constructor_update = Con of { x : string; y : string }
 [%%expect{|
 type constructor_update = Con of { x : string; y : string; }
 |}]
+
+(* CR uniqueness: It would be nice if the analysis could figure out the tag
+   of a constructor_update from its type (which only has one possible tag). *)
 
 let update = function
   | (Con _ as c) ->
@@ -585,6 +682,17 @@ let update = function
 [%%expect{|
 Line 3, characters 23-24:
 3 |     let x = overwrite_ c with { x = "foo" } in
+                           ^
+Error: This form is not allowed as the type of the inlined record could escape.
+|}]
+
+let update = function
+  | (Con x) ->
+    let x = overwrite_ x with { x = "foo" } in
+    x
+[%%expect{|
+Line 3, characters 23-24:
+3 |     let x = overwrite_ x with { x = "foo" } in
                            ^
 Error: This form is not allowed as the type of the inlined record could escape.
 |}]

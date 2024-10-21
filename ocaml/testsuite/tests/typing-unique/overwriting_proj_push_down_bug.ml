@@ -437,7 +437,7 @@ type mutable_record = { mutable x : string; y : string; }
 
 let update (unique_ r : mutable_record) =
   let x = overwrite_ r with { x = "foo" } in
-x.x
+  x.x
 [%%expect{|
 Line 2, characters 10-41:
 2 |   let x = overwrite_ r with { x = "foo" } in
@@ -449,7 +449,7 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 let update (unique_ r : mutable_record) =
   let x = overwrite_ r with { y = "foo" } in
-x.x
+  x.x
 [%%expect{|
 Line 2, characters 10-41:
 2 |   let x = overwrite_ r with { y = "foo" } in

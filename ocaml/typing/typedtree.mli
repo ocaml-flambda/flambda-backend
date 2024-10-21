@@ -82,6 +82,17 @@ module Unique_barrier : sig
   val resolve : t -> Mode.Uniqueness.Const.t
 end
 
+(** A unique use annotates accesses to an allocation.
+    In the type checker we ensure that
+      actual_mode <= expected_mode
+      unique_use  <= expected_mode
+    That is, if the user tries to access an allocation as unique or once,
+    both the actual_mode and unique_use are also unique or once.
+    In the uniqueness analysis, we check whether a particular access
+    is the only lexically use in its branch and if not, we set
+      aliased /\ many <= unique_use
+    This means that an allocation's actual_mode can be unique or many,
+    while a particular access of the allocation is aliased or once. *)
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
 type alloc_mode = {
