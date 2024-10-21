@@ -393,6 +393,40 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+type unboxed_record = { x : int } [@@unboxed]
+[%%expect{|
+type unboxed_record = { x : int; } [@@unboxed]
+|}]
+
+let update (r : unboxed_record) =
+  overwrite_ r with { x = 4 }
+[%%expect{|
+Line 2, characters 2-29:
+2 |   overwrite_ r with { x = 4 }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let nested_update (t : int * (string * int)) =
+  overwrite_ t with (3, ("", _))
+[%%expect{|
+Line 2, characters 29-30:
+2 |   overwrite_ t with (3, ("", _))
+                                 ^
+Error: Syntax error: "wildcard "_"" not expected.
+|}]
+
+let update_hole (t : int * (string * int)) =
+  overwrite_ t with _
+[%%expect{|
+Line 2, characters 20-21:
+2 |   overwrite_ t with _
+                        ^
+Error: Syntax error: "tuple, constructor or record" expected.
+|}]
+
 (***********************************)
 (* Checking that tags don't change *)
 
