@@ -507,6 +507,7 @@ Error: This expression has type "x:string * 'a"
          "tuple_labeled" = "x:string * y:string"
 |}]
 
+(* CR uniqueness: Would be good to support [~y:_], without the parentheses, if possible *)
 let update (unique_ r : tuple_labeled) : tuple_labeled =
   let x = overwrite_ r with (~x:(_), ~y:(_)) in
   x

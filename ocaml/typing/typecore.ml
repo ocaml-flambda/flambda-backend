@@ -678,7 +678,7 @@ let optimise_allocations () =
 type overwrite =
   | No_overwrite
   | Overwriting of Location.t * Types.type_expr * Value.l
-    (** location of variable, type of variable, mode of kept fields *)
+    (** location of expression being overwritten, type of expression, mode of kept fields *)
 
 let assign_children n f = function
   | No_overwrite -> List.init n (fun _ -> No_overwrite)
