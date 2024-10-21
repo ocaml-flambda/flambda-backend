@@ -53,6 +53,7 @@
      runtime_events.c sync.c
    dynlink.c backtrace_byt.c backtrace.c afl.c bigarray.c prng.c float32.c
    blake2.c
+   misc.c
    build_config.h sync_posix.h caml/jumptbl.h)
  (action
    (progn
