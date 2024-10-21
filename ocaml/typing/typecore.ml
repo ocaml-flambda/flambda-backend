@@ -5722,7 +5722,7 @@ and type_expect_
       in
       let overwrites =
         assign_children (List.length lbl_a_list)
-          (fun loc ty mode -> (* only change mode heree, see type_label_exp *)
+          (fun loc ty mode -> (* only change mode here, see type_label_exp *)
              List.map (fun (_, label, _) ->
                 let mode = Modality.Value.Const.apply label.lbl_modalities mode in
                  Overwriting(loc, ty, mode)) lbl_a_list)
