@@ -306,3 +306,8 @@ CAMLprim value caml_domain_dls_compare_and_set(void)
 {
   caml_fatal_error("Domains not implemented in runtime4");
 }
+
+CAMLprim value caml_no_bytecode_impl(void)
+{
+  caml_failwith("No bytecode implementation provided for this external");
+}
