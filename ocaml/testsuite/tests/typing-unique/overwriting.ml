@@ -111,7 +111,7 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 (* This code should fail if we used a real allocation { r with x } here.
    But we don't: the overwritten record may be regional in this case since
-   no allocation takes place. We check two related cases below. *)
+   no allocation takes place. We check four related cases below. *)
 let returning_regional (local_ unique_ r) x =
   overwrite_ r with { x }
 [%%expect{|
@@ -123,7 +123,7 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
-let disallowed_by_locality (local_ unique_ r) x =
+let disallowed_by_locality () x =
   let r = stack_ { x = ""; y = "" } in
   overwrite_ r with { x }
 [%%expect{|
@@ -131,6 +131,29 @@ Line 3, characters 13-14:
 3 |   overwrite_ r with { x }
                  ^
 Error: This value escapes its region.
+|}]
+
+let returning_regional () x =
+  exclave_
+    let r = stack_ { x = ""; y = "" } in
+    overwrite_ r with { x }
+[%%expect{|
+Line 4, characters 4-27:
+4 |     overwrite_ r with { x }
+        ^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let disallowed_by_locality () x =
+  let r = stack_ { x = ""; y = "" } in
+  exclave_ overwrite_ r with { x }
+[%%expect{|
+Line 3, characters 22-23:
+3 |   exclave_ overwrite_ r with { x }
+                          ^
+Error: The value "r" is local, so it cannot be used inside an exclave_
 |}]
 
 let disallowed_by_regionality (local_ unique_ r) x =
@@ -420,6 +443,18 @@ type tuple_unlabeled = string * string
 |}]
 
 let update (unique_ r : tuple_unlabeled) : tuple_unlabeled =
+  let x = overwrite_ r with (_, _) in
+  x
+[%%expect{|
+Line 2, characters 10-34:
+2 |   let x = overwrite_ r with (_, _) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let update (unique_ r : tuple_unlabeled) : tuple_unlabeled =
   let x = overwrite_ r with ("foo", _) in
   x
 [%%expect{|
@@ -443,6 +478,18 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+let update (unique_ r : tuple_unlabeled) : tuple_unlabeled =
+  let x = overwrite_ r with ("foo", "bar", "baz") in
+x
+[%%expect{|
+Line 2, characters 21-22:
+2 |   let x = overwrite_ r with ("foo", "bar", "baz") in
+                         ^
+Error: This expression has type "'a * 'b * 'c"
+       but an expression was expected of type
+         "tuple_unlabeled" = "string * string"
+|}]
+
 type tuple_labeled = x:string * y:string
 [%%expect{|
 type tuple_labeled = x:string * y:string
@@ -458,6 +505,18 @@ Line 2, characters 21-22:
 Error: This expression has type "x:string * 'a"
        but an expression was expected of type
          "tuple_labeled" = "x:string * y:string"
+|}]
+
+let update (unique_ r : tuple_labeled) : tuple_labeled =
+  let x = overwrite_ r with (~x:(_), ~y:(_)) in
+  x
+[%%expect{|
+Line 2, characters 10-44:
+2 |   let x = overwrite_ r with (~x:(_), ~y:(_)) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 let update (unique_ r : tuple_labeled) : tuple_labeled =
