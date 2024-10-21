@@ -6,6 +6,7 @@ type check = Builtin_attributes.zero_alloc_check =
     opt: bool;
     arity: int;
     loc: Location.t;
+    custom_error_msg : string option;
   }
 
 type assume = Builtin_attributes.zero_alloc_assume =
@@ -22,7 +23,7 @@ type const = Builtin_attributes.zero_alloc_attribute =
   | Check of check
   | Assume of assume
 
-type desc = { strict : bool; opt : bool }
+type desc = { strict : bool; opt : bool; custom_error_msg : string option; }
 
 type var =
   { loc : Location.t;
@@ -62,7 +63,8 @@ let log_change = ref (fun _ -> ())
 let set_change_log f = log_change := f
 
 let create_const x = Const x
-let create_var loc arity = Var { loc; arity; desc = None }
+let create_var loc arity =
+  Var { loc; arity; desc = None }
 let default = Const Default_zero_alloc
 
 let get (t : t) =
@@ -71,8 +73,8 @@ let get (t : t) =
   | Var { loc; arity; desc } ->
     match desc with
     | None -> Default_zero_alloc
-    | Some { strict; opt } ->
-      Check { loc; arity; strict; opt }
+    | Some { strict; opt; custom_error_msg; } ->
+      Check { loc; arity; strict; opt; custom_error_msg }
 
 type error =
   | Less_general of { missing_entirely : bool }
@@ -161,23 +163,35 @@ let sub_const_const_exn za1 za2 =
   | None, None -> ()
 
 let sub_var_const_exn v c =
-  (* This can only fail due to an arity mismatch. We have a linear order and can
+  (* This can only fail due to an arity  mismatch. We have a linear order and can
      always constrain the var lower to make the sub succeed. *)
   match v, c with
   | _, (Default_zero_alloc | Ignore_assert_all | Assume _) -> assert false
   | { arity = arity1; _ }, Check { arity = arity2; _ }
     when arity1 <> arity2 ->
     raise (Error (Arity_mismatch (arity1, arity2)))
-  | { desc = None; _ }, Check { strict; opt; _ } ->
+  | { desc = None; _ }, Check { strict; opt; custom_error_msg;  } ->
     !log_change (None, v);
-    v.desc <- Some { strict; opt }
-  | { desc = (Some { strict = strict1; opt = opt1 } as desc); _ },
-    Check { strict = strict2; opt = opt2 } ->
+    v.desc <- Some { strict; opt; custom_error_msg }
+  | { desc = (Some { strict = strict1; opt = opt1; custom_error_msg = msg1; } as desc); _ },
+    Check { strict = strict2; opt = opt2; custom_error_msg = msg2 } ->
     let strict = strict1 || strict2 in
     let opt = opt1 && opt2 in
-    if strict <> strict1 || opt <> opt1 then begin
+    let custom_error_msg, msg_changed =
+      match msg1, msg2 with
+      | None, None -> msg1, false;
+      | None, Some _ -> msg2, true;
+      | Some _, None -> msg1, false;
+      | Some m1, Some m2 ->
+        let b = String.equal m1 m2 in
+        let msg =
+          if b then msg1 else Some (String.concat "\n" [m1; m2])
+        in
+        msg, b
+    in
+    if strict <> strict1 || opt <> opt1 || msg_changed then begin
       !log_change (desc, v);
-      v.desc <- Some { strict; opt }
+      v.desc <- Some { strict; opt; custom_error_msg; }
     end
 
 let sub_exn za1 za2 =

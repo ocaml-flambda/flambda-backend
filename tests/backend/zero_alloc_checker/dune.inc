@@ -1136,3 +1136,79 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_remove_inferred_assume_workaround.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_custom_error_msg.output.corrected)
+ (deps (:ml test_custom_error_msg.ml) filter.sh)
+ (action
+   (with-outputs-to test_custom_error_msg.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_custom_error_msg.output test_custom_error_msg.output.corrected)
+ (action (diff test_custom_error_msg.output test_custom_error_msg.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_custom_error_msg.opt.output.corrected)
+ (deps (:ml test_custom_error_msg.ml) filter.sh)
+ (action
+   (with-outputs-to test_custom_error_msg.opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_custom_error_msg.opt.output test_custom_error_msg.opt.output.corrected)
+ (action (diff test_custom_error_msg.opt.output test_custom_error_msg.opt.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_custom_error_msg_sig.output.corrected)
+ (deps (:ml test_custom_error_msg_sig.mli test_custom_error_msg_sig.ml) filter.sh)
+ (action
+   (with-outputs-to test_custom_error_msg_sig.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check default -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_custom_error_msg_sig.output test_custom_error_msg_sig.output.corrected)
+ (action (diff test_custom_error_msg_sig.output test_custom_error_msg_sig.output.corrected)))
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets test_custom_error_msg_sig.opt.output.corrected)
+ (deps (:ml test_custom_error_msg_sig.mli test_custom_error_msg_sig.ml) filter.sh)
+ (action
+   (with-outputs-to test_custom_error_msg_sig.opt.output.corrected
+    (pipe-outputs
+    (with-accepted-exit-codes 2
+     (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -zero-alloc-check all -zero-alloc-checker-details-cutoff 20 -O3))
+    (run "./filter.sh")
+   ))))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_custom_error_msg_sig.opt.output test_custom_error_msg_sig.opt.output.corrected)
+ (action (diff test_custom_error_msg_sig.opt.output test_custom_error_msg_sig.opt.output.corrected)))

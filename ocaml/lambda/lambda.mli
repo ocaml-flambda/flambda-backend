@@ -573,6 +573,7 @@ type zero_alloc_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                loc: Location.t;
+               custom_error_msg: string option;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;

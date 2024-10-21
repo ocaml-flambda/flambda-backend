@@ -272,6 +272,7 @@ type zero_alloc_check =
     opt: bool;
     arity: int;
     loc: Location.t;
+    custom_error_msg : string option;
   }
 
 type zero_alloc_assume =

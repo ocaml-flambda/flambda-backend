@@ -1,0 +1,28 @@
+File "test_custom_error_msg.ml", line 23, characters 3-13:
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+The "custom_error_message" payload is not supported with "assume".
+
+File "test_custom_error_msg.ml", line 29, characters 3-13:
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+It must be either 'assume', 'strict', 'opt', 'opt strict', 'assume strict', 'assume never_returns_normally', 'assume never_returns_normally strict', 'assume error', 'ignore', 'arity <int_constant>', 'custom_error_message <string_constant>' or empty
+
+File "test_custom_error_msg.ml", line 33, characters 3-13:
+Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
+It must be either 'assume', 'strict', 'opt', 'opt strict', 'assume strict', 'assume never_returns_normally', 'assume never_returns_normally strict', 'assume error', 'ignore', 'arity <int_constant>', 'custom_error_message <string_constant>' or empty
+
+File "test_custom_error_msg.ml", line 2, characters 3-13:
+Error: Annotation check for zero_alloc failed on function Test_custom_error_msg.foo (camlTest_custom_error_msg.foo_HIDE_STAMP).
+This annotation is for testing custom error messages.
+
+File "test_custom_error_msg.ml", line 1, characters 12-17:
+Error: allocation of 24 bytes
+
+File "test_custom_error_msg.ml", line 9, characters 3-13:
+Error: Annotation check for zero_alloc strict failed on function Test_custom_error_msg.bar (camlTest_custom_error_msg.bar_HIDE_STAMP).
+This annotation is for testing custom error messages.
+
+File "test_custom_error_msg.ml", line 8, characters 22-39:
+Error: called function may allocate on a path to exceptional return (external call to caml_format_int) (test_custom_error_msg.ml:8,22--39;stdlib.ml:272,2--19)
+
+File "test_custom_error_msg.ml", line 8, characters 13-40:
+Error: allocation of 24 bytes on a path to exceptional return

@@ -1098,6 +1098,7 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
                Zero_alloc.create_const
                  (Check { strict = false;
                           arity;
+                          custom_error_msg = None;
                           loc = Location.none;
                           opt = false })
              else

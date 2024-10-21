@@ -630,6 +630,7 @@ type zero_alloc_attribute =
   | Default_zero_alloc
   | Check of { strict: bool;
                loc: Location.t;
+               custom_error_msg: string option;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;
