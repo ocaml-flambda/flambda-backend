@@ -227,11 +227,17 @@ module Usage : sig
     | First
     | Second
 
+  type access_order =
+    | Seq
+    | Par
+
   type error =
     { cannot_force : Maybe_unique.cannot_force;
       there : t;  (** The other usage  *)
-      first_or_second : first_or_second
+      first_or_second : first_or_second;
           (** Is it the first or second usage that's failing force? *)
+      access_order : access_order
+          (** Are the accesses in sequence or parallel? *)
     }
 
   exception Error of error
@@ -333,19 +339,24 @@ end = struct
     | First
     | Second
 
+  type access_order =
+    | Seq
+    | Par
+
   type error =
     { cannot_force : Maybe_unique.cannot_force;
       there : t;
-      first_or_second : first_or_second
+      first_or_second : first_or_second;
+      access_order : access_order
     }
 
   exception Error of error
 
-  let force_aliased_multiuse t there first_or_second =
+  let force_aliased_multiuse t there first_or_second access_order =
     match Maybe_unique.mark_multi_use t with
     | Ok () -> ()
     | Error cannot_force ->
-      raise (Error { cannot_force; there; first_or_second })
+      raise (Error { cannot_force; there; first_or_second; access_order })
 
   let par m0 m1 =
     match m0, m1 with
@@ -355,7 +366,7 @@ end = struct
       Maybe_aliased t
     | Borrowed _, Aliased t | Aliased t, Borrowed _ -> Aliased t
     | Borrowed occ, Maybe_unique t | Maybe_unique t, Borrowed occ ->
-      force_aliased_multiuse t (Borrowed occ) First;
+      force_aliased_multiuse t (Borrowed occ) First Par;
       aliased (Maybe_unique.extract_occurrence t) Aliased.Forced
     | Maybe_aliased t0, Maybe_aliased t1 ->
       Maybe_aliased (Maybe_aliased.meet t0 t1)
@@ -365,20 +376,20 @@ end = struct
       Aliased occ
     | Maybe_aliased t0, Maybe_unique t1 | Maybe_unique t1, Maybe_aliased t0 ->
       (* t1 must be aliased *)
-      force_aliased_multiuse t1 (Maybe_aliased t0) First;
+      force_aliased_multiuse t1 (Maybe_aliased t0) First Par;
       (* The barrier stays empty; if there is any unique after this,
          the analysis will error *)
       aliased (Maybe_unique.extract_occurrence t1) Aliased.Forced
     | Aliased t0, Aliased _ -> Aliased t0
     | Aliased t0, Maybe_unique t1 ->
-      force_aliased_multiuse t1 (Aliased t0) Second;
+      force_aliased_multiuse t1 (Aliased t0) Second Par;
       Aliased t0
     | Maybe_unique t1, Aliased t0 ->
-      force_aliased_multiuse t1 (Aliased t0) First;
+      force_aliased_multiuse t1 (Aliased t0) First Par;
       Aliased t0
     | Maybe_unique t0, Maybe_unique t1 ->
-      force_aliased_multiuse t0 m1 First;
-      force_aliased_multiuse t1 m0 Second;
+      force_aliased_multiuse t0 m1 First Par;
+      force_aliased_multiuse t1 m0 Second Par;
       aliased (Maybe_unique.extract_occurrence t0) Aliased.Forced
 
   let seq m0 m1 =
@@ -418,7 +429,7 @@ end = struct
       m1
     | Aliased _, Borrowed _ -> m0
     | Maybe_unique l, Borrowed occ ->
-      force_aliased_multiuse l m1 First;
+      force_aliased_multiuse l m1 First Seq;
       aliased occ Aliased.Forced
     | Aliased _, Maybe_aliased _ ->
       (* The barrier stays empty; if there is any unique after this,
@@ -437,18 +448,18 @@ end = struct
           the analysis will error.
       *)
       let occ = Maybe_aliased.extract_occurrence l1 in
-      force_aliased_multiuse l0 m1 First;
+      force_aliased_multiuse l0 m1 First Seq;
       aliased occ Aliased.Forced
     | Aliased _, Aliased _ -> m0
     | Maybe_unique l, Aliased _ ->
-      force_aliased_multiuse l m1 First;
+      force_aliased_multiuse l m1 First Seq;
       m1
     | Aliased _, Maybe_unique l ->
-      force_aliased_multiuse l m0 Second;
+      force_aliased_multiuse l m0 Second Seq;
       m0
     | Maybe_unique l0, Maybe_unique l1 ->
-      force_aliased_multiuse l0 m1 First;
-      force_aliased_multiuse l1 m0 Second;
+      force_aliased_multiuse l0 m1 First Seq;
+      force_aliased_multiuse l1 m0 Second Seq;
       aliased (Maybe_unique.extract_occurrence l0) Aliased.Forced
 end
 
@@ -1825,7 +1836,13 @@ let check_uniqueness_value_bindings vbs =
   ()
 
 let report_multi_use inner first_is_of_second =
-  let { Usage.cannot_force = { occ; axis }; there; first_or_second } = inner in
+  let { Usage.cannot_force = { occ; axis };
+        there;
+        first_or_second;
+        access_order
+      } =
+    inner
+  in
   let here_usage = "used" in
   let there_usage =
     match there with
@@ -1855,28 +1872,28 @@ let report_multi_use inner first_is_of_second =
     | Descendant _ -> "part of it"
     | Ancestor _ -> "it is part of a value that"
   in
+  let access_order =
+    match access_order with
+    | Par -> "is already being"
+    | Seq -> "has already been"
+  in
   (* English is sadly not very composible, we write out all four cases
      manually *)
   let error =
     match first_or_second, axis with
     | First, Uniqueness ->
-      Format.dprintf
-        "This value is %s here,@ but %s has already been %s as unique:"
-        second_usage first_is_of_second first_usage
+      Format.dprintf "This value is %s here,@ but %s %s %s as unique:"
+        second_usage first_is_of_second access_order first_usage
     | First, Linearity ->
       Format.dprintf
-        "This value is %s here,@ but %s is defined as once and has already \
-         been %s:"
-        second_usage first_is_of_second first_usage
+        "This value is %s here,@ but %s is defined as once and %s %s:"
+        second_usage first_is_of_second access_order first_usage
     | Second, Uniqueness ->
-      Format.dprintf
-        "This value is %s here as unique,@ but %s has already been %s:"
-        second_usage first_is_of_second first_usage
+      Format.dprintf "This value is %s here as unique,@ but %s %s %s:"
+        second_usage first_is_of_second access_order first_usage
     | Second, Linearity ->
-      Format.dprintf
-        "This value is defined as once and %s here,@ but %s has already been \
-         %s:"
-        second_usage first_is_of_second first_usage
+      Format.dprintf "This value is defined as once and %s here,@ but %s %s %s:"
+        second_usage first_is_of_second access_order first_usage
   in
   let sub = [Location.msg ~loc:first.loc ""] in
   Location.errorf ~loc:second.loc ~sub "@[%t@]" error
