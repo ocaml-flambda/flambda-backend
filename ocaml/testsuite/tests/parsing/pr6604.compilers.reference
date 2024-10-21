@@ -1,4 +1,0 @@
-File "pr6604.ml", line 9, characters 0-2:
-9 | #1
-    ^^
-Error: Syntax error: Unboxed integer literals require width suffixes.

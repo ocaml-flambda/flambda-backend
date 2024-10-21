@@ -1,4 +1,0 @@
-File "w53_with_ppx.ml", line 18, characters 13-17:
-18 | let x = 3 [@@test]
-                  ^^^^
-Warning 53 [misplaced-attribute]: the "immediate" attribute cannot appear in this context

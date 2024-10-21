@@ -1,2 +1,0 @@
-val f : 'a ref -> 'a
-val g : unit -> int

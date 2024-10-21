@@ -1,6 +1,0 @@
-        initial: false
-       live reg: false
-     live local: false
-     live infix: false
-     dead local: true
-   after return: true

@@ -1,5 +1,0 @@
-Test large mixed blocks: sum (33670) = 33670.000
-  at end, sum (33670) = 33670.000
-Test opt: result (42) = 42.000 = 42.000 = 42.000 = 42.000
-Test mismatch: result (4) = 4.000
-Test mismatch: result (3) = 3
