@@ -24,22 +24,22 @@
    flambda_backend_common
    flambda2_ui
    flambda2 dynlink_internal unix)
- (modules genprintval_native opttoploop opttopdirs opttopmain))
+ (modules genprintval_native opttoploop opttopdirs topmain))
 
 (rule
   (targets genprintval_native.ml)
-  (deps %{project_root}/ocaml/toplevel/genprintval.ml)
+  (deps ../genprintval.ml)
   (action (copy %{deps} %{targets})))
 
 (executable
- (name opttopstart)
+ (name topstart)
  (modes native)
  (libraries ocamlopttoplevel)
- (modules opttopstart))
+ (modules topstart))
 
 (install
   (files
-    (opttopstart.exe as ocamlnat)
+    (topstart.exe as ocamlnat)
   )
   (section bin)
   (package ocaml))
@@ -56,7 +56,7 @@
     (.ocamlopttoplevel.objs/byte/opttoploop.cmi as compiler-libs/opttoploop.cmi)
     (.ocamlopttoplevel.objs/byte/opttoploop.cmt as compiler-libs/opttoploop.cmt)
     (.ocamlopttoplevel.objs/byte/opttoploop.cmti as compiler-libs/opttoploop.cmti)
-    (opttopmain.mli as compiler-libs/opttopmain.mli)
+    (topmain.mli as compiler-libs/opttopmain.mli)
   )
   (section lib)
   (package ocaml))
