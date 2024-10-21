@@ -110,7 +110,9 @@ module Deep = struct
   let match_with_portable comp arg handler =
     let effc eff k last_fiber =
       match handler.effc eff with
-      | Some f -> f k
+      | Some f ->
+        cont_set_last_fiber k last_fiber;
+        f k
       | None -> reperform_portable eff k last_fiber
     in
     let s = alloc_stack_portable handler.retc handler.exnc effc in
@@ -162,7 +164,7 @@ module Shallow = struct
   external cont_set_last_fiber :
     ('a, 'b) continuation -> last_fiber -> unit @@ portable = "%setfield1"
 
-  let fiber : type a b. (a -> b) -> (a, b) continuation = fun f ->
+  let fiber : type a b. (a -> b) -> (a, b) continuation @@ portable = fun f ->
     let module M = struct type _ t += Initial_setup__ : a t end in
     let exception E of (a,b) continuation in
     let f' () = f (perform M.Initial_setup__) in
