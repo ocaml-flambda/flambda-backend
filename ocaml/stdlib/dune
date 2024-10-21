@@ -76,6 +76,8 @@
   arrayLabels.mli
   atomic.ml
   atomic.mli
+  capsule.ml
+  capsule.mli
   effect.ml
   effect.mli
   bigarray.ml
@@ -152,6 +154,8 @@
   map.mli
   marshal.ml
   marshal.mli
+  modes.ml
+  modes.mli
   moreLabels.ml
   moreLabels.mli
   mutex.ml
@@ -240,6 +244,9 @@
   .stdlib.objs/byte/stdlib__Callback.cmi
   .stdlib.objs/byte/stdlib__Callback.cmt
   .stdlib.objs/byte/stdlib__Callback.cmti
+  .stdlib.objs/byte/stdlib__Capsule.cmi
+  .stdlib.objs/byte/stdlib__Capsule.cmt
+  .stdlib.objs/byte/stdlib__Capsule.cmti
   .stdlib.objs/byte/stdlib__Char.cmi
   .stdlib.objs/byte/stdlib__Char.cmt
   .stdlib.objs/byte/stdlib__Char.cmti
@@ -312,6 +319,9 @@
   .stdlib.objs/byte/stdlib__Marshal.cmi
   .stdlib.objs/byte/stdlib__Marshal.cmt
   .stdlib.objs/byte/stdlib__Marshal.cmti
+  .stdlib.objs/byte/stdlib__Modes.cmi
+  .stdlib.objs/byte/stdlib__Modes.cmt
+  .stdlib.objs/byte/stdlib__Modes.cmti
   .stdlib.objs/byte/stdlib__MoreLabels.cmi
   .stdlib.objs/byte/stdlib__MoreLabels.cmt
   .stdlib.objs/byte/stdlib__MoreLabels.cmti
@@ -475,7 +485,9 @@
   .stdlib.objs/native/stdlib__List.cmx
   .stdlib.objs/native/stdlib__Arg.cmx
   .stdlib.objs/native/stdlib__Callback.cmx
+  .stdlib.objs/native/stdlib__Capsule.cmx
   .stdlib.objs/native/stdlib__Marshal.cmx
+  .stdlib.objs/native/stdlib__Modes.cmx
   .stdlib.objs/native/stdlib__BytesLabels.cmx
   .stdlib.objs/native/stdlib__Digest.cmx
   .stdlib.objs/native/stdlib__Domain.cmx
