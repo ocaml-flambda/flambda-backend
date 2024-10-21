@@ -39,12 +39,8 @@ CAMLexport void (*caml_natdynlink_hook)(void* handle, const char* unit) = NULL;
 #include <string.h>
 #include <limits.h>
 
-/* This should match the value of Compilenv.symbol_separator */
-#ifdef _MSC_VER
-#define CAML_SYM_SEPARATOR "$"
-#else
+/* This should match the value of Symbol.separator () */
 #define CAML_SYM_SEPARATOR "__"
-#endif
 
 #define Handle_val(v) (*((void **) Data_abstract_val(v)))
 static value Val_handle(void* handle) {
