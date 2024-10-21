@@ -1,0 +1,4 @@
+File "user_error4.ml", line 21, characters 26-28:
+21 | let _disabled_extension = () [@jane.non_erasable.comprehensions];;
+                               ^^
+Error: The extension "comprehensions" is disabled and cannot be used

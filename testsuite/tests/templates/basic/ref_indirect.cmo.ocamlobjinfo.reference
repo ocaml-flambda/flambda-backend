@@ -1,0 +1,22 @@
+File ref_indirect.cmo
+Unit name: Ref_indirect
+Interfaces imported:
+	00000000000000000000000000000000	Stdlib
+	00000000000000000000000000000000	Ref_indirect
+	00000000000000000000000000000000	Monoid_utils
+	00000000000000000000000000000000	Monoid
+	00000000000000000000000000000000	CamlinternalFormatBasics
+Required globals:
+Uses unsafe features: no
+Force link: no
+File ref_indirect.cmi
+Unit name: Ref_indirect
+Is parameter: no
+Parameters:
+	Monoid
+Interfaces imported:
+	00000000000000000000000000000000	Ref_indirect
+	00000000000000000000000000000000	Stdlib
+	00000000000000000000000000000000	Monoid_utils
+	00000000000000000000000000000000	Monoid
+	00000000000000000000000000000000	CamlinternalFormatBasics

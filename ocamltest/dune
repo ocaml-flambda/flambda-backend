@@ -1,0 +1,55 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                     Thomas Refis, Jane Street Europe                   *
+;*                                                                        *
+;*   Copyright 2018 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(ocamllex
+ (modules tsl_lexer)
+ (mode fallback))
+
+(ocamlyacc
+ (modules tsl_parser)
+ (mode fallback))
+
+;; FIXME: handle UNIX_OR_WIN32 or something similar
+
+(rule
+ (targets empty.ml)
+ (deps
+  (source_tree ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml))
+ (action
+  (write-file %{targets} "(* hack *)")))
+
+(executable
+ (name main)
+ (modes native)
+ (flags
+  (:standard
+   -w
+   +a-40-41-42-44-70
+   -cclib
+   "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+ (libraries ocamlcommon)
+ ; This executable is built using the *system* compiler, so we can't use
+ ; our own otherlibs/unix/, and neither can we depend on the "unix" library
+ ; or this same one will be used.
+ (ocamlopt_flags unix.cmxa)
+ (foreign_stubs
+  (language c)
+  (names run_unix run_stubs)
+  (flags
+   ((-DCAML_INTERNALS)
+    (:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp)))))
+
+(rule
+ (copy main.exe ocamltest.native))

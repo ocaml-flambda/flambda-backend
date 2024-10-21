@@ -1,0 +1,4 @@
+File "use_portable.ml", line 3, characters 22-38:
+3 | let () = portable_use Maybe_portable.f
+                          ^^^^^^^^^^^^^^^^
+Error: This value is nonportable but expected to be portable.

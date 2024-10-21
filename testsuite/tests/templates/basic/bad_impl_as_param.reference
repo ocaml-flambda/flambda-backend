@@ -1,0 +1,2 @@
+File "bad_impl_as_param.ml", line 1:
+Error: Cannot compile an implementation with -as-parameter.

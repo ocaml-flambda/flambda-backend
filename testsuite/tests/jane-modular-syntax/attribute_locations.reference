@@ -1,0 +1,59 @@
+---
+Test: single Jane Syntax construct
+Program text:
+[ x for x in [ 1; 2; 3 ]]
+Attributes and their locations:
+	At location File "<no filename in test>", line 1, characters 0-25:
+		jane.non_erasable.comprehensions.body
+		jane.non_erasable.comprehensions.for.in
+		jane.non_erasable.comprehensions.for
+		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
+---
+Test: multiple Jane Syntax constructs
+Program text:
+let x1 = [ x for x in [ 1; 2; 3 ]] in
+let x2 = [ y for y = 1 to 100 ] in
+let x3 = [ y for y = 1 to 100 ] in
+let x4 = [ y for y = 100 downto 1 ] in
+let x6 = [| y for y = 100 downto 1 |] in
+let x7 = [ y for y = 1 to 100 when y = 50 ] in
+()
+Attributes and their locations:
+	At location File "<no filename in test>", line 1, characters 9-34:
+		jane.non_erasable.comprehensions.body
+		jane.non_erasable.comprehensions.for.in
+		jane.non_erasable.comprehensions.for
+		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
+	At location File "<no filename in test>", line 2, characters 9-31:
+		jane.non_erasable.comprehensions.body
+		jane.non_erasable.comprehensions.for.range.upto
+		jane.non_erasable.comprehensions.for
+		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
+	At location File "<no filename in test>", line 3, characters 9-31:
+		jane.non_erasable.comprehensions.body
+		jane.non_erasable.comprehensions.for.range.upto
+		jane.non_erasable.comprehensions.for
+		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
+	At location File "<no filename in test>", line 4, characters 9-35:
+		jane.non_erasable.comprehensions.body
+		jane.non_erasable.comprehensions.for.range.downto
+		jane.non_erasable.comprehensions.for
+		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions
+	At location File "<no filename in test>", line 5, characters 9-37:
+		jane.non_erasable.comprehensions.body
+		jane.non_erasable.comprehensions.for.range.downto
+		jane.non_erasable.comprehensions.for
+		jane.non_erasable.comprehensions.array.mutable
+		jane.non_erasable.comprehensions
+	At location File "<no filename in test>", line 6, characters 9-43:
+		jane.non_erasable.comprehensions.body
+		jane.non_erasable.comprehensions.when
+		jane.non_erasable.comprehensions.for.range.upto
+		jane.non_erasable.comprehensions.for
+		jane.non_erasable.comprehensions.list
+		jane.non_erasable.comprehensions

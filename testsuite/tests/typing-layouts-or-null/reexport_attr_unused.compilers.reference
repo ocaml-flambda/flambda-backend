@@ -1,0 +1,9 @@
+File "reexport_attr_unused.ml", line 9, characters 5-21:
+9 | let[@or_null_reexport] x = 5
+         ^^^^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "or_null_reexport" attribute cannot appear in this context
+
+File "reexport_attr_unused.ml", line 12, characters 6-22:
+12 |   [@@@or_null_reexport]
+           ^^^^^^^^^^^^^^^^
+Warning 53 [misplaced-attribute]: the "or_null_reexport" attribute cannot appear in this context

@@ -1,0 +1,3 @@
+type nonrec 'a maybe = 'a option
+val create_property : ?x:int -> unit -> unit = <fun>
+

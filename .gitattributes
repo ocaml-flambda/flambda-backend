@@ -1,0 +1,226 @@
+#**************************************************************************
+#*                                                                        *
+#*                                 OCaml                                  *
+#*                                                                        *
+#*                 Damien Doligez, projet Gallium, INRIA                  *
+#*                                                                        *
+#*   Copyright 2015 Institut National de Recherche en Informatique et     *
+#*     en Automatique.                                                    *
+#*                                                                        *
+#*   All rights reserved.  This file is distributed under the terms of    *
+#*   the GNU Lesser General Public License version 2.1, with the          *
+#*   special exception on linking described in the file LICENSE.          *
+#*                                                                        *
+#**************************************************************************
+
+# Default behaviour, for if core.autocrlf isn't set
+* text=auto
+
+# It is not possible to wrap lines lines in .gitattributes files
+.gitattributes typo.long-line=may
+
+# Binary files
+/boot/ocamlc binary
+/boot/ocamllex binary
+*.gif binary
+*.png binary
+*.tfm binary
+
+/boot/menhir/parser.ml* -diff
+
+# configure is a shell-script; the linguist-generated attribute suppresses
+# changes being displayed by default in pull requests.
+/configure text eol=lf -diff linguist-generated
+
+# 'union' merge driver just unions textual content in case of conflict
+#   http://krlmlr.github.io/using-gitattributes-to-avoid-merge-conflicts/
+/.mailmap                merge=union
+
+# We tried using 'union' for Changes and it did not work:
+# instead of creating Changes conflict it would silently duplicate
+# the lines involved in the conflict, which is arguably worse
+#/Changes                 merge=union
+
+# No header for text and META files (would be too obtrusive).
+*.md                     typo.missing-header
+README*                  typo.missing-header
+VERSION                  typo.missing-header
+*.adoc                   typo.missing-header
+api_docgen/*.mld                typo.missing-header
+api_docgen/alldoc.tex           typo.missing-header
+tools/mantis2gh_stripped.csv typo.missing-header
+META.in                  typo.missing-header
+
+# Hyperlinks and other markup features cause long lines
+*.adoc                   typo.long-line=may typo.very-long-line=may
+*.md                     typo.long-line=may typo.very-long-line=may
+
+# Github templates and scripts lack headers, have long lines
+/.github/**              typo.missing-header typo.long-line=may typo.very-long-line=may
+
+/.mailmap                typo.long-line typo.missing-header typo.non-ascii
+/CONTRIBUTING.md         typo.non-ascii=may
+/README.adoc             typo.non-ascii=may
+/README.win32.adoc       typo.non-ascii=may
+/Changes                 typo.utf8 typo.missing-header
+/release-info/News       typo.utf8 typo.missing-header
+/LICENSE                 typo.very-long-line typo.missing-header
+# tools/ci/appveyor/appveyor_build.cmd only has missing-header because
+# dra27 too lazy to update check-typo to interpret Cmd-style comments!
+/tools/ci/appveyor/appveyor_build.cmd       typo.very-long-line typo.missing-header typo.non-ascii
+/tools/ci/inria/bootstrap/remove-sinh-primitive.patch typo.prune
+/release-info/howto.md                    typo.missing-header typo.long-line
+/release-info/templates/*.md              typo.missing-header typo.very-long-line=may
+# ignore auto-generated .depend files
+.depend                  typo.prune
+/.depend.menhir          typo.prune
+
+# These can be fixed at some point
+/tools/*.py              typo.long-line
+
+# Makefiles may contain tabs
+Makefile*                typo.makefile-whitespace=may
+
+asmcomp/*/emit.mlp       typo.tab=may typo.long-line=may
+
+# The build-aux directory contains bundled files so do not check it
+build-aux                typo.prune
+
+/manual                  typo.prune
+/manual/**               typo.prune
+
+# configure is generated so do not check it
+configure                typo.prune
+
+ocaml-variants.opam      typo.prune
+
+ocamldoc/**              typo.long-line=may
+ocamldoc/Changes.txt     typo.missing-header
+ocamldoc/ocamldoc.sty    typo.missing-header
+ocamldoc/odoc_index.html typo.missing-header
+
+otherlibs/unix/readlink_win32.c    typo.long-line
+otherlibs/unix/stat_win32.c        typo.long-line
+otherlibs/unix/symlink_win32.c     typo.long-line
+
+runtime/sak.c            typo.non-ascii
+
+stdlib/hashbang     typo.white-at-eol typo.missing-lf
+
+testsuite/tests/**                                      typo.missing-header typo.long-line=may
+testsuite/tests/lib-bigarray-2/bigarrf.f                typo.tab linguist-language=Fortran
+testsuite/tests/lib-unix/win-stat/fakeclock.c           typo.missing-header=false
+testsuite/tests/misc-unsafe/almabench.ml                typo.long-line
+testsuite/tests/tool-toplevel/strings.ml                typo.utf8
+testsuite/tests/win-unicode/*.ml                        typo.utf8
+testsuite/tests/asmgen/immediates.cmm                   typo.very-long-line
+testsuite/tests/generated-parse-errors/errors.*         typo.very-long-line
+testsuite/tools/*.S                                     typo.missing-header
+testsuite/tools/*.asm                                   typo.missing-header
+testsuite/tests/messages/highlight_tabs.ml              typo.tab
+testsuite/tests/tool-toplevel/multi_phrase_line.ml      typo.very-long-line
+
+# prune testsuite reference files
+testsuite/tests/**/*.reference               typo.prune
+
+# Expect tests with overly long lines of expected output
+testsuite/tests/parsing/docstrings.ml        typo.very-long-line
+
+# Generated test with overly long ocamltest description
+testsuite/tests/lib-dynlink-domains/main.ml  typo.very-long-line
+
+# The normalisation tests have very specific line endings which mustn't be
+# corrupted by git.
+testsuite/tests/tool-ocamltest/norm*.reference binary
+
+tools/magic                       typo.missing-header
+tools/eventlog_metadata.in        typo.missing-header
+
+# TODO we should fix the long-line errors in yacc/*.c
+/yacc/*.[ch]         typo.very-long-line=may
+
+# bootstrap files produced by Menhir
+/boot/menhir/** typo.long-line=may typo.very-long-line=may
+/boot/menhir/** typo.missing-header=may
+/boot/menhir/** typo.white-at-eol=may
+/boot/menhir/** typo.utf8=may
+
+# Line-ending specifications, for Windows interoperability
+*.sh text eol=lf
+*.sh.in text eol=lf
+*.awk text eol=lf
+*.m4 text eol=lf linguist-language=M4Sugar
+
+# ocamltest hooks which are used in the testsuite
+*.check-program-output text eol=lf
+*.run text eol=lf
+
+/tools/ci/appveyor/appveyor_build.cmd text eol=crlf
+
+Makefile* linguist-language=Makefile
+*.c linguist-language=C
+*.h linguist-language=C
+*.h.in linguist-language=C
+*.hva linguist-language=TeX
+*.ml linguist-language=OCaml
+*.ml? linguist-language=OCaml
+*.mld linguist-documentation
+*.ml*.in linguist-language=OCaml
+*.tbl linguist-language=C
+
+aclocal.m4 typo.tab -linguist-vendored linguist-language=M4Sugar
+configure.ac text eol=lf
+# These scripts are all parts of autoconf and are tagged linguist-generated
+# to suppress inclusion in PR diffs.
+build-aux/compile linguist-generated text eol=lf
+build-aux/config.guess linguist-generated text eol=lf
+build-aux/config.sub linguist-generated text eol=lf
+build-aux/install-sh linguist-generated text eol=lf
+build-aux/ltmain.sh linguist-generated text eol=lf
+build-aux/missing linguist-generated text eol=lf
+build-aux/*.m4 linguist-vendored
+build-aux/ocaml_version.m4 -linguist-vendored linguist-language=M4Sugar
+ocamltest/OCAMLTEST.org typo.long-line=may typo.missing-header
+stdlib/Compflags text eol=lf
+stdlib/hashbang -text
+tools/autogen text eol=lf
+tools/bump-magic-numbers eol=lf typo.long-line
+tools/ci/inria/bootstrap/remove-sinh-primitive.patch -text
+tools/ci/inria/bootstrap/script text eol=lf
+tools/ci/inria/dune-build/script text eol=lf
+tools/ci/inria/launch text eol=lf
+tools/ci/inria/light text eol=lf
+tools/ci/inria/main text eol=lf
+tools/ci/inria/other-configs/script text eol=lf
+tools/ci/inria/sanitizers/script text eol=lf
+tools/ci/inria/step-by-step-build/script text eol=lf
+tools/check-typo text eol=lf
+tools/check-symbol-names text eol=lf
+tools/msvs-promote-path text eol=lf
+tools/gdb-macros text eol=lf linguist-language=GDB
+tools/magic text eol=lf
+tools/ocamlsize text eol=lf
+tools/pre-commit-githook text eol=lf
+tools/markdown-add-pr-links.sh text eol=lf
+runtime/caml/sizeclasses.h typo.missing-header
+
+# Tests which include references spanning multiple lines fail with \r\n
+# endings, so use \n endings only, even on Windows.
+testsuite/tests/basic-modules/anonymous.ml text eol=lf
+testsuite/tests/formatting/test_locations.ml text eol=lf
+testsuite/tests/functors/functors.ml text eol=lf
+testsuite/tests/parsing/attributes.ml text eol=lf
+testsuite/tests/parsing/extensions.ml text eol=lf
+testsuite/tests/parsing/hash_ambiguity.ml text eol=lf
+testsuite/tests/parsing/int_and_float_with_modifier.ml text eol=lf
+testsuite/tests/parsing/pr6865.ml text eol=lf
+testsuite/tests/parsing/quotedextensions.ml text eol=lf
+testsuite/tests/parsing/shortcut_ext_attr.ml text eol=lf
+testsuite/tests/tool-ocamlc-stop-after/stop_after_parsing_impl.ml text eol=lf
+testsuite/tests/tool-ocamlc-stop-after/stop_after_parsing_intf.mli text eol=lf
+testsuite/tests/tool-ocamlc-stop-after/stop_after_typing_impl.ml text eol=lf
+testsuite/tests/translprim/module_coercion.ml text eol=lf
+
+# This is forced to \n to allow the Cygwin testsuite to pass on a
+# Windows-checkout
+testsuite/tests/parsetree/locations_test.ml text eol=lf

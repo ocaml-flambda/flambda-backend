@@ -1,0 +1,12 @@
+take unrestricted of global (not exposed): 0 words
+take unrestricted of local (not exposed): 0 words
+take local of local (not exposed): 0 words
+take local of global (not exposed): 0 words
+take global of global (not exposed; expected to allocate): 3 words (allocates!)
+take unrestricted of global (exposed): 3 words (allocates!)
+take unrestricted of local (exposed): 0 words
+take local of local (exposed): 0 words
+take local of global (exposed): 0 words
+take global of global (exposed; expected to allocate): 3 words (allocates!)
+take local of local (exposed): 0 words
+take local of global (exposed): 0 words

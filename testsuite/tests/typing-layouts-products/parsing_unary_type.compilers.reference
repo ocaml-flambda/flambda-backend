@@ -1,0 +1,4 @@
+File "parsing_unary_type.ml", line 11, characters 14-15:
+11 | type t = #(int)
+                   ^
+Error: Syntax error

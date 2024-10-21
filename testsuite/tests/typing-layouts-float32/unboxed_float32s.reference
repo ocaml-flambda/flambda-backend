@@ -1,0 +1,339 @@
+Test 1, pi: 3.14
+Test 1, twice_pi: 6.28
+Test 1, thrice_pi: 9.42
+Test 1, twice_pi_again: 6.28
+Test 1, pi_again: 3.14
+Test 1, twice_pi_to_the_pi: 320.33
+Test 1, twice_pi_greater_than_pi: true
+Test 1, pi_with_effort: 3.14
+Test 2, add pi twice: 6.28
+Test 2, add pi four times: 12.56
+Test 2, increment pi twice: 5.14
+Test 2, increment pi four times: 7.14
+Test 2, e times four: 10.88
+Test 2, pi times sixteen: 50.24
+Test 2, pi times sixteen again: 50.24
+Test 2, pi minus four: -0.86
+Test 3, 5 * pi: : 15.70
+  Test 3, step 0: 12.56
+  Test 3, step 1: 9.42
+  Test 3, step 2: 6.28
+  Test 3, step 3: 3.14
+  Test 3, step 4: 0.00
+  Test 3, step 5: 0.00
+  Test 3, step 6: 0.00
+  Test 3, step 7: 0.00
+  Test 3, step 8: 0.00
+  Test 3, step 9: 0.00
+Test 3, 610.68: : 610.68
+  Test 3, step 0: 0.00
+  Test 3, step 1: 0.00
+  Test 3, step 2: 0.00
+  Test 3, step 3: 0.00
+  Test 3, step 4: 458.01
+  Test 3, step 5: 305.34
+  Test 3, step 6: 152.67
+  Test 3, step 7: 0.00
+  Test 3, step 8: 0.00
+  Test 3, step 9: 0.00
+Test 4, 1 + 2: 3.00
+Test 4, 1 - 2: -1.00
+Test 4, 5 * pi: : 15.70
+  Test 4, step 0: 12.56
+  Test 4, step 1: 9.42
+  Test 4, step 2: 6.28
+  Test 4, step 3: 3.14
+  Test 4, step 4: 0.00
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
+Test 4, 6 * pi: : 18.84
+  Test 4, step 0: 15.70
+  Test 4, step 1: 12.56
+  Test 4, step 2: 9.42
+  Test 4, step 3: 6.28
+  Test 4, step 4: 3.14
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
+Test 4, 5 * pi: : 15.70
+  Test 4, step 0: 12.56
+  Test 4, step 1: 9.42
+  Test 4, step 2: 6.28
+  Test 4, step 3: 3.14
+  Test 4, step 4: 0.00
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
+Test 4, 6 * pi: : 18.84
+  Test 4, step 0: 15.70
+  Test 4, step 1: 12.56
+  Test 4, step 2: 9.42
+  Test 4, step 3: 6.28
+  Test 4, step 4: 3.14
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
+Test 5, pi+e+1: 6.86
+Test 6, 0.17: 0.17
+Test 6, 34.00: 34.00
+Test 6, -46.88: -46.88
+Test 7, 36.50: 36.50
+Test 7, 32.20: 32.20
+Test 8, 610.68: : 610.68
+  Test 8, step 0: 0.00
+  Test 8, step 1: 0.00
+  Test 8, step 2: 0.00
+  Test 8, step 3: 0.00
+  Test 8, step 4: 458.01
+  Test 8, step 5: 305.34
+  Test 8, step 6: 152.67
+  Test 8, step 7: 0.00
+  Test 8, step 8: 0.00
+  Test 8, step 9: 0.00
+Test 9, construction:
+  a: 3.14
+  b: 2.72
+  c: 1.62
+  d: 1.41
+  a: -3.14
+  b: -2.72
+  c: -1.62
+  d: -1.41
+Test 9, matching and projection:
+  a: 1.62
+  b: -4.55
+  c: 0.00
+  d: 4.13
+Test 9, record update and mutation:
+  a: 3.14
+  b: 2.72
+  c: 1.62
+  d: 42.00
+  a: -3.14
+  b: 17.00
+  c: -1.62
+  d: -1.41
+  a: -3.14
+  b: 4.55
+  c: 42.00
+  d: 25.00
+Test 10, float32# records in recursive groups.
+  a: 1.10
+  b: 2.20
+  c: 3.20
+  d: 4.40
+  a: -5.10
+  b: -6.20
+  c: -7.30
+  d: -8.40
+  result (-4.00): -4.00
+  a: 1.10
+  b: 2.20
+  c: 3.20
+  d: 2.20
+  a: -5.10
+  b: 42.00
+  c: -7.30
+  d: -8.40
+Test 12, If-then-else with assert and float32.
+  result (1.00): 1.00
+Test 13, 610.68: : 610.68
+  Test 13, step 0: 0.00
+  Test 13, step 1: 0.00
+  Test 13, step 2: 0.00
+  Test 13, step 3: 0.00
+  Test 13, step 4: 458.01
+  Test 13, step 5: 305.34
+  Test 13, step 6: 152.67
+  Test 13, step 7: 0.00
+  Test 13, step 8: 0.00
+  Test 13, step 9: 0.00
+Test 14, construction:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 1.41
+  e: 6.00
+  f: 27.10
+  a: -3.14
+  b: -13.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+Test 14, matching and projection:
+  a: -6.00
+  b: -4.55
+  c: 0.00
+  d: 14.41
+  e: 21.10
+  f: -27.10
+Test 14, record update and mutation:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 42.00
+  e: 6.00
+  f: -7.31
+  a: -3.14
+  b: 17.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+  a: -3.14
+  b: 4.55
+  c: 42.00
+  d: 25.00
+  e: -6.00
+  f: -27.10
+Test 14.1, construction:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 1.41
+  e: 6.00
+  f: 27.10
+  a: -3.14
+  b: -13.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+Test 14.1, matching and projection:
+  a: -6.00
+  b: -4.55
+  c: 0.00
+  d: 14.41
+  e: 21.10
+  f: -27.10
+Test 14.1, variant update and mutation:
+  a: 3.14
+  b: 13.00
+  c: 7.31
+  d: 42.00
+  e: 6.00
+  f: -7.31
+  a: -3.14
+  b: 17.00
+  c: -7.31
+  d: -1.41
+  e: -6.00
+  f: -27.10
+  a: -3.14
+  b: 4.55
+  c: 42.00
+  d: 25.00
+  e: -6.00
+  f: -27.10
+Test 15, (float32#+float32) records in recursive groups:
+  a: 1.10
+  b: 2.00
+  c: 3.30
+  d: 4.40
+  e: 5.00
+  f: 6.60
+  a: -5.10
+  b: -6.00
+  c: -7.30
+  d: -8.40
+  e: -9.00
+  f: -10.60
+  result (-4.00): -4.00
+  a: 1.10
+  b: 2.00
+  c: 3.30
+  d: 2.00
+  e: 5.00
+  f: 1.10
+  a: -5.10
+  b: 42.00
+  c: -7.30
+  d: -8.40
+  e: -9.00
+  f: -10.60
+Test 16, 610.68: : 610.68
+  Test 16, step 0: 0.00
+  Test 16, step 1: 0.00
+  Test 16, step 2: 0.00
+  Test 16, step 3: 0.00
+  Test 16, step 4: 458.01
+  Test 16, step 5: 305.34
+  Test 16, step 6: 152.67
+  Test 16, step 7: 0.00
+  Test 16, step 8: 0.00
+  Test 16, step 9: 0.00
+Test 17, construction:
+  a: 3.17
+  b: 13
+  c: 7.31
+  d: 1.41
+  e: 6
+  f: 27.10
+  a: -3.17
+  b: -13
+  c: -7.31
+  d: -1.41
+  e: -6
+  f: -27.10
+Test 17, matching and projection:
+  a: -6.00
+  b: -4
+  c: 0.00
+  d: 14.41
+  e: 21
+  f: -27.10
+Test 17, record update and mutation:
+  a: 3.17
+  b: 13
+  c: 7.31
+  d: 42.00
+  e: 6
+  f: -7.31
+  a: -3.17
+  b: 17
+  c: -7.31
+  d: -1.41
+  e: -6
+  f: -27.10
+  a: -3.17
+  b: 4
+  c: 42.00
+  d: 25.00
+  e: -6
+  f: -27.10
+Test 18, (float32#+imm) records in recursive groups:
+  a: 1.10
+  b: 2
+  c: 3.30
+  d: 4.40
+  e: 5
+  f: 6.60
+  a: -5.10
+  b: -6
+  c: -7.30
+  d: -8.40
+  e: -9
+  f: -10.60
+  result (-4.00): -4.00
+  a: 1.10
+  b: 2
+  c: 3.30
+  d: 2.00
+  e: 5
+  f: 1.10
+  a: -5.10
+  b: 42
+  c: -7.30
+  d: -8.40
+  e: -9
+  f: -10.60
