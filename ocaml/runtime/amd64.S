@@ -1413,9 +1413,9 @@ ENDFUNCTION(G(caml_assert_stack_invariants))
 G(caml_system__code_end):
 
         .data
-        .globl  G(caml_system.frametable)
+        .globl  G(caml_system__frametable)
         .align  EIGHT_ALIGN
-G(caml_system.frametable):
+G(caml_system__frametable):
         .quad   2            /* two descriptors */
         .4byte  LBL(108) - . /* return address into callback */
         .value  -1           /* negative frame size => use callback link */

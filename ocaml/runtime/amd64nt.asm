@@ -452,8 +452,8 @@ caml_ml_array_align_error:
 caml_system__code_end:
 
         .DATA
-        PUBLIC  caml_system.frametable
-caml_system.frametable LABEL QWORD
+        PUBLIC  caml_system__frametable
+caml_system__frametable LABEL QWORD
         QWORD   1                ; one descriptor
         DWORD   L107 - THIS BYTE ; return address into callback
         WORD    -1               ; negative frame size => use callback link
