@@ -6605,16 +6605,13 @@ and type_expect_
         raise (Typetexp.Error (loc, env, Unsupported_extension Overwriting));
       if not (can_be_overwritten exp2.pexp_desc) then
         raise (Syntaxerr.(Error(Expecting(exp2.pexp_loc, "tuple, constructor or record"))));
-      let cell_mode =
-        let cell_mode = Value.newvar () in
+      let cell_mode, _ =
         (* The overwritten cell has to be unique
            and should have the areality expected here: *)
-        Value.submode_exn cell_mode
-          (Value.max_with (Monadic Uniqueness) Uniqueness.unique);
-        Regionality.submode_exn
-          (Value.proj (Comonadic Areality) cell_mode)
-          (Value.proj (Comonadic Areality) expected_mode.mode);
-        cell_mode
+        Value.newvar_below
+          (Value.meet_with (Monadic Uniqueness) Uniqueness.Const.Unique
+             (Value.max_with (Comonadic Areality)
+                (Value.proj (Comonadic Areality) expected_mode.mode)))
       in
       let cell_type =
         (* CR uniqueness: this could be the jkind of exp2 *)
@@ -8015,14 +8012,14 @@ and type_tuple ~overwrite ~loc ~env ~(expected_mode : expected_mode) ~ty_expecte
     overwrite
   in
   let expl =
-    List.map2
-      (fun (label, body) (((_, ty), argument_mode), overwrite) ->
+    Misc.Stdlib.List.map3
+      (fun (label, body) ((_, ty), argument_mode)  overwrite ->
         Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
                                 Language_extension.Labeled_tuples ()) label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect ~overwrite env argument_mode body (mk_expected ty)))
-      sexpl (List.combine types_and_modes overwrites)
+      sexpl types_and_modes overwrites
   in
   re {
     exp_desc = Texp_tuple (expl, alloc_mode);
@@ -8231,11 +8228,11 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
       overwrite
   in
   let args =
-    List.map2
-      (fun e (({Types.ca_type=ty; ca_modalities=gf; _},t0), overwrite) ->
+    Misc.Stdlib.List.map3
+      (fun e ({Types.ca_type=ty; ca_modalities=gf; _},t0) overwrite ->
          let argument_mode = mode_modality gf argument_mode in
          type_argument ~recarg ~overwrite env argument_mode e ty t0)
-      sargs (List.combine (List.combine ty_args ty_args0) overwrites)
+      sargs (List.combine ty_args ty_args0) overwrites
   in
   if constr.cstr_private = Private then
     begin match constr.cstr_repr with

@@ -84,15 +84,18 @@ end
 
 (** A unique use annotates accesses to an allocation.
     In the type checker we ensure that
-      actual_mode <= expected_mode
-      unique_use  <= expected_mode
-    That is, if the user tries to access an allocation as unique or once,
-    both the actual_mode and unique_use are also unique or once.
+      actual_mode           <= expected_mode
+      unique_use.uniqueness == expected_mode.uniqueness
+      unique_use.linearity  == actual_mode.linearity
+    That is, if the user expects an access to be unique,
+    both the actual_mode and unique_use are also unique.
     In the uniqueness analysis, we check whether a particular access
     is the only lexically use in its branch and if not, we set
       aliased /\ many <= unique_use
-    This means that an allocation's actual_mode can be unique or many,
-    while a particular access of the allocation is aliased or once. *)
+    This means that an allocation's actual_mode can be unique,
+    while a particular access of the allocation is aliased.
+    Furthermore, if there is more than one access to an allocation,
+    its actual_mode will have to be many. *)
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
 type alloc_mode = {
