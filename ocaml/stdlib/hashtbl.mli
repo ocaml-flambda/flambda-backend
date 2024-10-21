@@ -1,4 +1,3 @@
-# 2 "hashtbl.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -13,8 +12,6 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-open! Stdlib
 
 (* NOTE: If this file is hashtbl.mli, do not edit it directly! Instead,
    edit templates/hashtbl.template.mli and run tools/sync_stdlib_docs *)
@@ -61,6 +58,7 @@ open! Stdlib
 
 (** {1 Generic interface} *)
 
+include sig
 
 type (!'a, !'b) t
 (** The type of hash tables from type ['a] to type ['b]. *)
@@ -316,6 +314,8 @@ val of_seq : ('a * 'b) Seq.t -> ('a, 'b) t
     will appear in the table.
     @since 4.07 *)
 
+end @@ portable
+
 (** {1 Functorial interface} *)
 
 (** The functorial interface allows the use of specific comparison
@@ -431,6 +431,8 @@ module Make (H : HashedType) : S with type key = H.t
     the [create] operation of the result structure always returns
     non-randomized hash tables. *)
 
+module Make_portable (H : sig include HashedType @@ portable end) : sig include S @@ portable end with type key = H.t
+
 module type SeededHashedType =
   sig
     type t
@@ -511,9 +513,11 @@ module MakeSeeded (H : SeededHashedType) : SeededS with type key = H.t
     or if randomization is globally on (see {!Hashtbl.randomize}).
     @since 4.00 *)
 
+module MakeSeeded_portable (H : sig include SeededHashedType @@ portable end) : sig include SeededS @@ portable end with type key = H.t
 
 (** {1 The polymorphic hash functions} *)
 
+include sig
 
 val hash : 'a -> int
 (** [Hashtbl.hash x] associates a nonnegative integer to any value of
@@ -550,6 +554,8 @@ val seeded_hash_param : int -> int -> int -> 'a -> int
    an integer seed.  Usage:
    [Hashtbl.seeded_hash_param meaningful total seed x].
    @since 4.00 *)
+
+end @@ portable
 
 (** {1:examples Examples}
 

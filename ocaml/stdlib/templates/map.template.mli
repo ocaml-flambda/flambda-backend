@@ -367,3 +367,10 @@ module type S =
 module Make (Ord : OrderedType) : S with type key = Ord.t
 (** Functor building an implementation of the map structure
    given a totally ordered type. *)
+
+module Make_portable (Ord : sig include OrderedType @@ portable end) : sig
+  include S @@ portable
+
+  val mk_empty : unit -> 'a t @@ portable
+end with type key = Ord.t
+     and type 'a t = 'a Make(Ord).t

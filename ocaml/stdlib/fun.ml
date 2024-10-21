@@ -1,4 +1,3 @@
-# 2 "fun.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -18,7 +17,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external id : 'a -> 'a = "%identity"
+external id : 'a -> 'a @@ portable = "%identity"
 let const c _ = c
 let compose f g x = f (g x)
 let flip f x y = f y x
@@ -26,7 +25,7 @@ let negate p v = not (p v)
 
 exception Finally_raised of exn
 
-let () = Printexc.register_printer @@ function
+let () = Printexc.register_printer_safe @@ function
 | Finally_raised exn -> Some ("Fun.Finally_raised: " ^ Printexc.to_string exn)
 | _ -> None
 

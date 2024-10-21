@@ -1,4 +1,3 @@
-# 2 "map.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -13,8 +12,6 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-open! Stdlib
 
 (* NOTE: If this file is map.mli, do not edit it directly! Instead,
    edit templates/map.template.mli and run tools/sync_stdlib_docs *)
@@ -290,8 +287,8 @@ module type S =
         [m1] contains all the bindings of [m] that satisfy the
         predicate [f], and [m2] is the map with all the bindings of
         [m] that do not satisfy [f].
-        @since 3.12
-     *)
+
+        @since 3.12 *)
 
     val split: key -> 'a t -> 'a t * 'a option * 'a t
     (** [split x m] returns a triple [(l, data, r)], where
@@ -370,3 +367,10 @@ module type S =
 module Make (Ord : OrderedType) : S with type key = Ord.t
 (** Functor building an implementation of the map structure
    given a totally ordered type. *)
+
+module Make_portable (Ord : sig include OrderedType @@ portable end) : sig
+  include S @@ portable
+
+  val mk_empty : unit -> 'a t @@ portable
+end with type key = Ord.t
+     and type 'a t = 'a Make(Ord).t

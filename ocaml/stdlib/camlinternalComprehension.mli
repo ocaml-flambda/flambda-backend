@@ -20,24 +20,24 @@ type 'a rev_dlist = local_ 'a rev_list -> local_ 'a rev_list
     reversed difference list into a (global, normal, forwards) list, first
     provide it the empty snoc list ([Nil]) and then use this function to get the
     final result. *)
-val rev_list_to_list : local_ 'a rev_list -> 'a list
+val rev_list_to_list : local_ 'a rev_list -> 'a list @@ portable
 
 (** [rev_dlist_concat_map] is [concat_map] with its arguments swapped for
     reversed difference lists. *)
 val rev_dlist_concat_map
-  : 'a list -> local_ ('a -> local_ 'b rev_dlist) -> local_ 'b rev_dlist
+  : 'a list -> local_ ('a -> local_ 'b rev_dlist) -> local_ 'b rev_dlist @@ portable
 
 (** [rev_dlist_concat_iterate_up low high f] is the same as
     [rev_dlist_concat_map range f] where [range] is the increasing range from
     [low] to [high], inclusive. *)
 val rev_dlist_concat_iterate_up
-  : int -> int -> local_ (int -> local_ 'a rev_dlist) -> local_ 'a rev_dlist
+  : int -> int -> local_ (int -> local_ 'a rev_dlist) -> local_ 'a rev_dlist @@ portable
 
 (** [rev_dlist_concat_iterate_up high low f] is the same as
     [rev_dlist_concat_map range f] where [range] is the decreasing range from
     [high] to [low], inclusive. *)
 val rev_dlist_concat_iterate_down
-  : int -> int -> local_ (int -> local_ 'a rev_dlist) -> local_ 'a rev_dlist
+  : int -> int -> local_ (int -> local_ 'a rev_dlist) -> local_ 'a rev_dlist @@ portable
 
 (** List comprehensions always produce global values right now, but it would be
     great if they could produce local values, too.  (Then they'd be able to/have

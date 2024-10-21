@@ -1,4 +1,3 @@
-# 2 "weak.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -40,31 +39,31 @@ type !'a t
 *)
 
 
-val create : int -> 'a t
+val create : int -> 'a t @@ portable
 (** [Weak.create n] returns a new weak array of length [n].
    All the pointers are initially empty.
    @raise Invalid_argument
    if [n] is not comprised between zero and
    {!Obj.Ephemeron.max_ephe_length} (limits included).*)
 
-val length : 'a t -> int
+val length : 'a t -> int @@ portable
 (** [Weak.length ar] returns the length (number of elements) of
    [ar].*)
 
-val set : 'a t -> int -> 'a option -> unit
+val set : 'a t -> int -> 'a option -> unit @@ portable
 (** [Weak.set ar n (Some el)] sets the [n]th cell of [ar] to be a
    (full) pointer to [el]; [Weak.set ar n None] sets the [n]th
    cell of [ar] to empty.
    @raise Invalid_argument if [n] is not in the range
    0 to {!Weak.length}[ ar - 1].*)
 
-val get : 'a t -> int -> 'a option
+val get : 'a t -> int -> 'a option @@ portable
 (** [Weak.get ar n] returns None if the [n]th cell of [ar] is
    empty, [Some x] (where [x] is the value) if it is full.
    @raise Invalid_argument if [n] is not in the range
    0 to {!Weak.length}[ ar - 1].*)
 
-val get_copy : 'a t -> int -> 'a option
+val get_copy : 'a t -> int -> 'a option @@ portable
 (** [Weak.get_copy ar n] returns None if the [n]th cell of [ar] is
    empty, [Some x] (where [x] is a (shallow) copy of the value) if
    it is full.
@@ -80,20 +79,20 @@ val get_copy : 'a t -> int -> 'a option
 *)
 
 
-val check : 'a t -> int -> bool
+val check : 'a t -> int -> bool @@ portable
 (** [Weak.check ar n] returns [true] if the [n]th cell of [ar] is
    full, [false] if it is empty.  Note that even if [Weak.check ar n]
    returns [true], a subsequent {!Weak.get}[ ar n] can return [None].
    @raise Invalid_argument if [n] is not in the range
    0 to {!Weak.length}[ ar - 1].*)
 
-val fill : 'a t -> int -> int -> 'a option -> unit
+val fill : 'a t -> int -> int -> 'a option -> unit @@ portable
 (** [Weak.fill ar ofs len el] sets to [el] all pointers of [ar] from
    [ofs] to [ofs + len - 1].
    @raise Invalid_argument
    if [ofs] and [len] do not designate a valid subarray of [ar].*)
 
-val blit : 'a t -> int -> 'a t -> int -> int -> unit
+val blit : 'a t -> int -> 'a t -> int -> int -> unit @@ portable
 (** [Weak.blit ar1 off1 ar2 off2 len] copies [len] weak pointers
    from [ar1] (starting at [off1]) to [ar2] (starting at [off2]).
    It works correctly even if [ar1] and [ar2] are the same.

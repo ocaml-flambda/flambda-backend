@@ -1,4 +1,3 @@
-# 2 "digest.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -32,7 +31,7 @@ open! Stdlib
 type t = string
 (** The type of digests: 16-byte strings. *)
 
-val compare : t -> t -> int
+val compare : t -> t -> int @@ portable
 (** The comparison function for 16-byte digests, with the same
     specification as {!Stdlib.compare} and the implementation
     shared with {!String.compare}. Along with the type [t], this
@@ -40,27 +39,27 @@ val compare : t -> t -> int
     argument to the functors {!Set.Make} and {!Map.Make}.
     @since 4.00 *)
 
-val equal : t -> t -> bool
+val equal : t -> t -> bool @@ portable
 (** The equal function for 16-byte digests.
     @since 4.03 *)
 
-val string : string -> t
+val string : string -> t @@ portable
 (** Return the digest of the given string. *)
 
-val bytes : bytes -> t
+val bytes : bytes -> t @@ portable
 (** Return the digest of the given byte sequence.
     @since 4.02 *)
 
-val substring : string -> int -> int -> t
+val substring : string -> int -> int -> t @@ portable
 (** [Digest.substring s ofs len] returns the digest of the substring
    of [s] starting at index [ofs] and containing [len] characters. *)
 
-val subbytes : bytes -> int -> int -> t
+val subbytes : bytes -> int -> int -> t @@ portable
 (** [Digest.subbytes s ofs len] returns the digest of the subsequence
     of [s] starting at index [ofs] and containing [len] bytes.
     @since 4.02 *)
 
-val channel : in_channel -> int -> t
+val channel : in_channel -> int -> t @@ portable
 (** If [len] is nonnegative, [Digest.channel ic len] reads [len]
    characters from channel [ic] and returns their digest, or raises
    [End_of_file] if end-of-file is reached before [len] characters
@@ -68,27 +67,27 @@ val channel : in_channel -> int -> t
    all characters from [ic] until end-of-file is reached and return
    their digest. *)
 
-val file : string -> t
+val file : string -> t @@ portable
 (** Return the digest of the file whose name is given. *)
 
-val output : out_channel -> t -> unit
+val output : out_channel -> t -> unit @@ portable
 (** Write a digest on the given output channel. *)
 
-val input : in_channel -> t
+val input : in_channel -> t @@ portable
 (** Read a digest from the given input channel. *)
 
-val to_hex : t -> string
+val to_hex : t -> string @@ portable
 (** Return the printable hexadecimal representation of the given digest.
     @raise Invalid_argument if the argument is not exactly 16 bytes.
  *)
 
-val of_hex : string -> t
+val of_hex : string -> t @@ portable
 (** Convert a hexadecimal representation back into the corresponding digest.
     @raise Invalid_argument if the argument is not exactly 32 hexadecimal
            characters.
     @since 5.2 *)
 
-val from_hex : string -> t
+val from_hex : string -> t @@ portable
 (** Same function as {!Digest.of_hex}.
     @since 4.00 *)
 

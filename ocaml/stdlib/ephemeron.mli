@@ -1,4 +1,3 @@
-# 2 "ephemeron.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -151,10 +150,10 @@ end
 module K1 : sig
   type ('k,'d) t (** an ephemeron with one key *)
 
-  val make : 'k -> 'd -> ('k,'d) t
+  val make : 'k -> 'd -> ('k,'d) t @@ portable
   (** [Ephemeron.K1.make k d] creates an ephemeron with key [k] and data [d]. *)
 
-  val query : ('k,'d) t -> 'k -> 'd option
+  val query : ('k,'d) t -> 'k -> 'd option @@ portable
   (** [Ephemeron.K1.query eph key] returns [Some x] (where [x] is the
       ephemeron's data) if [key] is physically equal to [eph]'s key, and
       [None] if [eph] is empty or [key] is not equal to [eph]'s key. *)
@@ -162,34 +161,38 @@ module K1 : sig
   module Make (H:Hashtbl.HashedType) : S with type key = H.t
   (** Functor building an implementation of a weak hash table *)
 
+  module Make_portable (H:sig include Hashtbl.HashedType @@ portable end) : sig include S @@ portable end with type key = H.t
+
   module MakeSeeded (H:Hashtbl.SeededHashedType) : SeededS with type key = H.t
   (** Functor building an implementation of a weak hash table.
       The seed is similar to the one of {!Hashtbl.MakeSeeded}. *)
+
+  module MakeSeeded_portable (H:sig include Hashtbl.SeededHashedType @@ portable end) : sig include SeededS @@ portable end with type key = H.t
 
   module Bucket : sig
 
     type ('k, 'd) t
     (** A bucket is a mutable "list" of ephemerons. *)
 
-    val make : unit -> ('k, 'd) t
+    val make : unit -> ('k, 'd) t @@ portable
     (** Create a new bucket. *)
 
-    val add : ('k, 'd) t -> 'k -> 'd -> unit
+    val add : ('k, 'd) t -> 'k -> 'd -> unit @@ portable
     (** Add an ephemeron to the bucket. *)
 
-    val remove : ('k, 'd) t -> 'k -> unit
+    val remove : ('k, 'd) t -> 'k -> unit @@ portable
     (** [remove b k] removes from [b] the most-recently added
         ephemeron with key [k], or does nothing if there is no such
         ephemeron. *)
 
-    val find : ('k, 'd) t -> 'k -> 'd option
+    val find : ('k, 'd) t -> 'k -> 'd option @@ portable
     (** Returns the data of the most-recently added ephemeron with the
         given key, or [None] if there is no such ephemeron. *)
 
-    val length : ('k, 'd) t -> int
+    val length : ('k, 'd) t -> int @@ portable
     (** Returns an upper bound on the length of the bucket. *)
 
-    val clear : ('k, 'd) t -> unit
+    val clear : ('k, 'd) t -> unit @@ portable
     (** Remove all ephemerons from the bucket. *)
 
   end
@@ -200,10 +203,10 @@ end
 module K2 : sig
   type ('k1,'k2,'d) t (** an ephemeron with two keys *)
 
-  val make : 'k1 -> 'k2 -> 'd -> ('k1,'k2,'d) t
+  val make : 'k1 -> 'k2 -> 'd -> ('k1,'k2,'d) t @@ portable
   (** Same as {!Ephemeron.K1.make} *)
 
-  val query : ('k1,'k2,'d) t -> 'k1 -> 'k2 -> 'd option
+  val query : ('k1,'k2,'d) t -> 'k1 -> 'k2 -> 'd option @@ portable
   (** Same as {!Ephemeron.K1.query} *)
 
   module Make
@@ -212,6 +215,11 @@ module K2 : sig
     S with type key = H1.t * H2.t
   (** Functor building an implementation of a weak hash table *)
 
+  module Make_portable
+      (H1:sig include Hashtbl.HashedType @@ portable end)
+      (H2:sig include Hashtbl.HashedType @@ portable end) :
+    sig include S @@ portable end with type key = H1.t * H2.t
+
   module MakeSeeded
       (H1:Hashtbl.SeededHashedType)
       (H2:Hashtbl.SeededHashedType) :
@@ -219,30 +227,35 @@ module K2 : sig
   (** Functor building an implementation of a weak hash table.
       The seed is similar to the one of {!Hashtbl.MakeSeeded}. *)
 
+  module MakeSeeded_portable
+      (H1:sig include Hashtbl.SeededHashedType @@ portable end)
+      (H2:sig include Hashtbl.SeededHashedType @@ portable end) :
+    sig include SeededS @@ portable end with type key = H1.t * H2.t
+
   module Bucket : sig
 
     type ('k1, 'k2, 'd) t
     (** A bucket is a mutable "list" of ephemerons. *)
 
-    val make : unit -> ('k1, 'k2, 'd) t
+    val make : unit -> ('k1, 'k2, 'd) t @@ portable
     (** Create a new bucket. *)
 
-    val add : ('k1, 'k2, 'd) t -> 'k1 -> 'k2 -> 'd -> unit
+    val add : ('k1, 'k2, 'd) t -> 'k1 -> 'k2 -> 'd -> unit @@ portable
     (** Add an ephemeron to the bucket. *)
 
-    val remove : ('k1, 'k2, 'd) t -> 'k1 -> 'k2 -> unit
+    val remove : ('k1, 'k2, 'd) t -> 'k1 -> 'k2 -> unit @@ portable
     (** [remove b k1 k2] removes from [b] the most-recently added
         ephemeron with keys [k1] and [k2], or does nothing if there
         is no such ephemeron. *)
 
-    val find : ('k1, 'k2, 'd) t -> 'k1 -> 'k2 -> 'd option
+    val find : ('k1, 'k2, 'd) t -> 'k1 -> 'k2 -> 'd option @@ portable
     (** Returns the data of the most-recently added ephemeron with the
         given keys, or [None] if there is no such ephemeron. *)
 
-    val length : ('k1, 'k2, 'd) t -> int
+    val length : ('k1, 'k2, 'd) t -> int @@ portable
     (** Returns an upper bound on the length of the bucket. *)
 
-    val clear : ('k1, 'k2, 'd) t -> unit
+    val clear : ('k1, 'k2, 'd) t -> unit @@ portable
     (** Remove all ephemerons from the bucket. *)
 
   end
@@ -254,10 +267,10 @@ module Kn : sig
   type ('k,'d) t (** an ephemeron with an arbitrary number of keys
                       of the same type *)
 
-  val make : 'k array -> 'd -> ('k,'d) t
+  val make : 'k array -> 'd -> ('k,'d) t @@ portable
   (** Same as {!Ephemeron.K1.make} *)
 
-  val query : ('k,'d) t -> 'k array -> 'd option
+  val query : ('k,'d) t -> 'k array -> 'd option @@ portable
   (** Same as {!Ephemeron.K1.query} *)
 
   module Make
@@ -265,36 +278,44 @@ module Kn : sig
     S with type key = H.t array
   (** Functor building an implementation of a weak hash table *)
 
+  module Make_portable
+      (H:sig include Hashtbl.HashedType @@ portable end) :
+    sig include S @@ portable end with type key = H.t array
+
   module MakeSeeded
       (H:Hashtbl.SeededHashedType) :
     SeededS with type key = H.t array
   (** Functor building an implementation of a weak hash table.
       The seed is similar to the one of {!Hashtbl.MakeSeeded}. *)
 
+  module MakeSeeded_portable
+      (H:sig include Hashtbl.SeededHashedType @@ portable end) :
+    sig include SeededS @@ portable end with type key = H.t array
+
   module Bucket : sig
 
     type ('k, 'd) t
     (** A bucket is a mutable "list" of ephemerons. *)
 
-    val make : unit -> ('k, 'd) t
+    val make : unit -> ('k, 'd) t @@ portable
     (** Create a new bucket. *)
 
-    val add : ('k, 'd) t -> 'k array -> 'd -> unit
+    val add : ('k, 'd) t -> 'k array -> 'd -> unit @@ portable
     (** Add an ephemeron to the bucket. *)
 
-    val remove : ('k, 'd) t -> 'k array -> unit
+    val remove : ('k, 'd) t -> 'k array -> unit @@ portable
     (** [remove b k] removes from [b] the most-recently added
         ephemeron with keys [k], or does nothing if there is no such
         ephemeron. *)
 
-    val find : ('k, 'd) t -> 'k array -> 'd option
+    val find : ('k, 'd) t -> 'k array -> 'd option @@ portable
     (** Returns the data of the most-recently added ephemeron with the
         given keys, or [None] if there is no such ephemeron. *)
 
-    val length : ('k, 'd) t -> int
+    val length : ('k, 'd) t -> int @@ portable
     (** Returns an upper bound on the length of the bucket. *)
 
-    val clear : ('k, 'd) t -> unit
+    val clear : ('k, 'd) t -> unit @@ portable
     (** Remove all ephemerons from the bucket. *)
 
   end

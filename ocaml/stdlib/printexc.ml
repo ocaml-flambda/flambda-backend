@@ -1,4 +1,3 @@
-# 2 "printexc.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -22,9 +21,14 @@ open Printf
 
 type t = exn = ..
 
-let printers = Atomic.make []
+type printer = Printer of (exn -> string option) @@ portable
 
-let locfmt = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
+(* CR tdelvecchio: Needs [with] on [list]. *)
+type printer_list : value mod portable = Printers of printer list [@@unboxed]
+
+let printers = Atomic.make (Printers [] : printer_list)
+
+let locfmt () = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
 
 let field x i =
   let f = Obj.field x i in
@@ -50,12 +54,13 @@ let fields x =
 
 let use_printers x =
   let rec conv = function
-    | hd :: tl ->
+    | (Printer hd) :: tl ->
         (match hd x with
          | None | exception _ -> conv tl
          | Some s -> Some s)
     | [] -> None in
-  conv (Atomic.get printers)
+  let Printers printers = Atomic.get_safe printers in
+  conv printers
 
 let destruct_ext_constructor x =
   if Obj.tag x <> 0 then
@@ -75,11 +80,11 @@ let to_string_default = function
   | Out_of_memory -> "Out of memory"
   | Stack_overflow -> "Stack overflow"
   | Match_failure(file, line, char) ->
-      sprintf locfmt file line char (char+5) "Pattern matching failed"
+      sprintf (locfmt ()) file line char (char+5) "Pattern matching failed"
   | Assert_failure(file, line, char) ->
-      sprintf locfmt file line char (char+6) "Assertion failed"
+      sprintf (locfmt ()) file line char (char+6) "Assertion failed"
   | Undefined_recursive_module(file, line, char) ->
-      sprintf locfmt file line char (char+6) "Undefined recursive module"
+      sprintf (locfmt ()) file line char (char+6) "Undefined recursive module"
   | x ->
       string_of_extension_constructor (Obj.repr x)
 
@@ -92,7 +97,7 @@ let print fct arg =
   try
     fct arg
   with x ->
-    eprintf "Uncaught exception: %s\n" (to_string x);
+    fprintf stderr "Uncaught exception: %s\n" (to_string x);
     flush stderr;
     raise x
 
@@ -101,7 +106,7 @@ let catch fct arg =
     fct arg
   with x ->
     flush stdout;
-    eprintf "Uncaught exception: %s\n" (to_string x);
+    fprintf stderr "Uncaught exception: %s\n" (to_string x);
     exit 2
 
 type raw_backtrace_slot
@@ -111,9 +116,9 @@ type raw_backtrace = raw_backtrace_entry array
 let raw_backtrace_entries bt = bt
 
 external get_raw_backtrace:
-  unit -> raw_backtrace = "caml_get_exception_raw_backtrace"
+  unit -> raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a
+external raise_with_backtrace: exn -> raw_backtrace -> 'a @@ portable
   = "%raise_with_backtrace"
 
 (* Disable warning 37: values are constructed in the runtime *)
@@ -134,10 +139,10 @@ type[@warning "-37"] backtrace_slot =
     }
 
 external convert_raw_backtrace_slot:
-  raw_backtrace_slot -> backtrace_slot = "caml_convert_raw_backtrace_slot"
+  raw_backtrace_slot -> backtrace_slot @@ portable = "caml_convert_raw_backtrace_slot"
 
 external convert_raw_backtrace:
-  raw_backtrace -> backtrace_slot array = "caml_convert_raw_backtrace"
+  raw_backtrace -> backtrace_slot array @@ portable = "caml_convert_raw_backtrace"
 
 let convert_raw_backtrace bt =
   try Some (convert_raw_backtrace bt)
@@ -272,26 +277,28 @@ end
 let raw_backtrace_length bt = Array.length bt
 
 external get_raw_backtrace_slot :
-  raw_backtrace -> int -> raw_backtrace_slot = "caml_raw_backtrace_slot"
+  raw_backtrace -> int -> raw_backtrace_slot @@ portable = "caml_raw_backtrace_slot"
 
 external get_raw_backtrace_next_slot :
-  raw_backtrace_slot -> raw_backtrace_slot option
+  raw_backtrace_slot -> raw_backtrace_slot option @@ portable
   = "caml_raw_backtrace_next_slot"
 
 (* confusingly named:
    returns the *string* corresponding to the global current backtrace *)
 let get_backtrace () = raw_backtrace_to_string (get_raw_backtrace ())
 
-external record_backtrace: bool -> unit = "caml_record_backtrace"
-external backtrace_status: unit -> bool = "caml_backtrace_status"
+external record_backtrace: bool -> unit @@ portable = "caml_record_backtrace"
+external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 
-let rec register_printer fn =
-  let old_printers = Atomic.get printers in
-  let new_printers = fn :: old_printers in
-  let success = Atomic.compare_and_set printers old_printers new_printers in
-  if not success then register_printer fn
+let rec register_printer_safe fn =
+  let (Printers old_printers) as cur = Atomic.get_safe printers in
+  let new_printers = Printer fn :: old_printers in
+  let success = Atomic.compare_and_set printers cur (Printers new_printers) in
+  if not success then register_printer_safe fn
 
-external get_callstack: int -> raw_backtrace = "caml_get_current_callstack"
+let register_printer fn = register_printer_safe (Obj.magic_portable fn)
+
+external get_callstack: int -> raw_backtrace @@ portable = "caml_get_current_callstack"
 
 let exn_slot x =
   let x = Obj.repr x in
@@ -305,7 +312,7 @@ let exn_slot_name x =
   let slot = exn_slot x in
   (Obj.obj (Obj.field slot 0) : string)
 
-external get_debug_info_status : unit -> int = "caml_ml_debug_info_status"
+external get_debug_info_status : unit -> int @@ portable = "caml_ml_debug_info_status"
 
 (* Descriptions for errors in startup.h. See also backtrace.c *)
 let errors = [| "";
@@ -322,27 +329,32 @@ let errors = [| "";
   "(Cannot print locations:\n \
       bytecode executable program file cannot be opened;\n \
       -- too many open files. Try running with OCAMLRUNPARAM=b=2)"
-|]
+|] |> Obj.magic_portable
 
 let default_uncaught_exception_handler exn raw_backtrace =
-  eprintf "Fatal error: exception %s\n" (to_string exn);
+  fprintf stderr "Fatal error: exception %s\n" (to_string exn);
   print_raw_backtrace stderr raw_backtrace;
   let status = get_debug_info_status () in
   if status < 0 then
-    prerr_endline errors.(abs status);
+    prerr_endline (Obj.magic_uncontended errors).(abs status);
   flush stderr
 
-let uncaught_exception_handler = ref default_uncaught_exception_handler
+type handler : value mod portable = Handler of (exn -> raw_backtrace -> unit) @@ portable
 
-let set_uncaught_exception_handler fn = uncaught_exception_handler := fn
+let uncaught_exception_handler = Atomic.make (Handler default_uncaught_exception_handler)
 
-let empty_backtrace : raw_backtrace = [| |]
+let set_uncaught_exception_handler_safe fn = Atomic.set uncaught_exception_handler (Handler fn)
+
+let set_uncaught_exception_handler fn =
+  set_uncaught_exception_handler_safe (Obj.magic_portable fn)
+
+let empty_backtrace () : raw_backtrace = [| |]
 
 let try_get_raw_backtrace () =
   try
     get_raw_backtrace ()
   with _ (* Out_of_memory? *) ->
-    empty_backtrace
+    empty_backtrace ()
 
 let handle_uncaught_exception' exn debugger_in_use =
   try
@@ -350,13 +362,14 @@ let handle_uncaught_exception' exn debugger_in_use =
        destroys it. *)
     let raw_backtrace =
       if debugger_in_use (* Same test as in [runtime/printexc.c] *) then
-        empty_backtrace
+        empty_backtrace ()
       else
         try_get_raw_backtrace ()
     in
     (try Stdlib.do_at_exit () with _ -> ());
     try
-      !uncaught_exception_handler exn raw_backtrace
+      let Handler handler = Atomic.get_safe uncaught_exception_handler in
+      handler exn raw_backtrace
     with exn' ->
       let raw_backtrace' = try_get_raw_backtrace () in
       eprintf "Fatal error: exception %s\n" (to_string exn);
@@ -379,7 +392,7 @@ let handle_uncaught_exception exn debugger_in_use =
     (* There is not much we can do at this point *)
     ()
 
-external register_named_value : string -> 'a -> unit
+external register_named_value : string -> 'a @ portable -> unit @@ portable
   = "caml_register_named_value"
 
 let () =
