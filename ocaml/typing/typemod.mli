@@ -161,7 +161,7 @@ type error =
       old_arg_type: Global_module.Name.t option;
       old_source_file: Misc.filepath;
     }
-  | Duplicate_parameter_name of Global_module.Name.t
+  | Duplicate_parameter_name of Global_module.Parameter.t
   | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error

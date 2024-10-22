@@ -23,7 +23,7 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
-      cmi_arg_for : Global_module.Name.t option;
+      cmi_arg_for : Global_module.Parameter.t option;
     }
   | Parameter
 
@@ -73,7 +73,7 @@ type 'sg cmi_infos_generic = {
     cmi_kind : kind;
     cmi_globals : Global_module.t array;
     cmi_sign : 'sg;
-    cmi_params : Global_module.t list;
+    cmi_params : Global_module.Parameter.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }

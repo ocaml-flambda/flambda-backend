@@ -1,11 +1,22 @@
 [@@@ocaml.warning "+a-9-40-41-42"]
 
-type ('name, 'value) duplicate =
-  | Duplicate of { name : 'name; value1 : 'value; value2 : 'value }
+module Parameter : sig
+  type t = private string
+
+  val create : string -> t
+
+  val to_string : t -> string
+
+  include Identifiable.S with type t := t
+
+end
+
+type duplicate =
+  | Duplicate of Parameter.t
 
 module Argument : sig
-  type ('param, 'value) t = {
-    param : 'param;
+  type 'value t = {
+    param : Parameter.t;
     value : 'value;
   }
 end
@@ -15,11 +26,11 @@ module Name : sig
     head : string;
     args : argument list;
   }
-  and argument = (t, t) Argument.t
+  and argument = t Argument.t
 
   include Identifiable.S with type t := t
 
-  val create : string -> argument list -> (t, (t, t) duplicate) Result.t
+  val create : string -> argument list -> (t, duplicate) Result.t
 
   val create_exn : string -> argument list -> t
 
@@ -63,27 +74,25 @@ end
 type t = private {
   head : string;
   visible_args : argument list;
-  hidden_args : argument list;
+  hidden_args : Parameter.t list;
 }
-and argument = (Name.t, t) Argument.t
+and argument = t Argument.t
 
 include Identifiable.S with type t := t
 
 val create
-   : string -> argument list -> hidden_args:argument list
-  -> (t, (Name.t, t) duplicate) Result.t
+   : string -> argument list -> hidden_args:Parameter.t list
+  -> (t, duplicate) Result.t
 
-val create_exn : string -> argument list -> hidden_args:argument list -> t
+val create_exn : string -> argument list -> hidden_args:Parameter.t list -> t
 
 val to_string : t -> string
 
 val to_name : t -> Name.t
 
-val all_args : t -> argument list
-
 (** A map from parameter names to their values. Hidden arguments aren't relevant
     in the parameter names, so they're represented by [Name.t]s here. *)
-type subst = t Name.Map.t
+type subst = t Parameter.Map.t
 
 (** Apply a substitution to the given global. If it appears in the substitution
     directly (that is, its [Name.t] form is a key in the map), this simply
@@ -93,17 +102,10 @@ type subst = t Name.Map.t
     visible) as usual. See [global_test.ml] for examples. *)
 val subst : t -> subst -> t * [ `Changed | `Did_not_change ]
 
-(** Apply a substitution to the arguments and parameters in [t] but not to [t]
-    itself. Useful if [subst] is constructed from some parameter-argument pairs
-    and [t] is one of the parameters, since we want to handle any
-    interdependencies but the substitution applied to [t] itself is
-    uninterestingly just the corresponding value. *)
-val subst_inside : t -> subst -> t
-
 (** Check that a substitution is a valid (possibly partial) instantiation of
     a module with the given parameter list. Each name being substituted must
     appear in the list. *)
-val check : subst -> t list -> bool
+(* val check : subst -> t list -> bool *)
 
 (** Returns [true] if [hidden_args] is empty and all argument values (if any)
     are also complete. This is a stronger condition than full application, and

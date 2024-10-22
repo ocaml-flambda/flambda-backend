@@ -17,3 +17,7 @@ jkind_axis.mli
 jkind_axis.ml
 allowance.mli
 allowance.ml
+global_module.ml
+global_module.mli
+signature_with_global_bindings.ml
+signature_with_global_bindings.mli
