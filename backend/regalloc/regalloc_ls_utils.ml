@@ -93,35 +93,55 @@ module Range = struct
 
   let print ppf r = Format.fprintf ppf "[%d,%d]" r.begin_ r.end_
 
-  let rec overlap : t list -> t list -> bool =
+  let rec overlap_cell : t DLL.cell option -> t DLL.cell option -> bool =
    fun left right ->
     match left, right with
-    | left_hd :: left_tl, right_hd :: right_tl ->
-      if left_hd.end_ >= right_hd.begin_ && right_hd.end_ >= left_hd.begin_
+    | Some left_cell, Some right_cell ->
+      let left_value = DLL.value left_cell in
+      let right_value = DLL.value right_cell in
+      if left_value.end_ >= right_value.begin_
+         && right_value.end_ >= left_value.begin_
       then true
-      else if left_hd.end_ < right_hd.end_
-      then overlap left_tl right
-      else if left_hd.end_ > right_hd.end_
-      then overlap left right_tl
-      else overlap left_tl right_tl
-    | [], _ | _, [] -> false
+      else if left_value.end_ < right_value.end_
+      then overlap_cell (DLL.next left_cell) right
+      else if left_value.end_ > right_value.end_
+      then overlap_cell left (DLL.next right_cell)
+      else overlap_cell (DLL.next left_cell) (DLL.next right_cell)
+    | None, _ | _, None -> false
 
-  let rec is_live : t list -> pos:int -> bool =
-   fun l ~pos ->
-    match l with
-    | [] -> false
-    | hd :: tl ->
-      if pos < hd.begin_
+  let overlap : t DLL.t -> t DLL.t -> bool =
+   fun left right -> overlap_cell (DLL.hd_cell left) (DLL.hd_cell right)
+
+  let rec is_live_cell : t DLL.cell option -> pos:int -> bool =
+   fun cell ~pos ->
+    match cell with
+    | None -> false
+    | Some cell ->
+      let value = DLL.value cell in
+      if pos < value.begin_
       then false
-      else if pos <= hd.end_
+      else if pos <= value.end_
       then true
-      else is_live tl ~pos
+      else is_live_cell (DLL.next cell) ~pos
 
-  let rec remove_expired : t list -> pos:int -> t list =
-   fun l ~pos ->
-    match l with
-    | [] -> []
-    | hd :: tl -> if pos < hd.end_ then l else remove_expired tl ~pos
+  let is_live : t DLL.t -> pos:int -> bool =
+   fun l ~pos -> is_live_cell (DLL.hd_cell l) ~pos
+
+  let rec remove_expired_cell : t DLL.cell option -> pos:int -> unit =
+   fun cell ~pos ->
+    match cell with
+    | None -> ()
+    | Some cell ->
+      let value = DLL.value cell in
+      if pos < value.end_
+      then ()
+      else
+        let next = DLL.next cell in
+        DLL.delete_curr cell;
+        remove_expired_cell next ~pos
+
+  let remove_expired : t DLL.t -> pos:int -> unit =
+   fun l ~pos -> remove_expired_cell (DLL.hd_cell l) ~pos
 end
 
 module Interval = struct
@@ -129,19 +149,19 @@ module Interval = struct
     { reg : Reg.t;
       mutable begin_ : int;
       mutable end_ : int;
-      mutable ranges : Range.t list
+      ranges : Range.t DLL.t
     }
 
   let copy t =
     { reg = t.reg;
       begin_ = t.begin_;
       end_ = t.end_;
-      ranges = List.map t.ranges ~f:Range.copy
+      ranges = DLL.map t.ranges ~f:Range.copy
     }
 
   let print ppf t =
     Format.fprintf ppf "%a[%d,%d]:" Printmach.reg t.reg t.begin_ t.end_;
-    List.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
+    DLL.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
 
   let overlap : t -> t -> bool =
    fun left right -> Range.overlap left.ranges right.ranges
@@ -149,7 +169,7 @@ module Interval = struct
   let is_live : t -> pos:int -> bool = fun t ~pos -> Range.is_live t.ranges ~pos
 
   let remove_expired : t -> pos:int -> unit =
-   fun t ~pos -> t.ranges <- Range.remove_expired t.ranges ~pos
+   fun t ~pos -> Range.remove_expired t.ranges ~pos
 
   module List = struct
     let print ppf l =
@@ -238,11 +258,12 @@ let log_interval ~indent ~kind (interval : Interval.t) =
   let reg_class = Proc.register_class interval.reg in
   log ~indent "%s %a (class %d) [%d..%d]" kind Printmach.reg interval.reg
     reg_class interval.begin_ interval.end_;
-  let ranges =
-    List.map interval.ranges ~f:(fun { Range.begin_; end_ } ->
-        Printf.sprintf "[%d..%d]" begin_ end_)
-  in
-  log ~indent:(succ indent) "%s" (String.concat ", " ranges)
+  let ranges = Buffer.create 128 in
+  let first = ref true in
+  DLL.iter interval.ranges ~f:(fun { Range.begin_; end_ } ->
+      if !first then first := false else Buffer.add_string ranges ", ";
+      Buffer.add_string ranges (Printf.sprintf "[%d..%d]" begin_ end_));
+  log ~indent:(succ indent) "%s" (Buffer.contents ranges)
 
 let log_intervals ~indent ~kind (intervals : Interval.t list) =
   List.iter intervals ~f:(fun (interval : Interval.t) ->
