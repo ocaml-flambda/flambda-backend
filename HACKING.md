@@ -3,26 +3,24 @@
 This page is intended to keep track of useful information for people who
 want to modify the Flambda backend.  Jump to:
 
-- [Branches, pull requests, etc.](#branches-pull-requests-etc)
-- [Upstream subtree](#upstream-subtree)
-- [Code formatting](#code-formatting)
-- [Rebuilding during dev work](#rebuilding-during-dev-work)
-- [Updating magic numbers](#updating-magic-numbers)
-- [Running tests](#running-tests)
-- [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
-- [Running tests with coverage analysis](#running-tests-with-coverage-analysis)
-- [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
-- [Using the OCaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
-  - [Alternative debugger workflow](#alternative-debugger-workflow)
-- [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
-- [Bootstrapping the ocaml subtree](#bootstrapping-the-ocaml-subtree)
-- [Testing the compiler built locally with OPAM (new method)](#testing-the-compiler-built-locally-with-opam-new-method)
-- [Testing the compiler built locally with OPAM (old method)](#testing-the-compiler-built-locally-with-opam-old-method)
-- [Pulling changes onto a release branch](#pulling-changes-onto-a-release-branch)
-- [Rebasing to a new major version of the upstream compiler](#rebasing-to-a-new-major-version-of-the-upstream-compiler)
-- [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
-- [How to add a new command line option](#how-to-add-a-new-command-line-option)
-- [Installation tree comparison script](#installation-tree-comparison-script)
+- [Hacking on the Flambda backend](#hacking-on-the-flambda-backend)
+  - [Branches, pull requests, etc.](#branches-pull-requests-etc)
+  - [Code formatting](#code-formatting)
+  - [Rebuilding during dev work](#rebuilding-during-dev-work)
+  - [Updating magic numbers](#updating-magic-numbers)
+  - [Running tests](#running-tests)
+  - [Running only part of the upstream testsuite](#running-only-part-of-the-upstream-testsuite)
+  - [Running tests with coverage analysis](#running-tests-with-coverage-analysis)
+  - [Running the compiler produced by "make hacking" on an example without the stdlib](#running-the-compiler-produced-by-make-hacking-on-an-example-without-the-stdlib)
+  - [Using the OCaml debugger to debug the compiler](#using-the-ocaml-debugger-to-debug-the-compiler)
+    - [Alternative debugger workflow](#alternative-debugger-workflow)
+  - [Getting the compilation command for a stdlib file](#getting-the-compilation-command-for-a-stdlib-file)
+  - [Bootstrapping](#bootstrapping)
+  - [Testing the compiler built locally with OPAM (new method)](#testing-the-compiler-built-locally-with-opam-new-method)
+  - [Testing the compiler built locally with OPAM (old method)](#testing-the-compiler-built-locally-with-opam-old-method)
+  - [How to add a new intrinsic to the compiler](#how-to-add-a-new-intrinsic-to-the-compiler)
+  - [How to add a new command line option](#how-to-add-a-new-command-line-option)
+  - [Installation tree comparison script](#installation-tree-comparison-script)
 
 ## Branches, pull requests, etc.
 
@@ -32,21 +30,10 @@ PRs should not be merged unless all CI checks have passed unless there is a good
 reason.  It is not necessary to wait for CI checks to pass after genuinely trivial
 changes to a PR that was previously passing CI.
 
-There are also release branches (e.g. `release-4.12`) which are used for cutting
-production releases (which are all marked by git tags).  These branches should not be
-committed to without approval from the person responsible for the next release.
-
-## Upstream subtree
-
-The `ocaml/` directory contains a patched version of the upstream OCaml compiler
-around which is built the Flambda backend.  This directory is currently handled as
-a git subtree (not a submodule).
-
-Patches to the `ocaml/` subdirectory should be minimised and in the majority of cases
-be suitable for upstream submission.
-
-We are planning to move to a model where the patched upstream compiler is maintained
-in a normal upstream-style repository (i.e. forked from [`ocaml/ocaml`](https://github.com/ocaml/ocaml)).
+There are also release microbranches (e.g. `5.2.0minus-1-microbranch`) which are
+used for cutting production releases (which are all marked by git tags).  These
+branches should not be committed to without approval from the person responsible
+for the next release.
 
 ## Code formatting
 
@@ -105,34 +92,9 @@ This target is likely what you want for development of large features in the mid
 backend.  Rebuild times for this target should be very fast.  (`make hacking` can be
 run directly after `configure`, there is no need to do a full `make` first.)
 
-The aim is to minimise patches against the upstream compiler (the
-contents of the ocaml/ subdirectory), but you can configure and build
-in that directory as you would for upstream.  If a bootstrap is
-required, the normal bootstrapping commands should also work: from
-within the ocaml/ subdirectory, follow the instructions in
-[ocaml/BOOTSTRAP.adoc](ocaml/BOOSTRAP.adoc); the newly-bootstrapped
-compiler will be picked up the next time that the Flambda backend is
-built from the toplevel directory of the checkout.
-
-Any changes in `ocaml/asmcomp` and `ocaml/middle_end` directories
-should also be applied to the corresponding directories `backend` and
-`middle_end`.
-
 ## Updating magic numbers
 
-Start from a completely clean tree.  Then change into the `ocaml` subdirectory
-and proceed as follows:
-```
-./configure
-make coldstart
-make coreall
-```
-Then edit `runtime/caml/exec.h` and `utils/config.mlp` to bump the numbers.  Then:
-```
-make coreall
-make bootstrap
-```
-and commit the result.
+We should be able to use `tools/bump-magic-numbers` going forward.
 
 ## Running tests
 
@@ -148,10 +110,8 @@ There is also a `make ci` target which does a full build and test run.
 Some of our tests are expect tests run using a custom tool called `flexpect`.
 Corrected outputs can be promoted using `make promote`.
 
-See `ocaml/HACKING.jst.adoc` for documentation on additional test-related
-targets. When that documentation says to run (say) `make -f Makefile.jst test-one`
-from the `ocaml` subdirectory, you should instead run `make test-one` from the
-root of the repo. Here are some examples of commands you can run:
+See `HACKING.jst.adoc` for documentation on additional test-related
+targets.  Here are some examples of commands you can run:
 
 ```
 $ make test-one TEST=typing-local/local.ml
@@ -162,13 +122,13 @@ $ make promote-one-no-rebuild TEST=typing-local/local.ml
 $ make promote-failed
 # You can also use the full path from the root of the repo.
 # This interacts better with tab completion.
-$ make test-one TEST=ocaml/testsuite/tests/typing-local/local.ml
+$ make test-one TEST=testsuite/tests/typing-local/local.ml
 ```
 
 ## Running only part of the upstream testsuite
 
 This can be done from the `_runtest` directory after it has been initialised by a previous `make runtest-upstream`.
-Any changes you have made to the tests in the real testsuite directory (`ocaml/testsuite/`) will need to be copied
+Any changes you have made to the tests in the real testsuite directory (`testsuite/`) will need to be copied
 into here first.  Then you can do things like:
 ```
 OCAMLSRCDIR=<FLAMBDA_BACKEND>/_runtest make one DIR=tests/runtime-errors
@@ -212,8 +172,8 @@ something like:
 First, run `make debug`. This completes four steps:
 
 1. `make install`
-2. Sets up the `ocaml/tools/debug_printers` script so that you can `source
-   ocaml/tools/debug_printers` during a debugging session to see
+2. Sets up the `tools/debug_printers` script so that you can `source
+   tools/debug_printers` during a debugging session to see
    otherwise-abstract variable values.
 3. Symlinks `./ocamlc` and `./ocamlopt` to point to the bytecode versions of
    those compilers. This is convenient for emacs integration, because emacs
@@ -313,7 +273,7 @@ ocamldebug emacs mode as follows:
    printing any value may produce `Cannot find module Misc.` or similar
    errors).  If debugging `ocamlc`, run:
    ```
-   (ocd) directory _build/main/ocaml/.ocamlcommon.objs/byte
+   (ocd) directory _build/main/.ocamlcommon.objs/byte
    ```
    If debugging `ocamlopt`, you'll need various additional directories depending
    on your middle end.  You can find the right directories by searching for cmo
@@ -327,18 +287,15 @@ above.
 
 For example because you need to get the `-dflambda` output because of a bug.
 ```
-rm -f _build/runtime_stdlib/ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
-<DUNE> build --workspace=duneconf/runtime_stdlib.ws --verbose ocaml/stdlib/.stdlib.objs/native/std_exit.cmx
+rm -f _build/runtime_stdlib/stdlib/.stdlib.objs/native/std_exit.cmx
+<DUNE> build --workspace=duneconf/runtime_stdlib.ws --verbose stdlib/.stdlib.objs/native/std_exit.cmx
 ```
 where `<DUNE>` is the path to the dune provided to `configure`.
 
-## Bootstrapping the ocaml subtree
+## Bootstrapping
 
-This can be done following the usual upstream procedures,
-working entirely within the `ocaml/` subdirectory.  Thoroughly clean the tree (e.g. `git clean -dfX`),
-go into `ocaml/`, then run the upstream configure script.  After that perform the bootstrap (e.g.
-`make core` followed by `make bootstrap`).  Before recompiling the Flambda backend as normal it would
-be advisable to clean the whole tree again.
+Bootstrapping is not required in flambda-backend.  The system compiler is used
+for the first stage.
 
 ## Testing the compiler built locally with OPAM (new method)
 
@@ -425,24 +382,6 @@ The main drawback of this approach is that there isn't any way to cleanup an
 installation properly without deleting the whole switch; if the set of installed
 files change between one `make install_for_opam` command and the next, strange
 bugs might appear.
-
-## Pulling changes onto a release branch
-
-This should only be done with the approval of the person responsible for the next release.
-One way of doing it is as follows:
-```
-git checkout -b release-4.12 flambda-backend/release-4.12
-git reset --hard flambda-backend/main
-git rebase -i flambda-backend/release-4.12
-```
-assuming that `flambda-backend` is the git remote for the Flambda backend repo.
-
-The resulting local branch `release-4.12` should _not_ require a force push when pushed
-to the remote.
-
-## Rebasing to a new major version of the upstream compiler
-
-The procedure for this is still under development; talk to @poechsel or @mshinwell.
 
 ## How to add a new intrinsic to the compiler
 
