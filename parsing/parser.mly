@@ -35,6 +35,9 @@ open Docstrings
 open Docstrings.WithMenhir
 open Parser_types
 
+(* Pin to menhir version 20231231. *)
+let () = CamlinternalMenhirLib.StaticVersion.require_20231231
+
 let mkloc = Location.mkloc
 let mknoloc = Location.mknoloc
 
