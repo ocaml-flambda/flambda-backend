@@ -72,7 +72,7 @@ module Exist_pair = struct
   let maturity : t -> Maturity.t = function
     | Pair (Comprehensions, ()) -> Beta
     | Pair (Mode, m) -> m
-    | Pair (Unique, ()) -> Alpha
+    | Pair (Unique, ()) -> Stable
     | Pair (Include_functor, ()) -> Stable
     | Pair (Polymorphic_parameters, ()) -> Stable
     | Pair (Immutable_arrays, ()) -> Stable
