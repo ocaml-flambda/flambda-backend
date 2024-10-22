@@ -44,7 +44,7 @@ type core_rec_group =
   | Not_rec of sig_item
   | Rec_group of sig_item list
 
-(** [rec_items group] is the list of sig_items in the group *)
+(** [rec_items group] is the list of sg_items in the group *)
 val rec_items: core_rec_group -> sig_item list
 
 (** Private #row types are manifested as a sequence of definitions
