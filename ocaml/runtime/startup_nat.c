@@ -43,7 +43,7 @@ extern int caml_parser_trace;
 extern char caml_system__code_begin, caml_system__code_end;
 /* The two symbols above are defined in runtime/$ARCH.S.
    They use the old `__` separator convention because the new convention
-   gives `caml_system.code_begin`, which is not a valid C identifier. */
+   gives `caml_system__code_begin`, which is not a valid C identifier. */
 
 extern uintnat caml_prelinking_in_use;
 
