@@ -1805,6 +1805,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pmakefloatblock (_, m) -> Some m
   | Pmakeufloatblock (_, m) -> Some m
   | Pmakemixedblock (_, _, _, m) -> Some m
+  (* CR uniqueness: the four Preuseblock cases should return None
+     once overwriting is implemented in the backend. *)
   | Preuseblock { mode } -> Some mode
   | Preusefloatblock { mode } -> Some mode
   | Preuseufloatblock { mode } -> Some mode
