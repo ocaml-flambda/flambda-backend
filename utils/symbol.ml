@@ -50,7 +50,7 @@ let caml_symbol_prefix = "caml"
 (* CR ocaml 5 all-runtime5: Remove this_is_ocamlc and force_runtime4_symbols
    once fully on runtime5 *)
 let this_is_ocamlc = ref false
-let force_runtime4_symbols = ref false
+let force_runtime4_symbols = ref true
 
 let upstream_runtime5_symbol_separator =
   match Config.ccomp_type with
