@@ -13,7 +13,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** This module follows the structure of ocaml/driver/main_args.ml{i}.
+(** This module follows the structure of driver/main_args.ml{i}.
     It provides a way to (a) share argument implementations between
     different installable tools and (b) override default implementations
     of arguments. *)

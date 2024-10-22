@@ -13,7 +13,7 @@
 (**************************************************************************)
 
 (* Defines the runtime tags used by the target runtime.
-   Must be kept in sync with ocaml/stdlib/obj.ml and ocaml/runtime/caml/mlvalues.h *)
+   Must be kept in sync with stdlib/obj.ml and runtime/caml/mlvalues.h *)
 
 let first_non_constant_constructor_tag = 0
 let last_non_constant_constructor_tag = 243

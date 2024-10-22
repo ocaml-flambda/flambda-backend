@@ -1,7 +1,7 @@
 
 (* These tests check that the backend check does what we expect on functions
    used in an interesting example in the typing tests for zero_alloc in
-   signatures (see [ocaml/testsuite/tests/typing-zero-alloc/signatures.ml]). *)
+   signatures (see [testsuite/tests/typing-zero-alloc/signatures.ml]). *)
 
 let[@zero_alloc] f_zero_alloc x y =
   if x = y+1 then fun z -> (z,z) else fun z -> (z,0)

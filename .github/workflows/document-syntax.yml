@@ -4,7 +4,7 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened]
     paths:
-      - 'ocaml/parsing/parser.mly'
+      - 'parsing/parser.mly'
 
 jobs:
   remind:

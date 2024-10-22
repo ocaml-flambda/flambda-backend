@@ -15,7 +15,7 @@
 
 (* The interactive toplevel loop *)
 
-#18 "ocaml/toplevel/byte/topeval.ml"
+#18 "toplevel/byte/topeval.ml"
 
 open Format
 open Misc
