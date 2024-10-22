@@ -17,11 +17,17 @@
    original compilation units as sub-modules. *)
 
 val package_files
-   : ppf_dump:Format.formatter
+   : (module Compiler_owee.Unix_intf.S)
+  -> ppf_dump:Format.formatter
   -> Env.t
   -> string list
   -> string
-  -> backend:(module Backend_intf.S)
+  -> flambda2:(
+    ppf_dump:Format.formatter ->
+    prefixname:string ->
+    keep_symbol_tables:bool ->
+    Lambda.program ->
+    Cmm.phrase list)
   -> unit
 
 type error =

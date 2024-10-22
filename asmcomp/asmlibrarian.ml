@@ -18,18 +18,13 @@
 open Misc
 open Config
 open Cmx_format
+module String = Misc.Stdlib.String
 
 type error =
     File_not_found of string
   | Archiver_error of string
 
 exception Error of error
-
-let default_ui_export_info =
-  if Config.flambda then
-    Cmx_format.Flambda Export_info.empty
-  else
-    Cmx_format.Clambda Clambda.Value_unknown
 
 let read_info name =
   let filename =
@@ -43,7 +38,7 @@ let read_info name =
      since the compiler will go looking directly for .cmx files.
      The linker, which is the only one that reads .cmxa files, does not
      need the approximation. *)
-  info.ui_export_info <- default_ui_export_info;
+  info.ui_export_info <- None;
   (Filename.chop_suffix filename ".cmx" ^ ext_obj, (info, crc))
 
 let create_archive file_list lib_name =
@@ -60,8 +55,56 @@ let create_archive file_list lib_name =
          (fun file_name (unit, crc) ->
             Asmlink.check_consistency file_name unit crc)
          file_list descr_list;
+       let cmis = Asmlink.extract_crc_interfaces () in
+       let cmxs = Asmlink.extract_crc_implementations () in
+       (* CR mshinwell: see comment in compilenv.ml
+       let cmxs =
+         Compilenv.ensure_sharing_between_cmi_and_cmx_imports cmis cmxs
+       in
+       *)
+       let cmis = Array.of_list cmis in
+       let cmxs = Array.of_list cmxs in
+       let cmi_index = Compilation_unit.Name.Tbl.create 42 in
+       Array.iteri (fun i import ->
+           Compilation_unit.Name.Tbl.add cmi_index (Import_info.name import) i)
+         cmis;
+       let cmx_index = Compilation_unit.Tbl.create 42 in
+       Array.iteri (fun i import ->
+           Compilation_unit.Tbl.add cmx_index (Import_info.cu import) i)
+         cmxs;
+       let genfns = Generic_fns.Tbl.make () in
+       let mk_bitmap arr ix entries ~find ~get_name =
+         let module B = Misc.Bitmap in
+         let b = B.make (Array.length arr) in
+         List.iter (fun import -> B.set b (find ix (get_name import))) entries;
+         b
+       in
+       let units =
+         List.map (fun (unit, crc) ->
+           ignore (Generic_fns.Tbl.add
+                                  ~imports:Generic_fns.Partition.Set.empty
+                                  genfns
+                                  unit.ui_generic_fns);
+           { li_name = unit.ui_unit;
+             li_crc = crc;
+             li_defines = unit.ui_defines;
+             li_force_link = unit.ui_force_link;
+             li_imports_cmi =
+               mk_bitmap cmis cmi_index unit.ui_imports_cmi
+                 ~find:Compilation_unit.Name.Tbl.find
+                 ~get_name:Import_info.name;
+             li_imports_cmx =
+               mk_bitmap cmxs cmx_index unit.ui_imports_cmx
+                 ~find:Compilation_unit.Tbl.find
+                 ~get_name:Import_info.cu;
+             li_external_symbols = Array.of_list unit.ui_external_symbols })
+         descr_list
+       in
        let infos =
-         { lib_units = descr_list;
+         { lib_units = units;
+           lib_imports_cmi = cmis;
+           lib_imports_cmx = cmxs;
+           lib_generic_fns = Generic_fns.Tbl.entries genfns;
            lib_ccobjs = !Clflags.ccobjs;
            lib_ccopts = !Clflags.all_ccopts } in
        output_value outchan infos;
@@ -69,14 +112,13 @@ let create_archive file_list lib_name =
        then raise(Error(Archiver_error archive_name));
     )
 
-module Style = Misc.Style
 open Format
 
 let report_error ppf = function
   | File_not_found name ->
-      fprintf ppf "Cannot find file %a" Style.inline_code name
+      fprintf ppf "Cannot find file %s" name
   | Archiver_error name ->
-      fprintf ppf "Error while creating the library %a" Style.inline_code name
+      fprintf ppf "Error while creating the library %s" name
 
 let () =
   Location.register_error_of_exn

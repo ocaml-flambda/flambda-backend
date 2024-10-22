@@ -18,4 +18,14 @@
 
    NB: Due to internal state in the compiler, calling [main] twice during
    the same process is unsupported. *)
-val main : string array -> Format.formatter -> int
+val main
+   : (module Compiler_owee.Unix_intf.S)
+  -> string array
+  -> Format.formatter
+  -> flambda2:(
+    ppf_dump:Format.formatter ->
+    prefixname:string ->
+    keep_symbol_tables:bool ->
+    Lambda.program ->
+    Cmm.phrase list)
+  -> int

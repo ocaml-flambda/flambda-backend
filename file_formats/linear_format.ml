@@ -44,7 +44,7 @@ let save filename linear_unit_info =
     (* Compute digest of the contents and append it to the file. *)
     flush ch;
     let crc = Digest.file filename in
-    output_value ch crc
+    Digest.output ch crc
   )
     ~always:(fun () -> close_out ch)
     ~exceptionally:(fun () -> raise (Error (Marshal_failed filename)))
@@ -61,7 +61,7 @@ let restore filename =
            let last_label = (input_value ic : Cmm.label) in
            Cmm.reset ();
            Cmm.set_label last_label;
-           let crc = (input_value ic : Digest.t) in
+           let crc = Digest.input ic in
            linear_unit_info, crc
          with End_of_file | Failure _ -> raise (Error (Corrupted filename))
             | Error e -> raise (Error e)
@@ -76,22 +76,21 @@ let restore filename =
 (* Error report *)
 
 open Format
-module Style=Misc.Style
 
 let report_error ppf = function
   | Wrong_format filename ->
       fprintf ppf "Expected Linear format. Incompatible file %a"
-        (Style.as_inline_code Location.print_filename) filename
+        Location.print_filename filename
   | Wrong_version filename ->
       fprintf ppf
         "%a@ is not compatible with this version of OCaml"
-        (Style.as_inline_code Location.print_filename) filename
+        Location.print_filename filename
   | Corrupted filename ->
       fprintf ppf "Corrupted format@ %a"
-        (Style.as_inline_code Location.print_filename) filename
+        Location.print_filename filename
   | Marshal_failed filename ->
       fprintf ppf "Failed to marshal Linear to file@ %a"
-        (Style.as_inline_code Location.print_filename) filename
+        Location.print_filename filename
 
 let () =
   Location.register_error_of_exn
