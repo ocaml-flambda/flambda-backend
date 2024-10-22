@@ -1,0 +1,4 @@
+val other_file_b : Multiple_files.B.t
+module A : sig type t = A1 | A2 end
+type _a = A.t = A1 | A2
+val this_file_a : A.t

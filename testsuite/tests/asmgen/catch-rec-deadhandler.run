@@ -1,0 +1,8 @@
+#!/bin/sh
+
+exec > "${output}" 2>&1
+
+if [ "${REGISTER_ALLOCATOR}" = "irc" ]
+then cat "${reference}"
+else grep -E "catch |with\(|and\(|exit\(" "${compiler_output}"
+fi

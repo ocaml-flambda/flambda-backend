@@ -1,0 +1,166 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                     Thomas Refis, Jane Street Europe                   *
+;*                                                                        *
+;*   Copyright 2018 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(copy_files# caml/*.h)
+
+(library
+ (name unix)
+ (wrapped false)
+ (modes byte native)
+ (flags
+  (:standard
+   -absname
+   -bin-annot
+   -g
+   -safe-string
+   -strict-sequence
+   -strict-formats
+   -nolabels ; for UnixLabels
+   ))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
+ (library_flags (:standard -linkall))
+ (modules unix unixLabels)
+ (foreign_stubs (language c) (names
+   accept_unix
+   access
+   addrofstr
+   alarm
+   bind_unix
+   channels_unix
+   chdir
+   chmod
+   chown
+   chroot
+   close_unix
+   closedir
+   connect_unix
+   cst2constr
+   cstringv
+   dup2
+   dup_unix
+   envir_unix
+   errmsg_unix
+   execv
+   execve
+   execvp
+   exit
+   fchmod
+   fchown
+   fcntl
+   fork
+   fsync
+   ftruncate
+   getaddrinfo
+   getcwd
+   getegid
+   geteuid
+   getgid
+   getgr
+   getgroups
+   gethost
+   gethostname
+   getlogin
+   getnameinfo
+   getpeername_unix
+   getpid_unix
+   getppid
+   getproto
+   getpw
+   getserv
+   getsockname_unix
+   gettimeofday_unix
+   getuid
+   gmtime
+   initgroups
+   isatty_unix
+   itimer
+   kill
+   link_unix
+   listen_unix
+   lockf_unix
+   lseek_unix
+   mkdir
+   mkfifo
+   mmap_ba
+   mmap_unix
+   nice
+   open_unix
+   opendir
+   pipe_unix
+   putenv
+   read_unix
+   readdir
+   readlink_unix
+   realpath_unix
+   rename_unix
+   rewinddir
+   rmdir
+   select_unix
+   sendrecv_unix
+   setgid
+   setgroups
+   setsid
+   setuid
+   shutdown_unix
+   signals
+   sleep_unix
+   socket_unix
+   socketaddr
+   socketpair_unix
+   sockopt_unix
+   spawn
+   stat_unix
+   strofaddr
+   symlink_unix
+   termios
+   time
+   times_unix
+   truncate_unix
+   umask
+   unixsupport_unix
+   unlink
+   utimes_unix
+   wait
+   write_unix
+   )
+   (flags ((:include %{project_root}/oc_cflags.sexp)
+           (:include %{project_root}/sharedlib_cflags.sexp)
+           (:include %{project_root}/oc_cppflags.sexp)))
+ ))
+
+(install
+  (files
+    (.unix.objs/native/unix.cmx as unix/unix.cmx)
+    (.unix.objs/native/unixLabels.cmx as unix/unixLabels.cmx)
+    (unix.cmxa as unix/unix.cmxa)
+    (unix.a as unix/unix.a)
+    (unix.cma as unix/unix.cma)
+    (.unix.objs/byte/unix.cmi as unix/unix.cmi)
+    (.unix.objs/byte/unix.cmt as unix/unix.cmt)
+    (.unix.objs/byte/unix.cmti as unix/unix.cmti)
+    (.unix.objs/byte/unixLabels.cmi as unix/unixLabels.cmi)
+    (.unix.objs/byte/unixLabels.cmt as unix/unixLabels.cmt)
+    (.unix.objs/byte/unixLabels.cmti as unix/unixLabels.cmti)
+    (unix.cmxs as unix/unix.cmxs)
+    (unix.mli as unix/unix.mli)
+    (unixLabels.mli as unix/unixLabels.mli)
+    (libunix_stubs.a as unix/libunix_stubs.a)
+    (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
+    (dllunix_stubs.so as stublibs/dllunix_stubs.so)
+    (socketaddr.h as caml/socketaddr.h)
+    (unixsupport.h as caml/unixsupport.h)
+    (META as unix/META)
+  )
+  (section lib)
+  (package ocaml))

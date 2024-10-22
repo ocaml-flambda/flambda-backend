@@ -1,0 +1,11 @@
+**** Test that compiler-generated attributes start with "jane." ****
+
+User attributes [@...] and extension nodes [%...] found:
+  [@expr ...]
+  [%e ...]
+  [@low ...]
+  [%l ...]
+  [@high ...]
+  [%h ...]
+  [@cond ...]
+  [%c ...]

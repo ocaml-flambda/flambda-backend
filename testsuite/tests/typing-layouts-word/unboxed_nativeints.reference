@@ -1,0 +1,116 @@
+Test 1, three: 3
+Test 1, twice_three: 6
+Test 1, thrice_three: 9
+Test 1, twice_three_again: 6
+Test 1, three_again: 3
+Test 1, three_again_unsigned: 3
+Test 1, twice_three_greater_than_three: true
+Test 1, three_with_effort: 3
+Test 1, seven_rem_three: 1
+Test 1, seven_rem_three_unsigned: 1
+Test1, forty_two_logand_three (0b00101010 & 0b00000011): 2 = 0b0000000000000000000000000000000000000000000000000000000000000010
+Test1, forty_two_logor_three (0b00101010 & 0b00000011): 43 = 0b0000000000000000000000000000000000000000000000000000000000101011
+Test1, forty_two_logxor_three (0b00101010 & 0b00000011): 41 = 0b0000000000000000000000000000000000000000000000000000000000101001
+Test1, lognot_three (~0b00000011): -4 = 0b1111111111111111111111111111111111111111111111111111111111111100
+Test1, three_shl_eight (0b00000011 << 8): 768 = 0b0000000000000000000000000000000000000000000000000000001100000000
+Test1, three_shr_one (0b00000011 >> 1): 1 = 0b0000000000000000000000000000000000000000000000000000000000000001
+Test1, three_shr_one (0b00000011 >>> 1): 1 = 0b0000000000000000000000000000000000000000000000000000000000000001
+Test 1, minus_five: -5
+Test 1, twice_minus_five: -10
+Test 1, thrice_minus_five: -15
+Test 1, twice_minus_five_again: -10
+Test 1, minus_five_again: -5
+Test 1, minus_five_again_unsigned: 9223372036854775803
+Test 1, minus_five_greater_than_twice_minus_five: true
+Test 1, minus_five_with_effort: -5
+Test 1, seven_rem_minus_five: 2
+Test 1, seven_rem_minus_five_unsigned: 7
+Test1, forty_two_logand_minus_five (0b00101010 & 0b1...1011): 42 = 0b0000000000000000000000000000000000000000000000000000000000101010
+Test1, forty_two_logor_minus_five (0b00101010 & 0b1...1011): -5 = 0b1111111111111111111111111111111111111111111111111111111111111011
+Test1, forty_two_logxor_minus_five (0b00101010 & 0b1...1011): -47 = 0b1111111111111111111111111111111111111111111111111111111111010001
+Test1, lognot_minus_five (~0b1...1011): 4 = 0b0000000000000000000000000000000000000000000000000000000000000100
+Test1, minus_five_shl_eight (0b1...1011 << 8): -1280 = 0b1111111111111111111111111111111111111111111111111111101100000000
+Test1, minus_five_shr_one (0b1...1011 >> 1): -3 = 0b1111111111111111111111111111111111111111111111111111111111111101
+Test1, minus_five_shr_one (0b1...1011 >>> 1): 9223372036854775805 = 0b0111111111111111111111111111111111111111111111111111111111111101
+Test 1, size: 64
+Test 2, add three twice: 6
+Test 2, add three four times: 12
+Test 2, increment three twice: 5
+Test 2, increment three four times: 7
+Test 2, two times four: 8
+Test 2, three times sixteen: 48
+Test 2, three times sixteen again: 48
+Test 2, three minus four: -1
+Test 3, 5 * 3: : 15
+  Test 3, step 0: 12
+  Test 3, step 1: 9
+  Test 3, step 2: 6
+  Test 3, step 3: 3
+  Test 3, step 4: 0
+  Test 3, step 5: 0
+  Test 3, step 6: 0
+  Test 3, step 7: 0
+  Test 3, step 8: 0
+  Test 3, step 9: 0
+Test 3, 171: : 228
+  Test 3, step 0: 0
+  Test 3, step 1: 0
+  Test 3, step 2: 0
+  Test 3, step 3: 0
+  Test 3, step 4: 171
+  Test 3, step 5: 114
+  Test 3, step 6: 57
+  Test 3, step 7: 0
+  Test 3, step 8: 0
+  Test 3, step 9: 0
+Test 4, 1 + 2: 3
+Test 4, 1 - 2: -1
+Test 4, 5 * 3: : 15
+  Test 4, step 0: 12
+  Test 4, step 1: 9
+  Test 4, step 2: 6
+  Test 4, step 3: 3
+  Test 4, step 4: 0
+  Test 4, step 5: 0
+  Test 4, step 6: 0
+  Test 4, step 7: 0
+  Test 4, step 8: 0
+  Test 4, step 9: 0
+Test 4, 6 * 3: : 18
+  Test 4, step 0: 15
+  Test 4, step 1: 12
+  Test 4, step 2: 9
+  Test 4, step 3: 6
+  Test 4, step 4: 3
+  Test 4, step 5: 0
+  Test 4, step 6: 0
+  Test 4, step 7: 0
+  Test 4, step 8: 0
+  Test 4, step 9: 0
+Test 4, 5 * 3: : 15
+  Test 4, step 0: 12
+  Test 4, step 1: 9
+  Test 4, step 2: 6
+  Test 4, step 3: 3
+  Test 4, step 4: 0
+  Test 4, step 5: 0
+  Test 4, step 6: 0
+  Test 4, step 7: 0
+  Test 4, step 8: 0
+  Test 4, step 9: 0
+Test 4, 6 * 3: : 18
+  Test 4, step 0: 15
+  Test 4, step 1: 12
+  Test 4, step 2: 9
+  Test 4, step 3: 6
+  Test 4, step 4: 3
+  Test 4, step 5: 0
+  Test 4, step 6: 0
+  Test 4, step 7: 0
+  Test 4, step 8: 0
+  Test 4, step 9: 0
+Test 5, 3 + 2 + 1: 6
+Test 6, 3: 3
+Test 6, 32: 32
+Test 6, -44: -44
+Test 7, 32: 32

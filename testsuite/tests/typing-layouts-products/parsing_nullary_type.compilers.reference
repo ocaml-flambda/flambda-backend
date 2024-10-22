@@ -1,0 +1,4 @@
+File "parsing_nullary_type.ml", line 11, characters 11-12:
+11 | type t = #()
+                ^
+Error: Syntax error

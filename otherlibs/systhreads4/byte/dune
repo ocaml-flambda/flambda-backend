@@ -1,0 +1,21 @@
+(copy_files# ../*.{c,h,ml,mli})
+
+(library
+ (name threads)
+ (modes byte)
+ (wrapped false)
+ ; FIXME Fix warning 27 and -no-strict-sequence
+ (flags
+  (:standard -no-strict-sequence -g -bin-annot -safe-string -w -27))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (libraries unix)
+ (library_flags -linkall)
+ (c_library_flags -lpthread)
+ (foreign_stubs
+  (language c)
+  (names st_stubs)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp)))))
