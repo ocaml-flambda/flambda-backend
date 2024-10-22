@@ -569,8 +569,15 @@ and add_module_expr bv modl =
       add_expr bv e
   | Pmod_extension e ->
       handle_extension e
-  (* CR nroberts for lmaurer: what should happen here?  *)
-  | Pmod_instance _ -> ()
+  | Pmod_instance instance ->
+      add_instance bv instance
+
+and add_instance bv { pmod_instance_head; pmod_instance_args } =
+  add_path bv (Lident pmod_instance_head);
+  List.iter (fun (name, arg) ->
+      add_path bv (Lident name);
+      add_instance bv arg)
+    pmod_instance_args
 
 and add_class_type bv cty =
   match cty.pcty_desc with
