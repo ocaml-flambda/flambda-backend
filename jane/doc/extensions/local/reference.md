@@ -101,7 +101,7 @@ let f1 ~foo:_ = ()
 let f2 x = f1 ~foo:(Some x) (* [Some x] is stack allocated *)
 ```
 
-<!-- See Note [Inference affects allocation in mli-less files] in [ocaml/testsuite/tests/typing-local/alloc_arg_with_mli.ml]
+<!-- See Note [Inference affects allocation in mli-less files] in [testsuite/tests/typing-local/alloc_arg_with_mli.ml]
      in the flambda-backend Git repo. The ensuing paragraph is related to that
      note; we can remove this comment when the note is resolved.
 -->
