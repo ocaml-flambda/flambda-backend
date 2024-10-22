@@ -428,8 +428,7 @@
        compiler_reference = "bad_ref_indirect.reference";
        check-ocamlopt.byte-output;
      }{
-       (* Pass [-O2] to normalise ocamlobjinfo output *)
-       flags = "-parameter Monoid -O2";
+       flags = "-parameter Monoid";
        module = "ref_indirect.ml";
        ocamlopt.byte;
 
