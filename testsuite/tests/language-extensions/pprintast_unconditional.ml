@@ -3,7 +3,7 @@
  flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
-(* See [ocaml/testsuite/tests/parsetree/source_jane_street.ml] for tests for
+(* See [testsuite/tests/parsetree/source_jane_street.ml] for tests for
    new language extensions. The present test is along a different axis: the
    different syntax elements that we support in Pprintast.
 *)

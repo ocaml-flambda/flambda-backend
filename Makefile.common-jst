@@ -377,12 +377,12 @@ runtest-upstream: test
 test-one: install_for_test
 	$(MAKE) test-one-no-rebuild
 
-# If the TEST argument is passed as `ocaml/testsuite/tests/foo` (as is invited by
+# If the TEST argument is passed as `testsuite/tests/foo` (as is invited by
 # tab completion) then look for it in `tests/foo`. Otherwise, if it's passed as
 # just `foo`, then look for it in `tests/foo` for backward compatibility.
 locate_test = \
   $(shell \
-    test=$(shell echo "$1" | sed 's|^ocaml/testsuite/tests/||g'); \
+    test=$(shell echo "$1" | sed 's|^testsuite/tests/||g'); \
     echo "tests/$${test}"; \
   )
 
