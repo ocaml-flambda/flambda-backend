@@ -20,3 +20,5 @@ val strace : Variables.t
 val strace_flags : Variables.t
 
 val get_logfile_name : string -> string
+
+val init : unit -> unit

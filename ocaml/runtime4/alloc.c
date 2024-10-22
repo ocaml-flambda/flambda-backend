@@ -67,7 +67,7 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
-#if NATIVE_CODE
+#ifdef NATIVE_CODE
 CAMLexport value caml_alloc_mixed (mlsize_t wosize, tag_t tag,
                                    mlsize_t scannable_prefix) {
   reserved_t reserved =
@@ -212,7 +212,7 @@ CAMLexport value caml_copy_string_array(char const ** arr)
   return caml_alloc_array(caml_copy_string, arr);
 }
 
-CAMLexport int caml_convert_flag_list(value list, int *flags)
+CAMLexport int caml_convert_flag_list(value list, const int *flags)
 {
   int res;
   res = 0;

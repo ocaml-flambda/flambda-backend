@@ -54,7 +54,7 @@ end
 Line 2, characters 15-16:
 2 |     let local_ x = "hello"
                    ^
-Error: This value is local, but expected to be global because it is inside a module.
+Error: This value is "local", but expected to be "global" because it is inside a module.
 |}]
 
 (* Monadic axes don't have such constraint *)
@@ -85,7 +85,7 @@ end
 Line 11, characters 25-29:
 11 |     let _ = portable_use M'.x
                               ^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Module_type_of_monadic = struct
@@ -150,12 +150,12 @@ Error: Signature mismatch:
            val x : string @@ contended
            module N : sig val y : string end
          end
-       In module N:
+       In module "N":
        Modules do not match:
          sig val y : string @@ global many portable contended end
        is not included in
          sig val y : string end
-       In module N:
+       In module "N":
        Values do not match:
          val y : string @@ global many portable contended
        is not included in
@@ -189,7 +189,7 @@ end
 Line 5, characters 26-29:
 5 |     let () = portable_use M.x
                               ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Inclusion_fail = struct
@@ -228,7 +228,7 @@ end
 Line 7, characters 28-31:
 7 |     let _ = uncontended_use M.x
                                 ^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 module Inclusion_weakens_comonadic = struct
@@ -243,7 +243,7 @@ end
 Line 7, characters 23-26:
 7 |   let _ = portable_use M.x
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Inclusion_match = struct
@@ -299,7 +299,7 @@ end
 Line 7, characters 20-23:
 7 |     uncontended_use M.r
                         ^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 module Close_over_value_comonadic = struct
@@ -314,7 +314,7 @@ end
 Line 6, characters 12-15:
 6 |     let _ = M.x in
                 ^^^
-Error: The value M.x is nonportable, so cannot be used inside a closure that is portable.
+Error: The value "M.x" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* Modalities on primitives are supported. They are simpler than real values,
@@ -371,7 +371,7 @@ module M : sig external length : string -> int = "%string_length" end
 Line 7, characters 21-29:
 7 | let _ = portable_use M.length
                          ^^^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* The example below demonstrates the need to zap modalities from [with module]
@@ -451,12 +451,12 @@ Error: Signature mismatch:
            module type S_plain =
              sig module M : sig val f : int -> int @@ portable end end
          end
-       In module Plain:
+       In module "Plain":
        Modules do not match:
          sig val f : int -> int @@ global many end
        is not included in
          sig val f : int -> int @@ portable end
-       In module Plain:
+       In module "Plain":
        Values do not match:
          val f : int -> int @@ global many
        is not included in
@@ -549,3 +549,195 @@ module type S' =
 
 (* CR zqian: add tests of recursive modules & include w/ modalties, once
    modules can have modes. *)
+
+module type S = sig
+  val bar : 'a -> 'a
+  module M : sig
+    val foo : 'a -> 'a
+  end
+end
+[%%expect{|
+module type S =
+  sig val bar : 'a -> 'a module M : sig val foo : 'a -> 'a end end
+|}]
+
+module type S' = sig
+  include S @@ portable
+end
+[%%expect{|
+module type S' =
+  sig
+    val bar : 'a -> 'a @@ portable
+    module M : sig val foo : 'a -> 'a @@ portable end
+  end
+|}]
+
+module type S' = sig
+  include [@no_recursive_modalities] S @@ portable
+end
+[%%expect{|
+module type S' =
+  sig
+    val bar : 'a -> 'a @@ portable
+    module M : sig val foo : 'a -> 'a end
+  end
+|}]
+
+module type T = sig
+  val baz : 'a -> 'a
+  module M : S
+end
+[%%expect{|
+module type T = sig val baz : 'a -> 'a module M : S end
+|}]
+
+module type T' = sig
+  include T @@ portable
+end
+[%%expect{|
+module type T' =
+  sig
+    val baz : 'a -> 'a @@ portable
+    module M :
+      sig
+        val bar : 'a -> 'a @@ portable
+        module M : sig val foo : 'a -> 'a @@ portable end
+      end
+  end
+|}]
+
+module type T' = sig
+  include [@no_recursive_modalities] T @@ portable
+end
+[%%expect{|
+module type T' = sig val baz : 'a -> 'a @@ portable module M : S end
+|}]
+
+(* submodule whose type is in the signature *)
+module type S = sig
+  module type MT = sig
+    val foo : 'a -> 'a
+  end
+  module M : MT
+end
+
+module type S' = sig
+  include S @@ portable
+end
+[%%expect{|
+module type S =
+  sig module type MT = sig val foo : 'a -> 'a end module M : MT end
+module type S' =
+  sig
+    module type MT = sig val foo : 'a -> 'a end
+    module M : sig val foo : 'a -> 'a @@ portable end
+  end
+|}]
+
+(* and this works deeply *)
+module type S = sig
+  module type MT = sig
+    val foo : 'a -> 'a
+  end
+  module M : sig
+    module N : MT
+  end
+end
+module type S' = sig
+include S @@ portable
+end
+[%%expect{|
+module type S =
+  sig
+    module type MT = sig val foo : 'a -> 'a end
+    module M : sig module N : MT end
+  end
+module type S' =
+  sig
+    module type MT = sig val foo : 'a -> 'a end
+    module M : sig module N : sig val foo : 'a -> 'a @@ portable end end
+  end
+|}]
+
+(* submodule whose type is not in the signature but inside a module *)
+module M = struct
+  module type Foo = sig
+    val foo : 'a -> 'a
+  end
+  module type Foo' = Foo
+  module type S = sig
+    module N : Foo'
+  end
+end
+module type S' = sig
+  include M.S @@ portable
+end
+[%%expect{|
+module M :
+  sig
+    module type Foo = sig val foo : 'a -> 'a end
+    module type Foo' = Foo
+    module type S = sig module N : Foo' end
+  end
+module type S' = sig module N : sig val foo : 'a -> 'a @@ portable end end
+|}]
+
+(* include abstract module type is still not allowed *)
+module type S = sig
+  module type MT
+  include MT @@ portable
+end
+[%%expect{|
+Line 3, characters 10-12:
+3 |   include MT @@ portable
+              ^^
+Error: This module type is not a signature
+|}]
+
+(* submodule of abstract type is not affected by modality *)
+module type MT
+module type S = sig
+  module M : MT
+end
+module type S' = sig
+include S @@ portable
+end
+[%%expect{|
+module type MT
+module type S = sig module M : MT end
+module type S' = sig module M : MT end
+|}]
+
+(* strenghtened module type *)
+module type S = sig
+  module type T = sig
+    type a
+    val baz : a
+    val foo : a -> a
+  end
+  module MT : T
+  module M : T with MT
+end
+module type S' = sig
+include S @@ portable
+end
+[%%expect{|
+module type S =
+  sig
+    module type T = sig type a val baz : a val foo : a -> a end
+    module MT : T
+    module M : sig type a = MT.a val baz : a val foo : a -> a end
+  end
+module type S' =
+  sig
+    module type T = sig type a val baz : a val foo : a -> a end
+    module MT :
+      sig type a val baz : a @@ portable val foo : a -> a @@ portable end
+    module M :
+      sig
+        type a = MT.a
+        val baz : a @@ portable
+        val foo : a -> a @@ portable
+      end
+  end
+|}]

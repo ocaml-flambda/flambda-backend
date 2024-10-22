@@ -5,14 +5,16 @@ type _ t =
   | Comprehensions : unit t
   | Mode : maturity t
   | Unique : unit t
+  | Overwriting : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
-  | SIMD : unit t
+  | SIMD : maturity t
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
+  | Instances : unit t
 
 type 'a language_extension_kernel = 'a t
 
@@ -23,6 +25,7 @@ module Exist = struct
     [ Pack Comprehensions
     ; Pack Mode
     ; Pack Unique
+    ; Pack Overwriting
     ; Pack Include_functor
     ; Pack Polymorphic_parameters
     ; Pack Immutable_arrays
@@ -31,6 +34,7 @@ module Exist = struct
     ; Pack SIMD
     ; Pack Labeled_tuples
     ; Pack Small_numbers
+    ; Pack Instances
     ]
 end
 
@@ -43,6 +47,7 @@ let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
   | Mode -> "mode"
   | Unique -> "unique"
+  | Overwriting -> "overwriting"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays"
@@ -51,6 +56,7 @@ let to_string : type a. a t -> string = function
   | SIMD -> "simd"
   | Labeled_tuples -> "labeled_tuples"
   | Small_numbers -> "small_numbers"
+  | Instances -> "instances"
 
 (* converts full extension names, like "layouts_alpha" to a pair of
    an extension and its maturity. For extensions that don't take an
@@ -63,6 +69,7 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "mode_beta" -> Some (Pair (Mode, Beta))
   | "mode_alpha" -> Some (Pair (Mode, Alpha))
   | "unique" -> Some (Pair (Unique, ()))
+  | "overwriting" -> Some (Pair (Overwriting, ()))
   | "include_functor" -> Some (Pair (Include_functor, ()))
   | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
   | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
@@ -70,10 +77,12 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "layouts" -> Some (Pair (Layouts, Stable))
   | "layouts_alpha" -> Some (Pair (Layouts, Alpha))
   | "layouts_beta" -> Some (Pair (Layouts, Beta))
-  | "simd" -> Some (Pair (SIMD, ()))
+  | "simd" -> Some (Pair (SIMD, Stable))
+  | "simd_beta" -> Some (Pair (SIMD, Beta))
   | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
   | "small_numbers" -> Some (Pair (Small_numbers, Stable))
   | "small_numbers_beta" -> Some (Pair (Small_numbers, Beta))
+  | "instances" -> Some (Pair (Instances, ()))
   | _ -> None
 
 let maturity_to_string = function
@@ -97,6 +106,7 @@ let of_string extn_name : Exist.t option =
 let is_erasable : type a. a t -> bool = function
   | Mode
   | Unique
+  | Overwriting
   | Layouts ->
       true
   | Comprehensions
@@ -106,7 +116,8 @@ let is_erasable : type a. a t -> bool = function
   | Module_strengthening
   | SIMD
   | Labeled_tuples
-  | Small_numbers ->
+  | Small_numbers
+  | Instances ->
       false
 
 (* See the mli. *)

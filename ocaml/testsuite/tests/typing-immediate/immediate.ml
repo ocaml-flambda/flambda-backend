@@ -143,9 +143,9 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type string is immutable_data
+Error: The kind of type "string" is immutable_data
          because it is the primitive type string.
-       But the kind of type string must be a subkind of immediate
+       But the kind of type "string" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-31.
 |}];;
 (* CR layouts v2.9: The "of the definition of t ..." part is not great and it
@@ -160,9 +160,9 @@ end;;
 Line 2, characters 2-41:
 2 |   type t = Foo of int | Bar [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of immediate
+       But the kind of type "t" must be a subkind of immediate
          because of the annotation on the declaration of the type t.
 |}];;
 
@@ -174,9 +174,9 @@ end;;
 Line 2, characters 2-38:
 2 |   type t = { foo : int } [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of immediate
+       But the kind of type "t" must be a subkind of immediate
          because of the annotation on the declaration of the type t.
 |}];;
 
@@ -189,9 +189,9 @@ end;;
 Line 3, characters 2-26:
 3 |   type s = t [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because of the definition of t at line 2, characters 2-8.
-       But the kind of type t must be a subkind of immediate
+       But the kind of type "t" must be a subkind of immediate
          because of the definition of s at line 3, characters 2-26.
 |}];;
 
@@ -263,9 +263,9 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type s is immutable_data
+Error: The kind of type "s" is immutable_data
          because it is the primitive type string.
-       But the kind of type s must be a subkind of immediate
+       But the kind of type "s" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-26.
 |}];;
 

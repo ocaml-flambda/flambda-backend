@@ -396,6 +396,13 @@ CAMLprim value caml_floatarray_create(value len)
 CAMLprim value caml_floatarray_create_local(value len)
 {
   mlsize_t wosize = Long_val(len) * Double_wosize;
+
+  if (wosize == 0)
+    return Atom(0);
+
+  if (wosize > Max_unboxed_float_array_wosize)
+    caml_invalid_argument("Float.Array.create_local");
+
   return caml_alloc_local (wosize, Double_array_tag);
 }
 
@@ -600,7 +607,7 @@ CAMLprim value caml_make_array_local(value init)
    Since the [memmove] implementation does not guarantee that the writes are
    always word-sized, we explicitly perform word-sized writes of the release
    kind to avoid mixed-mode accesses. Performing release writes should be
-   sufficient to prevent smart compilers from coalesing the writes into vector
+   sufficient to prevent smart compilers from coalescing the writes into vector
    writes, and hence prevent mixed-mode accesses. [MM].
    */
 static void wo_memmove (volatile value* const dst,

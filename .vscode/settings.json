@@ -7,7 +7,9 @@
                 "*.mlp": "ocaml",
                 "smmintrin.h": "c",
                 "tmmintrin.h": "c",
-                "pmmintrin.h": "c"
+                "pmmintrin.h": "c",
+                "*.tbl": "c",
+                "platform.h": "c"
         },
         "[ocaml]": {
                 "editor.defaultFormatter": "ocamllabs.ocaml-platform",
@@ -15,4 +17,5 @@
         "[ocaml.interface]": {
                 "editor.defaultFormatter": "ocamllabs.ocaml-platform",
         },
+        "makefile.configureOnOpen": false,
 }

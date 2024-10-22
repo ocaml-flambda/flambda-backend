@@ -196,3 +196,6 @@ CAMLexport void caml_shutdown(void)
 
   shutdown_happened = 1;
 }
+
+/* Set to 1 if prelinking is in use. */
+uintnat caml_prelinking_in_use = 0;

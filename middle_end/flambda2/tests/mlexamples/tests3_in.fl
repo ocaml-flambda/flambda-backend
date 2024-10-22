@@ -1,21 +1,23 @@
-let $camlTests3__string14 = "index out of bounds" in
-let $camlTests3__block16 =
-  Block 0 ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string14)
+let $camlTests3__string18 = "index out of bounds" in
+let $camlTests3__block20 =
+  Block 0 ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string18)
 in
-let code size(88)
+let code size(98)
       foo_0 (arr : any array, f, i : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let prim = %array_length arr in
-   let prim_1 = %int_comp i < prim in
-   switch prim_1
+   let prim_1 = %num_conv (imm tagged -> imm) prim in
+   let prim_2 = %untag_imm i in
+   let prim_3 = %int_comp imm prim_2 < prim_1 in
+   switch prim_3
      | 0 -> k4
      | 1 -> k5)
     where k5 =
       cont k3
     where k4 =
-      cont k1 pop(regular k1) ($camlTests3__block16)
+      cont k1 pop(regular k1) ($camlTests3__block20)
     where k3 =
       ((let cond_result = %is_flat_float_array arr in
         switch cond_result
@@ -32,14 +34,16 @@ let code size(88)
            apply f (if_then_else_result) -> k2 * k1)
     where k2 (apply_result) =
       ((let prim = %array_length arr in
-        let prim_1 = %int_comp i < prim in
-        switch prim_1
+        let prim_1 = %num_conv (imm tagged -> imm) prim in
+        let prim_2 = %untag_imm i in
+        let prim_3 = %int_comp imm prim_2 < prim_1 in
+        switch prim_3
           | 0 -> k3
           | 1 -> k4)
          where k4 =
            cont k2
          where k3 =
-           cont k1 pop(regular k1) ($camlTests3__block16)
+           cont k1 pop(regular k1) ($camlTests3__block20)
          where k2 =
            ((let cond_result = %is_flat_float_array arr in
              switch cond_result
@@ -52,7 +56,7 @@ let code size(88)
                 let prim = %unbox_float apply_result in
                 let ifso_result = %array_set float arr.(i) <- prim in
                 cont k2 (ifso_result)
-              where k2 (if_then_else_result) =
+              where k2 (if_then_else_result : imm tagged) =
                 cont k (if_then_else_result)))
 in
 let code size(39)
@@ -88,7 +92,7 @@ in
  let Pmakeblock = %Block 0 (foo, f) in
  cont k (Pmakeblock))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(2) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(2) (module_block, 1) in
+    let field_0 = %block_load tag(0) size(2) (0) module_block in
+    let field_1 = %block_load tag(0) size(2) (1) module_block in
     let $camlTests3 = Block 0 (field_0, field_1) in
     cont done ($camlTests3)

@@ -21,6 +21,7 @@ open Typetexp
 open Format
 open Mode
 
+
 type 'a class_info = {
   cls_id : Ident.t;
   cls_id_loc : string loc;
@@ -830,7 +831,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    Typecore.type_approx val_env sbody ty'
                | Tpoly (ty1, tl) ->
-                   let _, ty1' = Ctype.instance_poly false tl ty1 in
+                   let _, ty1' = Ctype.instance_poly ~fixed:false tl ty1 in
                    Typecore.type_approx val_env sbody ty1'
                | _ -> assert false
              with Ctype.Unify err ->
@@ -1607,7 +1608,7 @@ let temp_abbrev loc id arity uid =
   let ty_td =
       {type_params = !params;
        type_arity = arity;
-       type_kind = Type_abstract Abstract_def;
+       type_kind = Type_abstract Definition;
        type_jkind = Jkind.Builtin.value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
@@ -1694,12 +1695,12 @@ let class_infos define_class kind
       let ci_params =
         let make_param (sty, v) =
           try
-            let param = transl_type_param env (Pident ty_id) sty in
+            let jkind = Jkind.Builtin.value ~why:Class_type_argument in
+            let param = transl_type_param env (Pident ty_id) jkind sty in
             (* CR layouts: we require class type parameters to be values, but
                we should lift this restriction. Doing so causes bad error messages
                today, so we wait for tomorrow. *)
-            Ctype.unify env param.ctyp_type
-              (Ctype.newvar (Jkind.Builtin.value ~why:Class_type_argument));
+            Ctype.unify env param.ctyp_type (Ctype.newvar jkind);
             (param, v)
           with Already_bound ->
             raise(Error(sty.ptyp_loc, env, Repeated_parameter))
@@ -1839,7 +1840,7 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-     type_kind = Type_abstract Abstract_def;
+     type_kind = Type_abstract Definition;
      type_jkind = Jkind.Builtin.value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
@@ -2151,13 +2152,19 @@ let approx_class_declarations env sdecls =
 
 open Format
 
-let non_virtual_string_of_kind (t : kind) =
-  match t with
+let non_virtual_string_of_kind : kind -> string = function
   | Object -> "object"
   | Class -> "non-virtual class"
   | Class_type -> "non-virtual class type"
 
-let report_error env ppf = function
+module Style=Misc.Style
+
+let report_error env ppf =
+  let pp_args ppf args =
+    let args = List.map (Printtyp.tree_of_typexp Type) args in
+    Style.as_inline_code !Oprint.out_type_args ppf args
+  in
+  function
   | Repeated_parameter ->
       fprintf ppf "A type parameter occurs several times"
   | Unconsistent_constraint err ->
@@ -2169,50 +2176,58 @@ let report_error env ppf = function
   | Field_type_mismatch (k, m, err) ->
       Printtyp.report_unification_error ppf env err
         (function ppf ->
-           fprintf ppf "The %s %s@ has type" k m)
+           fprintf ppf "The %s %a@ has type" k Style.inline_code m)
         (function ppf ->
            fprintf ppf "but is expected to have type")
   | Unexpected_field (ty, lab) ->
       fprintf ppf
         "@[@[<2>This object is expected to have type :@ %a@]\
-         @ This type does not have a method %s."
-        Printtyp.type_expr ty lab
+         @ This type does not have a method %a."
+        (Style.as_inline_code Printtyp.type_expr) ty
+        Style.inline_code lab
   | Structure_expected clty ->
       fprintf ppf
         "@[This class expression is not a class structure; it has type@ %a@]"
-        Printtyp.class_type clty
+        (Style.as_inline_code Printtyp.class_type) clty
   | Cannot_apply _ ->
       fprintf ppf
         "This class expression is not a class function, it cannot be applied"
   | Apply_wrong_label l ->
-      let mark_label = function
-        | Nolabel -> "out label"
-        |  l -> sprintf " label %s" (Btype.prefixed_label_name l) in
-      fprintf ppf "This argument cannot be applied with%s" (mark_label l)
+      let mark_label ppf = function
+        | Nolabel -> fprintf ppf "without label"
+        |  l -> fprintf ppf "with label %a"
+                  Style.inline_code (Btype.prefixed_label_name l)
+      in
+      fprintf ppf "This argument cannot be applied %a" mark_label l
   | Pattern_type_clash ty ->
       (* XXX Trace *)
       (* XXX Revoir message d'erreur | Improve error message *)
       fprintf ppf "@[%s@ %a@]"
         "This pattern cannot match self: it only matches values of type"
-        Printtyp.type_expr ty
+        (Style.as_inline_code Printtyp.type_expr) ty
   | Unbound_class_2 cl ->
       fprintf ppf "@[The class@ %a@ is not yet completely defined@]"
-      Printtyp.longident cl
+      (Style.as_inline_code Printtyp.longident) cl
   | Unbound_class_type_2 cl ->
       fprintf ppf "@[The class type@ %a@ is not yet completely defined@]"
-      Printtyp.longident cl
+      (Style.as_inline_code Printtyp.longident) cl
   | Abbrev_type_clash (abbrev, actual, expected) ->
       (* XXX Afficher une trace ? | Print a trace? *)
       Printtyp.prepare_for_printing [abbrev; actual; expected];
       fprintf ppf "@[The abbreviation@ %a@ expands to type@ %a@ \
        but is used with type@ %a@]"
-        !Oprint.out_type (Printtyp.tree_of_typexp Type abbrev)
-        !Oprint.out_type (Printtyp.tree_of_typexp Type actual)
-        !Oprint.out_type (Printtyp.tree_of_typexp Type expected)
+        (Style.as_inline_code !Oprint.out_type)
+        (Printtyp.tree_of_typexp Type abbrev)
+        (Style.as_inline_code !Oprint.out_type)
+        (Printtyp.tree_of_typexp Type actual)
+        (Style.as_inline_code !Oprint.out_type)
+        (Printtyp.tree_of_typexp Type expected)
   | Constructor_type_mismatch (c, err) ->
       Printtyp.report_unification_error ppf env err
         (function ppf ->
-           fprintf ppf "The expression \"new %s\" has type" c)
+           fprintf ppf "The expression %a has type"
+             Style.inline_code ("new " ^ c)
+        )
         (function ppf ->
            fprintf ppf "but is used with type")
   | Virtual_class (kind, mets, vals) ->
@@ -2227,18 +2242,18 @@ let report_error env ppf = function
         "@[This %s has virtual %s.@ \
          @[<2>The following %s are virtual : %a@]@]"
         kind missings missings
-        (pp_print_list ~pp_sep:pp_print_space pp_print_string) (mets @ vals)
+        (pp_print_list ~pp_sep:pp_print_space Style.inline_code) (mets @ vals)
   | Undeclared_methods(kind, mets) ->
       let kind = non_virtual_string_of_kind kind in
       fprintf ppf
         "@[This %s has undeclared virtual methods.@ \
          @[<2>The following methods were not declared : %a@]@]"
-        kind (pp_print_list ~pp_sep:pp_print_space pp_print_string) mets
+        kind (pp_print_list ~pp_sep:pp_print_space Style.inline_code) mets
   | Parameter_arity_mismatch(lid, expected, provided) ->
       fprintf ppf
         "@[The class constructor %a@ expects %i type argument(s),@ \
            but is here applied to %i type argument(s)@]"
-        Printtyp.longident lid expected provided
+        (Style.as_inline_code Printtyp.longident) lid expected provided
   | Parameter_mismatch err ->
       Printtyp.report_unification_error ppf env err
         (function ppf ->
@@ -2250,22 +2265,23 @@ let report_error env ppf = function
       fprintf ppf
         "@[The abbreviation %a@ is used with parameter(s)@ %a@ \
            which are incompatible with constraint(s)@ %a@]"
-        Printtyp.ident id
-        !Oprint.out_type_args (List.map (Printtyp.tree_of_typexp Type) params)
-        !Oprint.out_type_args (List.map (Printtyp.tree_of_typexp Type) cstrs)
+        (Style.as_inline_code Printtyp.ident) id
+        pp_args params
+        pp_args cstrs
   | Bad_class_type_parameters (id, params, cstrs) ->
+      let pp_hash ppf id = fprintf ppf "#%a" Printtyp.ident id in
       Printtyp.prepare_for_printing (params @ cstrs);
       fprintf ppf
-        "@[The class type #%a@ is used with parameter(s)@ %a,@ \
+        "@[The class type %a@ is used with parameter(s)@ %a,@ \
            whereas the class type definition@ constrains@ \
            those parameters to be@ %a@]"
-        Printtyp.ident id
-        !Oprint.out_type_args (List.map (Printtyp.tree_of_typexp Type) params)
-        !Oprint.out_type_args (List.map (Printtyp.tree_of_typexp Type) cstrs)
+        (Style.as_inline_code pp_hash) id
+       pp_args params
+       pp_args cstrs
   | Class_match_failure error ->
       Includeclass.report_error Type ppf error
   | Unbound_val lab ->
-      fprintf ppf "Unbound instance variable %s" lab
+      fprintf ppf "Unbound instance variable %a" Style.inline_code lab
   | Unbound_type_var (printer, reason) ->
       let print_reason ppf { Ctype.free_variable; meth; meth_ty; } =
         let (ty0, kind) = free_variable in
@@ -2276,11 +2292,12 @@ let report_error env ppf = function
         in
         Printtyp.add_type_to_preparation meth_ty;
         Printtyp.add_type_to_preparation ty1;
+        let pp_type ppf ty = Style.as_inline_code !Oprint.out_type ppf ty in
         fprintf ppf
-          "The method %s@ has type@;<1 2>%a@ where@ %a@ is unbound"
-          meth
-          !Oprint.out_type (Printtyp.tree_of_typexp Type meth_ty)
-          !Oprint.out_type (Printtyp.tree_of_typexp Type ty0)
+          "The method %a@ has type@;<1 2>%a@ where@ %a@ is unbound"
+          Style.inline_code meth
+          pp_type (Printtyp.tree_of_typexp Type meth_ty)
+          pp_type (Printtyp.tree_of_typexp Type ty0)
       in
       fprintf ppf
         "@[<v>@[Some type variables are unbound in this type:@;<1 2>%t@]@ \
@@ -2292,9 +2309,10 @@ let report_error env ppf = function
       fprintf ppf
         "@[The type of this class,@ %a,@ \
          contains the non-generalizable type variable(s): %a.@ %a@]"
-        (Printtyp.class_declaration id) clty
+        (Style.as_inline_code @@ Printtyp.class_declaration id) clty
         (pp_print_list ~pp_sep:(fun f () -> fprintf f ",@ ")
-           Printtyp.prepared_type_scheme) nongen_vars
+           (Style.as_inline_code Printtyp.prepared_type_scheme)
+        ) nongen_vars
         Misc.print_see_manual manual_ref
 
   | Cannot_coerce_self ty ->
@@ -2302,12 +2320,12 @@ let report_error env ppf = function
         "@[The type of self cannot be coerced to@ \
            the type of the current class:@ %a.@.\
            Some occurrences are contravariant@]"
-        Printtyp.type_scheme ty
+        (Style.as_inline_code Printtyp.type_scheme) ty
   | Non_collapsable_conjunction (id, clty, err) ->
       fprintf ppf
         "@[The type of this class,@ %a,@ \
            contains non-collapsible conjunctive types in constraints.@ %t@]"
-        (Printtyp.class_declaration id) clty
+        (Style.as_inline_code @@ Printtyp.class_declaration id) clty
         (fun ppf -> Printtyp.report_unification_error ppf env err
             (fun ppf -> fprintf ppf "Type")
             (fun ppf -> fprintf ppf "is not compatible with type")
@@ -2328,19 +2346,23 @@ let report_error env ppf = function
         "@[The instance variable is %s;@ it cannot be redefined as %s@]"
         mut1 mut2
   | No_overriding (_, "") ->
-      fprintf ppf "@[This inheritance does not override any method@ %s@]"
-        "instance variable"
+      fprintf ppf
+        "@[This inheritance does not override any methods@ \
+         or instance variables@ but is explicitly marked as@ \
+         overriding with %a.@]"
+        Style.inline_code "!"
   | No_overriding (kind, name) ->
-      fprintf ppf "@[The %s `%s'@ has no previous definition@]" kind name
+      fprintf ppf "@[The %s %a@ has no previous definition@]" kind
+        Style.inline_code name
   | Duplicate (kind, name) ->
-      fprintf ppf "@[The %s `%s'@ has multiple definitions in this object@]"
-                    kind name
+      fprintf ppf "@[The %s %a@ has multiple definitions in this object@]"
+                    kind Style.inline_code name
   | Closing_self_type sign ->
     fprintf ppf
       "@[Cannot close type of object literal:@ %a@,\
        it has been unified with the self type of a class that is not yet@ \
        completely defined.@]"
-      Printtyp.type_scheme sign.csig_self
+      (Style.as_inline_code Printtyp.type_scheme) sign.csig_self
   | Polymorphic_class_parameter ->
       fprintf ppf
         "Class parameters cannot be polymorphic"

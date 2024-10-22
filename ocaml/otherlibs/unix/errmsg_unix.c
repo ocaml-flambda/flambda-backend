@@ -19,7 +19,7 @@
 #include <string.h>
 #include <caml/alloc.h>
 #include <caml/sys.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
 #ifdef CAML_RUNTIME_5
 

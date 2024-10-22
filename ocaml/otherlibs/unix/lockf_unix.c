@@ -18,7 +18,7 @@
 #include <caml/fail.h>
 #include <caml/mlvalues.h>
 #include <caml/signals.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
 #if defined(F_GETLK) && defined(F_SETLK) && defined(F_SETLKW)
 
@@ -96,7 +96,7 @@ CAMLprim value caml_unix_lockf(value fd, value cmd, value span)
 #define F_TEST 3
 #endif
 
-static int lock_command_table[] = {
+static const int lock_command_table[] = {
   F_ULOCK, F_LOCK, F_TLOCK, F_TEST, F_LOCK, F_TLOCK
 };
 

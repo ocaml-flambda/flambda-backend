@@ -26,8 +26,15 @@
 #include <caml/fail.h>
 #include <caml/signals.h>
 #include <caml/osdeps.h>
+<<<<<<< HEAD
 #include <caml/platform.h>
 #include "unixsupport.h"
+||||||| 121bedcfd2
+#include "unixsupport.h"
+=======
+#include <caml/platform.h>
+#include "caml/unixsupport.h"
+>>>>>>> 5.2.0
 
 #ifndef SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 #define SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE (0x2)

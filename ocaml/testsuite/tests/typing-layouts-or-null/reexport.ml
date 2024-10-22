@@ -19,9 +19,9 @@ Lines 2-4, characters 2-16:
 2 | ..type ('a : value) t : value_or_null = 'a or_null =
 3 |     | Null
 4 |     | This of 'a
-Error: The kind of type 'a or_null is value_or_null
+Error: The kind of type "'a or_null" is value_or_null
          because it is the primitive value_or_null type or_null.
-       But the kind of type 'a or_null must be a subkind of value
+       But the kind of type "'a or_null" must be a subkind of value
          because of the definition of t at lines 2-4, characters 2-16.
 |}]
 
@@ -41,7 +41,7 @@ let n = Or_null.Null
 Line 1, characters 8-20:
 1 | let n = Or_null.Null
             ^^^^^^^^^^^^
-Error: Unbound constructor Or_null.Null
+Error: Unbound constructor "Or_null.Null"
 |}]
 
 let t v = Or_null.This v
@@ -50,7 +50,7 @@ let t v = Or_null.This v
 Line 1, characters 10-22:
 1 | let t v = Or_null.This v
               ^^^^^^^^^^^^
-Error: Unbound constructor Or_null.This
+Error: Unbound constructor "Or_null.This"
 |}]
 
 (* [@@or_null_reexport] re-exports those constructors. *)
@@ -74,8 +74,8 @@ let fail = Or_null.This (Or_null.This 5)
 Line 1, characters 24-40:
 1 | let fail = Or_null.This (Or_null.This 5)
                             ^^^^^^^^^^^^^^^^
-Error: This expression has type 'a Or_null.t = 'a or_null
-       but an expression was expected of type ('b : value)
+Error: This expression has type "'a Or_null.t" = "'a or_null"
+       but an expression was expected of type "('b : value)"
        The kind of 'a Or_null.t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a Or_null.t must be a subkind of value
@@ -94,8 +94,8 @@ module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
 Line 4, characters 24-40:
 4 | let fail = Or_null.This (Or_null.This 5)
                             ^^^^^^^^^^^^^^^^
-Error: This expression has type 'a Or_null.t = 'a or_null
-       but an expression was expected of type ('b : value)
+Error: This expression has type "'a Or_null.t" = "'a or_null"
+       but an expression was expected of type "('b : value)"
        The kind of 'a Or_null.t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a Or_null.t must be a subkind of value
@@ -110,9 +110,9 @@ type 'a t : value = 'a or_null [@@or_null_reexport]
 Line 1, characters 0-51:
 1 | type 'a t : value = 'a or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type 'a or_null is value_or_null
+Error: The kind of type "'a or_null" is value_or_null
          because it is the primitive value_or_null type or_null.
-       But the kind of type 'a or_null must be a subkind of value
+       But the kind of type "'a or_null" must be a subkind of value
          because of the definition of t at line 1, characters 0-51.
 |}]
 
@@ -122,9 +122,9 @@ type 'a t : float64 = 'a or_null [@@or_null_reexport]
 Line 1, characters 0-53:
 1 | type 'a t : float64 = 'a or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a or_null is value
+Error: The layout of type "'a or_null" is value
          because it is the primitive value_or_null type or_null.
-       But the layout of type 'a or_null must be a sublayout of float64
+       But the layout of type "'a or_null" must be a sublayout of float64
          because of the definition of t at line 1, characters 0-53.
 |}]
 
@@ -134,7 +134,7 @@ type ('a : float64) t = 'a or_null [@@or_null_reexport]
 Line 1, characters 24-26:
 1 | type ('a : float64) t = 'a or_null [@@or_null_reexport]
                             ^^
-Error: This type ('a : float64) should be an instance of type ('b : value)
+Error: This type "('a : float64)" should be an instance of type "('b : value)"
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
@@ -154,8 +154,8 @@ module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
 Line 4, characters 24-40:
 4 | let fail = Or_null.This (Or_null.This 5)
                             ^^^^^^^^^^^^^^^^
-Error: This expression has type 'a Or_null.t = 'a or_null
-       but an expression was expected of type ('b : value)
+Error: This expression has type "'a Or_null.t" = "'a or_null"
+       but an expression was expected of type "('b : value)"
        The kind of 'a Or_null.t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a Or_null.t must be a subkind of value
@@ -171,7 +171,7 @@ Line 1, characters 0-41:
 1 | type t = int or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type
-         int or_null
+         "int or_null"
        They have different arities.
 |}]
 
@@ -244,9 +244,9 @@ Line 1, characters 0-68:
 1 | type 'a t = 'b or_null constraint 'b = int * 'a [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type
-         (int * 'a) or_null
+         "(int * 'a) or_null"
        Their parameters differ:
-       The type int * 'a is not equal to the type 'a
+       The type "int * 'a" is not equal to the type "'a"
 |}]
 
 (* [@@or_null_reexport] expands the type on the right. *)
@@ -293,7 +293,7 @@ Line 1, characters 0-49:
 1 | type ('a, 'b) t = 'b or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type
-         'b or_null
+         "'b or_null"
        They have different arities.
 |}]
 
@@ -305,9 +305,9 @@ Line 1, characters 0-44:
 1 | type 'a t = int or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type
-         int or_null
+         "int or_null"
        Their parameters differ:
-       The type int is not equal to the type 'a
+       The type "int" is not equal to the type "'a"
 |}]
 
 

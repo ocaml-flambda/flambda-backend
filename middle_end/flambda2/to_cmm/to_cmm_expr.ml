@@ -192,7 +192,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
           Apply.print apply
     in
     ( C.indirect_call ~dbg return_ty pos
-        (Alloc_mode.For_applications.to_lambda alloc_mode)
+        (C.alloc_mode_for_applications_to_cmx alloc_mode)
         callee args_ty (split_args ()),
       free_vars,
       env,
@@ -215,7 +215,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
          order to translate them"
     else
       ( C.indirect_full_call ~dbg return_ty pos
-          (Alloc_mode.For_applications.to_lambda alloc_mode)
+          (C.alloc_mode_for_applications_to_cmx alloc_mode)
           callee args_ty args,
         free_vars,
         env,
@@ -293,7 +293,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
-    let alloc_mode = Alloc_mode.For_applications.to_lambda alloc_mode in
+    let alloc_mode = C.alloc_mode_for_applications_to_cmx alloc_mode in
     ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
         dbg,
       free_vars,
@@ -334,7 +334,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       in
       let free_vars = BV.Set.union (BV.Set.union fv0 fv1) fv2 in
       C.run_stack ~dbg ~stack ~f ~arg, free_vars, env, res, Ece.all
-    | Resume { stack; f; arg } ->
+    | Resume { stack; f; arg; last_fiber } ->
       let { env; res; expr = { cmm = stack; free_vars = fv0; effs = _ } } =
         simple env res stack
       in
@@ -344,8 +344,13 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       let { env; res; expr = { cmm = arg; free_vars = fv2; effs = _ } } =
         simple env res arg
       in
-      let free_vars = BV.Set.union (BV.Set.union fv0 fv1) fv2 in
-      C.resume ~dbg ~stack ~f ~arg, free_vars, env, res, Ece.all)
+      let { env; res; expr = { cmm = last_fiber; free_vars = fv3; effs = _ } } =
+        simple env res last_fiber
+      in
+      let free_vars =
+        BV.Set.union (BV.Set.union fv0 fv1) (BV.Set.union fv2 fv3)
+      in
+      C.resume ~dbg ~stack ~f ~arg ~last_fiber, free_vars, env, res, Ece.all)
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra

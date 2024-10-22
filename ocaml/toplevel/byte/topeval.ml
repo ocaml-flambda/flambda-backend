@@ -47,10 +47,9 @@ module EvalBase = struct
 
   let eval_compilation_unit cu =
     try
-      Symtable.get_global_value
-        (cu |> Compilation_unit.to_global_ident_for_bytecode)
-    with Symtable.Error (Undefined_global name) ->
-      raise (Undefined_global name)
+      Symtable.get_global_value (Symtable.Global.of_compilation_unit cu)
+    with Symtable.Error (Undefined_global global) ->
+      raise (Undefined_global (Symtable.Global.name global))
 
   let eval_ident id =
     let name = Translmod.toplevel_name id in
@@ -71,15 +70,13 @@ let load_lambda ppf lam =
   if !Clflags.dump_rawlambda then fprintf ppf "%a@." Printlambda.lambda lam;
   let slam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then fprintf ppf "%a@." Printlambda.lambda slam;
-  let (init_code, fun_code) = Bytegen.compile_phrase slam in
+  let instrs, can_free = Bytegen.compile_phrase slam in
   if !Clflags.dump_instr then
-    fprintf ppf "%a%a@."
-    Printinstr.instrlist init_code
-    Printinstr.instrlist fun_code;
+    fprintf ppf "%a@."
+    Printinstr.instrlist instrs;
   let (code, reloc, events) =
-    Emitcode.to_memory init_code fun_code
+    Emitcode.to_memory instrs
   in
-  let can_free = (fun_code = []) in
   let initial_symtable = Symtable.current_state() in
   Symtable.patch_object code reloc;
   Symtable.check_global_initialized reloc;
@@ -219,12 +216,7 @@ let check_consistency ppf filename cu =
 let load_compunit ic filename ppf compunit =
   check_consistency ppf filename compunit;
   seek_in ic compunit.cu_pos;
-  let code_size = compunit.cu_codesize + 8 in
-  let code = LongString.create code_size in
-  LongString.input_bytes_into code ic compunit.cu_codesize;
-  LongString.set code compunit.cu_codesize (Char.chr Opcodes.opRETURN);
-  LongString.blit_string "\000\000\000\001\000\000\000" 0
-                     code (compunit.cu_codesize + 1) 7;
+  let code = LongString.input_bytes ic compunit.cu_codesize in
   let initial_symtable = Symtable.current_state() in
   Symtable.patch_object code compunit.cu_reloc;
   Symtable.update_global_table();
@@ -268,16 +260,22 @@ and really_load_file recursive ppf name filename ic =
       let cu : compilation_unit_descr = input_value ic in
       if recursive then
         List.iter
-          (function
-            | (Reloc_getglobal id, _)
-              when not (Symtable.is_global_defined id) ->
-                let file = Ident.name id ^ ".cmo" in
-                begin match Load_path.find_uncap file with
+          (fun (reloc, _) -> match reloc with
+            | Reloc_getcompunit cu
+              when not (Symtable.is_global_defined
+                (Symtable.Global.Glob_compunit cu)) ->
+                let file =
+                  (Compilation_unit.Name.to_string (Compilation_unit.name cu))
+                  ^ ".cmo"
+                in
+                begin match Load_path.find_normalized file with
                 | exception Not_found -> ()
                 | file ->
                     if not (load_file recursive ppf file) then raise Load_failed
                 end
-            | _ -> ()
+            | Reloc_getcompunit _
+            | Reloc_literal _ | Reloc_getpredef _ | Reloc_setcompunit _
+            | Reloc_primitive _ -> ()
           )
           cu.cu_reloc;
       load_compunit ic filename ppf cu;
@@ -305,8 +303,11 @@ and really_load_file recursive ppf name filename ic =
       end
   with Load_failed -> false
 
+external get_bytecode_sections : unit -> Symtable.bytecode_sections =
+  "caml_dynlink_get_bytecode_sections"
+
 let init () =
-  let crc_intfs = Symtable.init_toplevel() in
+  let crc_intfs = Symtable.init_toplevel ~get_bytecode_sections in
   Compmisc.init_path ();
   Env.import_crcs ~source:Sys.executable_name crc_intfs;
   ()

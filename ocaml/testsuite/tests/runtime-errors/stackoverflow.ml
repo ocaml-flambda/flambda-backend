@@ -51,6 +51,7 @@ let _ =
 (* TEST
  flags = "-w -a";
  ocamlrunparam += "l=100000";
+ no-tsan; (* TSan does not support call stacks bigger than 64k frames *)
  flambda;
  {
    reference = "${test_source_directory}/stackoverflow.byte.reference";

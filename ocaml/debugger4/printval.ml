@@ -51,10 +51,14 @@ module EvalPath =
     exception Error
 
     let eval_id id =
-      try
-        Debugcom.Remote_value.global (Symtable.get_global_position id)
-      with Symtable.Error _ ->
-        raise Error
+      match Symtable.Global.of_ident id with
+        | Some global ->
+          begin
+            try Debugcom.Remote_value.global (Symtable.get_global_position
+              global)
+            with Symtable.Error _ -> raise Error
+          end
+        | None -> raise Error
 
     let rec eval_address = function
     | Env.Aunit cu -> eval_id (cu |> Compilation_unit.to_global_ident_for_bytecode)

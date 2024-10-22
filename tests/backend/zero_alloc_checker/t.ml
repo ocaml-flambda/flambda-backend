@@ -134,6 +134,8 @@ let[@zero_alloc] test27 n =
   try raise Exn
   with _ -> n
 
+[@@@ocaml.warning "-21"]
+
 let[@zero_alloc strict][@inline never] forever () = while true do ignore (1,1) done
 let[@zero_alloc strict] test28 g x =
   try

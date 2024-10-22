@@ -51,8 +51,8 @@ type t_cstr_boxed_float_bad = A of float# * float
 Line 1, characters 30-49:
 1 | type t_cstr_boxed_float_bad = A of float# * float
                                   ^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 type t_cstr_boxed_float_bad_record = A of { x : float#; y : float }
@@ -61,8 +61,8 @@ type t_cstr_boxed_float_bad_record = A of { x : float#; y : float }
 Line 1, characters 44-55:
 1 | type t_cstr_boxed_float_bad_record = A of { x : float#; y : float }
                                                 ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, x,
-       but found boxed field, y.
+Error: Expected all flat fields after non-value field, "x",
+       but found boxed field, "y".
 |}];;
 
 type t_ext += A of float# * float
@@ -71,8 +71,8 @@ type t_ext += A of float# * float
 Line 1, characters 14-33:
 1 | type t_ext += A of float# * float
                   ^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 (* You can't trick the type-checker by adding more constructors *)
@@ -84,8 +84,8 @@ type t_cstr_boxed_float_bad_multi_constr =
 Line 3, characters 2-23:
 3 |   | A of float# * float
       ^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 type t_cstr_boxed_float_bad_multi_constr_record =
@@ -96,8 +96,8 @@ type t_cstr_boxed_float_bad_multi_constr_record =
 Line 3, characters 11-22:
 3 |   | A of { x : float#; y : float }
                ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, x,
-       but found boxed field, y.
+Error: Expected all flat fields after non-value field, "x",
+       but found boxed field, "y".
 |}];;
 
 type t_ext +=
@@ -108,8 +108,8 @@ type t_ext +=
 Line 3, characters 2-23:
 3 |   | A of float# * float
       ^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 (* When a non-float/float# field appears, [float]
@@ -121,8 +121,8 @@ type t_cstr_boxed_float_plus_more =
 Line 2, characters 2-29:
 2 |   | A of float# * float * int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 type t_cstr_boxed_float_plus_more_record =
@@ -132,8 +132,8 @@ type t_cstr_boxed_float_plus_more_record =
 Line 2, characters 11-22:
 2 |   | A of { x : float#; y : float; z : int }
                ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, x,
-       but found boxed field, y.
+Error: Expected all flat fields after non-value field, "x",
+       but found boxed field, "y".
 |}];;
 
 type t_ext +=
@@ -143,8 +143,8 @@ type t_ext +=
 Line 2, characters 2-29:
 2 |   | A of float# * float * int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 (* [float] appearing as a non-flat field in the value prefix. *)
@@ -176,8 +176,8 @@ type t_cstr_multi_boxed_float_bad = A of float * float# * float * int
 Line 1, characters 36-69:
 1 | type t_cstr_multi_boxed_float_bad = A of float * float# * float * int
                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 type t_cstr_multi_boxed_float_record_bad = A of { a : float; b : float#;
@@ -187,8 +187,8 @@ type t_cstr_multi_boxed_float_record_bad = A of { a : float; b : float#;
 Line 1, characters 61-72:
 1 | type t_cstr_multi_boxed_float_record_bad = A of { a : float; b : float#;
                                                                  ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, b,
-       but found boxed field, c.
+Error: Expected all flat fields after non-value field, "b",
+       but found boxed field, "c".
 |}];;
 
 type t_ext += A of float * float# * float * int
@@ -197,8 +197,8 @@ type t_ext += A of float * float# * float * int
 Line 1, characters 14-47:
 1 | type t_ext += A of float * float# * float * int
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, float.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "float".
 |}];;
 
 (* String can't appear in the flat suffix *)
@@ -208,8 +208,8 @@ type t_cstr_flat_string_bad1 = A of float# * string
 Line 1, characters 31-51:
 1 | type t_cstr_flat_string_bad1 = A of float# * string
                                    ^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, string.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "string".
 |}];;
 
 type t_cstr_flat_string_record_bad1 = A of { x : float#; y : string }
@@ -218,8 +218,8 @@ type t_cstr_flat_string_record_bad1 = A of { x : float#; y : string }
 Line 1, characters 45-56:
 1 | type t_cstr_flat_string_record_bad1 = A of { x : float#; y : string }
                                                  ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, x,
-       but found boxed field, y.
+Error: Expected all flat fields after non-value field, "x",
+       but found boxed field, "y".
 |}];;
 
 type t_ext += A of float# * string
@@ -228,8 +228,8 @@ type t_ext += A of float# * string
 Line 1, characters 14-34:
 1 | type t_ext += A of float# * string
                   ^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, string.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "string".
 |}];;
 
 (* The string can't appear in the flat suffix. *)
@@ -239,8 +239,8 @@ type t_cstr_flat_string_bad2 = A of float# * float# * string
 Line 1, characters 31-60:
 1 | type t_cstr_flat_string_bad2 = A of float# * float# * string
                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, string.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "string".
 |}];;
 
 type t_cstr_flat_string_record_bad2 = A of { x : float#; y : float#; z : string }
@@ -249,8 +249,8 @@ type t_cstr_flat_string_record_bad2 = A of { x : float#; y : float#; z : string 
 Line 1, characters 45-56:
 1 | type t_cstr_flat_string_record_bad2 = A of { x : float#; y : float#; z : string }
                                                  ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, x,
-       but found boxed field, z.
+Error: Expected all flat fields after non-value field, "x",
+       but found boxed field, "z".
 |}];;
 
 type t_ext += A of float# * float# * string
@@ -259,8 +259,8 @@ type t_ext += A of float# * float# * string
 Line 1, characters 14-43:
 1 | type t_ext += A of float# * float# * string
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, string.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "string".
 |}];;
 
 (* The int [c] can appear in the flat suffix. *)
@@ -382,8 +382,8 @@ type 'a t_cstr_bad_value_after_float = C of float# * 'a
 Line 1, characters 39-55:
 1 | type 'a t_cstr_bad_value_after_float = C of float# * 'a
                                            ^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, 'a.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "'a".
 |}];;
 
 type 'a t_cstr_bad_value_after_float_record = C of { x : float#; y : 'a }
@@ -392,8 +392,8 @@ type 'a t_cstr_bad_value_after_float_record = C of { x : float#; y : 'a }
 Line 1, characters 53-64:
 1 | type 'a t_cstr_bad_value_after_float_record = C of { x : float#; y : 'a }
                                                          ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, x,
-       but found boxed field, y.
+Error: Expected all flat fields after non-value field, "x",
+       but found boxed field, "y".
 |}];;
 
 (* Types with external mode are allowed in flat suffix *)
@@ -521,10 +521,10 @@ type t_cstr_capped =
     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
-    int * float#
+    float#
 [%%expect{|
 type ptr = string
-Lines 3-36, characters 2-16:
+Lines 3-36, characters 2-10:
  3 | ..A of
  4 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
  5 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
@@ -534,7 +534,7 @@ Lines 3-36, characters 2-16:
 33 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
-36 |     int * float#
+36 |     float#
 Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
 
@@ -565,7 +565,7 @@ type t_cstr_capped_record = A of {
  x0:ptr; x1:ptr; x2:ptr; x3:ptr; x4:ptr; x5:ptr; x6:ptr; x7:ptr; x8:ptr; x9:ptr;
  y0:ptr; y1:ptr; y2:ptr; y3:ptr; y4:ptr; y5:ptr; y6:ptr; y7:ptr; y8:ptr; y9:ptr;
  z0:ptr; z1:ptr; z2:ptr; z3:ptr; z4:ptr;
- int:int; unboxed:float#
+ unboxed:float#
  }
 [%%expect{|
 Lines 1-29, characters 28-2:
@@ -577,7 +577,7 @@ Lines 1-29, characters 28-2:
 ...
 26 |  y0:ptr; y1:ptr; y2:ptr; y3:ptr; y4:ptr; y5:ptr; y6:ptr; y7:ptr; y8:ptr; y9:ptr;
 27 |  z0:ptr; z1:ptr; z2:ptr; z3:ptr; z4:ptr;
-28 |  int:int; unboxed:float#
+28 |  unboxed:float#
 29 |  }
 Error: Mixed inline record arguments to constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;
@@ -628,7 +628,7 @@ Lines 2-35, characters 2-16:
 33 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 34 |     ptr * ptr * ptr * ptr * ptr * ptr * ptr *
 35 |     int * float#
-Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
+Error: Mixed constructors may contain at most 254 value fields prior to the flat suffix, but this one contains 256.
 |}];;
 
 (* GADT syntax *)
@@ -677,8 +677,8 @@ type ('a : any) t_gadt_any_bad =
 Line 2, characters 2-43:
 2 |   | A : float# * 'a tv -> 'a t_gadt_any_bad
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       float#, but found boxed argument, 'a tv.
+Error: Expected all flat constructor arguments after non-value argument, "
+       float#", but found boxed argument, "'a tv".
 |}]
 
 type ('a : any) t_gadt_any_record_bad =
@@ -688,6 +688,6 @@ type ('a : any) t_gadt_any_record_bad =
 Line 2, characters 10-21:
 2 |   | A : { x : float#; y : 'a tv } -> 'a t_gadt_any_record_bad
               ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, x,
-       but found boxed field, y.
+Error: Expected all flat fields after non-value field, "x",
+       but found boxed field, "y".
 |}]

@@ -27,8 +27,8 @@ let rec x2 = let _ = { t = rec_t; x2 } in #4.0;;
 Line 1, characters 34-36:
 1 | let rec x2 = let _ = { t = rec_t; x2 } in #4.0;;
                                       ^^
-Error: This expression has type ('a : value)
-       but an expression was expected of type float#
+Error: This expression has type "('a : value)"
+       but an expression was expected of type "float#"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
@@ -62,8 +62,8 @@ let rec bad_flat = let _ = A (rec_cstr, bad_flat) in #4.0;;
 Line 1, characters 40-48:
 1 | let rec bad_flat = let _ = A (rec_cstr, bad_flat) in #4.0;;
                                             ^^^^^^^^
-Error: This expression has type ('a : value)
-       but an expression was expected of type float#
+Error: This expression has type "('a : value)"
+       but an expression was expected of type "float#"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
@@ -97,8 +97,8 @@ let rec bad_flat = let _ = A { cstr = rec_cstr; flt = bad_flat } in #4.0;;
 Line 1, characters 54-62:
 1 | let rec bad_flat = let _ = A { cstr = rec_cstr; flt = bad_flat } in #4.0;;
                                                           ^^^^^^^^
-Error: This expression has type ('a : value)
-       but an expression was expected of type float#
+Error: This expression has type "('a : value)"
+       but an expression was expected of type "float#"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value

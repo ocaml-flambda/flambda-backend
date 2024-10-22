@@ -373,7 +373,7 @@ let decompose_abs t =
 
 let dummy_mod = str Item.Map.empty
 
-let of_path ~find_shape ~namespace =
+let of_path ~find_shape ~namespace path =
   (* We need to handle the following cases:
     Path of constructor:
       M.t.C
@@ -398,7 +398,7 @@ let of_path ~find_shape ~namespace =
         | Pext_ty -> aux Extension_constructor path
       end
   in
-  aux namespace
+  aux namespace path
 
 let for_persistent_unit s =
   comp_unit ~uid:(Compilation_unit s) s

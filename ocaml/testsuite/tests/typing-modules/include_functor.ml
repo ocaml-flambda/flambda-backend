@@ -40,7 +40,7 @@ Line 5, characters 18-20:
                       ^^
 Error: Signature mismatch in included functor's parameter:
        Values do not match: val x : bool is not included in val x : t
-       The type bool is not compatible with the type t = int
+       The type "bool" is not compatible with the type "t" = "int"
 |}];;
 
 (* Test 3: Missing type in structure *)
@@ -54,7 +54,7 @@ Line 4, characters 18-20:
 4 |   include functor F1
                       ^^
 Error: Signature mismatch in included functor's parameter:
-       The type `t' is required but not provided
+       The type "t" is required but not provided
 |}];;
 
 (* Test 4: Missing value in structure *)
@@ -69,7 +69,7 @@ Line 5, characters 18-20:
 5 |   include functor F1
                       ^^
 Error: Signature mismatch in included functor's parameter:
-       The value `x' is required but not provided
+       The value "x" is required but not provided
 |}];;
 
 (* Test 5: Include functor in signature *)
@@ -115,7 +115,7 @@ Line 5, characters 18-20:
                       ^^
 Error: Signature mismatch in included functor's parameter:
        Values do not match: val x : bool is not included in val x : t
-       The type bool is not compatible with the type t
+       The type "bool" is not compatible with the type "t"
 |}];;
 
 (* Test 7: Missing type in signature *)
@@ -129,7 +129,7 @@ Line 4, characters 18-20:
 4 |   include functor F5
                       ^^
 Error: Signature mismatch in included functor's parameter:
-       The type `t' is required but not provided
+       The type "t" is required but not provided
 |}];;
 
 (* Test 8: Missing val in signature *)
@@ -143,7 +143,7 @@ Line 4, characters 18-20:
 4 |   include functor F5
                       ^^
 Error: Signature mismatch in included functor's parameter:
-       The value `x' is required but not provided
+       The value "x" is required but not provided
 |}];;
 
 (* Test 9: Nested module names work *)
@@ -192,8 +192,8 @@ let () = assert (M9.eq_z 7);;
 Line 1, characters 25-26:
 1 | let () = assert (M9.eq_z 7);;
                              ^
-Error: This expression has type int but an expression was expected of type
-         M9.Foo.t
+Error: This expression has type "int" but an expression was expected of type
+         "M9.Foo.t"
 |}];;
 
 module M9' = struct
@@ -237,7 +237,7 @@ Line 8, characters 18-21:
 8 |   include functor F10
                       ^^^
 Error: This functor has type
-       functor (X : Set.OrderedType) -> sig val s : Set.Make(X).t end
+       "functor (X : Set.OrderedType) -> sig val s : Set.Make(X).t end"
        The parameter cannot be eliminated in the result type.
        This functor can't be included directly; please apply it to an explicit argument.
 |}];;
@@ -441,7 +441,7 @@ Line 9, characters 18-21:
 9 |   include functor F14
                       ^^^
 Error: The type of this functor's result is not includable; it is
-       functor (Y : S) -> sig val z : X.t * Y.t end
+       "functor (Y : S) -> sig val z : X.t * Y.t end"
 |}];;
 
 module F14_2 (X : S) () () = struct
@@ -460,7 +460,7 @@ Line 9, characters 18-23:
 9 |   include functor F14_2
                       ^^^^^
 Error: The type of this functor's result is not includable; it is
-       functor () () -> sig val z : X.t end
+       "functor () () -> sig val z : X.t end"
 |}];;
 
 (* Test 15: Make sure we're extracting functor return types appropriately *)
@@ -545,7 +545,7 @@ module type F17_1 = functor () -> S17
 Line 9, characters 18-23:
 9 |   include functor F17_1
                       ^^^^^
-Error: The type of this functor is: functor () -> S17.
+Error: The type of this functor is: "functor () -> S17".
        Its parameter is not a signature.
 |}];;
 
@@ -562,7 +562,7 @@ Line 6, characters 18-23:
 6 |   include functor F17_2
                       ^^^^^
 Error: The type of this functor is:
-       functor () (X : S17) -> sig val z : X.t end.
+       "functor () (X : S17) -> sig val z : X.t end".
        Its parameter is not a signature.
 |}];;
 
@@ -682,8 +682,8 @@ module M20 : sig type t = string val go : string -> unit end
 Line 20, characters 16-17:
 20 | let () = M20.go 3;;
                      ^
-Error: This expression has type int but an expression was expected of type
-         string
+Error: This expression has type "int" but an expression was expected of type
+         "string"
 |}];;
 
 (* Test 21: Check that scraping of result type happens in environment expanded

@@ -22,6 +22,7 @@
 
 #include <string.h>
 #include <stdarg.h>
+#include <assert.h>
 #include "caml/alloc.h"
 #include "caml/custom.h"
 #include "caml/major_gc.h"
@@ -369,7 +370,7 @@ CAMLprim value caml_alloc_dummy_mixed (value size, value scannable_size)
      always boxed), and for 64-bit native code (as the double record field is
      stored flat, taking up 1 word).
   */
-  CAML_STATIC_ASSERT(Double_wosize == 1);
+  static_assert(Double_wosize == 1, "");
   reserved_t reserved =
     Reserved_mixed_block_scannable_wosize_native(scannable_wosize);
 #else

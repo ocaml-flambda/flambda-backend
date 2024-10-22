@@ -361,6 +361,9 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     TG.mutable_array
       ~element_kind:(Ok Flambda_kind.With_subkind.naked_nativeint)
       ~length:any_tagged_immediate alloc_mode
+  | Unboxed_vec128_array ->
+    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_vec128)
+      ~length:any_tagged_immediate alloc_mode
   | Immediate_array ->
     TG.mutable_array
       ~element_kind:(Ok Flambda_kind.With_subkind.tagged_immediate)

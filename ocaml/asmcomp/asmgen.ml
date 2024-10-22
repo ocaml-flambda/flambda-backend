@@ -300,33 +300,53 @@ let linear_gen_implementation filename =
   Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
   emit_end_assembly ()
 
-let compile_implementation_linear output_prefix ~progname =
+let compile_implementation_linear target =
+  let output_prefix = Unit_info.prefix target in
   compile_unit ~output_prefix
     ~asm_filename:(asm_filename output_prefix) ~keep_asm:!keep_asm_file
     ~obj_filename:(output_prefix ^ ext_obj)
     (fun () ->
-      linear_gen_implementation progname)
+      linear_gen_implementation (Unit_info.source_file target))
 
 (* Error report *)
+module Style = Misc.Style
 
 let report_error ppf = function
   | Assembler_error file ->
       fprintf ppf "Assembler error, input left in file %a"
         Location.print_filename file
   | Mismatched_for_pack saved ->
+<<<<<<< HEAD
     let msg prefix =
       if Compilation_unit.Prefix.is_empty prefix
       then "without -for-pack"
       else
         Format.asprintf "with -for-pack %a" Compilation_unit.Prefix.print prefix
+||||||| 121bedcfd2
+    let msg = function
+       | None -> "without -for-pack"
+       | Some s -> "with -for-pack "^s
+=======
+    let msg = function
+       | None -> Format.dprintf "without %a" Style.inline_code "-for-pack"
+       | Some s -> Format.dprintf "with %a" Style.inline_code ("-for-pack " ^ s)
+>>>>>>> 5.2.0
      in
      fprintf ppf
+<<<<<<< HEAD
        "This input file cannot be compiled %s: it was generated %s."
        (msg (Compilation_unit.Prefix.from_clflags ())) (msg saved)
+||||||| 121bedcfd2
+       "This input file cannot be compiled %s: it was generated %s."
+       (msg !Clflags.for_package) (msg saved)
+=======
+       "This input file cannot be compiled %t: it was generated %t."
+       (msg !Clflags.for_package) (msg saved)
+>>>>>>> 5.2.0
   | Asm_generation(fn, err) ->
      fprintf ppf
-       "Error producing assembly code for function %s: %a"
-       fn Emitaux.report_error err
+       "Error producing assembly code for function %a: %a"
+       Style.inline_code fn Emitaux.report_error err
 
 let () =
   Location.register_error_of_exn

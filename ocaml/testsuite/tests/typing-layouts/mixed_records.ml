@@ -42,8 +42,8 @@ type t =
 Line 3, characters 4-14:
 3 |     b : float;
         ^^^^^^^^^^
-Error: Expected all flat fields after non-value field, a,
-       but found boxed field, b.
+Error: Expected all flat fields after non-value field, "a",
+       but found boxed field, "b".
 |}];;
 
 (* [float] appearing as a non-flat field in the value prefix. *)
@@ -69,8 +69,8 @@ type t =
 Line 4, characters 4-14:
 4 |     c : float;
         ^^^^^^^^^^
-Error: Expected all flat fields after non-value field, b,
-       but found boxed field, c.
+Error: Expected all flat fields after non-value field, "b",
+       but found boxed field, "c".
 |}];;
 
 (* String can't appear in the flat suffix *)
@@ -83,8 +83,8 @@ type t =
 Line 3, characters 4-15:
 3 |     b : string;
         ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, a,
-       but found boxed field, b.
+Error: Expected all flat fields after non-value field, "a",
+       but found boxed field, "b".
 |}];;
 
 (* [f3] can be flat because all other fields are float/float#,
@@ -111,8 +111,8 @@ type t =
 Line 4, characters 4-16:
 4 |     f3 : string;
         ^^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, f1,
-       but found boxed field, f3.
+Error: Expected all flat fields after non-value field, "f1",
+       but found boxed field, "f3".
 |}];;
 
 (* The int [c] can appear in the flat suffix. *)
@@ -231,6 +231,39 @@ and ('a : float64, 'b : immediate, 'ptr) t = {
 }
 |}];;
 
+(* It's illegal for the mixed representation to differ from the structure
+   to the signature. This can only arise for all-float-and-float# mixed
+   records, where the signature can hide the fact that a float is
+   unboxed.
+*)
+module _ : sig
+  type u
+  type t = { u : u; f : float# }
+  val t : t
+end = struct
+  type u = float
+  type t = { u : float; f : float# }
+  let t = { u = 3.0; f = #4.0 }
+end
+[%%expect {|
+Lines 5-9, characters 6-3:
+5 | ......struct
+6 |   type u = float
+7 |   type t = { u : float; f : float# }
+8 |   let t = { u = 3.0; f = #4.0 }
+9 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type u = float type t = { u : float; f : float#; } val t : t end
+       is not included in
+         sig type u type t = { u : u; f : float#; } val t : t end
+       Type declarations do not match:
+         type t = { u : float; f : float#; }
+       is not included in
+         type t = { u : u; f : float#; }
+       Their internal representations differ:
+       the first declaration uses a mixed representation where boxed floats are stored flat.
+|}]
 
 (* There is a cap on the number of fields in the scannable prefix. *)
 type ptr = string
@@ -268,7 +301,7 @@ type t =
     x233:ptr; x234:ptr; x235:ptr; x236:ptr; x237:ptr; x238:ptr; x239:ptr; x240:ptr;
     x241:ptr; x242:ptr; x243:ptr; x244:ptr; x245:ptr; x246:ptr; x247:ptr; x248:ptr;
     x249:ptr; x250:ptr; x251:ptr; x252:ptr; x253:ptr; x254:ptr; x255:ptr;
-    value_but_flat:int; unboxed:float#;
+    unboxed:float#;
   }
 [%%expect{|
 type ptr = string
@@ -281,7 +314,7 @@ Lines 2-37, characters 0-3:
 ...
 34 |     x241:ptr; x242:ptr; x243:ptr; x244:ptr; x245:ptr; x246:ptr; x247:ptr; x248:ptr;
 35 |     x249:ptr; x250:ptr; x251:ptr; x252:ptr; x253:ptr; x254:ptr; x255:ptr;
-36 |     value_but_flat:int; unboxed:float#;
+36 |     unboxed:float#;
 37 |   }
 Error: Mixed records may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}];;

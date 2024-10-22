@@ -109,8 +109,8 @@ static int cmp_ev_info(const void *a, const void *b)
   if (pc_a > pc_b) return 1;
   if (pc_a < pc_b) return -1;
 
-  num_a = ev_a->ev_start_chr;
-  num_b = ev_b->ev_start_chr;
+  num_a = ev_a->ev_start_lnum;
+  num_b = ev_b->ev_start_lnum;
 
   if (num_a > num_b) return 1;
   if (num_a < num_b) return -1;
@@ -393,7 +393,7 @@ static value alloc_callstack(backtrace_slot *trace, size_t slots)
 size_t caml_get_callstack(size_t max_slots,
                           backtrace_slot **buffer_p,
                           size_t *alloc_size_p,
-                          ssize_t alloc_idx)
+                          ptrdiff_t alloc_idx)
 {
   CAMLassert(alloc_idx < 1); /* allocation indexes not used in bytecode */
   return get_callstack(Caml_state->current_stack->sp,

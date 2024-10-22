@@ -58,6 +58,8 @@ val all_bools : Set.t
 (** Comparison functions. *)
 val ( <= ) : t -> t -> bool
 
+val ( >= ) : t -> t -> bool
+
 val ( < ) : t -> t -> bool
 
 (** Returns the 8 least significant bits of the OCaml integer as a host caml

@@ -40,6 +40,7 @@
 #include "caml/osdeps.h"
 #include "caml/signals.h"
 #include "caml/sys.h"
+#include "caml/bigarray.h"
 
 #ifndef SEEK_SET
 #define SEEK_SET 0
@@ -650,6 +651,11 @@ CAMLprim value caml_ml_set_binary_mode(value vchannel, value mode)
   return Val_unit;
 }
 
+CAMLprim value caml_ml_is_binary_mode(value vchannel)
+{
+  return Val_bool(caml_channel_binary_mode(Channel(vchannel)));
+}
+
 /*
    If the channel is closed, DO NOT raise a "bad file descriptor"
    exception, but do nothing (the buffer is already empty).
@@ -736,6 +742,21 @@ CAMLprim value caml_ml_output(value vchannel, value buff, value start,
                               value length)
 {
   return caml_ml_output_bytes (vchannel, buff, start, length);
+}
+
+CAMLprim value caml_ml_output_bigarray(value vchannel, value vbuf,
+                                       value vpos, value vlen)
+{
+  CAMLparam4(vchannel, vbuf, vpos, vlen);
+  struct channel * channel = Channel(vchannel);
+  intnat pos = Long_val(vpos);
+  intnat len = Long_val(vlen);
+
+  Lock(channel);
+  caml_really_putblock(channel, (char *)Caml_ba_data_val(vbuf) + pos, len);
+  Unlock(channel);
+
+  CAMLreturn (Val_unit);
 }
 
 CAMLprim value caml_ml_seek_out(value vchannel, value pos)
@@ -834,6 +855,22 @@ CAMLprim value caml_ml_input(value vchannel, value buff, value vstart,
     channel->curr = channel->buff + n;
   }
   Unlock(channel);
+  CAMLreturn (Val_long(n));
+}
+
+CAMLprim value caml_ml_input_bigarray(value vchannel, value vbuf,
+                                      value vpos, value vlen)
+{
+  CAMLparam4(vchannel, vbuf, vpos, vlen);
+  struct channel * channel = Channel(vchannel);
+  intnat pos = Long_val(vpos);
+  intnat len = Long_val(vlen);
+  intnat n;
+
+  Lock(channel);
+  n = caml_getblock(channel, (char *)Caml_ba_data_val(vbuf) + pos, len);
+  Unlock(channel);
+
   CAMLreturn (Val_long(n));
 }
 

@@ -1,15 +1,18 @@
 (* TEST
- flags = "-bin-annot -bin-annot-occurrences";
- compile_only = "true";
- readonly_files = "index_constrs.ml";
- all_modules = "index_constrs.ml";
- setup-ocamlc.byte-build-env;
- ocamlc.byte;
- program = "-quiet -index -decls index_constrs.cmt";
- output = "out_objinfo";
- check-ocamlc.byte-output;
- ocamlobjinfo;
- check-program-output;
+
+flags = "-bin-annot -bin-annot-occurrences";
+compile_only = "true";
+readonly_files = "index_constrs.ml";
+setup-ocamlc.byte-build-env;
+all_modules = "index_constrs.ml";
+ocamlc.byte;
+check-ocamlc.byte-output;
+
+program = "-quiet -index -decls index_constrs.cmt";
+output = "out_objinfo";
+ocamlobjinfo;
+
+check-program-output;
 *)
 
 exception E

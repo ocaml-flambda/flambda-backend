@@ -194,9 +194,9 @@ let operation' ?(print_reg = reg) op arg ppf res =
        (Array.sub arg 1 (Array.length arg - 1))
        reg arg.(0)
        (if is_assign then "(assign)" else "(init)")
-  | Ialloc { bytes = n; mode = Alloc_heap } ->
+  | Ialloc { bytes = n; mode = Alloc_mode.Heap } ->
     fprintf ppf "alloc %i" n;
-  | Ialloc { bytes = n; mode = Alloc_local } ->
+  | Ialloc { bytes = n; mode = Alloc_mode.Local } ->
     fprintf ppf "alloc_local %i" n;
   | Iintop(op) ->
       if is_unary_op op then begin

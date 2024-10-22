@@ -36,7 +36,7 @@ let test_mapper argv =
     expr = fun mapper expr ->
       match expr with
       | { pexp_desc = Pexp_extension ({ txt = "test" }, PStr [])} ->
-        Ast_helper.Exp.constant (Const_int 42)
+        Ast_helper.Exp.constant (Pconst_integer ("42", None))
       | other -> default_mapper.expr mapper other; }
 
 let () =
@@ -76,6 +76,7 @@ type mapper = {
   constant: mapper -> constant -> constant;
   constructor_declaration: mapper -> constructor_declaration
                            -> constructor_declaration;
+  directive_argument: mapper -> directive_argument -> directive_argument;
   expr: mapper -> expression -> expression;
   extension: mapper -> extension -> extension;
   extension_constructor: mapper -> extension_constructor
@@ -110,6 +111,8 @@ type mapper = {
   signature_item: mapper -> signature_item -> signature_item;
   structure: mapper -> structure -> structure;
   structure_item: mapper -> structure_item -> structure_item;
+  toplevel_directive: mapper -> toplevel_directive -> toplevel_directive;
+  toplevel_phrase: mapper -> toplevel_phrase -> toplevel_phrase;
   typ: mapper -> core_type -> core_type;
   type_declaration: mapper -> type_declaration -> type_declaration;
   type_extension: mapper -> type_extension -> type_extension;
@@ -126,6 +129,8 @@ type mapper = {
     Jane_syntax.Extension_constructor.t -> Jane_syntax.Extension_constructor.t;
   module_type_jane_syntax: mapper ->
     Jane_syntax.Module_type.t -> Jane_syntax.Module_type.t;
+  module_expr_jane_syntax: mapper ->
+    Jane_syntax.Module_expr.t -> Jane_syntax.Module_expr.t;
   pat_jane_syntax: mapper -> Jane_syntax.Pattern.t -> Jane_syntax.Pattern.t;
   signature_item_jane_syntax: mapper ->
     Jane_syntax.Signature_item.t -> Jane_syntax.Signature_item.t;

@@ -4,7 +4,7 @@
  set OCAMLRUNPARAM = "e=6";
  reason = "CR OCaml 5 domains";
  skip;
- libunix;
+ hasunix;
  {
    native;
  }{

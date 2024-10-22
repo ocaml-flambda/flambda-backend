@@ -40,8 +40,9 @@ let instruction ppf = function
       List.iter (fun lbl -> fprintf ppf " %i" lbl) lbls;
       fprintf ppf ", %i" n
   | Koffsetclosure n -> fprintf ppf "\toffsetclosure %i" n
-  | Kgetglobal id -> fprintf ppf "\tgetglobal %a" Ident.print id
-  | Ksetglobal id -> fprintf ppf "\tsetglobal %a" Ident.print id
+  | Kgetglobal cu -> fprintf ppf "\tgetglobal %a" Compilation_unit.print cu
+  | Ksetglobal cu -> fprintf ppf "\tsetglobal %a" Compilation_unit.print cu
+  | Kgetpredef id -> fprintf ppf "\tgetpredef %a" Ident.print id
   | Kconst cst ->
       fprintf ppf "@[<10>\tconst@ %a@]" Printlambda.structured_constant cst
   | Kmakeblock(n, m) ->

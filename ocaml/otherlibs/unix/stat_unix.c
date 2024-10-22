@@ -24,7 +24,7 @@
 #include <caml/alloc.h>
 #include <caml/signals.h>
 #include <caml/io.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 #include "cst2constr.h"
 
 #ifndef S_IFLNK
@@ -44,7 +44,7 @@
 #define EOVERFLOW ERANGE
 #endif
 
-static int file_kind_table[] = {
+static const int file_kind_table[] = {
   S_IFREG, S_IFDIR, S_IFCHR, S_IFBLK, S_IFLNK, S_IFIFO, S_IFSOCK
 };
 

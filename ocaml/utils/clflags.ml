@@ -57,9 +57,9 @@ type profile_granularity_level = File_level | Function_level | Block_level
 
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
-and include_dirs = ref ([] : string list) (* -I *)
-and hidden_include_dirs = ref ([] : string list) (* -H *)
+and include_dirs = ref ([] : string list)  (* -I *)
 and libloc = ref ([] : Libloc.t list) (* -libloc *)
+and hidden_include_dirs = ref ([] : string list) (* -H *)
 and no_std_include = ref false          (* -nostdlib *)
 and no_cwd = ref false                  (* -nocwd *)
 and print_types = ref false             (* -i *)

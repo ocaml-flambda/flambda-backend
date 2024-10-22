@@ -22,7 +22,8 @@ open Parser_aux
 open Events
 
 type error =
-    Unbound_identifier of Ident.t
+  | Unbound_global of Symtable.Global.t
+  | Unbound_identifier of Ident.t
   | Not_initialized_yet of Path.t
   | Unbound_long_identifier of Longident.t
   | Unknown_name of int
@@ -40,32 +41,43 @@ exception Error of error
 let abstract_type =
   Btype.newgenty (Tconstr (Pident (Ident.create_local "<abstr>"), [], ref Mnil))
 
-let get_global_or_predef id =
+let get_global glob =
   try
-    Debugcom.Remote_value.global (Symtable.get_global_position id)
-  with Symtable.Error _ -> raise(Error(Unbound_identifier id))
+    Debugcom.Remote_value.global (Symtable.get_global_position glob)
+  with Symtable.Error _ ->
+    raise(Error(Unbound_global glob))
 
 let rec address path event = function
-  | Env.Aunit cu ->
-      get_global_or_predef (cu |> Compilation_unit.to_global_ident_for_bytecode)
+  | Env.Aunit cu -> get_global (Glob_compunit cu)
   | Env.Alocal id ->
-      if Ident.is_predef id then get_global_or_predef id
-      else
+    begin
+      match Symtable.Global.of_ident id with
+      | Some global -> get_global global
+      | None ->
+        let not_found () =
+          raise(Error(Unbound_identifier id))
+        in
         begin match event with
           Some {ev_ev = ev} ->
             begin try
               let pos = Ident.find_same id ev.ev_compenv.ce_stack in
               Debugcom.Remote_value.local (ev.ev_stacksize - pos)
             with Not_found ->
-            try
-              let pos = Ident.find_same id ev.ev_compenv.ce_heap in
-              Debugcom.Remote_value.from_environment pos
-            with Not_found ->
-              raise(Error(Unbound_identifier id))
+            match ev.ev_compenv.ce_closure with
+            | Not_in_closure -> not_found ()
+            | In_closure { entries; env_pos } ->
+              match Ident.find_same id entries with
+              | Free_variable pos ->
+                Debugcom.Remote_value.from_environment (pos - env_pos)
+              | Function _pos ->
+                (* Recursive functions seem to be unhandled *)
+                not_found ()
+              | exception Not_found -> not_found ()
             end
         | None ->
-            raise(Error(Unbound_identifier id))
+            not_found ()
         end
+    end
   | Env.Adot(root, pos) ->
       let v = address path event root in
       if not (Debugcom.Remote_value.is_block v) then
@@ -183,6 +195,8 @@ open Format
 let report_error ppf = function
   | Unbound_identifier id ->
       fprintf ppf "@[Unbound identifier %s@]@." (Ident.name id)
+  | Unbound_global glob ->
+      fprintf ppf "@[Unbound identifier %s@]@." (Symtable.Global.name glob)
   | Not_initialized_yet path ->
       fprintf ppf
         "@[The module path %a is not yet initialized.@ \

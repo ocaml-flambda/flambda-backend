@@ -21,6 +21,7 @@ module Sort = struct
     | Word
     | Bits32
     | Bits64
+    | Vec128
 
   type t =
     | Var of var
@@ -40,9 +41,11 @@ module Sort = struct
     | Float32, Float32
     | Word, Word
     | Bits32, Bits32
-    | Bits64, Bits64 ->
+    | Bits64, Bits64
+    | Vec128, Vec128 ->
       true
-    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
+    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128), _ ->
+      false
 
   let to_string_base = function
     | Value -> "value"
@@ -52,6 +55,7 @@ module Sort = struct
     | Word -> "word"
     | Bits32 -> "bits32"
     | Bits64 -> "bits64"
+    | Vec128 -> "vec128"
 
   module Const = struct
     type t =
@@ -73,6 +77,22 @@ module Sort = struct
       in
       pp_element ~nested:false ppf c
 
+    let value = Base Value
+
+    let void = Base Void
+
+    let float64 = Base Float64
+
+    let float32 = Base Float32
+
+    let word = Base Word
+
+    let bits32 = Base Bits32
+
+    let bits64 = Base Bits64
+
+    let vec128 = Base Vec128
+
     module Debug_printers = struct
       let t ppf c =
         let rec pp_element ~nested ppf = function
@@ -85,7 +105,8 @@ module Sort = struct
               | Float32 -> "Float32"
               | Word -> "Word"
               | Bits32 -> "Bits32"
-              | Bits64 -> "Bits64")
+              | Bits64 -> "Bits64"
+              | Vec128 -> "Vec128")
           | Product cs ->
             let pp_sep ppf () = Format.fprintf ppf "@ , " in
             Format.fprintf ppf "Product [%a]"
@@ -99,7 +120,22 @@ module Sort = struct
   module Var = struct
     type t = var
 
-    let name { uid; _ } = "'_representable_layout_" ^ Int.to_string uid
+    (* Map var uids to smaller numbers for more consistent printing. *)
+    let next_id = ref 1
+
+    let names : (int, int) Hashtbl.t = Hashtbl.create 16
+
+    let name { uid; _ } =
+      let id =
+        match Hashtbl.find_opt names uid with
+        | Some n -> n
+        | None ->
+          let id = !next_id in
+          incr next_id;
+          Hashtbl.add names uid id;
+          id
+      in
+      "'_representable_layout_" ^ Int.to_string id
   end
 
   (*** debug printing **)
@@ -117,7 +153,8 @@ module Sort = struct
           | Float32 -> "Float32"
           | Word -> "Word"
           | Bits32 -> "Bits32"
-          | Bits64 -> "Bits64")
+          | Bits64 -> "Bits64"
+          | Vec128 -> "Vec128")
       | Product ts ->
         fprintf ppf "Product [ %a ]"
           (pp_print_list ~pp_sep:(fun ppf () -> pp_print_text ppf "; ") t)
@@ -167,6 +204,8 @@ module Sort = struct
 
       let bits64 = Base Bits64
 
+      let vec128 = Base Vec128
+
       let of_base = function
         | Void -> void
         | Value -> value
@@ -175,6 +214,7 @@ module Sort = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
 
       let rec of_const : Const.t -> t = function
         | Base b -> of_base b
@@ -196,6 +236,8 @@ module Sort = struct
 
       let bits64 = Some T.bits64
 
+      let vec128 = Some T.vec128
+
       let of_base = function
         | Void -> void
         | Value -> value
@@ -204,6 +246,7 @@ module Sort = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
 
       let rec of_const : Const.t -> t option = function
         | Base b -> of_base b
@@ -230,6 +273,8 @@ module Sort = struct
 
       let bits64 = Base Bits64
 
+      let vec128 = Base Vec128
+
       let of_base : base -> Const.t = function
         | Value -> value
         | Void -> void
@@ -238,6 +283,7 @@ module Sort = struct
         | Word -> word
         | Bits32 -> bits32
         | Bits64 -> bits64
+        | Vec128 -> vec128
     end
   end
 
@@ -394,7 +440,8 @@ module Sort = struct
     (* CR layouts v5: this should probably default to void now *)
     match default_to_value_and_get t with
     | Base Void -> true
-    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) ->
+      false
     | Product _ -> false
 
   (*** pretty printing ***)
@@ -491,12 +538,16 @@ end
 module Modes = Mode.Alloc.Const
 
 module Jkind_desc = struct
-  type 'type_expr t =
+  type ('type_expr, 'd) t =
     { layout : Layout.t;
       modes_upper_bounds : Modes.t;
       externality_upper_bound : Jkind_axis.Externality.t;
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
+    constraint 'd = 'l * 'r
+
+  type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
+  [@@unboxed]
 end
 
 (* A history of conditions placed on a jkind.
@@ -508,15 +559,15 @@ end
 type 'type_expr history =
   | Interact of
       { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
-        lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
-        rhs_history : 'type_expr history
+        jkind1 : 'type_expr Jkind_desc.packed;
+        history1 : 'type_expr history;
+        jkind2 : 'type_expr Jkind_desc.packed;
+        history2 : 'type_expr history
       }
   | Creation of Jkind_intf.History.creation_reason
 
-type 'type_expr t =
-  { jkind : 'type_expr Jkind_desc.t;
+type ('type_expr, 'd) t =
+  { jkind : ('type_expr, 'd) Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }

@@ -238,7 +238,13 @@ let win64_float_external_arguments =
 let win64_loc_external_arguments arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let reg = ref 0
+<<<<<<< HEAD
   and ofs = ref (if Config.runtime5 then 0 else 32) in
+||||||| 121bedcfd2
+  and ofs = ref 32 in
+=======
+  and ofs = ref 0 in
+>>>>>>> 5.2.0
   for i = 0 to Array.length arg - 1 do
     match arg.(i) with
     | Val | Int | Addr as ty ->
@@ -383,15 +389,6 @@ let max_register_pressure =
   | Icompf _ ->
       consumes ~int:0 ~float:1
   | _ -> consumes ~int:0 ~float:0
-
-(* Layout of the stack frame *)
-
-let frame_required fd =
-  fp || fd.fun_contains_calls ||
-  fd.fun_num_stack_slots.(0) > 0 || fd.fun_num_stack_slots.(1) > 0
-
-let prologue_required fd =
-  frame_required fd
 
 (* Calling the assembler *)
 

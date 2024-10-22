@@ -17,8 +17,8 @@ let _ = poly1 (fun x -> x + 1)
 Line 1, characters 14-30:
 1 | let _ = poly1 (fun x -> x + 1)
                   ^^^^^^^^^^^^^^^^
-Error: This argument has type int -> int which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "int -> int" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let id x = x
@@ -33,8 +33,8 @@ let _ = poly1 (id (fun x -> x))
 Line 1, characters 14-31:
 1 | let _ = poly1 (id (fun x -> x))
                   ^^^^^^^^^^^^^^^^^
-Error: This argument has type 'b -> 'b which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "'b -> 'b" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let _ = poly1 (let r = ref None in fun x -> r := Some x; x)
@@ -42,8 +42,8 @@ let _ = poly1 (let r = ref None in fun x -> r := Some x; x)
 Line 1, characters 14-59:
 1 | let _ = poly1 (let r = ref None in fun x -> r := Some x; x)
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This argument has type 'b -> 'b which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "'b -> 'b" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let escape f = poly1 (fun x -> f x; x)
@@ -51,8 +51,8 @@ let escape f = poly1 (fun x -> f x; x)
 Line 1, characters 21-38:
 1 | let escape f = poly1 (fun x -> f x; x)
                          ^^^^^^^^^^^^^^^^^
-Error: This argument has type 'b -> 'b which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "'b -> 'b" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let poly2 : ('a. 'a -> 'a) -> int * string =
@@ -71,8 +71,8 @@ let _ = poly2 (fun x -> x + 1)
 Line 1, characters 14-30:
 1 | let _ = poly2 (fun x -> x + 1)
                   ^^^^^^^^^^^^^^^^
-Error: This argument has type int -> int which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "int -> int" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let poly3 : 'b. ('a. 'a -> 'a) -> 'b -> 'b * 'b option =
@@ -91,8 +91,8 @@ let _ = poly3 (fun x -> x + 1) 8
 Line 1, characters 14-30:
 1 | let _ = poly3 (fun x -> x + 1) 8
                   ^^^^^^^^^^^^^^^^
-Error: This argument has type int -> int which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "int -> int" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let rec poly4 p (id : 'a. 'a -> 'a) =
@@ -111,8 +111,8 @@ let _ = poly4 true (fun x -> x + 1)
 Line 1, characters 19-35:
 1 | let _ = poly4 true (fun x -> x + 1)
                        ^^^^^^^^^^^^^^^^
-Error: This argument has type int -> int which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "int -> int" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let rec poly5 : bool -> ('a. 'a -> 'a) -> int * string =
@@ -132,8 +132,8 @@ let _ = poly5 true (fun x -> x + 1)
 Line 1, characters 19-35:
 1 | let _ = poly5 true (fun x -> x + 1)
                        ^^^^^^^^^^^^^^^^
-Error: This argument has type int -> int which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "int -> int" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 
@@ -154,8 +154,8 @@ let _ = poly6 true (fun x -> x + 1) 8
 Line 1, characters 19-35:
 1 | let _ = poly6 true (fun x -> x + 1) 8
                        ^^^^^^^^^^^^^^^^
-Error: This argument has type int -> int which is less general than
-         'a. 'a -> 'a
+Error: This argument has type "int -> int" which is less general than
+         "'a. 'a -> 'a"
 |}];;
 
 let needs_magic (magic : 'a 'b. 'a -> 'b) = (magic 5 : string)
@@ -165,8 +165,8 @@ val needs_magic : ('a 'b. 'a -> 'b) -> string = <fun>
 Line 2, characters 20-32:
 2 | let _ = needs_magic (fun x -> x)
                         ^^^^^^^^^^^^
-Error: This argument has type 'c. 'c -> 'c which is less general than
-         'a 'b. 'a -> 'b
+Error: This argument has type "'c. 'c -> 'c" which is less general than
+         "'a 'b. 'a -> 'b"
 |}];;
 
 let with_id (f : ('a. 'a -> 'a) -> 'b) = f (fun x -> x)
@@ -200,9 +200,9 @@ let non_principal2 p f =
 Line 3, characters 15-16:
 3 |   else with_id f
                    ^
-Error: This expression has type ('b -> 'b) -> 'c
-       but an expression was expected of type ('a. 'a -> 'a) -> 'd
-       The universal variable 'a would escape its scope
+Error: This expression has type "('b -> 'b) -> 'c"
+       but an expression was expected of type "('a. 'a -> 'a) -> 'd"
+       The universal variable "'a" would escape its scope
 |}];;
 
 let principal1 p (f : ('a. 'a -> 'a) -> 'b) =
@@ -249,8 +249,8 @@ let non_principal4 =
 Line 2, characters 26-35:
 2 |   [ Some (fun y -> y 6, y "goodbye");
                               ^^^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         int
+Error: This expression has type "string" but an expression was expected of type
+         "int"
 |}];;
 
 (* Functions with polymorphic parameters are separate from other functions *)
@@ -262,9 +262,9 @@ type 'a arg = 'b constraint 'a = 'b -> 'c
 Line 3, characters 20-44:
 3 | type really_poly = (('a. 'a -> 'a) -> string) arg
                         ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This type ('a. 'a -> 'a) -> string should be an instance of type
-         'b -> 'c
-       The universal variable 'a would escape its scope
+Error: This type "('a. 'a -> 'a) -> string" should be an instance of type
+         "'b -> 'c"
+       The universal variable "'a" would escape its scope
 |}];;
 
 (* Polymorphic parameters are (mostly) treated as invariant *)
@@ -280,9 +280,9 @@ let foo (f : p1) : p2 = f
 Line 1, characters 24-25:
 1 | let foo (f : p1) : p2 = f
                             ^
-Error: This expression has type p1 = ('a. 'a -> 'a) -> int
-       but an expression was expected of type ('a 'b. 'a -> 'b) -> int
-       Type 'a is not compatible with type 'b
+Error: This expression has type "p1" = "('a. 'a -> 'a) -> int"
+       but an expression was expected of type "('a 'b. 'a -> 'b) -> int"
+       Type "'a" is not compatible with type "'b"
 |}];;
 
 let foo f = (f : p1 :> p2)
@@ -290,9 +290,9 @@ let foo f = (f : p1 :> p2)
 Line 1, characters 12-26:
 1 | let foo f = (f : p1 :> p2)
                 ^^^^^^^^^^^^^^
-Error: Type p1 = ('a. 'a -> 'a) -> int is not a subtype of
-         p2 = ('a 'b. 'a -> 'b) -> int
-       Type 'b is not a subtype of 'a
+Error: Type "p1" = "('a. 'a -> 'a) -> int" is not a subtype of
+         "p2" = "('a 'b. 'a -> 'b) -> int"
+       Type "'b" is not a subtype of "'a"
 |}];;
 
 module Foo (X : sig val f : p1 end) : sig val f : p2 end = X
@@ -306,9 +306,9 @@ Error: Signature mismatch:
        is not included in
          sig val f : p2 end
        Values do not match: val f : p1 is not included in val f : p2
-       The type p1 = ('a. 'a -> 'a) -> int is not compatible with the type
-         p2 = ('a 'b. 'a -> 'b) -> int
-       Type 'a is not compatible with type 'b
+       The type "p1" = "('a. 'a -> 'a) -> int" is not compatible with the type
+         "p2" = "('a 'b. 'a -> 'b) -> int"
+       Type "'a" is not compatible with type "'b"
 |}];;
 
 let foo (f : p1) : p2 = (fun id -> f id)
@@ -329,9 +329,9 @@ type p2 = ('a. 'a -> 'a) -> int
 Line 4, characters 24-25:
 4 | let foo (x : p1) : p2 = x
                             ^
-Error: This expression has type p1 = (bool -> bool) -> int
-       but an expression was expected of type ('a. 'a -> 'a) -> int
-       Type bool is not compatible with type 'a
+Error: This expression has type "p1" = "(bool -> bool) -> int"
+       but an expression was expected of type "('a. 'a -> 'a) -> int"
+       Type "bool" is not compatible with type "'a"
 |}];;
 
 let foo x = (x : p1 :> p2)
@@ -350,9 +350,9 @@ Error: Signature mismatch:
        is not included in
          sig val f : p2 end
        Values do not match: val f : p1 is not included in val f : p2
-       The type p1 = (bool -> bool) -> int is not compatible with the type
-         p2 = ('a. 'a -> 'a) -> int
-       Type bool is not compatible with type 'a
+       The type "p1" = "(bool -> bool) -> int" is not compatible with the type
+         "p2" = "('a. 'a -> 'a) -> int"
+       Type "bool" is not compatible with type "'a"
 |}];;
 
 let foo (f : p1) : p2 = (fun id -> f id)
@@ -394,9 +394,9 @@ Line 2, characters 2-63:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The syntactic arity of the function doesn't match the type constraint:
        This function has 3 syntactic arguments, but its type is constrained to
-         ?eq:(a, int -> int) eq -> ('b. 'b -> 'b) -> a.
+         "?eq:(a, int -> int) eq -> ('b. 'b -> 'b) -> a".
         Hint: consider splitting the function definition into
-          fun ... gadt_pat -> fun ...
-          where gadt_pat is the pattern with the GADT constructor that
-          introduces the local type equation on a.
+          "fun ... gadt_pat -> fun ..."
+          where "gadt_pat" is the pattern with the GADT constructor that
+          introduces the local type equation on "a".
 |}];;

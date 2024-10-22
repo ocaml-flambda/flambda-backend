@@ -20,7 +20,7 @@
 #include <caml/fail.h>
 #include <caml/memory.h>
 #include <caml/signals.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -83,7 +83,7 @@ CAMLprim value caml_unix_wait(value unit)
 #define waitpid(pid,status,opts) wait4(pid,status,opts,NULL)
 #endif
 
-static int wait_flag_table[] = {
+static const int wait_flag_table[] = {
   WNOHANG, WUNTRACED
 };
 

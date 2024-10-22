@@ -18,7 +18,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <assert.h>
 #include "caml/addrmap.h"
 #include "caml/custom.h"
 #include "caml/runtime_events.h"
@@ -54,18 +54,18 @@ typedef struct pool {
   caml_domain_state* owner;
   sizeclass sz;
 } pool;
-CAML_STATIC_ASSERT(sizeof(pool) == Bsize_wsize(POOL_HEADER_WSIZE));
+static_assert(sizeof(pool) == Bsize_wsize(POOL_HEADER_WSIZE), "");
 #define POOL_SLAB_WOFFSET(sz) (POOL_HEADER_WSIZE + wastage_sizeclass[sz])
 #define POOL_FIRST_BLOCK(p, sz) ((header_t*)(p) + POOL_SLAB_WOFFSET(sz))
 #define POOL_END(p) ((header_t*)(p) + POOL_WSIZE)
-#define POOL_BLOCKS(p) ((POOL_WSIZE - POOL_HEADER_WSIZE) /  \
+#define POOL_BLOCKS(p) ((POOL_WSIZE - POOL_HEADER_WSIZE) / \
                         wsize_sizeclass[(p)->sz])
 
 typedef struct large_alloc {
   caml_domain_state* owner;
   struct large_alloc* next;
 } large_alloc;
-CAML_STATIC_ASSERT(sizeof(large_alloc) % sizeof(value) == 0);
+static_assert(sizeof(large_alloc) % sizeof(value) == 0, "");
 #define LARGE_ALLOC_HEADER_SZ sizeof(large_alloc)
 
 static struct {
@@ -84,8 +84,8 @@ static struct {
 
   /* these only contain swept memory of terminated domains*/
   struct heap_stats stats;
-  pool* global_avail_pools[NUM_SIZECLASSES];
-  pool* global_full_pools[NUM_SIZECLASSES];
+  _Atomic(pool*) global_avail_pools[NUM_SIZECLASSES];
+  _Atomic(pool*) global_full_pools[NUM_SIZECLASSES];
   large_alloc* global_large;
 } pool_freelist = {
   CAML_PLAT_MUTEX_INITIALIZER,
@@ -94,8 +94,8 @@ static struct {
   NULL,
   0,
   { 0, },
-  { 0, },
-  { 0, },
+  { NULL, },
+  { NULL, },
   NULL
 };
 
@@ -146,7 +146,8 @@ struct caml_heap_state* caml_init_shared_heap (void) {
   return heap;
 }
 
-static int move_all_pools(pool** src, pool** dst, caml_domain_state* new_owner){
+static int move_all_pools(pool** src, _Atomic(pool*)* dst,
+                          caml_domain_state* new_owner) {
   int count = 0;
   while (*src) {
     pool* p = *src;
@@ -162,7 +163,7 @@ static int move_all_pools(pool** src, pool** dst, caml_domain_state* new_owner){
 void caml_teardown_shared_heap(struct caml_heap_state* heap) {
   int i;
   int released = 0, released_large = 0;
-  caml_plat_lock(&pool_freelist.lock);
+  caml_plat_lock_blocking(&pool_freelist.lock);
   for (i = 0; i < NUM_SIZECLASSES; i++) {
     released +=
       move_all_pools(&heap->avail_pools[i],
@@ -197,7 +198,7 @@ void caml_teardown_shared_heap(struct caml_heap_state* heap) {
 static pool* pool_acquire(struct caml_heap_state* local) {
   pool* r;
 
-  caml_plat_lock(&pool_freelist.lock);
+  caml_plat_lock_blocking(&pool_freelist.lock);
   r = pool_freelist.free;
   if (r) {
     pool_freelist.free = r->next;
@@ -238,18 +239,17 @@ static void pool_release(struct caml_heap_state* local,
   CAMLassert(pool->sz == sz);
   local->stats.pool_words -= POOL_WSIZE;
   local->stats.pool_frag_words -= POOL_HEADER_WSIZE + wastage_sizeclass[sz];
-  caml_plat_lock(&pool_freelist.lock);
+  caml_plat_lock_blocking(&pool_freelist.lock);
   pool->next = pool_freelist.free;
   pool_freelist.free = pool;
   pool_freelist.active_pools--;
   caml_plat_unlock(&pool_freelist.lock);
 }
 
-
 /* free the memory of [pool], giving it back to the OS */
 static void pool_free(struct caml_heap_state* local,
-                      pool* pool,
-                      sizeclass sz)
+                         pool* pool,
+                         sizeclass sz)
 {
     CAMLassert(pool->sz == sz);
     local->stats.pool_words -= POOL_WSIZE;
@@ -312,6 +312,7 @@ Caml_inline void pool_initialize(pool* r,
 }
 
 /* Allocating an object from a pool */
+CAMLno_tsan_for_perf
 static intnat pool_sweep(struct caml_heap_state* local,
                          pool**,
                          sizeclass sz ,
@@ -325,17 +326,17 @@ static pool* pool_global_adopt(struct caml_heap_state* local, sizeclass sz)
   int adopted_pool = 0;
 
   /* probably no available pools out there to be had */
-  if( !pool_freelist.global_avail_pools[sz] &&
-      !pool_freelist.global_full_pools[sz] )
+  if( !atomic_load_relaxed(&pool_freelist.global_avail_pools[sz]) &&
+      !atomic_load_relaxed(&pool_freelist.global_full_pools[sz]) )
     return NULL;
 
   /* Haven't managed to find a pool locally, try the global ones */
-  caml_plat_lock(&pool_freelist.lock);
-  if( pool_freelist.global_avail_pools[sz] ) {
-    r = pool_freelist.global_avail_pools[sz];
+  caml_plat_lock_blocking(&pool_freelist.lock);
+  if( atomic_load_relaxed(&pool_freelist.global_avail_pools[sz]) ) {
+    r = atomic_load_relaxed(&pool_freelist.global_avail_pools[sz]);
 
     if( r ) {
-      pool_freelist.global_avail_pools[sz] = r->next;
+      atomic_store_relaxed(&pool_freelist.global_avail_pools[sz], r->next);
       r->next = 0;
       local->avail_pools[sz] = r;
       adopt_pool_stats_with_lock(local, r, sz);
@@ -356,10 +357,10 @@ static pool* pool_global_adopt(struct caml_heap_state* local, sizeclass sz)
   /* There were no global avail pools, so let's adopt one of the full ones and
      try our luck sweeping it later on */
   if( !r ) {
-    r = pool_freelist.global_full_pools[sz];
+    r = atomic_load_relaxed(&pool_freelist.global_full_pools[sz]);
 
     if( r ) {
-      pool_freelist.global_full_pools[sz] = r->next;
+      atomic_store_relaxed(&pool_freelist.global_full_pools[sz], r->next);
       r->next = local->full_pools[sz];
       local->full_pools[sz] = r;
       adopt_pool_stats_with_lock(local, r, sz);
@@ -478,6 +479,11 @@ value* caml_shared_try_alloc(struct caml_heap_state* local, mlsize_t wosize,
   }
   colour = caml_allocation_status();
   Hd_hp (p) = Make_header_with_reserved(wosize, tag, colour, reserved);
+  /* Annotating a release barrier on `p` because TSan does not see the
+   * happens-before relationship established by address dependencies
+   * between the initializing writes here and the read in major_gc.c
+   * marking (#12894) */
+  CAML_TSAN_ANNOTATE_HAPPENS_BEFORE(p);
 #ifdef DEBUG
   {
     int i;
@@ -493,7 +499,7 @@ value* caml_shared_try_alloc(struct caml_heap_state* local, mlsize_t wosize,
 
 static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
                          sizeclass sz, int release_to_global_pool) {
-  intnat work = 0;
+  intnat work;
   pool* a = *plist;
   if (!a) return 0;
   *plist = a->next;
@@ -505,7 +511,11 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
     int all_used = 1;
     struct heap_stats* s = &local->stats;
 
-    while (p + wh <= end) {
+    /* conceptually, this is incremented by [wh] for every iteration
+       below, however we can hoist these increments knowing that [p ==
+       end] on exit from the loop (as asserted) */
+    work = end - p;
+    do {
       header_t hd = (header_t)atomic_load_relaxed((atomic_uintnat*)p);
       if (hd == 0) {
         /* already on freelist */
@@ -541,8 +551,8 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
         release_to_global_pool = 0;
       }
       p += wh;
-      work += wh;
-    }
+    } while (p + wh <= end);
+    CAMLassert(p == end);
 
     if (release_to_global_pool) {
       pool_release(local, a, sz);
@@ -564,7 +574,10 @@ static intnat large_alloc_sweep(struct caml_heap_state* local) {
   local->unswept_large = a->next;
 
   p = (value*)((char*)a + LARGE_ALLOC_HEADER_SZ);
-  hd = (header_t)*p;
+  /* The header being read here may be concurrently written by a thread doing
+     marking. This is fine because marking can only make UNMARKED objects
+     MARKED or NOT_MARKABLE, all of which are treated identically here. */
+  hd = Hd_hp(p);
   if (Has_status_hd(hd, caml_global_heap_state.GARBAGE)) {
     if (Tag_hd (hd) == Custom_tag) {
       void (*final_fun)(value) = Custom_ops_val(Val_hp(p))->finalize;
@@ -690,7 +703,7 @@ void caml_collect_heap_stats_sample(
 /* Add the orphan pool stats to a stats accumulator. */
 void caml_accum_orphan_heap_stats(struct heap_stats* acc)
 {
-  caml_plat_lock(&pool_freelist.lock);
+  caml_plat_lock_blocking(&pool_freelist.lock);
   caml_accum_heap_stats(acc, &pool_freelist.stats);
   caml_plat_unlock(&pool_freelist.lock);
 }
@@ -818,7 +831,7 @@ static void verify_object(struct heap_verify_state* st, value v) {
   }
 }
 
-void caml_verify_heap(caml_domain_state *domain) {
+void caml_verify_heap_from_stw(caml_domain_state *domain) {
   struct heap_verify_state* st = caml_verify_begin();
   caml_do_roots (&caml_verify_root, verify_scanning_flags, st, domain, 1);
   caml_scan_global_roots(&caml_verify_root, st);
@@ -998,7 +1011,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
   filled pools, determine pools to be evacuated and then evacuate from them.
   For the first phase we need not consider full pools, they
   cannot be evacuated to or from. */
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
   CAML_EV_BEGIN(EV_COMPACT_EVACUATE);
 
   struct caml_heap_state* heap = Caml_state->shared_heap;
@@ -1012,8 +1025,12 @@ void caml_compact_heap(caml_domain_state* domain_state,
     CAMLassert(heap->swept_large == NULL);
     /* No pools waiting for adoption */
     if (participants[0] == Caml_state) {
-      CAMLassert(pool_freelist.global_avail_pools[sz_class] == NULL);
-      CAMLassert(pool_freelist.global_full_pools[sz_class] == NULL);
+      CAMLassert(
+          atomic_load_relaxed(&pool_freelist.global_avail_pools[sz_class]) ==
+            NULL);
+      CAMLassert(
+          atomic_load_relaxed(&pool_freelist.global_full_pools[sz_class]) ==
+            NULL);
     }
     /* The minor heap is empty */
     CAMLassert(Caml_state->young_ptr == Caml_state->young_end);
@@ -1221,7 +1238,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
   }
 
   CAML_EV_END(EV_COMPACT_EVACUATE);
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
   CAML_EV_BEGIN(EV_COMPACT_FORWARD);
 
   /* Second phase: at this point all live blocks in evacuated pools
@@ -1238,7 +1255,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
 
   /* Memprof roots and "weak" pointers to tracked blocks */
   caml_memprof_scan_roots(&compact_update_value, 0, NULL,
-                          Caml_state, true, participants[0] == Caml_state);
+                          Caml_state, true);
 
   /* Next, one domain does the global roots */
   if (participants[0] == Caml_state) {
@@ -1265,7 +1282,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
   compact_update_ephe_list(&ephe_info->live);
 
   CAML_EV_END(EV_COMPACT_FORWARD);
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
   CAML_EV_BEGIN(EV_COMPACT_RELEASE);
 
   /* Third phase: free all evacuated pools and release the mappings back to
@@ -1290,19 +1307,19 @@ void caml_compact_heap(caml_domain_state* domain_state,
     cur_pool = next_pool;
     freed_pools++;
   }
-  caml_plat_lock(&pool_freelist.lock);
+  caml_plat_lock_blocking(&pool_freelist.lock);
   pool_freelist.active_pools -= freed_pools;
   caml_plat_unlock(&pool_freelist.lock);
 
   CAML_EV_END(EV_COMPACT_RELEASE);
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
 
   /* Fourth phase: one domain also needs to release the free list */
   if( participants[0] == Caml_state ) {
     pool* cur_pool;
     pool* next_pool;
 
-    caml_plat_lock(&pool_freelist.lock);
+    caml_plat_lock_blocking(&pool_freelist.lock);
     cur_pool = pool_freelist.free;
 
     while( cur_pool ) {
@@ -1349,7 +1366,11 @@ static void verify_pool(pool* a, sizeclass sz, struct mem_stats* s) {
     s->overhead += POOL_SLAB_WOFFSET(sz);
 
     while (p + wh <= end) {
-      header_t hd = (header_t)*p;
+      /* This header can be read here and concurrently marked by the GC, but
+         this is fine: marking can only turn UNMARKED objects into MARKED or
+         NOT_MARKABLE, which is of no consequence for this verification
+         (namely, that there is no garbage left). */
+      header_t hd = Hd_hp(p);
       CAMLassert(hd == 0 || !Has_status_hd(hd, caml_global_heap_state.GARBAGE));
       if (hd) {
         s->live += Whsize_hd(hd);
@@ -1418,7 +1439,7 @@ static void verify_swept (struct caml_heap_state* local) {
   CAMLassert(local->stats.large_blocks == large_stats.live_blocks);
 }
 
-void caml_cycle_heap_stw (void) {
+void caml_cycle_heap_from_stw_single (void) {
   struct global_heap_state oldg = caml_global_heap_state;
   struct global_heap_state newg;
   newg.UNMARKED     = oldg.MARKED;
@@ -1444,14 +1465,16 @@ void caml_cycle_heap(struct caml_heap_state* local) {
   local->unswept_large = local->swept_large;
   local->swept_large = NULL;
 
-  caml_plat_lock(&pool_freelist.lock);
+  caml_plat_lock_blocking(&pool_freelist.lock);
   for (i = 0; i < NUM_SIZECLASSES; i++) {
-    received_p += move_all_pools(&pool_freelist.global_avail_pools[i],
-                                 &local->unswept_avail_pools[i],
-                                 local->owner);
-    received_p += move_all_pools(&pool_freelist.global_full_pools[i],
-                                 &local->unswept_full_pools[i],
-                                 local->owner);
+    received_p += move_all_pools(
+        (pool**)&pool_freelist.global_avail_pools[i],
+        (_Atomic(pool*)*)&local->unswept_avail_pools[i],
+        local->owner);
+    received_p += move_all_pools(
+        (pool**)&pool_freelist.global_full_pools[i],
+        (_Atomic(pool*)*)&local->unswept_full_pools[i],
+        local->owner);
   }
   while (pool_freelist.global_large) {
     large_alloc* a = pool_freelist.global_large;

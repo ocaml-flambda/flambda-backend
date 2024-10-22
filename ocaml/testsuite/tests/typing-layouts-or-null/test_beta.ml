@@ -25,7 +25,7 @@ type 'a t = 'a or_null
 Line 1, characters 15-22:
 1 | type 'a t = 'a or_null
                    ^^^^^^^
-Error: Unbound type constructor or_null
+Error: Unbound type constructor "or_null"
 |}]
 
 let x = This 3.14
@@ -34,7 +34,7 @@ let x = This 3.14
 Line 1, characters 8-12:
 1 | let x = This 3.14
             ^^^^
-Error: Unbound constructor This
+Error: Unbound constructor "This"
 |}]
 
 let y = Null
@@ -43,5 +43,5 @@ let y = Null
 Line 1, characters 8-12:
 1 | let y = Null
             ^^^^
-Error: Unbound constructor Null
+Error: Unbound constructor "Null"
 |}]

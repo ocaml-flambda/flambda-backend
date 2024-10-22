@@ -17,12 +17,12 @@
 #include <caml/alloc.h>
 #include <caml/misc.h>
 #include <caml/signals.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 #include <errno.h>
 
 #ifdef HAS_SOCKETS
 
-#include "socketaddr.h"
+#include "caml/socketaddr.h"
 #include <ws2tcpip.h>
 
 extern int caml_unix_socket_domain_table[]; /* from socket.c */
@@ -170,18 +170,21 @@ fail:
   return SOCKET_ERROR;
 }
 
-CAMLprim value caml_unix_socketpair(value cloexec, value domain, value type,
-                               value protocol)
+CAMLprim value caml_unix_socketpair(value cloexec, value vdomain, value vtype,
+                               value vprotocol)
 {
-  CAMLparam4(cloexec, domain, type, protocol);
+  CAMLparam4(cloexec, vdomain, vtype, vprotocol);
   CAMLlocal1(result);
   SOCKET sv[2];
   int rc;
+  int domain = Int_val(vdomain);
+  int type = Int_val(vtype);
+  int protocol = Int_val(vprotocol);
 
   caml_enter_blocking_section();
-  rc = socketpair(caml_unix_socket_domain_table[Int_val(domain)],
-                  caml_unix_socket_type_table[Int_val(type)],
-                  Int_val(protocol),
+  rc = socketpair(caml_unix_socket_domain_table[domain],
+                  caml_unix_socket_type_table[type],
+                  protocol,
                   sv,
                   ! caml_unix_cloexec_p(cloexec));
   caml_leave_blocking_section();

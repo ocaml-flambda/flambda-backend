@@ -26,6 +26,7 @@
 #include <float.h>
 #include <limits.h>
 #include <string.h>
+#include <assert.h>
 
 #include "caml/alloc.h"
 #include "caml/bigarray.h"
@@ -60,7 +61,7 @@
 
 #endif /* defined(HAS_LOCALE) */
 
-CAML_STATIC_ASSERT(sizeof(float) == sizeof(int32_t));
+static_assert(sizeof(float) == sizeof(int32_t), "");
 
 #define Max_custom_array_wosize          (Max_wosize - 1)
 #define Max_unboxed_float32_array_wosize (Max_custom_array_wosize * (sizeof(intnat) / sizeof(float)))

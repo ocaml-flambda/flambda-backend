@@ -50,6 +50,7 @@ module Array_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 
   val print : Format.formatter -> t -> unit
 
@@ -87,6 +88,7 @@ module Array_set_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 
   val print : Format.formatter -> t -> unit
 
@@ -126,6 +128,7 @@ module Duplicate_array_kind : sig
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
     | Naked_nativeints of { length : Targetint_31_63.t option }
+    | Naked_vec128s of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 
@@ -205,6 +208,9 @@ type equality_comparison =
 
 module Bigarray_kind : sig
   type t =
+    | Float16
+        (** This is analogous to [Float32] in that whilst storage is 16-bit,
+            reading and writing goes via 64-bit floats. *)
     | Float32
     | Float32_t
         (** [Float32_t] is used for bigarrays that contain (unboxed) float32
@@ -297,6 +303,10 @@ type nullary_primitive =
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
   | Dls_get  (** Obtain the domain-local state block. *)
+  | Poll
+      (** Poll for runtime actions. May run pending actions such as signal
+          handlers, finalizers, memprof callbacks, etc, as well as GCs and
+          GC slices, so should not be moved or optimised away. *)
 
 (** Untagged binary integer arithmetic operations.
 
@@ -324,6 +334,11 @@ end
 
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
+  | Block_load of
+      { kind : Block_access_kind.t;
+        mut : Mutability.t;
+        field : Targetint_31_63.t
+      }
   | Duplicate_block of { kind : Duplicate_block_kind.t }
       (** [Duplicate_block] may not be used to change the tag or the mutability
           of a block. *)
@@ -438,7 +453,11 @@ type binary_float_arith_op =
 
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
-  | Block_load of Block_access_kind.t * Mutability.t
+  | Block_set of
+      { kind : Block_access_kind.t;
+        init : Init_or_assign.t;
+        field : Targetint_31_63.t
+      }
   | Array_load of Array_kind.t * array_accessor_width * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
@@ -456,7 +475,6 @@ type binary_primitive =
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
-  | Block_set of Block_access_kind.t * Init_or_assign.t
   | Array_set of Array_set_kind.t * array_accessor_width
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t

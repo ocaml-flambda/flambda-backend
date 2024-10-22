@@ -62,45 +62,6 @@ let first_objfiles = ref []
 let last_objfiles = ref []
 let stop_early = ref false
 
-(* Check validity of module name *)
-let is_unit_name name =
-  try
-    if name = "" then raise Exit;
-    begin match name.[0] with
-    | 'A'..'Z' -> ()
-    | _ ->
-       raise Exit;
-    end;
-    for i = 1 to String.length name - 1 do
-      match name.[i] with
-      | 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '\'' -> ()
-      | _ ->
-         raise Exit;
-    done;
-    true
-  with Exit -> false
-
-let check_unit_name filename name =
-  if not (is_unit_name name) then
-    Location.prerr_warning (Location.in_file filename)
-      (Warnings.Bad_module_name name)
-
-(* Compute name of module from output file name *)
-let module_of_filename inputfile outputprefix =
-  let basename = Filename.basename outputprefix in
-  let name =
-    try
-      (* For hidden files (i.e., those starting with '.'), include the initial
-         '.' in the module name rather than let it be empty. It's still not a
-         /good/ module name, but at least it's not rejected out of hand by
-         [Compilation_unit.Name.of_string]. *)
-      let pos = String.index_from basename 1 '.' in
-      String.sub basename 0 pos
-    with Not_found -> basename
-  in
-  let name = String.capitalize_ascii name in
-  check_unit_name inputfile name;
-  name
 
 type filename = string
 
@@ -555,7 +516,7 @@ type file_option = {
 }
 
 let scan_line ic =
-  Scanf.bscanf ic "%[0-9a-zA-Z/_.*] : %[a-zA-Z_-] = %s "
+  Scanf.bscanf ic "%[0-9a-zA-Z_.*/] : %[a-zA-Z_-] = %s "
     (fun pattern name value ->
        let pattern =
          match pattern with
@@ -713,7 +674,7 @@ let process_action
         | Some start_from ->
           Location.input_name := name;
           impl ~start_from name
-        | None -> raise(Arg.Bad("don't know what to do with " ^ name))
+        | None -> raise(Arg.Bad("Don't know what to do with " ^ name))
 
 
 let action_of_file name =
@@ -753,10 +714,14 @@ let process_deferred_actions env =
             fatal "Options -c -o are incompatible with compiling multiple files"
         end;
   end;
-  if !make_archive && List.exists (function
-      | ProcessOtherFile name -> Filename.check_suffix name ".cmxa"
-      | _ -> false) !deferred_actions then
-    fatal "Option -a cannot be used with .cmxa input files.";
+  if !make_archive then begin
+    if List.exists (function
+        | ProcessOtherFile name -> Filename.check_suffix name ".cmxa"
+        | _ -> false) !deferred_actions then
+      fatal "Option -a cannot be used with .cmxa input files."
+    end
+  else if !deferred_actions = [] then
+    fatal "No input files";
   let compiling_multiple_impls =
     List.length (List.filter (function
         | ProcessImplementation _ -> true

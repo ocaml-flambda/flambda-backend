@@ -6,7 +6,7 @@ let dummy_jkind = Jkind.Builtin.value ~why:(Unknown "dummy_layout")
 let dummy_value_mode = Value.disallow_right Value.legacy
 
 let dummy_alloc_mode =
-  { mode = Alloc.disallow_left Alloc.legacy; closure_context = None }
+  { mode = Alloc.disallow_left Alloc.legacy; locality_context = None }
 
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
@@ -278,6 +278,18 @@ let view_texp (e : expression_desc) =
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
 
+let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
+    ~pat_attributes =
+  {
+    pat_desc;
+    pat_loc;
+    pat_extra;
+    pat_type;
+    pat_env;
+    pat_attributes;
+    pat_unique_barrier = Unique_barrier.not_computed ();
+  }
+
 type tpat_var_identifier = Value.l
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
@@ -408,7 +420,7 @@ let mkTtyp_var s = Ttyp_var (Some s, None)
 
 let is_type_name_used desc typ_name =
   match desc with
-  | Ttyp_alias (_, Some s, _) -> s = typ_name
+  | Ttyp_alias (_, Some s, _) -> s.txt = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
 

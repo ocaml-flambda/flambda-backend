@@ -177,7 +177,7 @@ let asmgen =
   test_actions = asmgen_actions
 }
 
-let _ =
+let init () =
   List.iter register
   [
     bytecode;

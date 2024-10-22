@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (** Parsing of command line arguments.
 
    This module provides a general mechanism for extracting options and
@@ -78,6 +76,8 @@ open! Stdlib
     "The Arg module relies on a mutable global state, parsing functions should \
      only be called from a single domain."
 ]
+
+open! Stdlib
 
 type spec =
   | Unit of (unit -> unit)     (** Call the function with unit argument *)

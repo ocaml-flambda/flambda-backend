@@ -55,44 +55,24 @@ ifeq "$(UNIX_OR_WIN32)" "unix"
   else # Non-cygwin Unix
     find := find
   endif
+  # $(IFS_LINE) for Unix simply clears IFS, so entire lines are read
+  IFS_LINE = IFS=''
 else # Windows
   find := /usr/bin/find
+  # On Windows, ocamltest will produce Windows line-endings (\r\n) and the final
+  # \r is kept by the shell. This can either be stripped with tr -d '\r' but we
+  # can avoid the additional process by instead setting IFS in the while loop to
+  # be the CR character (i.e. treat \r as a field delimiter).
+  # The dance with $(CR_CHAR) is because POSIX doesn't provide a way to write \r
+  # in a string.
+  export CR_CHAR := $(shell printf "\r")
+  IFS_LINE = IFS="$$CR_CHAR"
 endif
-
-ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
-  FLEXLINK_ENV =
-else
-  # The testsuite needs an absolute path to the runtime, so override the
-  # definition in Makefile.common
-  FLEXLINK_DLL_LDFLAGS=$(if $(OC_DLL_LDFLAGS), -link "$(OC_DLL_LDFLAGS)")
-  FLEXLINK_EXE_LDFLAGS=$(if $(OC_LDFLAGS), -link "$(OC_LDFLAGS)") \
-                       $(if $(OC_EXE_LDFLAGS), -link "$(OC_EXE_LDFLAGS)")
-ifeq "$(wildcard $(ROOTDIR_HOST)/flexlink.opt$(EXE))" ""
-  FLEXLINK_ENV = \
-    OCAML_FLEXLINK="$(ROOTDIR_HOST)/boot/ocamlrun$(EXE) \
-                    $(ROOTDIR_HOST)/boot/flexlink.byte$(EXE)"
-  MKDLL=$(ROOTDIR_HOST)/boot/ocamlrun$(EXE) \
-        $(ROOTDIR_HOST)/boot/flexlink.byte$(EXE) \
-        -chain $(FLEXDLL_CHAIN) $(FLEXLINK_FLAGS) $(FLEXLINK_DLL_LDFLAGS)
-  MKEXE=$(ROOTDIR_HOST)/boot/ocamlrun$(EXE) \
-        $(ROOTDIR_HOST)/boot/flexlink.byte$(EXE) \
-        -exe -chain $(FLEXDLL_CHAIN) $(FLEXLINK_FLAGS) $(FLEXLINK_EXE_LDFLAGS)
-else
-  FLEXLINK_ENV = \
-    OCAML_FLEXLINK="$(ROOTDIR_HOST)/flexlink.opt$(EXE) \
-      -I $(ROOTDIR_HOST)/stdlib/flexdll"
-  MKDLL=$(ROOTDIR_HOST)/flexlink.opt$(EXE) -I $(ROOTDIR_HOST)/stdlib/flexdll \
-        -chain $(FLEXDLL_CHAIN) $(FLEXLINK_FLAGS) $(FLEXLINK_DLL_LDFLAGS)
-  MKEXE=$(ROOTDIR_HOST)/flexlink.opt$(EXE) -I $(ROOTDIR_HOST)/stdlib/flexdll \
-        -exe -chain $(FLEXDLL_CHAIN) $(FLEXLINK_FLAGS) $(FLEXLINK_EXE_LDFLAGS)
-endif # ifeq "$(wildcard $(ROOTDIR_HOST)/flexlink.opt$(EXE))" ""
-endif # ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
 
 ifeq "$(ocamltest_program)" ""
   ocamltest = $(error ocamltest not found in $(ocamltest_directory))
 else
-  ocamltest := $(FLEXLINK_ENV) MKEXE="$(MKEXE)" MKDLL="$(MKDLL)" SORT=$(SORT) \
-                               MAKE=$(MAKE) $(ocamltest_program)
+  ocamltest := SORT=$(SORT) MAKE=$(MAKE) $(ocamltest_program)
 endif
 
 # PROMOTE is only meant to be used internally in recursive calls;
@@ -161,9 +141,7 @@ default:
 	@echo "    ... DIR=d                  ... the tests located in the directory d"
 	@echo "    ... LIST=f                 ... the tests listed in the file f (one \
 	per line)"
-	@echo "  promote-failed  promote all the tests that failed in the previous run"
-	@echo "  lib                        build library modules"
-	@echo "  tools                      build test tools"
+	@echo "  promote-failed             promote all the tests that failed in the previous run"
 	@echo "  clean                      delete generated files"
 	@echo "  report                     print the report for the last execution"
 	@echo
@@ -180,12 +158,11 @@ all:
 	@$(MAKE) --no-print-directory report
 
 .PHONY: new-without-report
-new-without-report: lib tools
+new-without-report:
 	@rm -f $(failstamp)
-	@(IFS=$$(printf "\r\n"); \
-	$(ocamltest) -find-test-dirs tests | while IFS='' read -r dir; do \
+	@($(ocamltest) -find-test-dirs tests | while $(IFS_LINE) read -r dir; do \
 	  echo Running tests from \'$$dir\' ... ; \
-	  $(MAKE) exec-ocamltest DIR=$$dir \
+	  $(MAKE) exec-ocamltest DIR="$$dir" \
 	    OCAMLTESTENV=""; \
 	done || echo outer loop >> $(failstamp)) 2>&1 | tee $(TESTLOG)
 	@$(MAKE) check-failstamp
@@ -200,7 +177,7 @@ check-failstamp:
 	fi
 
 .PHONY: all-%
-all-%: lib tools
+all-%:
 	@for dir in tests/$**; do \
 	  $(MAKE) --no-print-directory exec-one DIR=$$dir; \
 	done 2>&1 | tee $(TESTLOG)
@@ -238,7 +215,7 @@ all-%: lib tools
 J_ARGUMENT = $(filter-out -j,$(filter -j%,$(MAKEFLAGS)))
 
 .PHONY: parallel-%
-parallel-%: lib tools
+parallel-%:
 	@echo | parallel >/dev/null 2>/dev/null \
 	 || (echo "Unable to run the GNU parallel tool;";\
 	     echo "You should install it before using the parallel* targets.";\
@@ -257,7 +234,7 @@ parallel-%: lib tools
 parallel: parallel-*
 
 .PHONY: list
-list: lib tools
+list:
 	@if [ -z "$(FILE)" ]; \
     then echo "No value set for variable 'FILE'."; \
     exit 1; \
@@ -285,7 +262,7 @@ list-parallel: lib tools
 	@$(MAKE) report
 
 .PHONY: one
-one: lib tools
+one:
 	@case "$(words $(DIR) $(LIST) $(TEST))" in \
    0) echo 'No value set for variable DIR, LIST or TEST'>&2; exit 1;; \
    1) exit 0;; \
@@ -317,26 +294,19 @@ one: lib tools
 
 .PHONY: exec-one
 exec-one:
-	@if $(ocamltest) -list-tests $(DIR) >/dev/null 2>&1; then \
-	  echo "Running tests from '$$DIR' ..."; \
-	  $(MAKE) exec-ocamltest DIR=$(DIR) \
+	@$(ocamltest) -find-test-dirs $(DIR) | while $(IFS_LINE) read -r dir; do \
+	  echo "Running tests from '$$dir' ..."; \
+	  $(MAKE) exec-ocamltest DIR="$$dir" \
 	    OCAMLTESTENV="OCAMLTESTDIR=$(OCAMLTESTDIR)"; \
-	else \
-	  for dir in $(DIR)/*; do \
-	    if [ -d $$dir ]; then \
-	      $(MAKE) exec-one DIR=$$dir; \
-	    fi; \
-	  done; \
-	fi
+	done
 
 .PHONY: exec-ocamltest
 exec-ocamltest:
 	@if [ -z "$(DIR)" ]; then exit 1; fi
 	@if [ ! -d "$(DIR)" ]; then exit 1; fi
-	@(IFS=$$(printf "\r\n"); \
-	$(ocamltest) -list-tests $(DIR) | while IFS='' read -r testfile; do \
+	@($(ocamltest) -list-tests $(DIR) | while $(IFS_LINE) read -r testfile; do \
 	   TERM=dumb $(OCAMLTESTENV) \
-	     $(ocamltest) $(OCAMLTESTFLAGS) $(DIR)/$$testfile || \
+	     $(ocamltest) $(OCAMLTESTFLAGS) "$(DIR)/$$testfile" || \
 	   echo " ... testing '$$testfile' => unexpected error"; \
 	done) || echo directory "$(DIR)" >>$(failstamp)
 
@@ -353,29 +323,17 @@ clean-one:
 	fi
 
 .PHONY: promote
-promote: lib tools
+promote:
 	@$(MAKE) one PROMOTE=true
-
-.PHONY: lib
-lib:
-	@$(MAKE) -s -C lib
-
-.PHONY: tools
-tools:
-	@cd tools && $(MAKE) -s BASEDIR=$(BASEDIR)
 
 .PHONY: clean
 clean:
-	@$(MAKE) -C lib clean
-	@cd tools && $(MAKE) BASEDIR=$(BASEDIR) clean
 	find . -name '*_ocamltest*' | xargs rm -rf
 	rm -f $(failstamp)
 
 .PHONY: distclean
 distclean: clean
 	rm -f _log*
-	$(MACE) -C lib distclean
-	$(MAKE) -C tools distclean
 
 .PHONY: report
 report:

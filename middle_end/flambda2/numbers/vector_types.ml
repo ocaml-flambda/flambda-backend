@@ -59,51 +59,6 @@ module Vector_by_bit_pattern (Width : Vector_width) = struct
 end
 
 module Vec128 = struct
-  type t =
-    | Unknown128
-    | Int8x16
-    | Int16x8
-    | Int32x4
-    | Int64x2
-    | Float32x4
-    | Float64x2
-
-  let name = function
-    | Unknown128 -> "Unknown128"
-    | Int8x16 -> "Int8x16"
-    | Int16x8 -> "Int16x8"
-    | Int32x4 -> "Int32x4"
-    | Int64x2 -> "Int64x2"
-    | Float32x4 -> "Float32x4"
-    | Float64x2 -> "Float64x2"
-
-  let name_lowercase = function
-    | Unknown128 -> "unknown128"
-    | Int8x16 -> "int8x16"
-    | Int16x8 -> "int16x8"
-    | Int32x4 -> "int32x4"
-    | Int64x2 -> "int64x2"
-    | Float32x4 -> "float32x4"
-    | Float64x2 -> "float64x2"
-
-  let to_lambda : t -> Lambda.vec128_type = function
-    | Unknown128 -> Unknown128
-    | Int8x16 -> Int8x16
-    | Int16x8 -> Int16x8
-    | Int32x4 -> Int32x4
-    | Int64x2 -> Int64x2
-    | Float32x4 -> Float32x4
-    | Float64x2 -> Float64x2
-
-  let from_lambda : Lambda.vec128_type -> t = function
-    | Unknown128 -> Unknown128
-    | Int8x16 -> Int8x16
-    | Int16x8 -> Int16x8
-    | Int32x4 -> Int32x4
-    | Int64x2 -> Int64x2
-    | Float32x4 -> Float32x4
-    | Float64x2 -> Float64x2
-
   module Bit_pattern = struct
     include Vector_by_bit_pattern (struct
       let size_in_int64s = 2

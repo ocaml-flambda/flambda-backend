@@ -202,6 +202,8 @@ module Pattern : AST with type ast = Parsetree.pattern
 
 module Module_type : AST with type ast = Parsetree.module_type
 
+module Module_expr : AST with type ast = Parsetree.module_expr
+
 module Signature_item : AST with type ast = Parsetree.signature_item
 
 module Structure_item : AST with type ast = Parsetree.structure_item

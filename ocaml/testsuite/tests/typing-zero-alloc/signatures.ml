@@ -1279,17 +1279,17 @@ Error: Signature mismatch:
          module type S_plain2 =
            sig module M2 : sig val f : int -> int [@@zero_alloc] end end
        The first module type is not included in the second
-       At position module type S_plain2 = <here>
+       At position "module type S_plain2 = <here>"
        Module types do not match:
          sig module M2 : sig val f : int -> int end end
        is not equal to
          sig module M2 : sig val f : int -> int [@@zero_alloc] end end
-       At position module type S_plain2 = sig module M2 : <here> end
+       At position "module type S_plain2 = sig module M2 : <here> end"
        Modules do not match:
          sig val f : int -> int end
        is not included in
          sig val f : int -> int [@@zero_alloc] end
-       At position module type S_plain2 = sig module M2 : <here> end
+       At position "module type S_plain2 = sig module M2 : <here> end"
        Values do not match:
          val f : int -> int
        is not included in

@@ -72,6 +72,7 @@ type operation =
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
   | Idls_get
+  | Ireturn_addr (** Retrieve the return address from the stack frame *)
 
 type instruction =
   { desc: instruction_desc;
@@ -101,7 +102,6 @@ type fundecl =
     fun_dbg : Debuginfo.t;
     fun_poll: Lambda.poll_attribute;
     fun_num_stack_slots: int array;
-    fun_contains_calls: bool;
   }
 
 val dummy_instr: instruction

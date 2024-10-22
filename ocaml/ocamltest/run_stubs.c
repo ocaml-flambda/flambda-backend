@@ -56,8 +56,10 @@ static void free_cstringvect(array v)
   caml_stat_free(v);
 }
 
+#ifndef CAML_RUNTIME_5
 #define caml_channel_lock Lock
 #define caml_channel_unlock Unlock
+#endif
 
 static void logToChannel(void *voidchannel, const char *fmt, va_list ap)
 {
@@ -78,10 +80,10 @@ static void logToChannel(void *voidchannel, const char *fmt, va_list ap)
     if (text == NULL) return;
     if (vsnprintf(text, length, fmt, ap) != length) goto end;
   }
-  Lock(channel);
+  caml_channel_lock(channel);
   caml_putblock(channel, text, length);
   caml_flush(channel);
-  Unlock(channel);
+  caml_channel_unlock(channel);
 end:
   free(text);
 }

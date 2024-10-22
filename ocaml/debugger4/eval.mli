@@ -23,6 +23,7 @@ val expression :
     Debugcom.Remote_value.t * type_expr
 
 type error =
+  | Unbound_global of Symtable.Global.t
   | Unbound_identifier of Ident.t
   | Not_initialized_yet of Path.t
   | Unbound_long_identifier of Longident.t

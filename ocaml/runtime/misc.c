@@ -15,7 +15,7 @@
 
 #define CAML_INTERNALS
 
-#if _MSC_VER >= 1400 && _MSC_VER < 1700
+#if defined(_MSC_VER) && _MSC_VER >= 1400 && _MSC_VER < 1700
 /* Microsoft introduced a regression in Visual Studio 2005 (technically it's
    not present in the Windows Server 2003 SDK which has a pre-release version)
    and the abort function ceased to be declared __declspec(noreturn). This was
@@ -30,6 +30,7 @@ __declspec(noreturn) void __cdecl abort(void);
 #include <stdarg.h>
 #include <stdlib.h>
 #include "caml/config.h"
+#include "caml/fail.h"
 #include "caml/misc.h"
 #include "caml/memory.h"
 #include "caml/osdeps.h"
@@ -53,12 +54,15 @@ void caml_failed_assert (char * expr, char_os * file_os, int line)
           (Caml_state_opt != NULL) ? Caml_state_opt->id : -1, file, line, expr);
   fflush(stderr);
   caml_stat_free(file);
+#if Caml_has_builtin(__builtin_trap) || defined(__GNUC__)
+  __builtin_trap();
+#endif
   abort();
 }
 #endif
 
 #if defined(DEBUG)
-static __thread int noalloc_level = 0;
+static CAMLthread_local int noalloc_level = 0;
 int caml_noalloc_begin(void)
 {
   return noalloc_level++;
@@ -155,24 +159,46 @@ void caml_fatal_out_of_memory(void)
   caml_fatal_error("Out of memory");
 }
 
+#ifdef ARCH_SIXTYFOUR
+#define MAX_EXT_TABLE_CAPACITY INT_MAX
+#else
+#define MAX_EXT_TABLE_CAPACITY ((asize_t) (-1) / sizeof(void *))
+#endif
+
 void caml_ext_table_init(struct ext_table * tbl, int init_capa)
 {
+  CAMLassert (init_capa <= MAX_EXT_TABLE_CAPACITY);
   tbl->size = 0;
   tbl->capacity = init_capa;
-  tbl->contents = caml_stat_alloc(sizeof(void *) * init_capa);
+  tbl->contents = caml_stat_alloc(sizeof(void *) * (asize_t) init_capa);
 }
 
-int caml_ext_table_add(struct ext_table * tbl, caml_stat_block data)
+int caml_ext_table_add_noexc(struct ext_table * tbl, caml_stat_block data)
 {
   int res;
   if (tbl->size >= tbl->capacity) {
-    tbl->capacity *= 2;
-    tbl->contents =
-      caml_stat_resize(tbl->contents, sizeof(void *) * tbl->capacity);
+    if (tbl->capacity == MAX_EXT_TABLE_CAPACITY) return -1; /* overflow */
+    int new_capacity =
+      tbl->capacity <= MAX_EXT_TABLE_CAPACITY / 2
+      ? tbl->capacity * 2
+      : MAX_EXT_TABLE_CAPACITY;
+    void ** new_contents =
+      caml_stat_resize_noexc(tbl->contents,
+                             sizeof(void *) * (asize_t) new_capacity);
+    if (new_contents == NULL) return -1;
+    tbl->capacity = new_capacity;
+    tbl->contents = new_contents;
   }
   res = tbl->size;
   tbl->contents[res] = data;
   tbl->size++;
+  return res;
+}
+
+int caml_ext_table_add(struct ext_table * tbl, caml_stat_block data)
+{
+  int res = caml_ext_table_add_noexc(tbl, data);
+  if (res == -1) caml_raise_out_of_memory();
   return res;
 }
 
@@ -290,3 +316,15 @@ void caml_flambda2_invalid (value message)
     "Consider using [Obj.magic], [Obj.repr] and/or [Obj.obj].\n");
   abort ();
 }
+
+#ifdef WITH_THREAD_SANITIZER
+/* This hardcodes a number of suppressions of TSan reports about runtime
+   functions (see #11040). Unlike the CAMLno_tsan qualifier which
+   un-instruments function, this simply silences reports when the call stack
+   contains a frame matching one of the lines starting with "race:". */
+const char * __tsan_default_suppressions(void) {
+  return "deadlock:caml_plat_lock_blocking\n" /* Avoids deadlock inversion
+                                                 messages */
+         "deadlock:pthread_mutex_lock\n"; /* idem */
+}
+#endif /* WITH_THREAD_SANITIZER */

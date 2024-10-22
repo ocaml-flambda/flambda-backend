@@ -272,8 +272,16 @@ module Benefit = struct
     | Switch _ | String_switch _ | Static_raise _ | Try_with _
     | If_then_else _ | While _ | For _ -> b := remove_branch !b
     | Apply _ | Send _ -> b := remove_call !b
+<<<<<<< HEAD
     | Let _ | Let_mutable _ | Proved_unreachable | Var _
     | Region _ | Exclave _ | Static_catch _ -> ()
+||||||| 121bedcfd2
+    | Let _ | Let_mutable _ | Let_rec _ | Proved_unreachable | Var _
+    | Static_catch _ -> ()
+=======
+    | Let _ | Let_mutable _ | Proved_unreachable | Var _
+    | Static_catch _ -> ()
+>>>>>>> 5.2.0
 
   let remove_code_helper_named b (named : Flambda.named) =
     match named with

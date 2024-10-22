@@ -18,8 +18,6 @@
 
 (* Dynamic loading of .cmx files *)
 
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
 open! Dynlink_compilerlibs
 
 module DC = Dynlink_common
@@ -105,7 +103,7 @@ module Native = struct
           | None -> None
           | Some _ as crco -> Some (crco, DT.Check_inited !rank)
         in
-        f acc ~comp_unit:name ~interface:crc_intf
+        f acc ~compunit:name ~interface:crc_intf
             ~implementation ~defined_symbols:syms)
       init
       (ndl_getmap ())

@@ -797,3 +797,18 @@ CAMLprim value caml_ml_runtime_warnings_enabled(value unit)
   CAMLassert (unit == Val_unit);
   return Val_bool(caml_runtime_warnings);
 }
+
+CAMLprim value caml_gc_tweak_set(value name, value v)
+{
+  caml_invalid_argument("Gc.Tweak: Unsupported on runtime4");
+}
+
+CAMLprim value caml_gc_tweak_get(value name)
+{
+  caml_invalid_argument("Gc.Tweak: Unsupported on runtime4");
+}
+
+CAMLprim value caml_gc_tweak_list_active(value unit)
+{
+  caml_invalid_argument("Gc.Tweak: Unsupported on runtime4");
+}

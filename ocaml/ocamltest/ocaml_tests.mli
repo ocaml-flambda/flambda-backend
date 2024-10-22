@@ -26,3 +26,5 @@ val expect : Tests.t
 val ocamldoc : Tests.t
 
 val asmgen : Tests.t
+
+val init : unit -> unit

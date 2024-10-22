@@ -59,15 +59,6 @@ MANDIR=@mandir@
 PROGRAMS_MAN_DIR=$(MANDIR)/man1
 LIBRARIES_MAN_DIR=$(MANDIR)/man3
 
-### Do #! scripts work on your system?
-### Beware: on some systems (e.g. SunOS 4), this will work only if
-### the string "#!$(BINDIR)/ocamlrun" is less than 32 characters long.
-### In doubt, set HASHBANGSCRIPTS to false.
-SHEBANGSCRIPTS=@shebangscripts@
-LONG_SHEBANG=@long_shebang@
-# For compatibility
-HASHBANGSCRIPTS:=$(SHEBANGSCRIPTS)
-
 ### Path to the libtool script
 LIBTOOL = $(TOP_BUILDDIR)/libtool
 
@@ -173,7 +164,8 @@ CPPFLAGS=@CPPFLAGS@
 OCAMLC_CFLAGS=@ocamlc_cflags@
 
 OCAMLC_CPPFLAGS=@ocamlc_cppflags@
-BYTECCLIBS=@cclibs@
+ZSTD_LIBS=@zstd_libs@
+BYTECCLIBS=@zstd_libs@ @cclibs@
 EXE=@exeext@
 OUTPUTEXE=@outputexe@$(EMPTY)
 SUPPORTS_SHARED_LIBRARIES=@supports_shared_libraries@
@@ -194,12 +186,7 @@ CCOMPTYPE=@ccomptype@
 TOOLCHAIN=@toolchain@
 CMXS=@cmxs@
 
-# On Windows, MKDLL, MKEXE and MKMAINDLL must ultimately be equivalent to
-#   flexlink $(FLEXLINK_FLAGS) [-exe|-maindll]
-# or OCAML_FLEXLINK overriding will not work (see utils/config.generated.ml.in)
-
 FLEXDLL_CHAIN=@flexdll_chain@
-FLEXLINK_FLAGS=@flexlink_flags@
 
 MKEXE=@mkexe@
 MKDLL=@mkdll@
@@ -210,8 +197,6 @@ RUNTIMED=@debug_runtime@
 INSTRUMENTED_RUNTIME=@instrumented_runtime@
 INSTRUMENTED_RUNTIME_LIBS=@instrumented_runtime_libs@
 WITH_DEBUGGER=@with_debugger@
-WITH_OCAMLDOC=@ocamldoc@
-WITH_OCAMLTEST=@ocamltest@
 ASM_CFI_SUPPORTED=@asm_cfi_supported@
 WITH_FRAME_POINTERS=@frame_pointers@
 WITH_CPP_MANGLING=@cpp_mangling@
@@ -250,6 +235,14 @@ RUNTIME_SUFFIX=@runtime_suffix@
 RUNTIME_DIR=runtime$(RUNTIME_SUFFIX)
 
 # Deprecated variables
+
+## Variables deprecated since OCaml 5.2
+
+STDLIB_MANPAGES=@build_libraries_manpages@
+WITH_OCAMLDOC=@with_ocamldoc@
+WITH_OCAMLTEST=@ocamltest@
+SHEBANGSCRIPTS=@shebangscripts@
+HASHBANGSCRIPTS=$(SHEBANGSCRIPTS)
 
 ## Variables deprecated since OCaml 5.0
 

@@ -226,10 +226,25 @@ method class_of_operation op =
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Iextcall _ | Iprobe _ | Iopaque -> assert false       (* treated specially *)
   | Istackoffset _ -> Op_other
+<<<<<<< HEAD
   | Iload { mutability; is_atomic } ->
     (* #12173: disable CSE for atomic loads. *)
     if is_atomic then Op_other
     else Op_load mutability
+||||||| 121bedcfd2
+  | Iload { mutability } -> Op_load mutability
+=======
+  | Iload { mutability; is_atomic } ->
+      (* #12173: disable CSE for atomic loads.
+         #12825: atomic loads cannot be treated as Op_other
+           because they update our view / the frontier of the
+           non-atomic locations, so past non-atomic (mutable) loads
+           may be not be valid anymore.
+         We conservatively tread them as non-initializing stores.
+      *)
+      if is_atomic then Op_store true
+      else Op_load mutability
+>>>>>>> 5.2.0
   | Istore(_,_,asg) -> Op_store asg
   | Ialloc _ | Ipoll _ -> assert false     (* treated specially *)
   | Iintop(Icheckbound) -> Op_checkbound
@@ -242,6 +257,7 @@ method class_of_operation op =
   | Iprobe_is_enabled _ -> Op_other
   | Ibeginregion | Iendregion -> Op_other
   | Idls_get -> Op_load Mutable
+  | Ireturn_addr -> Op_load Immutable
 
 (* Operations that are so cheap that it isn't worth factoring them. *)
 method is_cheap_operation op =

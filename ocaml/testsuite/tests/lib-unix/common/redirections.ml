@@ -1,14 +1,14 @@
 (* TEST
  readonly_files = "reflector.ml";
  unset XVAR;
- hasunix;
+ hassysthreads;
  {
    program = "${test_build_directory}/redirections.byte";
    setup-ocamlc.byte-build-env;
    program = "${test_build_directory}/reflector.exe";
    all_modules = "reflector.ml";
    ocamlc.byte;
-   include unix;
+   include systhreads;
    program = "${test_build_directory}/redirections.byte";
    all_modules = "redirections.ml";
    ocamlc.byte;
@@ -21,7 +21,7 @@
    program = "${test_build_directory}/reflector.exe";
    all_modules = "reflector.ml";
    ocamlopt.byte;
-   include unix;
+   include systhreads;
    program = "${test_build_directory}/redirections.opt";
    all_modules = "redirections.ml";
    ocamlopt.byte;

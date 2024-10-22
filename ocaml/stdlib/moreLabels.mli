@@ -65,9 +65,11 @@ module Hashtbl : sig
 
   (** {b Unsynchronized accesses} *)
 
+  [@@@warning "-53"]
   [@@@alert unsynchronized_access
       "Unsynchronized accesses to hash tables are a programming error."
   ]
+  [@@@warning "+53"]
 
    (**
       Unsynchronized accesses to a hash table may lead to an invalid hash table

@@ -10,8 +10,8 @@ type t = float32;;
 Line 1, characters 9-16:
 1 | type t = float32;;
              ^^^^^^^
-Error: Unbound type constructor float32
-Hint: Did you mean float or float#?
+Error: Unbound type constructor "float32"
+Hint: Did you mean "float" or "float#"?
 |}];;
 
 let _ = 1.0s;;
@@ -112,8 +112,8 @@ type t = float32#;;
 Line 1, characters 9-17:
 1 | type t = float32#;;
              ^^^^^^^^
-Error: Unbound type constructor float32#
-Hint: Did you mean float#?
+Error: Unbound type constructor "float32#"
+Hint: Did you mean "float#"?
 |}];;
 
 let () = ignore #1.0s;;

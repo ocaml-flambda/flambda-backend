@@ -3,18 +3,22 @@ let code nth_char_1 deleted in
 let code needs_try_region_2 deleted in
 let code gadt_match_3 deleted in
 let code loopify(never) size(5) newer_version_of(set_0)
-      set_0_1 (t) my_closure my_region my_ghost_region my_depth -> k * k1 : imm tagged =
+      set_0_1 (t)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1
+        : imm tagged =
   let Psetfield = %block_set imm t.(0) <- 42 in
   cont k (0)
 in
 let $camlTests14__set_4 = closure set_0_1 @set in
-let code loopify(never) size(6) newer_version_of(nth_char_1)
+let code loopify(never) size(7) newer_version_of(nth_char_1)
       nth_char_1_1 (s, n : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
-  let prim = %string_load 8 (s, n) in
-  let Pstringrefu = %Tag_imm prim in
+  let prim = %num_conv (imm tagged -> imm) n in
+  let prim_1 = %string_load 8 (s, prim) in
+  let Pstringrefu = %Tag_imm prim_1 in
   cont k (Pstringrefu)
 in
 let $camlTests14__nth_char_5 = closure nth_char_1_1 @nth_char in

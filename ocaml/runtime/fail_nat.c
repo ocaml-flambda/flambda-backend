@@ -33,6 +33,7 @@
 #include "caml/roots.h"
 #include "caml/callback.h"
 #include "caml/signals.h"
+#include "caml/tsan.h"
 
 /* The globals holding predefined exceptions */
 
@@ -54,9 +55,8 @@ extern caml_generated_constant
 
 /* Exception raising */
 
-CAMLnoreturn_start
-  extern void caml_raise_exception (caml_domain_state* state, value bucket)
-CAMLnoreturn_end;
+CAMLnoret extern
+void caml_raise_exception (caml_domain_state* state, value bucket);
 
 CAMLnoreturn_start
   extern void caml_raise_async_exception (caml_domain_state* state, value bucket)
@@ -76,9 +76,9 @@ void caml_raise(value v)
   Caml_check_caml_state();
   char* limit_of_current_c_stack_chunk;
 
-  Unlock_exn();
-
   CAMLassert(!Is_exception_result(v));
+
+  caml_channel_cleanup_on_raise();
 
   /* Run callbacks here, so that a signal handler that arrived during
      a blocking call has a chance to interrupt the raising of EINTR */
@@ -92,6 +92,11 @@ void caml_raise(value v)
   }
 
   unwind_local_roots(limit_of_current_c_stack_chunk);
+
+#if defined(WITH_THREAD_SANITIZER)
+  caml_tsan_exit_on_raise_c(exception_pointer);
+#endif
+
   caml_raise_exception(Caml_state, v);
 }
 
@@ -102,7 +107,7 @@ CAMLno_asan void caml_raise_async(value v)
   Caml_check_caml_state();
   char* limit_of_current_c_stack_chunk;
 
-  Unlock_exn();
+  caml_channel_cleanup_on_raise();
 
   CAMLassert(!Is_exception_result(v));
 
@@ -253,6 +258,11 @@ void caml_array_bound_error(void)
 
 void caml_array_bound_error_asm(void)
 {
+#if defined(WITH_THREAD_SANITIZER)
+  char* exception_pointer = (char*)Caml_state->c_stack;
+  caml_tsan_exit_on_raise_c(exception_pointer);
+#endif
+
   /* This exception is raised directly from ocamlopt-compiled OCaml,
      not C, so we jump directly to the OCaml handler (and avoid GC) */
   caml_raise_exception(Caml_state, array_bound_exn());

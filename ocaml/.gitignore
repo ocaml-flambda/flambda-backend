@@ -76,12 +76,13 @@ META
 /asmcomp/reload.ml
 /asmcomp/scheduling.ml
 /asmcomp/CSE.ml
+/asmcomp/stackframe.ml
 
 /boot/ocamlrun
-/boot/ocamlruns
-/boot/camlheader
+/boot/runtime-launch-info
 /boot/ocamlc.opt
-/boot/flexlink.byte
+
+/byte/**
 
 /bytecomp/opcodes.ml
 /bytecomp/opcodes.mli
@@ -210,7 +211,6 @@ META
 /ocamldoc/test
 /ocamldoc/stdlib_man
 
-/ocamltest/.dep
 /ocamltest/ocamltest
 /ocamltest/ocamltest.opt
 /ocamltest/ocamltest_config.ml
@@ -220,6 +220,8 @@ META
 /ocamltest/tsl_parser.mli
 /ocamltest/tsl_parser.output
 /ocamltest/ocamltest.html
+
+/opt/**
 
 /otherlibs/*/.dep
 /otherlibs/dynlink/dynlink_platform_intf.mli
@@ -248,6 +250,7 @@ META
 /runtime4/primitives
 /runtime4/primitives.new
 /runtime4/prims.c
+/runtime4/caml/exec.h
 /runtime4/caml/opnames.h
 /runtime4/caml/version.h
 /runtime4/ocamlrun
@@ -261,12 +264,14 @@ META
 /runtime4/domain_state32.inc
 /runtime4/domain_state64.inc
 
+/runtime/domain_state.inc
 /runtime/caml/jumptbl.h
 /runtime/caml/m.h
 /runtime/caml/s.h
 /runtime/primitives
-/runtime/primitives.new
+/runtime/primitives*.new
 /runtime/prims.c
+/runtime/caml/exec.h
 /runtime/caml/opnames.h
 /runtime/caml/version.h
 /runtime/ocamlrun
@@ -276,17 +281,14 @@ META
 /runtime/.gdb_history
 /runtime/build_config.h
 /runtime/sak
-/runtime/domain_state32.inc
-/runtime/domain_state64.inc
 
-/stdlib/camlheader
-/stdlib/target_camlheader
-/stdlib/camlheader[di]
-/stdlib/target_camlheader[di]
-/stdlib/camlheader_ur
+/stdlib/runtime.info
+/stdlib/runtime-launch-info
 /stdlib/labelled-*
 /stdlib/caml
 /stdlib/sys.ml
+/stdlib/target_runtime.info
+/stdlib/target_runtime-launch-info
 
 /testsuite/**/*.result
 /testsuite/**/*.opt_result
@@ -299,9 +301,8 @@ META
 
 /testsuite/_retries
 
-
 /testsuite/tools/codegen
-/testsuite/tools/expect_test
+/testsuite/tools/expect
 /testsuite/tools/lexcmm.ml
 /testsuite/tools/parsecmm.ml
 /testsuite/tools/parsecmm.mli
@@ -352,6 +353,7 @@ META
 
 /utils/config_boot.ml
 /utils/config_boot.mli
+/utils/config.common.ml
 /utils/config.generated.ml
 /utils/config_main.ml
 /utils/config_main.mli

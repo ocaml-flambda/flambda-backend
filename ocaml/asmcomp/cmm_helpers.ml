@@ -640,6 +640,13 @@ let rec unbox_float dbg =
       | cmm -> Cop(mk_load_immut Double, [cmm], dbg)
     )
 
+(* Conversions for 16-bit floats *)
+
+let float_of_float16 dbg c =
+  Cop(Cextcall("caml_double_of_float16", typ_float, [XInt], false), [c], dbg)
+let float16_of_float dbg c =
+  Cop(Cextcall("caml_float16_of_double", typ_int, [XFloat], false), [c], dbg)
+
 (* Complex *)
 
 let box_complex dbg c_re c_im =
@@ -704,6 +711,7 @@ let set_field ptr n newval init dbg =
   Cop(Cstore (Word_val, init), [field_address ptr n dbg; newval], dbg)
 
 let get_header ptr dbg =
+<<<<<<< HEAD
   (* Headers can be mutated when forcing a lazy value. However, for all
      purposes that the mutability tag currently serves in the compiler, header
      loads can be marked as [Immutable], since the runtime should ensure that
@@ -712,6 +720,18 @@ let get_header ptr dbg =
   Cop((if Config.runtime5
        then mk_load_immut Word_int
        else mk_load_mut Word_int),
+||||||| 121bedcfd2
+  (* header loads are mutable because laziness changes tags. *)
+  Cop(mk_load_mut Word_int,
+=======
+  (* Headers can be mutated when forcing a lazy value. However, for all
+     purposes that the mutability tag currently serves in the compiler, header
+     loads can be marked as [Immutable], since the runtime should ensure that
+     there is no data race on headers. This saves performance with
+     ThreadSanitizer instrumentation by avoiding to instrument header loads. *)
+  Cop(
+    mk_load_immut Word_int,
+>>>>>>> 5.2.0
     [Cop(Cadda, [ptr; Cconst_int(-size_int, dbg)], dbg)], dbg)
 
 let get_header_masked ptr dbg =
@@ -728,11 +748,22 @@ let get_tag ptr dbg =
   if Proc.word_addressed then           (* If byte loads are slow *)
     Cop(Cand, [get_header ptr dbg; Cconst_int (255, dbg)], dbg)
   else                                  (* If byte loads are efficient *)
+<<<<<<< HEAD
     (* Same comment as [get_header] above *)
     Cop((if Config.runtime5
          then mk_load_immut Byte_unsigned
          else mk_load_mut Byte_unsigned),
       [Cop(Cadda, [ptr; Cconst_int(tag_offset, dbg)], dbg)], dbg)
+||||||| 121bedcfd2
+    (* header loads are mutable because laziness changes tags. *)
+    Cop(mk_load_mut Byte_unsigned,
+        [Cop(Cadda, [ptr; Cconst_int(tag_offset, dbg)], dbg)], dbg)
+=======
+    (* Same comment as [get_header] above *)
+    Cop(
+      mk_load_immut Byte_unsigned,
+      [Cop(Cadda, [ptr; Cconst_int(tag_offset, dbg)], dbg)], dbg)
+>>>>>>> 5.2.0
 
 let get_size ptr dbg =
   Cop(Clsr, [get_header_masked ptr dbg; Cconst_int (10, dbg)], dbg)
@@ -1072,6 +1103,7 @@ let curry_function_sym function_kind arity result =
 
 let bigarray_elt_size : Lambda.bigarray_kind -> int = function
     Pbigarray_unknown -> assert false
+  | Pbigarray_float16 -> 2
   | Pbigarray_float32 -> 4
   | Pbigarray_float64 -> 8
   | Pbigarray_sint8 -> 1
@@ -1145,6 +1177,7 @@ let bigarray_indexing unsafe elt_kind layout b args dbg =
 
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
     Pbigarray_unknown -> assert false
+  | Pbigarray_float16 -> Sixteen_unsigned
   | Pbigarray_float32 -> Single
   | Pbigarray_float64 -> Double
   | Pbigarray_sint8 -> Byte_signed

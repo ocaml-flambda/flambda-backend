@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (** First-in first-out queues.
 
    This module implements queues (FIFOs), with in-place modification.
@@ -27,6 +25,8 @@ open! Stdlib
 [@@@alert unsynchronized_access
     "Unsynchronized accesses to queues are a programming error."
 ]
+
+open! Stdlib
 
 (**
     Unsynchronized accesses to a queue may lead to an invalid queue state.

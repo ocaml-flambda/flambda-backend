@@ -20,10 +20,10 @@ val package_files:
   ppf_dump:Format.formatter -> Env.t -> string list -> string -> unit
 
 type error =
-    Forward_reference of string * Ident.t
-  | Multiple_definition of string * Ident.t
+    Forward_reference of string * Compilation_unit.t
+  | Multiple_definition of string * Compilation_unit.t
   | Not_an_object_file of string
-  | Illegal_renaming of Compilation_unit.Name.t * string * string
+  | Illegal_renaming of Compilation_unit.t * string * Compilation_unit.t
   | File_not_found of string
 
 exception Error of error

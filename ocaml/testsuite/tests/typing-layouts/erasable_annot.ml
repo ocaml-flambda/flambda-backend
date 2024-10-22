@@ -389,7 +389,8 @@ external f_6 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
 Line 1, characters 16-22:
 1 | external f_6 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
                     ^^^^^^
-Error: Don't know how to untag this type. Only int can be untagged.
+Error: Don't know how to untag this type. Only "int"
+       and other immediate types can be untagged.
 |}];;
 
 external f_7 : string -> (int64#[@untagged])  = "foo" "bar";;
@@ -397,7 +398,8 @@ external f_7 : string -> (int64#[@untagged])  = "foo" "bar";;
 Line 1, characters 26-32:
 1 | external f_7 : string -> (int64#[@untagged])  = "foo" "bar";;
                               ^^^^^^
-Error: Don't know how to untag this type. Only int can be untagged.
+Error: Don't know how to untag this type. Only "int"
+       and other immediate types can be untagged.
 |}];;
 
 (* With [@layout_poly] *)
@@ -414,8 +416,8 @@ Line 1, characters 40-42:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
                                             ^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       the corresponding unboxed types can be marked unboxed.
 |}];;
 
 
@@ -425,8 +427,8 @@ Line 1, characters 41-43:
 1 | external[@layout_poly] id : ('a : any). ('a[@unboxed]) -> 'a = "%identity"
                                              ^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, vector primitives, and
-       concrete unboxed types can be marked unboxed.
+       Only "float", "int32", "int64", "nativeint", vector primitives, and
+       the corresponding unboxed types can be marked unboxed.
 |}];;
 
 (* module and abstract types *)

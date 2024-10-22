@@ -24,16 +24,14 @@ open Linear
 open Emitaux
 open Emitenv
 
-(* Layout of the stack.  The stack is kept 16-aligned. *)
+(* Layout of the stack.  The C stack must be 16-aligned, but 8-alignment
+   is enough for the OCaml stack. *)
 
 let frame_size env =
-  let size =
-    env.stack_offset +                     (* Trap frame, outgoing parameters *)
-    size_int * env.f.fun_num_stack_slots.(0) +    (* Local int variables *)
-    size_float * env.f.fun_num_stack_slots.(1) +  (* Local float variables *)
-    (if env.f.fun_contains_calls then size_addr else 0) (* Return address *)
-  in
-  Misc.align size 16
+  env.stack_offset +                     (* Trap frame, outgoing parameters *)
+  size_int * env.f.fun_num_stack_slots.(0) +    (* Local int variables *)
+  size_float * env.f.fun_num_stack_slots.(1) +  (* Local float variables *)
+  (if env.f.fun_frame_required then size_addr else 0) (* Return address *)
 
 let slot_offset env loc cls =
   match loc with
@@ -101,10 +99,10 @@ let emit_reg r =
 let emit_stack_adjustment n =
   if n <> 0 then begin
     if is_immediate n then
-      `        addi    sp, sp, {emit_int n}\n`
+      `	addi	sp, sp, {emit_int n}\n`
     else begin
-      `        li      {emit_reg reg_tmp}, {emit_int n}\n`;
-      `        add     sp, sp, {emit_reg reg_tmp}\n`
+      `	li	{emit_reg reg_tmp}, {emit_int n}\n`;
+      `	add	sp, sp, {emit_reg reg_tmp}\n`
     end;
     cfi_adjust_cfa_offset (-n)
   end
@@ -265,10 +263,9 @@ let emit_instr env i =
   match i.desc with
     Lend -> ()
   | Lprologue ->
-      assert (env.f.fun_prologue_required);
       let n = frame_size env in
       emit_stack_adjustment (-n);
-      if env.f.fun_contains_calls then begin
+      if env.f.fun_frame_required then begin
         store_ra n;
         cfi_offset ~reg:1 (* ra *) ~offset:(-8)
       end;
@@ -277,7 +274,7 @@ let emit_instr env i =
       if src.loc <> dst.loc then begin
         match (src, dst) with
         | {loc = Reg _; typ = (Val | Int | Addr)}, {loc = Reg _} ->
-            `	mv      {emit_reg dst}, {emit_reg src}\n`
+            `	mv	{emit_reg dst}, {emit_reg src}\n`
         | {loc = Reg _; typ = Float}, {loc = Reg _; typ = Float} ->
             `	fmv.d   {emit_reg dst}, {emit_reg src}\n`
         | {loc = Reg _; typ = Float}, {loc = Reg _; typ = (Val | Int | Addr)} ->
@@ -314,7 +311,7 @@ let emit_instr env i =
       record_frame env i.live (Dbg_other i.dbg)
   | Lop(Itailcall_ind) ->
       let n = frame_size env in
-      if env.f.fun_contains_calls then reload_ra n;
+      if env.f.fun_frame_required then reload_ra n;
       emit_stack_adjustment n;
       `	jr	{emit_reg i.arg.(0)}\n`
   | Lop(Itailcall_imm {func}) ->
@@ -322,7 +319,7 @@ let emit_instr env i =
         `	j	{emit_label env.f.fun_tailrec_entry_point_label}\n`
       end else begin
         let n = frame_size env in
-        if env.f.fun_contains_calls then reload_ra n;
+        if env.f.fun_frame_required then reload_ra n;
         emit_stack_adjustment n;
         `	{emit_tail func}\n`
       end
@@ -436,8 +433,8 @@ let emit_instr env i =
       begin match return_label with
       | None -> `	bltu	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp}, {emit_label lbl_call_gc}\n`;
                 `{emit_label lbl_after_poll}:\n`;
-      | Some lbl -> ` bgeu  {emit_reg reg_alloc_ptr}, {emit_reg reg_tmp}, {emit_label lbl}\n`;
-                    ` j {emit_label lbl_call_gc}\n`
+      | Some lbl -> `	bgeu	{emit_reg reg_alloc_ptr}, {emit_reg reg_tmp}, {emit_label lbl}\n`;
+                    `	j	{emit_label lbl_call_gc}\n`
       end;
       env.call_gc_sites <-
         { gc_lbl = lbl_call_gc;
@@ -506,6 +503,12 @@ let emit_instr env i =
   | Lop (Idls_get) ->
       let ofs = Domainstate.(idx_of_field Domain_dls_root) * 8 in
       `	ld	{emit_reg i.res.(0)}, {emit_int ofs}({emit_reg reg_domain_state_ptr})\n`
+  | Lop (Ireturn_addr) ->
+      let n = frame_size env in
+      if env.f.fun_frame_required then
+        `	ld	{emit_reg i.res.(0)}, {emit_int (n - 8)}(sp)\n`
+      else
+        `	mv	{emit_reg i.res.(0)}, ra\n`;
   | Lreloadretaddr ->
       let n = frame_size env in
       reload_ra n
@@ -629,12 +632,10 @@ let fundecl fundecl =
 
   (* Dynamic stack checking *)
   let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
-  let { max_frame_size; contains_nontail_calls } =
-    preproc_stack_check
-      ~fun_body:fundecl.fun_body ~frame_size:(frame_size env) ~trap_size:16
-  in
+  let max_frame_size = frame_size env + fundecl.fun_extra_stack_used in
   let handle_overflow =
-    if contains_nontail_calls || max_frame_size >= stack_threshold_size then begin
+    if fundecl.fun_contains_nontail_calls
+    || max_frame_size >= stack_threshold_size then begin
       let overflow = new_label () and ret = new_label () in
       let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
       let f = max_frame_size + threshold_offset in

@@ -57,15 +57,14 @@ frame_descr * caml_next_frame_descriptor
       /* This marks the top of an ML stack chunk. Move sp to the previous stack
        chunk. This includes skipping over the DWARF link & trap frame
        (4 words). */
-      *sp += 4 * sizeof(value);
+      *sp += Stack_header_size;
       if (*sp == (char*)Stack_high(stack)) {
         /* We've reached the top of stack. No more frames. */
         *pc = 0;
         return NULL;
       }
-      Pop_frame_pointer(*sp);
-      *pc = **(uintnat**)sp;
-      *sp += sizeof(value); /* return address */
+      *sp = First_frame(*sp);
+      *pc = Saved_return_address(*sp);
     }
   }
 }
@@ -90,7 +89,7 @@ void caml_free_backtrace_buffer(backtrace_slot *backtrace_buffer) {
 #define Frame_descr_slot(s) ((frame_descr*)(s))
 #define Slot_frame_descr(f) ((backtrace_slot)(f))
 
-static debuginfo debuginfo_extract(frame_descr *d, ssize_t alloc_idx);
+static debuginfo debuginfo_extract(frame_descr *d, ptrdiff_t alloc_idx);
 
 /* Stores the return addresses contained in the given stack fragment
    into the backtrace array ; this version is performance-sensitive as
@@ -235,7 +234,7 @@ static size_t get_callstack(struct stack_info* stack, intnat max_slots,
 size_t caml_get_callstack(size_t max_slots,
                           backtrace_slot **buffer_p,
                           size_t *alloc_size_p,
-                          ssize_t alloc_idx)
+                          ptrdiff_t alloc_idx)
 {
   return get_callstack(Caml_state->current_stack, max_slots,
                        alloc_idx,
@@ -292,7 +291,7 @@ CAMLprim value caml_get_continuation_callstack (value cont, value max_frames)
   return alloc_callstack(trace, slots);
 }
 
-static debuginfo debuginfo_extract(frame_descr *d, ssize_t alloc_idx)
+static debuginfo debuginfo_extract(frame_descr *d, ptrdiff_t alloc_idx)
 {
   unsigned char* infoptr;
   uint32_t debuginfo_offset;
@@ -396,7 +395,6 @@ void caml_debuginfo_location(debuginfo dbg, /*out*/ struct caml_loc_info * li)
   /* Recover debugging info */
   info1 = ((uint32_t *)dbg)[0];
   info2 = ((uint32_t *)dbg)[1];
-
   /* Format of the two info words:
      Two possible formats based on value of bit 63:
      Partially packed format

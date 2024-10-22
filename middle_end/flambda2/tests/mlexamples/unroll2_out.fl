@@ -3,7 +3,9 @@ let code bar_1 deleted in
 let $camlUnroll2__foo_2 =
   closure foo_0_1 @foo
 and code rec loopify(never) size(23) newer_version_of(foo_0)
-      foo_0_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      foo_0_1 (x : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let Popaque = %Opaque 1 in
   (let untagged = %untag_imm Popaque in
    switch untagged
@@ -23,7 +25,9 @@ and code rec loopify(never) size(23) newer_version_of(foo_0)
           -> k * k1
 in
 let code loopify(never) size(61) newer_version_of(bar_1)
-      bar_1_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      bar_1_1 (x : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let Popaque = %Opaque 1 in
   (let untagged = %untag_imm Popaque in
    switch untagged

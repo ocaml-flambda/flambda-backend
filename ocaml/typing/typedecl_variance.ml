@@ -230,7 +230,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
     List.iter (fun (_,ty) -> check ty) tyl;
   end;
   List.map2
-    (fun ty (p, n, i) ->
+    (fun ty (p, n, _i) ->
       let v = get_variance ty tvl in
       let tr = decl.type_private in
       (* Use required variance where relevant *)
@@ -238,7 +238,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
       let (p, n) =
         if tr = Private || not (Btype.is_Tvar ty) then (p, n) (* set *)
         else (false, false) (* only check *)
-      and i = concr  || i && tr = Private in
+      and i = concr in
       let v = union v (make p n i) in
       if not concr || Btype.is_Tvar ty then v else
       union v
@@ -312,11 +312,9 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     Option.map (fun id -> Type_declaration (id, decl)) check
   in
   let abstract = Btype.type_kind_is_abstract decl in
-  if (abstract || decl.type_kind = Type_open)
-       && decl.type_manifest = None then
+  if (abstract || decl.type_kind = Type_open) && decl.type_manifest = None then
     List.map
-      (fun (c, n, i) ->
-        make (not n) (not c) (not abstract || i))
+      (fun (c, n, i) -> make (not n) (not c) (not abstract || i))
       required
   else begin
     let mn =

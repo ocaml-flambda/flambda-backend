@@ -261,7 +261,7 @@ let default_load ppf (program : Lambda.program) =
   Asmgen.compile_implementation
     (module Unix : Compiler_owee.Unix_intf.S)
     ~toplevel:need_symbol
-    ~filename ~prefixname:filename
+    ~sourcefile:(Some filename) ~prefixname:filename
     ~pipeline ~ppf_dump:ppf
     program;
   Asmlink.call_linker_shared ~native_toplevel:true [filename ^ ext_obj] dll;
@@ -355,7 +355,8 @@ let name_expression ~loc ~attrs sort exp =
       pat_extra = [];
       pat_type = exp.exp_type;
       pat_env = exp.exp_env;
-      pat_attributes = []; }
+      pat_attributes = [];
+      pat_unique_barrier = Unique_barrier.not_computed () }
   in
   let vb =
     { vb_pat = pat;

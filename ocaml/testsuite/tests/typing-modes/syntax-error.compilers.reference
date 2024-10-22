@@ -1,35 +1,35 @@
 Line 5, characters 27-28:
 5 | let local_ foo : string @@ = "hello";;
                                ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 17-18:
 2 | let local_ foo @ = "hello";;
                      ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 34-35:
 2 | let local_ foo : 'a. 'a -> 'a @@  = fun x -> x;;
                                       ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 29-30:
 2 | let foo : type a. a -> a @@  = fun x -> x;;
                                  ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 13-14:
 2 | let (x, y) @ = "hello", "world";;
                  ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 18-19:
 2 | let (x, y) : _ @@ = "hello", "world";;
                       ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 10-11:
 2 | let foo @ = "hello";;
               ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 26-27:
 2 | let foo = ("hello" : _ @@ );;
                               ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 21-22:
 2 | let foo = ("hello" @ );;
                          ^
@@ -47,19 +47,19 @@ type r = { a : string; b : string; }
 Line 2, characters 15-17:
 2 | let r = {a : _ @@ = "hello";
                    ^^
-Error: Syntax error: '}' expected
+Error: Syntax error: "}" expected
 Line 2, characters 8-9:
 2 | let r = {a : _ @@ = "hello";
             ^
-  This '{' might be unmatched
+  This "{" might be unmatched
 Line 3, characters 5-6:
 3 |   {a @  = "hello";
          ^
-Error: Syntax error: '}' expected
+Error: Syntax error: "}" expected
 Line 3, characters 2-3:
 3 |   {a @  = "hello";
       ^
-  This '{' might be unmatched
+  This "{" might be unmatched
 Line 5, characters 9-11:
 5 |   ~(bar:_@@), ~(biz:_@@)
              ^^
@@ -71,63 +71,63 @@ Error: Syntax error
 Line 2, characters 26-28:
 2 | type r = local_ string @  -> unique_ string @ ;;
                               ^^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 37-39:
 2 | type r = local_ string * y:string @  -> local_ string * w:string @;;
                                          ^^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 39-41:
 2 | type r = x:local_ string * y:string @  -> local_ string * w:string @;;
                                            ^^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 25-27:
 2 | type r = local_ string @ -> string;;
                              ^^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 26-27:
 2 | type t = Foo of string @@ * global_ string;;
                               ^
-Error: Syntax error: modality expression expected.
+Error: Syntax error: "modality expression" expected.
 Line 4, characters 0-1:
 4 | }
     ^
-Error: Syntax error: modality expression expected.
+Error: Syntax error: "modality expression" expected.
 Line 2, characters 21-22:
 2 | let foo ?(local_ x @ = 42) () = () ;;
                          ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 26-27:
 2 | let foo ?(local_ x : _ @@ = 42) () = ();;
                               ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 37-38:
 2 | let foo ?(local_ x : 'a. 'a -> 'a @@ ) = ();;
                                          ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 27-28:
 2 | let foo ?x:(local_ (x,y) @ = (42, 42)) () = ();;
                                ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 32-33:
 2 | let foo ?x:(local_ (x,y) : _ @@ = (42, 42)) () = ();;
                                     ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 40-41:
 2 | let foo ?x:(local_ (x,y) : 'a.'a->'a @@ ) () = ();;
                                             ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 14-15:
 2 | let foo ((x @ ), (y@)) = x + y ;;
                   ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 19-20:
 2 | let foo ((x : _ @@ ), (y : _ @@ )) = x + y;;
                        ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 3, characters 13-14:
 3 |   let (bar @ ) a b = () in
                  ^
-Error: Syntax error: mode expression expected.
+Error: Syntax error: "mode expression" expected.
 Line 2, characters 26-27:
 2 | let foo ((x @ unique once), (y@local unique)) = x + y;;
                               ^

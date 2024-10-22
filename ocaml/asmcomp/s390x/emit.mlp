@@ -30,7 +30,7 @@ let frame_size env =
     env.stack_offset +      (* Trap frame, outgoing parameters *)
     size_int * env.f.fun_num_stack_slots.(0) +    (* Local int variables *)
     size_float * env.f.fun_num_stack_slots.(1) +  (* Local float variables *)
-    (if env.f.fun_contains_calls then size_addr else 0) in (* The return address *)
+    (if env.f.fun_frame_required then size_addr else 0) in (* The return address *)
   Misc.align size 8
 
 let slot_offset env loc cls =
@@ -121,7 +121,7 @@ let emit_stack env r =
 
 let emit_load_symbol_addr reg s =
   if !pic_code then
-  `	lgrl	{emit_reg reg}, {emit_symbol s}@GOTENT\n`
+  `	lgrl	{emit_reg reg}, {emit_symbol s}@GOT\n`
   else
   `	larl	{emit_reg reg}, {emit_symbol s}\n`
 
@@ -298,10 +298,9 @@ let emit_instr env i =
     match i.desc with
       Lend -> ()
     | Lprologue ->
-      assert (env.f.fun_prologue_required);
       let n = frame_size env in
       emit_stack_adjust n;
-      if env.f.fun_contains_calls then
+      if env.f.fun_frame_required then
         `	stg	%r14, {emit_int(n - size_addr)}(%r15)\n`
     | Lop(Imove | Ispill | Ireload) ->
         let src = i.arg.(0) and dst = i.res.(0) in
@@ -348,7 +347,7 @@ let emit_instr env i =
         `{record_frame env i.live (Dbg_other i.dbg)}\n`
     | Lop(Itailcall_ind) ->
         let n = frame_size env in
-        if env.f.fun_contains_calls then
+        if env.f.fun_frame_required then
           `	lg	%r14, {emit_int(n - size_addr)}(%r15)\n`;
         emit_stack_adjust (-n);
         `	br	{emit_reg i.arg.(0)}\n`
@@ -357,7 +356,7 @@ let emit_instr env i =
           `	brcl	15, {emit_label env.f.fun_tailrec_entry_point_label}\n`
         else begin
           let n = frame_size env in
-          if env.f.fun_contains_calls then
+          if env.f.fun_frame_required then
             `	lg	%r14, {emit_int(n - size_addr)}(%r15)\n`;
           emit_stack_adjust (-n);
           if !pic_code then
@@ -366,6 +365,7 @@ let emit_instr env i =
             `	brcl	15, {emit_symbol func}\n`
         end
 
+<<<<<<< HEAD
     | Lop(Iextcall {func; alloc; stack_ofs}) ->
         if stack_ofs > 0 then begin
           ` lgr {emit_reg reg_stack_arg_begin}, %r15\n`;
@@ -374,9 +374,24 @@ let emit_instr env i =
           emit_call "caml_c_call_stack_args";
           `{record_frame env i.live (Dbg_other i.dbg)}\n`
         end else if alloc then begin
+||||||| 121bedcfd2
+     | Lop(Iextcall { func; alloc; }) ->
+        if not alloc then emit_call func
+        else begin
+=======
+    | Lop(Iextcall {func; alloc; stack_ofs}) ->
+        if stack_ofs > 0 then begin
+          `	lgr	{emit_reg reg_stack_arg_begin}, %r15\n`;
+          `	lay	{emit_reg reg_stack_arg_end}, {emit_int stack_ofs}(%r15)\n`;
+          emit_load_symbol_addr reg_r7 func;
+          emit_call "caml_c_call_stack_args";
+          `{record_frame env i.live (Dbg_other i.dbg)}\n`
+        end else if alloc then begin
+>>>>>>> 5.2.0
           emit_load_symbol_addr reg_r7 func;
           emit_call "caml_c_call";
           `{record_frame env i.live (Dbg_other i.dbg)}\n`
+<<<<<<< HEAD
         end else begin
           (* Save OCaml SP in C callee-save register *)
           ` lgr %r12, %r15\n`;
@@ -390,6 +405,22 @@ let emit_instr env i =
           emit_call func;
           ` lgr %r15, %r12\n`;
           cfi_restore_state ()
+||||||| 121bedcfd2
+=======
+        end else begin
+          (* Save OCaml SP in C callee-save register *)
+          `	lgr	%r12, %r15\n`;
+          cfi_remember_state ();
+          cfi_def_cfa_register "%r12";
+          (* NB: gdb has asserts on contiguous stacks that mean it
+             will not unwind through this unless we were to tag this
+             calling frame with cfi_signal_frame in it's definition. *)
+          let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
+          `	lg	%r15, {emit_int offset}(%r10)\n`;
+          emit_call func;
+          `	lgr	%r15, %r12\n`;
+          cfi_restore_state ()
+>>>>>>> 5.2.0
         end
 
      | Lop(Istackoffset n) ->
@@ -425,6 +456,7 @@ let emit_instr env i =
           | Single -> assert false
           | Double -> "stdy" in
         emit_load_store storeinstr addr i.arg 1 i.arg.(0)
+<<<<<<< HEAD
     | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
         let lbl_frame_lbl = record_frame_label env i.live (Dbg_alloc dbginfo) in
         if env.f.fun_fast then begin
@@ -454,6 +486,55 @@ let emit_instr env i =
         end
     | Lop(Ialloc { mode = Alloc_local } | Ibeginregion | Iendregion) ->
        Misc.fatal_error "Local allocations not supported on this architecture"
+||||||| 121bedcfd2
+
+    | Lop(Ialloc { bytes = n; dbginfo }) ->
+        let lbl_after_alloc = new_label() in
+        let lbl_call_gc = new_label() in
+        let lbl_frame =
+          record_frame_label env i.live (Dbg_alloc dbginfo)
+        in
+        env.call_gc_sites <-
+          { gc_lbl = lbl_call_gc;
+            gc_return_lbl = lbl_after_alloc;
+            gc_frame_lbl = lbl_frame; } :: env.call_gc_sites;
+        `	lay     %r11, {emit_int(-n)}(%r11)\n`;
+        let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
+        `	clg	%r11, {emit_int offset}(%r10)\n`;
+        `	brcl    4, {emit_label lbl_call_gc}\n`;  (* less than *)
+        `{emit_label lbl_after_alloc}:`;
+        `	la      {emit_reg i.res.(0)}, 8(%r11)\n`
+=======
+
+    | Lop(Ialloc { bytes = n; dbginfo }) ->
+        let lbl_frame_lbl = record_frame_label env i.live (Dbg_alloc dbginfo) in
+        if env.f.fun_fast then begin
+          let lbl_after_alloc = new_label () in
+          let lbl_call_gc = new_label () in
+          let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
+          `	lay	%r11, {emit_int(-n)}(%r11)\n`;
+          `	clg	%r11, {emit_int offset}(%r10)\n`;
+          `	brcl	4, {emit_label lbl_call_gc}\n`;  (* less than *)
+          `{emit_label lbl_after_alloc}:`;
+          `	la	{emit_reg i.res.(0)}, 8(%r11)\n`;
+          env.call_gc_sites <-
+            { gc_lbl = lbl_call_gc;
+              gc_return_lbl = lbl_after_alloc;
+              gc_frame_lbl = lbl_frame_lbl } :: env.call_gc_sites
+        end else begin
+          begin match n with
+          | 16 -> `	{emit_call "caml_alloc1"}\n`
+          | 24 -> `	{emit_call "caml_alloc2"}\n`
+          | 32 -> `	{emit_call "caml_alloc3"}\n`
+          | _  ->
+              `	lay	%r11, {emit_int(-n)}(%r11)\n`;
+              `	{emit_call "caml_allocN"}\n`
+          end;
+          `{emit_label lbl_frame_lbl}:\n`;
+          `	la	{emit_reg i.res.(0)}, 8(%r11)\n`
+        end
+
+>>>>>>> 5.2.0
     | Lop(Ipoll { return_label }) ->
         let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
           `	clg	%r11, {emit_int offset}(%r10)\n`;
@@ -465,8 +546,8 @@ let emit_instr env i =
           record_frame_label env i.live (Dbg_alloc [])
         in
         begin match return_label with
-        | None -> `	brcl    4, {emit_label lbl_call_gc}\n`;  (* less than *)
-        | Some return_label -> `	brcl    10, {emit_label return_label}\n`;  (* greater or equal *)
+        | None -> `	brcl	4, {emit_label lbl_call_gc}\n`;  (* less than *)
+        | Some return_label -> `	brcl	10, {emit_label return_label}\n`;  (* greater or equal *)
         end;
         env.call_gc_sites <-
           { gc_lbl = lbl_call_gc;
@@ -474,7 +555,7 @@ let emit_instr env i =
             gc_frame_lbl = lbl_frame; } :: env.call_gc_sites;
         begin match return_label with
         | None -> `{emit_label label_after_gc}:`;
-        | Some _ -> `	brcl    15, {emit_label lbl_call_gc}\n`;  (* unconditional *)
+        | Some _ -> `	brcl	15, {emit_label lbl_call_gc}\n`;  (* unconditional *)
         end
     | Lop(Iintop Imulh) ->
        (* Hacker's Delight section 8.3:
@@ -595,8 +676,22 @@ let emit_instr env i =
     | Lop (Iprobe _ |Iprobe_is_enabled _) ->
       Misc.fatal_error ("Probes not supported.")
     | Lop (Idls_get) ->
+<<<<<<< HEAD
         let ofs = Domainstate.(idx_of_field Domain_dls_root) * 8 in
         `	lg	{emit_reg i.res.(0)}, {emit_int ofs}(%r10)\n`
+||||||| 121bedcfd2
+        (* Here to maintain build *)
+        assert false
+=======
+        let ofs = Domainstate.(idx_of_field Domain_dls_root) * 8 in
+        `	lg	{emit_reg i.res.(0)}, {emit_int ofs}(%r10)\n`
+    | Lop (Ireturn_addr) ->
+        let n = frame_size env in
+        if env.f.fun_frame_required then
+            `	lg	{emit_reg i.res.(0)}, {emit_int(n - size_addr)}(%r15)\n`
+        else
+            `	lgr	{emit_reg i.res.(0)}, %r14\n`
+>>>>>>> 5.2.0
     | Lreloadretaddr ->
         let n = frame_size env in
         `	lg	%r14, {emit_int(n - size_addr)}(%r15)\n`
@@ -718,6 +813,7 @@ let fundecl fundecl =
   emit_string code_space;
   `	.align	8\n`;
   `{emit_symbol fundecl.fun_name}:\n`;
+<<<<<<< HEAD
   cfi_startproc ();
 
   (* Dynamic stack checking *)
@@ -739,11 +835,34 @@ let fundecl fundecl =
     handle_overflow := Some (overflow, ret);
   end;
 
+||||||| 121bedcfd2
+=======
+  cfi_startproc ();
+
+  (* Dynamic stack checking *)
+  let stack_threshold_size = Config.stack_threshold * 8 in (* bytes *)
+  let max_frame_size = frame_size env + fundecl.fun_extra_stack_used in
+  let handle_overflow = ref None in
+  if fundecl.fun_contains_nontail_calls
+  || max_frame_size >= stack_threshold_size then begin
+    let overflow = new_label () and ret = new_label () in
+    let threshold_offset = Domainstate.stack_ctx_words * 8 + stack_threshold_size in
+    let f = max_frame_size + threshold_offset in
+    let offset = Domainstate.(idx_of_field Domain_current_stack) * 8 in
+    `	lay	%r1, {emit_int (-f)}(%r15)\n`;
+    `	clg	%r1, {emit_int offset}(%r10)\n`;
+    `	brcl	4, {emit_label overflow}\n`;
+    `{emit_label ret}:\n`;
+    handle_overflow := Some (overflow, ret);
+  end;
+
+>>>>>>> 5.2.0
   emit_all env fundecl.fun_body;
   (* Emit the glue code to call the GC *)
   List.iter emit_call_gc env.call_gc_sites;
   (* Emit the glue code to handle bound errors *)
   emit_call_bound_errors env;
+<<<<<<< HEAD
 
   begin match !handle_overflow with
   | None -> ()
@@ -761,6 +880,26 @@ let fundecl fundecl =
   end;
 
   cfi_endproc ();
+||||||| 121bedcfd2
+=======
+
+  begin match !handle_overflow with
+  | None -> ()
+  | Some (overflow,ret) -> begin
+      `{emit_label overflow}:\n`;
+      let s = (Config.stack_threshold + max_frame_size / 8) in
+      `	lay	%r15, -8(%r15)\n`;
+      `	stg	%r14, 0(%r15)\n`;
+      `	lgfi	%r12, {emit_int s}\n`;
+      emit_call "caml_call_realloc_stack";
+      `	lg	%r14, 0(%r15)\n`;
+      `	la	%r15, 8(%r15)\n`;
+      `	brcl	15, {emit_label ret}\n`
+    end
+  end;
+
+  cfi_endproc ();
+>>>>>>> 5.2.0
   (* Emit the numeric literals *)
   if env.float_literals <> [] || env.int_literals <> [] then begin
     emit_string rodata_space;

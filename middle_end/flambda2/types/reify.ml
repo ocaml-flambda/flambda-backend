@@ -39,6 +39,8 @@ type to_lift =
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
+  | Immutable_vec128_array of
+      { fields : Vector_types.Vec128.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 
@@ -152,6 +154,14 @@ module Lift_array_of_naked_nativeints = Make_lift_array_of_naked_numbers (struct
   let prove = Provers.meet_naked_nativeints
 
   let build_to_lift ~fields = Immutable_nativeint_array { fields }
+end)
+
+module Lift_array_of_naked_vec128s = Make_lift_array_of_naked_numbers (struct
+  module N = Vector_types.Vec128.Bit_pattern
+
+  let prove = Provers.meet_naked_vec128s
+
+  let build_to_lift ~fields = Immutable_vec128_array { fields }
 end)
 
 (* CR mshinwell: Think more to identify all the cases that should be in this
@@ -566,7 +576,9 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           | Naked_number Naked_nativeint ->
             Lift_array_of_naked_nativeints.lift env ~fields
               ~try_canonical_simple
-          | Naked_number (Naked_immediate | Naked_vec128) | Region | Rec_info ->
+          | Naked_number Naked_vec128 ->
+            Lift_array_of_naked_vec128s.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_immediate | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
                %a@ in env:@ %a"

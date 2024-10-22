@@ -84,7 +84,7 @@ Line 19, characters 52-56:
                                                          ^^^^
 Error: Modules do not match: sig module M : sig end end is not included in
        S
-     In module M:
+     In module "M":
      Modules do not match:
        sig end
      is not included in
@@ -94,5 +94,5 @@ Error: Modules do not match: sig module M : sig end end is not included in
              module O : sig module P : sig module Q : sig ... end end end
            end
        end
-     In module M: The module `N' is required but not provided
+     In module "M": The module "N" is required but not provided
 |}]

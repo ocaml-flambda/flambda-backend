@@ -15,14 +15,16 @@ type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
   | Mode : maturity t
   | Unique : unit t
+  | Overwriting : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
-  | SIMD : unit t
+  | SIMD : maturity t
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
+  | Instances : unit t
 
 (** Existentially packed language extension *)
 module Exist : sig

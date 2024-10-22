@@ -56,7 +56,7 @@ let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
   match Jkind.Sort.default_to_value_and_get sort with
-  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Word) -> ()
+  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) -> ()
   | Base Void -> raise (Error (loc, Illegal_void_record_field))
   | Product _ as c -> raise (Error (loc, Illegal_product_record_field c))
 
@@ -186,11 +186,11 @@ let function_attribute_disallowing_arity_fusion =
 *)
 let curried_function_kind
     : (function_curry * Mode.Alloc.l) list
-      -> return_mode:alloc_mode
-      -> alloc_mode:alloc_mode
+      -> return_mode:locality_mode
+      -> mode:locality_mode
       -> curried_function_kind
   =
-  let rec loop params ~return_mode ~alloc_mode ~running_count
+  let rec loop params ~return_mode ~mode ~running_count
       ~found_local_already
     =
     match params with
@@ -199,7 +199,7 @@ let curried_function_kind
         let nlocal =
           if running_count = 0
              && is_alloc_heap return_mode
-             && is_alloc_heap alloc_mode
+             && is_alloc_heap mode
              && is_alloc_heap (transl_alloc_mode_l final_arg_mode)
           then 0
           else running_count + 1
@@ -209,18 +209,18 @@ let curried_function_kind
     | (More_args { partial_mode }, _) :: params ->
         match transl_alloc_mode_l partial_mode with
         | Alloc_heap when not found_local_already ->
-            loop params ~return_mode ~alloc_mode
+            loop params ~return_mode ~mode
               ~running_count:0 ~found_local_already
         | Alloc_local ->
-            loop params ~return_mode ~alloc_mode
+            loop params ~return_mode ~mode
               ~running_count:(running_count + 1) ~found_local_already:true
         | Alloc_heap ->
             Misc.fatal_error
               "A function argument with a Global partial_mode unexpectedly \
               found following a function argument with a Local partial_mode"
   in
-  fun params ~return_mode ~alloc_mode ->
-    loop params ~return_mode ~alloc_mode ~running_count:0
+  fun params ~return_mode ~mode ->
+    loop params ~return_mode ~mode ~running_count:0
       ~found_local_already:false
 
 (* Insertion of debugging events *)
@@ -266,7 +266,7 @@ type fusable_function =
   { params : function_param list
   ; body : function_body
   ; return_sort : Jkind.sort
-  ; return_mode : alloc_mode
+  ; return_mode : locality_mode
   ; region : bool
   }
 
@@ -357,7 +357,7 @@ let zero_alloc_of_application
   match annotation, funct.exp_desc with
   | Some assume, _ ->
     (* The user wrote a zero_alloc attribute on the application - keep it. *)
-    Builtin_attributes.assume_zero_alloc assume
+    Builtin_attributes.assume_zero_alloc ~inferred:false assume
   | None, Texp_ident (_, _, { val_zero_alloc; _ }, _, _) ->
     (* We assume the call is zero_alloc if the function is known to be
        zero_alloc. If the function is zero_alloc opt, then we need to be sure
@@ -378,7 +378,7 @@ let zero_alloc_of_application
           arity = c.arity;
           loc = c.loc }
       in
-      Builtin_attributes.assume_zero_alloc assume
+      Builtin_attributes.assume_zero_alloc ~inferred:true assume
     | Check _ | Default_zero_alloc | Ignore_assert_all | Assume _ ->
       Zero_alloc_utils.Assume_info.none
     end
@@ -430,9 +430,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | ((_, arg_repr) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
           let arg_exps, extra_args = cut_args prim_repr oargs in
           let arg_sort =
-            Jkind.Sort.of_base
-              (Translprim.sort_of_native_repr ~loc:x.exp_loc arg_repr
-                 ~poly_sort:psort)
+            Jkind.Sort.of_const
+              (Translprim.sort_of_native_repr arg_repr ~poly_sort:psort)
           in
           (x, arg_sort) :: arg_exps, extra_args
         | _, ((_, Omitted _) :: _) -> assert false
@@ -447,7 +446,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let assume_zero_alloc =
         match zero_alloc with
         | None -> Zero_alloc_utils.Assume_info.none
-        | Some assume -> Builtin_attributes.assume_zero_alloc assume
+        | Some assume -> Builtin_attributes.assume_zero_alloc ~inferred:false assume
       in
       let lam =
         let loc =
@@ -630,11 +629,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
-  | Texp_field(arg, id, lbl, float) ->
+  | Texp_field(arg, id, lbl, float, ubr) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
+      let sem = add_barrier_to_read (transl_unique_barrier ubr) sem in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
@@ -795,7 +795,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Lconst(Const_float_array(List.map extract_float cl))
                 | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
-                | Punboxedfloatarray _ | Punboxedintarray _ ->
+                | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _ ->
                   Misc.fatal_error "Use flambda2 for unboxed arrays"
             in
             if Types.is_mutable amut then duparray_to_mutable const else const
@@ -1002,6 +1002,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                        attributes = Lambda.default_param_attribute;
                                        mode = alloc_heap}]
                             ~return:Lambda.layout_lazy_contents
+                            (* The translation of [e] may be a function, in
+                               which case disallowing arity fusion gives a very
+                               small performance improvement.
+                            *)
                             ~attr:function_attribute_disallowing_arity_fusion
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
@@ -1130,7 +1134,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~kind:(Curried {nlocal=List.length param_idents})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_local }) param_idents)
+          ~params:(List.map (fun name -> { name; layout = layout_probe_arg;
+                                           attributes = Lambda.default_param_attribute;
+                                           mode = alloc_local }) param_idents)
           ~return:return_layout
           ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
@@ -1314,8 +1320,18 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
+  (* Build a function application.
+     Particular care is required for out-of-order partial applications.
+     The following code guarantees that:
+     * arguments are evaluated right-to-left according to their order in
+       the type of the function, before the function is called;
+     * side-effects occurring after receiving a parameter
+       will occur exactly when all the arguments up to this parameter
+       have been received.
+  *)
   let rec build_apply lam args loc pos ap_mode = function
     | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
+        (* Out-of-order partial application; we will need to build a closure *)
         assert (pos = Rc_normal);
         let defs = ref [] in
         let protect name (lam, layout) =
@@ -1332,7 +1348,10 @@ and transl_apply ~scopes
           else
             lapply lam (List.rev args) loc pos ap_mode layout_function
         in
+        (* Evaluate the function, applied to the arguments in [args] *)
         let handle, _ = protect "func" (lam, layout_function) in
+        (* Evaluate the remaining arguments;
+           if we already passed here this is a no-op. *)
         let l =
           List.map
             (fun arg ->
@@ -1342,6 +1361,7 @@ and transl_apply ~scopes
             l
         in
         let id_arg = Ident.create_local "param" in
+        (* Process remaining arguments and build closure *)
         let body =
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
           let mode = transl_alloc_mode_r mode_closure in
@@ -1349,7 +1369,7 @@ and transl_apply ~scopes
           let ret_mode = transl_alloc_mode_l mode_ret in
           let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
           let nlocal =
-            match join_mode mode (join_mode arg_mode ret_mode) with
+            match join_locality_mode mode (join_locality_mode arg_mode ret_mode) with
             | Alloc_local -> 1
             | Alloc_heap -> 0
           in
@@ -1369,6 +1389,8 @@ and transl_apply ~scopes
                     ~return:result_layout ~body ~mode ~ret_mode ~region
                     ~attr:{ default_stub_attribute with may_fuse_arity = false } ~loc
         in
+        (* Wrap "protected" definitions, starting from the left,
+           so that evaluation is right-to-left. *)
         List.fold_right
           (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
           !defs body
@@ -1489,7 +1511,7 @@ and transl_curried_function ~scopes loc repr params body
     let param_curries = List.map (fun fp -> fp.fp_curry, fp.fp_mode) params in
     curried_function_kind
       ~return_mode
-      ~alloc_mode:mode
+      ~mode
       (match body with
        | Tfunction_body _ -> param_curries
        | Tfunction_cases fc -> param_curries @ [ Final_arg, fc.fc_arg_mode ])
@@ -1583,7 +1605,7 @@ and transl_curried_function ~scopes loc repr params body
       type acc =
         { body : lambda; (* The function body of those params *)
           return_layout : layout; (* The layout of [body] *)
-          return_mode : alloc_mode; (* The mode of [body]. *)
+          return_mode : locality_mode; (* The mode of [body]. *)
           region : bool; (* Whether the function has its own region *)
           nlocal : int;
           (* An upper bound on the [nlocal] field for the function. If [nlocal]
@@ -1626,7 +1648,7 @@ and transl_curried_function ~scopes loc repr params body
         (* we return Pgenval (for a function) after the rightmost chunk *)
         { body;
           return_layout = Pvalue Pgenval;
-          return_mode = (if enclosing_region then alloc_heap else alloc_local);
+          return_mode = if enclosing_region then alloc_heap else alloc_local;
           nlocal = enclosing_nlocal;
           region = enclosing_region;
         }
@@ -1662,7 +1684,7 @@ and transl_function ~in_new_scope ~scopes e params body
     | Default_zero_alloc | Check _ | Ignore_assert_all ->
       Zero_alloc_utils.Assume_info.none
     | Assume assume ->
-      Builtin_attributes.assume_zero_alloc assume
+      Builtin_attributes.assume_zero_alloc ~inferred:false assume
   in
   let scopes =
     if in_new_scope then
@@ -1789,16 +1811,79 @@ and transl_setinstvar ~scopes loc self var expr =
 
 (* CR layouts v5: Invariant - this is only called on values.  Relax that. *)
 and transl_record ~scopes loc env mode fields repres opt_init_expr =
-  let size = Array.length fields in
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
-  let no_init = match opt_init_expr with None -> true | _ -> false in
+  let size = Array.length fields in
   let on_heap = match mode with
     | None -> false (* unboxed is not on heap *)
     | Some m -> is_heap_mode m
   in
-  if no_init || size < Config.max_young_wosize || not on_heap
-  then begin
+  match opt_init_expr with
+  | Some (init_expr, _) when on_heap && size >= Config.max_young_wosize ->
+    (* Take a shallow copy of the init record, then mutate the fields
+       of the copy *)
+    let copy_id = Ident.create_local "newrecord" in
+    let update_field cont (lbl, definition) =
+      (* CR layouts v5: allow more unboxed types here. *)
+      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+      check_record_field_sort lbl.lbl_loc lbl_sort;
+      match definition with
+      | Kept _ -> cont
+      | Overridden (_lid, expr) ->
+          let upd =
+            match repres with
+              Record_boxed _
+            | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
+                let ptr = maybe_pointer expr in
+                Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
+            | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
+                assert false
+            | Record_float ->
+                Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)
+            | Record_ufloat ->
+                Psetufloatfield (lbl.lbl_pos, Assignment modify_heap)
+            | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
+                let pos = lbl.lbl_pos + 1 in
+                let ptr = maybe_pointer expr in
+                Psetfield(pos, ptr, Assignment modify_heap)
+            | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
+                (* CR layouts v5.9: support this *)
+                fatal_error
+                  "Mixed inlined records not supported for extensible variants"
+            | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
+            | Record_mixed shape -> begin
+                let { value_prefix_len; flat_suffix } : mixed_product_shape =
+                  shape
+                in
+                let write =
+                  if lbl.lbl_num < value_prefix_len then
+                    let ptr = maybe_pointer expr in
+                    Mwrite_value_prefix ptr
+                  else
+                    let flat_element =
+                      flat_suffix.(lbl.lbl_num - value_prefix_len)
+                    in
+                    Mwrite_flat_suffix flat_element
+                in
+                let shape : Lambda.mixed_block_shape =
+                  { value_prefix_len; flat_suffix }
+                in
+                Psetmixedfield
+                  (lbl.lbl_pos, write, shape, Assignment modify_heap)
+              end
+          in
+          Lsequence(Lprim(upd, [Lvar copy_id;
+                                transl_exp ~scopes lbl_sort expr],
+                          of_location ~scopes loc),
+                    cont)
+    in
+    assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
+    Llet(Strict, Lambda.layout_block, copy_id,
+         Lprim(Pduprecord (repres, size),
+               [transl_exp ~scopes Jkind.Sort.for_record init_expr],
+               of_location ~scopes loc),
+         Array.fold_left update_field (Lvar copy_id) fields)
+  | Some _ | None ->
     (* Allocate new record with given fields (and remaining fields
        taken from init_expr if any *)
     (* CR layouts v5: allow non-value fields beyond just float# *)
@@ -1817,6 +1902,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                let sem =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
+               let unique_barrier = match opt_init_expr with
+                 | Some (_, ubr) -> Translmode.transl_unique_barrier ubr
+                 | None -> assert false (* Kept fields only exist on extended records *)
+               in
+               let sem = add_barrier_to_read unique_barrier sem in
                let access =
                  match repres with
                    Record_boxed _
@@ -1946,78 +2036,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     in
     begin match opt_init_expr with
       None -> lam
-    | Some init_expr -> Llet(Strict, Lambda.layout_block, init_id,
+    | Some (init_expr, _) -> Llet(Strict, Lambda.layout_block, init_id,
                              transl_exp ~scopes Jkind.Sort.for_record init_expr, lam)
     end
-  end else begin
-    (* Take a shallow copy of the init record, then mutate the fields
-       of the copy *)
-    let copy_id = Ident.create_local "newrecord" in
-    let update_field cont (lbl, definition) =
-      (* CR layouts v5: allow more unboxed types here. *)
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort lbl.lbl_loc lbl_sort;
-      match definition with
-      | Kept _ -> cont
-      | Overridden (_lid, expr) ->
-          let upd =
-            match repres with
-              Record_boxed _
-            | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
-                let ptr = maybe_pointer expr in
-                Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
-            | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
-                assert false
-            | Record_float ->
-                Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)
-            | Record_ufloat ->
-                Psetufloatfield (lbl.lbl_pos, Assignment modify_heap)
-            | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
-                let pos = lbl.lbl_pos + 1 in
-                let ptr = maybe_pointer expr in
-                Psetfield(pos, ptr, Assignment modify_heap)
-            | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
-                (* CR layouts v5.9: support this *)
-                fatal_error
-                  "Mixed inlined records not supported for extensible variants"
-            | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
-            | Record_mixed shape -> begin
-                let { value_prefix_len; flat_suffix } : mixed_product_shape =
-                  shape
-                in
-                let write =
-                  if lbl.lbl_num < value_prefix_len then
-                    let ptr = maybe_pointer expr in
-                    Mwrite_value_prefix ptr
-                  else
-                    let flat_element =
-                      flat_suffix.(lbl.lbl_num - value_prefix_len)
-                    in
-                    Mwrite_flat_suffix flat_element
-                in
-                let shape : Lambda.mixed_block_shape =
-                  { value_prefix_len; flat_suffix }
-                in
-                Psetmixedfield
-                  (lbl.lbl_pos, write, shape, Assignment modify_heap)
-              end
-          in
-          Lsequence(Lprim(upd, [Lvar copy_id;
-                                transl_exp ~scopes lbl_sort expr],
-                          of_location ~scopes loc),
-                    cont)
-    in
-    begin match opt_init_expr with
-      None -> assert false
-    | Some init_expr ->
-        assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
-        Llet(Strict, Lambda.layout_block, copy_id,
-             Lprim(Pduprecord (repres, size),
-                   [transl_exp ~scopes Jkind.Sort.for_record init_expr],
-                   of_location ~scopes loc),
-             Array.fold_left update_field (Lvar copy_id) fields)
-    end
-  end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   let return_layout = layout_exp return_sort e in

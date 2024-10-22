@@ -45,7 +45,7 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
         (* We don't expect specialisation regressions from Immediates to
            Values. *)
         | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
-        | Naked_nativeints ->
+        | Naked_nativeints | Naked_vec128s ->
           Misc.fatal_errorf
             "Didn't expect array specialisation to yield array kind %a from \
              array set kind %a:@ %a"
@@ -56,6 +56,7 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
       | Naked_int32s -> Naked_int32s
       | Naked_int64s -> Naked_int64s
       | Naked_nativeints -> Naked_nativeints
+      | Naked_vec128s -> Naked_vec128s
     in
     let named =
       Named.create_prim
@@ -66,10 +67,6 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
     let unit_ty = Flambda2_types.this_tagged_immediate Targetint_31_63.zero in
     let dacc = DA.add_variable dacc result_var unit_ty in
     SPR.create named ~try_reify:false dacc
-
-let simplify_block_set _block_access_kind _init_or_assign dacc ~original_term
-    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
-  SPR.create_unit dacc ~result_var ~original_term
 
 let simplify_bytes_or_bigstring_set _bytes_like_value _string_accessor_width
     dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_
@@ -93,8 +90,6 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
   let simplifier =
     match prim with
     | Array_set (array_kind, width) -> simplify_array_set array_kind width
-    | Block_set (block_access_kind, init_or_assign) ->
-      simplify_block_set block_access_kind init_or_assign
     | Bytes_or_bigstring_set (bytes_like_value, string_accessor_width) ->
       simplify_bytes_or_bigstring_set bytes_like_value string_accessor_width
     | Bigarray_set (num_dimensions, bigarray_kind, bigarray_layout) ->

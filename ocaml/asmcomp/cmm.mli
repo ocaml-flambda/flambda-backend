@@ -213,9 +213,16 @@ type expression =
         * kind_for_unboxing
   | Cexit of int * expression list
   | Ctrywith of expression * Backend_var.With_provenance.t * expression
+<<<<<<< HEAD
       * Debuginfo.t * kind_for_unboxing
   | Cregion of expression
   | Cexclave of expression
+||||||| 121bedcfd2
+      * Debuginfo.t
+=======
+      * Debuginfo.t
+  | Creturn_addr (** Return address saved in the current call frame *)
+>>>>>>> 5.2.0
 
 type codegen_option =
   | Reduce_code_size

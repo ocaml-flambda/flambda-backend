@@ -38,11 +38,17 @@ let binary_modules = make ("binary_modules",
 let bytecc_libs = make ("bytecc_libs",
   "Libraries to link with for bytecode")
 
-let c_preprocessor = make ("c_preprocessor",
+let cpp = make ("cpp",
   "Command to use to invoke the C preprocessor")
+
+let cppflags = make ("cppflags",
+  "Flags passed to the C preprocessor")
 
 let cc = make ("cc",
   "Command to use to invoke the C compiler")
+
+let cflags = make ("cflags",
+  "Flags passed to the C compiler")
 
 let caml_ld_library_path_name = "CAML_LD_LIBRARY_PATH"
 
@@ -241,13 +247,17 @@ let use_runtime =
   Variables.make ("use_runtime",
     "Whether the -use-runtime option should be used" )
 
-let _ = List.iter register_variable
+let init () =
+  List.iter register_variable
   [
     all_modules;
     arch;
     binary_modules;
     bytecc_libs;
-    c_preprocessor;
+    cpp;
+    cppflags;
+    cc;
+    cflags;
     caml_ld_library_path;
     codegen_exit_status;
     compare_programs;

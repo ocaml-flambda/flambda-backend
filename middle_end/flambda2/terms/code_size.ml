@@ -147,7 +147,8 @@ let array_load (kind : Flambda_primitive.Array_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
   | Naked_floats | Values -> 1
-  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints ->
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
     (* more computation is needed because of the representation using a custom
        block *)
     2
@@ -168,7 +169,8 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
   | Values (Assignment Local | Initialization) -> 1
   | Immediates | Naked_floats -> 1
-  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints ->
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
     2 (* as above *)
 
 let string_or_bigstring_load kind width =
@@ -335,17 +337,19 @@ let nullary_prim_size prim =
   | Begin_try_region { ghost } -> if ghost then 0 else 1
   | Enter_inlined_apply _ -> 0
   | Dls_get -> 1
+  | Poll -> alloc_size
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
+  | Block_load { kind; _ } -> block_load kind
   | Duplicate_array _ | Duplicate_block _ -> needs_caml_c_call_extcall_size + 1
   | Is_int _ -> 1
   | Get_tag -> 2
   | Array_length array_kind -> (
     match array_kind with
     | Array_kind
-        (Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints)
-      ->
+        ( Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints
+        | Naked_vec128s ) ->
       array_length_size
     | Array_kind (Naked_int32s | Naked_float32s) ->
       (* There is a dynamic check here to see if the array has an odd or even
@@ -381,7 +385,7 @@ let unary_prim_size prim =
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
-  | Block_load (kind, _) -> block_load kind
+  | Block_set { kind; init; _ } -> block_set kind init
   | Array_load (kind, _width, _mut) -> array_load kind
   | String_or_bigstring_load (kind, width) ->
     string_or_bigstring_load kind width
@@ -404,7 +408,6 @@ let binary_prim_size prim =
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
-  | Block_set (block_access, init) -> block_set block_access init
   | Array_set (kind, _width) -> array_set kind
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set kind width
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->

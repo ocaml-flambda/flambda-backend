@@ -40,12 +40,12 @@ module Cache : sig
   type send =
     Cmm.machtype_component array list
     * Cmm.machtype_component array
-    * Lambda.locality_mode
+    * Cmx_format.alloc_mode
 
   type apply =
     Cmm.machtype_component array list
     * Cmm.machtype_component array
-    * Lambda.locality_mode
+    * Cmx_format.alloc_mode
 
   type curry =
     Lambda.function_kind

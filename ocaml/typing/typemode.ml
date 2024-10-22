@@ -41,6 +41,7 @@ module Axis_pair = struct
       Any_axis_pair (Modal Portability, Portability.Const.Nonportable)
     | "portable" -> Any_axis_pair (Modal Portability, Portability.Const.Portable)
     | "contended" -> Any_axis_pair (Modal Contention, Contention.Const.Contended)
+    | "shared" -> Any_axis_pair (Modal Contention, Contention.Const.Shared)
     | "uncontended" ->
       Any_axis_pair (Modal Contention, Contention.Const.Uncontended)
     | "maybe_null" ->
@@ -170,6 +171,7 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
       "nonportable"
     | Atom (Monadic Contention, Join_with Contention.Const.Contended) ->
       "contended"
+    | Atom (Monadic Contention, Join_with Contention.Const.Shared) -> "shared"
     | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
       "uncontended"
     | _ -> failwith "BUG: impossible modality atom"

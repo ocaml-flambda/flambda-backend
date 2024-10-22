@@ -261,6 +261,22 @@ let naked_pointers = make
      "Runtime system supports naked pointers"
      "Runtime system does not support naked pointers")
 
+let tsan = make
+  ~name:"tsan"
+  ~description:"Pass if thread sanitizer is supported"
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.tsan)
+     "tsan available"
+     "tsan not available")
+
+let no_tsan = make
+  ~name:"no-tsan"
+  ~description:"Pass if thread sanitizer is not supported"
+  ~does_something:false
+  (Actions_helpers.predicate (not Ocamltest_config.tsan)
+     "tsan not available"
+     "tsan available")
+
 let has_symlink = make
   ~name:"has_symlink"
   ~description:"Pass if symbolic links are available"
@@ -368,7 +384,7 @@ let initialize_test_exit_status_variables _log env =
     Builtin_variables.test_skip, "125";
   ] env
 
-let _ =
+let init () =
   Environments.register_initializer Environments.Post
     "test_exit_status_variables" initialize_test_exit_status_variables;
   List.iter register
@@ -408,5 +424,6 @@ let _ =
     file_exists;
     copy;
     probes;
-    naked_pointers
+    tsan;
+    no_tsan;
   ]

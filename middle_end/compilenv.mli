@@ -44,9 +44,9 @@ val set_export_info : Flambda2_cmx.Flambda_cmx_format.t -> unit
 val need_curry_fun:
   Lambda.function_kind -> Cmm.machtype list -> Cmm.machtype -> unit
 val need_apply_fun:
-  Cmm.machtype list -> Cmm.machtype -> Lambda.alloc_mode -> unit
+  Cmm.machtype list -> Cmm.machtype -> Cmx_format.alloc_mode -> unit
 val need_send_fun:
-  Cmm.machtype list -> Cmm.machtype -> Lambda.alloc_mode -> unit
+  Cmm.machtype list -> Cmm.machtype -> Cmx_format.alloc_mode -> unit
         (* Record the need of a currying (resp. application,
            message sending) function with the given arity *)
 

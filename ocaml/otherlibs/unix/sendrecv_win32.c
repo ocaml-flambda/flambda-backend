@@ -17,10 +17,10 @@
 #include <caml/alloc.h>
 #include <caml/memory.h>
 #include <caml/signals.h>
-#include "unixsupport.h"
-#include "socketaddr.h"
+#include "caml/unixsupport.h"
+#include "caml/socketaddr.h"
 
-static int msg_flag_table[] = {
+static const int msg_flag_table[] = {
   MSG_OOB, MSG_DONTROUTE, MSG_PEEK
 };
 

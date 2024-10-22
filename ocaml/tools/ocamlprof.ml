@@ -187,9 +187,38 @@ and rw_exp iflag sexp =
     rewrite_patexp_list iflag spat_sexp_list;
     rewrite_exp iflag sbody
 
+<<<<<<< HEAD
   | Pexp_function caselist -> rewrite_function_cases iflag caselist
+||||||| 121bedcfd2
+  | Pexp_function caselist ->
+    if !instr_fun then
+      rewrite_function iflag caselist
+    else
+      rewrite_cases iflag caselist
+=======
+  | Pexp_function (_, _, Pfunction_body e) ->
+    if !instr_fun then
+      rewrite_function iflag [{ rhs = e; guard = None }]
+    else
+      rewrite_exp iflag e
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
   | Pexp_fun (_, _, _, e) -> rewrite_function_body iflag e
+||||||| 121bedcfd2
+  | Pexp_fun (_, _, p, e) ->
+      let l = [{pc_lhs=p; pc_guard=None; pc_rhs=e}] in
+      if !instr_fun then
+        rewrite_function iflag l
+      else
+        rewrite_cases iflag l
+=======
+  | Pexp_function (_, _, Pfunction_cases (cases, _, _)) ->
+    if !instr_fun then
+      rewrite_function iflag (List.map case cases)
+    else
+      rewrite_cases iflag cases
+>>>>>>> 5.2.0
 
   | Pexp_match(sarg, caselist) ->
     rewrite_exp iflag sarg;
@@ -385,8 +414,17 @@ and rewrite_annotate_exp_list l =
     l
 
 and rewrite_function iflag = function
+<<<<<<< HEAD
   | [{guard=None;
       rhs={pexp_desc = (Pexp_function _|Pexp_fun _)} as sexp}] ->
+||||||| 121bedcfd2
+  | [{pc_lhs=_; pc_guard=None;
+      pc_rhs={pexp_desc = (Pexp_function _|Pexp_fun _)} as sexp}] ->
+=======
+  | [{guard=None;
+      rhs={pexp_desc = (Pexp_function _)} as sexp}]
+    ->
+>>>>>>> 5.2.0
         rewrite_exp iflag sexp
   | l -> rewrite_funmatching l
 
@@ -403,8 +441,8 @@ and rewrite_class_field iflag cf =
     Pcf_inherit (_, cexpr, _)     -> rewrite_class_expr iflag cexpr
   | Pcf_val (_, _, Cfk_concrete (_, sexp))  -> rewrite_exp iflag sexp
   | Pcf_method (_, _,
-                Cfk_concrete (_, ({pexp_desc = (Pexp_function _|Pexp_fun _)}
-                                    as sexp))) ->
+       Cfk_concrete (_,
+        ({pexp_desc = (Pexp_function _)} as sexp))) ->
       rewrite_exp iflag sexp
   | Pcf_method (_, _, Cfk_concrete(_, sexp)) ->
       let loc = cf.pcf_loc in

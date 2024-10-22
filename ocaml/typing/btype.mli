@@ -39,9 +39,11 @@ module TypeMap : sig
 end
 module TypeHash : sig
   include Hashtbl.S with type key = transient_expr
+  val mem: 'a t -> type_expr -> bool
   val add: 'a t -> type_expr -> 'a -> unit
-  val remove : 'a t -> type_expr -> unit
+  val remove: 'a t -> type_expr -> unit
   val find: 'a t -> type_expr -> 'a
+  val find_opt: 'a t -> type_expr -> 'a option
   val iter: (type_expr -> 'a -> unit) -> 'a t -> unit
 end
 module TypePairs : sig
@@ -59,9 +61,9 @@ val generic_level: int
 
 val newgenty: type_desc -> type_expr
         (* Create a generic type *)
-val newgenvar: ?name:string -> Jkind.t -> type_expr
+val newgenvar: ?name:string -> jkind_lr -> type_expr
         (* Return a fresh generic variable *)
-val newgenstub: scope:int -> Jkind.t -> type_expr
+val newgenstub: scope:int -> jkind_lr -> type_expr
         (* Return a fresh generic node, to be instantiated
            by [Transient_expr.set_stub_desc] *)
 
@@ -81,6 +83,7 @@ val is_Tpoly: type_expr -> bool
 
 val dummy_method: label
 val type_kind_is_abstract: type_declaration -> bool
+val type_origin : type_declaration -> type_origin
 
 (**** polymorphic variants ****)
 

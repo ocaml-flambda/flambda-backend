@@ -91,7 +91,9 @@ sp is a local copy of the global variable Caml_state->extern_sp. */
   { sp -= 2; sp[0] = env; sp[1] = (value)(pc + 1); \
     domain_state->current_stack->sp = sp; }
 #define Restore_after_c_call \
-  { sp = domain_state->current_stack->sp; env = *sp; sp += 2; }
+  { sp = domain_state->current_stack->sp; env = *sp; sp += 2; \
+    caml_update_young_limit_after_c_call(domain_state);       \
+  }
 
 /* For VM threads purposes, an event frame must look like accu + a
    C_CALL frame + a RETURN 1 frame.
@@ -237,13 +239,15 @@ Caml_inline void check_trap_barrier_for_effect
 #endif
 
 #ifdef DEBUG
-static __thread intnat caml_bcodcount;
+static CAMLthread_local intnat caml_bcodcount;
 #endif
 
 static value raise_unhandled_effect;
 
 /* The interpreter itself */
 
+CAMLno_tsan /* No need to TSan-instrument this (and pay a slowdown) function as
+               TSan is not supported for bytecode. */
 value caml_interprete(code_t prog, asize_t prog_size)
 {
 #ifdef PC_REG
@@ -272,6 +276,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
   volatile value raise_async_exn_bucket = Val_unit;
   struct longjmp_buffer raise_buf, raise_async_buf;
   value resume_fn, resume_arg;
+  struct stack_info* resume_tail;
   caml_domain_state* domain_state = Caml_state;
   struct caml_exception_context exception_ctx =
     { &raise_buf, domain_state->local_roots, &raise_exn_bucket};
@@ -1341,7 +1346,8 @@ value caml_interprete(code_t prog, asize_t prog_size)
     Instruct(RESUME):
       resume_fn = sp[0];
       resume_arg = sp[1];
-      sp -= 3;
+      resume_tail = Ptr_val(sp[2]);
+      sp -= 2;
       sp[0] = Val_long(domain_state->trap_sp_off);
       sp[1] = Val_long(0);
       sp[2] = (value)pc;
@@ -1355,11 +1361,13 @@ do_resume: {
         Setup_for_c_call;
         caml_raise_continuation_already_resumed();
       }
-      while (Stack_parent(stk) != NULL) stk = Stack_parent(stk);
-      Stack_parent(stk) = Caml_state->current_stack;
+      if (resume_tail == NULL) {
+        resume_tail = stk;
+      }
+      Stack_parent(resume_tail) = Caml_state->current_stack;
 
       domain_state->current_stack->sp = sp;
-      domain_state->current_stack = Ptr_val(accu);
+      domain_state->current_stack = stk;
       sp = domain_state->current_stack->sp;
 
       domain_state->trap_sp_off = Long_val(sp[0]);
@@ -1374,6 +1382,7 @@ do_resume: {
     Instruct(RESUMETERM):
       resume_fn = sp[0];
       resume_arg = sp[1];
+      resume_tail = Ptr_val(sp[2]);
       sp = sp + *pc - 2;
       sp[0] = Val_long(domain_state->trap_sp_off);
       sp[1] = Val_long(extra_args);
@@ -1393,7 +1402,7 @@ do_resume: {
         goto raise_exception;
       }
 
-      Alloc_small(cont, 1, Cont_tag, Enter_gc);
+      Alloc_small(cont, 2, Cont_tag, Enter_gc);
 
       sp -= 4;
       sp[0] = Val_long(domain_state->trap_sp_off);
@@ -1406,6 +1415,7 @@ do_resume: {
       sp = parent_stack->sp;
       Stack_parent(old_stack) = NULL;
       Field(cont, 0) = Val_ptr(old_stack);
+      Field(cont, 1) = Val_long(0);
 
       domain_state->trap_sp_off = Long_val(sp[0]);
       extra_args = Long_val(sp[1]);
@@ -1438,6 +1448,7 @@ do_resume: {
         accu = caml_continuation_use(cont);
         Restore_after_c_call;
         resume_fn = raise_unhandled_effect;
+        resume_tail = cont_tail;
 
         goto do_resume;
       }

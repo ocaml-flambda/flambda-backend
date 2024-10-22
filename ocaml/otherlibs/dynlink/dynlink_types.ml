@@ -1,4 +1,3 @@
-#2 "otherlibs/dynlink/dynlink_types.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -17,8 +16,6 @@
 (**************************************************************************)
 
 (** Types shared amongst the various parts of the dynlink code. *)
-
-[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 type implem_state =
   | Loaded
@@ -105,7 +102,7 @@ let () =
       | Corrupted_interface s ->
         Printf.sprintf "Corrupted_interface %S" s
       | Cannot_open_dynamic_library exn ->
-        Printf.sprintf "Cannot_open_dll %S" (Printexc.to_string exn)
+        Printf.sprintf "Cannot_open_dll %s" (Printexc.to_string exn)
       | Inconsistent_implementation s ->
         Printf.sprintf "Inconsistent_implementation %S" s
       | Library's_module_initializers_failed exn ->

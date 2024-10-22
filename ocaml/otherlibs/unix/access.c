@@ -19,7 +19,7 @@
 #include <caml/signals.h>
 #define CAML_INTERNALS
 #include <caml/osdeps.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
 #ifdef HAS_UNISTD
 # include <unistd.h>
@@ -35,7 +35,7 @@
 # endif
 #endif
 
-static int access_permission_table[] = {
+static const int access_permission_table[] = {
   R_OK,
   W_OK,
 #ifdef _WIN32

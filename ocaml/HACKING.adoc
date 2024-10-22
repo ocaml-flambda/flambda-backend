@@ -252,8 +252,7 @@ work locally) by pinning:
 
 ----
 opam switch create my-switch-name --empty
-# Replace $VERSION by the trunk version
-opam pin add ocaml-variants.$VERSION+branch git+https://$REPO#branch
+opam pin add ocaml-variants git+https://$REPO#branch
 ----
 
 ==== Incremental builds with `opam`
@@ -392,13 +391,15 @@ You can also run `make install` manually, which will not trigger a
 recompilation, but will not remove the previous version either and can
 mess with `opam`'s tracking of installed files.
 
-=== Useful Makefile targets
+=== Useful Makefile targets and options
 
 Besides the targets listed in link:INSTALL.adoc[] for build and
 installation, the following targets may be of use:
 
 `make runtop` :: builds and runs the ocaml toplevel of the distribution
                           (optionally uses `rlwrap` for readline+history support)
+                          (use `make runtop-with-otherlibs` if you need `Unix` or other
+                           `otherlibs/` libraries)
 `make natruntop`:: builds and runs the native ocaml toplevel (experimental)
 
 `make partialclean`:: Clean the OCaml files but keep the compiled C files.
@@ -406,6 +407,10 @@ installation, the following targets may be of use:
 `make depend`:: Regenerate the `.depend` file. Should be used each time new dependencies are added between files.
 
 `make -C testsuite parallel`:: see link:testsuite/HACKING.adoc[]
+
+You can use `make foo V=1` to build the target foo and show full
+commands instead of abbreviated names like OCAMLC, etc. This can be
+useful to know the flags to use to manually rebuild a file.
 
 Additionally, there are some developer specific targets in link:Makefile.dev[].
 These targets are automatically available when working in a Git clone of the
@@ -549,7 +554,7 @@ machine, you can use the configuration values and run command taken from
 link:tools/ci/actions/runner.sh[]:
 
 ----
-XARCH=x64 bash -ex tools/ci/actions/runner.sh configure
+bash -ex tools/ci/actions/runner.sh configure
 ----
 
 The link:.github/workflows/hygiene.yml[] script supports other kinds of
@@ -581,7 +586,7 @@ the following environment variables, which should be set in link:appveyor.yml[]:
   `world`, `opt`, `opt.opt` targets. The `C` build is a fast test used to
   build just enough of the tree to cover the C sources (it's used to test
   old MSVC compilers).
-- `SDK`. Defaults to Visual Studio 2015. Specifies the exact command to run
+- `SDK`. Defaults to Visual Studio 2022. Specifies the exact command to run
   to set-up the Microsoft build environment.
 - `CYGWIN_DIST`. Default: `64`. Either `64` or `32`, selects 32-bit or 64-bit
   Cygwin as the build environment.

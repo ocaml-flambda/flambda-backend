@@ -12,8 +12,8 @@ let _ = f ?call_pos:None ();
 Line 1, characters 20-24:
 1 | let _ = f ?call_pos:None ();
                         ^^^^
-Error: the argument labeled 'call_pos' is a [%call_pos] argument, filled in
-       automatically if ommitted. It cannot be passed with '?'.
+Error: the argument labeled "call_pos" is a "[%call_pos]" argument, filled in
+       automatically if omitted. It cannot be passed with '?'.
 |}]
 
 let _ =
@@ -23,8 +23,8 @@ let _ =
 Line 3, characters 14-24:
 3 |   f ?call_pos:(Some pos) ();
                   ^^^^^^^^^^
-Error: the argument labeled 'call_pos' is a [%call_pos] argument, filled in
-       automatically if ommitted. It cannot be passed with '?'.
+Error: the argument labeled "call_pos" is a "[%call_pos]" argument, filled in
+       automatically if omitted. It cannot be passed with '?'.
 |}]
 
 let ( >>| ) ~(call_pos : [%call_pos]) a b = a + b, call_pos ;;
@@ -38,8 +38,8 @@ let _ =  ( >>| ) ?call_pos:None 1 2 ;;
 Line 1, characters 27-31:
 1 | let _ =  ( >>| ) ?call_pos:None 1 2 ;;
                                ^^^^
-Error: the argument labeled 'call_pos' is a [%call_pos] argument, filled in
-       automatically if ommitted. It cannot be passed with '?'.
+Error: the argument labeled "call_pos" is a "[%call_pos]" argument, filled in
+       automatically if omitted. It cannot be passed with '?'.
 |}]
 
 let _ =
@@ -50,8 +50,8 @@ let _ =
 Line 3, characters 20-30:
 3 |   ( >>| ) ?call_pos:(Some pos) 1 2
                         ^^^^^^^^^^
-Error: the argument labeled 'call_pos' is a [%call_pos] argument, filled in
-       automatically if ommitted. It cannot be passed with '?'.
+Error: the argument labeled "call_pos" is a "[%call_pos]" argument, filled in
+       automatically if omitted. It cannot be passed with '?'.
 |}]
 
 class c ~(call_pos : [%call_pos]) () = object 
@@ -68,8 +68,8 @@ let _ = (new c ?call_pos:None ())#call_pos;;
 Line 1, characters 25-29:
 1 | let _ = (new c ?call_pos:None ())#call_pos;;
                              ^^^^
-Error: the argument labeled 'call_pos' is a [%call_pos] argument, filled in
-       automatically if ommitted. It cannot be passed with '?'.
+Error: the argument labeled "call_pos" is a "[%call_pos]" argument, filled in
+       automatically if omitted. It cannot be passed with '?'.
 |}]
 
 let _ = 
@@ -79,8 +79,8 @@ let _ =
 Line 3, characters 19-29:
 3 |   (new c ?call_pos:(Some pos) ())#call_pos;;
                        ^^^^^^^^^^
-Error: the argument labeled 'call_pos' is a [%call_pos] argument, filled in
-       automatically if ommitted. It cannot be passed with '?'.
+Error: the argument labeled "call_pos" is a "[%call_pos]" argument, filled in
+       automatically if omitted. It cannot be passed with '?'.
 |}]
 
 class parent ~(call_pos : [%call_pos]) () = object

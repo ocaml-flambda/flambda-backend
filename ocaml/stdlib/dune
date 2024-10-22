@@ -47,13 +47,14 @@
   ../Makefile.config
   ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/sak)
  (action
-  (run make -s COMPUTE_DEPS=false %{targets})))
+  (run make COMPUTE_DEPS=false %{targets})))
 
 (copy_files ../Makefile.config)
 
 (install
  (files
   Makefile.config
+  ; CR mshinwell all-runtime5: delete all camlheader* stuff
   camlheader
   camlheaderd
   camlheaderi
@@ -110,6 +111,8 @@
   digest.mli
   domain.ml
   domain.mli
+  dynarray.ml
+  dynarray.mli
   either.ml
   either.mli
   ephemeron.ml
@@ -249,6 +252,9 @@
   .stdlib.objs/byte/stdlib__Domain.cmi
   .stdlib.objs/byte/stdlib__Domain.cmt
   .stdlib.objs/byte/stdlib__Domain.cmti
+  .stdlib.objs/byte/stdlib__Dynarray.cmi
+  .stdlib.objs/byte/stdlib__Dynarray.cmt
+  .stdlib.objs/byte/stdlib__Dynarray.cmti
   .stdlib.objs/byte/stdlib__Either.cmi
   .stdlib.objs/byte/stdlib__Either.cmt
   .stdlib.objs/byte/stdlib__Either.cmti
@@ -470,11 +476,13 @@
   .stdlib.objs/native/stdlib__BytesLabels.cmx
   .stdlib.objs/native/stdlib__Digest.cmx
   .stdlib.objs/native/stdlib__Domain.cmx
+  .stdlib.objs/native/stdlib__Dynarray.cmx
   .stdlib.objs/native/stdlib__Atomic.cmx
   .stdlib.objs/native/stdlib__Effect.cmx
   .stdlib.objs/native/stdlib__Either.cmx
   .stdlib.objs/native/stdlib__In_channel.cmx
   .stdlib.objs/native/stdlib__Out_channel.cmx
-  (META as stdlib/META))
+  (META as stdlib/META)
+  (runtime.info as runtime-launch-info))
  (section lib)
  (package ocaml_runtime_stdlib))

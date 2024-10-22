@@ -18,11 +18,11 @@
 #include <caml/alloc.h>
 #include <caml/memory.h>
 #include <errno.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 
 #ifdef HAS_SOCKETS
 
-#include "socketaddr.h"
+#include "caml/socketaddr.h"
 
 #ifdef _WIN32
 #undef EAFNOSUPPORT
@@ -117,7 +117,7 @@ value caml_unix_alloc_sockaddr(union sock_addr_union * adr /*in*/,
   if (adr_len < offsetof(struct sockaddr, sa_data)) {
     // Only possible for an unnamed AF_UNIX socket, in
     // which case sa_family might be uninitialized.
-    return alloc_unix_sockaddr(caml_alloc_string(0));
+    CAMLreturn(alloc_unix_sockaddr(caml_alloc_string(0)));
   }
 
   switch(adr->s_gen.sa_family) {

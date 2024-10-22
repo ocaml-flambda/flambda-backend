@@ -12,32 +12,63 @@
 ;*                                                                        *
 ;**************************************************************************
 
+(copy_files# caml/*.h)
+
 (rule
- (targets primitives)
+  (targets sak)
+  (deps ../Makefile ../.depend ../Makefile.menhir ../Makefile.best_binaries
+    ../stdlib/StdlibModules ../.depend.menhir ../config.status
+    ../Makefile.common ../Makefile.config_if_required
+    ../Makefile.build_config ../Makefile.config sak.c
+   (glob_files caml/*.h)
+  )
+  (action
+    (progn
+     (bash "rm -f sak")
+     (bash "cd .. && make V=1 'SAK_LINK=cc -o $(1) $(2)' COMPUTE_DEPS=false runtime/sak")
+    )
+  ))
+
+(rule
+  (targets build_config.h)
+  (mode fallback)
+  (deps sak ../Makefile)
+  (action
+    (progn
+     (bash "rm -f build_config.h")
+     (bash "cd .. && make V=1 runtime/build_config.h")
+    )
+  ))
+
+(rule
+ (targets primitives prims.c)
  (mode    fallback)
  (deps
-    ; matches the line structure of files in gen_primitives.sh
-   alloc.c array.c compare.c extern.c floats.c gc_ctrl.c hash.c intern.c interp.c ints.c io.c
-   lexing.c md5.c meta.c memprof.c obj.c parsing.c signals.c str.c sys.c callback.c weak.c
-   finalise.c domain.c platform.c fiber.c memory.c startup_aux.c runtime_events.c sync.c
-   dynlink.c backtrace_byt.c backtrace.c afl.c float32.c
-   bigarray.c prng.c win32.c
- )
- (action  (with-stdout-to %{targets}
-   (chdir ..  (run %{dep:gen_primitives.sh})))))
+   ; matches the line structure of files in gen_primitives.sh
+   alloc.c array.c compare.c extern.c floats.c gc_ctrl.c hash.c intern.c
+     interp.c ints.c io.c
+   lexing.c md5.c meta.c memprof.c obj.c parsing.c signals.c str.c sys.c
+     callback.c weak.c
+   finalise.c domain.c platform.c fiber.c memory.c startup_aux.c
+     runtime_events.c sync.c
+   dynlink.c backtrace_byt.c backtrace.c afl.c bigarray.c prng.c float32.c
+   blake2.c
+   build_config.h sync_posix.h caml/jumptbl.h)
+ (action
+   (progn
+     (run %{dep:gen_primitives.sh} primitives %{deps})
+     (with-stdout-to prims.c (run %{dep:gen_primsc.sh} primitives %{deps})))))
 
 (rule
  (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a
     libasmrun_shared.so libcamlrun.a libcamlrund.a libcamlruni.a libcamlrun_pic.a
-    libcamlrun_shared.so ocamlrun ocamlrund ocamlruni ld.conf
-    sak)
+    libcamlrun_shared.so ocamlrun ocamlrund ocamlruni ld.conf)
  (mode    fallback)
  (deps
    ../Makefile.config
    ../Makefile.build_config
    ../Makefile.config_if_required
    ../Makefile.common ../Makefile
-   ../compilerlibs/Makefile.compilerlibs
    ../Makefile.menhir
    ../.depend
    ../.depend.menhir
@@ -47,6 +78,8 @@
    (glob_files *.h)
    caml/domain_state.tbl
    primitives
+   prims.c
+   sak
    (glob_files *.S)
    (glob_files *.c)
  )
@@ -54,8 +87,8 @@
  (no-infer
    (progn
      (bash "touch .depend") ; hack.
-     (bash "cd .. && make V=1 'SAK_LINK=cc -o $(1) $(2)' COMPUTE_DEPS=false runtime/sak")
-     (bash "cd .. && make V=1 -sj8 runtime/libasmrun.a runtime/libasmrund.a runtime/libasmruni.a runtime/libasmrun_pic.a \
+     (bash "rm -f sak build_config.h") ; hack
+     (bash "cd .. && make V=1 -j8 runtime/libasmrun.a runtime/libasmrund.a runtime/libasmruni.a runtime/libasmrun_pic.a \
     runtime/libasmrun_shared.so runtime/libcamlrun.a runtime/libcamlrund.a runtime/libcamlruni.a runtime/libcamlrun_pic.a \
     runtime/libcamlrun_shared.so runtime/ocamlrun runtime/ocamlrund runtime/ocamlruni runtime/ld.conf COMPUTE_DEPS=false")
      (bash "rm .depend")))))

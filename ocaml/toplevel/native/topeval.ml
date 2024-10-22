@@ -42,13 +42,13 @@ let remembered = ref Ident.empty
 let remember phrase_name signature =
   let exported = List.filter Includemod.is_runtime_component signature in
   List.iteri (fun i sg ->
-    match sg with
-    | Sig_value  (id, _, _)
-    | Sig_module (id, _, _, _, _)
-    | Sig_typext (id, _, _, _)
-    | Sig_class  (id, _, _, _) ->
-      remembered := Ident.add id (phrase_name, i) !remembered
-    | _ -> ())
+      match sg with
+      | Sig_value  (id, _, _)
+      | Sig_module (id, _, _, _, _)
+      | Sig_typext (id, _, _, _)
+      | Sig_class  (id, _, _, _) ->
+        remembered := Ident.add id (phrase_name, i) !remembered
+      | _ -> ())
     exported
 
 let toplevel_value id =

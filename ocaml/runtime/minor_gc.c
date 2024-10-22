@@ -48,7 +48,7 @@ struct generic_table CAML_TABLE_STRUCT(char);
 CAMLexport atomic_uintnat caml_minor_collections_count;
 CAMLexport atomic_uintnat caml_major_slice_epoch;
 
-static atomic_intnat domains_finished_minor_gc;
+static caml_plat_barrier minor_gc_end_barrier = CAML_PLAT_BARRIER_INITIALIZER;
 
 static atomic_uintnat caml_minor_cycles_started = 0;
 
@@ -186,6 +186,7 @@ static void spin_on_header(value v) {
   }
 }
 
+CAMLno_tsan_for_perf
 Caml_inline header_t get_header_val(value v) {
   header_t hd = atomic_load_acquire(Hp_atomic_val(v));
   if (!Is_update_in_progress(hd))
@@ -285,11 +286,12 @@ static void oldify_one (void* st_v, value v, volatile value *p)
 
   if (tag == Cont_tag) {
     value stack_value = Field(v, 0);
-    CAMLassert(Wosize_hd(hd) == 1 && infix_offset == 0);
-    result = alloc_shared(st->domain, 1, Cont_tag, Reserved_hd(hd));
+    CAMLassert(Wosize_hd(hd) == 2 && infix_offset == 0);
+    result = alloc_shared(st->domain, 2, Cont_tag, Reserved_hd(hd));
     if( try_update_object_header(v, p, result, 0) ) {
       struct stack_info* stk = Ptr_val(stack_value);
-      Field(result, 0) = Val_ptr(stk);
+      Field(result, 0) = stack_value;
+      Field(result, 1) = Field(v, 1);
       if (stk != NULL) {
         caml_scan_stack(&oldify_one, oldify_scanning_flags, st,
                         stk, 0, NULL);
@@ -302,6 +304,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
                                     caml_allocation_status());
       #ifdef DEBUG
       Field(result, 0) = Val_long(1);
+      Field(result, 1) = Val_long(1);
       #endif
     }
   } else if (tag < Infix_tag) {
@@ -414,6 +417,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
    Note that [oldify_one] itself is called by oldify_mopup, so we
    have to be careful to remove the first entry from the list before
    oldifying its fields. */
+CAMLno_tsan_for_perf
 static void oldify_mopup (struct oldify_state* st, int do_ephemerons)
 {
   value v, new_v, f;
@@ -519,6 +523,15 @@ void caml_empty_minor_heap_domain_clear(caml_domain_state* domain)
   domain->extra_heap_resources_minor = 0.0;
 }
 
+/* Try to do a major slice, returns nonzero if there was any work available,
+   used as useful spin work while waiting for synchronisation. The return type
+   is [int] and not [bool] since it is passed as a parameter to
+   [caml_try_run_on_all_domains_with_spin_work]. */
+int caml_do_opportunistic_major_slice
+  (caml_domain_state* domain_unused, void* unused);
+static void minor_gc_leave_barrier
+  (caml_domain_state* domain, int participating_count);
+
 void caml_empty_minor_heap_promote(caml_domain_state* domain,
                                    int participating_count,
                                    caml_domain_state** participating)
@@ -542,7 +555,9 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   CAML_EV_BEGIN(EV_MINOR);
   call_timing_hook(&caml_minor_gc_begin_hook);
 
-  if( participating[0] == Caml_state ) {
+  CAMLassert(domain == Caml_state);
+
+  if( participating[0] == domain ) {
     CAML_EV_BEGIN(EV_MINOR_GLOBAL_ROOTS);
     caml_scan_global_young_roots(oldify_one, &st);
     CAML_EV_END(EV_MINOR_GLOBAL_ROOTS);
@@ -552,7 +567,6 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
 
   if( participating_count > 1 ) {
     int participating_idx = -1;
-    CAMLassert(domain == Caml_state);
 
     for( int i = 0; i < participating_count ; i++ ) {
       if( participating[i] == domain ) {
@@ -603,7 +617,11 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
 
       for( r = ref_start ; r < foreign_major_ref->ptr && r < ref_end ; r++ )
       {
-        oldify_one (&st, **r, *r);
+        /* Because the work on the remembered set is shared, other threads may
+           attempt to promote the same value; this is fine, but we need the
+           writes and reads (here, `*pr`) to be at least `volatile`. */
+        value_ptr pr = *r;
+        oldify_one (&st, *pr, pr);
         remembered_roots++;
       }
 
@@ -622,7 +640,7 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   }
 
   #ifdef DEBUG
-    caml_global_barrier();
+    caml_global_barrier(participating_count);
     /* At this point all domains should have gone through all remembered set
        entries. We need to verify that all our remembered set entries are now in
        the major heap or promoted */
@@ -641,7 +659,7 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
 
   CAML_EV_BEGIN(EV_MINOR_MEMPROF_ROOTS);
   caml_memprof_scan_roots(&oldify_one, oldify_scanning_flags, &st,
-                          domain, false, participating[0] == domain);
+                          domain, false);
   CAML_EV_END(EV_MINOR_MEMPROF_ROOTS);
 
   CAML_EV_BEGIN(EV_MINOR_REMEMBERED_SET_PROMOTE);
@@ -652,7 +670,7 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
               remembered_roots, st.live_bytes);
 
 #ifdef DEBUG
-  caml_global_barrier();
+  caml_global_barrier(participating_count);
   caml_gc_log("ref_base: %p, ref_ptr: %p",
     self_minor_tables->major_ref.base, self_minor_tables->major_ref.ptr);
   for (r = self_minor_tables->major_ref.base;
@@ -679,7 +697,7 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   CAML_EV_END(EV_MINOR_LOCAL_ROOTS);
 
   CAML_EV_BEGIN(EV_MINOR_MEMPROF_CLEAN);
-  caml_memprof_after_minor_gc(domain, participating[0] == domain);
+  caml_memprof_after_minor_gc(domain);
   CAML_EV_END(EV_MINOR_MEMPROF_CLEAN);
 
   domain->young_ptr = domain->young_end;
@@ -690,13 +708,34 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   caml_memprof_set_trigger(domain);
   caml_reset_young_limit(domain);
 
-  if( participating_count > 1 ) {
-    atomic_fetch_add_explicit
-      (&domains_finished_minor_gc, 1, memory_order_release);
-  }
-
   domain->stat_minor_words += Wsize_bsize (minor_allocated_bytes);
   domain->stat_promoted_words += domain->allocated_words - prev_alloc_words;
+
+  /* Must be called during the STW section -- before any mutators
+     start running, so before arriving at the barrier. */
+  caml_collect_gc_stats_sample_stw(domain);
+
+  /* The code above is synchronised with other domains by the barrier below,
+     which is split into two steps, "arriving" and "leaving". When the final
+     domain arrives at the barrier, all other domains are free to leave, after
+     which they finish running the STW callback and may, depending on the
+     specific STW section, begin executing mutator code.
+
+     Leaving the barrier synchronises (only) with the arrivals of other domains,
+     so that all writes performed by a domain before arrival "happen-before" any
+     domain leaves the barrier. However, any code after arrival, including the
+     code between the two steps, can potentially race with mutator code.
+  */
+
+  /* arrive at the barrier */
+  if( participating_count > 1 ) {
+    if (caml_plat_barrier_arrive(&minor_gc_end_barrier)
+        == participating_count) {
+      caml_plat_barrier_release(&minor_gc_end_barrier);
+    }
+  }
+  /* other domains may be executing mutator code from this point, but
+     not before */
 
   call_timing_hook(&caml_minor_gc_end_hook);
   CAML_EV_COUNTER(EV_C_MINOR_PROMOTED,
@@ -709,6 +748,13 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
                domain->id,
                100.0 * (double)st.live_bytes / (double)minor_allocated_bytes,
                (unsigned)(minor_allocated_bytes + 512)/1024);
+
+  /* leave the barrier */
+  if( participating_count > 1 ) {
+    CAML_EV_BEGIN(EV_MINOR_LEAVE_BARRIER);
+    minor_gc_leave_barrier(domain, participating_count);
+    CAML_EV_END(EV_MINOR_LEAVE_BARRIER);
+  }
 }
 
 /* Finalize dead custom blocks and do the accounting for the live
@@ -733,26 +779,61 @@ static void custom_finalize_minor (caml_domain_state * domain)
   }
 }
 
-void caml_do_opportunistic_major_slice
-  (caml_domain_state* domain_unused, void* unused)
+/* Increment the counter non-atomically, when it is already known that this
+   thread is alone in trying to increment it. */
+static void nonatomic_increment_counter(atomic_uintnat* counter) {
+  atomic_store_relaxed(counter, 1 + atomic_load_relaxed(counter));
+}
+
+static void minor_gc_leave_barrier
+  (caml_domain_state* domain, int participating_count)
 {
-  /* NB: need to put guard around the ev logs to prevent
-    spam when we poll */
-  if (caml_opportunistic_major_work_available()) {
+  /* Spin while we have major work available */
+  SPIN_WAIT_BOUNDED {
+    if (caml_plat_barrier_is_released(&minor_gc_end_barrier)) {
+      return;
+    }
+
+    if (!caml_do_opportunistic_major_slice(domain, 0)) {
+      break;
+    }
+  }
+
+  /* Spin a bit longer, which is far less fruitful if we're waiting on
+     more than one thread */
+  unsigned spins =
+    participating_count == 2 ? Max_spins_long : Max_spins_medium;
+  SPIN_WAIT_NTIMES(spins) {
+    if (caml_plat_barrier_is_released(&minor_gc_end_barrier)) {
+      return;
+    }
+  }
+
+  /* If there's nothing to do, block */
+  caml_plat_barrier_wait(&minor_gc_end_barrier);
+}
+
+int caml_do_opportunistic_major_slice
+  (caml_domain_state* domain_state, void* unused)
+{
+  int work_available = caml_opportunistic_major_work_available(domain_state);
+  if (work_available) {
+    /* NB: need to put guard around the ev logs to prevent spam when we poll */
     uintnat log_events = atomic_load_relaxed(&caml_verb_gc) & 0x40;
     if (log_events) CAML_EV_BEGIN(EV_MAJOR_MARK_OPPORTUNISTIC);
     caml_opportunistic_major_collection_slice(Major_slice_work_min);
     if (log_events) CAML_EV_END(EV_MAJOR_MARK_OPPORTUNISTIC);
   }
+  return work_available;
 }
 
 /* Make sure the minor heap is empty by performing a minor collection
    if needed.
 */
 void caml_empty_minor_heap_setup(caml_domain_state* domain_unused) {
-  atomic_store_release(&domains_finished_minor_gc, 0);
   /* Increment the total number of minor collections done in the program */
-  atomic_fetch_add (&caml_minor_collections_count, 1);
+  nonatomic_increment_counter (&caml_minor_collections_count);
+  caml_plat_barrier_reset(&minor_gc_end_barrier);
 }
 
 /* must be called within a STW section */
@@ -770,30 +851,12 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
     caml_fatal_error("Minor GC triggered recursively");
   Caml_state->in_minor_collection = 1;
 
-  if( participating[0] == Caml_state ) {
-    atomic_fetch_add(&caml_minor_cycles_started, 1);
+  if( participating[0] == domain ) {
+    nonatomic_increment_counter(&caml_minor_cycles_started);
   }
 
   caml_gc_log("running stw empty_minor_heap_promote");
   caml_empty_minor_heap_promote(domain, participating_count, participating);
-
-  /* collect gc stats before leaving the barrier */
-  caml_collect_gc_stats_sample(domain);
-
-  if( participating_count > 1 ) {
-    CAML_EV_BEGIN(EV_MINOR_LEAVE_BARRIER);
-    {
-      SPIN_WAIT {
-        if (atomic_load_acquire(&domains_finished_minor_gc) ==
-            participating_count) {
-          break;
-        }
-
-        caml_do_opportunistic_major_slice(domain, 0);
-      }
-    }
-    CAML_EV_END(EV_MINOR_LEAVE_BARRIER);
-  }
 
   CAML_EV_BEGIN(EV_MINOR_FINALIZED);
   caml_gc_log("finalizing dead minor custom blocks");
@@ -833,16 +896,15 @@ static void caml_stw_empty_minor_heap (caml_domain_state* domain, void* unused,
 }
 
 /* must be called within a STW section  */
-void caml_empty_minor_heap_no_major_slice_from_stw(caml_domain_state* domain,
-                                            void* unused,
-                                             int participating_count,
-                                             caml_domain_state** participating)
+void caml_empty_minor_heap_no_major_slice_from_stw(
+  caml_domain_state* domain,
+  void* unused,
+  int participating_count,
+  caml_domain_state** participating)
 {
-  barrier_status b = caml_global_barrier_begin();
-  if( caml_global_barrier_is_final(b) ) {
+  Caml_global_barrier_if_final(participating_count) {
     caml_empty_minor_heap_setup(domain);
   }
-  caml_global_barrier_end(b);
 
   /* if we are entering from within a major GC STW section then
      we do not schedule another major collection slice */
@@ -851,7 +913,7 @@ void caml_empty_minor_heap_no_major_slice_from_stw(caml_domain_state* domain,
 }
 
 /* must be called outside a STW section */
-int caml_try_stw_empty_minor_heap_on_all_domains (void)
+int caml_try_empty_minor_heap_on_all_domains (void)
 {
   #ifdef DEBUG
   CAMLassert(!caml_domain_is_in_stw());
@@ -870,7 +932,7 @@ int caml_try_stw_empty_minor_heap_on_all_domains (void)
    minor heap */
 void caml_empty_minor_heaps_once (void)
 {
-  uintnat saved_minor_cycle = atomic_load(&caml_minor_cycles_started);
+  uintnat saved_minor_cycle = atomic_load_relaxed(&caml_minor_cycles_started);
 
   #ifdef DEBUG
   CAMLassert(!caml_domain_is_in_stw());
@@ -879,8 +941,9 @@ void caml_empty_minor_heaps_once (void)
   /* To handle the case where multiple domains try to execute a minor gc
      STW section */
   do {
-    caml_try_stw_empty_minor_heap_on_all_domains();
-  } while (saved_minor_cycle == atomic_load(&caml_minor_cycles_started));
+    caml_try_empty_minor_heap_on_all_domains();
+  } while (saved_minor_cycle ==
+           atomic_load_relaxed(&caml_minor_cycles_started));
 }
 
 /* Called by minor allocations when [Caml_state->young_ptr] reaches
@@ -904,14 +967,9 @@ void caml_alloc_small_dispatch (caml_domain_state * dom_st,
       (void) caml_raise_async_if_exception(caml_do_pending_actions_exn(),
         "minor GC");
     else {
+      /* In the case of allocations performed from C, only perform
+         non-delayable actions. */
       caml_handle_gc_interrupt();
-      /* We might be here due to a recently-recorded signal, so we
-         need to remember that we must run signal handlers. In
-         addition, in the case of long-running C code that regularly
-         polls with caml_process_pending_actions, we want to force a
-         query of all callbacks at every minor collection or major
-         slice (similarly to OCaml behaviour). */
-      dom_st->action_pending = 1;
     }
 
     /* Now, there might be enough room in the minor heap to do our

@@ -220,6 +220,10 @@ val max_unboxed_nativeint_array_length : int
 (** Maximum length of a [nativeint# array].
     In non-native backends, equal to [max_array_length]. *)
 
+val max_unboxed_vec128_array_length : int
+(** Maximum length of an unboxed 128-bit simd vector array.
+    Only supported in 64-bit native code. *)
+
 external runtime_variant : unit -> string = "caml_runtime_variant"
 (** Return the name of the runtime variant the program is running on.
     This is normally the argument given to [-runtime-variant] at compile
@@ -231,6 +235,9 @@ external runtime_parameters : unit -> string = "caml_runtime_parameters"
     as the contents of the [OCAMLRUNPARAM] environment variable.
     @since 4.03 *)
 
+external poll_actions : unit -> unit = "%poll"
+(** Run any pending runtime actions, such as minor collections, major
+    GC slices, signal handlers, finalizers, or memprof callbacks. *)
 
 (** {1 Signal handling} *)
 
@@ -354,7 +361,7 @@ val sigxfsz : int
 
 exception Break
 (** Exception raised on interactive interrupt if {!Sys.catch_break}
-   is on. *)
+   is enabled. *)
 
 
 val catch_break : bool -> unit
@@ -367,7 +374,12 @@ val catch_break : bool -> unit
     By default, having done [catch_break true], [Break] will be delivered to
     the toplevel uncaught exception handler.  To deliver it elsewhere, use
     [with_async_exns], below.
-*)
+
+    Inside multi-threaded programs, the [Break] exception will arise in
+    any one of the active threads, and will keep arising on further
+    interactive interrupt until all threads are terminated. Use
+    signal masks from [Thread.sigmask] to direct the interrupt towards a
+    specific thread. *)
 
 val with_async_exns : (unit -> 'a) -> 'a
 (** [with_async_exns f] runs [f] and returns its result, in addition to

@@ -48,16 +48,16 @@ let compile i typed ~transl_style ~unix ~pipeline =
            Asmgen.compile_implementation
              unix
              ~pipeline
-             ~filename:i.source_file
-             ~prefixname:i.output_prefix
+             ~sourcefile:(Some (Unit_info.source_file i.target))
+             ~prefixname:(Unit_info.prefix i.target)
              ~ppf_dump:i.ppf_dump
              program);
-           Compilenv.save_unit_info (cmx i))
+           Compilenv.save_unit_info
+             (Unit_info.Artifact.filename (Unit_info.cmx i.target)))
 
 type flambda2 =
   ppf_dump:Format.formatter ->
   prefixname:string ->
-  filename:string ->
   keep_symbol_tables:bool ->
   Lambda.program ->
   Cmm.phrase list
@@ -66,7 +66,8 @@ type flambda2 =
 let emit unix i =
   Compilenv.reset i.module_name;
   Asmgen.compile_implementation_linear unix
-    i.output_prefix ~progname:i.source_file
+    (Unit_info.prefix i.target)
+    ~progname:(Unit_info.source_file i.target)
 
 let implementation unix ~(flambda2 : flambda2) ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables =

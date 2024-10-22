@@ -32,7 +32,8 @@ type type_replacement =
   | Type_function of { params : type_expr list; body : type_expr }
 
 type additional_action =
-  | Prepare_for_saving of (Location.t -> jkind -> jkind)
+  | Prepare_for_saving of
+      { prepare_jkind : 'l 'r. Location.t -> ('l * 'r) jkind -> ('l * 'r) jkind }
     (* The [Prepare_for_saving] function should be applied to all jkinds when
        saving; this commons them up, truncates their histories, and runs
        a check that all unconstrained variables have been defaulted to value. *)
@@ -101,7 +102,8 @@ let with_additional_action =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let rec prepare_desc loc : Jkind.Desc.t -> Jkind.t = function
+        let rec prepare_desc : type l r. _ -> _ -> (l * r) Jkind.t =
+         fun loc : (Jkind.Desc.t -> _) -> function
           | Const const ->
             let builtin =
               List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
@@ -115,16 +117,16 @@ let with_additional_action =
             Jkind.Builtin.product ~why:Unboxed_tuple
               (List.map (prepare_desc loc) descs)
         in
-        let prepare_jkind loc lay : Jkind.t =
+        let prepare_jkind loc lay : _ Jkind.t =
           prepare_desc loc (Jkind.get lay)
         in
-        Prepare_for_saving prepare_jkind
+        Prepare_for_saving { prepare_jkind }
   in
   { s with additional_action; last_compose = None }
 
 let apply_prepare_jkind s lay loc =
   match s.additional_action with
-  | Prepare_for_saving prepare_jkind -> prepare_jkind loc lay
+  | Prepare_for_saving { prepare_jkind } -> prepare_jkind loc lay
   | Duplicate_variables | No_action -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
@@ -255,7 +257,70 @@ let norm desc ~prepare_jkind =
       Tunivar { name; jkind = prepare_jkind loc jkind }
     | desc -> desc
 
-let ctype_apply_env_empty = ref (fun _ -> assert false)
+let apply_type_function params args body =
+  For_copy.with_scope (fun copy_scope ->
+    List.iter2
+      (fun param arg ->
+        For_copy.redirect_desc copy_scope param (Tsubst (arg, None)))
+      params args;
+    let rec copy ty =
+      assert (get_level ty = generic_level);
+      match get_desc ty with
+      | Tsubst (ty, _) -> ty
+      | Tvariant row ->
+          let t = newgenstub ~scope:(get_scope ty)
+            (Jkind.Builtin.any ~why:Dummy_jkind) in
+          For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
+          let more = row_more row in
+          assert (get_level more = generic_level);
+          let mored = get_desc more in
+          (* We must substitute in a subtle way *)
+          (* Tsubst takes a tuple containing the row var and the variant *)
+          let desc' =
+            match mored with
+            | Tsubst (_, Some ty2) ->
+                (* This variant type has been already copied *)
+                (* Change the stub to avoid Tlink in the new type *)
+                For_copy.redirect_desc copy_scope ty (Tsubst (ty2, None));
+                Tlink ty2
+            | _ ->
+                let more' =
+                  match mored with
+                    Tsubst (ty, None) -> ty
+                    (* TODO: is this case possible?
+                       possibly an interaction with (copy more) below? *)
+                  | Tconstr _ | Tnil ->
+                      copy more
+                  | Tvar _ | Tunivar _ ->
+                      newgenty mored
+                  |  _ -> assert false
+                in
+                let row =
+                  match get_desc more' with (* PR#6163 *)
+                    Tconstr (x,_,_) when not (is_fixed row) ->
+                      let Row {fields; more; closed; name} = row_repr row in
+                      create_row ~fields ~more ~closed ~name
+                        ~fixed:(Some (Reified x))
+                  | _ -> row
+                in
+                (* Register new type first for recursion *)
+                For_copy.redirect_desc copy_scope more
+                  (Tsubst(more', Some t));
+                (* Return a new copy *)
+                Tvariant (copy_row copy true row false more')
+          in
+          Transient_expr.set_stub_desc t desc';
+          t
+      | desc ->
+          let t = newgenstub ~scope:(get_scope ty)
+            (Jkind.Builtin.any ~why:Dummy_jkind) in
+          For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
+          let desc' = copy_type_desc copy desc in
+          Transient_expr.set_stub_desc t desc';
+          t
+    in
+    copy body)
+
 
 (* Similar to [Ctype.nondep_type_rec]. *)
 let rec typexp copy_scope s ty =
@@ -271,7 +336,7 @@ let rec typexp copy_scope s ty =
         let ty' =
           match s.additional_action with
           | Duplicate_variables -> newpersty desc
-          | Prepare_for_saving prepare_jkind ->
+          | Prepare_for_saving { prepare_jkind } ->
               newpersty (norm desc ~prepare_jkind)
           | No_action -> newty2 ~level:(get_level ty) desc
         in
@@ -313,7 +378,7 @@ let rec typexp copy_scope s ty =
          | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
          | Path _ -> Tconstr(type_path s p, args, ref Mnil)
          | Type_function { params; body } ->
-            Tlink (!ctype_apply_env_empty params body args)
+            Tlink (apply_type_function params args body)
          end
       | Tpackage(p, fl) ->
           Tpackage(modtype_path s p,
@@ -469,7 +534,7 @@ let type_declaration' copy_scope s decl =
           let rep =
             match s.additional_action with
             | No_action | Duplicate_variables -> rep
-            | Prepare_for_saving prepare_jkind ->
+            | Prepare_for_saving { prepare_jkind } ->
                 variant_representation ~prepare_jkind decl.type_loc rep
           in
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
@@ -478,7 +543,7 @@ let type_declaration' copy_scope s decl =
           let rep =
             match s.additional_action with
             | No_action | Duplicate_variables -> rep
-            | Prepare_for_saving prepare_jkind ->
+            | Prepare_for_saving { prepare_jkind } ->
                 record_representation ~prepare_jkind decl.type_loc rep
           in
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
@@ -493,7 +558,7 @@ let type_declaration' copy_scope s decl =
     type_jkind =
       begin
         match s.additional_action with
-        | Prepare_for_saving prepare_jkind ->
+        | Prepare_for_saving { prepare_jkind } ->
             prepare_jkind decl.type_loc decl.type_jkind
         | Duplicate_variables | No_action -> decl.type_jkind
       end;
@@ -582,7 +647,7 @@ let extension_constructor' copy_scope s ext =
       List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
     ext_args = constructor_arguments copy_scope s ext.ext_args;
     ext_arg_jkinds = begin match s.additional_action with
-      | Prepare_for_saving prepare_jkind ->
+      | Prepare_for_saving { prepare_jkind } ->
           Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
       | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;

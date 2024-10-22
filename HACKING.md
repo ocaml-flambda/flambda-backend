@@ -345,8 +345,8 @@ be advisable to clean the whole tree again.
 This is still under development, but should work!
 ```shell
 opam repo add flambda-backend git+https://github.com/chambart/opam-repository-js.git#with-extensions
-opam switch create 5.1.1+flambda2 --repos flambda-backend,default
-eval $(opam env --switch=5.1.1+flambda2)
+opam switch create 5.2.0+flambda2 --repos flambda-backend,default
+eval $(opam env --switch=5.2.0+flambda2)
 ```
 
 ## Testing the compiler built locally with OPAM (old method)

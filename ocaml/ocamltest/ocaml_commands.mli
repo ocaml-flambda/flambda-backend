@@ -21,7 +21,7 @@ val ocamlrun_ocamlopt : string
 
 val ocamlrun_ocaml : string
 
-val ocamlrun_expect_test : string
+val expect : string
 
 val ocamlrun_ocamllex : string
 
@@ -32,4 +32,5 @@ val ocamlrun_ocamldebug : string
 val ocamlrun_ocamlobjinfo : string
 
 val ocamlrun_ocamlmklib : string
-val ocamlrun_codegen : string
+
+val codegen : string

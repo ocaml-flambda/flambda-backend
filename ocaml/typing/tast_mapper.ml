@@ -485,11 +485,12 @@ let expr sub x =
         in
         Texp_record {
           fields; representation;
-          extended_expression = Option.map (sub.expr sub) extended_expression;
+          extended_expression =
+            Option.map (fun (exp, ubr) -> (sub.expr sub exp, ubr)) extended_expression;
           alloc_mode
         }
-    | Texp_field (exp, lid, ld, float) ->
-        Texp_field (sub.expr sub exp, map_loc sub lid, ld, float)
+    | Texp_field (exp, lid, ld, float, ubr) ->
+        Texp_field (sub.expr sub exp, map_loc sub lid, ld, float, ubr)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,
@@ -907,6 +908,8 @@ let typ sub x =
         Ttyp_poly (List.map (var_jkind sub) vars, sub.typ sub ct)
     | Ttyp_package pack ->
         Ttyp_package (sub.package_type sub pack)
+    | Ttyp_open (path, mod_ident, t) ->
+        Ttyp_open (path, map_loc sub mod_ident, sub.typ sub t)
   in
   let ctyp_attributes = sub.attributes sub x.ctyp_attributes in
   {x with ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes}

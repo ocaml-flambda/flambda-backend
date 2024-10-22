@@ -46,6 +46,7 @@
     (backtrace.h as caml/backtrace.h)
     (backtrace_prim.h as caml/backtrace_prim.h)
     (bigarray.h as caml/bigarray.h)
+    (blake2.h as caml/blake2.h)
     (callback.h as caml/callback.h)
     (camlatomic.h as caml/camlatomic.h)
     (codefrag.h as caml/codefrag.h)

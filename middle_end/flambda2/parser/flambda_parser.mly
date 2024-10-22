@@ -433,6 +433,11 @@ unop:
   | PRIM_UNBOX_NATIVEINT { Unbox_number Naked_nativeint }
   | PRIM_UNBOX_VEC128 { Unbox_number Naked_vec128 }
   | PRIM_UNTAG_IMM { Untag_immediate }
+  | PRIM_BLOCK_LOAD;
+    mut = mutability;
+    kind = block_access_kind;
+    LPAREN; field = tag; RPAREN;
+    { Block_load { kind; mut; field = Targetint_31_63.of_int field } }
 
 infix_binop:
   | o = binary_int_arith_op { Int_arith o }
@@ -443,10 +448,6 @@ infix_binop:
 ;
 
 prefix_binop:
-  | PRIM_BLOCK_LOAD;
-    mutability = mutability;
-    kind = block_access_kind;
-    { Block_load (kind, mutability) }
   | PRIM_BIGSTRING_LOAD;
     saw = string_accessor_width;
     { String_or_bigstring_load (Bigstring, saw) }
@@ -577,6 +578,13 @@ int_shift:
 ;
 
 binop_app:
+  | PRIM_BLOCK_SET;
+    kind = block_access_kind;
+    block = simple; DOT;
+    LPAREN; field = tag; RPAREN;
+    init = init_or_assign;
+    v = simple
+    { Binary (Block_set { kind; init; field = Targetint_31_63.of_int field }, block, v) }
   | op = prefix_binop; LPAREN; arg1 = simple; COMMA; arg2 = simple; RPAREN
     { Binary (op, arg1, arg2) }
   | arg1 = simple; op = infix_binop; arg2 = simple
@@ -606,10 +614,6 @@ ternop_app:
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
     { Ternary (Array_set (ak, width, ia), arr, ix, v) }
-  | PRIM_BLOCK_SET; kind = block_access_kind;
-    block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
-    v = simple
-    { Ternary (Block_set (kind, ia), block, ix, v) }
   | blv = bytes_or_bigstring_set; saw = string_accessor_width;
     block = simple; DOT LPAREN; ix = simple; RPAREN; v = simple
     { Ternary (Bytes_or_bigstring_set (blv, saw), block, ix, v) }

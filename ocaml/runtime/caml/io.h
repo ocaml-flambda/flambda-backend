@@ -46,7 +46,7 @@ struct channel {
   struct channel * next, * prev;/* Double chaining of channels (flush_all) */
   uintnat refcount;             /* Number of custom blocks owning the channel */
   int flags;                    /* Bitfield */
-  char buff[IO_BUFFER_SIZE];    /* The buffer itself */
+  char * buff;                  /* The buffer */
   char * name;                  /* Optional name (to report fd leaks) */
 };
 
@@ -82,6 +82,7 @@ CAMLextern int caml_channel_binary_mode (struct channel *);
 
 CAMLextern int caml_flush_partial (struct channel *);
 CAMLextern void caml_flush (struct channel *);
+CAMLextern void caml_flush_if_unbuffered (struct channel *);
 CAMLextern void caml_putch(struct channel *, int);
 CAMLextern void caml_putword (struct channel *, uint32_t);
 CAMLextern int caml_putblock (struct channel *, char *, intnat);
@@ -99,22 +100,18 @@ CAMLextern intnat caml_really_getblock (struct channel *, char *, intnat);
 
 /* The locking machinery */
 
-CAMLextern void (*caml_channel_mutex_free) (struct channel *);
-CAMLextern void (*caml_channel_mutex_lock) (struct channel *);
-CAMLextern void (*caml_channel_mutex_unlock) (struct channel *);
-CAMLextern void (*caml_channel_mutex_unlock_exn) (void);
+CAMLextern void caml_channel_lock(struct channel *);
+CAMLextern void caml_channel_unlock(struct channel *);
+
+/* Lock and Unlock are compatibility aliases for OCaml<5.2.
+   Remove whenever 5.2 is old enough. (See #12792.) */
+#define Lock(channel) caml_channel_lock(channel)
+#define Unlock(channel) caml_channel_unlock(channel)
+
+CAMLextern void caml_channel_cleanup_on_raise(void);
 
 CAMLextern struct channel * caml_all_opened_channels;
 CAMLextern caml_plat_mutex caml_all_opened_channels_mutex;
-
-#define Lock(channel) \
-  if (caml_channel_mutex_lock != NULL) (*caml_channel_mutex_lock)(channel)
-#define Unlock(channel) \
-  if (caml_channel_mutex_unlock != NULL) (*caml_channel_mutex_unlock)(channel)
-#define Unlock_exn() \
-  if (caml_channel_mutex_unlock_exn != NULL) (*caml_channel_mutex_unlock_exn)()
-#define Flush_if_unbuffered(channel) \
-  if (channel->flags & CHANNEL_FLAG_UNBUFFERED) caml_flush(channel)
 
 /* Conversion between file_offset and int64_t */
 

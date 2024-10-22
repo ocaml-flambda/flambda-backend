@@ -275,3 +275,40 @@ let test_opt () =
 ;;
 
 let () = test_opt ()
+
+(********************************************************************************)
+(* Test 6: regression test: why we don't put immediates in the scannable suffix *)
+
+module Inner_disagrees_with_outer : sig
+  type u
+  type t = { u : u; x : float# }
+  val t : int -> float# -> t
+  val u : int -> u
+  val u_to_int : u -> int
+end = struct
+  type u = int
+  type t = { u : u; x : float# }
+  let t u x = { u; x }
+  let u x = x
+  let u_to_int x = x
+end
+
+let inner = Inner_disagrees_with_outer.t 3 #4.0
+let outer = Inner_disagrees_with_outer.{ u = u 3; x = #4.0 }
+
+let f b = if b then inner else outer
+
+(* Previously, we treated immediates as belonging to the non-scannable suffix
+   where possible. We removed this "feature" when we realized that we didn't
+   add support in the flambda2 optimizer for this case. The test below is the
+   regression test that the flambda2 optimizer previously couldn't handle.
+ *)
+
+let test_mismatch () =
+  let x = f true in
+  Printf.printf "Test mismatch: result (4) = %.3f\n"
+   (Float_u.to_float x.x);
+  Printf.printf "Test mismatch: result (3) = %d\n"
+   (Inner_disagrees_with_outer.u_to_int x.u)
+
+let () = test_mismatch ()

@@ -42,14 +42,8 @@ enum {
 
 #define LAST_DOMAIN_STATE_MEMBER extra_params
 
-/* Check that the structure was laid out without padding,
-   since the runtime assumes this in computing offsets */
-CAML_STATIC_ASSERT(
-    offsetof(caml_domain_state, LAST_DOMAIN_STATE_MEMBER) ==
-    (Domain_state_num_fields - 1) * 8);
-
 #if defined(HAS_FULL_THREAD_VARIABLES) || defined(IN_CAML_RUNTIME)
-  CAMLextern __thread caml_domain_state* caml_state;
+  CAMLextern CAMLthread_local caml_domain_state* caml_state;
   #define Caml_state_opt caml_state
 #else
 #ifdef __GNUC__
@@ -61,9 +55,7 @@ CAML_STATIC_ASSERT(
 
 #define Caml_state (CAMLassert(Caml_state_opt != NULL), Caml_state_opt)
 
-CAMLnoreturn_start
-CAMLextern void caml_bad_caml_state(void)
-CAMLnoreturn_end;
+CAMLnoret CAMLextern void caml_bad_caml_state(void);
 
 /* This check is performed regardless of debug mode. It is placed once
    at every code path starting from entry points of the public C API,

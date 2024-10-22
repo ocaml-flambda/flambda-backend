@@ -84,6 +84,10 @@ module Intf = struct
   type nonrec t = t
 
   let create_normal name cu ~crc =
+    if CU.instance_arguments cu <> []
+    then
+      Misc.fatal_errorf "@[<hv>Interface import with arguments:@ %a@]" CU.print
+        cu;
     check_name name cu;
     Intf (Normal (cu, crc))
 

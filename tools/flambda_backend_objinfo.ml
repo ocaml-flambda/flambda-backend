@@ -69,15 +69,19 @@ let print_impl_import import =
 let print_line name = printf "\t%s\n" name
 
 let print_global_line glob =
-  (* Type will change soon for parameterised libraries *)
-  printf "\t%a\n" Compilation_unit.Name.output glob
+  printf "\t%a\n" Global_module.Name.output glob
 
 let print_global_as_name_line glob =
   (* Type will change soon for parameterised libraries *)
-  printf "\t%a\n" Compilation_unit.Name.output glob
+  printf "\t%a\n" Global_module.Name.output glob
 
 let print_name_line cu =
-  printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
+  (* Drop the pack prefix for backward compatibility, but keep the instance
+     arguments *)
+  let cu_without_prefix =
+    Compilation_unit.with_for_pack_prefix cu Compilation_unit.Prefix.empty
+  in
+  printf "\t%a\n" Compilation_unit.output cu_without_prefix
 
 let print_required_global id = printf "\t%a\n" Compilation_unit.output id
 
@@ -86,7 +90,7 @@ let print_cmo_infos cu =
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
   print_string "Required globals:\n";
-  List.iter print_required_global cu.cu_required_globals;
+  List.iter print_required_global cu.cu_required_compunits;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
   | [] -> printf "no\n"
@@ -227,7 +231,8 @@ let print_general_infos print_name name crc defines iter_cmi iter_cmx =
 
 let print_global_table table =
   printf "Globals defined:\n";
-  Symtable.iter_global_map (fun id _ -> print_line (Ident.name id)) table
+  Symtable.iter_global_map (fun id _ -> print_line (Symtable.Global.name id))
+    table
 
 open Cmx_format
 open Cmxs_format
@@ -245,7 +250,7 @@ let return_arity_identifier t =
 
 let print_generic_fns gfns =
   let pr_afuns _ fns =
-    let mode = function Lambda.Alloc_heap -> "" | Lambda.Alloc_local -> "L" in
+    let mode = function Cmx_format.Alloc_heap -> "" | Cmx_format.Alloc_local -> "L" in
     List.iter (fun (arity,result,m) ->
         printf " %s%s%s"
           (unique_arity_identifier arity)
@@ -422,7 +427,7 @@ let dump_obj_by_kind filename ic obj_kind =
     close_in ic;
     let cms = Cms_format.read filename in
     print_cms_infos cms
-  | Cmx _config ->
+  | Cmx ->
     let uir = (input_value ic : unit_infos_raw) in
     let first_section_offset = pos_in ic in
     seek_in ic (first_section_offset + uir.uir_sections_length);
@@ -431,7 +436,7 @@ let dump_obj_by_kind filename ic obj_kind =
     let sections = Flambda_backend_utils.File_sections.create
         uir.uir_section_toc filename ic ~first_section_offset in
     print_cmx_infos (uir, sections, crc)
-  | Cmxa _config ->
+  | Cmxa ->
     let li = (input_value ic : library_infos) in
     close_in ic;
     print_cmxa_infos li

@@ -16,20 +16,11 @@
 open X86_ast
 
 type system =
-  (* 32 bits and 64 bits *)
   | S_macosx
   | S_gnu
   | S_cygwin
-
-  (* 32 bits only *)
   | S_solaris
-  | S_win32
-  | S_linux_elf
-  | S_bsd_elf
   | S_beos
-  | S_mingw
-
-  (* 64 bits only *)
   | S_win64
   | S_linux
   | S_mingw64
@@ -42,17 +33,13 @@ type system =
 
 let system = match Config.system with
   | "macosx" -> S_macosx
-  | "solaris" -> S_solaris
-  | "win32" -> S_win32
-  | "linux_elf" -> S_linux_elf
-  | "bsd_elf" -> S_bsd_elf
-  | "beos" -> S_beos
   | "gnu" -> S_gnu
   | "cygwin" -> S_cygwin
-  | "mingw" -> S_mingw
-  | "mingw64" -> S_mingw64
+  | "solaris" -> S_solaris
+  | "beos" -> S_beos
   | "win64" -> S_win64
   | "linux" -> S_linux
+  | "mingw64" -> S_mingw64
   | "freebsd" -> S_freebsd
   | "netbsd" -> S_netbsd
   | "openbsd" -> S_openbsd
@@ -84,22 +71,25 @@ let string_of_string_literal s =
   Buffer.contents b
 
 let string_of_symbol prefix s =
-  let spec = ref false in
-  for i = 0 to String.length s - 1 do
-    match String.unsafe_get s i with
-    | 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.' -> ()
-    | _ -> spec := true;
-  done;
-  if not !spec then if prefix = "" then s else prefix ^ s
+  let is_special_char = function
+    | 'A'..'Z' | 'a'..'z' | '0'..'9' | '_' -> false
+    | c -> c <> Compilenv.symbol_separator
+  in
+  let spec = String.exists is_special_char s in
+  if not spec then if prefix = "" then s else prefix ^ s
   else
     let b = Buffer.create (String.length s + 10) in
     Buffer.add_string b prefix;
     String.iter
-      (function
-        | ('A'..'Z' | 'a'..'z' | '0'..'9' | '_' | '.') as c ->
-            Buffer.add_char b c
-        | c ->
-            Printf.bprintf b "$%02x" (Char.code c)
+      (fun c ->
+       (* FIXME: using $ to prefix escaped characters can make names
+          ambiguous if the symbol separator is also set to $; a different
+          escape prefix should be used in this case, if this ever causes
+          problems in the real world. *)
+       if is_special_char c then
+         Printf.bprintf b "$%02x" (Char.code c)
+       else
+         Buffer.add_char b c
       )
       s;
     Buffer.contents b
@@ -245,7 +235,7 @@ let with_internal_assembler assemble k =
 (* Which asm conventions to use *)
 let masm =
   match system with
-  | S_win32 | S_win64 -> true
+  | S_win64 -> true
   | _ -> false
 
 let use_plt =

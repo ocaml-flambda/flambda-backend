@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (** Last-in first-out stacks.
 
    This module implements stacks (LIFOs), with in-place modification.
@@ -26,6 +24,8 @@ open! Stdlib
 [@@@alert unsynchronized_access
     "Unsynchronized accesses to stacks are a programming error."
 ]
+
+open! Stdlib
 
  (**
     Unsynchronized accesses to a stack may lead to an invalid queue state.
