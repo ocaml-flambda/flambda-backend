@@ -17,7 +17,7 @@ type t = private {
   bound_globals : Global_module.t array;
 }
 
-val read_from_cmi : Cmi_format.cmi_infos_lazy -> t
+val read_from_cmi : Subst.Lazy.signature -> Global_module.t array -> t
 
 (** To see how substitution will work on [t], suppose we have something like
       {v let X = X in
@@ -51,4 +51,4 @@ val read_from_cmi : Cmi_format.cmi_infos_lazy -> t
     Note that the argument values themselves won't be returned in the new list
     of bound globals, since it's assumed that they are already accounted for in
     the environment. *)
-val subst : t -> (Global_module.Name.t * Global_module.t) list -> t
+val subst : t -> (Global_module.Parameter.t * Global_module.t) list -> t

@@ -96,13 +96,13 @@ type error =
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
   | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Global_module.Name.t
+  | Cannot_find_argument_type of Global_module.Parameter.t
   | Inconsistent_argument_types of {
       new_arg_type : Global_module.Name.t option;
       old_arg_type : Global_module.Name.t option;
       old_source_file : Misc.filepath;
     }
-  | Duplicate_parameter_name of Global_module.Name.t
+  | Duplicate_parameter_name of Global_module.Parameter.t
   | Submode_failed of Mode.Value.error
 
 exception Error of Location.t * Env.t * error
@@ -353,13 +353,13 @@ let rec instance_name ~loc env syntax =
   let args =
     List.map
       (fun (param, value) : Global_module.Name.argument ->
-         { param = Global_module.Name.create_no_args param;
+         { param = Global_module.Parameter.create param;
            value = instance_name ~loc env value })
       args
   in
   match Global_module.Name.create head args with
   | Ok name -> name
-  | Error (Duplicate { name; value1 = _; value2 = _ }) ->
+  | Error (Duplicate name) ->
     raise (Error (loc, env, Duplicate_parameter_name name))
 
 let iterator_with_env env =
@@ -3611,7 +3611,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
   | None -> None
   | Some arg_module ->
       let arg_import =
-        Compilation_unit.Name.of_global_name_no_args_exn arg_module
+        Compilation_unit.Name.of_parameter arg_module
       in
       (* CR lmaurer: This "look for known name in path" code is duplicated
          all over the place. *)
@@ -4290,11 +4290,11 @@ let report_error ~loc _env = function
   | Cannot_find_argument_type arg_type ->
       Location.errorf ~loc
         "Parameter module %a@ specified by -as-argument-for cannot be found."
-        (Style.as_inline_code Global_module.Name.print) arg_type
+        (Style.as_inline_code Global_module.Parameter.print) arg_type
   | Duplicate_parameter_name name ->
       Location.errorf ~loc
         "This instance has multiple arguments with the name %a."
-        (Style.as_inline_code Global_module.Name.print) name
+        (Style.as_inline_code Global_module.Parameter.print) name
   | Submode_failed (Error (ax, {left; right})) ->
       Location.errorf ~loc
         "This value is %a, but expected to be %a because it is inside a module."

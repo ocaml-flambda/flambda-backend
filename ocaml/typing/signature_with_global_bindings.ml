@@ -5,11 +5,11 @@ type t = {
   bound_globals : Global_module.t array;
 }
 
-let read_from_cmi (cmi : Cmi_format.cmi_infos_lazy) =
+let read_from_cmi cmi_sign cmi_globals =
   let sign =
     (* Freshen identifiers bound by signature *)
-    Subst.Lazy.signature Make_local Subst.identity cmi.cmi_sign in
-  let bound_globals = cmi.cmi_globals in
+    Subst.Lazy.signature Make_local Subst.identity cmi_sign in
+  let bound_globals = cmi_globals in
   { sign; bound_globals }
 
 let array_fold_left_filter_map f init array =
@@ -20,18 +20,18 @@ let array_fold_left_filter_map f init array =
   in
   ans, new_array
 
-let subst t (args : (Global_module.Name.t * Global_module.t) list) =
+let subst t (args : (Global_module.Parameter.t * Global_module.t) list) =
   let { sign; bound_globals } = t in
   match args with
   | [] -> t
   | _ ->
       (* The global-level substitution *)
-      let arg_subst = Global_module.Name.Map.of_list args in
+      let arg_subst = Global_module.Parameter.Map.of_list args in
       (* Take a bound global, substitute arguments into it, then return the
          updated global while also adding it to the term-level substitution *)
       let add_and_update_binding subst bound_global =
         let name = Global_module.to_name bound_global in
-        if Global_module.Name.Map.mem name arg_subst then
+        if Global_module.Parameter.Map.mem name arg_subst then
           (* This shouldn't happen: only globals with hidden arguments should be
              in [bound_globals], and parameters shouldn't have arguments.
              Previous code that was meant to handle parameterised parameters

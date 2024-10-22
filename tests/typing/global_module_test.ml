@@ -9,16 +9,18 @@ module Test_data = struct
 
     let g ?(vis = []) ?(hid = []) head =
       create_exn head (args_of_pairs vis) ~hidden_args:(args_of_pairs hid)
+
+    let p s = Parameter.create s
   end
 
   let [@ocamlformat "disable"] () =
     (* This [let] is only here so that ocamlformat lets us add line breaks in
        the following. Note that, despite being disabled, ocamlformat insists on
        adding whitespace errors by indenting empty lines. *)
-  
+
     (* Here we imagine the following modules and parameters, with their
        parameters given in square brackets:
-  
+
        {v
          - X (parameter)
          - Y[X] (parameter)
@@ -33,7 +35,7 @@ module Test_data = struct
          - Opaque[I] : Conv[I][O:String]
          - Print[I][Conv[I][O:String]] (regular module)
        v}
-  
+
        Each [*_p] is an [I.param] and an untagged identifier is an [I.t].
        *)
     ()
@@ -41,6 +43,8 @@ module Test_data = struct
   let x = n "X"
 
   let x_g = g "X"
+
+  let x_p = p "X"
 
   let y = n "Y"
 
@@ -54,11 +58,11 @@ module Test_data = struct
 
   let i = n "I"
 
-  let i_g = g "I"
+  let i_g = p "I"
 
   let o = n "O"
 
-  let o_g = g "O"
+  let o_g = p "O"
 
   let conv = n "Conv"
 
