@@ -251,3 +251,12 @@ UNIXLIB=unix
 ## Variables renamed in OCaml 4.13
 
 RUNTIMEI=$(INSTRUMENTED_RUNTIME)
+
+## Variables used by flambda-backend build
+
+install_prefix = @prefix@
+dune = @dune@
+middle_end = @middle_end@
+coverage = @coverage@
+legacy_layout = @legacy_layout@
+main_build_profile = @main_build_profile@

@@ -39,17 +39,29 @@
 
 (copy_files# driver/*.ml{,i})
 
-;(copy_files# asmcomp/*.ml{,i})
-;(copy_files# asmcomp/debug/*.ml{,i})
+(copy_files# asmcomp/*.ml{,i})
+
+(copy_files# backend/*.ml{,i})
+
+(copy_files# backend/cfg/*.ml{,i})
+
+(copy_files# backend/debug/*.ml{,i})
+
+(copy_files# backend/debug/dwarf/dwarf_ocaml/*.ml{,i})
+
+(copy_files# backend/internal_assembler/*.ml{,i})
+
+(copy_files# backend/peephole/*.ml{,i})
+
+(copy_files# backend/regalloc/*.ml{,i})
 
 (copy_files# file_formats/*.ml{,i})
 
 (copy_files# lambda/*.ml{,i})
 
-;(copy_files# middle_end/*.ml{,i})
-;(copy_files# middle_end/closure/*.ml{,i})
-;(copy_files# middle_end/flambda/*.ml{,i})
-;(copy_files# middle_end/flambda/base_types/*.ml{,i})
+(copy_files# middle_end/*.ml{,i})
+
+(copy_files# printer/*.ml{,i})
 
 (menhir
  (modules parser)
@@ -382,152 +394,471 @@
  (section lib)
  (package ocaml))
 
+(library
+ (name ocamloptcomp)
+ (wrapped false) ; for compatibility with existing code
+ (modes byte native)
+ ; We should change the code so this "-open" can be removed.
+ ; Likewise fix occurrences of warnings 9, 27, 32, 33, 34, 37, 39, and 60.
+ (flags
+  (:standard -w -27-32-33-34-37-39-60-69-70))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (instrumentation
+  (backend bisect_ppx))
+ (modules_without_implementation
+  branch_relaxation_intf
+  cmx_format
+  cmxs_format
+  x86_ast)
+ (modules
+  ;; To match the Makefiles, ocamloptcomp needs to include ocamlmiddleend.
+  ;; file_formats/
+  cmx_format
+  cmxs_format
+  ;; middle_end/
+  backend_var
+  compilenv
+  ;; asmcomp/
+  asmgen
+  asmlibrarian
+  asmlink
+  asmpackager
+  ;; backend/
+  afl_instrument
+  arch
+  branch_relaxation
+  branch_relaxation_intf
+  cfg_selectgen
+  cfg_selection
+  cfgize
+  cmm_helpers
+  cmm_builtins
+  cmm_invariants
+  cmm
+  cmmgen_state
+  coloring
+  comballoc
+  CSE
+  CSE_utils
+  CSEgen
+  dataflow
+  deadcode
+  emit
+  emitaux
+  fdo_info
+  generic_fns
+  interf
+  interval
+  linear
+  internal_assembler
+  linscan
+  liveness
+  mach
+  peephole_optimize
+  peephole_rules
+  peephole_utils
+  polling
+  printcmm
+  printlinear
+  printmach
+  proc
+  simd
+  simd_selection
+  simd_reload
+  simd_proc
+  stack_check
+  reg
+  reload
+  reloadgen
+  relocation_entry
+  relocation_table
+  section_table
+  select_utils
+  selectgen
+  selection
+  selection_utils
+  spill
+  split
+  string_table
+  symbol_entry
+  symbol_table
+  x86_ast
+  x86_binary_emitter
+  x86_dsl
+  x86_gas
+  x86_masm
+  x86_proc
+  zero_alloc_checker
+  zero_alloc_info
+  ;; backend/cfg
+  cfg
+  cfg_intf
+  cfg_to_linear
+  cfg_with_layout
+  cfg_with_infos
+  cfg_comballoc
+  cfg_dataflow
+  cfg_deadcode
+  cfg_liveness
+  cfg_dominators
+  cfg_loop_infos
+  cfg_to_linear_desc
+  cfg_cse
+  cfg_stack_checks
+  cfg_polling
+  eliminate_dead_code
+  disconnect_block
+  eliminate_dead_blocks
+  eliminate_fallthrough_blocks
+  merge_straightline_blocks
+  extra_debug
+  label
+  linear_utils
+  simplify_terminator
+  vectorize
+  ;; backend/regalloc
+  regalloc_gi
+  regalloc_gi_state
+  regalloc_gi_utils
+  regalloc_invariants
+  regalloc_irc
+  regalloc_irc_state
+  regalloc_irc_utils
+  regalloc_ls
+  regalloc_ls_state
+  regalloc_ls_utils
+  regalloc_rewrite
+  regalloc_split
+  regalloc_split_state
+  regalloc_split_utils
+  regalloc_stack_operands
+  regalloc_stack_slots
+  regalloc_utils
+  regalloc_validate
+  ;; file_formats/
+  linear_format
+  cfg_format
+  ;; backend/debug/
+  available_ranges_vars
+  available_regs
+  compute_ranges
+  compute_ranges_intf
+  inlined_frame_ranges
+  is_parameter
+  reg_availability_set
+  reg_with_debug_info
+  stack_reg_offset
+  ;; backend/debug/dwarf/dwarf_ocaml
+  ;; This code has a lot of dependencies into ocamloptcomp, so we just
+  ;; build it as part of that library.
+  dwarf
+  dwarf_abstract_instances
+  dwarf_compilation_unit
+  dwarf_concrete_instances
+  dwarf_inlined_frames
+  dwarf_name_laundry
+  dwarf_reg_locations
+  dwarf_state
+  dwarf_variables_and_parameters
+  ;; driver/
+  opterrors
+  optcompile
+  optmaindriver
+  compiler_hooks
+  ;; printer/
+  printast_with_mappings
+  location_tracker_formatter
+  ; The driver should be in here too, but is not at present.  This might
+  ; be tricky because it has a different name...
+  )
+ (libraries
+  ocamlcommon
+  flambda_backend_common
+  flambda_backend_utils
+  flambda2_identifiers
+  flambda2_cmx
+  compiler_owee
+  gc_timings
+  dwarf_low
+  dwarf_high))
+
+(library
+ (name flambda_backend_common)
+ (wrapped false)
+ (modes byte native)
+ ; same flags as for ocamlcommon library
+ (flags
+  (-strict-sequence
+   -bin-annot
+   -safe-string
+   -strict-formats
+   -w
+   -67
+   ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
+   ))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (instrumentation
+  (backend bisect_ppx))
+ (libraries ocamlcommon dwarf_flags asm_targets)
+ (modules flambda_backend_args flambda_backend_flags))
+
+(executable
+ (name flambda_backend_main)
+ (modes byte)
+ (instrumentation
+  (backend bisect_ppx))
+ (libraries
+  flambda_backend_driver
+  memtrace
+  flambda2
+  flambda2_ui
+  flambda2_to_cmm
+  ocamloptcomp
+  ocamlcommon
+  unix)
+ (modules flambda_backend_main))
+
+(rule
+ (targets flambda_backend_main_native.ml)
+ (action
+  (copy driver/flambda_backend_main.ml %{targets})))
+
+(executable
+ (name flambda_backend_main_native)
+ (modes native)
+ (instrumentation
+  (backend bisect_ppx))
+ (ocamlopt_flags
+  (:standard -runtime-variant nnp))
+ (libraries
+  flambda_backend_driver
+  memtrace
+  flambda2
+  flambda2_ui
+  flambda2_to_cmm
+  ocamloptcomp
+  ocamlcommon
+  unix)
+ (modules flambda_backend_main_native))
+
+; CR sdolan: Could be faster if it was closure-only?
+
+(executable
+ (name boot_ocamlopt)
+ (modes native)
+ (instrumentation
+  (backend bisect_ppx))
+ ; We don't use [unix] in [libraries] as that causes ocaml/otherlibs/unix/
+ ; to be built against the system compiler, which won't work.
+ (ocamlc_flags unix.cma)
+ (ocamlopt_flags unix.cmxa)
+ (libraries
+  flambda_backend_driver
+  flambda2
+  flambda2_ui
+  flambda2_to_cmm
+  ocamloptcomp
+  ocamlcommon)
+ (modules boot_ocamlopt))
+
+; The input archives (.a, .cma and .cmxa) to the following three rules
+; must be kept in sync with each other and in a topological order.
+
+(rule
+ (targets ocamloptcomp_with_flambda2.a)
+ (action
+  (run
+   %{dep:tools/merge_dot_a_files.sh}
+   %{targets}
+   %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.a}
+   %{dep:backend/asm_targets/asm_targets.a}
+   %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.a}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.a}
+   %{dep:flambda_backend_common.a}
+   %{dep:utils/flambda_backend_utils.a}
+   %{dep:middle_end/flambda2/import/flambda2_import.a}
+   %{dep:middle_end/flambda2/ui/flambda2_ui.a}
+   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.a}
+   %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
+   %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.a}
+   %{dep:middle_end/flambda2/nominal/flambda2_nominal.a}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.a}
+   %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.a}
+   %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.a}
+   %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.a}
+   %{dep:middle_end/flambda2/types/flambda2_types.a}
+   %{dep:middle_end/flambda2/terms/flambda2_terms.a}
+   %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.a}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
+   %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
+   %{dep:middle_end/flambda2/parser/flambda2_parser.a}
+   %{dep:external/owee/compiler_owee.a}
+   %{dep:external/gc-timings/gc_timings.a}
+   %{dep:ocamloptcomp.a}
+   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.a}
+   %{dep:middle_end/flambda2/flambda2.a})))
+
+(rule
+ (targets ocamloptcomp_with_flambda2.cma)
+ (action
+  (run
+   %{dep:tools/merge_archives.exe}
+   %{targets}
+   %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cma}
+   %{dep:backend/asm_targets/asm_targets.cma}
+   %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cma}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cma}
+   %{dep:flambda_backend_common.cma}
+   %{dep:utils/flambda_backend_utils.cma}
+   %{dep:middle_end/flambda2/import/flambda2_import.cma}
+   %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
+   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cma}
+   %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
+   %{dep:middle_end/flambda2/kinds/flambda2_kinds.cma}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cma}
+   %{dep:middle_end/flambda2/nominal/flambda2_nominal.cma}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.cma}
+   %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cma}
+   %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cma}
+   %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.cma}
+   %{dep:middle_end/flambda2/types/flambda2_types.cma}
+   %{dep:middle_end/flambda2/terms/flambda2_terms.cma}
+   %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cma}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.cma}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
+   %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
+   %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
+   %{dep:external/owee/compiler_owee.cma}
+   %{dep:external/gc-timings/gc_timings.cma}
+   %{dep:ocamloptcomp.cma}
+   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cma}
+   %{dep:middle_end/flambda2/flambda2.cma})))
+
+(rule
+ (targets ocamloptcomp_with_flambda2.cmxa)
+ (action
+  (run
+   %{dep:tools/merge_archives.exe}
+   %{targets}
+   %{dep:backend/debug/dwarf/dwarf_flags/dwarf_flags.cmxa}
+   %{dep:backend/asm_targets/asm_targets.cmxa}
+   %{dep:backend/debug/dwarf/dwarf_low/dwarf_low.cmxa}
+   %{dep:backend/debug/dwarf/dwarf_high/dwarf_high.cmxa}
+   %{dep:flambda_backend_common.cmxa}
+   %{dep:utils/flambda_backend_utils.cmxa}
+   %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
+   %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
+   %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
+   %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cmxa}
+   %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
+   %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
+   %{dep:middle_end/flambda2/identifiers/flambda2_identifiers.cmxa}
+   %{dep:middle_end/flambda2/nominal/flambda2_nominal.cmxa}
+   %{dep:middle_end/flambda2/lattices/flambda2_lattices.cmxa}
+   %{dep:middle_end/flambda2/bound_identifiers/flambda2_bound_identifiers.cmxa}
+   %{dep:middle_end/flambda2/term_basics/flambda2_term_basics.cmxa}
+   %{dep:middle_end/flambda2/classic_mode_types/flambda2_classic_mode_types.cmxa}
+   %{dep:middle_end/flambda2/types/flambda2_types.cmxa}
+   %{dep:middle_end/flambda2/terms/flambda2_terms.cmxa}
+   %{dep:middle_end/flambda2/simplify_shared/flambda2_simplify_shared.cmxa}
+   %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
+   %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
+   %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
+   %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
+   %{dep:external/owee/compiler_owee.cmxa}
+   %{dep:external/gc-timings/gc_timings.cmxa}
+   %{dep:ocamloptcomp.cmxa}
+   %{dep:middle_end/flambda2/to_cmm/flambda2_to_cmm.cmxa}
+   %{dep:middle_end/flambda2/flambda2.cmxa})))
+
 (install
- (section lib)
- (package ocaml)
  (files
-  (bytegen.mli as compiler-libs/bytegen.mli)
-  (bytelibrarian.mli as compiler-libs/bytelibrarian.mli)
-  (bytelink.mli as compiler-libs/bytelink.mli)
-  (bytepackager.mli as compiler-libs/bytepackager.mli)
-  (emitcode.mli as compiler-libs/emitcode.mli)
-  (compile.mli as compiler-libs/compile.mli)
-  (errors.mli as compiler-libs/errors.mli)
-  (printinstr.mli as compiler-libs/printinstr.mli)
-  (instruct.mli as compiler-libs/instruct.mli)
-  (opcodes.mli as compiler-libs/opcodes.mli)))
+  (flambda_backend_main.bc as ocamlopt.byte)
+  (flambda_backend_main_native.exe as ocamlopt.opt))
+ (section bin)
+ (package ocaml))
+
+(install
+ (files
+  (compilerlibs/META as compiler-libs/META)
+  (external/owee/libcompiler_owee_stubs.a
+   as
+   compiler-libs/libcompiler_owee_stubs.a)
+  (external/owee/libcompiler_owee_stubs.a
+   as
+   compiler-libs/libcompiler_owee_stubs_native.a)
+  (external/gc-timings/libgc_timings_stubs.a
+   as
+   compiler-libs/libgc_timings_stubs.a)
+  (external/gc-timings/libgc_timings_stubs.a
+   as
+   compiler-libs/libgc_timings_stubs_native.a)
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
+   as
+   compiler-libs/libflambda2_floats_stubs.a)
+  (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
+   as
+   compiler-libs/libflambda2_floats_stubs_native.a)
+  ; for special_dune compat
+  (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
+  (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
+  (ocamloptcomp_with_flambda2.a as compiler-libs/ocamloptcomp.a))
+ (section lib)
+ (package ocaml))
+
+(rule
+ (targets compiler-libs-installation.sexp)
+ (deps
+  ; Note that Dune doesn't allow globbing in the path part of the filename,
+  ; so this is a bit more repetitive than it could be. Also, as far as I can
+  ; tell, (glob_files_rec) simply doesn't work.
+  (glob_files *.mli)
+  (glob_files .ocamlbytecomp.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files .ocamlbytecomp.objs/native/*.cmx)
+  (glob_files .ocamlcommon.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files .ocamlcommon.objs/native/*.cmx)
+  (glob_files .ocamloptcomp.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files .ocamloptcomp.objs/native/*.cmx)
+  (glob_files
+   backend/asm_targets/.asm_targets.objs/byte/asm_targets.{cmi,cmo,cmt})
+  (glob_files_rec
+   backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx)
+  (glob_files middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
+  (glob_files
+   middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm{,__To_cmm}.{cmi,cmt})
+  (glob_files
+   .flambda_backend_common.objs/byte/flambda_backend_{args,flags}.{cmi,cmo,cmt,cmti})
+  (glob_files
+   .flambda_backend_common.objs/native/flambda_backend_{args,flags}.cmx)
+  backend/debug/dwarf/dwarf_flags/dwarf_flags.mli
+  (glob_files
+   backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/byte/dwarf_flags.{cmi,cmo,cmt,cmti})
+  backend/debug/dwarf/dwarf_flags/.dwarf_flags.objs/native/dwarf_flags.cmx
+  (glob_files
+   backend/debug/dwarf/dwarf_low/.dwarf_low.objs/byte/*.{cmi,cmo,cmt})
+  (glob_files backend/debug/dwarf/dwarf_low/.dwarf_low.objs/native/*.cmx)
+  (glob_files
+   backend/debug/dwarf/dwarf_high/.dwarf_high.objs/byte/*.{cmi,cmo,cmt})
+  (glob_files backend/debug/dwarf/dwarf_high/.dwarf_high.objs/native/*.cmx)
+  (glob_files backend/debug/dwarf/dwarf_ocaml/.dwarf_ocaml.objs/native/*.cmx)
+  (glob_files external/owee/.compiler_owee.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files external/owee/.compiler_owee.objs/native/*.cmx)
+  (glob_files
+   external/gc-timings/.gc_timings.objs/byte/gc_timings.{cmi,cmti})
+  external/gc-timings/.gc_timings.objs/native/gc_timings.cmx)
+ (action
+  (with-stdout-to
+   compiler-libs-installation.sexp
+   (run tools/gen_compiler_libs_installation.exe %{deps}))))
 
 (install
  (section lib)
  (package ocaml)
  (files
-  (config.mli as compiler-libs/config.mli)
-  (build_path_prefix_map.mli as compiler-libs/build_path_prefix_map.mli)
-  (misc.mli as compiler-libs/misc.mli)
-  (identifiable.mli as compiler-libs/identifiable.mli)
-  (numbers.mli as compiler-libs/numbers.mli)
-  (arg_helper.mli as compiler-libs/arg_helper.mli)
-  (zero_alloc_annotations.mli as compiler-libs/zero_alloc_annotations.mli)
-  (clflags.mli as compiler-libs/clflags.mli)
-  (language_extension.mli as compiler-libs/language_extension.mli)
-  (profile.mli as compiler-libs/profile.mli)
-  (profile_counters_functions.mli
-   as
-   compiler-libs/profile_counters_functions.mli)
-  (terminfo.mli as compiler-libs/terminfo.mli)
-  (ccomp.mli as compiler-libs/ccomp.mli)
-  (warnings.mli as compiler-libs/warnings.mli)
-  (consistbl.mli as compiler-libs/consistbl.mli)
-  (strongly_connected_components.mli
-   as
-   compiler-libs/strongly_connected_components.mli)
-  (targetint.mli as compiler-libs/targetint.mli)
-  (target_system.mli as compiler-libs/target_system.mli)
-  (load_path.mli as compiler-libs/load_path.mli)
-  (int_replace_polymorphic_compare.mli
-   as
-   compiler-libs/int_replace_polymorphic_compare.mli)
-  (location.mli as compiler-libs/location.mli)
-  (longident.mli as compiler-libs/longident.mli)
-  (docstrings.mli as compiler-libs/docstrings.mli)
-  (syntaxerr.mli as compiler-libs/syntaxerr.mli)
-  (ast_helper.mli as compiler-libs/ast_helper.mli)
-  (camlinternalMenhirLib.mli as compiler-libs/camlinternalMenhirLib.mli)
-  (parser.mli as compiler-libs/parser.mli)
-  (lexer.mli as compiler-libs/lexer.mli)
-  (parse.mli as compiler-libs/parse.mli)
-  (printast.mli as compiler-libs/printast.mli)
-  (pprintast.mli as compiler-libs/pprintast.mli)
-  (ast_mapper.mli as compiler-libs/ast_mapper.mli)
-  (ast_iterator.mli as compiler-libs/ast_iterator.mli)
-  (attr_helper.mli as compiler-libs/attr_helper.mli)
-  (builtin_attributes.mli as compiler-libs/builtin_attributes.mli)
-  (ast_invariants.mli as compiler-libs/ast_invariants.mli)
-  (depend.mli as compiler-libs/depend.mli)
-  (asttypes.mli as compiler-libs/asttypes.mli)
-  (parsetree.mli as compiler-libs/parsetree.mli)
-  (ident.mli as compiler-libs/ident.mli)
-  (path.mli as compiler-libs/path.mli)
-  (jkind.mli as compiler-libs/jkind.mli)
-  (jkind_types.mli as compiler-libs/jkind_types.mli)
-  (primitive.mli as compiler-libs/primitive.mli)
-  (zero_alloc.mli as compiler-libs/zero_alloc.mli)
-  (types.mli as compiler-libs/types.mli)
-  (btype.mli as compiler-libs/btype.mli)
-  (binutils.mli as compiler-libs/binutils.mli)
-  (local_store.mli as compiler-libs/local_store.mli)
-  (patterns.mli as compiler-libs/patterns.mli)
-  (oprint.mli as compiler-libs/oprint.mli)
-  (subst.mli as compiler-libs/subst.mli)
-  (predef.mli as compiler-libs/predef.mli)
-  (datarepr.mli as compiler-libs/datarepr.mli)
-  (cmi_format.mli as compiler-libs/cmi_format.mli)
-  (persistent_env.mli as compiler-libs/persistent_env.mli)
-  (env.mli as compiler-libs/env.mli)
-  (typedtree.mli as compiler-libs/typedtree.mli)
-  (printtyped.mli as compiler-libs/printtyped.mli)
-  (ctype.mli as compiler-libs/ctype.mli)
-  (printtyp.mli as compiler-libs/printtyp.mli)
-  (includeclass.mli as compiler-libs/includeclass.mli)
-  (mtype.mli as compiler-libs/mtype.mli)
-  (envaux.mli as compiler-libs/envaux.mli)
-  (includecore.mli as compiler-libs/includecore.mli)
-  (tast_iterator.mli as compiler-libs/tast_iterator.mli)
-  (tast_mapper.mli as compiler-libs/tast_mapper.mli)
-  (cmt_format.mli as compiler-libs/cmt_format.mli)
-  (cms_format.mli as compiler-libs/cms_format.mli)
-  (untypeast.mli as compiler-libs/untypeast.mli)
-  (includemod.mli as compiler-libs/includemod.mli)
-  (typemode.mli as compiler-libs/typemode.mli)
-  (jkind_axis.mli as compiler-libs/jkind_axis.mli)
-  (typetexp.mli as compiler-libs/typetexp.mli)
-  (printpat.mli as compiler-libs/printpat.mli)
-  (parmatch.mli as compiler-libs/parmatch.mli)
-  (stypes.mli as compiler-libs/stypes.mli)
-  (typedecl.mli as compiler-libs/typedecl.mli)
-  (typeopt.mli as compiler-libs/typeopt.mli)
-  (value_rec_check.mli as compiler-libs/value_rec_check.mli)
-  (typecore.mli as compiler-libs/typecore.mli)
-  (solver.mli as compiler-libs/solver.mli)
-  (mode.mli as compiler-libs/mode.mli)
-  (uniqueness_analysis.mli as compiler-libs/uniqueness_analysis.mli)
-  (typeclass.mli as compiler-libs/typeclass.mli)
-  (typemod.mli as compiler-libs/typemod.mli)
-  (typedecl_variance.mli as compiler-libs/typedecl_variance.mli)
-  (typedecl_properties.mli as compiler-libs/typedecl_properties.mli)
-  (typedecl_separability.mli as compiler-libs/typedecl_separability.mli)
-  (annot.mli as compiler-libs/annot.mli)
-  (outcometree.mli as compiler-libs/outcometree.mli)
-  (debuginfo.mli as compiler-libs/debuginfo.mli)
-  (lambda.mli as compiler-libs/lambda.mli)
-  (matching.mli as compiler-libs/matching.mli)
-  (printlambda.mli as compiler-libs/printlambda.mli)
-  (runtimedef.mli as compiler-libs/runtimedef.mli)
-  (runtimetags.mli as compiler-libs/runtimetags.mli)
-  (value_rec_compiler.mli as compiler-libs/value_rec_compiler.mli)
-  (simplif.mli as compiler-libs/simplif.mli)
-  (switch.mli as compiler-libs/switch.mli)
-  (translmode.mli as compiler-libs/translmode.mli)
-  (translattribute.mli as compiler-libs/translattribute.mli)
-  (translclass.mli as compiler-libs/translclass.mli)
-  (translcore.mli as compiler-libs/translcore.mli)
-  (translmod.mli as compiler-libs/translmod.mli)
-  (translobj.mli as compiler-libs/translobj.mli)
-  (translprim.mli as compiler-libs/translprim.mli)
-  (meta.mli as compiler-libs/meta.mli)
-  (bytesections.mli as compiler-libs/bytesections.mli)
-  (dll.mli as compiler-libs/dll.mli)
-  (symtable.mli as compiler-libs/symtable.mli)
-  (pparse.mli as compiler-libs/pparse.mli)
-  (main_args.mli as compiler-libs/main_args.mli)
-  (compenv.mli as compiler-libs/compenv.mli)
-  (compmisc.mli as compiler-libs/compmisc.mli)
-  (makedepend.mli as compiler-libs/makedepend.mli)
-  (compile_common.mli as compiler-libs/compile_common.mli)
-  (cmo_format.mli as compiler-libs/cmo_format.mli)
-  (debug_event.mli as compiler-libs/debug_event.mli)
-  (domainstate.mli as compiler-libs/domainstate.mli)
-  (compilation_unit.mli as compiler-libs/compilation_unit.mli)
-  (linkage_name.mli as compiler-libs/linkage_name.mli)
-  (symbol.mli as compiler-libs/symbol.mli)
-  (zero_alloc_utils.mli as compiler-libs/zero_alloc_utils.mli)))
+  (include compiler-libs-installation.sexp)))

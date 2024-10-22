@@ -18,6 +18,13 @@
   (modules objinfo)
   (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
 
+(install
+ (files
+  (objinfo.bc as ocamlobjinfo.byte)
+  (objinfo.exe as ocamlobjinfo.opt))
+ (section bin)
+ (package ocaml))
+
 (executables
  (names   make_opcodes cvt_emit)
  (modules make_opcodes cvt_emit))
@@ -130,3 +137,31 @@
           (run awk "{ print \"install_printer Debug_printers.\" $2 }"))))))
 
 ; ocamlcp, ocamloptp and ocamlprof are not currently supported.
+
+(executable
+ (name generate_cached_generic_functions)
+ (modes byte native)
+ (modules generate_cached_generic_functions)
+ ; FIXME Fix warnings 27 and 33 and 60
+ (flags
+  (:standard -w -27-33-60-69-70))
+ (libraries ocamlcommon ocamloptcomp unix memtrace))
+
+(install
+ (files generate_cached_generic_functions.exe)
+ (section bin)
+ (package ocaml))
+
+(executable
+ (name merge_archives)
+ (modes native)
+ (modules merge_archives)
+ ; FIXME Fix warning 27
+ (flags
+  (:standard -w -27))
+ (libraries ocamlcommon ocamlbytecomp ocamloptcomp))
+
+(executable
+ (name gen_compiler_libs_installation)
+ (modes native)
+ (modules gen_compiler_libs_installation))
