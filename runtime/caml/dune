@@ -28,14 +28,14 @@
  (deps
   instruct.h
   ../../stdlib/StdlibModules
-  ../../Makefile
+  ../../Makefile.upstream
   ../../Makefile.common
   ../../Makefile.config
   ../../Makefile.build_config
   ../../Makefile.config_if_required
   ../../Makefile.best_binaries)
  (action
-  (run make -s -C ../.. COMPUTE_DEPS=false runtime/caml/opnames.h)))
+  (run make -s -f Makefile.upstream -C ../.. COMPUTE_DEPS=false runtime/caml/opnames.h)))
 
 (rule
  (targets version.h)

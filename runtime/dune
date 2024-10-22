@@ -16,7 +16,7 @@
 
 (rule
   (targets sak)
-  (deps ../Makefile ../.depend ../Makefile.menhir ../Makefile.best_binaries
+  (deps ../Makefile.upstream ../.depend ../Makefile.menhir ../Makefile.best_binaries
     ../stdlib/StdlibModules ../.depend.menhir ../config.status
     ../Makefile.common ../Makefile.config_if_required
     ../Makefile.build_config ../Makefile.config sak.c
@@ -25,18 +25,18 @@
   (action
     (progn
      (bash "rm -f sak")
-     (bash "cd .. && make V=1 'SAK_LINK=cc -o $(1) $(2)' COMPUTE_DEPS=false runtime/sak")
+     (bash "cd .. && make -f Makefile.upstream V=1 'SAK_LINK=cc -o $(1) $(2)' COMPUTE_DEPS=false runtime/sak")
     )
   ))
 
 (rule
   (targets build_config.h)
   (mode fallback)
-  (deps sak ../Makefile)
+  (deps sak ../Makefile.upstream)
   (action
     (progn
      (bash "rm -f build_config.h")
-     (bash "cd .. && make V=1 runtime/build_config.h")
+     (bash "cd .. && make V=1 -f Makefile.upstream COMPUTE_DEPS=false runtime/build_config.h")
     )
   ))
 
@@ -69,7 +69,7 @@
    ../Makefile.config
    ../Makefile.build_config
    ../Makefile.config_if_required
-   ../Makefile.common ../Makefile
+   ../Makefile.common ../Makefile.upstream
    ../Makefile.menhir
    ../.depend
    ../.depend.menhir
@@ -89,7 +89,7 @@
    (progn
      (bash "touch .depend") ; hack.
      (bash "rm -f sak build_config.h") ; hack
-     (bash "cd .. && make V=1 -j8 runtime/libasmrun.a runtime/libasmrund.a runtime/libasmruni.a runtime/libasmrun_pic.a \
+     (bash "cd .. && make V=1 -j8 -f Makefile.upstream runtime/libasmrun.a runtime/libasmrund.a runtime/libasmruni.a runtime/libasmrun_pic.a \
     runtime/libasmrun_shared.so runtime/libcamlrun.a runtime/libcamlrund.a runtime/libcamlruni.a runtime/libcamlrun_pic.a \
     runtime/libcamlrun_shared.so runtime/ocamlrun runtime/ocamlrund runtime/ocamlruni runtime/ld.conf COMPUTE_DEPS=false")
      (bash "rm .depend")))))

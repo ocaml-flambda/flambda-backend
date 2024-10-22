@@ -61,7 +61,7 @@ boot_targets = \
   $(boot_ocamlmklib) \
   $(boot_ocamldep) \
   $(boot_ocamlobjinfo) \
-  ocaml/ocamltest/ocamltest.native
+  ocamltest/ocamltest.native
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
@@ -83,11 +83,11 @@ compiler: runtime-stdlib
           ASPP="$(ASPP)" ASPPFLAGS="$(ASPPFLAGS)" \
           $(dune) build $(ws_main) \
           --only-package=ocaml @install \
-          testsuite/tools/expect.exe \
-          testsuite/tools/codegen_main.exe \
-          testsuite/tools/asmgen_$(ARCH).o \
-          ocaml/testsuite/lib/lib.cm{,x}a \
-          ocaml/testsuite/lib/testing.cm{,x}a \
+          flambda-backend/testsuite/tools/expect.exe \
+          flambda-backend/testsuite/tools/codegen_main.exe \
+          flambda-backend/testsuite/tools/asmgen_$(ARCH).o \
+          testsuite/lib/lib.cm{,x}a \
+          testsuite/lib/testing.cm{,x}a \
           $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
@@ -194,11 +194,8 @@ _install: compiler
 	for file in $(toplevels_installed); do \
 	  cp -f _install/lib/ocaml/compiler-libs/$${file}dirs.{cmi,mli,cmt,cmti} _install/lib/ocaml; \
 	done
-	shopt -s nullglob; for file in _build/main/$(ocamldir)/.ocaml{bytecomp,common,middleend,optcomp}.objs/{byte/*.{cmi,cma,cmt,cmti},native/*.{cmx,cmxa,cmxs}}; do \
-	  $(cpl) $$file _install/lib/ocaml/compiler-libs/ ; \
-	done
 	mkdir _install/lib/stublibs
-	cp _build/main/ocaml/parser.cmly _install/lib/ocaml/compiler-libs/
+	cp _build/main/parser.cmly _install/lib/ocaml/compiler-libs/
 	find _build/main/ \( -name "flambda2*.cmi" \
           -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
           -exec cp -f {} _install/lib/ocaml/compiler-libs \;
@@ -227,38 +224,38 @@ install_for_test: _install
 	$(cpl) -a $(ocamldir)/testsuite _runtest/testsuite
 	 # replace backend-specific testsuite/tools with their new versions
 	rm -f _runtest/testsuite/tools/*
-	cp -a testsuite/tools/* _runtest/testsuite/tools/
-	cp $(main_build)/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
+	cp -a flambda-backend/testsuite/tools/* _runtest/testsuite/tools/
+	cp $(main_build)/flambda-backend/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
 	chmod 755 _runtest/testsuite/tools/expect
-	cp $(main_build)/testsuite/tools/codegen_main.exe \
+	cp $(main_build)/flambda-backend/testsuite/tools/codegen_main.exe \
           _runtest/testsuite/tools/codegen
 	chmod 755 _runtest/testsuite/tools/codegen
-	cp $(main_build)/testsuite/tools/asmgen_*.o \
+	cp $(main_build)/flambda-backend/testsuite/tools/asmgen_*.o \
           _runtest/testsuite/tools/
-	cp $(main_build)/ocaml/testsuite/lib/lib.{a,cmxa,cma} \
+	cp $(main_build)/testsuite/lib/lib.{a,cmxa,cma} \
           _runtest/testsuite/lib/
-	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/byte/lib.cm* \
+	cp $(main_build)/testsuite/lib/.lib.objs/byte/lib.cm* \
           _runtest/testsuite/lib/
-	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/native/lib.cm* \
+	cp $(main_build)/testsuite/lib/.lib.objs/native/lib.cm* \
           _runtest/testsuite/lib/
-	cp $(main_build)/ocaml/testsuite/lib/testing.{a,cmxa,cma} \
+	cp $(main_build)/testsuite/lib/testing.{a,cmxa,cma} \
           _runtest/testsuite/lib/
-	cp $(main_build)/ocaml/testsuite/lib/.testing.objs/byte/testing.cm* \
+	cp $(main_build)/testsuite/lib/.testing.objs/byte/testing.cm* \
           _runtest/testsuite/lib/
-	cp $(main_build)/ocaml/testsuite/lib/.testing.objs/native/testing.cm* \
+	cp $(main_build)/testsuite/lib/.testing.objs/native/testing.cm* \
           _runtest/testsuite/lib/
 	 # replace backend-specific testsuite/tests/asmcomp with their new versions
 	rm _runtest/testsuite/tests/asmcomp/*
-	cp -a testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
+	cp -a flambda-backend/testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
 	 # replace backend-specific testsuite/tests/asmgen with their new versions
 	rm _runtest/testsuite/tests/asmgen/*
-	cp -a testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
+	cp -a flambda-backend/testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
 	 # replace backend-specific testsuite/tests/unboxed-primitive-args with their new versions
 	rm _runtest/testsuite/tests/unboxed-primitive-args/*
-	cp -a testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
+	cp -a flambda-backend/testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
 	 # add extension library tests that are not supported by the upstream compiler
 	rm _runtest/testsuite/tests/lib-extensions/*
-	cp -a testsuite/tests/lib-extensions/* _runtest/testsuite/tests/lib-extensions
+	cp -a flambda-backend/testsuite/tests/lib-extensions/* _runtest/testsuite/tests/lib-extensions
 
 	cp $(ocamldir)/Makefile.* _runtest/
 
@@ -335,11 +332,11 @@ install_for_test: _install
 	# cp $(main_build)/$(ocamldir)/ocamldoc/.odoc_lib.objs/byte/*.cm* _runtest/ocamldoc
 	# ocamltest itself
 	mkdir _runtest/ocamltest
-	cp $(boot_build)/ocaml/ocamltest/ocamltest.native _runtest/ocamltest/ocamltest
+	cp $(boot_build)/ocamltest/ocamltest.native _runtest/ocamltest/ocamltest
 test: install_for_test
 	if [ "$(middle_end)" = "flambda2" ]; then \
-	  for dir in `cd ocaml/testsuite; ls -1 -d tests/*`; do \
-	    if ! grep -q "^  $$dir " testsuite/flambda2-test-list; then \
+	  for dir in `cd testsuite; ls -1 -d tests/*`; do \
+	    if ! grep -q "^  $$dir " flambda-backend/testsuite/flambda2-test-list; then \
 	      echo "  $$dir"; \
 	    fi; \
 	  done > _runtest/flambda2-test-list; \

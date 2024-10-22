@@ -13,4 +13,4 @@
 (*                                                                        *)
 (**************************************************************************)
 
-let _ = Stdlib.exit (Opttopmain.main())
+let _ = Stdlib.exit (Topmain.main())
