@@ -328,3 +328,8 @@ const char * __tsan_default_suppressions(void) {
          "deadlock:pthread_mutex_lock\n"; /* idem */
 }
 #endif /* WITH_THREAD_SANITIZER */
+
+CAMLprim value caml_no_bytecode_impl(void)
+{
+  caml_failwith("No bytecode implementation provided for this external");
+}
