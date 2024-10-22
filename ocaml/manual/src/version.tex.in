@@ -1,2 +1,0 @@
-% @configure_input@
-\def\ocamlversion{@OCAML_VERSION_SHORT@}

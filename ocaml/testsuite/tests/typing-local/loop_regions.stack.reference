@@ -1,8 +1,0 @@
-                local for: [0; 2; 2]
-            non-local for: [0; 2; 0]
-         local while body: [0; 2; 2]
-      nonlocal while body: [0; 2; 0]
-         local while cond: [0; 2; 2]
-      nonlocal while cond: [0; 2; 0]
-               local func: [0; 2; 2]
-            nonlocal func: [0; 2; 0]

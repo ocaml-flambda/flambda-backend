@@ -1,3 +1,0 @@
-File "libc/c1.ml", line 1:
-Error: The files "libb/b.cmi" and "liba_alt/a.cmi" make inconsistent assumptions
-       over interface "A"

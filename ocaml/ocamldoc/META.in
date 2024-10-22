@@ -1,5 +1,0 @@
-# @configure_input@
-
-version = "@VERSION@"
-description = "ocamldoc plugin interface"
-requires = "compiler-libs"

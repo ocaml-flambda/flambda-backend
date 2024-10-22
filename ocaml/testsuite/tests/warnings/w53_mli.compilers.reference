@@ -1,4 +1,0 @@
-File "w53_mli.mli", line 14, characters 15-25:
-14 | val a1 : int [@deprecated]   (* rejected *)
-                    ^^^^^^^^^^
-Warning 53 [misplaced-attribute]: the "deprecated" attribute cannot appear in this context
