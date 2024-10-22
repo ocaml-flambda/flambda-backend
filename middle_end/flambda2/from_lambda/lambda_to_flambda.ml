@@ -779,7 +779,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punbox_float _
   | Pbox_vector (_, _)
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
-  | Punboxed_product_field _ | Pget_header _ ->
+  | Punboxed_product_field _ | Pget_header _ | Preuseblock _
+  | Preusefloatblock _ | Preuseufloatblock _ | Preusemixedblock _ ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)

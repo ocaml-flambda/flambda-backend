@@ -325,6 +325,19 @@ type primitive =
   | Pdls_get
   (* Poll for runtime actions *)
   | Ppoll
+  (* In-place reuse of heap blocks *)
+  | Preuseblock of { tag : int; mut : mutable_flag; shape : block_shape;
+                     resets : reset_field list; mode : locality_mode }
+  | Preusefloatblock of { mut : mutable_flag; resets : reset_field list;
+                          mode : locality_mode }
+  | Preuseufloatblock of { mut : mutable_flag; resets : reset_field list;
+                           mode : locality_mode }
+  | Preusemixedblock of { tag : int; mut : mutable_flag; shape : mixed_block_shape;
+                          resets : reset_field list; mode : locality_mode }
+
+and reset_field =
+  | Reuse_set_to of value_kind
+  | Reuse_keep_old
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
@@ -1632,6 +1645,12 @@ let find_exact_application kind ~arity args =
           if arity <> List.length tupled_args
           then None
           else Some tupled_args
+      (* CR uniqueness: this allocation is removed by the simplifier and
+         we should warn the user that their reuse is meaningless. *)
+      | [Lprim(Preuseblock _, tupled_args, _)] ->
+        if arity <> List.length tupled_args
+        then None
+        else Some tupled_args
       | [Lconst(Const_block (_, const_args))] ->
           if arity <> List.length const_args
           then None
@@ -1679,6 +1698,12 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pmakefloatblock (_, m) -> Some m
   | Pmakeufloatblock (_, m) -> Some m
   | Pmakemixedblock (_, _, _, m) -> Some m
+  (* CR uniqueness: the four Preuseblock cases should return None
+     once overwriting is implemented in the backend. *)
+  | Preuseblock { mode } -> Some mode
+  | Preusefloatblock { mode } -> Some mode
+  | Preuseufloatblock { mode } -> Some mode
+  | Preusemixedblock { mode } -> Some mode
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
@@ -1910,6 +1935,7 @@ let primitive_result_layout (p : primitive) =
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _ -> layout_module_field
   | Pmakeblock _ | Pmakefloatblock _ | Pmakearray _ | Pduprecord _
   | Pmakeufloatblock _ | Pmakemixedblock _
+  | Preuseblock _ | Preusefloatblock _ | Preuseufloatblock _ | Preusemixedblock _
   | Pduparray _ | Pbigarraydim _ | Pobj_dup -> layout_block
   | Pfield _ | Pfield_computed _ -> layout_value_field
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
