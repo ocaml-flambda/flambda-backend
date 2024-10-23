@@ -680,8 +680,8 @@ let optimise_allocations () =
     allocation to be overwritten. The complexity arises here because the
     allocation can consist of both a constructor and an inlined record. *)
 type overwrite_state =
-  | ExpectAllocation      (* we expect an allocation *)
-  | ExpectFieldAssignment (* we expect a concrete value or hole *)
+  | Expect_allocation       (* we expect a tuple/constructor/record/inlined record *)
+  | Expect_field_assignment (* we expect a concrete value or hole *)
 
 type overwrite =
   | No_overwrite
@@ -692,14 +692,8 @@ type overwrite =
       overwrite_state   (* state in the overwrite *)
 
 let assign_children n f = function
-  | Overwriting(loc, typ, mode, ExpectAllocation) -> f loc typ mode
+  | Overwriting(loc, typ, mode, Expect_allocation) -> f loc typ mode
   | _ -> List.init n (fun _ -> No_overwrite)
-
-let mk_overwrite ~recarg loc typ mode =
-  Overwriting(loc, typ, mode,
-              match recarg with
-              | Required -> ExpectAllocation
-              | Allowed | Rejected -> ExpectFieldAssignment)
 
 let rec can_be_overwritten = function
   | Pexp_constraint (e, _, _) -> can_be_overwritten e.pexp_desc
@@ -5697,9 +5691,9 @@ and type_expect_
           match opt_exp with
           | None ->
             begin match overwrite with
-            | No_overwrite -> None
-            | Overwriting (loc, ty, _, _) ->
+            | Overwriting (loc, ty, _, Expect_allocation) ->
                 extract_record loc ty (Expr_not_a_record_type ty)
+            | (No_overwrite | Overwriting(_, _, _, Expect_field_assignment)) -> None
             end
           | Some (exp, _) ->
               extract_record exp.exp_loc exp.exp_type
@@ -5747,9 +5741,10 @@ and type_expect_
           (fun loc ty mode -> (* only change mode here, see type_label_exp *)
              List.map (fun (_, label, _) ->
                let mode = Modality.Value.Const.apply label.lbl_modalities mode in
-               (* We allow type_label_exp to specialize the overwrite again by
-                  passing recarg as Required. *)
-               mk_overwrite ~recarg:Required loc ty mode ) lbl_a_list)
+               (* We pass Expect_allocation to allow type_label_exp
+                  to specialize the overwrite again *)
+               Overwriting(loc, ty, mode, Expect_allocation))
+             lbl_a_list)
           overwrite
       in
       let lbl_exp_list = List.map2 type_label_exp overwrites lbl_a_list in
@@ -5797,7 +5792,7 @@ and type_expect_
             end
         in
         match opt_exp, overwrite with
-          None, No_overwrite ->
+          None, (No_overwrite | Overwriting (_, _, _, Expect_field_assignment)) ->
             let label_definitions =
               Array.map (fun lbl ->
                   match matching_label lbl with
@@ -5820,7 +5815,7 @@ and type_expect_
                 lbl.lbl_all
             in
             None, label_definitions
-        | None, Overwriting (exp_loc, exp_type, mode, _) ->
+        | None, Overwriting (exp_loc, exp_type, mode, Expect_allocation) ->
             let ty_exp = instance exp_type in
             let label_definitions =
               Array.map (unify_kept loc exp_loc ty_exp mode) lbl.lbl_all
@@ -6645,7 +6640,7 @@ and type_expect_
             |> Value.disallow_right
         in
         let overwrite =
-          Overwriting (exp1.exp_loc, exp1.exp_type, fields_mode, ExpectAllocation)
+          Overwriting (exp1.exp_loc, exp1.exp_type, fields_mode, Expect_allocation)
         in
         type_expect ~recarg ~overwrite env exp2_mode exp2 ty_expected_explained
       in
@@ -6656,7 +6651,7 @@ and type_expect_
             exp_env = env }
   | Pexp_hole ->
       begin match overwrite with
-      | Overwriting(_loc, typ, fields_mode, _) ->
+      | Overwriting(_loc, typ, fields_mode, Expect_field_assignment) ->
         assert (Language_extension.is_enabled Overwriting);
         with_explanation (fun () -> unify_exp_types loc env typ (instance ty_expected));
         submode ~loc ~env fields_mode expected_mode;
@@ -7537,7 +7532,7 @@ and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_m
                end
                  ~post:generalize_structure
              in
-             [mk_overwrite ~recarg:Rejected loc ty_arg mode])
+             [Overwriting(loc, ty_arg, mode, Expect_field_assignment)])
           overwrite)
       in
       let arg = type_argument ~overwrite env arg_mode sarg ty_arg (instance ty_arg) in
@@ -8013,7 +8008,7 @@ and type_tuple ~overwrite ~loc ~env ~(expected_mode : expected_mode) ~ty_expecte
     with_explanation explanation (fun () ->
       unify_exp_types loc env to_unify typ);
     List.map
-      (fun (_, typ) -> mk_overwrite ~recarg:Rejected loc typ mode)
+      (fun (_, typ) -> Overwriting(loc, typ, mode, Expect_field_assignment))
       labeled_subtypes)
     overwrite
   in
@@ -8230,7 +8225,12 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
          in
          List.map (fun ty_arg ->
            let mode = Modality.Value.Const.apply ty_arg.Types.ca_modalities mode in
-           mk_overwrite ~recarg loc ty_arg.Types.ca_type mode) ty_args)
+           let status = match recarg with
+             | Required -> Expect_allocation
+             | Allowed | Rejected -> Expect_field_assignment
+           in
+           Overwriting(loc, ty_arg.Types.ca_type, mode, status))
+         ty_args)
       overwrite
   in
   let args =

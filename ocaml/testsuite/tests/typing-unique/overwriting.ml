@@ -462,6 +462,11 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+type nested_record = Nested of { x : int }
+[%%expect{|
+type nested_record = Nested of { x : int; }
+|}]
+
 let nested_update (t : int * (string * int)) =
   overwrite_ t with (3, ("", _))
 [%%expect{|
@@ -469,6 +474,24 @@ Line 2, characters 29-30:
 2 |   overwrite_ t with (3, ("", _))
                                  ^
 Error: Syntax error: "wildcard "_"" not expected.
+|}]
+
+let nested_update (t : int * record_update) =
+  overwrite_ t with (3, {x = _; y = _})
+[%%expect{|
+Line 2, characters 29-30:
+2 |   overwrite_ t with (3, {x = _; y = _})
+                                 ^
+Error: Syntax error: "wildcard "_"" not expected.
+|}]
+
+let nested_update t =
+  overwrite_ t with Nested (_)
+[%%expect{|
+Line 2, characters 20-30:
+2 |   overwrite_ t with Nested (_)
+                        ^^^^^^^^^^
+Error: This constructor expects an inlined record argument.
 |}]
 
 let update_hole (t : int * (string * int)) =
