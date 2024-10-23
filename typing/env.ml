@@ -2882,18 +2882,18 @@ type _ load =
   | Load : module_data load
   | Don't_load : unit load
 
-let lookup_global_name_module
+let lookup_global_name_module_no_locks
       (type a) (load : a load) ~errors ~use ~loc name env =
+  let path = Pident(Ident.create_global name) in
   match load with
   | Don't_load ->
       check_pers_mod ~allow_hidden:false ~loc name;
-      (() : a)
+      path, (() : a)
   | Load -> begin
       match find_pers_mod ~allow_hidden:false name with
       | mda ->
-          let path = Pident(Ident.create_global name) in
           use_module ~use ~loc path mda;
-          (mda : a)
+          path, (mda : a)
       | exception Not_found ->
           let s = Global_module.Name.to_string name in
           may_lookup_error errors loc env (Unbound_module (Lident s))
@@ -2921,8 +2921,8 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
       (* This is only used when processing [Longident.t]s, which never have
          instance arguments *)
       let name = Global_module.Name.create_no_args s in
-      let a =
-        lookup_global_name_module load ~errors ~use ~loc name env
+      let path, a =
+        lookup_global_name_module_no_locks load ~errors ~use ~loc name env
       in
       path, locks, a
     end
@@ -3492,16 +3492,22 @@ let lookup_module_path ~errors ~use ~lock ~loc ~load lid env : Path.t * _ =
   path, vmode
 
 let lookup_module_instance_path ~errors ~use ~lock ~loc ~load name env =
-  (* Perform all the same side effects that a lookup on a global would have *)
-  if !Clflags.transparent_modules && not load then
-    lookup_global_name_module Don't_load ~errors ~use ~loc name env
-  else
-    ignore
-      (lookup_global_name_module Load ~errors ~use ~loc name env : module_data);
-  let path = Pident (Ident.create_global name) in
   (* The locks are whatever locks we would find if we went through
      [lookup_module_path] on a module not found in the environment *)
   let locks = IdTbl.get_all_locks env.modules in
+  (* Perform all the same side effects that a lookup on a global would have *)
+  let path =
+    if !Clflags.transparent_modules && not load then
+      let path, () =
+        lookup_global_name_module_no_locks Don't_load ~errors ~use ~loc name env
+      in
+      path
+    else
+      let path, (_ : module_data) =
+        lookup_global_name_module_no_locks Load ~errors ~use ~loc name env
+      in
+      path
+  in
   let vmode =
     let lid : Longident.t =
       (* This is only used for error reporting. Probably in the long term we
