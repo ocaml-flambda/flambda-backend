@@ -1,0 +1,12 @@
+Error: Failure("Plugin error")
+Raised at Stdlib.failwith in file "stdlib.ml", line 35, characters 17-33
+Called from Test10_plugin.g in file "test10_plugin.ml", line 3, characters 2-21
+Called from Test10_plugin.f in file "test10_plugin.ml", line 6, characters 2-6
+Called from Test10_plugin in file "test10_plugin.ml", line 10, characters 2-6
+Called from Dynlink_internal_byte.Bytecode.run in file "otherlibs/dynlink/dynlink.ml", line 179, characters 16-25
+Re-raised at Dynlink_internal_byte.Bytecode.run in file "otherlibs/dynlink/dynlink.ml", lines 181-183, characters 6-137
+Called from Dynlink_common.Make.load.(fun) in file "otherlibs/dynlink/dynlink_common.ml", line 382, characters 13-56
+Called from Stdlib__List.iter in file "list.ml", line 117, characters 12-15
+Called from Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", lines 378-387, characters 8-392
+Re-raised at Dynlink_common.Make.load in file "otherlibs/dynlink/dynlink_common.ml", line 391, characters 8-17
+Called from Test10_main in file "test10_main.ml", lines 51-53, characters 13-69

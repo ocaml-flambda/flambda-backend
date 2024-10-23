@@ -51,9 +51,9 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
     match Reg.Tbl.find_opt past_ranges reg with
     | None ->
       Reg.Tbl.replace past_ranges reg
-        { Interval.reg; begin_; end_; ranges = [range] }
+        { Interval.reg; begin_; end_; ranges = DLL.make_single range }
     | Some (interval : Interval.t) ->
-      interval.ranges <- range :: interval.ranges;
+      DLL.add_end interval.ranges range;
       interval.end_ <- end_
   in
   let update_range (reg : Reg.t) ~(begin_ : int) ~(end_ : int) : unit =
@@ -104,10 +104,6 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
          present at the end of every "block". *)
       incr pos);
   Reg.Tbl.iter (fun reg (range : Range.t) -> add_range reg range) current_ranges;
-  Reg.Tbl.iter
-    (fun _reg (interval : Interval.t) ->
-      interval.ranges <- List.rev interval.ranges)
-    past_ranges;
   if ls_debug && Lazy.force ls_verbose
   then
     iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
