@@ -1,4 +1,13 @@
-(* TEST *)
+(* TEST
+ {
+   runtime4;
+   skip;
+ }{
+   runtime5;
+   { bytecode; }
+   { native; }
+ }
+*)
 let num_domains = 2
 
 let release = Atomic.make false
