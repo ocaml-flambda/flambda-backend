@@ -15890,19 +15890,9 @@ case $arch in #(
     arch_specific_SOURCES='' ;;
 esac
 
-# Disabling of stack checks is only supported on amd64.
-if test x"$enable_stack_checks" = xyes
-then :
-  printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
+printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
 
-else $as_nop
-  if test x"$arch" != xamd64
-then :
-  enable_stack_checks=yes
-     printf "%s\n" "#define STACK_CHECKS_ENABLED 1" >>confdefs.h
-
-fi
-fi
+enable_stack_checks=yes
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
@@ -20884,14 +20874,9 @@ Please pass '--enable-stack-allocation=no'." "$LINENO" 5
 fi
 fi
 
-if test x"$enable_poll_insertion" = "xyes"
-then :
-  printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h
+printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h
 
-   poll_insertion=true
-else $as_nop
-  poll_insertion=false
-fi
+poll_insertion=true
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"
