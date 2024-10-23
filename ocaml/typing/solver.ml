@@ -627,6 +627,12 @@ module Solver_mono (C : Lattices_mono) = struct
           let src = C.src dst f in
           add_vlower_nocheck ~log src v u f')
         vupper_ge;
+      (* optimization: if lower = upper, we can remove vuppers and vlowers since the
+        information is as precise as it can get *)
+      if u.lower = u.upper then begin
+        set_vlower ~log u [];
+        set_vupper ~log u [];
+      end
     end
 
   let cnt_id = ref 0
