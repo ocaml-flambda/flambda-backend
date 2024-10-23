@@ -666,9 +666,9 @@ let update (unique_ r : tuple_unlabeled) : tuple_unlabeled =
   let x = overwrite_ r with ("foo", "bar", "baz") in
 x
 [%%expect{|
-Line 2, characters 21-22:
+Line 2, characters 28-49:
 2 |   let x = overwrite_ r with ("foo", "bar", "baz") in
-                         ^
+                                ^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a * 'b * 'c"
        but an expression was expected of type
          "tuple_unlabeled" = "string * string"
@@ -683,9 +683,9 @@ let update (unique_ r : tuple_labeled) : tuple_labeled =
   let x = overwrite_ r with (~x:"foo", _) in
   x
 [%%expect{|
-Line 2, characters 21-22:
+Line 2, characters 28-41:
 2 |   let x = overwrite_ r with (~x:"foo", _) in
-                         ^
+                                ^^^^^^^^^^^^^
 Error: This expression has type "x:string * 'a"
        but an expression was expected of type
          "tuple_labeled" = "x:string * y:string"

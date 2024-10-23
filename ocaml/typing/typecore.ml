@@ -5622,7 +5622,9 @@ and type_expect_
           with
             Rpresent (Some ty), Rpresent (Some ty0) ->
               let alloc_mode, argument_mode = register_allocation expected_mode in
-              let arg = type_argument env argument_mode sarg ty ty0 in
+              let arg =
+                type_argument ~overwrite:No_overwrite env argument_mode sarg ty ty0
+              in
               re { exp_desc = Texp_variant(l, Some (arg, alloc_mode));
                    exp_loc = loc; exp_extra = [];
                    exp_type = ty_expected0;
@@ -5915,7 +5917,8 @@ and type_expect_
           submode ~loc:record.exp_loc ~env rmode mode_mutate_mutable;
           let mode = mutable_mode m0 |> mode_default in
           let mode = mode_modality label.lbl_modalities mode in
-          type_label_exp false env mode loc ty_record (lid, label, snewval)
+          type_label_exp ~overwrite:No_overwrite false env mode loc ty_record
+            (lid, label, snewval)
         | Immutable ->
           raise(Error(loc, env, Label_not_mutable lid.txt))
       in
@@ -6670,7 +6673,7 @@ and expression_constraint pexp =
         expr, expr.exp_type);
     type_with_constraint =
       (fun env expected_mode ty ->
-         type_argument env expected_mode pexp ty (instance ty));
+         type_argument ~overwrite:No_overwrite env expected_mode pexp ty (instance ty));
     is_self =
       (fun expr ->
          match expr.exp_desc with
@@ -7462,7 +7465,7 @@ and type_option_some env expected_mode sarg ty ty0 =
   let ty' = extract_option_type env ty in
   let ty0' = extract_option_type env ty0 in
   let alloc_mode, argument_mode = register_allocation expected_mode in
-  let arg = type_argument env argument_mode sarg ty' ty0' in
+  let arg = type_argument ~overwrite:No_overwrite env argument_mode sarg ty' ty0' in
   let lid = Longident.Lident "Some" in
   let csome = Env.find_ident_constructor Predef.ident_some env in
   mkexp (Texp_construct(mknoloc lid , csome, [arg], Some alloc_mode))
@@ -7470,7 +7473,7 @@ and type_option_some env expected_mode sarg ty ty0 =
 
 (* [expected_mode] is the expected mode of the field. It's already adjusted for
    allocation, mutation and modalities. *)
-and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_mode) loc ty_expected
+and type_label_exp ~overwrite create env (arg_mode : expected_mode) loc ty_expected
           (lid, label, sarg) =
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
@@ -7481,7 +7484,7 @@ and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_m
   let (vars, ty_arg, snap, arg) =
     (* try the first approach *)
     with_local_level begin fun () ->
-      let (vars, ty_arg) =
+      let unify_as_label ty_expected =
         with_local_level_iter_if separate begin fun () ->
           let (vars, ty_arg, ty_res) =
             with_local_level_iter_if separate ~post:generalize_structure
@@ -7502,6 +7505,7 @@ and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_m
         end
         ~post:generalize_structure
       in
+      let (vars, ty_arg) = unify_as_label ty_expected in
       if label.lbl_private = Private then
         if create then
           raise (Error(loc, env, Private_type ty_expected))
@@ -7511,27 +7515,7 @@ and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_m
       let overwrite =
         List.hd (assign_children 1
           (fun loc ty mode -> (* mode is correct already, see Pexp_record *)
-             let (_, ty_arg) =
-               with_local_level_iter_if separate begin fun () ->
-                 let (vars, ty_arg, ty_res) =
-                   with_local_level_iter_if separate ~post:generalize_structure
-                     begin fun () ->
-                       let ((_, ty_arg, ty_res) as r) =
-                         instance_label ~fixed:true label in
-                       (r, [ty_arg; ty_res])
-                     end
-                 in
-                 begin try
-                   unify env (instance ty_res) (instance ty)
-                 with Unify err ->
-                   raise (Error(lid.loc, env, Label_mismatch(lid.txt, err)))
-                 end;
-                 (* Instantiate so that we can generalize internal nodes *)
-                 let ty_arg = instance ty_arg in
-                 ((vars, ty_arg), [ty_arg])
-               end
-                 ~post:generalize_structure
-             in
+             let (_, ty_arg) = unify_as_label ty in
              [Overwriting(loc, ty_arg, mode, Expect_field_assignment)])
           overwrite)
       in
@@ -7555,7 +7539,9 @@ and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_m
     with first_try_exn when maybe_expansive arg -> try
       (* backtrack and try the second approach *)
       Option.iter Btype.backtrack snap;
-      let arg = with_local_level (fun () -> type_exp env arg_mode sarg)
+      let arg =
+        with_local_level
+          (fun () -> type_exp ~overwrite:No_overwrite env arg_mode sarg)
           ~post:(fun arg -> lower_contravariant env arg.exp_type)
       in
       let arg =
@@ -7574,8 +7560,8 @@ and type_label_exp ?(overwrite = No_overwrite) create env (arg_mode : expected_m
   in
   (lid, label, arg)
 
-and type_argument ?explanation ?recarg ?(overwrite = No_overwrite) env
-      (mode : expected_mode) sarg ty_expected' ty_expected =
+and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sarg
+      ty_expected' ty_expected =
   (* ty_expected' may be generic *)
   let no_labels ty =
     let ls, tvar = list_labels env ty in
@@ -7811,7 +7797,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           if wrapped_in_some then begin
             type_option_some env expected_mode sarg ty_arg' ty_arg0'
           end else begin
-            type_argument env expected_mode sarg ty_arg' ty_arg0'
+            type_argument ~overwrite:No_overwrite env expected_mode sarg ty_arg' ty_arg0'
           end
         end else begin
           if !Clflags.principal
@@ -7843,7 +7829,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
               let vars0, ty_arg0' = instance_poly ~fixed:false vars0 ty_arg0' in
               List.iter2 (fun ty ty' -> unify_var env ty ty') vars vars0;
               let arg =
-                type_argument env expected_mode sarg ty_arg' ty_arg0'
+                type_argument ~overwrite:No_overwrite env expected_mode sarg ty_arg' ty_arg0'
               in
               arg, ty_arg, vars
             end
@@ -7972,14 +7958,18 @@ and type_tuple ~overwrite ~loc ~env ~(expected_mode : expected_mode) ~ty_expecte
       locality_context = expected_mode.locality_context }
   in
   (* CR layouts v5: non-values in tuples *)
-  let labeled_subtypes =
-    List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.Builtin.value_or_null ~why:Tuple_element))
-    sexpl
+  let unify_as_tuple ty_expected =
+    let labeled_subtypes =
+      List.map (fun (label, _) -> label,
+                                  newgenvar (Jkind.Builtin.value_or_null ~why:Tuple_element))
+      sexpl
+    in
+    let to_unify = newgenty (Ttuple labeled_subtypes) in
+    with_explanation explanation (fun () ->
+      unify_exp_types loc env to_unify (generic_instance ty_expected));
+    labeled_subtypes
   in
-  let to_unify = newgenty (Ttuple labeled_subtypes) in
-  with_explanation explanation (fun () ->
-    unify_exp_types loc env to_unify (generic_instance ty_expected));
+  let labeled_subtypes = unify_as_tuple ty_expected in
   let argument_modes =
     match expected_mode.tuple_modes with
     (* CR zqian: improve the modes of opened labeled tuple pattern. *)
@@ -7998,18 +7988,12 @@ and type_tuple ~overwrite ~loc ~env ~(expected_mode : expected_mode) ~ty_expecte
         List.init arity (fun _ -> argument_mode)
   in
   let types_and_modes = List.combine labeled_subtypes argument_modes in
-  let overwrites = assign_children arity (fun loc typ mode ->
-    let labeled_subtypes =
-      List.map (fun (label, _) -> label,
-                                  newgenvar (Jkind.Builtin.value_or_null ~why:Tuple_element))
-      sexpl
-    in
-    let to_unify = newgenty (Ttuple labeled_subtypes) in
-    with_explanation explanation (fun () ->
-      unify_exp_types loc env to_unify typ);
-    List.map
-      (fun (_, typ) -> Overwriting(loc, typ, mode, Expect_field_assignment))
-      labeled_subtypes)
+  let overwrites =
+    assign_children arity (fun loc typ mode ->
+      let labeled_subtypes = unify_as_tuple typ in
+      List.map
+        (fun (_, typ) -> Overwriting(loc, typ, mode, Expect_field_assignment))
+        labeled_subtypes)
     overwrite
   in
   let expl =
@@ -8133,7 +8117,7 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
     raise(Error(loc, env, Constructor_arity_mismatch
                             (lid.txt, constr.cstr_arity, List.length sargs)));
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let ty_args, ty_res, texp =
+  let unify_as_construct ty_expected =
     with_local_level_if separate begin fun () ->
       let ty_args, ty_res, texp =
         with_local_level_if separate begin fun () ->
@@ -8162,6 +8146,7 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
         generalize_structure ty_res;
         List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
+  let ty_args, ty_res, texp = unify_as_construct ty_expected in
   let ty_args0, ty_res =
     match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t
@@ -8195,34 +8180,7 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
   let overwrites =
     assign_children constr.cstr_arity
       (fun loc ty mode ->
-         let ty_args, _, _ =
-           with_local_level_if separate begin fun () ->
-             let ty_args, ty_res, texp =
-               with_local_level_if separate begin fun () ->
-                 let (ty_args, ty_res, _) =
-                   instance_constructor Keep_existentials_flexible constr
-                 in
-                 let texp =
-                   re {
-                     exp_desc = Texp_construct(lid, constr, [], None);
-                     exp_loc = loc; exp_extra = [];
-                     exp_type = ty_res;
-                     exp_attributes = attrs;
-                     exp_env = env } in
-                 (ty_args, ty_res, texp)
-               end
-               ~post: begin fun (_, ty_res, texp) ->
-                 generalize_structure ty_res;
-                 with_explanation explanation (fun () ->
-                   unify_exp env {texp with exp_type = instance ty_res} (instance ty));
-               end
-             in
-             (ty_args, ty_res, texp)
-           end
-             ~post:(fun (ty_args, ty_res, _) ->
-               generalize_structure ty_res;
-               List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
-         in
+         let ty_args, _, _ = unify_as_construct ty in
          List.map (fun ty_arg ->
            let mode = Modality.Value.Const.apply ty_arg.Types.ca_modalities mode in
            let status = match recarg with
@@ -10770,7 +10728,7 @@ let type_exp env e =
   maybe_check_uniqueness_exp exp; exp
 
 let type_argument env e t1 t2 =
-  let exp = type_argument env mode_legacy e t1 t2 in
+  let exp = type_argument ~overwrite:No_overwrite env mode_legacy e t1 t2 in
   maybe_check_uniqueness_exp exp; exp
 
 let type_option_some env e t1 t2 =
