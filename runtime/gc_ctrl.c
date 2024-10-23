@@ -433,7 +433,7 @@ struct gc_tweak {
 static struct gc_tweak gc_tweaks[] = {
   { "custom_work_max_multiplier", &caml_custom_work_max_multiplier, 0 },
   { "prelinking_in_use", &caml_prelinking_in_use, 0 },
-  { "compaction", &caml_compaction_algorithm, 0 }
+  { "compaction", &caml_compaction_algorithm, 0 },
   { "compact_unmap", &caml_compact_unmap, 0 },
   { "pool_min_chunk_size", &caml_pool_min_chunk_bsz, 0 },
 };
