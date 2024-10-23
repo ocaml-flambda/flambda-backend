@@ -31,7 +31,7 @@ type error =
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
   | Illegal_import_of_parameter of Global_module.Name.t * filepath
-  | Not_compiled_as_parameter of Global_module.Name.t * filepath
+  | Not_compiled_as_parameter of Global_module.Name.t
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
         parameter : Global_module.Name.t;
