@@ -1,6 +1,5 @@
 (* TEST
- flags += "-extension unique ";
- flags += "-extension-universe alpha";
+ flags += "-extension unique";
  expect;
 *)
 
@@ -20,7 +19,7 @@ Line 1, characters 21-22:
 (* unique value can be used more than once *)
 let dup (unique_ x) = (x, x)
 [%%expect{|
-val dup : ('a : value_or_null). unique_ 'a -> 'a * 'a @@ global many = <fun>
+val dup : unique_ 'a -> 'a * 'a = <fun>
 |}]
 
 (* once value can be used only once*)
@@ -78,7 +77,7 @@ Line 1, characters 23-34:
   but manually relax it to once *)
 let dup x = once_ (x, x)
 [%%expect{|
-val dup : ('a : value_or_null). 'a -> once_ 'a * 'a @@ global many = <fun>
+val dup : 'a -> once_ 'a * 'a = <fun>
 |}]
 
 (* closing over unique values gives once closure  *)
@@ -104,7 +103,7 @@ let f () =
   let g () = k ^ k in
   g () ^ g ()
 [%%expect{|
-val f : unit -> string @@ global many = <fun>
+val f : unit -> string = <fun>
 |}]
 
 (* variables inside loops will be made both aliased and many *)
@@ -115,7 +114,7 @@ let f () =
     ignore k
   done
 [%%expect{|
-val f : unit -> unit @@ global many = <fun>
+val f : unit -> unit = <fun>
 |}]
 
 
@@ -171,7 +170,7 @@ let f =
   done;
   ()
 [%%expect{|
-val f : unit @@ global many = ()
+val f : unit = ()
 |}]
 
 (* the following is howerver fine, because g doesn't use the uniqueness of k;
@@ -183,7 +182,7 @@ let f () =
   (* k is unique, and thus g is once *)
   g () ^ g ()
 [%%expect{|
-val f : unit -> string @@ global many = <fun>
+val f : unit -> string = <fun>
 |}]
 
 (* closing over once values gives once closure *)
@@ -207,7 +206,7 @@ Line 4, characters 3-4:
 
 let x = "foo"
 [%%expect{|
-val x : string @@ global many = "foo"
+val x : string = "foo"
 |}]
 
 (* Top-level must be many *)
@@ -222,13 +221,13 @@ Error: This value is "once" but expected to be "many".
 (* the following is fine - we relax many to once *)
 let foo y = once_ x
 [%%expect{|
-val foo : ('a : value_or_null). 'a -> once_ string @@ global many = <fun>
+val foo : 'a -> once_ string = <fun>
 |}]
 
 (* top-level must be aliased; the following unique is weakened to aliased *)
 let unique_ foo = "foo"
 [%%expect{|
-val foo : string @@ global many = "foo"
+val foo : string = "foo"
 |}]
 
 
@@ -250,7 +249,7 @@ type 'a glob = { glob : 'a @@ many aliased; } [@@unboxed]
 |}]
 let dup (glob : 'a) : 'a glob * 'a glob = unique_ ({glob}, {glob})
 [%%expect{|
-val dup : 'a -> 'a glob * 'a glob @@ global many = <fun>
+val dup : 'a -> 'a glob * 'a glob = <fun>
 |}]
 
 (* For strict type/mode match we need module *)
@@ -267,40 +266,35 @@ module M : sig val drop : unique_ 'a -> unique_ unit end
 (* printed modes are imprecise *)
 let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
-val unique_id : unique_ 'a -> unique_ 'a @@ global many = <fun>
+val unique_id : unique_ 'a -> unique_ 'a = <fun>
 |}]
 
 let aliased_id : 'a -> 'a = fun x -> x
 [%%expect{|
-val aliased_id : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
+val aliased_id : 'a -> 'a = <fun>
 |}]
 
 let tail_unique _x =
   let unique_ y = "foo" in unique_id y
 [%%expect{|
-val tail_unique : ('a : value_or_null). 'a -> string @@ global many = <fun>
+val tail_unique : 'a -> string = <fun>
 |}]
 
 let tail_unique : unique_ 'a list -> unique_ 'a list = function
   | [] -> []
   | _ :: xx -> xx
 [%%expect{|
-val tail_unique : unique_ 'a list -> unique_ 'a list @@ global many = <fun>
+val tail_unique : unique_ 'a list -> unique_ 'a list = <fun>
 |}]
 
 let higher_order (f : unique_ 'a -> unique_ 'b) (unique_ x : 'a) = unique_ f x
 [%%expect{|
-val higher_order :
-  ('a : value_or_null) ('b : value_or_null).
-    (unique_ 'a -> unique_ 'b) -> unique_ 'a -> 'b
-  @@ global many = <fun>
+val higher_order : (unique_ 'a -> unique_ 'b) -> unique_ 'a -> 'b = <fun>
 |}]
 
 let higher_order2 (f : 'a -> unique_ 'b) (x : 'a) = unique_ f x
 [%%expect{|
-val higher_order2 :
-  ('a : value_or_null) ('b : value_or_null). ('a -> unique_ 'b) -> 'a -> 'b
-  @@ global many = <fun>
+val higher_order2 : ('a -> unique_ 'b) -> 'a -> 'b = <fun>
 |}]
 
 let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
@@ -321,8 +315,7 @@ Error: This value is "aliased" but expected to be "unique".
 
 let higher_order5 (unique_ x) = let f (unique_ x) = unique_ x in higher_order f x
 [%%expect{|
-val higher_order5 : ('a : value_or_null). unique_ 'a -> 'a @@ global many =
-  <fun>
+val higher_order5 : unique_ 'a -> 'a = <fun>
 |}]
 
 let higher_order6 (unique_ x) = let f (unique_ x) = unique_ x in higher_order2 f x
@@ -349,12 +342,12 @@ Error: Unbound value "update"
 
 let inf1 (unique_ x : float) = unique_ let y = x in y
 [%%expect{|
-val inf1 : unique_ float -> float @@ global many = <fun>
+val inf1 : unique_ float -> float = <fun>
 |}]
 
 let inf2 (b : bool) (unique_ x : float) = unique_ let y = if b then x else 1.0 in y
 [%%expect{|
-val inf2 : bool -> unique_ float -> float @@ global many = <fun>
+val inf2 : bool -> unique_ float -> float = <fun>
 |}]
 
 let inf3 : bool -> float -> unique_ float -> float = fun b y x ->
@@ -383,33 +376,29 @@ Line 2, characters 21-22:
 let inf5 (b : bool) (y : float) (unique_ x : float) =
   let z = if b then x else y in unique_ z
 [%%expect{|
-val inf5 : bool -> unique_ float -> unique_ float -> float @@ global many =
-  <fun>
+val inf5 : bool -> unique_ float -> unique_ float -> float = <fun>
 |}]
 
 let inf6 (unique_ x) = let f x = x in higher_order f x
 [%%expect{|
-val inf6 : ('a : value_or_null). unique_ 'a -> 'a @@ global many = <fun>
+val inf6 : unique_ 'a -> 'a = <fun>
 |}]
 
 let unique_default_args ?(unique_ x = 1.0) () = x
 [%%expect{|
-val unique_default_args : ?x:unique_ float -> unit -> float @@ global many =
-  <fun>
+val unique_default_args : ?x:unique_ float -> unit -> float = <fun>
 |}]
 
 (* Unique Local *)
 
 let ul (unique_ local_ x) = x
 [%%expect{|
-val ul : ('a : value_or_null). local_ unique_ 'a -> local_ 'a @@ global many =
-  <fun>
+val ul : local_ unique_ 'a -> local_ 'a = <fun>
 |}]
 
 let ul_ret x = exclave_ unique_ x
 [%%expect{|
-val ul_ret : ('a : value_or_null). unique_ 'a -> local_ 'a @@ global many =
-  <fun>
+val ul_ret : unique_ 'a -> local_ 'a = <fun>
 |}]
 
 type point = { x : float; y : float }
@@ -420,14 +409,14 @@ type point = { x : float; y : float; }
 let overwrite_point t =
   unique_ ({t with y = 0.5}, {t with x = 0.5})
 [%%expect{|
-val overwrite_point : unique_ point -> point * point @@ global many = <fun>
+val overwrite_point : unique_ point -> point * point = <fun>
 |}]
 
 let gc_soundness_nobug (local_ unique_ p) (local_ f) =
   exclave_ { p with x = f }
 [%%expect{|
-val gc_soundness_nobug : local_ unique_ point -> local_ float -> local_ point
-  @@ global many = <fun>
+val gc_soundness_nobug : local_ unique_ point -> local_ float -> local_ point =
+  <fun>
 |}]
 
 let rec foo =
@@ -436,7 +425,7 @@ let rec foo =
   | Some () -> foo None
   | None -> ()
 [%%expect{|
-val foo : local_ unique_ unit option -> unit @@ global many = <fun>
+val foo : local_ unique_ unit option -> unit = <fun>
 |}]
 
 let rec bar =
@@ -445,17 +434,17 @@ let rec bar =
   | Some () -> ()
   | None -> bar (local_ Some ()) [@nontail]
 [%%expect{|
-val bar : local_ unique_ unit option -> unit @@ global many = <fun>
+val bar : local_ unique_ unit option -> unit = <fun>
 |}]
 
 let foo : local_ unique_ string -> unit = fun (local_ s) -> ()
 [%%expect{|
-val foo : local_ unique_ string -> unit @@ global many = <fun>
+val foo : local_ unique_ string -> unit = <fun>
 |}]
 
 let bar : local_ unique_ string -> unit = fun (unique_ s) -> ()
 [%%expect{|
-val bar : local_ unique_ string -> unit @@ global many = <fun>
+val bar : local_ unique_ string -> unit = <fun>
 |}]
 
 (* Currying *)
@@ -464,8 +453,8 @@ let curry =
   let foo ~a ~b ~c ~d = (a, b, c, (unique_ d)) in
   foo ~a:3 ~c:4
 [%%expect{|
-val curry : b:'_weak1 -> d:unique_ '_weak2 -> int * '_weak1 * int * '_weak2
-  @@ global many = <fun>
+val curry : b:'_weak1 -> d:unique_ '_weak2 -> int * '_weak1 * int * '_weak2 =
+  <fun>
 |}]
 
 (* the following two failed because top-level must be many *)
@@ -495,8 +484,8 @@ let curry =
   foo ~a:3 ~c:4
 [%%expect{|
 val curry :
-  b:unique_ '_weak3 -> d:unique_ '_weak4 -> int * '_weak3 * int * '_weak4 @@
-  global many = <fun>
+  b:unique_ '_weak3 -> d:unique_ '_weak4 -> int * '_weak3 * int * '_weak4 =
+  <fun>
 |}]
 
 let curry =
@@ -554,12 +543,12 @@ type box = { x : int; }
 
 let curry (unique_ b1 : box) (unique_ b2 : box) = ()
 [%%expect{|
-val curry : unique_ box -> unique_ box -> unit @@ global many = <fun>
+val curry : unique_ box -> unique_ box -> unit = <fun>
 |}]
 
 let curry : unique_ box -> unique_ box -> unit = fun b1 b2 -> ()
 [%%expect{|
-val curry : unique_ box -> unique_ box -> unit @@ global many = <fun>
+val curry : unique_ box -> unique_ box -> unit = <fun>
 |}]
 
 let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
@@ -583,7 +572,7 @@ Error: This function when partially applied returns a value which is "once",
 (* For nested functions, inner functions are not constrained *)
 let no_curry : unique_ box -> (unique_ box -> unit) = fun b1 -> fun b2 -> ()
 [%%expect{|
-val no_curry : unique_ box -> (unique_ box -> unit) @@ global many = <fun>
+val no_curry : unique_ box -> (unique_ box -> unit) = <fun>
 |}]
 
 (* If both type and mode are wrong, complain about type *)
@@ -602,10 +591,8 @@ Error: This expression has type "int" but an expression was expected of type
 let return_local : local_ 'a -> local_ 'a = fun x -> x
 let return_global : local_ 'a -> int = fun x -> 0
 [%%expect{|
-val return_local : ('a : value_or_null). local_ 'a -> local_ 'a @@ global
-  many = <fun>
-val return_global : ('a : value_or_null). local_ 'a -> int @@ global many =
-  <fun>
+val return_local : local_ 'a -> local_ 'a = <fun>
+val return_global : local_ 'a -> int = <fun>
 |}]
 
 
@@ -636,8 +623,8 @@ let f ~(call_pos : [%call_pos]) () =
   (x, x)
 ;;
 [%%expect{|
-val f : call_pos:[%call_pos] -> unit -> lexing_position * lexing_position @@
-  global many = <fun>
+val f : call_pos:[%call_pos] -> unit -> lexing_position * lexing_position =
+  <fun>
 |}]
 
 let f ~(call_pos : [%call_pos]) () =
@@ -651,207 +638,5 @@ Error: This value is used here, but it has already been used as unique:
 Line 2, characters 11-19:
 2 |   unique_ (call_pos, call_pos)
                ^^^^^^^^
-
-|}]
-
-(*******************************)
-(* Examples from documentation *)
-
-type t = Con of { field : int }
-
-let free : t @ unique -> unit = fun t -> ()
-let free_field (unique_ i) = ()
-let store : t @ aliased -> unit = fun t -> ()
-let store_field i = ()
-let flip_coin () = true
-[%%expect{|
-type t = Con of { field : int; }
-val free : unique_ t -> unit @@ global many = <fun>
-val free_field : ('a : value_or_null). unique_ 'a -> unit @@ global many =
-  <fun>
-val store : t -> unit @@ global many = <fun>
-val store_field : ('a : value_or_null). 'a -> unit @@ global many = <fun>
-val flip_coin : unit -> bool @@ global many = <fun>
-|}]
-
-let test () =
-  let dup : t -> t * t @ aliased = function t -> t, t in
-  let delay_free : t @ unique -> (unit -> unit) @ once = function t -> fun () -> free t in
-  let alias : 'a @ unique -> 'a @ aliased = fun x -> x in
-  let linearize : 'a @ many -> 'a @ once = fun x -> x in
-  ()
-[%%expect{|
-Line 2, characters 6-9:
-2 |   let dup : t -> t * t @ aliased = function t -> t, t in
-          ^^^
-Warning 26 [unused-var]: unused variable dup.
-
-Line 3, characters 6-16:
-3 |   let delay_free : t @ unique -> (unit -> unit) @ once = function t -> fun () -> free t in
-          ^^^^^^^^^^
-Warning 26 [unused-var]: unused variable delay_free.
-
-Line 4, characters 6-11:
-4 |   let alias : 'a @ unique -> 'a @ aliased = fun x -> x in
-          ^^^^^
-Warning 26 [unused-var]: unused variable alias.
-
-Line 5, characters 6-15:
-5 |   let linearize : 'a @ many -> 'a @ once = fun x -> x in
-          ^^^^^^^^^
-Warning 26 [unused-var]: unused variable linearize.
-
-val test : unit -> unit @@ global many = <fun>
-|}]
-
-let okay t =
-  match t with
-  | Con { field } -> free t
-[%%expect{|
-val okay : unique_ t -> unit @@ global many = <fun>
-|}]
-
-let bad t =
-  match t with
-  | Con { field } ->
-    free_field field;
-    free t
-[%%expect{|
-Line 5, characters 9-10:
-5 |     free t
-             ^
-Error: This value is used here,
-       but part of it has already been used as unique:
-Line 4, characters 15-20:
-4 |     free_field field;
-                   ^^^^^
-
-|}]
-
-let okay t =
-  match t with
-  | Con { field } ->
-    if flip_coin ()
-    then free_field field
-    else free t
-[%%expect{|
-val okay : unique_ t -> unit @@ global many = <fun>
-|}]
-
-let okay t =
-  match t with
-  | Con { field } ->
-    store_field field;
-    store t
-[%%expect{|
-val okay : t -> unit @@ global many = <fun>
-|}]
-
-let module_ret_unique =
-  let mk () = Con { field = 1 } in
-  let use () = free (mk ()) in
-  ()
-[%%expect{|
-Line 3, characters 6-9:
-3 |   let use () = free (mk ()) in
-          ^^^
-Warning 26 [unused-var]: unused variable use.
-
-val module_ret_unique : unit @@ global many = ()
-|}]
-
-module Mk = struct
-  let mk () = Con { field = 1 }
-end
-
-let module_ret_unique =
-  let use () = free (Mk.mk ()) in
-  ()
-[%%expect{|
-module Mk : sig val mk : unit -> t @@ global many portable end
-Line 6, characters 20-30:
-6 |   let use () = free (Mk.mk ()) in
-                        ^^^^^^^^^^
-Error: This value is "aliased" but expected to be "unique".
-|}]
-
-module Unique_array = struct
-  let set : 'a @ unique -> int -> 'b -> 'a @ unique = fun arr -> fun i -> fun x -> arr
-  let size arr = 10
-end
-[%%expect{|
-module Unique_array :
-  sig
-    val set :
-      ('a : value_or_null) ('b : value_or_null).
-        unique_ 'a -> int -> 'b -> unique_ 'a
-      @@ global many portable
-    val size : ('a : value_or_null). 'a -> int @@ global many portable
-  end
-|}]
-
-let set_all_zero arr =
-  for i = 0 to Unique_array.size arr do
-    Unique_array.set arr i 0
-  done
-[%%expect{|
-Line 3, characters 21-24:
-3 |     Unique_array.set arr i 0
-                         ^^^
-Error: This value is "aliased" but expected to be "unique".
-  Hint: This identifier cannot be used uniquely,
-  because it was defined outside of the for-loop.
-|}]
-
-let set_all_zero arr =
-  let set = Unique_array.set arr in
-  for i = 0 to Unique_array.size arr do
-    set i 0
-  done
-[%%expect{|
-Line 4, characters 4-7:
-4 |     set i 0
-        ^^^
-Error: The value "set" is once, so cannot be used inside a for loop
-|}]
-
-let set_all_zero arr =
-  let size (unique_ arr) = 10, arr in
-  let rec loop idx arr =
-    if idx == 0 then arr
-    else loop (idx - 1) (Unique_array.set arr idx 0)
-  in
-  let size, arr = size arr in
-  loop size arr
-[%%expect{|
-val set_all_zero : ('a : value_or_null). unique_ 'a -> 'a @@ global many =
-  <fun>
-|}]
-
-let check_tuple x y z =
-  let m =
-    match x, y, z with
-    | p, q, r -> free x
-  in m, y
-[%%expect{|
-val check_tuple :
-  ('a : value_or_null) ('b : value_or_null).
-    unique_ t -> 'a -> 'b -> unit * 'a
-  @@ global many = <fun>
-|}]
-
-let check_tuple x y z =
-  let m =
-    match x, y, z with
-    | p, q, r as t -> free x
-  in m, y
-[%%expect{|
-Line 4, characters 27-28:
-4 |     | p, q, r as t -> free x
-                               ^
-Error: This value is used here as unique, but it has already been used:
-Line 3, characters 10-11:
-3 |     match x, y, z with
-              ^
 
 |}]
