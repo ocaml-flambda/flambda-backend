@@ -454,12 +454,10 @@ type unboxed_record = { x : int; } [@@unboxed]
 let update (r : unboxed_record) =
   overwrite_ r with { x = 4 }
 [%%expect{|
-Line 2, characters 2-29:
+Line 2, characters 20-29:
 2 |   overwrite_ r with { x = 4 }
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
-
+                        ^^^^^^^^^
+Error: Overwriting is only supported on tuples, constructors and boxed records.
 |}]
 
 type nested_record = Nested of { x : int }
@@ -500,7 +498,7 @@ let update_hole (t : int * (string * int)) =
 Line 2, characters 20-21:
 2 |   overwrite_ t with _
                         ^
-Error: Overwriting is only supported on tuples, constructors and records.
+Error: Overwriting is only supported on tuples, constructors and boxed records.
 |}]
 
 (***********************************)

@@ -87,7 +87,7 @@ let overwrite_variant = function
 Line 2, characters 38-47:
 2 |   `A (a, b) as t -> overwrite_ t with `A (b, _)
                                           ^^^^^^^^^
-Error: Overwriting is only supported on tuples, constructors and records.
+Error: Overwriting is only supported on tuples, constructors and boxed records.
 |}]
 
 let overwrite_in_match = function
@@ -135,7 +135,7 @@ let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
 Line 1, characters 45-64:
 1 | let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
                                                  ^^^^^^^^^^^^^^^^^^^
-Error: Overwriting is only supported on tuples, constructors and records.
+Error: Overwriting is only supported on tuples, constructors and boxed records.
 |}]
 
 let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
@@ -143,7 +143,7 @@ let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
 Line 1, characters 47-77:
 1 | let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Overwriting is only supported on tuples, constructors and records.
+Error: Overwriting is only supported on tuples, constructors and boxed records.
 |}]
 
 let overwrite_with_overwrite = function
@@ -152,5 +152,5 @@ let overwrite_with_overwrite = function
 Line 2, characters 39-68:
 2 |     { a; b } as t -> overwrite_ t with (overwrite_ t with { b = a })
                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Overwriting is only supported on tuples, constructors and records.
+Error: Overwriting is only supported on tuples, constructors and boxed records.
 |}]

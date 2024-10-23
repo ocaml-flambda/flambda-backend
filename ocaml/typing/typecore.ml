@@ -695,6 +695,10 @@ let assign_children n f = function
   | Overwriting(loc, typ, mode, Expect_allocation) -> f loc typ mode
   | _ -> List.init n (fun _ -> No_overwrite)
 
+let assign_non_hole = function
+  | (No_overwrite | Overwriting(_, _, _, Expect_field_assignment)) -> No_overwrite
+  | Overwriting(_, _, _, Expect_allocation) as overwrite -> overwrite
+
 let rec can_be_overwritten = function
   | Pexp_constraint (e, _, _) -> can_be_overwritten e.pexp_desc
   | (Pexp_tuple _ | Pexp_construct _ | Pexp_record _) -> true
@@ -5677,6 +5681,7 @@ and type_expect_
             in
             Some (exp, mode)
       in
+      let overwrite = assign_non_hole overwrite in
       let ty_record, expected_type =
         let extract_record loc ty error =
           match extract_concrete_record env ty with
@@ -5695,7 +5700,8 @@ and type_expect_
             begin match overwrite with
             | Overwriting (loc, ty, _, Expect_allocation) ->
                 extract_record loc ty (Expr_not_a_record_type ty)
-            | (No_overwrite | Overwriting(_, _, _, Expect_field_assignment)) -> None
+            | Overwriting (_, _, _, Expect_field_assignment) -> assert false
+            | No_overwrite -> None
             end
           | Some (exp, _) ->
               extract_record exp.exp_loc exp.exp_type
@@ -5721,13 +5727,24 @@ and type_expect_
           (disambiguate_sort_lid_a_list loc closed env Env.Construct expected_type)
           lid_sexp_list
       in
+      let is_unboxed =
+        List.exists
+          (fun (_, {lbl_repres; _}, _) ->
+            match lbl_repres with
+            | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> true
+            | _ -> false)
+          lbl_a_list
+      in
+      let _check_overwrite_unboxed_record =
+        match overwrite with
+        | No_overwrite -> ()
+        | Overwriting(_, _, _, Expect_field_assignment) -> assert false
+        | Overwriting(_, _, _, Expect_allocation) ->
+          if is_unboxed then
+            raise (Error (loc, env, Overwrite_of_invalid_term));
+      in
       let alloc_mode, argument_mode =
-        if List.exists
-            (fun (_, {lbl_repres; _}, _) ->
-              match lbl_repres with
-              | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
-              | _ -> true)
-            lbl_a_list then
+        if not is_unboxed then
           let alloc_mode, argument_mode = register_allocation expected_mode in
           Some alloc_mode, argument_mode
         else
@@ -5794,7 +5811,7 @@ and type_expect_
             end
         in
         match opt_exp, overwrite with
-          None, (No_overwrite | Overwriting (_, _, _, Expect_field_assignment)) ->
+          None, No_overwrite ->
             let label_definitions =
               Array.map (fun lbl ->
                   match matching_label lbl with
@@ -5823,6 +5840,7 @@ and type_expect_
               Array.map (unify_kept loc exp_loc ty_exp mode) lbl.lbl_all
             in
             None, label_definitions
+        | None, Overwriting (_, _, _, Expect_field_assignment) -> assert false
         | Some (exp, mode), _ ->
             let ty_exp = instance exp.exp_type in
             let label_definitions =
@@ -10691,7 +10709,7 @@ let report_error ~loc env = function
       Location.errorf ~loc "This expression is not an allocation site."
   | Overwrite_of_invalid_term ->
       Location.errorf ~loc
-        "Overwriting is only supported on tuples, constructors and records."
+        "Overwriting is only supported on tuples, constructors and boxed records."
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env
