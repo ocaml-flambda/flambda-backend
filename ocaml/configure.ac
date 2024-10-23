@@ -1492,13 +1492,8 @@ AS_CASE([$arch],
     [arch_specific_SOURCES='$(intel_SOURCES)'],
   [arch_specific_SOURCES=''])
 
-# Disabling of stack checks is only supported on amd64.
-AS_IF([test x"$enable_stack_checks" = xyes],
-  [AC_DEFINE([STACK_CHECKS_ENABLED])],
-  [AS_IF([test x"$arch" != xamd64],
-    [enable_stack_checks=yes
-     AC_DEFINE([STACK_CHECKS_ENABLED])],
-    [])])
+AC_DEFINE([STACK_CHECKS_ENABLED])
+enable_stack_checks=yes
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
@@ -2744,10 +2739,8 @@ AS_IF([test x"$enable_stack_allocation" = "xno"],
     [AC_MSG_ERROR([Stack allocation is only supported on 64-bit platforms. \
 Please pass '--enable-stack-allocation=no'.])])])
 
-AS_IF([test x"$enable_poll_insertion" = "xyes"],
-  [AC_DEFINE([POLL_INSERTION])
-   poll_insertion=true],
-  [poll_insertion=false])
+AC_DEFINE([POLL_INSERTION])
+poll_insertion=true
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"
