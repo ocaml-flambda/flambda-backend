@@ -34,7 +34,7 @@ type error =
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
   | Illegal_import_of_parameter of Global_module.Name.t * filepath
-  | Not_compiled_as_parameter of Global_module.Name.t * filepath
+  | Not_compiled_as_parameter of Global_module.Name.t
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
         parameter : Global_module.Name.t;
@@ -239,7 +239,7 @@ let register_parameter ({param_imports; _} as penv) modname =
       ()
   | Some imp ->
       if not imp.imp_is_param then
-        raise (Error (Not_compiled_as_parameter(modname, imp.imp_filename)))
+        raise (Error (Not_compiled_as_parameter modname))
   end;
   param_imports := Param_set.add modname !param_imports
 
@@ -418,7 +418,7 @@ let remember_global { globals; _ } global ~mentioned_by =
               now_mentioned_by = mentioned_by;
             })
 
-let current_unit_is0 name ~allow_args =
+let current_unit_is_aux name ~allow_args =
   match CU.get_current () with
   | None -> false
   | Some current ->
@@ -429,10 +429,10 @@ let current_unit_is0 name ~allow_args =
       | None -> false
 
 let current_unit_is name =
-  current_unit_is0 name ~allow_args:false
+  current_unit_is_aux name ~allow_args:false
 
 let current_unit_is_instance_of name =
-  current_unit_is0 name ~allow_args:true
+  current_unit_is_aux name ~allow_args:true
 
 (* Enforce the subset rule: we can only refer to a module if that module's
    parameters are also our parameters. *)
@@ -712,7 +712,7 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
   | true, false ->
       error (Illegal_import_of_parameter(modname, filename))
   | false, true ->
-      error (Not_compiled_as_parameter(modname, filename))
+      error (Not_compiled_as_parameter modname)
   | true, true
   | false, false -> ()
   end;
@@ -997,17 +997,20 @@ let report_error ppf =
   | Illegal_import_of_parameter(modname, filename) ->
       fprintf ppf
         "@[<hov>The file %a@ contains the interface of a parameter.@ \
-         %a is not declared as a parameter for the current unit (-parameter %a).@]"
+         %a is not declared as a parameter for the current unit.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Compile the current unit with \
+           @{<inline_code>-parameter %a@}.@]@]"
         (Style.as_inline_code Location.print_filename) filename
         (Style.as_inline_code Global_module.Name.print) modname
-        (Style.as_inline_code Global_module.Name.print) modname
-  | Not_compiled_as_parameter(modname, _filename) ->
+        Global_module.Name.print modname
+  | Not_compiled_as_parameter modname ->
       fprintf ppf
-        "@[<hov>The module %a@ is a parameter but is not declared as such for the\
+        "@[<hov>The module %a@ is a parameter but is not declared as such for the \
          current unit.@]@.\
          @[<hov>@{<hint>Hint@}: \
            @[<hov>Compile the current unit with @{<inline_code>-parameter \
-           %a@}@]@]"
+           %a@}.@]@]"
         (Style.as_inline_code Global_module.Name.print) modname
         Global_module.Name.print modname
   | Imported_module_has_unset_parameter
@@ -1016,11 +1019,11 @@ let report_error ppf =
         "@[<hov>The module %a@ is not accessible because it takes %a@ \
          as a parameter and the current unit does not.@]@.\
          @[<hov>@{<hint>Hint@}: \
-           @[<hov>Pass `-parameter %a`@ to add %a@ as a parameter@ \
+           @[<hov>Pass @{<inline_code>-parameter %a@}@ to add %a@ as a parameter@ \
            of the current unit.@]@]"
         (Style.as_inline_code Global_module.Name.print) modname
         (Style.as_inline_code Global_module.Name.print) param
-        (Style.as_inline_code Global_module.Name.print) param
+        Global_module.Name.print param
         (Style.as_inline_code Global_module.Name.print) param
   | Imported_module_has_no_such_parameter
         { valid_parameters; imported = modname; parameter = param; value = _; } ->
@@ -1049,7 +1052,7 @@ let report_error ppf =
         pp_hint ()
   | Not_compiled_as_argument { param; value; filename } ->
       fprintf ppf
-        "@[<hov>The module %a@ cannot be used as an argument for parameter\
+        "@[<hov>The module %a@ cannot be used as an argument for parameter \
            %a.@]@.\
          @[<hov>@{<hint>Hint@}: Compile %a with \
            @{<inline_code>-as-argument-for %a@}.@]"
@@ -1059,8 +1062,8 @@ let report_error ppf =
         Global_module.Name.print param
   | Argument_type_mismatch { value; filename; expected; actual; } ->
       fprintf ppf
-        "@[<hov>The module %a@ was expected to satisfy the parameter %a@ \
-         but %a@ was compiled to satisfy %a.@]"
+        "@[<hov>The module %a@ is used as an argument for the parameter %a@ \
+         but %a@ was compiled as an argument for %a.@]"
         (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) expected
         (Style.as_inline_code Location.print_filename) filename
