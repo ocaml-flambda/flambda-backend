@@ -1,6 +1,8 @@
 # Introduction to Uniqueness
 
 See also the full feature [reference](reference.md) and [common pitfalls](pitfalls.md).
+In this document, we use the new [syntax for modes](../modes/syntax.md),
+which we expect to be stable soonish.
 
 The `unique` mode designates values that have only a single reference pointing
 to them. For example, an externally allocated data structure might support a
@@ -107,5 +109,15 @@ let okay t =
     store_field field;
     store t
 ```
+
+## Current syntax
+
+Until the new [syntax for modes](../modes/syntax.md) is stable, our syntax for
+uniqueness will be slightly different from the description above. Currently, you
+would mark an argument or return value in a type signature as unique by
+prepending it with `unique_` and as once by prepending it with `once_`. You can
+not mark arguments or return values as aliased or many. To mark a record field
+as `@@ aliased`, you would prepend `aliased_` and to mark it as `@@ many`, you
+would prepend `many_`.
 
 For more details, read [the reference](./reference.md).
