@@ -74,6 +74,8 @@ module type Common = sig
 
   val submode : (allowed * 'r) t -> ('l * allowed) t -> (unit, error) result
 
+  val update_level : int -> ('l * 'r) t -> unit
+
   val equate : lr -> lr -> (unit, equate_error) result
 
   val submode_exn : (allowed * 'r) t -> ('l * allowed) t -> unit
