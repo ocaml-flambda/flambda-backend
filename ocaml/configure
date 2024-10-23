@@ -20874,9 +20874,14 @@ Please pass '--enable-stack-allocation=no'." "$LINENO" 5
 fi
 fi
 
-printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h
+if test x"$enable_poll_insertion" = "xyes"
+then :
+  printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h
 
-poll_insertion=true
+   poll_insertion=true
+else $as_nop
+  poll_insertion=false
+fi
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"
