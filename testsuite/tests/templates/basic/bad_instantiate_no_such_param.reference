@@ -1,0 +1,4 @@
+File "_none_", line 1:
+Error: Mismatched argument: Int_list_element
+       was compiled with -as-argument-for List_element
+       but Monoid_of_semigroup was not compiled with -parameter List_element
