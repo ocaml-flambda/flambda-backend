@@ -362,3 +362,8 @@ let transfer ~to_ ~from () =
     from.first <- Empty;
     from.last <- Empty;
     from.length <- 0
+
+let map t ~f =
+  let res = make_empty () in
+  iter t ~f:(fun x -> add_end res (f x));
+  res

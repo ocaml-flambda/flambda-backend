@@ -23,7 +23,12 @@ open Arch
 open Cmm
 open Selection_utils
 
-let specific x = Cfg_selectgen.Basic Cfg.(Op (Specific x))
+let specific x =
+  if Arch.operation_can_raise x
+  then
+    Cfg_selectgen.With_next_label
+      (fun label_after -> Cfg.Specific_can_raise { Cfg.op = x; label_after })
+  else Cfg_selectgen.Basic Cfg.(Op (Specific x))
 
 class selector =
   object (self)
@@ -167,4 +172,5 @@ class selector =
   end
 
 let fundecl ~future_funcnames f =
+  Cfg_selectgen.reset_next_instr_id ();
   (new selector)#emit_fundecl ~future_funcnames f

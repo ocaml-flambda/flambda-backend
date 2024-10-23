@@ -1,20 +1,43 @@
 ;**************************************************************************
 ;*                                                                        *
-;*                 The Flambda backend project for OCaml                  *
+;*                                 OCaml                                  *
 ;*                                                                        *
-;*                    Mark Shinwell, Jane Street Europe                   *
+;*            Thomas Refis and Mark Shinwell, Jane Street Europe          *
 ;*                                                                        *
-;*   Copyright 2020 Jane Street Group LLC                                 *
+;*   Copyright 2018--2020 Jane Street Group LLC                           *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
 ;*                                                                        *
 ;**************************************************************************
 
-(env
- (_
-  (flags
-   (:standard -principal -warn-error +A -w +a-4-9-40-41-42-44-45-48-66))))
+; set warning as error in release profile
 
-; Since upstream has the middle end code inside ocamloptcomp, we do the
-; same for the moment.
+(env
+ (release
+  (flags
+   (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70)))
+ (main
+  (flags
+   (:standard -principal -warn-error +A -w +a-4-9-40-41-42-44-45-48-66-67-70)))
+ (dev
+  (flags
+   (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70 -warn-error +A))))
+
+(include dune.runtime_selection)
+
+(copy_files# utils/*.ml{,i})
+
+(copy_files# parsing/*.ml{,i})
+
+(copy_files parsing/parser.mly)
+
+(copy_files# typing/*.ml{,i})
+
+(copy_files# bytecomp/*.ml{,i})
+
+(copy_files# driver/*.ml{,i})
 
 (copy_files# asmcomp/*.ml{,i})
 
@@ -32,31 +55,347 @@
 
 (copy_files# backend/regalloc/*.ml{,i})
 
-(copy_files# driver/optcompile.ml{,i})
+(copy_files# file_formats/*.ml{,i})
 
-(copy_files# driver/flambda_backend_main.ml{,i})
-
-(copy_files# driver/compiler_hooks.ml{,i})
-
-(copy_files# driver/optmaindriver.ml{,i})
-
-(copy_files# driver/flambda_backend_args.ml{,i})
-
-(copy_files# driver/flambda_backend_flags.ml{,i})
-
-(copy_files# file_formats/cmx_format.mli)
-
-(copy_files# file_formats/linear_format.ml{,i})
-
-(copy_files# file_formats/cfg_format.ml{,i})
+(copy_files# lambda/*.ml{,i})
 
 (copy_files# middle_end/*.ml{,i})
 
-(copy_files# ocaml/driver/opterrors.ml{,i})
-
-(copy_files# ocaml/file_formats/cmxs_format.mli)
-
 (copy_files# printer/*.ml{,i})
+
+(menhir
+ (modules parser)
+ (flags
+  --lalr
+  --explain
+  --dump
+  --require-aliases
+  --strict
+  --unused-token
+  COMMENT
+  --unused-token
+  DOCSTRING
+  --unused-token
+  EOL
+  --unused-token
+  GREATERRBRACKET
+  --table
+  --fixed-exception
+  --strategy
+  simplified
+  --cmly
+  --inspection))
+
+(library
+ (name ocamlcommon)
+ (wrapped false)
+ (flags
+  (:standard
+   -strict-sequence
+   -bin-annot
+   -safe-string
+   -strict-formats
+   -w
+   -67
+   ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
+   ))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (preprocess
+  (per_module
+   ((action
+     (progn
+      (echo "module MenhirLib = CamlinternalMenhirLib")
+      (run cat %{input-file})))
+    parser)))
+ (library_flags -linkall)
+ (libraries flambda2_floats)
+ (modules_without_implementation
+  annot
+  value_rec_types
+  asttypes
+  cmo_format
+  outcometree
+  parsetree
+  debug_event
+  solver_intf
+  mode_intf)
+ (modules
+  ;; UTILS
+  config
+  build_path_prefix_map
+  misc
+  identifiable
+  numbers
+  arg_helper
+  clflags
+  debug
+  profile
+  profile_counters_functions
+  terminfo
+  ccomp
+  warnings
+  consistbl
+  strongly_connected_components
+  targetint
+  load_path
+  int_replace_polymorphic_compare
+  domainstate
+  binutils
+  local_store
+  target_system
+  compilation_unit
+  import_info
+  linkage_name
+  symbol
+  lazy_backtrack
+  diffing
+  diffing_with_keys
+  unit_info
+  language_extension_kernel
+  language_extension
+  zero_alloc_utils
+  zero_alloc_annotations
+  ;; PARSING
+  location
+  longident
+  docstrings
+  printast
+  syntaxerr
+  ast_helper
+  camlinternalMenhirLib
+  ast_iterator
+  parser
+  lexer
+  parse
+  pprintast
+  ast_mapper
+  attr_helper
+  builtin_attributes
+  ast_invariants
+  depend
+  jane_syntax_parsing
+  jane_syntax
+  parser_types ; manual update: mli only files asttypes parsetree
+  ;; TYPING
+  ident
+  path
+  jkind
+  primitive
+  shape
+  shape_reduce
+  zero_alloc
+  types
+  btype
+  oprint
+  subst
+  predef
+  datarepr
+  global_module
+  cmi_format
+  persistent_env
+  env
+  errortrace
+  mode
+  jkind_types
+  jkind_intf
+  signature_with_global_bindings
+  typedtree
+  printtyped
+  ctype
+  printtyp
+  includeclass
+  mtype
+  envaux
+  includecore
+  tast_iterator
+  tast_mapper
+  signature_group
+  cmt_format
+  cms_format
+  untypeast
+  includemod
+  includemod_errorprinter
+  typemode
+  jkind_axis
+  typetexp
+  patterns
+  printpat
+  parmatch
+  stypes
+  typedecl
+  typeopt
+  value_rec_check
+  typecore
+  solver_intf
+  solver
+  mode_intf
+  mode
+  uniqueness_analysis
+  typeclass
+  typemod
+  typedecl_variance
+  typedecl_properties
+  typedecl_separability
+  cmt2annot
+  ; manual update: mli only files
+  annot
+  outcometree
+  allowance
+  ;; lambda/
+  debuginfo
+  lambda
+  matching
+  printlambda
+  runtimedef
+  runtimetags
+  tmc
+  simplif
+  switch
+  value_rec_compiler
+  translmode
+  transl_comprehension_utils
+  transl_array_comprehension
+  transl_list_comprehension
+  translattribute
+  translclass
+  translcore
+  translmod
+  translobj
+  translprim
+  ;; bytecomp/
+  debug_event
+  meta
+  opcodes
+  bytesections
+  dll
+  symtable
+  ;; some of COMP
+  pparse
+  main_args
+  compenv
+  compmisc
+  makedepend
+  compile_common
+  instantiator
+  ; manual update: mli only files
+  annot
+  value_rec_types
+  asttypes
+  cmo_format
+  outcometree
+  parsetree
+  debug_event))
+
+(library
+ (name ocamlbytecomp)
+ (wrapped false)
+ (flags
+  (:standard -strict-sequence -w +67 -bin-annot -safe-string -strict-formats))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (libraries ocamlcommon)
+ (modules
+  ;; bytecomp/
+  bytegen
+  byteinstantiator
+  bytelibrarian
+  bytelink
+  bytepackager
+  emitcode
+  printinstr
+  instruct
+  ;; driver/
+  errors
+  compile
+  maindriver))
+
+(executable
+ (name main)
+ (modes byte)
+ (flags
+  (:standard -strict-sequence -w +67 -bin-annot -safe-string -strict-formats))
+ (libraries ocamlbytecomp ocamlcommon)
+ (modules main))
+
+(executable
+ (name main_native)
+ (modes native)
+ (flags
+  (:standard -strict-sequence -w +67 -bin-annot -safe-string -strict-formats))
+ (libraries ocamlbytecomp ocamlcommon)
+ (modules main_native))
+
+; Disabled since there can be only one (data_only_dirs) declaration
+;(data_only_dirs yacc)
+
+(include duneconf/dirs-to-ignore.inc)
+
+(include duneconf/jst-extra.inc)
+
+(rule
+ (deps
+  Makefile.build_config
+  Makefile.config_if_required
+  Makefile.common
+  (source_tree yacc))
+ (targets ocamlyacc)
+ (action
+  (no-infer
+   (progn
+    (chdir
+     yacc
+     (run make -s OCAMLYACC_INCLUDE_PATH=%{ocaml_where}))
+    (copy yacc/ocamlyacc ocamlyacc)))))
+
+(install
+ (files ocamlyacc)
+ (section bin)
+ (package ocaml))
+
+(alias
+ (name world)
+ (deps
+  ocamlc_byte.bc
+  debugger/ocamldebug.byte
+  ocamldoc/ocamldoc.byte
+  ocamltest/ocamltest.byte
+  toplevel/byte
+  toplevel/expunge.exe))
+
+(install
+ (files
+  (main.bc as ocamlc.byte)
+  (main_native.exe as ocamlc.opt))
+ (section bin)
+ (package ocaml))
+
+; For the moment we don't install optmain.{cmo,cmx,o} and opttopstart.{cmx,o}.
+; When built with Dune, these have the "dune exe" module prefixes, so won't
+; be named as a client would expect.  There should also be a patch upstream
+; now that moves the content of these files e.g. optmain -> optmaindriver,
+; the latter being normal library files, which would not suffer from this
+; "dune exe" prefix problem.
+
+(install
+ (files
+  (ocamlbytecomp.a as compiler-libs/ocamlbytecomp.a)
+  (ocamlcommon.a as compiler-libs/ocamlcommon.a)
+  (ocamlbytecomp.cmxa as compiler-libs/ocamlbytecomp.cmxa)
+  (ocamlcommon.cmxa as compiler-libs/ocamlcommon.cmxa)
+  (ocamlbytecomp.cma as compiler-libs/ocamlbytecomp.cma)
+  (ocamlcommon.cma as compiler-libs/ocamlcommon.cma))
+ (section lib)
+ (package ocaml))
+
+(install
+ (files
+  Makefile.build_config
+  Makefile.config_if_required
+  Makefile.config
+  VERSION)
+ (section lib)
+ (package ocaml))
 
 (library
  (name ocamloptcomp)
@@ -84,13 +423,14 @@
   backend_var
   compilenv
   ;; asmcomp/
-  afl_instrument
-  arch
   asmgen
   asminstantiator
   asmlibrarian
   asmlink
   asmpackager
+  ;; backend/
+  afl_instrument
+  arch
   branch_relaxation
   branch_relaxation_intf
   cfg_selectgen
@@ -155,7 +495,7 @@
   x86_proc
   zero_alloc_checker
   zero_alloc_info
-  ;; asmcomp/cfg
+  ;; backend/cfg
   cfg
   cfg_intf
   cfg_to_linear
@@ -203,7 +543,7 @@
   ;; file_formats/
   linear_format
   cfg_format
-  ;; asmcomp/debug/
+  ;; backend/debug/
   available_ranges_vars
   available_regs
   compute_ranges
@@ -213,7 +553,7 @@
   reg_availability_set
   reg_with_debug_info
   stack_reg_offset
-  ;; asmcomp/debug/dwarf/dwarf_ocaml
+  ;; backend/debug/dwarf/dwarf_ocaml
   ;; This code has a lot of dependencies into ocamloptcomp, so we just
   ;; build it as part of that library.
   dwarf
@@ -306,11 +646,6 @@
   ocamlcommon
   unix)
  (modules flambda_backend_main_native))
-
-(rule
- (targets boot_ocamlopt.ml)
- (action
-  (copy driver/boot_ocamlopt.ml %{targets})))
 
 ; CR sdolan: Could be faster if it was closure-only?
 
@@ -455,7 +790,7 @@
 
 (install
  (files
-  (ocaml/compilerlibs/META as compiler-libs/META)
+  (compilerlibs/META as compiler-libs/META)
   (external/owee/libcompiler_owee_stubs.a
    as
    compiler-libs/libcompiler_owee_stubs.a)
@@ -487,8 +822,11 @@
   ; Note that Dune doesn't allow globbing in the path part of the filename,
   ; so this is a bit more repetitive than it could be. Also, as far as I can
   ; tell, (glob_files_rec) simply doesn't work.
-  ocaml/jane_syntax.mli
   (glob_files *.mli)
+  (glob_files .ocamlbytecomp.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files .ocamlbytecomp.objs/native/*.cmx)
+  (glob_files .ocamlcommon.objs/byte/*.{cmi,cmo,cmt,cmti})
+  (glob_files .ocamlcommon.objs/native/*.cmx)
   (glob_files .ocamloptcomp.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files .ocamloptcomp.objs/native/*.cmx)
   (glob_files
