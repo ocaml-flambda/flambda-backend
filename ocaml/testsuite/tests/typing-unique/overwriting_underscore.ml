@@ -6,11 +6,11 @@
    is not enabled and an underscore is detected outside of a pattern. Note, however,
    that the new implementation errors in the type checker rather than the parser. *)
 
-let underscore () = _
+let underscore = _
 [%%expect{|
-Line 1, characters 20-21:
-1 | let underscore () = _
-                        ^
+Line 1, characters 17-18:
+1 | let underscore = _
+                     ^
 Error: Syntax error: "wildcard "_"" not expected.
 |}]
 

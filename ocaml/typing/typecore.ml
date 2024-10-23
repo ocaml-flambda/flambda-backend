@@ -262,6 +262,7 @@ type error =
   | Cannot_stack_allocate of Env.locality_context option
   | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
+  | Overwrite_of_invalid_term
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -4084,8 +4085,13 @@ let rec is_nonexpansive exp =
   | Texp_extension_constructor _ ->
     false
   | Texp_exclave e -> is_nonexpansive e
+  (* The underlying mutation of exp1 can not be observed since we have the only reference
+     to it. In fact, a completely valid model for Texp_overwrite would be to ignore exp1
+     and just allocate a new cell for exp2: *)
   | Texp_overwrite (exp1, exp2) ->
       is_nonexpansive exp1 && is_nonexpansive exp2
+  (* Texp_hole can always be replaced by a field read from the old allocation,
+     which is non-expansive: *)
   | Texp_hole _ -> true
 
 and is_nonexpansive_mod mexp =
@@ -6604,7 +6610,7 @@ and type_expect_
       if not (Language_extension.is_enabled Overwriting) then
         raise (Typetexp.Error (loc, env, Unsupported_extension Overwriting));
       if not (can_be_overwritten exp2.pexp_desc) then
-        raise (Syntaxerr.(Error(Expecting(exp2.pexp_loc, "tuple, constructor or record"))));
+        raise (Error (exp2.pexp_loc, env, Overwrite_of_invalid_term));
       let cell_mode, _ =
         (* The overwritten cell has to be unique
            and should have the areality expected here: *)
@@ -6650,10 +6656,10 @@ and type_expect_
             exp_env = env }
   | Pexp_hole ->
       begin match overwrite with
-      | Overwriting(old_loc, typ, fields_mode, _) ->
+      | Overwriting(_loc, typ, fields_mode, _) ->
         assert (Language_extension.is_enabled Overwriting);
         with_explanation (fun () -> unify_exp_types loc env typ (instance ty_expected));
-        submode ~loc:old_loc ~env fields_mode expected_mode;
+        submode ~loc ~env fields_mode expected_mode;
         let use = unique_use ~loc ~env fields_mode expected_mode.mode in
         { exp_desc = Texp_hole use;
           exp_loc = loc; exp_extra = [];
@@ -10725,6 +10731,9 @@ let report_error ~loc env = function
       print_unsupported_stack_allocation category
   | Not_allocation ->
       Location.errorf ~loc "This expression is not an allocation site."
+  | Overwrite_of_invalid_term ->
+      Location.errorf ~loc
+        "Overwriting is only supported on tuples, constructors and records."
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env

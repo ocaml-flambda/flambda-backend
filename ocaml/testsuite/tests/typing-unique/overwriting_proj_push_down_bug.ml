@@ -395,13 +395,10 @@ Line 3, characters 41-42:
 (********************************************)
 (* Global allocations in overwritten fields *)
 
-type option_record = { x : string option; y : string option @@ many aliased }
+type option_record = { x : string option; y : string option }
 [%%expect{|
 0
-type option_record = {
-  x : string option;
-  y : string option @@ many aliased;
-}
+type option_record = { x : string option; y : string option; }
 |}]
 
 let check_heap_alloc_in_overwrite (unique_ r : option_record) =
@@ -415,11 +412,11 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
-let check_heap_alloc_in_overwrite (unique_ r : option_record) =
-  overwrite_ r with { y = Some "" }
+let check_heap_alloc_in_overwrite (local_ unique_ r : option_record) =
+  overwrite_ r with { x = Some "" }
 [%%expect{|
 Line 2, characters 2-35:
-2 |   overwrite_ r with { y = Some "" }
+2 |   overwrite_ r with { x = Some "" }
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed

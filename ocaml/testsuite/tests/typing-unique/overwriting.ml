@@ -232,7 +232,7 @@ Error: This expression has type "int" but an expression was expected of type
          "string"
 |}]
 
-let update () =
+let update =
   let eq = { eq0 = "foo" ; eq1 = "bar" } in
   { eq with eq0 = 1 }
 [%%expect{|
@@ -244,7 +244,7 @@ Error: This expression has type "int eq" but an expression was expected of type
        Type "int" is not compatible with type "string"
 |}]
 
-let update () =
+let update =
   let eq = { eq0 = "foo" ; eq1 = "bar" } in
   overwrite_ eq with { eq0 = 1 }
 [%%expect{|
@@ -256,7 +256,7 @@ Error: This expression has type "int eq" but an expression was expected of type
        Type "int" is not compatible with type "string"
 |}]
 
-let update () =
+let update =
   let eq = { eq0 = "foo" ; eq1 = "bar" } in
   overwrite_ eq with { eq0 = 1; eq1 = 2 }
 [%%expect{|
@@ -320,21 +320,48 @@ type moded_record = { a : (int -> int) option; b : int -> int @@ portable }
 type moded_record = { a : (int -> int) option; b : int -> int @@ portable; }
 |}]
 
-let update : moded_record @ unique once -> moded_record @ many = function mr ->
-  overwrite_ mr with { a = None; b = Fun.id }
+let update : moded_record @ unique once -> moded_record @ many =
+  function mr ->
+    let many_fun : int -> int @@ many = function x -> x in
+    overwrite_ mr with { a = None; b = many_fun }
 [%%expect{|
-Line 2, characters 37-43:
-2 |   overwrite_ mr with { a = None; b = Fun.id }
-                                         ^^^^^^
-Error: This value is "nonportable" but expected to be "portable".
+Line 4, characters 4-49:
+4 |     overwrite_ mr with { a = None; b = many_fun }
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
-let update : moded_record @ unique once -> moded_record @ many = function mr ->
-  overwrite_ mr with { a = None; b = _ }
+let update : moded_record @ unique once -> moded_record @ many =
+  function mr ->
+    let once_fun : int -> int @@ once = function x -> x in
+    overwrite_ mr with { a = None; b = once_fun }
 [%%expect{|
-Line 2, characters 13-15:
-2 |   overwrite_ mr with { a = None; b = _ }
-                 ^^
+Line 4, characters 39-47:
+4 |     overwrite_ mr with { a = None; b = once_fun }
+                                           ^^^^^^^^
+Error: This value is "once" but expected to be "many".
+|}]
+
+let update : moded_record @ unique once -> moded_record @ many =
+  function mr ->
+    overwrite_ mr with { a = None; b = _ }
+[%%expect{|
+Line 3, characters 39-40:
+3 |     overwrite_ mr with { a = None; b = _ }
+                                           ^
+Error: This value is "once" but expected to be "many".
+|}]
+
+(* Same as above, but omitting the [b = _]. *)
+let update : moded_record @ unique once -> moded_record @ many =
+  function mr ->
+    overwrite_ mr with { a = None }
+[%%expect{|
+Line 3, characters 23-35:
+3 |     overwrite_ mr with { a = None }
+                           ^^^^^^^^^^^^
 Error: This value is "once" but expected to be "many".
 |}]
 
@@ -362,13 +389,39 @@ Line 4, characters 39-54:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
+let update : moded_record @ unique nonportable -> moded_record @ portable =
+  function mr ->
+    let portable_fun : int -> int @@ portable = function x -> x in
+    let nonportable_fun : int -> int @@ nonportable = function x -> x in
+    overwrite_ mr with { a = Some nonportable_fun; b = portable_fun }
+[%%expect{|
+Line 5, characters 34-49:
+5 |     overwrite_ mr with { a = Some nonportable_fun; b = portable_fun }
+                                      ^^^^^^^^^^^^^^^
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
 (* This works since the kept field has the portable modality: *)
 let update : moded_record @ unique nonportable -> moded_record @ portable =
-  function mr -> overwrite_ mr with { a = None; b = _ }
+  function mr ->
+    overwrite_ mr with { a = None; b = _ }
 [%%expect{|
-Line 2, characters 17-55:
-2 |   function mr -> overwrite_ mr with { a = None; b = _ }
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 3, characters 4-42:
+3 |     overwrite_ mr with { a = None; b = _ }
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+(* Same as above, but omitting the [b = _]. *)
+let update : moded_record @ unique nonportable -> moded_record @ portable =
+  function mr ->
+    overwrite_ mr with { a = None }
+[%%expect{|
+Line 3, characters 4-35:
+3 |     overwrite_ mr with { a = None }
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
@@ -424,7 +477,7 @@ let update_hole (t : int * (string * int)) =
 Line 2, characters 20-21:
 2 |   overwrite_ t with _
                         ^
-Error: Syntax error: "tuple, constructor or record" expected.
+Error: Overwriting is only supported on tuples, constructors and records.
 |}]
 
 (***********************************)
@@ -531,7 +584,7 @@ Hint: The old tag of this allocation is OptionA.
 |}]
 
 (* Unsupported *)
-let let_bound_path () =
+let let_bound_path =
   let r = { x = OptionA "foo" } in
   overwrite_ r.x with OptionA "bar"
 [%%expect{|
@@ -721,12 +774,12 @@ Error: This form is not allowed as the type of the inlined record could escape.
 |}]
 
 let update = function
-  | (Con x) ->
-    let x = overwrite_ x with { x = "foo" } in
-    x
+  | (Con c) ->
+    let x = overwrite_ c with { x = "foo" } in
+    Con x
 [%%expect{|
 Line 3, characters 23-24:
-3 |     let x = overwrite_ x with { x = "foo" } in
+3 |     let x = overwrite_ c with { x = "foo" } in
                            ^
 Error: This form is not allowed as the type of the inlined record could escape.
 |}]

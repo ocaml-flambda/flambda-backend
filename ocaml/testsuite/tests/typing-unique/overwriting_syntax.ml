@@ -87,7 +87,7 @@ let overwrite_variant = function
 Line 2, characters 38-47:
 2 |   `A (a, b) as t -> overwrite_ t with `A (b, _)
                                           ^^^^^^^^^
-Error: Syntax error: "tuple, constructor or record" expected.
+Error: Overwriting is only supported on tuples, constructors and records.
 |}]
 
 let overwrite_in_match = function
@@ -106,27 +106,27 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 (****************)
 (* Non-examples *)
 
-let underscore () = _
+let underscore = _
 [%%expect{|
-Line 1, characters 20-21:
-1 | let underscore () = _
-                        ^
+Line 1, characters 17-18:
+1 | let underscore = _
+                     ^
 Error: Syntax error: "wildcard "_"" not expected.
 |}]
 
-let underscore_tuple () = (_, 1)
+let underscore_tuple = (_, 1)
 [%%expect{|
-Line 1, characters 27-28:
-1 | let underscore_tuple () = (_, 1)
-                               ^
+Line 1, characters 24-25:
+1 | let underscore_tuple = (_, 1)
+                            ^
 Error: Syntax error: "wildcard "_"" not expected.
 |}]
 
-let underscore_record () = { a = _; b = 1 }
+let underscore_record = { a = _; b = 1 }
 [%%expect{|
-Line 1, characters 33-34:
-1 | let underscore_record () = { a = _; b = 1 }
-                                     ^
+Line 1, characters 30-31:
+1 | let underscore_record = { a = _; b = 1 }
+                                  ^
 Error: Syntax error: "wildcard "_"" not expected.
 |}]
 
@@ -135,7 +135,7 @@ let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
 Line 1, characters 45-64:
 1 | let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x
                                                  ^^^^^^^^^^^^^^^^^^^
-Error: Syntax error: "tuple, constructor or record" expected.
+Error: Overwriting is only supported on tuples, constructors and records.
 |}]
 
 let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
@@ -143,7 +143,7 @@ let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
 Line 1, characters 47-77:
 1 | let overwrite_with_match t = overwrite_ t with match t with C {a;b} -> C{a;b}
                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Syntax error: "tuple, constructor or record" expected.
+Error: Overwriting is only supported on tuples, constructors and records.
 |}]
 
 let overwrite_with_overwrite = function
@@ -152,5 +152,5 @@ let overwrite_with_overwrite = function
 Line 2, characters 39-68:
 2 |     { a; b } as t -> overwrite_ t with (overwrite_ t with { b = a })
                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Syntax error: "tuple, constructor or record" expected.
+Error: Overwriting is only supported on tuples, constructors and records.
 |}]

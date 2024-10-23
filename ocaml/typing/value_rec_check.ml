@@ -993,6 +993,13 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_exclave e -> expression e
     | Texp_src_pos -> empty
     | Texp_overwrite (exp1, exp2) ->
+      (* This is untested, since we currently mark Texp_overwrite as Dynamic and
+         the analysis always stops if there is an overwrite_ in a recursive expression.
+         We dereference the cell to be overwritten, since it would not be sound to
+         overwrite a cell that is not yet constructed. The new value to be written into
+         the cell may itself be recursive. We do not put a guard on here, but this is done
+         by the tuple/record/constructor that is contained in the overwritten expression.
+      *)
       join [
         expression exp1 << Dereference;
         expression exp2

@@ -315,6 +315,7 @@ type error =
   | Cannot_stack_allocate of Env.locality_context option
   | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
+  | Overwrite_of_invalid_term
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
