@@ -2149,7 +2149,7 @@ let rec estimate_type_jkind ~expand_component env ty =
       with
         Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
     end
-  | Tobject _ -> Jkind.Builtin.value ~why:Object
+  | Tobject _ -> Jkind.for_object
   | Tfield _ -> Jkind.Builtin.value ~why:Tfield
   | Tnil -> Jkind.Builtin.value ~why:Tnil
   | Tlink _ | Tsubst _ -> assert false

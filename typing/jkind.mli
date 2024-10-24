@@ -376,6 +376,9 @@ val for_boxed_variant : all_voids:bool -> jkind_l
 (** The jkind of an arrow type. *)
 val for_arrow : jkind_l
 
+(** The jkind of an object type.  *)
+val for_object : jkind_l
+
 (******************************)
 (* elimination and defaulting *)
 
