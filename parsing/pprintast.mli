@@ -47,6 +47,7 @@ val class_type: Format.formatter -> Parsetree.class_type -> unit
 val module_type: Format.formatter -> Parsetree.module_type -> unit
 val structure_item: Format.formatter -> Parsetree.structure_item -> unit
 val signature_item: Format.formatter -> Parsetree.signature_item -> unit
+val signature_items: Format.formatter -> Parsetree.signature_item list -> unit
 val binding: Format.formatter -> Parsetree.value_binding -> unit
 val payload: Format.formatter -> Parsetree.payload -> unit
 

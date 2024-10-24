@@ -837,7 +837,9 @@ and module_type i ppf x =
       payload i ppf arg
   )
 
-and signature i ppf x = list i signature_item ppf x
+and signature i ppf {psg_items; psg_modalities} =
+  modalities i ppf psg_modalities;
+  list i signature_item ppf psg_items
 
 and signature_item i ppf x =
   with_location_mapping ~loc:x.psig_loc ppf (fun () ->
@@ -1149,7 +1151,10 @@ and directive_argument i ppf x =
   | Pdir_bool (b) -> line i ppf "Pdir_bool %s\n" (string_of_bool b);
 ;;
 
-let interface ppf x = list 0 signature_item ppf x;;
+let interface ppf {psg_items; psg_modalities} =
+  modalities 0 ppf psg_modalities;
+  list 0 signature_item ppf psg_items
+;;
 
 let implementation ppf x = list 0 structure_item ppf x;;
 

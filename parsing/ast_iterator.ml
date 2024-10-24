@@ -711,7 +711,12 @@ let default_iterator =
     structure_item = M.iter_structure_item;
     module_expr = M.iter;
     module_expr_jane_syntax = M.iter_ext;
-    signature = (fun this l -> List.iter (this.signature_item this) l);
+    signature =
+      (fun this {psg_loc; psg_items; psg_modalities} ->
+        this.location this psg_loc;
+        this.modalities this psg_modalities;
+        List.iter (this.signature_item this) psg_items
+      );
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;
     module_type_jane_syntax = MT.iter_jane_syntax;
