@@ -46,30 +46,29 @@ type type_structure =
   | Open
   | Algebraic
   | Unboxed of argument_to_unbox
+  | Unboxed_product
 
 let structure : type_definition -> type_structure = fun def ->
-  match def.type_kind with
-  | Type_open -> Open
-  | Type_abstract _ ->
+  match (def.type_kind, find_unboxed_type def) with
+  | Type_open, _ -> Open
+  | Type_abstract _, _ ->
       begin match def.type_manifest with
       | None -> Abstract
       | Some type_expr -> Synonym type_expr
       end
-  | Type_record _ | Type_variant _ ->
-      begin match find_unboxed_type def with
-      | None -> Algebraic
-      | Some ty ->
-        let params =
-          match def.type_kind with
-          | Type_variant ([{cd_res = Some ret_type}], _) ->
-             begin match get_desc ret_type with
-             | Tconstr (_, tyl, _) -> tyl
-             | _ -> assert false
-             end
-          | _ -> def.type_params
-        in
-        Unboxed { argument_type = ty; result_type_parameter_instances = params }
-      end
+  | (Type_record _ | Type_variant _), None -> Algebraic
+  | Type_record_unboxed_product _, None -> Unboxed_product
+  | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some ty ->
+      let params =
+        match def.type_kind with
+        | Type_variant ([{cd_res = Some ret_type}], _) ->
+            begin match get_desc ret_type with
+            | Tconstr (_, tyl, _) -> tyl
+            | _ -> assert false
+            end
+        | _ -> def.type_params
+      in
+      Unboxed { argument_type = ty; result_type_parameter_instances = params }
 
 type error =
   | Non_separable_evar of string option
@@ -633,6 +632,12 @@ let check_def
       check_type env constructor.argument_type Sep
       |> msig_of_context ~decl_loc:def.type_loc
            ~parameters:constructor.result_type_parameter_instances
+  | Unboxed_product ->
+      (* CR layouts 7.3: we give products best_msig, as they are
+         not affected by the flat float array optimization.
+         See test [typing-layouts-unboxed-records/separability.ml].
+      *)
+      best_msig def
 
 let compute_decl env decl =
   if Config.flat_float_array then check_def env decl

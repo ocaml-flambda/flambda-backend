@@ -221,7 +221,7 @@ Line 1, characters 14-26:
 1 | type t5_3 = { x : t_bits32 } [@@unboxed];;
                   ^^^^^^^^^^^^
 Error: Type "t_bits32" has layout "bits32".
-       Unboxed records may not yet contain types of this layout.
+       [@@unboxed] records may not yet contain types of this layout.
 |}];;
 
 
@@ -268,7 +268,7 @@ Line 1, characters 21-33:
 1 | type t5_6_1 = A of { x : t_bits32 } [@@unboxed];;
                          ^^^^^^^^^^^^
 Error: Type "t_bits32" has layout "bits32".
-       Unboxed inlined records may not yet contain types of this layout.
+       [@@unboxed] inlined records may not yet contain types of this layout.
 |}];;
 
 (****************************************************)

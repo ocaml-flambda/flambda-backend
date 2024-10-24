@@ -29,6 +29,7 @@ type native_repr_kind = Unboxed | Untagged
 type jkind_sort_loc =
   | Cstr_tuple of { unboxed : bool }
   | Record of { unboxed : bool }
+  | Record_unboxed_product
   | Inlined_record of { unboxed : bool }
   | Mixed_product
   | External
@@ -624,6 +625,7 @@ let verify_unboxed_attr unboxed_attr sdecl =
         | [{pld_mutable = Mutable}] -> bad "it is mutable"
         | [{pld_mutable = Immutable}] -> ()
       end
+    | Ptype_record_unboxed_product _ -> bad "cannot use [@@unboxed] on unboxed record"
     | Ptype_variant constructors -> begin match constructors with
         | [] -> bad "it has no constructor"
         | (_::_::_) -> bad "it has more than one constructor"
@@ -766,6 +768,7 @@ let transl_declaration env sdecl (id, uid) =
     | Ptype_record [{pld_mutable=Immutable; _}] ->
       Option.value unboxed_attr ~default:!Clflags.unboxed_types,
       Option.is_none unboxed_attr
+    | Ptype_record_unboxed_product _ -> false, false
     | _ -> false, false (* Not unboxable, mark as boxed *)
   in
   verify_unboxed_attr unboxed_attr sdecl;
@@ -813,8 +816,8 @@ let transl_declaration env sdecl (id, uid) =
               ~why:(Primitive Predef.ident_or_null)
           in
           Ttype_abstract, type_kind, jkind
-      | (Ptype_variant _ | Ptype_record _ | Ptype_open) when
-        Builtin_attributes.has_or_null_reexport sdecl.ptype_attributes ->
+      | (Ptype_variant _ | Ptype_record _ | Ptype_record_unboxed_product _ | Ptype_open)
+        when Builtin_attributes.has_or_null_reexport sdecl.ptype_attributes ->
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
         Ttype_abstract, Type_abstract Definition,
@@ -915,6 +918,17 @@ let transl_declaration env sdecl (id, uid) =
               Jkind.Builtin.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
+      | Ptype_record_unboxed_product lbls ->
+          Language_extension.assert_enabled ~loc:sdecl.ptype_loc Layouts
+            Language_extension.Beta;
+          let lbls, lbls' =
+            transl_labels ~new_var_jkind:Any ~allow_unboxed:true
+            env None true lbls Record_unboxed_product
+          in
+          let jkind_ls = List.map (fun _ -> any) lbls in
+          let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
+          Ttype_record_unboxed_product lbls,
+          Type_record_unboxed_product(lbls', Record_unboxed_product), jkind
       | Ptype_open ->
         Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
       in
@@ -988,7 +1002,9 @@ let transl_declaration env sdecl (id, uid) =
       let uid = decl.typ_type.type_uid in
       match decl.typ_type.type_kind with
       | Type_variant (cstrs, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Type_record (labels, _) -> Shape.str ~uid (shape_map_labels labels)
+      | Type_record (labels, _)
+      | Type_record_unboxed_product (labels, _) ->
+        Shape.str ~uid (shape_map_labels labels)
       | Type_abstract _ | Type_open -> Shape.leaf uid
     in
     decl, typ_shape
@@ -1072,7 +1088,8 @@ let check_constraints env sdecl (_, decl) =
   | Type_variant (l, _rep) ->
       let find_pl = function
           Ptype_variant pl -> pl
-        | Ptype_record _ | Ptype_abstract | Ptype_open -> assert false
+        | Ptype_record _ | Ptype_record_unboxed_product _ | Ptype_abstract | Ptype_open ->
+          assert false
       in
       let pl = find_pl sdecl.ptype_kind in
       let pl_index =
@@ -1106,8 +1123,17 @@ let check_constraints env sdecl (_, decl) =
         l
   | Type_record (l, _) ->
       let find_pl = function
-          Ptype_record pl -> pl
-        | Ptype_variant _ | Ptype_abstract | Ptype_open -> assert false
+        | Ptype_record pl -> pl
+        | Ptype_record_unboxed_product _ | Ptype_variant _ | Ptype_abstract
+        | Ptype_open ->
+          assert false
+      in
+      let pl = find_pl sdecl.ptype_kind in
+      check_constraints_labels env visited l pl
+  | Type_record_unboxed_product (l, _) ->
+      let find_pl = function
+        | Ptype_record_unboxed_product pl -> pl
+        | Ptype_record _ | Ptype_variant _ | Ptype_abstract | Ptype_open -> assert false
       in
       let pl = find_pl sdecl.ptype_kind in
       check_constraints_labels env visited l pl
@@ -1142,7 +1168,8 @@ let narrow_to_manifest_jkind env loc decl =
    with the same constructors and labels. *)
 let check_kind_coherence env loc dpath decl =
   match decl.type_kind, decl.type_manifest with
-  | (Type_variant _ | Type_record _ | Type_open), Some ty ->
+  | (Type_variant _ | Type_record _ | Type_record_unboxed_product _ | Type_open),
+    Some ty ->
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_jkind_l jkind' decl.type_jkind with
@@ -1660,6 +1687,23 @@ let update_decl_jkind env dpath decl =
        No updating required for [or_null_reexport], and we must not
        incorrectly override the jkind to [non_null].
     *)
+    | Type_record_unboxed_product (lbls, rep) ->
+        begin match rep with
+        | Record_unboxed_product ->
+          let lbls, jkinds =
+            List.map (fun (Types.{ld_type} as lbl) ->
+              let ld_jkind = Ctype.type_jkind env ld_type in
+              {lbl with ld_jkind}, ld_jkind
+            ) lbls
+            |> List.split
+          in
+          let type_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
+          let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+          { decl with type_kind = Type_record_unboxed_product (lbls, rep);
+                      type_jkind;
+                      type_has_illegal_crossings },
+          type_jkind
+        end
     | Type_variant _ when
       Builtin_attributes.has_or_null_reexport decl.type_attributes ->
       decl, decl.type_jkind
@@ -2039,7 +2083,9 @@ let check_abbrev_regularity ~abs_env env id_loc_list to_check tdecl =
     decl to_check
 
 let check_duplicates sdecl_list =
-  let labels = Hashtbl.create 7 and constrs = Hashtbl.create 7 in
+  let labels = Hashtbl.create 7 in
+  let unboxed_labels = Hashtbl.create 7 in
+  let constrs = Hashtbl.create 7 in
   List.iter
     (fun sdecl -> match sdecl.ptype_kind with
       Ptype_variant cl ->
@@ -2063,6 +2109,16 @@ let check_duplicates sdecl_list =
                 (Warnings.Duplicate_definitions
                    ("label", cname.txt, name', sdecl.ptype_name.txt))
             with Not_found -> Hashtbl.add labels cname.txt sdecl.ptype_name.txt)
+          fl
+    | Ptype_record_unboxed_product fl ->
+        List.iter
+          (fun {pld_name=cname;pld_loc=loc} ->
+            try
+              let name' = Hashtbl.find unboxed_labels cname.txt in
+              Location.prerr_warning loc
+                (Warnings.Duplicate_definitions
+                   ("unboxed record label", cname.txt, name', sdecl.ptype_name.txt))
+            with Not_found -> Hashtbl.add unboxed_labels cname.txt sdecl.ptype_name.txt)
           fl
     | Ptype_abstract -> ()
     | Ptype_open -> ())
@@ -3540,6 +3596,9 @@ let report_error ppf = function
       | Type_record (tl, _), _ ->
           explain_unbound ppf ty tl (fun l -> l.Types.ld_type)
             "field" (fun l -> Ident.name l.Types.ld_id ^ ": ")
+      | Type_record_unboxed_product (tl, _), _ ->
+          explain_unbound ppf ty tl (fun l -> l.Types.ld_type)
+            "unboxed record field" (fun l -> Ident.name l.Types.ld_id ^ ": ")
       | Type_abstract _, Some ty' ->
           explain_unbound_single ppf ty ty'
       | _ -> ()
@@ -3700,14 +3759,15 @@ let report_error ppf = function
       | Inlined_record { unboxed = false }
       | Record { unboxed = false } -> "Record element types"
       | Inlined_record { unboxed = true }
-      | Record { unboxed = true } -> "Unboxed record element types"
+      | Record { unboxed = true } -> "[@@unboxed] record element types"
+      | Record_unboxed_product -> "Unboxed record element types"
       | External -> "Types in an external"
       | External_with_layout_poly -> "Types in an external"
     in
     let extra =
       match kloc with
-      | Mixed_product
-      | Cstr_tuple _ | Record _ | Inlined_record _ | External -> dprintf ""
+      | Mixed_product | Cstr_tuple _ | Record _ | Inlined_record _ | External
+      | Record_unboxed_product -> dprintf ""
       | External_with_layout_poly -> dprintf
         "@ (locally-scoped type variables with layout 'any' are@ \
           made representable by %a)"
@@ -3729,9 +3789,10 @@ let report_error ppf = function
       match lloc with
       | Mixed_product -> "Structures with non-value elements"
       | Inlined_record { unboxed = false } -> "Inlined records"
-      | Inlined_record { unboxed = true } -> "Unboxed inlined records"
+      | Inlined_record { unboxed = true } -> "[@@unboxed] inlined records"
       | Record { unboxed = false } -> "Records"
-      | Record { unboxed = true }-> "Unboxed records"
+      | Record { unboxed = true }-> "[@@unboxed] records"
+      | Record_unboxed_product -> "Unboxed records"
       | Cstr_tuple { unboxed = false } -> "Variants"
       | Cstr_tuple { unboxed = true } -> "Unboxed variants"
       | External | External_with_layout_poly -> assert false

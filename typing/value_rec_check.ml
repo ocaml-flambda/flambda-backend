@@ -183,6 +183,12 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
+    | Texp_record_unboxed_product { representation = Record_unboxed_product;
+                                    fields = [| _, Overridden (_,e) |] } ->
+        classify_expression env e
+    | Texp_record_unboxed_product _ ->
+        Dynamic
+
     | Texp_variant _
     | Texp_tuple _
     | Texp_extension_constructor _
@@ -250,6 +256,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_ifthenelse _
     | Texp_send _
     | Texp_field _
+    | Texp_unboxed_field _
     | Texp_assert _
     | Texp_try _
     | Texp_override _
@@ -769,6 +776,23 @@ let rec expression : Typedtree.expression -> term_judg =
           array field es;
           option expression (Option.map fst eo) << Dereference
         ]
+    | Texp_record_unboxed_product { fields = es; extended_expression = eo;
+                                    representation = rep } ->
+      begin match rep with
+      | Record_unboxed_product ->
+        let field (_, field_def) =
+          let env =
+            match field_def with
+            | Kept _ -> empty
+            | Overridden (_, e) -> expression e
+          in
+          env << Return
+        in
+        join [
+          array field es;
+          option expression eo << Dereference
+        ]
+      end
     | Texp_ifthenelse (cond, ifso, ifnot) ->
       (*
         Gc |- c: m[Dereference]
@@ -839,6 +863,8 @@ let rec expression : Typedtree.expression -> term_judg =
         -----------------------
         G |- e.x: m
       *)
+      expression e << Dereference
+    | Texp_unboxed_field (e, _, _, _) ->
       expression e << Dereference
     | Texp_setinstvar (pth,_,_,e) ->
       (*
@@ -1419,6 +1445,7 @@ and is_destructuring_pattern : type k . k general_pattern -> bool =
     | Tpat_construct _ -> true
     | Tpat_variant _ -> true
     | Tpat_record (_, _) -> true
+    | Tpat_record_unboxed_product (_, _) -> true
     | Tpat_array _ -> true
     | Tpat_lazy _ -> true
     | Tpat_value pat -> is_destructuring_pattern (pat :> pattern)

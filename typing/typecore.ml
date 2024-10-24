@@ -57,14 +57,16 @@ type type_expected = {
 }
 
 module Datatype_kind = struct
-  type t = Record | Variant
+  type t = Record | Record_unboxed_product | Variant
 
   let type_name = function
     | Record -> "record"
+    | Record_unboxed_product -> "unboxed record"
     | Variant -> "variant"
 
   let label_name = function
     | Record -> "field"
+    | Record_unboxed_product -> "unboxed record field"
     | Variant -> "constructor"
 end
 
@@ -82,9 +84,15 @@ type wrong_kind_context =
 type wrong_kind_sort =
   | Constructor
   | Record
+  | Record_unboxed_product
   | Boolean
   | List
   | Unit
+
+let record_form_to_wrong_kind_sort : type rep. rep record_form -> wrong_kind_sort =
+  function
+  | Legacy -> Record
+  | Unboxed_product -> Record_unboxed_product
 
 type contains_gadt =
   | Contains_gadt
@@ -136,7 +144,7 @@ type error =
   | Partial_tuple_pattern_bad_type
   | Extra_tuple_label of string option * type_expr
   | Missing_tuple_label of string option * type_expr
-  | Label_mismatch of Longident.t * Errortrace.unification_error
+  | Label_mismatch of record_form_packed * Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * Parsetree.pattern_desc option -> error
   | Or_pattern_type_clash of Ident.t * Errortrace.unification_error
@@ -172,7 +180,7 @@ type error =
     }
   | Apply_wrong_label of arg_label * type_expr * bool
   | Label_multiply_defined of string
-  | Label_missing of Ident.t list
+  | Label_missing of record_form_packed * Ident.t list
   | Label_not_mutable of Longident.t
   | Wrong_name of string * type_expected * wrong_name
   | Name_type_mismatch of
@@ -238,7 +246,7 @@ type error =
   | Unbound_existential of Ident.t list * type_expr
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
-  | Expr_not_a_record_type of type_expr
+  | Expr_not_a_record_type of record_form_packed * type_expr
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -815,20 +823,26 @@ let src_pos loc attrs env =
   ; exp_env = env
   }
 
-type record_extraction_result =
-  | Record_type of Path.t * Path.t * Types.label_declaration list * record_representation
+type 'rep record_extraction_result =
+  | Record_type of Path.t * Path.t * Types.label_declaration list * 'rep
   | Not_a_record_type
   | Maybe_a_record_type
 
 let extract_concrete_typedecl_protected env ty =
   extract_concrete_typedecl env (protect_expansion env ty)
 
-let extract_concrete_record env ty =
-  match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
+let extract_concrete_record (type rep) (record_form : rep record_form) env ty
+    : (rep record_extraction_result) =
+  match record_form, extract_concrete_typedecl_protected env ty with
+  | Legacy, Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
     Record_type (p0, p, fields, repres)
-  | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_record_type
-  | May_have_typedecl -> Maybe_a_record_type
+  | Unboxed_product,
+    Typedecl(p0, p, {type_kind=Type_record_unboxed_product (fields, repres)}) ->
+    Record_type (p0, p, fields, repres)
+  | Legacy, Typedecl(_, _, {type_kind=Type_record_unboxed_product _})
+  | Unboxed_product, Typedecl(_, _, {type_kind=Type_record _})
+  | _, Has_no_typedecl | _, Typedecl(_, _, _) -> Not_a_record_type
+  | _, May_have_typedecl -> Maybe_a_record_type
 
 type variant_extraction_result =
   | Variant_type of Path.t * Path.t * Types.constructor_declaration list
@@ -844,8 +858,8 @@ let extract_concrete_variant env ty =
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_variant_type
   | May_have_typedecl -> Maybe_a_variant_type
 
-let extract_label_names env ty =
-  match extract_concrete_record env ty with
+let extract_label_names record_form env ty =
+  match extract_concrete_record record_form env ty with
   | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
   | Not_a_record_type | Maybe_a_record_type -> assert false
 
@@ -1342,6 +1356,35 @@ and build_as_type_and_mode_extra env p ~mode : _ -> _ * _ = function
 
 and build_as_type_aux (env : Env.t) p ~mode =
   let build_as_type env p = fst (build_as_type_and_mode env p ~mode) in
+  let build_record_as_type lpl =
+    let lbl = snd3 (List.hd lpl) in
+    if lbl.lbl_private = Private then p.pat_type, mode else
+    (* The jkind here is filled in via unification with [ty_res] in
+        [unify_pat]. *)
+    (* XXX layouts v2: This should be a sort variable and could be now (but
+        think about when it gets defaulted.)
+
+        RAE: why? It looks fine as-is. *)
+    let ty = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
+    let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
+    let do_label lbl =
+      let _, ty_arg, ty_res = instance_label ~fixed:false lbl in
+      unify_pat env {p with pat_type = ty} ty_res;
+      let refinable =
+        lbl.lbl_mut = Immutable && List.mem_assoc lbl.lbl_num ppl &&
+        match get_desc lbl.lbl_arg with Tpoly _ -> false | _ -> true in
+      if refinable then begin
+        let arg = List.assoc lbl.lbl_num ppl in
+        unify_pat env
+          {arg with pat_type = build_as_type env arg} ty_arg
+      end else begin
+        let _, ty_arg', ty_res' = instance_label ~fixed:false lbl in
+        unify_pat_types p.pat_loc env ty_arg ty_arg';
+        unify_pat env p ty_res'
+      end in
+    Array.iter do_label lbl.lbl_all;
+    ty, mode
+  in
   match p.pat_desc with
     Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode env p1 ~mode
   | Tpat_tuple pl ->
@@ -1387,34 +1430,8 @@ and build_as_type_aux (env : Env.t) p ~mode =
                          ~name:None ~fixed:None ~closed:false))
       in
       ty, mode
-  | Tpat_record (lpl,_) ->
-      let lbl = snd3 (List.hd lpl) in
-      if lbl.lbl_private = Private then p.pat_type, mode else
-      (* The jkind here is filled in via unification with [ty_res] in
-         [unify_pat]. *)
-      (* XXX layouts v2: This should be a sort variable and could be now (but
-         think about when it gets defaulted.)
-
-         RAE: why? It looks fine as-is. *)
-      let ty = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
-      let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
-      let do_label lbl =
-        let _, ty_arg, ty_res = instance_label ~fixed:false lbl in
-        unify_pat env {p with pat_type = ty} ty_res;
-        let refinable =
-          lbl.lbl_mut = Immutable && List.mem_assoc lbl.lbl_num ppl &&
-          match get_desc lbl.lbl_arg with Tpoly _ -> false | _ -> true in
-        if refinable then begin
-          let arg = List.assoc lbl.lbl_num ppl in
-          unify_pat env
-            {arg with pat_type = build_as_type env arg} ty_arg
-        end else begin
-          let _, ty_arg', ty_res' = instance_label ~fixed:false lbl in
-          unify_pat_types p.pat_loc env ty_arg ty_arg';
-          unify_pat env p ty_res'
-        end in
-      Array.iter do_label lbl.lbl_all;
-      ty, mode
+  | Tpat_record (lpl,_) -> build_record_as_type lpl
+  | Tpat_record_unboxed_product (lpl,_) -> build_record_as_type lpl
   | Tpat_or(p1, p2, row) ->
       begin match row with
         None ->
@@ -1701,14 +1718,14 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
   end;
   (ty_args_ty, ty_args_gf, existential_ctyp)
 
-let solve_Ppat_record_field ~refine loc penv label label_lid record_ty =
+let solve_Ppat_record_field ~refine loc penv label label_lid record_ty record_form =
   with_local_level_iter ~post:generalize_structure begin fun () ->
     let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
     begin try
       unify_pat_types_refine ~refine loc penv ty_res (instance record_ty)
     with Error(_loc, _env, Pattern_type_clash(err, _)) ->
       raise(Error(label_lid.loc, !!penv,
-                  Label_mismatch(label_lid.txt, err)))
+                  Label_mismatch(P record_form, label_lid.txt, err)))
     end;
     (ty_arg, [ty_res; ty_arg])
   end
@@ -2016,12 +2033,12 @@ end) = struct
 
   (* we selected a name out of the lexical scope *)
   let warn_out_of_scope warn lid env tpath =
-    if Warnings.is_active (Name_out_of_scope ("",[],false)) then begin
+    if Warnings.is_active (Name_out_of_scope ("", Name "")) then begin
       let path_s =
         Printtyp.wrap_printing_env ~error:true env
           (fun () -> Printtyp.string_of_path tpath) in
       warn lid.loc
-        (Warnings.Name_out_of_scope (path_s, [Longident.last lid.txt], false))
+        (Warnings.Name_out_of_scope (path_s, Name (Longident.last lid.txt)))
     end
 
   (* warn if the selected name is not the last introduced in scope
@@ -2159,13 +2176,33 @@ module Label = NameChoice (struct
   let get_name lbl = lbl.lbl_name
   let get_type lbl = lbl.lbl_res
   let lookup_all_from_type loc usage path env =
-    Env.lookup_all_labels_from_type ~loc usage path env
+    Env.lookup_all_labels_from_type ~record_form:Legacy ~loc usage path env
   let in_env lbl =
     match lbl.lbl_repres with
     | Record_boxed _ | Record_float | Record_ufloat | Record_unboxed
     | Record_mixed _ -> true
     | Record_inlined _ -> false
 end)
+
+module Unboxed_label = NameChoice (struct
+  type t = unboxed_label_description
+  type usage = Env.label_usage
+  let kind = Datatype_kind.Record_unboxed_product
+  let get_name lbl = lbl.lbl_name
+  let get_type lbl = lbl.lbl_res
+  let lookup_all_from_type loc usage path env =
+    Env.lookup_all_labels_from_type ~record_form:Unboxed_product ~loc usage path env
+  let in_env (lbl : t) =
+    match lbl.lbl_repres with
+    | Record_unboxed_product -> true
+end)
+
+let label_get_type_path
+    (type rep)
+    (record_form : rep record_form)
+    (d : rep gen_label_description) =
+  match record_form with  | Legacy -> Label.get_type_path d
+  | Unboxed_product -> Unboxed_label.get_type_path d
 
 (* In record-construction expressions and patterns, we have many labels
    at once; find a candidate type in the intersection of the candidates
@@ -2192,8 +2229,23 @@ let disambiguate_label_by_ids closed ids labels  : (_, _) result =
   | labels ->
   Ok labels
 
+type 'rep candidates = ('rep gen_label_description * (unit -> unit)) list
+let label_disambiguate
+    (type rep)
+    ?warn ?(filter : (rep candidates -> (rep candidates, rep candidates) result) option)
+    (record_form : rep record_form) usage lid env expected_type
+    (scope : (rep candidates, _) result)
+  : rep gen_label_description =
+  match record_form with
+  | Legacy ->
+    Label.disambiguate ?warn ?filter usage lid env expected_type scope
+  | Unboxed_product ->
+    Unboxed_label.disambiguate ?warn ?filter usage lid env expected_type scope
+
 (* Only issue warnings once per record constructor/pattern *)
-let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
+let disambiguate_sort_lid_a_list
+    (type rep)
+    (record_form : rep record_form) loc closed env usage expected_type lid_a_list =
   let ids = List.map (fun (lid, _) -> Longident.last lid.txt) lid_a_list in
   let w_pr = ref false and w_amb = ref []
   and w_scope = ref [] and w_scope_ty = ref "" in
@@ -2202,15 +2254,14 @@ let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
     match msg with
     | Not_principal _ -> w_pr := true
     | Ambiguous_name([s], l, _, ex) -> w_amb := (s, l, ex) :: !w_amb
-    | Name_out_of_scope(ty, [s], _) ->
+    | Name_out_of_scope(ty, Name s) ->
         w_scope := s :: !w_scope; w_scope_ty := ty
     | _ -> Location.prerr_warning loc msg
   in
   let process_label lid =
-    let scope = Env.lookup_all_labels ~loc:lid.loc usage lid.txt env in
-    let filter : Label.nonempty_candidate_filter =
-      disambiguate_label_by_ids closed ids in
-    Label.disambiguate ~warn ~filter usage lid env expected_type scope in
+    let scope = Env.lookup_all_labels ~record_form  ~loc:lid.loc usage lid.txt env in
+    let filter = disambiguate_label_by_ids closed ids in
+    label_disambiguate ~warn ~filter record_form usage lid env expected_type scope in
   let lbl_a_list =
     (* If one label is qualified [{ foo = ...; M.bar = ... }],
        we will disambiguate all labels using one of the qualifying modules,
@@ -2260,12 +2311,13 @@ let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
   in
   if !w_pr then
     Location.prerr_warning loc
-      (Warnings.Not_principal "this type-based record disambiguation")
+      (Warnings.Not_principal
+         ("this type-based " ^ (record_form_to_string record_form) ^" disambiguation"))
   else begin
     match List.rev !w_amb with
       (_,types,ex)::_ as amb ->
         let paths =
-          List.map (fun (_,lbl,_) -> Label.get_type_path lbl) lbl_a_list in
+          List.map (fun (_,lbl,_) -> label_get_type_path record_form lbl) lbl_a_list in
         let path = List.hd paths in
         let fst3 (x,_,_) = x in
         if List.for_all (compare_type_path env path) (List.tl paths) then
@@ -2278,9 +2330,10 @@ let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
             amb
     | _ -> ()
   end;
-  if !w_scope <> [] then
-    Location.prerr_warning loc
-      (Warnings.Name_out_of_scope (!w_scope_ty, List.rev !w_scope, true));
+  (if !w_scope <> [] then
+    let warning = Warnings.Fields {record_form = record_form_to_string record_form;
+                                   fields = List.rev !w_scope} in
+    Location.prerr_warning loc (Warnings.Name_out_of_scope (!w_scope_ty, warning)));
   (* Invariant: records are sorted in the typed tree *)
   List.sort
     (fun (_,lbl1,_) (_,lbl2,_) -> compare lbl1.lbl_num lbl2.lbl_num)
@@ -2293,7 +2346,7 @@ let map_fold_cont f xs k =
 (* Checks over the labels mentioned in a record pattern:
    no duplicate definitions (error); properly closed (warning) *)
 
-let check_recordpat_labels loc lbl_pat_list closed =
+let check_recordpat_labels loc lbl_pat_list closed record_form =
   match lbl_pat_list with
   | [] -> ()                            (* should not happen *)
   | (_, label1, _) :: _ ->
@@ -2305,7 +2358,7 @@ let check_recordpat_labels loc lbl_pat_list closed =
         else defined.(label.lbl_num) <- true in
       List.iter check_defined lbl_pat_list;
       if closed = Closed
-      && Warnings.is_active (Warnings.Missing_record_field_pattern "")
+      && Warnings.is_active (Warnings.Missing_record_field_pattern ("", ""))
       then begin
         let undefined = ref [] in
         for i = 0 to Array.length all - 1 do
@@ -2313,7 +2366,8 @@ let check_recordpat_labels loc lbl_pat_list closed =
         done;
         if !undefined <> [] then begin
           let u = String.concat ", " (List.rev !undefined) in
-          Location.prerr_warning loc (Warnings.Missing_record_field_pattern u)
+          let form = record_form_to_string record_form in
+          Location.prerr_warning loc (Warnings.Missing_record_field_pattern (form, u))
         end
       end
 
@@ -2404,7 +2458,8 @@ let rec has_literal_pattern p =
   | Ppat_array (_, ps) ->
      List.exists has_literal_pattern ps
   | Ppat_unboxed_tuple (ps, _) -> has_literal_pattern_labeled_tuple ps
-  | Ppat_record (ps, _) ->
+  | Ppat_record (ps, _)
+  | Ppat_record_unboxed_product (ps, _) ->
      List.exists (fun (_,p) -> has_literal_pattern p) ps
   | Ppat_or (p, q) ->
      has_literal_pattern p || has_literal_pattern q
@@ -2610,6 +2665,56 @@ and type_pat_aux
       pat_attributes = sp.ppat_attributes;
       pat_env = !!penv;
       pat_unique_barrier = Unique_barrier.not_computed () }
+  in
+  let type_record_pat (type rep) (record_form : rep record_form) lid_sp_list closed =
+      assert (lid_sp_list <> []);
+      let expected_type, record_ty =
+        match extract_concrete_record record_form !!penv expected_ty with
+        | Record_type(p0, p, _, _) ->
+            let ty = generic_instance expected_ty in
+            Some (p0, p, is_principal expected_ty), ty
+        | Maybe_a_record_type ->
+          None, newvar (Jkind.Builtin.any ~why:Dummy_jkind)
+        | Not_a_record_type ->
+          let wks = record_form_to_wrong_kind_sort record_form in
+          let error = Wrong_expected_kind(wks, Pattern, expected_ty) in
+          raise (Error (loc, !!penv, error))
+      in
+      let type_label_pat (label_lid, label, sarg) =
+        let ty_arg =
+          solve_Ppat_record_field ~refine:false loc penv label label_lid
+            record_ty record_form in
+        check_project_mutability ~loc ~env:!!penv label.lbl_mut alloc_mode.mode;
+        let mode =
+          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
+        in
+        let alloc_mode = simple_pat_mode mode in
+        (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
+      in
+      let make_record_pat (lbl_pat_list : (_ * rep gen_label_description * _) list) =
+        check_recordpat_labels loc lbl_pat_list closed record_form;
+        let pat_desc = match record_form with
+          | Legacy -> Tpat_record (lbl_pat_list, closed)
+          | Unboxed_product -> Tpat_record_unboxed_product (lbl_pat_list, closed)
+        in
+        {
+          pat_desc; pat_loc = loc; pat_extra=[];
+          pat_type = instance record_ty;
+          pat_attributes = sp.ppat_attributes;
+          pat_env = !!penv;
+          pat_unique_barrier = Unique_barrier.not_computed ();
+        }
+      in
+      let lbl_a_list =
+        wrap_disambiguate
+          ("This " ^ (record_form_to_string record_form) ^ " pattern is expected to have")
+          (mk_expected expected_ty)
+          (disambiguate_sort_lid_a_list record_form loc false !!penv Env.Projection
+             expected_type)
+          lid_sp_list
+      in
+      let lbl_a_list = List.map type_label_pat lbl_a_list in
+      rvp @@ solve_expected (make_record_pat lbl_a_list)
   in
   match sp.ppat_desc with
     Ppat_any ->
@@ -2829,49 +2934,10 @@ and type_pat_aux
         pat_env = !!penv;
         pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_record(lid_sp_list, closed) ->
-      assert (lid_sp_list <> []);
-      let expected_type, record_ty =
-        match extract_concrete_record !!penv expected_ty with
-        | Record_type(p0, p, _, _) ->
-            let ty = generic_instance expected_ty in
-            Some (p0, p, is_principal expected_ty), ty
-        | Maybe_a_record_type ->
-          None, newvar (Jkind.Builtin.value ~why:Boxed_record)
-        | Not_a_record_type ->
-          let error = Wrong_expected_kind(Record, Pattern, expected_ty) in
-          raise (Error (loc, !!penv, error))
-      in
-      let type_label_pat (label_lid, label, sarg) =
-        let ty_arg =
-          solve_Ppat_record_field ~refine:false loc penv label label_lid
-            record_ty in
-        check_project_mutability ~loc ~env:!!penv label.lbl_mut alloc_mode.mode;
-        let mode =
-          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
-        in
-        let alloc_mode = simple_pat_mode mode in
-        (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
-      in
-      let make_record_pat lbl_pat_list =
-        check_recordpat_labels loc lbl_pat_list closed;
-        {
-          pat_desc = Tpat_record (lbl_pat_list, closed);
-          pat_loc = loc; pat_extra=[];
-          pat_type = instance record_ty;
-          pat_attributes = sp.ppat_attributes;
-          pat_env = !!penv;
-          pat_unique_barrier = Unique_barrier.not_computed ();
-        }
-      in
-      let lbl_a_list =
-        wrap_disambiguate "This record pattern is expected to have"
-          (mk_expected expected_ty)
-          (disambiguate_sort_lid_a_list loc false !!penv Env.Projection
-             expected_type)
-          lid_sp_list
-      in
-      let lbl_a_list = List.map type_label_pat lbl_a_list in
-      rvp @@ solve_expected (make_record_pat lbl_a_list)
+      type_record_pat Legacy lid_sp_list closed
+  | Ppat_record_unboxed_product(lid_sp_list, closed) ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      type_record_pat Unboxed_product lid_sp_list closed
   | Ppat_array (mut, spl) ->
       let mut =
         match mut with
@@ -3130,8 +3196,8 @@ let rec pat_tuple_arity spat =
   | Ppat_any | Ppat_exception _ | Ppat_var _ -> Maybe_local_tuple
   | Ppat_constant _
   | Ppat_interval _ | Ppat_construct _ | Ppat_variant _
-  | Ppat_record _ | Ppat_array _ | Ppat_type _ | Ppat_lazy _
-  | Ppat_unpack _ | Ppat_extension _ -> Not_local_tuple
+  | Ppat_record _ | Ppat_record_unboxed_product _ | Ppat_array _ | Ppat_type _
+  | Ppat_lazy _ | Ppat_unpack _ | Ppat_extension _ -> Not_local_tuple
   | Ppat_or(sp1, sp2) ->
       combine_pat_tuple_arity (pat_tuple_arity sp1) (pat_tuple_arity sp2)
   | Ppat_constraint(p, _, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
@@ -3323,6 +3389,22 @@ let rec check_counter_example_pat
     | Backtrack_or -> false
     | Refine_or {inside_nonsplit_or} -> inside_nonsplit_or
   in
+  let type_label_pats (type rep) (fields : (_ * rep gen_label_description * _) list)
+        closed (record_form : rep record_form) =
+    let record_ty = generic_instance expected_ty in
+    let type_label_pat (label_lid, label, targ) k =
+      let ty_arg =
+        solve_Ppat_record_field ~refine loc penv label label_lid record_ty record_form in
+      check_rec targ ty_arg (fun arg -> k (label_lid, label, arg))
+    in
+    match record_form with
+    | Legacy ->
+      map_fold_cont type_label_pat fields
+        (fun fields -> mkp k (Tpat_record (fields, closed)))
+    | Unboxed_product ->
+      map_fold_cont type_label_pat fields
+        (fun fields -> mkp k (Tpat_record_unboxed_product (fields, closed)))
+  in
   match tp.pat_desc with
     Tpat_any | Tpat_var _ ->
       let k' () = mkp k tp.pat_desc in
@@ -3399,15 +3481,8 @@ let rec check_counter_example_pat
           Some p, [ty] -> check_rec p ty (fun p -> k (Some p))
         | _            -> k None
       end
-  | Tpat_record(fields, closed) ->
-      let record_ty = generic_instance expected_ty in
-      let type_label_pat (label_lid, label, targ) k =
-        let ty_arg =
-          solve_Ppat_record_field ~refine loc penv label label_lid record_ty in
-        check_rec targ ty_arg (fun arg -> k (label_lid, label, arg))
-      in
-      map_fold_cont type_label_pat fields
-        (fun fields -> mkp k (Tpat_record (fields, closed)))
+  | Tpat_record(fields, closed) -> type_label_pats fields closed Legacy
+  | Tpat_record_unboxed_product(fields, closed) -> type_label_pats fields closed Unboxed_product
   | Tpat_array (mut, original_arg_sort, tpl) ->
       let ty_elt, arg_sort = solve_Ppat_array ~refine loc penv mut expected_ty in
       assert (Jkind.Sort.equate original_arg_sort arg_sort);
@@ -3985,7 +4060,17 @@ let rec is_nonexpansive exp =
            | Kept _ -> true)
         fields
       && is_nonexpansive_opt (Option.map fst extended_expression)
+  | Texp_record_unboxed_product { fields; extended_expression } ->
+      Array.for_all
+        (fun (lbl, definition) ->
+           match definition with
+           | Overridden (_, exp) ->
+               lbl.lbl_mut = Immutable && is_nonexpansive exp
+           | Kept _ -> true)
+        fields
+      && is_nonexpansive_opt extended_expression
   | Texp_field(exp, _, _, _, _) -> is_nonexpansive exp
+  | Texp_unboxed_field(exp, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, _jkind, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -4465,7 +4550,8 @@ let check_partial_application ~statement exp =
             | Texp_ident _ | Texp_constant _ | Texp_tuple _
             | Texp_unboxed_tuple _
             | Texp_construct _ | Texp_variant _ | Texp_record _
-            | Texp_field _ | Texp_setfield _ | Texp_array _
+            | Texp_record_unboxed_product _
+            | Texp_field _ | Texp_unboxed_field _ | Texp_setfield _ |  Texp_array _
             | Texp_list_comprehension _ | Texp_array_comprehension _
             | Texp_while _ | Texp_for _ | Texp_instvar _
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
@@ -4566,7 +4652,8 @@ let shallow_iter_ppat f p =
   | Ppat_exception p | Ppat_alias (p,_)
   | Ppat_open (_,p)
   | Ppat_constraint (p,_,_) | Ppat_lazy p -> f p
-  | Ppat_record (args, _flag) -> List.iter (fun (_,p) -> f p) args
+  | Ppat_record (args, _flag) | Ppat_record_unboxed_product (args, _flag) ->
+    List.iter (fun (_,p) -> f p) args
 
 let exists_ppat f p =
   let exception Found in
@@ -5162,6 +5249,203 @@ and type_expect_
       unify_exp ~sdesc_for_hint:desc env (re exp) (instance ty_expected));
     exp
   in
+  let type_expect_record (type rep) (record_form : rep record_form)
+        (lid_sexp_list: (Longident.t loc * Parsetree.expression) list)
+        (opt_sexp : Parsetree.expression option) =
+      assert (lid_sexp_list <> []);
+      let opt_exp =
+        match opt_sexp with
+          None -> None
+        | Some sexp ->
+            let exp, mode =
+              with_local_level_if_principal begin fun () ->
+                let mode = Value.newvar () in
+                let exp = type_exp ~recarg env (mode_default mode) sexp in
+                exp, mode
+              end ~post:(fun (exp, _) -> generalize_structure_exp exp)
+            in
+            Some (exp, mode)
+      in
+      let ty_record, expected_type =
+        let expected_opath =
+          match extract_concrete_record record_form env ty_expected with
+          | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty_expected)
+          | Maybe_a_record_type -> None
+          | Not_a_record_type ->
+            let wks = record_form_to_wrong_kind_sort record_form in
+            let error =
+              Wrong_expected_kind(wks, Expression explanation, ty_expected)
+            in
+            raise (Error (loc, env, error))
+        in
+        let opt_exp_opath =
+          match opt_exp with
+          | None -> None
+          | Some (exp, _) ->
+            match extract_concrete_record record_form env exp.exp_type with
+            | Record_type (p0, p, _, _) -> Some (p0, p, is_principal exp.exp_type)
+            | Maybe_a_record_type -> None
+            | Not_a_record_type ->
+              let error = Expr_not_a_record_type (P record_form, exp.exp_type) in
+              raise (Error (exp.exp_loc, env, error))
+        in
+        match expected_opath, opt_exp_opath with
+        | None, None ->
+          newvar (Jkind.of_new_sort ~why:Record_projection), None
+        | Some _, None -> ty_expected, expected_opath
+        | Some(_, _, true), Some _ -> ty_expected, expected_opath
+        | (None | Some (_, _, false)), Some (_, p', _) ->
+            let decl = Env.find_type p' env in
+            let ty =
+              with_local_level ~post:generalize_structure
+                (fun () -> newconstr p' (instance_list decl.type_params))
+            in
+            ty, opt_exp_opath
+      in
+      let closed = (opt_sexp = None) in
+      let lbl_a_list =
+        wrap_disambiguate
+          ("This " ^ (record_form_to_string record_form) ^ " expression is expected to have")
+          (mk_expected ty_record)
+          (disambiguate_sort_lid_a_list record_form loc closed env Env.Construct expected_type)
+          lid_sexp_list
+      in
+      let repres_might_allocate (type rep) (record_form : rep record_form) (rep : rep) =
+        match record_form with
+        | Legacy -> begin match rep with
+          | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
+          | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _
+          | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
+            -> true
+        end
+        | Unboxed_product -> begin match rep with
+          | Record_unboxed_product -> false
+        end
+      in
+      let alloc_mode, argument_mode =
+        if List.exists
+            (fun (_, {lbl_repres; _}, _) -> repres_might_allocate record_form lbl_repres)
+            lbl_a_list then
+          let alloc_mode, argument_mode = register_allocation expected_mode in
+          Some alloc_mode, argument_mode
+        else
+          None, expected_mode
+      in
+      let type_label_exp ((_, label, _) as x) =
+        check_construct_mutability ~loc ~env label.lbl_mut argument_mode;
+        let argument_mode = mode_modality label.lbl_modalities argument_mode in
+        type_label_exp true env argument_mode loc ty_record x record_form
+      in
+      let lbl_exp_list = List.map type_label_exp lbl_a_list in
+      with_explanation (fun () ->
+        unify_exp_types loc env (instance ty_record) (instance ty_expected));
+      (* note: check_duplicates would better be implemented in
+         disambiguate_sort_lid_a_list directly *)
+      let rec check_duplicates = function
+        | (_, lbl1, _) :: (_, lbl2, _) :: _ when lbl1.lbl_num = lbl2.lbl_num ->
+          raise(Error(loc, env, Label_multiply_defined lbl1.lbl_name))
+        | _ :: rem ->
+            check_duplicates rem
+        | [] -> ()
+      in
+      check_duplicates lbl_exp_list;
+      let opt_exp, label_definitions =
+        let (_lid, lbl, _lbl_exp) = List.hd lbl_exp_list in
+        let matching_label lbl =
+          List.find
+            (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
+            lbl_exp_list
+        in
+        match opt_exp with
+          None ->
+            let label_definitions =
+              Array.map (fun lbl ->
+                  match matching_label lbl with
+                  | (lid, _lbl, lbl_exp) ->
+                      Overridden (lid, lbl_exp)
+                  | exception Not_found ->
+                      let present_indices =
+                        List.map (fun (_, lbl, _) -> lbl.lbl_num) lbl_exp_list
+                      in
+                      let label_names = extract_label_names record_form env ty_expected in
+                      let rec missing_labels n = function
+                          [] -> []
+                        | lbl :: rem ->
+                            if List.mem n present_indices
+                            then missing_labels (n + 1) rem
+                            else lbl :: missing_labels (n + 1) rem
+                      in
+                      let missing = missing_labels 0 label_names in
+                      raise(Error(loc, env, Label_missing (P record_form, missing))))
+                lbl.lbl_all
+            in
+            None, label_definitions
+        | Some (exp, mode) ->
+            let ty_exp = instance exp.exp_type in
+            let unify_kept lbl =
+              let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
+              unify_exp_types exp.exp_loc env ty_exp ty_res1;
+              match matching_label lbl with
+              | lid, _lbl, lbl_exp ->
+                  (* do not connect result types for overridden labels *)
+                  Overridden (lid, lbl_exp)
+              | exception Not_found -> begin
+                  let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
+                  unify_exp_types loc env ty_arg1 ty_arg2;
+                  with_explanation (fun () ->
+                    unify_exp_types loc env (instance ty_expected) ty_res2);
+                  check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
+                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
+                  check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
+                  let argument_mode =
+                    mode_modality lbl.lbl_modalities argument_mode
+                  in
+                  submode ~loc ~env mode argument_mode;
+                  Kept (ty_arg1, lbl.lbl_mut,
+                        unique_use ~loc ~env mode
+                          (as_single_mode argument_mode))
+                end
+            in
+            let label_definitions = Array.map unify_kept lbl.lbl_all in
+            let ubr = Unique_barrier.not_computed () in
+            Some ({exp with exp_type = ty_exp}, ubr), label_definitions
+      in
+      let num_fields =
+        match lbl_exp_list with [] -> assert false
+        | (_, lbl,_)::_ -> Array.length lbl.lbl_all in
+      (if opt_sexp <> None && List.length lid_sexp_list = num_fields then
+        Location.prerr_warning loc (Warnings.Useless_record_with (record_form_to_string record_form)));
+      let label_descriptions, representation =
+        let (_, { lbl_all; lbl_repres }, _) = List.hd lbl_exp_list in
+        lbl_all, lbl_repres
+      in
+      let fields =
+        Array.map2 (fun descr def -> descr, def)
+          label_descriptions label_definitions
+      in
+      match record_form with
+      | Legacy ->
+        re {
+          exp_desc = Texp_record {
+              fields; representation;
+              extended_expression = opt_exp;
+              alloc_mode;
+            };
+          exp_loc = loc; exp_extra = [];
+          exp_type = instance ty_expected;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
+      | Unboxed_product ->
+          re {
+            exp_desc = Texp_record_unboxed_product {
+                fields; representation;
+                extended_expression = (Option.map fst opt_exp);
+              };
+            exp_loc = loc; exp_extra = [];
+            exp_type = instance ty_expected;
+            exp_attributes = sexp.pexp_attributes;
+            exp_env = env }
+  in
   match desc with
   | Pexp_ident lid ->
       let path, (actual_mode : Env.actual_mode), desc, kind =
@@ -5568,179 +5852,13 @@ and type_expect_
           exp_env = env }
       end
   | Pexp_record(lid_sexp_list, opt_sexp) ->
-      assert (lid_sexp_list <> []);
-      let opt_exp =
-        match opt_sexp with
-          None -> None
-        | Some sexp ->
-            let exp, mode =
-              with_local_level_if_principal begin fun () ->
-                let mode = Value.newvar () in
-                let exp = type_exp ~recarg env (mode_default mode) sexp in
-                exp, mode
-              end ~post:(fun (exp, _) -> generalize_structure_exp exp)
-            in
-            Some (exp, mode)
-      in
-      let ty_record, expected_type =
-        let expected_opath =
-          match extract_concrete_record env ty_expected with
-          | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty_expected)
-          | Maybe_a_record_type -> None
-          | Not_a_record_type ->
-            let error =
-              Wrong_expected_kind(Record, Expression explanation, ty_expected)
-            in
-            raise (Error (loc, env, error))
-        in
-        let opt_exp_opath =
-          match opt_exp with
-          | None -> None
-          | Some (exp, _) ->
-            match extract_concrete_record env exp.exp_type with
-            | Record_type (p0, p, _, _) -> Some (p0, p, is_principal exp.exp_type)
-            | Maybe_a_record_type -> None
-            | Not_a_record_type ->
-              let error = Expr_not_a_record_type exp.exp_type in
-              raise (Error (exp.exp_loc, env, error))
-        in
-        match expected_opath, opt_exp_opath with
-        | None, None ->
-          newvar (Jkind.of_new_sort ~why:Record_projection), None
-        | Some _, None -> ty_expected, expected_opath
-        | Some(_, _, true), Some _ -> ty_expected, expected_opath
-        | (None | Some (_, _, false)), Some (_, p', _) ->
-            let decl = Env.find_type p' env in
-            let ty =
-              with_local_level ~post:generalize_structure
-                (fun () -> newconstr p' (instance_list decl.type_params))
-            in
-            ty, opt_exp_opath
-      in
-      let closed = (opt_sexp = None) in
-      let lbl_a_list =
-        wrap_disambiguate "This record expression is expected to have"
-          (mk_expected ty_record)
-          (disambiguate_sort_lid_a_list loc closed env Env.Construct expected_type)
-          lid_sexp_list
-      in
-      let alloc_mode, argument_mode =
-        if List.exists
-            (fun (_, {lbl_repres; _}, _) ->
-              match lbl_repres with
-              | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
-              | _ -> true)
-            lbl_a_list then
-          let alloc_mode, argument_mode = register_allocation expected_mode in
-          Some alloc_mode, argument_mode
-        else
-          None, expected_mode
-      in
-      let type_label_exp ((_, label, _) as x) =
-        check_construct_mutability ~loc ~env label.lbl_mut argument_mode;
-        let argument_mode = mode_modality label.lbl_modalities argument_mode in
-        type_label_exp true env argument_mode loc ty_record x
-      in
-      let lbl_exp_list = List.map type_label_exp lbl_a_list in
-      with_explanation (fun () ->
-        unify_exp_types loc env (instance ty_record) (instance ty_expected));
-      (* note: check_duplicates would better be implemented in
-         disambiguate_sort_lid_a_list directly *)
-      let rec check_duplicates = function
-        | (_, lbl1, _) :: (_, lbl2, _) :: _ when lbl1.lbl_num = lbl2.lbl_num ->
-          raise(Error(loc, env, Label_multiply_defined lbl1.lbl_name))
-        | _ :: rem ->
-            check_duplicates rem
-        | [] -> ()
-      in
-      check_duplicates lbl_exp_list;
-      let opt_exp, label_definitions =
-        let (_lid, lbl, _lbl_exp) = List.hd lbl_exp_list in
-        let matching_label lbl =
-          List.find
-            (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
-            lbl_exp_list
-        in
-        match opt_exp with
-          None ->
-            let label_definitions =
-              Array.map (fun lbl ->
-                  match matching_label lbl with
-                  | (lid, _lbl, lbl_exp) ->
-                      Overridden (lid, lbl_exp)
-                  | exception Not_found ->
-                      let present_indices =
-                        List.map (fun (_, lbl, _) -> lbl.lbl_num) lbl_exp_list
-                      in
-                      let label_names = extract_label_names env ty_expected in
-                      let rec missing_labels n = function
-                          [] -> []
-                        | lbl :: rem ->
-                            if List.mem n present_indices
-                            then missing_labels (n + 1) rem
-                            else lbl :: missing_labels (n + 1) rem
-                      in
-                      let missing = missing_labels 0 label_names in
-                      raise(Error(loc, env, Label_missing missing)))
-                lbl.lbl_all
-            in
-            None, label_definitions
-        | Some (exp, mode) ->
-            let ty_exp = instance exp.exp_type in
-            let unify_kept lbl =
-              let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
-              unify_exp_types exp.exp_loc env ty_exp ty_res1;
-              match matching_label lbl with
-              | lid, _lbl, lbl_exp ->
-                  (* do not connect result types for overridden labels *)
-                  Overridden (lid, lbl_exp)
-              | exception Not_found -> begin
-                  let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
-                  unify_exp_types loc env ty_arg1 ty_arg2;
-                  with_explanation (fun () ->
-                    unify_exp_types loc env (instance ty_expected) ty_res2);
-                  check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-                  check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
-                  let argument_mode =
-                    mode_modality lbl.lbl_modalities argument_mode
-                  in
-                  submode ~loc ~env mode argument_mode;
-                  Kept (ty_arg1, lbl.lbl_mut,
-                        unique_use ~loc ~env mode
-                          (as_single_mode argument_mode))
-                end
-            in
-            let label_definitions = Array.map unify_kept lbl.lbl_all in
-            let ubr = Unique_barrier.not_computed () in
-            Some ({exp with exp_type = ty_exp}, ubr), label_definitions
-      in
-      let num_fields =
-        match lbl_exp_list with [] -> assert false
-        | (_, lbl,_)::_ -> Array.length lbl.lbl_all in
-      if opt_sexp <> None && List.length lid_sexp_list = num_fields then
-        Location.prerr_warning loc Warnings.Useless_record_with;
-      let label_descriptions, representation =
-        let (_, { lbl_all; lbl_repres }, _) = List.hd lbl_exp_list in
-        lbl_all, lbl_repres
-      in
-      let fields =
-        Array.map2 (fun descr def -> descr, def)
-          label_descriptions label_definitions
-      in
-      re {
-        exp_desc = Texp_record {
-            fields; representation;
-            extended_expression = opt_exp;
-            alloc_mode;
-          };
-        exp_loc = loc; exp_extra = [];
-        exp_type = instance ty_expected;
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
+      type_expect_record Legacy lid_sexp_list opt_sexp
+  | Pexp_record_unboxed_product(lid_sexp_list, opt_sexp) ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      type_expect_record Unboxed_product lid_sexp_list opt_sexp
   | Pexp_field(srecord, lid) ->
       let (record, rmode, label, _) =
-        type_label_access env srecord Env.Projection lid
+        type_label_access Legacy env srecord Env.Projection lid
       in
       let ty_arg =
         with_local_level_if_principal begin fun () ->
@@ -5787,9 +5905,35 @@ and type_expect_
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
+  | Pexp_unboxed_field(srecord, lid) ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      let (record, rmode, label, _) =
+        type_label_access Unboxed_product env srecord Env.Projection lid
+      in
+      let ty_arg =
+        with_local_level_if_principal begin fun () ->
+          (* [ty_arg] is the type of field, [ty_res] is the type of record, they
+           could share type variables, which are now instantiated *)
+          let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
+          (* we now link the two record types *)
+          unify_exp env record ty_res;
+          ty_arg
+        end ~post:generalize_structure
+      in
+      check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
+      let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
+      let mode = mode_cross_left_value env ty_arg mode in
+      submode ~loc ~env mode expected_mode;
+      let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
+      rue {
+        exp_desc = Texp_unboxed_field(record, lid, label, uu);
+        exp_loc = loc; exp_extra = [];
+        exp_type = ty_arg;
+        exp_attributes = sexp.pexp_attributes;
+        exp_env = env }
   | Pexp_setfield(srecord, lid, snewval) ->
       let (record, rmode, label, expected_type) =
-        type_label_access env srecord Env.Mutation lid in
+        type_label_access Legacy env srecord Env.Mutation lid in
       let ty_record =
         if expected_type = None
         then newvar (Jkind.of_new_sort ~why:Record_assignment)
@@ -5801,7 +5945,7 @@ and type_expect_
           submode ~loc:record.exp_loc ~env rmode mode_mutate_mutable;
           let mode = mutable_mode m0 |> mode_default in
           let mode = mode_modality label.lbl_modalities mode in
-          type_label_exp false env mode loc ty_record (lid, label, snewval)
+          type_label_exp false env mode loc ty_record (lid, label, snewval) Legacy
         | Immutable ->
           raise(Error(loc, env, Label_not_mutable lid.txt))
       in
@@ -7034,7 +7178,9 @@ and type_function
        ret_info; fun_alloc_mode;
      }
 
-and type_label_access env srecord usage lid =
+and type_label_access
+  : 'rep . 'rep record_form -> _ -> _ -> _ -> _ -> _ * _ * 'rep gen_label_description * _
+  = fun record_form env srecord usage lid ->
   let mode = Value.newvar () in
   let record =
     with_local_level_if_principal ~post:generalize_structure_exp
@@ -7042,18 +7188,18 @@ and type_label_access env srecord usage lid =
   in
   let ty_exp = record.exp_type in
   let expected_type =
-    match extract_concrete_record env ty_exp with
+    match extract_concrete_record record_form env ty_exp with
     | Record_type(p0, p, _, _) ->
         Some(p0, p, is_principal ty_exp)
     | Maybe_a_record_type -> None
     | Not_a_record_type ->
-        let error = Expr_not_a_record_type ty_exp in
+        let error = Expr_not_a_record_type (P record_form, ty_exp) in
         raise (Error (record.exp_loc, env, error))
   in
-  let labels = Env.lookup_all_labels ~loc:lid.loc usage lid.txt env in
+  let labels = Env.lookup_all_labels ~record_form ~loc:lid.loc usage lid.txt env in
   let label =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
-      (Label.disambiguate usage lid env expected_type) labels in
+      (label_disambiguate record_form usage lid env expected_type) labels in
   (record, mode, label, expected_type)
 
 (* Typing format strings for printing or reading.
@@ -7315,8 +7461,12 @@ and type_option_some env expected_mode sarg ty ty0 =
 
 (* [expected_mode] is the expected mode of the field. It's already adjusted for
    allocation, mutation and modalities. *)
-and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
-          (lid, label, sarg) =
+and type_label_exp
+  : type rep.
+    _ -> _ -> _ -> _ -> _ ->
+    _ * rep gen_label_description * _ -> rep record_form ->
+    _ * rep gen_label_description * _
+  = fun create env arg_mode loc ty_expected (lid, label, sarg) record_form ->
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
@@ -7339,7 +7489,7 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
           begin try
             unify env (instance ty_res) (instance ty_expected)
           with Unify err ->
-            raise (Error(lid.loc, env, Label_mismatch(lid.txt, err)))
+            raise (Error(lid.loc, env, Label_mismatch(P record_form, lid.txt, err)))
           end;
           (* Instantiate so that we can generalize internal nodes *)
           let ty_arg = instance ty_arg in
@@ -7391,6 +7541,7 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
     | _ -> raise first_try_exn
   in
   (lid, label, arg)
+
 
 and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       ty_expected' ty_expected =
@@ -9808,11 +9959,12 @@ let report_error ~loc env = function
         (Style.as_inline_code Printtyp.type_expr) typ
         (tuple_component ~print_article:true) lbl
         hint ()
-  | Label_mismatch(lid, err) ->
+  | Label_mismatch(P record_form, lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->
-           fprintf ppf "The record field %a@ belongs to the type"
-                   (Style.as_inline_code longident) lid)
+           fprintf ppf "The %s field %a@ belongs to the type"
+             (record_form_to_string record_form)
+             (Style.as_inline_code longident) lid)
         (function ppf ->
            fprintf ppf "but is mixed here with fields of type")
   | Pattern_type_clash (err, pat) ->
@@ -9935,11 +10087,11 @@ let report_error ~loc env = function
   | Label_multiply_defined s ->
       Location.errorf ~loc "The record field label %s is defined several times"
         s
-  | Label_missing labels ->
+  | Label_missing (P record_form, labels) ->
       let print_label ppf lbl = Style.inline_code ppf (Ident.name lbl) in
       let print_labels ppf = List.iter (fprintf ppf "@ %a" print_label) in
-      Location.errorf ~loc "@[<hov>Some record fields are undefined:%a@]"
-        print_labels labels
+      Location.errorf ~loc "@[<hov>Some %s fields are undefined:%a@]"
+        (record_form_to_string record_form) print_labels labels
   | Label_not_mutable lid ->
       Location.errorf ~loc "The record field %a is not mutable"
         (Style.as_inline_code longident) lid
@@ -10304,17 +10456,19 @@ let report_error ~loc env = function
         | List -> "list literal"
         | Unit -> "unit literal"
         | Record -> "record"
+        | Record_unboxed_product -> "unboxed record"
       in
       Location.errorf ~loc
         "This %s should not be a %s,@ \
          the expected type is@ %a%t"
         ctx sort (Style.as_inline_code Printtyp.type_expr) ty
         (report_type_expected_explanation_opt explanation)
-  | Expr_not_a_record_type ty ->
+  | Expr_not_a_record_type (P record_form, ty) ->
       Location.errorf ~loc
         "This expression has type %a@ \
-         which is not a record type."
+         which is not a %s type."
         (Style.as_inline_code Printtyp.type_expr) ty
+        (record_form_to_string record_form)
   | Submode_failed(fail_reason, submode_reason, locality_context,
       contention_context, shared_context)
      ->

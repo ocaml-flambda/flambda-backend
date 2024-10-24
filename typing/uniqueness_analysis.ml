@@ -461,6 +461,7 @@ module Projection : sig
   type t =
     | Tuple_field of int
     | Record_field of string
+    | Record_unboxed_product_field of string
     | Construct_field of string * int
     | Variant_field of label
     | Array_index of int
@@ -472,6 +473,7 @@ end = struct
     type t =
       | Tuple_field of int
       | Record_field of string
+      | Record_unboxed_product_field of string
       | Construct_field of string * int
       | Variant_field of label
       | Array_index of int
@@ -481,25 +483,35 @@ end = struct
       match t1, t2 with
       | Tuple_field i, Tuple_field j -> Int.compare i j
       | Record_field l1, Record_field l2 -> String.compare l1 l2
+      | Record_unboxed_product_field l1, Record_unboxed_product_field l2 ->
+        String.compare l1 l2
       | Construct_field (l1, i), Construct_field (l2, j) -> (
         match String.compare l1 l2 with 0 -> Int.compare i j | i -> i)
       | Variant_field l1, Variant_field l2 -> String.compare l1 l2
       | Array_index i, Array_index j -> Int.compare i j
       | Memory_address, Memory_address -> 0
       | ( Tuple_field _,
-          ( Record_field _ | Construct_field _ | Variant_field _ | Array_index _
-          | Memory_address ) ) ->
+          ( Record_field _ | Record_unboxed_product_field _ | Construct_field _
+          | Variant_field _ | Array_index _ | Memory_address ) ) ->
         -1
-      | ( ( Record_field _ | Construct_field _ | Variant_field _ | Array_index _
-          | Memory_address ),
+      | ( ( Record_field _ | Record_unboxed_product_field _ | Construct_field _
+          | Variant_field _ | Array_index _ | Memory_address ),
           Tuple_field _ ) ->
         1
       | ( Record_field _,
+          ( Record_unboxed_product_field _ | Construct_field _ | Variant_field _
+          | Array_index _ | Memory_address ) ) ->
+        -1
+      | ( ( Record_unboxed_product_field _ | Construct_field _ | Variant_field _
+          | Array_index _ | Memory_address ),
+          Record_field _ ) ->
+        1
+      | ( Record_unboxed_product_field _,
           (Construct_field _ | Variant_field _ | Array_index _ | Memory_address)
         ) ->
         -1
       | ( (Construct_field _ | Variant_field _ | Array_index _ | Memory_address),
-          Record_field _ ) ->
+          Record_unboxed_product_field _ ) ->
         1
       | Construct_field _, (Variant_field _ | Array_index _ | Memory_address) ->
         -1
@@ -780,6 +792,10 @@ module Paths : sig
       [modal_child gf (Projection.Record_field s) t]. *)
   val record_field : Modality.Value.Const.t -> string -> t -> t
 
+  (** [record_unboxed_product_field gf s t] is
+      [modal_child gf (Projection.Record_unboxed_product_field s) t]. *)
+  val record_unboxed_product_field : Modality.Value.Const.t -> string -> t -> t
+
   (** [construct_field gf s i t] is
       [modal_child gf (Projection.Construct_field(s, i)) t]. *)
   val construct_field : Modality.Value.Const.t -> string -> int -> t -> t
@@ -831,6 +847,9 @@ end = struct
   let tuple_field i t = child (Projection.Tuple_field i) t
 
   let record_field gf s t = modal_child gf (Projection.Record_field s) t
+
+  let record_unboxed_product_field gf s t =
+    modal_child gf (Projection.Record_unboxed_product_field s) t
 
   let construct_field gf s i t =
     modal_child gf (Projection.Construct_field (s, i)) t
@@ -888,6 +907,10 @@ module Value : sig
   val implicit_record_field :
     Modality.Value.Const.t -> string -> t -> unique_use -> t
 
+  (** Analogous to [implicit_record_field], but for unboxed records *)
+  val implicit_record_unboxed_product_field :
+    Modality.Value.Const.t -> string -> t -> unique_use -> t
+
   (** Mark the value as aliased_or_unique   *)
   val mark_maybe_unique : t -> UF.t
 
@@ -918,6 +941,13 @@ end = struct
     | Fresh -> Fresh
     | Existing { paths; occ; unique_use = _ } ->
       let paths = Paths.record_field gf s paths in
+      Existing { paths; occ; unique_use }
+
+  let implicit_record_unboxed_product_field gf s t unique_use =
+    match t with
+    | Fresh -> Fresh
+    | Existing { paths; occ; unique_use = _ } ->
+      let paths = Paths.record_unboxed_product_field gf s paths in
       Existing { paths; occ; unique_use }
 
   let mark_implicit_borrow_memory_address access = function
@@ -1127,6 +1157,20 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       |> conjuncts_pattern_match
     in
     ext, UF.par uf_read uf_pats
+  | Tpat_record_unboxed_product (pats, _) ->
+    (* No borrow since unboxed data can not be consumed. *)
+    no_borrow_memory_address ();
+    let ext, uf_pats =
+      List.map
+        (fun (_, l, pat) ->
+          let paths =
+            Paths.record_unboxed_product_field l.lbl_modalities l.lbl_name paths
+          in
+          pattern_match_single pat paths)
+        pats
+      |> conjuncts_pattern_match
+    in
+    ext, uf_pats
   | Tpat_array (mut, _, pats) ->
     let uf_read = borrow_memory_address () in
     let ext, uf_pats =
@@ -1371,7 +1415,30 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
         fields
     in
     UF.par uf_ext (UF.pars (Array.to_list uf_fields))
+  | Texp_record_unboxed_product { fields; extended_expression } ->
+    let value, uf_ext =
+      match extended_expression with
+      | None -> Value.fresh, UF.unused
+      | Some exp -> check_uniqueness_exp_as_value ienv exp
+    in
+    let uf_fields =
+      Array.map
+        (fun field ->
+          match field with
+          | l, Kept (_, _, unique_use) ->
+            let value =
+              Value.implicit_record_unboxed_product_field l.lbl_modalities
+                l.lbl_name value unique_use
+            in
+            Value.mark_maybe_unique value
+          | _, Overridden (_, e) -> check_uniqueness_exp ienv e)
+        fields
+    in
+    UF.par uf_ext (UF.pars (Array.to_list uf_fields))
   | Texp_field _ ->
+    let value, uf = check_uniqueness_exp_as_value ienv exp in
+    UF.seq uf (Value.mark_maybe_unique value)
+  | Texp_unboxed_field (_, _, _, _) ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
     UF.seq uf (Value.mark_maybe_unique value)
   | Texp_setfield (rcd, _, _, _, arg) ->
@@ -1511,6 +1578,17 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
           Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
       in
       value, UF.seqs [uf; uf_read; uf_boxing])
+  | Texp_unboxed_field (e, _, l, unique_use) -> (
+    let value, uf = check_uniqueness_exp_as_value ienv e in
+    match Value.paths value with
+    | None -> Value.fresh, uf
+    | Some paths ->
+      let occ = Occurrence.mk loc in
+      let paths =
+        Paths.record_unboxed_product_field l.lbl_modalities l.lbl_name paths
+      in
+      let value = Value.existing paths unique_use occ in
+      value, uf)
   (* CR-someday anlorenzen: This could also support let-bindings. *)
   | _ -> Value.fresh, check_uniqueness_exp ienv exp
 

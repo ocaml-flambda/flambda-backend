@@ -191,6 +191,15 @@ and 'k pattern_desc =
 
             Invariant: n > 0
          *)
+  | Tpat_record_unboxed_product :
+      (Longident.t loc * Types.unboxed_label_description * value general_pattern) list *
+        closed_flag ->
+      value pattern_desc
+        (** { l1=P1; ...; ln=Pn }     (flag = Closed)
+            { l1=P1; ...; ln=Pn; _}   (flag = Open)
+
+            Invariant: n > 0
+         *)
   | Tpat_array :
       Types.mutability * Jkind.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
@@ -393,10 +402,28 @@ and expression_desc =
             or [None] if it is [Record_unboxed],
             in which case it does not need allocation.
           *)
+  | Texp_record_unboxed_product of {
+      fields : ( Types.unboxed_label_description * record_label_definition ) array;
+      representation : Types.record_unboxed_product_representation;
+      extended_expression : expression option;
+    }
+        (** #{ l1=P1; ...; ln=Pn }           (extended_expression = None)
+            #{ E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)
+
+            Invariant: n > 0
+
+            If the type is #{ l1: t1; l2: t2 }, the expression
+            #{ E0 with t2=P2 } is represented as
+            Texp_record_unboxed_product
+              { fields = [| l1, Kept t1; l2 Override P2 |]; representation;
+                extended_expression = Some E0 }
+          *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
       texp_field_boxing * Unique_barrier.t
     (** [texp_field_boxing] provides extra information depending on if the
         projection requires boxing. *)
+  | Texp_unboxed_field of expression * Longident.t loc * Types.unboxed_label_description *
+      unique_use
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression
@@ -987,6 +1014,7 @@ and type_kind =
     Ttype_abstract
   | Ttype_variant of constructor_declaration list
   | Ttype_record of label_declaration list
+  | Ttype_record_unboxed_product of label_declaration list
   | Ttype_open
 
 and label_declaration =

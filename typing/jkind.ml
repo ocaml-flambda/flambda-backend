@@ -1064,9 +1064,19 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
 
+<<<<<<< HEAD
   let product ~why ts =
     let desc, annotation = Jkind_desc.product ts in
     fresh_jkind desc ~annotation ~why:(Product_creation why)
+||||||| parent of 80bf6fd31d (Basic unboxed records)
+  let product ~why ts =
+    fresh_jkind (Jkind_desc.product ts) ~why:(Product_creation why)
+=======
+  let product ~why = function
+    | [] -> Misc.fatal_error "Jkind.Builtin.product: empty product"
+    | [t] -> t
+    | ts -> fresh_jkind (Jkind_desc.product ts) ~why:(Product_creation why)
+>>>>>>> 80bf6fd31d (Basic unboxed records)
 end
 
 let add_nullability_crossing t =
@@ -1506,6 +1516,7 @@ module Format_history = struct
   let format_product_creation_reason ppf : History.product_creation_reason -> _
       = function
     | Unboxed_tuple -> fprintf ppf "it is an unboxed tuple"
+    | Unboxed_record -> fprintf ppf "it is an unboxed record"
 
   let format_creation_reason ppf ~layout_or_kind :
       History.creation_reason -> unit = function
@@ -1988,6 +1999,7 @@ module Debug_printers = struct
   let product_creation_reason ppf : History.product_creation_reason -> _ =
     function
     | Unboxed_tuple -> fprintf ppf "Unboxed_tuple"
+    | Unboxed_record -> fprintf ppf "Unboxed_record"
 
   let creation_reason ppf : History.creation_reason -> unit = function
     | Annotated (ctx, loc) ->

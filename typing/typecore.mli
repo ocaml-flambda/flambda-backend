@@ -79,7 +79,7 @@ val mk_expected:
 val is_nonexpansive: Typedtree.expression -> bool
 
 module Datatype_kind : sig
-  type t = Record | Variant
+  type t = Record | Record_unboxed_product | Variant
   val type_name : t -> string
   val label_name : t -> string
 end
@@ -98,6 +98,7 @@ type wrong_kind_context =
 type wrong_kind_sort =
   | Constructor
   | Record
+  | Record_unboxed_product
   | Boolean
   | List
   | Unit
@@ -200,7 +201,7 @@ type error =
   | Partial_tuple_pattern_bad_type
   | Extra_tuple_label of string option * type_expr
   | Missing_tuple_label of string option * type_expr
-  | Label_mismatch of Longident.t * Errortrace.unification_error
+  | Label_mismatch of record_form_packed * Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * Parsetree.pattern_desc option
       -> error
@@ -224,7 +225,7 @@ type error =
     }
   | Apply_wrong_label of arg_label * type_expr * bool
   | Label_multiply_defined of string
-  | Label_missing of Ident.t list
+  | Label_missing of record_form_packed * Ident.t list
   | Label_not_mutable of Longident.t
   | Wrong_name of string * type_expected * wrong_name
   | Name_type_mismatch of
@@ -291,7 +292,7 @@ type error =
   | Unbound_existential of Ident.t list * type_expr
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
-  | Expr_not_a_record_type of type_expr
+  | Expr_not_a_record_type of record_form_packed * type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.locality_context option *
