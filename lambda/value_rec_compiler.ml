@@ -202,6 +202,7 @@ let compute_static_size lam =
     | Pignore
     | Psetfield _
     | Psetfield_computed _
+    | Punboxed_product_setfield _
     | Psetfloatfield _
     | Psetmixedfield _
     | Poffsetint _

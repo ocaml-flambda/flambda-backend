@@ -137,6 +137,7 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
+  | Punboxed_product_setfield of int * layout list
   (* Context switches *)
   | Prunstack
   | Pperform

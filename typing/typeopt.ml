@@ -160,7 +160,7 @@ let classify env loc ty sort : classification =
           match (Env.find_type p env).type_kind with
           | Type_abstract _ ->
               Any
-          | Type_record _ | Type_variant _ | Type_open ->
+          | Type_record _ | Type_record_flat _ | Type_variant _ | Type_open ->
               Addr
         with Not_found ->
           (* This can happen due to e.g. missing -I options,
@@ -457,6 +457,11 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
+        | Type_record_flat (labels, rep) ->
+          let depth = depth + 1 in
+          fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
+            (fun () -> value_kind_record_flat env ~loc ~visited ~depth
+                         ~num_nodes_visited labels rep)
         | Type_abstract _ ->
           num_nodes_visited,
           value_kind_of_value_jkind decl.type_jkind
@@ -620,15 +625,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
   match rep with
-  | (Record_unboxed | (Record_inlined (_, _, Variant_unboxed))) -> begin
-      (* CR layouts v1.5: This should only be reachable in the case of a missing
-         cmi, according to the comment on scrape_ty.  Reevaluate whether it's
-         needed when we deal with missing cmis. *)
-      match labels with
-      | [{ld_type}] ->
-        value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
-      | [] | _ :: _ :: _ -> assert false
-    end
+  | (Record_unboxed | (Record_inlined (_, _, Variant_unboxed)))
   | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
   | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
       let is_mutable =
@@ -640,9 +637,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       else
         let num_nodes_visited, fields =
           match rep with
-          | Record_unboxed ->
-              (* The outer match guards against this *)
-              assert false
+          | Record_unboxed
           | Record_inlined (_, Constructor_uniform_value, _)
           | Record_boxed _ | Record_float | Record_ufloat ->
               let num_nodes_visited, fields =
@@ -711,6 +706,49 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         in
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end
+
+and value_kind_record_flat env ~loc ~visited ~depth ~num_nodes_visited
+      (labels : Types.label_declaration list) rep =
+  match rep with
+  | Record_flat _ ->
+      let is_mutable =
+        List.exists (fun label -> Types.is_mutable label.Types.ld_mutable)
+          labels
+      in
+      if is_mutable then
+        num_nodes_visited, Pgenval
+      else
+        let num_nodes_visited, fields =
+          let num_nodes_visited, fields =
+            List.fold_left_map
+              (fun num_nodes_visited (label:Types.label_declaration) ->
+                let num_nodes_visited = num_nodes_visited + 1 in
+                let num_nodes_visited, field =
+                  (* CR layouts v5: when we add other layouts, we'll need to
+                    check here that we aren't about to call value_kind on a
+                    different sort (we can get this info from the
+                    label.ld_jkind). For now we rely on the layout check at
+                    the top of value_kind to rule out void. *)
+                  (* We're using the `Pboxedfloatval` value kind for unboxed
+                    floats inside of records. This is kind of a lie, but
+                      that was already happening here due to the float record
+                    optimization. *)
+                  match rep with
+                  | Record_flat _ ->
+                      value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                        label.ld_type
+                in
+                num_nodes_visited, field)
+              num_nodes_visited labels
+          in
+          num_nodes_visited, Constructor_uniform fields
+        in
+        let non_consts =
+          match rep with
+          | Record_flat _ ->
+            [0, fields]
+        in
+        (num_nodes_visited, Pvariant { consts = []; non_consts })
 
 let value_kind env loc ty =
   try

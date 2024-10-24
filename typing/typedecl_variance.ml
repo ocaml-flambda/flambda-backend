@@ -355,6 +355,11 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)
+      | Type_record_flat (ftl, _) ->
+        (* CR rtjoa:  *)
+          compute_variance_type env ~check rloc decl
+            (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
+                 (Types.is_mutable ld_mutable, ld_type)) ftl)
     in
     if mn = [] || not abstract then
       List.map Variance.strengthen vari

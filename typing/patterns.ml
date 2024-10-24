@@ -59,6 +59,8 @@ module Simple = struct
     | `Variant of label * pattern option * row_desc ref
     | `Record of
         (Longident.t loc * label_description * pattern) list * closed_flag
+    | `Record_flat of
+        (Longident.t loc * label_flat_description * pattern) list * closed_flag
     | `Array of mutability * Jkind.sort * pattern list
     | `Lazy of pattern
   ]
@@ -104,6 +106,8 @@ module General = struct
        `Variant (cstr, arg, row_desc)
     | Tpat_record (fields, closed) ->
        `Record (fields, closed)
+    | Tpat_record_flat (fields, closed) ->
+       `Record_flat (fields, closed)
     | Tpat_array (am, arg_sort, ps) -> `Array (am, arg_sort, ps)
     | Tpat_or (p, q, row_desc) -> `Or (p, q, row_desc)
     | Tpat_lazy p -> `Lazy p
@@ -124,6 +128,8 @@ module General = struct
        Tpat_variant (cstr, arg, row_desc)
     | `Record (fields, closed) ->
        Tpat_record (fields, closed)
+    | `Record_flat (fields, closed) ->
+       Tpat_record_flat (fields, closed)
     | `Array (am, arg_sort, ps) -> Tpat_array (am, arg_sort, ps)
     | `Or (p, q, row_desc) -> Tpat_or (p, q, row_desc)
     | `Lazy p -> Tpat_lazy p
@@ -148,6 +154,7 @@ module Head : sig
     | Tuple of string option list
     | Unboxed_tuple of (string option * Jkind.sort) list
     | Record of label_description list
+    | Record_flat of label_flat_description list
     | Variant of
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
@@ -174,6 +181,7 @@ end = struct
     | Tuple of string option list
     | Unboxed_tuple of (string option * Jkind.sort) list
     | Record of label_description list
+    | Record_flat of label_flat_description list
     | Variant of
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
@@ -215,6 +223,10 @@ end = struct
           let lbls = List.map (fun (_,lbl,_) -> lbl) largs in
           let pats = List.map (fun (_,_,pat) -> pat) largs in
           Record lbls, pats
+      | `Record_flat (largs, _) ->
+          let lbls = List.map (fun (_,lbl,_) -> lbl) largs in
+          let pats = List.map (fun (_,_,pat) -> pat) largs in
+          Record_flat lbls, pats
       | `Lazy p ->
           Lazy, [p]
     in
@@ -230,6 +242,7 @@ end = struct
       | Unboxed_tuple l -> List.length l
       | Array (_, _, n) -> n
       | Record l -> List.length l
+      | Record_flat l -> List.length l
       | Variant { has_arg; _ } -> if has_arg then 1 else 0
       | Lazy -> 1
 
@@ -260,6 +273,14 @@ end = struct
             ) lbls
           in
           Tpat_record (lst, Closed)
+      | Record_flat lbls ->
+          let lst =
+            List.map (fun lbl ->
+              let lid_loc = mkloc (Longident.Lident lbl.lbl_name) in
+              (lid_loc, lbl, omega)
+            ) lbls
+          in
+          Tpat_record_flat (lst, Closed)
     in
     { t with
       pat_desc;

@@ -280,7 +280,9 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
-  type product_creation_reason = Unboxed_tuple
+  type product_creation_reason =
+    | Unboxed_tuple
+    | Unboxed_record
 
   type creation_reason =
     | Annotated of annotation_context * Location.t

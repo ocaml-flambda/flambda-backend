@@ -215,6 +215,10 @@ let record_representation i ppf = let open Types in function
     line i ppf "Record_mixed (value_prefix_len %d)\n" value_prefix_len;
     array (i+1) flat_element ppf flat_suffix
 
+let record_flat_representation i ppf = let open Types in function
+  | Record_flat jkinds ->
+    line i ppf "Record_flat %a\n" (jkind_array i) jkinds
+
 let attribute i ppf k a =
   line i ppf "%s \"%s\"\n" k a.Parsetree.attr_name.txt;
   Printast.payload i ppf a.Parsetree.attr_payload
@@ -346,6 +350,9 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       option i pattern ppf po;
   | Tpat_record (l, _c) ->
       line i ppf "Tpat_record\n";
+      list i longident_x_pattern ppf l;
+  | Tpat_record_flat (l, _c) ->
+      line i ppf "Tpat_record_flat\n";
       list i longident_x_pattern ppf l;
   | Tpat_array (am, arg_sort, l) ->
       line i ppf "Tpat_array %a\n" fmt_mutable_mode_flag am;
@@ -523,12 +530,32 @@ and expression i ppf x =
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf extended_expression;
+  | Texp_record_flat { fields; representation; extended_expression; alloc_mode = am} ->
+      line i ppf "Texp_record_flat\n";
+      let i = i+1 in
+      alloc_mode_option i ppf am;
+      line i ppf "fields =\n";
+      array (i+1) record_field ppf fields;
+      line i ppf "representation =\n";
+      record_flat_representation (i+1) ppf representation;
+      line i ppf "extended_expression =\n";
+      option (i+1) expression ppf extended_expression;
   | Texp_field (e, li, _, _) ->
       line i ppf "Texp_field\n";
       expression i ppf e;
       longident i ppf li;
+  | Texp_field_flat (e, li, _, _) ->
+      line i ppf "Texp_field_flat\n";
+      expression i ppf e;
+      longident i ppf li;
   | Texp_setfield (e1, am, li, _, e2) ->
       line i ppf "Texp_setfield\n";
+      locality_mode i ppf am;
+      expression i ppf e1;
+      longident i ppf li;
+      expression i ppf e2;
+  | Texp_setfield_flat (e1, am, li, _, e2) ->
+      line i ppf "Texp_setfield_flat\n";
       locality_mode i ppf am;
       expression i ppf e1;
       longident i ppf li;
@@ -681,6 +708,9 @@ and type_kind i ppf x =
       list (i+1) constructor_decl ppf l;
   | Ttype_record l ->
       line i ppf "Ttype_record\n";
+      list (i+1) label_decl ppf l;
+  | Ttype_record_flat l ->
+      line i ppf "Ttype_record_flat\n";
       list (i+1) label_decl ppf l;
   | Ttype_open ->
       line i ppf "Ttype_open\n"
@@ -1115,7 +1145,8 @@ and label_decl i ppf {ld_id; ld_name = _; ld_mutable; ld_type; ld_loc;
 and field_decl i ppf {ca_type=ty; ca_loc=_; ca_modalities=_} =
   core_type (i+1) ppf ty
 
-and longident_x_pattern i ppf (li, _, p) =
+and longident_x_pattern : 'a. _ -> _ -> _ * 'a * _ -> _ =
+  fun i ppf (li, _, p) ->
   line i ppf "%a\n" fmt_longident li;
   pattern (i+1) ppf p;
 
@@ -1175,7 +1206,10 @@ and string_x_expression i ppf (s, _, e) =
   line i ppf "<override> \"%a\"\n" fmt_ident s;
   expression (i+1) ppf e;
 
-and record_field i ppf = function
+and record_field : 'a. int ->
+formatter ->
+'a *
+record_label_definition -> unit = fun i ppf -> function
   | _, Overridden (li, e) ->
       line i ppf "%a\n" fmt_longident li;
       expression (i+1) ppf e;

@@ -921,6 +921,7 @@ let rec choice ctx t =
 
     (* nor unboxed products *)
     | Pmake_unboxed_product _ | Punboxed_product_field _
+    | Punboxed_product_setfield _
 
     | Pobj_dup
     | Pobj_magic _

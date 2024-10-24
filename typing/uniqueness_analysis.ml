@@ -439,6 +439,7 @@ module Projection : sig
   type t =
     | Tuple_field of int
     | Record_field of string
+    | Record_flat_field of string
     | Construct_field of string * int
     | Variant_field of label
     | Memory_address
@@ -449,6 +450,7 @@ end = struct
     type t =
       | Tuple_field of int
       | Record_field of string
+      | Record_flat_field of string
       | Construct_field of string * int
       | Variant_field of label
       | Memory_address
@@ -457,22 +459,32 @@ end = struct
       match t1, t2 with
       | Tuple_field i, Tuple_field j -> Int.compare i j
       | Record_field l1, Record_field l2 -> String.compare l1 l2
+      | Record_flat_field l1, Record_flat_field l2 -> String.compare l1 l2
       | Construct_field (l1, i), Construct_field (l2, j) -> (
         match String.compare l1 l2 with 0 -> Int.compare i j | i -> i)
       | Variant_field l1, Variant_field l2 -> String.compare l1 l2
       | Memory_address, Memory_address -> 0
       | ( Tuple_field _,
-          (Record_field _ | Construct_field _ | Variant_field _ | Memory_address)
-        ) ->
+          ( Record_field _ | Record_flat_field _ | Construct_field _
+          | Variant_field _ | Memory_address ) ) ->
         -1
-      | ( (Record_field _ | Construct_field _ | Variant_field _ | Memory_address),
+      | ( ( Record_field _ | Record_flat_field _ | Construct_field _
+          | Variant_field _ | Memory_address ),
           Tuple_field _ ) ->
         1
-      | Record_field _, (Construct_field _ | Variant_field _ | Memory_address)
-        ->
+      | ( Record_field _,
+          ( Record_flat_field _ | Construct_field _ | Variant_field _
+          | Memory_address ) ) ->
         -1
-      | (Construct_field _ | Variant_field _ | Memory_address), Record_field _
-        ->
+      | ( ( Record_flat_field _ | Construct_field _ | Variant_field _
+          | Memory_address ),
+          Record_field _ ) ->
+        1
+      | ( Record_flat_field _,
+          (Construct_field _ | Variant_field _ | Memory_address) ) ->
+        -1
+      | ( (Construct_field _ | Variant_field _ | Memory_address),
+          Record_flat_field _ ) ->
         1
       | Construct_field _, (Variant_field _ | Memory_address) -> -1
       | (Variant_field _ | Memory_address), Construct_field _ -> 1
@@ -1073,6 +1085,17 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       |> conjuncts_pattern_match
     in
     ext, UF.par uf_read uf_pats
+  | Tpat_record_flat (pats, _) ->
+    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let ext, uf_pats =
+      List.map
+        (fun (_, l, pat) ->
+          let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in
+          pattern_match_single pat paths)
+        pats
+      |> conjuncts_pattern_match
+    in
+    ext, UF.par uf_read uf_pats
   | Tpat_array (_, _, pats) ->
     let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
     let ext, uf_pats =
@@ -1302,10 +1325,41 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
         fields
     in
     UF.par uf_ext (UF.pars (Array.to_list uf_fields))
+  | Texp_record_flat { fields; extended_expression } ->
+    let value, uf_ext =
+      match extended_expression with
+      | None -> Value.fresh, UF.unused
+      | Some exp ->
+        let value, uf_exp = check_uniqueness_exp_as_value ienv exp in
+        let uf_read = Value.mark_implicit_borrow_memory_address Read value in
+        value, UF.par uf_exp uf_read
+    in
+    let uf_fields =
+      Array.map
+        (fun field ->
+          match field with
+          | l, Kept (_, _, unique_use) ->
+            let value =
+              Value.implicit_record_field l.lbl_modalities l.lbl_name value
+                unique_use
+            in
+            Value.mark_maybe_unique value
+          | _, Overridden (_, e) -> check_uniqueness_exp ienv e)
+        fields
+    in
+    UF.par uf_ext (UF.pars (Array.to_list uf_fields))
   | Texp_field _ ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
     UF.seq uf (Value.mark_maybe_unique value)
+  | Texp_field_flat _ ->
+    let value, uf = check_uniqueness_exp_as_value ienv exp in
+    UF.seq uf (Value.mark_maybe_unique value)
   | Texp_setfield (rcd, _, _, _, arg) ->
+    let value, uf_rcd = check_uniqueness_exp_as_value ienv rcd in
+    let uf_arg = check_uniqueness_exp ienv arg in
+    let uf_write = Value.mark_implicit_borrow_memory_address Write value in
+    UF.pars [uf_rcd; uf_arg; uf_write]
+  | Texp_setfield_flat (rcd, _, _, _, arg) ->
     let value, uf_rcd = check_uniqueness_exp_as_value ienv rcd in
     let uf_arg = check_uniqueness_exp ienv arg in
     let uf_write = Value.mark_implicit_borrow_memory_address Write value in
@@ -1419,6 +1473,24 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
     in
     value, UF.unused
   | Texp_field (e, _, l, float) -> (
+    let value, uf = check_uniqueness_exp_as_value ienv e in
+    match Value.paths value with
+    | None -> Value.fresh, uf
+    | Some paths ->
+      (* accessing the field meaning borrowing the parent record's mem
+         block. Note that the field itself is not borrowed or used *)
+      let uf_read = Value.mark_implicit_borrow_memory_address Read value in
+      let uf_boxing, value =
+        let occ = Occurrence.mk loc in
+        let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in
+        match float with
+        | Non_boxing unique_use ->
+          UF.unused, Value.existing paths unique_use occ
+        | Boxing (_, unique_use) ->
+          Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
+      in
+      value, UF.seqs [uf; uf_read; uf_boxing])
+  | Texp_field_flat (e, _, l, float) -> (
     let value, uf = check_uniqueness_exp_as_value ienv e in
     match Value.paths value with
     | None -> Value.fresh, uf
