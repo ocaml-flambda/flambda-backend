@@ -80,7 +80,12 @@ module type Common = sig
     current_level:int ->
     generic_level:int ->
     ('l * 'r) t ->
-    traversed:(int,unit) Hashtbl.t ->
+    unit
+
+  val generalize_structure :
+    current_level:int ->
+    generic_level:int ->
+    ('l * 'r) t ->
     unit
 
   val equate : lr -> lr -> (unit, equate_error) result
