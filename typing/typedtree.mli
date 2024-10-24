@@ -175,6 +175,15 @@ and 'k pattern_desc =
 
             Invariant: n > 0
          *)
+  | Tpat_record_flat :
+      (Longident.t loc * Types.label_flat_description * value general_pattern) list *
+        closed_flag ->
+      value pattern_desc
+        (** { l1=P1; ...; ln=Pn }     (flag = Closed)
+            { l1=P1; ...; ln=Pn; _}   (flag = Open)
+
+            Invariant: n > 0
+         *)
   | Tpat_array :
       Types.mutability * Jkind.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
@@ -376,7 +385,19 @@ and expression_desc =
             or [None] if it is [Record_unboxed],
             in which case it does not need allocation.
           *)
+  | Texp_record_flat of {
+      fields : ( Types.label_flat_description * record_label_definition ) array;
+      representation : Types.record_flat_representation;
+      extended_expression : expression option;
+      alloc_mode : alloc_mode option
+    }
+        (** CR rtjoa: document
+          *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
+      texp_field_boxing
+    (** [texp_field_boxing] provides extra information depending on if the
+        projection requires boxing. *)
+  | Texp_field_flat of expression * Longident.t loc * Types.label_flat_description *
       texp_field_boxing
     (** [texp_field_boxing] provides extra information depending on if the
         projection requires boxing. *)
@@ -967,6 +988,7 @@ and type_kind =
     Ttype_abstract
   | Ttype_variant of constructor_declaration list
   | Ttype_record of label_declaration list
+  | Ttype_record_flat of label_declaration list
   | Ttype_open
 
 and label_declaration =

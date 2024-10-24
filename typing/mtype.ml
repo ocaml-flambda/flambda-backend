@@ -91,7 +91,8 @@ and strengthen_lazy_sig' ~aliasable sg p =
       let newdecl =
         match decl.type_manifest, decl.type_private, decl.type_kind with
           Some _, Public, _ -> decl
-        | Some _, Private, (Type_record _ | Type_variant _) -> decl
+        (* CR rtjoa:  *)
+        | Some _, Private, (Type_record _ | Type_record_flat _ | Type_variant _) -> decl
         | _ ->
             let manif =
               Some(Btype.newgenty(Tconstr(Pdot(p, Ident.name id),
@@ -298,7 +299,8 @@ let rec sig_make_manifest sg =
     let newdecl =
       match decl.type_manifest, decl.type_private, decl.type_kind with
         Some _, Public, _ -> decl
-      | Some _, Private, (Type_record _ | Type_variant _) -> decl
+      (* CR rtjoa:  *)
+      | Some _, Private, (Type_record _ | Type_record_flat _ | Type_variant _) -> decl
       | _ ->
         let manif =
           Some (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))
@@ -306,7 +308,7 @@ let rec sig_make_manifest sg =
         match decl.type_kind with
         | Type_abstract _ ->
           { decl with type_private = Public; type_manifest = manif }
-        | (Type_record _ | Type_variant _ | Type_open) ->
+        | (Type_record _ | Type_record_flat _ | Type_variant _ | Type_open) ->
           { decl with type_manifest = manif }
     in
     Sig_type(Ident.rename id, newdecl, rs, vis) :: sig_make_manifest rem

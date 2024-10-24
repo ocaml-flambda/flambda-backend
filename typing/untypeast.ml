@@ -247,6 +247,8 @@ let type_kind sub tk = match tk with
       Ptype_variant (List.map (sub.constructor_declaration sub) list)
   | Ttype_record list ->
       Ptype_record (List.map (sub.label_declaration sub) list)
+  | Ttype_record_flat list ->
+      Ptype_record_flat (List.map (sub.label_declaration sub) list)
   | Ttype_open -> Ptype_open
 
 let constructor_argument sub {ca_loc; ca_type; ca_modalities} =
@@ -400,6 +402,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Ppat_variant (label, Option.map (sub.pat sub) pato)
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
+            map_loc sub lid, sub.pat sub pat) list, closed)
+    | Tpat_record_flat (list, closed) ->
+        Ppat_record_flat (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
     | Tpat_array (am, _, list) -> begin
         let pats = List.map (sub.pat sub) list in
@@ -606,8 +611,17 @@ let expression sub exp =
             [] fields
         in
         Pexp_record (list, Option.map (sub.expr sub) extended_expression)
+    | Texp_record_flat { fields; extended_expression; _ } ->
+        let list = Array.fold_left (fun l -> function
+            | _, Kept _ -> l
+            | _, Overridden (lid, exp) -> (lid, sub.expr sub exp) :: l)
+            [] fields
+        in
+        Pexp_record_flat (list, Option.map (sub.expr sub) extended_expression)
     | Texp_field (exp, lid, _label, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
+    | Texp_field_flat (exp, lid, _label, _) ->
+        Pexp_field_flat (sub.expr sub exp, map_loc sub lid)
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)

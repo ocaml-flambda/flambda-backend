@@ -46,6 +46,7 @@ type type_structure =
   | Open
   | Algebraic
   | Unboxed of argument_to_unbox
+  | Unboxed_product
 
 let structure : type_definition -> type_structure = fun def ->
   match def.type_kind with
@@ -70,6 +71,7 @@ let structure : type_definition -> type_structure = fun def ->
         in
         Unboxed { argument_type = ty; result_type_parameter_instances = params }
       end
+  | Type_record_flat _ -> Unboxed_product
 
 type error =
   | Non_separable_evar of string option
@@ -633,6 +635,9 @@ let check_def
       check_type env constructor.argument_type Sep
       |> msig_of_context ~decl_loc:def.type_loc
            ~parameters:constructor.result_type_parameter_instances
+  | Unboxed_product ->
+    (* CR rtjoa: probably wrong *)
+      best_msig def
 
 let compute_decl env decl =
   if Config.flat_float_array then check_def env decl

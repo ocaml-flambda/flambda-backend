@@ -2091,7 +2091,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint
-      | Plsrint | Pasrint | Pdivint _ | Pmodint _ | Psetfield _ | Pintcomp _
+      | Plsrint | Pasrint | Pdivint _ | Pmodint _ | Psetfield _
+      | Pintcomp _
       | Paddfloat (_, _)
       | Psubfloat (_, _)
       | Pmulfloat (_, _)

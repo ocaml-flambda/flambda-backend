@@ -740,11 +740,13 @@ rule token = parse
   | "("  { LPAREN }
   | ")"  { RPAREN }
   | "#(" { HASHLPAREN }
+  | "#{" { HASHLBRACE }
   | "*"  { STAR }
   | ","  { COMMA }
   | "->" { MINUSGREATER }
   | "."  { DOT }
   | ".." { DOTDOT }
+  | ".#" { DOTHASH }
   | "." (dotsymbolchar symbolchar* as op) { DOTOP op }
   | ":"  { COLON }
   | "::" { COLONCOLON }
