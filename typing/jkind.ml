@@ -1127,8 +1127,10 @@ module Builtin = struct
   let immediate ~why =
     fresh_jkind Jkind_desc.Builtin.immediate ~why:(Immediate_creation why)
 
-  let product ~why ts =
-    fresh_jkind (Jkind_desc.product ts) ~why:(Product_creation why)
+  let product ~why = function
+    | [] -> Misc.fatal_error "Jkind.Builtin.product: empty product"
+    | [t] -> t
+    | ts -> fresh_jkind (Jkind_desc.product ts) ~why:(Product_creation why)
 end
 
 let add_mode_crossing t =
@@ -1604,6 +1606,7 @@ module Format_history = struct
   let format_product_creation_reason ppf : History.product_creation_reason -> _
       = function
     | Unboxed_tuple -> fprintf ppf "it is an unboxed tuple"
+    | Unboxed_record -> fprintf ppf "it is an unboxed record"
 
   let format_creation_reason ppf ~layout_or_kind :
       History.creation_reason -> unit = function
@@ -2047,6 +2050,7 @@ module Debug_printers = struct
   let product_creation_reason ppf : History.product_creation_reason -> _ =
     function
     | Unboxed_tuple -> fprintf ppf "Unboxed_tuple"
+    | Unboxed_record -> fprintf ppf "Unboxed_record"
 
   let creation_reason ppf : History.creation_reason -> unit = function
     | Annotated (ctx, loc) ->

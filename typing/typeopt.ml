@@ -162,6 +162,8 @@ let classify env loc ty sort : classification =
               Any
           | Type_record _ | Type_variant _ | Type_open ->
               Addr
+          | Type_record_unboxed_product _ ->
+              Any
         with Not_found ->
           (* This can happen due to e.g. missing -I options,
              causing some .cmi files to be unavailable.
@@ -460,6 +462,12 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
+        | Type_record_unboxed_product ([{ld_type}], Record_unboxed_product) ->
+          let depth = depth + 1 in
+          fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
+            (fun () -> value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type)
+        | Type_record_unboxed_product (([] | _::_::_), Record_unboxed_product) ->
+          assert false
         | Type_abstract _ ->
           num_nodes_visited,
           mk_nn (value_kind_of_value_jkind decl.type_jkind)
