@@ -12,10 +12,11 @@ to them. For example, an externally allocated data structure might support a
 val free : t @ unique -> unit
 ```
 
-The compiler guarantees that this operation will be sound: as the argument is
-`unique`, there can be no further references to it that could lead to a
-use-after-free. The compiler tracks the uniqueness of values and marks values
-which have more than one reference pointing to them with the `aliased` mode:
+Normally, a `free` operation would be dangerous since any remaining references
+can lead to a use-after-free segfault. But with the `unique` mode, the compiler
+guarantees that no further references remain. To provide this guarantee, the
+compiler tracks the uniqueness of values and marks values which have more than
+one reference pointing to them with the `aliased` mode:
 
 ```ocaml
 let duplicate : t -> t * t @ aliased = fun t -> t, t
@@ -23,20 +24,20 @@ let duplicate : t -> t * t @ aliased = fun t -> t, t
 
 When a `unique` value is captured in a closure, this closure can be invoked at
 most once: if the closure was invoked more often, it could not use the value
-uniquely each time. Values that contain closures that can be invoked at most
-once are at mode `once`, while values with closures that can be invoked
-arbitrarily often are at mode `many`:
+uniquely each time. Such closures are at mode `once`, while closures that can be
+invoked arbitrarily often are at mode `many`:
 
 ```ocaml
 let delay_free : t @ unique -> (unit -> unit) @ once = fun t -> fun () -> free t
 ```
 
-## Modalities and Mode Crossing
+## Modalities
 
 These modes form two mode axis: the _uniqueness_ of a value is either `unique`
 or `aliased`, while the _affinity_ of a value is `once` or `many`. Similar to
 [locality](../local/intro.md), uniqueness and affinity are deep properties. If a
-value is at mode `unique` then all of its children are also `unique`.
+value is at mode `unique` then all of its children are also `unique`. If a value
+is `once` then all of the closures it contains are also at mode `once`.
 
 We make an exception to this rule for record fields that are annotated with a
 _modality_. Analogous to global fields, a record field that is annotated as `@@
@@ -46,22 +47,19 @@ field is annotated by `@@ many`, then it can only store `many` values even if
 the record itself is `once`. In return, a read of that field always yields a
 `many` value.
 
-Analogous to the `globalize` function, it is possible to cast between the modes:
+## Mode Crossing
 
-```ocaml
-val alias : 'a @ unique -> 'a @ aliased
-val linearize : 'a @ many -> 'a @ once
-```
+You can always cast a value to a mode that affords fewer guarantees: You can use
+a `unique` value like an `aliased` value, and a `many` value like a `once`
+value. However, the other directions are disallowed in general: if a value is
+`aliased` there is no way to get it back to mode `unique`; similarly a `once`
+value can not be made `many`.
 
-However, the other directions are disallowed in general: if a value is `aliased`
-there is no way to get it back to mode `unique`; similarly a `once` value can
-not be made `many`.
-
-We make an exception to this rule for values of special types to which these
-modes do not apply. For example, `int`s and other immediates can be used as
-`unique` and `many`, no matter their mode. Similarly, most values that don't
-contain functions can be used as `many`. For example, an `int list @ once
-aliased` can be used as `many` but not as `unique`.
+We make an exception to this rule for values of those types that cross these
+modes. For example, `int`s and other immediates can be used as `unique` and
+`many`, no matter their mode. Similarly, most values that don't contain
+functions can be used as `many`. For example, an `int list @ once aliased` can
+be used as `many` but not as `unique`.
 
 ## Checking for Uniqueness
 
@@ -86,7 +84,7 @@ let bad t =
 ```
 
 In the `bad` function above, the `free t` assumes that it gets all of `t`
-uniquely, but this is not true if the `field` as been freed previously. However,
+uniquely, but this is not true if the `field` has been freed previously. However,
 we can use parts of `t` twice if these uses happen in different branches:
 
 ```ocaml
