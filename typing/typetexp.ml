@@ -772,8 +772,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
     in
     ctyp desc typ
   | Ptyp_unboxed_tuple stl ->
-    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
-      Language_extension.Beta;
+    Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
     let tl =
       List.map
         (fun (label, t) ->
@@ -1194,8 +1193,9 @@ and transl_type_aux_tuple env ~loc ~policy ~row_context stl =
   let ctys =
     List.map
       (fun (label, t) ->
-         Option.iter (fun _ -> Jane_syntax_parsing.assert_extension_enabled ~loc
-                                 Language_extension.Labeled_tuples ()) label;
+         Option.iter (fun _ ->
+             Language_extension.assert_enabled ~loc Labeled_tuples ())
+           label;
          label, transl_type env ~policy ~row_context Alloc.Const.legacy t)
       stl
   in

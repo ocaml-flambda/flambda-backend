@@ -1,8 +1,9 @@
 (** Language extensions provided by the Jane Street version of the OCaml
     compiler.
+*)
 
-    This is the signature of the {!Language_extension_kernel} module that is
-    directly imported into [ppxlib_jane].
+(* CR nroberts: Now that we've deleted Jane Syntax, we can fold this into
+   [Language_extension] and get rid of the extra file.
 *)
 
 type maturity = Stable | Beta | Alpha
@@ -46,21 +47,3 @@ val maturity_to_string : maturity -> string
     harmlessly translated to attributes and compiled with the upstream
     compiler. *)
 val is_erasable : _ t -> bool
-
-module type Language_extension_for_jane_syntax = sig
-  (** This module type defines the pieces of functionality used by
-      {!Jane_syntax_parsing} and {!Jane_syntax} so that we can more easily
-      import these modules into [ppxlib_jane], without also including all of the
-      [Language_extension] machinery.
-
-      It includes the stateful operations that {!Jane_syntax_parsing} relies on.
-      This limits the number of bindings that [ppxlib_jane] needs to have mock
-      implementations for.
-  *)
-
-  type nonrec 'a t = 'a t
-
-  (** Check if a language extension is currently enabled. *)
-  val is_enabled : _ t -> bool
-  val is_at_least : 'a t -> 'a -> bool
-end

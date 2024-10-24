@@ -126,7 +126,8 @@ module Pat:
     val variant: ?loc:loc -> ?attrs:attrs -> label -> pattern option -> pattern
     val record: ?loc:loc -> ?attrs:attrs -> (lid * pattern) list -> closed_flag
                 -> pattern
-    val array: ?loc:loc -> ?attrs:attrs -> pattern list -> pattern
+    val array: ?loc:loc -> ?attrs:attrs -> mutable_flag -> pattern list ->
+      pattern
     val or_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern -> pattern
     val constraint_: ?loc:loc -> ?attrs:attrs -> pattern -> core_type option
                      -> mode with_loc list -> pattern
@@ -168,7 +169,8 @@ module Exp:
     val field: ?loc:loc -> ?attrs:attrs -> expression -> lid -> expression
     val setfield: ?loc:loc -> ?attrs:attrs -> expression -> lid -> expression
                   -> expression
-    val array: ?loc:loc -> ?attrs:attrs -> expression list -> expression
+    val array: ?loc:loc -> ?attrs:attrs -> mutable_flag -> expression list ->
+      expression
     val ifthenelse: ?loc:loc -> ?attrs:attrs -> expression -> expression
                     -> expression option -> expression
     val sequence: ?loc:loc -> ?attrs:attrs -> expression -> expression
@@ -206,6 +208,8 @@ module Exp:
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> expression
     val unreachable: ?loc:loc -> ?attrs:attrs -> unit -> expression
     val stack : ?loc:loc -> ?attrs:attrs -> expression -> expression
+    val comprehension :
+      ?loc:loc -> ?attrs:attrs -> comprehension_expression -> expression
 
     val case: pattern -> ?guard:expression -> expression -> case
     val binding_op: str -> pattern -> expression -> loc -> binding_op
@@ -282,6 +286,8 @@ module Mty:
       with_constraint list -> module_type
     val typeof_: ?loc:loc -> ?attrs:attrs -> module_expr -> module_type
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> module_type
+    val strengthen: ?loc:loc -> ?attrs:attrs -> module_type -> lid ->
+      module_type
   end
 
 (** Module expressions *)
@@ -301,6 +307,7 @@ module Mod:
       module_expr
     val unpack: ?loc:loc -> ?attrs:attrs -> expression -> module_expr
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> module_expr
+    val instance: ?loc:loc -> ?attrs:attrs -> module_instance -> module_expr
   end
 
 (** Signature items *)

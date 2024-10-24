@@ -186,7 +186,7 @@ module Pat = struct
   let construct ?loc ?attrs a b = mk ?loc ?attrs (Ppat_construct (a, b))
   let variant ?loc ?attrs a b = mk ?loc ?attrs (Ppat_variant (a, b))
   let record ?loc ?attrs a b = mk ?loc ?attrs (Ppat_record (a, b))
-  let array ?loc ?attrs a = mk ?loc ?attrs (Ppat_array a)
+  let array ?loc ?attrs a b = mk ?loc ?attrs (Ppat_array (a, b))
   let or_ ?loc ?attrs a b = mk ?loc ?attrs (Ppat_or (a, b))
   let constraint_ ?loc ?attrs a b c = mk ?loc ?attrs (Ppat_constraint (a, b, c))
   let type_ ?loc ?attrs a = mk ?loc ?attrs (Ppat_type a)
@@ -219,7 +219,7 @@ module Exp = struct
   let record ?loc ?attrs a b = mk ?loc ?attrs (Pexp_record (a, b))
   let field ?loc ?attrs a b = mk ?loc ?attrs (Pexp_field (a, b))
   let setfield ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_setfield (a, b, c))
-  let array ?loc ?attrs a = mk ?loc ?attrs (Pexp_array a)
+  let array ?loc ?attrs a b = mk ?loc ?attrs (Pexp_array (a, b))
   let ifthenelse ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_ifthenelse (a, b, c))
   let sequence ?loc ?attrs a b = mk ?loc ?attrs (Pexp_sequence (a, b))
   let while_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_while (a, b))
@@ -244,6 +244,7 @@ module Exp = struct
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pexp_extension a)
   let unreachable ?loc ?attrs () = mk ?loc ?attrs Pexp_unreachable
   let stack ?loc ?attrs e = mk ?loc ?attrs (Pexp_stack e)
+  let comprehension ?loc ?attrs e = mk ?loc ?attrs (Pexp_comprehension e)
 
   let case lhs ?guard rhs =
     {
@@ -273,6 +274,7 @@ module Mty = struct
   let with_ ?loc ?attrs a b = mk ?loc ?attrs (Pmty_with (a, b))
   let typeof_ ?loc ?attrs a = mk ?loc ?attrs (Pmty_typeof a)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmty_extension a)
+  let strengthen ?loc ?attrs a b = mk ?loc ?attrs (Pmty_strengthen (a, b))
 end
 
 module Mod = struct
@@ -289,6 +291,7 @@ module Mod = struct
   let constraint_ ?loc ?attrs m mty = mk ?loc ?attrs (Pmod_constraint (m, mty))
   let unpack ?loc ?attrs e = mk ?loc ?attrs (Pmod_unpack e)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmod_extension a)
+  let instance ?loc ?attrs a = mk ?loc ?attrs (Pmod_instance a)
 end
 
 module Sig = struct
