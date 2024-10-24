@@ -896,7 +896,7 @@ module Desc = struct
 end
 
 module Jkind_desc = struct
-  open Jkind_types.Jkind_desc
+  open Jkind_types.Layout_and_axes
 
   let of_const
       ({ layout;
@@ -1054,7 +1054,7 @@ module Jkind_desc = struct
             { pjkind_loc = Location.none; pjkind_desc = Product annotations })
         annotations
     in
-    ( { layout = Product (List.rev layouts);
+    ( { layout : Layout.t = Product (List.rev layouts);
         modes_upper_bounds = mode_ub;
         externality_upper_bound = ext_ub;
         nullability_upper_bound = null_ub
@@ -1087,7 +1087,7 @@ module Jkind_desc = struct
          externality_upper_bound;
          nullability_upper_bound
        } as k) : Desc.t =
-    match layout with
+    match (layout : Layout.t) with
     | Any ->
       Const
         { layout = Any;

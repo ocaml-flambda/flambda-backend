@@ -537,14 +537,18 @@ end
 
 module Modes = Mode.Alloc.Const
 
-module Jkind_desc = struct
-  type ('type_expr, 'd) t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
+module Layout_and_axes = struct
+  type ('layout, +'d) t =
+    { layout : 'layout;
+      modes_upper_bounds : Mode.Alloc.Const.t;
       externality_upper_bound : Jkind_axis.Externality.t;
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
     constraint 'd = 'l * 'r
+end
+
+module Jkind_desc = struct
+  type ('type_expr, 'd) t = (Layout.t, 'd) Layout_and_axes.t
 
   type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
   [@@unboxed]

@@ -120,17 +120,21 @@ module Layout : sig
   end
 end
 
-module Jkind_desc : sig
+module Layout_and_axes : sig
   (* We need the variance annotation here to allow [any_dummy_jkind] to be
      polymorphic in its allowances. Otherwise the value restriction bites.
      Sigh. *)
-  type ('type_expr, +'d) t =
-    { layout : Layout.t;
+  type ('layout, +'d) t =
+    { layout : 'layout;
       modes_upper_bounds : Mode.Alloc.Const.t;
       externality_upper_bound : Jkind_axis.Externality.t;
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
     constraint 'd = 'l * 'r
+end
+
+module Jkind_desc : sig
+  type ('type_expr, +'d) t = (Layout.t, 'd) Layout_and_axes.t
 
   type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
   [@@unboxed]
