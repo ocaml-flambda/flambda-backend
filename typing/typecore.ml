@@ -891,12 +891,15 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
 (** Mode cross a right mode *)
 (* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
    there, too. *)
-let expect_mode_cross env ty (expected_mode : expected_mode) =
-  if not (is_principal ty) then expected_mode else
-  let jkind = type_jkind_purely env ty in
+let expect_mode_cross_jkind jkind (expected_mode : expected_mode) =
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   mode_morph (Value.imply upper_bounds) expected_mode
+
+let expect_mode_cross env ty (expected_mode : expected_mode) =
+  if not (is_principal ty) then expected_mode else
+  let jkind = type_jkind_purely env ty in
+  expect_mode_cross_jkind jkind expected_mode
 
 let mode_annots_from_pat pat =
   let modes =
@@ -9362,7 +9365,8 @@ and type_immutable_array
 
 (* Typing of method call *)
 and type_send env loc explanation e met =
-  let obj = type_exp env mode_legacy e in
+  let expected_mode = expect_mode_cross_jkind Jkind.for_object mode_legacy in
+  let obj = type_exp env expected_mode e in
   let (meth, typ) =
     match obj.exp_desc with
     | Texp_ident(_, _, {val_kind = Val_self(sign, meths, _, _)}, _, _) ->
