@@ -299,13 +299,22 @@ module type Solver_polarized = sig
 
   (** Generalizes all reachable variables whose level is above [current_level], and whose
       value can be determined (equal bounds), by putting their level to [generic_level].*)
-      val generalize_structure :
-      current_level:int ->
-      generic_level:int ->
-      'a obj ->
-      ('a, 'l * 'r) mode ->
-      log:changes ref option ->
-      unit
+  val generalize_structure :
+    current_level:int ->
+    generic_level:int ->
+    'a obj ->
+    ('a, 'l * 'r) mode ->
+    log:changes ref option ->
+    unit
+
+  (** Copies all reachable variables whose level is at [generic_level],
+      and puts the level of the copy to [current_level]. Returns the copied mode *)
+  val instantiate :
+    current_level:int ->
+    generic_level:int ->
+    'a obj ->
+    ('a, 'l * 'r) mode ->
+    ('a, 'l * 'r) mode
 
   (** Creates a new mode variable above the given mode and returns [true]. In
         the speical case where the given mode is top, returns the constant top
