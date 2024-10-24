@@ -186,18 +186,21 @@ type privacy_mismatch =
   | Private_type_abbreviation
   | Private_variant_type
   | Private_record_type
+  | Private_record_unboxed_product_type
   | Private_extensible_variant
   | Private_row_type
 
 type type_kind =
   | Kind_abstract
   | Kind_record
+  | Kind_record_unboxed_product
   | Kind_variant
   | Kind_open
 
 let of_kind = function
   | Type_abstract _ -> Kind_abstract
   | Type_record (_, _) -> Kind_record
+  | Type_record_unboxed_product (_, _) -> Kind_record_unboxed_product
   | Type_variant (_, _) -> Kind_variant
   | Type_open -> Kind_open
 
@@ -339,6 +342,7 @@ let report_privacy_mismatch ppf err =
     | Private_type_abbreviation  -> true,  "type abbreviation"
     | Private_variant_type       -> false, "variant constructor(s)"
     | Private_record_type        -> true,  "record constructor"
+    | Private_record_unboxed_product_type -> true,  "unboxed record constructor"
     | Private_extensible_variant -> true,  "extensible variant"
     | Private_row_type           -> true,  "row type"
   in Format.fprintf ppf "%s %s would be revealed."
@@ -530,6 +534,7 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
   let kind_to_string = function
   | Kind_abstract -> "abstract"
   | Kind_record -> "a record"
+  | Kind_record_unboxed_product -> "an unboxed record"
   | Kind_variant -> "a variant"
   | Kind_open -> "an extensible variant" in
   pr "%s is %s, but %s is %s."
@@ -734,46 +739,53 @@ module Record_diffing = struct
            representation is if one is a flat float record with a boxed float \
            field, and the other isn't."
 
-  let compare_with_representation ~loc env params1 params2 l r rep1 rep2 =
+  let compare_with_representation (type rep) ~loc (record_form : rep record_form) env
+        params1 params2 l r (rep1 : rep) (rep2 : rep) =
     if not (equal ~loc env params1 params2 l r) then
       let patch = diffing loc env params1 params2 l r in
       Some (Record_mismatch (Label_mismatch patch))
     else
-     match rep1, rep2 with
-     | Record_unboxed, Record_unboxed -> None
-     | Record_unboxed, _ -> Some (Unboxed_representation (First, []))
-     | _, Record_unboxed -> Some (Unboxed_representation (Second, []))
+      match record_form with
+      | Legacy ->
+        begin match rep1, rep2 with
+        | Record_unboxed, Record_unboxed -> None
+        | Record_unboxed, _ -> Some (Unboxed_representation (First, []))
+        | _, Record_unboxed -> Some (Unboxed_representation (Second, []))
 
-     | Record_inlined _, Record_inlined _ -> None
-     | Record_inlined _, _ ->
-        Some (Record_mismatch (Inlined_representation First))
-     | _, Record_inlined _ ->
-        Some (Record_mismatch (Inlined_representation Second))
+        | Record_inlined _, Record_inlined _ -> None
+        | Record_inlined _, _ ->
+           Some (Record_mismatch (Inlined_representation First))
+        | _, Record_inlined _ ->
+           Some (Record_mismatch (Inlined_representation Second))
 
-     | Record_float, Record_float -> None
-     | Record_float, _ ->
-        Some (Record_mismatch (Float_representation First))
-     | _, Record_float ->
-        Some (Record_mismatch (Float_representation Second))
+        | Record_float, Record_float -> None
+        | Record_float, _ ->
+           Some (Record_mismatch (Float_representation First))
+        | _, Record_float ->
+           Some (Record_mismatch (Float_representation Second))
 
-     | Record_ufloat, Record_ufloat -> None
-     | Record_ufloat, _ ->
-        Some (Record_mismatch (Ufloat_representation First))
-     | _, Record_ufloat ->
-        Some (Record_mismatch (Ufloat_representation Second))
+        | Record_ufloat, Record_ufloat -> None
+        | Record_ufloat, _ ->
+           Some (Record_mismatch (Ufloat_representation First))
+        | _, Record_ufloat ->
+           Some (Record_mismatch (Ufloat_representation Second))
 
-     | Record_mixed m1, Record_mixed m2 -> begin
-         match find_mismatch_in_mixed_record_representations m1 m2 with
-         | None -> None
-         | Some mismatch -> Some (Record_mismatch mismatch)
-       end
-     | Record_mixed _, _ ->
-        Some (Record_mismatch (Mixed_representation First))
-     | _, Record_mixed _ ->
-        Some (Record_mismatch (Mixed_representation Second))
+        | Record_mixed m1, Record_mixed m2 ->
+            begin match find_mismatch_in_mixed_record_representations m1 m2 with
+            | None -> None
+            | Some mismatch -> Some (Record_mismatch mismatch)
+            end
+        | Record_mixed _, _ ->
+           Some (Record_mismatch (Mixed_representation First))
+        | _, Record_mixed _ ->
+           Some (Record_mismatch (Mixed_representation Second))
 
-     | Record_boxed _, Record_boxed _ -> None
-
+        | Record_boxed _, Record_boxed _ -> None
+        end
+      | Unboxed_product ->
+        begin match rep1, rep2 with
+        | Record_unboxed_product, Record_unboxed_product -> None
+        end
 end
 
 (* just like List.find_map, but also gives index if found *)
@@ -947,6 +959,7 @@ let privacy_mismatch env decl1 decl2 =
   | Private, Public -> begin
       match decl1.type_kind, decl2.type_kind with
       | Type_record  _, Type_record  _ -> Some Private_record_type
+      | Type_record_unboxed_product  _, Type_record_unboxed_product  _ -> assert false
       | Type_variant _, Type_variant _ -> Some Private_variant_type
       | Type_open,      Type_open      -> Some Private_extensible_variant
       | Type_abstract _, Type_abstract _
@@ -1257,6 +1270,23 @@ let type_declarations ?(equality = false) ~loc env ~mark name
         | () -> None
   in
   if err <> None then err else
+  let mark_and_compare_records record_form labels1 rep1 labels2 rep2 =
+    if mark then begin
+      let mark usage lbls =
+        List.iter (Env.mark_label_used record_form usage) lbls
+      in
+      let usage : Env.label_usage =
+        if decl2.type_private = Public then Env.Exported
+        else Env.Exported_private
+      in
+      mark usage labels1;
+      if equality then mark Env.Exported labels2
+    end;
+    Record_diffing.compare_with_representation ~loc record_form env
+      decl1.type_params decl2.type_params
+      labels1 labels2
+      rep1 rep2
+  in
   let err = match (decl1.type_kind, decl2.type_kind) with
       (_, Type_abstract _) ->
        (* Note that [decl2.type_jkind] is an upper bound.
@@ -1287,21 +1317,10 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           rep1
           rep2
     | (Type_record(labels1,rep1), Type_record(labels2,rep2)) ->
-        if mark then begin
-          let mark usage lbls =
-            List.iter (Env.mark_label_used usage) lbls
-          in
-          let usage : Env.label_usage =
-            if decl2.type_private = Public then Env.Exported
-            else Env.Exported_private
-          in
-          mark usage labels1;
-          if equality then mark Env.Exported labels2
-        end;
-        Record_diffing.compare_with_representation ~loc env
-          decl1.type_params decl2.type_params
-          labels1 labels2
-          rep1 rep2
+        mark_and_compare_records Legacy labels1 rep1 labels2 rep2
+    | (Type_record_unboxed_product(labels1,rep1),
+       Type_record_unboxed_product(labels2,rep2)) ->
+        mark_and_compare_records Unboxed_product labels1 rep1 labels2 rep2
     | (Type_open, Type_open) -> None
     | (_, _) -> Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))
   in

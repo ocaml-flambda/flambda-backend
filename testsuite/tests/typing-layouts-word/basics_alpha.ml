@@ -219,7 +219,7 @@ Line 1, characters 14-24:
 1 | type t5_3 = { x : t_word } [@@unboxed];;
                   ^^^^^^^^^^
 Error: Type "t_word" has layout "word".
-       Unboxed records may not yet contain types of this layout.
+       [@@unboxed] records may not yet contain types of this layout.
 |}];;
 
 type t5_4 = A of t_word;;

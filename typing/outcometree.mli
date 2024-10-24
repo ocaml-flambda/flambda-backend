@@ -52,6 +52,7 @@ type out_value =
   | Oval_list of out_value list
   | Oval_printer of (Format.formatter -> unit)
   | Oval_record of (out_ident * out_value) list
+  | Oval_record_unboxed_product of (out_ident * out_value) list
   | Oval_string of string * int * out_string (* string, size-to-print, kind *)
   | Oval_stuff of string
   | Oval_tuple of (string option * out_value) list
@@ -135,6 +136,7 @@ and out_type =
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
   | Otyp_record of (string * out_mutability * out_type * out_modality list) list
+  | Otyp_record_unboxed_product of (string * out_mutability * out_type * out_modality list) list
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
   | Otyp_tuple of (string option * out_type) list

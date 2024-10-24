@@ -629,6 +629,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
+  | Texp_record_unboxed_product {fields; representation; extended_expression } ->
+      transl_record_unboxed_product ~scopes e.exp_loc e.exp_env
+        fields representation extended_expression
   | Texp_field(arg, id, lbl, float, ubr) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
@@ -691,6 +694,26 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
       end
+  | Texp_unboxed_field(arg, id, lbl, _) ->
+    begin match lbl.lbl_repres with
+    | Record_unboxed_product ->
+      check_record_field_sort id.loc (Jkind.sort_of_jkind lbl.lbl_jkind);
+      let layouts, jkinds =
+        Array.map (fun { lbl_jkind ; lbl_loc } ->
+          layout e.exp_env lbl_loc (Jkind.sort_of_jkind lbl_jkind) e.exp_type,
+          lbl_jkind
+        ) lbl.lbl_all
+        |> Array.to_list |> List.split
+      in
+      let arg_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
+      let targ = transl_exp ~scopes (Jkind.sort_of_jkind arg_jkind) arg in
+      if Array.length lbl.lbl_all == 1 then
+        (* erase singleton unboxed records before lambda *)
+        targ
+      else
+        Lprim (Punboxed_product_field (lbl.lbl_pos, layouts), [targ],
+               of_location ~scopes e.exp_loc)
+    end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
          representability on construction, [sort_of_jkind] will be unsafe here.
@@ -2032,6 +2055,51 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
       None -> lam
     | Some (init_expr, _) -> Llet(Strict, Lambda.layout_block, init_id,
                              transl_exp ~scopes Jkind.Sort.for_record init_expr, lam)
+    end
+
+and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
+  match repres with
+  | Record_unboxed_product ->
+    let init_id = Ident.create_local "init" in
+    let shape =
+      Array.map
+        (fun (lbl, definition) ->
+            let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+            match definition with
+            | Kept (typ, _mut, _) -> layout env lbl.lbl_loc lbl_sort typ
+            | Overridden (_lid, expr) -> layout_exp lbl_sort expr)
+        fields
+      |> Array.to_list
+    in
+    let ll =
+      Array.mapi
+        (fun i (lbl, definition) ->
+            match definition with
+            | Kept (_typ, _mut, _) ->
+              let access = Punboxed_product_field (i, shape) in
+              Lprim (access, [Lvar init_id], of_location ~scopes loc)
+            | Overridden (_lid, expr) ->
+              let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+              transl_exp ~scopes lbl_sort expr)
+        fields
+      |> Array.to_list
+    in
+    begin match ll with
+    | [l] -> l (* erase singleton unboxed records before lambda *)
+    | _ ->
+      let lam = Lprim(Pmake_unboxed_product shape, ll, of_location ~scopes loc) in
+      begin match opt_init_expr with
+      | None -> lam
+      | Some init_expr ->
+        (* CR layouts v11: if a functional update can change the kind, then
+          the resulting kind may be different than [init_expr_jkind] *)
+        let init_expr_jkind =
+          Jkind.Builtin.product ~why:Unboxed_record
+            (Array.map (fun (lbl,_) -> lbl.lbl_jkind) fields |> Array.to_list) in
+        let init_expr_sort = Jkind.sort_of_jkind init_expr_jkind in
+        let layout = layout_exp init_expr_sort init_expr in
+        Llet(Strict, layout, init_id, transl_exp ~scopes init_expr_sort init_expr, lam)
+      end
     end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =

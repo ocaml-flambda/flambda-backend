@@ -111,14 +111,20 @@ val foo : local_ < m : 'a; .. > -> 'a = <fun>
 let foo (obj @ local) =
     ref (obj : cla)
 [%%expect{|
-val foo : local_ cla -> cla ref = <fun>
+Line 2, characters 9-12:
+2 |     ref (obj : cla)
+             ^^^
+Error: This value escapes its region.
 |}]
 
 (* crosses at binding site. This allows the closure to be global. *)
 let foo (obj : cla @@ local) =
     ref (fun () -> let _ = obj in ())
 [%%expect{|
-val foo : local_ cla -> (unit -> unit) ref = <fun>
+Line 2, characters 27-30:
+2 |     ref (fun () -> let _ = obj in ())
+                               ^^^
+Error: The value "obj" is local, so cannot be used inside a function that might escape.
 |}]
 
 (* Objects don't cross monadic axes. Objects are defined at [uncontended]

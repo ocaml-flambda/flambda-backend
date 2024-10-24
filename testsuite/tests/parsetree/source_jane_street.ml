@@ -845,6 +845,35 @@ result: 7
 - : unit = ()
 |}]
 
+(*******************)
+(* Unboxed records *)
+
+module With_index : sig
+  type 'a t : value & immediate
+  type 'a t_boxed : value
+
+  val unbox_t : 'a t_boxed -> 'a t
+  val box_t : 'a t -> 'a t_boxed
+  val id_t : 'a t -> 'a t
+end = struct
+  type 'a t = #{ data : 'a ; i : int }
+  type 'a t_boxed = { data : 'a ; i : int }
+
+  let unbox_t { data ; i = idx } = #{ data ; i = idx }
+  let box_t #{ data ; i = idx } = { data ; i = idx }
+  let id_t #{ data ; i }  = #{ data ; i }
+end
+[%%expect{|
+module With_index :
+  sig
+    type 'a t : value & immediate
+    type 'a t_boxed
+    val unbox_t : 'a t_boxed -> 'a t
+    val box_t : 'a t -> 'a t_boxed
+    val id_t : 'a t -> 'a t
+  end
+|}]
+
 (***************)
 (* Modal kinds *)
 

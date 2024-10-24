@@ -46,12 +46,14 @@ type privacy_mismatch =
   | Private_type_abbreviation
   | Private_variant_type
   | Private_record_type
+  | Private_record_unboxed_product_type
   | Private_extensible_variant
   | Private_row_type
 
 type type_kind =
   | Kind_abstract
   | Kind_record
+  | Kind_record_unboxed_product
   | Kind_variant
   | Kind_open
 

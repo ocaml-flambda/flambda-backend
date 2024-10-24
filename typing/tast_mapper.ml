@@ -222,6 +222,7 @@ let type_kind sub = function
   | Ttype_abstract -> Ttype_abstract
   | Ttype_variant list -> Ttype_variant (List.map (constructor_decl sub) list)
   | Ttype_record list -> Ttype_record (List.map (label_decl sub) list)
+  | Ttype_record_unboxed_product list -> Ttype_record_unboxed_product (List.map (label_decl sub) list)
   | Ttype_open -> Ttype_open
 
 let type_declaration sub x =
@@ -312,6 +313,8 @@ let pat
         Tpat_variant (l, Option.map (sub.pat sub) po, rd)
     | Tpat_record (l, closed) ->
         Tpat_record (List.map (tuple3 (map_loc sub) id (sub.pat sub)) l, closed)
+    | Tpat_record_unboxed_product (l, closed) ->
+        Tpat_record_unboxed_product (List.map (tuple3 (map_loc sub) id (sub.pat sub)) l, closed)
     | Tpat_array (am, arg_sort, l) -> Tpat_array (am, arg_sort, List.map (sub.pat sub) l)
     | Tpat_alias (p, id, s, uid, m) ->
         Tpat_alias (sub.pat sub p, id, map_loc sub s, uid, m)
@@ -432,6 +435,13 @@ let expr sub x =
           comp_clauses
     }
   in
+  let map_fields fields =
+    Array.map (function
+      | label, Kept (t, mut, uu) -> label, Kept (t, mut, uu)
+      | label, Overridden (lid, exp) ->
+          label, Overridden (map_loc sub lid, sub.expr sub exp))
+      fields
+  in
   let exp_desc =
     match x.exp_desc with
     | Texp_ident (path, lid, vd, idk, uu) ->
@@ -477,20 +487,21 @@ let expr sub x =
     | Texp_variant (l, expo) ->
         Texp_variant (l, Option.map (fun (e, am) -> (sub.expr sub e, am)) expo)
     | Texp_record { fields; representation; extended_expression; alloc_mode } ->
-        let fields = Array.map (function
-            | label, Kept (t, mut, uu) -> label, Kept (t, mut, uu)
-            | label, Overridden (lid, exp) ->
-                label, Overridden (map_loc sub lid, sub.expr sub exp))
-            fields
-        in
         Texp_record {
-          fields; representation;
+          fields = map_fields fields; representation;
           extended_expression =
             Option.map (fun (exp, ubr) -> (sub.expr sub exp, ubr)) extended_expression;
           alloc_mode
         }
+    | Texp_record_unboxed_product { fields; representation; extended_expression } ->
+        Texp_record_unboxed_product {
+          fields = map_fields fields; representation;
+          extended_expression = Option.map (sub.expr sub) extended_expression
+        }
     | Texp_field (exp, lid, ld, float, ubr) ->
         Texp_field (sub.expr sub exp, map_loc sub lid, ld, float, ubr)
+    | Texp_unboxed_field (exp, lid, ld, uu) ->
+        Texp_unboxed_field (sub.expr sub exp, map_loc sub lid, ld, uu)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,

@@ -213,7 +213,7 @@ Line 1, characters 14-27:
 1 | type t5_3 = { x : t_float64 } [@@unboxed];;
                   ^^^^^^^^^^^^^
 Error: Type "t_float64" has layout "float64".
-       Unboxed records may not yet contain types of this layout.
+       [@@unboxed] records may not yet contain types of this layout.
 |}];;
 
 (* all-float64 constructor args are also allowed, as are some constructors that
@@ -245,7 +245,7 @@ Line 1, characters 21-34:
 1 | type t5_6_1 = A of { x : t_float64 } [@@unboxed];;
                          ^^^^^^^^^^^^^
 Error: Type "t_float64" has layout "float64".
-       Unboxed inlined records may not yet contain types of this layout.
+       [@@unboxed] inlined records may not yet contain types of this layout.
 |}];;
 
 type ('a : float64) t5_7 = A of int
