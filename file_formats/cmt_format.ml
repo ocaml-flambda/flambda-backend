@@ -171,6 +171,10 @@ let iter_on_occurrences
     let path = path_in_type lbl_res lbl_name in
     Option.iter (fun path -> f ~namespace:Label env path lid) path
   in
+  let add_label_flat env lid { Types.lbl_name; lbl_res; _ } =
+    let path = path_in_type lbl_res lbl_name in
+    Option.iter (fun path -> f ~namespace:Label env path lid) path
+  in
   let with_constraint ~env (_path, _lid, with_constraint) =
     match with_constraint with
     | Twith_module (path', lid') | Twith_modsubst (path', lid') ->
@@ -188,9 +192,27 @@ let iter_on_occurrences
       | Texp_field (_, lid, label_desc, _)
       | Texp_setfield (_, _, lid, label_desc, _) ->
           add_label exp_env lid label_desc
+      | Texp_field_flat (_, lid, label_desc, _)
+      | Texp_setfield_flat (_, _, lid, label_desc, _) ->
+          add_label_flat exp_env lid label_desc
       | Texp_new (path, lid, _, _) ->
           f ~namespace:Class exp_env path lid
       | Texp_record { fields; _ } ->
+        Array.iter (fun (label_descr, record_label_definition) ->
+          match record_label_definition with
+          | Overridden (
+              { Location.txt; loc},
+              {exp_loc; _})
+              when not exp_loc.loc_ghost
+                && loc.loc_start = exp_loc.loc_start
+                && loc.loc_end = exp_loc.loc_end ->
+            (* In the presence of punning we want to index the label
+                even if it is ghosted *)
+            let lid = { Location.txt; loc = {loc with loc_ghost = false} } in
+            add_label exp_env lid label_descr
+          | Overridden (lid, _) -> add_label exp_env lid label_descr
+          | Kept _ -> ()) fields
+      | Texp_record_flat { fields ; _ } ->
         Array.iter (fun (label_descr, record_label_definition) ->
           match record_label_definition with
           | Overridden (
@@ -269,6 +291,20 @@ let iter_on_occurrences
             else lid
           in
           add_label pat_env lid label_descr)
+        fields
+      | Tpat_record_flat (fields, _) ->
+        List.iter (fun (lid, label_descr, pat) ->
+          let lid =
+            let open Location in
+            (* In the presence of punning we want to index the label
+               even if it is ghosted *)
+            if (not pat.pat_loc.loc_ghost
+              && lid.loc.loc_start = pat.pat_loc.loc_start
+              && lid.loc.loc_end = pat.pat_loc.loc_end)
+            then {lid with loc = {lid.loc with loc_ghost = false}}
+            else lid
+          in
+          add_label_flat pat_env lid label_descr)
         fields
       | Tpat_any | Tpat_var _ | Tpat_alias _ | Tpat_constant _ | Tpat_tuple _
       | Tpat_unboxed_tuple _

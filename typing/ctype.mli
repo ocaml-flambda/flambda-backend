@@ -222,6 +222,10 @@ val instance_label:
         fixed:bool ->
         label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
+val instance_label_flat:
+        fixed:bool ->
+        label_flat_description -> type_expr list * type_expr * type_expr
+        (* Same, for a label *)
 val prim_mode :
         (Mode.allowed * 'r) Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
         -> (Mode.allowed * 'r) Mode.Locality.t

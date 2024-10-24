@@ -42,6 +42,7 @@ and type_desc =
   | Ttuple of (string option * type_expr) list
   | Tunboxed_tuple of (string option * type_expr) list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
+  (* nominal types, including record record ^^^ *)
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   | Tfield of string * field_kind * type_expr * type_expr
   | Tnil
@@ -273,11 +274,12 @@ type type_declaration =
     type_has_illegal_crossings: bool;
  }
 
-and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
 
-and ('lbl, 'cstr) type_kind =
+and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
   | Type_record of 'lbl list * record_representation
+  | Type_record_flat of 'lbl_flat list * record_flat_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
@@ -313,6 +315,9 @@ and record_representation =
   | Record_float
   | Record_ufloat
   | Record_mixed of mixed_product_shape
+
+and record_flat_representation =
+  | Record_flat of jkind_l array
 
 and variant_representation =
   | Variant_unboxed
@@ -679,6 +684,10 @@ let equal_record_representation r1 r2 = match r1, r2 with
     | Record_ufloat | Record_mixed _), _ ->
       false
 
+let equal_record_flat_representation r1 r2 = match r1, r2 with
+  | Record_flat lays1, Record_flat lays2 ->
+      Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
+
 let may_equal_constr c1 c2 =
   c1.cstr_arity = c2.cstr_arity
   && (match c1.cstr_tag,c2.cstr_tag with
@@ -699,6 +708,8 @@ let find_unboxed_type decl =
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
                     | Record_mixed _))
+  (* CR rtjoa: maybe wrong *)
+  | Type_record_flat _
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
                      | Variant_extensible ))
   | Type_abstract _ | Type_open ->
@@ -713,7 +724,7 @@ let item_visibility = function
   | Sig_class (_, _, _, vis)
   | Sig_class_type (_, _, _, vis) -> vis
 
-type label_description =
+type 'a gen_label_description =
   { lbl_name: string;                   (* Short name *)
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
@@ -722,13 +733,17 @@ type label_description =
     lbl_jkind : jkind_l;                (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
-    lbl_all: label_description array;   (* All the labels in this type *)
-    lbl_repres: record_representation;  (* Representation for outer record *)
+    lbl_all: 'a gen_label_description array;   (* All the labels in this type *)
+    lbl_repres: 'a;                     (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
+
+type label_description = record_representation gen_label_description
+
+type label_flat_description = record_flat_representation gen_label_description
 
 let lbl_pos_void = -1
 

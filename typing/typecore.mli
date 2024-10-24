@@ -79,7 +79,7 @@ val mk_expected:
 val is_nonexpansive: Typedtree.expression -> bool
 
 module Datatype_kind : sig
-  type t = Record | Variant
+  type t = Record | Record_flat_dk | Variant
   val type_name : t -> string
   val label_name : t -> string
 end
@@ -98,6 +98,7 @@ type wrong_kind_context =
 type wrong_kind_sort =
   | Constructor
   | Record
+  | Record_flat_wks
   | Boolean
   | List
   | Unit

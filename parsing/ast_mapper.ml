@@ -231,6 +231,7 @@ module T = struct
     | Ptype_variant l ->
         Ptype_variant (List.map (sub.constructor_declaration sub) l)
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
+    | Ptype_record_flat l -> Ptype_record_flat (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
 
   let map_constructor_argument sub x =
@@ -608,10 +609,18 @@ module E = struct
     | Pexp_record (l, eo) ->
         record ~loc ~attrs (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
           (map_opt (sub.expr sub) eo)
+    | Pexp_record_flat (l, eo) ->
+        record_flat ~loc ~attrs (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
+          (map_opt (sub.expr sub) eo)
     | Pexp_field (e, lid) ->
         field ~loc ~attrs (sub.expr sub e) (map_loc sub lid)
+    | Pexp_field_flat (e, lid) ->
+        field_flat ~loc ~attrs (sub.expr sub e) (map_loc sub lid)
     | Pexp_setfield (e1, lid, e2) ->
         setfield ~loc ~attrs (sub.expr sub e1) (map_loc sub lid)
+          (sub.expr sub e2)
+    | Pexp_setfield_flat (e1, lid, e2) ->
+        setfield_flat ~loc ~attrs (sub.expr sub e1) (map_loc sub lid)
           (sub.expr sub e2)
     | Pexp_array el -> array ~loc ~attrs (List.map (sub.expr sub) el)
     | Pexp_ifthenelse (e1, e2, e3) ->
@@ -716,6 +725,9 @@ module P = struct
     | Ppat_variant (l, p) -> variant ~loc ~attrs l (map_opt (sub.pat sub) p)
     | Ppat_record (lpl, cf) ->
         record ~loc ~attrs
+               (List.map (map_tuple (map_loc sub) (sub.pat sub)) lpl) cf
+    | Ppat_record_flat (lpl, cf) ->
+        record_flat ~loc ~attrs
                (List.map (map_tuple (map_loc sub) (sub.pat sub)) lpl) cf
     | Ppat_array pl -> array ~loc ~attrs (List.map (sub.pat sub) pl)
     | Ppat_or (p1, p2) -> or_ ~loc ~attrs (sub.pat sub p1) (sub.pat sub p2)

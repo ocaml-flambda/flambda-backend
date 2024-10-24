@@ -183,6 +183,10 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
+    (* CR rtjoa: wrong, need to fold over fields *)
+    | Texp_record_flat _ ->
+        Static
+
     | Texp_variant _
     | Texp_tuple _
     | Texp_extension_constructor _
@@ -195,6 +199,7 @@ let classify_expression : Typedtree.expression -> sd =
 
     | Texp_for _
     | Texp_setfield _
+    | Texp_setfield_flat _
     | Texp_while _
     | Texp_setinstvar _ ->
         (* Unit-returning expressions *)
@@ -250,6 +255,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_ifthenelse _
     | Texp_send _
     | Texp_field _
+    | Texp_field_flat _
     | Texp_assert _
     | Texp_try _
     | Texp_override _
@@ -747,7 +753,7 @@ let rec expression : Typedtree.expression -> term_judg =
                     representation = rep } ->
         let field_mode i = match rep with
           | Record_float | Record_ufloat -> Dereference
-          | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> Return
+          | Record_unboxed | Record_inlined (_, _, Variant_unboxed)
           | Record_boxed _ | Record_inlined (_, Constructor_uniform_value, _) ->
               Guard
           | Record_inlined (_, Constructor_mixed mixed_shape, _)
@@ -763,6 +769,21 @@ let rec expression : Typedtree.expression -> term_judg =
             | Overridden (_, e) -> expression e
           in
           env << field_mode label.lbl_num
+        in
+        join [
+          array field es;
+          option expression eo << Dereference
+        ]
+    | Texp_record_flat { fields = es; extended_expression = eo;
+                    representation = rep } ->
+        (match rep with Record_flat _ -> ());
+        let field (_, field_def) =
+          let env =
+            match field_def with
+            | Kept _ -> empty
+            | Overridden (_, e) -> expression e
+          in
+          env << Dereference
         in
         join [
           array field es;
@@ -785,6 +806,21 @@ let rec expression : Typedtree.expression -> term_judg =
         option expression ifnot;
       ]
     | Texp_setfield (e1, _, _, _, e2) ->
+      (*
+        G1 |- e1: m[Dereference]
+        G2 |- e2: m[Dereference]
+        ---
+        G1 + G2 |- e1.x <- e2: m
+
+        Note: e2 is dereferenced in the case of a field assignment to
+        a record of unboxed floats in that case, e2 evaluates to
+        a boxed float and it is unboxed on assignment.
+      *)
+      join [
+        expression e1 << Dereference;
+        expression e2 << Dereference;
+      ]
+    | Texp_setfield_flat (e1, _, _, _, e2) ->
       (*
         G1 |- e1: m[Dereference]
         G2 |- e2: m[Dereference]
@@ -833,6 +869,13 @@ let rec expression : Typedtree.expression -> term_judg =
         expression e1 << Dereference
       ]
     | Texp_field (e, _, _, _) ->
+      (*
+        G |- e: m[Dereference]
+        -----------------------
+        G |- e.x: m
+      *)
+      expression e << Dereference
+    | Texp_field_flat (e, _, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------
@@ -1418,6 +1461,7 @@ and is_destructuring_pattern : type k . k general_pattern -> bool =
     | Tpat_construct _ -> true
     | Tpat_variant _ -> true
     | Tpat_record (_, _) -> true
+    | Tpat_record_flat (_, _) -> true
     | Tpat_array _ -> true
     | Tpat_lazy _ -> true
     | Tpat_value pat -> is_destructuring_pattern (pat :> pattern)
