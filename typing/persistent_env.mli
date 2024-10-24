@@ -16,9 +16,7 @@
 
 open Misc
 
-module Consistbl_data : sig
-  type t
-end
+module Consistbl_data = Import_info.Intf.Nonalias.Kind
 
 module Consistbl : module type of struct
   include Consistbl.Make (Compilation_unit.Name) (Consistbl_data)
@@ -33,11 +31,38 @@ type error =
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
   | Illegal_import_of_parameter of Global_module.Name.t * filepath
-  | Not_compiled_as_parameter of Global_module.Name.t * filepath
+  | Not_compiled_as_parameter of Global_module.Name.t
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
         parameter : Global_module.Name.t;
-  }
+      }
+  | Imported_module_has_no_such_parameter of
+      { imported : Compilation_unit.Name.t;
+        valid_parameters : Global_module.Name.t list;
+        parameter : Global_module.Name.t;
+        value : Global_module.Name.t;
+      }
+  | Not_compiled_as_argument of
+      { param : Global_module.Name.t;
+        value : Global_module.Name.t;
+        filename : filepath;
+      }
+  | Argument_type_mismatch of
+      { value : Global_module.Name.t;
+        filename : filepath;
+        expected : Global_module.Name.t;
+        actual : Global_module.Name.t;
+      }
+  | Inconsistent_global_name_resolution of
+      { name : Global_module.Name.t;
+        old_global : Global_module.t;
+        new_global : Global_module.t;
+        first_mentioned_by : Global_module.Name.t;
+        now_mentioned_by : Global_module.Name.t;
+      }
+  | Unbound_module_as_argument_value of
+      { instance : Global_module.Name.t; value : Global_module.Name.t; }
+
 
 
 exception Error of error
@@ -114,10 +139,6 @@ val is_parameter_import : 'a t -> Global_module.Name.t -> bool
    [penv] (it may have failed) *)
 val looked_up : 'a t -> Global_module.Name.t -> bool
 
-(* [is_imported penv md] checks if [md] has been successfully
-   imported in the environment [penv] *)
-val is_imported : 'a t -> Compilation_unit.Name.t -> bool
-
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
 val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
@@ -126,10 +147,21 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
+(* [local_ident penv md] returns the local identifier generated for [md] if
+   [md] is either a parameter or a dependency with a parameter. This is used
+   strictly for code generation - types should always use persistent
+   [Ident.t]s. *)
+val local_ident : 'a t -> Global_module.Name.t -> Ident.t option
+
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
 val implemented_parameter : 'a t
   -> Global_module.Name.t -> Global_module.Name.t option
+
+val global_of_global_name : 'a t
+  -> check:bool
+  -> Global_module.Name.t
+  -> Global_module.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
@@ -148,10 +180,10 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
 
 (* may raise Consistbl.Inconsistency *)
 val import_crcs : 'a t -> source:filepath ->
-  Import_info.t array -> unit
+  Import_info.Intf.t array -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports : 'a t -> Import_info.t list
+val imports : 'a t -> Import_info.Intf.t list
 
 (* Return the set of imports represented as runtime parameters. If this module is indeed
    parameterised (that is, [parameters] returns a non-empty list), it will be compiled as

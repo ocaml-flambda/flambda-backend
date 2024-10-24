@@ -47,7 +47,7 @@ type summary =
   | Env_module_unbound of summary * string * module_unbound_reason
   (* CR zqian: track [add_lock] as well *)
 
-type address =
+type address = Persistent_env.address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
   | Adot of address * int
@@ -240,6 +240,7 @@ type lookup_error =
   | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | Error_from_persistent_env of Persistent_env.error
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
@@ -285,6 +286,9 @@ val lookup_module_path:
     Path.t * Mode.Value.l
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
+val lookup_module_instance_path:
+  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool ->
+  Global_module.Name.t -> t -> Path.t * Mode.Value.l
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
