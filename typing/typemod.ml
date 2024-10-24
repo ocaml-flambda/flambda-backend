@@ -1105,7 +1105,7 @@ and approx_module_declaration env pmd =
     md_uid = Uid.internal_not_actually_unique;
   }
 
-and approx_sig env {psig_items; _} = approx_sig_items env psig_items
+and approx_sig env {psg_items; _} = approx_sig_items env psg_items
 
 and approx_sig_items env ssg=
   match ssg with
@@ -1701,16 +1701,16 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
   let tcstr = Option.get tcstr in
   ((path, lid, tcstr) :: rev_tcstrs, sg)
 
-and transl_signature env {psig_items; psig_modalities; psig_sloc} =
+and transl_signature env {psg_items; psg_modalities; psg_loc} =
   let names = Signature_names.create () in
 
   let has_sig_modalities =
-    match psig_modalities with
+    match psg_modalities with
     | [] -> false
     | _ :: _ -> true
   in
   let sig_modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] psig_modalities
+      Typemode.transl_modalities ~maturity:Alpha Immutable [] psg_modalities
   in
 
   let transl_include ~loc env sig_acc sincl modalities =
@@ -2039,12 +2039,12 @@ and transl_signature env {psig_items; psig_modalities; psig_sloc} =
   Builtin_attributes.warning_scope []
     (fun () ->
        let (trem, rem, final_env) =
-         transl_sig (Env.in_signature true env) [] [] psig_items
+         transl_sig (Env.in_signature true env) [] [] psg_items
        in
        let rem = Signature_names.simplify final_env names rem in
        let sg =
          { sig_items = trem; sig_type = rem; sig_final_env = final_env;
-           sig_modalities; sig_sloc = psig_sloc }
+           sig_modalities; sig_sloc = psg_loc }
        in
        Cmt_format.set_saved_types
          ((Cmt_format.Partial_signature sg) :: previous_saved_types);
@@ -3831,7 +3831,7 @@ let save_signature target modname tsg initial_env cmi =
     (Cmt_format.Interface tsg) initial_env None
 
 let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
-  cms_register_toplevel_attributes ~sourcefile ~uid ast.psig_items
+  cms_register_toplevel_attributes ~sourcefile ~uid ast.psg_items
     ~f:(function
         | { psig_desc = Psig_attribute attr; _ } -> Some attr
         | _ -> None)

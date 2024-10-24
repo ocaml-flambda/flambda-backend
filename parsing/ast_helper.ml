@@ -320,7 +320,7 @@ end
 
 module Sg = struct
   let mk ?(loc = !default_loc) ?(modalities = []) a =
-    {psig_items = a; psig_modalities = modalities; psig_sloc = loc}
+    {psg_items = a; psg_modalities = modalities; psg_loc = loc}
 end
 
 module Str = struct

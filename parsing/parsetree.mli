@@ -995,9 +995,9 @@ and functor_parameter =
 
 and signature =
   {
-    psig_modalities : modalities;
-    psig_items : signature_item list;
-    psig_sloc : Location.t;
+    psg_modalities : modalities;
+    psg_items : signature_item list;
+    psg_loc : Location.t;
   }
 
 and signature_item =

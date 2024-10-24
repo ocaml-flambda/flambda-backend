@@ -358,8 +358,8 @@ let rec attrs_of_sig_items = function
   | _ ->
       []
 
-let alerts_of_sig ~mark {psig_items; _} =
-  let a = attrs_of_sig_items psig_items in
+let alerts_of_sig ~mark {psg_items; _} =
+  let a = attrs_of_sig_items psg_items in
   if mark then mark_alerts_used a;
   alerts_of_attrs a
 

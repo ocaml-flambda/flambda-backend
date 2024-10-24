@@ -755,10 +755,10 @@ let module_type_declaration sub mtd =
     (map_loc sub mtd.mtd_name)
 
 let signature sub {sig_items; sig_modalities; sig_sloc} =
-  let psig_items = List.map (sub.signature_item sub) sig_items in
-  let psig_modalities = Typemode.untransl_modalities Immutable [] sig_modalities in
-  let psig_sloc = sub.location sub sig_sloc in
-  {psig_items; psig_modalities; psig_sloc}
+  let psg_items = List.map (sub.signature_item sub) sig_items in
+  let psg_modalities = Typemode.untransl_modalities Immutable [] sig_modalities in
+  let psg_loc = sub.location sub sig_sloc in
+  {psg_items; psg_modalities; psg_loc}
 
 let signature_item sub item =
   let loc = sub.location sub item.sig_loc in

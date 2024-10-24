@@ -1494,10 +1494,10 @@ and module_type1 ctxt f x =
         pp f "%a" longident_loc li;
     | Pmty_alias li ->
         pp f "(module %a)" longident_loc li;
-    | Pmty_signature {psig_items; psig_modalities} ->
+    | Pmty_signature {psg_items; psg_modalities} ->
         pp f "@[<hv0>@[<hv2>sig%a@ %a@]@ end@]" (* "@[<hov>sig@ %a@ end@]" *)
-          optional_space_atat_modalities psig_modalities
-          (list (signature_item ctxt)) psig_items (* FIXME wrong indentation*)
+          optional_space_atat_modalities psg_modalities
+          (list (signature_item ctxt)) psg_items (* FIXME wrong indentation*)
     | Pmty_typeof me ->
         pp f "@[<hov2>module@ type@ of@ %a@]" (module_expr ctxt) me
     | Pmty_extension e -> extension ctxt f e
@@ -1508,9 +1508,9 @@ and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
   | Jmty_strengthen _ as jmty ->
       paren true (module_type_jane_syntax ctxt attrs) f jmty
 
-and signature ctxt f {psig_items; psig_modalities} =
-  optional_atat_modalities_newline f psig_modalities;
-  signature_items ctxt f psig_items
+and signature ctxt f {psg_items; psg_modalities} =
+  optional_atat_modalities_newline f psg_modalities;
+  signature_items ctxt f psg_items
 
 and signature_items ctxt f items =
   list ~sep:"@\n" (signature_item ctxt) f items
