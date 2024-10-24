@@ -67,6 +67,7 @@ external float64x2_low_int64 : float64x2 -> int64 = "caml_vec128_unreachable" "v
 external float64x2_high_int64 : float64x2 -> int64 = "caml_vec128_unreachable" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
 let () =
+    failmsg := (fun () -> Printf.printf "basic_checks!");
     let a : int8x16 = int8x16_of_int64s 1L 2L in
     let b : int16x8 = int16x8_of_int64s 3L 4L in
     let c : int32x4 = int32x4_of_int64s 5L 6L in
@@ -101,6 +102,7 @@ module Vector_casts = struct
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
+        failmsg := (fun () -> Printf.printf "vector casts!");
         let _0 = int32x4_of_int64s   1L 2L in
         let _1 = int16x8_of_int64s   3L 4L in
         let _2 = int8x16_of_int64s   5L 6L in
@@ -732,11 +734,13 @@ module Float32x4 = struct
     external movemask_32 : (int32x4 [@unboxed]) -> (int [@untagged]) = "caml_vec128_unreachable" "caml_sse_vec128_movemask_32"
         [@@noalloc] [@@builtin]
 
-    let check_cmp scalar vector f0 f1 =
+    let check_cmp msg scalar vector f0 f1 =
+        failmsg := (fun () -> Printf.printf "check_cmp %s\n" msg);
         let expect, expect_mask =
             let r0, m0 = if scalar f0 f1 then 0xffffffffl, 1 else 0l, 0 in
             let r1, m1 = if scalar f1 f0 then 0xffffffffl, 1 else 0l, 0 in
-            Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4, m0 lor (m1 lsl 1) lor (m0 lsl 2) lor (m1 lsl 3)
+            Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4,
+            m0 lor (m1 lsl 1) lor (m0 lsl 2) lor (m1 lsl 3)
         in
         let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
         let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
@@ -747,14 +751,14 @@ module Float32x4 = struct
            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
     ;;
     let () =
-        Float32.check_floats (check_cmp Float32.eq (fun l r -> cmp 0 l r));
-        Float32.check_floats (check_cmp Float32.lt (fun l r -> cmp 1 l r));
-        Float32.check_floats (check_cmp Float32.le (fun l r -> cmp 2 l r));
-        Float32.check_floats (check_cmp Float32.uord (fun l r -> cmp 3 l r));
-        Float32.check_floats (check_cmp Float32.neq (fun l r -> cmp 4 l r));
-        Float32.check_floats (check_cmp Float32.nlt (fun l r -> cmp 5 l r));
-        Float32.check_floats (check_cmp Float32.nle (fun l r -> cmp 6 l r));
-        Float32.check_floats (check_cmp Float32.ord (fun l r -> cmp 7 l r))
+        Float32.check_floats (check_cmp "eq" Float32.eq (fun l r -> cmp 0 l r));
+        Float32.check_floats (check_cmp "lt" Float32.lt (fun l r -> cmp 1 l r));
+        Float32.check_floats (check_cmp "le" Float32.le (fun l r -> cmp 2 l r));
+        Float32.check_floats (check_cmp "uord" Float32.uord (fun l r -> cmp 3 l r));
+        Float32.check_floats (check_cmp "neq" Float32.neq (fun l r -> cmp 4 l r));
+        Float32.check_floats (check_cmp "nlt" Float32.nlt (fun l r -> cmp 5 l r));
+        Float32.check_floats (check_cmp "nle" Float32.nle (fun l r -> cmp 6 l r));
+        Float32.check_floats (check_cmp "ord" Float32.ord (fun l r -> cmp 7 l r))
     ;;
 
     external add : t -> t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_add"
@@ -770,23 +774,24 @@ module Float32x4 = struct
     external min : t -> t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_min"
         [@@noalloc] [@@unboxed] [@@builtin]
 
-    let check_binop scalar vector f0 f1 =
+    let check_binop msg scalar vector f0 f1 =
         let r0 = scalar f0 f1 in
         let r1 = scalar f1 f0 in
         let expect = Float32.to_float32x4 r0 r1 r0 r1 in
         let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
         let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
         let result = vector v1 v2 in
+        failmsg := (fun () -> Printf.printf "check_binop32 %s %lx %lx\n%!" msg f0 f1);
         eq (float32x4_low_int64 result) (float32x4_high_int64 result)
            (float32x4_low_int64 expect) (float32x4_high_int64 expect)
     ;;
     let () =
-        Float32.check_floats (check_binop Float32.add add);
-        Float32.check_floats (check_binop Float32.sub sub);
-        Float32.check_floats (check_binop Float32.mul mul);
-        Float32.check_floats (check_binop Float32.div div);
-        Float32.check_floats (check_binop Float32.max max);
-        Float32.check_floats (check_binop Float32.min min)
+        Float32.check_floats (check_binop "add" Float32.add add);
+        Float32.check_floats (check_binop "sub" Float32.sub sub);
+        Float32.check_floats (check_binop "mul" Float32.mul mul);
+        Float32.check_floats (check_binop "div" Float32.div div);
+        Float32.check_floats (check_binop "max" Float32.max max);
+        Float32.check_floats (check_binop "min" Float32.min min)
     ;;
 
     external rcp : t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_rcp"
@@ -796,7 +801,8 @@ module Float32x4 = struct
     external sqrt : t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_sqrt"
         [@@noalloc] [@@unboxed] [@@builtin]
 
-    let check_unop scalar vector f =
+    let check_unop msg scalar vector f =
+      failmsg := (fun () -> Printf.printf "check_unop %s  %lx\n%!" msg f);
         let r = scalar f in
         let expect = Float32.to_float32x4 r r r r in
         let v = Float32.to_float32x4 f f f f in
@@ -805,9 +811,9 @@ module Float32x4 = struct
            (float32x4_low_int64 expect) (float32x4_high_int64 expect)
     ;;
     let () =
-        Float32.check_floats (fun f _ -> check_unop Float32.rcp rcp f);
-        Float32.check_floats (fun f _ -> check_unop Float32.sqrt sqrt f);
-        Float32.check_floats (fun f _ -> check_unop Float32.rsqrt rsqrt f)
+        Float32.check_floats (fun f _ -> check_unop "rcp" Float32.rcp rcp f);
+        Float32.check_floats (fun f _ -> check_unop "sqrt" Float32.sqrt sqrt f);
+        Float32.check_floats (fun f _ -> check_unop "rqrt" Float32.rsqrt rsqrt f)
     ;;
 
 
@@ -943,8 +949,8 @@ module Float64x2 = struct
     external movemask_64 : (int64x2 [@unboxed]) -> (int [@untagged]) = "caml_vec128_unreachable" "caml_sse2_vec128_movemask_64"
         [@@noalloc] [@@builtin]
 
-    let check_cmp scalar vector f0 f1 =
-        failmsg := (fun () -> Printf.printf "%f | %f\n%!" f0 f1);
+    let check_cmp msg scalar vector f0 f1 =
+        failmsg := (fun () -> Printf.printf "check_cmp64 %s: %f | %f\n%!" msg f0 f1);
         let expect, expect_mask =
             let r0, m0 = if scalar f0 f1 then 0xffffffffffffffffL, 1 else 0L, 0 in
             let r1, m1 = if scalar f1 f0 then 0xffffffffffffffffL, 1 else 0L, 0 in
@@ -961,14 +967,14 @@ module Float64x2 = struct
     let () =
         let remove_nan p l r = p l r && not (Float.is_nan l || Float.is_nan r) in
         let add_nan p l r = p l r || (Float.is_nan l || Float.is_nan r) in
-        Float64.check_floats (check_cmp (remove_nan Float.equal) (fun l r -> cmp 0 l r));
-        Float64.check_floats (check_cmp (remove_nan (fun l r -> Float.compare l r = -1)) (fun l r -> cmp 1 l r));
-        Float64.check_floats (check_cmp (remove_nan (fun l r -> Float.compare l r <= 0)) (fun l r -> cmp 2 l r));
-        Float64.check_floats (check_cmp (fun l r -> (Float.is_nan l) || (Float.is_nan r)) (fun l r -> cmp 3 l r));
-        Float64.check_floats (check_cmp (fun l r -> not (Float.equal l r) || (Float.is_nan l && Float.is_nan r)) (fun l r -> cmp 4 l r));
-        Float64.check_floats (check_cmp (add_nan (fun l r -> Float.compare l r >= 0)) (fun l r -> cmp 5 l r));
-        Float64.check_floats (check_cmp (add_nan (fun l r -> Float.compare l r = 1)) (fun l r -> cmp 6 l r));
-        Float64.check_floats (check_cmp (fun l r -> not (Float.is_nan l) && (not (Float.is_nan r))) (fun l r -> cmp 7 l r))
+        Float64.check_floats (check_cmp "0" (remove_nan Float.equal) (fun l r -> cmp 0 l r));
+        Float64.check_floats (check_cmp "1" (remove_nan (fun l r -> Float.compare l r = -1)) (fun l r -> cmp 1 l r));
+        Float64.check_floats (check_cmp "2" (remove_nan (fun l r -> Float.compare l r <= 0)) (fun l r -> cmp 2 l r));
+        Float64.check_floats (check_cmp "3" (fun l r -> (Float.is_nan l) || (Float.is_nan r)) (fun l r -> cmp 3 l r));
+        Float64.check_floats (check_cmp "4" (fun l r -> not (Float.equal l r) || (Float.is_nan l && Float.is_nan r)) (fun l r -> cmp 4 l r));
+        Float64.check_floats (check_cmp "5" (add_nan (fun l r -> Float.compare l r >= 0)) (fun l r -> cmp 5 l r));
+        Float64.check_floats (check_cmp "6" (add_nan (fun l r -> Float.compare l r = 1)) (fun l r -> cmp 6 l r));
+        Float64.check_floats (check_cmp "7" (fun l r -> not (Float.is_nan l) && (not (Float.is_nan r))) (fun l r -> cmp 7 l r))
     ;;
 
     external add : t -> t -> t = "caml_vec128_unreachable" "caml_sse2_float64x2_add"

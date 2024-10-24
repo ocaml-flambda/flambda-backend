@@ -746,7 +746,8 @@ module Float32x4 = struct
     external movemask_32 : (int32x4 [@unboxed]) -> (int [@untagged]) = "caml_vec128_unreachable" "caml_sse_vec128_movemask_32"
         [@@noalloc] [@@builtin]
 
-    let check_cmp scalar vector f0 f1 =
+    let check_cmp msg scalar vector f0 f1 =
+      failmsg := (fun () -> Printf.printf "check_cmp32 %s %lx %lx!\n" msg f0 f1);
         let r0, m0 = if scalar f0 f1 then 0xffffffffl, 1 else 0l, 0 in
         let r1, m1 = if scalar f1 f0 then 0xffffffffl, 1 else 0l, 0 in
         let expect = Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4 in
@@ -760,14 +761,14 @@ module Float32x4 = struct
            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
     ;;
     let () =
-        Float32.check_floats (check_cmp Float32.eq (fun l r -> cmp 0 l r));
-        Float32.check_floats (check_cmp Float32.lt (fun l r -> cmp 1 l r));
-        Float32.check_floats (check_cmp Float32.le (fun l r -> cmp 2 l r));
-        Float32.check_floats (check_cmp Float32.uord (fun l r -> cmp 3 l r));
-        Float32.check_floats (check_cmp Float32.neq (fun l r -> cmp 4 l r));
-        Float32.check_floats (check_cmp Float32.nlt (fun l r -> cmp 5 l r));
-        Float32.check_floats (check_cmp Float32.nle (fun l r -> cmp 6 l r));
-        Float32.check_floats (check_cmp Float32.ord (fun l r -> cmp 7 l r))
+        Float32.check_floats (check_cmp "0" Float32.eq (fun l r -> cmp 0 l r));
+        Float32.check_floats (check_cmp "1" Float32.lt (fun l r -> cmp 1 l r));
+        Float32.check_floats (check_cmp "2" Float32.le (fun l r -> cmp 2 l r));
+        Float32.check_floats (check_cmp "3" Float32.uord (fun l r -> cmp 3 l r));
+        Float32.check_floats (check_cmp "4" Float32.neq (fun l r -> cmp 4 l r));
+        Float32.check_floats (check_cmp "5" Float32.nlt (fun l r -> cmp 5 l r));
+        Float32.check_floats (check_cmp "6" Float32.nle (fun l r -> cmp 6 l r));
+        Float32.check_floats (check_cmp "7" Float32.ord (fun l r -> cmp 7 l r))
     ;;
 
     external add : t -> t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_add"
