@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-alert -unsafe_parallelism";
  ocamlopt_flags += " -O3 ";
  runtime5;
  { bytecode; }
