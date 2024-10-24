@@ -11,7 +11,7 @@
  (archive_name stubs)
  (language c)
  (names stubs)
- (flags (:standard -msse4.2))
+ (flags (:standard -msse4.2 --verbose))
  (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
 
 ; Tests with external assembler
