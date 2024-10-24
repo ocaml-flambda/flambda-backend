@@ -161,11 +161,10 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
       in
       EP.Map.fold
         (fun prim bound_to eligible ->
-          let prim =
+          let canonicalise env prim =
             EP.filter_map_args prim ~f:(fun arg ->
                 match
-                  TE.get_canonical_simple_exn env_at_use arg
-                    ~min_name_mode:NM.normal
+                  TE.get_canonical_simple_exn env arg ~min_name_mode:NM.normal
                     ~name_mode_of_existing_simple:NM.normal
                 with
                 | exception Not_found -> None
@@ -177,53 +176,63 @@ let cse_with_eligible_lhs ~typing_env_at_fork ~cse_at_each_use ~params prev_cse
                     else None
                   | Some _ as arg_opt -> arg_opt))
           in
-          match prim with
-          | None -> eligible
-          | Some prim when EP.Map.mem prim prev_cse ->
-            (* We've already got it from a previous round *)
-            eligible
-          | Some prim -> (
-            match
-              TE.get_canonical_simple_exn env_at_use bound_to
-                ~min_name_mode:NM.normal ~name_mode_of_existing_simple:NM.normal
-            with
-            | exception Not_found -> eligible
-            | bound_to -> (
-              let bound_to =
-                (* CR-someday mshinwell: Think about whether this is the best
-                   fix. The canonical simple might end up being one of the
-                   [params] since they are defined in [env_at_fork]. However
-                   these aren't bound at the use sites, so we must choose
-                   another alias that is. *)
-                if not (is_param bound_to)
-                then Some bound_to
-                else
-                  let aliases =
-                    TE.aliases_of_simple env_at_use ~min_name_mode:NM.normal
-                      bound_to
-                    |> TE.Alias_set.filter ~f:(fun simple ->
-                           not (is_param simple))
+          let try_one_env env prims =
+            match canonicalise env prim with
+            | None -> prims
+            | Some p -> EP.Set.add p prims
+          in
+          let prims =
+            try_one_env typing_env_at_fork (try_one_env env_at_use EP.Set.empty)
+          in
+          EP.Set.fold
+            (fun prim eligible ->
+              if EP.Map.mem prim prev_cse
+              then (* We've already got it from a previous round *)
+                eligible
+              else
+                match
+                  TE.get_canonical_simple_exn env_at_use bound_to
+                    ~min_name_mode:NM.normal
+                    ~name_mode_of_existing_simple:NM.normal
+                with
+                | exception Not_found -> eligible
+                | bound_to -> (
+                  let bound_to =
+                    (* CR-someday mshinwell: Think about whether this is the
+                       best fix. The canonical simple might end up being one of
+                       the [params] since they are defined in [env_at_fork].
+                       However these aren't bound at the use sites, so we must
+                       choose another alias that is. *)
+                    if not (is_param bound_to)
+                    then Some bound_to
+                    else
+                      let aliases =
+                        TE.aliases_of_simple env_at_use ~min_name_mode:NM.normal
+                          bound_to
+                        |> TE.Alias_set.filter ~f:(fun simple ->
+                               not (is_param simple))
+                      in
+                      (* CR-someday lmaurer: Do we need to make sure there's
+                         only one alias? If not, we can use
+                         [Aliases.Alias_set.find_best] here. *)
+                      TE.Alias_set.get_singleton aliases
                   in
-                  (* CR-someday lmaurer: Do we need to make sure there's only
-                     one alias? If not, we can use [Aliases.Alias_set.find_best]
-                     here. *)
-                  TE.Alias_set.get_singleton aliases
-              in
-              match bound_to with
-              | None -> eligible
-              | Some bound_to -> (
-                let bound_to : Rhs_kind.t =
-                  if TE.mem_simple typing_env_at_fork bound_to
-                  then Rhs_in_scope { bound_to }
-                  else Needs_extra_binding { bound_to }
-                in
-                (* CR-someday mshinwell: Add [Map.add_or_replace]. *)
-                match EP.Map.find prim eligible with
-                | exception Not_found ->
-                  EP.Map.add prim (RI.Map.singleton id bound_to) eligible
-                | from_prev_levels ->
-                  let map = RI.Map.add id bound_to from_prev_levels in
-                  EP.Map.add prim map eligible))))
+                  match bound_to with
+                  | None -> eligible
+                  | Some bound_to -> (
+                    let bound_to : Rhs_kind.t =
+                      if TE.mem_simple typing_env_at_fork bound_to
+                      then Rhs_in_scope { bound_to }
+                      else Needs_extra_binding { bound_to }
+                    in
+                    (* CR-someday mshinwell: Add [Map.add_or_replace]. *)
+                    match EP.Map.find prim eligible with
+                    | exception Not_found ->
+                      EP.Map.add prim (RI.Map.singleton id bound_to) eligible
+                    | from_prev_levels ->
+                      let map = RI.Map.add id bound_to from_prev_levels in
+                      EP.Map.add prim map eligible)))
+            prims eligible)
         cse eligible)
 
 let join_one_cse_equation ~cse_at_each_use prim bound_to_map
