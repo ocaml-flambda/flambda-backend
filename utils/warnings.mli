@@ -44,6 +44,10 @@ type upstream_compat_warning =
   | Non_value_sort of string
   | Unboxed_attribute of string
 
+type name_out_of_scope_warning =
+  | Name of string
+  | Fields of { record_form : string ; fields : string list }
+
 type t =
   | Comment_start                           (*  1 *)
   | Comment_not_end                         (*  2 *)
@@ -53,7 +57,7 @@ type t =
   | Labels_omitted of string list           (*  6 *)
   | Method_override of string list          (*  7 *)
   | Partial_match of string                 (*  8 *)
-  | Missing_record_field_pattern of string  (*  9 *)
+  | Missing_record_field_pattern of string * string  (*  9 *)
   | Non_unit_statement                      (* 10 *)
   | Redundant_case                          (* 11 *)
   | Redundant_subpat                        (* 12 *)
@@ -67,7 +71,7 @@ type t =
   | Ignored_extra_argument                  (* 20 *)
   | Nonreturning_statement                  (* 21 *)
   | Preprocessor of string                  (* 22 *)
-  | Useless_record_with                     (* 23 *)
+  | Useless_record_with of string           (* 23 *)
   | Bad_module_name of string               (* 24 *)
   | All_clauses_guarded                     (* 8, used to be 25 *)
   | Unused_var of string                    (* 26 *)
@@ -87,7 +91,7 @@ type t =
   | Unused_constructor of string * constructor_usage_warning (* 37 *)
   | Unused_extension of string * bool * constructor_usage_warning (* 38 *)
   | Unused_rec_flag                         (* 39 *)
-  | Name_out_of_scope of string * string list * bool   (* 40 *)
+  | Name_out_of_scope of string * name_out_of_scope_warning (* 40 *)
   | Ambiguous_name of string list * string list * bool * string (* 41 *)
   | Disambiguated_name of string            (* 42 *)
   | Nonoptional_label of string             (* 43 *)
@@ -116,7 +120,7 @@ type t =
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
   | Match_on_mutable_state_prevent_uncurry  (* 68 *)
-  | Unused_field of string * field_usage_warning (* 69 *)
+  | Unused_field of string * string * field_usage_warning (* 69 *)
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)

@@ -751,7 +751,7 @@ Line 1, characters 37-43:
 1 | type ('a : value & value) t = A of { x : 'a } [@@unboxed]
                                          ^^^^^^
 Error: Type "'a" has layout "value & value".
-       Unboxed inlined records may not yet contain types of this layout.
+       [@@unboxed] inlined records may not yet contain types of this layout.
 |}]
 
 type t = A of { x : #(int * int) } [@@unboxed]
@@ -760,7 +760,7 @@ Line 1, characters 16-32:
 1 | type t = A of { x : #(int * int) } [@@unboxed]
                     ^^^^^^^^^^^^^^^^
 Error: Type "#(int * int)" has layout "value & value".
-       Unboxed inlined records may not yet contain types of this layout.
+       [@@unboxed] inlined records may not yet contain types of this layout.
 |}]
 
 (**************************************)

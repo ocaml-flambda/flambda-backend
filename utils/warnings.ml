@@ -42,6 +42,10 @@ type upstream_compat_warning =
   | Unboxed_attribute of string (* example: unboxed attribute
       on an external declaration with float# is missing. *)
 
+type name_out_of_scope_warning =
+  | Name of string
+  | Fields of { record_form : string ; fields : string list }
+
 type t =
   | Comment_start                           (*  1 *)
   | Comment_not_end                         (*  2 *)
@@ -51,7 +55,7 @@ type t =
   | Labels_omitted of string list           (*  6 *)
   | Method_override of string list          (*  7 *)
   | Partial_match of string                 (*  8 *)
-  | Missing_record_field_pattern of string  (*  9 *)
+  | Missing_record_field_pattern of string * string (*  9 *)
   | Non_unit_statement                      (* 10 *)
   | Redundant_case                          (* 11 *)
   | Redundant_subpat                        (* 12 *)
@@ -65,7 +69,7 @@ type t =
   | Ignored_extra_argument                  (* 20 *)
   | Nonreturning_statement                  (* 21 *)
   | Preprocessor of string                  (* 22 *)
-  | Useless_record_with                     (* 23 *)
+  | Useless_record_with of string           (* 23 *)
   | Bad_module_name of string               (* 24 *)
   | All_clauses_guarded                     (* 8, used to be 25 *)
   | Unused_var of string                    (* 26 *)
@@ -83,7 +87,7 @@ type t =
   | Unused_constructor of string * constructor_usage_warning (* 37 *)
   | Unused_extension of string * bool * constructor_usage_warning (* 38 *)
   | Unused_rec_flag                         (* 39 *)
-  | Name_out_of_scope of string * string list * bool (* 40 *)
+  | Name_out_of_scope of string * name_out_of_scope_warning (* 40 *)
   | Ambiguous_name of string list * string list *  bool * string (* 41 *)
   | Disambiguated_name of string            (* 42 *)
   | Nonoptional_label of string             (* 43 *)
@@ -112,7 +116,7 @@ type t =
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
   | Match_on_mutable_state_prevent_uncurry  (* 68 *)
-  | Unused_field of string * field_usage_warning (* 69 *)
+  | Unused_field of string * string * field_usage_warning (* 69 *)
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
@@ -155,7 +159,7 @@ let number = function
   | Ignored_extra_argument -> 20
   | Nonreturning_statement -> 21
   | Preprocessor _ -> 22
-  | Useless_record_with -> 23
+  | Useless_record_with _ -> 23
   | Bad_module_name _ -> 24
   | All_clauses_guarded -> 8 (* used to be 25 *)
   | Unused_var _ -> 26
@@ -955,8 +959,8 @@ let message = function
   | Partial_match s ->
       "this pattern-matching is not exhaustive.\n\
        Here is an example of a case that is not matched:\n" ^ s
-  | Missing_record_field_pattern s ->
-      "the following labels are not bound in this record pattern:\n" ^ s ^
+  | Missing_record_field_pattern (record_form, s) ->
+      "the following labels are not bound in this " ^ record_form ^ " pattern:\n" ^ s ^
       "\nEither bind these labels explicitly or add '; _' to the pattern."
   | Non_unit_statement ->
       "this expression should have type unit."
@@ -985,8 +989,8 @@ let message = function
   | Nonreturning_statement ->
       "this statement never returns (or has an unsound type.)"
   | Preprocessor s -> s
-  | Useless_record_with ->
-      "all the fields are explicitly listed in this record:\n\
+  | Useless_record_with s ->
+      "all the fields are explicitly listed in this " ^ s ^ ":\n\
        the 'with' clause is useless."
   | Bad_module_name (modname) ->
       "bad source file name: \"" ^ modname ^ "\" is not a valid module name."
@@ -1034,15 +1038,14 @@ let message = function
      end
   | Unused_rec_flag ->
       "unused rec flag."
-  | Name_out_of_scope (ty, [nm], false) ->
+  | Name_out_of_scope (ty, Name nm) ->
       nm ^ " was selected from type " ^ ty ^
       ".\nIt is not visible in the current scope, and will not \n\
        be selected if the type becomes unknown."
-  | Name_out_of_scope (_, _, false) -> assert false
-  | Name_out_of_scope (ty, slist, true) ->
-      "this record of type "^ ty ^" contains fields that are \n\
+  | Name_out_of_scope (ty, Fields { record_form ; fields }) ->
+      "this " ^ record_form ^ " of type "^ ty ^" contains fields that are \n\
        not visible in the current scope: "
-      ^ String.concat " " slist ^ ".\n\
+      ^ String.concat " " fields ^ ".\n\
        They will not be selected if the type becomes unknown."
   | Ambiguous_name ([s], tl, false, expansion) ->
       s ^ " belongs to several types: " ^ String.concat " " tl ^
@@ -1165,13 +1168,13 @@ let message = function
     "This pattern depends on mutable state.\n\
      It prevents the remaining arguments from being uncurried, which will \
      cause additional closure allocations."
-  | Unused_field (s, Unused) -> "unused record field " ^ s ^ "."
-  | Unused_field (s, Not_read) ->
-      "record field " ^ s ^
+  | Unused_field (record_form, s, Unused) -> "unused " ^ record_form ^ " field " ^ s ^ "."
+  | Unused_field (record_form, s, Not_read) ->
+      record_form ^ " field " ^ s ^
       " is never read.\n\
         (However, this field is used to build or mutate values.)"
-  | Unused_field (s, Not_mutated) ->
-      "mutable record field " ^ s ^
+  | Unused_field (record_form, s, Not_mutated) ->
+      "mutable " ^ record_form ^ " field " ^ s ^
       " is never mutated."
   | Missing_mli ->
     "Cannot find interface file."

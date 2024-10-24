@@ -1,0 +1,4 @@
+File "unboxed_records.ml", line 52, characters 0-31:
+52 | type t = #{ i : int ; j : int }
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used

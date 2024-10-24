@@ -87,6 +87,7 @@ module Sig_component_kind = struct
     | Type
     | Constructor
     | Label
+    | Unboxed_label
     | Module
     | Module_type
     | Extension_constructor
@@ -98,6 +99,7 @@ module Sig_component_kind = struct
     | Type -> "type"
     | Constructor -> "constructor"
     | Label -> "label"
+    | Unboxed_label -> "unboxed label"
     | Module -> "module"
     | Module_type -> "module type"
     | Extension_constructor -> "extension constructor"
@@ -111,6 +113,7 @@ module Sig_component_kind = struct
     | Type
     | Constructor
     | Label
+    | Unboxed_label
     | Module
     | Module_type
     | Class
@@ -127,6 +130,7 @@ module Sig_component_kind = struct
     | Class_type -> 6
     | Constructor -> 7
     | Label -> 8
+    | Unboxed_label -> 9
 
   let compare a b =
     let a = rank a in
@@ -152,6 +156,7 @@ module Item = struct
     let type_ id = Ident.name id, Sig_component_kind.Type
     let constr id = Ident.name id, Sig_component_kind.Constructor
     let label id = Ident.name id, Sig_component_kind.Label
+    let unboxed_label id = Ident.name id, Sig_component_kind.Unboxed_label
     let module_ id = Ident.name id, Sig_component_kind.Module
     let module_type id = Ident.name id, Sig_component_kind.Module_type
     let extension_constructor id =
@@ -388,6 +393,7 @@ let of_path ~find_shape ~namespace path =
         match (ns : Sig_component_kind.t) with
         | Constructor -> Type
         | Label -> Type
+        | Unboxed_label -> Type
         | _ -> Module
       in
       proj (aux namespace path) (name, ns)
@@ -436,6 +442,11 @@ module Map = struct
   let add_label t id uid = Item.Map.add (Item.label id) (leaf uid) t
   let add_label_proj t id shape =
     let item = Item.label id in
+    Item.Map.add item (proj shape item) t
+
+  let add_unboxed_label t id uid = Item.Map.add (Item.unboxed_label id) (leaf uid) t
+  let add_unboxed_label_proj t id shape =
+    let item = Item.unboxed_label id in
     Item.Map.add item (proj shape item) t
 
   let add_module t id shape = Item.Map.add (Item.module_ id) shape t

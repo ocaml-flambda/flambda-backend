@@ -698,6 +698,16 @@ and labeled_pattern1 ctxt (f:Format.formatter) (label, x) : unit =
     pattern1 ctxt f x
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
+  let longident_x_pattern f (li, p) =
+    match (li,p) with
+    | ({txt=Lident s;_ },
+        {ppat_desc=Ppat_var {txt;_};
+        ppat_attributes=[]; _})
+      when s = txt ->
+        pp f "@[<2>%a@]"  longident_loc li
+    | _ ->
+        pp f "@[<2>%a@;=@;%a@]" longident_loc li (pattern1 ctxt) p
+  in
   if x.ppat_attributes <> [] then pattern ctxt f x
   else match x.ppat_desc with
     | Ppat_construct (({txt=Lident ("()"|"[]"|"true"|"false" as x);_}), None) ->
@@ -721,21 +731,18 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_type li ->
         pp f "#%a" longident_loc li
     | Ppat_record (l, closed) ->
-        let longident_x_pattern f (li, p) =
-          match (li,p) with
-          | ({txt=Lident s;_ },
-             {ppat_desc=Ppat_var {txt;_};
-              ppat_attributes=[]; _})
-            when s = txt ->
-              pp f "@[<2>%a@]"  longident_loc li
-          | _ ->
-              pp f "@[<2>%a@;=@;%a@]" longident_loc li (pattern1 ctxt) p
-        in
         begin match closed with
         | Closed ->
             pp f "@[<2>{@;%a@;}@]" (list longident_x_pattern ~sep:";@;") l
         | _ ->
             pp f "@[<2>{@;%a;_}@]" (list longident_x_pattern ~sep:";@;") l
+        end
+    | Ppat_record_unboxed_product (l, closed) ->
+        begin match closed with
+        | Closed ->
+            pp f "@[<2>#{@;%a@;}@]" (list longident_x_pattern ~sep:";@;") l
+        | _ ->
+            pp f "@[<2>#{@;%a;_}@]" (list longident_x_pattern ~sep:";@;") l
         end
     | Ppat_tuple (l, closed) ->
         labeled_tuple_pattern ctxt f ~unboxed:false l closed
@@ -773,7 +780,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_open (lid, p) ->
         let with_paren =
         match p.ppat_desc with
-        | Ppat_array _ | Ppat_record _
+        | Ppat_array _ | Ppat_record _ | Ppat_record_unboxed_product _
         | Ppat_construct (({txt=Lident ("()"|"[]"|"true"|"false");_}), None) ->
             false
         | _ -> true in
@@ -1098,12 +1105,22 @@ and expression2 ctxt f x =
   else match x.pexp_desc with
     | Pexp_field (e, li) ->
         pp f "@[<hov2>%a.%a@]" (simple_expr ctxt) e longident_loc li
+    | Pexp_unboxed_field (e, li) ->
+        pp f "@[<hov2>%a.#%a@]" (simple_expr ctxt) e longident_loc li
     | Pexp_send (e, s) ->
         pp f "@[<hov2>%a#%a@]" (simple_expr ctxt) e ident_of_name s.txt
 
     | _ -> simple_expr ctxt f x
 
 and simple_expr ctxt f x =
+  let longident_x_expression f ( li, e) =
+    match e with
+    |  {pexp_desc=Pexp_ident {txt;_};
+        pexp_attributes=[]; _} when li.txt = txt ->
+        pp f "@[<hov2>%a@]" longident_loc li
+    | _ ->
+        pp f "@[<hov2>%a@;=@;%a@]" longident_loc li (simple_expr ctxt) e
+  in
   if x.pexp_attributes <> [] then expression ctxt f x
   else match x.pexp_desc with
     | Pexp_construct _  when is_simple_construct (view_expr x) ->
@@ -1146,15 +1163,11 @@ and simple_expr ctxt f x =
           (core_type ctxt) ct
     | Pexp_variant (l, None) -> pp f "`%a" ident_of_name l
     | Pexp_record (l, eo) ->
-        let longident_x_expression f ( li, e) =
-          match e with
-          |  {pexp_desc=Pexp_ident {txt;_};
-              pexp_attributes=[]; _} when li.txt = txt ->
-              pp f "@[<hov2>%a@]" longident_loc li
-          | _ ->
-              pp f "@[<hov2>%a@;=@;%a@]" longident_loc li (simple_expr ctxt) e
-        in
         pp f "@[<hv0>@[<hv2>{@;%a%a@]@;}@]"(* "@[<hov2>{%a%a}@]" *)
+          (option ~last:" with@;" (simple_expr ctxt)) eo
+          (list longident_x_expression ~sep:";@;") l
+    | Pexp_record_unboxed_product (l, eo) ->
+        pp f "@[<hv0>@[<hv2>#{@;%a%a@]@;}@]"(* "@[<hov2>{%a%a}@]" *)
           (option ~last:" with@;" (simple_expr ctxt)) eo
           (list longident_x_expression ~sep:";@;") l
     | Pexp_array (mut, l) ->
@@ -1971,6 +1984,20 @@ and record_declaration ctxt f lbls =
   pp f "{@\n%a}"
     (list type_record_field ~sep:";@\n" )  lbls
 
+and record_unboxed_product_declaration ctxt f lbls =
+  let type_record_field f pld =
+    let legacy, m = split_out_legacy_modalities pld.pld_modalities in
+    pp f "@[<2>%a%a%a:@;%a%a@;%a@]"
+      mutable_flag pld.pld_mutable
+      optional_legacy_modalities legacy
+      ident_of_name pld.pld_name.txt
+      (core_type ctxt) pld.pld_type
+      optional_space_atat_modalities m
+      (attributes ctxt) pld.pld_attributes
+  in
+  pp f "#{@\n%a}"
+    (list type_record_field ~sep:";@\n" )  lbls
+
 and type_declaration ctxt f x =
   (* type_declaration has an attribute field,
      but it's been printed by the caller of this method *)
@@ -2008,6 +2035,8 @@ and type_declaration ctxt f x =
     | Ptype_abstract -> ()
     | Ptype_record l ->
         pp f "%t%t@;%a" intro priv (record_declaration ctxt) l
+    | Ptype_record_unboxed_product l ->
+        pp f "%t%t@;%a" intro priv (record_unboxed_product_declaration ctxt) l
     | Ptype_open -> pp f "%t%t@;.." intro priv
   in
   let constraints f =
