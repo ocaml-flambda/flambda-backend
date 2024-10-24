@@ -524,7 +524,8 @@ value* caml_shared_try_alloc(struct caml_heap_state* local, mlsize_t wosize,
 
 void clear_garbage(header_t *p,
                    header_t hd,
-                   mlsize_t wh)
+                   mlsize_t wh,
+                   struct caml_heap_state *heap)
 {
   CAMLassert(Whsize_hd(hd) <= wh);
   /* We implicitly sweeping pools in the evacuation set and thus
@@ -534,6 +535,9 @@ void clear_garbage(header_t *p,
     void (*final_fun)(value) = Custom_ops_val(Val_hp(p))->finalize;
     if (final_fun) final_fun(Val_hp(p));
   }
+  heap->stats.pool_live_blocks--;
+  heap->stats.pool_live_words -= Whsize_hd(hd);
+  heap->stats.pool_frag_words -= (wh - Whsize_hd(hd));
 
   /* In the DEBUG runtime, we overwrite the fields of swept blocks. */
 #ifdef DEBUG
@@ -556,7 +560,6 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
     header_t* end = POOL_END(a);
     mlsize_t wh = wsize_sizeclass[sz];
     int all_used = 1;
-    struct heap_stats* s = &local->stats;
 
     /* conceptually, this is incremented by [wh] for every iteration
        below, however we can hoist these increments knowing that [p ==
@@ -568,18 +571,14 @@ static intnat pool_sweep(struct caml_heap_state* local, pool** plist,
         /* already on freelist */
         all_used = 0;
       } else if (Has_status_hd(hd, caml_global_heap_state.GARBAGE)) {
-        clear_garbage(p, hd, wh);
+        clear_garbage(p, hd, wh, local);
         /* add to freelist */
         atomic_store_relaxed((atomic_uintnat*)p, 0);
         p[1] = (value)a->next_obj;
         CAMLassert(Is_block((value)p));
         a->next_obj = (value*)p;
         all_used = 0;
-        /* update stats */
-        s->pool_live_blocks--;
-        s->pool_live_words -= Whsize_hd(hd);
         local->owner->swept_words += Whsize_hd(hd);
-        s->pool_frag_words -= (wh - Whsize_hd(hd));
       } else {
         /* still live, the pool can't be released to the global freelist */
         release_to_global_pool = 0;
@@ -1356,7 +1355,7 @@ static void compact_algorithm_52(caml_domain_state* domain_state,
               it should be updated. */
             *p = With_status_hd(hd, caml_global_heap_state.MARKED);
           } else if (Has_status_hd(hd, caml_global_heap_state.GARBAGE)) {
-            clear_garbage(p, hd, wh);
+            clear_garbage(p, hd, wh, heap);
           }
         }
 
@@ -1538,7 +1537,7 @@ void compact_phase_one_mark(struct caml_heap_state* heap)
             total_live_blocks++;
           } else if (Has_status_hd(h, caml_global_heap_state.GARBAGE)) {
             /* Free GARBAGE block so it can be evacuated into. */
-            clear_garbage(p, h, wh);
+            clear_garbage(p, h, wh, heap);
             atomic_store_relaxed((atomic_uintnat *)p, 0);
             p[1] = (value)cur_pool->next_obj;
             cur_pool->next_obj = (value *)p;
@@ -1935,7 +1934,7 @@ void compact_run_phase(struct caml_heap_state* heap,
             atomic_store_relaxed((atomic_uintnat*)p, new_hd);
           } else if (Has_status_hd(hd, caml_global_heap_state.GARBAGE)) {
             /* Process with garbage as we are implicitly sweeping this pool */
-            clear_garbage(p, hd, wh);
+            clear_garbage(p, hd, wh, heap);
           }
         }
 
