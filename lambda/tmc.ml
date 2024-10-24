@@ -907,7 +907,7 @@ let rec choice ctx t =
     | Punbox_vector _ | Pbox_vector (_, _)
 
     (* we don't handle array indices as destinations yet *)
-    | (Pmakearray _ | Pduparray _)
+    | (Pmakearray _ | Pduparray _ | Pmakearray_dynamic _)
 
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _

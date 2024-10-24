@@ -1,0 +1,36 @@
+>> Fatal error: Flambda_kind.from_lambda_value_kind: unimplemented
+Fatal error: exception Misc.Fatal_error
+Raised at Misc.fatal_errorf.(fun) in file "ocaml/utils/misc.ml", line 22, characters 14-31
+Called from Flambda2_from_lambda__Lambda_to_flambda.cps.(fun) in file "middle_end/flambda2/from_lambda/lambda_to_flambda.ml", lines 986-987, characters 20-117
+Called from Flambda2_from_lambda__Closure_conversion_aux.Acc.eval_branch_free_names in file "middle_end/flambda2/from_lambda/closure_conversion_aux.ml", line 676, characters 17-65
+Called from Flambda2_from_lambda__Closure_conversion_aux.Let_cont_with_acc.build_non_recursive in file "middle_end/flambda2/from_lambda/closure_conversion_aux.ml", line 1189, characters 6-44
+Called from Flambda2_from_lambda__Closure_conversion.close_program in file "middle_end/flambda2/from_lambda/closure_conversion.ml", lines 3528-3529, characters 4-124
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Flambda2.lambda_to_cmm.run in file "middle_end/flambda2/flambda2.ml", lines 129-132, characters 6-238
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Asmgen.compile_implementation.(fun) in file "backend/asmgen.ml", line 726, characters 26-69
+Called from Asmgen.compile_unit.(fun) in file "backend/asmgen.ml", line 650, characters 10-16
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Asmgen.compile_unit.(fun) in file "backend/asmgen.ml", lines 648-656, characters 6-382
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Optcompile.compile.(fun) in file "driver/optcompile.ml", lines 44-55, characters 6-523
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Compile_common.implementation.(fun) in file "ocaml/driver/compile_common.ml", lines 159-161, characters 71-114
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Misc.try_finally in file "ocaml/utils/misc.ml", line 31, characters 8-15
+Re-raised at Misc.try_finally in file "ocaml/utils/misc.ml", line 45, characters 10-56
+Called from Compenv.process_action.impl in file "ocaml/driver/compenv.ml", lines 633-634, characters 4-95
+Called from Stdlib__List.iter in file "list.ml", line 117, characters 12-15
+Called from Compenv.process_deferred_actions in file "ocaml/driver/compenv.ml", lines 731-732, characters 2-85
+Called from Optmaindriver.main in file "driver/optmaindriver.ml", lines 68-73, characters 6-169
+Re-raised at Location.report_exception.loop in file "ocaml/parsing/location.ml", line 1085, characters 14-25
+Called from Optmaindriver.main in file "driver/optmaindriver.ml", line 154, characters 4-35
+Called from Flambda_backend_main in file "driver/flambda_backend_main.ml", lines 5-7, characters 7-140
