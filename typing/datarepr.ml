@@ -217,8 +217,47 @@ let dummy_label =
     lbl_uid = Uid.internal_not_actually_unique;
   }
 
+let dummy_unboxed_label =
+  { lbl_name = ""; lbl_res = none; lbl_arg = none;
+    lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.Const.id;
+    lbl_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+    lbl_num = -1; lbl_pos = -1; lbl_all = [||];
+    lbl_repres = Record_unboxed_product [||];
+    lbl_private = Public;
+    lbl_loc = Location.none;
+    lbl_attributes = [];
+    lbl_uid = Uid.internal_not_actually_unique;
+  }
+
 let label_descrs ty_res lbls repres priv =
   let all_labels = Array.make (List.length lbls) dummy_label in
+  let rec describe_labels num pos = function
+      [] -> []
+    | l :: rest ->
+        let is_void = Jkind.is_void_defaulting l.ld_jkind  in
+        let lbl =
+          { lbl_name = Ident.name l.ld_id;
+            lbl_res = ty_res;
+            lbl_arg = l.ld_type;
+            lbl_mut = l.ld_mutable;
+            lbl_modalities = l.ld_modalities;
+            lbl_jkind = l.ld_jkind;
+            lbl_pos = if is_void then lbl_pos_void else pos;
+            lbl_num = num;
+            lbl_all = all_labels;
+            lbl_repres = repres;
+            lbl_private = priv;
+            lbl_loc = l.ld_loc;
+            lbl_attributes = l.ld_attributes;
+            lbl_uid = l.ld_uid;
+          } in
+        all_labels.(num) <- lbl;
+        let pos = if is_void then pos else pos+1 in
+        (l.ld_id, lbl) :: describe_labels (num+1) pos rest in
+  describe_labels 0 0 lbls
+
+let unboxed_label_descrs ty_res lbls repres priv =
+  let all_labels = Array.make (List.length lbls) dummy_unboxed_label in
   let rec describe_labels num pos = function
       [] -> []
     | l :: rest ->
@@ -264,11 +303,20 @@ let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
   | Type_variant (cstrs,rep) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
-  | Type_record _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _ | Type_open -> []
 
 let labels_of_type ty_path decl =
   match decl.type_kind with
   | Type_record(labels, rep) ->
       label_descrs (newgenconstr ty_path decl.type_params)
         labels rep decl.type_private
+  | Type_record_unboxed_product _
+  | Type_variant _ | Type_abstract _ | Type_open -> []
+
+let unboxed_labels_of_type ty_path decl =
+  match decl.type_kind with
+  | Type_record_unboxed_product(labels, rep) ->
+      unboxed_label_descrs (newgenconstr ty_path decl.type_params)
+        labels rep decl.type_private
+  | Type_record _
   | Type_variant _ | Type_abstract _ | Type_open -> []

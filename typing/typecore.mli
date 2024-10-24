@@ -79,7 +79,7 @@ val mk_expected:
 val is_nonexpansive: Typedtree.expression -> bool
 
 module Datatype_kind : sig
-  type t = Record | Variant
+  type t = Record | Record_unboxed_product_dk | Variant
   val type_name : t -> string
   val label_name : t -> string
 end
@@ -98,6 +98,7 @@ type wrong_kind_context =
 type wrong_kind_sort =
   | Constructor
   | Record
+  | Record_unboxed_product_wks
   | Boolean
   | List
   | Unit
@@ -200,7 +201,7 @@ type error =
   | Partial_tuple_pattern_bad_type
   | Extra_tuple_label of string option * type_expr
   | Missing_tuple_label of string option * type_expr
-  | Label_mismatch of Longident.t * Errortrace.unification_error
+  | Label_mismatch of record_form_packed * Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * Parsetree.pattern_desc option
       -> error
@@ -292,6 +293,7 @@ type error =
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
   | Expr_not_a_record_type of type_expr
+  | Expr_not_a_record_unboxed_product_type of type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.locality_context option *

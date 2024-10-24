@@ -1426,7 +1426,13 @@ type t = <  >
 
 type t : value mod global = < >
 [%%expect {|
-type t = <  >
+Line 1, characters 0-31:
+1 | type t : value mod global = < >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "<  >" is value
+         because it's the type of an object.
+       But the kind of type "<  >" must be a subkind of value mod global
+         because of the definition of t at line 1, characters 0-31.
 |}]
 
 let x : (_ as (_ : value)) = object end

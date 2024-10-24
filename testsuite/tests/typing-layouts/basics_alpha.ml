@@ -630,21 +630,23 @@ Error: This expression has type "void_unboxed_record"
          because it's the type of a tuple element.
 |}];;
 
+(* CR rtjoa: why does this output change? *)
 module M9_4 = struct
   let foo x =
     match x with
     | ({vur_void = _},i) -> i
 end;;
 [%%expect {|
-Line 4, characters 8-16:
+Line 4, characters 7-21:
 4 |     | ({vur_void = _},i) -> i
-            ^^^^^^^^
-Error: The record field "vur_void" belongs to the type "void_unboxed_record"
-       but is mixed here with fields of type "('a : value)"
+           ^^^^^^^^^^^^^^
+Error: This pattern matches values of type "void_unboxed_record"
+       but a pattern was expected which matches values of type
+         "('a : value_or_null)"
        The layout of void_unboxed_record is void
          because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
-         because it's a boxed record type.
+         because it's the type of a tuple element.
 |}];;
 
 module M9_5 = struct

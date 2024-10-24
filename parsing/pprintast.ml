@@ -1157,6 +1157,18 @@ and simple_expr ctxt f x =
         pp f "@[<hv0>@[<hv2>{@;%a%a@]@;}@]"(* "@[<hov2>{%a%a}@]" *)
           (option ~last:" with@;" (simple_expr ctxt)) eo
           (list longident_x_expression ~sep:";@;") l
+    | Pexp_record_unboxed_product (l, eo) ->
+        let longident_x_expression f ( li, e) =
+          match e with
+          |  {pexp_desc=Pexp_ident {txt;_};
+              pexp_attributes=[]; _} when li.txt = txt ->
+              pp f "@[<hov2>%a@]" longident_loc li
+          | _ ->
+              pp f "@[<hov2>%a@;=@;%a@]" longident_loc li (simple_expr ctxt) e
+        in
+        pp f "@[<hv0>@[<hv2>#{@;%a%a@]@;}@]"(* "@[<hov2>{%a%a}@]" *)
+          (option ~last:" with@;" (simple_expr ctxt)) eo
+          (list longident_x_expression ~sep:";@;") l
     | Pexp_array (mut, l) ->
         let punct = match mut with
           | Immutable -> ':'
@@ -1971,6 +1983,20 @@ and record_declaration ctxt f lbls =
   pp f "{@\n%a}"
     (list type_record_field ~sep:";@\n" )  lbls
 
+and record_unboxed_product_declaration ctxt f lbls =
+  let type_record_field f pld =
+    let legacy, m = split_out_legacy_modalities pld.pld_modalities in
+    pp f "@[<2>%a%a%a:@;%a%a@;%a@]"
+      mutable_flag pld.pld_mutable
+      optional_legacy_modalities legacy
+      ident_of_name pld.pld_name.txt
+      (core_type ctxt) pld.pld_type
+      optional_space_atat_modalities m
+      (attributes ctxt) pld.pld_attributes
+  in
+  pp f "#{@\n%a}"
+    (list type_record_field ~sep:";@\n" )  lbls
+
 and type_declaration ctxt f x =
   (* type_declaration has an attribute field,
      but it's been printed by the caller of this method *)
@@ -2008,6 +2034,8 @@ and type_declaration ctxt f x =
     | Ptype_abstract -> ()
     | Ptype_record l ->
         pp f "%t%t@;%a" intro priv (record_declaration ctxt) l
+    | Ptype_record_unboxed_product l ->
+        pp f "%t%t@;%a" intro priv (record_unboxed_product_declaration ctxt) l
     | Ptype_open -> pp f "%t%t@;.." intro priv
   in
   let constraints f =
