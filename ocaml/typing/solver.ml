@@ -656,50 +656,165 @@ module Solver_mono (C : Lattices_mono) = struct
       end
     end
 
-  let rec generalize_v
-      : type a. traversed:_ -> log:_ -> a C.obj -> current_level:int ->
+  (* Moves every reachable variable from [u] such that
+  [current_level] < [u.level] < [generic_level] to
+  [generic_level + (u.level - current_level)], preserving the exact topology *)
+  let rec generalize_topology
+      : type a. log:_ -> a C.obj -> current_level:int ->
         generic_level:int -> a var -> unit =
-    fun ~traversed ~log dst ~current_level ~generic_level u ->
-      if Hashtbl.mem traversed u.id then ()
+    fun ~log dst ~current_level ~generic_level u ->
+      if u.level <= current_level || u.level >= generic_level then ()
       else begin
-        Hashtbl.add traversed u.id ();
-        let level = u.level in
-        if (level > current_level) && (level <> generic_level) then begin
-          (* we remember the reachable variables now since update_level_v
-          might remove some*)
-          let vupper = u.vupper in
-          let vlower = u.vlower in
-          update_level_v ~log dst (current_level + 1) u;
-          set_level ~log u generic_level;
-          List.iter (fun (Amorphvar (v, f)) ->
-            let src = C.src dst f in
-            generalize_v ~traversed ~log src ~current_level ~generic_level v)
-            vupper;
-          List.iter (fun (Amorphvar (v, f)) ->
-            let src = C.src dst f in
-            generalize_v ~traversed ~log src ~current_level ~generic_level v)
-            vlower
-        end
+        let new_level = generic_level + (u.level - current_level) in
+        set_level ~log u new_level;
+        let do_gen (Amorphvar (v, f)) =
+          let src = C.src dst f in
+          generalize_topology ~log src ~current_level ~generic_level v
+        in
+        List.iter do_gen u.vupper;
+        List.iter do_gen u.vlower
       end
 
+  (* Tightens the bounds of variables based on children whose bounds are equal
+  If a [v, f] in [u.vlower] has bounds that are equal: [f v.lower] <= [u]
+  If a [v, f] in [u.vupper] has bounds that are equal: [u] <= [f v.upper] *)
+  let tighten_bound
+      : type a. log:_ -> a C.obj -> a var -> unit =
+    fun ~log dst u ->
+      List.iter
+        (fun (Amorphvar(v, f)) ->
+          if v.lower = v.upper then begin
+            let a' = C.apply dst f v.lower in
+            let r = submode_cv ~log dst a' u in
+            assert (r |> Result.is_ok)
+          end)
+        u.vlower;
+      List.iter
+        (fun (Amorphvar(v, f)) ->
+          if v.lower = v.upper then begin
+            let a' = C.apply dst f v.lower in
+            let r = submode_vc ~log dst u a' in
+            assert (r |> Result.is_ok)
+          end)
+        u.vupper;
+      if u.lower = u.upper then begin
+        set_vlower ~log u [];
+        set_vupper ~log u []
+      end
+
+  (* Tightens the bounds of all reachable variables above [generic_level], in reverse
+  order *)
+  let tighten_bounds
+      : type a. log:_ -> a C.obj -> generic_level:int -> a var -> unit =
+    fun ~log dst ~generic_level u ->
+      let rec loop : type a. traversed:_ -> a C.obj -> a var -> unit =
+        fun ~traversed dst u ->
+          if Hashtbl.mem traversed u.id || u.level < generic_level then ()
+          else begin
+            Hashtbl.add traversed u.id ();
+            let do_loop (Amorphvar(v, f)) =
+              let src = C.src dst f in
+              loop ~traversed src v
+            in
+            List.iter do_loop u.vupper;
+            List.iter do_loop u.vlower;
+            tighten_bound ~log dst u
+          end
+      in
+      let traversed = Hashtbl.create 17 in
+      loop ~traversed dst u
+
+  (* Updates reachable variable whose level is above generic_level to
+  [generic_level]. Note that the set of reachable variables might change during an
+  iteration. Variables that remain at [generic_level + n] may be targets for garbage
+  collection *)
+  let rec update_to_generic
+      : type a. log:_ -> a C.obj -> generic_level:int -> a var -> unit =
+    fun ~log dst ~generic_level u ->
+      if u.level <= generic_level then ()
+      else begin
+        update_level_v ~log dst generic_level u;
+        let do_updgen (Amorphvar (v, f)) =
+          let src = C.src dst f in
+          update_to_generic ~log src ~generic_level v
+        in
+        List.iter do_updgen u.vupper;
+        List.iter do_updgen u.vlower
+      end
+
+  (* Updates reachable variable whose level is above generic_level AND whose bounds are
+  equal to [generic_level]. Note that the set of reachable variables might change
+  during an iteration. Variables that remain at [generic_level + n] may be targets for
+  garbage collection *)
+  let rec update_to_generic_equal_bounds
+      : type a. log:_ -> a C.obj -> generic_level:int -> a var -> unit =
+    fun ~log dst ~generic_level u ->
+      if u.level <= generic_level then ()
+      else begin
+        if u.lower = u.upper then
+          update_level_v ~log dst generic_level u;
+        let do_updgen (Amorphvar (v, f)) =
+          let src = C.src dst f in
+          update_to_generic_equal_bounds ~log src ~generic_level v
+        in
+        List.iter do_updgen u.vupper;
+        List.iter do_updgen u.vlower
+      end
+
+  let generalize_v
+      : type a. log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~log dst ~current_level ~generic_level u ->
+      generalize_topology ~log dst ~current_level ~generic_level u;
+      tighten_bounds ~log dst ~generic_level u;
+      update_to_generic ~log dst ~generic_level u
+
+  let generalize_structure_v
+      : type a. log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~log dst ~current_level ~generic_level u ->
+      generalize_topology ~log dst ~current_level ~generic_level u;
+      tighten_bounds ~log dst ~generic_level u;
+      update_to_generic_equal_bounds ~log dst ~generic_level u
+
   let generalize (type a l r) ~current_level ~generic_level (obj : a C.obj)
-      (a : (a, l * r) mode) ~traversed ~log =
+      (a : (a, l * r) mode) ~log =
     match a with
     | Amodevar (Amorphvar (v, f)) ->
       let obj = C.src obj f in
-      generalize_v ~traversed ~log obj ~current_level ~generic_level v
+      generalize_v ~log obj ~current_level ~generic_level v
     | Amode _ -> ()
     | Amodejoin (_, mvs) ->
       List.iter
         (fun (Amorphvar (v, f)) ->
           let obj = C.src obj f in
-          generalize_v ~traversed ~log obj ~current_level ~generic_level v)
+          generalize_v ~log obj ~current_level ~generic_level v)
         mvs
     | Amodemeet (_, mvs) ->
       List.iter
         (fun (Amorphvar (v, f)) ->
           let obj = C.src obj f in
-          generalize_v ~traversed ~log obj ~current_level ~generic_level v)
+          generalize_v ~log obj ~current_level ~generic_level v)
+        mvs
+
+  let generalize_structure (type a l r) ~current_level ~generic_level (obj : a C.obj)
+      (a : (a, l * r) mode) ~log =
+    match a with
+    | Amodevar (Amorphvar (v, f)) ->
+      let obj = C.src obj f in
+      generalize_structure_v ~log obj ~current_level ~generic_level v
+    | Amode _ -> ()
+    | Amodejoin (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_structure_v ~log obj ~current_level ~generic_level v)
+        mvs
+    | Amodemeet (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_structure_v ~log obj ~current_level ~generic_level v)
         mvs
 
   let cnt_id = ref 0
@@ -1095,6 +1210,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let generalize = S.generalize
 
+    let generalize_structure = S.generalize_structure
+
     let join = S.join
 
     let meet = S.meet
@@ -1160,6 +1277,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
     let update_level = S.update_level
 
     let generalize = S.generalize
+
+    let generalize_structure = S.generalize_structure
 
     let join = S.meet
 
