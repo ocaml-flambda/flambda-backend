@@ -712,7 +712,8 @@ let default_iterator =
     module_expr = M.iter;
     module_expr_jane_syntax = M.iter_ext;
     signature =
-      (fun this {psg_items; psg_modalities} ->
+      (fun this {psg_loc; psg_items; psg_modalities} ->
+        this.location this psg_loc;
         this.modalities this psg_modalities;
         List.iter (this.signature_item this) psg_items
       );

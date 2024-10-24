@@ -1106,6 +1106,7 @@ module PpxContext = struct
     make_list (make_pair make_string (fun x -> x))
       (String.Map.bindings !cookies)
 
+  (* CR zqian: add [psg_attributes] to `Parsetree.signature`, and use that. *)
   let mk fields =
     {
       attr_name = { txt = "ocaml.ppx.context"; loc = Location.none };
@@ -1288,13 +1289,14 @@ let apply_lazy ~source ~target mapper =
       | _ -> [], psg_items
     in
     PpxContext.restore fields;
-    let psg_items =
+    let {psg_items; psg_modalities; psg_loc} =
       try
         let mapper = mapper () in
-        List.map (mapper.signature_item mapper) psg_items
+        mapper.signature mapper {psg_items; psg_modalities; psg_loc}
       with exn ->
-        [{psig_desc = Psig_extension (extension_of_exn exn, []);
-          psig_loc  = Location.none}]
+        { psg_items = [{psig_desc = Psig_extension (extension_of_exn exn, []);
+          psig_loc = Location.none}];
+          psg_modalities = []; psg_loc = Location.none }
     in
     let fields = PpxContext.update_cookies fields in
     let psg_items = Sig.attribute (PpxContext.mk fields) :: psg_items in
