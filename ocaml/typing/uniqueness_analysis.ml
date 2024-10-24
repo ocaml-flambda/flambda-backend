@@ -203,6 +203,37 @@ end = struct
   let reason (_, reason) = reason
 end
 
+(** Usage algebra
+
+    In this file we track the usage of variables and tags throughout a source file.
+    Information can be composed using three operators:
+
+     - seq: sequential composition such as 'foo; bar'
+     - par: parallel composition such as '(foo, bar)'
+         where evaluation order is not specified.
+     - choose: non-deterministic choice such as 'if b then foo else bar'
+
+    subject to the following laws:
+
+     - seq, par, choice are associative
+     - par, choice are commutative
+     - seq and par both distribute over choice
+     - choice is idempotent
+     - seq, par, choice have a common unit 'empty'
+
+    Note: These laws do not apply regarding the concrete error messages reported
+    to the user if the analysis fails. However, the laws do determine whether
+    the analysis may fail in the first place.
+
+    Aside: This structure is also known as a United Monoid (Mokhov et al.)
+    It differs from, say, Kleene algebra in that seq and choice share a unit.
+    To make this a Kleene algebra we would need a unit for choice that
+    annihilates seq. In most presentations, this corresponds to a code path
+    that can never be taken like 'assert false'. But we want to perform
+    the uniqueness analysis even such branches, since it would be a bad
+    user experience if a wrong use of uniqueness could lead to a segfault
+    before reporting the failed assertion. *)
+
 module Usage : sig
   type t =
     | Unused  (** empty usage *)
@@ -241,6 +272,9 @@ module Usage : sig
     }
 
   exception Error of error
+
+  (** Unused *)
+  val empty : t
 
   (** Sequential composition *)
   val seq : t -> t -> t
@@ -321,6 +355,8 @@ end = struct
     | Maybe_aliased t -> Some (Maybe_aliased.extract_occurrence t)
     | Aliased t -> Some (Aliased.extract_occurrence t)
     | Maybe_unique t -> Some (Maybe_unique.extract_occurrence t)
+
+  let empty = Unused
 
   let choose m0 m1 =
     match m0, m1 with
@@ -470,24 +506,32 @@ module Tag : sig
       the tag never changes during overwrites. Changing the
       tag during overwrites is not supported by the multicore GC. *)
 
+  type tag =
+    { tag : Types.tag;
+      name_for_error : Longident.t loc
+    }
+
   type t =
     | Unknown  (** default: we don't know the tag *)
-    | TagKnown of Longident.t loc
+    | TagKnown of tag
         (** We have learned the old tag (eg. from a pattern match). *)
-    | OverwrittenAs of Longident.t loc
-        (** The tag was overwritten to be this. *)
+    | OverwrittenAs of tag  (** The tag was overwritten to be this. *)
+    | InconsistentInformation  (** We have learned tags that don't match. *)
 
   type error =
     | IncompatibleOverwrites of
-        { left_tag : Longident.t loc;
-          right_tag : Longident.t loc
+        { left_tag : tag;
+          right_tag : tag
         }
     | ChangedTag of
-        { old_tag : Longident.t loc option;
-          new_tag : Longident.t loc
+        { old_tag : tag option;
+          new_tag : tag
         }
 
   exception Error of error
+
+  (** Unknown tag *)
+  val empty : t
 
   (** Sequential composition *)
   val seq : t -> t -> t
@@ -503,27 +547,32 @@ module Tag : sig
       be called to ensure all overwrites are on known tags. *)
   val check_no_remaining_overwritten_as : t -> unit
 end = struct
+  type tag =
+    { tag : Types.tag;
+      name_for_error : Longident.t loc
+    }
+
   type t =
     | Unknown
-    | TagKnown of Longident.t loc
-    | OverwrittenAs of Longident.t loc
+    | TagKnown of tag
+    | OverwrittenAs of tag
+    | InconsistentInformation
 
   type error =
     | IncompatibleOverwrites of
-        { left_tag : Longident.t loc;
-          right_tag : Longident.t loc
+        { left_tag : tag;
+          right_tag : tag
         }
     | ChangedTag of
-        { old_tag : Longident.t loc option;
-          new_tag : Longident.t loc
+        { old_tag : tag option;
+          new_tag : tag
         }
 
   exception Error of error
 
-  (* Only the last part of the longident matters at runtime;
-     eg. [List.Cons] and [Cons] are the same tag. *)
-  let equal_tag l0 l1 =
-    String.equal (Longident.last l0.txt) (Longident.last l1.txt)
+  let empty = Unknown
+
+  let equal_tag t1 t2 = Types.equal_tag t1.tag t2.tag
 
   let choose t0 t1 =
     match t0, t1 with
@@ -532,15 +581,18 @@ end = struct
       then t0
       else
         raise (Error (IncompatibleOverwrites { left_tag = l0; right_tag = l1 }))
-    | OverwrittenAs _, _ -> t0
-    | _, OverwrittenAs _ -> t1
-    | _, _ -> Unknown
+    | OverwrittenAs _, (Unknown | TagKnown _ | InconsistentInformation) -> t0
+    | (Unknown | TagKnown _ | InconsistentInformation), OverwrittenAs _ -> t1
+    | ( (Unknown | TagKnown _ | InconsistentInformation),
+        (Unknown | TagKnown _ | InconsistentInformation) ) ->
+      Unknown
 
   let par t0 t1 =
     match t0, t1 with
     | Unknown, t1 -> t1
     | _, Unknown -> t0
-    | TagKnown l0, TagKnown l1 -> if equal_tag l0 l1 then t0 else Unknown
+    | TagKnown l0, TagKnown l1 ->
+      if equal_tag l0 l1 then t0 else InconsistentInformation
     | TagKnown l0, OverwrittenAs l1 ->
       if equal_tag l0 l1
       then t0
@@ -554,6 +606,12 @@ end = struct
       then t0
       else
         raise (Error (IncompatibleOverwrites { left_tag = l0; right_tag = l1 }))
+    | InconsistentInformation, OverwrittenAs l1 ->
+      raise (Error (ChangedTag { old_tag = None; new_tag = l1 }))
+    | OverwrittenAs l0, InconsistentInformation ->
+      raise (Error (ChangedTag { old_tag = None; new_tag = l0 }))
+    | InconsistentInformation, _ -> InconsistentInformation
+    | _, InconsistentInformation -> InconsistentInformation
 
   let seq = par
 
@@ -758,9 +816,9 @@ end = struct
   let rec singleton leaf tag = function
     | [] -> { usage = leaf; children = Projection.Map.empty; tag }
     | proj :: path ->
-      { usage = Unused;
+      { usage = Usage.empty;
         children = Projection.Map.singleton proj (singleton leaf tag path);
-        tag = Tag.Unknown
+        tag = Tag.empty
       }
 
   let rec check_no_remaining_overwritten_as { children; tag } =
@@ -772,7 +830,7 @@ end = struct
 
   let rec extract_tags { children; tag } =
     let children = Projection.Map.map extract_tags children in
-    { children; tag; usage = Unused }
+    { children; tag; usage = Usage.empty }
 end
 
 (** Lift Usage_tree to forest *)
@@ -938,9 +996,9 @@ module Paths : sig
 
   val mark_aliased : Occurrence.t -> Aliased.reason -> t -> UF.t
 
-  val overwrite_tag : Longident.t loc -> t -> UF.t
+  val overwrite_tag : Tag.tag -> t -> UF.t
 
-  val learn_tag : Longident.t loc -> t -> UF.t
+  val learn_tag : Tag.tag -> t -> UF.t
 end = struct
   type t = UF.Path.t list
 
@@ -983,14 +1041,14 @@ end = struct
   let mark_implicit_borrow_memory_address occ access paths =
     mark
       (Maybe_aliased (Maybe_aliased.singleton occ access))
-      Tag.Unknown (memory_address paths)
+      Tag.empty (memory_address paths)
 
   let mark_aliased occ reason paths =
-    mark (Usage.aliased occ reason) Tag.Unknown paths
+    mark (Usage.aliased occ reason) Tag.empty paths
 
-  let overwrite_tag tag paths = mark Usage.Unused (Tag.OverwrittenAs tag) paths
+  let overwrite_tag tag paths = mark Usage.empty (Tag.OverwrittenAs tag) paths
 
-  let learn_tag tag paths = mark Usage.Unused (Tag.TagKnown tag) paths
+  let learn_tag tag paths = mark Usage.empty (Tag.TagKnown tag) paths
 end
 
 let force_aliased_boundary unique_use occ ~reason =
@@ -1038,7 +1096,7 @@ module Value : sig
 
   val mark_aliased : reason:boundary_reason -> t -> UF.t
 
-  val overwrite_tag : Longident.t loc -> t -> UF.t
+  val overwrite_tag : Tag.tag -> t -> UF.t
 end = struct
   type t =
     | Fresh
@@ -1071,14 +1129,14 @@ end = struct
   let mark_maybe_unique = function
     | Fresh -> UF.unused
     | Existing { paths; unique_use; occ } ->
-      Paths.mark (Usage.maybe_unique unique_use occ) Tag.Unknown paths
+      Paths.mark (Usage.maybe_unique unique_use occ) Tag.empty paths
 
   let mark_consumed_memory_address = function
     | Fresh -> UF.unused
     | Existing { paths; unique_use; occ } ->
       Paths.mark
         (Usage.maybe_unique unique_use occ)
-        Tag.Unknown
+        Tag.empty
         (Paths.memory_address paths)
 
   let mark_aliased ~reason = function
@@ -1086,7 +1144,7 @@ end = struct
     | Existing { paths; unique_use; occ } ->
       force_aliased_boundary unique_use occ ~reason;
       let aliased = Usage.aliased occ Aliased.Forced in
-      Paths.mark aliased Tag.Unknown paths
+      Paths.mark aliased Tag.empty paths
 
   let overwrite_tag tag = function
     | Fresh -> UF.unused
@@ -1249,7 +1307,9 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let uf_read = borrow_memory_address () in
     Ienv.Extension.empty, uf_read
   | Tpat_construct (lbl, cd, pats, _) ->
-    let uf_tag = Paths.learn_tag lbl paths in
+    let uf_tag =
+      Paths.learn_tag { tag = cd.cstr_tag; name_for_error = lbl } paths
+    in
     let uf_read = borrow_memory_address () in
     let pats_args = List.combine pats cd.cstr_args in
     let ext, uf_pats =
@@ -1263,7 +1323,6 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.pars [uf_tag; uf_read; uf_pats]
   | Tpat_variant (lbl, arg, _) ->
-    let uf_tag = Paths.learn_tag (mknoloc (Longident.Lident lbl)) paths in
     let uf_read = borrow_memory_address () in
     let ext, uf_arg =
       match arg with
@@ -1272,7 +1331,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
         pattern_match_single arg paths
       | None -> Ienv.Extension.empty, UF.unused
     in
-    ext, UF.pars [uf_tag; uf_read; uf_arg]
+    ext, UF.pars [uf_read; uf_arg]
   | Tpat_record (pats, _) ->
     let uf_read = borrow_memory_address () in
     let ext, uf_pats =
@@ -1434,7 +1493,7 @@ let descend proj overwrite =
    using a.x.y. This mode is used in most occasions. *)
 
 (** Corresponds to the second mode *)
-let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
+let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
   match exp.exp_desc with
   | Texp_ident _ ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
@@ -1442,7 +1501,9 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
   | Texp_constant _ -> UF.unused
   | Texp_let (_, vbs, body) ->
     let ext, uf_vbs = check_uniqueness_value_bindings ienv vbs in
-    let uf_body = check_uniqueness_exp (Ienv.extend ienv ext) body in
+    let uf_body =
+      check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) body
+    in
     UF.seq uf_vbs uf_body
   | Texp_function { params; body; _ } ->
     let ienv, uf_params =
@@ -1467,7 +1528,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
     in
     let uf_body =
       match body with
-      | Tfunction_body body -> check_uniqueness_exp ienv body
+      | Tfunction_body body -> check_uniqueness_exp ~overwrite:None ienv body
       | Tfunction_cases { fc_cases; fc_param = _; _ } ->
         (* [param] is only a hint not a binder; actual binding done by the
            [c_lhs] field of each of the [cases]. *)
@@ -1479,12 +1540,12 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
        borrowing of free variables in the closure is in fact using aliased. *)
     lift_implicit_borrowing uf
   | Texp_apply (fn, args, _, _, _) ->
-    let uf_fn = check_uniqueness_exp ienv fn in
+    let uf_fn = check_uniqueness_exp ~overwrite:None ienv fn in
     let uf_args =
       List.map
         (fun (_, arg) ->
           match arg with
-          | Arg (e, _) -> check_uniqueness_exp ienv e
+          | Arg (e, _) -> check_uniqueness_exp ~overwrite:None ienv e
           | Omitted _ -> UF.unused)
         args
     in
@@ -1494,7 +1555,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
     let uf_cases = check_uniqueness_comp_cases ienv value cases in
     UF.seq uf_arg uf_cases
   | Texp_try (body, cases) ->
-    let uf_body = check_uniqueness_exp ienv body in
+    let uf_body = check_uniqueness_exp ~overwrite:None ienv body in
     let value = Match_single (Paths.fresh ()) in
     let uf_cases = check_uniqueness_cases ienv value cases in
     (* we don't know how much of e will be run; safe to assume all of them *)
@@ -1503,12 +1564,15 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
     UF.pars
       (List.mapi
          (fun i (_, e) ->
-           check_uniqueness_exp ienv
+           check_uniqueness_exp
              ~overwrite:(descend (Projection.Tuple_field i) overwrite)
-             e)
+             ienv e)
          es)
   | Texp_unboxed_tuple es ->
-    UF.pars (List.map (fun (_, e, _) -> check_uniqueness_exp ienv e) es)
+    UF.pars
+      (List.map
+         (fun (_, e, _) -> check_uniqueness_exp ~overwrite:None ienv e)
+         es)
   | Texp_construct (lbl, _, es, _) ->
     let name = Longident.last lbl.txt in
     UF.pars
@@ -1520,10 +1584,8 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
              ienv e)
          es)
   | Texp_variant (_, None) -> UF.unused
-  | Texp_variant (l, Some (arg, _)) ->
-    check_uniqueness_exp ienv
-      ~overwrite:(descend (Projection.Variant_field l) overwrite)
-      arg
+  | Texp_variant (_, Some (arg, _)) ->
+    check_uniqueness_exp ~overwrite:None ienv arg
   | Texp_record { fields; extended_expression } ->
     let value, uf_ext =
       match extended_expression with
@@ -1547,10 +1609,10 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
             in
             Value.mark_maybe_unique value
           | l, Overridden (_, e) ->
-            check_uniqueness_exp ienv
+            check_uniqueness_exp
               ~overwrite:
                 (descend (Projection.Record_field l.lbl_name) overwrite)
-              e)
+              ienv e)
         fields
     in
     UF.par uf_ext (UF.pars (Array.to_list uf_fields))
@@ -1559,61 +1621,64 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
     UF.seq uf (Value.mark_maybe_unique value)
   | Texp_setfield (rcd, _, _, _, arg) ->
     let value, uf_rcd = check_uniqueness_exp_as_value ienv rcd in
-    let uf_arg = check_uniqueness_exp ienv arg in
+    let uf_arg = check_uniqueness_exp ~overwrite:None ienv arg in
     let uf_write = Value.mark_implicit_borrow_memory_address Write value in
     UF.pars [uf_rcd; uf_arg; uf_write]
   | Texp_array (_, _, es, _) ->
-    UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
+    UF.pars (List.map (fun e -> check_uniqueness_exp ~overwrite:None ienv e) es)
   | Texp_ifthenelse (if_, then_, else_opt) ->
     (* if' is only borrowed, not used; but probably doesn't matter because of
        mode crossing *)
-    let uf_cond = check_uniqueness_exp ienv if_ in
-    let uf_then = check_uniqueness_exp ienv then_ in
+    let uf_cond = check_uniqueness_exp ~overwrite:None ienv if_ in
+    let uf_then = check_uniqueness_exp ~overwrite:None ienv then_ in
     let uf_else =
       match else_opt with
-      | Some else_ -> check_uniqueness_exp ienv else_
+      | Some else_ -> check_uniqueness_exp ~overwrite:None ienv else_
       | None -> UF.unused
     in
     UF.seq uf_cond (UF.choose uf_then uf_else)
   | Texp_sequence (e0, _, e1) ->
-    let uf0 = check_uniqueness_exp ienv e0 in
-    let uf1 = check_uniqueness_exp ienv e1 in
+    let uf0 = check_uniqueness_exp ~overwrite:None ienv e0 in
+    let uf1 = check_uniqueness_exp ~overwrite:None ienv e1 in
     UF.seq uf0 uf1
   | Texp_while { wh_cond; wh_body; _ } ->
-    let uf_cond = check_uniqueness_exp ienv wh_cond in
-    let uf_body = check_uniqueness_exp ienv wh_body in
+    let uf_cond = check_uniqueness_exp ~overwrite:None ienv wh_cond in
+    let uf_body = check_uniqueness_exp ~overwrite:None ienv wh_body in
     UF.seq uf_cond uf_body
   | Texp_list_comprehension { comp_body; comp_clauses } ->
-    let uf_body = check_uniqueness_exp ienv comp_body in
+    let uf_body = check_uniqueness_exp ~overwrite:None ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses
   | Texp_array_comprehension (_, _, { comp_body; comp_clauses }) ->
-    let uf_body = check_uniqueness_exp ienv comp_body in
+    let uf_body = check_uniqueness_exp ~overwrite:None ienv comp_body in
     let uf_clauses = check_uniqueness_comprehensions ienv comp_clauses in
     UF.par uf_body uf_clauses
   | Texp_for { for_from; for_to; for_body; _ } ->
-    let uf_from = check_uniqueness_exp ienv for_from in
-    let uf_to = check_uniqueness_exp ienv for_to in
-    let uf_body = check_uniqueness_exp ienv for_body in
+    let uf_from = check_uniqueness_exp ~overwrite:None ienv for_from in
+    let uf_to = check_uniqueness_exp ~overwrite:None ienv for_to in
+    let uf_body = check_uniqueness_exp ~overwrite:None ienv for_body in
     UF.seq (UF.par uf_from uf_to) uf_body
-  | Texp_send (e, _, _) -> check_uniqueness_exp ienv e
+  | Texp_send (e, _, _) -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_new _ -> UF.unused
   | Texp_instvar _ -> UF.unused
-  | Texp_setinstvar (_, _, _, e) -> check_uniqueness_exp ienv e
+  | Texp_setinstvar (_, _, _, e) -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_override (_, ls) ->
-    UF.pars (List.map (fun (_, _, e) -> check_uniqueness_exp ienv e) ls)
+    UF.pars
+      (List.map
+         (fun (_, _, e) -> check_uniqueness_exp ~overwrite:None ienv e)
+         ls)
   | Texp_letmodule (_, _, _, mod_expr, body) ->
     let uf_mod =
       mark_aliased_open_variables ienv
         (fun iter -> iter.module_expr iter mod_expr)
         mod_expr.mod_loc
     in
-    let uf_body = check_uniqueness_exp ienv body in
+    let uf_body = check_uniqueness_exp ~overwrite:None ienv body in
     UF.seq uf_mod uf_body
-  | Texp_letexception (_, e) -> check_uniqueness_exp ienv e
-  | Texp_assert (e, _) -> check_uniqueness_exp ienv e
+  | Texp_letexception (_, e) -> check_uniqueness_exp ~overwrite:None ienv e
+  | Texp_assert (e, _) -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_lazy e ->
-    let uf = check_uniqueness_exp ienv e in
+    let uf = check_uniqueness_exp ~overwrite:None ienv e in
     lift_implicit_borrowing uf
   | Texp_object (cls_struc, _) ->
     (* the object (methods, values) will be type-checked by Typeclass,
@@ -1645,23 +1710,22 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
         (fun iter -> iter.open_declaration iter open_decl)
         open_decl.open_loc
     in
-    UF.seq uf (check_uniqueness_exp ienv e)
-  | Texp_probe { handler } -> check_uniqueness_exp ienv handler
+    UF.seq uf (check_uniqueness_exp ~overwrite:None ienv e)
+  | Texp_probe { handler } -> check_uniqueness_exp ~overwrite:None ienv handler
   | Texp_probe_is_enabled _ -> UF.unused
-  | Texp_exclave e -> check_uniqueness_exp ienv e
+  | Texp_exclave e -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_src_pos -> UF.unused
   | Texp_overwrite (e1, e2) ->
     let value, uf = check_uniqueness_exp_as_value ienv e1 in
     let uf_tag =
       match e2.exp_desc with
-      | Texp_construct (tag, _, _, _) -> Value.overwrite_tag tag value
-      | Texp_variant (tag, _) ->
-        Value.overwrite_tag (mknoloc (Longident.Lident tag)) value
+      | Texp_construct (lbl, cd, _, _) ->
+        Value.overwrite_tag { tag = cd.cstr_tag; name_for_error = lbl } value
       | Texp_record _ | Texp_tuple _ -> UF.unused
       | _ ->
         Misc.fatal_error "Uniqueness analysis: overwrite of unexpected term"
     in
-    let uf_body = check_uniqueness_exp ienv ~overwrite:(Value.paths value) e2 in
+    let uf_body = check_uniqueness_exp ~overwrite:(Value.paths value) ienv e2 in
     (* We first evaluate the body and then perform the overwrite: *)
     UF.seqs [uf; uf_tag; uf_body; Value.mark_consumed_memory_address value]
   | Texp_hole use -> (
@@ -1669,7 +1733,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) ?(overwrite = None) exp : UF.t =
     | None -> assert false
     | Some p ->
       let occ = Occurrence.mk exp.exp_loc in
-      Paths.mark (Usage.maybe_unique use occ) Tag.Unknown p)
+      Paths.mark (Usage.maybe_unique use occ) Tag.empty p)
 
 (**
 Corresponds to the first mode.
@@ -1711,12 +1775,12 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
         | Non_boxing unique_use ->
           UF.unused, Value.existing paths unique_use occ
         | Boxing (_, unique_use) ->
-          ( Paths.mark (Usage.maybe_unique unique_use occ) Tag.Unknown paths,
+          ( Paths.mark (Usage.maybe_unique unique_use occ) Tag.empty paths,
             Value.fresh )
       in
       value, UF.seqs [uf; uf_read; uf_boxing])
   (* CR-someday anlorenzen: This could also support let-bindings. *)
-  | _ -> Value.fresh, check_uniqueness_exp ienv exp
+  | _ -> Value.fresh, check_uniqueness_exp ~overwrite:None ienv exp
 
 (** take typed expression, do some parsing and returns [value_to_match] *)
 and check_uniqueness_exp_for_match ienv exp : value_to_match * UF.t =
@@ -1770,7 +1834,8 @@ and check_uniqueness_cases_gen :
            let uf_guard =
              match case.c_guard with
              | None -> UF.unused
-             | Some g -> check_uniqueness_exp (Ienv.extend ienv ext) g
+             | Some g ->
+               check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) g
            in
            ext, (uf_lhs, uf_guard))
          cases)
@@ -1780,7 +1845,8 @@ and check_uniqueness_cases_gen :
   (* we then evaluate all RHS, in _parallel_ *)
   let uf_cases =
     List.map2
-      (fun ext case -> check_uniqueness_exp (Ienv.extend ienv ext) case.c_rhs)
+      (fun ext case ->
+        check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) case.c_rhs)
       exts cases
   in
   UF.seq
@@ -1798,7 +1864,7 @@ and check_uniqueness_comprehensions ienv cs =
     (List.map
        (fun c ->
          match c with
-         | Texp_comp_when e -> check_uniqueness_exp ienv e
+         | Texp_comp_when e -> check_uniqueness_exp ~overwrite:None ienv e
          | Texp_comp_for cbs ->
            check_uniqueness_comprehension_clause_binding ienv cbs)
        cs)
@@ -1809,10 +1875,11 @@ and check_uniqueness_comprehension_clause_binding ienv cbs =
        (fun cb ->
          match cb.comp_cb_iterator with
          | Texp_comp_range { start; stop; _ } ->
-           let uf_start = check_uniqueness_exp ienv start in
-           let uf_stop = check_uniqueness_exp ienv stop in
+           let uf_start = check_uniqueness_exp ~overwrite:None ienv start in
+           let uf_stop = check_uniqueness_exp ~overwrite:None ienv stop in
            UF.par uf_start uf_stop
-         | Texp_comp_in { sequence; _ } -> check_uniqueness_exp ienv sequence)
+         | Texp_comp_in { sequence; _ } ->
+           check_uniqueness_exp ~overwrite:None ienv sequence)
        cbs)
 
 and check_uniqueness_binding_op ienv bo =
@@ -1822,11 +1889,11 @@ and check_uniqueness_binding_op ienv bo =
     | Some value -> Value.mark_maybe_unique value
     | None -> UF.unused
   in
-  let uf_exp = check_uniqueness_exp ienv bo.bop_exp in
+  let uf_exp = check_uniqueness_exp ~overwrite:None ienv bo.bop_exp in
   UF.par uf_path uf_exp
 
 let check_uniqueness_exp exp =
-  let uf = check_uniqueness_exp Ienv.empty exp in
+  let uf = check_uniqueness_exp ~overwrite:None Ienv.empty exp in
   UF.check_no_remaining_overwritten_as uf;
   ()
 
@@ -1917,22 +1984,28 @@ let report_boundary cannot_force reason =
 let report_tag_change (err : Tag.error) =
   match err with
   | IncompatibleOverwrites { left_tag; right_tag } ->
-    let left_tag_txt = Format.dprintf "%a" Pprintast.longident left_tag.txt in
-    let right_tag_txt = Format.dprintf "%a" Pprintast.longident right_tag.txt in
-    let sub = [Location.msg ~loc:left_tag.loc ""] in
-    Location.errorf ~loc:right_tag.loc ~sub
+    let left_tag_txt =
+      Format.dprintf "%a" Pprintast.longident left_tag.name_for_error.txt
+    in
+    let right_tag_txt =
+      Format.dprintf "%a" Pprintast.longident right_tag.name_for_error.txt
+    in
+    let sub = [Location.msg ~loc:left_tag.name_for_error.loc ""] in
+    Location.errorf ~loc:right_tag.name_for_error.loc ~sub
       "@[The same allocation gets overwritten using different tags %t and %t.\n\
        Hint: overwrites may not change the tag; did you forget a \
        pattern-match?@]"
       left_tag_txt right_tag_txt
   | ChangedTag { old_tag; new_tag } ->
-    let new_tag_txt = Format.dprintf "%a" Pprintast.longident new_tag.txt in
+    let new_tag_txt =
+      Format.dprintf "%a" Pprintast.longident new_tag.name_for_error.txt
+    in
     let old_tag_txt =
       match old_tag with
       | None -> Format.dprintf "unknown"
-      | Some l -> Format.dprintf "%a" Pprintast.longident l.txt
+      | Some l -> Format.dprintf "%a" Pprintast.longident l.name_for_error.txt
     in
-    Location.errorf ~loc:new_tag.loc
+    Location.errorf ~loc:new_tag.name_for_error.loc
       "@[Overwrite may not change the tag to %t.\n\
        Hint: The old tag of this allocation is %t.@]" new_tag_txt old_tag_txt
 

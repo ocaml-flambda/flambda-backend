@@ -11,7 +11,7 @@ let underscore = _
 Line 1, characters 17-18:
 1 | let underscore = _
                      ^
-Error: Syntax error: "wildcard "_"" not expected.
+Error: wildcard "_" not expected.
 |}]
 
 let overwriting t = overwrite_ t with (a, b)

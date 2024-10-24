@@ -111,7 +111,7 @@ let underscore = _
 Line 1, characters 17-18:
 1 | let underscore = _
                      ^
-Error: Syntax error: "wildcard "_"" not expected.
+Error: wildcard "_" not expected.
 |}]
 
 let underscore_tuple = (_, 1)
@@ -119,7 +119,7 @@ let underscore_tuple = (_, 1)
 Line 1, characters 24-25:
 1 | let underscore_tuple = (_, 1)
                             ^
-Error: Syntax error: "wildcard "_"" not expected.
+Error: wildcard "_" not expected.
 |}]
 
 let underscore_record = { a = _; b = 1 }
@@ -127,7 +127,7 @@ let underscore_record = { a = _; b = 1 }
 Line 1, characters 30-31:
 1 | let underscore_record = { a = _; b = 1 }
                                   ^
-Error: Syntax error: "wildcard "_"" not expected.
+Error: wildcard "_" not expected.
 |}]
 
 let overwrite_with_let t = overwrite_ t with let x = (1, 2) in x

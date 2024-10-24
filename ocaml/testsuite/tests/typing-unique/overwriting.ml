@@ -427,6 +427,65 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+(*****************************************)
+(* Disallowing overwriting unboxed types *)
+
+type unboxed_record = { x : int } [@@unboxed]
+[%%expect{|
+type unboxed_record = { x : int; } [@@unboxed]
+|}]
+
+let update (r : unboxed_record) =
+  overwrite_ r with { x = 4 }
+[%%expect{|
+Line 2, characters 20-29:
+2 |   overwrite_ r with { x = 4 }
+                        ^^^^^^^^^
+Error: Overwriting is only supported on tuples, constructors and boxed records.
+|}]
+
+type unboxed_inlined_record = Mk of { x : int } [@@unboxed]
+[%%expect{|
+type unboxed_inlined_record = Mk of { x : int; } [@@unboxed]
+|}]
+
+let update (r : unboxed_inlined_record) = match r with
+  | Mk _ -> overwrite_ r with Mk { x = 4 }
+[%%expect{|
+Line 2, characters 30-42:
+2 |   | Mk _ -> overwrite_ r with Mk { x = 4 }
+                                  ^^^^^^^^^^^^
+Error: Overwriting is only supported on tuples, constructors and boxed records.
+|}]
+
+type unboxed_constructor = Mk of int [@@unboxed]
+[%%expect{|
+type unboxed_constructor = Mk of int [@@unboxed]
+|}]
+
+let update (r : unboxed_constructor) = match r with
+  | Mk _ -> overwrite_ r with Mk 4
+[%%expect{|
+Line 2, characters 30-34:
+2 |   | Mk _ -> overwrite_ r with Mk 4
+                                  ^^^^
+Error: Overwriting is only supported on tuples, constructors and boxed records.
+|}]
+
+type unboxed_tuple = #(int * int)
+[%%expect{|
+type unboxed_tuple = #(int * int)
+|}]
+
+let update (r : unboxed_tuple) =
+  overwrite_ r with #(_, 3)
+[%%expect{|
+Line 2, characters 20-27:
+2 |   overwrite_ r with #(_, 3)
+                        ^^^^^^^
+Error: Overwriting is only supported on tuples, constructors and boxed records.
+|}]
+
 (*************************************)
 (* Other edge-cases of type checking *)
 
@@ -446,20 +505,6 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
-type unboxed_record = { x : int } [@@unboxed]
-[%%expect{|
-type unboxed_record = { x : int; } [@@unboxed]
-|}]
-
-let update (r : unboxed_record) =
-  overwrite_ r with { x = 4 }
-[%%expect{|
-Line 2, characters 20-29:
-2 |   overwrite_ r with { x = 4 }
-                        ^^^^^^^^^
-Error: Overwriting is only supported on tuples, constructors and boxed records.
-|}]
-
 type nested_record = Nested of { x : int }
 [%%expect{|
 type nested_record = Nested of { x : int; }
@@ -471,7 +516,7 @@ let nested_update (t : int * (string * int)) =
 Line 2, characters 29-30:
 2 |   overwrite_ t with (3, ("", _))
                                  ^
-Error: Syntax error: "wildcard "_"" not expected.
+Error: wildcard "_" not expected.
 |}]
 
 let nested_update (t : int * record_update) =
@@ -480,7 +525,7 @@ let nested_update (t : int * record_update) =
 Line 2, characters 29-30:
 2 |   overwrite_ t with (3, {x = _; y = _})
                                  ^
-Error: Syntax error: "wildcard "_"" not expected.
+Error: wildcard "_" not expected.
 |}]
 
 let nested_update t =
