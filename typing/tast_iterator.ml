@@ -193,6 +193,7 @@ let type_kind sub = function
   | Ttype_abstract -> ()
   | Ttype_variant list -> List.iter (constructor_decl sub) list
   | Ttype_record list -> List.iter (label_decl sub) list
+  | Ttype_record_unboxed_product list -> List.iter (label_decl sub) list
   | Ttype_open -> ()
 
 let type_declaration sub x =
@@ -265,6 +266,8 @@ let pat
         List.iter (iter_loc sub) ids; sub.typ sub ct) vto
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
   | Tpat_record (l, _) ->
+      List.iter (fun (lid, _, i) -> iter_loc sub lid; sub.pat sub i) l
+  | Tpat_record_unboxed_product (l, _) ->
       List.iter (fun (lid, _, i) -> iter_loc sub lid; sub.pat sub i) l
   | Tpat_array (_, _, l) -> List.iter (sub.pat sub) l
   | Tpat_alias (p, _, s, _, _) -> sub.pat sub p; iter_loc sub s
@@ -352,7 +355,16 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
         | _, Overridden (lid, exp) -> iter_loc sub lid; sub.expr sub exp)
         fields;
       Option.iter (sub.expr sub) extended_expression;
+  | Texp_record_unboxed_product { fields; extended_expression; _} ->
+      Array.iter (function
+        | _, Kept _ -> ()
+        | _, Overridden (lid, exp) -> iter_loc sub lid; sub.expr sub exp)
+        fields;
+      Option.iter (sub.expr sub) extended_expression;
   | Texp_field (exp, lid, _, _) ->
+      iter_loc sub lid;
+      sub.expr sub exp
+  | Texp_unboxed_field (exp, lid, _, _) ->
       iter_loc sub lid;
       sub.expr sub exp
   | Texp_setfield (exp1, _, lid, _, exp2) ->

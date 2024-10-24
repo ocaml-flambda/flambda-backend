@@ -286,6 +286,9 @@ and pattern i ppf x =
   | Ppat_record (l, c) ->
       line i ppf "Ppat_record %a\n" fmt_closed_flag c;
       list i longident_x_pattern ppf l;
+  | Ppat_record_unboxed_product (l, c) ->
+      line i ppf "Ppat_record_unboxed_product %a\n" fmt_closed_flag c;
+      list i longident_x_pattern ppf l;
   | Ppat_array (l) ->
       line i ppf "Ppat_array\n";
       list i pattern ppf l;
@@ -362,8 +365,16 @@ and expression i ppf x =
       line i ppf "Pexp_record\n";
       list i longident_x_expression ppf l;
       option i expression ppf eo;
+  | Pexp_record_unboxed_product (l, eo) ->
+      line i ppf "Pexp_record_unboxed_product\n";
+      list i longident_x_expression ppf l;
+      option i expression ppf eo;
   | Pexp_field (e, li) ->
       line i ppf "Pexp_field\n";
+      expression i ppf e;
+      longident_loc i ppf li;
+  | Pexp_unboxed_field (e, li) ->
+      line i ppf "Pexp_unboxed_field\n";
       expression i ppf e;
       longident_loc i ppf li;
   | Pexp_setfield (e1, li, e2) ->
@@ -581,6 +592,9 @@ and type_kind i ppf x =
       list (i+1) constructor_decl ppf l;
   | Ptype_record l ->
       line i ppf "Ptype_record\n";
+      list (i+1) label_decl ppf l;
+  | Ptype_record_unboxed_product l ->
+      line i ppf "Ptype_record_unboxed_product\n";
       list (i+1) label_decl ppf l;
   | Ptype_open ->
       line i ppf "Ptype_open\n";

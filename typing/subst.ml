@@ -114,7 +114,8 @@ let with_additional_action =
             end
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
           | Product descs ->
-            Jkind.Builtin.product ~why:Unboxed_tuple
+            (* CR rtjoa: reason possibly could also be an unboxed record? *)
+            Jkind.Builtin.product ~why:Unboxed_record
               (List.map (prepare_desc loc) descs)
         in
         let prepare_jkind loc lay : _ Jkind.t =
@@ -524,6 +525,9 @@ let record_representation ~prepare_jkind loc = function
       Record_boxed (Array.map (prepare_jkind loc) lays)
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
+let record_unboxed_product_representation ~prepare_jkind loc = function
+  | Record_unboxed_product lays -> Record_unboxed_product (Array.map (prepare_jkind loc) lays)
+
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
@@ -547,6 +551,14 @@ let type_declaration' copy_scope s decl =
                 record_representation ~prepare_jkind decl.type_loc rep
           in
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
+      | Type_record_unboxed_product(lbls, rep) ->
+          let rep =
+            match s.additional_action with
+            | No_action | Duplicate_variables -> rep
+            | Prepare_for_saving { prepare_jkind } ->
+                record_unboxed_product_representation ~prepare_jkind decl.type_loc rep
+          in
+          Type_record_unboxed_product (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
       end;
     type_manifest =

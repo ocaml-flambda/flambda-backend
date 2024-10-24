@@ -68,7 +68,7 @@ val diff: t -> t -> Ident.t list
 val same_type_declarations: t -> t -> bool
 
 type type_descr_kind =
-  (label_description, constructor_description) type_kind
+  (label_description, unboxed_label_description, constructor_description) type_kind
 
   (* alias for compatibility *)
 type type_descriptions = type_descr_kind
@@ -103,7 +103,7 @@ val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
 
 val find_ident_constructor: Ident.t -> t -> constructor_description
-val find_ident_label: Ident.t -> t -> label_description
+val find_ident_label: 'rcd record_form -> Ident.t -> t -> 'rcd gen_label_description
 
 val find_type_expansion:
     Path.t -> t -> type_expr list * type_expr * int
@@ -167,7 +167,7 @@ val mark_extension_used:
 type label_usage =
     Projection | Mutation | Construct | Exported_private | Exported
 val mark_label_used:
-    label_usage -> label_declaration -> unit
+    _ record_form -> label_usage -> label_declaration -> unit
 
 (* Lookup by long identifiers *)
 
@@ -218,7 +218,7 @@ type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
   | Unbound_constructor of Longident.t
-  | Unbound_label of Longident.t
+  | Unbound_label of (Longident.t * record_form_packed)
   | Unbound_module of Longident.t
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
@@ -298,15 +298,18 @@ val lookup_all_constructors_from_type:
   (constructor_description * (unit -> unit)) list
 
 val lookup_label:
-  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
-  label_description
+  ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Longident.t -> t ->
+  'rcd gen_label_description
 val lookup_all_labels:
-  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
-  ((label_description * (unit -> unit)) list,
+  ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Longident.t -> t ->
+  (('rcd gen_label_description * (unit -> unit)) list,
    Location.t * t * lookup_error) result
 val lookup_all_labels_from_type:
-  ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
-  (label_description * (unit -> unit)) list
+  ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Path.t -> t ->
+  ('rcd gen_label_description * (unit -> unit)) list
+
+  (* lookup_type:'rep record_form -> ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
+   * ('rep gen_label_description * (unit -> unit)) list *)
 
 val lookup_instance_variable:
   ?use:bool -> loc:Location.t -> string -> t ->
@@ -328,7 +331,7 @@ val find_cltype_by_name:
 val find_constructor_by_name:
   Longident.t -> t -> constructor_description
 val find_label_by_name:
-  Longident.t -> t -> label_description
+  'rep record_form -> Longident.t -> t -> 'rep gen_label_description
 
 (** The [find_*_index] functions computes a "namespaced" De Bruijn index
     of an identifier in a given environment. In other words, it returns how many
@@ -612,7 +615,7 @@ val fold_constructors:
   (constructor_description -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a
 val fold_labels:
-  (label_description -> 'a -> 'a) ->
+  'rcd record_form -> ('rcd gen_label_description -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a
 
 (** Persistent structures are only traversed if they are already loaded. *)

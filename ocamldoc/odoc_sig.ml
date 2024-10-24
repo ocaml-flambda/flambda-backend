@@ -411,6 +411,8 @@ module Analyser =
 
       | Parsetree.Ptype_record label_declaration_list ->
           (0, Record.(doc parsetree) pos_end label_declaration_list)
+      (* CR rtjoa: odoc *)
+      | Parsetree.Ptype_record_unboxed_product _ -> assert false
       | Parsetree.Ptype_open ->
           (0, [])
 
@@ -482,6 +484,9 @@ module Analyser =
 
       | Types.Type_record (l, _) ->
           Odoc_type.Type_record (List.map (get_field env name_comment_list) l)
+
+      | Types.Type_record_unboxed_product (_, _) ->
+          assert false
 
       | Types.Type_open ->
           Odoc_type.Type_open

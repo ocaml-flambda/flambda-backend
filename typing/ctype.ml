@@ -430,7 +430,7 @@ let in_pervasives p =
 
 let is_datatype decl=
   match decl.type_kind with
-    Type_record _ | Type_variant _ | Type_open -> true
+    Type_record _ | Type_record_unboxed_product _ | Type_variant _ | Type_open -> true
   | Type_abstract _ -> false
 
 
@@ -712,6 +712,8 @@ let closed_type_decl decl =
           )
           v
     | Type_record(r, _rep) ->
+        List.iter (fun l -> close_type l.ld_type) r
+    | Type_record_unboxed_product(r, _rep) ->
         List.iter (fun l -> close_type l.ld_type) r
     | Type_open -> ()
     end;
@@ -1486,6 +1488,12 @@ let map_kind f = function
           (fun l ->
              {l with ld_type = f l.ld_type}
           ) fl, rr)
+  | Type_record_unboxed_product (fl, rr) ->
+      Type_record_unboxed_product (
+        List.map
+          (fun l ->
+             {l with ld_type = f l.ld_type}
+          ) fl, rr)
 
 
 let instance_declaration decl =
@@ -2076,6 +2084,8 @@ let expand_head_opt env ty =
 type unbox_result =
   (* unboxing process made a step: either an unboxing or removal of a [Tpoly] *)
   | Stepped of type_expr
+  (* unboxing process unboxed a product. Invariant: length >= 2 *)
+  | Stepped_product of type_expr list
   (* no step to make; we're all done here *)
   | Final_result
   (* definition not in environment: missing cmi *)
@@ -2087,11 +2097,18 @@ let unbox_once env ty =
     begin match Env.find_type p env with
     | exception Not_found -> Missing p
     | decl ->
+      let apply ty2 = apply env decl.type_params ty2 args in
       begin match find_unboxed_type decl with
-      | None -> Final_result
       | Some ty2 ->
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
-        Stepped (apply env decl.type_params ty2 args)
+        Stepped (apply ty2)
+      | None -> begin match decl.type_kind with
+        | Type_record_unboxed_product ([{ld_type = arg; _}], Record_unboxed_product _) ->
+          Stepped (apply arg)
+        | Type_record_unboxed_product ((_::_::_ as lbls), Record_unboxed_product _) ->
+          Stepped_product (List.map (fun ld -> apply ld.ld_type) lbls)
+        | _ -> Final_result
+        end
       end
     end
   | Tpoly (ty, _) -> Stepped ty
@@ -2108,6 +2125,8 @@ let rec get_unboxed_type_representation env ty_prev ty fuel =
     match unbox_once env ty with
     | Stepped ty2 ->
       get_unboxed_type_representation env ty ty2 (fuel - 1)
+    | Stepped_product _ ->
+      Ok ty
     | Final_result -> Ok ty
     | Missing _ -> Ok ty_prev
 
@@ -2145,7 +2164,8 @@ let rec estimate_type_jkind ~expand_component env ty =
        ~why:Unboxed_tuple
   | Tconstr (p, _, _) -> begin
       try
-        (Env.find_type p env).type_jkind
+        let res = (Env.find_type p env) in
+        res.type_jkind
       with
         Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
     end
@@ -2256,24 +2276,8 @@ let constrain_type_jkind ~fixed env ty jkind =
              message. *)
           Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
        | Has_intersection ->
-          match get_desc ty with
-          | Tconstr _ ->
-             if not expanded
-             then
-               let ty = expand_head_opt env ty in
-               loop ~fuel ~expanded:true ty (estimate_type_jkind env ty) jkind
-             else
-               begin match unbox_once env ty with
-               | Missing path -> Error (Jkind.Violation.of_ ~missing_cmi:path
-                                          (Not_a_subjkind (ty's_jkind, jkind)))
-               | Final_result ->
-                  Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
-               | Stepped ty ->
-                  loop ~fuel:(fuel - 1) ~expanded:false ty
-                    (estimate_type_jkind env ty) jkind
-               end
-          | Tunboxed_tuple ltys ->
-             let num_components = List.length ltys in
+           let product tys =
+             let num_components = List.length tys in
              let recur ty's_jkinds jkinds =
                (* Note: here we "duplicate" the fuel, which may seem like
                   cheating. Fuel counts expansions, and its purpose is to guard
@@ -2282,8 +2286,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                   that's fine. *)
                let results =
                  Misc.Stdlib.List.map3
-                   (fun (_, ty) -> loop ~fuel ~expanded:false ty)
-                   ltys ty's_jkinds jkinds
+                   (loop ~fuel:(fuel - 1) ~expanded:false) tys ty's_jkinds jkinds
                in
                Misc.Stdlib.Monad.Result.all_unit results
              in
@@ -2299,8 +2302,28 @@ let constrain_type_jkind ~fixed env ty jkind =
                   mode-crossing restrictions, so we recur, just duplicating
                   the jkind. *)
                recur ty's_jkinds (List.init num_components (fun _ -> jkind))
-             | _ -> Misc.fatal_error "unboxed tuple jkinds don't line up"
+             | _ -> Misc.fatal_error "unboxed product jkinds don't line up"
              end
+          in
+          match get_desc ty with
+          | Tconstr _ ->
+             if not expanded
+             then
+               let ty = expand_head_opt env ty in
+               loop ~fuel ~expanded:true ty (estimate_type_jkind env ty) jkind
+             else
+               begin match unbox_once env ty with
+               | Missing path -> Error (Jkind.Violation.of_ ~missing_cmi:path
+                                          (Not_a_subjkind (ty's_jkind, jkind)))
+               | Final_result ->
+                  Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
+               | Stepped ty ->
+                  loop ~fuel:(fuel - 1) ~expanded:false ty
+                    (estimate_type_jkind env ty) jkind
+               | Stepped_product tys ->
+                  product tys
+               end
+          | Tunboxed_tuple ltys -> product (List.map snd ltys)
           | _ -> Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
   in
   loop ~fuel:100 ~expanded:false ty (estimate_type_jkind env ty) jkind
@@ -3180,6 +3203,10 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
       match decl.type_kind, decl'.type_kind with
       | Type_record (lst,r), Type_record (lst',r')
         when equal_record_representation r r' ->
+          mcomp_list type_pairs env tl1 tl2;
+          mcomp_record_description type_pairs env lst lst'
+      | Type_record_unboxed_product (lst,r), Type_record_unboxed_product (lst',r')
+        when equal_record_unboxed_product_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_record_description type_pairs env lst lst'
       | Type_variant (v1,r), Type_variant (v2,r')

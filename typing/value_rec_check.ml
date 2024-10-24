@@ -183,6 +183,10 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
+    (* CR rtjoa: wrong, need to fold over fields *)
+    | Texp_record_unboxed_product _ ->
+        Static
+
     | Texp_variant _
     | Texp_tuple _
     | Texp_extension_constructor _
@@ -250,6 +254,7 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_ifthenelse _
     | Texp_send _
     | Texp_field _
+    | Texp_unboxed_field _
     | Texp_assert _
     | Texp_try _
     | Texp_override _
@@ -768,6 +773,21 @@ let rec expression : Typedtree.expression -> term_judg =
           array field es;
           option expression eo << Dereference
         ]
+    | Texp_record_unboxed_product { fields = es; extended_expression = eo;
+                    representation = rep } ->
+        (match rep with Record_unboxed_product _ -> ());
+        let field (_, field_def) =
+          let env =
+            match field_def with
+            | Kept _ -> empty
+            | Overridden (_, e) -> expression e
+          in
+          env << Dereference
+        in
+        join [
+          array field es;
+          option expression eo << Dereference
+        ]
     | Texp_ifthenelse (cond, ifso, ifnot) ->
       (*
         Gc |- c: m[Dereference]
@@ -833,6 +853,13 @@ let rec expression : Typedtree.expression -> term_judg =
         expression e1 << Dereference
       ]
     | Texp_field (e, _, _, _) ->
+      (*
+        G |- e: m[Dereference]
+        -----------------------
+        G |- e.x: m
+      *)
+      expression e << Dereference
+    | Texp_unboxed_field (e, _, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------
@@ -1418,6 +1445,7 @@ and is_destructuring_pattern : type k . k general_pattern -> bool =
     | Tpat_construct _ -> true
     | Tpat_variant _ -> true
     | Tpat_record (_, _) -> true
+    | Tpat_record_unboxed_product (_, _) -> true
     | Tpat_array _ -> true
     | Tpat_lazy _ -> true
     | Tpat_value pat -> is_destructuring_pattern (pat :> pattern)
