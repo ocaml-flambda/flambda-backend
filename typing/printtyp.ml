@@ -1312,7 +1312,7 @@ let print_labels = ref true
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
 
-let rec out_jkind_of_desc : Jkind.Desc.t -> out_jkind = function
+let rec out_jkind_of_desc : _ Jkind.Desc.t -> out_jkind = function
   | Const jkind -> out_jkind_of_const_jkind jkind
   | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
   | Product jkinds ->
@@ -1325,10 +1325,12 @@ let out_jkind_option_of_jkind jkind =
   let elide =
     match desc with
     | Const jkind -> (* C2.1 *)
-      Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
+      Jkind.Const.equal_after_all_inference_is_done
+        jkind Jkind.Const.Builtin.value.jkind
       (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
       || (not Language_extension.(is_at_least Layouts Alpha)
-          && Jkind.Const.equal jkind Jkind.Const.Builtin.value_or_null.jkind)
+          && Jkind.Const.equal_after_all_inference_is_done
+               jkind Jkind.Const.Builtin.value_or_null.jkind)
     | Var _ -> (* X1 *)
       not !Clflags.verbose_types
     | Product _ -> false

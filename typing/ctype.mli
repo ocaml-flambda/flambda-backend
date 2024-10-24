@@ -180,7 +180,7 @@ val instance_list: type_expr list -> type_expr list
         (* Take an instance of a list of type schemes *)
 val new_local_type:
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
-        type_origin -> jkind_l -> type_declaration
+        type_origin -> (allowed * 'r) jkind -> type_declaration
 
 module Pattern_env : sig
   type t = private
@@ -625,9 +625,9 @@ val constrain_decl_jkind :
   Env.t -> type_declaration -> jkind_l -> (unit, Jkind.Violation.t) result
 
 val check_type_jkind :
-  Env.t -> type_expr -> jkind_r -> (unit, Jkind.Violation.t) result
+  Env.t -> type_expr -> ('l * allowed) jkind -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
-  Env.t -> type_expr -> jkind_r -> (unit, Jkind.Violation.t) result
+  Env.t -> type_expr -> ('l * allowed) jkind -> (unit, Jkind.Violation.t) result
 
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop

@@ -138,8 +138,8 @@ end
 
 module Violation : sig
   type violation =
-    | Not_a_subjkind of jkind_l * jkind_r
-    | No_intersection of packed * jkind_r
+    | Not_a_subjkind : (allowed * 'r) t * ('l * allowed) t -> violation
+    | No_intersection : 'd t * ('l * allowed) t -> violation
 
   type t
 
@@ -179,31 +179,41 @@ end
 
 module Const : sig
   (** Constant jkinds are used for user-written annotations *)
-  type t = Types.type_expr Jkind_types.Const.t
+  type 'd t = (Types.type_expr, 'd) Jkind_types.Const.t
 
-  val to_out_jkind_const : t -> Outcometree.out_jkind_const
+  type l = (allowed * disallowed) t
 
-  val format : Format.formatter -> t -> unit
+  type r = (disallowed * allowed) t
 
-  val equal : t -> t -> bool
+  type lr = (allowed * allowed) t
+
+  val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
+
+  val format : Format.formatter -> 'd t -> unit
+
+  (* An equality check should work over [lr]s only. But we need this
+     to do memoization in serialization. Happily, that's after all
+     inference is done, when worrying about l and r does not matter
+     any more. *)
+  val equal_after_all_inference_is_done : 'd1 t -> 'd2 t -> bool
 
   (** Gets the layout of a constant jkind. Never does mutation. *)
-  val get_layout : t -> Layout.Const.t
+  val get_layout : 'd t -> Layout.Const.t
 
   (** Gets the maximum modes for types of this constant jkind. *)
-  val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+  val get_modal_upper_bounds : 'd t -> Mode.Alloc.Const.t
 
   (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
-  val get_externality_upper_bound : t -> Externality.t
+  val get_externality_upper_bound : 'd t -> Externality.t
 
   val of_user_written_annotation :
-    context:History.annotation_context -> Parsetree.jkind_annotation -> t
+    context:'d History.annotation_context -> Parsetree.jkind_annotation -> 'd t
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
   module Builtin : sig
     type nonrec t =
-      { jkind : t;
+      { jkind : lr;
         name : string
       }
 
@@ -324,7 +334,7 @@ val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> 'd t
 val of_const :
   annotation:Parsetree.jkind_annotation option ->
   why:History.creation_reason ->
-  Const.t ->
+  'd Const.t ->
   'd t
 
 val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd t
@@ -332,11 +342,11 @@ val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd t
 (* CR layouts v2.8: remove this when printing is improved *)
 
 val of_annotation :
-  context:History.annotation_context -> Parsetree.jkind_annotation -> 'd t
+  context:'d History.annotation_context -> Parsetree.jkind_annotation -> 'd t
 
 val of_annotation_option_default :
   default:'d t ->
-  context:History.annotation_context ->
+  context:'d History.annotation_context ->
   Parsetree.jkind_annotation option ->
   'd t
 
@@ -351,7 +361,7 @@ val of_annotation_option_default :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
-  context:History.annotation_context ->
+  context:History.annotation_context_l ->
   Parsetree.type_declaration ->
   (jkind_l * Parsetree.jkind_annotation option) option
 
@@ -361,7 +371,7 @@ val of_type_decl :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl_default :
-  context:History.annotation_context ->
+  context:History.annotation_context_l ->
   default:jkind_l ->
   Parsetree.type_declaration ->
   jkind_l
@@ -385,18 +395,18 @@ val for_object : jkind_l
 
 module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
-  type t =
-    | Const of Const.t
+  type 'd t =
+    | Const of 'd Const.t
     | Var of Sort.var
-    | Product of t list
+    | Product of 'd t list
 
-  val format : Format.formatter -> t -> unit
+  val format : Format.formatter -> 'd t -> unit
 end
 
 (** Extract the [const] from a [Jkind.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not
     yet been determined. *)
-val get : 'd t -> Desc.t
+val get : 'd t -> 'd Desc.t
 
 (** [get_layout_defaulting_to_value] extracts a constant layout, defaulting
     any sort variable to [value]. *)
@@ -492,9 +502,9 @@ val has_intersection_l_l : jkind_l -> jkind_l -> bool
     intersection of the two, not something that modifies the second jkind. *)
 val intersection_or_error :
   reason:History.interact_reason ->
-  ('l * allowed) t ->
-  jkind_r ->
-  (('l * allowed) t, Violation.t) Result.t
+  ('l1 * allowed) t ->
+  ('l2 * allowed) t ->
+  (('l1 * allowed) t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
@@ -507,7 +517,7 @@ type sub_or_intersect =
 
 (** [sub_or_intersect t1 t2] does a subtype check, returning a [sub_or_intersect];
     see comments there for more info. *)
-val sub_or_intersect : jkind_l -> jkind_r -> sub_or_intersect
+val sub_or_intersect : (allowed * 'r) t -> ('l * allowed) t -> sub_or_intersect
 
 (** [sub_or_error t1 t2] does a subtype check, returning an appropriate
     [Violation.t] upon failure. *)
@@ -530,7 +540,7 @@ val intersect_l_l :
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
-val is_max : jkind_r -> bool
+val is_max : ('l * allowed) t -> bool
 
 (** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : ('l * allowed) t -> bool
@@ -547,6 +557,6 @@ module Debug_printers : sig
   val t : Format.formatter -> 'd t -> unit
 
   module Const : sig
-    val t : Format.formatter -> Const.t -> unit
+    val t : Format.formatter -> 'd Const.t -> unit
   end
 end
