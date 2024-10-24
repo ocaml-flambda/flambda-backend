@@ -1,5 +1,5 @@
 (* TEST
- flags += " -w a ";
+ flags += " -w a -alert -unsafe_parallelism ";
  modules = "globrootsprim.c globroots.ml";
  runtime5;
  { bytecode; }

@@ -32,6 +32,9 @@ type !'a t
     result of type 'a, or an exception *)
 
 val spawn : (unit -> 'a) -> 'a t
+[@@alert unsafe_parallelism
+           "This function is unsafe and should not be used in production \
+            code.\nA safe interface for parallelism is forthcoming."]
 (** [spawn f] creates a new domain that runs in parallel with the
     current domain.
 

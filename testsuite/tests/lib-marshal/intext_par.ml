@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-alert -unsafe_parallelism";
  modules = "intextaux_par.c";
  no-tsan;
  runtime5;

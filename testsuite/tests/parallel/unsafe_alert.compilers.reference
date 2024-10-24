@@ -1,0 +1,6 @@
+File "unsafe_alert.ml", line 7, characters 8-20:
+7 | let _ = Domain.spawn (fun () -> ())
+            ^^^^^^^^^^^^
+Alert unsafe_parallelism: Stdlib.Domain.spawn
+This function is unsafe and should not be used in production code.
+A safe interface for parallelism is forthcoming.

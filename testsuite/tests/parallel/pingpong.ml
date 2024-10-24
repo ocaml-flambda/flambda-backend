@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-alert -unsafe_parallelism";
  no-tsan; (* TSan detects the intentional data race *)
  runtime5;
  { bytecode; }
