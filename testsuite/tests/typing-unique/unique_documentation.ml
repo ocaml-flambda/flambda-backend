@@ -7,7 +7,10 @@
 (*******************************)
 (* Examples from documentation *)
 
-type t = Con of { field : int }
+(*************)
+(* intro.md *)
+
+type t = Con of { field : int list }
 
 let free : t @ unique -> unit = fun t -> ()
 let free_field (unique_ i) = ()
@@ -15,7 +18,7 @@ let store : t @ aliased -> unit = fun t -> ()
 let store_field i = ()
 let flip_coin () = true
 [%%expect{|
-type t = Con of { field : int; }
+type t = Con of { field : int list; }
 val free : unique_ t -> unit @@ global many = <fun>
 val free_field : ('a : value_or_null). unique_ 'a -> unit @@ global many =
   <fun>
@@ -97,8 +100,11 @@ let okay t =
 val okay : t -> unit @@ global many = <fun>
 |}]
 
+(****************)
+(* pitfalls.md *)
+
 let module_ret_unique =
-  let mk () = Con { field = 1 } in
+  let mk () = Con { field = [1] } in
   let use () = free (mk ()) in
   ()
 [%%expect{|
@@ -111,7 +117,7 @@ val module_ret_unique : unit @@ global many = ()
 |}]
 
 module Mk = struct
-  let mk () = Con { field = 1 }
+  let mk () = Con { field = [1] }
 end
 
 let module_ret_unique =
@@ -176,6 +182,79 @@ let set_all_zero arr =
 [%%expect{|
 val set_all_zero : ('a : value_or_null). unique_ 'a -> 'a @@ global many =
   <fun>
+|}]
+
+(****************)
+(* reference.md *)
+
+type t = { field1 : t; field2 : t }
+
+let free : t @ unique -> unit = fun t -> ()
+let free_field (unique_ i) = ()
+let store : t @ aliased -> unit = fun t -> ()
+let store_field i = ()
+let flip_coin () = true
+[%%expect{|
+type t = { field1 : t; field2 : t; }
+val free : unique_ t -> unit @@ global many = <fun>
+val free_field : ('a : value_or_null). unique_ 'a -> unit @@ global many =
+  <fun>
+val store : t -> unit @@ global many = <fun>
+val store_field : ('a : value_or_null). 'a -> unit @@ global many = <fun>
+val flip_coin : unit -> bool @@ global many = <fun>
+|}]
+
+let okay t =
+  if flip_coin ()
+  then free t
+  else (store t; store t)
+[%%expect{|
+val okay : unique_ t -> unit @@ global many = <fun>
+|}]
+
+let okay r =
+  free r.field1;
+  match r with
+  | { field2 } -> free field2
+[%%expect{|
+val okay : unique_ t -> unit @@ global many = <fun>
+|}]
+
+let bad r =
+  free r.field1;
+  match r with
+  | { field2 } -> free r
+[%%expect{|
+Line 4, characters 23-24:
+4 |   | { field2 } -> free r
+                           ^
+Error: This value is used here,
+       but part of it has already been used as unique:
+Line 2, characters 7-15:
+2 |   free r.field1;
+           ^^^^^^^^
+
+|}]
+
+let okay r =
+  let x = r in
+  free x.field1;
+  match r with
+  | { field2 } -> free field2
+[%%expect{|
+val okay : unique_ t -> unit @@ global many = <fun>
+|}]
+
+let bad r =
+  let x = Fun.id r in
+  free x.field1;
+  match r with
+  | { field2 } -> free field2
+[%%expect{|
+Line 3, characters 7-15:
+3 |   free x.field1;
+           ^^^^^^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let check_tuple x y z =

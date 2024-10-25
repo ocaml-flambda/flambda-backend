@@ -20,7 +20,7 @@ val store : t @ aliased -> unit
 let okay t =
   if flip_coin ()
   then free t
-  else store t; store t
+  else (store t; store t)
 ```
 
 This might be surprising coming from a language that uses ownership like Rust.
