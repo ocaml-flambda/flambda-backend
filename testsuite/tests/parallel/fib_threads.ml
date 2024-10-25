@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-alert -unsafe_parallelism";
  runtime5;
  include systhreads;
  hassysthreads;

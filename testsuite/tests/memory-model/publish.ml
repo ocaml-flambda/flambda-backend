@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-alert -unsafe_parallelism";
  modules = "opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml";
  not-bsd;
  no-tsan; (* tsan detects data races and fails *)
