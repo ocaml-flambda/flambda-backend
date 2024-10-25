@@ -987,7 +987,7 @@ let report_error ppf =
   | Illegal_import_of_parameter(modname, filename) ->
       fprintf ppf
         "@[<hov>The file %a@ contains the interface of a parameter.@ \
-         %a is not declared as a parameter for the current unit.@]@.\
+         %a@ is not declared as a parameter for the current unit.@]@.\
          @[<hov>@{<hint>Hint@}: \
            @[<hov>Compile the current unit with \
            @{<inline_code>-parameter %a@}.@]@]"
@@ -1021,7 +1021,7 @@ let report_error ppf =
         match valid_parameters with
         | [] ->
             fprintf ppf
-              "Compile %a@ with @{<inline_code>-parameter %a@} to make it a \
+              "Compile %a@ with @{<inline_code>-parameter %a@}@ to make it a \
                parameter."
               (Style.as_inline_code CU.Name.print) modname
               Global_module.Name.print param
@@ -1030,22 +1030,22 @@ let report_error ppf =
             Format.pp_print_list ~pp_sep:Format.pp_print_space
               (Style.as_inline_code Global_module.Name.print)
           in
-          fprintf ppf "Valid parameters for %a:@ @[<hov>%a@]"
+          fprintf ppf "Parameters for %a:@ @[<hov>%a@]"
             (Style.as_inline_code CU.Name.print) modname
             print_params valid_parameters
       in
       fprintf ppf
-        "@[<hov>%a@ is not a valid parameter for the module %a.@]@.\
-         @[<hov>@{<hint>Hint@}: %a@]"
-        (Style.as_inline_code Global_module.Name.print) param
+        "@[<hov>The module %a@ has no parameter %a.@]@.\
+         @[<hov>@{<hint>Hint@}: @[<hov>%a@]@]"
         (Style.as_inline_code CU.Name.print) modname
+        (Style.as_inline_code Global_module.Name.print) param
         pp_hint ()
   | Not_compiled_as_argument { param; value; filename } ->
       fprintf ppf
         "@[<hov>The module %a@ cannot be used as an argument for parameter \
            %a.@]@.\
-         @[<hov>@{<hint>Hint@}: Compile %a with \
-           @{<inline_code>-as-argument-for %a@}.@]"
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Compile %a@ with @{<inline_code>-as-argument-for %a@}.@]@]"
         (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) param
         (Style.as_inline_code Location.print_filename) filename
@@ -1053,11 +1053,16 @@ let report_error ppf =
   | Argument_type_mismatch { value; filename; expected; actual; } ->
       fprintf ppf
         "@[<hov>The module %a@ is used as an argument for the parameter %a@ \
-         but %a@ was compiled as an argument for %a.@]"
+         but %a@ is an argument for %a.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>%a@ was compiled with \
+             @{<inline_code>-as-argument-for %a@}.@]@]"
         (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) expected
-        (Style.as_inline_code Location.print_filename) filename
+        (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) actual
+        (Style.as_inline_code Location.print_filename) filename
+        Global_module.Name.print expected
   | Inconsistent_global_name_resolution
       { name; old_global; new_global; first_mentioned_by; now_mentioned_by } ->
       fprintf ppf
