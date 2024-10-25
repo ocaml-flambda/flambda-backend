@@ -80,6 +80,8 @@ module Unique_barrier : sig
 
   (* Resolve the unique barrier once type-checking is complete. *)
   val resolve : t -> Mode.Uniqueness.Const.t
+
+  val print : Format.formatter -> t -> unit
 end
 
 (** A unique use annotates accesses to an allocation.
@@ -97,6 +99,8 @@ end
     Furthermore, if there is more than one access to an allocation,
     its actual_mode will have to be many. *)
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
+
+val print_unique_use : Format.formatter -> unique_use -> unit
 
 type alloc_mode = {
   mode : Mode.Alloc.r;

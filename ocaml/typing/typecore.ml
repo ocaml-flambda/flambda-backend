@@ -26,7 +26,6 @@ open Mode
 open Typedtree
 open Btype
 open Ctype
-open Uniqueness_analysis
 
 type comprehension_type =
   | List_comprehension
@@ -9702,11 +9701,11 @@ and type_send env loc explanation e met =
 
 let maybe_check_uniqueness_exp exp =
   if Language_extension.is_enabled Unique then
-    check_uniqueness_exp exp
+    Uniqueness_analysis.check_uniqueness_exp exp
 
 let maybe_check_uniqueness_value_bindings vbl =
   if Language_extension.is_enabled Unique then
-    check_uniqueness_value_bindings vbl
+    Uniqueness_analysis.check_uniqueness_value_bindings vbl
 
 (* Typing of toplevel bindings *)
 

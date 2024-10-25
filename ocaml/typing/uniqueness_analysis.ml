@@ -22,12 +22,31 @@ open Typedtree
 module Uniqueness = Mode.Uniqueness
 module Linearity = Mode.Linearity
 
+module Print_utils = struct
+  open Format
+
+  let list elem ppf l =
+    fprintf ppf "@[[%a]@]"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ";@ ") elem)
+      l
+
+  module Map (M : Map.S) = struct
+    let print ~key ~value ppf map =
+      let open Format in
+      fprintf ppf "@[{:";
+      M.iter (fun k v -> fprintf ppf "@[%a :->@ %a@]" key k value v) map;
+      fprintf ppf ":}@]"
+  end
+end
+
 module Occurrence = struct
   (** The occurrence of a potentially unique ident in the expression. Currently
   it's just the location; might add more things in the future *)
   type t = { loc : Location.t }
 
   let mk loc = { loc }
+
+  let print ppf { loc } = Location.print_loc ppf loc
 end
 
 let rec iter_error f = function
@@ -64,6 +83,8 @@ module Maybe_unique : sig
       expected to be unique in any branch, it will return unique. If the current
       usage is forced, it will return aliased. *)
   val uniqueness : t -> Uniqueness.r
+
+  val print : Format.formatter -> t -> unit
 end = struct
   (** Occurrences with modes to be forced aliased and many in the future if
       needed. This is a list because of multiple control flows. For example, if
@@ -105,6 +126,14 @@ end = struct
   let extract_occurrence = function [] -> assert false | (_, occ) :: _ -> occ
 
   let meet l0 l1 = l0 @ l1
+
+  let print ppf t =
+    let open Format in
+    Print_utils.list
+      (fun ppf (uu, occ) ->
+        fprintf ppf "@[(%a,@ %a)@]" Typedtree.print_unique_use uu
+          Occurrence.print occ)
+      ppf t
 end
 
 module Maybe_aliased : sig
@@ -134,6 +163,10 @@ module Maybe_aliased : sig
   val meet : t -> t -> t
 
   val singleton : Occurrence.t -> access -> t
+
+  val print_access : Format.formatter -> access -> unit
+
+  val print : Format.formatter -> t -> unit
 end = struct
   type access =
     | Read of Unique_barrier.t
@@ -169,6 +202,19 @@ end = struct
         | Read barrier -> Unique_barrier.add_upper_bound uniq barrier
         | _ -> ())
       t
+
+  let print_access ppf =
+    let open Format in
+    function
+    | Read ub -> fprintf ppf "Read(%a)" Unique_barrier.print ub
+    | Write -> fprintf ppf "Write"
+
+  let print ppf t =
+    let open Format in
+    Print_utils.list
+      (fun ppf (occ, access) ->
+        fprintf ppf "(%a,%a)" Occurrence.print occ print_access access)
+      ppf t
 end
 
 module Aliased : sig
@@ -188,6 +234,8 @@ module Aliased : sig
   val extract_occurrence : t -> Occurrence.t
 
   val reason : t -> reason
+
+  val print : Format.formatter -> t -> unit
 end = struct
   type reason =
     | Forced
@@ -201,6 +249,15 @@ end = struct
   let extract_occurrence (occ, _) = occ
 
   let reason (_, reason) = reason
+
+  let print ppf (occ, reason) =
+    let open Format in
+    let print_reason ppf = function
+      | Forced -> fprintf ppf "Forced"
+      | Lazy -> fprintf ppf "Lazy"
+      | Lifted ma -> fprintf ppf "Lifted(%a)" Maybe_aliased.print_access ma
+    in
+    fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
 end
 
 (** Usage algebra
@@ -284,6 +341,8 @@ module Usage : sig
 
   (** Parallel composition *)
   val par : t -> t -> t
+
+  val print : Format.formatter -> t -> unit
 end = struct
   (* We have Unused (top) > Borrowed > Aliased > Unique > Error (bot).
 
@@ -497,6 +556,15 @@ end = struct
       force_aliased_multiuse l0 m1 First Seq;
       force_aliased_multiuse l1 m0 Second Seq;
       aliased (Maybe_unique.extract_occurrence l0) Aliased.Forced
+
+  let print ppf =
+    let open Format in
+    function
+    | Unused -> fprintf ppf "Unused"
+    | Borrowed occ -> fprintf ppf "Borrowed(%a)" Occurrence.print occ
+    | Maybe_aliased ma -> fprintf ppf "Maybe_aliased(%a)" Maybe_aliased.print ma
+    | Aliased a -> fprintf ppf "Aliased(%a)" Aliased.print a
+    | Maybe_unique mu -> fprintf ppf "Maybe_unique(%a)" Maybe_unique.print mu
 end
 
 module Tag : sig
@@ -546,6 +614,8 @@ module Tag : sig
       At the end of the analysis, this function should
       be called to ensure all overwrites are on known tags. *)
   val check_no_remaining_overwritten_as : t -> unit
+
+  val print : Format.formatter -> t -> unit
 end = struct
   type tag =
     { tag : Types.tag;
@@ -620,6 +690,17 @@ end = struct
     | OverwrittenAs l0 ->
       raise (Error (ChangedTag { old_tag = None; new_tag = l0 }))
     | _ -> ()
+
+  let print_tag ppf { name_for_error; _ } =
+    Pprintast.longident ppf name_for_error.txt
+
+  let print ppf =
+    let open Format in
+    function
+    | Unknown -> fprintf ppf "Unknown"
+    | TagKnown tag -> fprintf ppf "TagKnown(%a)" print_tag tag
+    | OverwrittenAs tag -> fprintf ppf "OverwrittenAs(%a)" print_tag tag
+    | InconsistentInformation -> fprintf ppf "InconsistentInformation"
 end
 
 module Projection : sig
@@ -632,6 +713,11 @@ module Projection : sig
     | Memory_address (* this is rendered as clubsuit in the ICFP'24 paper *)
 
   module Map : Map.S with type key = t
+
+  val print : Format.formatter -> t -> unit
+
+  val print_map :
+    (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a Map.t -> unit
 end = struct
   module T = struct
     type t =
@@ -670,6 +756,19 @@ end = struct
 
   include T
   module Map = Map.Make (T)
+
+  let print ppf =
+    let open Format in
+    function
+    | Tuple_field n -> fprintf ppf "Tuple_field(%d)" n
+    | Record_field l -> fprintf ppf "Record_field(%s)" l
+    | Construct_field (s, n) -> fprintf ppf "Construct_field(%s,%d)" s n
+    | Variant_field l -> fprintf ppf "Variant_field(%s)" l
+    | Memory_address -> fprintf ppf "Memory_address"
+
+  let print_map print_value ppf map =
+    let module M = Print_utils.Map (Map) in
+    M.print ~key:print ~value:print_value ppf map
 end
 
 type boundary_reason =
@@ -710,6 +809,8 @@ module Usage_tree : sig
 
     (** The path representing the root node *)
     val root : t
+
+    val print : Format.formatter -> t -> unit
   end
 
   (** Usage tree, lifted from [Usage.t] *)
@@ -735,6 +836,8 @@ module Usage_tree : sig
 
   (** Remove all usage information except tags *)
   val extract_tags : t -> t
+
+  val print : Format.formatter -> t -> unit
 end = struct
   (** Represents a tree of usage. Each node records the choose on all possible
      execution paths. As a result, trees such as `S -> U` is valid, even though
@@ -758,6 +861,8 @@ end = struct
     let child (a : Projection.t) (p : t) : t = p @ [a]
 
     let root : t = []
+
+    let print ppf t = Print_utils.list Projection.print ppf t
   end
 
   let mapi_aux projs f t =
@@ -831,6 +936,12 @@ end = struct
   let rec extract_tags { children; tag } =
     let children = Projection.Map.map extract_tags children in
     { children; tag; usage = Usage.empty }
+
+  let rec print ppf { children; usage; tag } =
+    let open Format in
+    fprintf ppf "@[{ children = %a;@ usage = %a;@ tag = %a }@]"
+      (Projection.print_map print)
+      children Usage.print usage Tag.print tag
 end
 
 (** Lift Usage_tree to forest *)
@@ -843,6 +954,8 @@ module Usage_forest : sig
 
     (** Create a fresh tree in the forest *)
     val fresh_root : unit -> t
+
+    val print : Format.formatter -> t -> unit
   end
 
   (** Represents a forest of usage. *)
@@ -877,6 +990,8 @@ module Usage_forest : sig
 
   (** Remove all usage information except tags *)
   val extract_tags : t -> t
+
+  val print : Format.formatter -> t -> unit
 end = struct
   module Root_id = struct
     module T = struct
@@ -895,6 +1010,8 @@ end = struct
       let id = !stamp in
       stamp := id + 1;
       { id }
+
+    let print ppf { id } = Format.fprintf ppf "{%d}" id
   end
 
   type t = Usage_tree.t Root_id.Map.t
@@ -906,6 +1023,11 @@ end = struct
       rootid, Usage_tree.Path.child proj path
 
     let fresh_root () : t = Root_id.fresh (), Usage_tree.Path.root
+
+    let print ppf (root_id, path) =
+      let open Format in
+      fprintf ppf "@[(%a,@ %a)@]" Root_id.print root_id Usage_tree.Path.print
+        path
   end
 
   let unused = Root_id.Map.empty
@@ -947,6 +1069,13 @@ end = struct
       t
 
   let extract_tags t = Root_id.Map.map Usage_tree.extract_tags t
+
+  let print ppf t =
+    let open Format in
+    let module M = Print_utils.Map (Root_id.Map) in
+    M.print
+      ~key:(fun ppf { id } -> fprintf ppf "%d" id)
+      ~value:Usage_tree.print ppf t
 end
 
 module UF = Usage_forest
@@ -999,6 +1128,8 @@ module Paths : sig
   val overwrite_tag : Tag.tag -> t -> UF.t
 
   val learn_tag : Tag.tag -> t -> UF.t
+
+  val print : Format.formatter -> t -> unit
 end = struct
   type t = UF.Path.t list
 
@@ -1049,6 +1180,8 @@ end = struct
   let overwrite_tag tag paths = mark Usage.empty (Tag.OverwrittenAs tag) paths
 
   let learn_tag tag paths = mark Usage.empty (Tag.TagKnown tag) paths
+
+  let print ppf t = Print_utils.list UF.Path.print ppf t
 end
 
 let force_aliased_boundary unique_use occ ~reason =
@@ -1097,6 +1230,8 @@ module Value : sig
   val mark_aliased : reason:boundary_reason -> t -> UF.t
 
   val overwrite_tag : Tag.tag -> t -> UF.t
+
+  val print : Format.formatter -> t -> unit
 end = struct
   type t =
     | Fresh
@@ -1149,6 +1284,14 @@ end = struct
   let overwrite_tag tag = function
     | Fresh -> UF.unused
     | Existing { paths; _ } -> Paths.overwrite_tag tag paths
+
+  let print ppf =
+    let open Format in
+    function
+    | Fresh -> fprintf ppf "Fresh"
+    | Existing { paths; unique_use; occ } ->
+      fprintf ppf "@[{ paths = %a;@ unique_use = %a;@ occ = %a }@]" Paths.print
+        paths Typedtree.print_unique_use unique_use Occurrence.print occ
 end
 
 module Ienv : sig
@@ -1171,6 +1314,8 @@ module Ienv : sig
 
     val singleton : Ident.t -> Paths.t -> t
     (* Constructing a mapping with only one mapping  *)
+
+    val print : Format.formatter -> t -> unit
   end
 
   (** Mapping from identifiers to a list of possible nodes, each represented by
@@ -1185,6 +1330,8 @@ module Ienv : sig
 
   (** Find the list of paths corresponding to an identifier  *)
   val find_opt : Ident.t -> t -> Paths.t option
+
+  val print : Format.formatter -> t -> unit
 end = struct
   module Extension = struct
     type t = Paths.t Ident.Map.t
@@ -1211,6 +1358,10 @@ end = struct
     let conjuncts = List.fold_left conjunct empty
 
     let singleton id locs = Ident.Map.singleton id locs
+
+    let print ppf t =
+      let module M = Print_utils.Map (Ident.Map) in
+      M.print ~key:Ident.print ~value:Paths.print ppf t
   end
 
   type t = Paths.t Ident.Map.t
@@ -1224,6 +1375,10 @@ end = struct
       t ex
 
   let find_opt = Ident.Map.find_opt
+
+  let print ppf t =
+    let module M = Print_utils.Map (Ident.Map) in
+    M.print ~key:Ident.print ~value:Paths.print ppf t
 end
 
 (* The fun algebraic stuff ends. Here comes the concrete mess *)
