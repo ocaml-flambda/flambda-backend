@@ -33,7 +33,7 @@ let delay_free : t @ unique -> (unit -> unit) @ once = fun t -> fun () -> free t
 
 ## Modalities
 
-These modes form two mode axis: the _uniqueness_ of a value is either `unique`
+These modes form two mode axes: the _uniqueness_ of a value is either `unique`
 or `aliased`, while the _affinity_ of a value is `once` or `many`. Similar to
 [locality](../local/intro.md), uniqueness and affinity are deep properties. If a
 value is at mode `unique` then all of its children are also `unique`. If a value
@@ -64,8 +64,8 @@ be used as `many` but not as `unique`.
 ## Checking for Uniqueness
 
 The compiler performs a sophisticated analysis to determine which values are
-aliased and which ones are unique. For example, it is fine to match on a value
-and then use it:
+aliased and which ones are unique. For example, it is fine to match on a unique
+value and then use it:
 
 ```ocaml
 let okay t =
@@ -84,8 +84,8 @@ let bad t =
 ```
 
 In the `bad` function above, the `free t` assumes that it gets all of `t`
-uniquely, but this is not true if the `field` has been freed previously. However,
-we can use parts of `t` twice if these uses happen in different branches:
+uniquely, but this is not true if `field` has already been freed. However, we
+can use parts of `t` twice if these uses happen in different branches:
 
 ```ocaml
 let okay t =

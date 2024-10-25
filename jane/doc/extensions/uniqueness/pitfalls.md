@@ -10,16 +10,16 @@ If you want an introduction to uniqueness, see the [introduction](intro.md).
 ## Annotating unique return values
 
 When the compiler infers uniqueness, it will only mark values as `unique` if
-they are actually used as `unique`. For example, if create a smart constructor:
+they are actually used as `unique`. For example, given a smart constructor:
 
 ```ocaml
 let mk () = { x = 1 }
 ```
 
-This value is not unique by default. This helps the compiler identify static
+The result is not unique by default. This helps the compiler identify static
 allocations: as long as `mk ()` returns an `aliased` value, the compiler can
 lift out the allocation so that `mk ()` returns the same pointer on each
-invokation. However, you might want to annotate this allocation as `unique`:
+invocation. However, you might want to annotate this allocation as `unique`:
 
 ```ocaml
 let mk () = unique_ { x = 1 }
@@ -42,7 +42,7 @@ the return mode `unique` if there is any unique use of the result of `mk ()`:
 let use () = free (mk ())
 ```
 
-This code checks even if `mk` is not annotated, because, now that the need as
+This code typechecks even if `mk` is not annotated, because, now that a need has
 arisen, the compiler has inferred the return mode of `mk` to be `unique`.
 However, this analysis happens on a per module basis. If we abstract `mk` into
 its own module we will get a mode error:
