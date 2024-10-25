@@ -696,9 +696,24 @@ type overwrite =
       Types.type_expr * (* type of expression *)
       Value.l           (* mode of kept fields *)
 
-let assign_children n f = function
+(** A version of [overwrite] for passing to [type_label_exp], which requires
+    the type of the *record* and the mode of the *label*. *)
+type label_overwrite =
+  | No_overwrite_label
+  | Overwrite_label of
+      Types.type_expr * (* the type of the record *)
+      Value.l           (* the mode of the label expression, already accounting
+                           for modalities *)
+
+let assign_children ~no n f = function
+  | No_overwrite
+  | Assigning _ (* this is actually a type error, but it's caught elsewhere *)
+    -> List.init n (fun _ -> no)
   | Overwriting(loc, typ, mode) -> f loc typ mode
-  | _ -> List.init n (fun _ -> No_overwrite)
+
+let assign_label_children = assign_children ~no:No_overwrite_label
+
+let assign_children = assign_children ~no:No_overwrite
 
 let rec can_be_overwritten = function
   | Pexp_constraint (e, _, _) -> can_be_overwritten e.pexp_desc
@@ -5753,11 +5768,11 @@ and type_expect_
         type_label_exp ~overwrite true env argument_mode loc ty_record x
       in
       let overwrites =
-        assign_children (List.length lbl_a_list)
+        assign_label_children (List.length lbl_a_list)
           (fun _loc ty mode -> (* only change mode here, see type_label_exp *)
              List.map (fun (_, label, _) ->
                let mode = Modality.Value.Const.apply label.lbl_modalities mode in
-               Assigning(ty, mode))
+               Overwrite_label(ty, mode))
              lbl_a_list)
           overwrite
       in
@@ -5929,7 +5944,7 @@ and type_expect_
           submode ~loc:record.exp_loc ~env rmode mode_mutate_mutable;
           let mode = mutable_mode m0 |> mode_default in
           let mode = mode_modality label.lbl_modalities mode in
-          type_label_exp ~overwrite:No_overwrite false env mode loc ty_record
+          type_label_exp ~overwrite:No_overwrite_label false env mode loc ty_record
             (lid, label, snewval)
         | Immutable ->
           raise(Error(loc, env, Label_not_mutable lid.txt))
@@ -7526,13 +7541,9 @@ and type_label_exp ~overwrite create env (arg_mode : expected_mode) loc ty_expec
       let snap = if vars = [] then None else Some (Btype.snapshot ()) in
       let overwrite =
         match overwrite with
-        | No_overwrite -> No_overwrite
-        | Overwriting(loc, ty, mode) ->
-          (* mode is correct already, see Pexp_record *)
-          let (_, ty_arg) = unify_as_label ty in
-          Overwriting(loc, ty_arg, mode)
-        | Assigning(ty, mode) ->
-           (* mode is correct already, see Pexp_record *)
+        | No_overwrite_label -> No_overwrite
+        | Overwrite_label(ty, mode) ->
+           (* mode is correct already, like [arg_mode] *)
            let (_, ty_arg) = unify_as_label ty in
            Assigning(ty_arg, mode)
       in
