@@ -3495,7 +3495,6 @@ let lookup_module_instance_path ~errors ~use ~lock ~loc ~load name env =
   (* The locks are whatever locks we would find if we went through
      [lookup_module_path] on a module not found in the environment *)
   let locks = IdTbl.get_all_locks env.modules in
-  (* Perform all the same side effects that a lookup on a global would have *)
   let path =
     if !Clflags.transparent_modules && not load then
       let path, () =
