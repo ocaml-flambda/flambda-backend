@@ -46,17 +46,11 @@ ${main} -conf --disable-flat-float-array \
 
 echo "============== flambda ================="
 ${main} -conf --enable-flambda
-<<<<<<< HEAD
-${main} -conf --enable-frame-pointers
-||||||| 121bedcfd2
-${main} -conf --enable-frame-pointers -conf --enable-reserved-header-bits=27
-=======
 
 echo "============== frame pointers, reserved header bits ================="
 ${main} -conf --enable-frame-pointers -conf --enable-reserved-header-bits=27
 
 echo "============== bootstrap, pic ================="
->>>>>>> 5.2.0
 ${main} -with-bootstrap -conf --with-pic
 
 echo "============== cleanup at exit, clang ================="
