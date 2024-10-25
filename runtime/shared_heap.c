@@ -1323,6 +1323,7 @@ void caml_compact_heap(caml_domain_state* domain_state,
       heap->stats.pool_words -= POOL_WSIZE;
       heap->stats.pool_frag_words -= POOL_HEADER_WSIZE + wastage_sizeclass[sz];
       last = cur_pool;
+      cur_pool->owner = NULL;
       cur_pool = cur_pool->next;
       freed_pools++;
     }
