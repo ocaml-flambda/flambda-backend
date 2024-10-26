@@ -1339,6 +1339,11 @@ let default_to_value t = ignore (get_layout_defaulting_to_value t)
 
 let get t = Jkind_desc.get t.jkind
 
+let get_const t =
+  match Layout.get t.jkind.layout with
+  | None -> None
+  | Some layout -> Some { t.jkind with layout }
+
 (* CR layouts: this function is suspect; it seems likely to reisenberg
    that refactoring could get rid of it *)
 let sort_of_jkind (t : jkind_l) : sort =

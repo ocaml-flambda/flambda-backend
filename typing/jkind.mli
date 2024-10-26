@@ -412,6 +412,10 @@ val get : 'd t -> 'd Desc.t
     any sort variable to [value]. *)
 val get_layout_defaulting_to_value : 'd t -> Layout.Const.t
 
+(** [get_const] returns a [Const.t] if the layout has no sort variables,
+    returning [None] otherwise *)
+val get_const : 'd t -> 'd Const.t option
+
 (** [default_to_value t] is [ignore (get_layout_defaulting_to_value t)] *)
 val default_to_value : 'd t -> unit
 
