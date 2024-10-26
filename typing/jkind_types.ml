@@ -535,8 +535,6 @@ module Layout = struct
   end
 end
 
-module Modes = Mode.Alloc.Const
-
 module Layout_and_axes = struct
   type ('layout, +'d) t =
     { layout : 'layout;
@@ -578,11 +576,5 @@ type ('type_expr, 'd) t =
   }
 
 module Const = struct
-  type ('type_expr, +'d) t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
-    constraint 'd = 'l * 'r
+  type ('type_expr, +'d) t = (Layout.Const.t, 'd) Layout_and_axes.t
 end
