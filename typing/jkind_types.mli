@@ -159,11 +159,5 @@ type ('type_expr, +'d) t =
 
 (** CR layouts v2.8: remove this when printing is improved *)
 module Const : sig
-  type ('type_expr, +'d) t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Mode.Alloc.Const.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
-    constraint 'd = 'l * 'r
+  type ('type_expr, +'d) t = (Layout.Const.t, 'd) Layout_and_axes.t
 end

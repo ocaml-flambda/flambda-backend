@@ -344,7 +344,7 @@ end
 let raise ~loc err = raise (Error.User_error (loc, err))
 
 module Const = struct
-  open Jkind_types.Const
+  open Jkind_types.Layout_and_axes
 
   type 'd t = 'd const
 
@@ -412,7 +412,7 @@ module Const = struct
         Externality.less_or_equal ext1 ext2;
         Nullability.less_or_equal null1 null2 ]
 
-  let of_layout ~mode_crossing ~nullability layout =
+  let of_layout ~mode_crossing ~nullability (layout : Layout.Const.t) =
     let modes_upper_bounds, externality_upper_bound =
       match mode_crossing with
       | true -> Modes.min, Externality.min
@@ -786,7 +786,7 @@ module Const = struct
         ([], Modes.min, Externality.min, Nullability.min)
         jkinds
     in
-    { layout = Product (List.rev layouts);
+    { layout = Layout.Const.Product (List.rev layouts);
       modes_upper_bounds = mode_ub;
       externality_upper_bound = ext_ub;
       nullability_upper_bound = null_ub
