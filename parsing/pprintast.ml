@@ -1482,28 +1482,12 @@ and module_type1 ctxt f x =
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
 
-<<<<<<< HEAD
-and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
-||||||| b4bc395006
-and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
-  function
-  | Jmty_strengthen _ as jmty ->
-      paren true (module_type_jane_syntax ctxt attrs) f jmty
-
-and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
-=======
-and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
-  function
-  | Jmty_strengthen _ as jmty ->
-      paren true (module_type_jane_syntax ctxt attrs) f jmty
-
 and signature ctxt f {psg_items; psg_modalities} =
   optional_atat_modalities_newline f psg_modalities;
   signature_items ctxt f psg_items
 
 and signature_items ctxt f items =
   list ~sep:"@\n" (signature_item ctxt) f items
->>>>>>> origin/main
 
 and signature_item ctxt f x : unit =
   match x.psig_desc with

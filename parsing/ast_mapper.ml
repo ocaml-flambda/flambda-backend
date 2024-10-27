@@ -733,13 +733,6 @@ let default_mapper =
     structure = (fun this l -> List.map (this.structure_item this) l);
     structure_item = M.map_structure_item;
     module_expr = M.map;
-<<<<<<< HEAD
-    signature = (fun this l -> List.map (this.signature_item this) l);
-||||||| b4bc395006
-    module_expr_jane_syntax = M.map_ext;
-    signature = (fun this l -> List.map (this.signature_item this) l);
-=======
-    module_expr_jane_syntax = M.map_ext;
     signature =
       (fun this {psg_items; psg_modalities; psg_loc} ->
         let psg_modalities = this.modalities this psg_modalities in
@@ -747,7 +740,6 @@ let default_mapper =
         let psg_loc = this.location this psg_loc in
         {psg_items; psg_modalities; psg_loc}
       );
->>>>>>> origin/main
     signature_item = MT.map_signature_item;
     module_type = MT.map;
     with_constraint = MT.map_with_constraint;
