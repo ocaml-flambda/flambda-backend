@@ -203,6 +203,9 @@ val add_ppx_context_sig:
     tool_name:string -> Parsetree.signature -> Parsetree.signature
 (** Same as [add_ppx_context_str], but for signatures. *)
 
+val add_ppx_context_sig_items:
+    tool_name:string -> Parsetree.signature_item list -> Parsetree.signature_item list
+
 val drop_ppx_context_str:
     restore:bool -> Parsetree.structure -> Parsetree.structure
 (** Drop the ocaml.ppx.context attribute from a structure.  If
@@ -212,6 +215,9 @@ val drop_ppx_context_str:
 val drop_ppx_context_sig:
     restore:bool -> Parsetree.signature -> Parsetree.signature
 (** Same as [drop_ppx_context_str], but for signatures. *)
+
+val drop_ppx_context_sig_items:
+    restore:bool -> Parsetree.signature_item list -> Parsetree.signature_item list
 
 (** {1 Cookies} *)
 

@@ -833,7 +833,9 @@ and module_type i ppf x =
       line i ppf "Pmty_strengthen %a\n" fmt_longident lid.txt;
       module_type i ppf m
 
-and signature i ppf x = list i signature_item ppf x
+and signature i ppf {psg_items; psg_modalities} =
+  modalities i ppf psg_modalities;
+  list i signature_item ppf psg_items
 
 and signature_item i ppf x =
   line i ppf "signature_item %a\n" fmt_location x.psig_loc;
@@ -1161,7 +1163,9 @@ and directive_argument i ppf x =
   | Pdir_ident (li) -> line i ppf "Pdir_ident %a\n" fmt_longident li
   | Pdir_bool (b) -> line i ppf "Pdir_bool %s\n" (string_of_bool b)
 
-let interface ppf x = list 0 signature_item ppf x
+let interface ppf {psg_items; psg_modalities} =
+  modalities 0 ppf psg_modalities;
+  list 0 signature_item ppf psg_items
 
 let implementation ppf x = list 0 structure_item ppf x
 

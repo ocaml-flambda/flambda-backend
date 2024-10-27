@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-alert -unsafe_parallelism";
  modules = "test_c_thread_register_cstubs.c";
  runtime5;
  include systhreads;

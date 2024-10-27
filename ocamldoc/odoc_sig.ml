@@ -1625,15 +1625,15 @@ module Analyser =
           Module_type_alias { mta_name = Odoc_env.full_module_name env name ;
                               mta_module = None }
 
-      | Parsetree.Pmty_signature ast ->
+      | Parsetree.Pmty_signature {psg_items; _} ->
           (
-           let ast = filter_out_erased_items_from_signature erased ast in
+           let psg_items = filter_out_erased_items_from_signature erased psg_items in
            (* we must have a signature in the module type *)
            match sig_module_type with
              Types.Mty_signature signat ->
                let pos_start = Loc.start module_type.Parsetree.pmty_loc in
                let pos_end = Loc.end_ module_type.Parsetree.pmty_loc in
-               let elements = analyse_parsetree env signat current_module_name pos_start pos_end ast in
+               let elements = analyse_parsetree env signat current_module_name pos_start pos_end psg_items in
                Module_type_struct elements
            | _ ->
                raise (Failure "Parsetree.Pmty_signature signature but not Types.Mty_signature signat")
@@ -1719,9 +1719,9 @@ module Analyser =
             | _ ->
               raise (Failure "Parsetree.Pmty_alias _ but not Types.Mty_alias _")
            end
-      | Parsetree.Pmty_signature signature ->
+      | Parsetree.Pmty_signature {psg_items; _} ->
           (
-           let signature = filter_out_erased_items_from_signature erased signature in
+           let psg_items = filter_out_erased_items_from_signature erased psg_items in
            match sig_module_type with
              Types.Mty_signature signat ->
                Module_struct
@@ -1731,7 +1731,7 @@ module Analyser =
                     current_module_name
                     (Loc.start module_type.Parsetree.pmty_loc)
                     (Loc.end_ module_type.Parsetree.pmty_loc)
-                    signature
+                    psg_items
                  )
            | _ ->
                (* if we're here something's wrong *)
@@ -1900,15 +1900,15 @@ module Analyser =
           raise (Failure "analyse_class_type_kind: match failure")
 
     let analyse_signature source_file input_file
-        (ast : Parsetree.signature) (signat : Types.signature) =
+        ({psg_items; _} : Parsetree.signature) (signat : Types.signature) =
       prepare_file source_file input_file;
       (* We create the t_module for this file. *)
       let mod_name = Unit_info.modname_from_source source_file in
       let len, info_opt = preamble !file_name !file
-          (fun x -> x.Parsetree.psig_loc) ast in
-      let info_opt = analyze_toplevel_alerts info_opt ast in
+          (fun x -> x.Parsetree.psig_loc) psg_items in
+      let info_opt = analyze_toplevel_alerts info_opt psg_items in
       let elements =
-        analyse_parsetree Odoc_env.empty signat mod_name len (String.length !file) ast
+        analyse_parsetree Odoc_env.empty signat mod_name len (String.length !file) psg_items
       in
       let code_intf =
         if !Odoc_global.keep_code then

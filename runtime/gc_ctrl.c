@@ -52,6 +52,7 @@ extern uintnat caml_custom_minor_max_bsz; /* see custom.c */
 extern uintnat caml_minor_heap_max_wsz;   /* see domain.c */
 extern uintnat caml_custom_work_max_multiplier; /* see major_gc.c */
 extern uintnat caml_prelinking_in_use;    /* see startup_nat.c */
+extern uintnat caml_compact_unmap;        /* see shared_heap.c */
 
 CAMLprim value caml_gc_quick_stat(value v)
 {
@@ -428,7 +429,8 @@ struct gc_tweak {
 };
 static struct gc_tweak gc_tweaks[] = {
   { "custom_work_max_multiplier", &caml_custom_work_max_multiplier, 0 },
-  { "prelinking_in_use", &caml_prelinking_in_use, 0 }
+  { "prelinking_in_use", &caml_prelinking_in_use, 0 },
+  { "compact_unmap", &caml_compact_unmap, 0 },
 };
 enum {N_GC_TWEAKS = sizeof(gc_tweaks)/sizeof(gc_tweaks[0])};
 

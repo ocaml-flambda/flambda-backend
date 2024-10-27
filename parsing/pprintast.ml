@@ -379,10 +379,19 @@ let modality f m =
 let modalities f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") modality f m
 
-let optional_atat_modalities f m =
+let optional_atat_modalities ?(pre = fun _ () -> ()) ?(post = fun _ () -> ()) f m =
   match m with
   | [] -> ()
-  | m -> pp f " %@%@ %a" modalities m
+  | m ->
+    pre f ();
+    pp f "%@%@ %a" modalities m;
+    post f ()
+
+let optional_space_atat_modalities f m =
+  optional_atat_modalities ~pre:pp_print_space f m
+
+let optional_atat_modalities_newline f m =
+  optional_atat_modalities ~post:pp_print_newline f m
 
 (* helpers for printing both legacy/new mode syntax *)
 let split_out_legacy_modes =
@@ -410,7 +419,7 @@ let modalities_type pty ctxt f pca =
   pp f "%a%a%a"
     optional_legacy_modalities legacy
     (pty ctxt) pca.pca_type
-    optional_atat_modalities m
+    optional_space_atat_modalities m
 
 let include_kind f = function
   | Functor -> pp f "@ functor"
@@ -1188,7 +1197,7 @@ and value_description ctxt f x =
   (* note: value_description has an attribute field,
            but they're already printed by the callers this method *)
   pp f "@[<hov2>%a%a%a@]" (core_type ctxt) x.pval_type
-    optional_atat_modalities x.pval_modalities
+    optional_space_atat_modalities x.pval_modalities
     (fun f x ->
        if x.pval_prim <> []
        then pp f "@ =@ %a" (list constant_string) x.pval_prim
@@ -1402,7 +1411,7 @@ and include_ : 'a. ctxt -> formatter ->
 
 and sig_include ctxt f incl moda =
   include_ ctxt f ~contents:module_type incl;
-  optional_atat_modalities f moda
+  optional_space_atat_modalities f moda
 
 and kind_abbrev ctxt f name jkind =
   pp f "@[<hov2>kind_abbrev_@ %a@ =@ %a@]"
@@ -1464,15 +1473,37 @@ and module_type1 ctxt f x =
         pp f "%a" longident_loc li;
     | Pmty_alias li ->
         pp f "(module %a)" longident_loc li;
-    | Pmty_signature (s) ->
-        pp f "@[<hv0>@[<hv2>sig@ %a@]@ end@]" (* "@[<hov>sig@ %a@ end@]" *)
-          (list (signature_item ctxt)) s (* FIXME wrong indentation*)
+    | Pmty_signature {psg_items; psg_modalities} ->
+        pp f "@[<hv0>@[<hv2>sig%a@ %a@]@ end@]" (* "@[<hov>sig@ %a@ end@]" *)
+          optional_space_atat_modalities psg_modalities
+          (list (signature_item ctxt)) psg_items (* FIXME wrong indentation*)
     | Pmty_typeof me ->
         pp f "@[<hov2>module@ type@ of@ %a@]" (module_expr ctxt) me
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
 
+<<<<<<< HEAD
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
+||||||| b4bc395006
+and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
+  function
+  | Jmty_strengthen _ as jmty ->
+      paren true (module_type_jane_syntax ctxt attrs) f jmty
+
+and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
+=======
+and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
+  function
+  | Jmty_strengthen _ as jmty ->
+      paren true (module_type_jane_syntax ctxt attrs) f jmty
+
+and signature ctxt f {psg_items; psg_modalities} =
+  optional_atat_modalities_newline f psg_modalities;
+  signature_items ctxt f psg_items
+
+and signature_items ctxt f items =
+  list ~sep:"@\n" (signature_item ctxt) f items
+>>>>>>> origin/main
 
 and signature_item ctxt f x : unit =
   match x.psig_desc with
@@ -1950,7 +1981,7 @@ and record_declaration ctxt f lbls =
       optional_legacy_modalities legacy
       ident_of_name pld.pld_name.txt
       (core_type ctxt) pld.pld_type
-      optional_atat_modalities m
+      optional_space_atat_modalities m
       (attributes ctxt) pld.pld_attributes
   in
   pp f "{@\n%a}"
@@ -2279,6 +2310,7 @@ let class_type = print_reset_with_maximal_extensions class_type
 let class_signature = print_reset_with_maximal_extensions class_signature
 let structure_item = print_reset_with_maximal_extensions structure_item
 let signature_item = print_reset_with_maximal_extensions signature_item
+let signature_items = print_reset_with_maximal_extensions signature_items
 let binding = print_reset_with_maximal_extensions binding
 let payload = print_reset_with_maximal_extensions payload
 let type_declaration = print_reset_with_maximal_extensions type_declaration

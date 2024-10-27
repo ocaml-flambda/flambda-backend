@@ -718,8 +718,11 @@ let module_type_declaration sub mtd =
     ?typ:(Option.map (sub.module_type sub) mtd.mtd_type)
     (map_loc sub mtd.mtd_name)
 
-let signature sub sg =
-  List.map (sub.signature_item sub) sg.sig_items
+let signature sub {sig_items; sig_modalities; sig_sloc} =
+  let psg_items = List.map (sub.signature_item sub) sig_items in
+  let psg_modalities = Typemode.untransl_modalities Immutable [] sig_modalities in
+  let psg_loc = sub.location sub sig_sloc in
+  {psg_items; psg_modalities; psg_loc}
 
 let signature_item sub item =
   let loc = sub.location sub item.sig_loc in

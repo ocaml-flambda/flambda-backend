@@ -337,6 +337,12 @@ module Sig:
     val text: text -> signature_item list
   end
 
+module Sg:
+  sig
+    val mk : ?loc:loc -> ?modalities:modality with_loc list ->
+      signature_item list -> signature
+  end
+
 (** Structure items *)
 module Str:
   sig

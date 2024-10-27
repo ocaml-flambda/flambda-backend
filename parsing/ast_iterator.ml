@@ -645,7 +645,20 @@ let default_iterator =
     structure = (fun this l -> List.iter (this.structure_item this) l);
     structure_item = M.iter_structure_item;
     module_expr = M.iter;
+<<<<<<< HEAD
     signature = (fun this l -> List.iter (this.signature_item this) l);
+||||||| b4bc395006
+    module_expr_jane_syntax = M.iter_ext;
+    signature = (fun this l -> List.iter (this.signature_item this) l);
+=======
+    module_expr_jane_syntax = M.iter_ext;
+    signature =
+      (fun this {psg_loc; psg_items; psg_modalities} ->
+        this.location this psg_loc;
+        this.modalities this psg_modalities;
+        List.iter (this.signature_item this) psg_items
+      );
+>>>>>>> origin/main
     signature_item = MT.iter_signature_item;
     module_type = MT.iter;
     with_constraint = MT.iter_with_constraint;

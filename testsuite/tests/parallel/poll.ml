@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-alert -unsafe_parallelism";
  poll-insertion;
  include unix;
  hasunix;
