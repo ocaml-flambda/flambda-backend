@@ -19,6 +19,18 @@ Line 1, characters 13-18:
 Error: The extension "immutable_arrays" is disabled and cannot be used
 |}]
 
+let iarray_pattern x =
+  match x with
+  | [: :] -> ()
+
+[%%expect{|
+Line 3, characters 4-9:
+3 |   | [: :] -> ()
+        ^^^^^
+Error: The extension "immutable_arrays" is disabled and cannot be used
+|}]
+
+
 module Module_instance = A(B)(C) [@jane.non_erasable.instances]
 
 [%%expect{|

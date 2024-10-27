@@ -2857,7 +2857,9 @@ and type_pat_aux
       let mut =
         match mut with
         | Mutable -> Mutable Alloc.Comonadic.Const.legacy
-        | Immutable -> Immutable
+        | Immutable ->
+            Language_extension.assert_enabled ~loc Immutable_arrays ();
+            Immutable
       in
       type_pat_array mut spl sp.ppat_attributes
   | Ppat_or(sp1, sp2) ->
