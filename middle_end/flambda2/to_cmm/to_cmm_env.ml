@@ -160,7 +160,10 @@ type t =
     (* All bindings currently in env. *)
     inline_once_aliases : Variable.t Variable.Map.t;
     (* Maps for `Must_inline_once` variable that end up aliased. *)
-    stages : stage list (* Stages of let-bindings, most recent at the head. *)
+    stages : stage list; (* Stages of let-bindings, most recent at the head. *)
+    code_ids_kept_for_zero_alloc : Code_id.Set.t
+        (* Code IDs that should never be deleted, as propagated from
+           [Simplify]. *)
   }
 
 type translation_result =
@@ -240,7 +243,7 @@ let print ppf t =
 (* Creation *)
 
 let create offsets functions_info ~trans_prim ~return_continuation
-    ~exn_continuation =
+    ~exn_continuation ~code_ids_kept_for_zero_alloc =
   { return_continuation;
     exn_continuation;
     offsets;
@@ -254,12 +257,14 @@ let create offsets functions_info ~trans_prim ~return_continuation
     vars = Variable.Map.empty;
     conts = Continuation.Map.empty;
     exn_handlers = Continuation.Set.singleton exn_continuation;
-    exn_conts_extra_args = Continuation.Map.empty
+    exn_conts_extra_args = Continuation.Map.empty;
+    code_ids_kept_for_zero_alloc
   }
 
 let enter_function_body env ~return_continuation ~exn_continuation =
   create env.offsets env.functions_info ~trans_prim:env.trans_prim
     ~return_continuation ~exn_continuation
+    ~code_ids_kept_for_zero_alloc:env.code_ids_kept_for_zero_alloc
 
 (* Debuginfo *)
 
@@ -1024,3 +1029,5 @@ let flush_delayed_lets ~mode env res =
   in
   let flush e = wrap_flush !bindings_to_flush e in
   flush, { env with stages = []; bindings = bindings_to_keep }, !res
+
+let code_ids_kept_for_zero_alloc t = t.code_ids_kept_for_zero_alloc

@@ -25,7 +25,8 @@ type simplify_result = private
     unit : Flambda_unit.t;
     all_code : Exported_code.t;
     exported_offsets : Exported_offsets.t;
-    reachable_names : Name_occurrences.t
+    reachable_names : Name_occurrences.t;
+    code_ids_kept_for_zero_alloc : Code_id.Set.t
   }
 
 val run :

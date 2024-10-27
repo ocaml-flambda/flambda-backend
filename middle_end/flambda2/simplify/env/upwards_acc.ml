@@ -36,7 +36,8 @@ type t =
     demoted_exn_handlers : Continuation.Set.t;
     slot_offsets : Slot_offsets.t Or_unknown.t;
     flow_result : Flow_types.Flow_result.t;
-    resimplify : bool
+    resimplify : bool;
+    code_ids_kept_for_zero_alloc : Code_id.Set.t
   }
 
 let [@ocamlformat "disable"] print ppf
@@ -45,6 +46,7 @@ let [@ocamlformat "disable"] print ppf
         shareable_constants; cost_metrics; are_rebuilding_terms;
         generate_phantom_lets;
         demoted_exn_handlers; slot_offsets; flow_result; resimplify;
+        code_ids_kept_for_zero_alloc;
       } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(uenv@ %a)@]@ \
@@ -58,6 +60,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(generate_phantom_lets@ %b)@]@ \
       @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a@)@]@ \
+      @[<hov 1>(code_ids_kept_for_zero_alloc@ %a)@]@ \
       @[<hov 1>(flow_result@ %a)@]\
       %a\
       )@]"
@@ -77,8 +80,10 @@ let [@ocamlformat "disable"] print ppf
        (fun ppf () -> Format.fprintf ppf "@ @[<hov 1>(should_resimplify)@]")
      else
        (fun _ppf () -> ())) ()
+    Code_id.Set.print code_ids_kept_for_zero_alloc
 
-let create ~flow_result ~compute_slot_offsets uenv dacc =
+let create ~flow_result ~compute_slot_offsets ~code_ids_kept_for_zero_alloc uenv
+    dacc =
   let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
   let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   let slot_offsets : _ Or_unknown.t =
@@ -107,7 +112,8 @@ let create ~flow_result ~compute_slot_offsets uenv dacc =
     demoted_exn_handlers = DA.demoted_exn_handlers dacc;
     slot_offsets;
     flow_result;
-    resimplify = false
+    resimplify = false;
+    code_ids_kept_for_zero_alloc
   }
 
 let creation_dacc t = t.creation_dacc
@@ -213,3 +219,5 @@ let mutable_unboxing_result t = t.flow_result.mutable_unboxing_result
 let set_resimplify t = { t with resimplify = true }
 
 let resimplify t = t.resimplify
+
+let code_ids_kept_for_zero_alloc t = t.code_ids_kept_for_zero_alloc
