@@ -33,6 +33,7 @@ type error =
   | Unsupported_product_in_lazy of Jkind.Sort.Const.t
   | Unsupported_vector_in_product_array
   | Mixed_product_array of Jkind.Sort.Const.t
+  | Product_iarrays_unsupported
 
 exception Error of Location.t * error
 
@@ -245,9 +246,18 @@ let array_kind_of_elt ~elt_sort env loc ty =
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
-  | Tconstr(p, [elt_ty], _)
-    when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
+  | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->
       array_kind_of_elt ~elt_sort env loc elt_ty
+  | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_iarray ->
+      let kind = array_kind_of_elt ~elt_sort env loc elt_ty in
+      (* CR layouts v7.1: allow iarrays of products. *)
+      begin match kind with
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        raise (Error (loc, Product_iarrays_unsupported))
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+      | Punboxedintarray _ | Punboxedvectorarray _  ->
+        kind
+      end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->
@@ -1034,6 +1044,9 @@ let report_error ppf = function
          scannable types. The product type this function is applied at is@ \
          not external but contains an element of sort %a."
         Jkind.Sort.Const.format const
+  | Product_iarrays_unsupported ->
+      fprintf ppf
+        "Immutable arrays of unboxed products are not yet supported."
 
 let () =
   Location.register_error_of_exn

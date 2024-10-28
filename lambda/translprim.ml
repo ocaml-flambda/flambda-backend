@@ -29,8 +29,22 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
+  | Product_iarrays_unsupported
 
 exception Error of Location.t * error
+
+(* CR layouts v7.1: This is temporary - we should support iarrays of unboxed
+   products. *)
+let unboxed_product_iarray_check loc kind mut =
+  match kind, mut with
+  | (Pgcscannableproductarray _ | Pgcignorableproductarray _),
+    (Immutable | Immutable_unique) ->
+    raise (Error (loc, Product_iarrays_unsupported))
+  | _, Mutable
+  | (Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+    | Punboxedintarray _ | Punboxedvectorarray _), _  ->
+    ()
+
 
 (* Insertion of debugging events *)
 
@@ -1147,16 +1161,16 @@ let glb_array_set_type loc t1 t2 =
 (* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
 let specialize_primitive env loc ty ~has_constant_constructor prim =
-  let param_tys =
+  let param_tys, rest_ty =
     match is_function_type env ty with
-    | None -> []
+    | None -> [], ty
     | Some (p1, rhs) ->
       match is_function_type env rhs with
-      | None -> [p1]
+      | None -> [p1], rhs
       | Some (p2, rhs) ->
         match is_function_type env rhs with
-        | None -> [p1;p2]
-        | Some (p3, _) -> [p1;p2;p3]
+        | None -> [p1;p2], rhs
+        | Some (p3, rhs) -> [p1;p2;p3], rhs
   in
   match prim, param_tys with
   | Primitive (Psetfield(n, Pointer, init), arity), [_; p2] -> begin
@@ -1222,6 +1236,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         glb_array_type loc at
           (array_kind_of_elt ~elt_sort:None env loc p2)
       in
+      let array_mut = array_type_mut env rest_ty in
+      unboxed_product_iarray_check loc array_type array_mut;
       if at = array_type then None
       else Some (Primitive (Pmakearray_dynamic (array_type, mode), arity))
     end
@@ -1843,6 +1859,9 @@ let report_error ppf = function
       fprintf ppf
         "@[Floatarray primitives can't be used on arrays containing@ \
          unboxed types.@]"
+  | Product_iarrays_unsupported ->
+      fprintf ppf
+        "Immutable arrays of unboxed products are not yet supported."
 
 let () =
   Location.register_error_of_exn
