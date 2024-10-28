@@ -191,7 +191,7 @@ method! reload_operation op arg res =
                | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
                | Ipause
                | Ilfence | Isfence | Imfence
-               | Iprefetch _ | Ibswap _)
+               | Icldemote _ | Iprefetch _ | Ibswap _)
   | Imove|Ispill|Ireload|Iconst_float _|Iconst_float32 _|Iconst_vec128 _
   | Icall_ind|Icall_imm _|Ifloatop (_,(Icompf _|Inegf|Iabsf))
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _

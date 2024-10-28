@@ -95,7 +95,7 @@ let pseudoregs_for_operation op arg res =
       | Istore_int (_, _, _)
       | Ipause | Ilfence | Isfence | Imfence
       | Ioffset_loc (_, _)
-      | Irdtsc | Iprefetch _ )
+      | Irdtsc | Icldemote _ | Iprefetch _ )
   | Imove | Ispill | Ireload | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _ | Iconst_vec128 _
   | Iconst_symbol _ | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -211,6 +211,11 @@ class selector =
         | "caml_load_fence" -> Ispecific Ilfence, args
         | "caml_store_fence" -> Ispecific Isfence, args
         | "caml_memory_fence" -> Ispecific Imfence, args
+        | "caml_cldemote" ->
+          let addr, eloc =
+            self#select_addressing Word_int (one_arg "cldemote" args)
+          in
+          Ispecific (Icldemote addr), [eloc]
         | _ -> (
           match Simd_selection.select_operation func args with
           | Some (op, args) -> op, args
