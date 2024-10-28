@@ -199,6 +199,7 @@
   mode
   jkind_types
   jkind_intf
+  signature_with_global_bindings
   typedtree
   printtyped
   ctype

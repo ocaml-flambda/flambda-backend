@@ -34,10 +34,38 @@ type error =
   | Direct_reference_from_wrong_package of
       CU.t * filepath * CU.Prefix.t
   | Illegal_import_of_parameter of Global_module.Name.t * filepath
-  | Not_compiled_as_parameter of Global_module.Name.t * filepath
+  | Not_compiled_as_parameter of Global_module.Name.t
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
         parameter : Global_module.Name.t;
+      }
+  | Imported_module_has_no_such_parameter of
+      { imported : CU.Name.t;
+        valid_parameters : Global_module.Name.t list;
+        parameter : Global_module.Name.t;
+        value : Global_module.Name.t;
+      }
+  | Not_compiled_as_argument of
+      { param : Global_module.Name.t;
+        value : Global_module.Name.t;
+        filename : filepath;
+      }
+  | Argument_type_mismatch of
+      { value : Global_module.Name.t;
+        filename : filepath;
+        expected : Global_module.Name.t;
+        actual : Global_module.Name.t;
+      }
+  | Inconsistent_global_name_resolution of {
+      name: Global_module.Name.t;
+      old_global : Global_module.t;
+      new_global : Global_module.t;
+      first_mentioned_by : Global_module.Name.t;
+      now_mentioned_by : Global_module.Name.t;
+    }
+  | Unbound_module_as_argument_value of
+      { instance: Global_module.Name.t;
+        value: Global_module.Name.t;
       }
 
 exception Error of error
@@ -64,13 +92,18 @@ type can_load_cmis =
   | Can_load_cmis
   | Cannot_load_cmis of Lazy_backtrack.log
 
-(* Data relating directly to a .cmi *)
+type global_name_info = {
+  gn_global : Global_module.t;
+  gn_mentioned_by : Global_module.Name.t; (* For error reporting *)
+}
+
+(* Data relating directly to a .cmi - does not depend on arguments *)
 type import = {
   imp_is_param : bool;
-  imp_params : Global_module.Name.t list;
+  imp_params : Global_module.t list; (* CR lmaurer: Should be [Parameter_name.t list] *)
   imp_arg_for : Global_module.Name.t option;
   imp_impl : CU.t option; (* None iff import is a parameter *)
-  imp_sign : Subst.Lazy.signature;
+  imp_raw_sign : Signature_with_global_bindings.t;
   imp_filename : string;
   imp_visibility: Load_path.visibility;
   imp_crcs : Import_info.Intf.t array;
@@ -82,6 +115,20 @@ type import = {
 type import_info =
   | Missing
   | Found of import
+
+(* Data relating to a global name (possibly with arguments) but not necessarily
+   a value in scope. For example, if we've encountered a module only by seeing
+   it used as the name or value of an argument in a [Global_module.Name.t], we
+   won't bind it or construct a [pers_struct] for it but it will have a
+   [pers_name]. *)
+type pers_name = {
+  pn_import : import;
+  pn_global : Global_module.t;
+  pn_arg_for : Global_module.Name.t option;
+    (* Currently always the same as [pn_import.imp_arg_for], since parameters
+       don't have parameters *)
+  pn_sign : Subst.Lazy.signature;
+}
 
 (* What a global identifier is actually bound to in Lambda code *)
 type binding =
@@ -100,7 +147,9 @@ module Param_set = Global_module.Name.Set
 
 (* If you add something here, _do not forget_ to add it to [clear]! *)
 type 'a t = {
+  globals : (Global_module.Name.t, global_name_info) Hashtbl.t;
   imports : (CU.Name.t, import_info) Hashtbl.t;
+  persistent_names : (Global_module.Name.t, pers_name) Hashtbl.t;
   persistent_structures :
     (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
@@ -111,7 +160,9 @@ type 'a t = {
 }
 
 let empty () = {
+  globals = Hashtbl.create 17;
   imports = Hashtbl.create 17;
+  persistent_names = Hashtbl.create 17;
   persistent_structures = Hashtbl.create 17;
   imported_units = ref CU.Name.Set.empty;
   imported_opaque_units = ref CU.Name.Set.empty;
@@ -122,7 +173,9 @@ let empty () = {
 
 let clear penv =
   let {
+    globals;
     imports;
+    persistent_names;
     persistent_structures;
     imported_units;
     imported_opaque_units;
@@ -130,7 +183,9 @@ let clear penv =
     crc_units;
     can_load_cmis;
   } = penv in
+  Hashtbl.clear globals;
   Hashtbl.clear imports;
+  Hashtbl.clear persistent_names;
   Hashtbl.clear persistent_structures;
   imported_units := CU.Name.Set.empty;
   imported_opaque_units := CU.Name.Set.empty;
@@ -159,6 +214,11 @@ let find_import_info_in_cache {imports; _} import =
   | Missing -> None
   | Found imp -> Some imp
 
+let find_name_info_in_cache {persistent_names; _} name =
+  match Hashtbl.find persistent_names name with
+  | exception Not_found -> None
+  | pn -> Some pn
+
 let find_info_in_cache {persistent_structures; _} name =
   match Hashtbl.find persistent_structures name with
   | exception Not_found -> None
@@ -179,7 +239,7 @@ let register_parameter ({param_imports; _} as penv) modname =
       ()
   | Some imp ->
       if not imp.imp_is_param then
-        raise (Error (Not_compiled_as_parameter(modname, imp.imp_filename)))
+        raise (Error (Not_compiled_as_parameter modname))
   end;
   param_imports := Param_set.add modname !param_imports
 
@@ -263,10 +323,7 @@ let acknowledge_import penv ~check modname pers_sig =
   let params = cmi.cmi_params in
   let crcs = cmi.cmi_crcs in
   let flags = cmi.cmi_flags in
-  let sign =
-    (* Freshen identifiers bound by signature *)
-    Subst.Lazy.signature Make_local Subst.identity cmi.cmi_sign
-  in
+  let sign = Signature_with_global_bindings.read_from_cmi cmi in
   if not (CU.Name.equal modname found_name) then
     error (Illegal_renaming(modname, found_name, filename));
   List.iter
@@ -303,7 +360,7 @@ let acknowledge_import penv ~check modname pers_sig =
       imp_params = params;
       imp_arg_for = arg_for;
       imp_impl = impl;
-      imp_sign = sign;
+      imp_raw_sign = sign;
       imp_filename = filename;
       imp_visibility = visibility;
       imp_crcs = crcs;
@@ -344,23 +401,297 @@ let find_import ~allow_hidden penv ~check modname =
           add_import penv modname;
           acknowledge_import penv ~check modname psig
 
-(* Enforce the subset rule: we can only refer to a module if that module's
-   parameters are also our parameters. *)
-let check_for_unset_parameters penv modname import =
-  List.iter
-    (fun param ->
-       if not (is_registered_parameter_import penv param) then
-         error (Imported_module_has_unset_parameter {
-             imported = modname;
-             parameter = param;
-           }))
-    import.imp_params
+let remember_global { globals; _ } global ~mentioned_by =
+  if Global_module.has_arguments global then
+    let global_name = Global_module.to_name global in
+    match Hashtbl.find globals global_name with
+    | exception Not_found ->
+        Hashtbl.add globals global_name
+          { gn_global = global; gn_mentioned_by = mentioned_by }
+    | { gn_global = old_global; gn_mentioned_by = first_mentioned_by } ->
+        if not (Global_module.equal old_global global) then
+          error (Inconsistent_global_name_resolution {
+              name = global_name;
+              old_global;
+              new_global = global;
+              first_mentioned_by;
+              now_mentioned_by = mentioned_by;
+            })
 
-let make_binding _penv modname (import : import) : binding =
-  match import with
-  | { imp_impl = Some unit; imp_params = [] } -> Constant unit
-  | { imp_impl = None } | { imp_params = _ :: _ } ->
-      Runtime_parameter (Ident.create_local_binding_for_global modname)
+let current_unit_is_aux name ~allow_args =
+  match CU.get_current () with
+  | None -> false
+  | Some current ->
+      match CU.to_global_name current with
+      | Some { head; args } ->
+          (args = [] || allow_args)
+          && CU.Name.equal name (head |> CU.Name.of_string)
+      | None -> false
+
+let current_unit_is name =
+  current_unit_is_aux name ~allow_args:false
+
+let current_unit_is_instance_of name =
+  current_unit_is_aux name ~allow_args:true
+
+(* Enforce the subset rule: we can only refer to a module if that module's
+   parameters are also our parameters. This assumes that all of the arguments in
+   [global] have already been checked, so we only need to check [global]
+   itself (in other words, we don't need to recurse).
+
+   Formally, the subset rule for an unelaborated global (that is, a
+   [Global_module.Name.t]) says that [M[P_1:A_1]...[P_n:A_n]] is accessible if,
+   for each parameter [P] that [M] takes, either [P] is one of the parameters
+   [P_i], or the current compilation unit also takes [P].
+
+   This function takes an _elaborated_ global (that is, a [Global_module.t]),
+   which "bakes in" crucial information: all of the instantiated module's
+   parameters are accounted for, so we need only concern ourselves with the
+   syntax of the global and the current compilation unit's parameters.
+   Specifically, the subset rule for an elaborated global says that
+   [M[P_1:A_1]...[P_n:A_n]{Q_1:B_1}...{Q_m:B_m}] is accessible if each hidden
+   argument value [B_i] is a parameter of the current unit. Operationally, this
+   makes sense since the hidden argument [{Q:B}] means "as the argument [Q] to
+   [M], we're passing our own parameter [B] along." (Currently [B] is always
+   simply [Q] again. This is likely to change with future extensions, but the
+   requirement will be the same: [B] needs to be something we're taking as a
+   parameter.) *)
+let check_for_unset_parameters penv global =
+  List.iter
+    (fun ({ param = _; value = arg_value } : Global_module.argument) ->
+       let value_name = Global_module.to_name arg_value in
+       if not (is_registered_parameter_import penv value_name) then
+         error (Imported_module_has_unset_parameter {
+             imported = Global_module.to_name global;
+             parameter = value_name;
+           }))
+    global.Global_module.hidden_args
+
+let rec global_of_global_name penv ~check name =
+  match Hashtbl.find penv.globals name with
+  | { gn_global; _ } -> gn_global
+  | exception Not_found ->
+      let pn = find_pers_name ~allow_hidden:true penv check name in
+      pn.pn_global
+
+and compute_global penv modname ~params check =
+  let arg_global_by_param_name =
+    List.map
+      (fun ({ param = name; value } : Global_module.Name.argument) ->
+         match global_of_global_name penv ~check value with
+         | value -> name, value
+         | exception Not_found ->
+             error
+               (Unbound_module_as_argument_value { instance = modname; value }))
+      modname.Global_module.Name.args
+  in
+  let subst : Global_module.subst = Global_module.Name.Map.of_list arg_global_by_param_name in
+  if check && modname.Global_module.Name.args <> [] then begin
+    (* A paragraph for the future that I don't want to lose track of:
+
+       Produce the expected type of each argument. This takes into account
+       substitutions among the parameter types: if the parameters are T and
+       To_string[T] and the arguments are [Int] and [Int_to_string], we want to
+       check that [Int] has type [T] and that [Int_to_string] has type
+       [To_string[T\Int]].
+
+       For now, our parameters don't take parameters, so we can just assert that
+       the parameter name has no arguments and keep it as the expected type. *)
+    let expected_type_by_param_name =
+      List.map
+        (fun param ->
+           assert (not (Global_module.has_arguments param));
+           Global_module.to_name param, param)
+        params
+    in
+    let compare_by_param (param1, _) (param2, _) =
+      Global_module.Name.compare param1 param2
+    in
+    Misc.Stdlib.List.merge_iter
+      ~cmp:compare_by_param
+      expected_type_by_param_name
+      arg_global_by_param_name
+      ~left_only:
+        (fun _ ->
+           (* Parameter with no argument: fine (subset rule will be checked by
+              [check_for_unset_parameters] later) *)
+           ())
+      ~right_only:
+        (fun (param, value) ->
+            (* Argument with no parameter: not fine *)
+            raise
+              (Error (Imported_module_has_no_such_parameter {
+                        imported = CU.Name.of_head_of_global_name modname;
+                        valid_parameters = params |> List.map Global_module.to_name;
+                        parameter = param;
+                        value = value |> Global_module.to_name;
+                      })))
+      ~both:
+        (fun (param_name, expected_type_global) (_arg_name, arg_value_global) ->
+            let arg_value = arg_value_global |> Global_module.to_name in
+            let pn = find_pers_name ~allow_hidden:true penv check arg_value in
+            let actual_type =
+              match pn.pn_arg_for with
+              | None ->
+                  error (Not_compiled_as_argument
+                           { param = param_name; value = arg_value;
+                             filename = pn.pn_import.imp_filename })
+              | Some ty -> ty
+            in
+            let actual_type_global =
+              global_of_global_name penv ~check actual_type
+            in
+            if not (Global_module.equal expected_type_global actual_type_global)
+            then begin
+              let expected_type = Global_module.to_name expected_type_global in
+              if Global_module.Name.equal expected_type actual_type then
+                (* This shouldn't happen, I don't think, but if it does, I'd rather
+                  not output an "X != X" sort of error message *)
+                Misc.fatal_errorf
+                  "Mismatched argument type (despite same name):@ \
+                  expected %a,@ got %a"
+                  Global_module.print expected_type_global
+                  Global_module.print actual_type_global
+              else
+                raise (Error (Argument_type_mismatch {
+                    value = arg_value;
+                    filename = pn.pn_import.imp_filename;
+                    expected = expected_type;
+                    actual = actual_type;
+                  }))
+            end)
+  end;
+  (* Form the name without any arguments at all, then substitute in all the
+     arguments. A bit roundabout but should be sound *)
+  let hidden_args =
+    List.map
+      (fun param : Global_module.argument ->
+         { param = Global_module.to_name param; value = param })
+      params
+  in
+  let global_without_args =
+    (* Won't raise an exception, since the hidden args are all different
+       (since the params are different, or else we have bigger problems) *)
+    Global_module.create_exn modname.Global_module.Name.head [] ~hidden_args
+  in
+  let global, _changed = Global_module.subst global_without_args subst in
+  global
+
+and acknowledge_pers_name penv check global_name import =
+  let params = import.imp_params in
+  let arg_for = import.imp_arg_for in
+  let sign = import.imp_raw_sign in
+  let global = compute_global penv global_name ~params check in
+  (* This checks only [global] itself without recursing into argument values.
+     That's fine, however, since those argument values will have come from
+     recursive calls to [global_of_global_name] and therefore have passed
+     through here already. *)
+  check_for_unset_parameters penv global;
+  let {persistent_names; _} = penv in
+  let sign =
+    let bindings =
+      List.map
+        (fun ({ param; value } : Global_module.argument) -> param, value)
+        global.Global_module.visible_args
+    in
+    (* Only need to substitute the visible args, since the hidden args only
+       reflect substitutions already made by visible args *)
+    Signature_with_global_bindings.subst sign bindings
+  in
+  Array.iter
+    (fun bound_global ->
+       remember_global penv bound_global ~mentioned_by:global_name)
+    sign.bound_globals;
+  let pn = { pn_import = import;
+             pn_global = global;
+             pn_arg_for = arg_for;
+             pn_sign = sign.sign;
+           } in
+  if check then check_consistency penv import;
+  Hashtbl.add persistent_names global_name pn;
+  remember_global penv global ~mentioned_by:global_name;
+  pn
+
+and find_pers_name ~allow_hidden penv check name =
+  let {persistent_names; _} = penv in
+  match Hashtbl.find persistent_names name with
+  | pn -> pn
+  | exception Not_found ->
+      let unit_name = CU.Name.of_head_of_global_name name in
+      let import = find_import ~allow_hidden penv ~check unit_name in
+      acknowledge_pers_name penv check name import
+
+let read_pers_name penv check name filename =
+  let unit_name = CU.Name.of_head_of_global_name name in
+  let import = read_import penv ~check unit_name filename in
+  acknowledge_pers_name penv check name import
+
+let need_local_ident penv (global : Global_module.t) =
+  (* There are three equivalent ways to phrase the question we're asking here:
+
+     1. Is this either a parameter or an open import?
+     2. Will the generated lambda code need a parameter to take this module's
+          value?
+     3. Is the value not statically bound?
+
+     Crucially, all modules (besides the one being compiled or instantiated)
+     must be either statically bound or toplevel parameters, since the actual
+     functor calls that instantiate open modules happen elsewhere (so that they
+     can happen exactly once). *)
+  let global_name = global |> Global_module.to_name in
+  let name = global_name |> CU.Name.of_head_of_global_name in
+  if is_registered_parameter_import penv global_name
+  then
+    (* Already a parameter *)
+    true
+  else if current_unit_is name
+  then
+    (* Not actually importing it in the sense of needing its value (we're
+       building its value!) *)
+    false
+  else if current_unit_is_instance_of name
+  then
+    (* We're instantiating the module, so (here and only here!) we're accessing
+       its actual functor, which is a compile-time constant *)
+    (* CR lmaurer: Relying on [current_unit_is_instance_of] here feels hacky
+       when only a pretty specific call sequence gets here. *)
+    false
+  else if Global_module.is_complete global
+  then
+    (* It's a compile-time constant *)
+    false
+  else
+    (* Some argument is missing, or some argument's argument is missing, etc.,
+       so it's not a compile-time constant *)
+    true
+
+let make_binding penv (global : Global_module.t) (impl : CU.t option) : binding =
+  let name = Global_module.to_name global in
+  if need_local_ident penv global
+  then Runtime_parameter (Ident.create_local_binding_for_global name)
+  else
+    let unit_from_cmi =
+      match impl with
+      | Some unit -> unit
+      | None ->
+          Misc.fatal_errorf
+            "Can't bind a parameter statically:@ %a"
+            Global_module.print global
+    in
+    let unit =
+      match global.visible_args with
+      | [] ->
+          (* Make sure the names are consistent up to the pack prefix *)
+          assert (Global_module.Name.equal
+                    (unit_from_cmi |> CU.to_global_name_without_prefix)
+                    name);
+          unit_from_cmi
+      | _ ->
+          (* Make sure the unit isn't supposed to be packed *)
+          assert (not (CU.is_packed unit_from_cmi));
+          CU.of_global_name name
+    in
+    Constant unit
 
 type address =
   | Aunit of Compilation_unit.t
@@ -379,25 +710,24 @@ type 'a sig_reader =
 (* Add a persistent structure to the hash table and bind it in the [Env].
    Checks that OCaml source is allowed to refer to this module. *)
 
-let acknowledge_pers_struct penv modname import val_of_pers_sig =
-  if modname.Global_module.Name.args <> [] then
-    Misc.fatal_errorf "TODO: Unsupported instance name: %a"
-      Global_module.Name.print modname;
+let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
   let {persistent_structures; _} = penv in
+  let import = pers_name.pn_import in
+  let global = pers_name.pn_global in
+  let sign = pers_name.pn_sign in
   let is_param = import.imp_is_param in
-  let sign = import.imp_sign in
+  let impl = import.imp_impl in
   let filename = import.imp_filename in
   let flags = import.imp_flags in
-  check_for_unset_parameters penv modname import;
   begin match is_param, is_registered_parameter_import penv modname with
   | true, false ->
       error (Illegal_import_of_parameter(modname, filename))
   | false, true ->
-      error (Not_compiled_as_parameter(modname, filename))
+      error (Not_compiled_as_parameter modname)
   | true, true
   | false, false -> ()
   end;
-  let binding = make_binding penv modname import in
+  let binding = make_binding penv global impl in
   let address : address =
     match binding with
     | Runtime_parameter id -> Alocal id
@@ -432,22 +762,20 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   ps
 
 let read_pers_struct penv val_of_pers_sig check modname cmi ~add_binding =
-  let unit_name = CU.Name.of_head_of_global_name modname in
-  let import = read_import penv ~check unit_name cmi in
+  let pers_name = read_pers_name penv check modname cmi in
   if add_binding then
     ignore
-      (acknowledge_pers_struct penv modname import val_of_pers_sig
+      (acknowledge_pers_struct penv modname pers_name val_of_pers_sig
        : _ pers_struct_info);
-  import.imp_sign
+  pers_name.pn_sign
 
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
   | ps -> check_visibility ~allow_hidden ps.ps_import; ps
   | exception Not_found ->
-      let unit_name = CU.Name.of_head_of_global_name name in
-      let import = find_import ~allow_hidden penv ~check unit_name in
-      acknowledge_pers_struct penv name import val_of_pers_sig
+      let pers_name = find_pers_name ~allow_hidden penv check name in
+      acknowledge_pers_struct penv name pers_name val_of_pers_sig
 
 let describe_prefix ppf prefix =
   if CU.Prefix.is_empty prefix then
@@ -489,9 +817,16 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
             Format.asprintf "%a is inaccessible from %a"
               CU.print unit
               describe_prefix prefix
+        (* The cmi is necessary, otherwise the functor cannot be
+           generated. Moreover, aliases of functor arguments are forbidden. *)
         | Illegal_import_of_parameter _ -> assert false
         | Not_compiled_as_parameter _ -> assert false
         | Imported_module_has_unset_parameter _ -> assert false
+        | Imported_module_has_no_such_parameter _ -> assert false
+        | Not_compiled_as_argument _ -> assert false
+        | Argument_type_mismatch _ -> assert false
+        | Inconsistent_global_name_resolution _ -> assert false
+        | Unbound_module_as_argument_value _ -> assert false
       in
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
@@ -553,17 +888,12 @@ let parameters {param_imports; _} =
 let looked_up {persistent_structures; _} modname =
   Hashtbl.mem persistent_structures modname
 
-let is_imported {imported_units; _} s =
-  CU.Name.Set.mem s !imported_units
-
 let is_imported_opaque {imported_opaque_units; _} s =
   CU.Name.Set.mem s !imported_opaque_units
 
 let implemented_parameter penv modname =
-  match
-    find_import_info_in_cache penv (CU.Name.of_head_of_global_name modname)
-  with
-  | Some { imp_arg_for; _ } -> imp_arg_for
+  match find_name_info_in_cache penv modname with
+  | Some { pn_arg_for; _ } -> pn_arg_for
   | None -> None
 
 let make_cmi penv modname kind sign alerts =
@@ -577,11 +907,20 @@ let make_cmi penv modname kind sign alerts =
   let params =
     (* Needs to be consistent with [Translmod] *)
     parameters penv
+    |> List.map (global_of_global_name penv ~check:true)
   in
+  (* Need to calculate [params] before these since [global_of_global_name] has
+     side effects *)
   let crcs = imports penv in
+  let globals =
+    Hashtbl.to_seq_values penv.globals
+    |> Array.of_seq
+    |> Array.map (fun ({ gn_global; _ }) -> gn_global)
+  in
   {
     cmi_name = modname;
     cmi_kind = kind;
+    cmi_globals = globals;
     cmi_sign = sign;
     cmi_params = params;
     cmi_crcs = Array.of_list crcs;
@@ -594,16 +933,14 @@ let save_cmi penv psig =
       let {
         cmi_name = modname;
         cmi_kind = kind;
-        cmi_sign = _;
-        cmi_crcs = _;
         cmi_flags = flags;
       } = cmi in
       let crc =
         output_to_file_via_temporary (* see MPR#7472, MPR#4991 *)
           ~mode: [Open_binary] filename
           (fun temp_filename oc -> output_cmi temp_filename oc cmi) in
-      (* Enter signature in consistbl so that imports()
-         will also return its crc *)
+      (* Enter signature in consistbl so that imports() and crc_of_unit() will
+         also return its crc *)
       let data : Import_info.Intf.Nonalias.Kind.t =
         match kind with
         | Normal { cmi_impl } -> Normal cmi_impl
@@ -612,9 +949,6 @@ let save_cmi penv psig =
       save_import penv crc modname data flags filename
     )
     ~exceptionally:(fun () -> remove_file filename)
-
-(* TODO: These should really have locations in them where possible (adapting
-   [Typemod]'s [Error] constructor is probably the easiest path) *)
 
 let report_error ppf =
   let open Format in
@@ -643,19 +977,6 @@ let report_error ppf =
         filename
         (Style.as_inline_code CU.print) unit1
         (Style.as_inline_code CU.print) unit2
-  | Illegal_import_of_parameter(modname, filename) ->
-      fprintf ppf
-        "@[<hov>The file %a@ contains the interface of a parameter.@ \
-         %a is not declared as a parameter for the current unit (-parameter %a).@]"
-        (Style.as_inline_code Location.print_filename) filename
-        (Style.as_inline_code Global_module.Name.print) modname
-        (Style.as_inline_code Global_module.Name.print) modname
-  | Not_compiled_as_parameter(modname, filename) ->
-      fprintf ppf
-        "@[<hov>The module %a@ is specified as a parameter, but %a@ \
-         was not compiled with -as-parameter.@]"
-        (Style.as_inline_code Global_module.Name.print) modname
-        (Style.as_inline_code Location.print_filename) filename
   | Direct_reference_from_wrong_package(unit, filename, prefix) ->
       fprintf ppf
         "@[<hov>Invalid reference to %a (in file %s) from %a.@ %s]"
@@ -663,23 +984,110 @@ let report_error ppf =
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
+  | Illegal_import_of_parameter(modname, filename) ->
+      fprintf ppf
+        "@[<hov>The file %a@ contains the interface of a parameter.@ \
+         %a@ is not declared as a parameter for the current unit.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Compile the current unit with \
+           @{<inline_code>-parameter %a@}.@]@]"
+        (Style.as_inline_code Location.print_filename) filename
+        (Style.as_inline_code Global_module.Name.print) modname
+        Global_module.Name.print modname
+  | Not_compiled_as_parameter modname ->
+      fprintf ppf
+        "@[<hov>The module %a@ is a parameter but is not declared as such for the \
+         current unit.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Compile the current unit with @{<inline_code>-parameter \
+           %a@}.@]@]"
+        (Style.as_inline_code Global_module.Name.print) modname
+        Global_module.Name.print modname
   | Imported_module_has_unset_parameter
         { imported = modname; parameter = param } ->
       fprintf ppf
         "@[<hov>The module %a@ is not accessible because it takes %a@ \
          as a parameter and the current unit does not.@]@.\
          @[<hov>@{<hint>Hint@}: \
-           @[<hov>Pass `-parameter %a`@ to add %a@ as a parameter@ \
+           @[<hov>Pass @{<inline_code>-parameter %a@}@ to add %a@ as a parameter@ \
            of the current unit.@]@]"
         (Style.as_inline_code Global_module.Name.print) modname
         (Style.as_inline_code Global_module.Name.print) param
+        Global_module.Name.print param
         (Style.as_inline_code Global_module.Name.print) param
+  | Imported_module_has_no_such_parameter
+        { valid_parameters; imported = modname; parameter = param; value = _; } ->
+      let pp_hint ppf () =
+        match valid_parameters with
+        | [] ->
+            fprintf ppf
+              "Compile %a@ with @{<inline_code>-parameter %a@}@ to make it a \
+               parameter."
+              (Style.as_inline_code CU.Name.print) modname
+              Global_module.Name.print param
+        | _ ->
+          let print_params =
+            Format.pp_print_list ~pp_sep:Format.pp_print_space
+              (Style.as_inline_code Global_module.Name.print)
+          in
+          fprintf ppf "Parameters for %a:@ @[<hov>%a@]"
+            (Style.as_inline_code CU.Name.print) modname
+            print_params valid_parameters
+      in
+      fprintf ppf
+        "@[<hov>The module %a@ has no parameter %a.@]@.\
+         @[<hov>@{<hint>Hint@}: @[<hov>%a@]@]"
+        (Style.as_inline_code CU.Name.print) modname
         (Style.as_inline_code Global_module.Name.print) param
+        pp_hint ()
+  | Not_compiled_as_argument { param; value; filename } ->
+      fprintf ppf
+        "@[<hov>The module %a@ cannot be used as an argument for parameter \
+           %a.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Compile %a@ with @{<inline_code>-as-argument-for %a@}.@]@]"
+        (Style.as_inline_code Global_module.Name.print) value
+        (Style.as_inline_code Global_module.Name.print) param
+        (Style.as_inline_code Location.print_filename) filename
+        Global_module.Name.print param
+  | Argument_type_mismatch { value; filename; expected; actual; } ->
+      fprintf ppf
+        "@[<hov>The module %a@ is used as an argument for the parameter %a@ \
+         but %a@ is an argument for %a.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>%a@ was compiled with \
+             @{<inline_code>-as-argument-for %a@}.@]@]"
+        (Style.as_inline_code Global_module.Name.print) value
+        (Style.as_inline_code Global_module.Name.print) expected
+        (Style.as_inline_code Global_module.Name.print) value
+        (Style.as_inline_code Global_module.Name.print) actual
+        (Style.as_inline_code Location.print_filename) filename
+        Global_module.Name.print expected
+  | Inconsistent_global_name_resolution
+      { name; old_global; new_global; first_mentioned_by; now_mentioned_by } ->
+      fprintf ppf
+        "@[<hov>The name %a@ was bound to %a@ by %a@ \
+         but it is instead bound to %a@ by %a.@]"
+        (Style.as_inline_code Global_module.Name.print) name
+        (Style.as_inline_code Global_module.print) old_global
+        (Style.as_inline_code Global_module.Name.print) first_mentioned_by
+        (Style.as_inline_code Global_module.print) new_global
+        (Style.as_inline_code Global_module.Name.print) now_mentioned_by
+  | Unbound_module_as_argument_value { instance; value } ->
+      fprintf ppf
+        "@[<hov>Unbound module %a@ in instance %a@]"
+        (Style.as_inline_code Global_module.Name.print) value
+        (Style.as_inline_code Global_module.Name.print) instance
 
 let () =
   Location.register_error_of_exn
     (function
       | Error err ->
+          (* Note that this module don't have location info in its errors, since
+             (unlike [Env]) it doesn't take [Location.t]s as arguments. However,
+             [Env] is often able to add location info to our errors by
+             re-raising them with the [Env.Error_from_persistent_env]
+             constructor. *)
           Some (Location.error_of_printer_file report_error err)
       | _ -> None
     )
