@@ -742,6 +742,72 @@ module type S' =
   end
 |}]
 
+module type T = sig @@ portable
+  val foo : 'a -> 'a
+  val bar : 'a -> 'a @@ nonportable
+  val baz : 'a -> 'a @@ portable
+end
+[%%expect{|
+module type T =
+  sig
+    val foo : 'a -> 'a @@ portable
+    val bar : 'a -> 'a
+    val baz : 'a -> 'a @@ portable
+  end
+|}]
+
+(* default modalities does not go deep into module types *)
+module type T = sig @@ portable
+  module type T = sig
+    val foo : 'a -> 'a
+  end
+end
+[%%expect{|
+module type T = sig module type T = sig val foo : 'a -> 'a end end
+|}]
+
+(* default modalities does not go deep into modules *)
+module type T = sig @@ portable
+  module M : sig
+    val foo : 'a -> 'a
+  end
+end
+[%%expect{|
+module type T = sig module M : sig val foo : 'a -> 'a end end
+|}]
+
+(* default modalities affect include modalities, which is deep. *)
+module type T = sig @@ portable
+  include T
+end
+[%%expect{|
+module type T = sig module M : sig val foo : 'a -> 'a @@ portable end end
+|}]
+
+(* default modalities is overridden as a whole, not per-axis *)
+(* CR zqian: make overriding per-axis *)
+module type T = sig @@ portable
+  val foo : 'a -> 'a @@ contended
+end
+[%%expect{|
+module type T = sig val foo : 'a -> 'a @@ contended end
+|}]
+
+(* default modalities is a syntax sugar that doesn't constitute the meaning of
+   a module type *)
+module type SR = sig @@ portable
+  end
+
+module type SL = sig
+  end
+
+module F (X : SL) : SR = X
+[%%expect{|
+module type SR = sig end
+module type SL = sig end
+module F : functor (X : SL) -> SR
+|}]
+
 
 (* interaction between open and locks *)
 module M_nonportable = struct

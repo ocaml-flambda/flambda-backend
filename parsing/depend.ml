@@ -498,7 +498,7 @@ and add_signature bv sg =
   ignore (add_signature_binding bv sg)
 
 and add_signature_binding bv sg =
-  snd (List.fold_left add_sig_item (bv, String.Map.empty) sg)
+  snd (List.fold_left add_sig_item (bv, String.Map.empty) sg.psg_items)
 
 (* When we merge [include functor] upstream this can get re-inlined *)
 and add_include_description (bv, m) incl =

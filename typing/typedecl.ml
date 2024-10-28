@@ -2977,14 +2977,15 @@ let error_if_containing_unexpected_jkind prim cty ty =
   unexpected_layout_any_check prim cty ty
 
 (* Translate a value declaration *)
-let transl_value_decl env loc valdecl =
+let transl_value_decl env loc ~sig_modalities valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   let modalities =
-    valdecl.pval_modalities
-    |> Typemode.transl_modalities ~maturity:Alpha Immutable
-        valdecl.pval_attributes
-    |> Mode.Modality.Value.of_const
+    match valdecl.pval_modalities with
+    | [] -> sig_modalities
+    | l -> Typemode.transl_modalities ~maturity:Alpha Immutable
+        valdecl.pval_attributes l
   in
+  let modalities = Mode.Modality.Value.of_const modalities in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
                 (Jkind.Builtin.value_or_null ~why:Structure_element) with
@@ -3083,9 +3084,9 @@ let transl_value_decl env loc valdecl =
   in
   desc, newenv
 
-let transl_value_decl env loc valdecl =
+let transl_value_decl env ~sig_modalities loc valdecl =
   Builtin_attributes.warning_scope valdecl.pval_attributes
-    (fun () -> transl_value_decl env loc valdecl)
+    (fun () -> transl_value_decl env ~sig_modalities loc valdecl)
 
 (* Translate a "with" constraint -- much simplified version of
    transl_type_decl. For a constraint [Sig with t = sdecl],

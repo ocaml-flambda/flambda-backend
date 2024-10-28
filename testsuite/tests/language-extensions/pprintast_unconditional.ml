@@ -62,6 +62,7 @@ module Example = struct
                                }
                          ; psig_loc = loc
                          }
+  let signature_items  = [signature_item]
   let value_binding    = { pvb_pat = pattern
                          ; pvb_expr = expression
                          ; pvb_attributes = []
@@ -163,6 +164,7 @@ end = struct
   let module_type = test "module_type" module_type Example.module_type
   let structure_item = test "structure_item" structure_item Example.structure_item
   let signature_item = test "signature_item" signature_item Example.signature_item
+  let signature_items = test "signature_items" signature_items Example.signature_items
   let binding = test "binding" binding Example.value_binding
   let payload = test "payload" payload Example.payload
   let class_signature = test "class_signature" class_signature Example.class_signature

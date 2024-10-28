@@ -1105,19 +1105,21 @@ and approx_module_declaration env pmd =
     md_uid = Uid.internal_not_actually_unique;
   }
 
-and approx_sig env ssg =
+and approx_sig env {psg_items; _} = approx_sig_items env psg_items
+
+and approx_sig_items env ssg=
   match ssg with
     [] -> []
   | item :: srem ->
       match item.psig_desc with
       | Psig_type (rec_flag, sdecls) ->
           let decls = Typedecl.approx_type_decl sdecls in
-          let rem = approx_sig env srem in
+          let rem = approx_sig_items env srem in
           map_rec_type ~rec_flag
             (fun rs (id, info) -> Sig_type(id, info, rs, Exported)) decls rem
-      | Psig_typesubst _ -> approx_sig env srem
+      | Psig_typesubst _ -> approx_sig_items env srem
       | Psig_module { pmd_name = { txt = None; _ }; _ } ->
-          approx_sig env srem
+          approx_sig_items env srem
       | Psig_module pmd ->
           let scope = Ctype.create_scope () in
           let md = approx_module_declaration env pmd in
@@ -1130,7 +1132,7 @@ and approx_sig env ssg =
             Env.enter_module_declaration ~scope (Option.get pmd.pmd_name.txt)
               pres md env
           in
-          Sig_module(id, pres, md, Trec_not, Exported) :: approx_sig newenv srem
+          Sig_module(id, pres, md, Trec_not, Exported) :: approx_sig_items newenv srem
       | Psig_modsubst pms ->
           let scope = Ctype.create_scope () in
           let _, md, _ =
@@ -1145,7 +1147,7 @@ and approx_sig env ssg =
           let _, newenv =
             Env.enter_module_declaration ~scope pms.pms_name.txt pres md env
           in
-          approx_sig newenv srem
+          approx_sig_items newenv srem
       | Psig_recmodule sdecls ->
           let scope = Ctype.create_scope () in
           let decls =
@@ -1167,24 +1169,24 @@ and approx_sig env ssg =
           map_rec
             (fun rs (id, md) -> Sig_module(id, Mp_present, md, rs, Exported))
             decls
-            (approx_sig newenv srem)
+            (approx_sig_items newenv srem)
       | Psig_modtype d ->
           let info = approx_modtype_info env d in
           let scope = Ctype.create_scope () in
           let (id, newenv) =
             Env.enter_modtype ~scope d.pmtd_name.txt info env
           in
-          Sig_modtype(id, info, Exported) :: approx_sig newenv srem
+          Sig_modtype(id, info, Exported) :: approx_sig_items newenv srem
       | Psig_modtypesubst d ->
           let info = approx_modtype_info env d in
           let scope = Ctype.create_scope () in
           let (_id, newenv) =
             Env.enter_modtype ~scope d.pmtd_name.txt info env
           in
-          approx_sig newenv srem
+          approx_sig_items newenv srem
       | Psig_open sod ->
           let _, env = type_open_descr env sod in
-          approx_sig env srem
+          approx_sig_items env srem
       | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind;
             pincl_attributes=attrs}, moda) ->
           begin match kind with
@@ -1208,11 +1210,11 @@ and approx_sig env ssg =
                   apply_modalities_signature ~recursive env modalities sg
               in
               let sg, newenv = Env.enter_signature ~scope sg env in
-              sg @ approx_sig newenv srem
+              sg @ approx_sig_items newenv srem
           end
       | Psig_class sdecls | Psig_class_type sdecls ->
           let decls, env = Typeclass.approx_class_declarations env sdecls in
-          let rem = approx_sig env srem in
+          let rem = approx_sig_items env srem in
           map_rec (fun rs decl ->
             let open Typeclass in [
               Sig_class_type(decl.clsty_ty_id, decl.clsty_ty_decl, rs,
@@ -1224,7 +1226,7 @@ and approx_sig env ssg =
       | Psig_kind_abbrev _ ->
           Misc.fatal_error "kind_abbrev not supported!"
       | _ ->
-          approx_sig env srem
+          approx_sig_items env srem
 
 and approx_modtype_info env sinfo =
   {
@@ -1699,10 +1701,17 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
   let tcstr = Option.get tcstr in
   ((path, lid, tcstr) :: rev_tcstrs, sg)
 
-
-
-and transl_signature env sg =
+and transl_signature env {psg_items; psg_modalities; psg_loc} =
   let names = Signature_names.create () in
+
+  let has_sig_modalities =
+    match psg_modalities with
+    | [] -> false
+    | _ :: _ -> true
+  in
+  let sig_modalities =
+      Typemode.transl_modalities ~maturity:Alpha Immutable [] psg_modalities
+  in
 
   let transl_include ~loc env sig_acc sincl modalities =
     let smty = sincl.pincl_mod in
@@ -1723,18 +1732,21 @@ and transl_signature env sg =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let sg, modalities =
+    let has_modalities, modalities =
       match modalities with
-      | [] -> sg, Mode.Modality.Value.Const.id
+      | [] -> has_sig_modalities, sig_modalities
       | _ ->
-        let modalities =
-          Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
-        in
+        true, Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    in
+    let sg =
+      if has_modalities then
         let recursive =
           not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
             sincl.pincl_attributes
         in
-        apply_modalities_signature ~recursive env modalities sg, modalities
+        apply_modalities_signature ~recursive env modalities sg
+      else
+        sg
     in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
@@ -1756,7 +1768,7 @@ and transl_signature env sg =
     match item.psig_desc with
     | Psig_value sdesc ->
         let (tdesc, newenv) =
-          Typedecl.transl_value_decl env item.psig_loc sdesc
+          Typedecl.transl_value_decl env ~sig_modalities item.psig_loc sdesc
         in
         Signature_names.check_value names tdesc.val_loc tdesc.val_id;
         mksig (Tsig_value tdesc) env loc,
@@ -2027,11 +2039,12 @@ and transl_signature env sg =
   Builtin_attributes.warning_scope []
     (fun () ->
        let (trem, rem, final_env) =
-         transl_sig (Env.in_signature true env) [] [] sg
+         transl_sig (Env.in_signature true env) [] [] psg_items
        in
        let rem = Signature_names.simplify final_env names rem in
        let sg =
-         { sig_items = trem; sig_type = rem; sig_final_env = final_env }
+         { sig_items = trem; sig_type = rem; sig_final_env = final_env;
+           sig_modalities; sig_sloc = psg_loc }
        in
        Cmt_format.set_saved_types
          ((Cmt_format.Partial_signature sg) :: previous_saved_types);
@@ -3046,7 +3059,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         shape_map,
         newenv
     | Pstr_primitive sdesc ->
-        let (desc, newenv) = Typedecl.transl_value_decl env loc sdesc in
+        let (desc, newenv) = Typedecl.transl_value_decl env ~sig_modalities:Mode.Modality.Value.Const.id loc sdesc in
         Signature_names.check_value names desc.val_loc desc.val_id;
         Tstr_primitive desc,
         [Sig_value(desc.val_id, desc.val_val, Exported)],
@@ -3831,7 +3844,7 @@ let save_signature target modname tsg initial_env cmi =
     (Cmt_format.Interface tsg) initial_env None
 
 let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
-  cms_register_toplevel_attributes ~sourcefile ~uid ast
+  cms_register_toplevel_attributes ~sourcefile ~uid ast.psg_items
     ~f:(function
         | { psig_desc = Psig_attribute attr; _ } -> Some attr
         | _ -> None)

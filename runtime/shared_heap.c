@@ -845,6 +845,9 @@ void caml_verify_heap_from_stw(caml_domain_state *domain) {
 
 /* Compaction starts here. See [caml_compact_heap] for entry. */
 
+/* Whether compaction should actually unmap memory. */
+uintnat caml_compact_unmap = 0;
+
 /* Given a single value `v`, found at `p`, check if it points to an
    evacuated block, and if so update it using the forwarding pointer
    created by the compactor. */
@@ -1291,31 +1294,54 @@ void caml_compact_heap(caml_domain_state* domain_state,
       Note that we may have no "available" pools left, if all
       remaining pools have been filled up by evacuated blocks. */
 
-  pool* cur_pool = evacuated_pools;
-  uintnat freed_pools = 0;
-  while (cur_pool) {
-    pool* next_pool = cur_pool->next;
+  if (caml_compact_unmap) {
+    pool* cur_pool = evacuated_pools;
+    uintnat freed_pools = 0;
+    while (cur_pool) {
+      pool* next_pool = cur_pool->next;
 
-    #ifdef DEBUG
-    for (header_t *p = POOL_FIRST_BLOCK(cur_pool, cur_pool->sz);
-         p < POOL_END(cur_pool); p++) {
-      *p = Debug_free_major;
+      #ifdef DEBUG
+      for (header_t *p = POOL_FIRST_BLOCK(cur_pool, cur_pool->sz);
+           p < POOL_END(cur_pool); p++) {
+        *p = Debug_free_major;
+      }
+      #endif
+
+      pool_free(heap, cur_pool, cur_pool->sz);
+      cur_pool = next_pool;
+      freed_pools++;
     }
-    #endif
+    caml_plat_lock_blocking(&pool_freelist.lock);
+    pool_freelist.active_pools -= freed_pools;
+    caml_plat_unlock(&pool_freelist.lock);
+  } else {
+    pool* cur_pool = evacuated_pools;
+    pool* last = NULL;
+    uintnat freed_pools = 0;
+    while (cur_pool) {
+      sizeclass sz = cur_pool->sz;
+      heap->stats.pool_words -= POOL_WSIZE;
+      heap->stats.pool_frag_words -= POOL_HEADER_WSIZE + wastage_sizeclass[sz];
+      last = cur_pool;
+      cur_pool->owner = NULL;
+      cur_pool = cur_pool->next;
+      freed_pools++;
+    }
 
-    pool_free(heap, cur_pool, cur_pool->sz);
-    cur_pool = next_pool;
-    freed_pools++;
+    if (evacuated_pools) {
+      caml_plat_lock_blocking(&pool_freelist.lock);
+      last->next = pool_freelist.free;
+      pool_freelist.free = evacuated_pools;
+      pool_freelist.active_pools -= freed_pools;
+      caml_plat_unlock(&pool_freelist.lock);
+    }
   }
-  caml_plat_lock_blocking(&pool_freelist.lock);
-  pool_freelist.active_pools -= freed_pools;
-  caml_plat_unlock(&pool_freelist.lock);
 
   CAML_EV_END(EV_COMPACT_RELEASE);
   caml_global_barrier(participating_count);
 
   /* Fourth phase: one domain also needs to release the free list */
-  if( participants[0] == Caml_state ) {
+  if( participants[0] == Caml_state && caml_compact_unmap ) {
     pool* cur_pool;
     pool* next_pool;
 
@@ -1332,7 +1358,9 @@ void caml_compact_heap(caml_domain_state* domain_state,
     pool_freelist.free = NULL;
 
     caml_plat_unlock(&pool_freelist.lock);
+  }
 
+  if (participants[0] == Caml_state) {
     /* We are done, increment our compaction count */
     atomic_fetch_add(&caml_compactions_count, 1);
   }
