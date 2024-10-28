@@ -435,30 +435,37 @@ let current_unit_is_instance_of name =
   current_unit_is_aux name ~allow_args:true
 
 (* Enforce the subset rule: we can only refer to a module if that module's
-   parameters are also our parameters. *)
+   parameters are also our parameters. This assumes that all of the arguments in
+   [global] have already been checked, so we only need to check [global]
+   itself (in other words, we don't need to recurse).
+
+   Formally, the subset rule for an unelaborated global (that is, a
+   [Global_module.Name.t]) says that [M[P_1:A_1]...[P_n:A_n]] is accessible if,
+   for each parameter [P] that [M] takes, either [P] is one of the parameters
+   [P_i], or the current compilation unit also takes [P].
+
+   This function takes an _elaborated_ global (that is, a [Global_module.t]),
+   which "bakes in" crucial information: all of the instantiated module's
+   parameters are accounted for, so we need only concern ourselves with the
+   syntax of the global and the current compilation unit's parameters.
+   Specifically, the subset rule for an elaborated global says that
+   [M[P_1:A_1]...[P_n:A_n]{Q_1:B_1}...{Q_m:B_m}] is accessible if each hidden
+   argument value [B_i] is a parameter of the current unit. Operationally, this
+   makes sense since the hidden argument [{Q:B}] means "as the argument [Q] to
+   [M], we're passing our own parameter [B] along." (Currently [B] is always
+   simply [Q] again. This is likely to change with future extensions, but the
+   requirement will be the same: [B] needs to be something we're taking as a
+   parameter.) *)
 let check_for_unset_parameters penv global =
-  (* A hidden argument specifies that the importing module should forward a
-     parameter to the imported module. Therefore it's the hidden arguments that
-     we need to check. *)
   List.iter
-    (fun ({ param = arg_name; value = arg_value } : Global_module.argument) ->
-       (* The _value_ is what we care about - the name lives in the imported
-          module's namespace, not ours *)
-       ignore arg_name;
+    (fun ({ param = _; value = arg_value } : Global_module.argument) ->
        let value_name = Global_module.to_name arg_value in
        if not (is_registered_parameter_import penv value_name) then
          error (Imported_module_has_unset_parameter {
              imported = Global_module.to_name global;
              parameter = value_name;
            }))
-    global.Global_module.hidden_args;
-  (* The names of the visible arguments in [global] are excluded from the subset
-     rule: we can refer to [A[P:B]] even if we don't take [P] as a parameter.
-     The _values_ of visible arguments do need to be checked: if [B] takes [Q]
-     as a parameter and we don't, then [A[P:B]] is still an error. However,
-     these values will already have been checked since [compute_global] loads
-     all argument names and values. Therefore we're already done. *)
-  ()
+    global.Global_module.hidden_args
 
 let rec global_of_global_name penv ~check name =
   match Hashtbl.find penv.globals name with
@@ -489,7 +496,7 @@ and compute_global penv modname ~params check =
        [To_string[T\Int]].
 
        For now, our parameters don't take parameters, so we can just assert that
-       the parameter name has no argumentS and keep it as the expected type. *)
+       the parameter name has no arguments and keep it as the expected type. *)
     let expected_type_by_param_name =
       List.map
         (fun param ->
@@ -575,6 +582,10 @@ and acknowledge_pers_name penv check global_name import =
   let arg_for = import.imp_arg_for in
   let sign = import.imp_raw_sign in
   let global = compute_global penv global_name ~params check in
+  (* This checks only [global] itself without recursing into argument values.
+     That's fine, however, since those argument values will have come from
+     recursive calls to [global_of_global_name] and therefore have passed
+     through here already. *)
   check_for_unset_parameters penv global;
   let {persistent_names; _} = penv in
   let sign =
@@ -997,7 +1008,7 @@ let report_error ppf =
   | Illegal_import_of_parameter(modname, filename) ->
       fprintf ppf
         "@[<hov>The file %a@ contains the interface of a parameter.@ \
-         %a is not declared as a parameter for the current unit.@]@.\
+         %a@ is not declared as a parameter for the current unit.@]@.\
          @[<hov>@{<hint>Hint@}: \
            @[<hov>Compile the current unit with \
            @{<inline_code>-parameter %a@}.@]@]"
@@ -1031,7 +1042,7 @@ let report_error ppf =
         match valid_parameters with
         | [] ->
             fprintf ppf
-              "Compile %a@ with @{<inline_code>-parameter %a@} to make it a \
+              "Compile %a@ with @{<inline_code>-parameter %a@}@ to make it a \
                parameter."
               (Style.as_inline_code CU.Name.print) modname
               Global_module.Name.print param
@@ -1040,22 +1051,22 @@ let report_error ppf =
             Format.pp_print_list ~pp_sep:Format.pp_print_space
               (Style.as_inline_code Global_module.Name.print)
           in
-          fprintf ppf "Valid parameters for %a:@ @[<hov>%a@]"
+          fprintf ppf "Parameters for %a:@ @[<hov>%a@]"
             (Style.as_inline_code CU.Name.print) modname
             print_params valid_parameters
       in
       fprintf ppf
-        "@[<hov>%a@ is not a valid parameter for the module %a.@]@.\
-         @[<hov>@{<hint>Hint@}: %a@]"
-        (Style.as_inline_code Global_module.Name.print) param
+        "@[<hov>The module %a@ has no parameter %a.@]@.\
+         @[<hov>@{<hint>Hint@}: @[<hov>%a@]@]"
         (Style.as_inline_code CU.Name.print) modname
+        (Style.as_inline_code Global_module.Name.print) param
         pp_hint ()
   | Not_compiled_as_argument { param; value; filename } ->
       fprintf ppf
         "@[<hov>The module %a@ cannot be used as an argument for parameter \
            %a.@]@.\
-         @[<hov>@{<hint>Hint@}: Compile %a with \
-           @{<inline_code>-as-argument-for %a@}.@]"
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>Compile %a@ with @{<inline_code>-as-argument-for %a@}.@]@]"
         (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) param
         (Style.as_inline_code Location.print_filename) filename
@@ -1063,11 +1074,16 @@ let report_error ppf =
   | Argument_type_mismatch { value; filename; expected; actual; } ->
       fprintf ppf
         "@[<hov>The module %a@ is used as an argument for the parameter %a@ \
-         but %a@ was compiled as an argument for %a.@]"
+         but %a@ is an argument for %a.@]@.\
+         @[<hov>@{<hint>Hint@}: \
+           @[<hov>%a@ was compiled with \
+             @{<inline_code>-as-argument-for %a@}.@]@]"
         (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) expected
-        (Style.as_inline_code Location.print_filename) filename
+        (Style.as_inline_code Global_module.Name.print) value
         (Style.as_inline_code Global_module.Name.print) actual
+        (Style.as_inline_code Location.print_filename) filename
+        Global_module.Name.print expected
   | Inconsistent_global_name_resolution
       { name; old_global; new_global; first_mentioned_by; now_mentioned_by } ->
       fprintf ppf
