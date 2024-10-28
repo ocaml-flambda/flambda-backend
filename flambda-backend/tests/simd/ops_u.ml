@@ -368,6 +368,8 @@ module Float32 = struct
     external sqrt : (t [@unboxed]) -> (t [@unboxed]) = "caml_vec128_unreachable" "float32_sqrt" [@@noalloc]
     external rsqrt : (t [@unboxed]) -> (t [@unboxed]) = "caml_vec128_unreachable" "float32_rsqrt" [@@noalloc]
 
+    let is_nan (f:t) = neq f f
+
     let check_floats f =
         Random.set_state (Random.State.make [|1234567890|]);
         f zero zero;
@@ -396,6 +398,9 @@ module Float32 = struct
         for _ = 0 to 100_000 do
             let f0 = Random.int32 Int32.max_int in
             let f1 = Random.int32 Int32.max_int in
+            if (is_nan(f0) || is_nan(f1))
+            then (* operations on nans behave differently *) ()
+            else
             f (if Random.bool () then f0 else Int32.neg f0)
               (if Random.bool () then f1 else Int32.neg f1)
         done
@@ -437,9 +442,15 @@ module Float64 = struct
         f max_float max_float;
         f min_float min_float;
         f max_float min_float;
+        let is_nan x =
+          Int64.float_of_bits x |> Float.is_nan
+        in
         for _ = 0 to 100_000 do
             let f0 = Random.int64 Int64.max_int in
             let f1 = Random.int64 Int64.max_int in
+            if (is_nan(f0) || is_nan(f1))
+            then (* operations on nans behave differently *) ()
+            else
             f (if Random.bool () then Int64.float_of_bits f0 else Int64.(neg f0 |> float_of_bits))
               (if Random.bool () then Int64.float_of_bits f1 else Int64.(neg f1 |> float_of_bits))
         done
