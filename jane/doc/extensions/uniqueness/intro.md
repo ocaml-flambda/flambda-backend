@@ -54,7 +54,7 @@ elements will always be unique. Rather than copying the elements upon insertion
 to make them unique, we wrap them in a record with the `aliased` modality:
 
 ```ocaml
-type 'a aliased = { a : 'a @@ aliased } [[@@unboxed]]
+type 'a aliased = { a : 'a @@ aliased } [@@unboxed]
 
 val cons : 'a @ aliased -> 'a aliased list @ unique -> 'a aliased list @ unique
 ```

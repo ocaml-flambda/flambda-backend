@@ -57,6 +57,37 @@ Warning 26 [unused-var]: unused variable linearize.
 val test : unit -> unit @@ global many = <fun>
 |}]
 
+type 'a aliased = { a : 'a @@ aliased } [@@unboxed]
+
+let cons : 'a @ aliased -> 'a aliased list @ unique -> 'a aliased list @ unique =
+  fun x xs -> { a = x } :: xs
+[%%expect{|
+type 'a aliased = { a : 'a @@ aliased; } [@@unboxed]
+val cons : 'a -> unique_ 'a aliased list -> unique_ 'a aliased list @@ global
+  many = <fun>
+|}]
+
+type delayed_free = { id : int; callback : unit -> unit }
+
+let get_id : delayed_free @ once -> int @ many = fun d -> d.id
+[%%expect{|
+type delayed_free = { id : int; callback : unit -> unit; }
+val get_id : once_ delayed_free -> int @@ global many = <fun>
+|}]
+
+type delayed_free = { ids : int list; callback : unit -> unit }
+
+(* This does not work yet, but we expect it to work soon.
+   If you make it work, please update the uniqueness documentation. *)
+let get_ids : delayed_free @ once -> int list @ many = fun d -> d.ids
+[%%expect{|
+type delayed_free = { ids : int list; callback : unit -> unit; }
+Line 5, characters 64-69:
+5 | let get_ids : delayed_free @ once -> int list @ many = fun d -> d.ids
+                                                                    ^^^^^
+Error: This value is "once" but expected to be "many".
+|}]
+
 let okay t =
   match t with
   | Con { field } -> free t
