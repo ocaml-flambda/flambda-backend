@@ -38,7 +38,7 @@ example, you might write:
 let okay r =
   free r.field1;
   match r with
-  | { field2 } -> free field2
+  | { field2; _ } -> free field2
 ```
 
 This is fine: we free the first field of `r`, then pattern match on `r` itself
@@ -50,7 +50,7 @@ itself (which has now partially been consumed):
 let bad r =
   free r.field1;
   match r with
-  | { field2 } -> free r
+  | { field2; _ } -> free r
 ```
 
 The uniqueness analysis carefully tracks which children of an allocation have
@@ -62,7 +62,7 @@ let okay r =
   let x = r in
   free x.field1;
   match r with
-  | { field2 } -> free field2
+  | { field2; _ } -> free field2
 ```
 
 However, which children have been consumed is not tracked through more
@@ -73,7 +73,7 @@ let bad r =
   let x = Fun.id r in
   free x.field1;
   match r with
-  | { field2 } -> free field2
+  | { field2; _ } -> free field2
 ```
 
 ## Matching on tuples

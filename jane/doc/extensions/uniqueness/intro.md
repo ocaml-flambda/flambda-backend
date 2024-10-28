@@ -5,8 +5,9 @@ In this document, we use the new [syntax for modes](../modes/syntax.md),
 which we expect to be stable soonish.
 
 The `unique` mode designates values that have only a single reference pointing
-to them. For example, an externally allocated data structure might support a
-`free` operation:
+to them. If an operation takes a `unique` argument, it will consume the only
+reference to the value. For example, an externally allocated data structure
+might support a `free` operation:
 
 ```ocaml
 val free : t @ unique -> unit
@@ -22,7 +23,7 @@ one reference pointing to them with the `aliased` mode:
 let duplicate : t -> t * t @ aliased = fun t -> t, t
 ```
 
-When a `unique` value is captured in a closure, this closure can be invoked at
+When a `unique` value is consumed in a closure, this closure can be invoked at
 most once: if the closure was invoked more often, it could not use the value
 uniquely each time. Such closures are at mode `once`, while closures that can be
 invoked arbitrarily often are at mode `many`:
@@ -47,6 +48,15 @@ field is annotated by `@@ many`, then it can only store `many` values even if
 the record itself is `once`. In return, a read of that field always yields a
 `many` value.
 
+This is especially useful if we want to ensure the uniqueness of a data
+structure (eg. to be able to free it later), but can not guarantee that the
+elements will always be unique. Rather than copying the elements upon insertion
+to make them unique, we wrap them in a record with the `aliased` modality:
+
+```ocaml
+type 'a aliased = { a : 'a @@ aliased } [[@@unboxed]]
+```
+
 ## Mode Crossing
 
 You can always cast a value to a mode that affords fewer guarantees: You can use
@@ -57,9 +67,17 @@ value can not be made `many`.
 
 We make an exception to this rule for values of those types that cross these
 modes. For example, `int`s and other immediates can be used as `unique` and
-`many`, no matter their mode. Similarly, most values that don't contain
-functions can be used as `many`. For example, an `int list @ once aliased` can
-be used as `many` but not as `unique`.
+`many`, no matter their mode. For example:
+
+```ocaml
+type delayed_free = { id : int; callback : unit -> unit }
+
+let get_id : delayed_free @ once -> int @ many = fun t -> t.id
+```
+
+We are working on a feature which will make it possible to use a value as `many`
+if its type prevents it from containing a function. For example, you will then
+be able to use an `int list @ once aliased` as `many` (but not as `unique`).
 
 ## Checking for Uniqueness
 

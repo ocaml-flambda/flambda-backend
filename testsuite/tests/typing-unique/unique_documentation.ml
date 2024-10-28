@@ -215,7 +215,7 @@ val okay : unique_ t -> unit @@ global many = <fun>
 let okay r =
   free r.field1;
   match r with
-  | { field2 } -> free field2
+  | { field2; _ } -> free field2
 [%%expect{|
 val okay : unique_ t -> unit @@ global many = <fun>
 |}]
@@ -223,11 +223,11 @@ val okay : unique_ t -> unit @@ global many = <fun>
 let bad r =
   free r.field1;
   match r with
-  | { field2 } -> free r
+  | { field2; _ } -> free r
 [%%expect{|
-Line 4, characters 23-24:
-4 |   | { field2 } -> free r
-                           ^
+Line 4, characters 26-27:
+4 |   | { field2; _ } -> free r
+                              ^
 Error: This value is used here,
        but part of it has already been used as unique:
 Line 2, characters 7-15:
@@ -240,7 +240,7 @@ let okay r =
   let x = r in
   free x.field1;
   match r with
-  | { field2 } -> free field2
+  | { field2; _ } -> free field2
 [%%expect{|
 val okay : unique_ t -> unit @@ global many = <fun>
 |}]
@@ -249,7 +249,7 @@ let bad r =
   let x = Fun.id r in
   free x.field1;
   match r with
-  | { field2 } -> free field2
+  | { field2; _ } -> free field2
 [%%expect{|
 Line 3, characters 7-15:
 3 |   free x.field1;
