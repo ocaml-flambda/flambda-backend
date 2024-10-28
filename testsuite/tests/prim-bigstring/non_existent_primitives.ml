@@ -58,8 +58,10 @@ external set_string : string -> nativeint# -> int -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int -> unit
-  = "%caml_string_set16_indexed_by_nativeint#"
+Lines 1-2, characters 0-46:
+1 | external set_string : string -> nativeint# -> int -> unit
+2 |   = "%caml_string_set16_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set16_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> int -> unit
@@ -67,8 +69,10 @@ external set_string : string -> nativeint# -> int -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int -> unit
-  = "%caml_string_set16u_indexed_by_nativeint#"
+Lines 1-2, characters 0-47:
+1 | external set_string : string -> nativeint# -> int -> unit
+2 |   = "%caml_string_set16u_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set16u_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> int -> int32 -> unit = "%caml_string_set32"
@@ -83,8 +87,10 @@ external set_string : string -> nativeint# -> int32 -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int32 -> unit
-  = "%caml_string_set32_indexed_by_nativeint#"
+Lines 1-2, characters 0-46:
+1 | external set_string : string -> nativeint# -> int32 -> unit
+2 |   = "%caml_string_set32_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set32_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> int32 -> unit
@@ -92,8 +98,10 @@ external set_string : string -> nativeint# -> int32 -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int32 -> unit
-  = "%caml_string_set32u_indexed_by_nativeint#"
+Lines 1-2, characters 0-47:
+1 | external set_string : string -> nativeint# -> int32 -> unit
+2 |   = "%caml_string_set32u_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set32u_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> int -> int64 -> unit = "%caml_string_set64"
@@ -108,8 +116,10 @@ external set_string : string -> nativeint# -> int64 -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int64 -> unit
-  = "%caml_string_set64_indexed_by_nativeint#"
+Lines 1-2, characters 0-46:
+1 | external set_string : string -> nativeint# -> int64 -> unit
+2 |   = "%caml_string_set64_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set64_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> int64 -> unit
@@ -117,8 +127,10 @@ external set_string : string -> nativeint# -> int64 -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int64 -> unit
-  = "%caml_string_set64u_indexed_by_nativeint#"
+Lines 1-2, characters 0-47:
+1 | external set_string : string -> nativeint# -> int64 -> unit
+2 |   = "%caml_string_set64u_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set64u_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> int32# -> unit
@@ -126,8 +138,10 @@ external set_string : string -> nativeint# -> int32# -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int32# -> unit
-  = "%caml_string_set32#_indexed_by_nativeint#"
+Lines 1-2, characters 0-47:
+1 | external set_string : string -> nativeint# -> int32# -> unit
+2 |   = "%caml_string_set32#_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set32#_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> int32# -> unit
@@ -135,8 +149,10 @@ external set_string : string -> nativeint# -> int32# -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int32# -> unit
-  = "%caml_string_set32u#_indexed_by_nativeint#"
+Lines 1-2, characters 0-48:
+1 | external set_string : string -> nativeint# -> int32# -> unit
+2 |   = "%caml_string_set32u#_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set32u#_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> int64# -> unit
@@ -144,8 +160,10 @@ external set_string : string -> nativeint# -> int64# -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int64# -> unit
-  = "%caml_string_set64#_indexed_by_nativeint#"
+Lines 1-2, characters 0-47:
+1 | external set_string : string -> nativeint# -> int64# -> unit
+2 |   = "%caml_string_set64#_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set64#_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> int64# -> unit
@@ -153,8 +171,10 @@ external set_string : string -> nativeint# -> int64# -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> int64# -> unit
-  = "%caml_string_set64u#_indexed_by_nativeint#"
+Lines 1-2, characters 0-48:
+1 | external set_string : string -> nativeint# -> int64# -> unit
+2 |   = "%caml_string_set64u#_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_set64u#_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> int -> float32 -> unit =
@@ -162,8 +182,10 @@ external set_string : string -> int -> float32 -> unit =
 
 [%%expect
 {|
-external set_string : string -> int -> float32 -> unit
-  = "%caml_string_setf32"
+Lines 1-2, characters 0-23:
+1 | external set_string : string -> int -> float32 -> unit =
+2 |   "%caml_string_setf32"
+Error: Unknown builtin primitive "%caml_string_setf32"
 |}]
 
 external set_string : string -> nativeint# -> float32 -> unit
@@ -171,8 +193,10 @@ external set_string : string -> nativeint# -> float32 -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> float32 -> unit
-  = "%caml_string_setf32_indexed_by_nativeint#"
+Lines 1-2, characters 0-47:
+1 | external set_string : string -> nativeint# -> float32 -> unit
+2 |   = "%caml_string_setf32_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_setf32_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> float32 -> unit
@@ -180,8 +204,10 @@ external set_string : string -> nativeint# -> float32 -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> float32 -> unit
-  = "%caml_string_setf32u_indexed_by_nativeint#"
+Lines 1-2, characters 0-48:
+1 | external set_string : string -> nativeint# -> float32 -> unit
+2 |   = "%caml_string_setf32u_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_setf32u_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> float32# -> unit
@@ -189,8 +215,10 @@ external set_string : string -> nativeint# -> float32# -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> float32# -> unit
-  = "%caml_string_setf32#_indexed_by_nativeint#"
+Lines 1-2, characters 0-48:
+1 | external set_string : string -> nativeint# -> float32# -> unit
+2 |   = "%caml_string_setf32#_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_setf32#_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> nativeint# -> float32# -> unit
@@ -198,8 +226,10 @@ external set_string : string -> nativeint# -> float32# -> unit
 
 [%%expect
 {|
-external set_string : string -> nativeint# -> float32# -> unit
-  = "%caml_string_setf32u#_indexed_by_nativeint#"
+Lines 1-2, characters 0-49:
+1 | external set_string : string -> nativeint# -> float32# -> unit
+2 |   = "%caml_string_setf32u#_indexed_by_nativeint#"
+Error: Unknown builtin primitive "%caml_string_setf32u#_indexed_by_nativeint#"
 |}]
 
 external set_string : string -> int32# -> int -> unit
@@ -207,8 +237,10 @@ external set_string : string -> int32# -> int -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int -> unit
-  = "%caml_string_set16_indexed_by_int32#"
+Lines 1-2, characters 0-42:
+1 | external set_string : string -> int32# -> int -> unit
+2 |   = "%caml_string_set16_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set16_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int -> unit
@@ -216,8 +248,10 @@ external set_string : string -> int32# -> int -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int -> unit
-  = "%caml_string_set16u_indexed_by_int32#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int32# -> int -> unit
+2 |   = "%caml_string_set16u_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set16u_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int32 -> unit
@@ -225,8 +259,10 @@ external set_string : string -> int32# -> int32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int32 -> unit
-  = "%caml_string_set32_indexed_by_int32#"
+Lines 1-2, characters 0-42:
+1 | external set_string : string -> int32# -> int32 -> unit
+2 |   = "%caml_string_set32_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set32_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int32 -> unit
@@ -234,8 +270,10 @@ external set_string : string -> int32# -> int32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int32 -> unit
-  = "%caml_string_set32u_indexed_by_int32#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int32# -> int32 -> unit
+2 |   = "%caml_string_set32u_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set32u_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int64 -> unit
@@ -243,8 +281,10 @@ external set_string : string -> int32# -> int64 -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int64 -> unit
-  = "%caml_string_set64_indexed_by_int32#"
+Lines 1-2, characters 0-42:
+1 | external set_string : string -> int32# -> int64 -> unit
+2 |   = "%caml_string_set64_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set64_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int64 -> unit
@@ -252,8 +292,10 @@ external set_string : string -> int32# -> int64 -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int64 -> unit
-  = "%caml_string_set64u_indexed_by_int32#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int32# -> int64 -> unit
+2 |   = "%caml_string_set64u_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set64u_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int32# -> unit
@@ -261,8 +303,10 @@ external set_string : string -> int32# -> int32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int32# -> unit
-  = "%caml_string_set32#_indexed_by_int32#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int32# -> int32# -> unit
+2 |   = "%caml_string_set32#_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set32#_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int32# -> unit
@@ -270,8 +314,10 @@ external set_string : string -> int32# -> int32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int32# -> unit
-  = "%caml_string_set32u#_indexed_by_int32#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int32# -> int32# -> unit
+2 |   = "%caml_string_set32u#_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set32u#_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int64# -> unit
@@ -279,8 +325,10 @@ external set_string : string -> int32# -> int64# -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int64# -> unit
-  = "%caml_string_set64#_indexed_by_int32#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int32# -> int64# -> unit
+2 |   = "%caml_string_set64#_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set64#_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> int64# -> unit
@@ -288,8 +336,10 @@ external set_string : string -> int32# -> int64# -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> int64# -> unit
-  = "%caml_string_set64u#_indexed_by_int32#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int32# -> int64# -> unit
+2 |   = "%caml_string_set64u#_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_set64u#_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> float32 -> unit
@@ -297,8 +347,10 @@ external set_string : string -> int32# -> float32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> float32 -> unit
-  = "%caml_string_setf32_indexed_by_int32#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int32# -> float32 -> unit
+2 |   = "%caml_string_setf32_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_setf32_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> float32 -> unit
@@ -306,8 +358,10 @@ external set_string : string -> int32# -> float32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> float32 -> unit
-  = "%caml_string_setf32u_indexed_by_int32#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int32# -> float32 -> unit
+2 |   = "%caml_string_setf32u_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_setf32u_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> float32# -> unit
@@ -315,8 +369,10 @@ external set_string : string -> int32# -> float32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> float32# -> unit
-  = "%caml_string_setf32#_indexed_by_int32#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int32# -> float32# -> unit
+2 |   = "%caml_string_setf32#_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_setf32#_indexed_by_int32#"
 |}]
 
 external set_string : string -> int32# -> float32# -> unit
@@ -324,8 +380,10 @@ external set_string : string -> int32# -> float32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int32# -> float32# -> unit
-  = "%caml_string_setf32u#_indexed_by_int32#"
+Lines 1-2, characters 0-45:
+1 | external set_string : string -> int32# -> float32# -> unit
+2 |   = "%caml_string_setf32u#_indexed_by_int32#"
+Error: Unknown builtin primitive "%caml_string_setf32u#_indexed_by_int32#"
 |}]
 
 external set_string : string -> int64# -> int -> unit
@@ -333,8 +391,10 @@ external set_string : string -> int64# -> int -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int -> unit
-  = "%caml_string_set16_indexed_by_int64#"
+Lines 1-2, characters 0-42:
+1 | external set_string : string -> int64# -> int -> unit
+2 |   = "%caml_string_set16_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set16_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int -> unit
@@ -342,8 +402,10 @@ external set_string : string -> int64# -> int -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int -> unit
-  = "%caml_string_set16u_indexed_by_int64#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int64# -> int -> unit
+2 |   = "%caml_string_set16u_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set16u_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int32 -> unit
@@ -351,8 +413,10 @@ external set_string : string -> int64# -> int32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int32 -> unit
-  = "%caml_string_set32_indexed_by_int64#"
+Lines 1-2, characters 0-42:
+1 | external set_string : string -> int64# -> int32 -> unit
+2 |   = "%caml_string_set32_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set32_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int32 -> unit
@@ -360,8 +424,10 @@ external set_string : string -> int64# -> int32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int32 -> unit
-  = "%caml_string_set32u_indexed_by_int64#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int64# -> int32 -> unit
+2 |   = "%caml_string_set32u_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set32u_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int64 -> unit
@@ -369,8 +435,10 @@ external set_string : string -> int64# -> int64 -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int64 -> unit
-  = "%caml_string_set64_indexed_by_int64#"
+Lines 1-2, characters 0-42:
+1 | external set_string : string -> int64# -> int64 -> unit
+2 |   = "%caml_string_set64_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set64_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int64 -> unit
@@ -378,8 +446,10 @@ external set_string : string -> int64# -> int64 -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int64 -> unit
-  = "%caml_string_set64u_indexed_by_int64#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int64# -> int64 -> unit
+2 |   = "%caml_string_set64u_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set64u_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int32# -> unit
@@ -387,8 +457,10 @@ external set_string : string -> int64# -> int32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int32# -> unit
-  = "%caml_string_set32#_indexed_by_int64#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int64# -> int32# -> unit
+2 |   = "%caml_string_set32#_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set32#_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int32# -> unit
@@ -396,8 +468,10 @@ external set_string : string -> int64# -> int32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int32# -> unit
-  = "%caml_string_set32u#_indexed_by_int64#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int64# -> int32# -> unit
+2 |   = "%caml_string_set32u#_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set32u#_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int64# -> unit
@@ -405,8 +479,10 @@ external set_string : string -> int64# -> int64# -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int64# -> unit
-  = "%caml_string_set64#_indexed_by_int64#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int64# -> int64# -> unit
+2 |   = "%caml_string_set64#_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set64#_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> int64# -> unit
@@ -414,8 +490,10 @@ external set_string : string -> int64# -> int64# -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> int64# -> unit
-  = "%caml_string_set64u#_indexed_by_int64#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int64# -> int64# -> unit
+2 |   = "%caml_string_set64u#_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_set64u#_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> float32 -> unit
@@ -423,8 +501,10 @@ external set_string : string -> int64# -> float32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> float32 -> unit
-  = "%caml_string_setf32_indexed_by_int64#"
+Lines 1-2, characters 0-43:
+1 | external set_string : string -> int64# -> float32 -> unit
+2 |   = "%caml_string_setf32_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_setf32_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> float32 -> unit
@@ -432,8 +512,10 @@ external set_string : string -> int64# -> float32 -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> float32 -> unit
-  = "%caml_string_setf32u_indexed_by_int64#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int64# -> float32 -> unit
+2 |   = "%caml_string_setf32u_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_setf32u_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> float32# -> unit
@@ -441,8 +523,10 @@ external set_string : string -> int64# -> float32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> float32# -> unit
-  = "%caml_string_setf32#_indexed_by_int64#"
+Lines 1-2, characters 0-44:
+1 | external set_string : string -> int64# -> float32# -> unit
+2 |   = "%caml_string_setf32#_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_setf32#_indexed_by_int64#"
 |}]
 
 external set_string : string -> int64# -> float32# -> unit
@@ -450,6 +534,8 @@ external set_string : string -> int64# -> float32# -> unit
 
 [%%expect
 {|
-external set_string : string -> int64# -> float32# -> unit
-  = "%caml_string_setf32u#_indexed_by_int64#"
+Lines 1-2, characters 0-45:
+1 | external set_string : string -> int64# -> float32# -> unit
+2 |   = "%caml_string_setf32u#_indexed_by_int64#"
+Error: Unknown builtin primitive "%caml_string_setf32u#_indexed_by_int64#"
 |}]

@@ -274,22 +274,21 @@ let indexing_primitives =
       ( Printf.sprintf "%%caml_string_getu128%s%s%s",
         fun ~unsafe ~boxed ~index_kind ~mode ->
           Pstring_load_128 { unsafe; index_kind; mode; boxed } );
-      ( (fun unsafe _boxed index_kind ->
-          Printf.sprintf "%%caml_string_set16%s%s" unsafe index_kind),
-        fun ~unsafe ~boxed:_ ~index_kind ~mode:_ ->
-          Pbytes_set_16 { unsafe; index_kind } );
-      ( Printf.sprintf "%%caml_string_set32%s%s%s",
-        fun ~unsafe ~boxed ~index_kind ~mode:_ ->
-          Pbytes_set_32 { unsafe; index_kind; boxed } );
-      ( Printf.sprintf "%%caml_string_setf32%s%s%s",
-        fun ~unsafe ~boxed ~index_kind ~mode:_ ->
-          Pbytes_set_f32 { unsafe; index_kind; boxed } );
-      ( Printf.sprintf "%%caml_string_set64%s%s%s",
-        fun ~unsafe ~boxed ~index_kind ~mode:_ ->
-          Pbytes_set_64 { unsafe; index_kind; boxed } );
-      ( Printf.sprintf "%%caml_string_setu128%s%s%s",
-        fun ~unsafe ~boxed ~index_kind ~mode:_ ->
-          Pbytes_set_128 { unsafe; index_kind; boxed } );
+      (* We encourage respecting the immutability of [string]s and so do not add
+         new [string] setters. However, we keep existing setting primitives for
+         upstream compatibility. *)
+      ( (fun unsafe _boxed _index_kind ->
+          Printf.sprintf "%%caml_string_set16%s" unsafe),
+        fun ~unsafe ~boxed:_ ~index_kind:_ ~mode:_ ->
+          Pbytes_set_16 { unsafe; index_kind = Ptagged_int_index } );
+      ( (fun unsafe _boxed _index_kind ->
+          Printf.sprintf "%%caml_string_set32%s" unsafe ),
+        fun ~unsafe ~boxed:_ ~index_kind:_ ~mode:_ ->
+          Pbytes_set_32 {unsafe; index_kind= Ptagged_int_index; boxed= false} ) ;
+      ( (fun unsafe _boxed _index_kind ->
+          Printf.sprintf "%%caml_string_set64%s" unsafe ),
+        fun ~unsafe ~boxed:_ ~index_kind:_ ~mode:_ ->
+          Pbytes_set_64 {unsafe; index_kind= Ptagged_int_index; boxed= false} )
     ]
   in
   let index_kinds =
