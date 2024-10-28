@@ -923,7 +923,7 @@ let rec comp_expr stack_info env exp sz cont =
   | Lprim ((Preusefloatblock { resets } | Preuseufloatblock { resets }), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_reuse_args stack_info env args resets (fun n  -> Kgetfloatfield n) sz
-        (Kmakefloatblock (List.length args) :: cont)
+        (Kmakefloatblock (List.length resets) :: cont)
   | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
       (* There is no notion of a mixed block at runtime in bytecode. Further,
          source-level unboxed types are represented as boxed in bytecode, so
@@ -935,10 +935,10 @@ let rec comp_expr stack_info env exp sz cont =
       comp_args stack_info env args sz
         (Kmake_faux_mixedblock (total_len, tag) :: cont)
   | Lprim(Preusemixedblock { tag; shape; resets }, args, loc) ->
-    let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
-    let cont = add_pseudo_event loc !compunit_name cont in
-    comp_reuse_args stack_info env args resets (fun n -> Kgetfield n) sz
-      (Kmake_faux_mixedblock (total_len, tag) :: cont)
+      let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_reuse_args stack_info env args resets (fun n -> Kgetfield n) sz
+       (Kmake_faux_mixedblock (total_len, tag) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
@@ -1054,7 +1054,7 @@ let rec comp_expr stack_info env exp sz cont =
   | Lprim(Preuseblock { tag; resets }, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_reuse_args stack_info env args resets (fun n -> Kgetfield n) sz
-        (Kmakeblock(List.length args, tag) :: cont)
+        (Kmakeblock(List.length resets, tag) :: cont)
   | Lprim(Pmake_unboxed_product _, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
@@ -1326,8 +1326,8 @@ and comp_reuse_expr_list stack_info env exprl old getfield sz cont =
   | [] -> cont
   | [exp] -> comp_reuse_arg exp cont
   | exp :: rem ->
-    comp_reuse_arg exp
-      (Kpush :: comp_reuse_expr_list stack_info env rem old getfield (sz+1) cont)
+      comp_reuse_arg exp
+        (Kpush :: comp_reuse_expr_list stack_info env rem old getfield (sz+1) cont)
 
 and comp_exit_args stack_info env argl sz pos cont =
    comp_expr_list_assign stack_info env (List.rev argl) sz pos cont

@@ -1230,10 +1230,15 @@ let overwrite_constructor = function
 let overwrite_constructor = function
     C { a; b } as t -> overwrite_ t with C { b = a }
 [%%expect{|
-Line 2, characters 19-43:
-2 |     (a, b) as t -> overwrite_ t with (b, _)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+val overwrite_tuple :
+  ('a : value_or_null) ('b : value_or_null). 'a * 'b @ unique -> 'b * 'b @@
+  global many = <fun>
+type record = { a : int; b : int; }
+val overwrite_record : record @ unique -> record @@ global many = <fun>
+val overwrite_record : record @ unique -> record @@ global many = <fun>
+val ret_record : unit -> record @@ global many = <fun>
+Line 15, characters 13-28:
+15 |   overwrite_ (ret_record ()) with { b = a }
+                  ^^^^^^^^^^^^^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]

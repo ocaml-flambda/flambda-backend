@@ -17,12 +17,9 @@
 let overwrite_tuple = function
   (a, b) as t -> overwrite_ t with (b, _)
 [%%expect{|
-Line 2, characters 17-41:
-2 |   (a, b) as t -> overwrite_ t with (b, _)
-                     ^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+val overwrite_tuple :
+  ('a : value_or_null) ('b : value_or_null). 'a * 'b @ unique -> 'b * 'b @@
+  global many = <fun>
 |}]
 
 type record = { a : int; b : int }
@@ -31,12 +28,7 @@ let overwrite_record = function
   { a; b } as t -> overwrite_ t with { b = a; a = _ }
 [%%expect{|
 type record = { a : int; b : int; }
-Line 4, characters 19-53:
-4 |   { a; b } as t -> overwrite_ t with { b = a; a = _ }
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+val overwrite_record : record @ unique -> record @@ global many = <fun>
 |}]
 
 let with_record = function
@@ -48,12 +40,7 @@ val with_record : record -> record @@ global many = <fun>
 let overwrite_record = function
     { a; b } as t -> overwrite_ t with { b = a }
 [%%expect{|
-Line 2, characters 21-48:
-2 |     { a; b } as t -> overwrite_ t with { b = a }
-                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+val overwrite_record : record @ unique -> record @@ global many = <fun>
 |}]
 
 type constructor = C of { a : int; b : int }
@@ -62,23 +49,15 @@ let overwrite_constructor = function
   C { a; b } as t -> overwrite_ t with C { b = a; a = _ }
 [%%expect{|
 type constructor = C of { a : int; b : int; }
-Line 4, characters 21-57:
-4 |   C { a; b } as t -> overwrite_ t with C { b = a; a = _ }
-                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+val overwrite_constructor : constructor @ unique -> constructor @@ global
+  many = <fun>
 |}]
 
 let overwrite_constructor = function
     C { a; b } as t -> overwrite_ t with C { b = a }
 [%%expect{|
-Line 2, characters 23-52:
-2 |     C { a; b } as t -> overwrite_ t with C { b = a }
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+val overwrite_constructor : constructor @ unique -> constructor @@ global
+  many = <fun>
 |}]
 
 let overwrite_variant = function
@@ -95,12 +74,8 @@ let overwrite_in_match = function
     match overwrite_ t with C { b = a; a = _ } with
     | C {a; b} -> C {a; b}
 [%%expect{|
-Line 3, characters 10-46:
-3 |     match overwrite_ t with C { b = a; a = _ } with
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+val overwrite_in_match : constructor @ unique -> constructor @@ global many =
+  <fun>
 |}]
 
 (****************)

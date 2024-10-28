@@ -374,7 +374,7 @@ type primitive =
       }
 
 and reset_field =
-  | Reuse_set_to of value_kind
+  | Reuse_set_to of layout
   | Reuse_keep_old
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]

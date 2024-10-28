@@ -404,23 +404,54 @@ type option_record = { x : string option; y : string option; }
 let check_heap_alloc_in_overwrite (unique_ r : option_record) =
   overwrite_ r with { x = Some "" }
 [%%expect{|
-Line 2, characters 2-35:
-2 |   overwrite_ r with { x = Some "" }
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+(let
+  (check_heap_alloc_in_overwrite/460 =
+     (function {nlocal = 0}
+       r/462[(consts ())
+             (non_consts ([0: [(consts (0)) (non_consts ([0: *]))],
+                           [(consts (0)) (non_consts ([0: *]))]]))]
+       [(consts ())
+        (non_consts ([0: [(consts (0)) (non_consts ([0: *]))],
+                      [(consts (0)) (non_consts ([0: *]))]]))](reuseblock  (
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *]))],
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *]))])
+                                                                r/462
+                                                                [0: ""])))
+  (apply (field_imm 1 (global Toploop!)) "check_heap_alloc_in_overwrite"
+    check_heap_alloc_in_overwrite/460))
+val check_heap_alloc_in_overwrite : option_record @ unique -> option_record
+  @@ global many = <fun>
 |}]
 
 let check_heap_alloc_in_overwrite (local_ unique_ r : option_record) =
   overwrite_ r with { x = Some "" }
 [%%expect{|
-Line 2, characters 2-35:
-2 |   overwrite_ r with { x = Some "" }
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+(let
+  (check_heap_alloc_in_overwrite/465 =
+     (function {nlocal = 1}
+       r/466[L][(consts ())
+                (non_consts ([0: [(consts (0)) (non_consts ([0: *]))],
+                              [(consts (0)) (non_consts ([0: *]))]]))]
+       [(consts ())
+        (non_consts ([0: [(consts (0)) (non_consts ([0: *]))],
+                      [(consts (0)) (non_consts ([0: *]))]]))](reuseblock  (
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *]))],
+                                                                [(consts (0))
+                                                                 (non_consts (
+                                                                 [0: *]))])
+                                                                r/466
+                                                                [0: ""])))
+  (apply (field_imm 1 (global Toploop!)) "check_heap_alloc_in_overwrite"
+    check_heap_alloc_in_overwrite/465))
+val check_heap_alloc_in_overwrite :
+  local_ option_record @ unique -> local_ option_record @@ global many =
+  <fun>
 |}]
 
 (*******************************)
@@ -436,22 +467,22 @@ let update (unique_ r : mutable_record) =
   let x = overwrite_ r with { x = "foo" } in
   x.x
 [%%expect{|
-Line 2, characters 10-41:
-2 |   let x = overwrite_ r with { x = "foo" } in
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+(let
+  (update/472 =
+     (function {nlocal = 0} r/474
+       (let (x/475 = (reusemutable  (*,*) r/474 "foo")) (field_mut 0 x/475))))
+  (apply (field_imm 1 (global Toploop!)) "update" update/472))
+val update : mutable_record @ unique -> string @@ global many = <fun>
 |}]
 
 let update (unique_ r : mutable_record) =
   let x = overwrite_ r with { y = "foo" } in
   x.x
 [%%expect{|
-Line 2, characters 10-41:
-2 |   let x = overwrite_ r with { y = "foo" } in
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
-
+(let
+  (update/478 =
+     (function {nlocal = 0} r/479
+       (let (x/480 = (reusemutable  (*,*) r/479 "foo")) (field_mut 0 x/480))))
+  (apply (field_imm 1 (global Toploop!)) "update" update/478))
+val update : mutable_record @ unique -> string @@ global many = <fun>
 |}]

@@ -340,7 +340,7 @@ type primitive =
                           resets : reset_field list; mode : locality_mode }
 
 and reset_field =
-  | Reuse_set_to of value_kind
+  | Reuse_set_to of layout
   | Reuse_keep_old
 
 and extern_repr =

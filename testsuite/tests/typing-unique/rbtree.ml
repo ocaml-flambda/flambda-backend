@@ -519,10 +519,224 @@ module Make_Okasaki :
       val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@
         global many
     end
-Line 110, characters 16-52:
-110 |     | Node _ -> overwrite_ t with Node { color = c }
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1108, characters 2-8: Assertion failed
+Line 169, characters 16-80:
+169 |                 balance_right (overwrite_ t with Node { right = ins k v right }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
 
+Line 164, characters 16-77:
+164 |                 balance_left (overwrite_ t with Node { left = ins k v left }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+module Make_Unique_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a) tree
+      val fold :
+        'a 'b ('c : value_or_null).
+          ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+        @@ global many
+      val set_color :
+        color -> ('a, 'b) tree @ unique -> ('c, 'd) tree @ unique @@ global
+        many portable
+      val set_black :
+        (Ord.t, '_weak1) tree @ unique -> ('a, 'b) tree @ unique @@ global
+        many
+      val set_red : (Ord.t, '_weak1) tree @ unique -> ('a, 'b) tree @ unique
+        @@ global many
+      val balance_left :
+        (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@
+        global many
+      val balance_right :
+        (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@
+        global many
+      val ins :
+        Ord.t ->
+        '_weak1 ->
+        (Ord.t, 'a) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@ global
+        many
+      val insert :
+        Ord.t -> '_weak1 -> (Ord.t, 'a) tree @ unique -> ('b, 'c) tree @@
+        global many
+    end
+type tree_tag = private Tree
+type zipper_tag = private Zipper
+type ('left, 'right, 'kind) tag =
+    Red : (tree_tag, tree_tag, tree_tag) tag
+  | Black : (tree_tag, tree_tag, tree_tag) tag
+  | Right_red : (tree_tag, zipper_tag, zipper_tag) tag
+  | Right_black : (tree_tag, zipper_tag, zipper_tag) tag
+  | Left_red : (zipper_tag, tree_tag, zipper_tag) tag
+  | Left_black : (zipper_tag, tree_tag, zipper_tag) tag
+type ('k, 'v, 'kind) tagged_tree =
+    Node : { color : ('left, 'right, 'kind) tag;
+      left : ('k, 'v, 'left) tagged_tree; key : 'k; value : 'v;
+      right : ('k, 'v, 'right) tagged_tree;
+    } -> ('k, 'v, 'kind) tagged_tree
+  | Leaf : ('k, 'v, 'kind) tagged_tree
+val tagged_fold :
+  ('k -> 'v -> 'a -> 'a) -> 'a -> ('k, 'v, 'kind) tagged_tree -> 'a @@ global
+  many = <fun>
+val unique_work :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    insert:(int -> bool -> 'a -> 'a) ->
+    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c
+  @@ global many = <fun>
+Line 226, characters 20-21:
+226 |         begin match t.left with
+                          ^
+Error: This expression has type "('a, 'b, tree_tag) tagged_tree"
+       which is not a record type.
+|}, Principal{|
+type color = Red | Black
+type ('k, 'v) tree =
+    Node of { color : color; left : ('k, 'v) tree; key : 'k @@ many aliased;
+      value : 'v @@ many aliased; right : ('k, 'v) tree;
+    }
+  | Leaf
+val fold :
+  'a 'b ('c : value_or_null).
+    ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+  @@ global many = <fun>
+val work :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    insert:(int -> bool -> 'a -> 'a) ->
+    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c
+  @@ global many = <fun>
+Line 85, characters 16-71:
+85 |                 balance_right (Node { t with right = ins k v t.right }) [@nontail]
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+Line 80, characters 16-68:
+80 |                 balance_left (Node { t with left = ins k v t.left }) [@nontail]
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+module Make_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a) tree
+      val fold :
+        'a 'b ('c : value_or_null).
+          ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+        @@ global many
+      val balance_left : ('a, 'b) tree -> ('a, 'b) tree @@ global many
+        portable
+      val balance_right : ('a, 'b) tree -> ('a, 'b) tree @@ global many
+        portable
+      val ins : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@ global
+        many
+      val set_black : ('a, 'b) tree -> ('a, 'b) tree @@ global many portable
+      val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@
+        global many
+    end
+Line 169, characters 16-80:
+169 |                 balance_right (overwrite_ t with Node { right = ins k v right }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+Line 164, characters 16-77:
+164 |                 balance_left (overwrite_ t with Node { left = ins k v left }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+module Make_Unique_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a) tree
+      val fold :
+        'a 'b ('c : value_or_null).
+          ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+        @@ global many
+      val set_color :
+        color -> ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@ global
+        many portable
+      val set_black :
+        (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@
+        global many
+      val set_red :
+        (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@
+        global many
+      val balance_left :
+        (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@
+        global many
+      val balance_right :
+        (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@
+        global many
+      val ins :
+        Ord.t ->
+        '_weak1 ->
+        (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @ unique @@
+        global many
+      val insert :
+        Ord.t ->
+        '_weak1 -> (Ord.t, '_weak1) tree @ unique -> (Ord.t, '_weak1) tree @@
+        global many
+    end
+type tree_tag = private Tree
+type zipper_tag = private Zipper
+type ('left, 'right, 'kind) tag =
+    Red : (tree_tag, tree_tag, tree_tag) tag
+  | Black : (tree_tag, tree_tag, tree_tag) tag
+  | Right_red : (tree_tag, zipper_tag, zipper_tag) tag
+  | Right_black : (tree_tag, zipper_tag, zipper_tag) tag
+  | Left_red : (zipper_tag, tree_tag, zipper_tag) tag
+  | Left_black : (zipper_tag, tree_tag, zipper_tag) tag
+type ('k, 'v, 'kind) tagged_tree =
+    Node : { color : ('left, 'right, 'kind) tag;
+      left : ('k, 'v, 'left) tagged_tree; key : 'k; value : 'v;
+      right : ('k, 'v, 'right) tagged_tree;
+    } -> ('k, 'v, 'kind) tagged_tree
+  | Leaf : ('k, 'v, 'kind) tagged_tree
+val tagged_fold :
+  ('k -> 'v -> 'a -> 'a) -> 'a -> ('k, 'v, 'kind) tagged_tree -> 'a @@ global
+  many = <fun>
+val unique_work :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    insert:(int -> bool -> 'a -> 'a) ->
+    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c
+  @@ global many = <fun>
+Line 226, characters 20-21:
+226 |         begin match t.left with
+                          ^
+Error: This expression has type "('a, 'b, tree_tag) tagged_tree"
+       which is not a record type.
 |}]
