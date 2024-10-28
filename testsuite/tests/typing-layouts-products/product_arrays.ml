@@ -2024,3 +2024,106 @@ Error: This expression has type "#(string * a * bool option) array"
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
 |}]
+
+(****************************************************)
+(* Test 25: literal expressions have the same rules *)
+
+let f_scannable_literal (type a : value mod external_)
+      (x : int) (y : a) (z : bool option) = [| #(x, y, z) |]
+let f_scannable_empty_literal (type a : value mod external_)
+  : #(int * a * bool option) array = [| |]
+[%%expect{|
+val f_scannable_literal :
+  ('a : value mod external_).
+    int -> 'a -> bool option -> #(int * 'a * bool option) array =
+  <fun>
+val f_scannable_empty_literal :
+  ('a : value mod external_). #(int * 'a * bool option) array = [||]
+|}]
+
+let f_ignorable_literal (type a : value mod external_)
+      (x : int) (y : a) (z : #(int64# * float#)) = [| #(x, y, z) |]
+let f_ignorable_empty_literal (type a : value mod external_)
+  : #(int * a * #(int64# * float#)) array = [| |]
+[%%expect{|
+val f_ignorable_literal :
+  ('a : value mod external_).
+    int -> 'a -> #(int64# * float#) -> #(int * 'a * #(int64# * float#)) array =
+  <fun>
+val f_ignorable_empty_literal :
+  ('a : value mod external_). #(int * 'a * #(int64# * float#)) array =
+  [||]
+|}]
+
+let f_illegal_literal (type a : value mod external_)
+      (x : float#) (y : a) (z : bool option) = [| #(x, y, z) |]
+[%%expect{|
+Line 2, characters 47-63:
+2 |       (x : float#) (y : a) (z : bool option) = [| #(x, y, z) |]
+                                                   ^^^^^^^^^^^^^^^^
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
+|}]
+
+let f_illegal_empty_literal (type a : value mod external_)
+  : #(float# * a * bool option) array = [| |]
+[%%expect{|
+Lines 1-2, characters 28-45:
+1 | ............................(type a : value mod external_)
+2 |   : #(float# * a * bool option) array = [| |]
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
+|}]
+
+(*************************************************)
+(* Test 26: literal patterns have the same rules *)
+
+let f_scannable_literal arr : #(bool option * string * int) =
+  match arr with
+  | [| |] -> #(None, "hi", 42)
+  | [| #(x, y, z) |] -> #(z, y, x)
+  | _ -> assert false
+[%%expect{|
+val f_scannable_literal :
+  #(int * string * bool option) array -> #(bool option * string * int) =
+  <fun>
+|}]
+
+let f_ignorable_literal arr : #(#(int64# * float#) * int32# * int) =
+  match arr with
+  | [| |] -> #(#(#42L, #3.14), #10l, 43)
+  | [| #(x, y, #(z, q)) |] -> #(#(q, z), y, x)
+  | _ -> assert false
+[%%expect{|
+val f_ignorable_literal :
+  #(int * int32# * #(float# * int64#)) array ->
+  #(#(int64# * float#) * int32# * int) = <fun>
+|}]
+
+let f_illegal_literal : #(float# * bool option * int) array -> int =
+  function
+  | [| #(a,b,c) |] -> 1
+  | _ -> 0
+[%%expect{|
+Line 3, characters 4-18:
+3 |   | [| #(a,b,c) |] -> 1
+        ^^^^^^^^^^^^^^
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
+|}]
+
+let f_illegal_empty_literal : #(float# * bool option * int) array -> int =
+  function
+  | [| |] -> 0
+  | _ -> 1
+[%%expect{|
+Line 3, characters 4-9:
+3 |   | [| |] -> 0
+        ^^^^^
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
+|}]
