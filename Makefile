@@ -35,7 +35,7 @@ ci-coverage: boot-runtest coverage
 # 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
 .PHONY: minimizer
-minimizer: _build/_bootinstall
+minimizer: runtime-stdlib
 	cp chamelon/dune.jst chamelon/dune
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
