@@ -17,6 +17,9 @@
    say any. This is caused by [any] meaning different things alpha and beta - we
    can fix it when we move this test to beta. *)
 
+(* CR layouts v12: If we add void before killing the scannable/ignorable
+   products distinction, we should test here that it's allowed in both. *)
+
 (*******************************************************)
 (* Test 1: Some allowed scannable product array types. *)
 type t1 = #(int * bool option) array
@@ -103,26 +106,25 @@ type t8a = t8 array
 external[@layout_poly] make_vect : ('a : any_non_null) . int -> 'a -> 'a array =
   "%makearray_dynamic"
 
-let f_scannable (x : #(int * float * string) array) = make_vect 42 x
+let f_scannable (x : #(int * float * string)) = make_vect 42 x
 
-let f_ignorable (x : #(float# * int * int64# * bool) array) = make_vect 42 x
+let f_ignorable (x : #(float# * int * int64# * bool)) = make_vect 42 x
 [%%expect{|
 external make_vect : ('a : any_non_null). int -> 'a -> 'a array
   = "%makearray_dynamic" [@@layout_poly]
-val f_scannable :
-  #(int * float * string) array -> #(int * float * string) array array =
+val f_scannable : #(int * float * string) -> #(int * float * string) array =
   <fun>
 val f_ignorable :
-  #(float# * int * int64# * bool) array ->
-  #(float# * int * int64# * bool) array array = <fun>
+  #(float# * int * int64# * bool) -> #(float# * int * int64# * bool) array =
+  <fun>
 |}]
 
 (* But not on the bad ones. *)
-let f_bad (x : #(string * float#) array) = make_vect 42 x
+let f_bad (x : #(string * float#)) = make_vect 42 x
 [%%expect{|
-Line 1, characters 10-40:
-1 | let f_bad (x : #(string * float#) array) = make_vect 42 x
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 37-51:
+1 | let f_bad (x : #(string * float#)) = make_vect 42 x
+                                         ^^^^^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
        scannable types. The product type this function is applied at is
        not external but contains an element of sort float64.
@@ -170,11 +172,11 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* Unboxed vectors are also rejected. *)
-let f_bad (x : #(int * int32x4#) array) = make_vect 42 x
+let f_bad (x : #(int * int32x4#)) = make_vect 42 x
 [%%expect{|
-Line 1, characters 10-39:
-1 | let f_bad (x : #(int * int32x4#) array) = make_vect 42 x
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 36-50:
+1 | let f_bad (x : #(int * int32x4#)) = make_vect 42 x
+                                        ^^^^^^^^^^^^^^
 Error: Unboxed vector types are not yet supported in arrays of unboxed
        products.
 |}]
@@ -1185,14 +1187,18 @@ val set_ignorable_app :
 
 external set_bad :
   #(string * float#) array -> int32# -> #(string * float#) -> unit =
-  "%array_safe_set_indexed_by_int64#"
+  "%array_safe_set_indexed_by_int32#"
 let set_bad_app a i x = set_bad a i x
 [%%expect{|
-Line 2, characters 2-66:
-2 |   #(string * float#) array -> int32# -> #(string * float#) -> unit =
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The primitive [%array_safe_set_indexed_by_int64#] is used in an invalid declaration.
-       The declaration contains argument/return types with the wrong layout.
+external set_bad :
+  #(string * float#) array -> int32# -> #(string * float#) -> unit
+  = "%array_safe_set_indexed_by_int32#"
+Line 4, characters 24-37:
+4 | let set_bad_app a i x = set_bad a i x
+                            ^^^^^^^^^^^^^
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1573,14 +1579,18 @@ val set_ignorable_app :
 
 external set_bad :
   #(string * float#) array -> nativeint# -> #(string * float#) -> unit =
-  "%array_safe_set_indexed_by_int64#"
+  "%array_safe_set_indexed_by_nativeint#"
 let set_bad_app a i x = set_bad a i x
 [%%expect{|
-Line 2, characters 2-70:
-2 |   #(string * float#) array -> nativeint# -> #(string * float#) -> unit =
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The primitive [%array_safe_set_indexed_by_int64#] is used in an invalid declaration.
-       The declaration contains argument/return types with the wrong layout.
+external set_bad :
+  #(string * float#) array -> nativeint# -> #(string * float#) -> unit
+  = "%array_safe_set_indexed_by_nativeint#"
+Line 4, characters 24-37:
+4 | let set_bad_app a i x = set_bad a i x
+                            ^^^^^^^^^^^^^
+Error: Unboxed product array elements must be external or contain all gc
+       scannable types. The product type this function is applied at is
+       not external but contains an element of sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1908,4 +1918,109 @@ Line 5, characters 36-69:
                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Unboxed vector types are not yet supported in arrays of unboxed
        products.
+|}]
+
+(************************************************)
+(* Test 23: Abstract [value mod external] types *)
+
+(* These should work like [int] - be allowed in both product arrays. *)
+
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int -> 'a =
+  "%array_safe_get"
+
+let f1 (type a : value mod external_) (x : #(float# * a * int * int64#) array) =
+  get x 42
+[%%expect{|
+external get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
+  [@@layout_poly]
+val f1 :
+  ('a : value mod external_).
+    #(float# * 'a * int * int64#) array -> #(float# * 'a * int * int64#) =
+  <fun>
+|}]
+
+let f2 (type a : value mod external_) (x : #(string * a * bool option) array) =
+  get x 42
+[%%expect{|
+val f2 :
+  ('a : value mod external_).
+    #(string * 'a * bool option) array -> #(string * 'a * bool option) =
+  <fun>
+|}]
+
+(***********************************)
+(* Test 24: any is always rejected *)
+
+(* Even just for length it must be rejected - we wouldn't know what to divide
+   by. *)
+
+(* CR layouts v7.1: change these tests to be about just "any" once we move to
+   product arrays to beta. *)
+external[@layout_poly] len : ('a : any_non_null) . 'a array -> int =
+  "%array_length"
+
+let f_any_1 (type a : any_non_null) (x : #(float# * a * int * int64#) array) =
+  len x
+[%%expect{|
+external len : ('a : any_non_null). 'a array -> int = "%array_length"
+  [@@layout_poly]
+Line 5, characters 6-7:
+5 |   len x
+          ^
+Error: This expression has type "#(float# * a * int * int64#) array"
+       but an expression was expected of type "'a array"
+       The layout of #(float# * a * int * int64#) is float64 & any & value & bits64
+         because it is an unboxed tuple.
+       But the layout of #(float# * a * int * int64#) must be representable
+         because it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
+|}]
+
+let f_any_2 (type a : any_non_null) (x : #(string * a * bool option) array) =
+  len x
+[%%expect{|
+Line 2, characters 6-7:
+2 |   len x
+          ^
+Error: This expression has type "#(string * a * bool option) array"
+       but an expression was expected of type "'a array"
+       The layout of #(string * a * bool option) is value & any & value
+         because it is an unboxed tuple.
+       But the layout of #(string * a * bool option) must be representable
+         because it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
+|}]
+
+let f_any_external_1 (type a : any_non_null mod external_)
+      (x : #(float# * a * int * int64#) array) = len x
+[%%expect{|
+Line 2, characters 53-54:
+2 |       (x : #(float# * a * int * int64#) array) = len x
+                                                         ^
+Error: This expression has type "#(float# * a * int * int64#) array"
+       but an expression was expected of type "'a array"
+       The layout of #(float# * a * int * int64#) is float64 & any & value & bits64
+         because it is an unboxed tuple.
+       But the layout of #(float# * a * int * int64#) must be representable
+         because it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
+|}]
+
+let f_any_external_2 (type a : any_non_null mod external_)
+      (x : #(string * a * bool option) array) = len x
+[%%expect{|
+Line 2, characters 52-53:
+2 |       (x : #(string * a * bool option) array) = len x
+                                                        ^
+Error: This expression has type "#(string * a * bool option) array"
+       but an expression was expected of type "'a array"
+       The layout of #(string * a * bool option) is value & any & value
+         because it is an unboxed tuple.
+       But the layout of #(string * a * bool option) must be representable
+         because it's the layout polymorphic type in an external declaration
+         ([@layout_poly] forces all variables of layout 'any' to be
+         representable at call sites).
 |}]
