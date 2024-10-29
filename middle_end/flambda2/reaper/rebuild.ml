@@ -374,6 +374,8 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
     params_and_body
   in
   let body = rebuild_expr kinds env body in
+  (* assert (List.exists Fun.id (Continuation.Map.find return_continuation
+     env.cont_params_to_keep)); *)
   Function_params_and_body.create ~return_continuation ~exn_continuation params
     ~body:body.expr ~free_names_of_body:(Known body.free_names) ~my_closure
     ~my_region ~my_ghost_region ~my_depth

@@ -19,6 +19,10 @@ module Field = struct
       | Normal of int
       | Exn
 
+    type closure_entry_point =
+      | Indirect_code_pointer
+      | Direct_code_pointer
+
     type t =
       | Block of int
       | Value_slot of Value_slot.t
@@ -26,7 +30,7 @@ module Field = struct
       | Code_of_closure
       | Is_int
       | Get_tag
-      | Apply of return_kind
+      | Apply of closure_entry_point * return_kind
 
     let compare_return_kind r1 r2 =
       match r1, r2 with
@@ -34,6 +38,10 @@ module Field = struct
       | Exn, Exn -> 0
       | Normal _, Exn -> 1
       | Exn, Normal _ -> -1
+
+    let closure_entry_point_to_int = function
+      | Indirect_code_pointer -> 0
+      | Direct_code_pointer -> 1
 
     let compare t1 t2 =
       match t1, t2 with
@@ -43,7 +51,13 @@ module Field = struct
       | Code_of_closure, Code_of_closure -> 0
       | Is_int, Is_int -> 0
       | Get_tag, Get_tag -> 0
-      | Apply r1, Apply r2 -> compare_return_kind r1 r2
+      | Apply (ep1, r1), Apply (ep2, r2) ->
+        let c =
+          Int.compare
+            (closure_entry_point_to_int ep1)
+            (closure_entry_point_to_int ep2)
+        in
+        if c <> 0 then c else compare_return_kind r1 r2
       | ( Block _,
           ( Value_slot _ | Function_slot _ | Code_of_closure | Is_int | Get_tag
           | Apply _ ) ) ->
@@ -71,6 +85,10 @@ module Field = struct
 
     let hash = Hashtbl.hash
 
+    let closure_entry_point_to_string = function
+      | Indirect_code_pointer -> "Indirect_code_pointer"
+      | Direct_code_pointer -> "Direct_code_pointer"
+
     let print ppf = function
       | Block i -> Format.fprintf ppf "%i" i
       | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
@@ -78,8 +96,12 @@ module Field = struct
       | Code_of_closure -> Format.fprintf ppf "Code"
       | Is_int -> Format.fprintf ppf "Is_int"
       | Get_tag -> Format.fprintf ppf "Get_tag"
-      | Apply (Normal i) -> Format.fprintf ppf "Apply (Normal %i)" i
-      | Apply Exn -> Format.fprintf ppf "Apply Exn"
+      | Apply (ep, Normal i) ->
+        Format.fprintf ppf "Apply (%s, Normal %i)"
+          (closure_entry_point_to_string ep)
+          i
+      | Apply (ep, Exn) ->
+        Format.fprintf ppf "Apply (%s, Exn)" (closure_entry_point_to_string ep)
   end
 
   include M

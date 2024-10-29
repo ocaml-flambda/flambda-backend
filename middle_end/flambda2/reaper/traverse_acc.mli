@@ -35,7 +35,8 @@ type code_dep =
     params : Variable.t list;
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
-    exn : Variable.t (* Dummy variable representing exn return value *)
+    exn : Variable.t; (* Dummy variable representing exn return value *)
+    is_tupled : bool
   }
 
 type apply_dep =

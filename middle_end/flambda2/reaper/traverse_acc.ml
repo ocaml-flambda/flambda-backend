@@ -35,7 +35,8 @@ type code_dep =
     params : Variable.t list;
     my_closure : Variable.t;
     return : Variable.t list; (* Dummy variable representing return value *)
-    exn : Variable.t (* Dummy variable representing exn return value *)
+    exn : Variable.t; (* Dummy variable representing exn return value *)
+    is_tupled : bool
   }
 
 type apply_dep =
@@ -183,7 +184,26 @@ let record_set_of_closure_deps t =
         Graph.add_dep t.deps
           (Code_id_or_name.var code_dep.my_closure)
           (Graph.Dep.Alias { target = name });
-        let num_params = Flambda_arity.num_params code_dep.arity in
+        List.iteri
+          (fun i v ->
+            Graph.add_dep t.deps
+              (Code_id_or_name.name name)
+              (Constructor
+                 { relation = Apply (Direct_code_pointer, Normal i);
+                   target = Code_id_or_name.var v
+                 }))
+          code_dep.return;
+        Graph.add_dep t.deps
+          (Code_id_or_name.name name)
+          (Constructor
+             { relation = Apply (Direct_code_pointer, Exn);
+               target = Code_id_or_name.var code_dep.exn
+             });
+        let num_params =
+          if code_dep.is_tupled
+          then 1
+          else Flambda_arity.num_params code_dep.arity
+        in
         let acc = ref (Code_id_or_name.name name) in
         for i = 1 to num_params - 1 do
           let tmp_name =
@@ -191,7 +211,10 @@ let record_set_of_closure_deps t =
               (Variable.create (Printf.sprintf "partial_apply_%i" i))
           in
           Graph.add_dep t.deps !acc
-            (Constructor { relation = Apply (Normal 0); target = tmp_name });
+            (Constructor
+               { relation = Apply (Indirect_code_pointer, Normal 0);
+                 target = tmp_name
+               });
           (* The code_id needs to stay alive even if the function is only
              partially applied, as the arity is needed at runtime in that
              case. *)
@@ -206,11 +229,15 @@ let record_set_of_closure_deps t =
           (fun i v ->
             Graph.add_dep t.deps !acc
               (Constructor
-                 { relation = Apply (Normal i); target = Code_id_or_name.var v }))
+                 { relation = Apply (Indirect_code_pointer, Normal i);
+                   target = Code_id_or_name.var v
+                 }))
           code_dep.return;
         Graph.add_dep t.deps !acc
           (Constructor
-             { relation = Apply Exn; target = Code_id_or_name.var code_dep.exn });
+             { relation = Apply (Indirect_code_pointer, Exn);
+               target = Code_id_or_name.var code_dep.exn
+             });
         Graph.add_dep t.deps !acc
           (Constructor
              { relation = Code_of_closure;

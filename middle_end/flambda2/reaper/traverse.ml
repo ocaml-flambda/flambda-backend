@@ -35,7 +35,9 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   let return =
     List.init
       (Flambda_arity.cardinal_unarized (Code.result_arity code))
-      (fun i -> Variable.create (Printf.sprintf "function_return_%i" i))
+      (fun i ->
+        Variable.create
+          (Format.asprintf "function_return_%i_%a" i Code_id.print code_id))
   in
   let exn = Variable.create "function_exn" in
   let my_closure = Variable.create "my_closure" in
@@ -56,7 +58,15 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     | Assume _ -> false
     | Check _ -> true
   in
-  let code_dep = { Traverse_acc.arity; return; my_closure; exn; params } in
+  let code_dep =
+    { Traverse_acc.arity;
+      return;
+      my_closure;
+      exn;
+      params;
+      is_tupled = Code.is_tupled code
+    }
+  in
   if has_unsafe_result_type
   then
     List.iter
@@ -515,7 +525,10 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
       Acc.called ~denv code_id acc)
     else default_acc acc
   | Function
-      { function_call = Indirect_unknown_arity | Indirect_known_arity; _ } ->
+      { function_call =
+          (Indirect_unknown_arity | Indirect_known_arity) as function_call;
+        _
+      } ->
     List.iter (fun arg -> Acc.used ~denv arg acc) (Apply.args apply);
     let callee =
       match Apply.callee apply with
@@ -530,25 +543,41 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     let partial_apply = ref callee in
     let calls_are_not_pure = Variable.create "not_pure" in
     Acc.used ~denv (Simple.var calls_are_not_pure) acc;
-    for i = 1 to Flambda_arity.num_params arity - 1 do
-      let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
-      Acc.record_dep ~denv (Code_id_or_name.var v)
-        (Accessor { relation = Apply (Normal 0); target = !partial_apply })
-        acc;
-      Acc.record_dep ~denv
-        (Code_id_or_name.var exn_arg)
-        (Accessor { relation = Apply Exn; target = !partial_apply })
-        acc;
-      Acc.record_dep ~denv
-        (Code_id_or_name.var calls_are_not_pure)
-        (Accessor { relation = Code_of_closure; target = !partial_apply })
-        acc;
-      partial_apply := Name.var v
-    done;
+    (match function_call with
+    | Indirect_unknown_arity ->
+      for i = 1 to Flambda_arity.num_params arity - 1 do
+        let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
+        Acc.record_dep ~denv (Code_id_or_name.var v)
+          (Accessor
+             { relation = Apply (Indirect_code_pointer, Normal 0);
+               target = !partial_apply
+             })
+          acc;
+        Acc.record_dep ~denv
+          (Code_id_or_name.var exn_arg)
+          (Accessor
+             { relation = Apply (Indirect_code_pointer, Exn);
+               target = !partial_apply
+             })
+          acc;
+        Acc.record_dep ~denv
+          (Code_id_or_name.var calls_are_not_pure)
+          (Accessor { relation = Code_of_closure; target = !partial_apply })
+          acc;
+        partial_apply := Name.var v
+      done
+    | Indirect_known_arity -> ()
+    | Direct _ -> assert false);
     Acc.record_dep ~denv
       (Code_id_or_name.var calls_are_not_pure)
       (Accessor { relation = Code_of_closure; target = !partial_apply })
       acc;
+    let closure_entry_point : Global_flow_graph.Field.closure_entry_point =
+      match function_call with
+      | Indirect_unknown_arity -> Indirect_code_pointer
+      | Indirect_known_arity -> Direct_code_pointer
+      | Direct _ -> assert false
+    in
     (match return_args with
     | None -> ()
     | Some return_args ->
@@ -556,12 +585,18 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
         (fun i return_arg ->
           Acc.record_dep ~denv
             (Code_id_or_name.var return_arg)
-            (Accessor { relation = Apply (Normal i); target = !partial_apply })
+            (Accessor
+               { relation = Apply (closure_entry_point, Normal i);
+                 target = !partial_apply
+               })
             acc)
         return_args);
     Acc.record_dep ~denv
       (Code_id_or_name.var exn_arg)
-      (Accessor { relation = Apply Exn; target = !partial_apply })
+      (Accessor
+         { relation = Apply (closure_entry_point, Exn);
+           target = !partial_apply
+         })
       acc
   | Method _ | C_call _ | Effect _ -> default_acc acc
 

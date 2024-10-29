@@ -18,6 +18,10 @@ module Field : sig
     | Normal of int
     | Exn
 
+  type closure_entry_point =
+    | Indirect_code_pointer
+    | Direct_code_pointer
+
   type t =
     | Block of int (* nth field of a block *)
     | Value_slot of Value_slot.t
@@ -25,7 +29,7 @@ module Field : sig
     | Code_of_closure (* code_id in a set of closurse *)
     | Is_int (* value checked for [Is_int] *)
     | Get_tag (* tag of the value is read *)
-    | Apply of return_kind
+    | Apply of closure_entry_point * return_kind
   (* Returns of functions: either exn path or nth value for normal returns *)
 
   val equal : t -> t -> bool
