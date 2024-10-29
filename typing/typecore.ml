@@ -901,6 +901,9 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   let jkind = type_jkind_purely env ty in
   expect_mode_cross_jkind jkind expected_mode
 
+(** The expected mode for objects *)
+let mode_object = expect_mode_cross_jkind Jkind.for_object mode_legacy
+
 let mode_annots_from_pat pat =
   let modes =
     match pat.ppat_desc with
@@ -9365,8 +9368,7 @@ and type_immutable_array
 
 (* Typing of method call *)
 and type_send env loc explanation e met =
-  let expected_mode = expect_mode_cross_jkind Jkind.for_object mode_legacy in
-  let obj = type_exp env expected_mode e in
+  let obj = type_exp env mode_object e in
   let (meth, typ) =
     match obj.exp_desc with
     | Texp_ident(_, _, {val_kind = Val_self(sign, meths, _, _)}, _, _) ->

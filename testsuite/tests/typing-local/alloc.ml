@@ -456,6 +456,15 @@ let[@inline never] huge () =
   bytes_set b pos 'h';
   assert (bytes_get b pos = 'h')
 
+class cla = object
+    val x = 42
+end
+
+let[@inline never] obj () =
+  ignore_local (new cla);
+  ()
+
+
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
@@ -509,7 +518,8 @@ let () =
   run "verylong" makeverylong 42;
   run "manylong" makemanylong 100;
   run "optionalarg" optionalarg (fun_with_optional_arg, 10);
-  run "optionaleta" optionaleta ()
+  run "optionaleta" optionaleta ();
+  run "object" obj ()
 
   (* The following test commented out as it require more memory than the CI has
      *)
