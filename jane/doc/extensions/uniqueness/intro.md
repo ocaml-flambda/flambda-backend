@@ -1,8 +1,7 @@
 # Introduction to Uniqueness
 
 See also the full feature [reference](reference.md) and [common pitfalls](pitfalls.md).
-In this document, we use the new [syntax for modes](../modes/syntax.md),
-which we expect to be stable soonish.
+In this document, we use the new [syntax for modes](../modes/syntax.md).
 
 The `unique` mode designates values that have only a single reference pointing
 to them. If an operation takes a `unique` argument, it will consume the only
