@@ -427,10 +427,10 @@ let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
 
 (* Translation of the bodies of functions. *)
 
-let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
-    ~return_continuation ~exn_continuation params ~body ~my_closure
-    ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~my_ghost_region
-    ~translate_expr =
+let params_and_body0 env res code_id ~result_arity ~fun_dbg
+    ~zero_alloc_attribute ~return_continuation ~exn_continuation params ~body
+    ~my_closure ~(is_my_closure_used : _ Or_unknown.t) ~my_region
+    ~my_ghost_region ~translate_expr =
   let params =
     let is_my_closure_used =
       match is_my_closure_used with
@@ -448,8 +448,13 @@ let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
   in
   (* Init the env and create a jump id for the return continuation in case a
      trap action is attached to one of its calls *)
+  let return_continuation_arity =
+    List.map To_cmm_shared.machtype_of_kind
+      (Flambda_arity.unarized_components result_arity)
+  in
   let env =
-    Env.enter_function_body env ~return_continuation ~exn_continuation
+    Env.enter_function_body env ~return_continuation ~return_continuation_arity
+      ~exn_continuation
   in
   (* [my_region] can be referenced in [Begin_try_region] primitives so must be
      in the environment; however it should never end up in actual generated
@@ -496,8 +501,8 @@ let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
   in
   C.fundecl fun_sym fun_params fun_body fun_flags fun_dbg fun_poll, res
 
-let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
-    ~translate_expr =
+let params_and_body env res code_id p ~result_arity ~fun_dbg
+    ~zero_alloc_attribute ~translate_expr =
   Function_params_and_body.pattern_match p
     ~f:(fun
          ~return_continuation
@@ -512,9 +517,10 @@ let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
          ~free_names_of_body:_
        ->
       try
-        params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
-          ~return_continuation ~exn_continuation params ~body ~my_closure
-          ~is_my_closure_used ~my_region ~my_ghost_region ~translate_expr
+        params_and_body0 env res code_id ~result_arity ~fun_dbg
+          ~zero_alloc_attribute ~return_continuation ~exn_continuation params
+          ~body ~my_closure ~is_my_closure_used ~my_region ~my_ghost_region
+          ~translate_expr
       with Misc.Fatal_error as e ->
         let bt = Printexc.get_raw_backtrace () in
         Format.eprintf
