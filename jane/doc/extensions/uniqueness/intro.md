@@ -117,7 +117,8 @@ let okay t =
     else free t
 ```
 
-or if the uses both accept `aliased` arguments:
+or if the uses both accept `aliased` arguments (eg. by calling a function that
+only stores its argument somewhere):
 
 ```ocaml
 val store : t @ aliased -> unit
