@@ -103,9 +103,10 @@ let bad t =
     free t
 ```
 
-In the `bad` function above, the `free t` assumes that it gets all of `t`
-uniquely, but this is not true if `field` has already been freed. However, we
-can use parts of `t` twice if these uses happen in different branches:
+In the `bad` function above, `free_field` assumes that it gets the only
+reference to `field`. But `field` can still be referenced from `t`, which is
+itself passed to `free`. However, we are allowed to use parts of `t` twice if
+these uses happen in different branches:
 
 ```ocaml
 let okay t =

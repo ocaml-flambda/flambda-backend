@@ -276,42 +276,75 @@ let okay r =
 val okay : unique_ t -> unit @@ global many = <fun>
 |}]
 
+let id : 'a @ unique -> 'a @ unique = fun t -> t
+[%%expect{|
+val id : ('a : value_or_null). unique_ 'a -> unique_ 'a @@ global many =
+  <fun>
+|}]
+
 let bad r =
-  let x = Fun.id r in
+  let x = id r in
   free x.field1;
   match r with
   | { field2; _ } -> free field2
 [%%expect{|
-Line 3, characters 7-15:
-3 |   free x.field1;
-           ^^^^^^^^
-Error: This value is "aliased" but expected to be "unique".
+Line 5, characters 4-17:
+5 |   | { field2; _ } -> free field2
+        ^^^^^^^^^^^^^
+Error: This value is read from here, but it has already been used as unique:
+Line 2, characters 13-14:
+2 |   let x = id r in
+                 ^
+
+|}]
+
+let bad r =
+  let x = { field1 = r.field1; field2 = r.field2 } in
+  free x.field1;
+  match r with
+  | { field2; _ } -> free field2
+[%%expect{|
+Line 5, characters 26-32:
+5 |   | { field2; _ } -> free field2
+                              ^^^^^^
+Error: This value is used here, but it has already been used as unique:
+Line 2, characters 40-48:
+2 |   let x = { field1 = r.field1; field2 = r.field2 } in
+                                            ^^^^^^^^
+
 |}]
 
 let check_tuple x y z =
   let m =
     match x, y, z with
-    | p, q, r -> free x
-  in m, y
+    | p, q, r -> free p
+  in m, y, y
 [%%expect{|
 val check_tuple :
   ('a : value_or_null) ('b : value_or_null).
-    unique_ t -> 'a -> 'b -> unit * 'a
+    unique_ t -> 'a -> 'b -> unit * 'a * 'a
   @@ global many = <fun>
 |}]
 
-let check_tuple x y z =
-  let m =
-    match x, y, z with
-    | p, q, r as t -> free x
-  in m, y
+let okay x y z =
+  match x, y, z with
+  | p, q, r -> free x.field1; free p.field2
 [%%expect{|
-Line 4, characters 27-28:
-4 |     | p, q, r as t -> free x
-                               ^
-Error: This value is used here as unique, but it has already been used:
-Line 3, characters 10-11:
-3 |     match x, y, z with
-              ^
+val okay :
+  ('a : value_or_null) ('b : value_or_null). unique_ t -> 'a -> 'b -> unit @@
+  global many = <fun>
+|}]
+
+let bad x y z =
+  match x, y, z with
+  | p, q, r as t -> free x.field1; free p.field2
+[%%expect{|
+Line 3, characters 25-26:
+3 |   | p, q, r as t -> free x.field1; free p.field2
+                             ^
+Error: This value is read from here, but it has already been used as unique:
+Line 2, characters 8-9:
+2 |   match x, y, z with
+            ^
 
 |}]
