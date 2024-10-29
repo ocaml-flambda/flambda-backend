@@ -29,18 +29,18 @@
 
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a @@ portable = "%reraise"
+external raise : exn -> 'a @ portable @@ portable = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : exn -> 'a @@ portable = "%raise_notrace"
+external raise_notrace : exn -> 'a @ portable @@ portable = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
 
-val invalid_arg : string -> 'a @@ portable
+val invalid_arg : string -> 'a @ portable @@ portable
 (** Raise exception [Invalid_argument] with the given string. *)
 
-val failwith : string -> 'a @@ portable
+val failwith : string -> 'a @ portable @@ portable
 (** Raise exception [Failure] with the given string. *)
 
 exception Exit

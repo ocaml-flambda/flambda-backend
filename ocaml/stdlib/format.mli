@@ -992,7 +992,7 @@ val get_std_formatter : unit -> formatter
     @since 5.0
 *)
 
-val get_std_formatter' : Domain.DLS.password -> formatter @@ portable
+val get_std_formatter' : Domain.DLS.Password.t -> formatter @@ portable
 
 val err_formatter : formatter
 (** The initial domain's formatter to write to standard error.
@@ -1006,7 +1006,7 @@ val get_err_formatter : unit -> formatter
    @since 5.0
 *)
 
-val get_err_formatter' : Domain.DLS.password -> formatter @@ portable
+val get_err_formatter' : Domain.DLS.Password.t -> formatter @@ portable
 
 val formatter_of_buffer : Buffer.t -> formatter @@ portable
 (** [formatter_of_buffer b] returns a new formatter writing to
@@ -1023,7 +1023,7 @@ val get_stdbuf : unit -> Buffer.t
     current domain's string formatter writes.
     @since 5.0 *)
 
-val get_stdbuf' : Domain.DLS.password -> Buffer.t
+val get_stdbuf' : Domain.DLS.Password.t -> Buffer.t
 
 val str_formatter : formatter
 (** The initial domain's formatter to output to the {!stdbuf} string buffer.
@@ -1037,7 +1037,7 @@ val get_str_formatter : unit -> formatter
     @since 5.0
 *)
 
-val get_str_formatter' : Domain.DLS.password -> formatter @@ portable
+val get_str_formatter' : Domain.DLS.Password.t -> formatter @@ portable
 
 val flush_str_formatter : unit -> string @@ portable
 (** Returns the material printed with [str_formatter] of the current domain,

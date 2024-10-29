@@ -28,20 +28,26 @@ module Runtime_4 = struct
 
     let init () = ()
 
-    type password = unit
-    type 'a key = int * (unit -> 'a)
+    module Password = struct
+      type t = Capsule.Password.packed
 
-    let initial_password = ()
-    let with_password f = f ()
+      let for_initial_domain = Capsule.Password.make ()
+      let to_capsule_password t = t
+    end
+
+    let with_password f = f Password.for_initial_domain
+
+    type 'a key = int * (Password.t -> 'a)
 
     let key_counter = ref 0
 
-    let new_key ?split_from_parent:_ init_orphan =
+    let new_key_safe ?split_from_parent:_ init_orphan =
       let idx = !key_counter in
       key_counter := idx + 1;
       (idx, init_orphan)
 
-    let new_key_safe ?split_from_parent:_ init_orphan = new_key init_orphan
+    let new_key ?split_from_parent:_ init_orphan =
+      new_key_safe (fun (_ : Password.t) -> init_orphan ())
 
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
@@ -60,7 +66,7 @@ module Runtime_4 = struct
         new_st
       end
 
-    let set' () (idx, _init) x =
+    let set' _ (idx, _init) x =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
       * [x], which may be a [float] and conclude that the [st] is a float array.
@@ -69,11 +75,11 @@ module Runtime_4 = struct
 
     let set key x = set' () key x
 
-    let get' () (idx, init) =
+    let get' _ (idx, init) =
       let st = maybe_grow idx in
       let v = st.(idx) in
       if v == unique_value then
-        let v' = Obj.repr (init ()) in
+        let v' = Obj.repr (init (Password.for_initial_domain)) in
         st.(idx) <- (Sys.opaque_identity v');
         Obj.magic v'
       else Obj.magic v
@@ -99,7 +105,7 @@ module Runtime_4 = struct
 
   let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
 
-  let at_exit' () f =
+  let at_exit' (_ : DLS.Password.t) f =
     let old_exit : unit -> unit = DLS.get at_exit_key in
     let new_exit () =
       (* The domain termination callbacks ([at_exit]) are run in
@@ -110,7 +116,7 @@ module Runtime_4 = struct
     in
     DLS.set at_exit_key new_exit
 
-  let at_exit_safe = at_exit' ()
+  let at_exit_safe = at_exit' DLS.Password.for_initial_domain
 
   let at_exit = at_exit_safe
 
@@ -174,23 +180,50 @@ module Runtime_5 = struct
     external set_dls_state : dls_state -> unit @@ portable =
       "caml_domain_dls_set" [@@noalloc]
 
-    let create_dls () =
+    let key_counter = Atomic.make 0
+    let password_idx = Atomic.fetch_and_add key_counter 1
+
+    module Password = struct
+      type t = Capsule.Password.packed
+
+      let for_initial_domain = Capsule.Password.make ()
+      let to_capsule_password t = t
+    end
+
+    let create_dls password =
       let st = Array.make 8 (Obj.magic_uncontended unique_value) in
+      st.(password_idx) <-
+        Obj.repr
+          (match password with
+           | None -> Capsule.Password.make ()
+           | Some password -> password);
       set_dls_state st
 
-    let init () = create_dls ()
+    let init () =
+      create_dls (Some Password.for_initial_domain);
+      let st = get_dls_state () in
+      st.(password_idx) <- Obj.repr Password.for_initial_domain
 
-    type password = unit
+    let get_password () : Password.t =
+      let st = get_dls_state () in
+      Obj.obj st.(password_idx)
 
-    type 'a key : value mod portable uncontended = K of int * (password -> 'a) @@ portable
+    let with_password f =
+      let password = get_password () in
+      try f password with
+      | exn ->
+        let P password = password in
+        let name = Capsule.Password.name password in
+        let capsule =
+          let exn = Obj.magic_portable exn in
+          Capsule.Data.create (fun () -> Obj.magic_uncontended exn)
+        in
+        raise (Capsule.Data.Encapsulated (name, capsule))
 
-    let initial_password = ()
-    let with_password f = f ()
-
-    let key_counter = Atomic.make 0
+    type 'a key : value mod portable uncontended = K of int * (Password.t -> 'a) @@ portable
 
     type key_initializer =
-      KI: 'a key * ('a -> (password -> 'a) @ portable) @@ portable -> key_initializer
+      KI: 'a key * ('a -> (Password.t -> 'a) @ portable) @@ portable -> key_initializer
 
     (* CR tdelvecchio: Remove when we have [with]. *)
     type key_initializer_list : value mod portable uncontended = KIs of key_initializer list
@@ -213,12 +246,12 @@ module Runtime_5 = struct
 
     let new_key ?split_from_parent init_orphan =
       let split_from_parent = Obj.magic_portable split_from_parent in
-      let init_orphan = Obj.magic_portable init_orphan in
+      let init_orphan = Obj.magic_portable (fun (_ : Password.t) -> init_orphan ()) in
       let split_from_parent =
         match split_from_parent with
         | None -> None
         | Some f ->
-          Some (fun x -> Obj.magic_portable (fun (_ : password) -> f x))
+          Some (fun x -> Obj.magic_portable (fun (_ : Password.t) -> f x))
       in
       new_key_safe ?split_from_parent init_orphan
 
@@ -239,31 +272,32 @@ module Runtime_5 = struct
         new_st
       end
 
-    let set' () (K (idx, _init)) x =
+    let set (K (idx, _init)) x =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
-      * [x], which may be a [float] and conclude that the [st] is a float array.
-      * We do not want OCaml's float array optimisation kicking in here. *)
+       * [x], which may be a [float] and conclude that the [st] is a float array.
+       * We do not want OCaml's float array optimisation kicking in here. *)
       st.(idx) <- Obj.repr (Sys.opaque_identity x)
 
-    let set k x = set' () k x
+    let set' (_ : Password.t) k x = set k x
 
-    let get' () (K (idx, init)) =
+    let get (K (idx, init)) =
       let st = maybe_grow idx in
+      let password = Obj.obj st.(password_idx) in
       let v = st.(idx) in
       if v == (Obj.magic_uncontended unique_value) then
-        let v' = Obj.repr (init ()) in
+        let v' = Obj.repr (init password) in
         st.(idx) <- (Sys.opaque_identity v');
         Obj.magic v'
       else Obj.magic v
 
-    let get k = get' () k
+    let get' (_ : Password.t) k = get k
 
     let get_initial_keys () : (int * Obj.t) list =
       let (KIs parent_keys) : key_initializer_list = Atomic.get_safe parent_keys in
       List.map
         (fun (KI (K (idx, _) as k, split)) ->
-            (idx, Obj.repr ((split (get k)) ())))
+            (idx, Obj.repr (split (get k))))
         parent_keys
 
     let set_initial_keys (l: (int * Obj.t) list) =
@@ -271,7 +305,6 @@ module Runtime_5 = struct
         (fun (idx, v) ->
           let st = maybe_grow idx in st.(idx) <- v)
         l
-
   end
 
   (******** Identity **********)
@@ -302,9 +335,9 @@ module Runtime_5 = struct
       Atomic.set first_spawn_function (F new_f)
     end
 
-  let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
+  let at_exit_key = DLS.new_key_safe (fun (_ : DLS.Password.t) -> (fun () -> ()))
 
-  let at_exit' () f =
+  let at_exit' (_ : DLS.Password.t) f =
     let old_exit : unit -> unit = DLS.get at_exit_key in
     let new_exit () =
       (* The domain termination callbacks ([at_exit]) are run in
@@ -315,7 +348,7 @@ module Runtime_5 = struct
     in
     DLS.set at_exit_key new_exit
 
-  let at_exit_safe = at_exit' ()
+  let at_exit_safe f = at_exit' (DLS.get_password ()) f
 
   let at_exit = at_exit_safe
 
@@ -347,9 +380,9 @@ module Runtime_5 = struct
     let body () =
       let result =
         match
-          DLS.create_dls ();
+          DLS.create_dls None;
           DLS.set_initial_keys pk;
-          let res = f () in
+          let res = f (DLS.get_password ()) in
           res
         with
         | x -> Ok x
@@ -392,7 +425,7 @@ module Runtime_5 = struct
       term_condition;
       term_state }
 
-  let spawn_safe f = spawn_with_dls (fun (_ : DLS.password) -> f ())
+  let spawn_safe f = spawn_with_dls (fun (_ : DLS.Password.t) -> f ())
 
   let spawn = spawn_safe
 
@@ -418,17 +451,22 @@ module type S4 = sig
   [@@@warning "-32"]
 
   module DLS : sig
-    type password
-    val initial_password : password
-    val with_password : (password -> 'a) -> 'a
+    module Password : sig
+      type t
+
+      val to_capsule_password : t -> Capsule.Password.packed
+      val for_initial_domain : t
+    end
+
+    val with_password : (Password.t -> 'a) -> 'a
 
     type 'a key
     val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
-    val new_key_safe : ?split_from_parent:('a -> (password -> 'a)) -> (password -> 'a) -> 'a key
+    val new_key_safe : ?split_from_parent:('a -> (Password.t -> 'a)) -> (Password.t -> 'a) -> 'a key
     val get : 'a key -> 'a
-    val get' : password -> 'a key -> 'a
+    val get' : Password.t -> 'a key -> 'a
     val set : 'a key -> 'a -> unit
-    val set' : password -> 'a key -> 'a -> unit
+    val set' : Password.t -> 'a key -> 'a -> unit
 
     val init : unit -> unit
   end
@@ -436,7 +474,7 @@ module type S4 = sig
   type !'a t
   val spawn : (unit -> 'a) -> 'a t
   val spawn_safe : (unit -> 'a) -> 'a t
-  val spawn_with_dls : (DLS.password -> 'a) -> 'a t
+  val spawn_with_dls : (DLS.Password.t -> 'a) -> 'a t
   val join : 'a t -> 'a
   type id = private int
   val get_id : 'a t -> id
@@ -447,23 +485,28 @@ module type S4 = sig
   val before_first_spawn : (unit -> unit) -> unit
   val at_exit : (unit -> unit) -> unit
   val at_exit_safe : (unit -> unit) -> unit
-  val at_exit' : DLS.password -> (unit -> unit) -> unit
+  val at_exit' : DLS.Password.t -> (unit -> unit) -> unit
   val do_at_exit : unit -> unit
 end
 
 module type S5 = sig
   module DLS : sig
-    type password
-    val initial_password : password
-    val with_password : (password -> 'a @ contended portable) @ portable -> 'a @ contended portable @@ portable
+    module Password : sig
+      type t
+
+      val to_capsule_password : t -> Capsule.Password.packed @@ portable
+      val for_initial_domain : t
+    end
+
+    val with_password : (Password.t -> 'a @ contended portable) @ portable -> 'a @ contended portable @@ portable
 
     type 'a key : value mod portable uncontended
     val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
-    val new_key_safe : ?split_from_parent:('a -> (password -> 'a) @ portable) @ portable -> (password -> 'a) @ portable -> 'a key @@ portable
+    val new_key_safe : ?split_from_parent:('a -> (Password.t -> 'a) @ portable) @ portable -> (Password.t -> 'a) @ portable -> 'a key @@ portable
     val get : 'a key -> 'a
-    val get' : password -> 'a key -> 'a @@ portable
+    val get' : Password.t -> 'a key -> 'a @@ portable
     val set : 'a key -> 'a -> unit
-    val set' : password -> 'a key -> 'a -> unit @@ portable
+    val set' : Password.t -> 'a key -> 'a -> unit @@ portable
 
     val init : unit -> unit
   end
@@ -471,7 +514,7 @@ module type S5 = sig
   type !'a t
   val spawn : (unit -> 'a) -> 'a t
   val spawn_safe : (unit -> 'a) @ portable -> 'a t @@ portable
-  val spawn_with_dls : (DLS.password -> 'a) @ portable -> 'a t @@ portable
+  val spawn_with_dls : (DLS.Password.t -> 'a) @ portable -> 'a t @@ portable
   val join : 'a t -> 'a @@ portable
   type id = private int
   val get_id : 'a t -> id @@ portable
@@ -482,7 +525,7 @@ module type S5 = sig
   val before_first_spawn : (unit -> unit) -> unit
   val at_exit : (unit -> unit) -> unit
   val at_exit_safe : (unit -> unit) @ portable -> unit @@ portable
-  val at_exit' : DLS.password -> (unit -> unit) -> unit @@ portable
+  val at_exit' : DLS.Password.t -> (unit -> unit) -> unit @@ portable
   val do_at_exit : unit -> unit @@ portable
 end
 

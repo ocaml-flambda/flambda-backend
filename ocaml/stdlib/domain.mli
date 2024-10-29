@@ -29,12 +29,15 @@
 module DLS : sig
 (** Domain-local Storage *)
 
-    type password
+    module Password : sig
+      type t
+
+      val to_capsule_password : t -> Capsule.Password.packed @@ portable
+      val for_initial_domain : t
+    end
 
     type 'a key : value mod portable uncontended
     (** Type of a DLS key *)
-
-    val initial_password : password
 
     val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
     [@@alert unsafe]
@@ -73,23 +76,30 @@ module DLS : sig
         explicit synchronization to avoid data races.
     *)
 
-    val new_key_safe : ?split_from_parent:('a -> (password -> 'a) @ portable) @ portable -> (password -> 'a) @ portable -> 'a key @@ portable
+    val new_key_safe
+      :  ?split_from_parent:('a -> (Password.t -> 'a) @ portable) @ portable
+      -> (Password.t -> 'a) @ portable
+      -> 'a key
+      @@ portable
 
     val get : 'a key -> 'a
     (** [get k] returns [v] if a value [v] is associated to the key [k] on
         the calling domain's domain-local state. Sets [k]'s value with its
         initialiser and returns it otherwise. *)
 
-    val get' : password -> 'a key -> 'a @@ portable
+    val get' : Password.t -> 'a key -> 'a @@ portable
 
     val set : 'a key -> 'a -> unit
     (** [set k v] updates the calling domain's domain-local state to associate
         the key [k] with value [v]. It overwrites any previous values associated
         to [k], which cannot be restored later. *)
 
-    val set' : password -> 'a key -> 'a -> unit @@ portable
+    val set' : Password.t -> 'a key -> 'a -> unit @@ portable
 
-    val with_password : (password -> 'a @ portable contended) @ portable -> 'a @ portable contended @@ portable
+    val with_password
+      :  (Password.t -> 'a @ portable contended) @ portable
+      -> 'a @ portable contended
+      @@ portable
 end
 
 type !'a t
@@ -105,7 +115,7 @@ val spawn : (unit -> 'a) -> 'a t
     domain. *)
 
 val spawn_safe : (unit -> 'a) @ portable -> 'a t
-val spawn_with_dls : (DLS.password -> 'a) @ portable -> 'a t
+val spawn_with_dls : (DLS.Password.t -> 'a) @ portable -> 'a t
 
 val join : 'a t -> 'a @@ portable
 (** [join d] blocks until domain [d] runs to completion. If [d] results in a
@@ -163,4 +173,4 @@ let temp_file_key = Domain.DLS.new_key (fun _ ->
 
 val at_exit_safe : (unit -> unit) @ portable -> unit @@ portable
 
-val at_exit' : DLS.password -> (unit -> unit) -> unit @@ portable
+val at_exit' : DLS.Password.t -> (unit -> unit) -> unit @@ portable
