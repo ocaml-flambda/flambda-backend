@@ -29,7 +29,7 @@ type env =
   { uses : Dep_solver.result;
     get_code_metadata : Code_id.t -> Code_metadata.t;
     cont_params_to_keep : bool list Continuation.Map.t;
-    should_keep_param : Continuation.t -> Variable.t -> bool;
+    should_keep_param : Continuation.t -> Variable.t -> bool
   }
 
 let is_used (env : env) cn = Hashtbl.mem env.uses cn
@@ -510,7 +510,10 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
     rebuild_holed kinds env parent let_cont_expr
   | Let_cont_rec { parent; handlers; invariant_params } ->
     let filter_params cont params =
-      Bound_parameters.create (List.filter (fun param -> env.should_keep_param cont (Bound_parameter.var param)) (Bound_parameters.to_list params))
+      Bound_parameters.create
+        (List.filter
+           (fun param -> env.should_keep_param cont (Bound_parameter.var param))
+           (Bound_parameters.to_list params))
     in
     let handlers =
       Continuation.Map.mapi
@@ -522,7 +525,11 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
             ~is_exn_handler ~is_cold)
         handlers
     in
-    let invariant_params = filter_params (fst (Continuation.Map.min_binding handlers)) invariant_params in
+    let invariant_params =
+      filter_params
+        (fst (Continuation.Map.min_binding handlers))
+        invariant_params
+    in
     let let_cont_expr =
       RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
     in
@@ -535,22 +542,37 @@ type result =
     slot_offsets : Slot_offsets.t
   }
 
-let rebuild ~(continuation_info : Traverse_acc.continuation_info Continuation.Map.t) ~fixed_arity_continuations kinds
-    (solved_dep : Dep_solver.result) get_code_metadata holed =
+let rebuild
+    ~(continuation_info : Traverse_acc.continuation_info Continuation.Map.t)
+    ~fixed_arity_continuations kinds (solved_dep : Dep_solver.result)
+    get_code_metadata holed =
   all_slot_offsets := Slot_offsets.empty;
   all_code := Code_id.Map.empty;
   let should_keep_param cont param =
-    let keep_all_parameters = Continuation.Set.mem cont fixed_arity_continuations in
-    keep_all_parameters ||
+    let keep_all_parameters =
+      Continuation.Set.mem cont fixed_arity_continuations
+    in
+    keep_all_parameters
+    ||
     let is_var_used = Hashtbl.mem solved_dep (Code_id_or_name.var param) in
-    is_var_used ||
+    is_var_used
+    ||
     let info = Continuation.Map.find cont continuation_info in
-    info.is_exn_handler && (Variable.equal param (List.hd info.params))
+    info.is_exn_handler && Variable.equal param (List.hd info.params)
   in
-  let cont_params_to_keep = Continuation.Map.mapi (fun cont (info : Traverse_acc.continuation_info) ->
-      List.map (should_keep_param cont) info.params) continuation_info
+  let cont_params_to_keep =
+    Continuation.Map.mapi
+      (fun cont (info : Traverse_acc.continuation_info) ->
+        List.map (should_keep_param cont) info.params)
+      continuation_info
   in
-  let env = { uses = solved_dep; get_code_metadata; cont_params_to_keep; should_keep_param } in
+  let env =
+    { uses = solved_dep;
+      get_code_metadata;
+      cont_params_to_keep;
+      should_keep_param
+    }
+  in
   let rebuilt_expr =
     Profile.record_call ~accumulate:true "up" (fun () ->
         rebuild_expr kinds env holed)

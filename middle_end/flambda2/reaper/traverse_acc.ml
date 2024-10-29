@@ -15,10 +15,10 @@
 
 module Graph = Global_flow_graph
 
-type continuation_info = {
-  is_exn_handler : bool;
-  params : Variable.t list;
-}
+type continuation_info =
+  { is_exn_handler : bool;
+    params : Variable.t list
+  }
 
 module Env = struct
   type cont_kind = Normal of Variable.t list

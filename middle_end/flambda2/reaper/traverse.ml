@@ -683,9 +683,11 @@ let run (unit : Flambda_unit.t) =
         [ Flambda_unit.return_continuation unit, Normal [dummy_toplevel_return];
           Flambda_unit.exn_continuation unit, Normal [dummy_toplevel_exn] ]
     in
-    Acc.continuation_info acc (Flambda_unit.return_continuation unit)
+    Acc.continuation_info acc
+      (Flambda_unit.return_continuation unit)
       { is_exn_handler = false; params = [dummy_toplevel_return] };
-    Acc.continuation_info acc (Flambda_unit.exn_continuation unit)
+    Acc.continuation_info acc
+      (Flambda_unit.exn_continuation unit)
       { is_exn_handler = true; params = [dummy_toplevel_exn] };
     traverse
       { parent = Up; conts; current_code_id = None }
