@@ -5,7 +5,7 @@ expect;
 
 let ignore_local : 'a @ local -> unit = fun _ -> ()
 [%%expect{|
-val ignore_local : 'a @ local -> unit = <fun>
+val ignore_local : local_ 'a -> unit = <fun>
 |}]
 
 let f = ref (stack_ (fun x -> x))
@@ -151,7 +151,7 @@ Error: This allocation cannot be on the stack.
 
 let f () = exclave_ stack_ (3, 5)
 [%%expect{|
-val f : unit -> int * int @ local = <fun>
+val f : unit -> local_ int * int = <fun>
 |}]
 
 let f () =

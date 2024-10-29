@@ -15,7 +15,7 @@ Error: This value escapes its region.
 
 external idint : local_ int -> int = "%identity"
 [%%expect{|
-external idint : int @ local -> int = "%identity"
+external idint : local_ int -> int = "%identity"
 |}]
 
 let noleak n =
@@ -28,7 +28,7 @@ val noleak : int -> int = <fun>
 
 let (!) = fun (local_ r) -> r.contents
 [%%expect{|
-val ( ! ) : 'a ref @ local -> 'a = <fun>
+val ( ! ) : local_ 'a ref -> 'a = <fun>
 |}]
 
 (* Local lets *)
@@ -109,7 +109,7 @@ Line 1, characters 37-67:
 1 | type distinct_sarg = unit constraint local_ int -> int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type "int @ local -> int" is not compatible with type "int -> int"
+       Type "local_ int -> int" is not compatible with type "int -> int"
 |}]
 type distinct_sret = unit constraint int -> local_ int = int -> int
 [%%expect{|
@@ -117,7 +117,7 @@ Line 1, characters 37-67:
 1 | type distinct_sret = unit constraint int -> local_ int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type "int -> int @ local" is not compatible with type "int -> int"
+       Type "int -> local_ int" is not compatible with type "int -> int"
 |}]
 type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
 [%%expect{|
@@ -125,8 +125,8 @@ Line 1, characters 42-86:
 1 | type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type "int @ local -> int" is not compatible with type
-         "int @ local -> int @ local"
+       Type "local_ int -> int" is not compatible with type
+         "local_ int -> local_ int"
 |}]
 
 type local_higher_order = unit constraint
@@ -143,9 +143,9 @@ Line 2, characters 2-66:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type "(int -> int -> int) -> int" is not compatible with type
-         "(int -> (int -> int) @ local) -> int"
+         "(int -> local_ (int -> int)) -> int"
        Type "int -> int -> int" is not compatible with type
-         "int -> (int -> int) @ local"
+         "int -> local_ (int -> int)"
 |}]
 
 type local_higher_order = unit constraint
@@ -162,9 +162,9 @@ Line 2, characters 2-66:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
        Type "int -> int -> int -> int" is not compatible with type
-         "int -> int -> (int -> int) @ local"
+         "int -> int -> local_ (int -> int)"
        Type "int -> int -> int" is not compatible with type
-         "int -> (int -> int) @ local"
+         "int -> local_ (int -> int)"
 |}]
 
 let foo () =
@@ -183,7 +183,7 @@ let foo () =
 Line 3, characters 4-49:
 3 |     ((fun y z -> z) : int -> local_ (int -> int)) in
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "int -> (int -> int) @ local"
+Error: This expression has type "int -> local_ (int -> int)"
        but an expression was expected of type "int -> int -> int"
 |}]
 
@@ -203,7 +203,7 @@ let foo () =
 Line 3, characters 4-43:
 3 |     ((fun y z -> z) : _ -> local_ (_ -> _)) in
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "'b -> ('c -> 'c) @ local"
+Error: This expression has type "'b -> local_ ('c -> 'c)"
        but an expression was expected of type "'a -> 'a -> 'a"
 |}]
 
@@ -223,7 +223,7 @@ let foo () =
 Line 3, characters 4-49:
 3 |     ((fun y z -> z) : int -> local_ (int -> int)) in
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "int -> (int -> int) @ local"
+Error: This expression has type "int -> local_ (int -> int)"
        but an expression was expected of type "int -> int -> int"
 |}]
 
@@ -231,7 +231,7 @@ let foo (local_ bar : int -> int -> int) =
   let _ = (bar : int -> local_ (int -> int)) in
   ()
 [%%expect{|
-val foo : (int -> int -> int) @ local -> unit = <fun>
+val foo : local_ (int -> int -> int) -> unit = <fun>
 |}]
 
 let foo (bar : int -> local_ (int -> int)) =
@@ -241,7 +241,7 @@ let foo (bar : int -> local_ (int -> int)) =
 Line 2, characters 11-14:
 2 |   let _ = (bar : int -> int -> int) in
                ^^^
-Error: This expression has type "int -> (int -> int) @ local"
+Error: This expression has type "int -> local_ (int -> int)"
        but an expression was expected of type "int -> int -> int"
 |}]
 
@@ -256,12 +256,12 @@ Error: This expression has type "int -> (int -> int) @ local"
 let f4 : int -> local_ 'a -> int -> int -> int =
   fun a _ b c -> a + b + c
 [%%expect{|
-val f4 : int -> 'a @ local -> int -> int -> int = <fun>
+val f4 : int -> local_ 'a -> int -> int -> int = <fun>
 |}]
 
 let apply1 x = f4 x
 [%%expect{|
-val apply1 : int -> 'a @ local -> int -> int -> int = <fun>
+val apply1 : int -> local_ 'a -> int -> int -> int = <fun>
 |}]
 let apply2 x = f4 x x
 [%%expect{|
@@ -310,7 +310,7 @@ let appopt1 (f : ?a:local_ int ref -> unit -> unit) =
   let res = f ~a:(let x = local_ ref 42 in x) () in
   res
 [%%expect{|
-val appopt1 : (?a:int ref @ local -> unit -> unit) -> unit = <fun>
+val appopt1 : (?a:local_ int ref -> unit -> unit) -> unit = <fun>
 |}]
 let appopt2 (f : ?a:local_ int ref -> unit -> unit) =
   let res = f ~a:(let x = local_ ref 42 in x) in
@@ -350,7 +350,7 @@ Error: This value escapes its region.
 (* Optional argument elimination eta-expands and therefore allocates *)
 let no_eta (local_ f : unit -> int) = (f : unit -> int)
 [%%expect{|
-val no_eta : (unit -> int) @ local -> unit -> int = <fun>
+val no_eta : local_ (unit -> int) -> unit -> int = <fun>
 |}]
 
 let eta (local_ f : ?a:bool -> unit -> int) = (f : unit -> int)
@@ -365,7 +365,7 @@ let etajoin p (f : ?b:bool -> unit -> int) (local_ g : unit -> int) =
   if p then (f : unit -> int) else g
 [%%expect{|
 val etajoin :
-  bool -> (?b:bool -> unit -> int) -> (unit -> int) @ local -> unit -> int =
+  bool -> (?b:bool -> unit -> int) -> local_ (unit -> int) -> unit -> int =
   <fun>
 |}]
 
@@ -373,12 +373,12 @@ val etajoin :
 
 let foo ?(local_ x) () = x;;
 [%%expect{|
-val foo : ?x:'a @ local -> unit -> 'a option @ local = <fun>
+val foo : ?x:local_ 'a -> unit -> local_ 'a option = <fun>
 |}]
 
 let foo ?(local_ x = "hello") () = x;;
 [%%expect{|
-val foo : ?x:string @ local -> unit -> string @ local = <fun>
+val foo : ?x:local_ string -> unit -> local_ string = <fun>
 |}]
 
 let foo ?(local_ x = local_ "hello") () = x;;
@@ -511,8 +511,8 @@ let use_locally' (local_ f : local_ 'a -> 'a) (x : 'a) =
   let res = f x in
   res
 [%%expect{|
-val use_locally : ('a @ local -> 'a) -> 'a -> 'a = <fun>
-val use_locally' : ('a @ local -> 'a) @ local -> 'a -> 'a = <fun>
+val use_locally : (local_ 'a -> 'a) -> 'a -> 'a = <fun>
+val use_locally' : local_ (local_ 'a -> 'a) -> 'a -> 'a = <fun>
 |}]
 
 let no_leak = use_locally (fun x -> 1) 42
@@ -592,7 +592,7 @@ let catch (f : unit -> local_ string) =
   in
   (a, b)
 [%%expect{|
-val catch : (unit -> string @ local) -> string * string = <fun>
+val catch : (unit -> local_ string) -> string * string = <fun>
 |}]
 
 
@@ -600,7 +600,7 @@ val catch : (unit -> string @ local) -> string * string = <fun>
 let use_locally (f : local_ 'a -> local_ 'a) : local_ 'a -> local_ 'a = f
 [%%expect{|
 val use_locally :
-  ('a : any). ('a @ local -> 'a @ local) -> 'a @ local -> 'a @ local = <fun>
+  ('a : any). (local_ 'a -> local_ 'a) -> local_ 'a -> local_ 'a = <fun>
 |}]
 
 let loc = ((fun x -> local_ x) : local_ int -> local_ int)
@@ -611,7 +611,7 @@ let no_leak_id =
   in ()
 
 [%%expect{|
-val loc : int @ local -> int @ local = <fun>
+val loc : local_ int -> local_ int = <fun>
 val no_leak_id : unit = ()
 |}]
 
@@ -624,7 +624,7 @@ let bar (local_ (m : (module S))) =
   ()
 [%%expect{|
 module type S = sig val s : string end
-val bar : (module S) @ local -> unit = <fun>
+val bar : local_ (module S) -> unit = <fun>
 |}]
 
 let bar (local_ (m : (module S))) =
@@ -754,7 +754,7 @@ let foo (local_ x) =
       object end
   end in new M.c
 [%%expect{|
-val foo : 'a @ local -> <  > = <fun>
+val foo : local_ 'a -> <  > = <fun>
 |}]
 
 let foo (local_ x : string ref) =
@@ -765,7 +765,7 @@ let foo (local_ x : string ref) =
     end
   end in new M.c
 [%%expect{|
-val foo : string ref @ local -> < m : string > = <fun>
+val foo : local_ string ref -> < m : string > = <fun>
 |}]
 
 (* Don't escape under a class parameter variable *)
@@ -792,7 +792,7 @@ let foo (local_ x : string ref) =
       object method m = y end
   end in new M.c
 [%%expect{|
-val foo : string ref @ local -> (unit -> < m : string >) = <fun>
+val foo : local_ string ref -> (unit -> < m : string >) = <fun>
 |}]
 
 (* Don't escape in inherit expressions *)
@@ -835,7 +835,7 @@ let foo (local_ x) =
   let rec g () = let _ = x in h (); () and h () = g (); () in
   g (); ()
 [%%expect {|
-val foo : 'a @ local -> unit = <fun>
+val foo : local_ 'a -> unit = <fun>
 |}]
 
 let foo (local_ x) =
@@ -843,7 +843,7 @@ let foo (local_ x) =
   let _ = (x, 1) in
   1
 [%%expect {|
-val foo : 'a @ local -> int = <fun>
+val foo : local_ 'a -> int = <fun>
 |}]
 
 let foo (local_ x) =
@@ -865,7 +865,7 @@ let foo x =
   let r = local_ { contents = x } in
   print r
 [%%expect{|
-val print : string ref @ local -> unit = <fun>
+val print : local_ string ref -> unit = <fun>
 Line 5, characters 8-9:
 5 |   print r
             ^
@@ -877,7 +877,7 @@ Error: This value escapes its region.
 let local_cb (local_ f) = f ()
 let foo (local_ x) = local_cb (fun () -> x := 17; 42)
 [%%expect{|
-val local_cb : (unit -> 'a) @ local -> 'a = <fun>
+val local_cb : local_ (unit -> 'a) -> 'a = <fun>
 Line 2, characters 41-42:
 2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
                                              ^
@@ -897,7 +897,7 @@ let foo x = exclave_
   let r = local_ { contents = x } in
   print r
 [%%expect{|
-val foo : string -> unit @ local = <fun>
+val foo : string -> local_ unit = <fun>
 |}]
 
 (* Can pass local values to calls explicitly marked as nontail *)
@@ -944,7 +944,7 @@ let foo x = exclave_
   let local_ foo () = r.contents in
   foo ()
 [%%expect{|
-val foo : 'a -> 'a @ local = <fun>
+val foo : 'a -> local_ 'a = <fun>
 |}]
 
 (* Cannot return local values without annotations on all exits *)
@@ -964,7 +964,7 @@ let foo x = exclave_
   let r = local_ { contents = x } in
   r
 [%%expect{|
-val foo : 'a -> 'a ref @ local = <fun>
+val foo : 'a -> local_ 'a ref = <fun>
 |}]
 
 let foo p x = exclave_
@@ -972,7 +972,7 @@ let foo p x = exclave_
   if p then r
   else r
 [%%expect{|
-val foo : bool -> 'a -> 'a ref @ local = <fun>
+val foo : bool -> 'a -> local_ 'a ref = <fun>
 |}]
 
 (* Non-local regional values can be passed to tail calls *)
@@ -981,7 +981,7 @@ let rec length acc (local_ xl) =
   | [] -> 0
   | x :: xs -> length (acc + 1) xs
 [%%expect{|
-val length : int -> 'a list @ local -> int = <fun>
+val length : int -> local_ 'a list -> int = <fun>
 |}]
 
 let foo () =
@@ -1004,14 +1004,14 @@ let foo () = exclave_
   let _ = local_ (52, 24) in
   42
 [%%expect{|
-val foo : unit -> int @ local = <fun>
+val foo : unit -> local_ int = <fun>
 |}]
 
 let bar () =
   let _x = 52 in
   foo ()
 [%%expect{|
-val bar : unit -> int @ local = <fun>
+val bar : unit -> local_ int = <fun>
 |}]
 
 (* if not at tail, then not affected *)
@@ -1044,7 +1044,7 @@ Error: This function takes a parameter which is "local",
 
 let foo : unit -> local_ string = fun () -> "hello"
 [%%expect{|
-val foo : unit -> string @ local = <fun>
+val foo : unit -> local_ string = <fun>
 |}]
 
 let foo : unit -> string = fun () -> exclave_ "hello"
@@ -1065,7 +1065,7 @@ let f (local_ x) = B { bar = { foo = A x } }
 type 'a unb1 = A of 'a [@@unboxed]
 type 'a unb2 = { foo : 'a; } [@@unboxed]
 type 'a unb3 = B of { bar : 'a; } [@@unboxed]
-val f : 'a @ local -> 'a unb1 unb2 unb3 @ local = <fun>
+val f : local_ 'a -> local_ 'a unb1 unb2 unb3 = <fun>
 |}]
 
 
@@ -1082,7 +1082,7 @@ type 'a gbl = { global_ gbl : 'a; }
 
 let foo (local_ x) = x.imm
 [%%expect{|
-val foo : 'a imm @ local -> 'a @ local = <fun>
+val foo : local_ 'a imm -> local_ 'a = <fun>
 |}]
 let foo y =
   let x = local_ { imm = y } in
@@ -1096,7 +1096,7 @@ Error: This value escapes its region.
 |}]
 let foo (local_ x) = x.mut
 [%%expect{|
-val foo : 'a mut @ local -> 'a = <fun>
+val foo : local_ 'a mut -> 'a = <fun>
 |}]
 let foo y =
   let x = local_ { mut = y } in
@@ -1106,7 +1106,7 @@ val foo : 'a -> 'a = <fun>
 |}]
 let foo (local_ x) = x.gbl
 [%%expect{|
-val foo : 'a gbl @ local -> 'a = <fun>
+val foo : local_ 'a gbl -> 'a = <fun>
 |}]
 let foo y =
   let x = local_ { gbl = y } in
@@ -1117,7 +1117,7 @@ val foo : 'a -> 'a = <fun>
 
 let foo (local_ { imm }) = imm
 [%%expect{|
-val foo : 'a imm @ local -> 'a @ local = <fun>
+val foo : local_ 'a imm -> local_ 'a = <fun>
 |}]
 let foo y =
   let { imm } = local_ { imm = y } in
@@ -1131,7 +1131,7 @@ Error: This value escapes its region.
 |}]
 let foo (local_ { mut }) = mut
 [%%expect{|
-val foo : 'a mut @ local -> 'a = <fun>
+val foo : local_ 'a mut -> 'a = <fun>
 |}]
 let foo y =
   let { mut } = local_ { mut = y } in
@@ -1141,7 +1141,7 @@ val foo : 'a -> 'a = <fun>
 |}]
 let foo (local_ { gbl }) = gbl
 [%%expect{|
-val foo : 'a gbl @ local -> 'a = <fun>
+val foo : local_ 'a gbl -> 'a = <fun>
 |}]
 let foo y =
   let { gbl } = local_ { gbl = y } in
@@ -1154,7 +1154,7 @@ let foo (local_ imm) =
   let _ = { imm } in
   ()
 [%%expect{|
-val foo : 'a @ local -> unit = <fun>
+val foo : local_ 'a -> unit = <fun>
 |}]
 let foo () =
   let imm = local_ ref 5 in
@@ -1265,7 +1265,7 @@ let foo (local_ x) y =
   | pr  -> let _, _ = pr in ();;
 [%%expect{|
 val escape : 'a -> unit = <fun>
-val foo : 'a option @ local -> 'b option -> unit = <fun>
+val foo : local_ 'a option -> 'b option -> unit = <fun>
 |}]
 
 let foo (local_ x) y =
@@ -1305,7 +1305,7 @@ let foo p (local_ x) y z =
   let _, _ = pr in
   escape b;;
 [%%expect{|
-val foo : bool -> 'a @ local -> 'b -> 'a * 'b -> unit = <fun>
+val foo : bool -> local_ 'a -> 'b -> 'a * 'b -> unit = <fun>
 |}]
 
 let foo p (local_ x) y (local_ z) =
@@ -1358,7 +1358,7 @@ let foo (local_ x) =
   | None as y -> escape y
   | Some _ -> ()
 [%%expect{|
-val foo : 'a option @ local -> unit = <fun>
+val foo : local_ 'a option -> unit = <fun>
 |}]
 
 let foo (local_ x) =
@@ -1379,7 +1379,7 @@ let foo (local_ x) =
   | 0 as y -> escape y
   | _ -> ()
 [%%expect{|
-val foo : int @ local -> unit = <fun>
+val foo : local_ int -> unit = <fun>
 |}, Principal{|
 Line 3, characters 21-22:
 3 |   | 0 as y -> escape y
@@ -1394,7 +1394,7 @@ let foo (local_ x) =
   | 'a'..'e' as y -> escape y
   | _ -> ()
 [%%expect{|
-val foo : char @ local -> unit = <fun>
+val foo : local_ char -> unit = <fun>
 |}, Principal{|
 Line 3, characters 28-29:
 3 |   | 'a'..'e' as y -> escape y
@@ -1422,7 +1422,7 @@ let foo (local_ x) =
   | `Foo as y -> escape y
   | _ -> ()
 [%%expect{|
-val foo : [> `Foo ] @ local -> unit = <fun>
+val foo : local_ [> `Foo ] -> unit = <fun>
 |}]
 
 let foo (local_ x) =
@@ -1469,7 +1469,7 @@ let foo (local_ x) =
   | #foo as y -> escape y
 [%%expect{|
 type foo = [ `Bar | `Foo ]
-val foo : [< foo ] @ local -> unit = <fun>
+val foo : local_ [< foo ] -> unit = <fun>
 |}]
 
 type foo = [`Foo | `Bar of int]
@@ -1499,10 +1499,10 @@ module Heap32 : sig val add : int32 -> int32 -> int32 end
 module Heap32E :
   sig external add : int32 -> int32 -> int32 = "%int32_add" end
 module Local32 :
-  sig val add : int32 @ local -> int32 @ local -> int32 @ local end
+  sig val add : local_ int32 -> local_ int32 -> local_ int32 end
 module Local32E :
   sig
-    external add : int32 @ local -> int32 @ local -> int32 @ local
+    external add : local_ int32 -> local_ int32 -> local_ int32
       = "%int32_add"
   end
 |}]
@@ -1514,18 +1514,17 @@ Line 2, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig val add : int32 @ local -> int32 @ local -> int32 @ local end
+         sig val add : local_ int32 -> local_ int32 -> local_ int32 end
        is not included in
-         sig val add : int32 @ local -> int32 @ local -> int32 end
+         sig val add : local_ int32 -> local_ int32 -> int32 end
        Values do not match:
-         val add : int32 @ local -> int32 @ local -> int32 @ local
+         val add : local_ int32 -> local_ int32 -> local_ int32
        is not included in
-         val add : int32 @ local -> int32 @ local -> int32
-       The type "int32 @ local -> int32 @ local -> int32 @ local"
-       is not compatible with the type
-         "int32 @ local -> int32 @ local -> int32"
-       Type "int32 @ local -> int32 @ local" is not compatible with type
-         "int32 @ local -> int32"
+         val add : local_ int32 -> local_ int32 -> int32
+       The type "local_ int32 -> local_ int32 -> local_ int32"
+       is not compatible with the type "local_ int32 -> local_ int32 -> int32"
+       Type "local_ int32 -> local_ int32" is not compatible with type
+         "local_ int32 -> int32"
 |}]
 module Opt32 : sig external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add" end = Int32
 module Bad32_2 : sig val add : local_ int32 -> local_ int32 -> int32 end =
@@ -1548,18 +1547,17 @@ Error: Signature mismatch:
              (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
          end
        is not included in
-         sig val add : int32 @ local -> int32 @ local -> int32 end
+         sig val add : local_ int32 -> local_ int32 -> int32 end
        Values do not match:
          external add :
            (int32 [@local_opt]) ->
            (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
        is not included in
-         val add : int32 @ local -> int32 @ local -> int32
-       The type "int32 @ local -> int32 @ local -> int32 @ local"
-       is not compatible with the type
-         "int32 @ local -> int32 @ local -> int32"
-       Type "int32 @ local -> int32 @ local" is not compatible with type
-         "int32 @ local -> int32"
+         val add : local_ int32 -> local_ int32 -> int32
+       The type "local_ int32 -> local_ int32 -> local_ int32"
+       is not compatible with the type "local_ int32 -> local_ int32 -> int32"
+       Type "local_ int32 -> local_ int32" is not compatible with type
+         "local_ int32 -> int32"
 |}]
 
 module Contravariant_instantiation : sig
@@ -1578,13 +1576,12 @@ let zz : local_ (int ref) -> int -> unit = (:=)
 let zy : local_ (int ref) -> (int -> unit) = (:=)
 [%%expect{|
 val zx : int ref -> int -> unit = <fun>
-val zz : int ref @ local -> int -> unit = <fun>
+val zz : local_ int ref -> int -> unit = <fun>
 Line 3, characters 45-49:
 3 | let zy : local_ (int ref) -> (int -> unit) = (:=)
                                                  ^^^^
-Error: This expression has type "'a ref @ local -> 'a -> unit"
-       but an expression was expected of type
-         "int ref @ local -> (int -> unit)"
+Error: This expression has type "local_ 'a ref -> 'a -> unit"
+       but an expression was expected of type "local_ int ref -> (int -> unit)"
 |}]
 
 let int32 (local_ x) (local_ y) = exclave_
@@ -1596,16 +1593,16 @@ let nativeint (local_ x) (local_ y) = exclave_
 let float (local_ x) (local_ y) = exclave_
   (x +. y *. x -. 42.)
 [%%expect{|
-val int32 : int32 @ local -> int32 @ local -> int32 @ local = <fun>
-val int64 : int64 @ local -> int64 @ local -> int64 @ local = <fun>
-val nativeint : nativeint @ local -> nativeint @ local -> nativeint @ local =
+val int32 : local_ int32 -> local_ int32 -> local_ int32 = <fun>
+val int64 : local_ int64 -> local_ int64 -> local_ int64 = <fun>
+val nativeint : local_ nativeint -> local_ nativeint -> local_ nativeint =
   <fun>
-val float : float @ local -> float @ local -> float @ local = <fun>
+val float : local_ float -> local_ float -> local_ float = <fun>
 |}]
 
 let etapair (local_ x) = exclave_ (fst x, snd x)
 [%%expect{|
-val etapair : 'a * 'b @ local -> 'a * 'b @ local = <fun>
+val etapair : local_ 'a * 'b -> local_ 'a * 'b = <fun>
 |}]
 
 (* Arity checking on primitives *)
@@ -1624,13 +1621,13 @@ Error: Wrong arity for builtin primitive "%int32_add"
 let compare (local_ x) (local_ y) =
   [x = y; x <> y; x < y; x > y; x <= y; x >= y; compare x y = 0; x == y; x != y]
 [%%expect{|
-val compare : 'a @ local -> 'a @ local -> bool list = <fun>
+val compare : local_ 'a -> local_ 'a -> bool list = <fun>
 |}]
 
 (* integer primitives accept local args *)
 let intf (local_ x) = x |> Int.succ |> Int.add 42 |> pred |> (/) 100 |> (+) 1
 [%%expect{|
-val intf : int @ local -> int = <fun>
+val intf : local_ int -> int = <fun>
 |}]
 
 (* primitives don't count as tail calls, so you can pass them locals *)
@@ -1644,7 +1641,7 @@ let testbool1 f = let local_ r = ref 42 in (f r || false) && true
 
 let testbool2 f = let local_ r = ref 42 in true && (false || f r)
 [%%expect{|
-val testbool1 : (int ref @ local -> bool) -> bool = <fun>
+val testbool1 : (local_ int ref -> bool) -> bool = <fun>
 Line 3, characters 63-64:
 3 | let testbool2 f = let local_ r = ref 42 in true && (false || f r)
                                                                    ^
@@ -1658,8 +1655,8 @@ Error: This value escapes its region.
 let foo () = exclave_ let local_ _x = "hello" in true
 let testboo3 () =  true && (foo ())
 [%%expect{|
-val foo : unit -> bool @ local = <fun>
-val testboo3 : unit -> bool @ local = <fun>
+val foo : unit -> local_ bool = <fun>
+val testboo3 : unit -> local_ bool = <fun>
 |}]
 
 (* Test from Nathanaëlle Courant.
@@ -1682,7 +1679,7 @@ Error: This value escapes its region.
 (* mode-crossing using unary + *)
 let promote (local_ x) = +x
 [%%expect{|
-val promote : int @ local -> int = <fun>
+val promote : local_ int -> int = <fun>
 |}]
 
 (* Or-patterns *)
@@ -1691,7 +1688,7 @@ let foo (local_ x) y =
   | Some z, None | None, Some z -> z
   | None, None | Some _, Some _ -> assert false
 [%%expect{|
-val foo : 'a option @ local -> 'a option -> 'a @ local = <fun>
+val foo : local_ 'a option -> 'a option -> local_ 'a = <fun>
 |}]
 
 let foo (local_ x) y =
@@ -1699,7 +1696,7 @@ let foo (local_ x) y =
   | Some z, None | None, Some z -> z
   | None, None | Some _, Some _ -> assert false
 [%%expect{|
-val foo : 'a option @ local -> 'a option -> 'a @ local = <fun>
+val foo : local_ 'a option -> 'a option -> local_ 'a = <fun>
 |}]
 
 module M = struct
@@ -1731,14 +1728,14 @@ let f g n =
   ()
 let z : (int list -> unit) -> int -> unit = f
 [%%expect{|
-val f : (int list @ local -> unit) -> int -> unit = <fun>
+val f : (local_ int list -> unit) -> int -> unit = <fun>
 Line 5, characters 44-45:
 5 | let z : (int list -> unit) -> int -> unit = f
                                                 ^
-Error: This expression has type "(int list @ local -> unit) -> int -> unit"
+Error: This expression has type "(local_ int list -> unit) -> int -> unit"
        but an expression was expected of type
          "(int list -> unit) -> int -> unit"
-       Type "int list @ local -> unit" is not compatible with type
+       Type "local_ int list -> unit" is not compatible with type
          "int list -> unit"
 |}]
 
@@ -1753,10 +1750,10 @@ end
 Line 6, characters 46-47:
 6 |   let z : (int list -> unit) -> int -> unit = f
                                                   ^
-Error: This expression has type "(int list @ local -> unit) -> int -> unit"
+Error: This expression has type "(local_ int list -> unit) -> int -> unit"
        but an expression was expected of type
          "(int list -> unit) -> int -> unit"
-       Type "int list @ local -> unit" is not compatible with type
+       Type "local_ int list -> unit" is not compatible with type
          "int list -> unit"
 |}]
 
@@ -1764,12 +1761,12 @@ Error: This expression has type "(int list @ local -> unit) -> int -> unit"
 
 let foo f = (f : local_ string -> float :> string -> float)
 [%%expect{|
-val foo : (string @ local -> float) -> string -> float = <fun>
+val foo : (local_ string -> float) -> string -> float = <fun>
 |}]
 
 let foo f = (f : string -> float :> string -> local_ float)
 [%%expect{|
-val foo : (string -> float) -> string -> float @ local = <fun>
+val foo : (string -> float) -> string -> local_ float = <fun>
 |}]
 
 let foo f = (f : string -> local_ float :> string -> float)
@@ -1777,7 +1774,7 @@ let foo f = (f : string -> local_ float :> string -> float)
 Line 1, characters 12-59:
 1 | let foo f = (f : string -> local_ float :> string -> float)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "string -> float @ local" is not a subtype of "string -> float"
+Error: Type "string -> local_ float" is not a subtype of "string -> float"
 |}]
 
 let foo f = (f : string -> float :> local_ string -> local_ float)
@@ -1785,8 +1782,7 @@ let foo f = (f : string -> float :> local_ string -> local_ float)
 Line 1, characters 12-66:
 1 | let foo f = (f : string -> float :> local_ string -> local_ float)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "string -> float" is not a subtype of
-         "string @ local -> float @ local"
+Error: Type "string -> float" is not a subtype of "local_ string -> local_ float"
 |}]
 
 let foo f = ignore (f :> string -> float); ()
@@ -1811,13 +1807,13 @@ let foo f =
   ignore (f :> (float -> string) -> string);
   [f; local_to_global_to_global]
 [%%expect{|
-val local_to_global_to_global : (float @ local -> string) -> string = <fun>
+val local_to_global_to_global : (local_ float -> string) -> string = <fun>
 Line 5, characters 6-31:
 5 |   [f; local_to_global_to_global]
           ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "(float @ local -> string) -> string"
+Error: This expression has type "(local_ float -> string) -> string"
        but an expression was expected of type "(float -> string) -> string"
-       Type "float @ local -> string" is not compatible with type
+       Type "local_ float -> string" is not compatible with type
          "float -> string"
 |}]
 
@@ -1828,7 +1824,7 @@ module F (X : sig val foo : local_ float -> string end) : sig
 end = X;;
 [%%expect{|
 module F :
-  functor (X : sig val foo : float @ local -> string end) ->
+  functor (X : sig val foo : local_ float -> string end) ->
     sig val foo : float -> string end
 |}]
 
@@ -1838,7 +1834,7 @@ end = X;;
 [%%expect{|
 module F :
   functor (X : sig val foo : float -> string end) ->
-    sig val foo : float -> string @ local end
+    sig val foo : float -> local_ string end
 |}]
 
 module F (X : sig val foo : float -> string end) : sig
@@ -1852,13 +1848,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig val foo : float -> string end
        is not included in
-         sig val foo : float @ local -> string end
+         sig val foo : local_ float -> string end
        Values do not match:
          val foo : float -> string
        is not included in
-         val foo : float @ local -> string
+         val foo : local_ float -> string
        The type "float -> string" is not compatible with the type
-         "float @ local -> string"
+         "local_ float -> string"
 |}]
 
 module F (X : sig val foo : float -> local_ string end) : sig
@@ -1870,14 +1866,14 @@ Line 3, characters 6-7:
           ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val foo : float -> string @ local end
+         sig val foo : float -> local_ string end
        is not included in
          sig val foo : float -> string end
        Values do not match:
-         val foo : float -> string @ local
+         val foo : float -> local_ string
        is not included in
          val foo : float -> string
-       The type "float -> string @ local" is not compatible with the type
+       The type "float -> local_ string" is not compatible with the type
          "float -> string"
 |}]
 
@@ -1890,14 +1886,14 @@ Line 3, characters 6-7:
           ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val foo : float @ local -> float -> string end
+         sig val foo : local_ float -> float -> string end
        is not included in
          sig val foo : float -> float -> string end
        Values do not match:
-         val foo : float @ local -> float -> string
+         val foo : local_ float -> float -> string
        is not included in
          val foo : float -> float -> string
-       The type "float @ local -> float -> string"
+       The type "local_ float -> float -> string"
        is not compatible with the type "float -> float -> string"
 |}]
 
@@ -1906,8 +1902,8 @@ module F (X : sig val foo : local_ float -> float -> string end) : sig
 end = X;;
 [%%expect{|
 module F :
-  functor (X : sig val foo : float @ local -> float -> string end) ->
-    sig val foo : float -> (float -> string) @ local end
+  functor (X : sig val foo : local_ float -> float -> string end) ->
+    sig val foo : float -> local_ (float -> string) end
 |}]
 
 module F (X : sig val foo : float -> float -> string end) : sig
@@ -1916,7 +1912,7 @@ end = X;;
 [%%expect{|
 module F :
   functor (X : sig val foo : float -> float -> string end) ->
-    sig val foo : float -> (float -> string) @ local end
+    sig val foo : float -> local_ (float -> string) end
 |}]
 
 type 'a inv = Inv of ('a -> 'a)
@@ -1939,15 +1935,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig val foo : (float -> string) inv end
        is not included in
-         sig val foo : (float -> string @ local) inv end
+         sig val foo : (float -> local_ string) inv end
        Values do not match:
          val foo : (float -> string) inv
        is not included in
-         val foo : (float -> string @ local) inv
+         val foo : (float -> local_ string) inv
        The type "(float -> string) inv" is not compatible with the type
-         "(float -> string @ local) inv"
+         "(float -> local_ string) inv"
        Type "float -> string" is not compatible with type
-         "float -> string @ local"
+         "float -> local_ string"
 |}]
 
 module F (X : sig val foo : (float -> string) co end) : sig
@@ -1956,7 +1952,7 @@ end = X;;
 [%%expect{|
 module F :
   functor (X : sig val foo : (float -> string) co end) ->
-    sig val foo : (float -> string @ local) co end
+    sig val foo : (float -> local_ string) co end
 |}]
 
 module F (X : sig val foo : (float -> string) contra end) : sig
@@ -1970,15 +1966,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig val foo : (float -> string) contra end
        is not included in
-         sig val foo : (float -> string @ local) contra end
+         sig val foo : (float -> local_ string) contra end
        Values do not match:
          val foo : (float -> string) contra
        is not included in
-         val foo : (float -> string @ local) contra
+         val foo : (float -> local_ string) contra
        The type "(float -> string) contra" is not compatible with the type
-         "(float -> string @ local) contra"
+         "(float -> local_ string) contra"
        Type "float -> string" is not compatible with type
-         "float -> string @ local"
+         "float -> local_ string"
 |}]
 
 module F (X : sig val foo : (float -> string) bi end) : sig
@@ -1987,7 +1983,7 @@ end = X;;
 [%%expect{|
 module F :
   functor (X : sig val foo : (float -> string) bi end) ->
-    sig val foo : (float -> string @ local) bi end
+    sig val foo : (float -> local_ string) bi end
 |}]
 
 module F (X : sig val foo : (float -> local_ string) inv end) : sig
@@ -1999,16 +1995,16 @@ Line 3, characters 6-7:
           ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val foo : (float -> string @ local) inv end
+         sig val foo : (float -> local_ string) inv end
        is not included in
          sig val foo : (float -> string) inv end
        Values do not match:
-         val foo : (float -> string @ local) inv
+         val foo : (float -> local_ string) inv
        is not included in
          val foo : (float -> string) inv
-       The type "(float -> string @ local) inv" is not compatible with the type
+       The type "(float -> local_ string) inv" is not compatible with the type
          "(float -> string) inv"
-       Type "float -> string @ local" is not compatible with type
+       Type "float -> local_ string" is not compatible with type
          "float -> string"
 |}]
 
@@ -2021,16 +2017,16 @@ Line 3, characters 6-7:
           ^
 Error: Signature mismatch:
        Modules do not match:
-         sig val foo : (float -> string @ local) co end
+         sig val foo : (float -> local_ string) co end
        is not included in
          sig val foo : (float -> string) co end
        Values do not match:
-         val foo : (float -> string @ local) co
+         val foo : (float -> local_ string) co
        is not included in
          val foo : (float -> string) co
-       The type "(float -> string @ local) co" is not compatible with the type
+       The type "(float -> local_ string) co" is not compatible with the type
          "(float -> string) co"
-       Type "float -> string @ local" is not compatible with type
+       Type "float -> local_ string" is not compatible with type
          "float -> string"
 |}]
 
@@ -2039,7 +2035,7 @@ module F (X : sig val foo : (float -> local_ string) contra end) : sig
 end = X;;
 [%%expect{|
 module F :
-  functor (X : sig val foo : (float -> string @ local) contra end) ->
+  functor (X : sig val foo : (float -> local_ string) contra end) ->
     sig val foo : (float -> string) contra end
 |}]
 
@@ -2048,7 +2044,7 @@ module F (X : sig val foo : (float -> local_ string) bi end) : sig
 end = X;;
 [%%expect{|
 module F :
-  functor (X : sig val foo : (float -> string @ local) bi end) ->
+  functor (X : sig val foo : (float -> local_ string) bi end) ->
     sig val foo : (float -> string) bi end
 |}]
 
@@ -2164,7 +2160,7 @@ let f (local_ x : gfoo) =
   | GFoo (s', _) -> ref s'
 
 [%%expect{|
-val f : gfoo @ local -> string ref = <fun>
+val f : local_ gfoo -> string ref = <fun>
 |}]
 
 (* the argument not marked global remains contingent on construction  *)
@@ -2212,7 +2208,7 @@ Error: This value escapes its region.
 (* constructing local iarray from local elements is fine *)
 let f (local_ x : string) = exclave_ [:x; "foo":]
 [%%expect{|
-val f : string @ local -> string iarray @ local = <fun>
+val f : local_ string -> local_ string iarray = <fun>
 |}]
 
 (* constructing global iarray from global elements is fine *)
@@ -2251,7 +2247,7 @@ let f (local_ a : string iarray) =
   | [: x; _ :] -> x
   | _ -> "foo"
 [%%expect{|
-val f : string iarray @ local -> string @ local = <fun>
+val f : local_ string iarray -> local_ string = <fun>
 |}]
 
 (* projecting out of global iarray gives global elements *)
@@ -2278,7 +2274,7 @@ Error: This value escapes its region.
 (* constructing local array from global elements is allowed *)
 let f (x : string) = exclave_ [| x |]
 [%%expect{|
-val f : string -> string array @ local = <fun>
+val f : string -> local_ string array = <fun>
 |}]
 
 (* projecting out of local array gives global elements *)
@@ -2287,7 +2283,7 @@ let f (local_ a : string array) =
   | [| x |] -> ref x
   | _ -> ref "foo"
 [%%expect{|
-val f : string array @ local -> string ref = <fun>
+val f : local_ string array -> string ref = <fun>
 |}]
 
 (* reported internal to Jane Street as TANDC-1742 *)
@@ -2332,17 +2328,17 @@ Lines 3-6, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val g : 'a -> 'b -> string @ local
-           val f : 'a -> ('b -> string @ local) @ local
+           val g : 'a -> 'b -> local_ string
+           val f : 'a -> local_ ('b -> local_ string)
          end
        is not included in
-         sig val f : string -> string -> string @ local end
+         sig val f : string -> string -> local_ string end
        Values do not match:
-         val f : 'a -> ('b -> string @ local) @ local
+         val f : 'a -> local_ ('b -> local_ string)
        is not included in
-         val f : string -> string -> string @ local
-       The type "string -> (string -> string @ local) @ local"
-       is not compatible with the type "string -> string -> string @ local"
+         val f : string -> string -> local_ string
+       The type "string -> local_ (string -> local_ string)"
+       is not compatible with the type "string -> string -> local_ string"
 |}]
 
 (* Escaping uncurried functions *)
@@ -2350,7 +2346,7 @@ Error: Signature mismatch:
 (* Valid; [local_ string -> string -> string] is [local_ string -> local_ (string -> string)] *)
 let f () = ((fun x y -> "") : (local_ string -> string -> string));;
 [%%expect{|
-val f : unit -> string @ local -> string -> string = <fun>
+val f : unit -> local_ string -> string -> string = <fun>
 |}];;
 
 (* Illegal: the return mode on (string -> string) is global. *)
@@ -2376,14 +2372,14 @@ Error: This function or one of its parameters escape their region
 let f () = ((fun x -> (fun y -> "") [@extension.curry])
             : (local_ string -> (string -> string)));;
 [%%expect{|
-val f : unit -> string @ local -> (string -> string) = <fun>
+val f : unit -> local_ string -> (string -> string) = <fun>
 |}];;
 
 (* mode crossing - the inner closure is [global] despite closing over [local_
 int] *)
 let f () = ((fun x y -> x + y) : (local_ int -> (int -> int)));;
 [%%expect{|
-val f : unit -> int @ local -> (int -> int) = <fun>
+val f : unit -> local_ int -> (int -> int) = <fun>
 |}];;
 
 (* Illegal: the expected mode is global *)
@@ -2408,18 +2404,18 @@ Error: This function or one of its parameters escape their region
 (* For nested functions, inner functions are not constrained *)
 let f () = ((fun x -> fun y -> "") : (local_ string -> (string -> string)));;
 [%%expect{|
-val f : unit -> string @ local -> (string -> string) = <fun>
+val f : unit -> local_ string -> (string -> string) = <fun>
 |}];;
 
 let f () = exclave_ ((fun x -> fun y -> x + y) : (_ -> _));;
 [%%expect{|
-val f : unit -> (int -> (int -> int)) @ local = <fun>
+val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
 
 (* ok if curried *)
 let f () = exclave_ ((fun x -> (fun y -> x + y) [@extension.curry]) : (_ -> _));;
 [%%expect{|
-val f : unit -> (int -> (int -> int)) @ local = <fun>
+val f : unit -> local_ (int -> (int -> int)) = <fun>
 |}];;
 
 (* Type annotations on a [local_] binding are interpreted in a local context,
@@ -2482,8 +2478,8 @@ let foo (local_ _ : M.t) = ();;
 let foo_f (local_ _ : M.t -> unit) = ();;
 [%%expect{|
 module M : sig type t = M_constructor end
-val foo : M.t @ local -> unit = <fun>
-val foo_f : (M.t -> unit) @ local -> unit = <fun>
+val foo : local_ M.t -> unit = <fun>
+val foo_f : local_ (M.t -> unit) -> unit = <fun>
 |}]
 
 let () = foo M_constructor
@@ -2509,12 +2505,12 @@ val _ret : unit -> M.t -> unit = <fun>
 
 let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
 [%%expect{|
-val _ret : unit -> (M.t -> unit) @ local = <fun>
+val _ret : unit -> local_ (M.t -> unit) = <fun>
 |}]
 
 let _ret () : M.t -> unit = exclave_ (fun M_constructor -> ())
 [%%expect{|
-val _ret : unit -> (M.t -> unit) @ local = <fun>
+val _ret : unit -> local_ (M.t -> unit) = <fun>
 |}]
 
 type r = {global_ x : string; y : string}

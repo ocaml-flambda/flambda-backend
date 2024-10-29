@@ -393,12 +393,12 @@ val unique_default_args : ?x:float @ unique -> unit -> float = <fun>
 
 let ul (unique_ local_ x) = x
 [%%expect{|
-val ul : 'a @ local unique -> 'a @ local = <fun>
+val ul : local_ 'a @ unique -> local_ 'a = <fun>
 |}]
 
 let ul_ret x = exclave_ unique_ x
 [%%expect{|
-val ul_ret : 'a @ unique -> 'a @ local = <fun>
+val ul_ret : 'a @ unique -> local_ 'a = <fun>
 |}]
 
 type point = { x : float; y : float }
@@ -416,7 +416,7 @@ let gc_soundness_nobug (local_ unique_ p) (local_ f) =
   exclave_ { p with x = f }
 [%%expect{|
 val gc_soundness_nobug :
-  point @ local unique -> float @ local -> point @ local = <fun>
+  local_ point @ unique -> local_ float -> local_ point = <fun>
 |}]
 
 let rec foo =
@@ -425,7 +425,7 @@ let rec foo =
   | Some () -> foo None
   | None -> ()
 [%%expect{|
-val foo : unit option @ local unique -> unit = <fun>
+val foo : local_ unit option @ unique -> unit = <fun>
 |}]
 
 let rec bar =
@@ -434,17 +434,17 @@ let rec bar =
   | Some () -> ()
   | None -> bar (local_ Some ()) [@nontail]
 [%%expect{|
-val bar : unit option @ local unique -> unit = <fun>
+val bar : local_ unit option @ unique -> unit = <fun>
 |}]
 
 let foo : local_ unique_ string -> unit = fun (local_ s) -> ()
 [%%expect{|
-val foo : string @ local unique -> unit = <fun>
+val foo : local_ string @ unique -> unit = <fun>
 |}]
 
 let bar : local_ unique_ string -> unit = fun (unique_ s) -> ()
 [%%expect{|
-val bar : string @ local unique -> unit = <fun>
+val bar : local_ string @ unique -> unit = <fun>
 |}]
 
 (* Currying *)
@@ -591,8 +591,8 @@ Error: This expression has type "int" but an expression was expected of type
 let return_local : local_ 'a -> local_ 'a = fun x -> x
 let return_global : local_ 'a -> int = fun x -> 0
 [%%expect{|
-val return_local : 'a @ local -> 'a @ local = <fun>
-val return_global : 'a @ local -> int = <fun>
+val return_local : local_ 'a -> local_ 'a = <fun>
+val return_global : local_ 'a -> int = <fun>
 |}]
 
 

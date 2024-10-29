@@ -68,14 +68,14 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : unit -> int @ local end
+         sig val f : unit -> local_ int end
        is not included in
          sig val f : unit -> int end
        Values do not match:
-         val f : unit -> int @ local
+         val f : unit -> local_ int
        is not included in
          val f : unit -> int
-       The type "unit -> int @ local" is not compatible with the type
+       The type "unit -> local_ int" is not compatible with the type
          "unit -> int"
 |}]
 
@@ -85,5 +85,5 @@ end = struct
     let f (_ @ global) = 42
 end
 [%%expect{|
-module M : sig val f : int @ local -> int end
+module M : sig val f : local_ int -> int end
 |}]

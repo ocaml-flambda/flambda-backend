@@ -41,7 +41,7 @@ let foo (x @ local) =
     match x with
     | lazy y -> y
 [%%expect{|
-val foo : 'a lazy_t @ local -> 'a = <fun>
+val foo : local_ 'a lazy_t -> 'a = <fun>
 |}]
 
 (* one can construct portable lazy, if both the thunk and the result are

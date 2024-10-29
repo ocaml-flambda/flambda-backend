@@ -1395,9 +1395,7 @@ let tree_of_modes modes =
   let print_new_mode_syntax = Language_extension.is_enabled Mode in
   (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
   let l = [
-    tree_of_mode diff.areality
-      [Mode.Locality.Const.Local,
-       if print_new_mode_syntax then Omd_new "local" else Omd_legacy Omd_local];
+    tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
     tree_of_mode diff.linearity
       [Mode.Linearity.Const.Once,
        if print_new_mode_syntax then Omd_new "once" else Omd_legacy Omd_once];
