@@ -41,7 +41,7 @@ let foo (x @ local) =
     match x with
     | lazy y -> y
 [%%expect{|
-val foo : local_ 'a lazy_t -> 'a = <fun>
+val foo : 'a lazy_t @ local -> 'a = <fun>
 |}]
 
 (* one can construct portable lazy, if both the thunk and the result are
@@ -122,7 +122,7 @@ Error: This value is "contended" but expected to be "uncontended".
 let use_unique (_ @ unique) = ()
 let use_many (_ @ many) = ()
 [%%expect{|
-val use_unique : unique_ 'a -> unit = <fun>
+val use_unique : 'a @ unique -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 |}]
 

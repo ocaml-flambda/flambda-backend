@@ -77,7 +77,7 @@ Error: This value escapes its region.
 let int_escape : local_ _ -> int * int = fun x -> x, x
 
 [%%expect{|
-val int_escape : local_ int -> int * int = <fun>
+val int_escape : int @ local -> int * int = <fun>
 |}]
 
 let string_list_escape : local_ _ -> string list * string list = fun x -> x, x
@@ -112,7 +112,7 @@ let hidden_int_escape : local_ _ -> Hidden_int.t * Hidden_int.t =
   fun x -> x, x
 
 [%%expect{|
-val hidden_int_escape : local_ Hidden_int.t -> Hidden_int.t * Hidden_int.t =
+val hidden_int_escape : Hidden_int.t @ local -> Hidden_int.t * Hidden_int.t =
   <fun>
 |}]
 
@@ -130,7 +130,7 @@ let float_u_escape : local_ _ -> (float#, float#) Float_u.pair =
   fun x -> Float_u.mk_pair x x [@nontail]
 
 [%%expect{|
-val float_u_escape : local_ float# -> (float#, float#) Float_u.pair = <fun>
+val float_u_escape : float# @ local -> (float#, float#) Float_u.pair = <fun>
 |}, Principal{|
 Line 2, characters 27-28:
 2 |   fun x -> Float_u.mk_pair x x [@nontail]
@@ -144,7 +144,7 @@ let hidden_float_u_escape :
 
 [%%expect{|
 val hidden_float_u_escape :
-  local_ Hidden_float_u.t ->
+  Hidden_float_u.t @ local ->
   (Hidden_float_u.t, Hidden_float_u.t) Float_u.pair = <fun>
 |}, Principal{|
 Line 3, characters 27-28:
@@ -207,7 +207,7 @@ Error: This value is "once" but expected to be "many".
 let int_duplicate : once_ _ -> int = fun x -> x
 
 [%%expect{|
-val int_duplicate : once_ int -> int = <fun>
+val int_duplicate : int @ once -> int = <fun>
 |}]
 
 let value_list_duplicate : once_ _ -> t_value list = fun x -> x
@@ -242,25 +242,25 @@ let hidden_int_duplicate : once_ _ -> Hidden_int.t =
   fun x -> x
 
 [%%expect{|
-val hidden_int_duplicate : once_ Hidden_int.t -> Hidden_int.t = <fun>
+val hidden_int_duplicate : Hidden_int.t @ once -> Hidden_int.t = <fun>
 |}]
 
 let float_duplicate : once_ _ -> float = fun x -> x
 
 [%%expect{|
-val float_duplicate : once_ float -> float = <fun>
+val float_duplicate : float @ once -> float = <fun>
 |}]
 
 let float_u_duplicate : once_ _ -> float# = fun x -> x
 
 [%%expect{|
-val float_u_duplicate : once_ float# -> float# = <fun>
+val float_u_duplicate : float# @ once -> float# = <fun>
 |}]
 
 let hidden_float_u_duplicate : once_ _ -> Hidden_float_u.t = fun x -> x
 
 [%%expect{|
-val hidden_float_u_duplicate : once_ Hidden_float_u.t -> Hidden_float_u.t =
+val hidden_float_u_duplicate : Hidden_float_u.t @ once -> Hidden_float_u.t =
   <fun>
 |}]
 
@@ -316,7 +316,7 @@ Error: This value is "aliased" but expected to be "unique".
 let int_unshare : _ -> unique_ int = fun x -> x
 
 [%%expect{|
-val int_unshare : int -> unique_ int = <fun>
+val int_unshare : int -> int @ unique = <fun>
 |}]
 
 let string_list_unshare : _ -> unique_ string list = fun x -> x
@@ -340,7 +340,7 @@ Error: This value is "aliased" but expected to be "unique".
 let function_unshare : _ -> unique_ (int -> int) = fun x -> x
 
 [%%expect{|
-val function_unshare : (int -> int) -> unique_ (int -> int) = <fun>
+val function_unshare : (int -> int) -> (int -> int) @ unique = <fun>
 |}]
 
 let hidden_string_unshare : _ -> unique_ Hidden_string.t =
@@ -357,7 +357,7 @@ let hidden_int_unshare : _ -> unique_ Hidden_int.t =
   fun x -> x
 
 [%%expect{|
-val hidden_int_unshare : Hidden_int.t -> unique_ Hidden_int.t = <fun>
+val hidden_int_unshare : Hidden_int.t -> Hidden_int.t @ unique = <fun>
 |}]
 
 let float_unshare : _ -> unique_ float = fun x -> x
@@ -372,13 +372,13 @@ Error: This value is "aliased" but expected to be "unique".
 let float_u_unshare : _ -> unique_ float# = fun x -> x
 
 [%%expect{|
-val float_u_unshare : float# -> unique_ float# = <fun>
+val float_u_unshare : float# -> float# @ unique = <fun>
 |}]
 
 let hidden_float_u_unshare : _ -> unique_ Hidden_float_u.t = fun x -> x
 
 [%%expect{|
-val hidden_float_u_unshare : Hidden_float_u.t -> unique_ Hidden_float_u.t =
+val hidden_float_u_unshare : Hidden_float_u.t -> Hidden_float_u.t @ unique =
   <fun>
 |}]
 

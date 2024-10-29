@@ -19,7 +19,7 @@ let foo () =
     let local_ y = Some 42 in
     y
 [%%expect{|
-val foo : unit -> local_ int option = <fun>
+val foo : unit -> int option @ local = <fun>
 |}]
 (* sidenote: in the above,
    y escapes the function even though local_
@@ -36,7 +36,7 @@ let foo () =
     let _ = escape x in
     x
 [%%expect{|
-val foo : unit -> local_ int option = <fun>
+val foo : unit -> int option @ local = <fun>
 |}]
 
 (* this still applies even when the exclave doesn't allocate in outer region at all,
@@ -48,7 +48,7 @@ let foo x =
     let _ = escape x in
     x
 [%%expect{|
-val foo : 'a -> local_ int option = <fun>
+val foo : 'a -> int option @ local = <fun>
 |}]
 
 
@@ -140,7 +140,7 @@ let foo (local_ x) =
 
 [%%expect{|
 type t = { x : int option; }
-val foo : local_ int option -> local_ int option = <fun>
+val foo : int option @ local -> int option @ local = <fun>
 |}]
 
 (* semantics tests *)
@@ -177,7 +177,7 @@ let bar _ =
   | Some x -> "Some of " ^ (string_of_int (x + 0)) ;;
 bar ();;
 [%%expect{|
-val foo : 'a -> local_ 'a option = <fun>
+val foo : 'a -> 'a option @ local = <fun>
 val bar : 'a -> string = <fun>
 - : string = "Some of 5"
 |}]
@@ -196,8 +196,8 @@ let f () =
 f ();;
 [%%expect{|
 type 'a glob = Glob of global_ 'a
-val return_local : 'a -> local_ 'a glob = <fun>
-val f : unit -> local_ unit = <fun>
+val return_local : 'a -> 'a glob @ local = <fun>
+val f : unit -> unit @ local = <fun>
 - : unit = ()
 |}]
 
@@ -233,7 +233,7 @@ let f () =
     (fun x -> fun y -> ()) : (string -> string -> unit)
   )
 [%%expect{|
-val f : unit -> local_ (string -> (string -> unit)) = <fun>
+val f : unit -> (string -> (string -> unit)) @ local = <fun>
 |}]
 
 let f : local_ string -> string =

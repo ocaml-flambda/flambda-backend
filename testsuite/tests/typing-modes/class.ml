@@ -9,7 +9,7 @@ let unique_use : 'a @ unique -> unit = fun _ -> ()
 
 let portable_use : 'a @ portable -> unit = fun _ -> ()
 [%%expect{|
-val unique_use : unique_ 'a -> unit = <fun>
+val unique_use : 'a @ unique -> unit = <fun>
 val portable_use : 'a @ portable -> unit = <fun>
 |}]
 

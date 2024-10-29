@@ -31,7 +31,7 @@ Error: This value escapes its region.
 let int_escape_l (local_ y) = let Pair (x, _) = Pair (y, 5) in x
 
 [%%expect{|
-val int_escape_l : local_ int -> int = <fun>
+val int_escape_l : int @ local -> int = <fun>
 |}, Principal{|
 Line 1, characters 63-64:
 1 | let int_escape_l (local_ y) = let Pair (x, _) = Pair (y, 5) in x
@@ -43,7 +43,7 @@ Error: This value escapes its region.
 let int_escape_r (local_ y) = let Pair (x, _) = Pair (5, y) in x
 
 [%%expect{|
-val int_escape_r : local_ int -> int = <fun>
+val int_escape_r : int @ local -> int = <fun>
 |}, Principal{|
 Line 1, characters 63-64:
 1 | let int_escape_r (local_ y) = let Pair (x, _) = Pair (5, y) in x
@@ -84,7 +84,7 @@ Error: This value escapes its region.
 let int_escape_expected_r : local_ _ -> _ pair = fun x -> Pair (5, x)
 
 [%%expect{|
-val int_escape_expected_r : local_ int -> int pair = <fun>
+val int_escape_expected_r : int @ local -> int pair = <fun>
 |}, Principal{|
 Line 1, characters 67-68:
 1 | let int_escape_expected_r : local_ _ -> _ pair = fun x -> Pair (5, x)
@@ -104,7 +104,7 @@ let pattern_l (local_ x) =
   | _ -> ()
 
 [%%expect{|
-val pattern_l : local_ int pair -> unit = <fun>
+val pattern_l : int pair @ local -> unit = <fun>
 |}, Principal{|
 Line 3, characters 26-27:
 3 |   | Pair (y, 0) -> escape y
@@ -120,7 +120,7 @@ let pattern_r (local_ x) =
   | _ -> ()
 
 [%%expect{|
-val pattern_r : local_ int pair -> unit = <fun>
+val pattern_r : int pair @ local -> unit = <fun>
 |}, Principal{|
 Line 3, characters 26-27:
 3 |   | Pair (0, y) -> escape y

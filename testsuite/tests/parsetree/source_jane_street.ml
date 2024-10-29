@@ -293,10 +293,10 @@ let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
 [%%expect{|
 val f :
   ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    local_ unique_ 'a ->
-    y:local_ once_ 'b ->
-    z:once_ unique_ 'c ->
-    ?foo:local_ once_ unique_ int -> ?bar:local_ int -> unit -> unit
+    'a @ local unique ->
+    y:'b @ local once ->
+    z:'c @ once unique ->
+    ?foo:int @ local once unique -> ?bar:int @ local -> unit -> unit
   @@ global many = <fun>
 |}]
 
@@ -361,7 +361,7 @@ Line 3, characters 6-7:
           ^
 Warning 26 [unused-var]: unused variable f.
 
-val g : unit -> local_ once_ unit @@ global many = <fun>
+val g : unit -> unit @ local once @@ global many = <fun>
 |}]
 
 (* types *)
@@ -388,12 +388,12 @@ type ('a, 'b) labeled_fn =
   a:local_ unique_ 'a -> ?b:local_ once_ 'b -> unique_ once_ 'a -> (int -> once_ unique_ 'b);;
 
 [%%expect{|
-type fn = local_ unique_ int -> local_ once_ int
+type fn = int @ local unique -> int @ local once
 type nested_fn =
-    (local_ unique_ int -> local_ once_ int) -> local_ once_ unique_ int
+    (int @ local unique -> int @ local once) -> int @ local once unique
 type ('a, 'b) labeled_fn =
-    a:local_ unique_ 'a ->
-    ?b:local_ once_ 'b -> once_ unique_ 'a -> (int -> once_ unique_ 'b)
+    a:'a @ local unique ->
+    ?b:'b @ local once -> 'a @ once unique -> (int -> 'b @ once unique)
 |}]
 
 (* kitchen sink, with new @ syntax *)
@@ -427,18 +427,18 @@ let f ~(x1 @ many)
 val f :
   ('b : value_or_null) ('c : value_or_null) ('d : value_or_null) 'e.
     x1:'b ->
-    x2:local_ string ->
-    x3:local_ (string -> string) ->
-    x4:local_ ('a. 'a -> 'a) ->
-    x5:local_ 'c ->
-    x6:local_ bool ->
-    x7:local_ bool ->
-    x8:local_ unit ->
+    x2:string @ local ->
+    x3:(string -> string) @ local ->
+    x4:('a. 'a -> 'a) @ local ->
+    x5:'c @ local ->
+    x6:bool @ local ->
+    x7:bool @ local ->
+    x8:unit @ local ->
     string ->
-    local_ 'd -> local_
+    'd @ local ->
     'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
-    int array * string * (int -> local_ (int -> int)) *
-    (int -> local_ (int -> int)) @ contended
+    int array * string * (int -> (int -> int) @ local) *
+    (int -> (int -> int) @ local) @ local contended
   @@ global many = <fun>
 |}]
 
@@ -446,7 +446,7 @@ let f1 (_ @ local) = ()
 let f2 () = let x @ local = [1; 2; 3] in f1 x [@nontail]
 
 [%%expect{|
-val f1 : ('a : value_or_null). local_ 'a -> unit @@ global many = <fun>
+val f1 : ('a : value_or_null). 'a @ local -> unit @@ global many = <fun>
 val f2 : unit -> unit @@ global many = <fun>
 |}]
 
@@ -519,8 +519,8 @@ Error: This value escapes its region.
 let f2 (x @ local) (f @ once) : t2 = exclave_ { x; f }
 
 [%%expect{|
-val f2 : local_ float -> once_ (float -> float) -> local_ once_ t2 @@ global
-  many = <fun>
+val f2 : float @ local -> (float -> float) @ once -> t2 @ local once @@
+  global many = <fun>
 |}]
 
 (**********)

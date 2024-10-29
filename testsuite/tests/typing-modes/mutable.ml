@@ -29,7 +29,7 @@ type 'a r = { mutable s : 'a; }
 (* We can now construct a local record using a local field. *)
 let foo (local_ s) = exclave_ {s}
 [%%expect{|
-val foo : local_ 'a -> local_ 'a r = <fun>
+val foo : 'a @ local -> 'a r @ local = <fun>
 |}]
 
 (* Mutation needs to be global *)
@@ -53,7 +53,7 @@ Error: This value escapes its region.
 let foo (local_ r) =
   r.s <- "hello"
 [%%expect{|
-val foo : local_ string r -> unit = <fun>
+val foo : string r @ local -> unit = <fun>
 |}]
 
 (* We can still add modalities explicitly. Of course, the print-back is

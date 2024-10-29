@@ -162,20 +162,19 @@ Error: Found a aliased value where a unique value was expected
 (* arrow types *)
 type r = local_ string @ unique once -> unique_ string @ local once
 [%%expect{|
-type r = local_ once_ unique_ string -> local_ once_ unique_ string
+type r = string @ local once unique -> string @ local once unique
 |}]
 
 type r = local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    local_ once_ unique_ string * y:string -> local_ once_ string * w:string
+    string * y:string @ local once unique -> string * w:string @ local once
 |}]
 
 type r = x:local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    x:local_ once_ unique_ string * y:string -> local_ once_
-    string * w:string
+    x:string * y:string @ local once unique -> string * w:string @ local once
 |}]
 
 
@@ -198,22 +197,22 @@ Error: The locality axis has already been specified.
 (* Mixing legacy and new modes *)
 type r = local_ unique_ once_ string -> string
 [%%expect{|
-type r = local_ once_ unique_ string -> string
+type r = string @ local once unique -> string
 |}]
 
 type r = local_ unique_ once_ string @ portable contended -> string
 [%%expect{|
-type r = local_ once_ unique_ string @ portable contended -> string
+type r = string @ local once unique portable contended -> string
 |}]
 
 type r = string @ local unique once portable contended -> string
 [%%expect{|
-type r = local_ once_ unique_ string @ portable contended -> string
+type r = string @ local once unique portable contended -> string
 |}]
 
 type r = string @ local unique once nonportable uncontended -> string
 [%%expect{|
-type r = local_ once_ unique_ string -> string
+type r = string @ local once unique -> string
 |}]
 
 
@@ -305,12 +304,12 @@ type r = { mutable x : string; }
 
 let foo ?(local_ x @ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
+val foo : ?x:int @ local once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : _ @@ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
+val foo : ?x:int @ local once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
@@ -323,12 +322,12 @@ Error: Optional parameters cannot be polymorphic
 
 let foo ?x:(local_ (x,y) @ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
+val foo : ?x:int * int @ local once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : _ @@ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
+val foo : ?x:int * int @ local once unique -> unit -> unit = <fun>
 |}]
 
 let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
@@ -386,7 +385,7 @@ let use_local (f : _ -> _ -> _ @@ local) x y =
   f x y
 let result = use_local (^) "hello" " world"
 [%%expect{|
-val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val use_local : ('a -> 'b -> 'c) @ local -> 'a -> 'b -> 'c = <fun>
 val result : string = "hello world"
 |}]
 
@@ -395,7 +394,7 @@ let use_local_ret (f : _ -> _ @ local) x y =
 let global_ret : string -> string @ global = fun x -> x
 let result = use_local_ret global_ret "hello"
 [%%expect{|
-val use_local_ret : ('a -> local_ 'b) -> 'a -> 'c -> unit = <fun>
+val use_local_ret : ('a -> 'b @ local) -> 'a -> 'c -> unit = <fun>
 val global_ret : string -> string = <fun>
 val result : '_weak1 -> unit = <fun>
 |}]
@@ -405,11 +404,11 @@ let local_ret a = exclave_ (Some a)
 let bad_use = use_global_ret local_ret "hello"
 [%%expect{|
 val use_global_ret : ('a -> 'b) -> 'a -> 'b lazy_t = <fun>
-val local_ret : 'a -> local_ 'a option = <fun>
+val local_ret : 'a -> 'a option @ local = <fun>
 Line 3, characters 29-38:
 3 | let bad_use = use_global_ret local_ret "hello"
                                  ^^^^^^^^^
-Error: This expression has type "'a -> local_ 'a option"
+Error: This expression has type "'a -> 'a option @ local"
        but an expression was expected of type "'b -> 'c"
 |}]
 
@@ -479,10 +478,10 @@ let bar (local_ x) (local_ y) = let _ = x +. y in ()
 
 let result = use_local foo 1. 2.
 [%%expect{|
-val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val use_local : ('a -> 'b -> 'c) @ local -> 'a -> 'b -> 'c = <fun>
 val use_global : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
 val foo : float -> float -> float = <fun>
-val bar : local_ float -> local_ float -> unit = <fun>
+val bar : float @ local -> float @ local -> unit = <fun>
 val result : float = 3.
 |}]
 
@@ -501,8 +500,8 @@ let result = use_global bar 1. 2.
 Line 1, characters 24-27:
 1 | let result = use_global bar 1. 2.
                             ^^^
-Error: This expression has type "local_ float -> local_ float -> unit"
-       but an expression was expected of type "local_ 'a -> ('b -> 'c)"
+Error: This expression has type "float @ local -> float @ local -> unit"
+       but an expression was expected of type "'a @ local -> ('b -> 'c)"
 |}]
 
 let use_portable_arg (f : (_ -> _) @ portable -> _) g = f g
