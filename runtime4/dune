@@ -51,6 +51,7 @@
   misc.c
   domain.c
   float32.c
+  simd.c
   blake2.c)
  (action
   (with-stdout-to
