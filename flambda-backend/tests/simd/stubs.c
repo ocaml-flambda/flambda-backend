@@ -644,6 +644,17 @@ float float_of_int32(int32_t i) {
   return *(float*)&i;
 }
 
+int32_t test_simd_vec128_extract_ps(__m128 a, intnat i) {
+  int32_t bits;
+  switch (i % 4) {
+    case 0: return (_mm_extract_ps(a, 0));
+    case 1: return (_mm_extract_ps(a, 1));
+    case 2: return (_mm_extract_ps(a, 2));
+    case 3: return (_mm_extract_ps(a, 3));
+    default: assert(0);
+  }
+}
+
 int32_t float32_zero(value unit) { return int32_of_float(0.0f); }
 int32_t float32_neg_zero(value unit) { return int32_of_float(-0.0f); }
 int32_t float32_one(value unit) { return int32_of_float(1.0f); }
