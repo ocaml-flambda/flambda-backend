@@ -1351,7 +1351,9 @@ val ( ^^ ) :
 
 (** {1 Program termination} *)
 
-val exit : int -> 'a @@ portable
+(* CR tdelvecchio: (someday) Eventually deprecate [at_exit], and make [exit] portable. *)
+
+val exit : int -> 'a
 (** Terminate the process, returning the given status code to the operating
     system: usually 0 to indicate no errors, and a small positive integer to
     indicate failure. All open output channels are flushed with [flush_all].
@@ -1363,7 +1365,6 @@ val exit : int -> 'a @@ portable
     of an uncaught exception. *)
 
 val at_exit : (unit -> unit) -> unit
-[@@alert unsafe]
 (** Register the given function to be called at program termination
    time. The functions registered with [at_exit] will be called when
    the program does any of the following:
@@ -1384,12 +1385,9 @@ val valid_float_lexem : string -> string @@ portable
 
 val unsafe_really_input : in_channel -> bytes -> int -> int -> unit @@ portable
 
-val do_at_exit : unit -> unit @@ portable
+val do_at_exit : unit -> unit
 
 val do_domain_local_at_exit : (unit -> unit) ref
-[@@alert unsafe]
-
-val set_do_domain_local_at_exit : (unit -> unit) @ portable -> unit @@ portable
 
 (**/**)
 

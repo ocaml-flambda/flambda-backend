@@ -540,4 +540,4 @@ include (val impl : S5)
 
 let () = DLS.init ()
 
-let _ = Stdlib.set_do_domain_local_at_exit do_at_exit
+let _ = Stdlib.do_domain_local_at_exit := do_at_exit

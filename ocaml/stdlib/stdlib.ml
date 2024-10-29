@@ -18,7 +18,7 @@
 
 (* Exceptions *)
 
-external register_named_value : string -> 'a @ portable -> unit @@ portable
+external register_named_value : string -> 'a -> unit @@ portable
                               = "caml_register_named_value"
 
 let () =
@@ -51,7 +51,6 @@ exception Undefined_recursive_module = Undefined_recursive_module
 (* Magic *)
 
 external magic_portable : 'a -> 'a @ portable @@ portable = "%identity"
-external magic_uncontended : 'a @ contended -> 'a @@ portable = "%identity"
 
 (* Composition operators *)
 
@@ -560,51 +559,38 @@ let ( ^^ ) (Format (fmt1, str1)) (Format (fmt2, str2)) =
 external sys_exit : int -> 'a @@ portable = "caml_sys_exit"
 
 (* for at_exit *)
-type (!'a : value mod portable) atomic_t : value mod portable uncontended
-external atomic_make : 'a -> 'a atomic_t @@ portable = "%makemutable"
-external atomic_get : 'a atomic_t -> 'a @ contended @@ portable = "%atomic_load"
-external atomic_exchange : 'a atomic_t -> 'a @ contended -> 'a @ contended @@ portable = "%atomic_exchange"
-external atomic_compare_and_set : 'a atomic_t -> 'a @ contended -> 'a @ contended -> bool @@ portable
+type !'a atomic_t : value mod uncontended
+external atomic_make : 'a -> 'a atomic_t = "%makemutable"
+external atomic_get : 'a atomic_t -> 'a @ contended = "%atomic_load"
+external atomic_compare_and_set : 'a atomic_t -> 'a @ contended -> 'a @ contended -> bool
   = "%atomic_cas"
 
-type exit_function : value mod portable = Exit_function of (unit -> unit) @@ portable [@@unboxed]
+let exit_function = atomic_make flush_all
 
-let exit_function = atomic_make (Exit_function flush_all)
-
-let rec at_exit_safe f =
+let rec at_exit f =
   (* MPR#7253, MPR#7796: make sure "f" is executed only once *)
   let f_yet_to_run = atomic_make true in
-  let (Exit_function old_exit) as cur = atomic_get exit_function in
+  let old_exit = atomic_get exit_function in
   let new_exit () =
     if atomic_compare_and_set f_yet_to_run true false then f () ;
     old_exit ()
   in
-  let success = atomic_compare_and_set exit_function cur (Exit_function new_exit) in
-  if not success then at_exit_safe f
+  let success = atomic_compare_and_set exit_function old_exit new_exit in
+  if not success then at_exit f
 
-let at_exit f = at_exit_safe (magic_portable f)
+let at_exit_safe = magic_portable at_exit
 
-type at_exit : value mod portable = At_exit of (unit -> unit) @@ portable
-
-let do_domain_local_at_exit = magic_portable (ref (fun () -> ()))
-
-let do_domain_local_at_exit_safe = atomic_make (At_exit (fun () -> ()))
-
-let set_do_domain_local_at_exit f =
-  let _ = atomic_exchange do_domain_local_at_exit_safe (At_exit f) in
-  ()
+let do_domain_local_at_exit = ref (fun () -> ())
 
 let do_at_exit () =
-  (!(magic_uncontended do_domain_local_at_exit)) ();
-  let At_exit do_domain_local_at_exit_safe = atomic_get do_domain_local_at_exit_safe in
-  do_domain_local_at_exit_safe ();
-  let Exit_function exit_function = atomic_get exit_function in
-  exit_function ()
+  (!do_domain_local_at_exit) ();
+  (atomic_get exit_function) ()
 
 let exit retcode =
   do_at_exit ();
   sys_exit retcode
 
+(* CR tdelvecchio: Consider if this is unsafe. *)
 let _ = register_named_value "Pervasives.do_at_exit" do_at_exit
 
 external major : unit -> unit @@ portable = "caml_gc_major"

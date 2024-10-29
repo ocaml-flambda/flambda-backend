@@ -38,7 +38,7 @@ val print: ('a -> 'b) -> 'a -> 'b @@ portable
    The typical use is to catch and report exceptions that
    escape a function application. *)
 
-val catch: ('a -> 'b) -> 'a -> 'b @@ portable
+val catch: ('a -> 'b) -> 'a -> 'b
 [@@ocaml.deprecated "This function is no longer needed."]
 (** [Printexc.catch fn x] is similar to {!Printexc.print}, but
    aborts the program with exit code 2 after printing the

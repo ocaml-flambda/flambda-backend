@@ -386,7 +386,8 @@ let handle_uncaught_exception exn debugger_in_use =
     (* There is not much we can do at this point *)
     ()
 
-external register_named_value : string -> 'a @ portable -> unit @@ portable
+(* CR tdelvecchio: Consider if this is unsafe. *)
+external register_named_value : string -> 'a -> unit @@ portable
   = "caml_register_named_value"
 
 let () =
