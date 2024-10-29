@@ -1392,16 +1392,11 @@ let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option
 
 let tree_of_modes modes =
   let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
-  let print_new_mode_syntax = Language_extension.is_enabled Mode in
   (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
   let l = [
     tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
-    tree_of_mode diff.linearity
-      [Mode.Linearity.Const.Once,
-       if print_new_mode_syntax then Omd_new "once" else Omd_legacy Omd_once];
-    tree_of_mode diff.uniqueness
-      [Mode.Uniqueness.Const.Unique,
-       if print_new_mode_syntax then Omd_new "unique" else Omd_legacy Omd_unique];
+    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_new "once"];
+    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_new "unique"];
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
     tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
                                   Mode.Contention.Const.Shared, Omd_new "shared"]]
