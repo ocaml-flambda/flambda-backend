@@ -161,22 +161,25 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
           in
           Compiler_hooks.execute Inlining_tree inlining_tree);
         Compiler_hooks.execute Flambda2 flambda;
-        print_flambda "simplify" (Flambda_features.dump_simplify ()) ppf flambda;
+        let last_pass_name = "simplify" in
+        print_flambda last_pass_name
+          (Flambda_features.dump_simplify ())
+          ppf flambda;
         print_flexpect "simplify" ppf ~raw_flambda flambda;
-        let flambda, free_names, all_code, slot_offsets =
+        let flambda, free_names, all_code, slot_offsets, last_pass_name =
           if Flambda_features.enable_reaper ()
           then (
             let flambda, free_names, all_code, slot_offsets =
               Profile.record_call ~accumulate:true "reaper" (fun () ->
                   Flambda2_reaper.Reaper.run ~cmx_loader ~all_code flambda)
             in
-            print_flambda "reaper"
-              (Flambda_features.dump_flambda ())
-              ppf flambda;
             print_flexpect "reaper" ppf ~raw_flambda flambda;
-            flambda, free_names, all_code, slot_offsets)
-          else flambda, free_names, all_code, slot_offsets
+            flambda, free_names, all_code, slot_offsets, "reaper")
+          else flambda, free_names, all_code, slot_offsets, last_pass_name
         in
+        print_flambda last_pass_name
+          (Flambda_features.dump_flambda ())
+          ppf flambda;
         let { Simplify.unit = flambda;
               exported_offsets;
               cmx;
