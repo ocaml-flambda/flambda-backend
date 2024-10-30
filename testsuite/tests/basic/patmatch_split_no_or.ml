@@ -85,8 +85,10 @@ let f = function
              (exit 8))
           with (8)
            (if (field_imm 1 param/32)
-             (if (== (field_imm 0 *match*/33) B/28) 2
-               (if (== (field_imm 0 *match*/33) C/29) 3 4))
+             (let (tag/41 =o (field_mut 0 *match*/33))
+               (if (== tag/41 B/28) 2
+                 (let (tag/46 =o (field_mut 0 *match*/33))
+                   (if (== tag/46 C/29) 3 4))))
              (if (field_imm 2 param/32) 12 11))))))
   (apply (field_imm 1 (global Toploop!)) "f" f/30))
 val f : t * bool * bool -> int = <fun>
