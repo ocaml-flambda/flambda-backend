@@ -891,6 +891,10 @@ let simplify_mutable_block_load _access_kind ~field:_ ~original_prim dacc
       (P.result_kind' original_prim)
       ~original_term
 
+(* CR layouts v3: implement a real simplifier. *)
+let simplify_is_null dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -912,6 +916,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Tag_immediate -> simplify_tag_immediate
     | Untag_immediate -> simplify_untag_immediate
     | Is_int { variant_only } -> simplify_is_int ~variant_only
+    | Is_null -> simplify_is_null
     | Get_tag -> simplify_get_tag
     | Array_length array_kind -> simplify_array_length array_kind
     | String_length _ -> simplify_string_length

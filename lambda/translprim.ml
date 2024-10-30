@@ -522,6 +522,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%floatarray_unsafe_set" ->
       Primitive ((Parraysetu (Pfloatarray_set, Ptagged_int_index)), 3)
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
+    | "%is_null" -> Primitive (Pisnull, 1)
     | "%lazy_force" -> Lazy_force pos
     | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
     | "%nativeint_to_int" -> Primitive ((Pintofbint Pnativeint), 1)
@@ -1647,7 +1648,7 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu
   | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
       | Punboxedintarray _ | Punboxedvectorarray _), _, _)
-  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
+  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _

@@ -794,6 +794,7 @@ let unary_primitive env res dbg f arg =
         ~effects:Arbitrary_effects ~coeffects:Has_coeffects ~ty_args:[]
         "caml_obj_dup" Cmm.typ_val [arg] )
   | Is_int _ -> None, res, C.and_int arg (C.int ~dbg 1) dbg
+  | Is_null -> None, res, C.eq ~dbg arg (C.nativeint ~dbg 0n)
   | Get_tag -> None, res, C.get_tag arg dbg
   | Array_length (Array_kind array_kind) ->
     None, res, array_length ~dbg arg array_kind
