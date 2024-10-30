@@ -102,6 +102,8 @@ end
 module Transfer = struct
   type domain = Domain.t
 
+  type context = unit
+
   type image =
     { normal : domain;
       exceptional : domain
@@ -153,7 +155,7 @@ module Transfer = struct
             let reg_is_of_type_addr =
               match (RD.reg reg).typ with
               | Addr -> true
-              | Val | Int | Float | Vec128 -> false
+              | Val | Int | Float | Vec128 | Float32 -> false
             in
             if remains_available
                || (not (extend_live ()))
@@ -178,7 +180,7 @@ module Transfer = struct
     in
     Some (ok avail_across), ok avail_after
 
-  let basic ({ avail_before } : domain) (instr : Cfg.basic Cfg.instruction) :
+  let basic ({ avail_before } : domain) (instr : Cfg.basic Cfg.instruction) () :
       domain =
     assert (Option.is_some avail_before);
     instr.available_before <- avail_before;
@@ -280,13 +282,13 @@ module Transfer = struct
           in
           Some (ok avail_across), ok avail_after
         | Op
-            ( Const_int _ | Const_float _ | Const_symbol _ | Const_vec128 _
-            | Stackoffset _ | Load _ | Store _ | Intop _ | Intop_imm _
-            | Intop_atomic _ | Negf | Absf | Addf | Subf | Mulf | Divf | Compf _
-            | Csel _ | Floatofint | Intoffloat | Valueofint | Intofvalue
-            | Probe_is_enabled _ | Opaque | Begin_region | End_region
-            | Specific _ )
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue ->
+            ( Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+            | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
+            | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _
+            | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
+            | Begin_region | End_region | Specific _ | Dls_get | Poll | Alloc _
+              )
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
           let is_op_end_region = function[@ocaml.warning "-4"]
             | Cfg.(Op End_region) -> true
             | _ -> false
@@ -299,7 +301,7 @@ module Transfer = struct
     { avail_before = Some avail_after }
 
   let terminator ({ avail_before } : domain)
-      (term : Cfg.terminator Cfg.instruction) : image =
+      (term : Cfg.terminator Cfg.instruction) () : image =
     assert (Option.is_some avail_before);
     term.available_before <- avail_before;
     let avail_before = Option.get avail_before in
@@ -315,21 +317,18 @@ module Transfer = struct
           (* CR xclerc for xclerc: TODO *)
           None, unreachable
         | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-        | Switch _ | Call _ | Prim _ | Specific_can_raise _ | Poll_and_jump _
-        | Return | Raise _ | Tailcall_func _ | Call_no_return _ ->
+        | Switch _ | Call _ | Prim _ | Specific_can_raise _ | Return | Raise _
+        | Tailcall_func _ | Call_no_return _ ->
           common ~avail_before ~destroyed_at:Proc.destroyed_at_terminator
             ~is_interesting_constructor:
               Cfg.(
                 function
                 | Never -> assert false
-                | Call _
-                | Prim { op = Alloc _ | Probe _; label_after = _ }
-                | Poll_and_jump _ ->
-                  true
+                | Call _ | Prim { op = Probe _; label_after = _ } -> true
                 | Always _ | Parity_test _ | Truth_test _ | Float_test _
                 | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
                 | Tailcall_func _ | Call_no_return _ | Specific_can_raise _
-                | Prim { op = External _ | Checkbound _; label_after = _ } ->
+                | Prim { op = External _; label_after = _ } ->
                   false)
             ~is_end_region:(fun _ -> false)
             term)
