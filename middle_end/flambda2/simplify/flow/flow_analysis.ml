@@ -180,7 +180,7 @@ let added_useful_alias_in_loop typing_env (acc : T.Acc.t)
      for instance when the parameters are involved in a loop.
 
      In such cases, it is pertinent to trigger a resimplification of the current
-     expression (i.e. function body), so that we can rpopagate the information
+     expression (i.e. function body), so that we can propagate the information
      from that new alias.
 
      In order to avoid triggering too many resimplifications for no reasons, we
