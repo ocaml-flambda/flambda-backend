@@ -42,12 +42,10 @@ let add_node_aux t simple =
   in
   { t with graph }
 
-let add_node_name t simple name =
-  if Name.Set.mem name t.required_names then add_node_aux t simple else t
-
 let add_node t simple =
   Simple.pattern_match simple
-    ~name:(fun name ~coercion:_ -> add_node_name t simple name)
+    ~name:(fun name ~coercion:_ ->
+      if Name.Set.mem name t.required_names then add_node_aux t simple else t)
     ~const:(fun _ -> add_node_aux t simple)
 
 (* Adding roots *)
