@@ -80,6 +80,47 @@ let print_flexpect name main_dump_ppf ~raw_flambda:old_unit new_unit =
     ~header:("Before and after " ^ name)
     ~f:pp_flambda_as_flexpect (old_unit, new_unit)
 
+module NO = Flambda2_nominal.Name_occurrences
+
+type run_result =
+  { cmx : Flambda_cmx_format.t option;
+    unit : Flambda_unit.t;
+    all_code : Exported_code.t;
+    exported_offsets : Exported_offsets.t;
+    reachable_names : NO.t
+  }
+
+let build_run_result unit ~free_names ~final_typing_env ~all_code slot_offsets :
+    run_result =
+  let module_symbol = Flambda_unit.module_symbol unit in
+  let function_slots_in_normal_projections =
+    NO.function_slots_in_normal_projections free_names
+  in
+  let value_slots_in_normal_projections =
+    NO.value_slots_in_normal_projections free_names
+  in
+  let all_function_slots = NO.all_function_slots free_names in
+  let all_value_slots = NO.all_value_slots free_names in
+  let ({ used_value_slots; exported_offsets } : Slot_offsets.result) =
+    let used_slots : Slot_offsets.used_slots =
+      { function_slots_in_normal_projections;
+        all_function_slots;
+        value_slots_in_normal_projections;
+        all_value_slots
+      }
+    in
+    let get_code_metadata code_id =
+      Exported_code.find_exn all_code code_id |> Code_or_metadata.code_metadata
+    in
+    Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata ~used_slots
+  in
+  let reachable_names, cmx =
+    Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
+      ~used_value_slots ~exported_offsets all_code
+  in
+  let unit = Flambda_unit.with_used_value_slots unit used_value_slots in
+  { cmx; unit; all_code; exported_offsets; reachable_names }
+
 let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
     (program : Lambda.program) =
   let compilation_unit = program.compilation_unit in
@@ -119,11 +160,10 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
   let run () =
     let cmx_loader = Flambda_cmx.create_loader ~get_module_info in
     let (Mode mode) = Flambda_features.mode () in
-    let Closure_conversion.
-          { unit = raw_flambda;
-            code_slot_offsets;
-            metadata = close_program_metadata
-          } =
+    let { Closure_conversion.unit = raw_flambda;
+          code_slot_offsets;
+          metadata = close_program_metadata
+        } =
       Profile.record_call "lambda_to_flambda" (fun () ->
           Lambda_to_flambda.lambda_to_flambda ~mode ~big_endian:Arch.big_endian
             ~cmx_loader ~compilation_unit ~module_block_size_in_words
@@ -180,14 +220,10 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
         print_flambda last_pass_name
           (Flambda_features.dump_flambda ())
           ppf flambda;
-        let { Simplify.unit = flambda;
-              exported_offsets;
-              cmx;
-              all_code;
-              reachable_names
-            } =
-          Simplify.build_simplify_result flambda ~free_names ~final_typing_env
-            ~all_code slot_offsets
+        let { unit = flambda; exported_offsets; cmx; all_code; reachable_names }
+            =
+          build_run_result flambda ~free_names ~final_typing_env ~all_code
+            slot_offsets
         in
         Compiler_hooks.execute Reaped_flambda2 flambda;
         flambda, exported_offsets, reachable_names, cmx, all_code

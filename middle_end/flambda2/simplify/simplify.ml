@@ -17,14 +17,6 @@
 open! Simplify_import
 
 type simplify_result =
-  { cmx : Flambda_cmx_format.t option;
-    unit : Flambda_unit.t;
-    all_code : Exported_code.t;
-    exported_offsets : Exported_offsets.t;
-    reachable_names : Name_occurrences.t
-  }
-
-type run_result =
   { free_names : Name_occurrences.t;
     final_typing_env : Typing_env.t option;
     all_code : Exported_code.t;
@@ -98,34 +90,3 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
     all_code;
     slot_offsets
   }
-
-let build_simplify_result unit ~free_names ~final_typing_env ~all_code
-    slot_offsets : simplify_result =
-  let module_symbol = FU.module_symbol unit in
-  let function_slots_in_normal_projections =
-    NO.function_slots_in_normal_projections free_names
-  in
-  let value_slots_in_normal_projections =
-    NO.value_slots_in_normal_projections free_names
-  in
-  let all_function_slots = NO.all_function_slots free_names in
-  let all_value_slots = NO.all_value_slots free_names in
-  let ({ used_value_slots; exported_offsets } : Slot_offsets.result) =
-    let used_slots : Slot_offsets.used_slots =
-      { function_slots_in_normal_projections;
-        all_function_slots;
-        value_slots_in_normal_projections;
-        all_value_slots
-      }
-    in
-    let get_code_metadata code_id =
-      Exported_code.find_exn all_code code_id |> Code_or_metadata.code_metadata
-    in
-    Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata ~used_slots
-  in
-  let reachable_names, cmx =
-    Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
-      ~used_value_slots ~exported_offsets all_code
-  in
-  let unit = FU.with_used_value_slots unit used_value_slots in
-  { cmx; unit; all_code; exported_offsets; reachable_names }

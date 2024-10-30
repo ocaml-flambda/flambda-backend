@@ -20,7 +20,7 @@
     Readers interested in the function inlining strategy should read the
     [Inlining_decision] module first. *)
 
-type run_result = private
+type simplify_result = private
   { free_names : Name_occurrences.t;
     final_typing_env : Typing_env.t option;
     all_code : Exported_code.t;
@@ -28,25 +28,9 @@ type run_result = private
     unit : Flambda_unit.t
   }
 
-type simplify_result = private
-  { cmx : Flambda_cmx_format.t option;
-    unit : Flambda_unit.t;
-    all_code : Exported_code.t;
-    exported_offsets : Exported_offsets.t;
-    reachable_names : Name_occurrences.t
-  }
-
 val run :
   cmx_loader:Flambda_cmx.loader ->
   round:int ->
   code_slot_offsets:Slot_offsets.t Code_id.Map.t ->
   Flambda_unit.t ->
-  run_result
-
-val build_simplify_result :
-  Flambda_unit.t ->
-  free_names:Name_occurrences.t ->
-  final_typing_env:Typing_env.t option ->
-  all_code:Exported_code.t ->
-  Slot_offsets.t ->
   simplify_result
