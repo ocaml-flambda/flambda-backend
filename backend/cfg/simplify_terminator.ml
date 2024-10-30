@@ -120,23 +120,6 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
     ->
     None
 
-let is_last_instruction_const_int (body : C.basic C.instruction Dll.t) :
-    (nativeint * Reg.t) option =
-  match[@ocaml.warning "-4"] Dll.last body with
-  | None -> None
-  | Some { desc = Op (Const_int const); res = [| reg |]; _ } -> Some (const, reg)
-  | Some _ -> None
-
-let block_const_int (block : C.basic_block) : bool =
-  match is_last_instruction_const_int block.body with
-  | None -> false
-  | Some (const, reg) -> (
-    match evaluate_terminator ~reg ~const block.terminator with
-    | None -> false
-    | Some succ ->
-      block.terminator <- { block.terminator with desc = Always succ };
-      true)
-
 (* CR-someday gyorsh: merge (Lbranch | Lcondbranch | Lcondbranch3)+ into a
    single terminator when the argments are the same. Enables reordering of
    branch instructions and save cmp instructions. The main problem is that it
@@ -152,9 +135,9 @@ let block_const_int (block : C.basic_block) : bool =
 let block (cfg : C.t) (block : C.basic_block) : bool =
   match block.terminator.desc with
   | Always successor_label -> (
-    match is_last_instruction_const_int block.body with
+    match[@ocaml.warning "-4"] Dll.last block.body with
     | None -> false
-    | Some (const, reg) ->
+    | Some { desc = Op (Const_int const); res = [| reg |]; _ } ->
       (* If we have an Iconst_int instruction at the end of the block followed
          by a jump to an empty block whose terminator is a condition over the
          Iconst_value, then we can evaluate the condition at compile-time and
@@ -170,25 +153,21 @@ let block (cfg : C.t) (block : C.basic_block) : bool =
         | Some succ ->
           block.terminator <- { block.terminator with desc = Always succ };
           true)
-      else false)
+      else false
+    | Some _ -> false)
   | Never ->
     Misc.fatal_errorf "Cannot simplify terminator: Never (in block %d)"
       block.start
   | Parity_test _ | Truth_test _ | Int_test _ | Float_test _ ->
     let labels = C.successor_labels ~normal:true ~exn:false block in
-    if Label.Set.cardinal labels = 1
-    then (
+    (if Label.Set.cardinal labels = 1
+    then
       let l = Label.Set.min_elt labels in
-      block.terminator <- { block.terminator with desc = Always l };
-      false)
-    else block_const_int block
+      block.terminator <- { block.terminator with desc = Always l });
+    false
   | Switch labels ->
-    let shortcircuit = block_const_int block in
-    if shortcircuit
-    then true
-    else (
-      simplify_switch block labels;
-      false)
+    simplify_switch block labels;
+    false
   | Raise _ | Return | Tailcall_self _ | Tailcall_func _ | Call_no_return _
   | Call _ | Prim _ | Specific_can_raise _ ->
     false
