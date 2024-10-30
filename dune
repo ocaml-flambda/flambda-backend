@@ -177,7 +177,7 @@
   jane_syntax_parsing
   jane_syntax
   parser_types ; manual update: mli only files asttypes parsetree
-               ;; TYPING
+  ;; TYPING
   ident
   path
   jkind
