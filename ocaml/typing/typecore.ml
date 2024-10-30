@@ -959,13 +959,13 @@ let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
   | Error e -> error (Right_le_left, e))
 
 (** Given the parameter [m0] on mutable, return the mode of future writes. *)
-let mutable_mode m0 =
-  let m0 =
-    Alloc.Const.merge
-      {comonadic = m0;
-       monadic = Alloc.Monadic.Const.min}
-  in
-  m0 |> Const.alloc_as_value |> Value.of_const
+(* CR uniqueness: change back to old implementation *)
+let mutable_mode _m0 rmode =
+  rmode
+    |> Value.meet_with (Comonadic Areality) (Regionality.Const.legacy)
+    |> Value.meet_with (Comonadic Linearity) (Linearity.Const.legacy)
+    |> Value.meet_with (Comonadic Portability) (Portability.Const.legacy)
+    |> Value.join_with (Monadic Contention) (Contention.Const.legacy)
 
 (** Takes the mutability on a field, and expected mode of the record (adjusted
     for allocation), check that the construction would be allowed. *)
@@ -973,7 +973,7 @@ let check_construct_mutability ~loc ~env mutability argument_mode =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
-      let m0 = mutable_mode m0 in
+      let m0 = mutable_mode m0 (Value.newvar ()) in
       submode ~loc ~env m0 argument_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
@@ -5941,7 +5941,7 @@ and type_expect_
         match label.lbl_mut with
         | Mutable m0 ->
           submode ~loc:record.exp_loc ~env rmode mode_mutate_mutable;
-          let mode = mutable_mode m0 |> mode_default in
+          let mode = mutable_mode m0 rmode |> mode_default in
           let mode = mode_modality label.lbl_modalities mode in
           type_label_exp ~overwrite:No_overwrite_label false env mode loc ty_record
             (lid, label, snewval)

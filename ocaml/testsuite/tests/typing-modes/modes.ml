@@ -297,7 +297,7 @@ type r = {
   mutable x : string @@ global aliased many
 }
 [%%expect{|
-type r = { mutable x : string; }
+type r = { mutable x : string @@ aliased; }
 |}]
 
 
