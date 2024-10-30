@@ -152,7 +152,7 @@ end = struct
         (function
           | None -> Some (Name.Map.singleton elt coercion_to_canonical)
           | Some elts ->
-            if Flambda_features.check_invariants ()
+            if Flambda_features.check_light_invariants ()
             then assert (not (Name.Map.mem elt elts));
             Some (Name.Map.add elt coercion_to_canonical elts))
         t.aliases
@@ -646,7 +646,7 @@ let add_alias_between_canonical_elements ~binding_time_resolver
     let aliases_of_to_be_demoted =
       get_aliases_of_canonical_element t ~canonical_element:to_be_demoted
     in
-    if Flambda_features.check_invariants ()
+    if Flambda_features.check_light_invariants ()
     then
       Simple.pattern_match canonical_element
         ~const:(fun _ -> ())
@@ -808,7 +808,7 @@ let add ~binding_time_resolver ~binding_times_and_modes t
       (Simple.coercion element2_with_coercion)
       ~then_:(Coercion.inverse (Simple.coercion element1_with_coercion))
   in
-  if Flambda_features.check_invariants ()
+  if Flambda_features.check_light_invariants ()
   then (
     if Simple.equal canonical_element1 canonical_element2
     then

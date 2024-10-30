@@ -708,7 +708,7 @@ let add_definition t (name : Bound_name.t) kind =
 
 let invariant_for_alias (t : t) name ty =
   (* Check that no canonical element gets an [Equals] type *)
-  if Flambda_features.check_invariants () || true
+  if Flambda_features.check_light_invariants ()
   then
     match TG.get_alias_exn ty with
     | exception Not_found -> ()
@@ -798,7 +798,7 @@ let rec add_equation0 (t : t) name ty =
   with_current_level t ~current_level
 
 and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
-  (if Flambda_features.check_invariants ()
+  (if Flambda_features.check_light_invariants ()
   then
     let existing_ty = find t name None in
     if not (K.equal (TG.kind existing_ty) (TG.kind ty))
@@ -807,7 +807,7 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
         "Cannot add equation %a = %a@ given existing binding %a = %a@ whose \
          type is of a different kind:@ %a"
         Name.print name TG.print ty Name.print name TG.print existing_ty print t);
-  (if Flambda_features.check_invariants ()
+  (if Flambda_features.check_light_invariants ()
   then
     match TG.get_alias_exn ty with
     | exception Not_found -> ()

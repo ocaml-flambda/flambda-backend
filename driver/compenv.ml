@@ -353,7 +353,9 @@ let read_one_param ppf position name v =
   | "flambda-verbose" ->
       set "flambda-verbose" [ dump_flambda_verbose ] v
   | "flambda-invariants" ->
-      set "flambda-invariants" [ flambda_invariant_checks ] v
+    flambda_invariant_checks :=
+      if check_bool ppf "flambda-invariants" v then Light_checks
+      else  No_checks
   | "cmm-invariants" ->
       set "cmm-invariants" [ cmm_invariants ] v
   | "linscan" ->

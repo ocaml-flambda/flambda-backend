@@ -54,6 +54,7 @@ end
 
 type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
 type profile_granularity_level = File_level | Function_level | Block_level
+type flambda_invariant_checks = No_checks | Light_checks | Heavy_checks
 
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
@@ -183,7 +184,8 @@ let cmm_invariants =
   ref Config.with_cmm_invariants        (* -dcmm-invariants *)
 
 let flambda_invariant_checks =
-  ref Config.with_flambda_invariants    (* -flambda-(no-)invariants *)
+  let v = if Config.with_flambda_invariants then Light_checks else No_checks in
+  ref v (* -flambda-(no-)invariants *)
 
 let dont_write_files = ref false        (* set to true under ocamldoc *)
 

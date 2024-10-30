@@ -58,7 +58,10 @@ val colour : unit -> Misc.Color.setting option
 
 val unicode : unit -> bool
 
+(** Check all invariants (light and heavy). *)
 val check_invariants : unit -> bool
+
+val check_light_invariants : unit -> bool
 
 type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
   | Nowhere
