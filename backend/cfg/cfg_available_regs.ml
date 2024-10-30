@@ -54,7 +54,6 @@ let check_invariants :
 
 (* CR xclerc for xclerc: double check the whole `Domain` module. *)
 module Domain = struct
-  type t = { avail_before : Reg_availability_set.t option } [@@unboxed]
   (** CR gyorsh:
 
       - Why is `option` needed? `RAS` already has `Unreachable` and it looks like
@@ -74,6 +73,7 @@ module Domain = struct
        ```
        but probably want a more efficient implementation of `less_equal` that doesn't
        allocate *)
+  type t = { avail_before : Reg_availability_set.t option } [@@unboxed]
 
   let bot = { avail_before = Some Unreachable }
 
