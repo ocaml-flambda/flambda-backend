@@ -29,7 +29,7 @@ let get_object_field (arr : _ array) field =
 
 (**** Object representation ****)
 
-external set_id: 'a -> 'a = "caml_set_oo_id" [@@noalloc]
+external set_id: 'a -> 'a @@ portable = "caml_set_oo_id" [@@noalloc]
 
 (**** Object copy ****)
 
@@ -47,13 +47,16 @@ type params = {
     mutable bucket_small_size : int
   }
 
-let params = {
-  compact_table = true;
-  copy_parent = true;
-  clean_when_copying = true;
-  retry_count = 3;
-  bucket_small_size = 16
-}
+let params =
+  (* CR tdelvecchio: Unnecessary magic *)
+  Obj.magic_portable
+    {
+      compact_table = true;
+      copy_parent = true;
+      clean_when_copying = true;
+      retry_count = 3;
+      bucket_small_size = 16
+    }
 
 (**** Parameters ****)
 
@@ -75,7 +78,7 @@ type t = DummyA | DummyB | DummyC of int
 let _ = [DummyA; DummyB; DummyC 0] (* to avoid warnings *)
 
 type obj = t array
-external ret : (obj -> 'a) -> closure = "%identity"
+external ret : (obj -> 'a) -> closure @@ portable = "%identity"
 
 (**** Labels ****)
 
@@ -94,14 +97,14 @@ let public_method_label s : tag =
 (**** Sparse array ****)
 
 module Vars =
-  Map.Make(struct type t = string let compare (x:t) y = compare x y end)
+  Map.Make_portable(struct type t = string let compare (x:t) y = compare x y end)
 type vars = int Vars.t
 
 module Meths =
-  Map.Make(struct type t = string let compare (x:t) y = compare x y end)
+  Map.Make_portable(struct type t = string let compare (x:t) y = compare x y end)
 type meths = label Meths.t
 module Labs =
-  Map.Make(struct type t = label let compare (x:t) y = compare x y end)
+  Map.Make_portable(struct type t = label let compare (x:t) y = compare x y end)
 type labs = bool Labs.t
 
 (* The compiler assumes that the first field of this structure is [size]. *)
@@ -118,19 +121,21 @@ type table =
    mutable initializers: (obj -> unit) list }
 
 let dummy_table =
-  { methods = [| dummy_item |];
-    methods_by_name = Meths.empty;
-    methods_by_label = Labs.empty;
-    previous_states = [];
-    hidden_meths = [];
-    vars = Vars.empty;
-    initializers = [];
-    size = 0 }
+  (* CR tdelvecchio: Unnecessary magic *)
+  Obj.magic_portable
+    { methods = [| dummy_item |];
+      methods_by_name = Meths.empty;
+      methods_by_label = Labs.empty;
+      previous_states = [];
+      hidden_meths = [];
+      vars = Vars.empty;
+      initializers = [];
+      size = 0 }
 
-let table_count = ref 0
+let table_count = Atomic.make 0
 
 (* dummy_met should be a pointer, so use an atom *)
-let dummy_met : item = of_repr (Obj.new_block 0 0)
+let dummy_met : item = Obj.magic_portable (of_repr (Obj.new_block 0 0))
 (* if debugging is needed, this could be a good idea: *)
 (* let dummy_met () = failwith "Undefined method" *)
 
@@ -139,25 +144,26 @@ let rec fit_size n =
   fit_size ((n+1)/2) * 2
 
 let new_table pub_labels =
-  incr table_count;
+  Atomic.incr table_count;
   let len = Array.length pub_labels in
-  let methods = Array.make (len*2+2) dummy_met in
+  let methods = Array.make (len*2+2) (Obj.magic_uncontended dummy_met) in
   methods.(0) <- Obj.magic len;
   methods.(1) <- Obj.magic (fit_size len * Sys.word_size / 8 - 1);
   for i = 0 to len - 1 do methods.(i*2+3) <- Obj.magic pub_labels.(i) done;
+  (* CR tdelvecchio: Unnecessary magic once we have cocontended. *)
   { methods = methods;
-    methods_by_name = Meths.empty;
-    methods_by_label = Labs.empty;
+    methods_by_name = Obj.magic_uncontended Meths.empty;
+    methods_by_label = Obj.magic_uncontended Labs.empty;
     previous_states = [];
     hidden_meths = [];
-    vars = Vars.empty;
+    vars = Obj.magic_uncontended Vars.empty;
     initializers = [];
     size = initial_object_size }
 
 let resize array new_size =
   let old_size = Array.length array.methods in
   if new_size > old_size then begin
-    let new_buck = Array.make new_size dummy_met in
+    let new_buck = Array.make new_size (Obj.magic_uncontended dummy_met) in
     Array.blit array.methods 0 new_buck 0 old_size;
     array.methods <- new_buck
  end
@@ -168,8 +174,8 @@ let put array label element =
 
 (**** Classes ****)
 
-let method_count = ref 0
-let inst_var_count = ref 0
+let method_count = Atomic.make 0
+let inst_var_count = Atomic.make 0
 
 (* type t *)
 type meth = item
@@ -192,7 +198,7 @@ let get_method_labels table names =
   Array.map (get_method_label table) names
 
 let set_method table label element =
-  incr method_count;
+  Atomic.incr method_count;
   if Labs.find label table.methods_by_label then
     put table label element
   else
@@ -220,9 +226,9 @@ let narrow table vars virt_meths concr_meths =
     Vars.fold
       (fun lab info tvars ->
         if List.mem lab vars then Vars.add lab info tvars else tvars)
-      table.vars Vars.empty;
-  let by_name = ref Meths.empty in
-  let by_label = ref Labs.empty in
+      table.vars (Obj.magic_uncontended Vars.empty);
+  let by_name = ref (Obj.magic_uncontended Meths.empty) in
+  let by_label = ref (Obj.magic_uncontended Labs.empty) in
   List.iter2
     (fun met label ->
        by_name := Meths.add met label !by_name;
@@ -327,7 +333,7 @@ let create_table public_methods =
   table
 
 let init_class table =
-  inst_var_count := !inst_var_count + table.size - 1;
+  let _ : int = Atomic.fetch_and_add inst_var_count (table.size - 1) in
   table.initializers <- List.rev table.initializers;
   resize table (3 + Obj.magic table.methods.(1) * 16 / Sys.word_size)
 
@@ -409,10 +415,10 @@ let create_object_and_run_initializers obj_0 table =
 let sendself obj lab =
   (magic obj : (obj -> t) array array).(0).(lab) obj
 *)
-external send : obj -> tag -> 'a = "%send"
-external sendcache : obj -> tag -> t -> int -> 'a = "%sendcache"
-external sendself : obj -> label -> 'a = "%sendself"
-external get_public_method : obj -> tag -> closure
+external send : obj -> tag -> 'a @@ portable = "%send"
+external sendcache : obj -> tag -> t -> int -> 'a @@ portable = "%sendcache"
+external sendself : obj -> label -> 'a @@ portable = "%sendself"
+external get_public_method : obj -> tag -> closure @@ portable
     = "caml_get_public_method" [@@noalloc]
 
 (**** table collection access ****)
@@ -627,5 +633,5 @@ type stats =
   { classes: int; methods: int; inst_vars: int; }
 
 let stats () =
-  { classes = !table_count;
-    methods = !method_count; inst_vars = !inst_var_count; }
+  { classes = Atomic.get_safe table_count;
+    methods = Atomic.get_safe method_count; inst_vars = Atomic.get_safe inst_var_count; }

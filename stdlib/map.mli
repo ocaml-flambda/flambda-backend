@@ -370,4 +370,9 @@ module type S =
 module Make (Ord : OrderedType) : S with type key = Ord.t
 (** Functor building an implementation of the map structure
    given a totally ordered type. *)
-end @@ portable
+
+(* CR tdelvecchio: Document *)
+(* CR tdelvecchio: cocontended [empty] *)
+module Make_portable (Ord : sig include OrderedType @@ portable end)
+  : sig include S @@ portable end with type key = Ord.t
+                                   and type 'a t = 'a Make(Ord).t
