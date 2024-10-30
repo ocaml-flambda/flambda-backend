@@ -79,6 +79,8 @@ module type Code_metadata_accessors_result_type = sig
   val relative_history : 'a t -> Inlining_history.Relative.t
 
   val loopify : 'a t -> Loopify_attribute.t
+
+  val function_slot_size : 'a t -> int
 end
 
 module Code_metadata_accessors : functor (X : Metadata_view_type) ->
@@ -123,6 +125,8 @@ val with_code_id : Code_id.t -> t -> t
 val with_newer_version_of : Code_id.t option -> t -> t
 
 val with_cost_metrics : Cost_metrics.t -> t -> t
+
+val with_is_my_closure_used : bool -> t -> t
 
 val print : Format.formatter -> t -> unit
 

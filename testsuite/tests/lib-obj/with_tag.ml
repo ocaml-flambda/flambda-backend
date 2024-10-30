@@ -37,7 +37,7 @@ let allocs =
 
 let () =
   assert (allocs (fun () -> Obj.with_tag 1 (Obj.repr (A ("hello", 10.)))) = 0);
-  assert (allocs (fun [@inline never] () -> Obj.with_tag 1 (Obj.repr (ref 10))) = 2)
+  assert (allocs (fun [@opaque] () -> Obj.with_tag 1 (Obj.repr (ref 10))) = 2)
 
 *)
 

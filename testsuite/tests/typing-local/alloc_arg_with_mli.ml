@@ -20,7 +20,7 @@ let check_if_zero_alloc =
     let after  = Gc.allocated_bytes () in
     int_of_float (after -. before) / (Sys.word_size / 8)
   in
-  fun[@inline never] ~name ~f x ->
+  fun[@opaque] ~name ~f x ->
     let words = measure_words (fun () -> f x) - measure_words ignore in
     Printf.printf "%s: %d words%s\n" name words
       (if words = 0 then "" else " (allocates!)")
@@ -30,7 +30,7 @@ external escape : 'a -> 'a = "%identity"
 type t = { a : int; b : int }
 
 module _ : sig end = struct
-  let[@inline never] take_unrestricted { a; b } = a + b
+  let[@opaque] take_unrestricted { a; b } = a + b
 
   let () =
     check_if_zero_alloc ~name:"take unrestricted of global (not exposed)" 0 ~f:(fun x ->
@@ -38,7 +38,7 @@ module _ : sig end = struct
 end
 
 module _ : sig end = struct
-  let[@inline never] take_unrestricted { a; b } = a + b
+  let[@opaque] take_unrestricted { a; b } = a + b
 
   let () =
     check_if_zero_alloc ~name:"take unrestricted of local (not exposed)" 0 ~f:(fun x ->
@@ -46,7 +46,7 @@ module _ : sig end = struct
 end
 
 module _ : sig end = struct
-  let[@inline never] take_local (local_ { a; b }) = a + b
+  let[@opaque] take_local (local_ { a; b }) = a + b
 
   let () =
     check_if_zero_alloc ~name:"take local of local (not exposed)" 0 ~f:(fun x ->
@@ -54,7 +54,7 @@ module _ : sig end = struct
 end
 
 module _ : sig end = struct
-  let[@inline never] take_local (local_ { a; b }) = a + b
+  let[@opaque] take_local (local_ { a; b }) = a + b
 
   let () =
     check_if_zero_alloc ~name:"take local of global (not exposed)" 0 ~f:(fun x ->
@@ -62,7 +62,7 @@ module _ : sig end = struct
 end
 
 module _ : sig end = struct
-  let[@inline never] take_global ({ a; b } as t) = ignore (escape t); a + b
+  let[@opaque] take_global ({ a; b } as t) = ignore (escape t); a + b
 
   let () =
     check_if_zero_alloc
@@ -72,7 +72,7 @@ module _ : sig end = struct
 end
 
 module M1 = struct
-  let[@inline never] take_unrestricted { a; b } = a + b
+  let[@opaque] take_unrestricted { a; b } = a + b
 
   (* Note [Inference affects allocation in mli-less files]
      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,7 +88,7 @@ module M1 = struct
 end
 
 module M2 = struct
-  let[@inline never] take_unrestricted { a; b } = a + b
+  let[@opaque] take_unrestricted { a; b } = a + b
 
   let () =
     check_if_zero_alloc ~name:"take unrestricted of local (exposed)" 0 ~f:(fun x ->
@@ -96,7 +96,7 @@ module M2 = struct
 end
 
 module M3 = struct
-  let[@inline never] take_local (local_ { a; b }) = a + b
+  let[@opaque] take_local (local_ { a; b }) = a + b
 
   let () =
     check_if_zero_alloc ~name:"take local of local (exposed)" 0 ~f:(fun x ->
@@ -104,7 +104,7 @@ module M3 = struct
 end
 
 module M4 = struct
-  let[@inline never] take_local (local_ { a; b }) = a + b
+  let[@opaque] take_local (local_ { a; b }) = a + b
 
   let () =
     check_if_zero_alloc ~name:"take local of global (exposed)" 0 ~f:(fun x ->
@@ -112,7 +112,7 @@ module M4 = struct
 end
 
 module M5 = struct
-  let[@inline never] take_global ({ a; b } as t) = ignore (escape t); a + b
+  let[@opaque] take_global ({ a; b } as t) = ignore (escape t); a + b
 
   let () =
     check_if_zero_alloc
@@ -122,7 +122,7 @@ module M5 = struct
 end
 
 module M6 = struct
-  let[@inline never] take_local__global_in_mli (local_ { a; b }) = a + b
+  let[@opaque] take_local__global_in_mli (local_ { a; b }) = a + b
 
   let () =
     check_if_zero_alloc ~name:"take local of local (exposed)" 0 ~f:(fun x ->
@@ -130,7 +130,7 @@ module M6 = struct
 end
 
 module M7 = struct
-  let[@inline never] take_local__global_in_mli (local_ { a; b }) = a + b
+  let[@opaque] take_local__global_in_mli (local_ { a; b }) = a + b
 
   let () =
     check_if_zero_alloc ~name:"take local of global (exposed)" 0 ~f:(fun x ->

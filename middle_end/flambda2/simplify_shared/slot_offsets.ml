@@ -727,14 +727,10 @@ end = struct
     then (
       let size =
         match code_id with
-        | Deleted { function_slot_size } -> function_slot_size
+        | Deleted { function_slot_size; _ } -> function_slot_size
         | Code_id code_id ->
           let code_metadata = get_code_metadata code_id in
-          let module CM = Code_metadata in
-          let is_tupled = CM.is_tupled code_metadata in
-          let params_arity = CM.params_arity code_metadata in
-          let arity = Flambda_arity.num_params params_arity in
-          if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
+          Code_metadata.function_slot_size code_metadata
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
       add_function_slot state function_slot s;
@@ -863,7 +859,8 @@ end = struct
     state.sets_of_closures <- set :: state.sets_of_closures;
     (* Fill closure slots *)
     Function_slot.Map.iter
-      (fun function_slot code_id ->
+      (fun function_slot
+           (code_id : Function_declarations.code_id_in_function_declaration) ->
         let s =
           match
             Function_slot.Map.find_opt function_slot state.function_slots

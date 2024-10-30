@@ -57,6 +57,10 @@ let join_depth () =
   !Flambda_backend_flags.Flambda2.join_depth
   |> with_default ~f:(fun d -> d.join_depth)
 
+let enable_reaper () =
+  !Flambda_backend_flags.Flambda2.enable_reaper
+  |> with_default ~f:(fun d -> d.enable_reaper)
+
 let flat_float_array () = Config.flat_float_array
 
 let function_result_types ~is_a_functor =
@@ -115,6 +119,10 @@ let dump_flexpect () = !Flambda_backend_flags.Flambda2.Dump.flexpect
 let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
 
 let dump_flow () = !Flambda_backend_flags.Flambda2.Dump.flow
+
+let dump_simplify () = !Flambda_backend_flags.Flambda2.Dump.simplify
+
+let dump_reaper () = !Flambda_backend_flags.Flambda2.Dump.reaper
 
 let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
 

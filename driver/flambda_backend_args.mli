@@ -100,6 +100,8 @@ module type Flambda_backend_options = sig
   val no_flambda2_backend_cse_at_toplevel : unit -> unit
   val flambda2_cse_depth : int -> unit
   val flambda2_join_depth : int -> unit
+  val flambda2_reaper : unit -> unit
+  val no_flambda2_reaper : unit -> unit
   val flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val flambda2_expert_inline_effects_in_cmm : unit -> unit
@@ -145,6 +147,8 @@ module type Flambda_backend_options = sig
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
+  val dsimplify : unit -> unit
+  val dreaper : unit -> unit
   val use_cached_generic_functions : unit -> unit
   val cached_generic_functions_path : string -> unit
 end
