@@ -42,7 +42,7 @@ let run_expect_test ~get_module_info ~extension ~filename
   (* CR gbury/lmaurer: add a proper traversal to compute the actual
      code_slot_offsets here (as well as free_names) *)
   (* CR ncourant: test reaper as well *)
-  let ({ unit = actual_fl; _ } : Simplify.run_result) =
+  let ({ unit = actual_fl; _ } : Simplify.simplify_result) =
     Simplify.run ~cmx_loader ~round:0 before_fl
       ~code_slot_offsets:Code_id.Map.empty
   in
