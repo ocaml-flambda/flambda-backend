@@ -689,7 +689,7 @@ let add_to_extra_params_and_args result =
 
 let did_unbox_a_mutable_block result =
   Simple.Map.exists
-    (fun _sym block_to_unbox ->
+    (fun _simple block_to_unbox ->
       match block_to_unbox.mut with
       | Mutable -> true
       | Immutable_unique | Immutable -> false)
