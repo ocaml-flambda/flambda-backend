@@ -657,6 +657,8 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
     { is_exn_handler = false; params = return };
   Acc.continuation_info acc exn_continuation
     { is_exn_handler = true; params = [exn] };
+  Acc.fixed_arity_continuation acc return_continuation;
+  Acc.fixed_arity_continuation acc exn_continuation;
   let denv = { parent = Up; conts; current_code_id = Some code_id } in
   if is_opaque
   then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
@@ -713,17 +715,19 @@ let run (unit : Flambda_unit.t) =
     let dummy_toplevel_exn = Variable.create "dummy_toplevel_exn" in
     Acc.root dummy_toplevel_return acc;
     Acc.root dummy_toplevel_exn acc;
+    let return_continuation = Flambda_unit.return_continuation unit in
+    let exn_continuation = Flambda_unit.exn_continuation unit in
     let conts =
       Continuation.Map.of_list
-        [ Flambda_unit.return_continuation unit, Normal [dummy_toplevel_return];
-          Flambda_unit.exn_continuation unit, Normal [dummy_toplevel_exn] ]
+        [ return_continuation, Normal [dummy_toplevel_return];
+          exn_continuation, Normal [dummy_toplevel_exn] ]
     in
-    Acc.continuation_info acc
-      (Flambda_unit.return_continuation unit)
+    Acc.continuation_info acc return_continuation
       { is_exn_handler = false; params = [dummy_toplevel_return] };
-    Acc.continuation_info acc
-      (Flambda_unit.exn_continuation unit)
+    Acc.continuation_info acc exn_continuation
       { is_exn_handler = true; params = [dummy_toplevel_exn] };
+    Acc.fixed_arity_continuation acc return_continuation;
+    Acc.fixed_arity_continuation acc exn_continuation;
     traverse
       { parent = Up; conts; current_code_id = None }
       acc (Flambda_unit.body unit)
