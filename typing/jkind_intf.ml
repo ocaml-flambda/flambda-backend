@@ -65,11 +65,21 @@ module type Sort = sig
   end
 
   module Var : sig
-    type t = var
+    type id = private int
+    (* the [private int] allows the debugger to print it *)
+
+    (** Extract the unique id for a [var]; this should be used only
+        for debugging or printing, not for decision making *)
+    val get_id : var -> id
+
+    (** Get the number of an [id], useful for printing. These numbers
+        get allocated only when an [id] gets printed, and so they are
+        less brittle than just printing the [id] itself. *)
+    val get_print_number : id -> int
 
     (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
-    val name : t -> string
+    val name : var -> string
   end
 
   val void : t
@@ -93,7 +103,7 @@ module type Sort = sig
 
   val of_const : Const.t -> t
 
-  val of_var : Var.t -> t
+  val of_var : var -> t
 
   (** This checks for equality, and sets any variables to make two sorts
       equal, if possible *)
@@ -115,6 +125,8 @@ module type Sort = sig
   val undo_change : change -> unit
 
   module Debug_printers : sig
+    val base : Format.formatter -> base -> unit
+
     val t : Format.formatter -> t -> unit
 
     val var : Format.formatter -> var -> unit

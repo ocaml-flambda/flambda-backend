@@ -80,18 +80,18 @@ module Sort : sig
 
   val equate_tracking_mutation : t -> t -> equate_result
 
+  (** Post-condition (which holds deeply within the sort): If the
+      result is a [Var v], then [!v] is [None]. *)
   val get : t -> t
-
-  val to_string : t -> string
 end
 
 module Layout : sig
   (** Note that products have two possible encodings: as [Product ...] or as
       [Sort (Product ...]. This duplication is hard to eliminate because of the
       possibility that a sort variable may be instantiated by a product sort. *)
-  type t =
-    | Sort of Sort.t
-    | Product of t list
+  type 'sort t =
+    | Sort of 'sort
+    | Product of 'sort t list
     | Any
 
   module Const : sig
@@ -121,6 +121,8 @@ module Layout : sig
 end
 
 module Layout_and_axes : sig
+  open Allowance
+
   (* We need the variance annotation here to allow [any_dummy_jkind] to be
      polymorphic in its allowances. Otherwise the value restriction bites.
      Sigh. *)
@@ -131,10 +133,43 @@ module Layout_and_axes : sig
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
     constraint 'd = 'l * 'r
+
+  val map : ('a -> 'b) -> ('a, 'd) t -> ('b, 'd) t
+
+  val map_option : ('a -> 'b option) -> ('a, 'd) t -> ('b, 'd) t option
+
+  val equal :
+    ('layout -> 'layout -> bool) ->
+    ('layout, allowed * allowed) t ->
+    ('layout, allowed * allowed) t ->
+    bool
+
+  (* An equality check should work over [lr]s only. But we need this
+     to do memoization in serialization. Happily, that's after all
+     inference is done, when worrying about l and r does not matter
+     any more. *)
+  val equal_after_all_inference_is_done :
+    ('layout -> 'layout -> bool) -> ('layout, 'd1) t -> ('layout, 'd2) t -> bool
+
+  val try_allow_l : ('layout, 'l * 'r) t -> ('layout, allowed * 'r) t option
+
+  val try_allow_r : ('layout, 'l * 'r) t -> ('layout, 'l * allowed) t option
+
+  val sub :
+    ('layout -> 'layout -> Misc.Le_result.t) ->
+    ('layout, allowed * 'r) t ->
+    ('layout, 'l * allowed) t ->
+    Misc.Le_result.t
+
+  val format :
+    (Format.formatter -> 'layout -> unit) ->
+    Format.formatter ->
+    ('layout, 'd) t ->
+    unit
 end
 
 module Jkind_desc : sig
-  type ('type_expr, +'d) t = (Layout.t, 'd) Layout_and_axes.t
+  type ('type_expr, +'d) t = (Sort.t Layout.t, 'd) Layout_and_axes.t
 
   type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
   [@@unboxed]
