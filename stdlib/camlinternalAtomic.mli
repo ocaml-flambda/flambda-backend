@@ -1,4 +1,3 @@
-include sig
 type 'a t = { mutable v : 'a; }
 val make : 'a -> 'a t
 val get : 'a t -> 'a
@@ -8,4 +7,3 @@ val compare_and_set : 'a t -> 'a -> 'a -> bool
 val fetch_and_add : int t -> int -> int
 val incr : int t -> unit
 val decr : int t -> unit
-end @@ portable
