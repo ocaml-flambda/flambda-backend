@@ -576,6 +576,7 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
+  | Const_null
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
@@ -1885,6 +1886,7 @@ let structured_constant_layout = function
     non_null_value Pgenval
   | Const_float_array _ | Const_float_block _ ->
     non_null_value (Parrayval Pfloatarray)
+  | Const_null -> nullable_value Pgenval
 
 let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   match c with

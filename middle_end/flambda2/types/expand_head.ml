@@ -366,7 +366,10 @@ let expand_head_of_alias_type env kind
       | Naked_nativeint i ->
         ET.create_naked_nativeint (TG.Head_of_kind_naked_nativeint.create i)
       | Naked_vec128 i ->
-        ET.create_naked_vec128 (TG.Head_of_kind_naked_vec128.create i))
+        ET.create_naked_vec128 (TG.Head_of_kind_naked_vec128.create i)
+      | Null ->
+        ET.create_unknown
+          Flambda_kind.value (* CR layouts v3: assign a precise kind? *))
     ~name
 
 let expand_head0 env ty ~known_canonical_simple_at_in_types_mode =
