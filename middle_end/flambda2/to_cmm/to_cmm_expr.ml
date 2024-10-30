@@ -883,13 +883,23 @@ and apply_expr env res apply =
     cmm, free_vars, res
   | Return k -> (
     match Env.get_continuation env k with
-    | Return { param_types = _ } ->
+    | Return { param_types } ->
       (* Case 1 *)
-      (* CR gbury: is it worth it to check that the return arity of the function
-         being called matches that of the current return continuation ? *)
-      let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-      let cmm, free_vars = wrap call free_vars in
-      cmm, free_vars, res
+      let apply_result_arity =
+        Flambda_arity.unarized_components (Apply.return_arity apply)
+      in
+      if List.compare_lengths apply_result_arity param_types = 0
+      then
+        let wrap, _, res =
+          Env.flush_delayed_lets ~mode:Branching_point env res
+        in
+        let cmm, free_vars = wrap call free_vars in
+        cmm, free_vars, res
+      else
+        Misc.fatal_errorf
+          "Types (%a) do not match arguments for the return cont of@ %a"
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
+          param_types Apply.print apply
     | Jump { param_types = _; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
