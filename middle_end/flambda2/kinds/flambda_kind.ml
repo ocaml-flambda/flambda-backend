@@ -1040,10 +1040,10 @@ module With_subkind = struct
 
   let equal_ignoring_subkind t1 t2 = equal (erase_subkind t1) (erase_subkind t2)
 
-  let must_be_gc_scannable t =
+  let must_be_gc_scannable (t : t) =
     match kind t with
     | Value -> (
-      match subkind t with
+      match t.value_subkind with
       | Tagged_immediate -> false
       | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
       | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array

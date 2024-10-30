@@ -127,7 +127,10 @@ let define_variable t var kind =
         let kind = Flambda_kind.With_subkind.create kind Anything in
         let variables_defined_in_current_continuation =
           Lifted_cont_params.new_param variables_defined_in_current_continuation
-            (Bound_parameter.create (Bound_var.var var) kind)
+            (Bound_parameter.create (Bound_var.var var)
+               (kind Non_nullable)
+               (* CR layouts v3: this likely should be [Nullable], but Stdlib
+                  fails to compile if set so. *))
         in
         variables_defined_in_current_continuation :: r
   in
