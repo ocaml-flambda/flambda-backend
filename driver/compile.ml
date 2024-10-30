@@ -42,7 +42,7 @@ let make_arg_descr ~param ~arg_block_field : Lambda.arg_descr option =
 let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
   raw_lambda
   |> Profile.(record ~accumulate:true generate)
-    (fun { Lambda.code = lambda; required_globals; module_block_format;
+    (fun { Lambda.code = lambda; required_globals; main_module_block_format;
            arg_block_field } ->
        Builtin_attributes.warn_unused ();
        lambda
@@ -53,7 +53,7 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode ->
           let arg_descr = make_arg_descr ~param:as_arg_for ~arg_block_field in
-          bytecode, required_globals, module_block_format, arg_descr
+          bytecode, required_globals, main_module_block_format, arg_descr
     )
 
 let to_bytecode i Typedtree.{structure; coercion; argument_interface; _} =
@@ -69,7 +69,7 @@ let to_bytecode i Typedtree.{structure; coercion; argument_interface; _} =
   |> raw_lambda_to_bytecode i
 
 let emit_bytecode i
-      (bytecode, required_globals, module_block_format, arg_descr) =
+      (bytecode, required_globals, main_module_block_format, arg_descr) =
   let cmo = Unit_info.cmo i.target in
   let oc = open_out_bin (Unit_info.Artifact.filename cmo) in
   Misc.try_finally
@@ -81,7 +81,7 @@ let emit_bytecode i
        bytecode
        |> Profile.(record ~accumulate:true generate)
          (Emitcode.to_file oc i.module_name cmo ~required_globals
-            ~module_block_format ~arg_descr);
+            ~main_module_block_format ~arg_descr);
     )
 
 type starting_point =
@@ -121,16 +121,6 @@ let implementation0 ~start_from ~source_file ~output_prefix
       ~hook_typed_tree:(fun _ -> ())
       info ~backend
   | Instantiation { runtime_args; main_module_block_size; arg_descr } ->
-    (* FIXME delete; should not be necessary {[
-    (* Consider the names of arguments to be parameters for the purposes of the
-       subset rule - that is, a module we import can refer to our arguments as
-       parameters. *)
-    List.iter
-      (fun (param, _value) ->
-         let import = Compilation_unit.Name.of_head_of_global_name param in
-         Env.register_parameter_import import)
-      global_name.args;
-    ]} *)
     let as_arg_for, arg_block_field =
       match (arg_descr : Lambda.arg_descr option) with
       | Some { arg_param; arg_block_field } ->

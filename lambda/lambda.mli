@@ -762,19 +762,21 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
-(* Descriptor for a parameter that this module takes at runtime. *)
-type runtime_param_descr =
+type runtime_param =
   | Rp_argument_block of Global_module.t  (* The argument block of a module
                                              compiled with [-as-argument-for] *)
   | Rp_dependency of Global_module.t      (* A parameterised module (not itself a
                                              parameter) that this module depends
-                                             on *)
+                                             on. Must not be complete (see
+                                             [Global_module.is_complete]) *)
   | Rp_unit                               (* The unit value (only used when
                                              there are no other parameters) *)
 
-type module_block_format =
+(* The structure of the main module block. A module with no parameters will be an
+   [Mb_record] and a module with parameters will be an [Mb_wrapped_function]. *)
+type main_module_block_format =
   | Mb_record of { mb_size : int }      (* A block with [mb_size] fields *)
-  | Mb_wrapped_function of { mb_runtime_params : runtime_param_descr list;
+  | Mb_wrapped_function of { mb_runtime_params : runtime_param list;
                              mb_returned_size : int;
                            }
                                         (* A block with exactly one field:
@@ -782,26 +784,40 @@ type module_block_format =
                                            returning a block with
                                            [mb_returned_size] fields *)
 
+(* The number of words in the main module block. *)
+val main_module_block_size : main_module_block_format -> int
+
 type program =
   { compilation_unit : Compilation_unit.t;
-    module_block_format : module_block_format;
+    main_module_block_format : main_module_block_format;
     arg_block_field : int option;       (* Unnamed field with argument block
                                            (see [arg_descr]) *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
     code : lambda }
-(* Lambda code for the middle-end.
+(* Lambda code for the middle-end. Here [mbf] is the value of the
+   [main_module_block_format] field.
    * In the closure case the code is a sequence of assignments to a
-     preallocated block of size [main_module_block_size] using
+     preallocated block of size [main_module_block_size mbf] using
      (Setfield(Getpredef(compilation_unit))). The size is used to preallocate
      the block.
    * In the flambda case the code is an expression returning a block
-     value of size [main_module_block_size]. The size is used to build
+     value of size [main_module_block_size mbf]. The size is used to build
      the module root as an initialize_symbol
      Initialize_symbol(module_name, 0,
-       [getfield 0; ...; getfield (main_module_block_size - 1)])
+       [getfield 0; ...; getfield (main_module_block_size mbf - 1)])
 *)
+
+(* Info for a compilation unit that implements a parameter (i.e., is an argument
+   for that parameter) *)
+
+type arg_descr =
+  { arg_param: Global_module.Name.t;    (* The parameter implemented *)
+    arg_block_field: int; }             (* The index of an unnamed field
+                                           containing the block to use as an
+                                           argument value (may be a supertype of
+                                           the whole compilation unit's type) *)
 
 (* Sharing key *)
 val make_key: lambda -> lambda option
@@ -1064,13 +1080,3 @@ val simple_prim_on_values
 -> arity:int
 -> alloc:bool
 -> external_call_description
-
-(* Info for a compilation unit that implements a parameter (i.e., is an argument
-   for that parameter) *)
-
-type arg_descr =
-  { arg_param: Global_module.Name.t;    (* The parameter implemented *)
-    arg_block_field: int; }             (* The index of an unnamed field
-                                           containing the block to use as the
-                                           argument value (may be a supertype of
-                                           the whole compilation unit's type) *)

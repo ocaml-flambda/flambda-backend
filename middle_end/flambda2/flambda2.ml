@@ -86,12 +86,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
     (program : Lambda.program) =
   let compilation_unit = program.compilation_unit in
   let module_block_size_in_words =
-    match program.module_block_format with
-    | Mb_record { mb_size } -> mb_size
-    | Mb_wrapped_function _ ->
-      (* The module block has exactly a single function, the instantiating
-         functor *)
-      1
+    Lambda.main_module_block_size program.main_module_block_format
   in
   let module_initializer = program.code in
   (* Make sure -linscan is enabled in classic mode. Doing this here to be sure

@@ -40,7 +40,6 @@
    ref_indirect.ml \
    ref_indirect.cmo.ocamlobjinfo.reference \
    ref_indirect.cmx.ocamlobjinfo.reference \
-   run.ml \
    semigroup.mli \
    string_monoid.ml string_monoid.mli \
    string_semigroup.ml string_semigroup.mli \
@@ -851,31 +850,31 @@
            check-ocamlopt.byte-output;
          }{
            module = "";
-           flags = "-instantiate -as-argument-for Monoid";
+           flags = "-instantiate";
            program = "list_monoid-Int_list_element.cmx";
            all_modules = "list_monoid.cmx int_list_element.cmx";
            ocamlopt.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Monoid";
+           flags = "-instantiate";
            program = "monoid_of_semigroup-String_semigroup.cmx";
            all_modules = "monoid_of_semigroup.cmx string_semigroup.cmx";
            ocamlopt.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Monoid";
+           flags = "-instantiate";
            program = "monoid_utils-Monoid_of_semigroup--String_semigroup.cmx";
            all_modules = "monoid_utils.cmx monoid_of_semigroup-String_semigroup.cmx";
            ocamlopt.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Category";
+           flags = "-instantiate";
            program = "category_of_monoid-List_monoid--Int_list_element.cmx";
            all_modules = "category_of_monoid.cmx list_monoid-Int_list_element.cmx";
            ocamlopt.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Category";
+           flags = "-instantiate";
            program = "category_of_monoid-Monoid_of_semigroup--String_semigroup.cmx";
            all_modules = "category_of_monoid.cmx monoid_of_semigroup-String_semigroup.cmx";
            ocamlopt.byte;

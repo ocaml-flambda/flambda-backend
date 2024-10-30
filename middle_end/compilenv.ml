@@ -293,10 +293,10 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename ~module_block_format ~arg_descr =
+let save_unit_info filename ~main_module_block_format ~arg_descr =
   current_unit.ui_imports_cmi <- Env.imports();
   current_unit.ui_arg_descr <- arg_descr;
-  current_unit.ui_format <- module_block_format;
+  current_unit.ui_format <- main_module_block_format;
   write_unit_info current_unit filename
 
 let new_const_symbol () =

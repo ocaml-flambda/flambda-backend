@@ -64,7 +64,7 @@ val read_unit_info: string -> unit_infos * Digest.t
 val write_unit_info: unit_infos -> string -> unit
         (* Save the given infos in the given file *)
 val save_unit_info:
-  string -> module_block_format:Lambda.module_block_format ->
+  string -> main_module_block_format:Lambda.main_module_block_format ->
   arg_descr:Lambda.arg_descr option ->
   unit
         (* Save the infos for the current unit in the given file *)

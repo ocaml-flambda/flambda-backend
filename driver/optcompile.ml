@@ -66,7 +66,7 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline ~as_arg_for =
            in
            Compilenv.save_unit_info
              (Unit_info.Artifact.filename (Unit_info.cmx i.target))
-             ~module_block_format:program.module_block_format
+             ~main_module_block_format:program.main_module_block_format
              ~arg_descr)
 
 let compile_from_typed i typed ~transl_style ~unix ~pipeline ~as_arg_for =
@@ -130,7 +130,7 @@ let implementation0 unix ~(flambda2 : flambda2) ~start_from
       |> Option.map (fun param ->
            (* Currently, parameters don't have parameters, so we assume the argument
               list is empty *)
-           Global_module.Name.create_exn param [])
+           Global_module.Name.create_no_args param)
     in
     if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
     compile_from_typed info typed ~unix ~transl_style ~pipeline ~as_arg_for
@@ -149,19 +149,6 @@ let implementation0 unix ~(flambda2 : flambda2) ~start_from
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | Instantiation { runtime_args; main_module_block_size; arg_descr } ->
     Compilenv.reset info.module_name;
-    (* FIXME delete {[
-    let global_name =
-      Compilation_unit.to_global_name_exn info.module_name
-    in
-    (* Consider the names of arguments to be parameters for the purposes of the
-       subset rule - that is, a module we import can refer to our arguments as
-       parameters. *)
-    List.iter
-      (fun (param, _value) ->
-        let import = Compilation_unit.Name.of_head_of_global_name param in
-        Env.register_parameter_import import)
-      global_name.args;
-    ]} *)
     let as_arg_for, arg_block_field =
       match (arg_descr : Lambda.arg_descr option) with
       | Some { arg_param; arg_block_field } ->

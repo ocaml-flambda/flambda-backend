@@ -29,7 +29,7 @@ let error e = raise (Error e)
 type unit_info = {
   ui_unit : CU.t;
   ui_arg_descr : Lambda.arg_descr option;
-  ui_format : Lambda.module_block_format;
+  ui_format : Lambda.main_module_block_format;
 }
 
 let instantiate
@@ -104,7 +104,7 @@ let instantiate
   let runtime_args =
     runtime_params
     |> List.map (fun runtime_param : Translmod.runtime_arg ->
-         match (runtime_param : Lambda.runtime_param_descr) with
+         match (runtime_param : Lambda.runtime_param) with
            | Rp_argument_block global ->
              let global_name = Global_module.to_name global in
              begin

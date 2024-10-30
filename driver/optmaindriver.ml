@@ -95,7 +95,7 @@ let main unix argv ppf ~flambda2 =
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
           "Options -i and -stop-after (%s) \
-           are  incompatible with -pack, -a, -shared, -output-obj, -instantiate"
+           are  incompatible with -pack, -a, -shared, -output-obj"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:true))
     end;

@@ -3,7 +3,7 @@ module CU := Compilation_unit
 type unit_info = {
   ui_unit : CU.t;
   ui_arg_descr : Lambda.arg_descr option;
-  ui_format : Lambda.module_block_format;
+  ui_format : Lambda.main_module_block_format;
 }
 
 val instantiate

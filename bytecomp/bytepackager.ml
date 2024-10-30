@@ -318,7 +318,7 @@ let package_object_files ~ppf_dump files target coercion =
       Import_info.create packed_compilation_unit_name
         ~crc_with_unit:(Some (packed_compilation_unit, crc))
     in
-    let format : Lambda.module_block_format =
+    let format : Lambda.main_module_block_format =
       (* Open modules not supported with packs, so always just a record *)
       Mb_record { mb_size = main_module_block_size }
     in

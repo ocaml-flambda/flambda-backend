@@ -127,7 +127,7 @@ let make_package_object unix ~ppf_dump members target coercion
         ~style:transl_style
     in
     let code = Simplif.simplify_lambda code in
-    let module_block_format : Lambda.module_block_format =
+    let main_module_block_format : Lambda.main_module_block_format =
       Mb_record { mb_size = main_module_block_size }
     in
     let arg_block_field =
@@ -137,7 +137,7 @@ let make_package_object unix ~ppf_dump members target coercion
     let program =
       { Lambda.
         code;
-        module_block_format;
+        main_module_block_format;
         arg_block_field;
         compilation_unit;
         required_globals;
@@ -193,7 +193,7 @@ let build_package_cmx members cmxfile ~main_module_block_size =
   List.iter (fun info -> Zero_alloc_info.merge info.ui_zero_alloc_info
                            ~into:ui_zero_alloc_info) units;
   let modname = Compilation_unit.name ui.ui_unit in
-  let format : Lambda.module_block_format =
+  let format : Lambda.main_module_block_format =
     (* Open modules not supported with packs, so always just a record *)
     Mb_record { mb_size = main_module_block_size }
   in

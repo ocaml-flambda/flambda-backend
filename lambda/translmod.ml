@@ -1019,7 +1019,7 @@ let transl_implementation_plain_block compilation_unit impl =
       in
       Translcore.declare_probe_handlers body, (size, arg_block_field))
   in
-  let body, module_block_format =
+  let body, main_module_block_format =
     match has_parameters () with
     | false ->
         body, Mb_record { mb_size = size }
@@ -1050,7 +1050,7 @@ let transl_implementation_plain_block compilation_unit impl =
         body, format
   in
   { compilation_unit;
-    module_block_format;
+    main_module_block_format;
     arg_block_field;
     required_globals = required_globals ~flambda:true body;
     code = body }
@@ -1704,7 +1704,7 @@ let transl_implementation_set_fields compilation_unit impl =
     transl_store_gen ~scopes compilation_unit impl false
   in
   transl_store_subst := s;
-  { Lambda.module_block_format = Mb_record { mb_size = i };
+  { Lambda.main_module_block_format = Mb_record { mb_size = i };
     arg_block_field;
     code;
     (* compilation_unit is not used by closure, but this allow to share
@@ -2059,12 +2059,14 @@ let transl_instance_plain_block
     base_compilation_unit :: List.filter_map unit_of_runtime_arg runtime_args
     |> Compilation_unit.Set.of_list
   in
-  let module_block_format = Mb_record { mb_size = main_module_block_size } in
+  let main_module_block_format =
+    Mb_record { mb_size = main_module_block_size }
+  in
   {
     compilation_unit;
     code;
     required_globals;
-    module_block_format;
+    main_module_block_format;
     arg_block_field;
   }
 

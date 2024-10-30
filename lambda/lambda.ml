@@ -786,28 +786,25 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
-type runtime_param_descr =
-  | Rp_argument_block of Global_module.t  (* The argument block of a module
-                                             compiled with [-as-argument-for] *)
-  | Rp_dependency of Global_module.t      (* A parameterised module (not itself a
-                                             parameter) that this module depends
-                                             on *)
-  | Rp_unit                               (* The unit value (only used when
-                                             there are no other parameters) *)
+type runtime_param =
+  | Rp_argument_block of Global_module.t
+  | Rp_dependency of Global_module.t
+  | Rp_unit
 
-type module_block_format =
-  | Mb_record of { mb_size : int }      (* A block with [mb_size] fields *)
-  | Mb_wrapped_function of { mb_runtime_params : runtime_param_descr list;
+type main_module_block_format =
+  | Mb_record of { mb_size : int }
+  | Mb_wrapped_function of { mb_runtime_params : runtime_param list;
                              mb_returned_size : int;
                            }
-                                        (* A block with exactly one field:
-                                           a function taking [mb_runtime_params] and
-                                           returning a block with
-                                           [mb_returned_size] fields *)
+
+let main_module_block_size format =
+  match format with
+  | Mb_record { mb_size } -> mb_size
+  | Mb_wrapped_function _ -> 1
 
 type program =
   { compilation_unit : Compilation_unit.t;
-    module_block_format : module_block_format;
+    main_module_block_format : main_module_block_format;
     arg_block_field : int option;
     required_globals : Compilation_unit.Set.t;
     code : lambda }

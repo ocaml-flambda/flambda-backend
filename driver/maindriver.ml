@@ -66,7 +66,7 @@ let main argv ppf =
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
           "Options -i and -stop-after (%s) \
-           are  incompatible with -pack, -a, -output-obj, -instantiate"
+           are  incompatible with -pack, -a, -output-obj"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:false))
       | Some (P.Middle_end | P.Scheduling | P.Simplify_cfg | P.Emit | P.Selection) ->
