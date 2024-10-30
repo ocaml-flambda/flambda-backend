@@ -14,7 +14,7 @@ module V = Backend_var
    however affect the semantics of e.g. finalizers. *)
 let extend_live () = !Dwarf_flags.gdwarf_may_alter_codegen
 
-(* CR xclerc for xclerc: consider passing this value through the domain. *)
+(* CR xclerc for xclerc: consider passing this value through the context. *)
 let all_regs_that_might_be_named = ref Reg.Set.empty
 
 let check_invariants :
@@ -55,6 +55,25 @@ let check_invariants :
 (* CR xclerc for xclerc: double check the whole `Domain` module. *)
 module Domain = struct
   type t = { avail_before : Reg_availability_set.t option } [@@unboxed]
+  (** CR gyorsh:
+
+      - Why is `option` needed? `RAS` already has `Unreachable` and it looks like
+        it means the same as `None`. It would simplify the domain.
+      - `subset` doesn't take into account conflicting values removed by `inter`,
+        so we can end up in a weird situation that  two distinct abstract values A
+        and B satisfy both `less_equal A  B = true` and `less_equal B A = true`.
+        For example if both A and B contain the same reg with different debug info.
+        I'm not sure if it breaks soundness. Instead, they should be incomparable.
+        We can make  `less_equal` consistent with `join` like this:
+        ```
+        module Domain = struct
+          type t = RAS.t
+          let join = RAS.inter
+          let less_equal x y = RAS.equal (join y x) y
+       end
+       ```
+       but probably want a more efficient implementation of `less_equal` that doesn't
+       allocate *)
 
   let bot = { avail_before = Some Unreachable }
 
