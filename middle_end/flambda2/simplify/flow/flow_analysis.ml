@@ -184,7 +184,7 @@ let added_useful_alias_in_loop typing_env (acc : T.Acc.t)
      from that new alias.
 
      In order to avoid triggering too many resimplifications for no reasons, we
-     restrict this process to trigger only when a (non-invariable) parameter of
+     restrict this process to trigger only when a (non-invariant) parameter of
      a recursive continuation becomes aliased to something that has a
      non-trivial type. *)
   Seq.exists2
