@@ -89,16 +89,48 @@ class cla = object
     method m = "hello"
 end
 
-(* For Pexp_send, the object needs to be legacy *)
-let foo () =
-    let local_ obj = new cla in
-    obj#m
+class type cla = object
+    method m : string
+end
+
 [%%expect{|
 class cla : object method m : string end
-Line 8, characters 4-7:
-8 |     obj#m
-        ^^^
-Error: This value escapes its region.
+class type cla = object method m : string end
+|}]
+
+(* object crosses to [global] and [many]. Below, we only demonstrate [global]. *)
+
+(* crosses at method dispatch *)
+let foo (obj @ local) =
+    obj#m
+[%%expect{|
+val foo : local_ < m : 'a; .. > -> 'a = <fun>
+|}]
+
+(* crosses at function application *)
+let foo (obj @ local) =
+    ref (obj : cla)
+[%%expect{|
+val foo : local_ cla -> cla ref = <fun>
+|}]
+
+(* crosses at binding site. This allows the closure to be global. *)
+let foo (obj : cla @@ local) =
+    ref (fun () -> let _ = obj in ())
+[%%expect{|
+val foo : local_ cla -> (unit -> unit) ref = <fun>
+|}]
+
+(* Objects don't cross monadic axes. Objects are defined at [uncontended]
+    always, but that doesn't mean they cross contention. *)
+let foo (obj : cla @@ contended) =
+    let _ @ uncontended = obj in
+    ()
+[%%expect{|
+Line 2, characters 26-29:
+2 |     let _ @ uncontended = obj in
+                              ^^^
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 (* methods are available as legacy *)
