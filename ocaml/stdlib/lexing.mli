@@ -198,7 +198,7 @@ val sub_lexeme_opt : lexbuf -> int -> int -> string option @@ portable
 val sub_lexeme_char : lexbuf -> int -> char @@ portable
 val sub_lexeme_char_opt : lexbuf -> int -> char option @@ portable
 
-type lex_tables =
+type lex_tables : value mod portable uncontended =
   { lex_base : string;
     lex_backtrk : string;
     lex_default : string;

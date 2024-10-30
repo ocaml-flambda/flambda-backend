@@ -48,7 +48,7 @@ type lexbuf =
     mutable lex_curr_p : position;
   }
 
-type lex_tables =
+type lex_tables : value mod portable uncontended =
   { lex_base: string;
     lex_backtrk: string;
     lex_default: string;
