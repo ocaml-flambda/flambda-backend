@@ -18,8 +18,8 @@ let store_field i = ()
 let flip_coin () = true
 [%%expect{|
 type t = Con of { field : int list; }
-val free : unique_ t -> unit = <fun>
-val free_field : unique_ 'a -> unit = <fun>
+val free : t @ unique -> unit = <fun>
+val free_field : 'a @ unique -> unit = <fun>
 val store : t -> unit = <fun>
 val store_field : 'a -> unit = <fun>
 val flip_coin : unit -> bool = <fun>
@@ -61,7 +61,7 @@ let cons : 'a @ aliased -> 'a aliased list @ unique -> 'a aliased list @ unique 
   fun x xs -> { a = x } :: xs
 [%%expect{|
 type 'a aliased = { a : 'a @@ aliased; } [@@unboxed]
-val cons : 'a -> unique_ 'a aliased list -> unique_ 'a aliased list = <fun>
+val cons : 'a -> 'a aliased list @ unique -> 'a aliased list @ unique = <fun>
 |}]
 
 type delayed_free = { id : int; callback : unit -> unit }
@@ -69,7 +69,7 @@ type delayed_free = { id : int; callback : unit -> unit }
 let get_id : delayed_free @ once -> int @ many = fun d -> d.id
 [%%expect{|
 type delayed_free = { id : int; callback : unit -> unit; }
-val get_id : once_ delayed_free -> int = <fun>
+val get_id : delayed_free @ once -> int = <fun>
 |}]
 
 type delayed_free = { ids : int list; callback : unit -> unit }
@@ -89,7 +89,7 @@ let okay t =
   match t with
   | Con { field } -> free t
 [%%expect{|
-val okay : unique_ t -> unit = <fun>
+val okay : t @ unique -> unit = <fun>
 |}]
 
 let bad t =
@@ -116,7 +116,7 @@ let okay t =
     then free_field field
     else free t
 [%%expect{|
-val okay : unique_ t -> unit = <fun>
+val okay : t @ unique -> unit = <fun>
 |}]
 
 let okay t =
@@ -166,7 +166,7 @@ end
 [%%expect{|
 module Unique_array :
   sig
-    val set : unique_ 'a -> int -> 'b -> unique_ 'a
+    val set : 'a @ unique -> int -> 'b -> 'a @ unique
     val size : 'a -> int
   end
 |}]
@@ -205,7 +205,7 @@ let set_all_zero arr =
   let size, arr = size arr in
   loop size arr
 [%%expect{|
-val set_all_zero : unique_ 'a -> 'a = <fun>
+val set_all_zero : 'a @ unique -> 'a = <fun>
 |}]
 
 (****************)
@@ -220,8 +220,8 @@ let store_field i = ()
 let flip_coin () = true
 [%%expect{|
 type t = { field1 : t; field2 : t; }
-val free : unique_ t -> unit = <fun>
-val free_field : unique_ 'a -> unit = <fun>
+val free : t @ unique -> unit = <fun>
+val free_field : 'a @ unique -> unit = <fun>
 val store : t -> unit = <fun>
 val store_field : 'a -> unit = <fun>
 val flip_coin : unit -> bool = <fun>
@@ -232,7 +232,7 @@ let okay t =
   then free t
   else (store t; store t)
 [%%expect{|
-val okay : unique_ t -> unit = <fun>
+val okay : t @ unique -> unit = <fun>
 |}]
 
 let okay r =
@@ -240,7 +240,7 @@ let okay r =
   match r with
   | { field2; _ } -> free field2
 [%%expect{|
-val okay : unique_ t -> unit = <fun>
+val okay : t @ unique -> unit = <fun>
 |}]
 
 let bad r =
@@ -265,12 +265,12 @@ let okay r =
   match r with
   | { field2; _ } -> free field2
 [%%expect{|
-val okay : unique_ t -> unit = <fun>
+val okay : t @ unique -> unit = <fun>
 |}]
 
 let id : 'a @ unique -> 'a @ unique = fun t -> t
 [%%expect{|
-val id : unique_ 'a -> unique_ 'a = <fun>
+val id : 'a @ unique -> 'a @ unique = <fun>
 |}]
 
 let bad r =
@@ -311,14 +311,14 @@ let check_tuple x y z =
     | p, q, r -> free p
   in m, y, y
 [%%expect{|
-val check_tuple : unique_ t -> 'a -> 'b -> unit * 'a * 'a = <fun>
+val check_tuple : t @ unique -> 'a -> 'b -> unit * 'a * 'a = <fun>
 |}]
 
 let okay x y z =
   match x, y, z with
   | p, q, r -> free x.field1; free p.field2
 [%%expect{|
-val okay : unique_ t -> 'a -> 'b -> unit = <fun>
+val okay : t @ unique -> 'a -> 'b -> unit = <fun>
 |}]
 
 let bad x y z =
