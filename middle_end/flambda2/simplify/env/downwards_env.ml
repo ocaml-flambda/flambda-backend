@@ -41,7 +41,7 @@ type t =
     variables_defined_at_toplevel : Variable.Set.t;
     cse : CSE.t;
     comparison_results : Comparison_result.t Variable.Map.t;
-    do_not_rebuild_terms : bool;
+    are_rebuilding_terms : Are_rebuilding_terms.t;
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
     all_code : Code.t Code_id.Map.t;
@@ -71,7 +71,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlining_state; propagating_float_consts;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
                 variables_defined_at_toplevel; cse; comparison_results;
-                do_not_rebuild_terms; closure_info;
+                are_rebuilding_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
                 loopify_state; defined_variables_by_scope;
@@ -90,7 +90,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(variables_defined_at_toplevel@ %a)@]@ \
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(comparison_results@ @[<hov 1>%a@])@]@ \
-      @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
+      @[<hov 1>(are_rebuilding_terms@ %a)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(all_code@ %a)@]@ \
       @[<hov 1>(loopify_state@ %a)@]@ \
@@ -109,7 +109,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     Variable.Set.print variables_defined_at_toplevel
     CSE.print cse
     (Variable.Map.print Comparison_result.print) comparison_results
-    do_not_rebuild_terms
+    Are_rebuilding_terms.print are_rebuilding_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
     Loopify_state.print loopify_state
@@ -165,7 +165,7 @@ let create ~round ~(resolver : resolver)
       variables_defined_at_toplevel = Variable.Set.empty;
       cse = CSE.empty;
       comparison_results = Variable.Map.empty;
-      do_not_rebuild_terms = false;
+      are_rebuilding_terms = Are_rebuilding_terms.rebuild_everything;
       closure_info = Closure_info.not_in_a_closure;
       all_code = Code_id.Map.empty;
       get_imported_code;
@@ -242,7 +242,7 @@ let enter_set_of_closures
       variables_defined_at_toplevel;
       cse = _;
       comparison_results = _;
-      do_not_rebuild_terms;
+      are_rebuilding_terms;
       closure_info = _;
       get_imported_code;
       all_code;
@@ -264,7 +264,7 @@ let enter_set_of_closures
     variables_defined_at_toplevel;
     cse = CSE.empty;
     comparison_results = Variable.Map.empty;
-    do_not_rebuild_terms;
+    are_rebuilding_terms;
     closure_info = Closure_info.in_a_set_of_closures;
     get_imported_code;
     all_code;
@@ -483,14 +483,15 @@ let find_comparison_result t var =
 let with_cse t cse = { t with cse }
 
 let set_do_not_rebuild_terms_and_disable_inlining t =
-  { t with do_not_rebuild_terms = true; can_inline = false }
+  { t with are_rebuilding_terms = Are_rebuilding_terms.rebuild_nothing; can_inline = false }
 
 let disable_inlining t = { t with can_inline = false }
 
-let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
+let set_rebuild_terms t = { t with are_rebuilding_terms = Are_rebuilding_terms.rebuild_everything }
 
-let are_rebuilding_terms t =
-  Are_rebuilding_terms.of_bool (not t.do_not_rebuild_terms)
+let set_rebuild_partially t = { t with are_rebuilding_terms = Are_rebuilding_terms.partial_rebuilding }
+
+let are_rebuilding_terms t = t.are_rebuilding_terms
 
 let enter_closure code_id ~return_continuation ~exn_continuation ~my_closure t =
   { t with
@@ -640,7 +641,7 @@ let denv_for_lifted_continuation ~denv_for_join ~denv =
     propagating_float_consts = denv.propagating_float_consts;
     unit_toplevel_return_continuation = denv.unit_toplevel_return_continuation;
     unit_toplevel_exn_continuation = denv.unit_toplevel_exn_continuation;
-    do_not_rebuild_terms = denv.do_not_rebuild_terms;
+    are_rebuilding_terms = denv.are_rebuilding_terms;
     closure_info = denv.closure_info;
     get_imported_code = denv.get_imported_code;
     loopify_state = denv.loopify_state

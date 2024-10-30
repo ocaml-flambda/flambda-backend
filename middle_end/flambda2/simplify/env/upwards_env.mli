@@ -18,6 +18,9 @@
 
 type t
 
+(** Create an upwards environment.
+
+    The [are_rebuilding_terms] provided is only used for printing. *)
 val create : Are_rebuilding_terms.t -> t
 
 val print : Format.formatter -> t -> unit

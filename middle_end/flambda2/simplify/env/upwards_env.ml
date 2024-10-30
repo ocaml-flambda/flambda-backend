@@ -18,6 +18,7 @@ type t =
   { continuations : Continuation_in_env.t Continuation.Map.t;
     continuation_aliases : Continuation.t Continuation.Map.t;
     apply_cont_rewrites : Apply_cont_rewrite.t Continuation.Map.t;
+    (* this [are_rebuilding_terms] is **only** used for printing *)
     are_rebuilding_terms : Are_rebuilding_terms.t
   }
 

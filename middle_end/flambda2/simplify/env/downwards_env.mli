@@ -181,6 +181,8 @@ val disable_inlining : t -> t
 
 val set_rebuild_terms : t -> t
 
+val set_rebuild_partially : t -> t
+
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 
 val enter_closure :

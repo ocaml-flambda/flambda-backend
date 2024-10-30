@@ -103,7 +103,7 @@ let map_uenv t ~f = { t with uenv = f t.uenv }
 let with_uenv t uenv = { t with uenv }
 
 let remember_code_for_cmx t code =
-  if ART.do_not_rebuild_terms (are_rebuilding_terms t)
+  if ART.are_not_rebuilding (are_rebuilding_terms t)
   then t
   else
     let keep_code code_id =

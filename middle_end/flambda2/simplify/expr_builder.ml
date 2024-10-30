@@ -220,7 +220,7 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         free_names_of_let
     in
     let uacc =
-      if Are_rebuilding_terms.do_not_rebuild_terms
+      if Are_rebuilding_terms.are_not_rebuilding
            (UA.are_rebuilding_terms uacc)
       then uacc
       else add_set_of_closures_offsets ~is_phantom defining_expr uacc
@@ -375,7 +375,7 @@ let create_raw_let_symbol uacc bound_static static_consts ~body =
               (* Static consts always have zero cost metrics at present. *)
             ~cost_metrics_of_defining_expr:Cost_metrics.zero)
   in
-  if Are_rebuilding_terms.do_not_rebuild_terms (UA.are_rebuilding_terms uacc)
+  if Are_rebuilding_terms.are_not_rebuilding (UA.are_rebuilding_terms uacc)
   then RE.term_not_rebuilt, uacc
   else
     let defining_expr = Rebuilt_static_const.Group.to_named static_consts in
