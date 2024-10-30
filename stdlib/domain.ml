@@ -20,7 +20,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external runtime5 : unit -> bool = "%runtime5"
+external runtime5 : unit -> bool @@ portable = "%runtime5"
 
 module Runtime_4 = struct
   module DLS = struct
@@ -30,14 +30,29 @@ module Runtime_4 = struct
 
     let init () = ()
 
-    type 'a key = int * (unit -> 'a)
+    module Password = struct
+      type t = Capsule.Password.packed
+
+      let for_initial_domain = Capsule.Password.make ()
+      let to_capsule_password t = t
+    end
+
+    let with_password f = f Password.for_initial_domain
+
+    let get_password () = Password.for_initial_domain
+
+    type 'a key = int * (Password.t -> 'a)
 
     let key_counter = ref 0
 
-    let new_key ?split_from_parent:_ init_orphan =
+    let new_key_safe ?split_from_parent:_ init_orphan =
       let idx = !key_counter in
       key_counter := idx + 1;
       (idx, init_orphan)
+
+    let new_key ?split_from_parent init_orphan =
+      let init_orphan (_ : Password.t) = init_orphan () in
+      new_key_safe ?split_from_parent init_orphan
 
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
@@ -56,21 +71,25 @@ module Runtime_4 = struct
         new_st
       end
 
-    let set (idx, _init) x =
+    let set' (_ : Password.t) (idx, _init) x =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
       * [x], which may be a [float] and conclude that the [st] is a float array.
       * We do not want OCaml's float array optimisation kicking in here. *)
       st.(idx) <- Obj.repr (Sys.opaque_identity x)
 
-    let get (idx, init) =
+    let set key x = set' Password.for_initial_domain key x
+
+    let get' (_ : Password.t) (idx, init) =
       let st = maybe_grow idx in
       let v = st.(idx) in
       if v == unique_value then
-        let v' = Obj.repr (init ()) in
+        let v' = Obj.repr (init (get_password ())) in
         st.(idx) <- (Sys.opaque_identity v');
         Obj.magic v'
       else Obj.magic v
+
+    let get key = get' Password.for_initial_domain key
   end
 
   (******** Callbacks **********)
@@ -81,7 +100,7 @@ module Runtime_4 = struct
   let first_spawn_function = ref (fun () -> ())
 
   let before_first_spawn f =
-    if Atomic.get first_domain_spawned then
+    if Atomic.get_safe first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
       let old_f = !first_spawn_function in
@@ -91,8 +110,8 @@ module Runtime_4 = struct
 
   let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
 
-  let at_exit f =
-    let old_exit : unit -> unit = DLS.get at_exit_key in
+  let at_exit' pw f =
+    let old_exit : unit -> unit = DLS.get' pw at_exit_key in
     let new_exit () =
       (* The domain termination callbacks ([at_exit]) are run in
         last-in-first-out (LIFO) order in order to be symmetric with the domain
@@ -100,7 +119,11 @@ module Runtime_4 = struct
         (FIFO) order. *)
       f (); old_exit ()
     in
-    DLS.set at_exit_key new_exit
+    DLS.set' pw at_exit_key new_exit
+
+  let at_exit_safe = at_exit' DLS.Password.for_initial_domain
+
+  let at_exit = at_exit_safe
 
   let do_at_exit () =
     let f : unit -> unit = DLS.get at_exit_key in
@@ -112,6 +135,8 @@ module Runtime_4 = struct
   type !'a t
   type id = int
   let spawn _ = not_implemented ()
+  let spawn_safe _ = not_implemented ()
+  let spawn_with_dls _ = not_implemented ()
   let join _ = not_implemented ()
   let get_id _ = not_implemented ()
   let self () = not_implemented ()
@@ -139,13 +164,13 @@ module Runtime_5 = struct
       cond : Condition.t ;
     }
 
-    external spawn : (unit -> 'a) -> 'a term_sync -> t
+    external spawn : (unit -> 'a) -> 'a term_sync -> t @@ portable
       = "caml_domain_spawn"
-    external self : unit -> t
+    external self : unit -> t @@ portable
       = "caml_ml_domain_id" [@@noalloc]
-    external cpu_relax : unit -> unit
+    external cpu_relax : unit -> unit @@ portable
       = "caml_ml_domain_cpu_relax"
-    external get_recommended_domain_count: unit -> int
+    external get_recommended_domain_count: unit -> int @@ portable
       = "caml_recommended_domain_count" [@@noalloc]
   end
 
@@ -162,6 +187,8 @@ module Runtime_5 = struct
 
     module Obj_opt : sig
       type t
+
+      include sig
       val none : t
       val some : 'a -> t
       val is_some : t -> bool
@@ -172,52 +199,96 @@ module Runtime_5 = struct
           [unsafe_get (some v)] is equivalent to
           [Obj.obj (Obj.repr v)]. *)
       val unsafe_get : t -> 'a
+      end @@ portable
     end = struct
       type t = Obj.t
-      let none = Obj.repr (ref 0)
+      let none = Obj.magic_portable (Obj.repr (ref 0))
       let some v = Obj.repr v
-      let is_some obj = (obj != none)
+      let is_some obj = (obj != Obj.magic_uncontended none)
       let unsafe_get obj = Obj.obj obj
     end
 
     type dls_state = Obj_opt.t array
 
-    external get_dls_state : unit -> dls_state = "%dls_get"
+    external get_dls_state : unit -> dls_state @@ portable = "%dls_get"
 
-    external set_dls_state : dls_state -> unit =
+    external set_dls_state : dls_state -> unit @@ portable =
       "caml_domain_dls_set" [@@noalloc]
 
-    external compare_and_set_dls_state : dls_state -> dls_state -> bool =
+    external compare_and_set_dls_state : dls_state -> dls_state -> bool @@ portable =
       "caml_domain_dls_compare_and_set" [@@noalloc]
 
-    let create_dls () =
-      let st = Array.make 8 Obj_opt.none in
-      set_dls_state st
+    module Password = struct
+      type t = Capsule.Password.packed
 
-    let init () = create_dls ()
-
-    type 'a key = int * (unit -> 'a)
+      let for_initial_domain = Capsule.Password.make ()
+      let to_capsule_password t = t
+    end
 
     let key_counter = Atomic.make 0
+    let password_idx = Atomic.fetch_and_add key_counter 1
+
+    let create_dls password =
+      (* CR tdelvecchio: cocontended *)
+      let st = Array.make 8 (Obj.magic_uncontended Obj_opt.none) in
+      st.(password_idx) <- Obj_opt.some password;
+      set_dls_state st
+
+    let init () = create_dls Password.for_initial_domain
+
+    let get_password () : Password.t =
+      let st = get_dls_state () in
+      Obj_opt.unsafe_get st.(password_idx)
+
+    let with_password f =
+      let password = get_password () in
+      try f password with
+      | exn ->
+        let P password = password in
+        let name = Capsule.Password.name password in
+        let capsule =
+          (* CR tdelvecchio: Document. *)
+          let exn = Obj.magic_portable exn in
+          Capsule.Data.create (fun () -> Obj.magic_uncontended exn)
+        in
+        raise (Capsule.Data.Encapsulated (name, capsule))
+
+    (* CR tdelvecchio: Unnecessary annotation. *)
+    type 'a key : value mod portable uncontended =
+      K of int * (Password.t -> 'a) @@ portable
 
     type key_initializer =
-      KI: 'a key * ('a -> 'a) -> key_initializer
+      KI: 'a key * ('a -> (Password.t -> 'a) @ portable) @@ portable -> key_initializer
 
-    let parent_keys = Atomic.make ([] : key_initializer list)
+    (* CR tdelvecchio: Remove when we have [with]. *)
+    type key_initializer_list : value mod portable uncontended = KIs of key_initializer list
+
+    let parent_keys = Atomic.make (KIs ([] : key_initializer list))
 
     let rec add_parent_key ki =
-      let l = Atomic.get parent_keys in
-      if not (Atomic.compare_and_set parent_keys l (ki :: l))
+      let (KIs l) as old = Atomic.get_safe parent_keys in
+      if not (Atomic.compare_and_set parent_keys old (KIs (ki :: l)))
       then add_parent_key ki
 
-    let new_key ?split_from_parent init_orphan =
+    let new_key_safe ?split_from_parent init_orphan =
       let idx = Atomic.fetch_and_add key_counter 1 in
-      let k = (idx, init_orphan) in
+      let k = K (idx, init_orphan) in
       begin match split_from_parent with
       | None -> ()
       | Some split -> add_parent_key (KI(k, split))
       end;
       k
+
+    let new_key ?split_from_parent init_orphan =
+      let split_from_parent = Obj.magic_portable split_from_parent in
+      let init_orphan = Obj.magic_portable (fun (_ : Password.t) -> init_orphan ()) in
+      let split_from_parent =
+        match split_from_parent with
+        | None -> None
+        | Some f ->
+          Some (fun x -> Obj.magic_portable (fun (_ : Password.t) -> f x))
+      in
+      new_key_safe ?split_from_parent init_orphan
 
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
@@ -234,7 +305,7 @@ module Runtime_5 = struct
           if idx < s then s else compute_new_size (2 * s)
         in
         let new_sz = compute_new_size sz in
-        let new_st = Array.make new_sz Obj_opt.none in
+        let new_st = Array.make new_sz (Obj.magic_uncontended Obj_opt.none) in
         Array.blit st 0 new_st 0 sz;
         (* We want a implementation that is safe with respect to
           single-domain multi-threading: retry if the DLS state has
@@ -247,13 +318,14 @@ module Runtime_5 = struct
         else maybe_grow idx
       end
 
-    let set (type a) (idx, _init) (x : a) =
+    let set (type a) (K (idx, _init)) (x : a) =
       let st = maybe_grow idx in
       (* [Sys.opaque_identity] ensures that flambda does not look at the type of
       * [x], which may be a [float] and conclude that the [st] is a float array.
       * We do not want OCaml's float array optimisation kicking in here. *)
       st.(idx) <- Obj_opt.some (Sys.opaque_identity x)
 
+    let set' (_ : Password.t) k v = set k v
 
     let[@inline never] array_compare_and_set a i oldval newval =
       (* Note: we cannot use [@poll error] due to the
@@ -264,13 +336,13 @@ module Runtime_5 = struct
         true
       ) else false
 
-    let get (type a) ((idx, init) : a key) : a =
+    let get (type a) (K (idx, init) : a key) : a =
       let st = maybe_grow idx in
       let obj = st.(idx) in
       if Obj_opt.is_some obj
       then (Obj_opt.unsafe_get obj : a)
       else begin
-        let v : a = init () in
+        let v : a = init(get_password ()) in
         let new_obj = Obj_opt.some (Sys.opaque_identity v) in
         (* At this point, [st] or [st.(idx)] may have been changed
           by another thread on the same domain.
@@ -294,12 +366,16 @@ module Runtime_5 = struct
         end
       end
 
-    type key_value = KV : 'a key * 'a -> key_value
+    let get' (_ : Password.t) k = get k
+
+    type key_value = KV : 'a key * (Password.t -> 'a) -> key_value
 
     let get_initial_keys () : key_value list =
+      (* CR tdelvecchio: Unnecessary annotation *)
+      let (KIs parent_keys) : key_initializer_list = Atomic.get_safe parent_keys in
       List.map
         (fun (KI (k, split)) -> KV (k, (split (get k))))
-        (Atomic.get parent_keys)
+        parent_keys
 
     let set_initial_keys (l: key_value list) =
       List.iter (fun (KV (k, v)) -> set k v) l
@@ -321,7 +397,7 @@ module Runtime_5 = struct
   let first_spawn_function = ref (fun () -> ())
 
   let before_first_spawn f =
-    if Atomic.get first_domain_spawned then
+    if Atomic.get_safe first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
       let old_f = !first_spawn_function in
@@ -329,8 +405,9 @@ module Runtime_5 = struct
       first_spawn_function := new_f
     end
 
-  let do_before_first_spawn () =
-    if not (Atomic.get first_domain_spawned) then begin
+  let do_before_first_spawn =
+    Obj.magic_portable @@ fun () ->
+    if not (Atomic.get_safe first_domain_spawned) then begin
       Atomic.set first_domain_spawned true;
       !first_spawn_function();
       (* Release the old function *)
@@ -339,12 +416,16 @@ module Runtime_5 = struct
 
   let at_exit_key = DLS.new_key (fun () -> (fun () -> ()))
 
-  let at_exit f =
+  let at_exit' (_ : DLS.Password.t) f =
     let old_exit : unit -> unit = DLS.get at_exit_key in
     let new_exit () =
       f (); old_exit ()
     in
     DLS.set at_exit_key new_exit
+
+  let at_exit_safe f = at_exit' (DLS.get_password ()) f
+
+  let at_exit = at_exit_safe
 
   let do_at_exit () =
     let f : unit -> unit = DLS.get at_exit_key in
@@ -354,7 +435,7 @@ module Runtime_5 = struct
 
   (******* Creation and Termination ********)
 
-  let spawn f =
+  let spawn_with_dls f =
     do_before_first_spawn ();
     let pk = DLS.get_initial_keys () in
 
@@ -367,9 +448,10 @@ module Runtime_5 = struct
 
     let body () =
       match
-        DLS.create_dls ();
+        let password = Capsule.Password.make () in
+        DLS.create_dls password;
         DLS.set_initial_keys pk;
-        let res = f () in
+        let res = f password in
         res
       with
       (* Run the [at_exit] callbacks when the domain computation either
@@ -390,6 +472,10 @@ module Runtime_5 = struct
     let domain = Raw.spawn body term_sync in
     { domain ; term_sync }
 
+  let spawn_safe f = spawn_with_dls (fun (_ : DLS.Password.t) -> f ())
+
+  let spawn = spawn_safe
+
   let join { term_sync ; _ } =
     let open Raw in
     let rec loop () =
@@ -407,9 +493,34 @@ module Runtime_5 = struct
   let recommended_domain_count = Raw.get_recommended_domain_count
 end
 
-module type S = sig
+module type S4 = sig
+  [@@@warning "-32"]
+
+  module DLS : sig
+    module Password : sig
+      type t
+      val to_capsule_password : t -> Capsule.Password.packed
+      val for_initial_domain : t
+    end
+
+    val with_password : (Password.t -> 'a) -> 'a
+    type 'a key
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    val new_key_safe
+      :  ?split_from_parent:('a -> (Password.t -> 'a))
+      -> (Password.t -> 'a)
+      -> 'a key
+    val get : 'a key -> 'a
+    val get' : Password.t -> 'a key -> 'a
+    val set : 'a key -> 'a -> unit
+    val set' : Password.t -> 'a key -> 'a -> unit
+    val init : unit -> unit
+  end
+
   type !'a t
   val spawn : (unit -> 'a) -> 'a t
+  val spawn_safe : (unit -> 'a) -> 'a t
+  val spawn_with_dls : (DLS.Password.t -> 'a) -> 'a t
   val join : 'a t -> 'a
   type id = private int
   val get_id : 'a t -> id
@@ -419,30 +530,63 @@ module type S = sig
   val recommended_domain_count : unit -> int
   val before_first_spawn : (unit -> unit) -> unit
   val at_exit : (unit -> unit) -> unit
+  val at_exit_safe : (unit -> unit) -> unit
+  val at_exit' : DLS.Password.t -> (unit -> unit) -> unit
   val do_at_exit : unit -> unit
-
-  module DLS : sig
-    type 'a key
-    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
-    val get : 'a key -> 'a
-    val set : 'a key -> 'a -> unit
-  end
 end
 
-module type S' = sig
-  include S
+module type S5 = sig
   module DLS : sig
-    include module type of struct include DLS end
+    module Password : sig
+      type t
+      val to_capsule_password : t -> Capsule.Password.packed @@ portable
+      val for_initial_domain : t
+    end
+
+    val with_password
+      :  (Password.t -> 'a @ portable contended) @ portable
+      -> 'a @ portable contended
+      @@ portable
+    type 'a key : value mod portable uncontended
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    val new_key_safe
+      :  ?split_from_parent:('a -> (Password.t -> 'a) @ portable) @ portable
+      -> (Password.t -> 'a) @ portable
+      -> 'a key
+      @@ portable
+    val get : 'a key -> 'a
+    val get' : Password.t -> 'a key -> 'a @@ portable
+    val set : 'a key -> 'a -> unit
+    val set' : Password.t -> 'a key -> 'a -> unit @@ portable
     val init : unit -> unit
   end
+
+  type !'a t
+  val spawn : (unit -> 'a) -> 'a t
+  include sig
+  val spawn_safe : (unit -> 'a) -> 'a t
+  val spawn_with_dls : (DLS.Password.t -> 'a) -> 'a t
+  val join : 'a t -> 'a
+  type id = private int
+  val get_id : 'a t -> id
+  val self : unit -> id
+  val cpu_relax : unit -> unit
+  val is_main_domain : unit -> bool
+  val recommended_domain_count : unit -> int
+  end @@ portable
+  val before_first_spawn : (unit -> unit) -> unit
+  val at_exit : (unit -> unit) -> unit
+  val at_exit_safe : (unit -> unit) -> unit @@ portable
+  val at_exit' : DLS.Password.t -> (unit -> unit) -> unit @@ portable
+  val do_at_exit : unit -> unit
 end
 
-let runtime_4_impl = (module Runtime_4 : S')
-let runtime_5_impl = (module Runtime_5 : S')
+let runtime_4_impl = (module Runtime_4 : S4)
+let runtime_5_impl = (module Runtime_5 : S5)
 
-let impl = if runtime5 () then runtime_5_impl else runtime_4_impl
+let impl = if runtime5 () then runtime_5_impl else Obj.magic runtime_4_impl
 
-include (val impl : S')
+include (val impl : S5)
 
 let () = DLS.init ()
 
