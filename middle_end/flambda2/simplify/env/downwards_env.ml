@@ -483,13 +483,18 @@ let find_comparison_result t var =
 let with_cse t cse = { t with cse }
 
 let set_do_not_rebuild_terms_and_disable_inlining t =
-  { t with are_rebuilding_terms = Are_rebuilding_terms.rebuild_nothing; can_inline = false }
+  { t with
+    are_rebuilding_terms = Are_rebuilding_terms.rebuild_nothing;
+    can_inline = false
+  }
 
 let disable_inlining t = { t with can_inline = false }
 
-let set_rebuild_terms t = { t with are_rebuilding_terms = Are_rebuilding_terms.rebuild_everything }
+let set_rebuild_terms t =
+  { t with are_rebuilding_terms = Are_rebuilding_terms.rebuild_everything }
 
-let set_rebuild_partially t = { t with are_rebuilding_terms = Are_rebuilding_terms.partial_rebuilding }
+let set_rebuild_partially t =
+  { t with are_rebuilding_terms = Are_rebuilding_terms.partial_rebuilding }
 
 let are_rebuilding_terms t = t.are_rebuilding_terms
 

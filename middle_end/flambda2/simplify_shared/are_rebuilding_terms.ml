@@ -26,8 +26,7 @@ let [@ocamlformat "disable"] print ppf = function
 
 let are_rebuilding = function
   | Not_rebuilding -> false
-  | Rebuilding_partially
-  | Rebuilding_everything -> true
+  | Rebuilding_partially | Rebuilding_everything -> true
 
 let are_not_rebuilding t = not (are_rebuilding t)
 
@@ -36,5 +35,7 @@ let are_rebuilding_partially = function
   | Rebuilding_partially -> true
 
 let rebuild_nothing = Not_rebuilding
+
 let rebuild_everything = Rebuilding_everything
+
 let partial_rebuilding = Rebuilding_partially
