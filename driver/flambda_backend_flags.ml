@@ -131,7 +131,7 @@ module Flambda2 = struct
     let join_depth = 5
     let function_result_types = Never
     let meet_algorithm = Basic
-    let enable_reaper = true
+    let enable_reaper = false
     let unicode = true
   end
 
