@@ -478,10 +478,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     let are_rebuilding = DA.are_rebuilding_terms dacc_after_body in
     match new_code with
     | None ->
-      assert (not (Are_rebuilding_terms.are_rebuilding are_rebuilding));
+      assert (Are_rebuilding_terms.not_rebuilding_terms are_rebuilding);
       Not_rebuilding
     | Some new_code ->
-      assert (Are_rebuilding_terms.are_rebuilding are_rebuilding);
+      assert (not (Are_rebuilding_terms.not_rebuilding_terms are_rebuilding));
       Rebuilding new_code
   in
   { code_id; code = Some (code, code_const); outer_dacc; should_resimplify }

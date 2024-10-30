@@ -24,11 +24,9 @@ let [@ocamlformat "disable"] print ppf = function
   | Rebuilding_partially -> Format.fprintf ppf "partial"
   | Rebuilding_everything -> Format.fprintf ppf "%b" true
 
-let are_rebuilding = function
-  | Not_rebuilding -> false
-  | Rebuilding_partially | Rebuilding_everything -> true
-
-let are_not_rebuilding t = not (are_rebuilding t)
+let not_rebuilding_terms = function
+  | Not_rebuilding -> true
+  | Rebuilding_partially | Rebuilding_everything -> false
 
 let are_rebuilding_partially = function
   | Not_rebuilding | Rebuilding_everything -> false

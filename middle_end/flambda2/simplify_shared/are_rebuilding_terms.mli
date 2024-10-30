@@ -14,21 +14,29 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Flag indicating whether terms are being rebuilt during simplification. This
-    is not just [bool] to enforce that the setting in [DE] is used everywhere. *)
-
+(** Store information about whether terms are rebuilt during simplification,
+    and if so, whether the full expression is being rebuilt (as is the case most
+    of the time), or wheterh only part of the expressions if being rebuilt (as is
+    the case for continuation specialization where a single handler is rebuilt). *)
 type t
 
+(** Print *)
 val print : Format.formatter -> t -> unit
 
-val are_rebuilding : t -> bool
+(** This function returns [true] iff we are **not** rebuilding terms during the
+    upwards pass. *)
+val not_rebuilding_terms : t -> bool
 
-val are_not_rebuilding : t -> bool
-
+(** This function returns [true] iff we are rebuilding terms **and** we do so
+    partially (i.e. in the context of continuation specialization). *)
 val are_rebuilding_partially : t -> bool
 
+(** The value for when we do **not** rebuild terms. *)
 val rebuild_nothing : t
 
+(** The value for when we rebuild everything (i.e. most of the time) *)
 val rebuild_everything : t
 
+(** The value for when we rebuild terms, but only partially, i.e. in the
+    context of continuation specialization where only one handler is rebuilt. *)
 val partial_rebuilding : t

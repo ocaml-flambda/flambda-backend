@@ -574,7 +574,7 @@ let generate_phantom_lets t =
   && Flambda_features.Expert.phantom_lets ()
   (* It would be a waste of time generating phantom lets when not rebuilding
      terms, since they have no effect on cost metrics. *)
-  && Are_rebuilding_terms.are_rebuilding (are_rebuilding_terms t)
+  && not (Are_rebuilding_terms.not_rebuilding_terms (are_rebuilding_terms t))
 
 let loopify_state t = t.loopify_state
 
