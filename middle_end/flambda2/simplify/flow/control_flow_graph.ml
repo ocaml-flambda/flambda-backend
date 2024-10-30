@@ -15,8 +15,6 @@
 module T = Flow_types
 module G = Strongly_connected_components.Make (Continuation)
 
-type doms = Dominator_graph.alias_map
-
 type t =
   { dummy_toplevel_cont : Continuation.t;
     callers : G.directed_graph;
