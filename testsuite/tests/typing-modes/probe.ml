@@ -8,5 +8,5 @@
 let f (x @ local nonportable once) =
     [%probe "a" (let _ = x in ())]
 [%%expect{|
-val f : local_ once_ 'a -> unit = <fun>
+val f : local_ 'a @ once -> unit = <fun>
 |}]

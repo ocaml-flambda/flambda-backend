@@ -293,10 +293,10 @@ let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
 [%%expect{|
 val f :
   ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    local_ unique_ 'a ->
-    y:local_ once_ 'b ->
-    z:once_ unique_ 'c ->
-    ?foo:local_ once_ unique_ int -> ?bar:local_ int -> unit -> unit
+    local_ 'a @ unique ->
+    y:local_ 'b @ once ->
+    z:'c @ once unique ->
+    ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit
   @@ global many = <fun>
 |}]
 
@@ -361,7 +361,7 @@ Line 3, characters 6-7:
           ^
 Warning 26 [unused-var]: unused variable f.
 
-val g : unit -> local_ once_ unit @@ global many = <fun>
+val g : unit -> local_ unit @ once @@ global many = <fun>
 |}]
 
 (* types *)
@@ -388,12 +388,12 @@ type ('a, 'b) labeled_fn =
   a:local_ unique_ 'a -> ?b:local_ once_ 'b -> unique_ once_ 'a -> (int -> once_ unique_ 'b);;
 
 [%%expect{|
-type fn = local_ unique_ int -> local_ once_ int
+type fn = local_ int @ unique -> local_ int @ once
 type nested_fn =
-    (local_ unique_ int -> local_ once_ int) -> local_ once_ unique_ int
+    (local_ int @ unique -> local_ int @ once) -> local_ int @ once unique
 type ('a, 'b) labeled_fn =
-    a:local_ unique_ 'a ->
-    ?b:local_ once_ 'b -> once_ unique_ 'a -> (int -> once_ unique_ 'b)
+    a:local_ 'a @ unique ->
+    ?b:local_ 'b @ once -> 'a @ once unique -> (int -> 'b @ once unique)
 |}]
 
 (* kitchen sink, with new @ syntax *)
@@ -519,8 +519,8 @@ Error: This value escapes its region.
 let f2 (x @ local) (f @ once) : t2 = exclave_ { x; f }
 
 [%%expect{|
-val f2 : local_ float -> once_ (float -> float) -> local_ once_ t2 @@ global
-  many = <fun>
+val f2 : local_ float -> (float -> float) @ once -> local_ t2 @ once @@
+  global many = <fun>
 |}]
 
 (**********)

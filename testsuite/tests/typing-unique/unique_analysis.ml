@@ -10,7 +10,7 @@
 (* First some helper functions *)
 let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
-val unique_id : unique_ 'a -> unique_ 'a = <fun>
+val unique_id : 'a @ unique -> 'a @ unique = <fun>
 |}]
 
 let aliased_id : 'a -> 'a = fun x -> x
@@ -22,13 +22,13 @@ let ignore_once: once_ 'a -> unit = fun x -> ()
 
 type box = { x : int }
 [%%expect{|
-val ignore_once : once_ 'a -> unit = <fun>
+val ignore_once : 'a @ once -> unit = <fun>
 type box = { x : int; }
 |}]
 
 let update : unique_ box -> unique_ box = unique_id
 [%%expect{|
-val update : unique_ box -> unique_ box = <fun>
+val update : box @ unique -> box @ unique = <fun>
 |}]
 
 
@@ -36,7 +36,7 @@ val update : unique_ box -> unique_ box = <fun>
 
 let branching (unique_ x) = unique_ if true then x else x
 [%%expect{|
-val branching : unique_ 'a -> 'a = <fun>
+val branching : 'a @ unique -> 'a = <fun>
 |}]
 
 (* whether we constrain uniqueness or linearity is irrelavant
@@ -44,7 +44,7 @@ val branching : unique_ 'a -> 'a = <fun>
    will only constrain uniqueness *)
 let branching (once_ x) = if true then x else x
 [%%expect{|
-val branching : once_ 'a -> once_ 'a = <fun>
+val branching : 'a @ once -> 'a @ once = <fun>
 |}]
 
 let branching b =
@@ -97,7 +97,7 @@ let children_unique (unique_ xs : float list) =
   | [] -> (0., [])
   | x :: xx -> unique_ (x, xx)
 [%%expect{|
-val children_unique : unique_ float list -> float * float list = <fun>
+val children_unique : float list @ unique -> float * float list = <fun>
 |}]
 
 let borrow_match (unique_ fs : 'a list) =
@@ -105,7 +105,7 @@ let borrow_match (unique_ fs : 'a list) =
   | [] -> []
   | x :: xs as gs -> unique_ gs
 [%%expect{|
-val borrow_match : unique_ 'a list -> 'a list = <fun>
+val borrow_match : 'a list @ unique -> 'a list = <fun>
 |}]
 
 let borrow_match (unique_ fs : 'a list) =
@@ -113,7 +113,7 @@ let borrow_match (unique_ fs : 'a list) =
     | [] -> []
     | x :: xs -> unique_ fs
 [%%expect{|
-val borrow_match : unique_ 'a list -> 'a list = <fun>
+val borrow_match : 'a list @ unique -> 'a list = <fun>
 |}]
 
 let dup_child (unique_ fs : 'a list) =
@@ -282,7 +282,7 @@ let mark_aliased_in_one_branch b x =
   if b then unique_id (x, 3.0)
        else (x, x)
 [%%expect{|
-val mark_aliased_in_one_branch : bool -> unique_ float -> float * float =
+val mark_aliased_in_one_branch : bool -> float @ unique -> float * float =
   <fun>
 |}]
 
@@ -290,7 +290,7 @@ let mark_aliased_in_one_branch b x =
   if b then (x, x)
        else unique_id (x, 3.0)
 [%%expect{|
-val mark_aliased_in_one_branch : bool -> unique_ float -> float * float =
+val mark_aliased_in_one_branch : bool -> float @ unique -> float * float =
   <fun>
 |}]
 
@@ -298,8 +298,8 @@ let expr_tuple_match f x y =
   match f x, y with
   | (a, b), c -> unique_ (a, c)
 [%%expect{|
-val expr_tuple_match : ('a -> unique_ 'b * 'c) -> 'a -> unique_ 'd -> 'b * 'd =
-  <fun>
+val expr_tuple_match :
+  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'b * 'd = <fun>
 |}]
 
 let expr_tuple_match f x y =
@@ -307,7 +307,7 @@ let expr_tuple_match f x y =
   | (a, b) as t, c -> let d = unique_id t in unique_ (c, d)
 [%%expect{|
 val expr_tuple_match :
-  ('a -> unique_ 'b * 'c) -> 'a -> unique_ 'd -> 'd * ('b * 'c) = <fun>
+  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'd * ('b * 'c) = <fun>
 |}]
 
 let expr_tuple_match f x y =
@@ -369,7 +369,7 @@ Line 2, characters 12-13:
 let unique_match_on a b =
   let unique_ t = (a, b) in t
 [%%expect{|
-val unique_match_on : unique_ 'a -> unique_ 'b -> 'a * 'b = <fun>
+val unique_match_on : 'a @ unique -> 'b @ unique -> 'a * 'b = <fun>
 |}]
 
 type ('a, 'b) record = { foo : 'a; bar : 'b }
@@ -433,7 +433,7 @@ let record_mode_vars (p : point) =
   let y = (p.y, p.y) in
   (x, y, unique_ p.z)
 [%%expect{|
-val record_mode_vars : unique_ point -> float * (float * float) * float =
+val record_mode_vars : point @ unique -> float * (float * float) * float =
   <fun>
 |}]
 
@@ -566,7 +566,7 @@ end = struct
   let mk : unit -> t @ unique = fun () -> ()
 end
 [%%expect {|
-module Value : sig type t val mk : unit -> unique_ t end
+module Value : sig type t val mk : unit -> t @ unique end
 |}]
 
 (* Testing modalities in records *)
