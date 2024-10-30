@@ -26,7 +26,7 @@ let unique_use (unique_ x) = x
 [%%expect{|
 (let (unique_use/283 = (function {nlocal = 0} x/285 x/285))
   (apply (field_imm 1 (global Toploop!)) "unique_use" unique_use/283))
-val unique_use : unique_ 'a -> 'a = <fun>
+val unique_use : 'a @ unique -> 'a = <fun>
 |}]
 
 (* This output is fine with overwriting: The [r.y] is not pushed down. *)
@@ -67,7 +67,7 @@ let proj_unique r =
             (apply unique_use/283 r/293))
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/295 y/294))))
   (apply (field_imm 1 (global Toploop!)) "proj_unique" proj_unique/291))
-val proj_unique : unique_ record -> record * string = <fun>
+val proj_unique : record @ unique -> record * string = <fun>
 |}]
 
 (* This output would be unsound if [aliased_use] was able to overwrite [r]
@@ -112,7 +112,7 @@ let match_unique r =
             (apply unique_use/283 r/304))
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/306 y/305))))
   (apply (field_imm 1 (global Toploop!)) "match_unique" match_unique/302))
-val match_unique : unique_ record -> record * string = <fun>
+val match_unique : record @ unique -> record * string = <fun>
 |}]
 
 (* Similarly, this would be unsound since Lambda performs a mini ANF pass. *)
@@ -164,7 +164,7 @@ let match_mini_anf_unique r =
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/323 y/322))))
   (apply (field_imm 1 (global Toploop!)) "match_mini_anf_unique"
     match_mini_anf_unique/318))
-val match_mini_anf_unique : unique_ record -> record * string = <fun>
+val match_mini_anf_unique : record @ unique -> record * string = <fun>
 |}]
 
 let match_anf_aliased r =
@@ -226,7 +226,7 @@ let match_anf_unique r =
              y/343)))))
   (apply (field_imm 1 (global Toploop!)) "match_anf_unique"
     match_anf_unique/340))
-val match_anf_unique : unique_ record -> record * string = <fun>
+val match_anf_unique : record @ unique -> record * string = <fun>
 |}]
 
 type tree =
