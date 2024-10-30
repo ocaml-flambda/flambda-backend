@@ -84,7 +84,7 @@ let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
     Jkind.Const.Builtin.all
-    |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
+    |> List.map (fun (builtin : _ Jkind.Const.Builtin.t) ->
           builtin.jkind,
           Jkind.of_const builtin.jkind
             ~annotation:(Some { pjkind_loc = Location.none;

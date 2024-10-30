@@ -19,7 +19,15 @@ open Jkind_types
 
 (* A *sort* is the information the middle/back ends need to be able to
    compile a manipulation (storing, passing, etc) of a runtime value. *)
-module Sort = Jkind_types.Sort
+module Sort = struct
+  include Jkind_types.Sort
+
+  module Flat = struct
+    type t =
+      | Var of Var.id
+      | Base of base
+  end
+end
 
 type sort = Sort.t
 
@@ -34,7 +42,10 @@ type type_expr = Types.type_expr
 module Layout = struct
   open Jkind_types.Layout
 
-  type nonrec t = t
+  type nonrec 'sort t = 'sort t =
+    | Sort of 'sort
+    | Product of 'sort t list
+    | Any
 
   module Const = struct
     type t = Const.t =
@@ -50,16 +61,6 @@ module Layout = struct
       | Any, Any -> true
       | Product cs1, Product cs2 -> List.equal equal cs1 cs2
       | (Base _ | Any | Product _), _ -> false
-
-    let rec sub (c1 : t) (c2 : t) : Misc.Le_result.t =
-      match c1, c2 with
-      | _ when equal c1 c2 -> Equal
-      | _, Any -> Less
-      | Product consts1, Product consts2 ->
-        if List.compare_lengths consts1 consts2 = 0
-        then Misc.Le_result.combine_list (List.map2 sub consts1 consts2)
-        else Not_le
-      | (Any | Base _ | Product _), _ -> Not_le
 
     module Static = struct
       let value = Base Sort.Value
@@ -108,6 +109,10 @@ module Layout = struct
           (fun x -> Product x)
           (Misc.Stdlib.List.map_option of_sort sorts)
 
+    let of_flat_sort : Sort.Flat.t -> _ = function
+      | Var _ -> None
+      | Base b -> Some (Static.of_base b)
+
     let to_string t =
       let rec to_string nested (t : t) =
         match t with
@@ -135,16 +140,18 @@ module Layout = struct
   module Debug_printers = struct
     open Format
 
-    let rec t ppf = function
+    let rec t format_sort ppf = function
       | Any -> fprintf ppf "Any"
-      | Sort s -> fprintf ppf "Sort %a" Sort.Debug_printers.t s
+      | Sort s -> fprintf ppf "Sort %a" format_sort s
       | Product ts ->
         fprintf ppf "Product [ %a ]"
-          (pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ") t)
+          (pp_print_list
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
+             (t format_sort))
           ts
   end
 
-  let rec of_const (const : Const.t) : t =
+  let rec of_const (const : Const.t) : _ t =
     match const with
     | Any -> Any
     | Base b -> Sort (Sort.of_base b)
@@ -160,13 +167,30 @@ module Layout = struct
       (fun x -> Sort.Product x)
       (Misc.Stdlib.List.map_option to_sort ts)
 
-  let rec get : t -> Const.t option = function
+  let rec get : Sort.t t -> Sort.Flat.t t =
+    let rec flatten_sort : Sort.t -> Sort.Flat.t t = function
+      | Var v -> Sort (Var (Sort.Var.get_id v))
+      | Base b ->
+        Sort (Base b)
+        (* No need to call [Sort.get] here, because one [get] is deep. *)
+      | Product sorts -> Product (List.map flatten_sort sorts)
+    in
+    function
+    | Any -> Any
+    | Sort s -> flatten_sort (Sort.get s)
+    | Product ts -> Product (List.map get ts)
+
+  let rec get_const of_sort : _ t -> Const.t option = function
     | Any -> Some Any
-    | Sort s -> Const.of_sort s
+    | Sort s -> of_sort s
     | Product layouts ->
       Option.map
         (fun x -> Layout.Const.Product x)
-        (Misc.Stdlib.List.map_option get layouts)
+        (Misc.Stdlib.List.map_option (get_const of_sort) layouts)
+
+  let get_flat_const t = get_const Const.of_flat_sort t
+
+  let get_const t = get_const Const.of_sort t
 
   let sort_equal_result ~allow_mutation result =
     match (result : Sort.equate_result) with
@@ -234,14 +258,14 @@ module Layout = struct
     let sort = Sort.new_var () in
     Sort sort, sort
 
-  let rec default_to_value_and_get : Layout.t -> Const.t = function
+  let rec default_to_value_and_get : _ Layout.t -> Const.t = function
     | Any -> Any
     | Sort s -> Const.of_sort_const (Sort.default_to_value_and_get s)
     | Product p -> Product (List.map default_to_value_and_get p)
 
   let format ppf layout =
     let open Format in
-    let rec pp_element ~nested ppf : Layout.t -> unit = function
+    let rec pp_element ~nested ppf : _ Layout.t -> unit = function
       | Any -> fprintf ppf "any"
       | Sort s -> Sort.format ppf s
       | Product ts ->
@@ -287,7 +311,7 @@ end
 (*********************************)
 (* Main type declarations *)
 
-type 'd const = (type_expr, 'd) Jkind_types.Const.t
+type +'d const = (type_expr, 'd) Jkind_types.Const.t
 
 type 'd t = (type_expr, 'd) Jkind_types.t
 
@@ -328,7 +352,7 @@ let fresh_jkind_annot_opt jkind ~annotation ~why =
 module Error = struct
   type t =
     | Insufficient_level :
-        { jkind : 'd const;
+        { jkind : Parsetree.jkind_annotation;
           required_layouts_level : Language_extension.maturity
         }
         -> t
@@ -346,7 +370,7 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 module Const = struct
   open Jkind_types.Layout_and_axes
 
-  type 'd t = 'd const
+  type +'d t = 'd const
 
   type l = (allowed * disallowed) t
 
@@ -379,38 +403,8 @@ module Const = struct
 
   let get_externality_upper_bound const = const.externality_upper_bound
 
-  let equal_after_all_inference_is_done
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Layout.Const.equal lay1 lay2
-    && Modes.equal modes1 modes2
-    && Externality.equal ext1 ext2
-    && Nullability.equal null1 null2
-
-  let sub
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Misc.Le_result.combine_list
-      [ Layout.Const.sub lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2;
-        Nullability.less_or_equal null1 null2 ]
+  let equal_after_all_inference_is_done t1 t2 =
+    Layout_and_axes.equal_after_all_inference_is_done Layout.Const.equal t1 t2
 
   let of_layout ~mode_crossing ~nullability (layout : Layout.Const.t) =
     let modes_upper_bounds, externality_upper_bound =
@@ -425,8 +419,8 @@ module Const = struct
     }
 
   module Builtin = struct
-    type nonrec t =
-      { jkind : lr;
+    type nonrec +'d t =
+      { jkind : 'd t;
         name : string
       }
 
@@ -606,7 +600,7 @@ module Const = struct
         bits64;
         vec128 ]
 
-    let of_attribute : Builtin_attributes.jkind_attribute -> t = function
+    let of_attribute : Builtin_attributes.jkind_attribute -> _ t = function
       | Immediate -> immediate
       | Immediate64 -> immediate64
   end
@@ -673,7 +667,7 @@ module Const = struct
            (Some [])
 
     (** Write [actual] in terms of [base] *)
-    let convert_with_base ~(base : Builtin.t) actual =
+    let convert_with_base ~(base : _ Builtin.t) actual =
       let matching_layouts =
         Layout.Const.equal base.jkind.layout actual.layout
       in
@@ -764,10 +758,6 @@ module Const = struct
     To_out_jkind_const.convert ~allow_null jkind
 
   let format ppf jkind = to_out_jkind_const jkind |> !Oprint.out_jkind_const ppf
-
-  let format_no_hiding ppf jkind =
-    To_out_jkind_const.convert ~allow_null:true jkind
-    |> !Oprint.out_jkind_const ppf
 
   let jkind_of_product_annotations jkinds =
     let folder (layouts, mode_ub, ext_ub, null_ub)
@@ -872,64 +862,42 @@ module Const = struct
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
       raise ~loc:annot.pjkind_loc
-        (Insufficient_level { jkind = const; required_layouts_level });
+        (Insufficient_level { jkind = annot; required_layouts_level });
     const
 end
 
 module Desc = struct
-  type 'd t =
-    | Const of 'd Const.t
-    | Var of Sort.var
-    | Product of 'd t list
+  type 'd t = (Sort.Flat.t Layout.t, 'd) Layout_and_axes.t
 
-  let format ppf =
-    let rec pp_element ~nested ppf =
-      let open Format in
-      function
-      | Const c -> fprintf ppf "%a" Const.format c
-      | Var v -> fprintf ppf "%s" (Sort.Var.name v)
-      | Product ts ->
-        let pp_sep ppf () = Format.fprintf ppf "@ & " in
-        Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
+  let get_const t = Layout_and_axes.map_option Layout.get_flat_const t
+
+  (* CR layouts v2.8: This will probably need to be overhauled with
+     [with]-types. See also [Printtyp.out_jkind_of_desc], which uses the same
+     algorithm. *)
+  let format ppf t =
+    let open Format in
+    let rec format_desc ~nested ppf
+        (desc : (Sort.Flat.t Layout.t, _) Layout_and_axes.t) =
+      match desc.layout with
+      | Sort (Var n) -> fprintf ppf "'s%d" (Sort.Var.get_print_number n)
+      (* Analyze a product before calling [get_const]: the machinery in
+         [Const.format] works better for atomic layouts, not products. *)
+      | Product lays ->
+        let pp_sep ppf () = fprintf ppf "@ & " in
+        Misc.pp_nested_list ~nested ~pp_element:format_desc ~pp_sep ppf
+          (List.map (fun layout -> { desc with layout }) lays)
+      | _ -> (
+        match get_const desc with
+        | Some c -> Const.format ppf c
+        | None -> assert false (* handled above *))
     in
-    pp_element ~nested:false ppf
-
-  (* considers sort variables < Any. Two sort variables are in a [sub]
-     relationship only when they are equal.
-     Never does mutation.
-     Pre-condition: no filled-in sort variables. product must contain a var. *)
-  let rec sub d1 d2 : Misc.Le_result.t =
-    match d1, d2 with
-    | Const c1, Const c2 -> Const.sub c1 c2
-    (* CR layouts v2.8: Fix this next line. All inference isn't done! *)
-    | Var _, Const c when Const.equal_after_all_inference_is_done Const.max c ->
-      Less
-    | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
-    | Product ds1, Product ds2 ->
-      if List.compare_lengths ds1 ds2 = 0
-      then Misc.Le_result.combine_list (List.map2 sub ds1 ds2)
-      else Not_le
-    | Const _, Product _ | Product _, Const _ | Const _, Var _ | Var _, Const _
-      ->
-      Not_le
-    | Var _, Product _ | Product _, Var _ -> Not_le
+    format_desc ~nested:false ppf t
 end
 
 module Jkind_desc = struct
   open Jkind_types.Layout_and_axes
 
-  let of_const
-      ({ layout;
-         modes_upper_bounds;
-         externality_upper_bound;
-         nullability_upper_bound
-       } :
-        'd Const.t) =
-    { layout = Layout.of_const layout;
-      modes_upper_bounds;
-      externality_upper_bound;
-      nullability_upper_bound
-    }
+  let of_const t = Layout_and_axes.map Layout.of_const t
 
   let add_mode_crossing t =
     { t with
@@ -982,22 +950,7 @@ module Jkind_desc = struct
     && Externality.equal ext1 ext2
     && Nullability.equal null1 null2
 
-  let sub
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Misc.Le_result.combine_list
-      [ Layout.sub lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2;
-        Nullability.less_or_equal null1 null2 ]
+  let sub t1 t2 = Layout_and_axes.sub Layout.sub t1 t2
 
   let intersection
       { layout = lay1;
@@ -1074,68 +1027,22 @@ module Jkind_desc = struct
             { pjkind_loc = Location.none; pjkind_desc = Product annotations })
         annotations
     in
-    ( { layout : Layout.t = Product (List.rev layouts);
+    ( { layout : _ Layout.t = Product (List.rev layouts);
         modes_upper_bounds = mode_ub;
         externality_upper_bound = ext_ub;
         nullability_upper_bound = null_ub
       },
       annotation )
 
-  (* Post-condition: If the result contains [Var v], then [!v] is [None]. *)
-  let rec get_sort modes_upper_bounds externality_upper_bound
-      nullability_upper_bound s : 'd Desc.t =
-    match Sort.get s with
-    | Base b ->
-      Const
-        { layout = Base b;
-          modes_upper_bounds;
-          externality_upper_bound;
-          nullability_upper_bound
-        }
-    | Var v -> Var v
-    | Product sorts ->
-      Desc.Product
-        (List.map
-           (fun x ->
-             get_sort modes_upper_bounds externality_upper_bound
-               nullability_upper_bound x)
-           sorts)
+  let get t = Layout_and_axes.map Layout.get t
 
-  let rec get
-      ({ layout;
-         modes_upper_bounds;
-         externality_upper_bound;
-         nullability_upper_bound
-       } as k) : 'd Desc.t =
-    match (layout : Layout.t) with
-    | Any ->
-      Const
-        { layout = Any;
-          modes_upper_bounds;
-          externality_upper_bound;
-          nullability_upper_bound
-        }
-    | Sort s ->
-      get_sort modes_upper_bounds externality_upper_bound
-        nullability_upper_bound s
-    | Product layouts ->
-      Product (List.map (fun layout -> get { k with layout }) layouts)
+  let get_const t = Layout_and_axes.map_option Layout.get_const t
 
   module Debug_printers = struct
-    open Format
-
-    let t ppf
-        { layout;
-          modes_upper_bounds;
-          externality_upper_bound;
-          nullability_upper_bound
-        } =
-      fprintf ppf
-        "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
-         %a;@ nullability_upper_bound = %a }"
-        Layout.Debug_printers.t layout Modes.print modes_upper_bounds
-        Externality.print externality_upper_bound Nullability.print
-        nullability_upper_bound
+    let t ppf t =
+      Layout_and_axes.format
+        (Layout.Debug_printers.t Sort.Debug_printers.t)
+        ppf t
   end
 end
 
@@ -1255,7 +1162,7 @@ let of_annotation_option_default ~default ~context = function
 
 let of_attribute ~context
     (attribute : Builtin_attributes.jkind_attribute Location.loc) =
-  let ({ jkind = const; name } : Const.Builtin.t) =
+  let ({ jkind = const; name } : _ Const.Builtin.t) =
     Const.Builtin.of_attribute attribute.txt
   in
   of_annotated_const ~context
@@ -1333,15 +1240,12 @@ let default_to_value t = ignore (get_layout_defaulting_to_value t)
 
 let get t = Jkind_desc.get t.jkind
 
-let get_const t =
-  match Layout.get t.jkind.layout with
-  | None -> None
-  | Some layout -> Some { t.jkind with layout }
+let get_const t = Jkind_desc.get_const t.jkind
 
 (* CR layouts: this function is suspect; it seems likely to reisenberg
    that refactoring could get rid of it *)
 let sort_of_jkind (t : jkind_l) : sort =
-  let rec sort_of_layout (t : Layout.t) =
+  let rec sort_of_layout (t : _ Layout.t) =
     match t with
     | Any -> Misc.fatal_error "Jkind.sort_of_jkind"
     | Sort s -> s
@@ -1349,7 +1253,7 @@ let sort_of_jkind (t : jkind_l) : sort =
   in
   sort_of_layout t.jkind.layout
 
-let get_layout jk : Layout.Const.t option = Layout.get jk.jkind.layout
+let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
 
 let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
 
@@ -1382,16 +1286,12 @@ let decompose_product ({ jkind; _ } as jk) =
 (*********************************)
 (* pretty printing *)
 
-let format ppf jkind =
-  let rec pp_element ~nested ppf (d : _ Desc.t) =
-    match d with
-    | Const c -> Format.fprintf ppf "%a" Const.format c
-    | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
-    | Product p ->
-      let pp_sep ppf () = Format.fprintf ppf "@ & " in
-      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf p
-  in
-  pp_element ~nested:false ppf (get jkind)
+(* CR layouts v2.8: This is the spot where we could print the annotation in
+   the jkind, if there is one. But actually the output seems better without
+   doing so, because it teaches the user that e.g. [value mod local] is better
+   off spelled [value]. Possibly remove [jkind.annotation], but only after
+   we have a proper printing story. *)
+let format ppf jkind = Desc.format ppf (Jkind_desc.get jkind.jkind)
 
 let printtyp_path = ref (fun _ _ -> assert false)
 
@@ -1698,10 +1598,9 @@ module Format_history = struct
         fprintf ppf "@ because %a"
           (format_creation_reason ~layout_or_kind)
           reason;
-        match reason, jkind_desc with
-        | Concrete_legacy_creation _, Const _ ->
-          fprintf ppf ",@ chosen to have %s %a" layout_or_kind Desc.format
-            jkind_desc
+        match reason, Desc.get_const jkind_desc with
+        | Concrete_legacy_creation _, Some _ ->
+          fprintf ppf ",@ chosen to have %s %a" layout_or_kind format t
         | _ -> ())
     | Interact _ ->
       Misc.fatal_error "Non-flat history in format_flattened_history");
@@ -1731,7 +1630,8 @@ module Format_history = struct
       else format_history_tree ~intro ~layout_or_kind ppf t
 end
 
-let format_history = Format_history.format_history ~layout_or_kind:"kind"
+let format_history ~intro ppf t =
+  Format_history.format_history ~intro ~layout_or_kind:"kind" ppf t
 
 (******************************)
 (* errors *)
@@ -1774,15 +1674,15 @@ module Violation = struct
     let layout_or_kind =
       match mismatch_type with Mode -> "kind" | Layout -> "layout"
     in
-    let format_layout_or_kind =
+    let format_layout_or_kind ppf jkind =
       match mismatch_type with
-      | Mode -> fun ppf jkind -> Format.fprintf ppf "@,%a" format jkind
-      | Layout -> fun ppf jkind -> Layout.format ppf jkind.jkind.layout
+      | Mode -> Format.fprintf ppf "@,%a" format jkind
+      | Layout -> Layout.format ppf jkind.jkind.layout
     in
     let subjkind_format verb k2 =
-      match get k2 with
-      | Var _ -> dprintf "%s representable" verb
-      | Const _ | Product _ ->
+      match (get k2).layout with
+      | Sort (Var _) -> dprintf "%s representable" verb
+      | Sort (Base _) | Any | Product _ ->
         dprintf "%s a sub%s of %a" verb layout_or_kind format_layout_or_kind k2
     in
     let Pack k1, Pack k2, fmt_k1, fmt_k2, missing_cmi_option =
@@ -1821,12 +1721,12 @@ module Violation = struct
     if display_histories
     then
       let connective =
-        match t.violation, get k2 with
-        | Not_a_subjkind _, (Const _ | Product _) ->
+        match t.violation, (get k2).layout with
+        | Not_a_subjkind _, (Any | Sort (Base _) | Product _) ->
           dprintf "be a sub%s of %a" layout_or_kind format_layout_or_kind k2
-        | No_intersection _, (Const _ | Product _) ->
+        | No_intersection _, (Any | Sort (Base _) | Product _) ->
           dprintf "overlap with %a" format_layout_or_kind k2
-        | _, Var _ -> dprintf "be representable"
+        | _, Sort (Var _) -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
         (Format_history.format_history
@@ -1886,15 +1786,26 @@ let score_reason = function
 let combine_histories reason (Pack k1) (Pack k2) =
   if flattened_histories
   then
-    match Desc.sub (Jkind_desc.get k1.jkind) (Jkind_desc.get k2.jkind) with
-    | Less -> k1.history
-    | Not_le ->
-      k2.history
-      (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
-    | Equal ->
-      if score_reason k1.history >= score_reason k2.history
-      then k1.history
-      else k2.history
+    let choose_better_history history_a history_b =
+      if score_reason history_a >= score_reason history_b
+      then history_a
+      else history_b
+    in
+    let choose_history k_a history_a k_b history_b =
+      match Jkind_desc.sub k_a k_b with
+      | Less -> history_a
+      | Not_le ->
+        (* CR layouts: this will be wrong if we ever have a non-trivial meet in
+           the kind lattice -- which is now! So this is actually wrong. *)
+        history_b
+      | Equal -> choose_better_history history_a history_b
+    in
+    match Layout_and_axes.(try_allow_l k1.jkind, try_allow_r k2.jkind) with
+    | Some k1_l, Some k2_r -> choose_history k1_l k1.history k2_r k2.history
+    | _ -> (
+      match Layout_and_axes.(try_allow_r k1.jkind, try_allow_l k2.jkind) with
+      | Some k1_r, Some k2_l -> choose_history k2_l k2.history k1_r k1.history
+      | _ -> choose_better_history k1.history k2.history)
   else
     Interact
       { reason;
@@ -1979,13 +1890,17 @@ let is_value_for_printing
         };
       _
     } =
-  match Layout.get layout with
+  match Layout.get_const layout with
   | Some const ->
     let value = Const.Builtin.value.jkind in
     Layout.Const.equal const value.layout
     && Modes.equal modes_upper_bounds value.modes_upper_bounds
     && Externality.equal externality_upper_bound value.externality_upper_bound
-    && Nullability.equal nullability_upper_bound value.nullability_upper_bound
+    &&
+    if (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+       Language_extension.(is_at_least Layouts Alpha)
+    then Nullability.equal nullability_upper_bound Nullability.Non_null
+    else true
   | None -> false
 
 (*********************************)
@@ -2213,7 +2128,7 @@ let report_error ~loc : Error.t -> _ = function
         "@[<v>Layout %a is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        Const.format_no_hiding jkind hint)
+        Pprintast.jkind_annotation jkind hint)
 
 let () =
   Location.register_error_of_exn (function

@@ -1519,10 +1519,11 @@ let report_error env ppf = function
         Jkind.format jkind_info.original_jkind
         (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
-            (fun ppf -> match Jkind.get inferred_jkind with
-            | (Const _ | Product _) as d ->
-              fprintf ppf "kind %a" Jkind.Desc.format d
-            | Var _ -> fprintf ppf "a representable kind")))
+            (fun ppf -> let desc = Jkind.get inferred_jkind in
+              match desc.layout with
+              | Sort (Var _) -> fprintf ppf "a representable kind"
+              | Sort (Base _) | Any | Product _ ->
+                fprintf ppf "kind %a" Jkind.format inferred_jkind)))
         inferred_jkind
   | Multiple_constraints_on_type s ->
       fprintf ppf "Multiple constraints for type %a"

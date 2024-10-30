@@ -1312,28 +1312,35 @@ let print_labels = ref true
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
 
-let rec out_jkind_of_desc : _ Jkind.Desc.t -> out_jkind = function
-  | Const jkind -> out_jkind_of_const_jkind jkind
-  | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
-  | Product jkinds ->
-    Ojkind_product (List.map out_jkind_of_desc jkinds)
+(* CR layouts v2.8: This is just like [Jkind.format], and likely needs to
+   be overhauled with [with]-types. *)
+let rec out_jkind_of_desc (desc : 'd Jkind.Desc.t) =
+  match desc.layout with
+  | Sort (Var n) ->
+    Ojkind_var ("'_representable_layout_" ^
+                Int.to_string (Jkind.Sort.Var.get_print_number n))
+  (* Analyze a product before calling [get_const]: the machinery in
+     [Jkind.Const.to_out_jkind_const] works better for atomic layouts, not
+     products. *)
+  | Product lays ->
+    Ojkind_product
+      (List.map (fun layout -> out_jkind_of_desc { desc with layout }) lays)
+  | _ -> match Jkind.Desc.get_const desc with
+    | Some c -> out_jkind_of_const_jkind c
+    | None -> assert false (* handled above *)
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
+(* CR layouts v2.8: This should use the annotation in the jkind, if there
+   is one. But first that annotation needs to be in Typedtree, not in
+   Parsetree. *)
 let out_jkind_option_of_jkind jkind =
   let desc = Jkind.get jkind in
   let elide =
-    match desc with
-    | Const jkind -> (* C2.1 *)
-      Jkind.Const.equal_after_all_inference_is_done
-        jkind Jkind.Const.Builtin.value.jkind
-      (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-      || (not Language_extension.(is_at_least Layouts Alpha)
-          && Jkind.Const.equal_after_all_inference_is_done
-               jkind Jkind.Const.Builtin.value_or_null.jkind)
-    | Var _ -> (* X1 *)
-      not !Clflags.verbose_types
-    | Product _ -> false
+    Jkind.is_value_for_printing jkind (* C2.1 *)
+    || (match desc.layout with
+        | Sort (Var _) -> not !Clflags.verbose_types (* X1 *)
+        | _ -> false)
   in
   if elide then None else Some (out_jkind_of_desc desc)
 

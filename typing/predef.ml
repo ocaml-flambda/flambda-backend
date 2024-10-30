@@ -282,8 +282,8 @@ let mk_add_extension add_extension id args =
       let raise_error () = Misc.fatal_error
           "sanity check failed: non-value jkind in predef extension \
             constructor; should this have Constructor_mixed shape?" in
-      match Jkind.get jkind with
-      | Const const ->
+      match Jkind.get_const jkind with
+      | Some const ->
           begin
             match Jkind.Const.get_layout const with
             | Base Value -> ()
@@ -292,7 +292,7 @@ let mk_add_extension add_extension id args =
             | Product _ ->
                 raise_error ()
           end
-      | _ -> raise_error ())
+      | None -> raise_error ())
     args;
   add_extension id
     { ext_type_path = path_exn;

@@ -60,16 +60,30 @@ module Nullability : sig
   include module type of Jkind_axis.Nullability with type t := t
 end
 
-module Sort :
-  Jkind_intf.Sort
-    with type base = Jkind_types.Sort.base
-     and type Const.t = Jkind_types.Sort.Const.t
+module Sort : sig
+  include
+    Jkind_intf.Sort
+      with type base = Jkind_types.Sort.base
+       and type Const.t = Jkind_types.Sort.Const.t
+
+  module Flat : sig
+    (** A flat sort is returned from [get]. *)
+    type t =
+      | Var of Var.id (* [Var.id] is for debugging / printing only *)
+      | Base of base
+  end
+end
 
 type sort = Sort.t
 
 (* The layout of a type describes its memory layout. A layout is either the
    indeterminate [Any] or a sort, which is a concrete memory layout. *)
 module Layout : sig
+  type 'sort t = 'sort Jkind_types.Layout.t =
+    | Sort of 'sort
+    | Product of 'sort t list
+    | Any
+
   module Const : sig
     type t = Jkind_types.Layout.Const.t
 
@@ -189,8 +203,6 @@ module Const : sig
 
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
-  val format : Format.formatter -> 'd t -> unit
-
   (* An equality check should work over [lr]s only. But we need this
      to do memoization in serialization. Happily, that's after all
      inference is done, when worrying about l and r does not matter
@@ -212,67 +224,67 @@ module Const : sig
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
   module Builtin : sig
-    type nonrec t =
-      { jkind : lr;
+    type nonrec 'd t =
+      { jkind : 'd t;
         name : string
       }
 
     (** This jkind is the top of the jkind lattice. All types have jkind [any].
     But we cannot compile run-time manipulations of values of types with jkind
     [any]. *)
-    val any : t
+    val any : 'd t
 
     (** [any], except for null pointers. *)
-    val any_non_null : t
+    val any_non_null : 'd t
 
     (** Value of types of this jkind are not retained at all at runtime *)
-    val void : t
+    val void : 'd t
 
     (** This is the jkind of normal ocaml values or null pointers *)
-    val value_or_null : t
+    val value_or_null : 'd t
 
     (** This is the jkind of normal ocaml values *)
-    val value : t
+    val value : 'd t
 
     (** Immutable values that don't contain functions. *)
-    val immutable_data : t
+    val immutable_data : 'd t
 
     (** Mutable values that don't contain functions. *)
-    val mutable_data : t
+    val mutable_data : 'd t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
-    val immediate64 : t
+    val immediate64 : 'd t
 
     (** We know for sure that values of types of this jkind are always immediate *)
-    val immediate : t
+    val immediate : 'd t
 
     (** This is the jkind of unboxed 64-bit floats.  They have sort
     Float64. Mode-crosses. *)
-    val float64 : t
+    val float64 : 'd t
 
     (** This is the jkind of unboxed 32-bit floats.  They have sort
     Float32. Mode-crosses. *)
-    val float32 : t
+    val float32 : 'd t
 
     (** This is the jkind of unboxed native-sized integers. They have sort
     Word. Does not mode-cross. *)
-    val word : t
+    val word : 'd t
 
     (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
     not mode-cross. *)
-    val bits32 : t
+    val bits32 : 'd t
 
     (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
     not mode-cross. *)
-    val bits64 : t
+    val bits64 : 'd t
 
     (** This is the jkind of unboxed 128-bit simd vectors. They have sort Vec128. Does
     not mode-cross. *)
-    val vec128 : t
+    val vec128 : 'd t
 
     (** A list of all Builtin jkinds *)
-    val all : t list
+    val all : 'd t list
   end
 end
 
@@ -337,7 +349,7 @@ val of_const :
   'd Const.t ->
   'd t
 
-val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd t
+val of_builtin : why:History.creation_reason -> 'd Const.Builtin.t -> 'd t
 
 (* CR layouts v2.8: remove this when printing is improved *)
 
@@ -395,17 +407,16 @@ val for_object : jkind_l
 
 module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
-  type 'd t =
-    | Const of 'd Const.t
-    | Var of Sort.var
-    | Product of 'd t list
+  type 'd t = (Sort.Flat.t Layout.t, 'd) Jkind_types.Layout_and_axes.t
+
+  val get_const : 'd t -> 'd Const.t option
 
   val format : Format.formatter -> 'd t -> unit
 end
 
-(** Extract the [const] from a [Jkind.t], looking through unified
-    sort variables. Returns [Var] if the final, non-variable jkind has not
-    yet been determined. *)
+(** Get a description of a jkind. Post-condition: all sort variables in the
+    output are empty (because [get] has replaced all filled-in sort variables
+    with their contents). *)
 val get : 'd t -> 'd Desc.t
 
 (** [get_layout_defaulting_to_value] extracts a constant layout, defaulting
