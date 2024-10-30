@@ -20,7 +20,6 @@
     "The Domain interface may change in incompatible ways in the future."
 ]
 
-include sig
 
 (** Domains.
 
@@ -28,82 +27,33 @@ include sig
 
     @since 5.0 *)
 
-type !'a t
-(** A domain of type ['a t] runs independently, eventually producing a
-    result of type 'a, or an exception *)
-
-val spawn : (unit -> 'a) -> 'a t
-[@@alert unsafe_parallelism
-           "This function is unsafe and should not be used in production \
-            code.\nA safe interface for parallelism is forthcoming."]
-(** [spawn f] creates a new domain that runs in parallel with the
-    current domain.
-
-    @raise Failure if the program has insufficient resources to create another
-    domain. *)
-
-val join : 'a t -> 'a
-(** [join d] blocks until domain [d] runs to completion. If [d] results in a
-    value, then that is returned by [join d]. If [d] raises an uncaught
-    exception, then that is re-raised by [join d]. *)
-
-type id = private int
-(** Domains have unique integer identifiers *)
-
-val get_id : 'a t -> id
-(** [get_id d] returns the identifier of the domain [d] *)
-
-val self : unit -> id
-(** [self ()] is the identifier of the currently running domain *)
-
-val cpu_relax : unit -> unit
-(** If busy-waiting, calling cpu_relax () between iterations
-    will improve performance on some CPU architectures *)
-
-val is_main_domain : unit -> bool
-(** [is_main_domain ()] returns true if called from the initial domain. *)
-
-val recommended_domain_count : unit -> int
-(** The recommended maximum number of domains which should be running
-    simultaneously (including domains already running).
-
-    The value returned is at least [1]. *)
-
-val before_first_spawn : (unit -> unit) -> unit
-(** [before_first_spawn f] registers [f] to be called before the first domain
-    is spawned by the program. The functions registered with
-    [before_first_spawn] are called on the main (initial) domain. The functions
-    registered with [before_first_spawn] are called in 'first in, first out'
-    order: the oldest function added with [before_first_spawn] is called first.
-
-    @raise Invalid_argument if the program has already spawned a domain. *)
-
-val at_exit : (unit -> unit) -> unit
-(** [at_exit f] registers [f] to be called when the current domain exits. Note
-    that [at_exit] callbacks are domain-local and only apply to the calling
-    domain. The registered functions are called in 'last in, first out' order:
-    the function most recently added with [at_exit] is called first. An example:
-
-    {[
-let temp_file_key = Domain.DLS.new_key (fun _ ->
-  let tmp = snd (Filename.open_temp_file "" "") in
-  Domain.at_exit (fun () -> close_out_noerr tmp);
-  tmp)
-    ]}
-
-    The snippet above creates a key that when retrieved for the first
-    time will open a temporary file and register an [at_exit] callback
-    to close it, thus guaranteeing the descriptor is not leaked in
-    case the current domain exits. *)
-
 module DLS : sig
 (** Domain-local Storage *)
 
-    type 'a key
+    (* CR tdelvecchio: Document. *)
+    module Password : sig
+        type t
+
+        val to_capsule_password : t -> Capsule.Password.packed @@ portable
+        val for_initial_domain : t
+    end
+
+    (* CR tdelvecchio: Document; in particular, exns. *)
+    val with_password
+      :  (Password.t -> 'a @ portable contended) @ portable
+      -> 'a @ portable contended
+      @@ portable
+
+    type 'a key : value mod portable uncontended
     (** Type of a DLS key *)
 
-    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
-    (** [new_key f] returns a new key bound to initialiser [f] for accessing
+    (* CR tdelvecchio: Dupdate documentation. *)
+    val new_key_safe
+      :  ?split_from_parent:('a -> (Password.t -> 'a) @ portable) @ portable
+      -> (Password.t -> 'a) @ portable
+      -> 'a key
+      @@ portable
+    (** [new_key_safe f] returns a new key bound to initialiser [f] for accessing
 ,        domain-local variables.
 
         If [split_from_parent] is not provided, the value for a new
@@ -134,7 +84,7 @@ module DLS : sig
             ... child-side computation ...
           )
 
-        let key = Domain.DLS.new_key ~split_from_parent init
+        let key = Domain.DLS.new_key_safe ~split_from_parent init
 
         let get () = Lazy.force (Domain.DLS.get key)
         ]}
@@ -145,15 +95,113 @@ module DLS : sig
         explicit synchronization to avoid data races.
     *)
 
+    (* CR tdelvecchio: Document. *)
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    [@@alert unsafe]
+
     val get : 'a key -> 'a
     (** [get k] returns [v] if a value [v] is associated to the key [k] on
         the calling domain's domain-local state. Sets [k]'s value with its
         initialiser and returns it otherwise. *)
+
+    (* CR tdelvecchio: Document. *)
+    val get' : Password.t -> 'a key -> 'a @@ portable
 
     val set : 'a key -> 'a -> unit
     (** [set k v] updates the calling domain's domain-local state to associate
         the key [k] with value [v]. It overwrites any previous values associated
         to [k], which cannot be restored later. *)
 
+    (* CR tdelvecchio: Document. *)
+    val set' : Password.t -> 'a key -> 'a -> unit @@ portable
 end
+
+include sig
+type !'a t
+(** A domain of type ['a t] runs independently, eventually producing a
+    result of type 'a, or an exception *)
+
+val spawn_safe : (unit -> 'a) @ portable -> 'a t
+(** [spawn f] creates a new domain that runs in parallel with the
+    current domain.
+
+    @raise Failure if the program has insufficient resources to create another
+    domain. *)
+
+(* CR tdelvecchio: Document. *)
+val spawn_with_dls : (DLS.Password.t -> 'a) @ portable -> 'a t
+
+val join : 'a t -> 'a
+(** [join d] blocks until domain [d] runs to completion. If [d] results in a
+    value, then that is returned by [join d]. If [d] raises an uncaught
+    exception, then that is re-raised by [join d]. *)
+
+type id = private int
+(** Domains have unique integer identifiers *)
+
+val get_id : 'a t -> id
+(** [get_id d] returns the identifier of the domain [d] *)
+
+val self : unit -> id
+(** [self ()] is the identifier of the currently running domain *)
+
+val cpu_relax : unit -> unit
+(** If busy-waiting, calling cpu_relax () between iterations
+    will improve performance on some CPU architectures *)
+
+val is_main_domain : unit -> bool
+(** [is_main_domain ()] returns true if called from the initial domain. *)
+
+val recommended_domain_count : unit -> int
+(** The recommended maximum number of domains which should be running
+    simultaneously (including domains already running).
+
+    The value returned is at least [1]. *)
 end @@ portable
+
+val before_first_spawn : (unit -> unit) -> unit
+(** [before_first_spawn f] registers [f] to be called before the first domain
+    is spawned by the program. The functions registered with
+    [before_first_spawn] are called on the main (initial) domain. The functions
+    registered with [before_first_spawn] are called in 'first in, first out'
+    order: the oldest function added with [before_first_spawn] is called first.
+
+    @raise Invalid_argument if the program has already spawned a domain. *)
+
+val at_exit : (unit -> unit) -> unit
+(** [at_exit f] registers [f] to be called when the current domain exits. Note
+    that [at_exit] callbacks are domain-local and only apply to the calling
+    domain. The registered functions are called in 'last in, first out' order:
+    the function most recently added with [at_exit] is called first. An example:
+
+    {[
+let temp_file_key = Domain.DLS.new_key (fun _ ->
+  let tmp = snd (Filename.open_temp_file "" "") in
+  Domain.at_exit (fun () -> close_out_noerr tmp);
+  tmp)
+    ]}
+
+    The snippet above creates a key that when retrieved for the first
+    time will open a temporary file and register an [at_exit] callback
+    to close it, thus guaranteeing the descriptor is not leaked in
+    case the current domain exits. *)
+
+(* CR tdelvecchio: Document. *)
+(* CR tdelvecchio: Consider alternate name. *)
+val at_exit_safe : (unit -> unit) @ portable -> unit @@ portable
+
+(* CR tdelvecchio: Document. *)
+val at_exit' : DLS.Password.t -> (unit -> unit) -> unit @@ portable
+
+(* CR tdelvecchio: Document. *)
+val spawn : (unit -> 'a) -> 'a t
+[@@alert unsafe]
+
+(* CR tdelvecchio: Revert to correct alert:
+
+   {[
+     [@@alert unsafe_parallelism
+                "This function is unsafe and should not be used in production \
+                 code.\nA safe interface for parallelism is forthcoming."]
+   ]}
+*)

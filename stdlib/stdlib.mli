@@ -30,18 +30,18 @@ include sig
 
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a = "%reraise"
+external raise : exn -> 'a @ portable = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : exn -> 'a = "%raise_notrace"
+external raise_notrace : exn -> 'a @ portable = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
 
-val invalid_arg : string -> 'a
+val invalid_arg : string -> 'a @ portable
 (** Raise exception [Invalid_argument] with the given string. *)
 
-val failwith : string -> 'a
+val failwith : string -> 'a @ portable
 (** Raise exception [Failure] with the given string. *)
 
 exception Exit
@@ -1349,6 +1349,7 @@ val ( ^^ ) :
   [f1], then results from [f2].
   Right-associative operator, see {!Ocaml_operators} for more information.
 *)
+end @@ portable
 
 (** {1 Program termination} *)
 
@@ -1373,6 +1374,9 @@ val at_exit : (unit -> unit) -> unit
    - executes the C function [caml_shutdown].
    The functions are called in 'last in, first out' order: the
    function most recently added with [at_exit] is called first. *)
+
+(* CR tdelvecchio: Document, possibly rename. *)
+val at_exit_safe : (unit -> unit) @ portable -> unit
 
 (**/**)
 
@@ -1401,6 +1405,7 @@ module Buffer         = Buffer
 module Bytes          = Bytes
 module BytesLabels    = BytesLabels
 module Callback       = Callback
+module Capsule        = Capsule
 module Char           = Char
 module Complex        = Complex
 module Condition      = Condition
@@ -1437,6 +1442,7 @@ module List           = List
 module ListLabels     = ListLabels
 module Map            = Map
 module Marshal        = Marshal
+module Modes          = Modes
 module MoreLabels     = MoreLabels
 module Mutex          = Mutex
 module Nativeint      = Nativeint
@@ -1463,4 +1469,3 @@ module Type           = Type
 module Uchar          = Uchar
 module Unit           = Unit
 module Weak           = Weak
-end @@ portable

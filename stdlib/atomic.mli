@@ -25,10 +25,10 @@ include sig
 *)
 
 (** An atomic (mutable) reference to a value of type ['a]. *)
-type !'a t
+type (!'a : value mod portable) t : value mod portable uncontended
 
 (** Create an atomic reference. *)
-val make : 'a -> 'a t
+val make : 'a @ contended -> 'a t
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -44,23 +44,23 @@ val make : 'a -> 'a t
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
 
-val make_contended : 'a -> 'a t
+val make_contended : 'a @ contended -> 'a t
 
 (** Get the current value of the atomic reference. *)
-val get : 'a t -> 'a
+val get_safe : 'a t -> 'a @ contended
 
 (** Set a new value for the atomic reference. *)
-val set : 'a t -> 'a -> unit
+val set : 'a t -> 'a @ contended -> unit
 
 (** Set a new value for the atomic reference, and return the current value. *)
-val exchange : 'a t -> 'a -> 'a
+val exchange_safe : 'a t -> 'a @ contended -> 'a @ contended
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-val compare_and_set : 'a t -> 'a -> 'a -> bool
+val compare_and_set : 'a t -> 'a @ contended -> 'a @ contended -> bool
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
@@ -71,6 +71,15 @@ val incr : int t -> unit
 
 (** [decr r] atomically decrements the value of [r] by [1]. *)
 val decr : int t -> unit
+end @@ portable
+
+(* CR tdelvecchio: Document. *)
+
+val get : 'a t -> 'a
+[@@alert unsfae]
+
+val exchange : 'a t -> 'a -> 'a
+[@@alert unsafe]
 
 (** {1:examples Examples}
 
@@ -174,4 +183,3 @@ val decr : int t -> unit
     - : int option = None
     ]}
   *)
-end @@ portable
