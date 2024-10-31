@@ -449,12 +449,14 @@ module Suspension = struct
      raised. *)
 
   let once (f : 'a suspension) : 'a suspension =
-    let action = Atomic.make f in
+    (* CR tdelvecchio: Remove magic once we have [with]. *)
+    let action = Atomic.make (Obj.magic f : int) in
     fun () ->
       (* Get the function currently stored in [action], and write the
          function [failure] in its place, so the next access will result
          in a call to [failure()]. *)
-      let f = Atomic.exchange action failure in
+      let f = Atomic.exchange_safe action (Obj.magic failure : int) in
+      let f : 'a suspension = Obj.magic f in
       f()
 
 end (* Suspension *)

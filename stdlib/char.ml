@@ -19,16 +19,16 @@ open! Stdlib
 
 (* Character operations *)
 
-external code: char -> int = "%identity"
-external unsafe_chr: int -> char = "%identity"
+external code: char -> int @@ portable = "%identity"
+external unsafe_chr: int -> char @@ portable = "%identity"
 
 let chr n =
   if n < 0 || n > 255 then invalid_arg "Char.chr" else unsafe_chr n
 
-external bytes_create: int -> bytes = "caml_create_bytes"
-external bytes_unsafe_set : bytes -> int -> char -> unit
+external bytes_create: int -> bytes @@ portable = "caml_create_bytes"
+external bytes_unsafe_set : bytes -> int -> char -> unit @@ portable
                            = "%bytes_unsafe_set"
-external unsafe_to_string : bytes -> string = "%bytes_to_string"
+external unsafe_to_string : bytes -> string @@ portable = "%bytes_to_string"
 
 let escaped = function
   | '\'' -> "\\'"
@@ -67,6 +67,6 @@ let equal (c1: t) (c2: t) = compare c1 c2 = 0
    it to be marked as [@@noalloc].
  *)
 external seeded_hash_param :
-  int -> int -> int -> char -> int = "caml_hash_exn" [@@noalloc]
+  int -> int -> int -> char -> int @@ portable = "caml_hash_exn" [@@noalloc]
 let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x

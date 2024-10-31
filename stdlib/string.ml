@@ -25,10 +25,10 @@ open! Stdlib
    These functions have a "duplicated" comment above their definition.
 *)
 
-external length : string -> int = "%string_length"
-external get : string -> int -> char = "%string_safe_get"
-external unsafe_get : string -> int -> char = "%string_unsafe_get"
-external unsafe_blit : string -> int ->  bytes -> int -> int -> unit
+external length : string -> int @@ portable = "%string_length"
+external get : string -> int -> char @@ portable = "%string_safe_get"
+external unsafe_get : string -> int -> char @@ portable = "%string_unsafe_get"
+external unsafe_blit : string -> int ->  bytes -> int -> int -> unit @@ portable
                      = "caml_blit_string" [@@noalloc]
 
 module B = Bytes
@@ -222,7 +222,7 @@ let ends_with ~suffix s =
     else aux (i + 1)
   in diff >= 0 && aux 0
 
-external seeded_hash : int -> string -> int = "caml_string_hash" [@@noalloc]
+external seeded_hash : int -> string -> int @@ portable = "caml_string_hash" [@@noalloc]
 let hash x = seeded_hash 0 x
 
 (* duplicated in bytes.ml *)
@@ -240,7 +240,7 @@ let split_on_char sep s =
 type t = string
 
 let compare (x: t) (y: t) = Stdlib.compare x y
-external equal : string -> string -> bool = "caml_string_equal" [@@noalloc]
+external equal : string -> string -> bool @@ portable = "caml_string_equal" [@@noalloc]
 
 (** {1 Iterators} *)
 
@@ -263,10 +263,10 @@ let is_valid_utf_16le s = B.is_valid_utf_16le (bos s)
 
 (** {6 Binary encoding/decoding of integers} *)
 
-external get_uint8 : string -> int -> int = "%string_safe_get"
-external get_uint16_ne : string -> int -> int = "%caml_string_get16"
-external get_int32_ne : string -> int -> int32 = "%caml_string_get32"
-external get_int64_ne : string -> int -> int64 = "%caml_string_get64"
+external get_uint8 : string -> int -> int @@ portable = "%string_safe_get"
+external get_uint16_ne : string -> int -> int @@ portable = "%caml_string_get16"
+external get_int32_ne : string -> int -> int32 @@ portable = "%caml_string_get32"
+external get_int64_ne : string -> int -> int64 @@ portable = "%caml_string_get64"
 
 let get_int8 s i = B.get_int8 (bos s) i
 let get_uint16_le s i = B.get_uint16_le (bos s) i
