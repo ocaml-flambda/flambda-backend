@@ -100,18 +100,24 @@ module Layout = struct
           (fun x -> Sort.Const.Product x)
           (Misc.Stdlib.List.map_option get_sort ts)
 
-    let rec of_sort s =
-      match Sort.get s with
-      | Var _ -> None
-      | Base b -> Some (Static.of_base b)
-      | Product sorts ->
-        Option.map
-          (fun x -> Product x)
-          (Misc.Stdlib.List.map_option of_sort sorts)
+    let of_sort s =
+      let rec of_sort : Sort.t -> _ = function
+        | Var _ -> None
+        | Base b -> Some (Static.of_base b)
+        | Product sorts ->
+          Option.map
+            (fun x -> Product x)
+            (Misc.Stdlib.List.map_option of_sort sorts)
+      in
+      of_sort (Sort.get s)
 
     let of_flat_sort : Sort.Flat.t -> _ = function
       | Var _ -> None
       | Base b -> Some (Static.of_base b)
+
+    let rec of_sort_const : Sort.Const.t -> t = function
+      | Base b -> Base b
+      | Product consts -> Product (List.map of_sort_const consts)
 
     let to_string t =
       let rec to_string nested (t : t) =
@@ -131,10 +137,6 @@ module Layout = struct
 
       let t ppf t = fprintf ppf "%s" (to_string t)
     end
-
-    let rec of_sort_const : Sort.Const.t -> t = function
-      | Base b -> Base b
-      | Product consts -> Product (List.map of_sort_const consts)
   end
 
   module Debug_printers = struct
@@ -372,12 +374,6 @@ module Const = struct
 
   type +'d t = 'd const
 
-  type l = (allowed * disallowed) t
-
-  type r = (disallowed * allowed) t
-
-  type lr = (allowed * allowed) t
-
   include Allowance.Magic_allow_disallow (struct
     type (_, _, 'd) sided = 'd t
 
@@ -397,26 +393,8 @@ module Const = struct
       nullability_upper_bound = Nullability.max
     }
 
-  let get_layout const = const.layout
-
-  let get_modal_upper_bounds const = const.modes_upper_bounds
-
-  let get_externality_upper_bound const = const.externality_upper_bound
-
   let equal_after_all_inference_is_done t1 t2 =
     Layout_and_axes.equal_after_all_inference_is_done Layout.Const.equal t1 t2
-
-  let of_layout ~mode_crossing ~nullability (layout : Layout.Const.t) =
-    let modes_upper_bounds, externality_upper_bound =
-      match mode_crossing with
-      | true -> Modes.min, Externality.min
-      | false -> Modes.max, Externality.max
-    in
-    { layout;
-      modes_upper_bounds;
-      externality_upper_bound;
-      nullability_upper_bound = nullability
-    }
 
   module Builtin = struct
     type nonrec +'d t =
@@ -424,25 +402,36 @@ module Const = struct
         name : string
       }
 
+    let mk_jkind ~mode_crossing ~nullability (layout : Layout.Const.t) =
+      let modes_upper_bounds, externality_upper_bound =
+        match mode_crossing with
+        | true -> Modes.min, Externality.min
+        | false -> Modes.max, Externality.max
+      in
+      { layout;
+        modes_upper_bounds;
+        externality_upper_bound;
+        nullability_upper_bound = nullability
+      }
+
     let any =
-      { jkind = of_layout Any ~mode_crossing:false ~nullability:Maybe_null;
+      { jkind = mk_jkind Any ~mode_crossing:false ~nullability:Maybe_null;
         name = "any"
       }
 
     let any_non_null =
-      { jkind = of_layout Any ~mode_crossing:false ~nullability:Non_null;
+      { jkind = mk_jkind Any ~mode_crossing:false ~nullability:Non_null;
         name = "any_non_null"
       }
 
     let value_or_null =
       { jkind =
-          of_layout (Base Value) ~mode_crossing:false ~nullability:Maybe_null;
+          mk_jkind (Base Value) ~mode_crossing:false ~nullability:Maybe_null;
         name = "value_or_null"
       }
 
     let value =
-      { jkind =
-          of_layout (Base Value) ~mode_crossing:false ~nullability:Non_null;
+      { jkind = mk_jkind (Base Value) ~mode_crossing:false ~nullability:Non_null;
         name = "value"
       }
 
@@ -480,12 +469,12 @@ module Const = struct
 
     (* CR layouts v3: change to [or_null] when separability is implemented. *)
     let void =
-      { jkind = of_layout (Base Void) ~mode_crossing:false ~nullability:Non_null;
+      { jkind = mk_jkind (Base Void) ~mode_crossing:false ~nullability:Non_null;
         name = "void"
       }
 
     let immediate =
-      { jkind = of_layout (Base Value) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = mk_jkind (Base Value) ~mode_crossing:true ~nullability:Non_null;
         name = "immediate"
       }
 
@@ -527,41 +516,38 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float64 =
       { jkind =
-          of_layout (Base Float64) ~mode_crossing:true ~nullability:Non_null;
+          mk_jkind (Base Float64) ~mode_crossing:true ~nullability:Non_null;
         name = "float64"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float32 =
       { jkind =
-          of_layout (Base Float32) ~mode_crossing:true ~nullability:Non_null;
+          mk_jkind (Base Float32) ~mode_crossing:true ~nullability:Non_null;
         name = "float32"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let word =
-      { jkind = of_layout (Base Word) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = mk_jkind (Base Word) ~mode_crossing:true ~nullability:Non_null;
         name = "word"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
-      { jkind =
-          of_layout (Base Bits32) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = mk_jkind (Base Bits32) ~mode_crossing:true ~nullability:Non_null;
         name = "bits32"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits64 =
-      { jkind =
-          of_layout (Base Bits64) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = mk_jkind (Base Bits64) ~mode_crossing:true ~nullability:Non_null;
         name = "bits64"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let vec128 =
-      { jkind =
-          of_layout (Base Vec128) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = mk_jkind (Base Vec128) ~mode_crossing:true ~nullability:Non_null;
         name = "vec128"
       }
 
@@ -899,12 +885,6 @@ module Jkind_desc = struct
 
   let of_const t = Layout_and_axes.map Layout.of_const t
 
-  let add_mode_crossing t =
-    { t with
-      modes_upper_bounds = Modes.min;
-      externality_upper_bound = Externality.min
-    }
-
   let add_nullability_crossing t =
     { t with nullability_upper_bound = Nullability.min }
 
@@ -1099,9 +1079,6 @@ module Builtin = struct
     let desc, annotation = Jkind_desc.product ts in
     fresh_jkind_annot_opt desc ~annotation ~why:(Product_creation why)
 end
-
-let add_mode_crossing t =
-  { t with jkind = Jkind_desc.add_mode_crossing t.jkind }
 
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }

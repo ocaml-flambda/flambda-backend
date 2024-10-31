@@ -512,23 +512,6 @@ module Layout = struct
       | Any
       | Base of Sort.base
       | Product of t list
-
-    module Legacy = struct
-      type t =
-        | Any
-        | Any_non_null
-        | Value_or_null
-        | Value
-        | Void
-        | Immediate64
-        | Immediate
-        | Float64
-        | Float32
-        | Word
-        | Bits32
-        | Bits64
-        | Product of t list
-    end
   end
 end
 
