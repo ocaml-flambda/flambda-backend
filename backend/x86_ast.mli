@@ -305,6 +305,7 @@ type instruction =
   | BSWAP of arg
   | CALL of arg
   | CDQ
+  | CLDEMOTE of arg
   | CMOV of condition * arg * arg
   | CMP of arg * arg
   | CMPSD of float_condition * arg * arg

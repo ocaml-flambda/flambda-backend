@@ -1725,6 +1725,8 @@ let emit_instr ~first ~fallthrough i =
     emit_reinterpret_cast cast i
   | Lop (Ispecific Ipause) ->
     I.pause ()
+  | Lop (Ispecific (Icldemote addr)) ->
+    I.cldemote (addressing addr QWORD i 0)
   | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->
     let locality =
       match locality with
