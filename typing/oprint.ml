@@ -392,8 +392,6 @@ let pr_var_jkinds =
   mention non-legacy modes *)
 let print_out_mode_legacy ppf = function
   | Omd_local -> fprintf ppf "local_"
-  | Omd_unique -> fprintf ppf "unique_"
-  | Omd_once -> fprintf ppf "once_"
 
 let print_out_mode_new = pp_print_string
 

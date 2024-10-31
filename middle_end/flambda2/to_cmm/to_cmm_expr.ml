@@ -466,24 +466,32 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
 (* A call to the return continuation of the current block simply is the return
    value for the current block being translated. *)
 let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
-    return_cont args =
-  let return_values, free_vars, env, res, _ = C.simple_list ~dbg env res args in
-  let return_value = C.make_tuple return_values in
-  let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-  match Apply_cont.trap_action apply with
-  | None ->
-    let cmm, free_vars = wrap return_value free_vars in
-    cmm, free_vars, res
-  | Some (Pop { exn_handler; _ }) ->
-    let cont = Env.get_cmm_continuation env exn_handler in
-    let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
+    return_cont types args =
+  if List.compare_lengths types args = 0
+  then
+    let return_values, free_vars, env, res, _ =
+      C.simple_list ~dbg env res args
     in
-    cmm, free_vars, res
-  | Some (Push _) ->
-    Misc.fatal_errorf
-      "Return continuation %a should not be applied with a Push trap action"
-      Continuation.print return_cont
+    let return_value = C.make_tuple return_values in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
+    match Apply_cont.trap_action apply with
+    | None ->
+      let cmm, free_vars = wrap return_value free_vars in
+      cmm, free_vars, res
+    | Some (Pop { exn_handler; _ }) ->
+      let cont = Env.get_cmm_continuation env exn_handler in
+      let cmm, free_vars =
+        wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
+      in
+      cmm, free_vars, res
+    | Some (Push _) ->
+      Misc.fatal_errorf
+        "Return continuation %a should not be applied with a Push trap action"
+        Continuation.print return_cont
+  else
+    Misc.fatal_errorf "Types (%a) do not match arguments of@ %a"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
+      types Apply_cont.print apply
 
 (* Invalid expressions *)
 let invalid env res ~message =
@@ -873,13 +881,25 @@ and apply_expr env res apply =
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm, free_vars = wrap call free_vars in
     cmm, free_vars, res
-  | Return k when Continuation.equal (Env.return_continuation env) k ->
-    (* Case 1 *)
-    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    let cmm, free_vars = wrap call free_vars in
-    cmm, free_vars, res
   | Return k -> (
     match Env.get_continuation env k with
+    | Return { param_types } ->
+      (* Case 1 *)
+      let apply_result_arity =
+        Flambda_arity.unarized_components (Apply.return_arity apply)
+      in
+      if List.compare_lengths apply_result_arity param_types = 0
+      then
+        let wrap, _, res =
+          Env.flush_delayed_lets ~mode:Branching_point env res
+        in
+        let cmm, free_vars = wrap call free_vars in
+        cmm, free_vars, res
+      else
+        Misc.fatal_errorf
+          "Types (%a) do not match arguments for the return cont of@ %a"
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
+          param_types Apply.print apply
     | Jump { param_types = _; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
@@ -952,12 +972,11 @@ and apply_cont env res apply_cont =
   let args = Apply_cont.args apply_cont in
   if Env.is_exn_handler env k
   then translate_raise ~dbg_with_inlined env res apply_cont k args
-  else if Continuation.equal (Env.return_continuation env) k
-  then
-    translate_jump_to_return_continuation ~dbg_with_inlined env res apply_cont k
-      args
   else
     match Env.get_continuation env k with
+    | Return { param_types } ->
+      translate_jump_to_return_continuation ~dbg_with_inlined env res apply_cont
+        k param_types args
     | Jump { param_types; cont } ->
       translate_jump_to_continuation ~dbg_with_inlined env res apply_cont
         param_types cont args

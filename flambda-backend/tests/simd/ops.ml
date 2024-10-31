@@ -66,7 +66,28 @@ external float64x2_of_int64s : int64 -> int64 -> float64x2 = "caml_vec128_unreac
 external float64x2_low_int64 : float64x2 -> int64 = "caml_vec128_unreachable" "vec128_low_int64" [@@noalloc] [@@unboxed]
 external float64x2_high_int64 : float64x2 -> int64 = "caml_vec128_unreachable" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
+external float32x4_extract : (float32x4[@unboxed]) -> (int[@untagged]) -> (int32[@unboxed]) = "caml_vec128_unreachable" "test_simd_vec128_extract_ps" [@@noalloc]
+
+let eq_float32x4 ~result ~expect =
+  for i = 0 to 3 do
+    let r = float32x4_extract result i |> Int32.float_of_bits in
+    let e = float32x4_extract expect i |> Int32.float_of_bits in
+    eqf' r e
+  done
+;;
+
+let eq_float64x2 ~result ~expect =
+  let lv = float64x2_low_int64 result |> Int64.float_of_bits in
+  let hv = float64x2_high_int64 result |> Int64.float_of_bits in
+  let l = float64x2_low_int64 expect |> Int64.float_of_bits in
+  let h = float64x2_high_int64 expect |> Int64.float_of_bits in
+  eqf' lv l;
+  eqf' hv h;
+  ()
+;;
+
 let () =
+    failmsg := (fun () -> Printf.printf "basic_checks!");
     let a : int8x16 = int8x16_of_int64s 1L 2L in
     let b : int16x8 = int16x8_of_int64s 3L 4L in
     let c : int32x4 = int32x4_of_int64s 5L 6L in
@@ -101,6 +122,7 @@ module Vector_casts = struct
         [@@noalloc] [@@unboxed] [@@builtin]
 
     let () =
+        failmsg := (fun () -> Printf.printf "vector casts!");
         let _0 = int32x4_of_int64s   1L 2L in
         let _1 = int16x8_of_int64s   3L 4L in
         let _2 = int8x16_of_int64s   5L 6L in
@@ -732,11 +754,13 @@ module Float32x4 = struct
     external movemask_32 : (int32x4 [@unboxed]) -> (int [@untagged]) = "caml_vec128_unreachable" "caml_sse_vec128_movemask_32"
         [@@noalloc] [@@builtin]
 
-    let check_cmp scalar vector f0 f1 =
+    let check_cmp msg scalar vector f0 f1 =
+        failmsg := (fun () -> Printf.printf "check_cmp %s\n" msg);
         let expect, expect_mask =
             let r0, m0 = if scalar f0 f1 then 0xffffffffl, 1 else 0l, 0 in
             let r1, m1 = if scalar f1 f0 then 0xffffffffl, 1 else 0l, 0 in
-            Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4, m0 lor (m1 lsl 1) lor (m0 lsl 2) lor (m1 lsl 3)
+            Float32.to_float32x4 r0 r1 r0 r1 |> Vector_casts.int32x4_of_float32x4,
+            m0 lor (m1 lsl 1) lor (m0 lsl 2) lor (m1 lsl 3)
         in
         let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
         let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
@@ -747,14 +771,14 @@ module Float32x4 = struct
            (int32x4_low_int64 expect) (int32x4_high_int64 expect)
     ;;
     let () =
-        Float32.check_floats (check_cmp Float32.eq (fun l r -> cmp 0 l r));
-        Float32.check_floats (check_cmp Float32.lt (fun l r -> cmp 1 l r));
-        Float32.check_floats (check_cmp Float32.le (fun l r -> cmp 2 l r));
-        Float32.check_floats (check_cmp Float32.uord (fun l r -> cmp 3 l r));
-        Float32.check_floats (check_cmp Float32.neq (fun l r -> cmp 4 l r));
-        Float32.check_floats (check_cmp Float32.nlt (fun l r -> cmp 5 l r));
-        Float32.check_floats (check_cmp Float32.nle (fun l r -> cmp 6 l r));
-        Float32.check_floats (check_cmp Float32.ord (fun l r -> cmp 7 l r))
+        Float32.check_floats (check_cmp "eq" Float32.eq (fun l r -> cmp 0 l r));
+        Float32.check_floats (check_cmp "lt" Float32.lt (fun l r -> cmp 1 l r));
+        Float32.check_floats (check_cmp "le" Float32.le (fun l r -> cmp 2 l r));
+        Float32.check_floats (check_cmp "uord" Float32.uord (fun l r -> cmp 3 l r));
+        Float32.check_floats (check_cmp "neq" Float32.neq (fun l r -> cmp 4 l r));
+        Float32.check_floats (check_cmp "nlt" Float32.nlt (fun l r -> cmp 5 l r));
+        Float32.check_floats (check_cmp "nle" Float32.nle (fun l r -> cmp 6 l r));
+        Float32.check_floats (check_cmp "ord" Float32.ord (fun l r -> cmp 7 l r))
     ;;
 
     external add : t -> t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_add"
@@ -770,23 +794,23 @@ module Float32x4 = struct
     external min : t -> t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_min"
         [@@noalloc] [@@unboxed] [@@builtin]
 
-    let check_binop scalar vector f0 f1 =
+    let check_binop msg scalar vector f0 f1 =
         let r0 = scalar f0 f1 in
         let r1 = scalar f1 f0 in
         let expect = Float32.to_float32x4 r0 r1 r0 r1 in
         let v1 = Float32.to_float32x4 f0 f1 f0 f1 in
         let v2 = Float32.to_float32x4 f1 f0 f1 f0 in
         let result = vector v1 v2 in
-        eq (float32x4_low_int64 result) (float32x4_high_int64 result)
-           (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+        failmsg := (fun () -> Printf.printf "check_binop32 %s %lx %lx\n%!" msg f0 f1);
+        eq_float32x4 ~result ~expect
     ;;
     let () =
-        Float32.check_floats (check_binop Float32.add add);
-        Float32.check_floats (check_binop Float32.sub sub);
-        Float32.check_floats (check_binop Float32.mul mul);
-        Float32.check_floats (check_binop Float32.div div);
-        Float32.check_floats (check_binop Float32.max max);
-        Float32.check_floats (check_binop Float32.min min)
+        Float32.check_floats (check_binop "add" Float32.add add);
+        Float32.check_floats (check_binop "sub" Float32.sub sub);
+        Float32.check_floats (check_binop "mul" Float32.mul mul);
+        Float32.check_floats (check_binop "div" Float32.div div);
+        Float32.check_floats (check_binop "max" Float32.max max);
+        Float32.check_floats (check_binop "min" Float32.min min)
     ;;
 
     external rcp : t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_rcp"
@@ -796,18 +820,18 @@ module Float32x4 = struct
     external sqrt : t -> t = "caml_vec128_unreachable" "caml_sse_float32x4_sqrt"
         [@@noalloc] [@@unboxed] [@@builtin]
 
-    let check_unop scalar vector f =
+    let check_unop msg scalar vector f =
+      failmsg := (fun () -> Printf.printf "check_unop %s  %lx\n%!" msg f);
         let r = scalar f in
         let expect = Float32.to_float32x4 r r r r in
         let v = Float32.to_float32x4 f f f f in
         let result = vector v in
-        eq (float32x4_low_int64 result) (float32x4_high_int64 result)
-           (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+        eq_float32x4 ~result ~expect
     ;;
     let () =
-        Float32.check_floats (fun f _ -> check_unop Float32.rcp rcp f);
-        Float32.check_floats (fun f _ -> check_unop Float32.sqrt sqrt f);
-        Float32.check_floats (fun f _ -> check_unop Float32.rsqrt rsqrt f)
+        Float32.check_floats (fun f _ -> check_unop "rcp" Float32.rcp rcp f);
+        Float32.check_floats (fun f _ -> check_unop "sqrt" Float32.sqrt sqrt f);
+        Float32.check_floats (fun f _ -> check_unop "rqrt" Float32.rsqrt rsqrt f)
     ;;
 
 
@@ -835,9 +859,8 @@ module Float32x4 = struct
             let iv = float64x2_of_int64s i0 i1 in
             let fv = Float32.to_float32x4 f0 f1 0l 0l in
             let res = cvt_float64x2 fv in
-            eq (float64x2_low_int64 res) (float64x2_high_int64 res)
-               (float64x2_low_int64 iv) (float64x2_high_int64 iv)
-        )
+            eq_float64x2 ~result:res ~expect:iv
+          )
     ;;
 
     external addsub : t -> t -> t = "caml_vec128_unreachable" "caml_sse3_float32x4_addsub"
@@ -855,8 +878,7 @@ module Float32x4 = struct
             let fv1 = Float32.to_float32x4 f1 f1 f0 f0 in
             let result = addsub fv0 fv1 in
             let expect = Float32.to_float32x4 (Float32.sub f0 f1) (Float32.add f0 f1) (Float32.sub f1 f0) (Float32.add f1 f0) in
-            eq (float32x4_low_int64 result) (float32x4_high_int64 result)
-               (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+            eq_float32x4 ~result ~expect
         );
         Float32.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" (Int32.float_of_bits f0) (Int32.float_of_bits f1));
@@ -864,8 +886,7 @@ module Float32x4 = struct
             let fv1 = Float32.to_float32x4 f1 f1 f0 f0 in
             let result = hadd fv0 fv1 in
             let expect = Float32.to_float32x4 (Float32.add f0 f0) (Float32.add f1 f1) (Float32.add f1 f1) (Float32.add f0 f0) in
-            eq (float32x4_low_int64 result) (float32x4_high_int64 result)
-               (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+            eq_float32x4 ~result ~expect
         );
         Float32.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" (Int32.float_of_bits f0) (Int32.float_of_bits f1));
@@ -873,9 +894,8 @@ module Float32x4 = struct
             let fv1 = Float32.to_float32x4 f1 f0 f1 f0 in
             let result = hsub fv0 fv1 in
             let expect = Float32.to_float32x4 (Float32.sub f0 f1) (Float32.sub f0 f1) (Float32.sub f1 f0) (Float32.sub f1 f0) in
-            eq (float32x4_low_int64 result) (float32x4_high_int64 result)
-               (float32x4_low_int64 expect) (float32x4_high_int64 expect)
-        );
+            eq_float32x4  ~result ~expect
+          );
       )
     ;;
 
@@ -894,16 +914,14 @@ module Float32x4 = struct
             (* When both are NaN, AMD returns the first argument and Intel returns the second argument.
                Hence we do not test this case. *)
             if f0 |> Int32.float_of_bits |> Float.is_nan && f1 |> Int32.float_of_bits |> Float.is_nan then () else
-            eq (float32x4_low_int64 result) (float32x4_high_int64 result)
-            (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+            eq_float32x4  ~result ~expect
         );
         Float32.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "roundf32 %f %f\n%!" (Int32.float_of_bits f0) (Int32.float_of_bits f1));
             let fv = Float32.to_float32x4 f0 f1 f0 f1 in
             let result = round 0x8 fv in
             let expect = Float32.to_float32x4 (Float32.round f0) (Float32.round f1) (Float32.round f0) (Float32.round f1) in
-            eq (float32x4_low_int64 result) (float32x4_high_int64 result)
-            (float32x4_low_int64 expect) (float32x4_high_int64 expect)
+            eq_float32x4  ~result ~expect
         )
     ;;
 end
@@ -943,8 +961,8 @@ module Float64x2 = struct
     external movemask_64 : (int64x2 [@unboxed]) -> (int [@untagged]) = "caml_vec128_unreachable" "caml_sse2_vec128_movemask_64"
         [@@noalloc] [@@builtin]
 
-    let check_cmp scalar vector f0 f1 =
-        failmsg := (fun () -> Printf.printf "%f | %f\n%!" f0 f1);
+    let check_cmp msg scalar vector f0 f1 =
+        failmsg := (fun () -> Printf.printf "check_cmp64 %s: %f | %f\n%!" msg f0 f1);
         let expect, expect_mask =
             let r0, m0 = if scalar f0 f1 then 0xffffffffffffffffL, 1 else 0L, 0 in
             let r1, m1 = if scalar f1 f0 then 0xffffffffffffffffL, 1 else 0L, 0 in
@@ -961,14 +979,14 @@ module Float64x2 = struct
     let () =
         let remove_nan p l r = p l r && not (Float.is_nan l || Float.is_nan r) in
         let add_nan p l r = p l r || (Float.is_nan l || Float.is_nan r) in
-        Float64.check_floats (check_cmp (remove_nan Float.equal) (fun l r -> cmp 0 l r));
-        Float64.check_floats (check_cmp (remove_nan (fun l r -> Float.compare l r = -1)) (fun l r -> cmp 1 l r));
-        Float64.check_floats (check_cmp (remove_nan (fun l r -> Float.compare l r <= 0)) (fun l r -> cmp 2 l r));
-        Float64.check_floats (check_cmp (fun l r -> (Float.is_nan l) || (Float.is_nan r)) (fun l r -> cmp 3 l r));
-        Float64.check_floats (check_cmp (fun l r -> not (Float.equal l r) || (Float.is_nan l && Float.is_nan r)) (fun l r -> cmp 4 l r));
-        Float64.check_floats (check_cmp (add_nan (fun l r -> Float.compare l r >= 0)) (fun l r -> cmp 5 l r));
-        Float64.check_floats (check_cmp (add_nan (fun l r -> Float.compare l r = 1)) (fun l r -> cmp 6 l r));
-        Float64.check_floats (check_cmp (fun l r -> not (Float.is_nan l) && (not (Float.is_nan r))) (fun l r -> cmp 7 l r))
+        Float64.check_floats (check_cmp "0" (remove_nan Float.equal) (fun l r -> cmp 0 l r));
+        Float64.check_floats (check_cmp "1" (remove_nan (fun l r -> Float.compare l r = -1)) (fun l r -> cmp 1 l r));
+        Float64.check_floats (check_cmp "2" (remove_nan (fun l r -> Float.compare l r <= 0)) (fun l r -> cmp 2 l r));
+        Float64.check_floats (check_cmp "3" (fun l r -> (Float.is_nan l) || (Float.is_nan r)) (fun l r -> cmp 3 l r));
+        Float64.check_floats (check_cmp "4" (fun l r -> not (Float.equal l r) || (Float.is_nan l && Float.is_nan r)) (fun l r -> cmp 4 l r));
+        Float64.check_floats (check_cmp "5" (add_nan (fun l r -> Float.compare l r >= 0)) (fun l r -> cmp 5 l r));
+        Float64.check_floats (check_cmp "6" (add_nan (fun l r -> Float.compare l r = 1)) (fun l r -> cmp 6 l r));
+        Float64.check_floats (check_cmp "7" (fun l r -> not (Float.is_nan l) && (not (Float.is_nan r))) (fun l r -> cmp 7 l r))
     ;;
 
     external add : t -> t -> t = "caml_vec128_unreachable" "caml_sse2_float64x2_add"
@@ -994,8 +1012,7 @@ module Float64x2 = struct
         let v1 = to_float64x2 f0 f1 in
         let v2 = to_float64x2 f1 f0 in
         let result = vector v1 v2 in
-        eq (float64x2_low_int64 result) (float64x2_high_int64 result)
-           (float64x2_low_int64 expect) (float64x2_high_int64 expect)
+        eq_float64x2 ~result ~expect
     ;;
     let () =
         let preserve_nan p l r = if Float.is_nan r then r else if Float.is_nan l then r else p l r in
@@ -1040,8 +1057,7 @@ module Float64x2 = struct
             let iv = float32x4_of_int64s ii 0L in
             let fv = to_float64x2 f0 f1 in
             let res = cvt_float32x4 fv in
-            eq (float32x4_low_int64 res) (float32x4_high_int64 res)
-               (float32x4_low_int64 iv) (float32x4_high_int64 iv)
+            eq_float32x4  ~result:res ~expect:iv
         )
     ;;
 
@@ -1060,8 +1076,7 @@ module Float64x2 = struct
             let fv1 = to_float64x2 f1 f1 in
             let result = addsub fv0 fv1 in
             let expect = to_float64x2 (f0 -. f1) (f0 +. f1) in
-            eq (float64x2_low_int64 result) (float64x2_high_int64 result)
-               (float64x2_low_int64 expect) (float64x2_high_int64 expect)
+            eq_float64x2 ~result ~expect
         );
         Float64.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" f0 f1);
@@ -1069,8 +1084,7 @@ module Float64x2 = struct
             let fv1 = to_float64x2 f1 f1 in
             let result = hadd fv0 fv1 in
             let expect = to_float64x2 (f0 +. f0) (f1 +. f1) in
-            eq (float64x2_low_int64 result) (float64x2_high_int64 result)
-               (float64x2_low_int64 expect) (float64x2_high_int64 expect)
+            eq_float64x2 ~result ~expect
         );
         Float64.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "%f | %f\n%!" f0 f1);
@@ -1078,8 +1092,7 @@ module Float64x2 = struct
             let fv1 = to_float64x2 f1 f0 in
             let result = hsub fv0 fv1 in
             let expect = to_float64x2 (f0 -. f1) (f1 -. f0) in
-            eq (float64x2_low_int64 result) (float64x2_high_int64 result)
-               (float64x2_low_int64 expect) (float64x2_high_int64 expect)
+            eq_float64x2  ~result ~expect
         );
       )
     ;;
@@ -1096,16 +1109,14 @@ module Float64x2 = struct
             let fv1 = to_float64x2 f1 f0 in
             let result = dp 0b0011_0001 fv0 fv1 in
             let expect = to_float64x2 (f0 *. f1 +. f1 *. f0) 0.0 in
-            eq (float64x2_low_int64 result) (float64x2_high_int64 result)
-            (float64x2_low_int64 expect) (float64x2_high_int64 expect)
+            eq_float64x2  ~result ~expect
         );
         Float64.check_floats (fun f0 f1 ->
             failmsg := (fun () -> Printf.printf "roundf64 %f %f\n%!" f0 f1);
             let fv = to_float64x2 f0 f1 in
             let result = round 0x8 fv in
             let expect = to_float64x2 (Float64.c_round f0) (Float64.c_round f1) in
-            eq (float64x2_low_int64 result) (float64x2_high_int64 result)
-            (float64x2_low_int64 expect) (float64x2_high_int64 expect)
+            eq_float64x2  ~result ~expect
         )
     ;;
 end

@@ -644,6 +644,17 @@ float float_of_int32(int32_t i) {
   return *(float*)&i;
 }
 
+int32_t test_simd_vec128_extract_ps(__m128 a, intnat i) {
+  int32_t bits;
+  switch (i % 4) {
+    case 0: return (_mm_extract_ps(a, 0));
+    case 1: return (_mm_extract_ps(a, 1));
+    case 2: return (_mm_extract_ps(a, 2));
+    case 3: return (_mm_extract_ps(a, 3));
+    default: assert(0);
+  }
+}
+
 int32_t float32_zero(value unit) { return int32_of_float(0.0f); }
 int32_t float32_neg_zero(value unit) { return int32_of_float(-0.0f); }
 int32_t float32_one(value unit) { return int32_of_float(1.0f); }
@@ -675,6 +686,12 @@ value float32_uord(int32_t l, int32_t r) { return Val_bool(isnan(float_of_int32(
     return _mm_extract_ps(intrin(v), 0);       \
   }
 
+#define FLOAT32_UNOP_INT(name, intrin)         \
+  int32_t float32_##name(int32_t f) {          \
+    __m128 v = _mm_set1_ps(float_of_int32(f)); \
+    return _mm_extract_epi32(intrin(v), 0);    \
+  }
+
 FLOAT32_BINOP(add, _mm_add_ps);
 FLOAT32_BINOP(sub, _mm_sub_ps);
 FLOAT32_BINOP(mul, _mm_mul_ps);
@@ -685,7 +702,7 @@ FLOAT32_BINOP(max, _mm_max_ps);
 FLOAT32_UNOP(sqrt, _mm_sqrt_ps);
 FLOAT32_UNOP(rcp, _mm_rcp_ps);
 FLOAT32_UNOP(rsqrt, _mm_rsqrt_ps);
-FLOAT32_UNOP(cvt_i32, _mm_cvtps_epi32);
+FLOAT32_UNOP_INT(cvt_i32, _mm_cvtps_epi32);
 
 int32_t float32_round(int32_t f) {
   __m128 v = _mm_set1_ps(float_of_int32(f));

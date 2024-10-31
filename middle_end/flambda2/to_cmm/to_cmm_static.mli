@@ -24,6 +24,7 @@ val static_consts :
     To_cmm_result.t ->
     Code_id.t ->
     Function_params_and_body.t ->
+    result_arity:[`Unarized] Flambda_arity.t ->
     fun_dbg:Debuginfo.t ->
     zero_alloc_attribute:Zero_alloc_attribute.t ->
     Cmm.fundecl * To_cmm_result.t) ->

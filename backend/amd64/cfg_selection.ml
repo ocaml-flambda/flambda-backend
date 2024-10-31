@@ -99,7 +99,7 @@ let pseudoregs_for_operation op arg res =
       | Istore_int (_, _, _)
       | Ipause | Ilfence | Isfence | Imfence
       | Ioffset_loc (_, _)
-      | Irdtsc | Iprefetch _ )
+      | Irdtsc | Icldemote _ | Iprefetch _ )
   | Move | Spill | Reload | Reinterpret_cast _ | Static_cast _ | Const_int _
   | Const_float32 _ | Const_float _ | Const_vec128 _ | Const_symbol _
   | Stackoffset _ | Load _

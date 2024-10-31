@@ -142,6 +142,12 @@ val closure_with_at_least_these_function_slots :
   Simple.t Function_slot.Map.t ->
   Type_grammar.t
 
+val static_closure_with_this_code :
+  this_function_slot:Function_slot.t ->
+  closure_symbol:Symbol.t option ->
+  code_id:Code_id.t ->
+  Type_grammar.t
+
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
   (Variable.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->

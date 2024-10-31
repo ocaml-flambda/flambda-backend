@@ -1726,6 +1726,8 @@ let rd_of_prefetch_hint = function
   | T1 -> 2
   | T2 -> 3
 
+let emit_cldemote b rm = emit_mod_rm_reg b no_rex [ 0x0F; 0x1C ] rm 0
+
 let emit_prefetch b ~is_write ~hint rm =
   match (is_write, hint, rm) with
   | (false, _, (Mem _ | Mem64_RIP _)) ->
@@ -1870,6 +1872,7 @@ let assemble_instr b loc = function
   | BSR (src, dst) -> emit_bsr b ~dst ~src
   | BSWAP arg -> emit_BSWAP b arg
   | CALL dst -> emit_call b dst
+  | CLDEMOTE rm -> emit_cldemote b rm
   | CVTSI2SS (src, dst) -> emit_CVTSI2SS b dst src
   | CVTSI2SD (src, dst) -> emit_CVTSI2SD b dst src
   | CVTSD2SI (src, dst) -> emit_CVTSD2SI b dst src

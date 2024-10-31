@@ -1426,13 +1426,7 @@ type t = <  >
 
 type t : value mod global = < >
 [%%expect {|
-Line 1, characters 0-31:
-1 | type t : value mod global = < >
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "<  >" is value
-         because it's the type of an object.
-       But the kind of type "<  >" must be a subkind of value mod global
-         because of the definition of t at line 1, characters 0-31.
+type t = <  >
 |}]
 
 let x : (_ as (_ : value)) = object end
@@ -1442,28 +1436,12 @@ val x : <  > = <obj>
 
 let x : (_ as (_ : value mod global)) = object end
 [%%expect {|
-Line 1, characters 40-50:
-1 | let x : (_ as (_ : value mod global)) = object end
-                                            ^^^^^^^^^^
-Error: This expression has type "<  >" but an expression was expected of type
-         "('a : value mod global)"
-       The kind of <  > is value
-         because it's the type of an object.
-       But the kind of <  > must be a subkind of value mod global
-         because of the annotation on the wildcard _ at line 1, characters 19-35.
+val x : <  > = <obj>
 |}]
 
 let x : (_ as (_ : value mod many)) = object end
 [%%expect {|
-Line 1, characters 38-48:
-1 | let x : (_ as (_ : value mod many)) = object end
-                                          ^^^^^^^^^^
-Error: This expression has type "<  >" but an expression was expected of type
-         "('a : value mod many)"
-       The kind of <  > is value
-         because it's the type of an object.
-       But the kind of <  > must be a subkind of value mod many
-         because of the annotation on the wildcard _ at line 1, characters 19-33.
+val x : <  > = <obj>
 |}]
 
 let x : (_ as (_ : value mod unique)) = object end
@@ -1473,7 +1451,7 @@ Line 1, characters 40-50:
                                             ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod unique)"
-       The kind of <  > is value
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod unique
          because of the annotation on the wildcard _ at line 1, characters 19-35.
@@ -1486,7 +1464,7 @@ Line 1, characters 42-52:
                                               ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod portable)"
-       The kind of <  > is value
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod portable
          because of the annotation on the wildcard _ at line 1, characters 19-37.
@@ -1499,7 +1477,7 @@ Line 1, characters 45-55:
                                                  ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod uncontended)"
-       The kind of <  > is value
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod uncontended
          because of the annotation on the wildcard _ at line 1, characters 19-40.
@@ -1512,7 +1490,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod external_)"
-       The kind of <  > is value
+       The kind of <  > is value mod global many
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod external_
          because of the annotation on the wildcard _ at line 1, characters 19-38.

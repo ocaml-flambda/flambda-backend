@@ -114,6 +114,7 @@ module Flambda2 : sig
     val join_depth : int
     val function_result_types : function_result_types
     val meet_algorithm : meet_algorithm
+    val enable_reaper : bool
 
     val unicode : bool
   end
@@ -130,6 +131,7 @@ module Flambda2 : sig
     join_depth : int;
     function_result_types : function_result_types;
     meet_algorithm : meet_algorithm;
+    enable_reaper : bool;
 
     unicode : bool;
   }
@@ -145,6 +147,7 @@ module Flambda2 : sig
   val backend_cse_at_toplevel : bool or_default ref
   val cse_depth : int or_default ref
   val join_depth : int or_default ref
+  val enable_reaper : bool or_default ref
 
   val unicode : bool or_default ref
 
@@ -157,6 +160,8 @@ module Flambda2 : sig
     val slot_offsets : bool ref
     val freshen : bool ref
     val flow : bool ref
+    val simplify : bool ref
+    val reaper : bool ref
   end
 
   module Expert : sig

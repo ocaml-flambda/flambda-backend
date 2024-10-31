@@ -188,6 +188,21 @@ let set_compiler_pass ppf ~name v flag ~filter =
           "Please specify at most one %s <pass>." name
       end
 
+let decode_flambda_invariants ppf v ~name =
+  match v with
+  | "0" -> Some No_checks
+  | "1" -> Some Light_checks
+  | "heavy" -> Some Heavy_checks
+  | _ ->
+    Printf.ksprintf (print_error ppf)
+      "bad value %s for %s" v name;
+    None
+
+let set_flambda_invariants ppf ~name v flag =
+  match decode_flambda_invariants ppf v ~name with
+  | None -> ()
+  | Some checks -> flag := checks
+
 (* 'can-discard=' specifies which arguments can be discarded without warning
    because they are not understood by some versions of OCaml. *)
 let can_discard = ref []
@@ -353,7 +368,7 @@ let read_one_param ppf position name v =
   | "flambda-verbose" ->
       set "flambda-verbose" [ dump_flambda_verbose ] v
   | "flambda-invariants" ->
-      set "flambda-invariants" [ flambda_invariant_checks ] v
+    set_flambda_invariants ppf ~name v flambda_invariant_checks
   | "cmm-invariants" ->
       set "cmm-invariants" [ cmm_invariants ] v
   | "linscan" ->

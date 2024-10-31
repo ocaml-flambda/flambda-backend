@@ -65,9 +65,12 @@ let print_intf_import import =
   print_name_crc name crco
 
 let print_impl_import import =
-  let unit = Import_info.cu import in
+  let name = Import_info.name import in
   let crco = Import_info.crc import in
-  print_name_crc (Compilation_unit.name unit) crco
+  print_name_crc name crco
+
+let print_global_name_binding global =
+  printf "\t%a\n" Global_module.output global
 
 let print_line name =
   printf "\t%s\n" name
@@ -76,8 +79,7 @@ let print_global_line glob =
   printf "\t%a\n" Global_module.Name.output glob
 
 let print_global_as_name_line glob =
-  (* Type will change soon for parameterised libraries *)
-  printf "\t%a\n" Global_module.Name.output glob
+  printf "\t%a\n" Global_module.Name.output (Global_module.to_name glob)
 
 let print_name_line cu =
   (* Drop the pack prefix for backward compatibility, but keep the instance
@@ -121,7 +123,7 @@ let print_cma_infos (lib : Cmo_format.library) =
   printf "\n";
   List.iter print_cmo_infos lib.lib_units
 
-let print_cmi_infos name crcs kind params =
+let print_cmi_infos name crcs kind params global_name_bindings =
   if not !quiet then begin
     let open Cmi_format in
     printf "Unit name: %a\n" Compilation_unit.Name.output name;
@@ -142,7 +144,9 @@ let print_cmi_infos name crcs kind params =
         ()
     end;
     printf "Interfaces imported:\n";
-    Array.iter print_intf_import crcs
+    Array.iter print_intf_import crcs;
+    printf "Globals in scope:\n";
+    Array.iter print_global_name_binding global_name_bindings
   end
 
 let print_cmt_infos cmt =
@@ -424,6 +428,7 @@ let dump_obj_by_kind filename ic obj_kind =
          | Some cmi ->
             print_cmi_infos cmi.Cmi_format.cmi_name cmi.Cmi_format.cmi_crcs
               cmi.Cmi_format.cmi_kind cmi.Cmi_format.cmi_params
+              cmi.Cmi_format.cmi_globals
        end;
        begin match cmt with
          | None -> ()

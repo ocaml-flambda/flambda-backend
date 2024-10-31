@@ -24,53 +24,32 @@ module UE = Upwards_env
 type t =
   { uenv : UE.t;
     creation_dacc : DA.t;
-    code_age_relation : Code_age_relation.t;
     lifted_constants : LCS.t;
     all_code : Exported_code.t;
     name_occurrences : Name_occurrences.t;
-    used_value_slots : Name_occurrences.t;
-    shareable_constants : Symbol.t Static_const.Map.t;
     cost_metrics : Cost_metrics.t;
-    are_rebuilding_terms : ART.t;
-    generate_phantom_lets : bool;
-    demoted_exn_handlers : Continuation.Set.t;
     slot_offsets : Slot_offsets.t Or_unknown.t;
     flow_result : Flow_types.Flow_result.t;
     resimplify : bool
   }
 
 let [@ocamlformat "disable"] print ppf
-      { uenv; creation_dacc = _; code_age_relation; lifted_constants;
-        name_occurrences; used_value_slots; all_code = _;
-        shareable_constants; cost_metrics; are_rebuilding_terms;
-        generate_phantom_lets;
-        demoted_exn_handlers; slot_offsets; flow_result; resimplify;
+      { uenv; creation_dacc = _; lifted_constants; name_occurrences;
+        all_code = _; cost_metrics; slot_offsets; flow_result; resimplify;
       } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(uenv@ %a)@]@ \
-      @[<hov 1>(code_age_relation@ %a)@]@ \
       @[<hov 1>(lifted_constants@ %a)@]@ \
       @[<hov 1>(name_occurrences@ %a)@]@ \
-      @[<hov 1>(used_value_slots@ %a)@]@ \
-      @[<hov 1>(shareable_constants@ %a)@]@ \
       @[<hov 1>(cost_metrics@ %a)@]@ \
-      @[<hov 1>(are_rebuilding_terms@ %a)@]@ \
-      @[<hov 1>(generate_phantom_lets@ %b)@]@ \
-      @[<hov 1>(demoted_exn_handlers@ %a)@]@ \
       @[<hov 1>(slot_offsets@ %a@)@]@ \
       @[<hov 1>(flow_result@ %a)@]\
       %a\
       )@]"
     UE.print uenv
-    Code_age_relation.print code_age_relation
     LCS.print lifted_constants
     Name_occurrences.print name_occurrences
-    Name_occurrences.print used_value_slots
-    (Static_const.Map.print Symbol.print) shareable_constants
     Cost_metrics.print cost_metrics
-    ART.print are_rebuilding_terms
-    generate_phantom_lets
-    Continuation.Set.print demoted_exn_handlers
     (Or_unknown.print Slot_offsets.print) slot_offsets
     Flow_types.Flow_result.print flow_result
     (if resimplify then
@@ -79,14 +58,11 @@ let [@ocamlformat "disable"] print ppf
        (fun _ppf () -> ())) ()
 
 let create ~flow_result ~compute_slot_offsets uenv dacc =
-  let are_rebuilding_terms = DE.are_rebuilding_terms (DA.denv dacc) in
-  let generate_phantom_lets = DE.generate_phantom_lets (DA.denv dacc) in
   let slot_offsets : _ Or_unknown.t =
     if compute_slot_offsets then Known Slot_offsets.empty else Unknown
   in
   { uenv;
     creation_dacc = dacc;
-    code_age_relation = TE.code_age_relation (DA.typing_env dacc);
     lifted_constants = LCS.empty;
     all_code = Exported_code.empty;
     name_occurrences = Name_occurrences.empty;
@@ -94,17 +70,7 @@ let create ~flow_result ~compute_slot_offsets uenv dacc =
        tracking in [name_occurrences], since it is always accumulated, and never
        saved and restored (like free name information is when dealing with a
        [Let_cont]). *)
-    (* CR gbury: since [used_value_slots] (and [mshinwell:] various other
-       things), are actually never modified in the uacc, and initialised using
-       the dacc, why not access them through the dacc ? that would reduce the
-       number of words allocated for each uacc (at the cost of an extra
-       lookup) *)
-    used_value_slots = DA.used_value_slots dacc;
-    shareable_constants = DA.shareable_constants dacc;
     cost_metrics = Cost_metrics.zero;
-    are_rebuilding_terms;
-    generate_phantom_lets;
-    demoted_exn_handlers = DA.demoted_exn_handlers dacc;
     slot_offsets;
     flow_result;
     resimplify = false
@@ -114,7 +80,7 @@ let creation_dacc t = t.creation_dacc
 
 let uenv t = t.uenv
 
-let code_age_relation t = t.code_age_relation
+let code_age_relation t = TE.code_age_relation (DA.typing_env t.creation_dacc)
 
 let lifted_constants t = t.lifted_constants
 
@@ -126,7 +92,7 @@ let add_lifted_constant t const =
 
 let cost_metrics t = t.cost_metrics
 
-let are_rebuilding_terms t = t.are_rebuilding_terms
+let are_rebuilding_terms t = DE.are_rebuilding_terms (DA.denv t.creation_dacc)
 
 let with_lifted_constants t lifted_constants = { t with lifted_constants }
 
@@ -137,7 +103,7 @@ let map_uenv t ~f = { t with uenv = f t.uenv }
 let with_uenv t uenv = { t with uenv }
 
 let remember_code_for_cmx t code =
-  if ART.do_not_rebuild_terms t.are_rebuilding_terms
+  if ART.do_not_rebuild_terms (are_rebuilding_terms t)
   then t
   else
     let keep_code code_id =
@@ -162,9 +128,9 @@ let add_free_names t free_names =
   let name_occurrences = Name_occurrences.union t.name_occurrences free_names in
   { t with name_occurrences }
 
-let used_value_slots t = t.used_value_slots
+let used_value_slots t = DA.used_value_slots t.creation_dacc
 
-let shareable_constants t = t.shareable_constants
+let shareable_constants t = DA.shareable_constants t.creation_dacc
 
 let remove_all_occurrences_of_free_names t to_remove =
   let name_occurrences =
@@ -193,10 +159,10 @@ let add_cost_metrics_and_with_name_occurrences t cost_metrics name_occurrences =
     name_occurrences
   }
 
-let generate_phantom_lets t = t.generate_phantom_lets
+let generate_phantom_lets t = DE.generate_phantom_lets (DA.denv t.creation_dacc)
 
 let is_demoted_exn_handler t cont =
-  Continuation.Set.mem cont t.demoted_exn_handlers
+  Continuation.Set.mem cont (DA.demoted_exn_handlers t.creation_dacc)
 
 let slot_offsets t = t.slot_offsets
 

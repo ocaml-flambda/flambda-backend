@@ -216,6 +216,38 @@ let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
   in
   TG.create_closures alloc_mode by_function_slot
 
+let static_closure_with_this_code ~this_function_slot ~closure_symbol ~code_id =
+  let function_types =
+    let function_type =
+      TG.Function_type.create code_id ~rec_info:(unknown K.rec_info)
+    in
+    Function_slot.Map.singleton this_function_slot
+      (Or_unknown_or_bottom.Ok function_type)
+  in
+  let closure_types =
+    let closure_type =
+      match closure_symbol with
+      | Some symbol -> TG.alias_type_of K.value (Simple.symbol symbol)
+      | None -> unknown K.value
+    in
+    TG.Product.Function_slot_indexed.create
+      (Function_slot.Map.singleton this_function_slot closure_type)
+  in
+  let closures_entry =
+    TG.Closures_entry.create ~function_types ~closure_types
+      ~value_slot_types:TG.Product.Value_slot_indexed.top
+  in
+  let by_function_slot =
+    let set_of_closures_contents =
+      Set_of_closures_contents.create
+        (Function_slot.Set.singleton this_function_slot)
+        Value_slot.Set.empty
+    in
+    TG.Row_like_for_closures.create_at_least this_function_slot
+      set_of_closures_contents closures_entry
+  in
+  TG.create_closures (Alloc_mode.For_types.unknown ()) by_function_slot
+
 let closure_with_at_least_these_function_slots ~this_function_slot
     function_slots_and_bindings =
   let function_slot_components_by_index =

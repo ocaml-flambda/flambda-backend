@@ -34,3 +34,5 @@
        manylong: Allocation
     optionalarg: Allocation
     optionaleta: Allocation
+         object: Allocation
+  object_direct: Allocation

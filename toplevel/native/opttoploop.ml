@@ -355,7 +355,8 @@ let name_expression ~loc ~attrs sort exp =
       pat_extra = [];
       pat_type = exp.exp_type;
       pat_env = exp.exp_env;
-      pat_attributes = []; }
+      pat_attributes = [];
+      pat_unique_barrier = Unique_barrier.not_computed () }
   in
   let vb =
     { vb_pat = pat;

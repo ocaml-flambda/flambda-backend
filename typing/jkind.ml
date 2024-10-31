@@ -1252,6 +1252,22 @@ let for_arrow =
     }
     ~why:(Value_creation Arrow)
 
+let for_object =
+  fresh_jkind
+    { layout = Sort (Base Value);
+      modes_upper_bounds =
+        (* The crossing of objects are based on the fact that they are
+           produced/defined/allocated at legacy, which applies to only the
+           comonadic axes. *)
+        Alloc.Const.merge
+          { comonadic = Alloc.Comonadic.Const.legacy;
+            monadic = Alloc.Monadic.Const.max
+          };
+      externality_upper_bound = Externality.max;
+      nullability_upper_bound = Non_null
+    }
+    ~why:(Value_creation Object)
+
 (******************************)
 (* elimination and defaulting *)
 

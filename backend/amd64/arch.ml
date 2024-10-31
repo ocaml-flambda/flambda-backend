@@ -153,6 +153,7 @@ type specific_operation =
   | Imfence                            (* memory fence *)
   | Ipause                             (* hint for spin-wait loops *)
   | Isimd of Simd.operation            (* SIMD instruction set operations *)
+  | Icldemote of addressing_mode       (* hint to demote a cacheline to L3 *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
         locality: prefetch_temporal_locality_hint;
@@ -274,6 +275,8 @@ let print_specific_operation printreg op ppf arg =
       Simd.print_operation printreg simd ppf arg
   | Ipause ->
       fprintf ppf "pause"
+  | Icldemote _ ->
+      fprintf ppf "cldemote %a" printreg arg.(0)
   | Iprefetch { is_write; locality; } ->
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
@@ -293,7 +296,7 @@ let operation_is_pure = function
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Iprefetch _ -> false
+  | Icldemote _ | Iprefetch _ -> false
   | Isimd op -> Simd.is_pure op
 
 (* Specific operations that can raise *)
@@ -304,7 +307,7 @@ let operation_can_raise = function
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Iprefetch _ -> false
+  | Icldemote _ | Iprefetch _ -> false
 
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
@@ -312,7 +315,7 @@ let operation_allocates = function
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Iprefetch _ -> false
+  | Icldemote _ | Iprefetch _ -> false
 
 open X86_ast
 
@@ -392,6 +395,7 @@ let equal_specific_operation left right =
   | Imfence, Imfence ->
     true
   | Ipause, Ipause -> true
+  | Icldemote x, Icldemote x' -> equal_addressing_mode x x'
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
     Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
     Bool.equal left_is_write right_is_write
@@ -401,7 +405,7 @@ let equal_specific_operation left right =
     Simd.equal_operation l r
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
-     Ipause | Isimd _ | Iprefetch _), _ ->
+     Ipause | Isimd _ | Icldemote _ | Iprefetch _), _ ->
     false
 
 (* addressing mode functions *)
@@ -473,7 +477,8 @@ let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_
 
   let can_cross_loads_or_stores (specific_operation : specific_operation) =
     match specific_operation with
-    | Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ ->
+    | Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Icldemote _
+    | Iprefetch _ ->
       false
     | Ibswap _ | Isextend32 | Izextend32 | Irdtsc  | Irdpmc | Ilfence | Isfence | Imfence
     | Ipause ->
@@ -483,5 +488,6 @@ let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_
     match specific_operation with
     | Isimd _ -> true
     | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
-    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
+    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Icldemote _
+    | Iprefetch _ ->
       false
