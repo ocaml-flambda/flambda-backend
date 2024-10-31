@@ -431,6 +431,10 @@ module Make (H : HashedType) : S with type key = H.t
     the [create] operation of the result structure always returns
     non-randomized hash tables. *)
 
+(* CR tdelvecchio: Document. *)
+module Make_portable (H : sig include HashedType @@ portable end) :
+  sig include S @@ portable end with type key = H.t
+
 module type SeededHashedType =
   sig
     type t
@@ -511,6 +515,9 @@ module MakeSeeded (H : SeededHashedType) : SeededS with type key = H.t
     or if randomization is globally on (see {!Hashtbl.randomize}).
     @since 4.00 *)
 
+(* CR tdelvecchio: Document. *)
+module MakeSeeded_portable (H : sig include SeededHashedType @@ portable end)
+  : sig include SeededS @@ portable end with type key = H.t
 
 (** {1 The polymorphic hash functions} *)
 
