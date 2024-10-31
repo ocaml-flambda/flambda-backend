@@ -170,6 +170,71 @@ module Tester (Primitives : sig
   let () = List.iter test lengths
 end
 
+module Tester_no_set (Primitives : sig
+    type boxed_index
+    type boxed_data
+    type container
+
+    val create : int -> container
+    val generate_data : int -> boxed_data
+    val to_index : int -> boxed_index
+    val data_equal : boxed_data -> boxed_data -> bool
+
+    type 'a getter := container -> 'a -> boxed_data
+
+    val get_reference : int getter
+    val get_safe : boxed_index getter
+    val get_unsafe : boxed_index getter
+    val extra_bounds_checks : boxed_index list
+  end) : sig end = struct
+  open Primitives
+
+  let make_tester_functions length =
+    let for_reference = create length
+    and for_safe = create length
+    and for_unsafe = create length in
+    let check_get_bounds i =
+      try
+        let _ = get_safe for_safe i in
+        assert false
+      with
+      | Invalid_argument _ -> ()
+    in
+    let check_get i =
+      let test_i = to_index i in
+      try
+        let res = get_reference for_reference i in
+        try
+          assert (data_equal res (get_safe for_safe test_i));
+          assert (data_equal res (get_unsafe for_unsafe test_i))
+        with
+        | _ -> raise Test_failed
+      with
+      | Test_failed -> assert false
+      | Invalid_argument _ -> check_get_bounds test_i
+      | _ ->
+        (try
+           let _ = get_safe for_safe test_i in
+           assert false
+         with
+         | Invalid_argument _ -> assert false
+         | _ -> ())
+    in
+    check_get_bounds, check_get
+  ;;
+
+  let test length =
+    Random.init 1234;
+    let check_get_bounds, check_get = make_tester_functions length in
+    for i = -1 to length + 1 do
+      check_get i;
+    done;
+    List.iter (fun bound -> check_get_bounds bound) extra_bounds_checks
+  ;;
+
+  let () = List.iter test lengths
+end
+
 |}^tests
 
 let test_group_template ~setup ~tests = {|
@@ -202,6 +267,7 @@ let box_data = |}^box_data^{|
 let extra_bounds_checks = |}^extra_bounds
 
 let one_test_template
+  ~test_setters
   ~index
   ~boxed_data
   ~tested_data
@@ -211,7 +277,7 @@ let one_test_template
   ~container
   ~create
   = {|
-module _ = Tester (struct
+module _ = |}^(if test_setters then "Tester" else "Tester_no_set")^{| (struct
     type nonrec boxed_index = boxed_index
     type nonrec boxed_data = boxed_data
     type container = |}^container^{|
@@ -243,7 +309,7 @@ module _ = Tester (struct
       = "%caml_|}^container^{|_get|}^data_sigil^{|u|}^unboxed_sigil^index_sigil^{|"
 
     let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
-
+|}^(if test_setters then {|
     external set_reference
       : |}^container^{|
       -> int
@@ -267,7 +333,7 @@ module _ = Tester (struct
       -> unit
       = "%caml_|}^container^{|_set|}^data_sigil^{|u|}^unboxed_sigil^index_sigil^{|"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)|} else "")^{|
   end)
 |}
 
@@ -336,6 +402,7 @@ type result =
 type container =
   { container : string
   ; create : string
+  ; test_setters : bool
   }
 
 let int_result ~width ~unboxed ~module_ ~examples =
@@ -414,9 +481,9 @@ let datas =
   ]
 
 let containers =
-  [ { container = "string"; create = "create_s" }
-  ; { container = "bytes"; create = "create_b" }
-  ; { container = "bigstring"; create = "create_bs" }
+  [ { container = "string"; create = "create_s"; test_setters = false }
+  ; { container = "bytes"; create = "create_b"; test_setters = true }
+  ; { container = "bigstring"; create = "create_bs"; test_setters = true }
   ]
 ;;
 
@@ -457,8 +524,9 @@ let tests =
   in
   let tests =
     List.map
-      (fun { container; create } ->
+      (fun { container; create; test_setters } ->
         one_test_template
+          ~test_setters
           ~index:tested_index
           ~boxed_data
           ~tested_data

@@ -163,6 +163,71 @@ module Tester (Primitives : sig
   let () = List.iter test lengths
 end
 
+module Tester_no_set (Primitives : sig
+    type boxed_index
+    type boxed_data
+    type container
+
+    val create : int -> container
+    val generate_data : int -> boxed_data
+    val to_index : int -> boxed_index
+    val data_equal : boxed_data -> boxed_data -> bool
+
+    type 'a getter := container -> 'a -> boxed_data
+
+    val get_reference : int getter
+    val get_safe : boxed_index getter
+    val get_unsafe : boxed_index getter
+    val extra_bounds_checks : boxed_index list
+  end) : sig end = struct
+  open Primitives
+
+  let make_tester_functions length =
+    let for_reference = create length
+    and for_safe = create length
+    and for_unsafe = create length in
+    let check_get_bounds i =
+      try
+        let _ = get_safe for_safe i in
+        assert false
+      with
+      | Invalid_argument _ -> ()
+    in
+    let check_get i =
+      let test_i = to_index i in
+      try
+        let res = get_reference for_reference i in
+        try
+          assert (data_equal res (get_safe for_safe test_i));
+          assert (data_equal res (get_unsafe for_unsafe test_i))
+        with
+        | _ -> raise Test_failed
+      with
+      | Test_failed -> assert false
+      | Invalid_argument _ -> check_get_bounds test_i
+      | _ ->
+        (try
+           let _ = get_safe for_safe test_i in
+           assert false
+         with
+         | Invalid_argument _ -> assert false
+         | _ -> ())
+    in
+    check_get_bounds, check_get
+  ;;
+
+  let test length =
+    Random.init 1234;
+    let check_get_bounds, check_get = make_tester_functions length in
+    for i = -1 to length + 1 do
+      check_get i;
+    done;
+    List.iter (fun bound -> check_get_bounds bound) extra_bounds_checks
+  ;;
+
+  let () = List.iter test lengths
+end
+
 
 open struct
 
@@ -188,7 +253,7 @@ open struct
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -221,30 +286,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int
-        -> unit
-        = "%caml_string_set16"
-
-      external set_safe
-        :  string
-        -> nativeint#
-        -> int
-        -> unit
-        = "%caml_string_set16_indexed_by_nativeint#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> nativeint#
-        -> int
-        -> unit
-        = "%caml_string_set16u_indexed_by_nativeint#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -390,7 +431,7 @@ open struct
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -423,30 +464,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int32
-        -> unit
-        = "%caml_string_set32"
-
-      external set_safe
-        :  string
-        -> nativeint#
-        -> int32
-        -> unit
-        = "%caml_string_set32_indexed_by_nativeint#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> nativeint#
-        -> int32
-        -> unit
-        = "%caml_string_set32u_indexed_by_nativeint#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -592,7 +609,7 @@ open struct
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -625,30 +642,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int64
-        -> unit
-        = "%caml_string_set64"
-
-      external set_safe
-        :  string
-        -> nativeint#
-        -> int64
-        -> unit
-        = "%caml_string_set64_indexed_by_nativeint#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> nativeint#
-        -> int64
-        -> unit
-        = "%caml_string_set64u_indexed_by_nativeint#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -794,7 +787,7 @@ open struct
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -827,30 +820,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int32
-        -> unit
-        = "%caml_string_set32"
-
-      external set_safe
-        :  string
-        -> nativeint#
-        -> int32#
-        -> unit
-        = "%caml_string_set32#_indexed_by_nativeint#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> nativeint#
-        -> int32#
-        -> unit
-        = "%caml_string_set32u#_indexed_by_nativeint#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -996,7 +965,7 @@ open struct
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -1029,30 +998,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int64
-        -> unit
-        = "%caml_string_set64"
-
-      external set_safe
-        :  string
-        -> nativeint#
-        -> int64#
-        -> unit
-        = "%caml_string_set64#_indexed_by_nativeint#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> nativeint#
-        -> int64#
-        -> unit
-        = "%caml_string_set64u#_indexed_by_nativeint#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -1197,7 +1142,7 @@ open struct
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -1230,30 +1175,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> float32
-        -> unit
-        = "%caml_string_setf32"
-
-      external set_safe
-        :  string
-        -> nativeint#
-        -> float32
-        -> unit
-        = "%caml_string_setf32_indexed_by_nativeint#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> nativeint#
-        -> float32
-        -> unit
-        = "%caml_string_setf32u_indexed_by_nativeint#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -1398,7 +1319,7 @@ open struct
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -1431,30 +1352,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> float32
-        -> unit
-        = "%caml_string_setf32"
-
-      external set_safe
-        :  string
-        -> nativeint#
-        -> float32#
-        -> unit
-        = "%caml_string_setf32#_indexed_by_nativeint#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> nativeint#
-        -> float32#
-        -> unit
-        = "%caml_string_setf32u#_indexed_by_nativeint#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -1602,7 +1499,7 @@ open struct
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -1635,30 +1532,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int
-        -> unit
-        = "%caml_string_set16"
-
-      external set_safe
-        :  string
-        -> int32#
-        -> int
-        -> unit
-        = "%caml_string_set16_indexed_by_int32#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int32#
-        -> int
-        -> unit
-        = "%caml_string_set16u_indexed_by_int32#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -1804,7 +1677,7 @@ open struct
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -1837,30 +1710,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int32
-        -> unit
-        = "%caml_string_set32"
-
-      external set_safe
-        :  string
-        -> int32#
-        -> int32
-        -> unit
-        = "%caml_string_set32_indexed_by_int32#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int32#
-        -> int32
-        -> unit
-        = "%caml_string_set32u_indexed_by_int32#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -2006,7 +1855,7 @@ open struct
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -2039,30 +1888,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int64
-        -> unit
-        = "%caml_string_set64"
-
-      external set_safe
-        :  string
-        -> int32#
-        -> int64
-        -> unit
-        = "%caml_string_set64_indexed_by_int32#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int32#
-        -> int64
-        -> unit
-        = "%caml_string_set64u_indexed_by_int32#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -2208,7 +2033,7 @@ open struct
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -2241,30 +2066,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int32
-        -> unit
-        = "%caml_string_set32"
-
-      external set_safe
-        :  string
-        -> int32#
-        -> int32#
-        -> unit
-        = "%caml_string_set32#_indexed_by_int32#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int32#
-        -> int32#
-        -> unit
-        = "%caml_string_set32u#_indexed_by_int32#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -2410,7 +2211,7 @@ open struct
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -2443,30 +2244,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int64
-        -> unit
-        = "%caml_string_set64"
-
-      external set_safe
-        :  string
-        -> int32#
-        -> int64#
-        -> unit
-        = "%caml_string_set64#_indexed_by_int32#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int32#
-        -> int64#
-        -> unit
-        = "%caml_string_set64u#_indexed_by_int32#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -2611,7 +2388,7 @@ open struct
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -2644,30 +2421,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> float32
-        -> unit
-        = "%caml_string_setf32"
-
-      external set_safe
-        :  string
-        -> int32#
-        -> float32
-        -> unit
-        = "%caml_string_setf32_indexed_by_int32#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int32#
-        -> float32
-        -> unit
-        = "%caml_string_setf32u_indexed_by_int32#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -2812,7 +2565,7 @@ open struct
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -2845,30 +2598,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> float32
-        -> unit
-        = "%caml_string_setf32"
-
-      external set_safe
-        :  string
-        -> int32#
-        -> float32#
-        -> unit
-        = "%caml_string_setf32#_indexed_by_int32#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int32#
-        -> float32#
-        -> unit
-        = "%caml_string_setf32u#_indexed_by_int32#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -3016,7 +2745,7 @@ open struct
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -3049,30 +2778,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int
-        -> unit
-        = "%caml_string_set16"
-
-      external set_safe
-        :  string
-        -> int64#
-        -> int
-        -> unit
-        = "%caml_string_set16_indexed_by_int64#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int64#
-        -> int
-        -> unit
-        = "%caml_string_set16u_indexed_by_int64#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -3218,7 +2923,7 @@ open struct
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -3251,30 +2956,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int32
-        -> unit
-        = "%caml_string_set32"
-
-      external set_safe
-        :  string
-        -> int64#
-        -> int32
-        -> unit
-        = "%caml_string_set32_indexed_by_int64#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int64#
-        -> int32
-        -> unit
-        = "%caml_string_set32u_indexed_by_int64#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -3420,7 +3101,7 @@ open struct
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -3453,30 +3134,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int64
-        -> unit
-        = "%caml_string_set64"
-
-      external set_safe
-        :  string
-        -> int64#
-        -> int64
-        -> unit
-        = "%caml_string_set64_indexed_by_int64#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int64#
-        -> int64
-        -> unit
-        = "%caml_string_set64u_indexed_by_int64#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -3622,7 +3279,7 @@ open struct
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -3655,30 +3312,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int32
-        -> unit
-        = "%caml_string_set32"
-
-      external set_safe
-        :  string
-        -> int64#
-        -> int32#
-        -> unit
-        = "%caml_string_set32#_indexed_by_int64#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int64#
-        -> int32#
-        -> unit
-        = "%caml_string_set32u#_indexed_by_int64#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -3824,7 +3457,7 @@ open struct
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -3857,30 +3490,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> int64
-        -> unit
-        = "%caml_string_set64"
-
-      external set_safe
-        :  string
-        -> int64#
-        -> int64#
-        -> unit
-        = "%caml_string_set64#_indexed_by_int64#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int64#
-        -> int64#
-        -> unit
-        = "%caml_string_set64u#_indexed_by_int64#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -4025,7 +3634,7 @@ open struct
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -4058,30 +3667,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> float32
-        -> unit
-        = "%caml_string_setf32"
-
-      external set_safe
-        :  string
-        -> int64#
-        -> float32
-        -> unit
-        = "%caml_string_setf32_indexed_by_int64#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int64#
-        -> float32
-        -> unit
-        = "%caml_string_setf32u_indexed_by_int64#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
@@ -4226,7 +3811,7 @@ open struct
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
-  module _ = Tester (struct
+  module _ = Tester_no_set (struct
       type nonrec boxed_index = boxed_index
       type nonrec boxed_data = boxed_data
       type container = string
@@ -4259,30 +3844,6 @@ open struct
 
       let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-      external set_reference
-        : string
-        -> int
-        -> float32
-        -> unit
-        = "%caml_string_setf32"
-
-      external set_safe
-        :  string
-        -> int64#
-        -> float32#
-        -> unit
-        = "%caml_string_setf32#_indexed_by_int64#"
-
-      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
-
-      external set_unsafe
-        :  string
-        -> int64#
-        -> float32#
-        -> unit
-        = "%caml_string_setf32u#_indexed_by_int64#"
-
-      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
     end)
 
   module _ = Tester (struct
