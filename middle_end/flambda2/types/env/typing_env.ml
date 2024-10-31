@@ -113,7 +113,10 @@ type t =
     (* [prev_levels] is sorted with the greatest scope at the head of the
        list *)
     current_level : One_level.t;
-    next_binding_time : Binding_time.t;
+    next_binding_time : Binding_time.t ref;
+    (* [next_binding_time] is a reference shared by all related environments to
+       the latest binding time ever used. Used to ensure consistent binding
+       times between variables defined in parallel branches. *)
     min_binding_time : Binding_time.t;
         (* Earlier variables have mode In_types *)
     is_bottom : bool
@@ -385,7 +388,7 @@ let create ~resolver ~get_imported_names =
        to allow an efficient implementation of [cut] (see below), we always
        increment the scope by one here. *)
     current_level = One_level.create_empty (Scope.next Scope.initial);
-    next_binding_time = Binding_time.earliest_var;
+    next_binding_time = ref Binding_time.earliest_var;
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
     min_binding_time = Binding_time.earliest_var;
@@ -620,17 +623,14 @@ let alias_is_bound_strictly_earlier t ~bound_name ~alias =
 
 let with_current_level t ~current_level = { t with current_level }
 
-let with_current_level_and_next_binding_time t ~current_level next_binding_time
-    =
-  { t with current_level; next_binding_time }
-
 let with_aliases t ~aliases =
   let current_level = One_level.with_aliases t.current_level ~aliases in
   with_current_level t ~current_level
 
 let cached t = One_level.just_after_level t.current_level
 
-let add_variable_definition t var kind name_mode =
+let add_variable_definition_with_binding_time ~binding_time t var kind name_mode
+    =
   (* We can add equations in our own compilation unit on variables and symbols
      defined in another compilation unit. However we can't define other
      compilation units' variables or symbols (except for predefined symbols such
@@ -644,24 +644,28 @@ let add_variable_definition t var kind name_mode =
        %a@ in environment:@ %a"
       Variable.print var print t;
   let name = Name.var var in
-  if Flambda_features.check_invariants () && mem t name
+  if Flambda_features.check_light_invariants () && mem t name
   then
     Misc.fatal_errorf "Cannot rebind %a in environment:@ %a" Name.print name
       print t;
   let level =
-    TEL.add_definition
-      (One_level.level t.current_level)
-      var kind t.next_binding_time
+    TEL.add_definition (One_level.level t.current_level) var kind binding_time
   in
   let just_after_level =
     Cached_level.add_or_replace_binding (cached t) name (MTC.unknown kind)
-      t.next_binding_time name_mode
+      binding_time name_mode
   in
   let current_level =
     One_level.create (current_scope t) level ~just_after_level
   in
-  with_current_level_and_next_binding_time t ~current_level
-    (Binding_time.succ t.next_binding_time)
+  with_current_level t ~current_level
+
+let get_next_binding_time t = !(t.next_binding_time)
+
+let add_variable_definition t var kind name_mode =
+  let binding_time = get_next_binding_time t in
+  t.next_binding_time := Binding_time.succ binding_time;
+  add_variable_definition_with_binding_time ~binding_time t var kind name_mode
 
 let add_symbol_definition t sym =
   (* CR-someday mshinwell: check for redefinition when invariants enabled? *)
@@ -958,7 +962,9 @@ and add_env_extension_with_extra_variables t
 let add_env_extension_from_level t level ~meet_type : t =
   let t =
     TEL.fold_on_defined_vars
-      (fun var kind t -> add_variable_definition t var kind Name_mode.in_types)
+      (fun ~binding_time var kind t ->
+        add_variable_definition_with_binding_time ~binding_time t var kind
+          Name_mode.in_types)
       level t
   in
   let t =
@@ -1194,7 +1200,7 @@ let compute_joined_aliases base_env alias_candidates envs_at_uses =
   with_aliases base_env ~aliases:new_aliases
 
 let closure_env t =
-  increment_scope { t with min_binding_time = t.next_binding_time }
+  increment_scope { t with min_binding_time = get_next_binding_time t }
 
 let rec free_names_transitive_of_type_of_name t name ~result =
   let result = Name_occurrences.add_name result name Name_mode.in_types in
