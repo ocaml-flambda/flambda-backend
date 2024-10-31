@@ -30,7 +30,7 @@ module type OrderedType =
 module type S =
   sig
     type key
-    type !+'a t
+    type +!'a t
     val empty: 'a t
     val add: key -> 'a -> 'a t -> 'a t
     val add_to_list: key -> 'a -> 'a list t -> 'a list t
