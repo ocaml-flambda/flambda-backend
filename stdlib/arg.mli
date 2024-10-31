@@ -77,7 +77,6 @@
 ]
 
 open! Stdlib
-include sig
 
 type spec =
   | Unit of (unit -> unit)     (** Call the function with unit argument *)
@@ -245,4 +244,3 @@ val write_arg0: string -> string array -> unit
 (** Identical to {!Arg.write_arg} but uses the null character for terminator
     instead of newline.
     @since 4.05 *)
-end @@ portable
