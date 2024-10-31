@@ -6501,7 +6501,11 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
   | Pexp_stack e ->
-      let exp = type_expect env expected_mode e ty_expected_explained in
+      let expected_mode' =
+        mode_morph (Value.join_with (Comonadic Areality) Regionality.Const.Local)
+          expected_mode
+      in
+      let exp = type_expect env expected_mode' e ty_expected_explained in
       let unsupported category =
         raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
       in
@@ -6515,7 +6519,7 @@ and type_expect_
         begin match Locality.submode Locality.local
           (Alloc.proj (Comonadic Areality) alloc_mode.mode) with
         | Ok () -> ()
-        | Error _ -> raise (Error (exp.exp_loc, env,
+        | Error _ -> raise (Error (e.pexp_loc, env,
             Cannot_stack_allocate alloc_mode.locality_context))
         end
       | Texp_list_comprehension _ -> unsupported List_comprehension
@@ -6528,6 +6532,8 @@ and type_expect_
       | _ ->
         raise (Error (exp.exp_loc, env, Not_allocation))
       end;
+      submode ~loc ~env (Value.min_with (Comonadic Areality) Regionality.local)
+        expected_mode;
       let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
       {exp with exp_extra}
 
