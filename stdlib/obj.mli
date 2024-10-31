@@ -31,8 +31,11 @@ external magic : 'a -> 'b = "%obj_magic"
 
 (* CR tdelvecchio: Document. *)
 external magic_portable : 'a -> 'a @ portable = "%identity"
+external magic_portable_with : 'a -> 'a @ portable = "%identity"
 external magic_uncontended : 'a @ contended -> 'a = "%identity"
 external magic_uncontended_cocontended : 'a @ contended -> 'a = "%identity"
+external magic_uncontended_move : 'a @ contended -> 'a = "%identity"
+external magic_uncontended_borrow : 'a @ contended -> 'a = "%identity"
 
 val is_block : t -> bool
 external is_int : t -> bool = "%obj_is_int"
