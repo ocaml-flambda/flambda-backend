@@ -1590,7 +1590,7 @@ class virtual selector_generic =
         (* CR xclerc for xclerc: Regalloc_irc_utils.log_cfg_with_infos ~indent:1
            (Cfg_with_infos.make cfg_with_layout); *)
         Merge_straightline_blocks.run cfg_with_layout;
-        Eliminate_dead_code.run_dead_block cfg_with_layout;
         Simplify_terminator.run cfg;
+        Eliminate_dead_code.run_dead_block cfg_with_layout;
         cfg_with_layout
   end

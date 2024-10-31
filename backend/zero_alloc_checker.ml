@@ -2827,8 +2827,8 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
         (fun () ->
           Eliminate_fallthrough_blocks.run cfg_with_layout;
           Merge_straightline_blocks.run cfg_with_layout;
-          Eliminate_dead_code.run_dead_block cfg_with_layout;
-          Simplify_terminator.run cfg)
+          Simplify_terminator.run cfg;
+          Eliminate_dead_code.run_dead_block cfg_with_layout)
         ())
 
 let fundecl ppf_dump ~future_funcnames fd =
