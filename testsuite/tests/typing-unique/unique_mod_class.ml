@@ -151,3 +151,15 @@ Line 7, characters 12-17:
                 ^^^^^
 Error: This value is "aliased" but expected to be "unique".
 |}]
+
+
+let foo (local_ x : string ref) =
+  let module M = struct
+    class c =
+      let y = !x in
+      fun () ->
+      object method m = y end
+  end in new M.c
+[%%expect{|
+val foo : local_ string ref -> (unit -> < m : string >) = <fun>
+|}]
