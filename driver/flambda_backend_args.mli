@@ -85,6 +85,8 @@ module type Flambda_backend_options = sig
 
   val gc_timings : unit -> unit
 
+  val no_mach_ir : unit -> unit
+
   val flambda2_debug : unit -> unit
   val no_flambda2_debug : unit -> unit
   val flambda2_join_points : unit -> unit
