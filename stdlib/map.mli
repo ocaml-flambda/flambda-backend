@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open! Stdlib
-include sig
 
 (* NOTE: If this file is map.mli, do not edit it directly! Instead,
    edit templates/map.template.mli and run tools/sync_stdlib_docs *)
@@ -73,7 +72,7 @@ module type S =
     type key
     (** The type of the map keys. *)
 
-    type !+'a t
+    type +!'a t
     (** The type of maps from type [key] to type ['a]. *)
 
     val empty: 'a t
@@ -375,4 +374,3 @@ module Make (Ord : OrderedType) : S with type key = Ord.t
 (* CR tdelvecchio: cocontended [empty] *)
 module Make_portable (Ord : sig include OrderedType @@ portable end)
   : sig include S @@ portable end with type key = Ord.t
-                                   and type 'a t = 'a Make(Ord).t
