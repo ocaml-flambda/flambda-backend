@@ -104,17 +104,18 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
   in
   R.update_data res (or_variable aux default v), env, updates
 
-let add_function env res ~params_and_body code_id p ~fun_dbg
+let add_function env res ~params_and_body code_id p ~result_arity ~fun_dbg
     ~zero_alloc_attribute =
   let fundecl, res =
-    params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
+    params_and_body env res code_id p ~result_arity ~fun_dbg
+      ~zero_alloc_attribute
   in
   R.add_function res fundecl
 
 let add_functions env ~params_and_body res (code : Code.t) =
   add_function env res ~params_and_body (Code.code_id code)
     (Code.params_and_body code)
-    ~fun_dbg:(Code.dbg code)
+    ~result_arity:(Code.result_arity code) ~fun_dbg:(Code.dbg code)
     ~zero_alloc_attribute:(Code.zero_alloc_attribute code)
 
 let preallocate_set_of_closures (res, updates, env) ~closure_symbols

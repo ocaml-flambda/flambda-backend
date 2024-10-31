@@ -31,6 +31,7 @@ type 'a param_type =
   | Skip_param
 
 type cont =
+  | Return of { param_types : Cmm.machtype list }
   | Jump of
       { cont : Lambda.static_label;
         param_types : Cmm.machtype param_type list
@@ -137,9 +138,6 @@ type t =
        information is reset when entering a new function. *)
     inlined_debuginfo : Inlined_debuginfo.t;
     (* Debuginfo corresponding to inlined functions. *)
-    return_continuation : Continuation.t;
-    (* The (non-exceptional) return continuation of the current context (used to
-       determine which calls are tail-calls). *)
     exn_continuation : Continuation.t;
     (* The exception continuation of the current context (used to determine
        where to insert try-with blocks). *)
@@ -240,9 +238,12 @@ let print ppf t =
 (* Creation *)
 
 let create offsets functions_info ~trans_prim ~return_continuation
-    ~exn_continuation =
-  { return_continuation;
-    exn_continuation;
+    ~return_continuation_arity ~exn_continuation =
+  let conts =
+    Continuation.Map.singleton return_continuation
+      (Return { param_types = return_continuation_arity })
+  in
+  { exn_continuation;
     offsets;
     functions_info;
     trans_prim;
@@ -252,14 +253,15 @@ let create offsets functions_info ~trans_prim ~return_continuation
     inline_once_aliases = Variable.Map.empty;
     vars_extra = Variable.Map.empty;
     vars = Variable.Map.empty;
-    conts = Continuation.Map.empty;
+    conts;
     exn_handlers = Continuation.Set.singleton exn_continuation;
     exn_conts_extra_args = Continuation.Map.empty
   }
 
-let enter_function_body env ~return_continuation ~exn_continuation =
+let enter_function_body env ~return_continuation ~return_continuation_arity
+    ~exn_continuation =
   create env.offsets env.functions_info ~trans_prim:env.trans_prim
-    ~return_continuation ~exn_continuation
+    ~return_continuation ~return_continuation_arity ~exn_continuation
 
 (* Debuginfo *)
 
@@ -279,8 +281,6 @@ let currently_in_inlined_body t =
   not (Inlined_debuginfo.is_none t.inlined_debuginfo)
 
 (* Continuations *)
-
-let return_continuation env = env.return_continuation
 
 let exn_continuation env = env.exn_continuation
 
@@ -351,6 +351,10 @@ let resolve_alias env var =
 let get_cmm_continuation env k =
   match Continuation.Map.find k env.conts with
   | Jump { cont; _ } -> cont
+  | Return _ ->
+    Misc.fatal_errorf
+      "Continuation %a is registered as the return continuation, not a jump"
+      Continuation.print k
   | Inline _ ->
     Misc.fatal_errorf "Continuation %a is registered for inlining, not a jump"
       Continuation.print k
