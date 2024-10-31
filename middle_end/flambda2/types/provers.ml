@@ -626,21 +626,23 @@ let prove_is_immediates_array env t : unit proof_of_property =
 let prove_single_closures_entry_generic env t : _ generic_proof =
   match expand_head env t with
   | Value (Ok (Closures { by_function_slot; alloc_mode })) -> (
-    match TG.Row_like_for_closures.get_singleton by_function_slot with
-    | None -> Unknown
-    | Some ((function_slot, set_of_closures_contents), closures_entry) -> (
-      let function_slots =
-        Set_of_closures_contents.closures set_of_closures_contents
-      in
-      assert (Function_slot.Set.mem function_slot function_slots);
+    let of_singleton_type ~exact function_slot closures_entry : _ generic_proof
+        =
       let function_type =
-        TG.Closures_entry.find_function_type closures_entry function_slot
+        TG.Closures_entry.find_function_type closures_entry ~exact function_slot
       in
       match function_type with
       | Bottom -> Invalid
       | Unknown -> Unknown
       | Ok function_type ->
-        Proved (function_slot, alloc_mode, closures_entry, function_type)))
+        Proved (function_slot, alloc_mode, closures_entry, function_type)
+    in
+    match TG.Row_like_for_closures.get_single_tag by_function_slot with
+    | No_singleton -> Unknown
+    | Exact_closure (function_slot, closures_entry) ->
+      of_singleton_type ~exact:true function_slot closures_entry
+    | Incomplete_closure (function_slot, closures_entry) ->
+      of_singleton_type ~exact:false function_slot closures_entry)
   | Value
       (Ok
         ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
