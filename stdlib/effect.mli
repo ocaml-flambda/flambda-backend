@@ -16,7 +16,6 @@
     "The Effect interface may change in incompatible ways in the future."
 ]
 
-include sig
 
 (** Effects.
 
@@ -147,4 +146,3 @@ module Shallow : sig
   (** [get_callstack c n] returns a description of the top of the call stack on
       the continuation [c], with at most [n] entries. *)
 end
-end @@ portable
