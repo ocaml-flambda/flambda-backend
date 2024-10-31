@@ -147,12 +147,6 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
-(* [local_ident penv md] returns the local identifier generated for [md] if
-   [md] is either a parameter or a dependency with a parameter. This is used
-   strictly for code generation - types should always use persistent
-   [Ident.t]s. *)
-val local_ident : 'a t -> Global_module.Name.t -> Ident.t option
-
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
 val implemented_parameter : 'a t

@@ -107,7 +107,7 @@ let implementation0 ~start_from ~source_file ~output_prefix
       |> Option.map (fun param ->
            (* Currently, parameters don't have parameters, so we assume the argument
               list is empty *)
-           Global_module.Name.create_exn param [])
+           Global_module.Name.create_no_args param)
     in
     let bytecode = to_bytecode info typed ~as_arg_for in
     emit_bytecode info bytecode

@@ -762,26 +762,39 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
+(* A description of a parameter to be passed to the runtime representation of a
+   parameterised module, namely a function (called the instantiating functor)
+   that produces an instance when invoked. [-instantiate] reads these as
+   instructions for creating lambda terms. *)
 type runtime_param =
-  | Rp_argument_block of Global_module.t  (* The argument block of a module
-                                             compiled with [-as-argument-for] *)
-  | Rp_dependency of Global_module.t      (* A parameterised module (not itself a
-                                             parameter) that this module depends
-                                             on. Must not be complete (see
-                                             [Global_module.is_complete]) *)
+  | Rp_argument_block of Global_module.t  (* [Rp_argument_block P] means take
+                                             the argument being passed for the
+                                             parameter [P] and pass in its
+                                             argument block *)
+  | Rp_dependency of Global_module.t      (* [Rp_dependency M] means that [M] is
+                                             a parameterised module (not itself
+                                             a parameter) that this module
+                                             depends on and we should pass in
+                                             the main module block of (the
+                                             relevant instantiation of) [M]. [M]
+                                             must not be complete (if it were,
+                                             it would be a compile-time constant
+                                             and therefore not needed as a
+                                             parameter). *)
   | Rp_unit                               (* The unit value (only used when
                                              there are no other parameters) *)
 
-(* The structure of the main module block. A module with no parameters will be an
-   [Mb_record] and a module with parameters will be an [Mb_wrapped_function]. *)
+(* The structure of the main module block. A module with no parameters will be
+   compiled to an [Mb_record] and a module with at least one parameter will be
+   compiled to an [Mb_wrapped_function]. *)
 type main_module_block_format =
   | Mb_record of { mb_size : int }      (* A block with [mb_size] fields *)
   | Mb_wrapped_function of { mb_runtime_params : runtime_param list;
                              mb_returned_size : int;
                            }
-                                        (* A block with exactly one field:
-                                           a function taking [mb_runtime_params] and
-                                           returning a block with
+                                        (* A block with exactly one field: a
+                                           function taking [mb_runtime_params]
+                                           and returning a block with
                                            [mb_returned_size] fields *)
 
 (* The number of words in the main module block. *)
@@ -809,11 +822,11 @@ type program =
        [getfield 0; ...; getfield (main_module_block_size mbf - 1)])
 *)
 
-(* Info for a compilation unit that implements a parameter (i.e., is an argument
-   for that parameter) *)
-
+(* Info for a compilation unit that implements a parameter (that is, was
+   compiled with [-as-argument-for]) *)
 type arg_descr =
-  { arg_param: Global_module.Name.t;    (* The parameter implemented *)
+  { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
+                                           [-as-argument-for P]) *)
     arg_block_field: int; }             (* The index of an unnamed field
                                            containing the block to use as an
                                            argument value (may be a supertype of

@@ -114,6 +114,12 @@ type argument =
     parameter name. *)
 val create_instance : t -> argument list -> t
 
+(* CR lmaurer: [of_global_name] would be better if (a) it insisted on taking a
+   complete instantiation (the exceptional cases mentioned are handled by other
+   functions) and (b) it took a [Global_module.t], which would allow it to
+   verify that it's complete. (For (b), we'll also want an [of_parameter]
+   function taking [Parameter.t] once that exists.) *)
+
 (** Create the compilation unit named by the given [Global_module.Name.t].
     Usually only meaningful if the global name is a _complete instantiation_,
     which is to say either (a) the named module has no parameters, or (b) there

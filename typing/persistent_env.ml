@@ -869,12 +869,6 @@ let imports {imported_units; crc_units; _} =
   List.map (fun (cu_name, spec) -> Import_info.Intf.create cu_name spec)
     imports
 
-let local_ident penv modname =
-  match find_info_in_cache penv modname with
-  | Some { ps_binding = Runtime_parameter local_ident; _ } -> Some local_ident
-  | Some { ps_binding = Constant _; _ }
-  | None -> None
-
 let is_imported_parameter penv modname =
   match find_info_in_cache penv modname with
   | Some pers_struct -> pers_struct.ps_name_info.pn_import.imp_is_param
