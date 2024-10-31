@@ -193,13 +193,7 @@ end
 
 module Const : sig
   (** Constant jkinds are used for user-written annotations *)
-  type 'd t = (Types.type_expr, 'd) Jkind_types.Const.t
-
-  type l = (allowed * disallowed) t
-
-  type r = (disallowed * allowed) t
-
-  type lr = (allowed * allowed) t
+  type +'d t constraint 'd = 'l * 'r
 
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
@@ -208,18 +202,6 @@ module Const : sig
      inference is done, when worrying about l and r does not matter
      any more. *)
   val equal_after_all_inference_is_done : 'd1 t -> 'd2 t -> bool
-
-  (** Gets the layout of a constant jkind. Never does mutation. *)
-  val get_layout : 'd t -> Layout.Const.t
-
-  (** Gets the maximum modes for types of this constant jkind. *)
-  val get_modal_upper_bounds : 'd t -> Mode.Alloc.Const.t
-
-  (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
-  val get_externality_upper_bound : 'd t -> Externality.t
-
-  val of_user_written_annotation :
-    context:'d History.annotation_context -> Parsetree.jkind_annotation -> 'd t
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
@@ -310,9 +292,6 @@ module Builtin : sig
       be the join relevant component of the inputs. *)
   val product : why:History.product_creation_reason -> 'd t list -> 'd t
 end
-
-(** Take an existing [t] and add an ability to mode-cross along all the axes. *)
-val add_mode_crossing : 'd t -> 'd t
 
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd t -> 'd t
@@ -414,9 +393,7 @@ module Desc : sig
   val format : Format.formatter -> 'd t -> unit
 end
 
-(** Get a description of a jkind. Post-condition: all sort variables in the
-    output are empty (because [get] has replaced all filled-in sort variables
-    with their contents). *)
+(** Get a description of a jkind. *)
 val get : 'd t -> 'd Desc.t
 
 (** [get_layout_defaulting_to_value] extracts a constant layout, defaulting
@@ -504,6 +481,9 @@ val equal : jkind_lr -> jkind_lr -> bool
 (** Checks whether two jkinds have a non-empty intersection. Might mutate
     sort variables. *)
 val has_intersection : jkind_r -> jkind_r -> bool
+
+(* CR layouts v2.8: This almost certainly has to get rewritten, as l-kinds do
+   not support meets. *)
 
 (** Like [has_intersection], but comparing two [l] jkinds. *)
 val has_intersection_l_l : jkind_l -> jkind_l -> bool
