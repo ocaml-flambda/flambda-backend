@@ -99,7 +99,15 @@ let unicode () =
   !Flambda_backend_flags.Flambda2.unicode
   |> with_default ~f:(fun d -> d.unicode)
 
-let check_invariants () = !Clflags.flambda_invariant_checks
+let check_invariants () =
+  match !Clflags.flambda_invariant_checks with
+  | No_checks | Light_checks -> false
+  | Heavy_checks -> true
+
+let check_light_invariants () =
+  match !Clflags.flambda_invariant_checks with
+  | No_checks -> false
+  | Light_checks | Heavy_checks -> true
 
 type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
   | Nowhere
