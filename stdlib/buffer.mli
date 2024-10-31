@@ -37,6 +37,7 @@
 [@@@alert unsynchronized_access
     "Unsynchronized accesses to buffers are a programming error."
 ]
+include sig
 
 open! Stdlib
 include sig
