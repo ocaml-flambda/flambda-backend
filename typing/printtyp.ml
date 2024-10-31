@@ -439,6 +439,26 @@ let ident ppf id = pp_print_string ppf
 let namespaced_ident namespace  id =
   Out_name.print (Naming_context.ident_name (Some namespace) id)
 
+let instance_name global =
+  (* Construct the stopgap syntax and then shove it in a string with the
+     attribute after it. *)
+  (* CR lmaurer: This is hacky and it loses the state of the [out_name]s that
+     comprise the [out_ident]. Should presumably have a new constructor for
+     [out_ident] instead? *)
+  let rec string_of_global global =
+    (* We can avoid calling [ident_name_simple] here because instance names are
+       always global (which is bad - but the syntax is currently bad anyway) *)
+    let ({ head; args } : Global_module.Name.t) = global in
+    String.concat "" (head :: List.map string_of_arg args)
+  and string_of_arg arg =
+    let ({ param; value } : Global_module.Name.argument) = arg in
+    sprintf "(%s)(%s)" (string_of_global param) (string_of_global value)
+  in
+  let printed_name =
+    string_of_global global ^ " [@jane.non_erasable.instances]"
+  in
+  { printed_name }
+
 
 (* Print a path *)
 
@@ -549,6 +569,14 @@ let rec tree_of_path namespace = function
       | Pext_ty ->
           tree_of_path None p
     end
+
+let tree_of_path namespace = function
+  | Pident id when Ident.is_instance id ->
+    (* Only when the instance name is the entire path (which is the only place
+       a human could write it) is it worth printing the human-writable stopgap
+       syntax for instance names *)
+    Oide_ident (instance_name (Ident.to_global_exn id))
+  | p -> tree_of_path namespace p
 
 let tree_of_path namespace p =
   tree_of_path namespace (rewrite_double_underscore_paths !printing_env p)
