@@ -33,6 +33,7 @@ type error =
   | Invalid_package_type of Location.t * invalid_package_type
   | Removed_string_set of Location.t
   | Missing_unboxed_literal_suffix of Location.t
+  | Malformed_instance_identifier of Location.t
 
 exception Error of error
 exception Escape_error
@@ -48,6 +49,7 @@ let location_of_error = function
   | Expecting (l, _)
   | Removed_string_set l -> l
   | Missing_unboxed_literal_suffix l -> l
+  | Malformed_instance_identifier l -> l
 
 
 let ill_formed_ast loc s =

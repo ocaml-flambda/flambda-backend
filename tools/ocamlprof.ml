@@ -330,6 +330,11 @@ and rw_exp iflag sexp =
   | Pexp_extension _ -> ()
   | Pexp_unreachable -> ()
 
+(* CR nroberts: This code is out of date, but not checked by the build.
+   When we get around to fixing the build for this file, we should
+   add these cases to [expression], and wire up other [Jane_syntax]
+   references directly to the parsetree.
+ *)
 and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> rewrite_comprehension_exp iflag x
   | Jexp_immutable_array x -> rewrite_immutable_array_exp iflag x

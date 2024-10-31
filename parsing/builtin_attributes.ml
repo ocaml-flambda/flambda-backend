@@ -116,7 +116,13 @@ let builtin_attrs =
   ; "no_mutable_implied_modalities"
   ; "or_null_reexport"
   ; "no_recursive_modalities"
+  ; "jane.non_erasable.instances"
   ]
+
+let builtin_attrs =
+  let tbl = Hashtbl.create 128 in
+  List.iter (fun attr -> Hashtbl.add tbl attr ()) builtin_attrs;
+  tbl
 
 let drop_ocaml_attr_prefix s =
   let len = String.length s in
@@ -125,42 +131,7 @@ let drop_ocaml_attr_prefix s =
   else
     s
 
-(* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
-   upstream the "jane" prefix.
-     - Internally, we use "jane.*" to encode our changes to the parsetree,
-       and our compiler should not drop these attributes.
-     - Upstream, ppxes may produce attributes with the "jane.*" prefix.
-       The upstream compiler does not use these attributes. We want it to be
-       able to drop these attributes without a warning.
-
-   It's an error for an upstream ppx to create an attribute that corresponds to
-   a *non-erasable* Jane language extension, like list comprehensions, which
-   should never reach the upstream compiler. So, we distinguish that in the
-   attribute prefix: upstream ppxlib will error out if it sees a ppx creating a
-   "jane.non_erasable" attribute and be happy to accept a "jane.erasable"
-   attribute. Meanwhile, an internal patched version of ppxlib will be happy for
-   a ppx to produce either of these attributes.
-*)
-let builtin_attr_prefixes =
-  [ "jane"
-  ]
-
-let is_builtin_attr =
-  let builtin_attrs =
-    let tbl = Hashtbl.create 128 in
-    List.iter
-      (fun attr -> Hashtbl.add tbl attr ())
-      (builtin_attr_prefixes @ builtin_attrs);
-    tbl
-  in
-  let builtin_attr_prefixes_with_trailing_dot =
-    List.map (fun x -> x ^ ".") builtin_attr_prefixes
-  in
-  fun s ->
-    Hashtbl.mem builtin_attrs (drop_ocaml_attr_prefix s)
-    || List.exists
-        (fun prefix -> String.starts_with ~prefix s)
-        builtin_attr_prefixes_with_trailing_dot
+let is_builtin_attr s = Hashtbl.mem builtin_attrs (drop_ocaml_attr_prefix s)
 
 type current_phase = Parser | Invariant_check
 
@@ -661,12 +632,18 @@ let has_local_opt attrs =
 let has_layout_poly attrs =
   has_attribute "layout_poly" attrs
 
+let curry_attr_name = "extension.curry"
+
 let has_curry attrs =
-  has_attribute Jane_syntax.Arrow_curry.curry_attr_name attrs
+  has_attribute curry_attr_name attrs
   || has_attribute "curry" attrs
 
 let has_or_null_reexport attrs =
   has_attribute "or_null_reexport" attrs
+
+let curry_attr loc =
+  Ast_helper.Attr.mk ~loc:Location.none (Location.mkloc curry_attr_name loc) (PStr [])
+;;
 
 let tailcall attr =
   let has_nontail = has_attribute "nontail" attr in

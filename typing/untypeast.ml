@@ -320,15 +320,6 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   let loc = sub.location sub pat.pat_loc in
   (* todo: fix attributes on extras *)
   let attrs = sub.attributes sub pat.pat_attributes in
-  let attrs = ref attrs in
-  (* Hack so we can return an extra value out of the [match] expression for Jane
-     Street internal expressions without needing to modify every case, which
-     would open us up to more merge conflicts.
-  *)
-  let add_jane_syntax_attributes { ppat_attributes; ppat_desc; _ } =
-    attrs := ppat_attributes @ !attrs;
-    ppat_desc
-  in
   let desc =
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
@@ -401,22 +392,15 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
-    | Tpat_array (am, _, list) -> begin
-        let pats = List.map (sub.pat sub) list in
-        if Types.is_mutable am then Ppat_array pats
-        else
-          Jane_syntax.Immutable_arrays.pat_of
-            ~loc
-            (Iapat_immutable_array pats)
-          |> add_jane_syntax_attributes
-      end
+    | Tpat_array (am, _, list) ->
+        Ppat_array (mutable_ am, List.map (sub.pat sub) list)
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 
     | Tpat_exception p -> Ppat_exception (sub.pat sub p)
     | Tpat_value p -> (sub.pat sub (p :> pattern)).ppat_desc
     | Tpat_or (p1, p2, _) -> Ppat_or (sub.pat sub p1, sub.pat sub p2)
   in
-  Pat.mk ~loc ~attrs:!attrs desc
+  Pat.mk ~loc ~attrs desc
 
 let exp_extra sub (extra, loc, attrs) sexp =
   let loc = sub.location sub loc in
@@ -453,33 +437,32 @@ let value_binding sub vb =
     (sub.pat sub vb.vb_pat)
     (sub.expr sub vb.vb_expr)
 
-let comprehension sub comp_type comp =
-  let open Jane_syntax.Comprehensions in
+let comprehension sub comp =
   let iterator = function
     | Texp_comp_range { ident = _; pattern; start ; stop ; direction } ->
         pattern,
-        Range { start = sub.expr sub start
+        Pcomp_range { start = sub.expr sub start
               ; stop  = sub.expr sub stop
               ; direction }
     | Texp_comp_in { pattern; sequence } ->
         sub.pat sub pattern,
-        In (sub.expr sub sequence)
+        Pcomp_in (sub.expr sub sequence)
   in
   let binding { comp_cb_iterator ; comp_cb_attributes } =
     let pattern, iterator = iterator comp_cb_iterator in
-    { pattern
-    ; iterator
-    ; attributes = comp_cb_attributes }
+    { pcomp_cb_pattern = pattern
+    ; pcomp_cb_iterator = iterator
+    ; pcomp_cb_attributes = comp_cb_attributes }
   in
   let clause = function
-    | Texp_comp_for  bindings -> For (List.map binding bindings)
-    | Texp_comp_when cond     -> When (sub.expr sub cond)
+    | Texp_comp_for  bindings -> Pcomp_for (List.map binding bindings)
+    | Texp_comp_when cond     -> Pcomp_when (sub.expr sub cond)
   in
   let comprehension { comp_body; comp_clauses } =
-    { body    = sub.expr sub comp_body
-    ; clauses = List.map clause comp_clauses }
+    { pcomp_body    = sub.expr sub comp_body
+    ; pcomp_clauses = List.map clause comp_clauses }
   in
-  Jane_syntax.Comprehensions.expr_of (comp_type (comprehension comp))
+  comprehension comp
 
 let label : Types.arg_label -> Parsetree.arg_label = function
   (* There is no Position label in the Parsetree, since we parse [%call_pos]
@@ -495,15 +478,6 @@ let call_pos_extension = Location.mknoloc "call_pos_extension", PStr []
 let expression sub exp =
   let loc = sub.location sub exp.exp_loc in
   let attrs = sub.attributes sub exp.exp_attributes in
-  let attrs = ref attrs in
-  (* Hack so we can return an extra value out of the [match] expression for Jane
-     Street internal expressions without needing to modify every case, which
-     would open us up to more merge conflicts.
-  *)
-  let add_jane_syntax_attributes { pexp_attributes; pexp_desc; _ } =
-    attrs := pexp_attributes @ !attrs;
-    pexp_desc
-  in
   let desc =
     match exp.exp_desc with
       Texp_ident (_path, lid, _, _, _) -> Pexp_ident (map_loc sub lid)
@@ -612,24 +586,14 @@ let expression sub exp =
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
-    | Texp_array (amut, _, list, _) -> begin
-        (* Can be inlined when we get to upstream immutable arrays *)
-        let plist = List.map (sub.expr sub) list in
-        if Types.is_mutable amut then Pexp_array plist
-        else
-            Jane_syntax.Immutable_arrays.expr_of
-              ~loc (Iaexp_immutable_array plist)
-            |> add_jane_syntax_attributes
-      end
+    | Texp_array (amut, _, list, _) ->
+        Pexp_array (mutable_ amut, List.map (sub.expr sub) list)
     | Texp_list_comprehension comp ->
-        comprehension
-          ~loc sub (fun comp -> Cexp_list_comprehension comp) comp
-        |> add_jane_syntax_attributes
+        Pexp_comprehension
+          (Pcomp_list_comprehension (comprehension sub comp))
     | Texp_array_comprehension (amut, _, comp) ->
-        let amut = mutable_ amut in
-        comprehension
-          ~loc sub (fun comp -> Cexp_array_comprehension (amut, comp)) comp
-        |> add_jane_syntax_attributes
+        Pexp_comprehension
+          (Pcomp_array_comprehension (mutable_ amut, comprehension sub comp))
     | Texp_ifthenelse (exp1, exp2, expo) ->
         Pexp_ifthenelse (sub.expr sub exp1,
           sub.expr sub exp2,
@@ -734,7 +698,7 @@ let expression sub exp =
     | Texp_src_pos -> Pexp_extension ({ txt = "src_pos"; loc }, PStr [])
   in
   List.fold_right (exp_extra sub) exp.exp_extra
-    (Exp.mk ~loc ~attrs:!attrs desc)
+    (Exp.mk ~loc ~attrs desc)
 
 let binding_op sub bop pat =
   let pbop_op = bop.bop_op_name in
@@ -865,11 +829,8 @@ let module_type (sub : mapper) mty =
   | Tmty_typeof mexpr ->
     Mty.mk ~loc ~attrs (Pmty_typeof (sub.module_expr sub mexpr))
   | Tmty_strengthen (mtype, _path, lid) ->
-      Jane_syntax.Module_type.mty_of ~loc ~attrs
-        (Jane_syntax.Module_type.Jmty_strengthen
-            { mty = sub.module_type sub mtype;
-              mod_id = map_loc sub lid
-            })
+      Mty.mk ~loc ~attrs
+        (Pmty_strengthen (sub.module_type sub mtype, map_loc sub lid))
 
 let with_constraint sub (_path, lid, cstr) =
   match cstr with

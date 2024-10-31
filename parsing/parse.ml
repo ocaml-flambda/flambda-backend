@@ -173,6 +173,9 @@ let prepare_error err =
   | Missing_unboxed_literal_suffix loc ->
       Location.errorf ~loc
         "Syntax error: Unboxed integer literals require width suffixes."
+  | Malformed_instance_identifier loc ->
+      Location.errorf ~loc
+        "Syntax error: Unexpected in module instance"
 
 let () =
   Location.register_error_of_exn

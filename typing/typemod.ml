@@ -349,7 +349,7 @@ let path_is_strict_prefix =
        && list_is_strict_prefix l1 ~prefix:l2
 
 let rec instance_name ~loc env syntax =
-  let ({ head; args } : Jane_syntax.Instances.instance) = syntax in
+  let { pmod_instance_head = head; pmod_instance_args = args } = syntax in
   let args =
     List.map
       (fun (param, value) : Global_module.Name.argument ->
@@ -1025,9 +1025,6 @@ and apply_modalities_module_type env modalities = function
    making them abstract otherwise. *)
 
 let rec approx_modtype env smty =
-  match Jane_syntax.Module_type.of_ast smty with
-  | Some (jmty, _attrs) -> approx_modtype_jane_syntax env jmty
-  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path =
@@ -1084,18 +1081,16 @@ let rec approx_modtype env smty =
       mty
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
-
-and approx_modtype_jane_syntax env = function
-  | Jane_syntax.Module_type.Jmty_strengthen { mty = smty; mod_id } ->
-    let mty = approx_modtype env smty in
-    let path, _ =
-      (* CR-someday: potentially improve error message for strengthening with
-         a mutually recursive module. *)
-      Env.lookup_module_path ~use:false ~load:false
-        ~loc:mod_id.loc mod_id.txt env
-    in
-    let aliasable = (not (Env.is_functor_arg path env)) in
-    Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
+  | Pmty_strengthen (smty, mod_id) ->
+      let mty = approx_modtype env smty in
+      let path, _ =
+        (* CR-someday: potentially improve error message for strengthening with
+           a mutually recursive module. *)
+        Env.lookup_module_path ~use:false ~load:false
+          ~loc:mod_id.loc mod_id.txt env
+      in
+      let aliasable = (not (Env.is_functor_arg path env)) in
+      Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
 
 and approx_module_declaration env pmd =
   {
@@ -1191,7 +1186,7 @@ and approx_sig_items env ssg=
             pincl_attributes=attrs}, moda) ->
           begin match kind with
           | Functor ->
-              Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
+              Language_extension.assert_enabled ~loc Include_functor ();
               raise (Error(loc, env, Recursive_include_functor))
           | Structure ->
               let mty = approx_modtype env mod_ in
@@ -1593,9 +1588,6 @@ and transl_modtype_functor_arg env sarg =
 
 and transl_modtype_aux env smty =
   let loc = smty.pmty_loc in
-  match Jane_syntax.Module_type.of_ast smty with
-  | Some (jmty, _attrs) -> transl_modtype_jane_syntax_aux ~loc env jmty
-  | None ->
   match smty.pmty_desc with
     Pmty_ident lid ->
       let path = transl_modtype_longident loc env lid.txt in
@@ -1656,9 +1648,9 @@ and transl_modtype_aux env smty =
       mkmty (Tmty_typeof tmty) mty env loc smty.pmty_attributes
   | Pmty_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
-
-and transl_modtype_jane_syntax_aux ~loc env = function
-  | Jane_syntax.Module_type.Jmty_strengthen { mty ; mod_id } ->
+  | Pmty_strengthen (mty, mod_id) ->
+      Language_extension.assert_enabled ~loc:smty.pmty_loc
+        Module_strengthening ();
       let tmty = transl_modtype_aux env mty in
       let path, md, _ =
         Env.lookup_module ~use:false ~loc:mod_id.loc mod_id.txt env
@@ -1724,7 +1716,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
     let incl_kind, sg =
       match sincl.pincl_kind with
       | Functor ->
-        Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
+        Language_extension.assert_enabled ~loc Include_functor ();
         let sg, incl_kind =
           extract_sig_functor_open false env smty.pmty_loc mty sig_acc
         in
@@ -2538,10 +2530,6 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
     (fun () -> type_module_aux ~alias sttn funct_body anchor env smod)
 
 and type_module_aux ~alias sttn funct_body anchor env smod =
-  match Jane_syntax.Module_expr.of_ast smod with
-    Some ext ->
-      type_module_extension_aux ~alias sttn env smod ext
-  | None ->
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, mode =
@@ -2651,11 +2639,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.leaf_for_unpack
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
-
-and type_module_extension_aux ~alias sttn env smod
-      : Jane_syntax.Module_expr.t -> _ =
-  function
-  | Emod_instance (Imod_instance glob) ->
+  | Pmod_instance glob ->
+      Language_extension.assert_enabled ~loc:smod.pmod_loc Instances ();
       let glob = instance_name ~loc:smod.pmod_loc env glob in
       let path, mode =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
@@ -2928,7 +2913,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     let incl_kind, sg =
       match sincl.pincl_kind with
       | Functor ->
-        Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
+        Language_extension.assert_enabled ~loc Include_functor ();
         let sg, incl_kind =
           extract_sig_functor_open funct_body env smodl.pmod_loc
             modl.mod_type sig_acc

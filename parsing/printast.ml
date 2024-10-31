@@ -264,8 +264,8 @@ and pattern i ppf x =
   | Ppat_record (l, c) ->
       line i ppf "Ppat_record %a\n" fmt_closed_flag c;
       list i longident_x_pattern ppf l;
-  | Ppat_array (l) ->
-      line i ppf "Ppat_array\n";
+  | Ppat_array (mut, l) ->
+      line i ppf "Ppat_array %a\n" fmt_mutable_flag mut;
       list i pattern ppf l;
   | Ppat_or (p1, p2) ->
       line i ppf "Ppat_or\n";
@@ -347,8 +347,8 @@ and expression i ppf x =
       expression i ppf e1;
       longident_loc i ppf li;
       expression i ppf e2;
-  | Pexp_array (l) ->
-      line i ppf "Pexp_array\n";
+  | Pexp_array (mut, l) ->
+      line i ppf "Pexp_array %a\n" fmt_mutable_flag mut;
       list i expression ppf l;
   | Pexp_ifthenelse (e1, e2, eo) ->
       line i ppf "Pexp_ifthenelse\n";
@@ -434,6 +434,45 @@ and expression i ppf x =
   | Pexp_stack e ->
       line i ppf "Pexp_stack\n";
       expression i ppf e
+  | Pexp_comprehension c ->
+      line i ppf "Pexp_comprehension\n";
+      comprehension_expression i ppf c
+
+and comprehension_expression i ppf = function
+  | Pcomp_array_comprehension (m, c) ->
+      line i ppf "Pcomp_array_comprehension %a\n" fmt_mutable_flag m;
+      comprehension i ppf c
+  | Pcomp_list_comprehension c ->
+      line i ppf "Pcomp_list_comprehension\n";
+      comprehension i ppf c
+
+and comprehension i ppf ({ pcomp_body; pcomp_clauses } : comprehension) =
+  list i comprehension_clause ppf pcomp_clauses;
+  expression i ppf pcomp_body
+
+and comprehension_clause i ppf = function
+  | Pcomp_for cbs ->
+      line i ppf "Pcomp_for\n";
+      list i comprehension_clause_binding ppf cbs
+  | Pcomp_when exp ->
+      line i ppf "Pcomp_when\n";
+      expression i ppf exp
+
+and comprehension_clause_binding i ppf
+    { pcomp_cb_pattern; pcomp_cb_iterator; pcomp_cb_attributes }
+  =
+  pattern i ppf pcomp_cb_pattern;
+  comprehension_iterator (i+1) ppf pcomp_cb_iterator;
+  attributes i ppf pcomp_cb_attributes
+
+and comprehension_iterator i ppf = function
+  | Pcomp_range { start; stop; direction } ->
+      line i ppf "Pcomp_range %a\n" fmt_direction_flag direction;
+      expression i ppf start;
+      expression i ppf stop;
+  | Pcomp_in exp ->
+      line i ppf "Pcomp_in\n";
+      expression i ppf exp
 
 and jkind_annotation_opt i ppf jkind =
   match jkind with
@@ -790,6 +829,9 @@ and module_type i ppf x =
   | Pmty_extension (s, arg) ->
       line i ppf "Pmod_extension \"%s\"\n" s.txt;
       payload i ppf arg
+  | Pmty_strengthen (m, lid) ->
+      line i ppf "Pmty_strengthen %a\n" fmt_longident lid.txt;
+      module_type i ppf m
 
 and signature i ppf {psg_items; psg_modalities} =
   modalities i ppf psg_modalities;
@@ -922,6 +964,17 @@ and module_expr i ppf x =
   | Pmod_extension (s, arg) ->
       line i ppf "Pmod_extension \"%s\"\n" s.txt;
       payload i ppf arg
+  | Pmod_instance instance ->
+      line i ppf "Pmod_instance\n";
+      module_instance i ppf instance
+
+and module_instance i ppf { pmod_instance_head; pmod_instance_args } =
+  line i ppf "head=%s\n" pmod_instance_head;
+  list i (fun i ppf (name, arg) ->
+    line i ppf "name=%s\n" name;
+    module_instance i ppf arg)
+    ppf
+    pmod_instance_args
 
 and structure i ppf x = list i structure_item ppf x
 
