@@ -22,29 +22,29 @@ type 'a t = 'a array
 
 (* Array operations *)
 
-external length : 'a array -> int = "%array_length"
-external get: 'a array -> int -> 'a = "%array_safe_get"
-external set: 'a array -> int -> 'a -> unit = "%array_safe_set"
-external unsafe_get: 'a array -> int -> 'a = "%array_unsafe_get"
-external unsafe_set: 'a array -> int -> 'a -> unit = "%array_unsafe_set"
-external make: int -> 'a -> 'a array = "caml_make_vect"
-external create: int -> 'a -> 'a array = "caml_make_vect"
-external unsafe_sub : 'a array -> int -> int -> 'a array = "caml_array_sub"
-external append_prim : 'a array -> 'a array -> 'a array = "caml_array_append"
-external concat : 'a array list -> 'a array = "caml_array_concat"
+external length : 'a array -> int @@ portable = "%array_length"
+external get: 'a array -> int -> 'a @@ portable = "%array_safe_get"
+external set: 'a array -> int -> 'a -> unit @@ portable = "%array_safe_set"
+external unsafe_get: 'a array -> int -> 'a @@ portable = "%array_unsafe_get"
+external unsafe_set: 'a array -> int -> 'a -> unit @@ portable = "%array_unsafe_set"
+external make: int -> 'a -> 'a array @@ portable = "caml_make_vect"
+external create: int -> 'a -> 'a array @@ portable = "caml_make_vect"
+external unsafe_sub : 'a array -> int -> int -> 'a array @@ portable = "caml_array_sub"
+external append_prim : 'a array -> 'a array -> 'a array @@ portable = "caml_array_append"
+external concat : 'a array list -> 'a array @@ portable = "caml_array_concat"
 external unsafe_blit :
-  'a array -> int -> 'a array -> int -> int -> unit = "caml_array_blit"
+  'a array -> int -> 'a array -> int -> int -> unit @@ portable = "caml_array_blit"
 external unsafe_fill :
-  'a array -> int -> int -> 'a -> unit = "caml_array_fill"
-external create_float: int -> float array = "caml_make_float_vect"
+  'a array -> int -> int -> 'a -> unit @@ portable = "caml_array_fill"
+external create_float: int -> float array @@ portable = "caml_make_float_vect"
 
 module Floatarray = struct
-  external create : int -> floatarray = "caml_floatarray_create"
-  external length : floatarray -> int = "%floatarray_length"
-  external get : floatarray -> int -> float = "%floatarray_safe_get"
-  external set : floatarray -> int -> float -> unit = "%floatarray_safe_set"
-  external unsafe_get : floatarray -> int -> float = "%floatarray_unsafe_get"
-  external unsafe_set : floatarray -> int -> float -> unit
+  external create : int -> floatarray @@ portable = "caml_floatarray_create"
+  external length : floatarray -> int @@ portable = "%floatarray_length"
+  external get : floatarray -> int -> float @@ portable = "%floatarray_safe_get"
+  external set : floatarray -> int -> float -> unit @@ portable = "%floatarray_safe_set"
+  external unsafe_get : floatarray -> int -> float @@ portable = "%floatarray_unsafe_get"
+  external unsafe_set : floatarray -> int -> float -> unit @@ portable
       = "%floatarray_unsafe_set"
 end
 
