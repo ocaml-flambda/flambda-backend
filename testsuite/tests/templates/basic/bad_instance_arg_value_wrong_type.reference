@@ -1,6 +1,6 @@
-File "bad_instance_arg_value_wrong_type.ml", line 2, characters 2-39:
+File "bad_instance_arg_value_wrong_type.ml", line 2, characters 2-70:
 2 |   Category_utils(Category)(List_monoid) [@jane.non_erasable.instances]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The module "List_monoid"
        is used as an argument for the parameter "Category" but "List_monoid"
        is an argument for "Monoid".

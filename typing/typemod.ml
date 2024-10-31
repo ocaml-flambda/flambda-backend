@@ -2639,24 +2639,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.leaf_for_unpack
   | Pmod_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
-<<<<<<< HEAD
   | Pmod_instance glob ->
-      ignore (alias, sttn);
       Language_extension.assert_enabled ~loc:smod.pmod_loc Instances ();
-||||||| 9a7cc9fd4c
-
-and type_module_extension_aux ~alias sttn env smod
-      : Jane_syntax.Module_expr.t -> _ =
-  function
-  | Emod_instance (Imod_instance glob) ->
-      ignore (alias, sttn);
-=======
-
-and type_module_extension_aux ~alias sttn env smod
-      : Jane_syntax.Module_expr.t -> _ =
-  function
-  | Emod_instance (Imod_instance glob) ->
->>>>>>> origin/main
       let glob = instance_name ~loc:smod.pmod_loc env glob in
       let path, mode =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
