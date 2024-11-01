@@ -1,3 +1,8 @@
-File "poll_attr_inserted.ml", line 1:
+File "poll_attr_inserted.ml", lines 16-19, characters 19-6:
+16 | ...................x =
+17 |   for c = 0 to 2 do
+18 |     ignore(Sys.opaque_identity(42))
+19 |   done
 Error: Function with poll-error attribute contains polling points (inserted by the compiler)
+	inserted poll
 
