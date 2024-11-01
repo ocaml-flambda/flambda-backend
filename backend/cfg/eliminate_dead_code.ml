@@ -38,7 +38,7 @@ module Dataflow = Cfg_dataflow.Forward (Domain) (Transfer)
 let run_dead_block : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  match Dataflow.run cfg ~init:Reachable () with
+  match Dataflow.run cfg ~init:Reachable ~handlers_are_entry_points:true () with
   | Result.Error _ ->
     Misc.fatal_error
       "Dataflow.run_dead_code: forward analysis did not reach a fix-point"

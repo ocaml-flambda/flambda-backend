@@ -492,6 +492,7 @@
   zero_alloc_info
   ;; backend/cfg
   cfg
+  cfg_available_regs
   cfg_intf
   cfg_to_linear
   cfg_with_layout
