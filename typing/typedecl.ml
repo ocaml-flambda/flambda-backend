@@ -3208,6 +3208,35 @@ let error_if_containing_unexpected_jkind prim cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
   unexpected_layout_any_check prim cty ty
 
+(* [@@@zero_alloc assert all] in signatures uses the apparent arity of each
+   declaration just by looking at the number of arrows in the type.  If the type
+   is an alias to an arrow type, the apparent arity is zero, and the item won't
+   get any zero alloc checking.  This is probably not the user's intent, so we
+   give a warning in that case.  *)
+let check_for_hidden_arrow env loc ty =
+  match !Clflags.zero_alloc_assert with
+  | Assert_all | Assert_all_opt ->
+    let check () =
+      begin match get_desc (Ctype.expand_head env ty) with
+      | Tarrow _ ->
+        let attr =
+          match !Clflags.zero_alloc_assert with
+          | Assert_all -> "all"
+          | Assert_all_opt -> "all_opt"
+          | Assert_default -> assert false
+        in
+        Location.prerr_warning loc (Warnings.Zero_alloc_all_hidden_arrow attr)
+      | _ -> ()
+      end
+    in
+    if !Clflags.principal || Env.has_local_constraints env then
+      let snap = Btype.snapshot () in
+      check ();
+      Btype.backtrack snap
+    else
+      check()
+  | Assert_default -> ()
+
 (* Translate a value declaration *)
 let transl_value_decl env loc ~sig_modalities valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
@@ -3246,9 +3275,10 @@ let transl_value_decl env loc ~sig_modalities valdecl =
         | Default_zero_alloc ->
           (* We fabricate a "Check" attribute if a top-level annotation
              specifies that all functions should be checked for zero alloc. *)
-          if default_arity = 0 then
+          if default_arity = 0 then begin
+            check_for_hidden_arrow env loc ty;
             Zero_alloc.default
-          else
+          end else
             let create_const ~opt =
               Zero_alloc.create_const
                 (Check { strict = false;
