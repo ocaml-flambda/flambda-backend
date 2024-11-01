@@ -592,9 +592,10 @@ module Stack_offset_and_exn = struct
     match term.desc with
     | Tailcall_self _
       when stack_offset <> 0 || List.compare_length_with traps 0 <> 0 ->
-      Misc.fatal_error
+      Misc.fatal_errorf
         "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
-         self tailcall"
+         self tailcall (id=%d)"
+        term.id
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
     | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
@@ -616,9 +617,10 @@ module Stack_offset_and_exn = struct
     | Poptrap -> (
       match traps with
       | [] ->
-        Misc.fatal_error
+        Misc.fatal_errorf
           "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
-           empty stack"
+           empty stack (id=%d)"
+          instr.id
       | _ :: traps -> stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
@@ -846,7 +848,10 @@ let fundecl :
       then Eliminate_fallthrough_blocks.run cfg_with_layout;
       if simplify_terminators then Merge_straightline_blocks.run cfg_with_layout;
       Eliminate_dead_code.run_dead_block cfg_with_layout;
-      if simplify_terminators then Simplify_terminator.run cfg)
+      if simplify_terminators
+      then (
+        Simplify_terminator.run cfg;
+        Eliminate_dead_code.run_dead_block cfg_with_layout))
     ();
   Cfg_with_layout.reorder_blocks
     ~comparator:(fun label1 label2 ->

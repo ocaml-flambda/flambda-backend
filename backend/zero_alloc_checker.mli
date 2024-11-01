@@ -67,6 +67,7 @@ module Witness : sig
         { name : string;
           handler_code_sym : string
         }
+    | Widen
 
   type t =
     { dbg : Debuginfo.t;

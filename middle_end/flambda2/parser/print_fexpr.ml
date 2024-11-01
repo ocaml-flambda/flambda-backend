@@ -293,6 +293,7 @@ let array_kind ~space ppf (ak : array_kind) =
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
+    | Naked_vec128s -> Some "vec128"
   in
   pp_option ~space Format.pp_print_string ppf str
 
@@ -304,6 +305,7 @@ let empty_array_kind ~space ppf (ak : empty_array_kind) =
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
+    | Naked_vec128s -> Some "vec128"
   in
   pp_option ~space Format.pp_print_string ppf str
 
@@ -318,6 +320,13 @@ let alloc_mode_for_allocations_opt ppf (alloc : alloc_mode_for_allocations)
   match alloc with
   | Heap -> ()
   | Local { region = r } -> pp_spaced ~space ppf "&%a" region r
+
+let alloc_mode_for_applications_opt ppf (alloc : alloc_mode_for_applications)
+    ~space =
+  match alloc with
+  | Heap -> ()
+  | Local { region = r; ghost_region = r' } ->
+    pp_spaced ~space ppf "&%a &%a" region r region r'
 
 let init_or_assign ppf ia =
   match ia with
@@ -376,8 +385,10 @@ let nullop ppf (o : nullop) =
   Format.pp_print_string ppf
   @@
   match o with
-  | Begin_region -> "%begin_region"
-  | Begin_try_region -> "%begin_try_region"
+  | Begin_region { ghost } ->
+    if ghost then "%begin_ghost_region" else "%begin_region"
+  | Begin_try_region { ghost } ->
+    if ghost then "%begin_ghost_try_region" else "%begin_try_region"
 
 let binary_int_arith_op ppf (o : binary_int_arith_op) =
   Format.pp_print_string ppf
@@ -489,12 +500,25 @@ let string_accessor_width ppf saw =
     | Eight -> "8"
     | Sixteen -> "16"
     | Thirty_two -> "32"
+    | Single -> "f32"
     | Sixty_four -> "64"
     | One_twenty_eight { aligned = false } -> "128u"
     | One_twenty_eight { aligned = true } -> "128a")
 
-let array_accessor_width ~space ppf (aw : array_accessor_width) =
-  let str = match aw with Scalar -> None | Vec128 -> Some "vec128" in
+let array_load_kind ~space ppf (load_kind : array_load_kind) =
+  let str =
+    match[@ocaml.warning "-fragile-match"] load_kind with
+    | Naked_vec128s -> Some "vec128"
+    | _ -> None
+  in
+  pp_option ~space Format.pp_print_string ppf str
+
+let array_set_kind ~space ppf (set_kind : array_set_kind) =
+  let str =
+    match[@ocaml.warning "-fragile-match"] set_kind with
+    | Naked_vec128s -> Some "vec128"
+    | _ -> None
+  in
   pp_option ~space Format.pp_print_string ppf str
 
 let binop ppf binop a b =
@@ -502,12 +526,11 @@ let binop ppf binop a b =
   | Array_load (ak, width, mut) ->
     Format.fprintf ppf "@[<2>%%array_load%a%a%a@ %a.(%a)@]"
       (array_kind ~space:Before) ak (mutability ~space:Before) mut
-      (array_accessor_width ~space:Before)
+      (array_load_kind ~space:Before)
       width simple a simple b
-  | Block_load (access_kind, mut) ->
-    Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
-      (mutability ~space:Before) mut block_access_kind access_kind simple a
-      simple b
+  | Block_set { kind; init; field } ->
+    Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
+      kind simple a Targetint_31_63.print field init_or_assign init simple b
   | String_or_bigstring_load (slv, saw) ->
     let prim =
       match slv with
@@ -557,6 +580,10 @@ let unop ppf u =
     | Naked_vec128 -> print verb_not_imm "vec128"
   in
   match (u : unop) with
+  | Block_load { kind; mut; field } ->
+    Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a)@]"
+      (mutability ~space:Before) mut block_access_kind kind
+      Targetint_31_63.print field
   | Array_length ak ->
     str "%array_length";
     array_kind_for_length ppf ~space:Before ak
@@ -564,8 +591,10 @@ let unop ppf u =
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
-  | End_region -> str "%end_region"
-  | End_try_region -> str "%end_try_region"
+  | End_region { ghost } ->
+    str (if ghost then "%end_ghost_region" else "%end_region")
+  | End_try_region { ghost } ->
+    str (if ghost then "%end_ghost_try_region" else "%end_try_region")
   | Get_tag -> str "%get_tag"
   | Int_arith (i, o) ->
     Format.fprintf ppf "@[<2>%%int_arith %a%a@]"
@@ -591,14 +620,18 @@ let unop ppf u =
 
 let ternop ppf t a1 a2 a3 =
   match t with
-  | Array_set (ak, width, ia) ->
+  | Array_set (ak, set_kind) ->
+    let ia =
+      match set_kind with
+      | Values ia -> ia
+      | Immediates | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ->
+        Initialization (* Will be ignored anyway *)
+    in
     Format.fprintf ppf "@[<2>%%array_set%a%a@ %a.(%a) %a %a@]"
       (array_kind ~space:Before) ak
-      (array_accessor_width ~space:Before)
-      width simple a1 simple a2 init_or_assign ia simple a3
-  | Block_set (bk, ia) ->
-    Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
-      bk simple a1 simple a2 init_or_assign ia simple a3
+      (array_set_kind ~space:Before)
+      set_kind simple a1 simple a2 init_or_assign ia simple a3
   | Bytes_or_bigstring_set (blv, saw) ->
     let prim =
       match blv with Bytes -> "%bytes_set" | Bigstring -> "%bigstring_set"
@@ -681,12 +714,13 @@ let static_closure_binding ppf (scb : static_closure_binding) =
 
 let call_kind ~space ppf ck =
   match ck with
-  | Function (Indirect alloc) -> alloc_mode_for_allocations_opt ppf alloc ~space
+  | Function (Indirect alloc) ->
+    alloc_mode_for_applications_opt ppf alloc ~space
   | Function (Direct { code_id = c; function_slot = cl; alloc }) ->
     pp_spaced ~space ppf "@[direct(%a%a%a)@]" code_id c
       (pp_option ~space:Before (pp_like "@@%a" function_slot))
       cl
-      (alloc_mode_for_allocations_opt ~space:Before)
+      (alloc_mode_for_applications_opt ~space:Before)
       alloc
   | C_call { alloc } ->
     let noalloc_kwd = if alloc then None else Some "noalloc" in
@@ -895,14 +929,22 @@ and code_binding ppf
     newer_version_of
     (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "@ tupled@ ")
     is_tupled code_id id;
-  let { params; closure_var; region_var; depth_var; ret_cont; exn_cont; body } =
+  let { params;
+        closure_var;
+        region_var;
+        ghost_region_var;
+        depth_var;
+        ret_cont;
+        exn_cont;
+        body
+      } =
     params_and_body
   in
   Format.fprintf ppf
-    "%a@]@ @[<hov 2>%a@ %a@ %a@]@ @[<hv 2>-> %a@ * %a@]%a%s@]@] =@ %a"
+    "%a@]@ @[<hov 2>%a@ %a@ %a %a@]@ @[<hv 2>-> %a@ * %a@]%a%s@]@] =@ %a"
     (kinded_parameters ~space:Before)
-    params variable closure_var variable region_var variable depth_var
-    continuation_id ret_cont continuation_id exn_cont
+    params variable closure_var variable region_var variable ghost_region_var
+    variable depth_var continuation_id ret_cont continuation_id exn_cont
     (pp_option ~space:Before (pp_like ": %a" arity))
     ret_arity
     (match result_mode with Heap -> "" | Local -> " local")

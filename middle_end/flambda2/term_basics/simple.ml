@@ -42,6 +42,8 @@ let const_one = const RWC.const_one
 
 let const_unit = const RWC.const_unit
 
+let const_int_of_kind kind i = const (RWC.of_int_of_kind kind i)
+
 let[@inline always] is_var t =
   pattern_match t
     ~name:(fun name ~coercion:_ -> Name.is_var name)
@@ -176,4 +178,43 @@ module With_kind = struct
   let apply_renaming ((simple, kind) as t) renaming =
     let simple' = apply_renaming simple renaming in
     if simple == simple' then t else simple', kind
+end
+
+module With_debuginfo = struct
+  type nonrec t = t * Debuginfo.t
+
+  include Container_types.Make (struct
+    type nonrec t = t
+
+    let compare (s1, k1) (s2, k2) =
+      let c = compare s1 s2 in
+      if c <> 0 then c else Debuginfo.compare k1 k2
+
+    let equal t1 t2 = compare t1 t2 = 0
+
+    let hash = Hashtbl.hash
+
+    let print ppf (s, k) =
+      if Debuginfo.is_none k
+      then print ppf s
+      else
+        Format.fprintf ppf "@[<hov 1>(%a@ %t%a%t)@]" print s
+          Flambda_colours.debuginfo Debuginfo.print_compact k
+          Flambda_colours.pop
+  end)
+
+  let create simple dbg = simple, dbg
+
+  let simple (simple, _dbg) = simple
+
+  let dbg (_simple, dbg) = dbg
+
+  let free_names (simple, _dbg) = free_names simple
+
+  let apply_renaming ((simple, dbg) as t) renaming =
+    let simple' = apply_renaming simple renaming in
+    if simple == simple' then t else simple', dbg
+
+  let ids_for_export (simple, _dbg) =
+    Ids_for_export.add_simple Ids_for_export.empty simple
 end

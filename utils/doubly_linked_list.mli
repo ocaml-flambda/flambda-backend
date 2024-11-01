@@ -38,6 +38,8 @@ val add_begin : 'a t -> 'a -> unit
 
 val add_end : 'a t -> 'a -> unit
 
+val add_list : 'a t -> 'a list -> unit
+
 val is_empty : 'a t -> bool
 
 val length : 'a t -> int
@@ -80,3 +82,5 @@ val to_list : 'a t -> 'a list
 
 (* Adds all of the elements of `from` to `to_`, and clears `from`. *)
 val transfer : to_:'a t -> from:'a t -> unit -> unit
+
+val map : 'a t -> f:('a -> 'b) -> 'b t

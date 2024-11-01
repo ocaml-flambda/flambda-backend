@@ -55,6 +55,7 @@ let keyword_table =
     "error", KWD_ERROR;
     "exn", KWD_EXN;
     "float", KWD_FLOAT;
+    "generic", KWD_GENERIC;
     "halt_and_catch_fire", KWD_HCF;
     "heap_or_local", KWD_HEAP_OR_LOCAL;
     "hint", KWD_HINT;
@@ -74,6 +75,7 @@ let keyword_table =
     "local", KWD_LOCAL;
     "loopify", KWD_LOOPIFY;
     "lor", KWD_LOR;
+    "lxor", KWD_LXOR;
     "lsl", KWD_LSL;
     "lsr", KWD_LSR;
     "mutable", KWD_MUTABLE;
@@ -127,7 +129,9 @@ let prim_table =
     "array_load", PRIM_ARRAY_LOAD;
     "array_set", PRIM_ARRAY_SET;
     "begin_region", PRIM_BEGIN_REGION;
+    "begin_ghost_region", PRIM_BEGIN_GHOST_REGION;
     "begin_try_region", PRIM_BEGIN_TRY_REGION;
+    "begin_ghost_try_region", PRIM_BEGIN_GHOST_TRY_REGION;
     "bigstring_load", PRIM_BIGSTRING_LOAD;
     "bigstring_set", PRIM_BIGSTRING_SET;
     "Block", PRIM_BLOCK;
@@ -142,7 +146,9 @@ let prim_table =
     "bytes_load", PRIM_BYTES_LOAD;
     "bytes_set", PRIM_BYTES_SET;
     "end_region", PRIM_END_REGION;
+    "end_ghost_region", PRIM_END_GHOST_REGION;
     "end_try_region", PRIM_END_TRY_REGION;
+    "end_ghost_try_region", PRIM_END_GHOST_TRY_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
     "int_comp", PRIM_INT_COMP;

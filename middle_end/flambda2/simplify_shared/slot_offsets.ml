@@ -318,7 +318,7 @@ end = struct
   type _ slot_desc =
     | Function_slot : Function_slot.t -> function_slot slot_desc
     | Unboxed_slot : Value_slot.t -> unboxed_slot slot_desc
-    | Value_slot : Value_slot.t -> value_slot slot_desc
+    | Scannable_value_slot : Value_slot.t -> value_slot slot_desc
 
   (* This module helps to distinguish between the two different notions of
      offsets that are used for function slots:
@@ -358,14 +358,15 @@ end = struct
       let offset =
         match slot with
         | Function_slot _ -> first_offset_used_including_header + 1
-        | Unboxed_slot _ | Value_slot _ -> first_offset_used_including_header
+        | Unboxed_slot _ | Scannable_value_slot _ ->
+          first_offset_used_including_header
       in
       Offset offset
 
     let range_used_by (type a) (slot : a slot_desc) (Offset pos) ~slot_size =
       match slot with
       | Function_slot _ -> pos - 1, pos + slot_size
-      | Unboxed_slot _ | Value_slot _ -> pos, pos + slot_size
+      | Unboxed_slot _ | Scannable_value_slot _ -> pos, pos + slot_size
 
     let add_slot_to_exported_offsets (type a) offsets (slot : a slot_desc)
         (Offset pos) ~slot_size =
@@ -381,7 +382,7 @@ end = struct
             { offset = pos; is_scanned = false; size = slot_size }
         in
         EO.add_value_slot_offset offsets unboxed_slot info
-      | Value_slot value_slot ->
+      | Scannable_value_slot value_slot ->
         let (info : EO.value_slot_info) =
           EO.Live_value_slot
             { offset = pos; is_scanned = true; size = slot_size }
@@ -488,7 +489,7 @@ end = struct
   let print_desc (type a) fmt (slot_desc : a slot_desc) =
     match slot_desc with
     | Function_slot c -> Format.fprintf fmt "%a" Function_slot.print c
-    | Unboxed_slot v | Value_slot v ->
+    | Unboxed_slot v | Scannable_value_slot v ->
       Format.fprintf fmt "%a" Value_slot.print v
 
   let print_slot_pos fmt = function
@@ -556,7 +557,7 @@ end = struct
     | Unassigned | Removed -> ()
     | Assigned offset -> (
       match slot.desc with
-      | Value_slot _ ->
+      | Scannable_value_slot _ ->
         if slot.size <> 1
         then
           Misc.fatal_errorf "Value slot has size %d, which is not 1." slot.size;
@@ -625,7 +626,7 @@ end = struct
         let (info : EO.function_slot_info) = EO.Dead_function_slot in
         state.used_offsets
           <- EO.add_function_slot_offset state.used_offsets function_slot info
-      | Unboxed_slot v | Value_slot v ->
+      | Unboxed_slot v | Scannable_value_slot v ->
         let (info : EO.value_slot_info) = EO.Dead_value_slot in
         state.used_offsets <- EO.add_value_slot_offset state.used_offsets v info
       )
@@ -642,7 +643,7 @@ end = struct
       state.function_slots_to_assign <- slot :: state.function_slots_to_assign
     | Unboxed_slot _ ->
       state.unboxed_slots_to_assign <- slot :: state.unboxed_slots_to_assign
-    | Value_slot _ ->
+    | Scannable_value_slot _ ->
       state.value_slots_to_assign <- slot :: state.value_slots_to_assign
 
   let add_allocated_slot_to_set slot set =
@@ -719,17 +720,17 @@ end = struct
 
   (* Create slots (and create the cross-referencing). *)
 
-  let create_function_slot set state get_code_metadata function_slot code_id =
+  let create_function_slot set state get_code_metadata function_slot
+      (code_id : Function_declarations.code_id_in_function_declaration) =
     if Compilation_unit.is_current
          (Function_slot.get_compilation_unit function_slot)
     then (
       let size =
-        let code_metadata = get_code_metadata code_id in
-        let module CM = Code_metadata in
-        let is_tupled = CM.is_tupled code_metadata in
-        let params_arity = CM.params_arity code_metadata in
-        let arity = Flambda_arity.num_params params_arity in
-        if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
+        match code_id with
+        | Deleted { function_slot_size; _ } -> function_slot_size
+        | Code_id code_id ->
+          let code_metadata = get_code_metadata code_id in
+          Code_metadata.function_slot_size code_metadata
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
       add_function_slot state function_slot s;
@@ -805,7 +806,9 @@ end = struct
   let create_value_slot set state value_slot =
     if Compilation_unit.is_current (Value_slot.get_compilation_unit value_slot)
     then (
-      let s = create_slot ~size:1 (Value_slot value_slot) Unassigned in
+      let s =
+        create_slot ~size:1 (Scannable_value_slot value_slot) Unassigned
+      in
       add_value_slot state value_slot s;
       add_unallocated_slot_to_set state s set;
       s)
@@ -833,7 +836,10 @@ end = struct
              in the original compilation unit, this should not happen."
             Value_slot.print value_slot;
         let offset = Exported_offset.from_exported_offset offset in
-        let s = create_slot ~size:1 (Value_slot value_slot) (Assigned offset) in
+        let s =
+          create_slot ~size:1 (Scannable_value_slot value_slot)
+            (Assigned offset)
+        in
         use_value_slot_info state value_slot info;
         add_value_slot state value_slot s;
         add_allocated_slot_to_set s set;
@@ -853,7 +859,8 @@ end = struct
     state.sets_of_closures <- set :: state.sets_of_closures;
     (* Fill closure slots *)
     Function_slot.Map.iter
-      (fun function_slot code_id ->
+      (fun function_slot
+           (code_id : Function_declarations.code_id_in_function_declaration) ->
         let s =
           match
             Function_slot.Map.find_opt function_slot state.function_slots
@@ -935,7 +942,7 @@ end = struct
     let needed_space =
       match slot.desc with
       | Function_slot _ -> slot.size + 1 (* header word *)
-      | Unboxed_slot _ | Value_slot _ -> slot.size
+      | Unboxed_slot _ | Scannable_value_slot _ -> slot.size
     in
     (* Ensure that for value slots, we are after all function slots. *)
     let curr =
@@ -945,7 +952,7 @@ end = struct
         (* first_slot_after_function_slots is always >=0, thus ensuring we do
            not place a value slot at offset -1 *)
         max start set.first_slot_after_function_slots
-      | Value_slot _ -> max start set.first_slot_after_unboxed_slots
+      | Scannable_value_slot _ -> max start set.first_slot_after_unboxed_slots
     in
     (* Adjust a starting position to not point in the middle of a block.
        Additionally, ensure the value slot slots are put after the function
@@ -1048,7 +1055,7 @@ end = struct
     state.value_slots_to_assign <- [];
     List.iter
       (function
-        | { desc = Value_slot v; _ } as slot ->
+        | { desc = Scannable_value_slot v; _ } as slot ->
           if value_slot_is_used ~used_value_slots v
           then assign_slot_offset state slot
           else mark_slot_as_removed state slot)

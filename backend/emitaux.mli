@@ -135,7 +135,7 @@ type error =
   | Inconsistent_probe_init of string * Debuginfo.t
 
 module Dwarf_helpers : sig
-  val init : disable_dwarf:bool -> string -> unit
+  val init : disable_dwarf:bool -> sourcefile:string option -> unit
 
   val begin_dwarf :
     build_asm_directives:(unit -> (module Asm_targets.Asm_directives_intf.S)) ->

@@ -42,9 +42,6 @@ val trap_notes : bool ref
 val arch_check_symbols : bool ref
 val command_line_options : (string * Arg.spec * string) list
 
-val assert_simd_enabled : unit -> unit
-val assert_float32_enabled : unit -> unit
-
 (* Specific operations for the AMD64 processor *)
 
 type sym_global = Global | Local
@@ -89,6 +86,7 @@ type specific_operation =
   | Imfence                            (* memory fence *)
   | Ipause                             (* hint for spin-wait loops *)
   | Isimd of Simd.operation            (* SIMD instruction set operations *)
+  | Icldemote of addressing_mode       (* hint to demote a cacheline to L3 *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
         locality: prefetch_temporal_locality_hint;
@@ -141,3 +139,15 @@ val operation_allocates : specific_operation -> bool
 
 val float_cond_and_need_swap
   :  Lambda.float_comparison -> X86_ast.float_condition * bool
+
+(* addressing mode functions *)
+
+val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
+
+val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option
+
+val addressing_offset_in_bytes : addressing_mode -> addressing_mode -> int option
+
+val can_cross_loads_or_stores : specific_operation -> bool
+
+val may_break_alloc_freshness : specific_operation -> bool

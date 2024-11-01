@@ -70,6 +70,8 @@ val const_unit : t
 
 val const_from_descr : Reg_width_const.Descr.t -> t
 
+val const_int_of_kind : Flambda_kind.t -> int -> t
+
 val is_const : t -> bool
 
 val is_symbol : t -> bool
@@ -99,6 +101,22 @@ module With_kind : sig
   type nonrec t = t * Flambda_kind.t
 
   include Contains_names.S with type t := t
+
+  include Container_types.S with type t := t
+end
+
+module With_debuginfo : sig
+  type nonrec t
+
+  val create : Int_ids.Simple.t -> Debuginfo.t -> t
+
+  val simple : t -> Int_ids.Simple.t
+
+  val dbg : t -> Debuginfo.t
+
+  include Contains_names.S with type t := t
+
+  include Contains_ids.S with type t := t
 
   include Container_types.S with type t := t
 end

@@ -252,7 +252,12 @@ let subst_primitive env (p : Flambda_primitive.t) : Flambda_primitive.t =
     Unary (subst_unary_primitive env unary_primitive, subst_simple env arg)
   | _ -> p
 
-let subst_func_decl env code_id = subst_code_id env code_id
+let subst_func_decl env
+    (code_id : Function_declarations.code_id_in_function_declaration) :
+    Function_declarations.code_id_in_function_declaration =
+  match code_id with
+  | Deleted _ -> code_id
+  | Code_id code_id -> Code_id (subst_code_id env code_id)
 
 let subst_func_decls env decls =
   Function_declarations.funs_in_order decls
@@ -280,10 +285,10 @@ let subst_rec_info_expr _env ri =
      symbols and other global names *)
   ri
 
-let subst_field env (field : Field_of_static_block.t) =
-  match field with
-  | Symbol symbol -> Field_of_static_block.Symbol (subst_symbol env symbol)
-  | Tagged_immediate _ | Dynamically_computed _ -> field
+let subst_field env field =
+  Simple.With_debuginfo.create
+    (subst_simple env (Simple.With_debuginfo.simple field))
+    (Simple.With_debuginfo.dbg field)
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
@@ -354,9 +359,10 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
     Static_const_or_code.t =
   match static_const with
   | Code code -> Static_const_or_code.create_code (subst_code env code)
-  | Static_const (Block (tag, mut, fields)) ->
+  | Static_const (Block (tag, mut, shape, fields)) ->
     let fields = List.map (subst_field env) fields in
-    Static_const_or_code.create_static_const (Static_const.block tag mut fields)
+    Static_const_or_code.create_static_const
+      (Static_const.block tag mut shape fields)
   | Static_const (Set_of_closures set_of_closures) ->
     Static_const_or_code.create_static_const
       (Static_const.set_of_closures (subst_set_of_closures env set_of_closures))
@@ -387,12 +393,14 @@ and subst_params_and_body env params_and_body =
          ~my_closure
          ~is_my_closure_used:_
          ~my_region
+         ~my_ghost_region
          ~my_depth
          ~free_names_of_body
        ->
       let body = subst_expr env body in
       Function_params_and_body.create ~return_continuation ~exn_continuation
-        params ~body ~my_closure ~my_region ~free_names_of_body ~my_depth)
+        params ~body ~my_closure ~my_region ~my_ghost_region ~free_names_of_body
+        ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
@@ -708,10 +716,20 @@ let primitives env prim1 prim2 : Flambda_primitive.t Comparison.t =
   | _, _ -> Different { approximant = subst_primitive env prim1 }
 
 (* Returns unit because the approximant isn't used by sets_of_closures *)
-let function_decls env code_id1 code_id2 : unit Comparison.t =
-  if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
-  then Equivalent
-  else Different { approximant = () }
+let function_decls env
+    (fun_decl1 : Function_declarations.code_id_in_function_declaration)
+    (fun_decl2 : Function_declarations.code_id_in_function_declaration) :
+    unit Comparison.t =
+  match fun_decl1, fun_decl2 with
+  | ( Deleted { function_slot_size = size1; dbg = _ },
+      Deleted { function_slot_size = size2; dbg = _ } ) ->
+    if Int.equal size1 size2 then Equivalent else Different { approximant = () }
+  | Code_id code_id1, Code_id code_id2 ->
+    if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
+    then Equivalent
+    else Different { approximant = () }
+  | Deleted _, Code_id _ | Code_id _, Deleted _ ->
+    Different { approximant = () }
 
 (** Match up equal elements in two lists and iterate through both of them, using
     [f] analogously to [Map.S.merge] *)
@@ -772,10 +790,27 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
   in
   let function_slots_and_fun_decls_by_code_id set =
     let map = Function_declarations.funs (Set_of_closures.function_decls set) in
-    Function_slot.Map.bindings map
-    |> List.map (fun (function_slot, code_id) ->
-           subst_code_id env code_id, (function_slot, code_id))
-    |> Code_id.Map.of_list
+    let function_slot_map, deleted_function_slot_set =
+      Function_slot.Map.bindings map
+      |> List.partition_map
+           (fun
+             ( function_slot,
+               (code_id : Function_declarations.code_id_in_function_declaration)
+             )
+           ->
+             match code_id with
+             | Deleted _ -> Right function_slot
+             | Code_id code_id0 ->
+               Left (subst_code_id env code_id0, (function_slot, code_id)))
+    in
+    ( Code_id.Map.of_list function_slot_map,
+      Function_slot.Set.of_list deleted_function_slot_set )
+  in
+  let function_slot_map1, deleted_function_slot_set1 =
+    function_slots_and_fun_decls_by_code_id set1
+  in
+  let function_slot_map2, deleted_function_slot_set2 =
+    function_slots_and_fun_decls_by_code_id set2
   in
   (* Using merge here as a map version of [List.iter2]; always returning None
    * means the returned map is always empty, so this shouldn't waste much *)
@@ -794,9 +829,13 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
           | Equivalent -> ()
           | Different _ -> ok := false));
         None)
-      (function_slots_and_fun_decls_by_code_id set1)
-      (function_slots_and_fun_decls_by_code_id set2)
+      function_slot_map1 function_slot_map2
   in
+  (* Trying to find a mapping between the deleted function_slots is not easy, so
+     we simply say the sets are equal if they have the same cardinality *)
+  if Function_slot.Set.cardinal deleted_function_slot_set1
+     <> Function_slot.Set.cardinal deleted_function_slot_set2
+  then ok := false;
   if !ok
   then Equivalent
   else Different { approximant = subst_set_of_closures env set1 }
@@ -872,14 +911,9 @@ let bound_static env bound_static1 bound_static2 : Bound_static.t Comparison.t =
     (bound_static2 |> Bound_static.to_list)
   |> Comparison.map ~f:Bound_static.create
 
-let fields env (field1 : Field_of_static_block.t)
-    (field2 : Field_of_static_block.t) : Field_of_static_block.t Comparison.t =
-  match field1, field2 with
-  | Symbol symbol1, Symbol symbol2 ->
-    symbols env symbol1 symbol2
-    |> Comparison.map ~f:(fun symbol1' -> Field_of_static_block.Symbol symbol1')
-  | _, _ ->
-    Comparator.of_predicate Field_of_static_block.equal env field1 field2
+let fields env (field1 : Simple.With_debuginfo.t)
+    (field2 : Simple.With_debuginfo.t) : Simple.With_debuginfo.t Comparison.t =
+  Comparator.of_predicate Simple.With_debuginfo.equal env field1 field2
 
 let blocks env block1 block2 =
   triples
@@ -900,7 +934,7 @@ let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
   let compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f : _ Comparison.t =
-    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_applications.compare alloc_mode1 alloc_mode2 = 0
     then f ()
     else Different { approximant = call_kind1 }
   in
@@ -924,7 +958,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () -> Equivalent)
   | ( Method { kind = kind1; obj = obj1; alloc_mode = alloc_mode1 },
       Method { kind = kind2; obj = obj2; alloc_mode = alloc_mode2 } ) ->
-    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_applications.compare alloc_mode1 alloc_mode2 = 0
     then
       pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
         (kind1, obj1) (kind2, obj2)
@@ -950,7 +984,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
           alloc_mode = alloc_mode2
         } ) ->
     if Bool.equal needs_caml_c_call1 needs_caml_c_call2
-       && Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+       && Alloc_mode.For_applications.compare alloc_mode1 alloc_mode2 = 0
        && Bool.equal is_c_builtin1 is_c_builtin2
        && Effects.compare effects1 effects2 = 0
        && Coeffects.compare coeffects1 coeffects2 = 0
@@ -1145,13 +1179,14 @@ and static_consts env (const1 : Static_const_or_code.t)
   match const1, const2 with
   | Code code1, Code code2 ->
     codes env code1 code2 |> Comparison.map ~f:Static_const_or_code.create_code
-  | ( Static_const (Block (tag1, mut1, fields1)),
-      Static_const (Block (tag2, mut2, fields2)) ) ->
+  | ( Static_const (Block (tag1, mut1, shape1, fields1)),
+      Static_const (Block (tag2, mut2, _shape2, fields2)) ) ->
+    (* XXX compare the shapes *)
     blocks env (tag1, mut1, fields1) (tag2, mut2, fields2)
     |> Comparison.map
          ~f:(fun (tag1', mut1', fields1') : Static_const_or_code.t ->
            Static_const_or_code.create_static_const
-             (Static_const.block tag1' mut1' fields1'))
+             (Static_const.block tag1' mut1' shape1 fields1'))
   | Static_const (Set_of_closures set1), Static_const (Set_of_closures set2) ->
     sets_of_closures env set1 set2
     |> Comparison.map ~f:(fun set1' : Static_const_or_code.t ->
@@ -1175,13 +1210,14 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
            ~body2
            ~my_closure
            ~my_region
+           ~my_ghost_region
            ~my_depth
          ->
         exprs env body1 body2
         |> Comparison.map ~f:(fun body1' ->
                Function_params_and_body.create ~return_continuation
                  ~exn_continuation params ~body:body1' ~my_closure ~my_region
-                 ~my_depth ~free_names_of_body:Unknown))
+                 ~my_ghost_region ~my_depth ~free_names_of_body:Unknown))
   in
   pairs ~f1:bodies
     ~f2:(options ~f:code_ids ~subst:subst_code_id)
@@ -1230,16 +1266,19 @@ and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
       in
       Continuation.Sort.equal (sort handler1) (sort handler2)
     in
+    (* Note: the order here is important, due to the dominator-scoping of
+       symbols. Indeed, we need to ensure walk both bodies first to ensure the
+       environment contains the definitions of symbols. *)
     Non_rec.pattern_match_pair handler1 handler2 ~f:(fun cont ~body1 ~body2 ->
-        pairs ~f1:cont_handlers ~f2:exprs env
-          (Non_rec.handler handler1, body1)
-          (Non_rec.handler handler2, body2)
+        pairs ~f1:exprs ~f2:cont_handlers env
+          (body1, Non_rec.handler handler1)
+          (body2, Non_rec.handler handler2)
         |> Comparison.add_condition
              ~approximant:(fun () ->
-               ( subst_cont_handler env (Non_rec.handler handler1),
-                 subst_expr env body1 ))
+               ( subst_expr env body1,
+                 subst_cont_handler env (Non_rec.handler handler1) ))
              ~cond:sorts_match
-        |> Comparison.map ~f:(fun (handler, body) ->
+        |> Comparison.map ~f:(fun (body, handler) ->
                Let_cont.create_non_recursive cont handler ~body
                  ~free_names_of_body:Unknown))
   | Recursive handlers1, Recursive handlers2 ->
@@ -1299,6 +1338,7 @@ let flambda_units u1 u2 =
   let ret_cont = Continuation.create ~sort:Toplevel_return () in
   let exn_cont = Continuation.create () in
   let toplevel_my_region = Variable.create "toplevel_my_region" in
+  let toplevel_my_ghost_region = Variable.create "toplevel_my_ghost_region" in
   let mk_renaming u =
     let renaming = Renaming.empty in
     let renaming =
@@ -1316,6 +1356,11 @@ let flambda_units u1 u2 =
         (Flambda_unit.toplevel_my_region u)
         ~guaranteed_fresh:toplevel_my_region
     in
+    let renaming =
+      Renaming.add_fresh_variable renaming
+        (Flambda_unit.toplevel_my_ghost_region u)
+        ~guaranteed_fresh:toplevel_my_ghost_region
+    in
     renaming
   in
   let env = Env.create () in
@@ -1326,4 +1371,5 @@ let flambda_units u1 u2 =
          let module_symbol = Flambda_unit.module_symbol u1 in
          Flambda_unit.create ~return_continuation:ret_cont
            ~exn_continuation:exn_cont ~body ~module_symbol
-           ~used_value_slots:Unknown ~toplevel_my_region)
+           ~used_value_slots:Unknown ~toplevel_my_region
+           ~toplevel_my_ghost_region)

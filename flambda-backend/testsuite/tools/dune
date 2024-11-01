@@ -1,0 +1,32 @@
+(executable
+ (name expect)
+ (modes byte)
+ (libraries ocamlcommon ocamltoplevel)
+ (flags -linkall)
+ (modules expect))
+
+(ocamllex
+ (modules lexcmm))
+
+(ocamlyacc
+ (modules parsecmm))
+
+(executable
+ (name codegen_main)
+ (modes byte)
+ (libraries ocamlcommon ocamloptcomp unix)
+ (modules codegen_main lexcmm parsecmm parsecmmaux))
+
+(rule
+ (targets asmgen_arm64.o)
+ (deps asmgen_arm64.S)
+ (action
+  (bash
+   "%{env:ASPP=aspp-env-var-not-set} %{env:ASPPFLAGS=asppflags-env-var-not-set} -DSYS_%{env:SYSTEM=system-env-var-not-set} -DMODEL_%{env:MODEL=model-env-var-not-set} -o asmgen_arm64.o asmgen_arm64.S")))
+
+(rule
+ (targets asmgen_amd64.o)
+ (deps asmgen_amd64.S)
+ (action
+  (bash
+   "%{env:ASPP=aspp-env-var-not-set} %{env:ASPPFLAGS=asppflags-env-var-not-set} -DSYS_%{env:SYSTEM=system-env-var-not-set} -DMODEL_%{env:MODEL=model-env-var-not-set} -o asmgen_amd64.o asmgen_amd64.S")))

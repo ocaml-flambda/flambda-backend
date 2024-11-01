@@ -86,6 +86,12 @@ let rec replace_in_pat : type k. _ -> k general_pattern -> k general_pattern =
               { str with txt = mod_name ^ "_" ^ str.txt } )
       | Tpat_tuple (vl, id) ->
           mkTpat_tuple ~id (List.map (replace_in_pat mod_name) vl)
+      | O (Tpat_unboxed_tuple fields) ->
+          Tpat_unboxed_tuple
+            (List.map
+               (fun (name, pat, sort) ->
+                 (name, replace_in_pat mod_name pat, sort))
+               fields)
       | Tpat_array (vl, id) ->
           mkTpat_array ~id (List.map (replace_in_pat mod_name) vl)
       | O (Tpat_construct (a1, a2, vl, a3)) ->

@@ -103,4 +103,5 @@ val close_program :
   prog_return_cont:Continuation.t ->
   exn_continuation:Continuation.t ->
   toplevel_my_region:Ident.t ->
+  toplevel_my_ghost_region:Ident.t ->
   'mode close_program_result

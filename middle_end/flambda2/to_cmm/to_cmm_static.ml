@@ -22,35 +22,49 @@ end
 module SC = Static_const
 module R = To_cmm_result
 module UK = C.Update_kind
+module MBS = Flambda_kind.Mixed_block_shape
 
-let static_value res v =
-  match (v : Field_of_static_block.t) with
-  | Symbol s -> C.symbol_address (R.symbol res s)
-  | Dynamically_computed _ -> C.cint 1n
-  | Tagged_immediate i ->
-    C.cint
-      (C.nativeint_of_targetint
-         (C.tag_targetint (Targetint_31_63.to_targetint i)))
+let static_field res field field_kind =
+  Simple.pattern_match'
+    (Simple.With_debuginfo.simple field)
+    ~var:(fun _var ~coercion:_ ->
+      match (field_kind : Flambda_kind.t) with
+      | Naked_number Naked_vec128 -> [C.cvec128 { low = 1L; high = 1L }]
+      | Naked_number
+          ( Naked_immediate | Naked_float32 | Naked_float | Naked_int32
+          | Naked_int64 | Naked_nativeint )
+      | Value ->
+        [C.cint 1n]
+      | Region | Rec_info ->
+        Misc.fatal_errorf "Unexpected static field kind %a" Flambda_kind.print
+          field_kind)
+    ~symbol:(fun sym ~coercion:_ -> [C.symbol_address (R.symbol res sym)])
+    ~const:C.const_static
 
 let or_variable f default v cont =
   match (v : _ Or_variable.t) with
   | Const c -> f c cont
   | Var _ -> f default cont
 
-let rec static_block_updates symb env res acc i = function
-  | [] -> env, res, acc
-  | sv :: r -> (
-    match (sv : Field_of_static_block.t) with
-    | Symbol _ | Tagged_immediate _ ->
-      static_block_updates symb env res acc (i + 1) r
-    | Dynamically_computed (var, dbg) ->
+let update_field symb env res acc i update_kind field =
+  Simple.pattern_match'
+    (Simple.With_debuginfo.simple field)
+    ~var:(fun var ~coercion:_ ->
       (* CR mshinwell/mslater: It would be nice to know if [var] is an
          immediate. *)
-      let env, res, acc =
-        C.make_update env res dbg UK.pointers ~symbol:(C.symbol ~dbg symb) var
-          ~index:i ~prev_updates:acc
-      in
-      static_block_updates symb env res acc (i + 1) r)
+      let dbg = Simple.With_debuginfo.dbg field in
+      C.make_update env res dbg update_kind ~symbol:(C.symbol ~dbg symb) var
+        ~index:i ~prev_updates:acc)
+    ~symbol:(fun _sym ~coercion:_ -> env, res, acc)
+    ~const:(fun _cst -> env, res, acc)
+
+let rec static_block_updates symb env res acc i = function
+  | [] -> env, res, acc
+  | (simple, update_kind) :: r ->
+    let env, res, acc = update_field symb env res acc i update_kind simple in
+    static_block_updates symb env res acc
+      (i + UK.field_size_in_words update_kind)
+      r
 
 type maybe_int32 =
   | Int32
@@ -90,17 +104,18 @@ let static_boxed_number ~kind ~env ~symbol ~default ~emit ~transl ~structured v
   in
   R.update_data res (or_variable aux default v), env, updates
 
-let add_function env res ~params_and_body code_id p ~fun_dbg
+let add_function env res ~params_and_body code_id p ~result_arity ~fun_dbg
     ~zero_alloc_attribute =
   let fundecl, res =
-    params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
+    params_and_body env res code_id p ~result_arity ~fun_dbg
+      ~zero_alloc_attribute
   in
   R.add_function res fundecl
 
 let add_functions env ~params_and_body res (code : Code.t) =
   add_function env res ~params_and_body (Code.code_id code)
     (Code.params_and_body code)
-    ~fun_dbg:(Code.dbg code)
+    ~result_arity:(Code.result_arity code) ~fun_dbg:(Code.dbg code)
     ~zero_alloc_attribute:(Code.zero_alloc_attribute code)
 
 let preallocate_set_of_closures (res, updates, env) ~closure_symbols
@@ -203,23 +218,91 @@ let immutable_unboxed_float32_array env res updates ~symbol ~elts =
   in
   env, R.set_data res block, updates
 
+let immutable_unboxed_vec128_array env res updates ~symbol ~elts =
+  let sym = R.symbol res symbol in
+  let num_elts = List.length elts in
+  let num_fields = num_elts * 2 in
+  let header =
+    C.black_custom_header
+      ~size:(1 (* for the custom_operations pointer *) + num_fields)
+  in
+  let payload =
+    List.map
+      (Or_variable.value_map
+         ~default:(Cmm.Cvec128 { high = 0L; low = 0L })
+         ~f:(fun v ->
+           let Vector_types.Vec128.Bit_pattern.{ high; low } =
+             Vector_types.Vec128.Bit_pattern.to_bits v
+           in
+           Cmm.Cvec128 { high; low }))
+      elts
+  in
+  let static_fields =
+    C.symbol_address (Cmm.global_symbol "caml_unboxed_vec128_array_ops")
+    :: payload
+  in
+  let block = C.emit_block sym header static_fields in
+  let env, res, updates =
+    static_unboxed_array_updates sym env res updates UK.naked_vec128s 0 elts
+  in
+  env, R.set_data res block, updates
+
 let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     (static_const : Static_const.t) =
   match bound_static, static_const with
-  | Block_like s, Block (tag, _mut, fields) ->
+  | Block_like s, Block (tag, mut, shape, fields) ->
+    (match mut with
+    | Immutable | Immutable_unique -> ()
+    | Mutable ->
+      (* CR mshinwell: actually we could probably permit updates on the flat
+         suffix even now *)
+      Misc.fatal_errorf
+        "Symbol %a: the GC does not currently support mutable fields in \
+         statically-allocated values"
+        Symbol.print s);
     let sym = R.symbol res s in
     let res = R.check_for_module_symbol res s in
-    let tag = Tag.Scannable.to_int tag in
-    let header = C.black_block_header tag (List.length fields) in
+    let field_kinds, header =
+      let tag = Tag.Scannable.to_int tag in
+      let num_fields = List.length fields in
+      match shape with
+      | Value_only ->
+        ( List.init num_fields (fun _ -> Flambda_kind.value),
+          C.black_block_header tag num_fields )
+      | Mixed_record shape ->
+        ( MBS.field_kinds shape |> Array.to_list,
+          C.black_mixed_block_header tag (MBS.size_in_words shape)
+            ~scannable_prefix_len:(MBS.value_prefix_size shape) )
+    in
     let static_fields =
-      List.fold_right
-        (fun v static_fields ->
-          let static_field = static_value res v in
-          static_field :: static_fields)
-        fields []
+      Misc.Stdlib.List.concat_map2 (static_field res) fields field_kinds
     in
     let block = C.emit_block sym header static_fields in
-    let env, res, updates = static_block_updates sym env res updates 0 fields in
+    let update_kinds =
+      match shape with
+      | Value_only -> List.map (fun _ -> UK.pointers) fields
+      | Mixed_record shape ->
+        let value_prefix =
+          List.init (MBS.value_prefix_size shape) (fun _ -> UK.pointers)
+        in
+        let flat_suffix =
+          List.map
+            (fun (flat_suffix_elt : Flambda_kind.flat_suffix_element) ->
+              match flat_suffix_elt with
+              | Tagged_immediate -> UK.tagged_immediates
+              | Naked_float -> UK.naked_floats
+              | Naked_float32 -> UK.naked_float32_fields
+              | Naked_int32 -> UK.naked_int32_fields
+              | Naked_vec128 -> UK.naked_vec128_fields
+              | Naked_int64 | Naked_nativeint -> UK.naked_int64s)
+            (Flambda_kind.Mixed_block_shape.flat_suffix shape |> Array.to_list)
+        in
+        value_prefix @ flat_suffix
+    in
+    let env, res, updates =
+      static_block_updates sym env res updates 0
+        (List.combine fields update_kinds)
+    in
     env, R.set_data res block, updates
   | Set_of_closures closure_symbols, Set_of_closures set_of_closures ->
     let res, updates, env =
@@ -315,18 +398,23 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     immutable_unboxed_int_array env res updates Int64_or_nativeint ~symbol ~elts
       ~to_int64:Targetint_32_64.to_int64 ~custom_ops_symbol:(fun ~num_elts:_ ->
         "caml_unboxed_nativeint_array_ops", None)
+  | Block_like symbol, Immutable_vec128_array elts ->
+    immutable_unboxed_vec128_array env res updates ~symbol ~elts
   | Block_like s, Immutable_value_array fields ->
     let sym = R.symbol res s in
     let header = C.black_block_header 0 (List.length fields) in
+    let field_kinds =
+      List.init (List.length fields) (fun _ -> Flambda_kind.value)
+    in
     let static_fields =
-      List.fold_right
-        (fun v static_fields ->
-          let static_field = static_value res v in
-          static_field :: static_fields)
-        fields []
+      Misc.Stdlib.List.concat_map2 (static_field res) fields field_kinds
     in
     let block = C.emit_block sym header static_fields in
-    let env, res, updates = static_block_updates sym env res updates 0 fields in
+    let update_kinds = List.map (fun _ -> UK.pointers) fields in
+    let env, res, updates =
+      static_block_updates sym env res updates 0
+        (List.combine fields update_kinds)
+    in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Values_or_immediates_or_naked_floats ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
@@ -362,6 +450,13 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         [C.symbol_address (Cmm.global_symbol "caml_unboxed_nativeint_array_ops")]
     in
     env, R.set_data res block, updates
+  | Block_like s, Empty_array Naked_vec128s ->
+    let block =
+      C.emit_block (R.symbol res s)
+        (C.black_custom_header ~size:1)
+        [C.symbol_address (Cmm.global_symbol "caml_unboxed_vec128_array_ops")]
+    in
+    env, R.set_data res block, updates
   | Block_like s, Mutable_string { initial_value = str }
   | Block_like s, Immutable_string str ->
     let data = C.emit_string_constant (R.symbol res s) str in
@@ -376,8 +471,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       | Immutable_float_block _ | Immutable_float_array _
       | Immutable_float32_array _ | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
-      | Immutable_value_array _ | Empty_array _ | Mutable_string _
-      | Immutable_string _ ) ) ->
+      | Immutable_vec128_array _ | Immutable_value_array _ | Empty_array _
+      | Mutable_string _ | Immutable_string _ ) ) ->
     Misc.fatal_errorf
       "Block-like constants cannot be bound by [Code] or [Set_of_closures] \
        bindings:@ %a"

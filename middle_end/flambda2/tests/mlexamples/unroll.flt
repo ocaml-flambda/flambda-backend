@@ -1,7 +1,7 @@
-let $camlUnroll__first_const21 = Block 0 () in
+let $camlUnroll__first_const23 = Block 0 () in
 let code rec size(26)
       fact_0 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
@@ -30,9 +30,9 @@ in
           let Pmakeblock = %Block 0 (fact, i, j) in
           cont k (Pmakeblock)))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(3) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(3) (module_block, 1) in
-    let field_2 = %block_load tag(0) size(3) (module_block, 2) in
+    let field_0 = %block_load tag(0) size(3) (0) module_block in
+    let field_1 = %block_load tag(0) size(3) (1) module_block in
+    let field_2 = %block_load tag(0) size(3) (2) module_block in
     let $camlUnroll = Block 0 (field_0, field_1, field_2) in
     cont done ($camlUnroll)
 ===>
@@ -41,7 +41,7 @@ let $camlUnroll__fact_1 =
   closure fact_0_1 @fact
 and code rec loopify(never) size(23) newer_version_of(fact_0)
       fact_0_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %phys_eq (n, 0) in

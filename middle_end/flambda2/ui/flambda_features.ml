@@ -57,6 +57,10 @@ let join_depth () =
   !Flambda_backend_flags.Flambda2.join_depth
   |> with_default ~f:(fun d -> d.join_depth)
 
+let enable_reaper () =
+  !Flambda_backend_flags.Flambda2.enable_reaper
+  |> with_default ~f:(fun d -> d.enable_reaper)
+
 let flat_float_array () = Config.flat_float_array
 
 let function_result_types ~is_a_functor =
@@ -95,7 +99,15 @@ let unicode () =
   !Flambda_backend_flags.Flambda2.unicode
   |> with_default ~f:(fun d -> d.unicode)
 
-let check_invariants () = !Clflags.flambda_invariant_checks
+let check_invariants () =
+  match !Clflags.flambda_invariant_checks with
+  | No_checks | Light_checks -> false
+  | Heavy_checks -> true
+
+let check_light_invariants () =
+  match !Clflags.flambda_invariant_checks with
+  | No_checks -> false
+  | Light_checks | Heavy_checks -> true
 
 type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
   | Nowhere
@@ -115,6 +127,10 @@ let dump_flexpect () = !Flambda_backend_flags.Flambda2.Dump.flexpect
 let dump_slot_offsets () = !Flambda_backend_flags.Flambda2.Dump.slot_offsets
 
 let dump_flow () = !Flambda_backend_flags.Flambda2.Dump.flow
+
+let dump_simplify () = !Flambda_backend_flags.Flambda2.Dump.simplify
+
+let dump_reaper () = !Flambda_backend_flags.Flambda2.Dump.reaper
 
 let freshen_when_printing () = !Flambda_backend_flags.Flambda2.Dump.freshen
 
@@ -251,6 +267,10 @@ module Expert = struct
   let shorten_symbol_names () =
     !Flambda_backend_flags.Flambda2.Expert.shorten_symbol_names
     |> with_default ~f:(fun d -> d.shorten_symbol_names)
+
+  let cont_lifting_budget () =
+    !Flambda_backend_flags.Flambda2.Expert.cont_lifting_budget
+    |> with_default ~f:(fun d -> d.cont_lifting_budget)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

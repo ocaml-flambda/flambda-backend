@@ -26,14 +26,14 @@ let $camlLocal__Pmakeblock179 =
 in
 let code size(1)
       return_local_0 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 | 0 of val * [ 0 | 0 of val * val ] ] =
   cont k ($camlLocal__const_block13)
 in
 let code rec size(34)
       map_local_1 (f, l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 | 0 of val * [ 0 | 0 of val * val ] ] =
   let next_depth = rec_info (succ my_depth) in
@@ -44,14 +44,14 @@ let code rec size(34)
      | 0 -> k2
      | 1 -> k (0))
     where k2 =
-      ((let Pfield = %block_load (l, 1) in
-        apply direct(map_local_1 &my_region)
+      ((let Pfield = %block_load (1) l in
+        apply direct(map_local_1 &my_region &my_ghost_region)
           (my_closure ~ depth my_depth -> next_depth
            : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
             (f, Pfield)
             -> k2 * k1)
          where k2 (apply_result : [ 0 | 0 of val * [ 0 | 0 of val * val ] ]) =
-           ((let Pfield = %block_load (l, 0) in
+           ((let Pfield = %block_load (0) l in
              apply f (Pfield) -> k2 * k1)
               where k2 (apply_result_1) =
                 let Pmakeblock =
@@ -61,7 +61,7 @@ let code rec size(34)
 in
 let code rec size(22)
       length_2 (l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
@@ -72,7 +72,7 @@ let code rec size(22)
      | 0 -> k2
      | 1 -> k (0))
     where k2 =
-      ((let Pfield = %block_load (l, 1) in
+      ((let Pfield = %block_load (1) l in
         apply direct(length_2)
           (my_closure ~ depth my_depth -> next_depth : _ -> imm tagged)
             (Pfield)
@@ -83,7 +83,7 @@ let code rec size(22)
 in
 let code size(3)
       `anon-fn[local.ml:24,27--43]_3` (i : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Paddint = i + 1 in
@@ -93,7 +93,7 @@ let code rec loopify(default tailrec) size(27)
       rev_app_4
         (l1 : [ 0 | 0 of val * [ 0 | 0 of val * val ] ],
          l2 : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 | 0 of val * [ 0 | 0 of val * val ] ] =
   let next_depth = rec_info (succ my_depth) in
@@ -104,9 +104,9 @@ let code rec loopify(default tailrec) size(27)
      | 0 -> k2
      | 1 -> k (l2))
     where k2 =
-      let Pfield = %block_load (l1, 0) in
+      let Pfield = %block_load (0) l1 in
       let Pmakeblock = %Block 0 (Pfield, l2) in
-      let Pfield_1 = %block_load (l1, 1) in
+      let Pfield_1 = %block_load (1) l1 in
       apply direct(rev_app_4)
         (my_closure ~ depth my_depth -> next_depth
          : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
@@ -118,7 +118,7 @@ let code rec size(60)
         (break_here,
          l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ],
          acc : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ] =
   let next_depth = rec_info (succ my_depth) in
@@ -132,8 +132,8 @@ let code rec size(60)
       let Pmakeblock = %Block 0 &my_region (acc, 0) in
       cont k (Pmakeblock)
     where k2 =
-      let l_1 = %block_load (l, 1) in
-      let a = %block_load (l, 0) in
+      let l_1 = %block_load (1) l in
+      let a = %block_load (0) l in
       let acc_1 = %Block 0 &my_region (a, acc) in
       (apply break_here (a) -> k2 * k1
          where k2 (apply_result : imm tagged) =
@@ -145,7 +145,7 @@ let code rec size(60)
                 let Pmakeblock = %Block 0 &my_region (acc_1, l_1) in
                 cont k (Pmakeblock)
               where k2 =
-                apply direct(find_span_6 &my_region)
+                apply direct(find_span_6 &my_region &my_ghost_region)
                   (my_closure ~ depth my_depth -> next_depth
                    : _ ->
                      [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ]
@@ -155,13 +155,14 @@ let code rec size(60)
 in
 let code rec size(41)
       spans_5 (break_here, l : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 | 0 of val * [ 0 | 0 of val * val ] ] =
   let next_depth = rec_info (succ my_depth) in
   let rev_app = %project_value_slot spans.rev_app my_closure in
   let find_span = %project_function_slot (spans -> find_span) my_closure in
   let `region` = %begin_region in
+  let `ghost_region` = %begin_ghost_region in
   (let prim = %is_int l in
    let Pisint = %Tag_imm prim in
    (let untagged = %untag_imm Pisint in
@@ -169,7 +170,7 @@ let code rec size(41)
       | 0 -> k3
       | 1 -> k2 (0))
      where k3 =
-       (apply direct(find_span_6 &`region`)
+       (apply direct(find_span_6 &`region` &`ghost_region`)
           (find_span ~ depth my_depth -> next_depth
            : _ -> [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ])
             (break_here, l, 0)
@@ -177,7 +178,7 @@ let code rec size(41)
           where k3
                   (`*match*` :
                      [ 0 of [ 0 | 0 of val * val ] * [ 0 | 0 of val * val ] ]) =
-            ((let Pfield = %block_load (`*match*`, 1) in
+            ((let Pfield = %block_load (1) `*match*` in
               apply direct(spans_5)
                 (my_closure ~ depth my_depth -> next_depth
                  : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
@@ -186,7 +187,7 @@ let code rec size(41)
                where k3
                        (apply_result :
                           [ 0 | 0 of val * [ 0 | 0 of val * val ] ]) =
-                 ((let Pfield = %block_load (`*match*`, 0) in
+                 ((let Pfield = %block_load (0) `*match*` in
                    apply direct(rev_app_4)
                      (rev_app
                       : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
@@ -201,11 +202,12 @@ let code rec size(41)
                       cont k2 (Pmakeblock)))))
     where k2 (region_return : [ 0 | 0 of val * [ 0 | 0 of val * val ] ]) =
       let `unit` = %end_region `region` in
+      let `unit` = %end_ghost_region `ghost_region` in
       cont k (region_return)
 in
 let code size(25)
       is_even_7 (i : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let prim = %int_comp 2 <> 0 in
@@ -238,7 +240,8 @@ in
           cont error pop(regular error) ($camlLocal__Pmakeblock55))
    where k1 (`*match*` : imm tagged) =
      ((let `region` = %begin_region in
-       apply direct(return_local_0 &`region`)
+       let `ghost_region` = %begin_ghost_region in
+       apply direct(return_local_0 &`region` &`ghost_region`)
          (return_local : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
            (0)
            -> k4 * error
@@ -256,10 +259,12 @@ in
                 cont error pop(regular error) ($camlLocal__Pmakeblock69))
          where k2 (region_return : imm tagged) =
            let `unit` = %end_region `region` in
+           let `unit` = %end_ghost_region `ghost_region` in
            cont k1 (region_return))
         where k1 (`*match*_1` : imm tagged) =
           ((let `region` = %begin_region in
-            apply direct(return_local_0 &`region`)
+            let `ghost_region` = %begin_ghost_region in
+            apply direct(return_local_0 &`region` &`ghost_region`)
               (return_local : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
                 (0)
                 -> k3 * error
@@ -268,7 +273,7 @@ in
                     closure `anon-fn[local.ml:24,27--43]_3`
                       @`anon-fn[local.ml:24,27--43]`
                   in
-                  apply direct(map_local_1 &`region`)
+                  apply direct(map_local_1 &`region` &`ghost_region`)
                     (map_local
                      : _ -> [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
                       (`anon-fn[local.ml:24,27--43]`, ns)
@@ -289,6 +294,7 @@ in
                                       ($camlLocal__Pmakeblock92))))
               where k2 (region_return : imm tagged) =
                 let `unit` = %end_region `region` in
+                let `unit` = %end_ghost_region `ghost_region` in
                 cont k1 (region_return))
              where k1 (`*match*_2` : imm tagged) =
                let rev_app = closure rev_app_4 @rev_app in
@@ -330,13 +336,13 @@ in
                     in
                     cont k (Pmakeblock)))))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(7) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(7) (module_block, 1) in
-    let field_2 = %block_load tag(0) size(7) (module_block, 2) in
-    let field_3 = %block_load tag(0) size(7) (module_block, 3) in
-    let field_4 = %block_load tag(0) size(7) (module_block, 4) in
-    let field_5 = %block_load tag(0) size(7) (module_block, 5) in
-    let field_6 = %block_load tag(0) size(7) (module_block, 6) in
+    let field_0 = %block_load tag(0) size(7) (0) module_block in
+    let field_1 = %block_load tag(0) size(7) (1) module_block in
+    let field_2 = %block_load tag(0) size(7) (2) module_block in
+    let field_3 = %block_load tag(0) size(7) (3) module_block in
+    let field_4 = %block_load tag(0) size(7) (4) module_block in
+    let field_5 = %block_load tag(0) size(7) (5) module_block in
+    let field_6 = %block_load tag(0) size(7) (6) module_block in
     let $camlLocal =
       Block 0 (field_0, field_1, field_2, field_3, field_4, field_5, field_6)
     in

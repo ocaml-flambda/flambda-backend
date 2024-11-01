@@ -97,7 +97,7 @@ module Make_layout_filler (P : sig
     To_cmm_env.t ->
     To_cmm_result.t ->
     Simple.t ->
-    [`Data of cmm_term list | `Var of Variable.t]
+    [`Expr of cmm_term | `Static_data of cmm_term list | `Var of Variable.t]
     * To_cmm_env.free_vars
     * To_cmm_env.t
     * To_cmm_result.t
@@ -111,7 +111,7 @@ module Make_layout_filler (P : sig
 end) : sig
   val fill_layout :
     for_static_sets option ->
-    Code_id.t Function_slot.Map.t ->
+    Function_declarations.code_id_in_function_declaration Function_slot.Map.t ->
     Debuginfo.t ->
     startenv:int ->
     Simple.t Value_slot.Map.t ->
@@ -121,6 +121,7 @@ end) : sig
     prev_updates:To_cmm_env.expr_with_info option ->
     (int * Slot_offsets.Layout.slot) list ->
     P.cmm_term list
+    * Cmm.memory_chunk list
     * To_cmm_env.free_vars
     * int
     * Env.t
@@ -128,20 +129,24 @@ end) : sig
     * Ece.t
     * To_cmm_env.expr_with_info option
 end = struct
+  let rev_append_chunks ~for_static_sets l chunks =
+    match for_static_sets with None -> List.rev_append l chunks | Some _ -> []
+
   (* The [offset]s here are measured in units of words. *)
   let fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
-      ~slot_offset updates slot =
+      chunk_acc ~slot_offset updates slot =
     match (slot : Slot_offsets.Layout.slot) with
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       ( field :: acc,
+        rev_append_chunks ~for_static_sets [Cmm.Word_int] chunk_acc,
         Backend_var.Set.empty,
         slot_offset + 1,
         env,
         res,
         Ece.pure,
         updates )
-    | Value_slot { value_slot; is_scanned; size = _ } ->
+    | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
       if (not
@@ -154,9 +159,15 @@ end = struct
           "Value slot %a not of kind Value (%a) but is visible by GC"
           Simple.print simple Debuginfo.print_compact dbg;
       let contents, free_vars, env, res, eff = P.simple ~dbg env res simple in
-      let env, res, fields, updates =
+      let env, res, fields, chunk_acc, updates =
         match contents with
-        | `Data fields -> env, res, fields, updates
+        | `Expr field ->
+          let chunk = C.memory_chunk_of_kind kind in
+          let chunk_acc =
+            rev_append_chunks ~for_static_sets [chunk] chunk_acc
+          in
+          env, res, [field], chunk_acc, updates
+        | `Static_data fields -> env, res, fields, chunk_acc, updates
         | `Var v -> (
           (* We should only get here in the static allocation case. *)
           match for_static_sets with
@@ -194,26 +205,21 @@ end = struct
                 ~index:(slot_offset - function_slot_offset_for_updates)
                 ~prev_updates:updates
             in
-            env, res, [P.int ~dbg 1n], updates)
+            let fields = List.init size (fun _ -> P.int ~dbg 1n) in
+            env, res, fields, chunk_acc, updates)
       in
       ( List.rev_append fields acc,
+        chunk_acc,
         free_vars,
-        slot_offset + 1,
+        slot_offset + size,
         env,
         res,
         eff,
         updates )
     | Function_slot { size; function_slot; last_function_slot } -> (
-      let code_id = Function_slot.Map.find function_slot decls in
-      let code_symbol =
-        R.symbol_of_code_id res code_id ~currently_in_inlined_body:false
-      in
-      let (kind, params_ty, result_ty), closure_code_pointers, dbg =
-        get_func_decl_params_arity env code_id
-      in
-      let closure_info =
-        C.closure_info' ~arity:(kind, params_ty)
-          ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
+      let code_id =
+        (Function_slot.Map.find function_slot decls
+          : Function_declarations.code_id_in_function_declaration)
       in
       let acc =
         match for_static_sets with
@@ -224,42 +230,94 @@ end = struct
           in
           List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
       in
-      (* We build here the **reverse** list of fields for the function slot *)
-      match closure_code_pointers with
-      | Full_application_only ->
-        if size <> 2
+      match code_id with
+      | Code_id code_id -> (
+        let code_symbol =
+          R.symbol_of_code_id res ~currently_in_inlined_body:false code_id
+        in
+        let (kind, params_ty, result_ty), closure_code_pointers, dbg =
+          get_func_decl_params_arity env code_id
+        in
+        let closure_info =
+          C.closure_info' ~arity:(kind, params_ty)
+            ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
+        in
+        (* We build here the **reverse** list of fields for the function slot *)
+        match closure_code_pointers with
+        | Full_application_only ->
+          if size <> 2
+          then
+            Misc.fatal_errorf
+              "fill_slot: Function slot %a is of size %d, but it is used to \
+               store code ID %a which is classified as Full_application_only \
+               (so the expected size is 2)"
+              Function_slot.print function_slot size Code_id.print code_id;
+          let acc =
+            P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
+          in
+          ( acc,
+            rev_append_chunks ~for_static_sets
+              [Cmm.Word_int; Cmm.Word_int]
+              chunk_acc,
+            Backend_var.Set.empty,
+            slot_offset + size,
+            env,
+            res,
+            Ece.pure,
+            updates )
+        | Full_and_partial_application ->
+          if size <> 3
+          then
+            Misc.fatal_errorf
+              "fill_slot: Function slot %a is of size %d, but it is used to \
+               store code ID %a which is classified as \
+               Full_and_partial_application (so the expected size is 3)"
+              Function_slot.print function_slot size Code_id.print code_id;
+          let acc =
+            P.term_of_symbol ~dbg code_symbol
+            :: P.int ~dbg closure_info
+            :: P.term_of_symbol ~dbg
+                 (C.curry_function_sym kind params_ty result_ty)
+            :: acc
+          in
+          ( acc,
+            rev_append_chunks ~for_static_sets
+              [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
+              chunk_acc,
+            Backend_var.Set.empty,
+            slot_offset + size,
+            env,
+            res,
+            Ece.pure,
+            updates ))
+      | Deleted { function_slot_size; _ } ->
+        if size <> function_slot_size
         then
           Misc.fatal_errorf
-            "fill_slot: Function slot %a is of size %d, but it is used to \
-             store code ID %a which is classified as Full_application_only (so \
-             the expected size is 2)"
-            Function_slot.print function_slot size Code_id.print code_id;
-        let acc =
-          P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
+            "fill_slot: Function slot %a is of size %d, but it is said to be \
+             deleted of size %d"
+            Function_slot.print function_slot size function_slot_size;
+        let closure_info =
+          C.pack_closure_info
+            ~arity:(if size = 2 then 1 else 2)
+            ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
+        in
+        let acc, chunk_acc =
+          match size with
+          | 2 ->
+            ( P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
+              rev_append_chunks ~for_static_sets
+                [Cmm.Word_int; Cmm.Word_int]
+                chunk_acc )
+          | 3 ->
+            ( P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
+              rev_append_chunks ~for_static_sets
+                [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
+                chunk_acc )
+          | _ -> assert false
         in
         ( acc,
-          Backend_var.Set.empty,
-          slot_offset + size,
-          env,
-          res,
-          Ece.pure,
-          updates )
-      | Full_and_partial_application ->
-        if size <> 3
-        then
-          Misc.fatal_errorf
-            "fill_slot: Function slot %a is of size %d, but it is used to \
-             store code ID %a which is classified as \
-             Full_and_partial_application (so the expected size is 3)"
-            Function_slot.print function_slot size Code_id.print code_id;
-        let acc =
-          P.term_of_symbol ~dbg code_symbol
-          :: P.int ~dbg closure_info
-          :: P.term_of_symbol ~dbg
-               (C.curry_function_sym kind params_ty result_ty)
-          :: acc
-        in
-        ( acc,
+          chunk_acc,
           Backend_var.Set.empty,
           slot_offset + size,
           env,
@@ -268,38 +326,49 @@ end = struct
           updates ))
 
   let rec fill_layout0 for_static_sets decls dbg ~startenv value_slots env res
-      effs acc updates ~free_vars ~starting_offset slots =
+      effs acc chunk_acc updates ~free_vars ~starting_offset slots =
     match slots with
-    | [] -> List.rev acc, free_vars, starting_offset, env, res, effs, updates
+    | [] ->
+      ( List.rev acc,
+        List.rev chunk_acc,
+        free_vars,
+        starting_offset,
+        env,
+        res,
+        effs,
+        updates )
     | (slot_offset, slot) :: slots ->
-      let acc =
+      let acc, chunk_acc =
         if starting_offset > slot_offset
         then
           Misc.fatal_errorf "Starting offset %d is past slot offset %d"
             starting_offset slot_offset
         else if starting_offset = slot_offset
-        then acc
+        then acc, chunk_acc
         else
           (* The space between slot offsets has to be padded with precisely the
              value tagged 0, as it is scanned by the GC during compaction. This
              value can't be confused with either infix headers or inverted
              pointers, as noted in the comment in compact.c *)
-          List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
-          @ acc
+          ( List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
+            @ acc,
+            rev_append_chunks ~for_static_sets
+              (List.init (slot_offset - starting_offset) (fun _ -> Cmm.Word_int))
+              chunk_acc )
       in
-      let acc, slot_free_vars, next_offset, env, res, eff, updates =
+      let acc, chunk_acc, slot_free_vars, next_offset, env, res, eff, updates =
         fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
-          ~slot_offset updates slot
+          chunk_acc ~slot_offset updates slot
       in
       let free_vars = Backend_var.Set.union free_vars slot_free_vars in
       let effs = Ece.join eff effs in
       fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs
-        acc updates ~free_vars ~starting_offset:next_offset slots
+        acc chunk_acc updates ~free_vars ~starting_offset:next_offset slots
 
   let fill_layout for_static_sets decls dbg ~startenv value_slots env res effs
       ~prev_updates slots =
     fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs []
-      prev_updates ~free_vars:Backend_var.Set.empty ~starting_offset:0 slots
+      [] prev_updates ~free_vars:Backend_var.Set.empty ~starting_offset:0 slots
 end
 
 (* Filling-up of dynamically-allocated sets of closures. *)
@@ -319,7 +388,7 @@ module Dynamic = Make_layout_filler (struct
     let To_cmm_env.{ env; res; expr = { cmm; free_vars; effs } } =
       C.simple ~dbg env res simple
     in
-    `Data [cmm], free_vars, env, res, effs
+    `Expr cmm, free_vars, env, res, effs
 
   let infix_header ~dbg ~function_slot_offset =
     C.alloc_infix_header function_slot_offset dbg
@@ -351,16 +420,17 @@ end)
 
 let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
   function
-  | Default_check -> []
+  | Default_zero_alloc -> []
   | Assume { strict; never_returns_normally; never_raises; loc } ->
     [Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }]
   | Check { strict; loc } -> [Check_zero_alloc { strict; loc }]
 
 (* Translation of the bodies of functions. *)
 
-let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
-    ~return_continuation ~exn_continuation params ~body ~my_closure
-    ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~translate_expr =
+let params_and_body0 env res code_id ~result_arity ~fun_dbg
+    ~zero_alloc_attribute ~return_continuation ~exn_continuation params ~body
+    ~my_closure ~(is_my_closure_used : _ Or_unknown.t) ~my_region
+    ~my_ghost_region ~translate_expr =
   let params =
     let is_my_closure_used =
       match is_my_closure_used with
@@ -378,8 +448,13 @@ let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
   in
   (* Init the env and create a jump id for the return continuation in case a
      trap action is attached to one of its calls *)
+  let return_continuation_arity =
+    List.map To_cmm_shared.machtype_of_kind
+      (Flambda_arity.unarized_components result_arity)
+  in
   let env =
-    Env.enter_function_body env ~return_continuation ~exn_continuation
+    Env.enter_function_body env ~return_continuation ~return_continuation_arity
+      ~exn_continuation
   in
   (* [my_region] can be referenced in [Begin_try_region] primitives so must be
      in the environment; however it should never end up in actual generated
@@ -387,12 +462,18 @@ let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
      [_bound_var]). If it does end up in generated code, Selection will complain
      and refuse to compile the code. *)
   let env, my_region_var = Env.create_bound_parameter env my_region in
+  (* Similarly for [my_ghost_region]. *)
+  let env, my_ghost_region_var =
+    Env.create_bound_parameter env my_ghost_region
+  in
   (* Translate the arg list and body *)
   let env, fun_params = C.function_bound_parameters env params in
   let fun_body, fun_body_free_vars, res = translate_expr env res body in
   let fun_free_vars =
     C.remove_vars_with_machtype
-      (C.remove_var_with_provenance fun_body_free_vars my_region_var)
+      (C.remove_var_with_provenance
+         (C.remove_var_with_provenance fun_body_free_vars my_ghost_region_var)
+         my_region_var)
       fun_params
   in
   if not (Backend_var.Set.is_empty fun_free_vars)
@@ -420,8 +501,8 @@ let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
   in
   C.fundecl fun_sym fun_params fun_body fun_flags fun_dbg fun_poll, res
 
-let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
-    ~translate_expr =
+let params_and_body env res code_id p ~result_arity ~fun_dbg
+    ~zero_alloc_attribute ~translate_expr =
   Function_params_and_body.pattern_match p
     ~f:(fun
          ~return_continuation
@@ -431,13 +512,15 @@ let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
          ~my_closure
          ~is_my_closure_used
          ~my_region
+         ~my_ghost_region
          ~my_depth:_
          ~free_names_of_body:_
        ->
       try
-        params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
-          ~return_continuation ~exn_continuation params ~body ~my_closure
-          ~is_my_closure_used ~my_region ~translate_expr
+        params_and_body0 env res code_id ~result_arity ~fun_dbg
+          ~zero_alloc_attribute ~return_continuation ~exn_continuation params
+          ~body ~my_closure ~is_my_closure_used ~my_region ~my_ghost_region
+          ~translate_expr
       with Misc.Fatal_error as e ->
         let bt = Printexc.get_raw_backtrace () in
         Format.eprintf
@@ -457,14 +540,16 @@ let layout_for_set_of_closures env set =
     (Set_of_closures.value_slots set)
 
 let debuginfo_for_set_of_closures env set =
-  let code_ids_in_set =
+  let dbg =
     Set_of_closures.function_decls set
     |> Function_declarations.funs |> Function_slot.Map.data
-  in
-  let dbg =
-    List.map
-      (fun code_id -> Env.get_code_metadata env code_id |> Code_metadata.dbg)
-      code_ids_in_set
+    |> List.map
+         (fun (code_id : Function_declarations.code_id_in_function_declaration)
+         ->
+           match code_id with
+           | Deleted { dbg; _ } -> dbg
+           | Code_id code_id ->
+             Code_metadata.dbg (Env.get_code_metadata env code_id))
     |> List.sort Debuginfo.compare
   in
   (* Choose the debuginfo with the earliest source location. *)
@@ -502,11 +587,17 @@ let let_static_set_of_closures0 env res closure_symbols
       closure_symbol_for_updates
     }
   in
-  let l, free_vars, length, env, res, _effs, updates =
+  let l, memory_chunks, free_vars, length, env, res, _effs, updates =
     Static.fill_layout (Some for_static_sets) decls dbg
       ~startenv:layout.startenv value_slots env res Ece.pure ~prev_updates
       layout.slots
   in
+  (match memory_chunks with
+  | [] -> ()
+  | _ :: _ ->
+    Misc.fatal_errorf
+      "Broken internal invariant: Static sets of closures do not need a list \
+       of memory chunks");
   if not (Backend_var.Set.is_empty free_vars)
   then
     Misc.fatal_errorf
@@ -605,7 +696,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
-  let l, free_vars, _offset, env, res, effs, updates =
+  let l, memory_chunks, free_vars, _offset, env, res, effs, updates =
     Dynamic.fill_layout None decl_map dbg ~startenv:layout.startenv value_slots
       env res effs ~prev_updates:None layout.slots
   in
@@ -613,9 +704,9 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let csoc =
     assert (List.compare_length_with l 0 > 0);
     let tag = Tag.(to_int closure_tag) in
-    C.make_alloc
-      ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
-      dbg tag l
+    C.make_closure_alloc
+      ~mode:(C.alloc_mode_for_allocations_to_cmm closure_alloc_mode)
+      dbg ~tag l memory_chunks
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let defining_expr = Env.simple csoc free_vars in

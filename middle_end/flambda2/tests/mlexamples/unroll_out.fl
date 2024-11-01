@@ -3,7 +3,7 @@ let $camlUnroll__fact_1 =
   closure fact_0_1 @fact
 and code rec loopify(never) size(23) newer_version_of(fact_0)
       fact_0_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %phys_eq (n, 0) in

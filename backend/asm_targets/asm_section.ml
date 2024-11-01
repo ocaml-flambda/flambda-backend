@@ -103,8 +103,18 @@ let details t ~first_occurrence =
         | Debug_str -> ".debug_str"
         | Debug_line -> ".debug_line"
       in
-      let flags = if first_occurrence then Some "" else None in
-      let args = if first_occurrence then ["%progbits"] else [] in
+      let flags =
+        match first_occurrence, dwarf with
+        | true, Debug_str -> Some "MS"
+        | true, _ -> Some ""
+        | false, _ -> None
+      in
+      let args =
+        match first_occurrence, dwarf with
+        | true, Debug_str -> ["%progbits,1"]
+        | true, _ -> ["%progbits"]
+        | false, _ -> []
+      in
       [name], flags, args
     | Text, _ -> Misc.fatal_error "Not yet implemented"
   in

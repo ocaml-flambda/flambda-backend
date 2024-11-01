@@ -66,8 +66,8 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_float32 -> Cmm.typ_float32
@@ -86,8 +86,8 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_float32 -> Extended_machtype.typ_float32
@@ -107,8 +107,8 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
   | Naked_number Naked_int32 ->
@@ -201,7 +201,8 @@ let simple ?consider_inlining_effectful_expressions ~dbg env res s =
 let name_static res name =
   Name.pattern_match name
     ~var:(fun v -> `Var v)
-    ~symbol:(fun s -> `Data [symbol_address (To_cmm_result.symbol res s)])
+    ~symbol:(fun s ->
+      `Static_data [symbol_address (To_cmm_result.symbol res s)])
 
 let const_static cst =
   match Reg_width_const.descr cst with
@@ -213,25 +214,29 @@ let const_static cst =
            (tag_targetint (Targetint_31_63.to_targetint i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_float32 f ->
-    (* Here we are relying on the data section being zero initialized to
-       maintain the invariant that statically-allocated float32 values are zero
-       padded. *)
-    [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)]
-  | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
-  (* We don't compile flambda-backend in 32-bit mode, so nativeint is 64
-     bits. *)
-  | Naked_int64 i -> [cint (Int64.to_nativeint i)]
+    (* Statically-allocated float32 values are zero padded. We must explicitly
+       add the padding otherwise subsequent values will be misaligned. If this
+       code is ever used on big-endian systems (which seems unlikely), this
+       needs checking. (It should be fine so long as a 32-bit load is used.) *)
+    [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f); cint32 0l]
+  | Naked_int32 i ->
+    (* Just in case of future big endian support, this is also written
+       explicitly in two halves. *)
+    [cint32 i; cint32 0l]
+  | Naked_int64 i ->
+    (* We don't use To_cmm for 32-bit targets, so nativeint is 64 bits. *)
+    [cint (Int64.to_nativeint i)]
+  | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
   | Naked_vec128 v ->
     let { Vector_types.Vec128.Bit_pattern.high; low } =
       Vector_types.Vec128.Bit_pattern.to_bits v
     in
     [cvec128 { high; low }]
-  | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
 
 let simple_static res s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ -> name_static res n)
-    ~const:(fun c -> `Data (const_static c))
+    ~const:(fun c -> `Static_data (const_static c))
 
 let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
   (* Note that [To_cmm_primitive] relies on this function translating the
@@ -319,6 +324,13 @@ module Update_kind = struct
   let () =
     assert (Arch.size_addr = 8);
     assert (Arch.size_float = 8)
+
+  let field_size_in_words t =
+    match t.kind with
+    | Pointer | Immediate | Naked_int32 | Naked_int64 | Naked_float
+    | Naked_float32 ->
+      1
+    | Naked_vec128 -> 2
 
   let pointers = { kind = Pointer; stride = Arch.size_addr }
 
@@ -421,3 +433,15 @@ let extended_machtype_of_return_arity arity =
   | arity ->
     (* Functions returning multiple values *)
     List.map extended_machtype_of_kind arity |> Array.concat
+
+let alloc_mode_for_applications_to_cmx t =
+  match t with
+  | Alloc_mode.For_applications.Local _ -> Cmx_format.Alloc_local
+  | Alloc_mode.For_applications.Heap -> Cmx_format.Alloc_heap
+
+let alloc_mode_for_allocations_to_cmm t =
+  match t with
+  | Alloc_mode.For_allocations.Heap -> Cmm.Alloc_mode.Heap
+  | Alloc_mode.For_allocations.Local _ ->
+    assert (Flambda_features.stack_allocation_enabled ());
+    Cmm.Alloc_mode.Local

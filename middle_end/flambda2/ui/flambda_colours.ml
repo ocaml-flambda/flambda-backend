@@ -26,7 +26,7 @@ let is_colour_enabled =
       ((* This avoids having to alter misc.ml *)
        let buf = Buffer.create 10 in
        let ppf = Format.formatter_of_buffer buf in
-       Misc.Color.set_color_tag_handling ppf;
+       Misc.Style.set_tag_handling ppf;
        Format.fprintf ppf "@{<error>@}%!";
        String.length (Buffer.contents buf) > 0)
   in
@@ -161,3 +161,5 @@ let elide ppf = push ~fg:243 ppf
 let each_file ppf = push ~fg:51 ppf
 
 let lambda = expr_keyword
+
+let effect ppf = push ~fg:46 ppf

@@ -76,6 +76,9 @@ type arg_at_use =
 
 type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
 
+let print_arg_type_at_use ppf { arg_type; typing_env = _ } =
+  Flambda2_types.print ppf arg_type
+
 let add_value_to_arg_map arg_map arg_type ~use =
   let env_at_use = U.env_at_use use in
   let typing_env = DE.typing_env env_at_use in

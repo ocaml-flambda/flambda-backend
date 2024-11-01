@@ -6,6 +6,37 @@ module U = Peephole_utils
 
 (** Logical condition for simplifying the following case:
     {|
+    mov ..., x
+    mov ..., x
+    |}
+
+    In this case, the first instruction should be removed *)
+
+let remove_overwritten_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
+  match U.get_cells cell 2 with
+  | [fst; snd] -> (
+    let fst_val = DLL.value fst in
+    let snd_val = DLL.value snd in
+    match fst_val.desc with
+    | Op (Spill | Reload) -> (
+      (* We only consider the removal of spill and reload instructions because a
+         move from/to an arbitrary memory location could fail because of memory
+         protection. *)
+      let fst_dst = fst_val.res.(0) in
+      match snd_val.desc with
+      | Op (Move | Spill | Reload) ->
+        let snd_dst = snd_val.res.(0) in
+        if U.are_equal_regs fst_dst snd_dst
+        then (
+          DLL.delete_curr fst;
+          Some (U.prev_at_most U.go_back_const fst))
+        else None
+      | _ -> None)
+    | _ -> None)
+  | _ -> None
+
+(** Logical condition for simplifying the following case:
+    {|
     mov x, y
     mov y, x
     |}
@@ -194,6 +225,9 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
   | _ -> None
 
 let apply cell =
-  match remove_useless_mov cell with
-  | None -> ( match fold_intop_imm cell with None -> None | res -> res)
+  match remove_overwritten_mov cell with
+  | None -> (
+    match remove_useless_mov cell with
+    | None -> ( match fold_intop_imm cell with None -> None | res -> res)
+    | res -> res)
   | res -> res

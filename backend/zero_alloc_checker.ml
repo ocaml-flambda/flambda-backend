@@ -45,6 +45,7 @@ module Witness = struct
         { name : string;
           handler_code_sym : string
         }
+    | Widen
 
   type t =
     { dbg : Debuginfo.t;
@@ -72,6 +73,7 @@ module Witness = struct
     | Arch_specific -> fprintf ppf "arch specific operation"
     | Probe { name; handler_code_sym } ->
       fprintf ppf "probe \"%s\" handler %s" name handler_code_sym
+    | Widen -> fprintf ppf "widen"
 
   let print ppf { kind; dbg } =
     Format.fprintf ppf "%a {%a}@," print_kind kind Debuginfo.print_compact dbg
@@ -85,6 +87,8 @@ module Witnesses : sig
   type t
 
   val empty : t
+
+  val widen : t
 
   val is_empty : t -> bool
 
@@ -145,6 +149,8 @@ end = struct
   let lessequal = subset
 
   let create kind dbg = singleton (Witness.create dbg kind)
+
+  let widen = singleton (Witness.create Debuginfo.none Witness.Widen)
 
   let iter t ~f = iter f t
 
@@ -516,7 +522,7 @@ end = struct
 
     val get_unresolved_names : t -> String.Set.t
 
-    exception Widen
+    exception Widen of Witnesses.t
   end = struct
     (* Join of two Transform with the same set of vars: merged both sets of Vars
        into one Transform in normal form, without loss of precision or
@@ -528,12 +534,18 @@ end = struct
 
     type t = Transform.t M.t
 
-    exception Widen
+    exception Widen of Witnesses.t
 
     let maybe_widen t =
       match !Flambda_backend_flags.zero_alloc_checker_join with
       | Keep_all -> t
-      | Widen n -> if M.cardinal t > n then raise Widen else t
+      | Widen n ->
+        if M.cardinal t > n
+        then
+          if M.exists (fun _var tr -> Transform.has_witnesses tr) t
+          then raise (Widen Witnesses.widen)
+          else raise (Widen Witnesses.empty)
+        else t
       | Error n ->
         if M.cardinal t > n
         then
@@ -1102,7 +1114,7 @@ end = struct
      representation. *)
 
   let bounded_join f =
-    try Join (f ()) with Transforms.Widen -> Top Witnesses.empty
+    try Join (f ()) with Transforms.Widen witnesses -> Top witnesses
 
   (* Keep [join] and [lessequal] in sync. *)
   let join t1 t2 =
@@ -1407,8 +1419,7 @@ module Annotation : sig
 
   val is_strict : t -> bool
 
-  val is_check_enabled :
-    Cmm.codegen_option list -> string -> Debuginfo.t -> bool
+  val is_check_enabled : t option -> bool
 end = struct
   (**
    ***************************************************************************
@@ -1520,10 +1531,8 @@ end = struct
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
         Debuginfo.print_compact dbg fun_name ()
 
-  let is_check_enabled codegen_options fun_name dbg =
-    match find codegen_options fun_name dbg with
-    | None -> false
-    | Some { assume; _ } -> not assume
+  let is_check_enabled t =
+    match t with None -> false | Some { assume; _ } -> not assume
 end
 
 module Metadata : sig
@@ -1584,7 +1593,9 @@ end = struct
       let scoped_name =
         t.fun_dbg |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
         |> List.map (fun dbg ->
-               Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+               Debuginfo.(
+                 Scoped_location.string_of_scopes ~include_zero_alloc:false
+                   dbg.dinfo_scopes))
         |> String.concat ","
       in
       Format.fprintf ppf
@@ -1628,7 +1639,6 @@ end = struct
     in
     let print_witness (w : Witness.t) ~component =
       (* print location of the witness, print witness description. *)
-      let loc = Debuginfo.to_location w.dbg in
       let component_msg =
         if String.equal "" component
         then component
@@ -1641,6 +1651,17 @@ end = struct
           ( Format.dprintf "%a%s%s" Witness.print_kind w.kind component_msg
               comballoc_msg,
             sub )
+        | Widen ->
+          ( Format.dprintf
+              "details are not available. This may be a false alarm due to \
+               conservative analysis.\n\
+               Hint: for more precise results, recompile this function with\n\
+               \"-function-layout topological\" or \"-zero-alloc-checker-join \
+               0\" flags.\n\
+               The \"-zero-alloc-checker-join 0\" flag may substantially \
+               increase compilation time.\n\
+               (widening applied in function %s%s)" t.fun_name component_msg,
+            [] )
         | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
         | Extcall _ ->
           ( Format.dprintf "called function may allocate%s (%a)" component_msg
@@ -1651,9 +1672,11 @@ end = struct
               Witness.print_kind w.kind,
             [] )
       in
+      let dbg = if Debuginfo.is_none w.dbg then t.fun_dbg else w.dbg in
+      let loc = Debuginfo.to_location dbg in
       let pp ppf () =
         print_main_msg ppf;
-        pp_inlined_dbg ppf w.dbg
+        pp_inlined_dbg ppf dbg
       in
       Location.error_of_printer ~loc ~sub pp ()
     in
@@ -2118,6 +2141,7 @@ end = struct
     { dst with div }
 
   let transform t ~next ~exn ~(effect : Value.t) desc dbg =
+    report t effect ~msg:"transform effect" ~desc dbg;
     let next = transform_return ~effect:effect.nor next in
     let exn = transform_return ~effect:effect.exn exn in
     report t next ~msg:"transform new next" ~desc dbg;
@@ -2151,6 +2175,9 @@ end = struct
 
   (** Summary of target specific operations. *)
   let transform_specific t s ~next ~exn dbg =
+    let desc = "Arch.specific_operation" in
+    report t next ~msg:"transform_specific next" ~desc dbg;
+    report t exn ~msg:"transform_specific exn" ~desc dbg;
     let can_raise = Arch.operation_can_raise s in
     let effect =
       let w = create_witnesses t Arch_specific dbg in
@@ -2164,7 +2191,7 @@ end = struct
         let div = V.bot in
         { Value.nor; exn; div }
     in
-    transform t ~next ~exn ~effect "Arch.specific_operation" dbg
+    transform t ~next ~exn ~effect desc dbg
 
   let transform_operation t (op : Mach.operation) ~next ~exn dbg =
     match op with
@@ -2202,10 +2229,10 @@ end = struct
     (* Ignore poll points even though they may trigger an allocations, because
        otherwise all loops would be considered allocating when poll insertion is
        enabled. [@poll error] should be used instead. *)
-    | Ialloc { mode = Alloc_local; _ } ->
+    | Ialloc { mode = Local; _ } ->
       assert (not (Mach.operation_can_raise op));
       next
-    | Ialloc { mode = Alloc_heap; bytes; dbginfo } ->
+    | Ialloc { mode = Heap; bytes; dbginfo } ->
       assert (not (Mach.operation_can_raise op));
       let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
       let effect =
@@ -2267,7 +2294,12 @@ end = struct
       | Iexit _ ->
         report t next ~msg:"transform" ~desc:"iexit" i.dbg;
         next
-      | Iifthenelse _ | Iswitch _ -> next
+      | Iifthenelse _ ->
+        report t next ~msg:"transform" ~desc:"ifthenelse" i.dbg;
+        next
+      | Iswitch _ ->
+        report t next ~msg:"transform" ~desc:"switch" i.dbg;
+        next
       | Icatch (_rc, _ts, _, _body) ->
         report t next ~msg:"transform" ~desc:"catch" i.dbg;
         next
@@ -2553,9 +2585,17 @@ end = struct
         | Intop
             ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
             | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-        | Reinterpret_cast _ | Static_cast _ | Csel _ ->
-          assert (Cfg.is_pure_operation op);
+        | Reinterpret_cast
+            ( Float32_of_float | Float_of_float32 | Float_of_int64
+            | Int64_of_float | Float32_of_int32 | Int32_of_float32
+            | V128_of_v128 )
+        | Static_cast _ | Csel _ ->
+          if not (Cfg.is_pure_operation op)
+          then
+            Misc.fatal_errorf "Expected pure operation, got %a\n"
+              Cfg.dump_operation op;
           next
+        | Reinterpret_cast (Int_of_value | Value_of_int)
         | Name_for_debugger _ | Stackoffset _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Intop_atomic _ | Store _ ->
           next
@@ -2564,8 +2604,8 @@ end = struct
              because otherwise all loops would be considered allocating when
              poll insertion is enabled. [@poll error] should be used instead. *)
           next
-        | Alloc { mode = Alloc_local; _ } -> next
-        | Alloc { mode = Alloc_heap; bytes; dbginfo } ->
+        | Alloc { mode = Local; _ } -> next
+        | Alloc { mode = Heap; bytes; dbginfo } ->
           let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
           let effect =
             match Metadata.assume_value dbg ~can_raise:false w with
@@ -2692,13 +2732,113 @@ let unit_info = Unit_info.create ()
 
 let unresolved_deps = Unresolved_dependencies.create ()
 
+(* [Selectgen] sets [return] field of [Iextcall] to prevent dead code
+   elimination on functions that zero_alloc checker needs to see (details in
+   PR#2112). Here we can clear [returns] field to allow subsequent passes to
+   eliminate dead code. *)
+let update_caml_flambda_invalid (fd : Mach.fundecl) =
+  let rec fixup (i : Mach.instruction) : Mach.instruction =
+    match i.desc with
+    | Iop (Iextcall ({ func; _ } as ext)) ->
+      if String.equal func Cmm.caml_flambda2_invalid
+      then
+        let desc = Mach.Iop (Iextcall { ext with returns = false }) in
+        { i with desc; next = Mach.end_instr () }
+      else { i with next = fixup i.next }
+    | Iop
+        ( Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
+        | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Icall_ind
+        | Icall_imm _ | Istackoffset _ | Iload _ | Istore _ | Ialloc _
+        | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
+        | Ireinterpret_cast _ | Istatic_cast _ | Ispecific _
+        | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
+        | Ibeginregion | Iendregion | Ipoll _ | Idls_get ) ->
+      { i with next = fixup i.next }
+    | Iend | Ireturn _
+    | Iop Itailcall_ind
+    | Iop (Itailcall_imm _)
+    | Iraise _ | Iexit _ ->
+      i
+    | Iifthenelse (tst, ifso, ifnot) ->
+      let next = fixup i.next in
+      { i with desc = Iifthenelse (tst, fixup ifso, fixup ifnot); next }
+    | Iswitch (index, cases) ->
+      let next = fixup i.next in
+      { i with desc = Iswitch (index, Array.map fixup cases); next }
+    | Icatch (rec_flag, ts, handlers, body) ->
+      let next = fixup i.next in
+      let handlers =
+        List.map
+          (fun (n, ts, handler, is_cold) -> n, ts, fixup handler, is_cold)
+          handlers
+      in
+      { i with desc = Icatch (rec_flag, ts, handlers, fixup body); next }
+    | Itrywith (body, kind, (ts, handler)) ->
+      let next = fixup i.next in
+      { i with desc = Itrywith (fixup body, kind, (ts, fixup handler)); next }
+  in
+  (* This condition matches the one in [Selectgen] to avoid copying [fd]
+     unnecessarily. *)
+  let enabled =
+    Annotation.is_check_enabled
+      (Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg)
+  in
+  if enabled then { fd with fun_body = fixup fd.Mach.fun_body } else fd
+
+let update_caml_flambda_invalid_cfg cfg_with_layout =
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  (* This condition matches the one in [Selectgen] to avoid copying [fd]
+     unnecessarily. *)
+  let enabled =
+    Annotation.is_check_enabled
+      (Annotation.of_cfg cfg.fun_codegen_options cfg.fun_name cfg.fun_dbg)
+  in
+  if enabled
+  then (
+    let modified = ref false in
+    Cfg.iter_blocks cfg ~f:(fun label block ->
+        match block.terminator.desc with
+        | Prim { op = External ({ func_symbol; _ } as ext); label_after = _ } ->
+          if String.equal func_symbol Cmm.caml_flambda2_invalid
+          then (
+            let successors =
+              Cfg.successor_labels ~normal:true ~exn:true block
+            in
+            block.terminator
+              <- { block.terminator with desc = Call_no_return ext };
+            block.exn <- None;
+            block.can_raise <- false;
+            (* update predecessors for successors of [block]. *)
+            Label.Set.iter
+              (fun successor_label ->
+                let successor_block = Cfg.get_block_exn cfg successor_label in
+                successor_block.predecessors
+                  <- Label.Set.remove label successor_block.predecessors)
+              successors;
+            modified := true)
+        | Prim { op = Probe _; _ }
+        | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+        | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+        | Tailcall_func _ | Call_no_return _ | Call _ | Specific_can_raise _ ->
+          ());
+    if !modified
+    then
+      Profile.record ~accumulate:true "cleanup"
+        (fun () ->
+          Eliminate_fallthrough_blocks.run cfg_with_layout;
+          Merge_straightline_blocks.run cfg_with_layout;
+          Eliminate_dead_code.run_dead_block cfg_with_layout;
+          Simplify_terminator.run cfg)
+        ())
+
 let fundecl ppf_dump ~future_funcnames fd =
   Analysis.fundecl fd ~future_funcnames unit_info unresolved_deps ppf_dump;
-  fd
+  update_caml_flambda_invalid fd
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in
   Analysis.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
+  update_caml_flambda_invalid_cfg cl;
   cl
 
 let reset_unit_info () =
@@ -2720,4 +2860,4 @@ let iter_witnesses f =
 let () = Location.register_error_of_exn Report.print
 
 let is_check_enabled codegen_options fun_name dbg =
-  Annotation.is_check_enabled codegen_options fun_name dbg
+  Annotation.is_check_enabled (Annotation.find codegen_options fun_name dbg)

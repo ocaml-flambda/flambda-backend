@@ -99,7 +99,7 @@ let register_behavior_sse41 = function
   | Blendv_8 | Blendv_32 | Blendv_64 -> R_RM_xmm0_to_fst
   | Extract_i64 _ | Extract_i32 _ -> R_to_RM
   | Extract_i8 _ | Extract_i16 _ ->
-    (* CR mslater: (SIMD): replace once we have int8/int16/float32 *)
+    (* CR mslater: (SIMD): replace once we have int8/int16 *)
     R_to_R
 
 let register_behavior_sse42 = function

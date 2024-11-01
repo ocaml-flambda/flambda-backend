@@ -20,7 +20,6 @@
 val lambda_to_cmm :
   ppf_dump:Format.formatter ->
   prefixname:string ->
-  filename:string ->
   keep_symbol_tables:bool ->
   Lambda.program ->
   Cmm.phrase list

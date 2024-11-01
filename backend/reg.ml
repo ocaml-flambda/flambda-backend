@@ -344,6 +344,9 @@ let same_loc left right =
 let same left right =
   Int.equal left.stamp right.stamp
 
+let compare left right =
+  Int.compare left.stamp right.stamp
+
 (* Two registers have compatible types if we allow moves between them.
    Note that we never allow moves between different register classes, so this
    condition must be at least as strict as [class left = class right]. *)

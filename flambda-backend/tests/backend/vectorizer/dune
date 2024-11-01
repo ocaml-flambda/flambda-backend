@@ -1,0 +1,303 @@
+; Test1
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test1_runner.exe)
+ (deps test1.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test1_runner.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -no-vectorize)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test1_runner_simd.exe)
+ (deps test1_simd.ml stubs.c)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test1_runner_simd.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -no-vectorize
+   -extension
+   simd)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test1_vectorized.ml)
+ (deps test1.ml)
+ (action
+  (run cp test1.ml test1_vectorized.ml)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test1_runner_vectorized.exe test1_vectorized.cmx.dump)
+ (deps test1_vectorized.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   test1_vectorized.ml
+   -o
+   test1_runner_vectorized.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -dvectorize
+   -vectorize)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (deps filter.sh test1_vectorized.cmx.dump)
+ (action
+  (with-outputs-to
+   grep_test1_vectorizer_cmx.out
+   (run ./filter.sh test1_vectorized.cmx.dump))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   test1.out
+   (run ./test1_runner.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   test1_simd.out
+   (run ./test1_runner_simd.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   test1_vectorized.out
+   (run ./test1_runner_vectorized.exe))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")
+   (<> %{system} macosx)))
+ (action
+  (progn
+   (diff grep_test1_vectorizer_cmx.out grep_vectorizer_cmx.expected)
+   (diff test1.out test1.expected)
+   (diff test1_simd.out test1.expected)
+   (diff test1_vectorized.out test1.expected))))
+
+; Examples
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets examples_runner.exe)
+ (deps examples.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   examples_runner.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -no-vectorize)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets examples_runner_unrolled.exe)
+ (deps examples_unrolled.ml stubs.c)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   examples_runner_unrolled.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -no-vectorize)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets examples_vectorized.ml)
+ (deps examples.ml)
+ (action
+  (run cp examples.ml examples_vectorized.ml)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets examples_runner_vectorized.exe examples_vectorized.cmx.dump)
+ (deps examples_vectorized.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   examples_vectorized.ml
+   -o
+   examples_runner_vectorized.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -dvectorize
+   -vectorize)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (deps filter.sh examples_vectorized.cmx.dump)
+ (action
+  (with-outputs-to
+   grep_examples_vectorizer_cmx.out
+   (run ./filter.sh examples_vectorized.cmx.dump))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   examples.out
+   (run ./examples_runner.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   examples_unrolled.out
+   (run ./examples_runner_unrolled.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   examples_vectorized.out
+   (run ./examples_runner_vectorized.exe))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")
+   (<> %{system} macosx)))
+ (action
+  (progn
+   (diff grep_examples_vectorizer_cmx.out grep_vectorizer_cmx.expected)
+   (diff examples.out examples.expected)
+   (diff examples_unrolled.out examples.expected)
+   (diff examples_vectorized.out examples.expected))))

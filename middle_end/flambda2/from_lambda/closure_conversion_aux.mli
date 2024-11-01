@@ -37,10 +37,14 @@ module IR : sig
   type named =
     | Simple of simple
     | Get_tag of Ident.t (* Intermediary primitive for block switch *)
-    | Begin_region of { is_try_region : bool }
+    | Begin_region of
+        { ghost : bool;
+          is_try_region : bool
+        }
     | End_region of
         { is_try_region : bool;
-          region : Ident.t
+          region : Ident.t;
+          ghost : bool
         }
         (** [Begin_region] and [End_region] are needed because these primitives
             don't exist in Lambda *)
@@ -49,7 +53,8 @@ module IR : sig
           args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
-          region : Ident.t
+          region : Ident.t;
+          ghost_region : Ident.t
         }
 
   type apply_kind =
@@ -69,8 +74,9 @@ module IR : sig
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      mode : Lambda.alloc_mode;
+      mode : Lambda.locality_mode;
       region : Ident.t;
+      ghost_region : Ident.t;
       args_arity : [`Complex] Flambda_arity.t;
       return_arity : [`Unarized] Flambda_arity.t
     }
@@ -170,6 +176,7 @@ module Env : sig
     t ->
     Variable.t ->
     Tag.Scannable.t ->
+    Flambda_kind.Scannable_block_shape.t ->
     value_approximation array ->
     Alloc_mode.For_types.t ->
     t
@@ -332,7 +339,7 @@ module Function_decls : sig
       { name : Ident.t;
         kind : Flambda_kind.With_subkind.t;
         attributes : Lambda.parameter_attribute;
-        mode : Lambda.alloc_mode
+        mode : Lambda.locality_mode
       }
 
     val create :
@@ -347,14 +354,15 @@ module Function_decls : sig
       return_continuation:Continuation.t ->
       exn_continuation:IR.exn_continuation ->
       my_region:Ident.t ->
+      my_ghost_region:Ident.t ->
       body:(Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t) ->
       attr:Lambda.function_attribute ->
       loc:Lambda.scoped_location ->
       free_idents_of_body:Ident.Set.t ->
       Recursive.t ->
-      closure_alloc_mode:Lambda.alloc_mode ->
+      closure_alloc_mode:Lambda.locality_mode ->
       first_complex_local_param:int ->
-      result_mode:Lambda.alloc_mode ->
+      result_mode:Lambda.locality_mode ->
       contains_no_escaping_local_allocs:bool ->
       t
 
@@ -378,6 +386,8 @@ module Function_decls : sig
 
     val my_region : t -> Ident.t
 
+    val my_ghost_region : t -> Ident.t
+
     val body : t -> Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t
 
     val inline : t -> Lambda.inline_attribute
@@ -400,11 +410,11 @@ module Function_decls : sig
 
     val recursive : t -> Recursive.t
 
-    val closure_alloc_mode : t -> Lambda.alloc_mode
+    val closure_alloc_mode : t -> Lambda.locality_mode
 
     val first_complex_local_param : t -> int
 
-    val result_mode : t -> Lambda.alloc_mode
+    val result_mode : t -> Lambda.locality_mode
 
     val contains_no_escaping_local_allocs : t -> bool
 
@@ -414,9 +424,9 @@ module Function_decls : sig
 
   type t
 
-  val create : Function_decl.t list -> Lambda.alloc_mode -> t
+  val create : Function_decl.t list -> Lambda.locality_mode -> t
 
-  val alloc_mode : t -> Lambda.alloc_mode
+  val alloc_mode : t -> Lambda.locality_mode
 
   val to_list : t -> Function_decl.t list
 

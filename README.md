@@ -4,8 +4,10 @@ This repository is for more experimental work, of production quality, on the mid
 and backend of the OCaml compiler.
 This is also the home of the Flambda 2 optimiser and the Cfg backend.
 
-The Flambda backend is currently based on OCaml 5.1 and supports both the OCaml 4
-and OCaml 5 runtime systems.
+The Flambda backend is currently based on OCaml 5.2.0 (plus some patches from later
+upstream revisions, mainly in the runtime).  It supports both the OCaml 4 and OCaml 5
+runtime systems, although support for the OCaml 4 runtime is expected to be removed
+in late 2024.
 
 The following gives basic instructions for getting set up.  Please see
 [`HACKING.md`](HACKING.md) for more detailed instructions if you want to develop in this repo.
@@ -20,7 +22,7 @@ One-time setup (you can also use other 4.14.x releases):
 ```
 $ opam switch 4.14.1  # or "opam switch create 4.14.1" if you haven't got that switch already
 $ eval $(opam env)
-$ opam install dune.3.15.2 menhir.20210419
+$ opam install dune.3.15.2 menhir.20231231
 ```
 
 You probably then want to fork the `ocaml-flambda/flambda-backend` repo to your own Github org.

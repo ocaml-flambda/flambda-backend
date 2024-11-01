@@ -380,7 +380,7 @@ module Closures_entry : sig
     t
 
   val find_function_type :
-    t -> Function_slot.t -> Function_type.t Or_unknown_or_bottom.t
+    t -> exact:bool -> Function_slot.t -> Function_type.t Or_unknown_or_bottom.t
 
   val value_slot_types : t -> flambda_type Value_slot.Map.t
 end
@@ -451,6 +451,8 @@ module Row_like_for_blocks : sig
   val all_tags_and_sizes :
     t -> (Targetint_31_63.t * Flambda_kind.Block_shape.t) Tag.Map.t Or_unknown.t
 
+  (** If the type corresponds to a single block of known size (as created by
+      [create_exactly_multiple]) then return it. *)
   val get_singleton :
     t ->
     (Tag.t
@@ -516,9 +518,12 @@ module Row_like_for_closures : sig
       Or_bottom.t ->
     t
 
-  val get_singleton :
-    t ->
-    ((Function_slot.t * Set_of_closures_contents.t) * Closures_entry.t) option
+  type get_single_tag_result =
+    | No_singleton
+    | Exact_closure of Function_slot.t * Closures_entry.t
+    | Incomplete_closure of Function_slot.t * Closures_entry.t
+
+  val get_single_tag : t -> get_single_tag_result
 
   (** Same as For_blocks.get_field: attempt to find the type associated to the
       given environment variable without an expensive meet. *)

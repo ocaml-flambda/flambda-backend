@@ -2,8 +2,12 @@ open Typedtree
 open Types
 open Mode
 
-let dummy_jkind = Jkind.value ~why:(Unknown "dummy_layout")
+let dummy_jkind = Jkind.Builtin.value ~why:(Unknown "dummy_layout")
 let dummy_value_mode = Value.disallow_right Value.legacy
+
+let dummy_alloc_mode =
+  { mode = Alloc.disallow_left Alloc.legacy; locality_context = None }
+
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
 let mkTarrow (label, t1, t2, comm) =
@@ -12,47 +16,45 @@ let mkTarrow (label, t1, t2, comm) =
 
 type texp_ident_identifier = ident_kind * unique_use
 
-let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
+let mkTexp_ident ?id:(ident_kind, uu = (Id_value, aliased_many_use))
     (path, longident, vd) =
   Texp_ident (path, longident, vd, ident_kind, uu)
 
 type nonrec apply_arg = apply_arg
 
 type texp_apply_identifier =
-  apply_position * Locality.l * Zero_alloc_utils.Assume_info.t
+  apply_position * Locality.l * Builtin_attributes.zero_alloc_assume option
 
 let mkTexp_apply
     ?id:(pos, mode, za =
-        ( Default,
-          Locality.disallow_right Locality.legacy,
-          Zero_alloc_utils.Assume_info.none )) (exp, args) =
+        (Default, Locality.disallow_right Locality.legacy, None)) (exp, args) =
   let args =
     List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
   in
   Texp_apply (exp, args, pos, mode, za)
 
-type texp_tuple_identifier = string option list * Alloc.r
+type texp_tuple_identifier = string option list * alloc_mode
 
 let mkTexp_tuple ?id exps =
   let labels, alloc =
     match id with
-    | None -> (List.map (fun _ -> None) exps, Alloc.disallow_left Alloc.legacy)
+    | None -> (List.map (fun _ -> None) exps, dummy_alloc_mode)
     | Some id -> id
   in
   let exps = List.combine labels exps in
   Texp_tuple (exps, alloc)
 
-type texp_construct_identifier = Alloc.r option
+type texp_construct_identifier = alloc_mode option
 
-let mkTexp_construct ?id:(mode = Some (Alloc.disallow_left Alloc.legacy))
-    (name, desc, args) =
+let mkTexp_construct ?id:(mode = Some dummy_alloc_mode) (name, desc, args) =
   Texp_construct (name, desc, args, mode)
 
 type texp_function_param_identifier = {
   param_sort : Jkind.Sort.t;
   param_mode : Alloc.l;
   param_curry : function_curry;
-  param_newtypes : (string Location.loc * Jkind.annotation option) list;
+  param_newtypes :
+    (Ident.t * string Location.loc * Jkind.annotation option * Uid.t) list;
 }
 
 type texp_function_param = {
@@ -88,11 +90,10 @@ type texp_function = {
 }
 
 type texp_function_identifier = {
-  alloc_mode : Alloc.r;
+  alloc_mode : alloc_mode;
   ret_sort : Jkind.sort;
-  region : bool;
   ret_mode : Alloc.l;
-  zero_alloc : Builtin_attributes.zero_alloc_attribute;
+  zero_alloc : Zero_alloc.t;
 }
 
 let texp_function_cases_identifier_defaults =
@@ -102,7 +103,7 @@ let texp_function_cases_identifier_defaults =
     last_arg_exp_extra = None;
     last_arg_attributes = [];
     env = Env.empty;
-    ret_type = Ctype.newvar (Jkind.any ~why:Dummy_jkind);
+    ret_type = Ctype.newvar (Jkind.Builtin.any ~why:Dummy_jkind);
   }
 
 let texp_function_param_identifier_defaults =
@@ -115,11 +116,10 @@ let texp_function_param_identifier_defaults =
 
 let texp_function_defaults =
   {
-    alloc_mode = Alloc.disallow_left Alloc.legacy;
+    alloc_mode = dummy_alloc_mode;
     ret_sort = Jkind.Sort.value;
     ret_mode = Alloc.disallow_right Alloc.legacy;
-    region = false;
-    zero_alloc = Builtin_attributes.Default_zero_alloc;
+    zero_alloc = Zero_alloc.default;
   }
 
 let mkTexp_function ?(id = texp_function_defaults)
@@ -172,7 +172,6 @@ let mkTexp_function ?(id = texp_function_defaults)
                 fc_loc = Location.none;
               });
       alloc_mode = id.alloc_mode;
-      region = id.region;
       ret_sort = id.ret_sort;
       ret_mode = id.ret_mode;
       zero_alloc = id.zero_alloc;
@@ -227,8 +226,8 @@ let view_texp (e : expression_desc) =
   | Texp_tuple (args, mode) ->
       let labels, args = List.split args in
       Texp_tuple (args, (labels, mode))
-  | Texp_function
-      { params; body; alloc_mode; region; ret_sort; ret_mode; zero_alloc } ->
+  | Texp_function { params; body; alloc_mode; ret_sort; ret_mode; zero_alloc }
+    ->
       let params =
         List.map
           (fun param ->
@@ -275,11 +274,22 @@ let view_texp (e : expression_desc) =
               }
       in
       Texp_function
-        ( { params; body },
-          { alloc_mode; region; ret_sort; ret_mode; zero_alloc } )
+        ({ params; body }, { alloc_mode; ret_sort; ret_mode; zero_alloc })
   | Texp_sequence (e1, sort, e2) -> Texp_sequence (e1, e2, sort)
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
+
+let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
+    ~pat_attributes =
+  {
+    pat_desc;
+    pat_loc;
+    pat_extra;
+    pat_type;
+    pat_env;
+    pat_attributes;
+    pat_unique_barrier = Unique_barrier.not_computed ();
+  }
 
 type tpat_var_identifier = Value.l
 
@@ -400,9 +410,10 @@ let mk_value_description ~val_type ~val_kind ~val_attributes =
     val_type;
     val_kind;
     val_loc = Location.none;
+    val_modalities = Mode.Modality.Value.id;
     val_attributes;
     val_uid = Uid.internal_not_actually_unique;
-    val_zero_alloc = Default_zero_alloc;
+    val_zero_alloc = Zero_alloc.default;
   }
 
 let mkTtyp_any = Ttyp_var (None, None)
@@ -410,7 +421,7 @@ let mkTtyp_var s = Ttyp_var (Some s, None)
 
 let is_type_name_used desc typ_name =
   match desc with
-  | Ttyp_alias (_, Some s, _) -> s = typ_name
+  | Ttyp_alias (_, Some s, _) -> s.txt = typ_name
   | Ttyp_constr (_, li, _) -> Longident.last li.txt = typ_name
   | _ -> false
 

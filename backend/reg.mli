@@ -128,3 +128,4 @@ val types_are_compatible : t -> t -> bool
 val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool
 val same : t -> t -> bool
+val compare : t -> t -> int

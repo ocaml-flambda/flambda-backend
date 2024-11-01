@@ -21,6 +21,7 @@ type to_lift = private
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
+        shape : Flambda_kind.Scannable_block_shape.t;
         fields : Simple.t list
       }
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t
@@ -36,6 +37,8 @@ type to_lift = private
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
+  | Immutable_vec128_array of
+      { fields : Vector_types.Vec128.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 

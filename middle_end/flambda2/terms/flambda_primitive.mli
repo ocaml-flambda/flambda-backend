@@ -50,14 +50,17 @@ module Array_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-  val element_kind : t -> Flambda_kind.With_subkind.t
+  val element_kinds : t -> Flambda_kind.With_subkind.t list
 
-  val for_empty_array : t -> Empty_array_kind.t
+  val must_be_gc_scannable : t -> bool
+
+  val has_custom_ops : t -> bool
 end
 
 module Array_kind_for_length : sig
@@ -74,6 +77,28 @@ module Init_or_assign : sig
   val to_lambda : t -> Lambda.initialization_or_assignment
 end
 
+module Array_load_kind : sig
+  type t =
+    | Immediates  (** An array consisting only of immediate values. *)
+    | Values
+        (** An array consisting of elements of kind [value]. With the float
+            array optimisation enabled, such elements must never be [float]s. *)
+    | Naked_floats
+        (** An array consisting of naked floats, represented using
+            [Double_array_tag]. *)
+    | Naked_float32s
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
+    | Naked_vec128s
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val element_kind : t -> Flambda_kind.With_subkind.t
+end
+
 module Array_set_kind : sig
   type t =
     | Immediates  (** An array consisting only of immediate values. *)
@@ -87,12 +112,11 @@ module Array_set_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
-
-  val array_kind : t -> Array_kind.t
 
   val init_or_assign : t -> Init_or_assign.t
 
@@ -126,6 +150,7 @@ module Duplicate_array_kind : sig
     | Naked_int32s of { length : Targetint_31_63.t option }
     | Naked_int64s of { length : Targetint_31_63.t option }
     | Naked_nativeints of { length : Targetint_31_63.t option }
+    | Naked_vec128s of { length : Targetint_31_63.t option }
 
   val print : Format.formatter -> t -> unit
 
@@ -146,7 +171,7 @@ end
 module Mixed_block_access_field_kind : sig
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Flambda_kind.t
+    | Flat_suffix of Flambda_kind.Flat_suffix_element.t
 
   val print : Format.formatter -> t -> unit
 
@@ -205,7 +230,15 @@ type equality_comparison =
 
 module Bigarray_kind : sig
   type t =
+    | Float16
+        (** This is analogous to [Float32] in that whilst storage is 16-bit,
+            reading and writing goes via 64-bit floats. *)
     | Float32
+    | Float32_t
+        (** [Float32_t] is used for bigarrays that contain (unboxed) float32
+            values and are read and written to using the [float32] type.  This
+            is in contrast to [Float32] bigarrays, where the accesses are done
+            at type [float]. *)
     | Float64
     | Sint8
     | Uint8
@@ -237,16 +270,13 @@ type string_accessor_width =
   | Eight
   | Sixteen
   | Thirty_two
+  | Single
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
 val kind_of_string_accessor_width : string_accessor_width -> Flambda_kind.t
 
 val byte_width_of_string_accessor_width : string_accessor_width -> int
-
-type array_accessor_width =
-  | Scalar
-  | Vec128
 
 type float_bitwidth =
   | Float32
@@ -280,17 +310,21 @@ type nullary_primitive =
           let-binding. *)
   | Probe_is_enabled of { name : string }
       (** Returns a boolean saying whether the given tracing probe is enabled. *)
-  | Begin_region
+  | Begin_region of { ghost : bool }
       (** Starting delimiter of local allocation region, returning a region
           name. For regions for the "try" part of a "try...with", use
           [Begin_try_region] (below) instead. *)
-  | Begin_try_region
+  | Begin_try_region of { ghost : bool }
       (** Starting delimiter of local allocation region, when used for a "try"
           body. *)
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
   | Dls_get  (** Obtain the domain-local state block. *)
+  | Poll
+      (** Poll for runtime actions. May run pending actions such as signal
+          handlers, finalizers, memprof callbacks, etc, as well as GCs and
+          GC slices, so should not be moved or optimised away. *)
 
 (** Untagged binary integer arithmetic operations.
 
@@ -307,8 +341,22 @@ type unary_float_arith_op =
   | Abs
   | Neg
 
+(** Reinterpretation operations for 64-bit words. *)
+module Reinterpret_64_bit_word : sig
+  type t =
+    | Tagged_int63_as_unboxed_int64
+    | Unboxed_int64_as_tagged_int63
+    | Unboxed_int64_as_unboxed_float64
+    | Unboxed_float64_as_unboxed_int64
+end
+
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
+  | Block_load of
+      { kind : Block_access_kind.t;
+        mut : Mutability.t;
+        field : Targetint_31_63.t
+      }
   | Duplicate_block of { kind : Duplicate_block_kind.t }
       (** [Duplicate_block] may not be used to change the tag or the mutability
           of a block. *)
@@ -349,10 +397,8 @@ type unary_primitive =
   (* CR gbury: add test for this as soon as we can write tests in flambda *)
   | Boolean_not
   (* CR-someday mshinwell: We should maybe change int32.ml and friends to use a
-     %-primitive instead of directly calling C stubs for conversions; then we
-     could have a single primitive here taking two
-     [Flambda_kind.Of_naked_number.t] arguments (one input, one output). *)
-  | Reinterpret_int64_as_float
+     %-primitive instead of directly calling C stubs for conversions *)
+  | Reinterpret_64_bit_word of Reinterpret_64_bit_word.t
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.For_allocations.t
   | Untag_immediate
@@ -375,9 +421,10 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
-  | End_region
+  | End_region of { ghost : bool }
       (** Ending delimiter of local allocation region, accepting a region name. *)
-  | End_try_region  (** Corresponding delimiter for [Begin_try_region]. *)
+  | End_try_region of { ghost : bool }
+      (** Corresponding delimiter for [Begin_try_region]. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with
@@ -424,8 +471,12 @@ type binary_float_arith_op =
 
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
-  | Block_load of Block_access_kind.t * Mutability.t
-  | Array_load of Array_kind.t * array_accessor_width * Mutability.t
+  | Block_set of
+      { kind : Block_access_kind.t;
+        init : Init_or_assign.t;
+        field : Targetint_31_63.t
+      }
+  | Array_load of Array_kind.t * Array_load_kind.t * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -442,8 +493,7 @@ type binary_primitive =
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
-  | Block_set of Block_access_kind.t * Init_or_assign.t
-  | Array_set of Array_set_kind.t * array_accessor_width
+  | Array_set of Array_kind.t * Array_set_kind.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
@@ -470,6 +520,8 @@ include Contains_names.S with type t := t
 include Contains_ids.S with type t := t
 
 val args : t -> Simple.t list
+
+val map_args : (Simple.t -> Simple.t) -> t -> t
 
 (** Simpler version (e.g. for [Inlining_cost]), where only the actual primitive
     matters, not the arguments. *)

@@ -133,6 +133,7 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Punboxedintarray Pint32 -> Array_kind Naked_int32s
   | Punboxedintarray Pint64 -> Array_kind Naked_int64s
   | Punboxedintarray Pnativeint -> Array_kind Naked_nativeints
+  | Punboxedvectorarray Pvec128 -> Array_kind Naked_vec128s
 
 let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   match convert_array_kind kind with
@@ -140,20 +141,26 @@ let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   | Float_array_opt_dynamic -> Float_array_opt_dynamic
 
 module Array_ref_kind = struct
-  type t =
+  (* CR mshinwell/ncourant: just use [P.Array_ref_kind.t] if that can be
+     engineered, and the same for the set kind. *)
+  type no_float_array_opt =
     | Immediates
     | Values
-    | Naked_floats_to_be_boxed of L.alloc_mode
     | Naked_floats
     | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
+
+  type t =
+    | No_float_array_opt of no_float_array_opt
+    | Naked_floats_to_be_boxed of L.locality_mode
 end
 
 type converted_array_ref_kind =
   | Array_ref_kind of Array_ref_kind.t
-  | Float_array_opt_dynamic_ref of L.alloc_mode
+  | Float_array_opt_dynamic_ref of L.locality_mode
 
 let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
     =
@@ -167,54 +174,74 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
 
        check_float_array_optimisation_enabled (); *)
     Float_array_opt_dynamic_ref mode
-  | Paddrarray_ref -> Array_ref_kind Values
-  | Pintarray_ref -> Array_ref_kind Immediates
+  | Paddrarray_ref -> Array_ref_kind (No_float_array_opt Values)
+  | Pintarray_ref -> Array_ref_kind (No_float_array_opt Immediates)
   | Pfloatarray_ref mode -> Array_ref_kind (Naked_floats_to_be_boxed mode)
-  | Punboxedfloatarray_ref Pfloat64 -> Array_ref_kind Naked_floats
-  | Punboxedfloatarray_ref Pfloat32 -> Array_ref_kind Naked_float32s
-  | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
-  | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
-  | Punboxedintarray_ref Pnativeint -> Array_ref_kind Naked_nativeints
+  | Punboxedfloatarray_ref Pfloat64 ->
+    Array_ref_kind (No_float_array_opt Naked_floats)
+  | Punboxedfloatarray_ref Pfloat32 ->
+    Array_ref_kind (No_float_array_opt Naked_float32s)
+  | Punboxedintarray_ref Pint32 ->
+    Array_ref_kind (No_float_array_opt Naked_int32s)
+  | Punboxedintarray_ref Pint64 ->
+    Array_ref_kind (No_float_array_opt Naked_int64s)
+  | Punboxedintarray_ref Pnativeint ->
+    Array_ref_kind (No_float_array_opt Naked_nativeints)
+  | Punboxedvectorarray_ref Pvec128 ->
+    Array_ref_kind (No_float_array_opt Naked_vec128s)
+
+let convert_array_ref_kind_to_array_kind (array_ref_kind : Array_ref_kind.t) :
+    P.Array_kind.t =
+  match array_ref_kind with
+  | Naked_floats_to_be_boxed _ -> Naked_floats
+  | No_float_array_opt nfo -> (
+    match nfo with
+    | Values -> Values
+    | Immediates -> Immediates
+    | Naked_floats -> Naked_floats
+    | Naked_float32s -> Naked_float32s
+    | Naked_int32s -> Naked_int32s
+    | Naked_int64s -> Naked_int64s
+    | Naked_nativeints -> Naked_nativeints
+    | Naked_vec128s -> Naked_vec128s)
 
 let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
     =
   match convert_array_ref_kind array_ref_kind with
   | Float_array_opt_dynamic_ref _ -> Float_array_opt_dynamic
-  | Array_ref_kind Values -> Array_kind Values
-  | Array_ref_kind Immediates -> Array_kind Immediates
-  | Array_ref_kind (Naked_floats | Naked_floats_to_be_boxed _) ->
-    Array_kind Naked_floats
-  | Array_ref_kind Naked_float32s -> Array_kind Naked_float32s
-  | Array_ref_kind Naked_int32s -> Array_kind Naked_int32s
-  | Array_ref_kind Naked_int64s -> Array_kind Naked_int64s
-  | Array_ref_kind Naked_nativeints -> Array_kind Naked_nativeints
+  | Array_ref_kind array_ref_kind -> (
+    match array_ref_kind with
+    | Naked_floats_to_be_boxed _ -> Array_kind Naked_floats
+    | No_float_array_opt nfo -> (
+      match nfo with
+      | Values -> Array_kind Values
+      | Immediates -> Array_kind Immediates
+      | Naked_floats -> Array_kind Naked_floats
+      | Naked_float32s -> Array_kind Naked_float32s
+      | Naked_int32s -> Array_kind Naked_int32s
+      | Naked_int64s -> Array_kind Naked_int64s
+      | Naked_nativeints -> Array_kind Naked_nativeints
+      | Naked_vec128s -> Array_kind Naked_vec128s))
 
 module Array_set_kind = struct
-  type t =
+  type no_float_array_opt =
     | Immediates
     | Values of P.Init_or_assign.t
     | Naked_floats
-    | Naked_floats_to_be_unboxed
     | Naked_float32s
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Naked_vec128s
+
+  type t =
+    | No_float_array_opt of no_float_array_opt
+    | Naked_floats_to_be_unboxed
 end
 
 type converted_array_set_kind =
   | Array_set_kind of Array_set_kind.t
   | Float_array_opt_dynamic_set of Alloc_mode.For_assignments.t
-
-let convert_intermediate_array_set_kind (kind : Array_set_kind.t) :
-    P.Array_set_kind.t =
-  match kind with
-  | Immediates -> Immediates
-  | Values init_or_assign -> Values init_or_assign
-  | Naked_floats | Naked_floats_to_be_unboxed -> Naked_floats
-  | Naked_float32s -> Naked_float32s
-  | Naked_int32s -> Naked_int32s
-  | Naked_int64s -> Naked_int64s
-  | Naked_nativeints -> Naked_nativeints
 
 let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
     =
@@ -226,27 +253,53 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
     Float_array_opt_dynamic_set (Alloc_mode.For_assignments.from_lambda mode)
   | Paddrarray_set mode ->
     Array_set_kind
-      (Values (Assignment (Alloc_mode.For_assignments.from_lambda mode)))
-  | Pintarray_set -> Array_set_kind Immediates
+      (No_float_array_opt
+         (Values (Assignment (Alloc_mode.For_assignments.from_lambda mode))))
+  | Pintarray_set -> Array_set_kind (No_float_array_opt Immediates)
   | Pfloatarray_set -> Array_set_kind Naked_floats_to_be_unboxed
-  | Punboxedfloatarray_set Pfloat64 -> Array_set_kind Naked_floats
-  | Punboxedfloatarray_set Pfloat32 -> Array_set_kind Naked_float32s
-  | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
-  | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
-  | Punboxedintarray_set Pnativeint -> Array_set_kind Naked_nativeints
+  | Punboxedfloatarray_set Pfloat64 ->
+    Array_set_kind (No_float_array_opt Naked_floats)
+  | Punboxedfloatarray_set Pfloat32 ->
+    Array_set_kind (No_float_array_opt Naked_float32s)
+  | Punboxedintarray_set Pint32 ->
+    Array_set_kind (No_float_array_opt Naked_int32s)
+  | Punboxedintarray_set Pint64 ->
+    Array_set_kind (No_float_array_opt Naked_int64s)
+  | Punboxedintarray_set Pnativeint ->
+    Array_set_kind (No_float_array_opt Naked_nativeints)
+  | Punboxedvectorarray_set Pvec128 ->
+    Array_set_kind (No_float_array_opt Naked_vec128s)
+
+let convert_array_set_kind_to_array_kind (array_set_kind : Array_set_kind.t) :
+    P.Array_kind.t =
+  match array_set_kind with
+  | Naked_floats_to_be_unboxed -> Naked_floats
+  | No_float_array_opt nfo -> (
+    match nfo with
+    | Values _ -> Values
+    | Immediates -> Immediates
+    | Naked_floats -> Naked_floats
+    | Naked_float32s -> Naked_float32s
+    | Naked_int32s -> Naked_int32s
+    | Naked_int64s -> Naked_int64s
+    | Naked_nativeints -> Naked_nativeints
+    | Naked_vec128s -> Naked_vec128s)
 
 let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
     =
   match convert_array_set_kind array_set_kind with
   | Float_array_opt_dynamic_set _ -> Float_array_opt_dynamic
-  | Array_set_kind (Values _) -> Array_kind Values
-  | Array_set_kind Immediates -> Array_kind Immediates
-  | Array_set_kind (Naked_floats | Naked_floats_to_be_unboxed) ->
-    Array_kind Naked_floats
-  | Array_set_kind Naked_float32s -> Array_kind Naked_float32s
-  | Array_set_kind Naked_int32s -> Array_kind Naked_int32s
-  | Array_set_kind Naked_int64s -> Array_kind Naked_int64s
-  | Array_set_kind Naked_nativeints -> Array_kind Naked_nativeints
+  | Array_set_kind Naked_floats_to_be_unboxed -> Array_kind Naked_floats
+  | Array_set_kind (No_float_array_opt nfo) -> (
+    match nfo with
+    | Values _ -> Array_kind Values
+    | Immediates -> Array_kind Immediates
+    | Naked_floats -> Array_kind Naked_floats
+    | Naked_float32s -> Array_kind Naked_float32s
+    | Naked_int32s -> Array_kind Naked_int32s
+    | Naked_int64s -> Array_kind Naked_int64s
+    | Naked_nativeints -> Array_kind Naked_nativeints
+    | Naked_vec128s -> Array_kind Naked_vec128s)
 
 type converted_duplicate_array_kind =
   | Duplicate_array_kind of P.Duplicate_array_kind.t
@@ -270,6 +323,8 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
     Duplicate_array_kind (Naked_int64s { length = None })
   | Punboxedintarray Pnativeint ->
     Duplicate_array_kind (Naked_nativeints { length = None })
+  | Punboxedvectorarray Pvec128 ->
+    Duplicate_array_kind (Naked_vec128s { length = None })
 
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
@@ -286,16 +341,16 @@ let untag_int (arg : H.simple_or_prim) : H.simple_or_prim =
 let unbox_float32 (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number K.Boxable_number.Naked_float32, arg))
 
-let box_float32 (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
-    H.expr_primitive =
+let box_float32 (mode : L.locality_mode) (arg : H.expr_primitive)
+    ~current_region : H.expr_primitive =
   Unary
     ( Box_number
         ( K.Boxable_number.Naked_float32,
           Alloc_mode.For_allocations.from_lambda mode ~current_region ),
       Prim arg )
 
-let box_float (mode : L.alloc_mode) (arg : H.expr_primitive) ~current_region :
-    H.expr_primitive =
+let box_float (mode : L.locality_mode) (arg : H.expr_primitive) ~current_region
+    : H.expr_primitive =
   Unary
     ( Box_number
         ( K.Boxable_number.Naked_float,
@@ -346,7 +401,7 @@ let bint_shift bi mode prim arg1 arg2 =
          unbox_bint bi arg1,
          untag_int arg2 ))
 
-let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
+let convert_index_to_tagged_int ~index ~(index_kind : Lambda.array_index_kind) =
   match index_kind with
   | Ptagged_int_index -> index
   | Punboxed_int_index bint ->
@@ -357,6 +412,15 @@ let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
                dst = Tagged_immediate
              },
            index ))
+
+let convert_index_to_untagged_int ~index ~(index_kind : Lambda.array_index_kind)
+    =
+  let src : I_or_f.t =
+    match index_kind with
+    | Ptagged_int_index -> Tagged_immediate
+    | Punboxed_int_index bint -> standard_int_or_float_of_boxed_integer bint
+  in
+  H.Prim (Unary (Num_conv { src; dst = Naked_immediate }, index))
 
 let check_non_negative_imm imm prim_name =
   if not (Targetint_31_63.is_non_negative imm)
@@ -381,11 +445,33 @@ let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
       dbg
     }
 
-let check_bound_tagged tagged_index bound : H.expr_primitive =
-  Binary
-    ( Int_comp (I.Naked_immediate, Yielding_bool (Lt Unsigned)),
-      untag_int tagged_index,
-      bound )
+let check_bound ~(index_kind : Lambda.array_index_kind) ~(bound_kind : I.t)
+    ~index ~bound : H.expr_primitive =
+  let (comp_kind : I.t), index, bound =
+    let convert_bound_to dst =
+      H.Prim
+        (Unary (Num_conv { src = I_or_f.of_standard_int bound_kind; dst }, bound))
+    in
+    (* The reason why we convert the bound instead of the index value is because
+       of edge cases around large negative numbers.
+
+       Given [-9223372036854775807] as a [Naked_int64] index, its bit
+       representation is
+       [0b1000000000000000000000000000000000000000000000000000000000000001]. If
+       we convert that into a [Tagged_immediate], it becomes [0b11] and the
+       bounds check would pass in cases that we should reject.
+
+       This also has the added benefit of producing better assembly code.
+       Usually saving one instruction compared to tagging the index value. *)
+    match index_kind with
+    | Ptagged_int_index ->
+      I.Naked_immediate, untag_int index, convert_bound_to Naked_immediate
+    | Punboxed_int_index bint ->
+      ( standard_int_of_boxed_integer bint,
+        index,
+        convert_bound_to (standard_int_or_float_of_boxed_integer bint) )
+  in
+  Binary (Int_comp (comp_kind, Yielding_bool (Lt Unsigned)), index, bound)
 
 (* This computes the maximum of a given value [x] with zero, in an optimized
    way. It takes as named argument the size (in bytes) of an integer register on
@@ -417,7 +503,8 @@ let max_with_zero ~size_int x =
   ret
 
 (* actual (strict) upper bound for an index in a string-like read/write *)
-let actual_max_length_for_string_like_access ~size_int ~access_size length =
+let actual_max_length_for_string_like_access ~size_int
+    ~(access_size : Flambda_primitive.string_accessor_width) length =
   (* offset to subtract from the length depending on the size of the
      read/write *)
   let length_offset_of_size size =
@@ -425,15 +512,15 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
       match (size : Flambda_primitive.string_accessor_width) with
       | Eight -> 0
       | Sixteen -> 1
-      | Thirty_two -> 3
+      | Thirty_two | Single -> 3
       | Sixty_four -> 7
       | One_twenty_eight _ -> 15
     in
     Targetint_31_63.of_int offset
   in
-  match (access_size : Flambda_primitive.string_accessor_width) with
+  match access_size with
   | Eight -> length (* micro-optimization *)
-  | Sixteen | Thirty_two | Sixty_four | One_twenty_eight _ ->
+  | Sixteen | Thirty_two | Single | Sixty_four | One_twenty_eight _ ->
     let offset = length_offset_of_size access_size in
     let reduced_length =
       H.Prim
@@ -460,19 +547,20 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
 
 (* String-like validity conditions *)
 
-let string_like_access_validity_condition ~size_int ~access_size ~length index :
-    H.expr_primitive =
-  check_bound_tagged index
-    (actual_max_length_for_string_like_access ~size_int ~access_size length)
+let string_like_access_validity_condition ~size_int ~access_size ~length
+    ~index_kind index : H.expr_primitive =
+  check_bound ~index_kind ~bound_kind:Naked_immediate ~index
+    ~bound:
+      (actual_max_length_for_string_like_access ~size_int ~access_size length)
 
 let string_or_bytes_access_validity_condition ~size_int str kind access_size
-    index : H.expr_primitive =
-  string_like_access_validity_condition index ~size_int ~access_size
+    ~index_kind index : H.expr_primitive =
+  string_like_access_validity_condition ~index_kind index ~size_int ~access_size
     ~length:(Prim (Unary (String_length kind, str)))
 
-let bigstring_access_validity_condition ~size_int big_str access_size index :
-    H.expr_primitive =
-  string_like_access_validity_condition index ~size_int ~access_size
+let bigstring_access_validity_condition ~size_int big_str access_size
+    ~index_kind index : H.expr_primitive =
+  string_like_access_validity_condition ~index_kind index ~size_int ~access_size
     ~length:(bigarray_dim_bound big_str 1)
 
 let bigstring_alignment_validity_condition bstr alignment tagged_index :
@@ -484,149 +572,164 @@ let bigstring_alignment_validity_condition bstr alignment tagged_index :
       Simple Simple.untagged_const_zero )
 
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
-    string index =
+    string ~index_kind index =
   (match (access_size : P.string_accessor_width) with
   | One_twenty_eight { aligned = true } ->
     Misc.fatal_error
       "flambda2 cannot yet check string/bytes aligned access safety"
-  | Eight | Sixteen | Thirty_two | Sixty_four
+  | Eight | Sixteen | Thirty_two | Single | Sixty_four
   | One_twenty_eight { aligned = false } ->
     ());
   checked_access ~dbg ~primitive
     ~conditions:
       [ string_or_bytes_access_validity_condition ~size_int string kind
-          access_size index ]
+          access_size ~index_kind index ]
 
-let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1 arg2 =
+let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1
+    ~index_kind arg2 =
   let primitive =
     match (access_size : P.string_accessor_width) with
     | One_twenty_eight { aligned = true } ->
       checked_alignment ~dbg ~primitive
-        ~conditions:[bigstring_alignment_validity_condition arg1 16 arg2]
-    | Eight | Sixteen | Thirty_two | Sixty_four
+        ~conditions:
+          [ bigstring_alignment_validity_condition arg1 16
+              (convert_index_to_tagged_int ~index:arg2 ~index_kind) ]
+    | Eight | Sixteen | Thirty_two | Single | Sixty_four
     | One_twenty_eight { aligned = false } ->
       primitive
   in
   checked_access ~dbg ~primitive
     ~conditions:
-      [bigstring_access_validity_condition ~size_int arg1 access_size arg2]
+      [ bigstring_access_validity_condition ~size_int arg1 access_size
+          ~index_kind arg2 ]
 
 (* String-like loads *)
-let string_like_load_unsafe ~access_size kind mode ~boxed string index
+let string_like_load ~dbg ~unsafe
+    ~(access_size : Flambda_primitive.string_accessor_width) ~size_int
+    (kind : P.string_like_value) mode ~boxed string ~index_kind index
     ~current_region =
-  let wrap =
-    match (access_size : Flambda_primitive.string_accessor_width), mode with
-    | (Eight | Sixteen), None ->
-      assert (not boxed);
-      tag_int
-    | Thirty_two, Some mode ->
-      if boxed then box_bint Pint32 mode ~current_region else Fun.id
-    | Sixty_four, Some mode ->
-      if boxed then box_bint Pint64 mode ~current_region else Fun.id
-    | One_twenty_eight _, Some mode ->
-      if boxed then box_vec128 mode ~current_region else Fun.id
-    | (Eight | Sixteen), Some _
-    | (Thirty_two | Sixty_four | One_twenty_eight _), None ->
-      Misc.fatal_error "Inconsistent alloc_mode for string or bytes load"
+  let unsafe_load =
+    let index = convert_index_to_untagged_int ~index ~index_kind in
+    let wrap =
+      match access_size, mode with
+      | (Eight | Sixteen), None ->
+        assert (not boxed);
+        tag_int
+      | Thirty_two, Some mode ->
+        if boxed then box_bint Pint32 mode ~current_region else Fun.id
+      | Single, Some mode ->
+        if boxed then box_float32 mode ~current_region else Fun.id
+      | Sixty_four, Some mode ->
+        if boxed then box_bint Pint64 mode ~current_region else Fun.id
+      | One_twenty_eight _, Some mode ->
+        if boxed then box_vec128 mode ~current_region else Fun.id
+      | (Eight | Sixteen), Some _
+      | (Thirty_two | Single | Sixty_four | One_twenty_eight _), None ->
+        Misc.fatal_error "Inconsistent alloc_mode for string or bytes load"
+    in
+    wrap (Binary (String_or_bigstring_load (kind, access_size), string, index))
   in
-  wrap (Binary (String_or_bigstring_load (kind, access_size), string, index))
+  if unsafe
+  then unsafe_load
+  else
+    let check_access =
+      match kind with
+      | String -> checked_string_or_bytes_access String
+      | Bytes -> checked_string_or_bytes_access Bytes
+      | Bigstring -> checked_bigstring_access
+    in
+    check_access ~dbg ~size_int ~access_size ~primitive:unsafe_load string
+      ~index_kind index
 
 let get_header obj mode ~current_region =
   let wrap hd = box_bint Pnativeint mode hd ~current_region in
   wrap (Unary (Get_header, obj))
 
-let string_like_load_safe ~dbg ~size_int ~access_size kind mode ~boxed str index
-    ~current_region =
-  match (kind : P.string_like_value) with
-  | String ->
-    checked_string_or_bytes_access ~dbg ~size_int ~access_size String
-      ~primitive:
-        (string_like_load_unsafe ~access_size String mode ~boxed str index
-           ~current_region)
-      str index
-  | Bytes ->
-    checked_string_or_bytes_access ~dbg ~size_int ~access_size Bytes
-      ~primitive:
-        (string_like_load_unsafe ~access_size Bytes mode ~boxed str index
-           ~current_region)
-      str index
-  | Bigstring ->
-    checked_bigstring_access ~dbg ~size_int ~access_size
-      ~primitive:
-        (string_like_load_unsafe ~access_size Bigstring mode ~boxed str index
-           ~current_region)
-      str index
-
 (* Bytes-like set *)
-let bytes_like_set_unsafe ~access_size kind ~boxed bytes index new_value =
-  let wrap =
-    match (access_size : Flambda_primitive.string_accessor_width) with
-    | Eight | Sixteen ->
-      assert (not boxed);
-      untag_int
-    | Thirty_two -> if boxed then unbox_bint Pint32 else Fun.id
-    | Sixty_four -> if boxed then unbox_bint Pint64 else Fun.id
-    | One_twenty_eight _ -> if boxed then unbox_vec128 else Fun.id
+let bytes_like_set ~dbg ~unsafe
+    ~(access_size : Flambda_primitive.string_accessor_width) ~size_int
+    (kind : P.bytes_like_value) ~boxed bytes ~index_kind index new_value =
+  let unsafe_set =
+    let index = convert_index_to_untagged_int ~index ~index_kind in
+    let wrap =
+      match access_size with
+      | Eight | Sixteen ->
+        assert (not boxed);
+        untag_int
+      | Thirty_two -> if boxed then unbox_bint Pint32 else Fun.id
+      | Single -> if boxed then unbox_float32 else Fun.id
+      | Sixty_four -> if boxed then unbox_bint Pint64 else Fun.id
+      | One_twenty_eight _ -> if boxed then unbox_vec128 else Fun.id
+    in
+    H.Ternary
+      (Bytes_or_bigstring_set (kind, access_size), bytes, index, wrap new_value)
   in
-  H.Ternary
-    (Bytes_or_bigstring_set (kind, access_size), bytes, index, wrap new_value)
+  if unsafe
+  then unsafe_set
+  else
+    let check_access =
+      match kind with
+      | Bytes -> checked_string_or_bytes_access Bytes
+      | Bigstring -> checked_bigstring_access
+    in
+    check_access ~dbg ~size_int ~access_size ~primitive:unsafe_set bytes
+      ~index_kind index
 
-let bytes_like_set_safe ~dbg ~size_int ~access_size kind ~boxed bytes index
-    new_value =
-  match (kind : P.bytes_like_value) with
-  | Bytes ->
-    checked_string_or_bytes_access ~dbg ~size_int ~access_size Bytes
-      ~primitive:
-        (bytes_like_set_unsafe ~access_size Bytes ~boxed bytes index new_value)
-      bytes index
-  | Bigstring ->
-    checked_bigstring_access ~dbg ~size_int ~access_size
-      ~primitive:
-        (bytes_like_set_unsafe ~access_size Bigstring ~boxed bytes index
-           new_value)
-      bytes index
+(* Array bounds checks *)
+
+let multiple_word_array_access_validity_condition array ~size_int
+    array_length_kind index_kind ~width_in_scalars ~index =
+  let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
+  if width_in_scalars < 1
+  then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
+  else if width_in_scalars = 1
+  then
+    (* Ensure good code generation in the common case. *)
+    check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
+      ~bound:length_tagged
+  else
+    let length_untagged = untag_int length_tagged in
+    let reduced_length_untagged =
+      H.Prim
+        (Binary
+           ( Int_arith (Naked_immediate, Sub),
+             length_untagged,
+             Simple
+               (Simple.untagged_const_int
+                  (Targetint_31_63.of_int (width_in_scalars - 1))) ))
+    in
+    (* We need to convert the length into a naked_nativeint because the
+       optimised version of the max_with_zero function needs to be on
+       machine-width integers to work (or at least on an integer number of bytes
+       to work). *)
+    let reduced_length_nativeint =
+      H.Prim
+        (Unary
+           ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
+             reduced_length_untagged ))
+    in
+    let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
+    check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
+      ~bound:nativeint_bound
 
 (* Array vector load/store *)
+(* CR mshinwell: it seems like these could be folded into the normal array
+   load/store functions below *)
+
+let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
+  match array_kind with
+  | Naked_vec128s -> 1
+  | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
+  | Naked_int32s | Naked_float32s -> 4
+  | Values ->
+    Misc.fatal_error
+      "Attempted to load/store a SIMD vector from/to a value array."
 
 let array_vector_access_validity_condition array ~size_int
     (array_kind : P.Array_kind.t) index =
-  let width_in_scalars =
-    match array_kind with
-    | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
-    | Naked_int32s | Naked_float32s -> 4
-    | Values ->
-      Misc.fatal_error
-        "Attempted to load/store a SIMD vector from/to a value array."
-  in
-  let length_untagged =
-    untag_int (H.Prim (Unary (Array_length (Array_kind array_kind), array)))
-  in
-  let reduced_length_untagged =
-    H.Prim
-      (Binary
-         ( Int_arith (Naked_immediate, Sub),
-           length_untagged,
-           Simple
-             (Simple.untagged_const_int
-                (Targetint_31_63.of_int (width_in_scalars - 1))) ))
-  in
-  (* We need to convert the length into a naked_nativeint because the optimised
-     version of the max_with_zero function needs to be on machine-width integers
-     to work (or at least on an integer number of bytes to work). *)
-  let reduced_length_nativeint =
-    H.Prim
-      (Unary
-         ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
-           reduced_length_untagged ))
-  in
-  let check_nativeint = max_with_zero ~size_int reduced_length_nativeint in
-  let check_untagged =
-    H.Prim
-      (Unary
-         ( Num_conv { src = Naked_nativeint; dst = Naked_immediate },
-           check_nativeint ))
-  in
-  check_bound_tagged index check_untagged
+  let width_in_scalars = array_vector_access_width_in_scalars array_kind in
+  multiple_word_array_access_validity_condition array ~size_int
+    (Array_kind array_kind) Ptagged_int_index ~width_in_scalars ~index
 
 let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
     : H.expr_primitive =
@@ -635,28 +738,29 @@ let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
       [array_vector_access_validity_condition ~size_int array array_kind index]
     ~dbg
 
-let array_like_load_128 ~dbg ~size_int ~unsafe ~mode ~current_region array_kind
-    array index =
+let array_like_load_128 ~dbg ~size_int ~unsafe ~mode ~boxed ~current_region
+    array_kind array index =
   let primitive =
-    box_vec128 mode ~current_region
-      (H.Binary (Array_load (array_kind, Vec128, Mutable), array, index))
+    H.Binary (Array_load (array_kind, Naked_vec128s, Mutable), array, index)
+  in
+  let primitive =
+    if boxed then box_vec128 mode ~current_region primitive else primitive
   in
   if unsafe
   then primitive
   else
     check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
 
-let array_like_set_128 ~dbg ~size_int ~unsafe array_kind array index new_value =
+let array_like_set_128 ~dbg ~size_int ~unsafe ~boxed array_kind array index
+    new_value =
+  let new_value = if boxed then unbox_vec128 new_value else new_value in
   let primitive =
-    H.Ternary
-      (Array_set (array_kind, Vec128), array, index, unbox_vec128 new_value)
+    H.Ternary (Array_set (array_kind, Naked_vec128s), array, index, new_value)
   in
   if unsafe
   then primitive
   else
-    check_array_vector_access ~dbg ~size_int ~array
-      (P.Array_set_kind.array_kind array_kind)
-      ~index primitive
+    check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
 
 (* Bigarray accesses *)
 let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
@@ -714,14 +818,20 @@ let bigarray_indexing layout b args =
   let num_dim = List.length args in
   let rec aux dim delta_dim = function
     | [] -> assert false
-    | [idx] ->
+    | [index] ->
       let bound = bigarray_dim_bound b dim in
-      let check = check_bound_tagged idx bound in
-      [check], idx
-    | idx :: r ->
+      let check =
+        check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_immediate
+          ~index ~bound
+      in
+      [check], index
+    | index :: r ->
       let checks, rem = aux (dim + delta_dim) delta_dim r in
       let bound = bigarray_dim_bound b dim in
-      let check = check_bound_tagged idx bound in
+      let check =
+        check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_immediate
+          ~index ~bound
+      in
       (* CR gbury: because we tag bound, and the tagged multiplication untags
          it, we might be left with a needless zero-extend here. *)
       let tmp =
@@ -732,7 +842,7 @@ let bigarray_indexing layout b args =
                Prim (Unary (Tag_immediate, bound)) ))
       in
       let offset =
-        H.Prim (Binary (Int_arith (I.Tagged_immediate, Add), tmp, idx))
+        H.Prim (Binary (Int_arith (I.Tagged_immediate, Add), tmp, index))
       in
       check :: checks, offset
   in
@@ -771,96 +881,114 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 
 (* Array accesses *)
 let array_access_validity_condition array array_kind index
-    (index_kind : L.array_index_kind) =
-  let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
-  (* The reason why we convert the array length instead of the index value is
-     because of edge cases around large negative numbers.
+    ~(index_kind : L.array_index_kind) ~width_in_scalars ~size_int =
+  [ multiple_word_array_access_validity_condition array ~size_int array_kind
+      index_kind ~width_in_scalars ~index ]
 
-     Given [-9223372036854775807] as a [Naked_int64] index, its bit
-     representation is
-     [0b1000000000000000000000000000000000000000000000000000000000000001]. If we
-     convert that into a [Tagged_immediate], it becomes [0b11] and the bounds
-     check would pass in cases that we should reject.
-
-     This also has the added benefit of producing better assembly code. Usually
-     saving one instruction compared to tagging the index value. *)
-  let (comp_kind : I.t), arr_len =
-    match index_kind with
-    | Ptagged_int_index -> I.Tagged_immediate, arr_len_as_tagged_imm
-    | Punboxed_int_index bint ->
-      ( standard_int_of_boxed_integer bint,
-        H.Prim
-          (Unary
-             ( Num_conv
-                 { src = Tagged_immediate;
-                   dst = standard_int_or_float_of_boxed_integer bint
-                 },
-               arr_len_as_tagged_imm )) )
-  in
-  [H.Binary (Int_comp (comp_kind, Yielding_bool (Lt Unsigned)), index, arr_len)]
-
-let check_array_access ~dbg ~array array_kind ~index ~index_kind primitive :
-    H.expr_primitive =
+let check_array_access ~dbg ~array (array_kind : P.Array_kind_for_length.t)
+    ~index ~index_kind ~size_int primitive : H.expr_primitive =
   checked_access ~primitive
     ~conditions:
-      (array_access_validity_condition array array_kind index index_kind)
+      (array_access_validity_condition array array_kind index ~index_kind
+         ~width_in_scalars:1 ~size_int)
     ~dbg
 
-let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
-    ~current_region : H.expr_primitive =
-  match array_ref_kind with
-  | Immediates -> Binary (Array_load (Immediates, Scalar, Mutable), array, index)
-  | Values -> Binary (Array_load (Values, Scalar, Mutable), array, index)
-  | Naked_floats_to_be_boxed mode ->
-    box_float mode
-      (Binary (Array_load (Naked_floats, Scalar, Mutable), array, index))
-      ~current_region
-  | Naked_floats ->
-    Binary (Array_load (Naked_floats, Scalar, Mutable), array, index)
-  | Naked_float32s ->
-    Binary (Array_load (Naked_float32s, Scalar, Mutable), array, index)
-  | Naked_int32s ->
-    Binary (Array_load (Naked_int32s, Scalar, Mutable), array, index)
-  | Naked_int64s ->
-    Binary (Array_load (Naked_int64s, Scalar, Mutable), array, index)
-  | Naked_nativeints ->
-    Binary (Array_load (Naked_nativeints, Scalar, Mutable), array, index)
-
-let array_set_unsafe ~array ~index ~new_value
-    (array_set_kind : Array_set_kind.t) : H.expr_primitive =
-  let new_value =
-    match array_set_kind with
-    | Immediates | Values _ | Naked_floats | Naked_float32s | Naked_int32s
-    | Naked_int64s | Naked_nativeints ->
-      new_value
-    | Naked_floats_to_be_unboxed -> unbox_float new_value
+let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
+    (array_ref_kind : Array_ref_kind.t) ~current_region : H.expr_primitive list
+    =
+  (* CR mshinwell/ncourant: can we avoid taking [array_kind] here? *)
+  let mut : Mutability.t =
+    match mut with
+    | Immutable | Immutable_unique -> Immutable
+    | Mutable -> Mutable
   in
-  let array_set_kind = convert_intermediate_array_set_kind array_set_kind in
-  Ternary (Array_set (array_set_kind, Scalar), array, index, new_value)
+  match array_ref_kind with
+  | Naked_floats_to_be_boxed mode ->
+    [ box_float mode
+        (Binary (Array_load (array_kind, Naked_floats, mut), array, index))
+        ~current_region ]
+  | No_float_array_opt nfo ->
+    let array_load_kind : P.Array_load_kind.t =
+      match nfo with
+      | Immediates -> Immediates
+      | Values -> Values
+      | Naked_floats -> Naked_floats
+      | Naked_float32s -> Naked_float32s
+      | Naked_int32s -> Naked_int32s
+      | Naked_int64s -> Naked_int64s
+      | Naked_nativeints -> Naked_nativeints
+      | Naked_vec128s -> Naked_vec128s
+    in
+    [Binary (Array_load (array_kind, array_load_kind, mut), array, index)]
+
+let array_load_unsafe ~array ~index ~mut array_kind array_load_kind
+    ~current_region =
+  array_load_unsafe ~array ~index ~mut array_kind array_load_kind
+    ~current_region
+  |> H.maybe_create_unboxed_product
+
+let array_set_unsafe dbg ~array ~index array_kind
+    (array_set_kind : Array_set_kind.t) ~new_values : H.expr_primitive list =
+  let[@local] normal_case array_set_kind new_values =
+    match new_values with
+    | [new_value] ->
+      [ H.Ternary
+          (Array_set (array_kind, array_set_kind), array, index, new_value) ]
+    | [] | _ :: _ ->
+      Misc.fatal_errorf "Wrong arity for array_set_unsafe in normal_case:@ %a"
+        Debuginfo.print_compact dbg
+  in
+  match array_set_kind with
+  | Naked_floats_to_be_unboxed ->
+    normal_case Naked_floats (List.map unbox_float new_values)
+  | No_float_array_opt nfo -> (
+    match nfo with
+    | Immediates -> normal_case Immediates new_values
+    | Values init_or_assign -> normal_case (Values init_or_assign) new_values
+    | Naked_floats -> normal_case Naked_floats new_values
+    | Naked_float32s -> normal_case Naked_float32s new_values
+    | Naked_int32s -> normal_case Naked_int32s new_values
+    | Naked_int64s -> normal_case Naked_int64s new_values
+    | Naked_nativeints -> normal_case Naked_nativeints new_values
+    | Naked_vec128s -> normal_case Naked_vec128s new_values)
+
+let array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values =
+  array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values
+  |> H.maybe_create_unboxed_product
 
 let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
     H.expr_primitive =
   match convert_array_ref_kind array_ref_kind with
-  | Array_ref_kind array_ref_kind -> f array_ref_kind
+  | Array_ref_kind array_ref_kind ->
+    let array_kind = convert_array_ref_kind_to_array_kind array_ref_kind in
+    f array_kind array_ref_kind
   | Float_array_opt_dynamic_ref mode ->
     (* CR keryan: we should push the ITE as low as possible to avoid duplicating
        too much *)
     If_then_else
       ( Unary (Is_flat_float_array, array),
-        f (Array_ref_kind.Naked_floats_to_be_boxed mode),
-        f Array_ref_kind.Values )
+        f P.Array_kind.Naked_floats
+          (Array_ref_kind.Naked_floats_to_be_boxed mode),
+        f P.Array_kind.Values
+          (Array_ref_kind.No_float_array_opt Values : Array_ref_kind.t),
+        [K.With_subkind.any_value] )
 
-let[@inline always] match_on_array_set_kind ~array array_ref_kind f :
+let[@inline always] match_on_array_set_kind ~array array_set_kind f :
     H.expr_primitive =
-  match convert_array_set_kind array_ref_kind with
-  | Array_set_kind array_set_kind -> f array_set_kind
+  match convert_array_set_kind array_set_kind with
+  | Array_set_kind array_set_kind ->
+    let array_kind = convert_array_set_kind_to_array_kind array_set_kind in
+    f array_kind array_set_kind
   | Float_array_opt_dynamic_set mode ->
     (* CR keryan: we should push the ITE as low as possible to avoid duplicating
        too much *)
     If_then_else
       ( Unary (Is_flat_float_array, array),
-        f Array_set_kind.Naked_floats_to_be_unboxed,
-        f (Array_set_kind.Values (Assignment mode)) )
+        f P.Array_kind.Naked_floats Array_set_kind.Naked_floats_to_be_unboxed,
+        f P.Array_kind.Values
+          (Array_set_kind.No_float_array_opt (Values (Assignment mode))
+            : Array_set_kind.t),
+        [K.With_subkind.tagged_immediate] )
 
 (* Safe arith (div/mod by zero) *)
 let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2
@@ -925,7 +1053,8 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
-    (dbg : Debuginfo.t) ~current_region : H.expr_primitive list =
+    (dbg : Debuginfo.t) ~current_region ~current_ghost_region :
+    H.expr_primitive list =
   let orig_args = args in
   let args =
     List.map (List.map (fun arg : H.simple_or_prim -> Simple arg)) args
@@ -991,7 +1120,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (fun i arg ->
           match Lambda.get_mixed_block_element shape i with
           | Value_prefix
-          | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Word) ->
+          | Flat_suffix
+              (Float64 | Float32 | Imm | Bits32 | Bits64 | Vec128 | Word) ->
             arg
           | Flat_suffix Float_boxed -> unbox_float arg)
         args
@@ -1012,7 +1142,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         match lambda_array_kind with
         | Pgenarray | Paddrarray | Pintarray
         | Punboxedfloatarray (Pfloat64 | Pfloat32)
-        | Punboxedintarray (Pint32 | Pint64 | Pnativeint) ->
+        | Punboxedintarray (Pint32 | Pint64 | Pnativeint)
+        | Punboxedvectorarray Pvec128 ->
           args
         | Pfloatarray -> List.map unbox_float args
       in
@@ -1033,7 +1164,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               Variadic
                 ( Make_array (Naked_floats, mutability, mode),
                   List.map unbox_float args ),
-              Variadic (Make_array (Values, mutability, mode), args) ) ]))
+              Variadic (Make_array (Values, mutability, mode), args),
+              [K.With_subkind.any_value] ) ]))
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
   | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
   | Pduprecord (repr, num_fields), [[arg]] ->
@@ -1046,21 +1178,29 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           }
       | Record_float | Record_ufloat ->
         Naked_floats { length = Targetint_31_63.of_int num_fields }
-      | Record_mixed _ -> Mixed
-      | Record_inlined (Ordinary { runtime_tag; _ }, Variant_boxed _) ->
+      | Record_inlined (_, Constructor_mixed _, _) | Record_mixed _ -> Mixed
+      | Record_inlined
+          ( Ordinary { runtime_tag; _ },
+            Constructor_uniform_value,
+            Variant_boxed _ ) ->
         Values
           { tag = Tag.Scannable.create_exn runtime_tag;
             length = Targetint_31_63.of_int num_fields
           }
-      | Record_inlined (Extension _, Variant_extensible) ->
-        Values
-          { tag = Tag.Scannable.zero;
-            (* The "+1" is because there is an extra field containing the hashed
-               constructor. *)
-            length = Targetint_31_63.of_int (num_fields + 1)
-          }
-      | Record_inlined (Extension _, _)
-      | Record_inlined (Ordinary _, (Variant_unboxed | Variant_extensible))
+      | Record_inlined (Extension _, shape, Variant_extensible) -> (
+        match shape with
+        | Constructor_uniform_value ->
+          Values
+            { tag = Tag.Scannable.zero;
+              (* The "+1" is because there is an extra field containing the
+                 hashed constructor. *)
+              length = Targetint_31_63.of_int (num_fields + 1)
+            }
+        | Constructor_mixed _ ->
+          (* CR layouts v5.9: support this *)
+          Misc.fatal_error "Mixed blocks extensible variants are not supported")
+      | Record_inlined (Extension _, _, _)
+      | Record_inlined (Ordinary _, _, (Variant_unboxed | Variant_extensible))
       | Record_unboxed ->
         Misc.fatal_errorf "Cannot handle record kind for Pduprecord: %a"
           Printlambda.primitive prim
@@ -1216,6 +1356,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             ( Naked_float32,
               Alloc_mode.For_allocations.from_lambda mode ~current_region ),
           arg ) ]
+  | Punbox_vector Pvec128, [[arg]] -> [Unary (Unbox_number Naked_vec128, arg)]
+  | Pbox_vector (Pvec128, mode), [[arg]] ->
+    [ Unary
+        ( Box_number
+            ( Naked_vec128,
+              Alloc_mode.For_allocations.from_lambda mode ~current_region ),
+          arg ) ]
   | Punbox_int bi, [[arg]] ->
     let kind = boxable_number_of_boxed_integer bi in
     [Unary (Unbox_number kind, arg)]
@@ -1226,26 +1373,40 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),
           arg ) ]
   | Pfield_computed sem, [[obj]; [field]] ->
-    let block_access : P.Block_access_kind.t =
-      Values { tag = Unknown; size = Unknown; field_kind = Any_value }
+    (* We are reinterpreting a block(/object) as a value array, so it needs to
+       be opaque. *)
+    let obj =
+      H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj)
     in
     [ Binary
-        (Block_load (block_access, convert_field_read_semantics sem), obj, field)
-    ]
+        ( Array_load (Values, Values, convert_field_read_semantics sem),
+          Prim obj,
+          field ) ]
   | ( Psetfield_computed (imm_or_pointer, init_or_assign),
       [[obj]; [field]; [value]] ) ->
-    let field_kind = convert_block_access_field_kind imm_or_pointer in
-    let block_access : P.Block_access_kind.t =
-      Values { tag = Unknown; size = Unknown; field_kind }
+    (* We are reinterpreting a block(/object) as a value array, so it needs to
+       be opaque. *)
+    let obj =
+      H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj)
     in
-    [ Ternary
-        ( Block_set (block_access, convert_init_or_assign init_or_assign),
-          obj,
-          field,
-          value ) ]
-  | Parraylength kind, [[arg]] ->
+    let array_kind : P.Array_kind.t =
+      match imm_or_pointer with Immediate -> Immediates | Pointer -> Values
+    in
+    let array_set_kind : P.Array_set_kind.t =
+      match imm_or_pointer with
+      | Immediate -> Immediates
+      | Pointer -> Values (convert_init_or_assign init_or_assign)
+    in
+    [Ternary (Array_set (array_kind, array_set_kind), Prim obj, field, value)]
+  | Parraylength kind, [[arg]] -> (
     let array_kind = convert_array_kind_for_length kind in
-    [Unary (Array_length array_kind, arg)]
+    let prim : H.expr_primitive = Unary (Array_length array_kind, arg) in
+    match array_kind with
+    | Array_kind
+        ( Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
+        | Naked_int64s | Naked_nativeints | Naked_vec128s )
+    | Float_array_opt_dynamic ->
+      [prim])
   | Pduparray (kind, mutability), [[arg]] -> (
     let duplicate_array_kind =
       convert_array_kind_to_duplicate_array_kind kind
@@ -1274,99 +1435,78 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             Unary
               ( Duplicate_array
                   { kind = Values; source_mutability; destination_mutability },
-                arg ) ) ])
+                arg ),
+            [K.With_subkind.any_value] ) ])
   | Pstringlength, [[arg]] -> [tag_int (Unary (String_length String, arg))]
   | Pbyteslength, [[arg]] -> [tag_int (Unary (String_length Bytes, arg))]
   | Pstringrefu, [[str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Eight String None ~boxed:false str
-        index ~current_region ]
+    [ string_like_load ~unsafe:true ~dbg ~size_int ~access_size:Eight String
+        None ~boxed:false str ~index_kind:Ptagged_int_index index
+        ~current_region ]
   | Pbytesrefu, [[bytes]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Eight Bytes None ~boxed:false bytes
-        index ~current_region ]
+    [ string_like_load ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes None
+        ~boxed:false bytes ~index_kind:Ptagged_int_index index ~current_region
+    ]
   | Pstringrefs, [[str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Eight String
-        ~boxed:false None str index ~current_region ]
+    [ string_like_load ~unsafe:false ~dbg ~size_int ~access_size:Eight String
+        ~boxed:false None str ~index_kind:Ptagged_int_index index
+        ~current_region ]
   | Pbytesrefs, [[bytes]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Eight Bytes ~boxed:false
-        None bytes index ~current_region ]
-  | Pstring_load_16 true (* unsafe *), [[str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixteen String ~boxed:false None str
-        index ~current_region ]
-  | Pbytes_load_16 true (* unsafe *), [[bytes]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixteen Bytes ~boxed:false None bytes
-        index ~current_region ]
-  | Pstring_load_32 (true (* unsafe *), mode), [[str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Thirty_two String ~boxed:true
-        (Some mode) str index ~current_region ]
-  | Pbytes_load_32 (true (* unsafe *), mode), [[bytes]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Thirty_two Bytes ~boxed:true
-        (Some mode) bytes index ~current_region ]
-  | Pstring_load_64 (true (* unsafe *), mode), [[str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixty_four String ~boxed:true
-        (Some mode) str index ~current_region ]
-  | Pbytes_load_64 (true (* unsafe *), mode), [[bytes]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixty_four Bytes ~boxed:true
-        (Some mode) bytes index ~current_region ]
-  | Pstring_load_128 { unsafe = true; mode }, [[str]; [index]] ->
-    [ string_like_load_unsafe
+    [ string_like_load ~unsafe:false ~dbg ~size_int ~access_size:Eight Bytes
+        ~boxed:false None bytes ~index_kind:Ptagged_int_index index
+        ~current_region ]
+  | Pstring_load_16 { unsafe; index_kind }, [[str]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixteen String
+        ~boxed:false None str ~index_kind index ~current_region ]
+  | Pbytes_load_16 { unsafe; index_kind }, [[bytes]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixteen Bytes
+        ~boxed:false None bytes ~index_kind index ~current_region ]
+  | Pstring_load_32 { unsafe; index_kind; mode; boxed }, [[str]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Thirty_two String
+        ~boxed (Some mode) str ~index_kind index ~current_region ]
+  | Pstring_load_f32 { unsafe; index_kind; mode; boxed }, [[str]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Single String ~boxed
+        (Some mode) str ~index_kind index ~current_region ]
+  | Pbytes_load_32 { unsafe; index_kind; mode; boxed }, [[bytes]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bytes
+        ~boxed (Some mode) bytes ~index_kind index ~current_region ]
+  | Pbytes_load_f32 { unsafe; index_kind; mode; boxed }, [[bytes]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Single Bytes ~boxed
+        (Some mode) bytes ~index_kind index ~current_region ]
+  | Pstring_load_64 { unsafe; index_kind; mode; boxed }, [[str]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixty_four String
+        ~boxed (Some mode) str ~index_kind index ~current_region ]
+  | Pbytes_load_64 { unsafe; index_kind; mode; boxed }, [[bytes]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bytes
+        ~boxed (Some mode) bytes ~index_kind index ~current_region ]
+  | Pstring_load_128 { unsafe; index_kind; mode; boxed }, [[str]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        String ~boxed:true (Some mode) str index ~current_region ]
-  | Pbytes_load_128 { unsafe = true; mode }, [[str]; [index]] ->
-    [ string_like_load_unsafe
+        String ~boxed (Some mode) str ~index_kind index ~current_region ]
+  | Pbytes_load_128 { unsafe; index_kind; mode; boxed }, [[str]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true (Some mode) str index ~current_region ]
-  | Pstring_load_16 false (* safe *), [[str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen String
-        ~boxed:false None str index ~current_region ]
-  | Pstring_load_32 (false (* safe *), mode), [[str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two String
-        (Some mode) ~boxed:true str index ~current_region ]
-  | Pstring_load_64 (false (* safe *), mode), [[str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four String
-        (Some mode) ~boxed:true str index ~current_region ]
-  | Pstring_load_128 { unsafe = false; mode }, [[str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int
+        Bytes ~boxed (Some mode) str ~index_kind index ~current_region ]
+  | Pbytes_set_16 { unsafe; index_kind }, [[bytes]; [index]; [new_value]] ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bytes
+        ~boxed:false bytes ~index_kind index new_value ]
+  | Pbytes_set_32 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bytes ~boxed
+        bytes ~index_kind index new_value ]
+  | Pbytes_set_f32 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Single Bytes ~boxed
+        bytes ~index_kind index new_value ]
+  | Pbytes_set_64 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bytes ~boxed
+        bytes ~index_kind index new_value ]
+  | Pbytes_set_128 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        String (Some mode) ~boxed:true str index ~current_region ]
-  | Pbytes_load_16 false (* safe *), [[bytes]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bytes
-        ~boxed:false None bytes index ~current_region ]
-  | Pbytes_load_32 (false (* safe *), mode), [[bytes]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bytes
-        ~boxed:true (Some mode) bytes index ~current_region ]
-  | Pbytes_load_64 (false (* safe *), mode), [[bytes]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
-        ~boxed:true (Some mode) bytes index ~current_region ]
-  | Pbytes_load_128 { unsafe = false; mode }, [[bytes]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int
-        ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true (Some mode) bytes index ~current_region ]
-  | Pbytes_set_16 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_unsafe ~access_size:Sixteen Bytes ~boxed:false bytes index
-        new_value ]
-  | Pbytes_set_32 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_unsafe ~access_size:Thirty_two Bytes ~boxed:true bytes
-        index new_value ]
-  | Pbytes_set_64 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_unsafe ~access_size:Sixty_four Bytes ~boxed:true bytes
-        index new_value ]
-  | Pbytes_set_128 { unsafe = true }, [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_unsafe
-        ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true bytes index new_value ]
-  | Pbytes_set_16 false (* safe *), [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bytes ~boxed:false
-        bytes index new_value ]
-  | Pbytes_set_32 false (* safe *), [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bytes
-        ~boxed:true bytes index new_value ]
-  | Pbytes_set_64 false (* safe *), [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
-        ~boxed:true bytes index new_value ]
-  | Pbytes_set_128 { unsafe = false }, [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_safe ~dbg ~size_int
-        ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true bytes index new_value ]
+        Bytes ~boxed bytes ~index_kind index new_value ]
   | Pisint { variant_only }, [[arg]] ->
     [tag_int (Unary (Is_int { variant_only }, arg))]
   | Pisout, [[arg1]; [arg2]] ->
@@ -1421,36 +1561,38 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Pfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind = Any_value }
     in
-    [Binary (Block_load (block_access, mutability), arg, Simple field)]
+    [ Unary
+        (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
+    ]
   | Pfloatfield (field, sem, mode), [[arg]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pfloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
     [ box_float mode
-        (Binary (Block_load (block_access, mutability), arg, Simple field))
+        (Unary
+           ( Block_load { kind = block_access; mut = mutability; field = imm },
+             arg ))
         ~current_region ]
   | Pufloatfield (field, sem), [[arg]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pufloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
-    [Binary (Block_load (block_access, mutability), arg, Simple field)]
+    [ Unary
+        (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
+    ]
   | Pmixedfield (field, read, shape, sem), [[arg]] -> (
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pmixedfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       let field_kind : P.Mixed_block_access_field_kind.t =
@@ -1460,14 +1602,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Mread_flat_suffix read ->
           Flat_suffix
             (match read with
-            | Flat_read flat_element -> K.from_lambda_flat_element flat_element
-            | Flat_read_float_boxed _ -> K.naked_float)
+            | Flat_read flat_element ->
+              K.Flat_suffix_element.from_lambda flat_element
+            | Flat_read_float_boxed _ -> K.Flat_suffix_element.naked_float)
       in
       let shape = K.Mixed_block_shape.from_lambda shape in
       Mixed { tag = Unknown; field_kind; shape; size = Unknown }
     in
     let block_access : H.expr_primitive =
-      Binary (Block_load (block_access, mutability), arg, Simple field)
+      Unary
+        (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
     in
     match read with
     | Mread_value_prefix _ | Mread_flat_suffix (Flat_read _) -> [block_access]
@@ -1478,43 +1622,40 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Psetfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind }
     in
-    [ Ternary
-        (Block_set (block_access, init_or_assign), block, Simple field, value)
-    ]
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
+          block,
+          value ) ]
   | Psetfloatfield (field, initialization_or_assignment), [[block]; [value]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetfloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
-    [ Ternary
-        ( Block_set (block_access, init_or_assign),
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
           block,
-          Simple field,
           unbox_float value ) ]
   | Psetufloatfield (field, initialization_or_assignment), [[block]; [value]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetufloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
-    [ Ternary
-        (Block_set (block_access, init_or_assign), block, Simple field, value)
-    ]
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
+          block,
+          value ) ]
   | ( Psetmixedfield (field, write, shape, initialization_or_assignment),
       [[block]; [value]] ) ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetmixedfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Mixed
         { field_kind =
@@ -1523,7 +1664,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               Value_prefix
                 (convert_block_access_field_kind immediate_or_pointer)
             | Mwrite_flat_suffix flat ->
-              Flat_suffix (K.from_lambda_flat_element flat));
+              Flat_suffix (K.Flat_suffix_element.from_lambda flat));
           shape = K.Mixed_block_shape.from_lambda shape;
           tag = Unknown;
           size = Unknown
@@ -1533,13 +1674,15 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let value =
       match write with
       | Mwrite_value_prefix _
-      | Mwrite_flat_suffix (Imm | Float64 | Float32 | Bits32 | Bits64 | Word) ->
+      | Mwrite_flat_suffix
+          (Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) ->
         value
       | Mwrite_flat_suffix Float_boxed -> unbox_float value
     in
-    [ Ternary
-        (Block_set (block_access, init_or_assign), block, Simple field, value)
-    ]
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
+          block,
+          value ) ]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
@@ -1564,43 +1707,41 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pmodbint { size = Pnativeint; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
     [ checked_arith_op ~dbg (Some Pnativeint) Mod (Some mode) arg1 arg2
         ~current_region ]
-  | Parrayrefu (array_ref_kind, array_index_kind), [[array]; [index]] ->
+  | Parrayrefu (array_ref_kind, index_kind, mut), [[array]; [index]] ->
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
     [ match_on_array_ref_kind ~array array_ref_kind
-        (array_load_unsafe ~array
-           ~index:(convert_index_to_tagged_int index array_index_kind)
+        (array_load_unsafe ~array ~mut
+           ~index:(convert_index_to_tagged_int ~index ~index_kind)
            ~current_region) ]
-  | Parrayrefs (array_ref_kind, array_index_kind), [[array]; [index]] ->
-    let array_kind = convert_array_ref_kind_for_length array_ref_kind in
-    [ check_array_access ~dbg ~array array_kind ~index
-        ~index_kind:array_index_kind
+  | Parrayrefs (array_ref_kind, index_kind, mut), [[array]; [index]] ->
+    let array_length_kind = convert_array_ref_kind_for_length array_ref_kind in
+    [ check_array_access ~dbg ~array array_length_kind ~index ~index_kind
+        ~size_int
         (match_on_array_ref_kind ~array array_ref_kind
-           (array_load_unsafe ~array
-              ~index:(convert_index_to_tagged_int index array_index_kind)
+           (array_load_unsafe ~array ~mut
+              ~index:(convert_index_to_tagged_int ~index ~index_kind)
               ~current_region)) ]
-  | ( Parraysetu (array_set_kind, array_index_kind),
-      [[array]; [index]; [new_value]] ) ->
+  | Parraysetu (array_set_kind, index_kind), [[array]; [index]; new_values] ->
     [ match_on_array_set_kind ~array array_set_kind
-        (array_set_unsafe ~array
-           ~index:(convert_index_to_tagged_int index array_index_kind)
-           ~new_value) ]
-  | ( Parraysets (array_set_kind, array_index_kind),
-      [[array]; [index]; [new_value]] ) ->
-    let array_kind = convert_array_set_kind_for_length array_set_kind in
-    [ check_array_access ~dbg ~array array_kind ~index
-        ~index_kind:array_index_kind
+        (array_set_unsafe dbg ~array
+           ~index:(convert_index_to_tagged_int ~index ~index_kind)
+           ~new_values) ]
+  | Parraysets (array_set_kind, index_kind), [[array]; [index]; new_values] ->
+    let array_length_kind = convert_array_set_kind_for_length array_set_kind in
+    [ check_array_access ~dbg ~array array_length_kind ~index ~index_kind
+        ~size_int
         (match_on_array_set_kind ~array array_set_kind
-           (array_set_unsafe ~array
-              ~index:(convert_index_to_tagged_int index array_index_kind)
-              ~new_value)) ]
+           (array_set_unsafe dbg ~array
+              ~index:(convert_index_to_tagged_int ~index ~index_kind)
+              ~new_values)) ]
   | Pbytessetu (* unsafe *), [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_unsafe ~access_size:Eight Bytes ~boxed:false bytes index
-        new_value ]
+    [ bytes_like_set ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes
+        ~boxed:false bytes ~index_kind:Ptagged_int_index index new_value ]
   | Pbytessets, [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Eight Bytes ~boxed:false
-        bytes index new_value ]
+    [ bytes_like_set ~unsafe:false ~dbg ~size_int ~access_size:Eight Bytes
+        ~boxed:false bytes ~index_kind:Ptagged_int_index index new_value ]
   | Poffsetref n, [[block]] ->
     let block_access : P.Block_access_kind.t =
       Values
@@ -1611,8 +1752,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     let old_ref_value =
       H.Prim
-        (Binary
-           (Block_load (block_access, Mutable), block, Simple Simple.const_zero))
+        (Unary
+           ( Block_load
+               { kind = block_access;
+                 mut = Mutable;
+                 field = Targetint_31_63.zero
+               },
+             block ))
     in
     let new_ref_value =
       H.Prim
@@ -1621,11 +1767,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
              Simple (Simple.const_int (Targetint_31_63.of_int n)),
              old_ref_value ))
     in
-    [ Ternary
+    [ Binary
         ( Block_set
-            (block_access, Assignment (Alloc_mode.For_assignments.local ())),
+            { kind = block_access;
+              init = Assignment (Alloc_mode.For_assignments.local ());
+              field = Targetint_31_63.zero
+            },
           block,
-          Simple Simple.const_zero,
           new_ref_value ) ]
   | Pctconst const, _ -> (
     match const with
@@ -1660,7 +1808,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbbswap (Pnativeint, mode), [[arg]] ->
     [bbswap Naked_nativeint Naked_nativeint mode arg ~current_region]
   | Pint_as_pointer mode, [[arg]] ->
-    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    (* This is not a stack allocation, but nonetheless has a region
+       constraint. *)
+    let mode =
+      Alloc_mode.For_allocations.from_lambda mode
+        ~current_region:current_ghost_region
+    in
     [Unary (Int_as_pointer mode, arg)]
   | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> (
     let args =
@@ -1734,117 +1887,112 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
          with an unknown layout should have been removed by Lambda_to_flambda.")
   | Pbigarraydim dimension, [[arg]] ->
     [tag_int (Unary (Bigarray_length { dimension }, arg))]
-  | Pbigstring_load_16 { unsafe = true }, [[big_str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixteen Bigstring ~boxed:false None
-        big_str index ~current_region ]
-  | Pbigstring_load_32 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Thirty_two Bigstring (Some mode)
-        ~boxed big_str index ~current_region ]
-  | Pbigstring_load_64 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixty_four Bigstring (Some mode)
-        ~boxed big_str index ~current_region ]
-  | ( Pbigstring_load_128 { unsafe = true; aligned; mode; boxed },
+  | Pbigstring_load_16 { unsafe; index_kind }, [[big_str]; [index]] ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixteen Bigstring
+        ~boxed:false None big_str ~index_kind index ~current_region ]
+  | Pbigstring_load_32 { unsafe; index_kind; mode; boxed }, [[big_str]; [index]]
+    ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bigstring
+        (Some mode) ~boxed big_str ~index_kind index ~current_region ]
+  | Pbigstring_load_f32 { unsafe; index_kind; mode; boxed }, [[big_str]; [index]]
+    ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Single Bigstring
+        (Some mode) ~boxed big_str ~index_kind index ~current_region ]
+  | Pbigstring_load_64 { unsafe; index_kind; mode; boxed }, [[big_str]; [index]]
+    ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bigstring
+        (Some mode) ~boxed big_str ~index_kind index ~current_region ]
+  | ( Pbigstring_load_128 { unsafe; aligned; index_kind; mode; boxed },
       [[big_str]; [index]] ) ->
-    [ string_like_load_unsafe
+    [ string_like_load ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
-        Bigstring (Some mode) ~boxed big_str index ~current_region ]
-  | Pbigstring_load_16 { unsafe = false }, [[big_str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bigstring
-        ~boxed:false None big_str index ~current_region ]
-  | Pbigstring_load_32 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
-        (Some mode) ~boxed big_str index ~current_region ]
-  | Pbigstring_load_64 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
-    [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
-        (Some mode) ~boxed big_str index ~current_region ]
-  | ( Pbigstring_load_128 { unsafe = false; aligned; mode; boxed },
-      [[big_str]; [index]] ) ->
-    [ string_like_load_safe ~dbg ~size_int
+        Bigstring (Some mode) ~boxed big_str ~index_kind index ~current_region
+    ]
+  | Pbigstring_set_16 { unsafe; index_kind }, [[bigstring]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bigstring
+        ~boxed:false bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_32 { unsafe; index_kind; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bigstring
+        ~boxed bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_f32 { unsafe; index_kind; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Single Bigstring ~boxed
+        bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_64 { unsafe; index_kind; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bigstring
+        ~boxed bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_128 { unsafe; aligned; index_kind; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
-        Bigstring (Some mode) ~boxed big_str index ~current_region ]
-  | Pbigstring_set_16 { unsafe = true }, [[bigstring]; [index]; [new_value]] ->
-    [ bytes_like_set_unsafe ~access_size:Sixteen Bigstring ~boxed:false
-        bigstring index new_value ]
-  | ( Pbigstring_set_32 { unsafe = true; boxed },
-      [[bigstring]; [index]; [new_value]] ) ->
-    [ bytes_like_set_unsafe ~access_size:Thirty_two Bigstring ~boxed bigstring
-        index new_value ]
-  | ( Pbigstring_set_64 { unsafe = true; boxed },
-      [[bigstring]; [index]; [new_value]] ) ->
-    [ bytes_like_set_unsafe ~access_size:Sixty_four Bigstring ~boxed bigstring
-        index new_value ]
-  | ( Pbigstring_set_128 { unsafe = true; aligned; boxed },
-      [[bigstring]; [index]; [new_value]] ) ->
-    [ bytes_like_set_unsafe
-        ~access_size:(One_twenty_eight { aligned })
-        Bigstring ~boxed bigstring index new_value ]
-  | Pbigstring_set_16 { unsafe = false }, [[bigstring]; [index]; [new_value]] ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixteen Bigstring
-        ~boxed:false bigstring index new_value ]
-  | ( Pbigstring_set_32 { unsafe = false; boxed },
-      [[bigstring]; [index]; [new_value]] ) ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
-        ~boxed bigstring index new_value ]
-  | ( Pbigstring_set_64 { unsafe = false; boxed },
-      [[bigstring]; [index]; [new_value]] ) ->
-    [ bytes_like_set_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
-        ~boxed bigstring index new_value ]
-  | ( Pbigstring_set_128 { unsafe = false; aligned; boxed },
-      [[bigstring]; [index]; [new_value]] ) ->
-    [ bytes_like_set_safe ~dbg ~size_int
-        ~access_size:(One_twenty_eight { aligned })
-        Bigstring ~boxed bigstring index new_value ]
-  | Pfloat_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+        Bigstring ~boxed bigstring ~index_kind index new_value ]
+  | Pfloat_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
     check_float_array_optimisation_enabled "Pfloat_array_load_128";
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_floats array index ]
-  | Pfloatarray_load_128 { unsafe; mode }, [[array]; [index]]
-  | Punboxed_float_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+  | Pfloatarray_load_128 { unsafe; mode; boxed }, [[array]; [index]]
+  | Punboxed_float_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_floats array index ]
-  | Pint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+  | Punboxed_float32_array_load_128 { unsafe; mode; boxed }, [[array]; [index]]
+    ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
+        Naked_float32s array index ]
+  | Pint_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
     if Targetint.size <> 64
     then Misc.fatal_error "[Pint_array_load_128]: immediates must be 64 bits.";
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Immediates array index ]
-  | Punboxed_int64_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+  | Punboxed_int64_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_int64s array index ]
-  | Punboxed_nativeint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    if Targetint.size <> 64
-    then
-      Misc.fatal_error
-        "[Punboxed_nativeint_array_load_128]: nativeint must be 64 bits.";
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
-        Naked_nativeints array index ]
-  | Punboxed_int32_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
-        Naked_int32s array index ]
-  | Pfloat_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    check_float_array_optimisation_enabled "Pfloat_array_set_128";
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_floats array index
-        new_value ]
-  | Pfloatarray_set_128 { unsafe }, [[array]; [index]; [new_value]]
-  | Punboxed_float_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_floats array index
-        new_value ]
-  | Pint_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    if Targetint.size <> 64
-    then Misc.fatal_error "[Pint_array_set_128]: immediates must be 64 bits.";
-    [array_like_set_128 ~dbg ~size_int ~unsafe Immediates array index new_value]
-  | Punboxed_int64_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_int64s array index
-        new_value ]
-  | Punboxed_nativeint_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
+  | Punboxed_nativeint_array_load_128 { unsafe; mode; boxed }, [[array]; [index]]
     ->
     if Targetint.size <> 64
     then
       Misc.fatal_error
-        "[Punboxed_nativeint_array_set_128]: nativeint must be 64 bits.";
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_nativeints array index
+        "[Punboxed_nativeint_array_load_128]: nativeint must be 64 bits.";
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
+        Naked_nativeints array index ]
+  | Punboxed_int32_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
+        Naked_int32s array index ]
+  | Pfloat_array_set_128 { unsafe; boxed }, [[array]; [index]; [new_value]] ->
+    check_float_array_optimisation_enabled "Pfloat_array_set_128";
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_floats array index
         new_value ]
-  | Punboxed_int32_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_int32s array index
+  | Pfloatarray_set_128 { unsafe; boxed }, [[array]; [index]; [new_value]]
+  | ( Punboxed_float_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_floats array index
+        new_value ]
+  | ( Punboxed_float32_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_float32s array
+        index new_value ]
+  | Pint_array_set_128 { unsafe; boxed }, [[array]; [index]; [new_value]] ->
+    if Targetint.size <> 64
+    then Misc.fatal_error "[Pint_array_set_128]: immediates must be 64 bits.";
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Immediates array index
+        new_value ]
+  | ( Punboxed_int64_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_int64s array index
+        new_value ]
+  | ( Punboxed_nativeint_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    if Targetint.size <> 64
+    then
+      Misc.fatal_error
+        "[Punboxed_nativeint_array_set_128]: nativeint must be 64 bits.";
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_nativeints array
+        index new_value ]
+  | ( Punboxed_int32_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_int32s array index
         new_value ]
   | Pcompare_ints, [[i1]; [i2]] ->
     [ tag_int
@@ -1889,6 +2037,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Patomic_fetch_add, [[atomic]; [i]] ->
     [Binary (Atomic_fetch_and_add, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
+  | Ppoll, _ -> [Nullary Poll]
+  | Preinterpret_unboxed_int64_as_tagged_int63, [[i]] ->
+    if not (Target_system.is_64_bit ())
+    then
+      Misc.fatal_error
+        "Preinterpret_unboxed_int64_as_tagged_int63 can only be used on 64-bit \
+         targets";
+    [Unary (Reinterpret_64_bit_word Unboxed_int64_as_tagged_int63, i)]
+  | Preinterpret_tagged_int63_as_unboxed_int64, [[i]] ->
+    if not (Target_system.is_64_bit ())
+    then
+      Misc.fatal_error
+        "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
+         targets";
+    [Unary (Reinterpret_64_bit_word Tagged_int63_as_unboxed_int64, i)]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1916,8 +2079,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup | Pobj_magic _
       | Punbox_float _
       | Pbox_float (_, _)
+      | Punbox_vector _
+      | Pbox_vector (_, _)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
-      | Pufloatfield _ | Patomic_load _ | Pmixedfield _ ),
+      | Pufloatfield _ | Patomic_load _ | Pmixedfield _
+      | Preinterpret_unboxed_int64_as_tagged_int63
+      | Preinterpret_tagged_int63_as_unboxed_int64 ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -1932,26 +2099,30 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatcomp (_, _)
       | Punboxed_float_comp (_, _)
       | Pstringrefu | Pbytesrefu | Pstringrefs | Pbytesrefs | Pstring_load_16 _
-      | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _
-      | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_64 _
-      | Pbytes_load_128 _ | Pisout | Paddbint _ | Psubbint _ | Pmulbint _
-      | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
-      | Pasrbint _ | Pfield_computed _ | Pdivbint _ | Pmodbint _
-      | Psetfloatfield _ | Psetufloatfield _ | Pbintcomp _ | Punboxed_int_comp _
-      | Psetmixedfield _ | Pbigstring_load_16 _ | Pbigstring_load_32 _
+      | Pstring_load_32 _ | Pstring_load_f32 _ | Pstring_load_64 _
+      | Pstring_load_128 _ | Pbytes_load_16 _ | Pbytes_load_32 _
+      | Pbytes_load_f32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pisout
+      | Paddbint _ | Psubbint _ | Pmulbint _ | Pandbint _ | Porbint _
+      | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _ | Pfield_computed _
+      | Pdivbint _ | Pmodbint _ | Psetfloatfield _ | Psetufloatfield _
+      | Pbintcomp _ | Punboxed_int_comp _ | Psetmixedfield _
+      | Pbigstring_load_16 _ | Pbigstring_load_32 _ | Pbigstring_load_f32 _
       | Pbigstring_load_64 _ | Pbigstring_load_128 _ | Pfloatarray_load_128 _
       | Pfloat_array_load_128 _ | Pint_array_load_128 _
-      | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
-      | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
+      | Punboxed_float_array_load_128 _ | Punboxed_float32_array_load_128 _
+      | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
+      | Punboxed_nativeint_array_load_128 _
       | Parrayrefu
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
-            | Punboxedintarray_ref _ ),
+            | Punboxedintarray_ref _ | Punboxedvectorarray_ref _ ),
+            _,
             _ )
       | Parrayrefs
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
-            | Punboxedintarray_ref _ ),
+            | Punboxedintarray_ref _ | Punboxedvectorarray_ref _ ),
+            _,
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
       | Patomic_fetch_add ),
@@ -1968,17 +2139,18 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Parraysetu
           ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
             | Pfloatarray_set | Punboxedfloatarray_set _
-            | Punboxedintarray_set _ ),
+            | Punboxedintarray_set _ | Punboxedvectorarray_set _ ),
             _ )
       | Parraysets
           ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
             | Pfloatarray_set | Punboxedfloatarray_set _
-            | Punboxedintarray_set _ ),
+            | Punboxedintarray_set _ | Punboxedvectorarray_set _ ),
             _ )
-      | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _
-      | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _
-      | Pbigstring_set_128 _ | Pfloatarray_set_128 _ | Pfloat_array_set_128 _
-      | Pint_array_set_128 _ | Punboxed_float_array_set_128 _
+      | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _ | Pbytes_set_64 _
+      | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+      | Pbigstring_set_f32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+      | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
+      | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
       | Punboxed_nativeint_array_set_128 _ | Patomic_cas ),
       ( []
@@ -1993,7 +2165,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        %a (%a)"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
   | ( ( Pignore | Psequand | Psequor | Pbytes_of_string | Pbytes_to_string
-      | Parray_of_iarray | Parray_to_iarray ),
+      | Parray_of_iarray | Parray_to_iarray | Prunstack | Pperform | Presume
+      | Preperform ),
       _ ) ->
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
@@ -2002,16 +2175,19 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
       Printlambda.primitive prim
-  | (Prunstack | Pperform | Presume | Preperform), _ ->
-    Misc.fatal_errorf "Primitive %a is not yet supported by Flambda 2"
-      Printlambda.primitive prim
 
 module Acc = Closure_conversion_aux.Acc
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
 let convert_and_bind acc ~big_endian exn_cont ~register_const0
     (prim : L.primitive) ~(args : Simple.t list list) (dbg : Debuginfo.t)
-    ~current_region (cont : Acc.t -> Flambda.Named.t list -> Expr_with_acc.t) :
-    Expr_with_acc.t =
-  let exprs = convert_lprim ~big_endian prim args dbg ~current_region in
-  H.bind_recs acc exn_cont ~register_const0 exprs dbg cont
+    ~current_region ~current_ghost_region
+    (cont : Acc.t -> Flambda.Named.t list -> Expr_with_acc.t) : Expr_with_acc.t
+    =
+  let exprs =
+    convert_lprim ~big_endian prim args dbg ~current_region
+      ~current_ghost_region
+  in
+  H.bind_recs acc exn_cont ~register_const0
+    (H.maybe_create_unboxed_product exprs)
+    dbg cont

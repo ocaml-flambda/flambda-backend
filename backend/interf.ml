@@ -127,7 +127,7 @@ let build_graph fundecl =
     | Iexit _ ->
         ()
     | Itrywith(body, _kind, (_ts, handler)) ->
-        add_interf_set (Proc.destroyed_at_raise ()) handler.live;
+        add_interf_set Proc.destroyed_at_raise handler.live;
         interf body; interf handler; interf i.next
     | Iraise _ -> () in
 

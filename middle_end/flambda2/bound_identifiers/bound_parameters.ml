@@ -23,6 +23,8 @@ let print ppf t =
     (Format.pp_print_list ~pp_sep:Format.pp_print_space BP.print)
     t
 
+let equal t1 t2 = List.equal BP.equal t1 t2
+
 let empty = []
 
 let create params =
@@ -92,6 +94,8 @@ let renaming t1 ~guaranteed_fresh:t2 =
     assert (List.compare_lengths t1 t2 <> 0);
     Misc.fatal_errorf "Parameter lists are of differing lengths:@ %a@ and@ %a"
       print t1 print t2
+
+let iter f t = List.iter f t
 
 let filter f t = List.filter f t
 

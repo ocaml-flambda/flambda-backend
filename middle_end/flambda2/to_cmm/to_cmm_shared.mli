@@ -16,6 +16,8 @@
     this module, unlike the ones in [Cmm_helpers], depend on Flambda 2 data
     types. *)
 
+val const_static : Reg_width_const.t -> Cmm.data_item list
+
 val remove_skipped_params :
   (Backend_var.With_provenance.t * Cmm.machtype To_cmm_env.param_type) list ->
   (Backend_var.With_provenance.t * Cmm.machtype) list
@@ -71,7 +73,7 @@ val simple :
 val simple_static :
   To_cmm_result.t ->
   Simple.t ->
-  [`Data of Cmm.data_item list | `Var of Variable.t]
+  [> `Static_data of Cmm.data_item list | `Var of Variable.t]
 
 (** This function translates the [Simple] at the head of the list first.
     Regarding [consider_inlining_effectful_expressions], see [simple] above. *)
@@ -103,6 +105,9 @@ val invalid :
 
 module Update_kind : sig
   type t
+
+  (** The number of words written when applying this update to a block. *)
+  val field_size_in_words : t -> int
 
   val pointers : t
 
@@ -151,3 +156,9 @@ val check_arity : _ Flambda_arity.t -> _ list -> bool
 
 val extended_machtype_of_return_arity :
   [`Unarized] Flambda_arity.t -> Cmm_helpers.Extended_machtype.t
+
+val alloc_mode_for_applications_to_cmx :
+  Alloc_mode.For_applications.t -> Cmx_format.alloc_mode
+
+val alloc_mode_for_allocations_to_cmm :
+  Alloc_mode.For_allocations.t -> Cmm.Alloc_mode.t

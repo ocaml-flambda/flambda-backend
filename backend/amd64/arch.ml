@@ -108,20 +108,6 @@ let command_line_options =
       " Do not emit .note.ocaml_eh section with trap handling information"
   ] @ Extension.args
 
-let assert_simd_enabled () =
-  if not (Language_extension.is_enabled SIMD) then
-  Misc.fatal_error "SIMD is not enabled. This error might happen \
-  if you are using SIMD yourself or are linking code that uses it. \
-  Pass [-extension-universe stable] to the compiler, or set \
-  (extension_universe stable) in your library configuration file."
-
-let assert_float32_enabled () =
-  if not (Language_extension.is_enabled Small_numbers) then
-  Misc.fatal_error "float32 is not enabled. This error might happen \
-  if you are using float32 yourself or are linking code that uses it. \
-  Pass [-extension-universe beta] to the compiler, or set \
-  (extension_universe beta) in your library configuration file."
-
 (* Specific operations for the AMD64 processor *)
 
 open Format
@@ -167,6 +153,7 @@ type specific_operation =
   | Imfence                            (* memory fence *)
   | Ipause                             (* hint for spin-wait loops *)
   | Isimd of Simd.operation            (* SIMD instruction set operations *)
+  | Icldemote of addressing_mode       (* hint to demote a cacheline to L3 *)
   | Iprefetch of                       (* memory prefetching hint *)
       { is_write: bool;
         locality: prefetch_temporal_locality_hint;
@@ -288,6 +275,8 @@ let print_specific_operation printreg op ppf arg =
       Simd.print_operation printreg simd ppf arg
   | Ipause ->
       fprintf ppf "pause"
+  | Icldemote _ ->
+      fprintf ppf "cldemote %a" printreg arg.(0)
   | Iprefetch { is_write; locality; } ->
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
@@ -307,7 +296,7 @@ let operation_is_pure = function
   | Irdtsc | Irdpmc | Ipause
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Iprefetch _ -> false
+  | Icldemote _ | Iprefetch _ -> false
   | Isimd op -> Simd.is_pure op
 
 (* Specific operations that can raise *)
@@ -318,7 +307,7 @@ let operation_can_raise = function
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Iprefetch _ -> false
+  | Icldemote _ | Iprefetch _ -> false
 
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
@@ -326,7 +315,7 @@ let operation_allocates = function
   | Irdtsc | Irdpmc | Ipause | Isimd _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
-  | Iprefetch _ -> false
+  | Icldemote _ | Iprefetch _ -> false
 
 open X86_ast
 
@@ -406,6 +395,7 @@ let equal_specific_operation left right =
   | Imfence, Imfence ->
     true
   | Ipause, Ipause -> true
+  | Icldemote x, Icldemote x' -> equal_addressing_mode x x'
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
     Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
     Bool.equal left_is_write right_is_write
@@ -415,5 +405,89 @@ let equal_specific_operation left right =
     Simd.equal_operation l r
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
-     Ipause | Isimd _ | Iprefetch _), _ ->
+     Ipause | Isimd _ | Icldemote _ | Iprefetch _), _ ->
     false
+
+(* addressing mode functions *)
+
+let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  (* Ignores displ when comparing to show that it is possible to calculate the offset *)
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, _), Ibased (symbol2, global2, _) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      String.compare symbol1 symbol2
+    | Global, Local -> -1
+    | Local, Global -> 1)
+  | Ibased _, _ -> -1
+  | _, Ibased _ -> 1
+  | Iindexed _, Iindexed _ -> 0
+  | Iindexed _, _ -> -1
+  | _, Iindexed _ -> 1
+  | Iindexed2 _, Iindexed2 _ -> 0
+  | Iindexed2 _, _ -> -1
+  | _, Iindexed2 _ -> 1
+  | Iscaled (scale1, _), Iscaled (scale2, _) -> Int.compare scale1 scale2
+  | Iscaled _, _ -> -1
+  | _, Iscaled _ -> 1
+  | Iindexed2scaled (scale1, _), Iindexed2scaled (scale2, _) ->
+    Int.compare scale1 scale2
+
+let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 = symbol2 then Some (Int.compare n1 n2) else None
+    | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
+  | Iindexed2 n1, Iindexed2 n2 -> Some (Int.compare n1 n2)
+  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (Int.compare n1 n2) else None
+  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (Int.compare n1 n2) else None
+  | Ibased _, _ -> None
+  | Iindexed _, _ -> None
+  | Iindexed2 _, _ -> None
+  | Iscaled _, _ -> None
+  | Iindexed2scaled _, _ -> None
+
+let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 = symbol2 then Some (n2 - n1) else None
+    | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 -> Some (n2 - n1)
+  | Iindexed2 n1, Iindexed2 n2 -> Some (n2 - n1)
+  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (n2 - n1) else None
+  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (n2 - n1) else None
+  | Ibased _, _ -> None
+  | Iindexed _, _ -> None
+  | Iindexed2 _, _ -> None
+  | Iscaled _, _ -> None
+  | Iindexed2scaled _, _ -> None
+
+  let can_cross_loads_or_stores (specific_operation : specific_operation) =
+    match specific_operation with
+    | Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Icldemote _
+    | Iprefetch _ ->
+      false
+    | Ibswap _ | Isextend32 | Izextend32 | Irdtsc  | Irdpmc | Ilfence | Isfence | Imfence
+    | Ipause ->
+      true
+
+  let may_break_alloc_freshness (specific_operation : specific_operation) =
+    match specific_operation with
+    | Isimd _ -> true
+    | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
+    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Icldemote _
+    | Iprefetch _ ->
+      false

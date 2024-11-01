@@ -184,6 +184,7 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
+  | Naked_vec128s
 
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float32
@@ -235,6 +236,13 @@ type alloc_mode_for_allocations =
   | Heap
   | Local of { region : region }
 
+type alloc_mode_for_applications =
+  | Heap
+  | Local of
+      { region : region;
+        ghost_region : region
+      }
+
 type alloc_mode_for_assignments =
   | Heap
   | Local
@@ -261,8 +269,8 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Unsigned
 
 type nullop =
-  | Begin_region
-  | Begin_try_region
+  | Begin_region of { ghost : bool }
+  | Begin_try_region of { ghost : bool }
 
 type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
@@ -273,11 +281,16 @@ type array_kind_for_length = Flambda_primitive.Array_kind_for_length.t =
   | Float_array_opt_dynamic
 
 type unop =
+  | Block_load of
+      { kind : block_access_kind;
+        mut : mutability;
+        field : Targetint_31_63.t
+      }
   | Array_length of array_kind_for_length
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
-  | End_region
-  | End_try_region
+  | End_region of { ghost : bool }
+  | End_try_region of { ghost : bool }
   | Get_tag
   | Int_arith of standard_int * unary_int_arith_op
   | Is_flat_float_array
@@ -330,12 +343,29 @@ type string_accessor_width = Flambda_primitive.string_accessor_width =
   | Eight
   | Sixteen
   | Thirty_two
+  | Single
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
-type array_accessor_width = Flambda_primitive.array_accessor_width =
-  | Scalar
-  | Vec128
+type array_load_kind = Flambda_primitive.Array_load_kind.t =
+  | Immediates
+  | Values
+  | Naked_floats
+  | Naked_float32s
+  | Naked_int32s
+  | Naked_int64s
+  | Naked_nativeints
+  | Naked_vec128s
+
+type array_set_kind =
+  | Immediates
+  | Values of init_or_assign
+  | Naked_floats
+  | Naked_float32s
+  | Naked_int32s
+  | Naked_int64s
+  | Naked_nativeints
+  | Naked_vec128s
 
 type string_like_value = Flambda_primitive.string_like_value =
   | String
@@ -356,8 +386,12 @@ type infix_binop =
   | Float_comp of float_bitwidth * unit comparison_behaviour
 
 type binop =
-  | Array_load of array_kind * array_accessor_width * mutability
-  | Block_load of block_access_kind * mutability
+  | Block_set of
+      { kind : block_access_kind;
+        init : init_or_assign;
+        field : Targetint_31_63.t
+      }
+  | Array_load of array_kind * array_load_kind * mutability
   | Phys_equal of equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
   | Int_comp of standard_int * signed_or_unsigned comparison_behaviour
@@ -367,9 +401,7 @@ type binop =
   | Bigarray_get_alignment of int
 
 type ternop =
-  (* CR mshinwell: Array_set should use "array_set_kind" *)
-  | Array_set of array_kind * array_accessor_width * init_or_assign
-  | Block_set of block_access_kind * init_or_assign
+  | Array_set of array_kind * array_set_kind
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
 
 type varop =
@@ -388,9 +420,9 @@ type function_call =
   | Direct of
       { code_id : code_id;
         function_slot : function_slot option;
-        alloc : alloc_mode_for_allocations
+        alloc : alloc_mode_for_applications
       }
-  | Indirect of alloc_mode_for_allocations
+  | Indirect of alloc_mode_for_applications
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
    whether the apply record's arities field has a value *)
 
@@ -546,6 +578,7 @@ and params_and_body =
   { params : kinded_parameter list;
     closure_var : variable;
     region_var : variable;
+    ghost_region_var : variable;
     depth_var : variable;
     ret_cont : continuation_id;
     exn_cont : continuation_id;

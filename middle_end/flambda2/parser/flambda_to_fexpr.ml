@@ -438,10 +438,10 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
   | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
-  | Unboxed_nativeint_array ->
+  | Unboxed_nativeint_array | Unboxed_vec128_array ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
-       implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -502,6 +502,15 @@ let alloc_mode_for_allocations env (alloc : Alloc_mode.For_allocations.t) :
     let r = Env.find_region_exn env r in
     Local { region = r }
 
+let alloc_mode_for_applications env (alloc : Alloc_mode.For_applications.t) :
+    Fexpr.alloc_mode_for_applications =
+  match alloc with
+  | Heap -> Heap
+  | Local { region = r; ghost_region = r' } ->
+    let r = Env.find_region_exn env r in
+    let r' = Env.find_region_exn env r' in
+    Local { region = r; ghost_region = r' }
+
 let alloc_mode_for_assignments _env (alloc : Alloc_mode.For_assignments.t) :
     Fexpr.alloc_mode_for_assignments =
   match alloc with Heap -> Heap | Local -> Local
@@ -514,45 +523,12 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
 
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
-  | Begin_region -> Begin_region
-  | Begin_try_region -> Begin_try_region
+  | Begin_region { ghost } -> Begin_region { ghost }
+  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
-  | Dls_get ->
+  | Dls_get | Poll ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
       (Flambda_primitive.Nullary op)
-
-let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
-  match op with
-  | Array_length ak -> Array_length ak
-  | Box_number (bk, alloc) ->
-    Box_number (bk, alloc_mode_for_allocations env alloc)
-  | Tag_immediate -> Tag_immediate
-  | Get_tag -> Get_tag
-  | End_region -> End_region
-  | End_try_region -> End_try_region
-  | Int_arith (i, o) -> Int_arith (i, o)
-  | Is_flat_float_array -> Is_flat_float_array
-  | Is_int _ -> Is_int (* CR vlaviron: discuss *)
-  | Num_conv { src; dst } -> Num_conv { src; dst }
-  | Opaque_identity _ -> Opaque_identity
-  | Unbox_number bk -> Unbox_number bk
-  | Untag_immediate -> Untag_immediate
-  | Project_value_slot { project_from; value_slot } ->
-    let project_from = Env.translate_function_slot env project_from in
-    let value_slot = Env.translate_value_slot env value_slot in
-    Project_value_slot { project_from; value_slot }
-  | Project_function_slot { move_from; move_to } ->
-    let move_from = Env.translate_function_slot env move_from in
-    let move_to = Env.translate_function_slot env move_to in
-    Project_function_slot { move_from; move_to }
-  | String_length string_or_bytes -> String_length string_or_bytes
-  | Boolean_not -> Boolean_not
-  | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
-  | Get_header | Atomic_load _ ->
-    Misc.fatal_errorf "TODO: Unary primitive: %a"
-      Flambda_primitive.Without_args.print
-      (Flambda_primitive.Without_args.Unary op)
 
 let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
     Fexpr.block_access_kind =
@@ -573,12 +549,49 @@ let block_access_kind (bk : Flambda_primitive.Block_access_kind.t) :
     Naked_floats { size }
   | Mixed _ -> Misc.fatal_error "Mixed blocks not supported in fexpr"
 
-let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
+let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   match op with
+  | Block_load { kind; mut; field } ->
+    let kind = block_access_kind kind in
+    Block_load { kind; mut; field }
+  | Array_length ak -> Array_length ak
+  | Box_number (bk, alloc) ->
+    Box_number (bk, alloc_mode_for_allocations env alloc)
+  | Tag_immediate -> Tag_immediate
+  | Get_tag -> Get_tag
+  | End_region { ghost } -> End_region { ghost }
+  | End_try_region { ghost } -> End_try_region { ghost }
+  | Int_arith (i, o) -> Int_arith (i, o)
+  | Is_flat_float_array -> Is_flat_float_array
+  | Is_int _ -> Is_int (* CR vlaviron: discuss *)
+  | Num_conv { src; dst } -> Num_conv { src; dst }
+  | Opaque_identity _ -> Opaque_identity
+  | Unbox_number bk -> Unbox_number bk
+  | Untag_immediate -> Untag_immediate
+  | Project_value_slot { project_from; value_slot } ->
+    let project_from = Env.translate_function_slot env project_from in
+    let value_slot = Env.translate_value_slot env value_slot in
+    Project_value_slot { project_from; value_slot }
+  | Project_function_slot { move_from; move_to } ->
+    let move_from = Env.translate_function_slot env move_from in
+    let move_to = Env.translate_function_slot env move_to in
+    Project_function_slot { move_from; move_to }
+  | String_length string_or_bytes -> String_length string_or_bytes
+  | Boolean_not -> Boolean_not
+  | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
+  | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
+  | Get_header | Atomic_load _ ->
+    Misc.fatal_errorf "TODO: Unary primitive: %a"
+      Flambda_primitive.Without_args.print
+      (Flambda_primitive.Without_args.Unary op)
+
+let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
+  match op with
+  | Block_set { kind; init; field } ->
+    let kind = block_access_kind kind in
+    let init = init_or_assign env init in
+    Block_set { kind; init; field }
   | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
-  | Block_load (access_kind, mutability) ->
-    let access_kind = block_access_kind access_kind in
-    Block_load (access_kind, mutability)
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
   | Int_arith
@@ -597,13 +610,36 @@ let binop (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
+let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
+  function
+  | Immediates -> Immediates
+  | Naked_floats -> Naked_floats
+  | Values -> Values
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
+    Misc.fatal_error
+      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
+       implemented"
+
+let fexpr_of_array_set_kind env
+    (array_set_kind : Flambda_primitive.Array_set_kind.t) : Fexpr.array_set_kind
+    =
+  match array_set_kind with
+  | Immediates -> Immediates
+  | Naked_floats -> Naked_floats
+  | Values ia -> Values (init_or_assign env ia)
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
+    Misc.fatal_error
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
+
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, width) ->
-    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
-    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
-    Array_set (ak, width, init_or_assign env ia)
-  | Block_set (bk, ia) -> Block_set (block_access_kind bk, init_or_assign env ia)
+  | Array_set (ak, ask) ->
+    let ak = fexpr_of_array_kind ak in
+    let ask = fexpr_of_array_set_kind env ask in
+    Array_set (ak, ask)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
   | Bigarray_set _ | Atomic_compare_and_set ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
@@ -626,7 +662,7 @@ let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   | Nullary op -> Nullary (nullop env op)
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, arg1, arg2) ->
-    Binary (binop op, simple env arg1, simple env arg2)
+    Binary (binop env op, simple env arg1, simple env arg2)
   | Ternary (op, arg1, arg2, arg3) ->
     Ternary (ternop env op, simple env arg1, simple env arg2, simple env arg3)
   | Variadic (op, args) -> Variadic (varop env op, List.map (simple env) args)
@@ -665,21 +701,29 @@ let set_of_closures env sc =
       (fun (function_slot, fun_decl) ->
         function_declaration env fun_decl function_slot alloc)
       (Set_of_closures.function_decls sc
-      |> Function_declarations.funs_in_order |> Function_slot.Lmap.bindings)
+      |> Function_declarations.funs_in_order
+      |> Function_slot.Lmap.map (function
+           | Function_declarations.Deleted _ -> Misc.fatal_error "todo"
+           | Function_declarations.Code_id code_id -> code_id)
+      |> Function_slot.Lmap.bindings)
   in
   let elts = value_slots env (Set_of_closures.value_slots sc) in
   let elts = match elts with [] -> None | _ -> Some elts in
   fun_decls, elts
 
-let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
-    =
-  match field with
-  | Symbol symbol -> Symbol (Env.find_symbol_exn env symbol)
-  | Tagged_immediate imm ->
-    Tagged_immediate
-      (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
-  | Dynamically_computed (var, _dbg) ->
-    Dynamically_computed (Env.find_var_exn env var)
+let field_of_block env field =
+  Simple.pattern_match'
+    (Simple.With_debuginfo.simple field)
+    ~var:(fun var ~coercion:_ : Fexpr.field_of_block ->
+      Dynamically_computed (Env.find_var_exn env var))
+    ~symbol:(fun symbol ~coercion:_ : Fexpr.field_of_block ->
+      Symbol (Env.find_symbol_exn env symbol))
+    ~const:(fun cst : Fexpr.field_of_block ->
+      match[@ocaml.warning "-fragile-match"] Reg_width_const.descr cst with
+      | Tagged_immediate imm ->
+        Tagged_immediate
+          (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
+      | _ -> Misc.fatal_error "Mixed blocks not supported yet in fexpr")
 
 let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
   match ov with
@@ -688,7 +732,7 @@ let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
 
 let static_const env (sc : Static_const.t) : Fexpr.static_data =
   match sc with
-  | Block (tag, mutability, fields) ->
+  | Block (tag, mutability, _shape, fields) ->
     let tag = tag |> Tag.Scannable.to_int in
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }
@@ -706,10 +750,11 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
   | Immutable_value_array elements ->
     Immutable_value_array (List.map (field_of_block env) elements)
   | Immutable_float32_array _ | Immutable_int32_array _
-  | Immutable_int64_array _ | Immutable_nativeint_array _ ->
+  | Immutable_int64_array _ | Immutable_nativeint_array _
+  | Immutable_vec128_array _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
-       implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
   | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }
   | Immutable_string s -> Immutable_string s
@@ -852,6 +897,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                ~my_closure
                ~is_my_closure_used:_
                ~my_region
+               ~my_ghost_region
                ~my_depth
                ~free_names_of_body:_
                :
@@ -869,6 +915,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
             in
             let closure_var, env = Env.bind_var env my_closure in
             let region_var, env = Env.bind_var env my_region in
+            let ghost_region_var, env = Env.bind_var env my_ghost_region in
             let depth_var, env = Env.bind_var env my_depth in
             let body = expr env body in
             (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
@@ -877,6 +924,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
               exn_cont;
               closure_var;
               region_var;
+              ghost_region_var;
               depth_var;
               body
             })
@@ -1026,16 +1074,17 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let code_id = Env.find_code_id_exn env code_id in
       let function_slot = None in
       (* CR mshinwell: remove [function_slot] *)
-      let alloc = alloc_mode_for_allocations env alloc_mode in
+      let alloc = alloc_mode_for_applications env alloc_mode in
       Function (Direct { code_id; function_slot; alloc })
     | Function
         { function_call = Indirect_unknown_arity | Indirect_known_arity;
           alloc_mode
         } ->
-      let alloc = alloc_mode_for_allocations env alloc_mode in
+      let alloc = alloc_mode_for_applications env alloc_mode in
       Function (Indirect alloc)
     | C_call { needs_caml_c_call; _ } -> C_call { alloc = needs_caml_c_call }
     | Method _ -> Misc.fatal_error "TODO: Method call kind"
+    | Effect _ -> Misc.fatal_error "TODO: Effect call kind"
   in
   let param_arity = Apply_expr.args_arity app in
   let return_arity = Apply_expr.return_arity app in
@@ -1059,9 +1108,9 @@ and apply_expr env (app : Apply_expr.t) : Fexpr.expr =
       let params_arity = Some (complex_arity param_arity) in
       let ret_arity = arity return_arity in
       Some { params_arity; ret_arity }
-    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ }
-    | Method _ ->
+    | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
       None
+    | Method _ | Effect _ -> assert false
   in
   let inlined : Fexpr.inlined_attribute option =
     if Flambda2_terms.Inlined_attribute.is_default (Apply_expr.inlined app)
@@ -1205,6 +1254,7 @@ module Iter = struct
                ~my_closure:_
                ~is_my_closure_used:_
                ~my_region:_
+               ~my_ghost_region:_
                ~my_depth:_
                ~free_names_of_body:_
              -> expr f_c f_s body))

@@ -91,7 +91,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
     Format.fprintf ppf "@[<hov 1>(relative_history@ %a)@]@ "
       Inlining_history.Relative.print relative_history
 
-let [@ocamlformat "disable"] print ppf
+let [@ocamlformat "disable"] print_normal ppf
     { callee; continuation; exn_continuation; args; args_arity;
       return_arity; call_kind; dbg; inlined; inlining_state; probe;
       position; relative_history } =
@@ -128,6 +128,33 @@ let [@ocamlformat "disable"] print ppf
        | Position.Nontail -> Format.pp_print_string ppf "Nontail")
     position
 
+let [@ocamlformat "disable"] print_effect ppf
+    { callee = _; continuation; exn_continuation; args = _; args_arity = _;
+      return_arity = _; call_kind; dbg; inlined = _; inlining_state = _;
+      probe = _; position; relative_history = _ } =
+  Format.fprintf ppf "@[<hov 1>(\
+      @[<hov 1>%a@]@ \
+      @[<hov 1>\u{3008}%a\u{3009}\u{300a}%a\u{300b}@]@ \
+      @[<hov 1>%t(dbg@ %a)%t@]@ \
+      @[<hov 1>(position@ %a)@]\
+      )@]"
+    Call_kind.print call_kind
+    Result_continuation.print continuation
+    Exn_continuation.print exn_continuation
+    Flambda_colours.debuginfo
+    Debuginfo.print_compact dbg
+    Flambda_colours.pop
+    (fun ppf position ->
+       match position with
+       | Position.Normal -> Format.pp_print_string ppf "Normal"
+       | Position.Nontail -> Format.pp_print_string ppf "Nontail")
+    position
+
+let print ppf t =
+  match t.call_kind with
+  | Function _ | Method _ | C_call _ -> print_normal ppf t
+  | Effect _ -> print_effect ppf t
+
 let invariant
     ({ callee;
        continuation = _;
@@ -147,7 +174,7 @@ let invariant
   | Some _ -> ()
   | None -> (
     match[@ocaml.warning "-fragile-match"] call_kind with
-    | Function { function_call = Direct _; _ } -> ()
+    | Function { function_call = Direct _; _ } | Effect _ -> ()
     | _ -> Misc.fatal_errorf "Missing callee:@ %a" print t));
   (match call_kind with
   | Function _ | Method _ -> ()
@@ -165,7 +192,15 @@ let invariant
     | [] | [_] -> ()
     | _ :: _ :: _ ->
       Misc.fatal_errorf "Illegal return arity for C call:@ %a"
-        Flambda_arity.print return_arity));
+        Flambda_arity.print return_arity)
+  | Effect _ -> (
+    match callee, args with
+    | None, [] -> ()
+    | Some _, [] | (None | Some _), _ :: _ ->
+      Misc.fatal_errorf
+        "Algebraic effect operations in [Apply_expr] must have no callee and \
+         no arguments; all data are specified in the [Call_kind]:@ %a"
+        print t));
   if List.compare_lengths args (Flambda_arity.unarize args_arity) <> 0
   then
     Misc.fatal_errorf

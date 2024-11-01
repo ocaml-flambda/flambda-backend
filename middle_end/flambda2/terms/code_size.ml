@@ -143,11 +143,12 @@ let box_number kind =
 let block_load (kind : Flambda_primitive.Block_access_kind.t) =
   match kind with Values _ | Naked_floats _ | Mixed _ -> 1
 
-let array_load (kind : Flambda_primitive.Array_kind.t) =
+let array_load (kind : Flambda_primitive.Array_load_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
   | Naked_floats | Values -> 1
-  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints ->
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
     (* more computation is needed because of the representation using a custom
        block *)
     2
@@ -168,7 +169,8 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
   | Values (Assignment Local | Initialization) -> 1
   | Immediates | Naked_floats -> 1
-  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints ->
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
     2 (* as above *)
 
 let string_or_bigstring_load kind width =
@@ -186,7 +188,7 @@ let string_or_bigstring_load kind width =
        desirable ? *)
     | Sixteen -> 2 (* add, load (allow_unaligned_access) *)
     (* 7 (not allow_unaligned_access) *)
-    | Thirty_two -> 2 (* add, load (allow_unaligned_access) *)
+    | Thirty_two | Single -> 2 (* add, load (allow_unaligned_access) *)
     (* 17 (not allow_unaligned_access) *)
     | Sixty_four -> if arch32 then does_not_need_caml_c_call_extcall_size else 2
     (* add, load (allow_unaligned_access) *)
@@ -331,21 +333,23 @@ let nullary_prim_size prim =
   | Invalid _ -> 0
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
-  | Begin_region -> 1
-  | Begin_try_region -> 1
+  | Begin_region { ghost } -> if ghost then 0 else 1
+  | Begin_try_region { ghost } -> if ghost then 0 else 1
   | Enter_inlined_apply _ -> 0
   | Dls_get -> 1
+  | Poll -> alloc_size
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
+  | Block_load { kind; _ } -> block_load kind
   | Duplicate_array _ | Duplicate_block _ -> needs_caml_c_call_extcall_size + 1
   | Is_int _ -> 1
   | Get_tag -> 2
   | Array_length array_kind -> (
     match array_kind with
     | Array_kind
-        (Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints)
-      ->
+        ( Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints
+        | Naked_vec128s ) ->
       array_length_size
     | Array_kind (Naked_int32s | Naked_float32s) ->
       (* There is a dynamic check here to see if the array has an odd or even
@@ -360,7 +364,12 @@ let unary_prim_size prim =
   | Float_arith _ -> 2
   | Num_conv { src; dst } -> arith_conversion_size src dst
   | Boolean_not -> 1
-  | Reinterpret_int64_as_float -> 0
+  | Reinterpret_64_bit_word reinterpret -> (
+    match reinterpret with
+    | Tagged_int63_as_unboxed_int64 -> 0
+    | Unboxed_int64_as_tagged_int63 -> (* Needs a logical OR. *) 1
+    | Unboxed_int64_as_unboxed_float64 | Unboxed_float64_as_unboxed_int64 ->
+      (* Needs a move between register classes. *) 1)
   | Unbox_number k -> unbox_number k
   | Untag_immediate -> 1 (* 1 shift *)
   | Box_number (k, _alloc_mode) -> box_number k
@@ -369,15 +378,15 @@ let unary_prim_size prim =
   | Project_value_slot _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
-  | End_region | End_try_region -> 1
+  | End_region { ghost } | End_try_region { ghost } -> if ghost then 0 else 1
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
   | Atomic_load _ -> 1
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
-  | Block_load (kind, _) -> block_load kind
-  | Array_load (kind, _width, _mut) -> array_load kind
+  | Block_set { kind; init; _ } -> block_set kind init
+  | Array_load (_kind, load_kind, _mut) -> array_load load_kind
   | String_or_bigstring_load (kind, width) ->
     string_or_bigstring_load kind width
   | Bigarray_load (_dims, (Complex32 | Complex64), _layout) ->
@@ -399,8 +408,7 @@ let binary_prim_size prim =
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
-  | Block_set (block_access, init) -> block_set block_access init
-  | Array_set (kind, _width) -> array_set kind
+  | Array_set (_kind, set_kind) -> array_set set_kind
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set kind width
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->
     5 (* ~ 3 block_load + 2 block_set *)
@@ -442,7 +450,11 @@ let apply apply =
   | C_call { needs_caml_c_call = false; _ } ->
     does_not_need_caml_c_call_extcall_size
   | Method _ -> 8
-(* from flambda/inlining_cost.ml *)
+  (* from flambda/inlining_cost.ml *)
+  | Effect _ ->
+    (* Even though the effect operations aren't written in OCaml, they are
+       called like OCaml functions. *)
+    direct_call_size
 
 let apply_cont apply_cont =
   let size =

@@ -130,6 +130,7 @@ let print_instr b = function
   | BSWAP arg -> i1 b "bswap" arg
   | CALL arg  -> i1_call_jmp b "call" arg
   | CDQ -> i0 b "cltd"
+  | CLDEMOTE arg -> i1 b "cldemote" arg
   | CMOV (c, arg1, arg2) -> i2 b ("cmov" ^ string_of_condition c) arg1 arg2
   | CMP (arg1, arg2) -> i2_s b "cmp" arg1 arg2
   | CMPSD (c, arg1, arg2) ->
@@ -138,7 +139,7 @@ let print_instr b = function
   | CQO ->  i0 b "cqto"
   | CVTSS2SI (arg1, arg2) -> i2 b "cvtss2si" arg1 arg2
   | CVTSD2SI (arg1, arg2) -> i2 b "cvtsd2si" arg1 arg2
-  | CVTSI2SS (arg1, arg2) -> i2 b "cvtsi2ss" arg1 arg2
+  | CVTSI2SS (arg1, arg2) -> i2 b ("cvtsi2ss" ^ suf arg1) arg1 arg2
   | CVTSD2SS (arg1, arg2) -> i2 b "cvtsd2ss" arg1 arg2
   | CVTSI2SD (arg1, arg2) -> i2 b ("cvtsi2sd" ^ suf arg1) arg1 arg2
   | CVTSS2SD (arg1, arg2) -> i2 b "cvtss2sd" arg1 arg2

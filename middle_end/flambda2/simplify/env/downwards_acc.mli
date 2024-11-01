@@ -102,6 +102,13 @@ val code_ids_to_never_delete : t -> Code_id.Set.t
 val with_code_ids_to_never_delete :
   t -> code_ids_to_never_delete:Code_id.Set.t -> t
 
+val add_code_ids_never_simplified : t -> old_code_ids:Code_id.Set.t -> t
+
+val code_ids_never_simplified : t -> Code_id.Set.t
+
+val with_code_ids_never_simplified :
+  t -> code_ids_never_simplified:Code_id.Set.t -> t
+
 val are_rebuilding_terms : t -> Are_rebuilding_terms.t
 
 val slot_offsets : t -> Slot_offsets.t Code_id.Map.t
@@ -111,3 +118,20 @@ val with_slot_offsets : t -> slot_offsets:Slot_offsets.t Code_id.Map.t -> t
 val merge_debuginfo_rewrite : t -> bound_to:Simple.t -> Debuginfo.t -> t
 
 val find_debuginfo_rewrite : t -> bound_to:Simple.t -> Debuginfo.t option
+
+val are_lifting_conts : t -> Are_lifting_conts.t
+
+val with_are_lifting_conts : t -> Are_lifting_conts.t -> t
+
+val get_and_clear_lifted_continuations :
+  t -> t * (Downwards_env.t * Original_handlers.t) list
+
+val add_lifted_continuation : Downwards_env.t -> Original_handlers.t -> t -> t
+
+val get_continuation_lifting_budget : t -> int
+
+val reset_continuation_lifting_budget : t -> t
+
+val decrease_continuation_lifting_budget : t -> int -> t
+
+val prepare_for_speculative_inlining : t -> t

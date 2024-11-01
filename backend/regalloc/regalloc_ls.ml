@@ -22,13 +22,18 @@ module Utils = struct
   let set_spilled _reg = ()
 end
 
-let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit =
- fun state cfg_with_infos ~spilled_nodes ->
-  let _new_temporaries, block_inserted =
+let rewrite :
+    State.t ->
+    Cfg_with_infos.t ->
+    spilled_nodes:Reg.t list ->
+    block_temporaries:bool ->
+    unit =
+ fun state cfg_with_infos ~spilled_nodes ~block_temporaries ->
+  let _new_inst_temporaries, _new_block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
-      state cfg_with_infos ~spilled_nodes
+      state cfg_with_infos ~spilled_nodes ~block_temporaries
   in
   Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted
@@ -46,9 +51,9 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
     match Reg.Tbl.find_opt past_ranges reg with
     | None ->
       Reg.Tbl.replace past_ranges reg
-        { Interval.reg; begin_; end_; ranges = [range] }
+        { Interval.reg; begin_; end_; ranges = DLL.make_single range }
     | Some (interval : Interval.t) ->
-      interval.ranges <- range :: interval.ranges;
+      DLL.add_end interval.ranges range;
       interval.end_ <- end_
   in
   let update_range (reg : Reg.t) ~(begin_ : int) ~(end_ : int) : unit =
@@ -75,7 +80,7 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
     let off = on + 1 in
     if trap_handler
     then
-      Array.iter (Proc.destroyed_at_raise ()) ~f:(fun reg ->
+      Array.iter Proc.destroyed_at_raise ~f:(fun reg ->
           update_range reg ~begin_:on ~end_:on);
     instr.ls_order <- on;
     Array.iter instr.arg ~f:(fun reg -> update_range reg ~begin_:on ~end_:on);
@@ -99,10 +104,6 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
          present at the end of every "block". *)
       incr pos);
   Reg.Tbl.iter (fun reg (range : Range.t) -> add_range reg range) current_ranges;
-  Reg.Tbl.iter
-    (fun _reg (interval : Interval.t) ->
-      interval.ranges <- List.rev interval.ranges)
-    past_ranges;
   if ls_debug && Lazy.force ls_verbose
   then
     iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
@@ -135,11 +136,18 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
     | 0 -> fatal "register class %d has no available registers" reg_class
     | num_available_registers ->
       let available = Array.make num_available_registers true in
+      let num_still_available = ref num_available_registers in
+      let set_not_available r =
+        let idx = r - first_available in
+        if available.(idx) then decr num_still_available;
+        available.(idx) <- false;
+        if !num_still_available = 0 then raise No_free_register
+      in
       List.iter intervals.active ~f:(fun (interval : Interval.t) ->
           match interval.reg.loc with
           | Reg r ->
             if r - first_available < num_available_registers
-            then available.(r - first_available) <- false
+            then set_not_available r
           | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
@@ -147,14 +155,14 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           if r - first_available < num_available_registers
              && available.(r - first_available)
              && Interval.overlap itv interval
-          then available.(r - first_available) <- false
+          then set_not_available r
         | Stack _ | Unknown -> ()
       in
       List.iter intervals.inactive ~f:remove_bound_overlapping;
       List.iter intervals.fixed ~f:remove_bound_overlapping;
       let rec assign idx =
         if idx >= num_available_registers
-        then raise No_free_register
+        then Misc.fatal_error "No_free_register should have been raised earlier"
         else if available.(idx)
         then (
           reg.loc <- Reg (first_available + idx);
@@ -235,7 +243,8 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   in
   if not (Reg.Set.is_empty spilled)
   then (
-    rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled);
+    rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled)
+      ~block_temporaries:(round = 1);
     main ~round:(succ round) state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
@@ -268,7 +277,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   | [] -> ()
   | _ :: _ as spilled_nodes ->
     List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
-    rewrite state cfg_with_infos ~spilled_nodes;
+    rewrite state cfg_with_infos ~spilled_nodes ~block_temporaries:false;
     Cfg_with_infos.invalidate_liveness cfg_with_infos);
   main ~round:1 state cfg_with_infos;
   Regalloc_rewrite.postlude

@@ -280,8 +280,6 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
     ~original ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result
     dbg =
   let rebuilding = UA.are_rebuilding_terms uacc in
-  let tag = Tag.Scannable.zero in
-  let num_consts = List.length consts in
   let block_sym =
     let var = Variable.create "switch_block" in
     Symbol.create
@@ -289,35 +287,32 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
       (Linkage_name.of_string (Variable.unique_name var))
   in
   let uacc =
-    let fields = List.map Field_of_static_block.tagged_immediate consts in
+    let fields =
+      List.map
+        (fun const -> Simple.With_debuginfo.create (Simple.const_int const) dbg)
+        consts
+    in
     let block_type =
-      T.immutable_block ~is_unique:false Tag.zero ~shape:Value_only
-        Alloc_mode.For_types.heap
+      T.immutable_array ~element_kind:(Ok KS.tagged_immediate)
         ~fields:
           (List.map
              (fun const ->
                T.alias_type_of K.value
                  (Simple.const (Reg_width_const.const_int const)))
              consts)
+        Alloc_mode.For_types.heap
     in
     UA.add_lifted_constant uacc
       (LC.create_definition
          (LC.Definition.block_like
             (DA.denv dacc_before_switch)
             block_sym block_type ~symbol_projections:Variable.Map.empty
-            (RSC.create_block rebuilding tag Immutable ~fields)))
+            (RSC.create_immutable_value_array rebuilding fields)))
   in
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
-  let access_kind : P.Block_access_kind.t =
-    Values
-      { tag = Known tag;
-        size = Known (TI.of_int num_consts);
-        field_kind = Immediate
-      }
-  in
   let load_from_block_prim : P.t =
-    Binary (Block_load (access_kind, Immutable), block, tagged_scrutinee)
+    Binary (Array_load (Values, Values, Immutable), block, tagged_scrutinee)
   in
   let load_from_block = Named.create_prim load_from_block_prim dbg in
   let arg_var = Variable.create "arg" in
@@ -567,6 +562,9 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
       |> Flambda_arity.create_singletons
     in
     let action = Apply_cont.update_args action ~args in
+    let dbg = AC.debuginfo action in
+    let dbg = DE.add_inlined_debuginfo (DA.denv dacc) dbg in
+    let action = AC.with_debuginfo action ~dbg in
     let dacc =
       DA.map_flow_acc dacc
         ~f:
@@ -598,6 +596,32 @@ let simplify_switch0 dacc switch ~down_to_up =
   in
   let condition_dbg =
     DE.add_inlined_debuginfo (DA.denv dacc) (Switch.condition_dbg switch)
+  in
+  let dacc =
+    match DA.are_lifting_conts dacc with
+    | Lifting_out_of _ ->
+      Misc.fatal_errorf
+        "[Are_lifting_cont] values in the dacc cannot be [Lifting_out_of _] \
+         when going downwards through a [Switch] expression. See the \
+         explanation in [are_lifting_conts.mli]."
+    | Not_lifting -> dacc
+    | Analyzing { continuation; uses = _ } ->
+      let denv = DA.denv dacc in
+      (* Estimate the cost of lifting: this mainly comes from adding new
+         parameters, which increase the work done by the typing env, as well as
+         the flow analysis. We then only do the lifting if the cost is within
+         the budget for the current function. *)
+      let budget = DA.get_continuation_lifting_budget dacc in
+      let cost = DE.cost_of_lifting_continuations_out_of_current_one denv in
+      if budget = 0 || budget < cost
+      then dacc
+      else
+        (* TODO/FIXME: implement an actual criterion for when to lift
+           continuations. Currently for testing, we lift any continuation that
+           occurs in a handler that ends with a switch. *)
+        DA.with_are_lifting_conts
+          (DA.decrease_continuation_lifting_budget dacc cost)
+          (Are_lifting_conts.lift_continuations_out_of continuation)
   in
   down_to_up dacc
     ~rebuild:

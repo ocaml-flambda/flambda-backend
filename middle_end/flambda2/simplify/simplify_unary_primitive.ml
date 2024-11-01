@@ -431,24 +431,115 @@ let simplify_boolean_not dacc ~original_term ~arg:_ ~arg_ty ~result_var =
     SPR.create original_term ~try_reify:false dacc
   | Invalid -> SPR.create_invalid dacc
 
-let simplify_reinterpret_int64_as_float dacc ~original_term ~arg:_ ~arg_ty
-    ~result_var =
-  let typing_env = DE.typing_env (DA.denv dacc) in
-  let proof = T.meet_naked_int64s typing_env arg_ty in
-  match proof with
-  | Known_result int64s ->
-    let floats =
-      Int64.Set.fold
-        (fun int64 floats -> Float.Set.add (Float.of_bits int64) floats)
-        int64s Float.Set.empty
-    in
-    let ty = T.these_naked_floats floats in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create original_term ~try_reify:true dacc
-  | Need_meet ->
-    let dacc = DA.add_variable dacc result_var T.any_naked_float in
-    SPR.create original_term ~try_reify:false dacc
-  | Invalid -> SPR.create_invalid dacc
+module Make_simplify_reinterpret_64_bit_word (P : sig
+  module Src : Container_types.S
+
+  module Dst : Container_types.S
+
+  val prover : TE.t -> T.t -> Src.Set.t meet_shortcut
+
+  val convert : Src.t -> Dst.t
+
+  val these : Dst.Set.t -> T.t
+
+  val any_dst : T.t
+end) =
+struct
+  let simplify dacc ~original_term ~arg:_ ~arg_ty ~result_var =
+    let typing_env = DE.typing_env (DA.denv dacc) in
+    let proof = P.prover typing_env arg_ty in
+    match proof with
+    | Known_result src ->
+      let dst =
+        P.Src.Set.fold
+          (fun src dst -> P.Dst.Set.add (P.convert src) dst)
+          src P.Dst.Set.empty
+      in
+      let ty = P.these dst in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create original_term ~try_reify:true dacc
+    | Need_meet ->
+      let dacc = DA.add_variable dacc result_var P.any_dst in
+      SPR.create original_term ~try_reify:false dacc
+    | Invalid -> SPR.create_invalid dacc
+end
+
+module Simplify_reinterpret_unboxed_int64_as_unboxed_float64 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Int64
+  module Dst = Float
+
+  let prover = T.meet_naked_int64s
+
+  let convert = Float.of_bits
+
+  let these = T.these_naked_floats
+
+  let any_dst = T.any_naked_float
+end)
+
+module Simplify_reinterpret_unboxed_float64_as_unboxed_int64 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Float
+  module Dst = Int64
+
+  let prover = T.meet_naked_floats
+
+  let convert = Float.to_bits
+
+  let these = T.these_naked_int64s
+
+  let any_dst = T.any_naked_int64
+end)
+
+module Simplify_reinterpret_unboxed_int64_as_tagged_int63 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Int64
+  module Dst = Targetint_31_63
+
+  let prover = T.meet_naked_int64s
+
+  (* This primitive is logical OR with 1 on machine words, but here, we are
+     working in the tagged world. As such a different computation is
+     required. *)
+  let convert i = Targetint_31_63.of_int64 (Int64.shift_right_logical i 1)
+
+  let these = T.these_tagged_immediates
+
+  let any_dst = T.any_tagged_immediate
+end)
+
+module Simplify_reinterpret_tagged_int63_as_unboxed_int64 =
+Make_simplify_reinterpret_64_bit_word (struct
+  module Src = Targetint_31_63
+  module Dst = Int64
+
+  let prover = T.meet_equals_tagged_immediates
+
+  (* This primitive is the identity on machine words, but as above, we are
+     working in the tagged world. *)
+  let convert i = Int64.add (Int64.mul (Targetint_31_63.to_int64 i) 2L) 1L
+
+  let these = T.these_naked_int64s
+
+  let any_dst = T.any_naked_int64
+end)
+
+let simplify_reinterpret_64_bit_word (reinterpret : P.Reinterpret_64_bit_word.t)
+    dacc ~original_term ~arg ~arg_ty ~result_var =
+  match reinterpret with
+  | Unboxed_int64_as_unboxed_float64 ->
+    Simplify_reinterpret_unboxed_int64_as_unboxed_float64.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
+  | Unboxed_float64_as_unboxed_int64 ->
+    Simplify_reinterpret_unboxed_float64_as_unboxed_int64.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
+  | Unboxed_int64_as_tagged_int63 ->
+    Simplify_reinterpret_unboxed_int64_as_tagged_int63.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
+  | Tagged_int63_as_unboxed_int64 ->
+    Simplify_reinterpret_tagged_int63_as_unboxed_int64.simplify dacc
+      ~original_term ~arg ~arg_ty ~result_var
 
 module Make_simplify_float_arith_op (FP : sig
   module F : Numeric_types.Float_by_bit_pattern
@@ -571,7 +662,10 @@ let simplify_duplicate_array ~kind:_ ~(source_mutability : Mutability.t)
     | Need_meet ->
       let dacc = DA.add_variable dacc result_var T.any_value in
       SPR.create original_term ~try_reify:false dacc
-    | Known_result (element_kind, length, alloc_mode) ->
+    | Known_result (element_kind, fields, alloc_mode) ->
+      let length =
+        T.this_tagged_immediate (Array.length fields |> Targetint_31_63.of_int)
+      in
       let ty = T.mutable_array ~element_kind ~length alloc_mode in
       let dacc = DA.add_variable dacc result_var ty in
       SPR.create original_term ~try_reify:false dacc)
@@ -673,12 +767,140 @@ let simplify_atomic_load
     (P.result_kind' original_prim)
     ~original_term
 
+let[@inline always] simplify_immutable_block_load0
+    (access_kind : P.Block_access_kind.t) ~field ~min_name_mode dacc
+    ~original_term _dbg ~arg:block ~arg_ty:block_ty ~result_var =
+  let result_kind = P.Block_access_kind.element_kind_for_load access_kind in
+  let result_var' = Bound_var.var result_var in
+  let typing_env = DA.typing_env dacc in
+  match
+    T.meet_block_field_simple typing_env ~min_name_mode ~field_kind:result_kind
+      block_ty field
+  with
+  | Invalid -> SPR.create_invalid dacc
+  | Known_result simple ->
+    let dacc =
+      DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
+    in
+    SPR.create (Named.create_simple simple) ~try_reify:false dacc
+  | Need_meet -> (
+    let n = Targetint_31_63.add field Targetint_31_63.one in
+    (* CR-someday mshinwell: We should be able to use the size in the
+       [access_kind] to constrain the type of the block *)
+    let tag, shape =
+      match access_kind with
+      | Values { tag; _ } ->
+        ( Or_unknown.map tag ~f:Tag.Scannable.to_tag,
+          K.Block_shape.Scannable Value_only )
+      | Naked_floats { size } ->
+        ( (match size with
+          | Known size ->
+            (* We don't expect blocks of naked floats of size zero (it doesn't
+               seem that the frontend currently emits code to create such
+               blocks) and so it isn't clear whether such blocks should have tag
+               zero (like zero-sized naked float arrays) or another tag. *)
+            if Targetint_31_63.equal size Targetint_31_63.zero
+            then Or_unknown.Unknown
+            else Or_unknown.Known Tag.double_array_tag
+          | Unknown -> Or_unknown.Unknown),
+          K.Block_shape.Float_record )
+      | Mixed { tag; size = _; field_kind = _; shape } ->
+        ( Or_unknown.map tag ~f:Tag.Scannable.to_tag,
+          K.Block_shape.Scannable (Mixed_record shape) )
+    in
+    let result =
+      Simplify_common.simplify_projection dacc ~original_term
+        ~deconstructing:block_ty
+        ~shape:
+          (T.immutable_block_with_size_at_least ~tag ~n ~shape
+             ~field_n_minus_one:result_var')
+        ~result_var ~result_kind
+    in
+    match result.simplified_named with
+    | Invalid -> result
+    | Ok _ -> (
+      (* If the type contains enough information to actually build a primitive
+         to make the corresponding block, then we add a CSE equation, to try to
+         avoid duplicate allocations in the future. This should help with cases
+         such as "Some x -> Some x". *)
+      let dacc = result.dacc in
+      match
+        T.prove_unique_fully_constructed_immutable_heap_block
+          (DA.typing_env dacc) block_ty
+      with
+      | Unknown -> result
+      | Proved (tag, shape_from_type, _size, field_simples) -> (
+        match Tag.Scannable.of_tag tag with
+        | None -> result
+        | Some tag -> (
+          let block_kind : P.Block_kind.t =
+            match access_kind with
+            | Values _ ->
+              let arity =
+                List.map (fun _ -> K.With_subkind.any_value) field_simples
+              in
+              Values (tag, arity)
+            | Naked_floats _ -> Naked_floats
+            | Mixed { shape; _ } ->
+              (match shape_from_type with
+              | Scannable (Mixed_record shape_from_type)
+                when K.Mixed_block_shape.equal shape shape_from_type ->
+                ()
+              | Scannable Value_only | Float_record | Scannable (Mixed_record _)
+                ->
+                Misc.fatal_error
+                  "Block access kind disagrees with block shape from type");
+              Mixed (tag, shape)
+          in
+          let prim =
+            P.Eligible_for_cse.create
+              (Variadic
+                 ( Make_block
+                     (block_kind, Immutable, Alloc_mode.For_allocations.heap),
+                   field_simples ))
+          in
+          match prim with
+          | None -> result
+          | Some prim ->
+            let dacc =
+              DA.map_denv dacc ~f:(fun denv ->
+                  DE.add_cse denv prim ~bound_to:block)
+            in
+            SPR.with_dacc result dacc))))
+
+let simplify_immutable_block_load access_kind ~field ~min_name_mode dacc
+    ~original_term ~dbg ~arg ~arg_ty ~result_var =
+  let result =
+    simplify_immutable_block_load0 access_kind ~field ~min_name_mode dacc
+      ~original_term dbg ~arg ~arg_ty ~result_var
+  in
+  let dacc' =
+    let kind = P.Block_access_kind.element_subkind_for_load access_kind in
+    Simplify_common.add_symbol_projection result.dacc ~projected_from:arg
+      (Symbol_projection.Projection.block_load ~index:field)
+      ~projection_bound_to:result_var ~kind
+  in
+  SPR.with_dacc result dacc'
+
+let simplify_mutable_block_load _access_kind ~field:_ ~original_prim dacc
+    ~original_term ~dbg:_ ~arg ~arg_ty:_ ~result_var =
+  if Simple.is_const arg
+  then SPR.create_invalid dacc
+  else
+    SPR.create_unknown dacc ~result_var
+      (P.result_kind' original_prim)
+      ~original_term
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
+    | Block_load { kind; mut = Immutable | Immutable_unique; field } ->
+      simplify_immutable_block_load kind ~field ~min_name_mode ~dbg
+    | Block_load { kind; mut = Mutable; field } ->
+      simplify_mutable_block_load kind ~field ~original_prim ~dbg
     | Project_value_slot { project_from; value_slot } ->
       simplify_project_value_slot project_from value_slot ~min_name_mode
     | Project_function_slot { move_from; move_to } ->
@@ -712,7 +934,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       | Naked_int64 -> Simplify_int_conv_naked_int64.simplify ~dst
       | Naked_nativeint -> Simplify_int_conv_naked_nativeint.simplify ~dst)
     | Boolean_not -> simplify_boolean_not
-    | Reinterpret_int64_as_float -> simplify_reinterpret_int64_as_float
+    | Reinterpret_64_bit_word reinterpret ->
+      simplify_reinterpret_64_bit_word reinterpret
     | Is_boxed_float -> simplify_is_boxed_float
     | Is_flat_float_array -> simplify_is_flat_float_array
     | Int_as_pointer mode -> simplify_int_as_pointer ~mode
@@ -722,8 +945,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity { middle_end_only = _; kind } ->
       simplify_opaque_identity ~kind
-    | End_region -> simplify_end_region
-    | End_try_region -> simplify_end_try_region
+    | End_region { ghost = _ } -> simplify_end_region
+    | End_try_region { ghost = _ } -> simplify_end_try_region
     | Obj_dup -> simplify_obj_dup dbg
     | Get_header -> simplify_get_header ~original_prim
     | Atomic_load block_access_field_kind ->

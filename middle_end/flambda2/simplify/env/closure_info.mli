@@ -20,8 +20,7 @@ type t = private
       { code_id : Code_id.t;
         return_continuation : Continuation.t;
         exn_continuation : Continuation.t;
-        my_closure : Variable.t;
-        stub : bool
+        my_closure : Variable.t
       }
 
 val print : Format.formatter -> t -> unit
@@ -35,10 +34,7 @@ val in_a_closure :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   my_closure:Variable.t ->
-  stub:bool ->
   t
-
-val is_stub : t -> bool
 
 type in_or_out_of_closure =
   | In_a_closure

@@ -285,14 +285,18 @@ with type slots := t = struct
               bucket))
 end
 
+let default_stack_slots_threshold = 3072 (* Determined empirically *)
+
 let optimization_enabled (t : t) : bool =
   match size_for_all_stack_classes t with
   | 0 -> false
-  | total_num_slots -> (
-    match find_param_value "STACK_SLOTS_THRESHOLD" with
-    | None -> true
-    | Some stack_slots_threshold ->
-      total_num_slots < int_of_string stack_slots_threshold)
+  | total_num_slots ->
+    let stack_slots_threshold =
+      match find_param_value "STACK_SLOTS_THRESHOLD" with
+      | None -> default_stack_slots_threshold
+      | Some stack_slots_threshold -> int_of_string stack_slots_threshold
+    in
+    total_num_slots < stack_slots_threshold
 
 let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
   if optimization_enabled t

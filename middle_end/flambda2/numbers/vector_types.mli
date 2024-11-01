@@ -17,23 +17,6 @@
 (** SIMD vector numeric type layouts. *)
 
 module Vec128 : sig
-  type t =
-    | Unknown128
-    | Int8x16
-    | Int16x8
-    | Int32x4
-    | Int64x2
-    | Float32x4
-    | Float64x2
-
-  val name : t -> string
-
-  val name_lowercase : t -> string
-
-  val to_lambda : t -> Lambda.vec128_type
-
-  val from_lambda : Lambda.vec128_type -> t
-
   module Bit_pattern : sig
     (** 128-bit value whose comparison and equality relations are lexicographically
       ordered by bit pattern. *)

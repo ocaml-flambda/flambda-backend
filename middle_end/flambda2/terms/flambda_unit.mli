@@ -24,6 +24,7 @@ val create :
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
   toplevel_my_region:Variable.t ->
+  toplevel_my_ghost_region:Variable.t ->
   body:Flambda.Expr.t ->
   module_symbol:Symbol.t ->
   used_value_slots:Value_slot.Set.t Or_unknown.t ->
@@ -35,8 +36,12 @@ val exn_continuation : t -> Continuation.t
 
 val toplevel_my_region : t -> Variable.t
 
+val toplevel_my_ghost_region : t -> Variable.t
+
 val module_symbol : t -> Symbol.t
 
 val used_value_slots : t -> Value_slot.Set.t Or_unknown.t
+
+val with_used_value_slots : t -> Value_slot.Set.t -> t
 
 val body : t -> Flambda.Expr.t

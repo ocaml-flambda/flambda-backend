@@ -133,6 +133,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_EXN   [@symbol "exn"]
 %token KWD_REGION [@symbol "region"]
 %token KWD_FLOAT [@symbol "float"]
+%token KWD_GENERIC [@symbol "generic"]
 %token KWD_HCF   [@symbol "halt_and_catch_fire"]
 %token KWD_HEAP_OR_LOCAL [@symbol "heap_or_local"]
 %token KWD_HINT  [@symbol "hint"]
@@ -190,7 +191,9 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
 %token PRIM_ARRAY_SET [@symbol "%array_set"]
 %token PRIM_BEGIN_REGION [@symbol "%begin_region"]
+%token PRIM_BEGIN_GHOST_REGION [@symbol "%begin_ghost_region"]
 %token PRIM_BEGIN_TRY_REGION [@symbol "%begin_try_region"]
+%token PRIM_BEGIN_GHOST_TRY_REGION [@symbol "%begin_ghost_try_region"]
 %token PRIM_BIGSTRING_LOAD [@symbol "%bigstring_load"]
 %token PRIM_BIGSTRING_SET [@symbol "%bigstring_set"]
 %token PRIM_BLOCK [@symbol "%Block"]
@@ -205,7 +208,9 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
 %token PRIM_BYTES_SET [@symbol "%bytes_set"]
 %token PRIM_END_REGION [@symbol "%end_region"]
+%token PRIM_END_GHOST_REGION [@symbol "%end_ghost_region"]
 %token PRIM_END_TRY_REGION [@symbol "%end_try_region"]
+%token PRIM_END_GHOST_TRY_REGION [@symbol "%end_ghost_try_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
@@ -235,7 +240,9 @@ let make_boxed_const_int (i, m) : static_data =
 
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
+%type <Fexpr.alloc_mode_for_applications> alloc_mode_for_applications_opt
 %type <Fexpr.array_kind> array_kind
+%type <Fexpr.array_kind_for_length> array_kind_for_length
 %type <Fexpr.empty_array_kind> empty_array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
 %type <Fexpr.binary_int_arith_op> binary_int_arith_op
@@ -326,6 +333,7 @@ code:
     params = kinded_args;
     closure_var = variable;
     region_var = variable;
+    ghost_region_var = variable;
     depth_var = variable;
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
@@ -339,7 +347,7 @@ code:
       in
       let result_mode : alloc_mode_for_assignments = if result_mode then Local else Heap in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
-        params_and_body = { params; closure_var; region_var; depth_var;
+        params_and_body = { params; closure_var; region_var; ghost_region_var; depth_var;
                             ret_cont; exn_cont; body };
         code_size; is_tupled; loopify; result_mode; } }
 ;
@@ -377,8 +385,10 @@ recursive:
 ;
 
 nullop:
-  | PRIM_BEGIN_REGION { Begin_region }
-  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
+  | PRIM_BEGIN_REGION { Begin_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_REGION { Begin_region { ghost = true } }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_TRY_REGION { Begin_try_region { ghost = true } }
 ;
 
 unary_int_arith_op:
@@ -386,7 +396,7 @@ unary_int_arith_op:
   | TILDEMINUS { Neg }
 
 unop:
-  | PRIM_ARRAY_LENGTH { Array_length (Array_kind Values) }
+  | PRIM_ARRAY_LENGTH; kind = array_kind_for_length { Array_length kind }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
@@ -397,8 +407,10 @@ unop:
   | PRIM_BOX_NATIVEINT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
-  | PRIM_END_REGION { End_region }
-  | PRIM_END_TRY_REGION { End_try_region }
+  | PRIM_END_REGION { End_region { ghost = false } }
+  | PRIM_END_GHOST_REGION { End_region { ghost = true } }
+  | PRIM_END_TRY_REGION { End_try_region { ghost = false } }
+  | PRIM_END_GHOST_TRY_REGION { End_try_region { ghost = true } }
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
@@ -423,6 +435,11 @@ unop:
   | PRIM_UNBOX_NATIVEINT { Unbox_number Naked_nativeint }
   | PRIM_UNBOX_VEC128 { Unbox_number Naked_vec128 }
   | PRIM_UNTAG_IMM { Untag_immediate }
+  | PRIM_BLOCK_LOAD;
+    mut = mutability;
+    kind = block_access_kind;
+    LPAREN; field = tag; RPAREN;
+    { Block_load { kind; mut; field = Targetint_31_63.of_int field } }
 
 infix_binop:
   | o = binary_int_arith_op { Int_arith o }
@@ -433,10 +450,6 @@ infix_binop:
 ;
 
 prefix_binop:
-  | PRIM_BLOCK_LOAD;
-    mutability = mutability;
-    kind = block_access_kind;
-    { Block_load (kind, mutability) }
   | PRIM_BIGSTRING_LOAD;
     saw = string_accessor_width;
     { String_or_bigstring_load (Bigstring, saw) }
@@ -466,23 +479,23 @@ string_accessor_width:
       | 128, Some 'u' -> One_twenty_eight {aligned = false}
       | _, _ -> Misc.fatal_error "invalid string accessor width" }
 
-array_accessor_width:
-  | { Scalar }
-  | KWD_VEC128 { Vec128 }
-
 array_kind:
-  | { Values }
-  | KWD_IMM { Immediates }
-  | KWD_FLOAT { Naked_floats }
+  | { (Values : array_kind) }
+  | KWD_IMM { (Immediates : array_kind) }
+  | KWD_FLOAT { (Naked_floats : array_kind) }
+
+array_kind_for_length:
+  | kind = array_kind { Array_kind kind }
+  | KWD_GENERIC { Float_array_opt_dynamic }
 
 empty_array_kind:
   | { Values_or_immediates_or_naked_floats }
 
 block_access_kind:
   | field_kind = block_access_field_kind; tag = tag_opt; size = size_opt
-    { Values { field_kind; tag; size } }
+    { (Values { field_kind; tag; size } : block_access_kind) }
   | KWD_FLOAT; size = size_opt
-    { Naked_floats { size } }
+    { (Naked_floats { size } : block_access_kind) }
 ;
 
 block_access_field_kind:
@@ -516,6 +529,10 @@ init_or_assign:
 alloc_mode_for_allocations_opt:
   | { Heap }
   | AMP; region = region { Local { region } }
+
+alloc_mode_for_applications_opt:
+  | { Heap }
+  | AMP; region = region; AMP; ghost_region = region { Local { region; ghost_region } }
 
 signed_or_unsigned:
   | { Signed }
@@ -563,14 +580,33 @@ int_shift:
 ;
 
 binop_app:
+  | PRIM_BLOCK_SET;
+    kind = block_access_kind;
+    block = simple; DOT;
+    LPAREN; field = tag; RPAREN;
+    init = init_or_assign;
+    v = simple
+    { Binary (Block_set { kind; init; field = Targetint_31_63.of_int field }, block, v) }
   | op = prefix_binop; LPAREN; arg1 = simple; COMMA; arg2 = simple; RPAREN
     { Binary (op, arg1, arg2) }
   | arg1 = simple; op = infix_binop; arg2 = simple
     { Binary (Infix op, arg1, arg2) }
   | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability;
-    width = array_accessor_width; arg1 = simple; DOT;
+    arg1 = simple; DOT;
     LPAREN; arg2 = simple; RPAREN
-    { Binary (Array_load (ak, width, mut), arg1, arg2) }
+    {
+    let array_load_kind : array_load_kind =
+      match ak with
+      | Immediates -> Immediates
+      | Values -> Values
+      | Naked_floats -> Naked_floats
+      | Naked_float32s -> Naked_float32s
+      | Naked_int32s -> Naked_int32s
+      | Naked_int64s -> Naked_int64s
+      | Naked_nativeints -> Naked_nativeints
+      | Naked_vec128s -> Naked_vec128s
+    in
+    Binary (Array_load (ak, array_load_kind, mut), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
     arg1 = simple; c = binary_int_arith_op; arg2 = simple
     { Binary (Int_arith (i, c), arg1, arg2) }
@@ -588,14 +624,23 @@ bytes_or_bigstring_set:
   | PRIM_BIGSTRING_SET { Bigstring }
 
 ternop_app:
-  | PRIM_ARRAY_SET; ak = array_kind; width = array_accessor_width;
+  | PRIM_ARRAY_SET; ak = array_kind;
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
-    { Ternary (Array_set (ak, width, ia), arr, ix, v) }
-  | PRIM_BLOCK_SET; kind = block_access_kind;
-    block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
-    v = simple
-    { Ternary (Block_set (kind, ia), block, ix, v) }
+    {
+      let array_set_kind : array_set_kind =
+        match ak with
+        | Immediates -> Immediates
+        | Values -> Values ia
+        | Naked_floats -> Naked_floats
+        | Naked_float32s -> Naked_float32s
+        | Naked_int32s -> Naked_int32s
+        | Naked_int64s -> Naked_int64s
+        | Naked_nativeints -> Naked_nativeints
+        | Naked_vec128s -> Naked_vec128s
+      in
+      Ternary (Array_set (ak, array_set_kind), arr, ix, v)
+    }
   | blv = bytes_or_bigstring_set; saw = string_accessor_width;
     block = simple; DOT LPAREN; ix = simple; RPAREN; v = simple
     { Ternary (Bytes_or_bigstring_set (blv, saw), block, ix, v) }
@@ -814,11 +859,11 @@ apply_expr:
 ;
 
 call_kind:
-  | alloc = alloc_mode_for_allocations_opt; { Function (Indirect alloc) }
+  | alloc = alloc_mode_for_applications_opt; { Function (Indirect alloc) }
   | KWD_DIRECT; LPAREN;
       code_id = code_id;
       function_slot = function_slot_opt;
-      alloc = alloc_mode_for_allocations_opt;
+      alloc = alloc_mode_for_applications_opt;
     RPAREN
     { Function (Direct { code_id; function_slot; alloc }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)

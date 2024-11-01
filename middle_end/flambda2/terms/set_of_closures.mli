@@ -42,6 +42,11 @@ val is_closed : t -> bool
 val alloc_mode : t -> Alloc_mode.For_allocations.t
 
 val filter_function_declarations :
-  t -> f:(Function_slot.t -> Code_id.t -> bool) -> t
+  t ->
+  f:
+    (Function_slot.t ->
+    Function_declarations.code_id_in_function_declaration ->
+    bool) ->
+  t
 
 include Container_types.S with type t := t

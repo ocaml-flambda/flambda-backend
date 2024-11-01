@@ -36,6 +36,8 @@ val cse_depth : unit -> int
 
 val join_depth : unit -> int
 
+val enable_reaper : unit -> bool
+
 val flat_float_array : unit -> bool
 
 val function_result_types : is_a_functor:bool -> bool
@@ -58,7 +60,10 @@ val colour : unit -> Misc.Color.setting option
 
 val unicode : unit -> bool
 
+(** Check all invariants (light and heavy). *)
 val check_invariants : unit -> bool
+
+val check_light_invariants : unit -> bool
 
 type dump_target = Flambda_backend_flags.Flambda2.Dump.target =
   | Nowhere
@@ -78,6 +83,10 @@ val dump_flexpect : unit -> dump_target
 val dump_slot_offsets : unit -> bool
 
 val dump_flow : unit -> bool
+
+val dump_simplify : unit -> bool
+
+val dump_reaper : unit -> bool
 
 val freshen_when_printing : unit -> bool
 
@@ -136,6 +145,8 @@ module Expert : sig
   val max_function_simplify_run : unit -> int
 
   val shorten_symbol_names : unit -> bool
+
+  val cont_lifting_budget : unit -> int
 end
 
 val stack_allocation_enabled : unit -> bool

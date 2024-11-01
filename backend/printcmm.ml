@@ -95,6 +95,14 @@ let float_comparison = function
   | CFge -> ">="
   | CFnge -> "!>="
 
+let vec128_name = function
+  | Int8x16 -> "int8x16"
+  | Int16x8 -> "int16x8"
+  | Int32x4 -> "int32x4"
+  | Int64x2 -> "int64x2"
+  | Float32x4 -> "float32x4"
+  | Float64x2 -> "float64x2"
+
 let chunk = function
   | Byte_unsigned -> "unsigned int8"
   | Byte_signed -> "signed int8"
@@ -195,8 +203,8 @@ let static_cast : Cmm.static_cast -> string = function
   | Float_of_int Float32 -> "int->float32"
   | Float32_of_float -> "float->float32"
   | Float_of_float32 -> "float32->float"
-  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
-  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
+  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (vec128_name ty)
+  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (vec128_name ty)
 
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d
@@ -206,8 +214,8 @@ let operation d = function
       match mutability with
       | Asttypes.Immutable -> Printf.sprintf "load %s" (chunk memory_chunk)
       | Asttypes.Mutable   -> Printf.sprintf "load_mut %s" (chunk memory_chunk))
-  | Calloc Alloc_heap -> "alloc" ^ location d
-  | Calloc Alloc_local -> "alloc_local" ^ location d
+  | Calloc Alloc_mode.Heap -> "alloc" ^ location d
+  | Calloc Alloc_mode.Local -> "alloc_local" ^ location d
   | Cstore (c, init) ->
     let init =
       match init with
@@ -271,6 +279,7 @@ let operation d = function
   | Ctuple_field (field, _ty) ->
     to_string "tuple_field %i" field
   | Cdls_get -> "dls_get"
+  | Cpoll -> "poll"
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

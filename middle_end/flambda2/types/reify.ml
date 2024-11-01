@@ -25,6 +25,7 @@ type to_lift =
   | Immutable_block of
       { tag : Tag.Scannable.t;
         is_unique : bool;
+        shape : Flambda_kind.Scannable_block_shape.t;
         fields : Simple.t list
       }
   | Boxed_float32 of Float32.t
@@ -38,6 +39,8 @@ type to_lift =
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
+  | Immutable_vec128_array of
+      { fields : Vector_types.Vec128.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 
@@ -47,11 +50,14 @@ type reification_result =
   | Cannot_reify
   | Invalid
 
-let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
+let try_to_reify_fields env ~var_allowed alloc_mode
+    ~field_types_and_expected_kinds =
   let field_simples =
     List.filter_map
-      (fun field_type : Simple.t option ->
-        match Provers.prove_equals_to_simple_of_kind_value env field_type with
+      (fun (field_type, field_kind) : Simple.t option ->
+        match
+          Provers.prove_equals_to_simple_of_kind env field_type field_kind
+        with
         | Proved simple when not (Coercion.is_id (Simple.coercion simple)) ->
           (* CR-someday lmaurer: Support lifting things whose fields have
              coercions. *)
@@ -61,19 +67,11 @@ let try_to_reify_fields env ~var_allowed alloc_mode ~field_types =
             ~var:(fun var ~coercion:_ ->
               if var_allowed alloc_mode var then Some simple else None)
             ~symbol:(fun _sym ~coercion:_ -> Some simple)
-            ~const:(fun const ->
-              match Reg_width_const.descr const with
-              | Tagged_immediate _imm -> Some simple
-              | Naked_immediate _ | Naked_float _ | Naked_float32 _
-              | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
-              | Naked_nativeint _ ->
-                (* This should never happen, as we should have got a kind error
-                   instead *)
-                None)
+            ~const:(fun _const -> Some simple)
         | Unknown -> None)
-      field_types
+      field_types_and_expected_kinds
   in
-  if List.compare_lengths field_types field_simples = 0
+  if List.compare_lengths field_types_and_expected_kinds field_simples = 0
   then Some field_simples
   else None
 
@@ -150,6 +148,14 @@ module Lift_array_of_naked_nativeints = Make_lift_array_of_naked_numbers (struct
   let build_to_lift ~fields = Immutable_nativeint_array { fields }
 end)
 
+module Lift_array_of_naked_vec128s = Make_lift_array_of_naked_numbers (struct
+  module N = Vector_types.Vec128.Bit_pattern
+
+  let prove = Provers.meet_naked_vec128s
+
+  let build_to_lift ~fields = Immutable_vec128_array { fields }
+end)
+
 (* CR mshinwell: Think more to identify all the cases that should be in this
    function. *)
 let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
@@ -207,27 +213,45 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         if Expand_head.is_bottom env imms
         then
           match TG.Row_like_for_blocks.get_singleton blocks with
-          | None -> try_canonical_simple ()
+          | None ->
+            (* CR mshinwell: could recognise tagged immediates *)
+            try_canonical_simple ()
           | Some (tag, shape, size, field_types, alloc_mode) -> (
             assert (
               Targetint_31_63.equal size
                 (TG.Product.Int_indexed.width field_types));
-            (* CR mshinwell: Could recognise other things, e.g. tagged
-               immediates and float arrays, supported by [Static_part]. *)
+            let field_types = TG.Product.Int_indexed.components field_types in
+            let field_types_and_expected_kinds =
+              match shape with
+              | Float_record ->
+                List.map (fun ty -> ty, Flambda_kind.naked_float) field_types
+              | Scannable (Mixed_record shape) ->
+                Flambda_kind.Mixed_block_shape.field_kinds shape
+                |> Array.to_list |> List.combine field_types
+              | Scannable Value_only ->
+                List.map (fun ty -> ty, Flambda_kind.value) field_types
+            in
             match shape with
-            | Float_record | Mixed_record _ -> try_canonical_simple ()
-            | Value_only -> (
+            | Float_record ->
+              (* CR mshinwell: lift these and also support arrays (below) with
+                 [Simple]s not just numbers in them *)
+              try_canonical_simple ()
+            | Scannable shape -> (
               let tag =
                 match Tag.Scannable.of_tag tag with
                 | Some tag -> tag
                 | None ->
-                  Misc.fatal_errorf "Value-only block has tag %a" Tag.print tag
+                  Misc.fatal_errorf
+                    "Value-only or mixed block type has tag %a, which is not a \
+                     scannable tag"
+                    Tag.print tag
               in
-              let field_types = TG.Product.Int_indexed.components field_types in
               match
-                try_to_reify_fields env ~var_allowed alloc_mode ~field_types
+                try_to_reify_fields env ~var_allowed alloc_mode
+                  ~field_types_and_expected_kinds
               with
-              | Some fields -> Lift (Immutable_block { tag; is_unique; fields })
+              | Some fields ->
+                Lift (Immutable_block { tag; is_unique; shape; fields })
               | None -> try_canonical_simple ()))
         else if TG.Row_like_for_blocks.is_bottom blocks
         then
@@ -524,9 +548,12 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           let kind = Flambda_kind.With_subkind.kind element_kind in
           match kind with
           | Value -> (
+            let field_types_and_expected_kinds =
+              List.map (fun ty -> ty, Flambda_kind.value) fields
+            in
             match
               try_to_reify_fields env ~var_allowed alloc_mode
-                ~field_types:fields
+                ~field_types_and_expected_kinds
             with
             | Some fields -> Lift (Immutable_value_array { fields })
             | None -> try_canonical_simple ())
@@ -541,7 +568,9 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
           | Naked_number Naked_nativeint ->
             Lift_array_of_naked_nativeints.lift env ~fields
               ~try_canonical_simple
-          | Naked_number (Naked_immediate | Naked_vec128) | Region | Rec_info ->
+          | Naked_number Naked_vec128 ->
+            Lift_array_of_naked_vec128s.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_immediate | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
                %a@ in env:@ %a"

@@ -35,10 +35,41 @@ module For_types : sig
 
   (** Maps [Alloc_local] to [Heap_or_local], as all Lambda annotations that we
       transform into constraints have this semantics *)
-  val from_lambda : Lambda.alloc_mode -> t
+  val from_lambda : Lambda.locality_mode -> t
 
   (** Symmetric to [from_lambda], so [Heap_or_local] is mapped to [Alloc_local] *)
-  val to_lambda : t -> Lambda.alloc_mode
+  val to_lambda : t -> Lambda.locality_mode
+end
+
+module For_applications : sig
+  (** Decisions on allocation locations for application expressions. *)
+  type t = private
+    | Heap  (** Normal allocation on the OCaml heap. *)
+    | Local of
+        { region : Variable.t;
+          ghost_region : Variable.t
+        }  (** Allocation on the local allocation stack in the given region. *)
+
+  val print : Format.formatter -> t -> unit
+
+  val compare : t -> t -> int
+
+  val heap : t
+
+  (** Returns [Heap] if stack allocation is disabled! *)
+  val local : region:Variable.t -> ghost_region:Variable.t -> t
+
+  val as_type : t -> For_types.t
+
+  val from_lambda :
+    Lambda.locality_mode ->
+    current_region:Variable.t ->
+    current_ghost_region:Variable.t ->
+    t
+
+  include Contains_names.S with type t := t
+
+  include Contains_ids.S with type t := t
 end
 
 module For_allocations : sig
@@ -59,9 +90,7 @@ module For_allocations : sig
 
   val as_type : t -> For_types.t
 
-  val from_lambda : Lambda.alloc_mode -> current_region:Variable.t -> t
-
-  val to_lambda : t -> Lambda.alloc_mode
+  val from_lambda : Lambda.locality_mode -> current_region:Variable.t -> t
 
   include Contains_names.S with type t := t
 

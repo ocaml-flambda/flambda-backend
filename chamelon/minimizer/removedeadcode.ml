@@ -78,6 +78,11 @@ let rec var_from_pat pat_desc acc =
   | Tpat_tuple (vl, _) | Tpat_array (vl, _) | O (Tpat_construct (_, _, vl, _))
     ->
       List.fold_left (fun l pat -> var_from_pat pat.pat_desc l) acc vl
+  | O (Tpat_unboxed_tuple fields) ->
+      List.fold_left
+        (fun l pat -> var_from_pat pat.pat_desc l)
+        acc
+        (List.map (fun (_, pat, _) -> pat) fields)
   | O (Tpat_record (r, _)) ->
       List.fold_left (fun l (_, _, pat) -> var_from_pat pat.pat_desc l) acc r
   | O (Tpat_or (p1, p2, _)) ->
@@ -109,6 +114,14 @@ let rec rem_in_pat str pat should_remove =
           mkTpat_tuple ~id
             (List.map (fun pat -> rem_in_pat str pat should_remove) vl);
       }
+  | O (Tpat_unboxed_tuple fields) ->
+      let fields' =
+        List.map
+          (fun (name, pat, sort) ->
+            (name, rem_in_pat str pat should_remove, sort))
+          fields
+      in
+      { pat with pat_desc = Tpat_unboxed_tuple fields' }
   | Tpat_array (vl, id) ->
       {
         pat with

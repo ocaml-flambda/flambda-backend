@@ -39,7 +39,6 @@ extern char *c_buffer;
 #define get_int32(n) *(int32_t*)(ocaml_buffer+((n)*STRIDE))
 #define get_int64(n) *(int64_t*)(ocaml_buffer+((n)*STRIDE))
 #define get_double(n) *(double*)(ocaml_buffer+((n)*STRIDE))
-#define get_float(n) *(float*)(ocaml_buffer+((n)*STRIDE))
 #define get_int128(n) _mm_loadu_si128((__m128i*)(ocaml_buffer+((n)*STRIDE)))
 #define get_float128(n) _mm_loadu_pd((double*)(ocaml_buffer+((n)*STRIDE)))
 
@@ -47,7 +46,6 @@ extern char *c_buffer;
 #define set_int32(n, x) *(int32_t*)(c_buffer+((n)*STRIDE)) = (x)
 #define set_int64(n, x) *(int64_t*)(c_buffer+((n)*STRIDE)) = (x)
 #define set_double(n, x) *(double*)(c_buffer+((n)*STRIDE)) = (x)
-#define set_float(n, x) *(float*)(c_buffer+((n)*STRIDE)) = (x)
 #define set_int128(n, x) _mm_storeu_si128((__m128i*)(c_buffer+((n)*STRIDE)), (x))
 #define set_float128(n, x) _mm_storeu_pd((double*)(c_buffer+((n)*STRIDE)), (x))
 

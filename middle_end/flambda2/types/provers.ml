@@ -57,10 +57,10 @@ let as_meet_shortcut (p : _ generic_proof) : _ meet_shortcut =
 let as_property (p : _ generic_proof) : _ proof_of_property =
   match p with Proved x -> Proved x | Unknown | Invalid -> Unknown
 
-let prove_equals_to_simple_of_kind_value env t : Simple.t proof_of_property =
+let prove_equals_to_simple_of_kind env t kind : Simple.t proof_of_property =
   let original_kind = TG.kind t in
-  if not (K.equal original_kind K.value)
-  then wrong_kind "Value" t
+  if not (K.equal original_kind kind)
+  then wrong_kind (Format.asprintf "%a" K.print kind) t
   else
     (* CR pchambart: add TE.get_alias_opt *)
     match TG.get_alias_exn t with
@@ -609,7 +609,8 @@ let prove_is_immediates_array env t : unit proof_of_property =
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
-    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array ->
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
+    | Unboxed_vec128_array ->
       Unknown)
   | Value
       (Ok
@@ -625,21 +626,23 @@ let prove_is_immediates_array env t : unit proof_of_property =
 let prove_single_closures_entry_generic env t : _ generic_proof =
   match expand_head env t with
   | Value (Ok (Closures { by_function_slot; alloc_mode })) -> (
-    match TG.Row_like_for_closures.get_singleton by_function_slot with
-    | None -> Unknown
-    | Some ((function_slot, set_of_closures_contents), closures_entry) -> (
-      let function_slots =
-        Set_of_closures_contents.closures set_of_closures_contents
-      in
-      assert (Function_slot.Set.mem function_slot function_slots);
+    let of_singleton_type ~exact function_slot closures_entry : _ generic_proof
+        =
       let function_type =
-        TG.Closures_entry.find_function_type closures_entry function_slot
+        TG.Closures_entry.find_function_type closures_entry ~exact function_slot
       in
       match function_type with
       | Bottom -> Invalid
       | Unknown -> Unknown
       | Ok function_type ->
-        Proved (function_slot, alloc_mode, closures_entry, function_type)))
+        Proved (function_slot, alloc_mode, closures_entry, function_type)
+    in
+    match TG.Row_like_for_closures.get_single_tag by_function_slot with
+    | No_singleton -> Unknown
+    | Exact_closure (function_slot, closures_entry) ->
+      of_singleton_type ~exact:true function_slot closures_entry
+    | Incomplete_closure (function_slot, closures_entry) ->
+      of_singleton_type ~exact:false function_slot closures_entry)
   | Value
       (Ok
         ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
@@ -656,20 +659,26 @@ let prove_single_closures_entry_generic env t : _ generic_proof =
 let meet_single_closures_entry env t =
   as_meet_shortcut (prove_single_closures_entry_generic env t)
 
-let meet_is_immutable_array env t : _ meet_shortcut =
+let prove_is_immutable_array_generic env t : _ generic_proof =
   match expand_head env t with
-  | Value Unknown -> Need_meet
+  | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Value (Ok (Array { element_kind; length; contents; alloc_mode })) -> (
+  | Value (Ok (Array { element_kind; length = _; contents; alloc_mode })) -> (
     match contents with
-    | Known (Immutable _) -> Known_result (element_kind, length, alloc_mode)
+    | Known (Immutable { fields }) -> Proved (element_kind, fields, alloc_mode)
     | Known Mutable -> Invalid
-    | Unknown -> Need_meet)
+    | Unknown -> Unknown)
   | Value (Ok _)
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
     ->
     Invalid
+
+let meet_is_immutable_array env t =
+  as_meet_shortcut (prove_is_immutable_array_generic env t)
+
+let prove_is_immutable_array env t =
+  as_property (prove_is_immutable_array_generic env t)
 
 let prove_single_closures_entry env t =
   as_property (prove_single_closures_entry_generic env t)

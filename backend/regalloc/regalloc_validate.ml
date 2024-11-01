@@ -1136,7 +1136,7 @@ module Transfer (Desc_val : Description_value) :
                     equations
                     |> Equation_set.verify_destroyed_locations
                          ~destroyed:
-                           (Location.of_regs_exn (Proc.destroyed_at_raise ()))
+                           (Location.of_regs_exn Proc.destroyed_at_raise)
                     |> Result.map_error (fun message ->
                            Printf.sprintf
                              "While verifying locations destroyed at raise: %s"

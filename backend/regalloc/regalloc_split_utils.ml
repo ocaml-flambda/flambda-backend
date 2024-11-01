@@ -4,7 +4,8 @@ open! Regalloc_utils
 
 let split_debug = false
 
-let split_live_ranges : bool Lazy.t = bool_of_param "SPLIT_LIVE_RANGES"
+let split_live_ranges : bool Lazy.t =
+  bool_of_param ~default:true "SPLIT_LIVE_RANGES"
 
 let split_more_destruction_points : bool Lazy.t =
   bool_of_param "SPLIT_MORE_DESTR_POINTS"

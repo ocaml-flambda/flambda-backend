@@ -435,6 +435,10 @@ let select_operation op args =
   select_simd_instr op args
   |> Option.map (fun (op, args) -> Mach.(Ispecific (Isimd op), args))
 
+let select_operation_cfg op args =
+  select_simd_instr op args
+  |> Option.map (fun (op, args) -> Cfg.Specific (Isimd op), args)
+
 let pseudoregs_for_operation op arg res =
   let rax = Proc.phys_reg Int 0 in
   let rcx = Proc.phys_reg Int 5 in

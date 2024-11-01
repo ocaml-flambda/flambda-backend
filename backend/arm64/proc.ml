@@ -340,7 +340,7 @@ let destroyed_at_oper = function
       [| reg_d7 |]            (* d7 / s7 destroyed *)
   | _ -> [||]
 
-let destroyed_at_raise () = all_phys_regs
+let destroyed_at_raise = all_phys_regs
 
 let destroyed_at_reloadretaddr = [| |]
 
@@ -513,6 +513,7 @@ let operation_supported = function
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
   | Cbeginregion | Cendregion | Ctuple_field _
   | Cdls_get
+  | Cpoll
     -> true
 
 let trap_size_in_bytes = 16

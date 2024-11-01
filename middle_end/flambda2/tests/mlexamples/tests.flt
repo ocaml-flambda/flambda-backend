@@ -1,7 +1,7 @@
 let $camlTests__first_const53 = Block 0 () in
 let code size(93) f_1
                     (c : imm tagged, m, n, x' : imm tagged, y' : imm tagged)
-                    my_closure my_region my_depth -> k * k1 : imm tagged =
+                    my_closure my_region my_ghost_region my_depth -> k * k1 : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   let to_inline = %project_value_slot f.to_inline_0 my_closure in
   (let prim = c < 0 in
@@ -60,7 +60,7 @@ let code size(93) f_1
                      let Paddint_1 = x + y in
                      apply to_inline (Paddint_1, Paddint) -> k * k1)))
 in
-let code inline(always) size(1) to_inline_0 (_x, _y) my_closure my_region my_depth -> k
+let code inline(always) size(1) to_inline_0 (_x, _y) my_closure my_region my_ghost_region my_depth -> k
                                   * k1 : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   cont k (42)

@@ -6,6 +6,4 @@ flambda_backend.opam    @mshinwell @lthls
 
 build_ocaml_compiler.sexp       @poechsel
 
-chamelon/                       @Ekdohibs
-
 external/memtrace/              @stedolan

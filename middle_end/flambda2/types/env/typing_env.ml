@@ -44,6 +44,8 @@ module One_level : sig
     t -> used_value_slots:Value_slot.Set.t -> t
 
   val canonicalise : t -> Simple.t -> Simple.t
+
+  val bump_scope : t -> t
 end = struct
   type t =
     { scope : Scope.t;
@@ -51,12 +53,16 @@ end = struct
       just_after_level : Cached_level.t
     }
 
-  let print ~min_binding_time ppf { scope = _; level; just_after_level } =
+  let print ~min_binding_time ppf { scope; level; just_after_level } =
     let restrict_to = TEL.defined_names level in
     if Name.Set.is_empty restrict_to
-    then Format.fprintf ppf "@[<hov 0>%a@]" TEL.print level
+    then
+      Format.fprintf ppf "@[<hov 0>((scope@ %a)@ %a)@]" Scope.print scope
+        TEL.print level
     else
-      Format.fprintf ppf "@[<hov 0>@[<hov 1>(defined_vars@ %a)@]@ %a@]"
+      Format.fprintf ppf
+        "@[<hov 0>@[<hov 1>((scope@ %a)@ (defined_vars@ %a))@]@ %a@]"
+        Scope.print scope
         (Cached_level.print_name_modes ~restrict_to ~min_binding_time)
         just_after_level TEL.print level
 
@@ -93,6 +99,8 @@ end = struct
     { t with just_after_level }
 
   let canonicalise t = Cached_level.canonicalise t.just_after_level
+
+  let bump_scope t = { t with scope = Scope.next t.scope }
 end
 
 type t =
@@ -105,7 +113,10 @@ type t =
     (* [prev_levels] is sorted with the greatest scope at the head of the
        list *)
     current_level : One_level.t;
-    next_binding_time : Binding_time.t;
+    next_binding_time : Binding_time.t ref;
+    (* [next_binding_time] is a reference shared by all related environments to
+       the latest binding time ever used. Used to ensure consistent binding
+       times between variables defined in parallel branches. *)
     min_binding_time : Binding_time.t;
         (* Earlier variables have mode In_types *)
     is_bottom : bool
@@ -377,7 +388,7 @@ let create ~resolver ~get_imported_names =
        to allow an efficient implementation of [cut] (see below), we always
        increment the scope by one here. *)
     current_level = One_level.create_empty (Scope.next Scope.initial);
-    next_binding_time = Binding_time.earliest_var;
+    next_binding_time = ref Binding_time.earliest_var;
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
     min_binding_time = Binding_time.earliest_var;
@@ -612,17 +623,14 @@ let alias_is_bound_strictly_earlier t ~bound_name ~alias =
 
 let with_current_level t ~current_level = { t with current_level }
 
-let with_current_level_and_next_binding_time t ~current_level next_binding_time
-    =
-  { t with current_level; next_binding_time }
-
 let with_aliases t ~aliases =
   let current_level = One_level.with_aliases t.current_level ~aliases in
   with_current_level t ~current_level
 
 let cached t = One_level.just_after_level t.current_level
 
-let add_variable_definition t var kind name_mode =
+let add_variable_definition_with_binding_time ~binding_time t var kind name_mode
+    =
   (* We can add equations in our own compilation unit on variables and symbols
      defined in another compilation unit. However we can't define other
      compilation units' variables or symbols (except for predefined symbols such
@@ -636,24 +644,28 @@ let add_variable_definition t var kind name_mode =
        %a@ in environment:@ %a"
       Variable.print var print t;
   let name = Name.var var in
-  if Flambda_features.check_invariants () && mem t name
+  if Flambda_features.check_light_invariants () && mem t name
   then
     Misc.fatal_errorf "Cannot rebind %a in environment:@ %a" Name.print name
       print t;
   let level =
-    TEL.add_definition
-      (One_level.level t.current_level)
-      var kind t.next_binding_time
+    TEL.add_definition (One_level.level t.current_level) var kind binding_time
   in
   let just_after_level =
     Cached_level.add_or_replace_binding (cached t) name (MTC.unknown kind)
-      t.next_binding_time name_mode
+      binding_time name_mode
   in
   let current_level =
     One_level.create (current_scope t) level ~just_after_level
   in
-  with_current_level_and_next_binding_time t ~current_level
-    (Binding_time.succ t.next_binding_time)
+  with_current_level t ~current_level
+
+let get_next_binding_time t = !(t.next_binding_time)
+
+let add_variable_definition t var kind name_mode =
+  let binding_time = get_next_binding_time t in
+  t.next_binding_time := Binding_time.succ binding_time;
+  add_variable_definition_with_binding_time ~binding_time t var kind name_mode
 
 let add_symbol_definition t sym =
   (* CR-someday mshinwell: check for redefinition when invariants enabled? *)
@@ -700,7 +712,7 @@ let add_definition t (name : Bound_name.t) kind =
 
 let invariant_for_alias (t : t) name ty =
   (* Check that no canonical element gets an [Equals] type *)
-  if Flambda_features.check_invariants () || true
+  if Flambda_features.check_light_invariants ()
   then
     match TG.get_alias_exn ty with
     | exception Not_found -> ()
@@ -790,7 +802,7 @@ let rec add_equation0 (t : t) name ty =
   with_current_level t ~current_level
 
 and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
-  (if Flambda_features.check_invariants ()
+  (if Flambda_features.check_light_invariants ()
   then
     let existing_ty = find t name None in
     if not (K.equal (TG.kind existing_ty) (TG.kind ty))
@@ -799,7 +811,7 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
         "Cannot add equation %a = %a@ given existing binding %a = %a@ whose \
          type is of a different kind:@ %a"
         Name.print name TG.print ty Name.print name TG.print existing_ty print t);
-  (if Flambda_features.check_invariants ()
+  (if Flambda_features.check_light_invariants ()
   then
     match TG.get_alias_exn ty with
     | exception Not_found -> ()
@@ -950,7 +962,9 @@ and add_env_extension_with_extra_variables t
 let add_env_extension_from_level t level ~meet_type : t =
   let t =
     TEL.fold_on_defined_vars
-      (fun var kind t -> add_variable_definition t var kind Name_mode.in_types)
+      (fun ~binding_time var kind t ->
+        add_variable_definition_with_binding_time ~binding_time t var kind
+          Name_mode.in_types)
       level t
   in
   let t =
@@ -1033,6 +1047,9 @@ let add_to_code_age_relation t ~new_code_id ~old_code_id =
 let code_age_relation t = t.code_age_relation
 
 let with_code_age_relation t code_age_relation = { t with code_age_relation }
+
+let bump_current_level_scope t =
+  { t with current_level = One_level.bump_scope t.current_level }
 
 let cut t ~cut_after =
   let current_scope = current_scope t in
@@ -1149,8 +1166,41 @@ let aliases_of_simple t ~min_name_mode simple =
 let aliases_of_simple_allowable_in_types t simple =
   aliases_of_simple t ~min_name_mode:Name_mode.in_types simple
 
+let compute_joined_aliases base_env alias_candidates envs_at_uses =
+  let aliases_at_first_use, aliases_at_other_uses =
+    match List.map aliases envs_at_uses with
+    | hd :: tl -> hd, tl
+    | [] -> Misc.fatal_error "Empty uses in join"
+  in
+  let new_aliases =
+    Name.Set.fold
+      (fun name new_aliases ->
+        let alias_set =
+          List.fold_left
+            (fun alias_set aliases ->
+              Aliases.Alias_set.inter alias_set
+                (Aliases.get_aliases aliases (Simple.name name)))
+            (Aliases.get_aliases aliases_at_first_use (Simple.name name))
+            aliases_at_other_uses
+        in
+        let alias_set =
+          Aliases.Alias_set.filter alias_set ~f:(fun simple ->
+              mem_simple base_env simple
+              && not (Simple.equal simple (Simple.name name)))
+        in
+        if Aliases.Alias_set.is_empty alias_set
+        then new_aliases
+        else
+          Aliases.add_alias_set
+            ~binding_time_resolver:base_env.binding_time_resolver
+            ~binding_times_and_modes:(names_to_types base_env) new_aliases name
+            alias_set)
+      alias_candidates (aliases base_env)
+  in
+  with_aliases base_env ~aliases:new_aliases
+
 let closure_env t =
-  increment_scope { t with min_binding_time = t.next_binding_time }
+  increment_scope { t with min_binding_time = get_next_binding_time t }
 
 let rec free_names_transitive_of_type_of_name t name ~result =
   let result = Name_occurrences.add_name result name Name_mode.in_types in
@@ -1257,57 +1307,16 @@ end = struct
     let rec type_from_approx approx =
       match (approx : _ Value_approximation.t) with
       | Value_unknown -> MTC.unknown Flambda_kind.value
-      | Value_int i -> TG.this_tagged_immediate i
+      | Value_const cst -> MTC.type_for_const cst
       | Value_symbol symbol ->
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
-      | Block_approximation (tag, fields, alloc_mode) ->
+      | Block_approximation (tag, shape, fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
-        let shape : Flambda_kind.Block_shape.t = Value_only in
-        MTC.immutable_block ~is_unique:false (Tag.Scannable.to_tag tag) ~shape
-          ~fields alloc_mode
-      | Closure_approximation
-          { code_id;
-            function_slot;
-            all_function_slots;
-            all_value_slots;
-            code = _;
-            symbol = _
-          } ->
-        (* CR keryan: we should use the associated symbol at some point *)
-        let fun_decl =
-          TG.Function_type.create code_id
-            ~rec_info:(TG.this_rec_info Rec_info_expr.initial)
-        in
-        let all_function_slots_in_set =
-          Function_slot.Set.fold
-            (fun function_slot' all_function_slots_in_set ->
-              Function_slot.Map.add function_slot'
-                (if Function_slot.equal function_slot function_slot'
-                then Or_unknown_or_bottom.Ok fun_decl
-                else Or_unknown_or_bottom.Unknown)
-                all_function_slots_in_set)
-            all_function_slots Function_slot.Map.empty
-        in
-        let all_closure_types_in_set =
-          Function_slot.Set.fold
-            (fun function_slot all_closure_types_in_set ->
-              Function_slot.Map.add function_slot
-                (MTC.unknown Flambda_kind.value)
-                all_closure_types_in_set)
-            all_function_slots Function_slot.Map.empty
-        in
-        let all_value_slots_in_set =
-          Value_slot.Set.fold
-            (fun value_slot all_value_slots_in_set ->
-              Value_slot.Map.add value_slot
-                (MTC.unknown
-                   (Flambda_kind.With_subkind.kind (Value_slot.kind value_slot)))
-                all_value_slots_in_set)
-            all_value_slots Value_slot.Map.empty
-        in
-        MTC.exactly_this_closure function_slot ~all_function_slots_in_set
-          ~all_closure_types_in_set ~all_value_slots_in_set
-          (Alloc_mode.For_types.unknown ())
+        MTC.immutable_block ~is_unique:false (Tag.Scannable.to_tag tag)
+          ~shape:(Scannable shape) ~fields alloc_mode
+      | Closure_approximation { code_id; function_slot; code = _; symbol } ->
+        MTC.static_closure_with_this_code ~this_function_slot:function_slot
+          ~closure_symbol:symbol ~code_id
     in
     let just_after_level =
       Symbol.Map.fold
@@ -1381,13 +1390,7 @@ end = struct
         | Unknown | Bottom -> Value_unknown
         | Ok (Equals simple) ->
           Simple.pattern_match' simple
-            ~const:(fun const ->
-              match Reg_width_const.descr const with
-              | Tagged_immediate i -> VA.Value_int i
-              | Naked_immediate _ | Naked_float _ | Naked_float32 _
-              | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
-              | Naked_nativeint _ ->
-                VA.Value_unknown)
+            ~const:(fun const -> VA.Value_const const)
             ~var:(fun _ ~coercion:_ -> VA.Value_unknown)
             ~symbol:(fun symbol ~coercion:_ -> VA.Value_symbol symbol)
         | Ok (No_alias head) -> (
@@ -1397,11 +1400,10 @@ end = struct
           | Array _ ->
             Value_unknown
           | Closures { by_function_slot; alloc_mode = _ } -> (
-            match TG.Row_like_for_closures.get_singleton by_function_slot with
-            | None -> Value_unknown
-            | Some ((function_slot, contents), closures_entry) -> (
+            let approx_of_closures_entry ~exact function_slot closures_entry :
+                _ Value_approximation.t =
               match
-                TG.Closures_entry.find_function_type closures_entry
+                TG.Closures_entry.find_function_type closures_entry ~exact
                   function_slot
               with
               | Bottom | Unknown -> Value_unknown
@@ -1409,15 +1411,15 @@ end = struct
                 let code_id = TG.Function_type.code_id function_type in
                 let code_or_meta = find_code code_id in
                 Closure_approximation
-                  { code_id;
-                    function_slot;
-                    all_function_slots =
-                      Set_of_closures_contents.closures contents;
-                    all_value_slots =
-                      Set_of_closures_contents.value_slots contents;
-                    code = code_or_meta;
-                    symbol = None
-                  }))
+                  { code_id; function_slot; code = code_or_meta; symbol = None }
+            in
+            match TG.Row_like_for_closures.get_single_tag by_function_slot with
+            | No_singleton -> Value_unknown
+            | Exact_closure (function_slot, closures_entry) ->
+              approx_of_closures_entry ~exact:true function_slot closures_entry
+            | Incomplete_closure (function_slot, closures_entry) ->
+              approx_of_closures_entry ~exact:false function_slot closures_entry
+            )
           | Variant { immediates = Unknown; blocks = _; is_unique = _ }
           | Variant { immediates = _; blocks = Unknown; is_unique = _ } ->
             Value_unknown
@@ -1428,17 +1430,24 @@ end = struct
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
               | None -> Value_unknown
-              | Some (tag, Value_only, _size, fields, alloc_mode) ->
+              | Some (tag, Scannable shape, _size, fields, alloc_mode) ->
+                let tag =
+                  match Tag.Scannable.of_tag tag with
+                  | Some tag -> tag
+                  | None ->
+                    Misc.fatal_errorf
+                      "For symbol %a, the tag %a is non-scannable yet the \
+                       block shape appears to be scannable:@ %a"
+                      Symbol.print symbol Tag.print tag
+                      K.Scannable_block_shape.print shape
+                in
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)
                 in
                 Block_approximation
-                  ( Option.get (Tag.Scannable.of_tag tag),
-                    Array.of_list fields,
-                    alloc_mode )
-              | Some (_, (Float_record | Mixed_record _), _, _, _) ->
-                Value_unknown
+                  (tag, shape, Array.of_list fields, alloc_mode)
+              | Some (_, Float_record, _, _, _) -> Value_unknown
             else Value_unknown))
       | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
       | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _

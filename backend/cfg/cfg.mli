@@ -35,7 +35,7 @@ type basic_instruction_list =
   basic instruction Flambda_backend_utils.Doubly_linked_list.t
 
 type basic_block =
-  { start : Label.t;
+  { mutable start : Label.t;
     body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
@@ -154,6 +154,9 @@ val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 
 val fold_blocks : t -> f:(Label.t -> basic_block -> 'a -> 'a) -> init:'a -> 'a
 
+val fold_body_instructions :
+  t -> f:('a -> basic instruction -> 'a) -> init:'a -> 'a
+
 val register_predecessors_for_all_blocks : t -> unit
 
 (** Printing *)
@@ -198,6 +201,8 @@ val is_noop_move : basic instruction -> bool
 val set_stack_offset : 'a instruction -> int -> unit
 
 val string_of_irc_work_list : irc_work_list -> string
+
+val dump_operation : Format.formatter -> operation -> unit
 
 val dump_basic : Format.formatter -> basic -> unit
 

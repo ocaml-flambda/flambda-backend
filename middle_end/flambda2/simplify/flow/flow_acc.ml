@@ -321,19 +321,12 @@ let add_apply_cont_args ~rewrite_id cont arg_name_simples t =
       { elt with apply_cont_args })
 
 let get_block_and_constant_field ~block ~field =
-  Simple.pattern_match field
-    ~name:(fun _ ~coercion:_ -> None)
-    ~const:(fun const ->
-      Simple.pattern_match' block
-        ~const:(fun _ -> None)
-        ~symbol:(fun _ ~coercion:_ -> None)
-        ~var:(fun var ~coercion:_ ->
-          let field =
-            match[@ocaml.warning "-4"] Reg_width_const.descr const with
-            | Tagged_immediate i -> Targetint_31_63.to_int i
-            | _ -> assert false
-          in
-          Some (var, field)))
+  Simple.pattern_match' block
+    ~const:(fun _ -> None)
+    ~symbol:(fun _ ~coercion:_ -> None)
+    ~var:(fun var ~coercion:_ ->
+      let field = Targetint_31_63.to_int field in
+      Some (var, field))
 
 let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
     ~simplified_defining_expr t =
@@ -354,7 +347,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
       let bound_var = Bound_pattern.must_be_singleton let_bound in
       let var = Bound_var.var bound_var in
       match[@ocaml.warning "-4"] original_prim with
-      | Unary (End_region, _region) ->
+      | Unary (End_region { ghost = _ }, _region) ->
         (* Uses of region variables in [End_region] don't count as uses. *)
         t
       | Unary (Is_int _, simple) -> (
@@ -373,7 +366,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
                ~prim:(Get_tag v) t)
             Name_occurrences.empty
         | None -> record_var_bindings t free_names)
-      | Binary (Block_load (bak, mut), block, field) -> (
+      | Unary (Block_load { kind = bak; mut; field }, block) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
           record_var_bindings
@@ -382,7 +375,7 @@ let record_let_binding ~rewrite_id ~generate_phantom_lets ~let_bound
                t)
             Name_occurrences.empty
         | None -> record_var_bindings t free_names)
-      | Ternary (Block_set (bak, _), block, field, value) -> (
+      | Binary (Block_set { kind = bak; field; _ }, block, value) -> (
         match get_block_and_constant_field ~block ~field with
         | Some (block, field) ->
           record_ref_named rewrite_id ~bound_to:var ~original_prim

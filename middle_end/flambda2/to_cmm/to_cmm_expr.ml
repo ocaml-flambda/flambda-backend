@@ -192,7 +192,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
           Apply.print apply
     in
     ( C.indirect_call ~dbg return_ty pos
-        (Alloc_mode.For_allocations.to_lambda alloc_mode)
+        (C.alloc_mode_for_applications_to_cmx alloc_mode)
         callee args_ty (split_args ()),
       free_vars,
       env,
@@ -215,13 +215,13 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
          order to translate them"
     else
       ( C.indirect_full_call ~dbg return_ty pos
-          (Alloc_mode.For_allocations.to_lambda alloc_mode)
+          (C.alloc_mode_for_applications_to_cmx alloc_mode)
           callee args_ty args,
         free_vars,
         env,
         res,
         Ece.all )
-  | Call_kind.C_call
+  | C_call
       { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
     fail_if_probe apply;
     let callee =
@@ -274,7 +274,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       env,
       res,
       Ece.all )
-  | Call_kind.Method { kind; obj; alloc_mode } ->
+  | Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
     let callee =
       match callee with
@@ -293,13 +293,64 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
-    let alloc_mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
+    let alloc_mode = C.alloc_mode_for_applications_to_cmx alloc_mode in
     ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
         dbg,
       free_vars,
       env,
       res,
       Ece.all )
+  | Effect op -> (
+    let module BV = Backend_var in
+    let open To_cmm_env in
+    let[@inline] simple s = C.simple ~dbg s in
+    match op with
+    | Perform { eff } ->
+      let { env; res; expr = { cmm = eff; free_vars; effs = _ } } =
+        simple env res eff
+      in
+      C.perform ~dbg eff, free_vars, env, res, Ece.all
+    | Reperform { eff; cont; last_fiber } ->
+      let { env; res; expr = { cmm = eff; free_vars = fv0; effs = _ } } =
+        simple env res eff
+      in
+      let { env; res; expr = { cmm = cont; free_vars = fv1; effs = _ } } =
+        simple env res cont
+      in
+      let { env; res; expr = { cmm = last_fiber; free_vars = fv2; effs = _ } } =
+        simple env res last_fiber
+      in
+      let free_vars = BV.Set.union (BV.Set.union fv0 fv1) fv2 in
+      C.reperform ~dbg ~eff ~cont ~last_fiber, free_vars, env, res, Ece.all
+    | Run_stack { stack; f; arg } ->
+      let { env; res; expr = { cmm = stack; free_vars = fv0; effs = _ } } =
+        simple env res stack
+      in
+      let { env; res; expr = { cmm = f; free_vars = fv1; effs = _ } } =
+        simple env res f
+      in
+      let { env; res; expr = { cmm = arg; free_vars = fv2; effs = _ } } =
+        simple env res arg
+      in
+      let free_vars = BV.Set.union (BV.Set.union fv0 fv1) fv2 in
+      C.run_stack ~dbg ~stack ~f ~arg, free_vars, env, res, Ece.all
+    | Resume { stack; f; arg; last_fiber } ->
+      let { env; res; expr = { cmm = stack; free_vars = fv0; effs = _ } } =
+        simple env res stack
+      in
+      let { env; res; expr = { cmm = f; free_vars = fv1; effs = _ } } =
+        simple env res f
+      in
+      let { env; res; expr = { cmm = arg; free_vars = fv2; effs = _ } } =
+        simple env res arg
+      in
+      let { env; res; expr = { cmm = last_fiber; free_vars = fv3; effs = _ } } =
+        simple env res last_fiber
+      in
+      let free_vars =
+        BV.Set.union (BV.Set.union fv0 fv1) (BV.Set.union fv2 fv3)
+      in
+      C.resume ~dbg ~stack ~f ~arg ~last_fiber, free_vars, env, res, Ece.all)
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra
@@ -415,24 +466,32 @@ let translate_jump_to_continuation ~dbg_with_inlined:dbg env res apply types
 (* A call to the return continuation of the current block simply is the return
    value for the current block being translated. *)
 let translate_jump_to_return_continuation ~dbg_with_inlined:dbg env res apply
-    return_cont args =
-  let return_values, free_vars, env, res, _ = C.simple_list ~dbg env res args in
-  let return_value = C.make_tuple return_values in
-  let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-  match Apply_cont.trap_action apply with
-  | None ->
-    let cmm, free_vars = wrap return_value free_vars in
-    cmm, free_vars, res
-  | Some (Pop { exn_handler; _ }) ->
-    let cont = Env.get_cmm_continuation env exn_handler in
-    let cmm, free_vars =
-      wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
+    return_cont types args =
+  if List.compare_lengths types args = 0
+  then
+    let return_values, free_vars, env, res, _ =
+      C.simple_list ~dbg env res args
     in
-    cmm, free_vars, res
-  | Some (Push _) ->
-    Misc.fatal_errorf
-      "Return continuation %a should not be applied with a Push trap action"
-      Continuation.print return_cont
+    let return_value = C.make_tuple return_values in
+    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
+    match Apply_cont.trap_action apply with
+    | None ->
+      let cmm, free_vars = wrap return_value free_vars in
+      cmm, free_vars, res
+    | Some (Pop { exn_handler; _ }) ->
+      let cont = Env.get_cmm_continuation env exn_handler in
+      let cmm, free_vars =
+        wrap (C.trap_return return_value [Cmm.Pop cont]) free_vars
+      in
+      cmm, free_vars, res
+    | Some (Push _) ->
+      Misc.fatal_errorf
+        "Return continuation %a should not be applied with a Push trap action"
+        Continuation.print return_cont
+  else
+    Misc.fatal_errorf "Types (%a) do not match arguments of@ %a"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
+      types Apply_cont.print apply
 
 (* Invalid expressions *)
 let invalid env res ~message =
@@ -520,7 +579,7 @@ and let_expr0 env res let_expr (bound_pattern : Bound_pattern.t)
   | Singleton _, Prim (Nullary (Enter_inlined_apply { dbg }), _) ->
     let env = Env.enter_inlined_apply env dbg in
     expr env res body
-  | Singleton v, Prim ((Unary (End_region, _) as p), dbg) ->
+  | Singleton v, Prim ((Unary (End_region _, _) as p), dbg) ->
     (* CR gbury: this is a hack to prevent moving of expressions past an
        End_region. We have to do this manually because we currently have effects
        and coeffects that are not precise enough. Particularly, an immutable
@@ -822,13 +881,25 @@ and apply_expr env res apply =
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
     let cmm, free_vars = wrap call free_vars in
     cmm, free_vars, res
-  | Return k when Continuation.equal (Env.return_continuation env) k ->
-    (* Case 1 *)
-    let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    let cmm, free_vars = wrap call free_vars in
-    cmm, free_vars, res
   | Return k -> (
     match Env.get_continuation env k with
+    | Return { param_types } ->
+      (* Case 1 *)
+      let apply_result_arity =
+        Flambda_arity.unarized_components (Apply.return_arity apply)
+      in
+      if List.compare_lengths apply_result_arity param_types = 0
+      then
+        let wrap, _, res =
+          Env.flush_delayed_lets ~mode:Branching_point env res
+        in
+        let cmm, free_vars = wrap call free_vars in
+        cmm, free_vars, res
+      else
+        Misc.fatal_errorf
+          "Types (%a) do not match arguments for the return cont of@ %a"
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space Printcmm.machtype)
+          param_types Apply.print apply
     | Jump { param_types = _; cont } ->
       (* Case 2 *)
       let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
@@ -901,12 +972,11 @@ and apply_cont env res apply_cont =
   let args = Apply_cont.args apply_cont in
   if Env.is_exn_handler env k
   then translate_raise ~dbg_with_inlined env res apply_cont k args
-  else if Continuation.equal (Env.return_continuation env) k
-  then
-    translate_jump_to_return_continuation ~dbg_with_inlined env res apply_cont k
-      args
   else
     match Env.get_continuation env k with
+    | Return { param_types } ->
+      translate_jump_to_return_continuation ~dbg_with_inlined env res apply_cont
+        k param_types args
     | Jump { param_types; cont } ->
       translate_jump_to_continuation ~dbg_with_inlined env res apply_cont
         param_types cont args

@@ -1,0 +1,162 @@
+=== ⚠️ CAUTION
+
+The developer team released OCaml 5.0.0 in December 2022. This release sports a
+full rewrite of its runtime system for shared-memory parallel programming using
+domains and native support for concurrent programming using effect handlers.
+
+Owing to the large number of changes, the initial 5.0 release is more
+experimental than usual.  It is recommended that all users wanting a stable
+release use the 4.14 release which will continue to be supported and updated
+while 5.x reaches feature and stability parity. Similarly, if you need one of
+the ports not yet supported in the 5.0 release you must use the 4.14 release.
+
+The initial release of OCaml 5.0 only supports the native compiler under ARM64
+and x86-64 architectures under Linux, macOS and the BSDs. On Windows, only the
+MinGW-w64 port is supported in OCaml 5.0 and the Cygwin port is restored in 5.1.
+On Linux, native code support for RISC-V and s390x/IBM Z will be available in
+OCaml 5.1 and on Power in 5.2.
+
+❗ From OCaml 5.0 onwards, native compilation is available only on 64-bit
+systems.  Native compilation on 32-bit systems is no longer available, nor
+are there plans to bring it back. The bytecode compiler will continue to work on
+all architectures.
+
+|=====
+| Branch `trunk` | Branch `5.1` | Branch `5.0` | Branch `4.14`
+
+| image:https://github.com/ocaml/ocaml/workflows/Build/badge.svg?branch=trunk["Github CI Build Status (trunk branch)",
+     link="https://github.com/ocaml/ocaml/actions?query=workflow%3ABuild"]
+  image:https://github.com/ocaml/ocaml/workflows/Hygiene/badge.svg?branch=trunk["Github CI Hygiene Status (trunk branch)",
+     link="https://github.com/ocaml/ocaml/actions?query=workflow%3AHygiene"]
+  image:https://ci.appveyor.com/api/projects/status/github/ocaml/ocaml?branch=trunk&svg=true["AppVeyor Build Status (trunk branch)",
+     link="https://ci.appveyor.com/project/avsm/ocaml"]
+| image:https://github.com/ocaml/ocaml/workflows/Build/badge.svg?branch=5.1["Github CI Build Status (5.1 branch)",
+     link="https://github.com/ocaml/ocaml/actions?query=workflow%3ABuild"]
+  image:https://ci.appveyor.com/api/projects/status/github/ocaml/ocaml?branch=5.1&svg=true["AppVeyor Build Status (5.1 branch)",
+     link="https://ci.appveyor.com/project/avsm/ocaml"]
+| image:https://github.com/ocaml/ocaml/workflows/Build/badge.svg?branch=5.0["Github CI Build Status (5.0 branch)",
+     link="https://github.com/ocaml/ocaml/actions?query=workflow%3ABuild"]
+  image:https://ci.appveyor.com/api/projects/status/github/ocaml/ocaml?branch=5.0&svg=true["AppVeyor Build Status (5.0 branch)",
+     link="https://ci.appveyor.com/project/avsm/ocaml"]
+| image:https://github.com/ocaml/ocaml/workflows/Build/badge.svg?branch=4.14["Github CI Build Status (4.14 branch)",
+     link="https://github.com/ocaml/ocaml/actions?query=workflow%3ABuild"]
+  image:https://ci.appveyor.com/api/projects/status/github/ocaml/ocaml?branch=4.14&svg=true["AppVeyor Build Status (4.14 branch)",
+     link="https://ci.appveyor.com/project/avsm/ocaml"]
+|=====
+
+= README =
+
+== Overview
+
+OCaml is a functional, statically-typed programming language from the
+ML family, offering a powerful module system extending that of
+Standard ML and a feature-rich, class-based object system.
+
+OCaml comprises two compilers. One generates bytecode which is then
+interpreted by a C program. This compiler runs quickly, generates
+compact code with moderate memory requirements, and is portable to
+many 32 or 64 bit platforms. Performance of generated programs is
+quite good for a bytecoded implementation.  This compiler can be used
+either as a standalone, batch-oriented compiler that produces
+standalone programs, or as an interactive REPL system.
+
+The other compiler generates high-performance native code for a number of
+processors. Compilation takes longer and generates bigger code, but the
+generated programs deliver excellent performance, while retaining the
+moderate memory requirements of the bytecode compiler. The native-code
+compiler currently runs on the following platforms:
+
+|====
+|                |  Tier 1 (actively maintained)   | Tier 2 (maintained when possible)
+
+| x86 64 bits    | Linux, macOS, Windows, FreeBSD  |  NetBSD, OpenBSD, OmniOS (Solaris)
+| ARM 64 bits    | Linux, macOS                    |  FreeBSD, OpenBSD, NetBSD
+| Power 64 bits  | Linux (little-endian, ABIv2)    |  Linux (big-endian, ABIv2)
+| RISC-V 64 bits | Linux                           |
+| IBM Z (s390x)  | Linux                           |
+|====
+
+Other operating systems for the processors above have not been tested, but
+the compiler may work under other operating systems with little work.
+
+
+== Copyright
+
+All files marked "Copyright INRIA" in this distribution are
+Copyright (C) 1996-2023 Institut National de Recherche en Informatique et
+en Automatique (INRIA) and distributed under the conditions stated in
+file LICENSE.
+
+== Installation
+
+See the file link:INSTALL.adoc[] for installation instructions on
+machines running Unix, Linux, macOS, WSL and Cygwin.  For native Microsoft
+Windows, see link:README.win32.adoc[].
+
+== Documentation
+
+The OCaml manual is distributed in HTML, PDF, and Emacs
+Info files.  It is available at
+
+https://ocaml.org/releases/latest/manual.html
+
+== Availability
+
+The complete OCaml distribution can be accessed at
+
+https://ocaml.org/docs/install.html
+
+== Keeping in Touch with the Caml Community
+
+There is an active and friendly discussion forum at
+
+https://discuss.ocaml.org/
+
+The OCaml mailing list is the longest-running forum for OCaml users.
+You can email it at
+
+mailto:caml-list@inria.fr[]
+
+You can subscribe and access list archives via the Web interface at
+
+https://sympa.inria.fr/sympa/subscribe/caml-list
+
+There also exist other mailing lists, chat channels, and various other forums
+around the internet for getting in touch with the OCaml and ML family language
+community. These can be accessed at
+
+https://ocaml.org/community/
+
+In particular, the IRC channel `#ocaml` on https://libera.chat/[Libera] has a
+long history and welcomes questions.
+
+== Bug Reports and User Feedback
+
+Please report bugs using the issue tracker at
+https://github.com/ocaml/ocaml/issues
+
+To be effective, bug reports should include a complete program (preferably
+small) that exhibits the unexpected behavior, and the configuration you are
+using (machine type, etc).
+
+For information on contributing to OCaml, see link:HACKING.adoc[] and
+link:CONTRIBUTING.md[].
+
+== Separately maintained components
+
+Some libraries and tools which used to be part of the OCaml distribution are
+now maintained separately and distributed as OPAM packages.
+Please use the issue trackers at their respective new homes:
+
+|====
+| Library           |  Removed since    |  OPAM package
+
+| https://github.com/ocaml/camlp-streams/issues[The Stream and Genlex standard library modules] | OCaml 5.0 | `camlp-streams`
+| https://github.com/ocaml/graphics/issues[The Graphics library] | OCaml 4.09 | `graphics`
+| https://github.com/ocaml/num/issues[The Num library] | OCaml 4.06 | `num`
+| https://github.com/ocaml/ocamlbuild/issues[The OCamlbuild tool] | OCaml 4.03 | `ocamlbuild`
+| https://github.com/camlp4/camlp4/issues[The camlp4 tool] | OCaml 4.02 | `camlp4`
+| https://github.com/garrigue/labltk/issues[The LablTk library] | OCaml 4.02 | `labltk`
+| https://github.com/ocaml/dbm/issues[The CamlDBM library] | OCaml 4.00 | `dbm`
+| https://github.com/xavierleroy/ocamltopwin/issues[The OCamlWinTop Windows toplevel] | OCaml 4.00 | none
+|=====
