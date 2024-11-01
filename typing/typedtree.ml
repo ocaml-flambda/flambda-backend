@@ -84,9 +84,14 @@ module Unique_barrier = struct
       zapped
     | Resolved barrier -> barrier
     | Not_computed ->
-      if Language_extension.is_enabled Unique then
-        Misc.fatal_error "A unique barrier was not enabled by the analysis"
-      else Uniqueness.Const.Aliased
+      (* CR uniqueness: The uniqueness analysis does not go into legacy
+         language constructs such as objects; for those, we default to legacy.
+         We should change the uniqueness analysis to also traverse these
+         constructs. Then this case will be impossible to reach and we can fail
+         here. Failing here will protect us when future language extensions are
+         not traversing the uniqueness analysis. This ensures that the
+         unique barriers will stay sound for future extensions. *)
+      Uniqueness.Const.legacy
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
