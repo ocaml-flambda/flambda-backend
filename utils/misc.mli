@@ -656,6 +656,9 @@ module Style : sig
   val as_inline_code: (Format.formatter -> 'a -> unit as 'printer) -> 'printer
   val inline_code: Format.formatter -> string -> unit
 
+  val as_clflag:
+    string -> (Format.formatter -> 'a -> unit as 'printer) -> 'printer
+
   val default_styles: styles
   val get_styles: unit -> styles
   val set_styles: styles -> unit

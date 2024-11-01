@@ -1,4 +1,6 @@
 File "_none_", line 1:
-Error: Float_list_element and Int_list_element
-       were both compiled with -as-argument-for List_element.
+Error: Cannot use both "Float_list_element" and "Int_list_element"
+       as arguments, since they are both arguments for "List_element".
        Only one argument may be given for each parameter.
+Hint: Both "Float_list_element" and "Int_list_element"
+      were compiled with "-as-argument-for List_element".

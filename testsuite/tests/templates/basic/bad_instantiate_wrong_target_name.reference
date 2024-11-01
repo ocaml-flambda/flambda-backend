@@ -1,3 +1,4 @@
 File "_none_", line 1:
-Error: Filename given by -o must have basename list_monoid-Int_list_element
-       to produce the desired instance List_monoid[List_element:Int_list_element]
+Error: Incorrect output basename "not_the_correct_target_name"
+       for instance "List_monoid[List_element:Int_list_element]".
+Hint: Compile with "-o list_monoid-Int_list_element.cmx" or omit "-o" entirely.

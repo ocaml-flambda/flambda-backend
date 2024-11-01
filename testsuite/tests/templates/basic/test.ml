@@ -305,6 +305,9 @@
            ocamlc_byte_exit_status = "2";
            ocamlc.byte;
 
+           reason = "output depends on .cmo vs .cmx";
+           skip;
+
            compiler_reference = "bad_instantiate_not_parameterised.reference";
            check-ocamlc.byte-output;
          }{
@@ -315,6 +318,9 @@
            compiler_output = "bad_instantiate_not_arg.output";
            ocamlc_byte_exit_status = "2";
            ocamlc.byte;
+
+           reason = "output depends on .cmo vs .cmx";
+           skip;
 
            compiler_reference = "bad_instantiate_not_arg.reference";
            check-ocamlc.byte-output;
@@ -360,6 +366,9 @@
            compiler_output = "bad_instantiate_wrong_target_name.output";
            ocamlc_byte_exit_status = "2";
            ocamlc.byte;
+
+           reason = "output depends on .cmo vs .cmx";
+           skip;
 
            compiler_reference = "bad_instantiate_wrong_target_name.reference";
            check-ocamlc.byte-output;

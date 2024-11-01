@@ -1,2 +1,3 @@
 File "_none_", line 1:
-Error: Int_list_element must be compiled with at least one -parameter
+Error: Cannot instantiate "Int_list_element" because it has no parameters.
+Hint: Compile "int_list_element.cmx" with "-parameter".

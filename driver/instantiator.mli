@@ -22,17 +22,25 @@ val instantiate
   -> unit
 
 type error =
-  | Not_compiled_as_argument of CU.t
+  | Not_compiled_as_argument of {
+      compilation_unit : CU.t;
+      filename : Misc.filepath;
+      base_unit : CU.t;
+    }
   | Incorrect_target_filename of {
       expected_basename : Misc.filepath;
       expected_extension : string;
       actual_basename : Misc.filepath;
       compilation_unit : CU.t;
     }
-  | Not_parameterised of CU.t
+  | Not_parameterised of {
+      compilation_unit : CU.t;
+      filename : Misc.filepath;
+    }
   | Missing_argument of { param : Global_module.Name.t }
   | No_such_parameter of {
       base_unit : CU.t;
+      available_params : Global_module.Name.t list;
       param : Global_module.Name.t;
       arg : Global_module.Name.t
     }

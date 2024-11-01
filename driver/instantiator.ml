@@ -1,19 +1,27 @@
 module CU = Compilation_unit
 
 type error =
-  | Not_compiled_as_argument of CU.t
+  | Not_compiled_as_argument of {
+      compilation_unit : CU.t;
+      filename : Misc.filepath;
+      base_unit : CU.t;
+    }
   | Incorrect_target_filename of {
       expected_basename : Misc.filepath;
       expected_extension : string;
       actual_basename : Misc.filepath;
       compilation_unit : CU.t;
     }
-  | Not_parameterised of CU.t
+  | Not_parameterised of {
+      compilation_unit : CU.t;
+      filename : Misc.filepath;
+    }
   | Missing_argument of { param : Global_module.Name.t }
   | No_such_parameter of {
       base_unit : CU.t;
+      available_params : Global_module.Name.t list;
       param : Global_module.Name.t;
-      arg : Global_module.Name.t
+      arg : Global_module.Name.t;
     }
   | Repeated_parameter of {
       param : Global_module.Name.t;
@@ -37,9 +45,14 @@ let instantiate
   let unit_infos = read_unit_info src in
   let base_compilation_unit = unit_infos.ui_unit in
   let arg_info_of_cm_path cm_path =
+    let base_unit_infos = unit_infos in
     let unit_infos = read_unit_info cm_path in
     match unit_infos.ui_arg_descr with
-    | None -> error (Not_compiled_as_argument unit_infos.ui_unit)
+    | None ->
+      error (Not_compiled_as_argument
+               { compilation_unit = unit_infos.ui_unit;
+                 filename = cm_path;
+                 base_unit = base_unit_infos.ui_unit; })
     | Some { arg_param; arg_block_field } ->
       arg_param, (unit_infos.ui_unit, arg_block_field)
   in
@@ -76,16 +89,19 @@ let instantiate
       Env.global_of_instance_compilation_unit compilation_unit
     with
     | Persistent_env.Error (Imported_module_has_unset_parameter e) ->
-      raise (Error (Missing_argument { param = e.parameter }))
+      error (Missing_argument { param = e.parameter })
     | Persistent_env.Error (Imported_module_has_no_such_parameter e) ->
       begin
         let base_unit = unit_infos.ui_unit in
         match e.valid_parameters with
-        | [] -> raise (Error (Not_parameterised base_unit))
-        | _ ->
+        | [] ->
+          let compilation_unit = base_unit in
+          let filename = src in
+          error (Not_parameterised { compilation_unit; filename })
+        | available_params ->
           let param = e.parameter in
           let arg = e.value in
-          raise (Error (No_such_parameter { base_unit; param; arg }))
+          error (No_such_parameter { base_unit; available_params; param; arg })
       end
   in
   let arg_subst : Global_module.subst =
@@ -140,42 +156,77 @@ let instantiate
 (* Error report *)
 
 open Format
+module Style = Misc.Style
+
+let pp_parameters ppf params =
+  fprintf ppf "@[<hov>%a@]"
+    (pp_print_list ~pp_sep:pp_print_space
+       (Style.as_inline_code Global_module.Name.print))
+    params
 
 let report_error ppf = function
-  | Not_compiled_as_argument compilation_unit ->
+  | Not_compiled_as_argument
+      { base_unit; compilation_unit; filename } ->
+    (* CR lmaurer: Would be nice to list out the parameters of the base unit
+       here but that turns out to be very awkward (this gets raised before we've
+       gotten [Persistent_env] involved and that's what knows the parameters).
+       Worth revisiting if the situation changes or we really want a more
+       convenient error message. *)
     fprintf ppf
-      "Argument must be compiled with -as-argument-for: %a"
-      CU.print compilation_unit
+      "@[<hov>Module %a@ cannot be used as an argument.@]@.\
+       @[<hov>@{<hint>Hint@}: \
+         @[<hov>Compile %a@ with @{<inline_code>-as-argument-for Foo@}@ where \
+           @{<inline_code>Foo@} is a parameter of %a.@]@]"
+      (Style.as_inline_code CU.print) compilation_unit
+      (Style.as_inline_code Location.print_filename) filename
+      (Style.as_inline_code CU.print) base_unit
   | Incorrect_target_filename
-      { expected_basename; expected_extension = _; actual_basename = _;
+      { expected_basename; expected_extension; actual_basename;
         compilation_unit } ->
+    let expected_filename = expected_basename ^ expected_extension in
     fprintf ppf
-      "Filename given by -o must have basename %s@ \
-       to produce the desired instance %a"
-      expected_basename
-      CU.print compilation_unit
-  | Not_parameterised compilation_unit ->
-    fprintf ppf "%a must be compiled with at least one -parameter"
-      CU.print compilation_unit
+      "@[<hov>Incorrect output basename %a@ for instance %a.@]@.\
+       @[<hov>@{<hint>Hint@}: @[<hov>Compile with %a@ or omit \
+         @{<inline_code>-o@} entirely.@]@]"
+      Style.inline_code actual_basename
+      (Style.as_inline_code CU.print) compilation_unit
+      (Style.as_clflag "-o" pp_print_string) expected_filename
+  | Not_parameterised { compilation_unit; filename } ->
+    fprintf ppf
+      "@[<hov>Cannot instantiate %a@ because it has no parameters.@]@.\
+       @[<hov>@{<hint>Hint@}: \
+         @[<hov>Compile %a@ with @{<inline_code>-parameter@}.@]@]"
+      (Style.as_inline_code CU.print) compilation_unit
+      (Style.as_inline_code Location.print_filename) filename
   | Missing_argument { param } ->
     fprintf ppf "No argument given for parameter %a"
-      Global_module.Name.print param
-  | No_such_parameter { base_unit; param; arg } ->
+      (Style.as_inline_code Global_module.Name.print) param
+  | No_such_parameter { base_unit; available_params; param; arg } ->
     fprintf ppf
-      "Mismatched argument: %a@ was compiled with -as-argument-for %a@ \
-       but %a@ was not compiled with -parameter %a"
-      Global_module.Name.print arg
-      Global_module.Name.print param
-      CU.print base_unit
-      Global_module.Name.print param
+      "@[<hov>Module %a@ is an argument for parameter %a,@ \
+         which is not a parameter of %a.@]@.\
+       @[<hov>@{<hint>Hint@}: @[<hov>%a@ was compiled with %a.@]@]@.\
+       @[<hov>@{<hint>Hint@}: @[<hov>Parameters of %a:@ %a@]@]"
+      (Style.as_inline_code Global_module.Name.print) arg
+      (Style.as_inline_code Global_module.Name.print) param
+      (Style.as_inline_code CU.print) base_unit
+      (Style.as_inline_code Global_module.Name.print) arg
+      (Style.as_clflag "-as-argument-for" Global_module.Name.print) param
+      (Style.as_inline_code CU.print) base_unit
+      pp_parameters available_params
   | Repeated_parameter { param; arg1; arg2 } ->
     fprintf ppf
-      "%a@ and %a@ were both compiled with -as-argument-for %a.@ \
-       Only one argument may be given for each parameter."
-      CU.print arg1
-      CU.print arg2
-      Global_module.Name.print param
-
+      "@[<hov>Cannot use both %a@ and %a@ as arguments, since they are both \
+         arguments for %a.@ Only one argument may be given for each \
+         parameter.@]@.\
+       @[<hov>@{<hint>Hint@}: @[<hov>Both %a@ and %a@ were compiled \
+         with %a.@]@]"
+      (Style.as_inline_code CU.print) arg1
+      (Style.as_inline_code CU.print) arg2
+      (Style.as_inline_code Global_module.Name.print) param
+      (Style.as_inline_code CU.print) arg1
+      (Style.as_inline_code CU.print) arg2
+      (Style.as_clflag "-as-argument-for" Global_module.Name.print) param
 let () =
   Location.register_error_of_exn
     (function
