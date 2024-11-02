@@ -52,6 +52,75 @@ Error:
 (* CR rtjoa: this shouldn't overflow, but it should error *)
 type bad : float64 = #{ bad : bad ; i : int}
 [%%expect{|
-Uncaught exception: Stack overflow
-
+Line 1, characters 0-44:
+1 | type bad : float64 = #{ bad : bad ; i : int}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The layout of type "bad" is ((((((((((((((((((((((((((((((((((((
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (
+                                                                    (float64 & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value
+         because it is an unboxed record.
+       But the layout of type "bad" must be a sublayout of float64
+         because of the annotation on the declaration of the type bad.
 |}]

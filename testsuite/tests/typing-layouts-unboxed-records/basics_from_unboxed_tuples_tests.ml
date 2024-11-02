@@ -116,7 +116,7 @@ Error: This type "bool" should be an instance of type "('a : value & bits64)"
          because of the definition of t6 at line 1, characters 0-37.
 |}]
 
-(* CR rtjoa: "unboxed record" *)
+(* CR rtjoa: claims kind of t6_wrong_inner_record is value *)
 type t6_wrong_inner_record = #{ i : int; i64 : int64 }
 and ('a : value & bits64) t6_wrong = 'a t7_wrong
 and 'a t7_wrong = { x : t6_wrong_inner_record t6_wrong }
@@ -125,10 +125,9 @@ Line 1, characters 0-54:
 1 | type t6_wrong_inner_record = #{ i : int; i64 : int64 }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of t6_wrong_inner_record is value & value
-         because it is an unboxed tuple.
-       But the layout of t6_wrong_inner_record must be a sublayout of
-         value & bits64
+       The layout of t6_wrong_inner_record is value
+         because it is the primitive type int64.
+       But the layout of t6_wrong_inner_record must be a sublayout of bits64
          because of the annotation on 'a in the declaration of the type
                                       t6_wrong.
 |}]

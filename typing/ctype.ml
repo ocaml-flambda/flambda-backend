@@ -2085,7 +2085,7 @@ type unbox_result =
   (* unboxing process made a step: either an unboxing or removal of a [Tpoly] *)
   | Stepped of type_expr
   (* unboxing process unboxed a product. Invariant: length >= 2 *)
-  | Stepped_product of type_expr list
+  | Stepped_record_unboxed_product of type_expr list
   (* no step to make; we're all done here *)
   | Final_result
   (* definition not in environment: missing cmi *)
@@ -2106,7 +2106,7 @@ let unbox_once env ty =
         | Type_record_unboxed_product ([{ld_type = arg; _}], Record_unboxed_product _) ->
           Stepped (apply arg)
         | Type_record_unboxed_product ((_::_::_ as lbls), Record_unboxed_product _) ->
-          Stepped_product (List.map (fun ld -> apply ld.ld_type) lbls)
+          Stepped_record_unboxed_product (List.map (fun ld -> apply ld.ld_type) lbls)
         | _ -> Final_result
         end
       end
@@ -2125,7 +2125,7 @@ let rec get_unboxed_type_representation env ty_prev ty fuel =
     match unbox_once env ty with
     | Stepped ty2 ->
       get_unboxed_type_representation env ty ty2 (fuel - 1)
-    | Stepped_product _ ->
+    | Stepped_record_unboxed_product _ ->
       Ok ty
     | Final_result -> Ok ty
     | Missing _ -> Ok ty_prev
@@ -2181,10 +2181,57 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tpoly (ty, _) -> estimate_type_jkind ~expand_component env ty
   | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
+(* Returns [ran_out_of_fuel * best_effort_jkind] *)
+let rec ty_jkind env ty_prev ty fuel =
+  let fuel = fuel - 1 in
+  if fuel < 0 then
+    let _, jkind = ty_jkind_unboxed env ty fuel in
+    true, jkind
+  else
+  let ty = expand_head_opt env ty in
+  match unbox_once env ty with
+  | Stepped ty' -> ty_jkind env ty ty' fuel
+  | Stepped_record_unboxed_product component_tys ->
+    let out_of_fuel, component_jkinds = tys_jkinds env component_tys fuel in
+    out_of_fuel, Jkind.Builtin.product ~why:Unboxed_record component_jkinds
+  | Final_result -> ty_jkind_unboxed env ty fuel
+  | Missing _ -> ty_jkind_unboxed env ty_prev fuel
+and tys_jkinds env tys fuel =
+  List.fold_left_map (fun any_out_of_fuel ty ->
+    let out_of_fuel, jkind = ty_jkind env ty ty fuel in
+    (any_out_of_fuel || out_of_fuel), jkind
+  ) false tys
+(* We've scraped off [@@unboxed] and unboxed records as much as we can... *)
+and ty_jkind_unboxed env ty fuel =
+  match get_desc ty with
+  | Tvar { jkind } -> false, Jkind.disallow_right jkind
+  | Tarrow _ -> false, Jkind.for_arrow
+  | Ttuple _ -> false, Jkind.Builtin.value ~why:Tuple
+  | Tunboxed_tuple ltys ->
+    let out_of_fuel, component_jkinds = tys_jkinds env (List.map snd ltys) fuel in
+    out_of_fuel, Jkind.Builtin.product ~why:Unboxed_tuple component_jkinds
+  | Tconstr (p, _, _) -> begin
+      try
+        let res = (Env.find_type p env) in
+        false, res.type_jkind
+      with
+        Not_found -> false, Jkind.Builtin.any ~why:(Missing_cmi p)
+    end
+  | Tobject _ -> false, Jkind.Builtin.value ~why:Object
+  | Tfield _ -> false, Jkind.Builtin.value ~why:Tfield
+  | Tnil -> false, Jkind.Builtin.value ~why:Tnil
+  | Tlink _ | Tsubst _ -> assert false
+  | Tvariant row ->
+     if tvariant_not_immediate row
+     then false, Jkind.Builtin.value ~why:Polymorphic_variant
+     else false, Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
+  | Tunivar { jkind } -> false, Jkind.disallow_right jkind
+  | Tpoly (ty, _) -> ty_jkind_unboxed env ty fuel
+  | Tpackage _ -> false, Jkind.Builtin.value ~why:First_class_module
+
 let type_jkind env ty =
-  estimate_type_jkind env
-    ~expand_component:(get_unboxed_type_approximation env)
-    (get_unboxed_type_approximation env ty)
+  let _, jkind = ty_jkind env ty ty 100 in
+  jkind
 
 let type_jkind_purely env ty =
   if !Clflags.principal || Env.has_local_constraints env then
@@ -2320,7 +2367,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                | Stepped ty ->
                   loop ~fuel:(fuel - 1) ~expanded:false ty
                     (estimate_type_jkind env ty) jkind
-               | Stepped_product tys ->
+               | Stepped_record_unboxed_product tys ->
                   product tys
                end
           | Tunboxed_tuple ltys -> product (List.map snd ltys)
