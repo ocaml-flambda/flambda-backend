@@ -2184,7 +2184,8 @@ and store_label
   fun  ~record_form ~check type_decl type_id lbl_id lbl env ->
   Builtin_attributes.warning_scope lbl.lbl_attributes (fun () ->
   if check && not type_decl.type_loc.Location.loc_ghost
-     && Warnings.is_active (Warnings.Unused_field ("", Unused))
+     && Warnings.is_active
+          (Warnings.Unused_field (record_form_to_string record_form, "", Unused))
   then begin
     let ty_name = Ident.name type_id in
     let priv = type_decl.type_private in
@@ -2202,7 +2203,8 @@ and store_label
                  if not (is_in_signature env) then
                    Location.prerr_warning
                      (* CR rtjoa: may want to give record form in warning *)
-                     loc (Warnings.Unused_field(name, complaint)))
+                     loc (Warnings.Unused_field(record_form_to_string record_form,
+                                                name, complaint)))
               (label_usage_complaint priv mut used))
   end);
   Builtin_attributes.mark_alerts_used lbl.lbl_attributes;
