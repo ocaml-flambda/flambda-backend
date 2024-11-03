@@ -9,12 +9,13 @@
 
 open Stdlib_upstream_compatible
 
+
 (* Recursive unboxed records *)
 
 type bad = #{ bad : bad }
 [%%expect{|
-Line 5, characters 0-25:
-5 | type bad = #{ bad : bad }
+Line 6, characters 0-25:
+6 | type bad = #{ bad : bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
        The layout of bad is any
@@ -48,6 +49,18 @@ Error:
          because of the annotation on the declaration of the type bad.
        But the layout of bad must be representable
          because it is the type of record field bad.
+|}]
+
+type 'a id = #{ a : 'a }
+type cycle = cycle id
+[%%expect{|
+type 'a id = #{ a : 'a; }
+Line 2, characters 0-21:
+2 | type cycle = cycle id
+    ^^^^^^^^^^^^^^^^^^^^^
+Error: The type abbreviation "cycle" is cyclic:
+         "cycle" = "cycle id",
+         "cycle id" contains "cycle"
 |}]
 
 (* Maybe we can allow the next three...
