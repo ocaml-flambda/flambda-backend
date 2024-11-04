@@ -679,6 +679,8 @@ module Head_of_kind_value : sig
     array_contents Or_unknown.t ->
     Alloc_mode.For_types.t ->
     t
+
+  val null : t
 end
 
 module Head_of_kind_value_non_null : sig
