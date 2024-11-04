@@ -3233,7 +3233,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_kind = Ttype_abstract;
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
-    typ_jkind_annotation = None;
+    typ_jkind_annotation = Jkind.get_annotation type_jkind;
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)

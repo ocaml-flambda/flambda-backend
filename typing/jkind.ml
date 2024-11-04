@@ -335,17 +335,7 @@ end)
 
 let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
 
-let fresh_jkind jkind ~why =
-  { jkind; annotation = None; history = Creation why; has_warned = false }
-
-let fresh_jkind_annot jkind ~annotation ~why =
-  { jkind;
-    annotation = Some annotation;
-    history = Creation why;
-    has_warned = false
-  }
-
-let fresh_jkind_annot_opt jkind ~annotation ~why =
+let fresh_jkind jkind ~annotation ~why =
   { jkind; annotation; history = Creation why; has_warned = false }
 
 (******************************)
@@ -1005,6 +995,8 @@ module Jkind_desc = struct
         ([], [], Modes.min, Externality.min, Nullability.min)
         jkinds
     in
+    let layouts = List.rev layouts in
+    let annotations = List.rev annotations in
     let annotations = Misc.Stdlib.Monad.Option.all annotations in
     let annotation =
       Option.map
@@ -1013,7 +1005,7 @@ module Jkind_desc = struct
             { pjkind_loc = Location.none; pjkind_desc = Product annotations })
         annotations
     in
-    ( { layout : _ Layout.t = Product (List.rev layouts);
+    ( { layout : _ Layout.t = Product layouts;
         modes_upper_bounds = mode_ub;
         externality_upper_bound = ext_ub;
         nullability_upper_bound = null_ub
@@ -1035,8 +1027,9 @@ end
 (******************************)
 (* constants *)
 
+(* every context where this is used actually wants an [option] *)
 let mk_annot name =
-  Parsetree.{ pjkind_loc = Location.none; pjkind_desc = Abbreviation name }
+  Some Parsetree.{ pjkind_loc = Location.none; pjkind_desc = Abbreviation name }
 
 module Builtin = struct
   let any_dummy_jkind =
@@ -1052,38 +1045,38 @@ module Builtin = struct
     match why with
     | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
     | _ ->
-      fresh_jkind_annot Jkind_desc.Builtin.any ~annotation:(mk_annot "any")
+      fresh_jkind Jkind_desc.Builtin.any ~annotation:(mk_annot "any")
         ~why:(Any_creation why)
 
   let value_v1_safety_check =
     { jkind = Jkind_desc.Builtin.value_or_null;
-      annotation = Some (mk_annot "value");
+      annotation = mk_annot "value";
       history = Creation (Value_or_null_creation V1_safety_check);
       has_warned = false
     }
 
   let void ~why =
-    fresh_jkind_annot Jkind_desc.Builtin.void ~annotation:(mk_annot "void")
+    fresh_jkind Jkind_desc.Builtin.void ~annotation:(mk_annot "void")
       ~why:(Void_creation why)
 
   let value_or_null ~why =
     match (why : History.value_or_null_creation_reason) with
     | V1_safety_check -> value_v1_safety_check
     | _ ->
-      fresh_jkind_annot Jkind_desc.Builtin.value_or_null
+      fresh_jkind Jkind_desc.Builtin.value_or_null
         ~annotation:(mk_annot "value_or_null") ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
-    fresh_jkind_annot Jkind_desc.Builtin.value ~annotation:(mk_annot "value")
+    fresh_jkind Jkind_desc.Builtin.value ~annotation:(mk_annot "value")
       ~why:(Value_creation why)
 
   let immediate ~why =
-    fresh_jkind_annot Jkind_desc.Builtin.immediate
-      ~annotation:(mk_annot "immediate") ~why:(Immediate_creation why)
+    fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
+      ~why:(Immediate_creation why)
 
   let product ~why ts =
     let desc, annotation = Jkind_desc.product ts in
-    fresh_jkind_annot_opt desc ~annotation ~why:(Product_creation why)
+    fresh_jkind desc ~annotation ~why:(Product_creation why)
 end
 
 let add_nullability_crossing t =
@@ -1100,13 +1093,13 @@ let add_portability_and_contention_crossing ~from t =
 
 let of_new_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Maybe_null in
-  fresh_jkind jkind ~why:(Concrete_creation why), sort
+  fresh_jkind jkind ~annotation:None ~why:(Concrete_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
 
 let of_new_legacy_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Non_null in
-  fresh_jkind jkind ~why:(Concrete_legacy_creation why), sort
+  fresh_jkind jkind ~annotation:None ~why:(Concrete_legacy_creation why), sort
 
 let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
@@ -1129,7 +1122,7 @@ let of_const ~annotation ~why
   }
 
 let of_builtin ~why Const.Builtin.{ jkind; name } =
-  of_const ~annotation:(Some (mk_annot name)) ~why jkind
+  of_const ~annotation:(mk_annot name) ~why jkind
 
 let of_annotated_const ~context ~annotation ~const ~const_loc =
   of_const ~annotation ~why:(Annotated (context, const_loc)) const
@@ -1148,9 +1141,8 @@ let of_attribute ~context
   let ({ jkind = const; name } : _ Const.Builtin.t) =
     Const.Builtin.of_attribute attribute.txt
   in
-  of_annotated_const ~context
-    ~annotation:(Some (mk_annot name))
-    ~const ~const_loc:attribute.loc
+  of_annotated_const ~context ~annotation:(mk_annot name) ~const
+    ~const_loc:attribute.loc
 
 let of_type_decl ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
@@ -1195,7 +1187,7 @@ let for_arrow =
       externality_upper_bound = Externality.max;
       nullability_upper_bound = Non_null
     }
-    ~why:(Value_creation Arrow)
+    ~annotation:None ~why:(Value_creation Arrow)
 
 let for_object =
   fresh_jkind
@@ -1211,7 +1203,7 @@ let for_object =
       externality_upper_bound = Externality.max;
       nullability_upper_bound = Non_null
     }
-    ~why:(Value_creation Object)
+    ~annotation:None ~why:(Value_creation Object)
 
 (******************************)
 (* elimination and defaulting *)
