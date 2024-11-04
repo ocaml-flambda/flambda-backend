@@ -98,7 +98,7 @@ let alias_kind name simple t =
       ~const:(fun const ->
         match Int_ids.Const.descr const with
         | Naked_immediate _ -> Flambda_kind.naked_immediate
-        | Tagged_immediate _ -> Flambda_kind.value
+        | Tagged_immediate _ | Null -> Flambda_kind.value
         | Naked_float _ -> Flambda_kind.naked_float
         | Naked_float32 _ -> Flambda_kind.naked_float32
         | Naked_int32 _ -> Flambda_kind.naked_int32

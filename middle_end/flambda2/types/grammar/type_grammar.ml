@@ -3457,6 +3457,8 @@ let create_from_head_region head = Region (TD.create head)
 module Head_of_kind_value = struct
   type t = head_of_kind_value
 
+  let null = { non_null = Bottom; is_null = Maybe_null }
+
   let mk_non_null non_null = { non_null = Ok non_null; is_null = Not_null }
 
   let create_variant ~is_unique ~blocks ~immediates ~extensions =
