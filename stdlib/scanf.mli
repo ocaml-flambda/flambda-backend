@@ -17,6 +17,7 @@
 
 [@@@ocaml.warning "+A-e"]
 
+
 (** {1 Introduction} *)
 
 (** {2 Functional input with format strings} *)
@@ -90,6 +91,8 @@
 ]
 
 open! Stdlib
+include sig
+
 include sig
 
  (**
