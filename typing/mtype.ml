@@ -91,8 +91,8 @@ and strengthen_lazy_sig' ~aliasable sg p =
       let newdecl =
         match decl.type_manifest, decl.type_private, decl.type_kind with
           Some _, Public, _ -> decl
-        (* CR rtjoa:  *)
-        | Some _, Private, (Type_record _ | Type_record_unboxed_product _ | Type_variant _) ->
+        | Some _, Private, (Type_record _ | Type_record_unboxed_product _
+                            | Type_variant _) ->
           decl
         | _ ->
             let manif =
@@ -300,9 +300,8 @@ let rec sig_make_manifest sg =
     let newdecl =
       match decl.type_manifest, decl.type_private, decl.type_kind with
         Some _, Public, _ -> decl
-      (* CR rtjoa: "makes a signature item a manifest signature item"
-      see Making Modules Manifest *)
-      | Some _, Private, (Type_record _ | Type_record_unboxed_product _ | Type_variant _) -> decl
+      | Some _, Private,
+        (Type_record _ | Type_record_unboxed_product _ | Type_variant _) -> decl
       | _ ->
         let manif =
           Some (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))

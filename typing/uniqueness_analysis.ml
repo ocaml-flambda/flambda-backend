@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* CR rtjoa: unsure about changes to uniqueness analysis *)
+
 (* Uniqueness analysis, ran after type-checking *)
 
 open Asttypes
@@ -780,6 +782,10 @@ module Paths : sig
       [modal_child gf (Projection.Record_field s) t]. *)
   val record_field : Modality.Value.Const.t -> string -> t -> t
 
+  (** [record_unboxed_product_field gf s t] is
+      [modal_child gf (Projection.Record_unboxed_product_field s) t]. *)
+  val record_unboxed_product_field : Modality.Value.Const.t -> string -> t -> t
+
   (** [construct_field gf s i t] is
       [modal_child gf (Projection.Construct_field(s, i)) t]. *)
   val construct_field : Modality.Value.Const.t -> string -> int -> t -> t
@@ -827,6 +833,9 @@ end = struct
   let tuple_field i t = child (Projection.Tuple_field i) t
 
   let record_field gf s t = modal_child gf (Projection.Record_field s) t
+
+  let record_unboxed_product_field gf s t =
+    modal_child gf (Projection.Record_unboxed_product_field s) t
 
   let construct_field gf s i t =
     modal_child gf (Projection.Construct_field (s, i)) t
@@ -1120,16 +1129,19 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_record_unboxed_product (pats, _) ->
-    let uf_read = borrow_memory_address () in
+    (* No borrow since unboxed data can not be consumed. *)
+    no_borrow_memory_address ();
     let ext, uf_pats =
       List.map
         (fun (_, l, pat) ->
-          let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in
+          let paths =
+            Paths.record_unboxed_product_field l.lbl_modalities l.lbl_name paths
+          in
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match
     in
-    ext, UF.par uf_read uf_pats
+    ext, uf_pats
   | Tpat_array (_, _, pats) ->
     let uf_read = borrow_memory_address () in
     let ext, uf_pats =
@@ -1374,9 +1386,12 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
         fields
     in
     UF.par uf_ext (UF.pars (Array.to_list uf_fields))
-  | Texp_record_unboxed_product { fields; extended_expression = _ } ->
-    (* CR rtjoa: should texp_record_unboxed_product have a unique barrier? *)
-    let value, uf_ext = Value.fresh, UF.unused in
+  | Texp_record_unboxed_product { fields; extended_expression } ->
+    let value, uf_ext =
+      match extended_expression with
+      | None -> Value.fresh, UF.unused
+      | Some exp -> check_uniqueness_exp_as_value ienv exp
+    in
     let uf_fields =
       Array.map
         (fun field ->
@@ -1534,9 +1549,6 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
           Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
       in
       value, UF.seqs [uf; uf_read; uf_boxing])
-  | Texp_unboxed_field (_e, _, _l, _unique_use) ->
-    (* CR rtjoa: uniqueness *)
-    Value.fresh, UF.unused
   (* CR-someday anlorenzen: This could also support let-bindings. *)
   | _ -> Value.fresh, check_uniqueness_exp ienv exp
 

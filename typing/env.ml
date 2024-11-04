@@ -2215,7 +2215,6 @@ and store_label
               (fun complaint ->
                  if not (is_in_signature env) then
                    Location.prerr_warning
-                     (* CR rtjoa: may want to give record form in warning *)
                      loc (Warnings.Unused_field(record_form_to_string record_form,
                                                 name, complaint)))
               (label_usage_complaint priv mut used))

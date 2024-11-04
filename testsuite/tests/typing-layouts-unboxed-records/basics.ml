@@ -286,7 +286,6 @@ Error: The layout of type "t5_bad" is value & (float64 & value & value) & value
 
 (**********************************************************)
 
-(* CR rtjoa: this error should actually complain that the boxiness doesn't match *)
 type 'a t = #{ x : 'a }
 let convert (r : int t) : int t =
   { r with x = string }

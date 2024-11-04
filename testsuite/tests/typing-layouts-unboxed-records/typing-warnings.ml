@@ -3,13 +3,37 @@
  expect;
 *)
 
-(* Adapted from [testsuite/tests/typing-warnings/records.ml] *)
 (* CR rtjoa: some of these warnings can still be changed to say "unboxed record" *)
+
+module Duplicate_label_definitions = struct
+  type t = { a : int }
+  and t2 = #{ a : int }
+end
+[%%expect{|
+module Duplicate_label_definitions :
+  sig type t = { a : int; } and t2 = #{ a : int; } end
+|}]
+
+module Duplicate_label_definitions2 = struct
+  type t = #{ a : int }
+  and t2 = #{ a : int }
+end
+[%%expect{|
+Line 3, characters 14-21:
+3 |   and t2 = #{ a : int }
+                  ^^^^^^^
+Warning 30 [duplicate-definitions]: the unboxed record label a is defined in both types t and t2.
+
+module Duplicate_label_definitions2 :
+  sig type t = #{ a : int; } and t2 = #{ a : int; } end
+|}]
 
 external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 [%%expect{|
 external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 |}]
+
+(* This below tests are adapted from [testsuite/tests/typing-warnings/records.ml] *)
 
 (* Use type information *)
 module M1 = struct
@@ -322,7 +346,7 @@ it will not compile with OCaml 4.00 or earlier.
 Line 3, characters 10-25:
 3 |   let r = #{x=true;z='z'}
               ^^^^^^^^^^^^^^^
-Error: Some record fields are undefined: "y"
+Error: Some unboxed record fields are undefined: "y"
 |}]
 
 module OK = struct
@@ -508,12 +532,14 @@ module B = struct type t = #{x: int} end;;
 module A : sig type t = #{ x : int; } end
 module B : sig type t = #{ x : int; } end
 |}]
-let f (r : B.t) = r.A.x;; (* fail *)
+let f (r : B.t) = r.#A.x;; (* fail *)
 [%%expect{|
-Line 1, characters 18-19:
-1 | let f (r : B.t) = r.A.x;; (* fail *)
-                      ^
-Error: This expression has type "B.t" which is not a record type.
+Line 1, characters 21-24:
+1 | let f (r : B.t) = r.#A.x;; (* fail *)
+                         ^^^
+Error: The unboxed record field "A.x" belongs to the unboxed record type "A.t"
+       but a unboxed record field was expected belonging to the unboxed record type
+         "B.t"
 |}]
 
 (* Spellchecking *)

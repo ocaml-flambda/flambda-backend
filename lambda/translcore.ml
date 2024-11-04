@@ -694,7 +694,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
       end
-  | Texp_unboxed_field(arg, id, lbl, _float) ->
+  | Texp_unboxed_field(arg, id, lbl) ->
     begin match lbl.lbl_repres with
     | Record_unboxed_product jkinds ->
       check_record_field_sort id.loc (Jkind.sort_of_jkind lbl.lbl_jkind);

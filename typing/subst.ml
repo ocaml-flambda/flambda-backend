@@ -115,7 +115,7 @@ let with_additional_action =
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
           | Product descs ->
             (* CR rtjoa: reason possibly could also be an unboxed record? *)
-            Jkind.Builtin.product ~why:Unboxed_record
+            Jkind.Builtin.product ~why:Unboxed_tuple
               (List.map (prepare_desc loc) descs)
         in
         let prepare_jkind loc lay : _ Jkind.t =

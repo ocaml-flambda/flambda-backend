@@ -421,8 +421,7 @@ and expression_desc =
       texp_field_boxing * Unique_barrier.t
     (** [texp_field_boxing] provides extra information depending on if the
         projection requires boxing. *)
-  | Texp_unboxed_field of expression * Longident.t loc * Types.unboxed_label_description *
-      unique_use
+  | Texp_unboxed_field of expression * Longident.t loc * Types.unboxed_label_description
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression

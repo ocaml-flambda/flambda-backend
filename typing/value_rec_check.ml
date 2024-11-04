@@ -183,9 +183,8 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_record _ ->
         Static
 
-    (* CR rtjoa: wrong, need to fold over fields *)
     | Texp_record_unboxed_product _ ->
-        Static
+        Dynamic
 
     | Texp_variant _
     | Texp_tuple _
@@ -859,7 +858,7 @@ let rec expression : Typedtree.expression -> term_judg =
         G |- e.x: m
       *)
       expression e << Dereference
-    | Texp_unboxed_field (e, _, _, _) ->
+    | Texp_unboxed_field (e, _, _) ->
       (*
         G |- e: m[Dereference]
         -----------------------

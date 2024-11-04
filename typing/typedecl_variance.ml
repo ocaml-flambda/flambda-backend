@@ -356,7 +356,6 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)
       | Type_record_unboxed_product (ftl, _) ->
-        (* CR rtjoa:  *)
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)

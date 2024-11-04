@@ -500,8 +500,8 @@ let expr sub x =
         }
     | Texp_field (exp, lid, ld, float, ubr) ->
         Texp_field (sub.expr sub exp, map_loc sub lid, ld, float, ubr)
-    | Texp_unboxed_field (exp, lid, ld, float) ->
-        Texp_unboxed_field (sub.expr sub exp, map_loc sub lid, ld, float)
+    | Texp_unboxed_field (exp, lid, ld) ->
+        Texp_unboxed_field (sub.expr sub exp, map_loc sub lid, ld)
     | Texp_setfield (exp1, am, lid, ld, exp2) ->
         Texp_setfield (
           sub.expr sub exp1,

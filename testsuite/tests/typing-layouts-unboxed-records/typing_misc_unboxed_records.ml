@@ -126,7 +126,7 @@ Error: Unbound record field "Complex.z"
 Line 1, characters 3-7:
 1 | #{ true with contents = 0 };;
        ^^^^
-Error: This expression has type "bool" which is not an unboxed record type.
+Error: This expression has type "bool" which is not a unboxed record type.
 |}];;
 
 type ('a, 'b) t = #{ fst : 'a; snd : 'b };;

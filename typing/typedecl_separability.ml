@@ -633,7 +633,7 @@ let check_def
       |> msig_of_context ~decl_loc:def.type_loc
            ~parameters:constructor.result_type_parameter_instances
   | Unboxed_product ->
-      (* CR rtjoa: not sure if this is right. 1-1 *)
+      (* CR rtjoa 1-1: not sure if this is right. also see structure *)
       best_msig def
 
 let compute_decl env decl =

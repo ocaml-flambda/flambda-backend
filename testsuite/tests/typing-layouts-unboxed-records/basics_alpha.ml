@@ -49,7 +49,7 @@ Error:
 
 (* This test as placed at the bottom because it pollutes whatever comes after it: *)
 
-(* CR rtjoa: this shouldn't overflow, but it should error *)
+(* CR rtjoa: this shouldn't overflow, but it should error 1-1 *)
 type bad : float64 = #{ bad : bad ; i : int}
 [%%expect{|
 Line 1, characters 0-44:

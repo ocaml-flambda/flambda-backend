@@ -501,8 +501,8 @@ let matcher discr (p : Simple.pattern) rem =
       (* we already expanded the record fully *)
       yesif (List.length l = List.length l')
   | Lazy, Lazy -> yes ()
-  | ( Constant _ | Construct _ | Variant _ | Lazy | Array _ | Record _ | Record_unboxed_product _ | Tuple _
-    | Unboxed_tuple _), _
+  | ( Constant _ | Construct _ | Variant _ | Lazy | Array _ | Record _
+    | Record_unboxed_product _ | Tuple _ | Unboxed_tuple _), _
     ->
       no ()
 
@@ -1291,8 +1291,8 @@ let can_group discr pat =
           | Const_int32 _ | Const_int64 _ | Const_nativeint _
           | Const_unboxed_int32 _ | Const_unboxed_int64 _
           | Const_unboxed_nativeint _ )
-      | Construct _ | Tuple _ | Unboxed_tuple _ | Record _ | Record_unboxed_product _ | Array _
-      | Variant _ | Lazy ) ) ->
+      | Construct _ | Tuple _ | Unboxed_tuple _ | Record _ | Record_unboxed_product _
+      | Array _ | Variant _ | Lazy ) ) ->
       false
 
 let is_or p =
@@ -2450,11 +2450,6 @@ let divide_record all_labels ~scopes head ctx pm =
     head ctx pm
 
 let divide_record_unboxed_product all_labels ~scopes head ctx pm =
-  (* There is some redundancy in the expansions here, [head] is
-     expanded here and again in the matcher. It would be
-     nicer to have a type-level distinction between expanded heads
-     and non-expanded heads, to be able to reason confidently on
-     when expansions must happen. *)
   let head = expand_record_unboxed_product_head head in
   divide_line (Context.specialize head)
     (get_expr_args_record_unboxed_product ~scopes)

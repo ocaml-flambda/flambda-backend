@@ -225,7 +225,7 @@ type error =
     }
   | Apply_wrong_label of arg_label * type_expr * bool
   | Label_multiply_defined of string
-  | Label_missing of Ident.t list
+  | Label_missing of record_form_packed * Ident.t list
   | Label_not_mutable of Longident.t
   | Wrong_name of string * type_expected * wrong_name
   | Name_type_mismatch of
@@ -292,8 +292,7 @@ type error =
   | Unbound_existential of Ident.t list * type_expr
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
-  | Expr_not_a_record_type of type_expr
-  | Expr_not_a_record_unboxed_product_type of type_expr
+  | Expr_not_a_record_type of record_form_packed * type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.locality_context option *

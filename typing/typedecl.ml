@@ -209,7 +209,6 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let path = Path.Pident id in
   let any = Jkind.Builtin.any ~why:Initial_typedecl_env in
 
-  (* CR rtjoa: read *)
   (* There is some trickiness going on here with the jkind.  It expands on an
      old trick used in the manifest of [decl] below.
 
@@ -471,7 +470,6 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
       )
   in
   let lbls = List.map mk lbls in
-  (* CR rtjoa: what is labels'? *)
   let lbls' =
     List.map
       (fun ld ->
@@ -663,7 +661,6 @@ let verify_unboxed_attr unboxed_attr sdecl =
       end
   end
 
-(* CR rtjoa: read *)
 (* Note [Default jkinds in transl_declaration]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    For every type declaration we create in transl_declaration, we must
@@ -936,9 +933,8 @@ let transl_declaration env sdecl (id, uid) =
           Language_extension.assert_enabled ~loc:sdecl.ptype_loc Layouts Language_extension.Beta;
           let lbls, lbls' =
             transl_labels ~new_var_jkind:Any ~allow_unboxed:true
-            env None true lbls (Record_unboxed_product_sort)
+            env None true lbls Record_unboxed_product_sort
           in
-          (* CR rtjoa: map unnecessary *)
           let jkind_ls = List.map (fun _ -> any) lbls in
           (* CR rtjoa: should this be any? *)
           let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
@@ -1181,7 +1177,8 @@ let narrow_to_manifest_jkind env loc decl =
 let check_kind_coherence env loc dpath decl =
   match decl.type_kind, decl.type_manifest with
   (* CR rtjoa:  *)
-  | (Type_variant _ | Type_record _ | Type_record_unboxed_product _ | Type_open), Some ty ->
+  | (Type_variant _ | Type_record _ | Type_record_unboxed_product _ | Type_open),
+    Some ty ->
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_jkind_l jkind' decl.type_jkind with
@@ -1703,9 +1700,9 @@ let update_decl_jkind env dpath decl =
        No updating required for [or_null_reexport], and we must not
        incorrectly override the jkind to [non_null].
     *)
-    (* CR rtjoa:  *)
     | Type_record_unboxed_product (lbls, rep) ->
-      let lbls, rep, type_jkind = update_record_unboxed_product_kind decl.type_loc lbls rep in
+      let lbls, rep, type_jkind =
+        update_record_unboxed_product_kind decl.type_loc lbls rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
       { decl with type_kind = Type_record_unboxed_product (lbls, rep);
                   type_jkind;
@@ -2096,7 +2093,9 @@ let check_abbrev_regularity ~abs_env env id_loc_list to_check tdecl =
     decl to_check
 
 let check_duplicates sdecl_list =
-  let labels = Hashtbl.create 7 and constrs = Hashtbl.create 7 in
+  let labels = Hashtbl.create 7 in
+  let unboxed_labels = Hashtbl.create 7 in
+  let constrs = Hashtbl.create 7 in
   List.iter
     (fun sdecl -> match sdecl.ptype_kind with
       Ptype_variant cl ->
@@ -2111,18 +2110,25 @@ let check_duplicates sdecl_list =
             with Not_found ->
               Hashtbl.add constrs pcd.pcd_name.txt sdecl.ptype_name.txt)
           cl
-     | Ptype_record fl
-     (* CR rtjoa:  *)
-     | Ptype_record_unboxed_product fl ->
+     | Ptype_record fl ->
         List.iter
           (fun {pld_name=cname;pld_loc=loc} ->
             try
-              (* CR rtjoa: this should be a different hashtable for flat *)
               let name' = Hashtbl.find labels cname.txt in
               Location.prerr_warning loc
                 (Warnings.Duplicate_definitions
                    ("label", cname.txt, name', sdecl.ptype_name.txt))
             with Not_found -> Hashtbl.add labels cname.txt sdecl.ptype_name.txt)
+          fl
+     | Ptype_record_unboxed_product fl ->
+        List.iter
+          (fun {pld_name=cname;pld_loc=loc} ->
+            try
+              let name' = Hashtbl.find unboxed_labels cname.txt in
+              Location.prerr_warning loc
+                (Warnings.Duplicate_definitions
+                   ("unboxed record label", cname.txt, name', sdecl.ptype_name.txt))
+            with Not_found -> Hashtbl.add unboxed_labels cname.txt sdecl.ptype_name.txt)
           fl
     | Ptype_abstract -> ()
     | Ptype_open -> ())
@@ -3772,13 +3778,12 @@ let report_error ppf = function
     let s =
       match kloc with
       | Mixed_product -> "Structures with non-value elements"
-      (* CR rtjoa:   *)
-      | Record_unboxed_product_sort -> "Unboxed record element types"
       | Cstr_tuple _ -> "Constructor argument types"
       | Inlined_record { unboxed = false }
       | Record { unboxed = false } -> "Record element types"
       | Inlined_record { unboxed = true }
       | Record { unboxed = true } -> "[@@unboxed] record element types"
+      | Record_unboxed_product_sort -> "Unboxed record element types"
       | External -> "Types in an external"
       | External_with_layout_poly -> "Types in an external"
     in
