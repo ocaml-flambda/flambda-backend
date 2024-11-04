@@ -189,7 +189,7 @@ let simplify_tag_immediate dacc ~original_term ~arg:_ ~arg_ty:naked_number_ty
   let dacc = DA.add_variable dacc result_var ty in
   SPR.create original_term ~try_reify:true dacc
 
-let simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty:_
+let simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty:_
     ~result_var ~make_shape =
   (* CR vlaviron: We could use prover functions to simplify but it's probably
      not going to help that much.
@@ -207,7 +207,7 @@ let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
     ~arg_ty:scrutinee_ty ~result_var =
   if variant_only
   then
-    simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
+    simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
       ~result_var ~make_shape:(fun scrutinee ->
         T.is_int_for_scrutinee ~scrutinee)
   else
@@ -221,7 +221,7 @@ let simplify_is_int ~variant_only dacc ~original_term ~arg:scrutinee
 
 let simplify_get_tag dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
     ~result_var =
-  simplify_is_int_or_get_tag dacc ~original_term ~scrutinee ~scrutinee_ty
+  simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
     ~result_var ~make_shape:(fun block -> T.get_tag_for_block ~block)
 
 let simplify_array_length _array_kind dacc ~original_term ~arg:_
@@ -889,8 +889,9 @@ let simplify_mutable_block_load _access_kind ~field:_ ~original_prim dacc
       ~original_term
 
 (* CR layouts v3: implement a real simplifier. *)
-let simplify_is_null dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
-  SPR.create_unknown dacc ~result_var K.naked_immediate ~original_term
+let simplify_is_null dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty ~result_var =
+  simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
+    ~result_var ~make_shape:(fun scrutinee -> T.is_null ~scrutinee)
 
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
