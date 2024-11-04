@@ -16,6 +16,7 @@
 open! Stdlib
 include sig
 
+
 (** Pretty-printing.
 
    If you are new to this module, see the {{!examples} examples} below.
@@ -758,7 +759,9 @@ type stag += String_tag of tag
 *)
 
 val pp_open_stag : formatter -> stag -> unit
+end @@ portable
 val open_stag : stag -> unit
+include sig
 (** [pp_open_stag ppf t] opens the semantic tag named [t].
 
   The [print_open_stag] tag-printing function of the formatter is called with
@@ -815,8 +818,10 @@ val set_formatter_out_channel : Stdlib.out_channel -> unit
 
 val pp_set_formatter_output_functions :
   formatter -> (string -> int -> int -> unit) -> (unit -> unit) -> unit
+end @@ portable
 val set_formatter_output_functions :
   (string -> int -> int -> unit) -> (unit -> unit) -> unit
+include sig
 (** [pp_set_formatter_output_functions ppf out flush] redirects the
   standard pretty-printer output functions to the functions [out] and
   [flush].
@@ -833,8 +838,10 @@ val set_formatter_output_functions :
 
 val pp_get_formatter_output_functions :
   formatter -> unit -> (string -> int -> int -> unit) * (unit -> unit)
+end @@ portable
 val get_formatter_output_functions :
   unit -> (string -> int -> int -> unit) * (unit -> unit)
+include sig
 (** Return the current output functions of the standard pretty-printer. *)
 
 (** {1:meaning Redefining formatter output} *)
@@ -881,7 +888,9 @@ type formatter_out_functions = {
 
 val pp_set_formatter_out_functions :
   formatter -> formatter_out_functions -> unit
+end @@ portable
 val set_formatter_out_functions : formatter_out_functions -> unit
+include sig
 (** [pp_set_formatter_out_functions ppf out_funs]
   Set all the pretty-printer output functions of [ppf] to those of
   argument [out_funs],
@@ -899,7 +908,9 @@ val set_formatter_out_functions : formatter_out_functions -> unit
 
 val pp_get_formatter_out_functions :
   formatter -> unit -> formatter_out_functions
+end @@ portable
 val get_formatter_out_functions : unit -> formatter_out_functions
+include sig
 (** Return the current output functions of the pretty-printer,
   including line splitting and indentation functions. Useful to record the
   current setting and restore it afterwards.
@@ -926,7 +937,9 @@ type formatter_stag_functions = {
 
 val pp_set_formatter_stag_functions :
   formatter -> formatter_stag_functions -> unit
+end @@ portable
 val set_formatter_stag_functions : formatter_stag_functions -> unit
+include sig
 (** [pp_set_formatter_stag_functions ppf tag_funs] changes the meaning of
   opening and closing semantic tag operations to use the functions in
   [tag_funs] when printing on [ppf].
@@ -948,7 +961,9 @@ val set_formatter_stag_functions : formatter_stag_functions -> unit
 
 val pp_get_formatter_stag_functions :
   formatter -> unit -> formatter_stag_functions
+end @@ portable
 val get_formatter_stag_functions : unit -> formatter_stag_functions
+include sig
 (** Return the current semantic tag operation functions of the standard
     pretty-printer.
 
@@ -991,6 +1006,7 @@ val synchronized_formatter_of_out_channel :
     is flushed, such as with {!print_flush}.
 *)
 
+end @@ portable
 val std_formatter : formatter
 (** The initial domain's standard formatter to write to standard output.
 
@@ -998,11 +1014,14 @@ val std_formatter : formatter
 *)
 
 val get_std_formatter : unit -> formatter
+include sig
+val get_std_formatter' : Domain.DLS.Password.t -> formatter
 (** [get_std_formatter ()] returns the current domain's standard formatter used
     to write to standard output.
     @since 5.0
 *)
 
+end @@ portable
 val err_formatter : formatter
 (** The initial domain's formatter to write to standard error.
 
@@ -1010,6 +1029,8 @@ val err_formatter : formatter
 *)
 
 val get_err_formatter : unit -> formatter
+include sig
+val get_err_formatter' : Domain.DLS.Password.t -> formatter
 (** [get_err_formatter ()] returns the current domain's formatter used to write
    to standard error.
    @since 5.0
@@ -1022,14 +1043,18 @@ val formatter_of_buffer : Buffer.t -> formatter
   pending material into the buffer.
 *)
 
+end @@ portable
 val stdbuf : Buffer.t
 (** The initial domain's string buffer in which [str_formatter] writes. *)
 
 val get_stdbuf : unit -> Buffer.t
+include sig
+val get_stdbuf' : Domain.DLS.Password.t -> Buffer.t
 (** [get_stdbuf ()] returns the current domain's string buffer in which the
     current domain's string formatter writes.
     @since 5.0 *)
 
+end @@ portable
 val str_formatter : formatter
 (** The initial domain's formatter to output to the {!stdbuf} string buffer.
 
@@ -1037,6 +1062,8 @@ val str_formatter : formatter
 *)
 
 val get_str_formatter : unit -> formatter
+include sig
+val get_str_formatter' : Domain.DLS.Password.t -> formatter
 (** The current domain's formatter to output to the current domains string
     buffer.
     @since 5.0
@@ -1063,7 +1090,7 @@ val make_formatter :
 
 val make_synchronized_formatter :
   (string -> int -> int -> unit) -> (unit -> unit) -> formatter Domain.DLS.key
-[@@alert unstable][@@alert "-unstable"]
+[@@alert unstable][@@alert "-unstable"][@@alert unsafe]
 (** [make_synchronized_formatter out flush] returns the key to the domain-local
     state that holds the domain-local formatter that outputs with function
     [out], and flushes with function [flush].
@@ -1346,6 +1373,7 @@ val fprintf : formatter -> ('a, formatter, unit) format -> 'a
 
 *)
 
+end @@ portable
 val printf : ('a, formatter, unit) format -> 'a
 (** Same as [fprintf] above, but output on [get_std_formatter ()].
 
@@ -1357,6 +1385,7 @@ val printf : ('a, formatter, unit) format -> 'a
 *)
 
 val eprintf : ('a, formatter, unit) format -> 'a
+include sig
 (** Same as [fprintf] above, but output on [get_err_formatter ()].
 
     It is defined similarly to [fun fmt -> fprintf (get_err_formatter ()) fmt]
