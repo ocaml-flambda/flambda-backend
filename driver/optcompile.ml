@@ -105,7 +105,7 @@ let starting_point_of_compiler_pass start_from  =
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)
 
-let implementation0 unix ~(flambda2 : flambda2) ~start_from
+let implementation_aux unix ~(flambda2 : flambda2) ~start_from
       ~source_file ~output_prefix ~keep_symbol_tables
       ~(compilation_unit : Compile_common.compilation_unit_or_inferred) =
   let transl_style : Translmod.compilation_unit_style =
@@ -115,32 +115,32 @@ let implementation0 unix ~(flambda2 : flambda2) ~start_from
   let pipeline : Asmgen.pipeline =
     Direct_to_cmm (flambda2 ~keep_symbol_tables)
   in
-  let backend info ({ structure; coercion; argument_interface; _ }
-                    : Typedtree.implementation) =
-    Compilenv.reset info.module_name;
-    let argument_coercion =
-      match argument_interface with
-      | Some { ai_coercion_from_primary; ai_signature = _ } ->
-        Some ai_coercion_from_primary
-      | None -> None
-    in
-    let typed = structure, coercion, argument_coercion in
-    let as_arg_for =
-      !Clflags.as_argument_for
-      |> Option.map (fun param ->
-           (* Currently, parameters don't have parameters, so we assume the argument
-              list is empty *)
-           Global_module.Name.create_no_args param)
-    in
-    if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
-    compile_from_typed info typed ~unix ~transl_style ~pipeline ~as_arg_for
-  in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" ~compilation_unit
   @@ fun info ->
   if !Flambda_backend_flags.internal_assembler then
       Emitaux.binary_backend_available := true;
   match start_from with
   | Parsing ->
+    let backend info ({ structure; coercion; argument_interface; _ }
+                      : Typedtree.implementation) =
+      Compilenv.reset info.module_name;
+      let argument_coercion =
+        match argument_interface with
+        | Some { ai_coercion_from_primary; ai_signature = _ } ->
+          Some ai_coercion_from_primary
+        | None -> None
+      in
+      let typed = structure, coercion, argument_coercion in
+      let as_arg_for =
+        !Clflags.as_argument_for
+        |> Option.map (fun param ->
+          (* Currently, parameters don't have parameters, so we assume the argument
+             list is empty *)
+          Global_module.Name.create_no_args param)
+      in
+      if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
+      compile_from_typed info typed ~unix ~transl_style ~pipeline ~as_arg_for
+    in
     Compile_common.implementation
       ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)
       ~hook_typed_tree:(fun (impl : Typedtree.implementation) ->
@@ -149,6 +149,14 @@ let implementation0 unix ~(flambda2 : flambda2) ~start_from
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | Instantiation { runtime_args; main_module_block_size; arg_descr } ->
     Compilenv.reset info.module_name;
+    begin
+      match !Clflags.as_argument_for with
+      | Some _ ->
+        (* CR lmaurer: Needs nicer error message (this is a user error) *)
+        Misc.fatal_error
+          "-as-argument-for is not allowed (and not needed) with -instantiate"
+      | None -> ()
+    end;
     let as_arg_for, arg_block_field =
       match (arg_descr : Lambda.arg_descr option) with
       | Some { arg_param; arg_block_field } ->
@@ -166,7 +174,7 @@ let implementation0 unix ~(flambda2 : flambda2) ~start_from
 let implementation unix ~flambda2 ~start_from ~source_file
       ~output_prefix ~keep_symbol_tables =
   let start_from = start_from |> starting_point_of_compiler_pass in
-  implementation0 unix ~flambda2 ~start_from ~source_file
+  implementation_aux unix ~flambda2 ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables
     ~compilation_unit:Inferred_from_output_prefix
 
@@ -176,6 +184,6 @@ let instance unix ~flambda2 ~source_file
   let start_from =
     Instantiation { runtime_args; main_module_block_size; arg_descr }
   in
-  implementation0 unix ~flambda2 ~start_from ~source_file
+  implementation_aux unix ~flambda2 ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables
     ~compilation_unit:(Exactly compilation_unit)

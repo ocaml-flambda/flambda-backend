@@ -684,8 +684,9 @@ let mk_as_argument_for f =
 
 let mk_instantiate0 f ~ext =
   "-instantiate", Arg.Unit f,
-  "Instantiates the first ." ^ ext ^ " file with the remaining ones as its \n\
-                 parameters."
+  Printf.sprintf
+  "  Instantiates the first .%s file, with the remaining ones used as the\n\
+  \  arguments for its parameters." ext
 
 let mk_instantiate_byt = mk_instantiate0 ~ext:"cmo"
 

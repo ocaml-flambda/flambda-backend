@@ -24,6 +24,16 @@ type compilation_unit_style =
   | Set_global_to_block (* Bytecode *)
   | Set_individual_fields (* Closure *)
 
+(* The triple here is the structure, the coercion from the raw structure to
+   the main signature, and the coercion from the main signature to the argument
+   signature (corresponding to the [structure], [coercion], and
+   [argument_interface.ai_coercion_from_primary] fields from
+   [Typedtree.implementation].)*)
+(* CR lmaurer: This should just be taking [Typedtree.implementation]. But it
+   can't, because [Opttoploop] calls it and doesn't have a full implementation.
+   But [Opttoploop] _shouldn't_ be calling it, it should be calling
+   [transl_store_phrases], because it's only storing phrases. But [Opttoploop]
+   _should not exist anymore_, since upstream refactored the toplevel code. *)
 val transl_implementation:
       Compilation_unit.t -> structure * module_coercion * module_coercion option
         -> style:compilation_unit_style -> Lambda.program

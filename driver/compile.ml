@@ -98,29 +98,37 @@ let starting_point_of_compiler_pass start_from =
   | _ -> Misc.fatal_errorf "Cannot start from %s"
            (Clflags.Compiler_pass.to_string start_from)
 
-let implementation0 ~start_from ~source_file ~output_prefix
+let implementation_aux ~start_from ~source_file ~output_prefix
     ~keep_symbol_tables:_
     ~(compilation_unit : Compile_common.compilation_unit_or_inferred) =
-  let backend info typed =
-    let as_arg_for =
-      !Clflags.as_argument_for
-      |> Option.map (fun param ->
-           (* Currently, parameters don't have parameters, so we assume the argument
-              list is empty *)
-           Global_module.Name.create_no_args param)
-    in
-    let bytecode = to_bytecode info typed ~as_arg_for in
-    emit_bytecode info bytecode
-  in
   with_info ~source_file ~output_prefix ~dump_ext:"cmo" ~compilation_unit
   @@ fun info ->
   match start_from with
   | Parsing ->
+    let backend info typed =
+      let as_arg_for =
+        !Clflags.as_argument_for
+        |> Option.map (fun param ->
+          (* Currently, parameters don't have parameters, so we assume the argument
+             list is empty *)
+          Global_module.Name.create_no_args param)
+      in
+      let bytecode = to_bytecode info typed ~as_arg_for in
+      emit_bytecode info bytecode
+    in
     Compile_common.implementation
       ~hook_parse_tree:(fun _ -> ())
       ~hook_typed_tree:(fun _ -> ())
       info ~backend
   | Instantiation { runtime_args; main_module_block_size; arg_descr } ->
+    begin
+      match !Clflags.as_argument_for with
+      | Some _ ->
+        (* CR lmaurer: Needs nicer error message (this is a user error) *)
+        Misc.fatal_error
+          "-as-argument-for is not allowed (and not needed) with -instantiate"
+      | None -> ()
+    end;
     let as_arg_for, arg_block_field =
       match (arg_descr : Lambda.arg_descr option) with
       | Some { arg_param; arg_block_field } ->
@@ -136,7 +144,7 @@ let implementation0 ~start_from ~source_file ~output_prefix
 
 let implementation ~start_from ~source_file ~output_prefix ~keep_symbol_tables =
   let start_from = start_from |> starting_point_of_compiler_pass in
-  implementation0 ~start_from ~source_file ~output_prefix ~keep_symbol_tables
+  implementation_aux ~start_from ~source_file ~output_prefix ~keep_symbol_tables
     ~compilation_unit:Inferred_from_output_prefix
 
 let instance ~source_file ~output_prefix ~compilation_unit ~runtime_args
@@ -144,5 +152,5 @@ let instance ~source_file ~output_prefix ~compilation_unit ~runtime_args
   let start_from =
     Instantiation { runtime_args; main_module_block_size; arg_descr }
   in
-  implementation0 ~start_from ~source_file ~output_prefix ~keep_symbol_tables
+  implementation_aux ~start_from ~source_file ~output_prefix ~keep_symbol_tables
     ~compilation_unit:(Exactly compilation_unit)

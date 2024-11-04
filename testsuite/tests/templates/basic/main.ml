@@ -1,3 +1,5 @@
+(* Parameters: [List_element], [Semigroup] *)
+
 module Monoid_utils_of_string =
   Monoid_utils(Monoid)(Monoid_of_semigroup(Semigroup)(String_semigroup))
   [@jane.non_erasable.instances]

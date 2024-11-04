@@ -256,15 +256,6 @@ let apply_coercion a b c d =
       Printlambda.lambda ans;
   ans
 
-(*
-let compose_coercions c1 c2 =
-  let c3 = compose_coercions c1 c2 in
-  let open Includemod in
-  Format.eprintf "@[<2>compose_coercions@ (%a)@ (%a) =@ %a@]@."
-    print_coercion c1 print_coercion c2 print_coercion c3;
-  c3
-*)
-
 (* Record the primitive declarations occurring in the module compiled *)
 
 let primitive_declarations = ref ([] : Primitive.description list)
@@ -1001,7 +992,7 @@ type compilation_unit_style =
   | Set_individual_fields
 
 let has_parameters () =
-  !Clflags.parameters <> []
+  Env.parameters () <> []
 
 let transl_implementation_plain_block compilation_unit impl =
   reset_labels ();
@@ -1010,8 +1001,6 @@ let transl_implementation_plain_block compilation_unit impl =
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
   let body, (size, arg_block_field) =
-    (* FIXME: This is wrong. [Translobj] needs to know not to look in the
-       global to find its hidden field. *)
     Translobj.transl_label_init (fun () ->
       let body, size, arg_block_field =
         transl_implementation_module ~scopes compilation_unit

@@ -374,31 +374,31 @@
            check-ocamlc.byte-output;
          }{
            module = "";
-           flags = "-instantiate -as-argument-for Monoid";
+           flags = "-instantiate";
            program = "list_monoid-Int_list_element.cmo";
            all_modules = "list_monoid.cmo int_list_element.cmo";
            ocamlc.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Monoid";
+           flags = "-instantiate";
            program = "monoid_of_semigroup-String_semigroup.cmo";
            all_modules = "monoid_of_semigroup.cmo string_semigroup.cmo";
            ocamlc.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Monoid";
+           flags = "-instantiate";
            program = "monoid_utils-Monoid_of_semigroup--String_semigroup.cmo";
            all_modules = "monoid_utils.cmo monoid_of_semigroup-String_semigroup.cmo";
            ocamlc.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Category";
+           flags = "-instantiate";
            program = "category_of_monoid-List_monoid--Int_list_element.cmo";
            all_modules = "category_of_monoid.cmo list_monoid-Int_list_element.cmo";
            ocamlc.byte;
 
            module = "";
-           flags = "-instantiate -as-argument-for Category";
+           flags = "-instantiate";
            program = "category_of_monoid-Monoid_of_semigroup--String_semigroup.cmo";
            all_modules = "category_of_monoid.cmo monoid_of_semigroup-String_semigroup.cmo";
            ocamlc.byte;

@@ -295,6 +295,11 @@ let write_unit_info info filename =
 
 let save_unit_info filename ~main_module_block_format ~arg_descr =
   current_unit.ui_imports_cmi <- Env.imports();
+  (* We could have [set_main_module_block_format] and [set_arg_descr] instead
+     of passing these in as arguments but, unlike most of the state that this
+     module keeps track of, they're not values that get accumulated over time,
+     they just get computed once. (Arguably we should remove [set_export_info]
+     by the same reasoning.) *)
   current_unit.ui_arg_descr <- arg_descr;
   current_unit.ui_format <- main_module_block_format;
   write_unit_info current_unit filename
