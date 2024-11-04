@@ -52,27 +52,27 @@ type control = {
   custom_minor_max_size : int;
 }
 
-external stat : unit -> stat = "caml_gc_stat"
-external quick_stat : unit -> stat = "caml_gc_quick_stat"
-external counters : unit -> (float * float * float) = "caml_gc_counters"
+external stat : unit -> stat @@ portable = "caml_gc_stat"
+external quick_stat : unit -> stat @@ portable = "caml_gc_quick_stat"
+external counters : unit -> (float * float * float) @@ portable = "caml_gc_counters"
 external minor_words : unit -> (float [@unboxed])
-  = "caml_gc_minor_words" "caml_gc_minor_words_unboxed"
-external get : unit -> control = "caml_gc_get"
-external set : control -> unit = "caml_gc_set"
-external minor : unit -> unit = "caml_gc_minor"
-external major_slice : int -> int = "caml_gc_major_slice"
-external major : unit -> unit = "caml_gc_major"
-external full_major : unit -> unit = "caml_gc_full_major"
-external compact : unit -> unit = "caml_gc_compaction"
-external get_minor_free : unit -> int = "caml_get_minor_free"
+  @@ portable = "caml_gc_minor_words" "caml_gc_minor_words_unboxed"
+external get : unit -> control @@ portable = "caml_gc_get"
+external set : control -> unit @@ portable = "caml_gc_set"
+external minor : unit -> unit @@ portable = "caml_gc_minor"
+external major_slice : int -> int @@ portable = "caml_gc_major_slice"
+external major : unit -> unit @@ portable = "caml_gc_major"
+external full_major : unit -> unit @@ portable = "caml_gc_full_major"
+external compact : unit -> unit @@ portable = "caml_gc_compaction"
+external get_minor_free : unit -> int @@ portable = "caml_get_minor_free"
 
 (* CR ocaml 5 all-runtime5: These functions are no-ops upstream. We should
    make them no-ops internally when we delete the corresponding C functions
    from the runtime -- they're already marked as deprecated in the mli.
 *)
 
-external eventlog_pause : unit -> unit = "caml_eventlog_pause"
-external eventlog_resume : unit -> unit = "caml_eventlog_resume"
+external eventlog_pause : unit -> unit @@ portable = "caml_eventlog_pause"
+external eventlog_resume : unit -> unit @@ portable = "caml_eventlog_resume"
 
 open Printf
 
@@ -116,7 +116,7 @@ type alarm = bool Atomic.t
 type alarm_rec = {active : alarm; f : unit -> unit}
 
 let rec call_alarm arec =
-  if Atomic.get arec.active then begin
+  if Atomic.get_safe arec.active then begin
     let finally () = finalise call_alarm arec in
     Fun.protect ~finally arec.f
   end

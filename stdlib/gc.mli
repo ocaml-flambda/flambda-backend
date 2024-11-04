@@ -304,7 +304,9 @@ external minor_words : unit -> (float [@unboxed])
     In native code this function does not allocate.
 
     @since 4.04 *)
+end @@ portable
 
+(* CR tdelvecchio: Portable? *)
 external get : unit -> control = "caml_gc_get"
 [@@alert unsynchronized_access
     "GC parameters are a mutable global state."
@@ -318,6 +320,7 @@ external set : control -> unit = "caml_gc_set"
  (** [set r] changes the GC parameters according to the [control] record [r].
    The normal usage is: [Gc.set { (Gc.get()) with Gc.verbose = 0x00d }] *)
 
+include sig
 external minor : unit -> unit = "caml_gc_minor"
 (** Trigger a minor collection. *)
 
@@ -355,7 +358,9 @@ external get_minor_free : unit -> int = "caml_get_minor_free"
    domain.
 
     @since 4.03 *)
+end @@ portable
 
+(* CR tdelvecchio: Finalise? *)
 val finalise : ('a -> unit) -> 'a -> unit
 (** [finalise f v] registers [f] as a finalisation function for [v].
    [v] must be heap-allocated.  [f] will be called with [v] as
@@ -447,6 +452,7 @@ type alarm
    major GC cycle.  The following functions are provided to create
    and delete alarms. *)
 
+(* CR tdelvecchio: Finalise? *)
 val create_alarm : (unit -> unit) -> alarm
 (** [create_alarm f] will arrange for [f] to be called at the end of
    major GC cycles, not caused by [f] itself, starting with the
@@ -475,6 +481,7 @@ let run_with_memory_limit (limit : int) (f : unit -> 'a) : 'a =
 
 *)
 
+include sig
 val delete_alarm : alarm -> unit
 (** [delete_alarm a] will stop the calls to the function associated
    to [a]. Calling [delete_alarm a] again has no effect. *)
@@ -484,6 +491,7 @@ val eventlog_pause : unit -> unit
 
 val eventlog_resume : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
+end @@ portable
 
 (** [Memprof] is a profiling engine which randomly samples allocated
    memory words. Every allocated word has a probability of being
@@ -555,6 +563,7 @@ module Memprof :
     val null_tracker: ('minor, 'major) tracker
     (** Default callbacks simply return [None] or [()] *)
 
+    (* CR tdelvecchio: Safe? *)
     val start :
       sampling_rate:float ->
       ?callstack_size:int ->
@@ -646,4 +655,3 @@ module Tweak : sig
       have non-default values *)
   val list_active : unit -> (string * int) list
 end
-end @@ portable
