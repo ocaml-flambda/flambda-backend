@@ -603,6 +603,14 @@ let equal_tag t1 t2 =
   | Extension (path1,_), Extension (path2,_) -> Path.same path1 path2
   | (Ordinary _ | Extension _), _ -> false
 
+let compare_tag t1 t2 =
+  match (t1, t2) with
+  | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
+    Int.compare i1 i2
+  | Extension (path1,_), Extension (path2,_) -> Path.compare path1 path2
+  | Ordinary _, Extension _ -> -1
+  | Extension _, Ordinary _ -> 1
+
 let equal_flat_element e1 e2 =
   match e1, e2 with
   | Imm, Imm | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed

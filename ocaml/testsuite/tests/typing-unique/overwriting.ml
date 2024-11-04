@@ -550,8 +550,10 @@ Error: Overwriting is only supported on tuples, constructors and boxed records.
 (* Checking that tags don't change *)
 
 type options = OptionA of string | OptionB of string
+type options_record = { x : options }
 [%%expect{|
 type options = OptionA of string | OptionB of string
+type options_record = { x : options; }
 |}]
 
 let id = function
@@ -579,15 +581,47 @@ Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8:
 
 |}]
 
+let id v =
+  match v with
+  | OptionA _ ->
+    (match v with
+     | OptionA s -> overwrite_ v with OptionA s
+     | OptionB s -> overwrite_ v with OptionB s)
+  | OptionB s -> overwrite_ v with OptionB s
+[%%expect{|
+Line 5, characters 20-47:
+5 |      | OptionA s -> overwrite_ v with OptionA s
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let id v =
+  match v with
+  | OptionA s ->
+    (match v with
+     | OptionA _ -> overwrite_ v with OptionA s
+     | OptionB _ -> overwrite_ v with OptionA s)
+  | OptionB s -> overwrite_ v with OptionB s
+[%%expect{|
+Line 5, characters 20-47:
+5 |      | OptionA _ -> overwrite_ v with OptionA s
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
 let swap = function
   | OptionA s as v -> overwrite_ v with OptionB s
   | OptionB s as v -> overwrite_ v with OptionA s
 [%%expect{|
-Line 2, characters 40-47:
-2 |   | OptionA s as v -> overwrite_ v with OptionB s
+Line 3, characters 40-47:
+3 |   | OptionB s as v -> overwrite_ v with OptionA s
                                             ^^^^^^^
-Error: Overwrite may not change the tag to OptionB.
-Hint: The old tag of this allocation is OptionA.
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation is OptionB.
 |}]
 
 let swap v =
@@ -595,11 +629,11 @@ let swap v =
   | OptionA s -> overwrite_ v with OptionB s
   | OptionB s -> overwrite_ v with OptionA s
 [%%expect{|
-Line 3, characters 35-42:
-3 |   | OptionA s -> overwrite_ v with OptionB s
+Line 4, characters 35-42:
+4 |   | OptionB s -> overwrite_ v with OptionA s
                                        ^^^^^^^
-Error: Overwrite may not change the tag to OptionB.
-Hint: The old tag of this allocation is OptionA.
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation is OptionB.
 |}]
 
 let choose_in_branch v =
@@ -613,24 +647,116 @@ let choose_in_branch v =
 Line 6, characters 29-36:
 6 |       else overwrite_ v with OptionB s
                                  ^^^^^^^
-Error: The same allocation gets overwritten using different tags OptionA and OptionB.
-Hint: overwrites may not change the tag; did you forget a pattern-match?
-Line 5, characters 29-36:
-5 |       then overwrite_ v with OptionA s
-                                 ^^^^^^^
+Error: Overwrite may not change the tag to OptionB.
+Hint: The old tag of this allocation is OptionA.
+|}]
+
+let or_patterns_good = function
+  | (OptionA "foo" | OptionA "bar") as v -> overwrite_ v with OptionA "baz"
+  | v -> v
+[%%expect{|
+Line 2, characters 44-75:
+2 |   | (OptionA "foo" | OptionA "bar") as v -> overwrite_ v with OptionA "baz"
+                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
 
 |}]
 
-type options_record = { x : options }
+let or_patterns_good = function
+  | ((OptionA "foo" as v) | (OptionA "bar" as v)) -> overwrite_ v with OptionA "baz"
+  | v -> v
+[%%expect{|
+Line 2, characters 53-84:
+2 |   | ((OptionA "foo" as v) | (OptionA "bar" as v)) -> overwrite_ v with OptionA "baz"
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let or_patterns_bad = function
+  | (OptionA s | OptionB s) as v -> overwrite_ v with OptionA s
+[%%expect{|
+Line 2, characters 54-61:
+2 |   | (OptionA s | OptionB s) as v -> overwrite_ v with OptionA s
+                                                          ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation is unknown.
+|}]
+
+let or_patterns_bad = function
+  | ((OptionA s as v) | (OptionB s as v)) -> overwrite_ v with OptionA s
+[%%expect{|
+Line 2, characters 63-70:
+2 |   | ((OptionA s as v) | (OptionB s as v)) -> overwrite_ v with OptionA s
+                                                                   ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation is unknown.
+|}]
+
+let or_patterns_bad = function
+  | ((OptionA _) | _) as v -> overwrite_ v with OptionA ""
+[%%expect{|
+Line 2, characters 48-55:
+2 |   | ((OptionA _) | _) as v -> overwrite_ v with OptionA ""
+                                                    ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation is unknown.
+|}]
+
+let or_patterns_bad = function
+  | ({ x = (OptionA _) as v } | { x = v }) -> overwrite_ v with OptionA ""
+[%%expect{|
+Line 2, characters 64-71:
+2 |   | ({ x = (OptionA _) as v } | { x = v }) -> overwrite_ v with OptionA ""
+                                                                    ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation is unknown.
+|}]
+
+let is_option_a = function
+  | OptionA _ -> true
+  | OptionB _ -> false
+
+let guards_good = function
+  | OptionA _ as v ->
+    begin match Some "" with
+    | Some s when is_option_a (overwrite_ v with OptionA s) -> true
+    | _ -> false
+  end
+  | OptionB _ -> false
+[%%expect{|
+val is_option_a : options -> bool @@ global many = <fun>
+Line 8, characters 30-59:
+8 |     | Some s when is_option_a (overwrite_ v with OptionA s) -> true
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let guards_bad = function
+  | OptionA _ as v when is_option_a (overwrite_ v with OptionA "") -> true
+  | _ -> false
+[%%expect{|
+Line 2, characters 4-13:
+2 |   | OptionA _ as v when is_option_a (overwrite_ v with OptionA "") -> true
+        ^^^^^^^^^
+Error: This value is read from here, but it is already being used as unique:
+Line 2, characters 48-49:
+2 |   | OptionA _ as v when is_option_a (overwrite_ v with OptionA "") -> true
+                                                    ^
+
+|}]
 
 let nested_path_correct r =
   match r with
   | { x = OptionA s } -> overwrite_ r.x with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-type options_record = { x : options; }
-Line 5, characters 25-54:
-5 |   | { x = OptionA s } -> overwrite_ r.x with OptionA s
+Line 3, characters 25-54:
+3 |   | { x = OptionA s } -> overwrite_ r.x with OptionA s
                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
@@ -659,6 +785,169 @@ Line 3, characters 22-29:
                           ^^^^^^^
 Error: Overwrite may not change the tag to OptionA.
 Hint: The old tag of this allocation is unknown.
+|}]
+
+type 'a mutable_record = { mutable m : 'a }
+
+let mutable_field_aliased r =
+  let y = OptionA "foo" in
+  r.m <- y;
+  (unique_ r), y
+[%%expect{|
+type 'a mutable_record = { mutable m : 'a; }
+val mutable_field_aliased :
+  unique_ options mutable_record -> options mutable_record * options @@
+  global many = <fun>
+|}]
+
+let mutable_field_aliased r =
+  unique_ r.m
+[%%expect{|
+val mutable_field_aliased : unique_ 'a mutable_record -> 'a @@ global many =
+  <fun>
+|}]
+
+let tag_of_mutable_field r =
+  match r with
+  | { m = OptionA s } ->
+    overwrite_ r.m with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 4, characters 4-33:
+4 |     overwrite_ r.m with OptionA s
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
+|}]
+
+let mutating_tag_seq r =
+  match r with
+  | { m = OptionA s } ->
+    r.m <- OptionB s;
+    overwrite_ r.m with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 5, characters 24-31:
+5 |     overwrite_ r.m with OptionA s
+                            ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+let mutating_tag_seq_parent r =
+  match r with
+  | { m = { x = OptionA s } } ->
+    r.m <- { x = OptionB s };
+    overwrite_ r.m.x with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 5, characters 26-33:
+5 |     overwrite_ r.m.x with OptionA s
+                              ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+let mutating_tag_par r =
+  match r with
+  | { m = OptionA s } ->
+    (r.m <- OptionB s), overwrite_ r.m with OptionA s
+  | _ -> (), OptionB ""
+[%%expect{|
+Line 4, characters 44-51:
+4 |     (r.m <- OptionB s), overwrite_ r.m with OptionA s
+                                                ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+let mutating_tag_par_parent r =
+  match r with
+  | { m = { x = OptionA s } } ->
+    (r.m <- { x = OptionB s }), overwrite_ r.m.x with OptionA s
+  | _ -> (), OptionB ""
+[%%expect{|
+Line 4, characters 54-61:
+4 |     (r.m <- { x = OptionB s }), overwrite_ r.m.x with OptionA s
+                                                          ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+let mutating_tag_choice r =
+  match r with
+  | { m = OptionA s } ->
+    if true then (r.m <- OptionB s; r.m)
+            else overwrite_ r.m with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 5, characters 37-44:
+5 |             else overwrite_ r.m with OptionA s
+                                         ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+let mutating_tag_choice_parent r =
+  match r with
+  | { m = { x = OptionA s } } ->
+    if true then (r.m <- { x = OptionB s }; r.m.x)
+    else overwrite_ r.m.x with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 5, characters 31-38:
+5 |     else overwrite_ r.m.x with OptionA s
+                                   ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+let mutating_tag_choice_seq r =
+  match r with
+  | { m = OptionA s } ->
+    (if true then r.m <- OptionB s else ());
+    overwrite_ r.m with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 5, characters 24-31:
+5 |     overwrite_ r.m with OptionA s
+                            ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+let mutating_tag_choice_seq_parent r =
+  match r with
+  | { m = { x = OptionA s } } ->
+    (if true then r.m <- { x = OptionB s } else ());
+    overwrite_ r.m.x with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 5, characters 26-33:
+5 |     overwrite_ r.m.x with OptionA s
+                              ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
+
+let mutating_tag_rematch r =
+  match r with
+  | { m = OptionA s } ->
+    r.m <- OptionB s;
+    begin match r with
+    | { m = OptionB s } ->
+      overwrite_ r.m with OptionB s
+    | _ -> OptionB ""
+    end
+  | _ -> OptionB ""
+[%%expect{|
+Line 7, characters 26-33:
+7 |       overwrite_ r.m with OptionB s
+                              ^^^^^^^
+Error: Overwrite may not change the tag to OptionB.
+Hint: The old tag of this allocation was changed through mutation.
 |}]
 
 (********************************)
