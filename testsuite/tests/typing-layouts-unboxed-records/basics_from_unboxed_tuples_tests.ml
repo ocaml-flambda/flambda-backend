@@ -481,7 +481,7 @@ class class_with_urecord_manipulating_method :
    it is checked in [check_coherence]. This relies on [type_jkind] doing
    deep expansion, as [check_coherence] calls it and then [Jkind.sub], rather
    than using [check_type_jkind]. *)
-(* CR rtjoa: these succeed for unboxed tuples, but fail for records 11 *)
+(* CR rtjoa: these succeed for unboxed tuples, but fail for records 1-1 *)
 module type S_coherence_deep = sig
   type t1 : any
   type t2 = #{ i : int; t1 : t1 }
