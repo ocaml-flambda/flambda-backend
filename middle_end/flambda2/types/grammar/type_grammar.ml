@@ -120,6 +120,7 @@ and head_of_kind_naked_immediate =
   | Naked_immediates of Targetint_31_63.Set.t
   | Is_int of t
   | Get_tag of t
+  | Is_null of t
 
 and head_of_kind_naked_float32 = Float32.Set.t
 
@@ -317,7 +318,7 @@ and free_names_head_of_kind_value_non_null ~follow_value_slots head =
 and free_names_head_of_kind_naked_immediate0 ~follow_value_slots head =
   match head with
   | Naked_immediates _ -> Name_occurrences.empty
-  | Is_int ty | Get_tag ty -> free_names0 ~follow_value_slots ty
+  | Is_int ty | Get_tag ty | Is_null ty -> free_names0 ~follow_value_slots ty
 
 and free_names_head_of_kind_naked_float32 _ = Name_occurrences.empty
 
@@ -648,6 +649,9 @@ and apply_renaming_head_of_kind_naked_immediate head renaming =
   | Get_tag ty ->
     let ty' = apply_renaming ty renaming in
     if ty == ty' then head else Get_tag ty'
+  | Is_null ty ->
+    let ty' = apply_renaming ty renaming in
+    if ty == ty' then head else Is_null ty'
 
 and apply_renaming_head_of_kind_naked_float32 head _ = head
 
@@ -917,6 +921,7 @@ and print_head_of_kind_naked_immediate ppf head =
     Format.fprintf ppf "@[<hov 1>(%a)@]" Targetint_31_63.Set.print is
   | Is_int ty -> Format.fprintf ppf "@[<hov 1>(Is_int@ %a)@]" print ty
   | Get_tag ty -> Format.fprintf ppf "@[<hov 1>(Get_tag@ %a)@]" print ty
+  | Is_null ty -> Format.fprintf ppf "@[<hov 1>(Is_null@ %a)@]" print ty
 
 and print_head_of_kind_naked_float32 ppf head =
   Format.fprintf ppf "@[(Naked_float32@ (%a))@]" Float32.Set.print head
@@ -1140,7 +1145,7 @@ and ids_for_export_head_of_kind_value_non_null head =
 and ids_for_export_head_of_kind_naked_immediate head =
   match head with
   | Naked_immediates _ -> Ids_for_export.empty
-  | Is_int t | Get_tag t -> ids_for_export t
+  | Is_int t | Get_tag t | Is_null t -> ids_for_export t
 
 and ids_for_export_head_of_kind_naked_float32 _ = Ids_for_export.empty
 
@@ -1833,6 +1838,12 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_immediate
         ~canonicalise
     in
     if ty == ty' then head else Get_tag ty'
+  | Is_null ty ->
+    let ty' =
+      remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+    in
+    if ty == ty' then head else Is_null ty'
 
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_float32
     head ~used_value_slots:_ ~canonicalise:_ =
@@ -2359,6 +2370,9 @@ and project_head_of_kind_naked_immediate ~to_project ~expand head =
   | Get_tag ty ->
     let ty' = project_variables_out ~to_project ~expand ty in
     if ty == ty' then head else Get_tag ty'
+  | Is_null ty ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Is_null ty'
 
 and project_head_of_kind_naked_float32 ~to_project:_ ~expand:_ head = head
 
@@ -3196,6 +3210,9 @@ let box_vec128 (t : t) alloc_mode : t =
 
 let null : t = Value (TD.create { non_null = Bottom; is_null = Maybe_null })
 
+let any_non_null_value : t =
+  Value (TD.create { non_null = Unknown; is_null = Not_null })
+
 let this_tagged_immediate imm : t =
   Value (TD.create_equals (Simple.const (RWC.tagged_immediate imm)))
 
@@ -3221,6 +3238,9 @@ let is_int_for_scrutinee ~scrutinee : t =
 
 let get_tag_for_block ~block : t =
   Naked_immediate (TD.create (Get_tag (alias_type_of K.value block)))
+
+let is_null ~scrutinee : t =
+  Naked_immediate (TD.create (Is_null (alias_type_of K.value scrutinee)))
 
 let boxed_float32_alias_to ~naked_float32 =
   box_float32 (Naked_float32 (TD.create_equals (Simple.var naked_float32)))
@@ -3452,6 +3472,8 @@ module Head_of_kind_naked_immediate = struct
   let create_is_int ty = Is_int ty
 
   let create_get_tag ty = Get_tag ty
+
+  let create_is_null ty = Is_null ty
 end
 
 module Make_head_of_kind_naked_number (N : Container_types.S) = struct
@@ -3545,7 +3567,9 @@ let rec recover_some_aliases t =
                 t' ()))))
   | Naked_immediate ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (Equals _) | Ok (No_alias (Is_int _ | Get_tag _)) ->
+    | Unknown | Bottom
+    | Ok (Equals _)
+    | Ok (No_alias (Is_int _ | Get_tag _ | Is_null _)) ->
       t
     | Ok (No_alias (Naked_immediates is)) -> (
       match Targetint_31_63.Set.get_singleton is with

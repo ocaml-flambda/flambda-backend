@@ -184,12 +184,35 @@ let prove_get_tag_generic env t =
 
 let prove_get_tag env t = gen_value_to_proof prove_get_tag_generic_value env t
 
+let prove_is_null_generic env t : _ generic_proof =
+  match expand_head env t with
+  | Value Unknown -> Unknown
+  | Value Bottom -> Invalid
+  | Value (Ok { non_null = Bottom; is_null = Not_null }) -> Invalid
+  | Value (Ok { non_null = _; is_null = Not_null }) -> Proved false
+  | Value (Ok { non_null = Bottom; is_null = _ }) -> Proved true
+  | Value (Ok { non_null = Unknown | Ok _; is_null = Maybe_null }) -> Unknown
+  | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
+    ->
+    wrong_kind "Value" t
+
+let meet_is_null env t = as_meet_shortcut (prove_is_null_generic env t)
+
 let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   match expand_head env t with
   | Naked_immediate (Ok (Naked_immediates is)) ->
     if Targetint_31_63.Set.is_empty is then Invalid else Proved is
   | Naked_immediate (Ok (Is_int scrutinee_ty)) -> (
     match prove_is_int_generic ~variant_only:true env scrutinee_ty with
+    | Proved true ->
+      Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_true)
+    | Proved false ->
+      Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_false)
+    | Unknown -> Unknown
+    | Invalid -> Invalid)
+  | Naked_immediate (Ok (Is_null scrutinee_ty)) -> (
+    match prove_is_null_generic env scrutinee_ty with
     | Proved true ->
       Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_true)
     | Proved false ->

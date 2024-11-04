@@ -423,6 +423,12 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         | None -> try_canonical_simple ()
         | Some i -> Simple (Simple.const (Reg_width_const.naked_immediate i)))
       | Unknown -> try_canonical_simple ())
+    | Naked_immediate (Ok (Is_null scrutinee_ty)) -> (
+      match Provers.meet_is_null env scrutinee_ty with
+      | Known_result true -> Simple Simple.untagged_const_true
+      | Known_result false -> Simple Simple.untagged_const_false
+      | Need_meet -> try_canonical_simple ()
+      | Invalid -> Invalid)
     | Naked_float32 (Ok fs) -> (
       match Float32.Set.get_singleton (fs :> Float32.Set.t) with
       | None -> try_canonical_simple ()

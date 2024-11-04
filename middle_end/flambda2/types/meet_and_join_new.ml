@@ -865,6 +865,15 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     | false, true ->
       meet_with_shape ~rebuild is_int_ty MTC.any_tagged_immediate is_int_side
   in
+  let is_null_immediate ~is_null_ty ~immediates ~is_null_side =
+    let rebuild = TG.Head_of_kind_naked_immediate.create_is_null in
+    match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
+    | false, false -> Bottom
+    | true, true -> keep_side is_null_side
+    | true, false ->
+      meet_with_shape ~rebuild is_null_ty TG.any_non_null_value is_null_side
+    | false, true -> meet_with_shape ~rebuild is_null_ty TG.null is_null_side
+  in
   let get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side =
     if I.Set.is_empty immediates
     then keep_other_side get_tag_side
@@ -902,7 +911,11 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side:Left
   | Naked_immediates immediates, Get_tag get_tag_ty ->
     get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side:Right
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) ->
+  | Is_null is_null_ty, Naked_immediates immediates ->
+    is_null_immediate ~is_null_ty ~immediates ~is_null_side:Left
+  | Naked_immediates immediates, Is_null is_null_ty ->
+    is_null_immediate ~is_null_ty ~immediates ~is_null_side:Right
+  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
     (* CR mshinwell: introduce improved handling for
      *   Is_int meet Is_int
      *   Get_tag meet Get_tag
@@ -1731,6 +1744,9 @@ and join_head_of_kind_naked_immediate env
   | Get_tag ty1, Get_tag ty2 ->
     let>+ ty = join env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_get_tag ty
+  | Is_null ty1, Is_null ty2 ->
+    let>+ ty = join env ty1 ty2 in
+    TG.Head_of_kind_naked_immediate.create_is_null ty
   (* From now on: Irregular cases *)
   (* CR vlaviron: There could be improvements based on reduction (trying to
      reduce the is_int and get_tag cases to naked_immediate sets, then joining
@@ -1754,7 +1770,23 @@ and join_head_of_kind_naked_immediate env
     if I.Set.is_empty tags
     then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
     else Unknown
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
+  | Is_null ty, Naked_immediates is_null | Naked_immediates is_null, Is_null ty
+    -> (
+    if I.Set.is_empty is_null
+    then Known (TG.Head_of_kind_naked_immediate.create_is_null ty)
+    else
+      (* Slightly better than Unknown *)
+      let head =
+        TG.Head_of_kind_naked_immediate.create_naked_immediates
+          (I.Set.add I.zero (I.Set.add I.one is_null))
+      in
+      match head with
+      | Ok head -> Known head
+      | Bottom ->
+        Misc.fatal_error
+          "Did not expect [Bottom] from [create_naked_immediates]")
+  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
+    Unknown
 
 and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =
   Known (TG.Head_of_kind_naked_float32.union t1 t2)
