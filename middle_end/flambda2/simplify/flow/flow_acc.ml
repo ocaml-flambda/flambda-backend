@@ -445,6 +445,12 @@ let extend_args_with_extra_args (t : T.Acc.t) =
                   rewrite_ids)
             elt.apply_cont_args
         in
+        let apply_cont_args =
+          Continuation.Map.filter
+            (fun _ rewrite_ids ->
+              not (Apply_cont_rewrite_id.Map.is_empty rewrite_ids))
+            apply_cont_args
+        in
         { elt with apply_cont_args })
       t.map
   in
