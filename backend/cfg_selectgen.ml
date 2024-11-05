@@ -223,7 +223,14 @@ class virtual selector_generic =
         | _ -> basic_op (Store (chunk, addr, is_assign)), [arg2; eloc]
         (* Inversion addr/datum in Istore *))
       | Cdls_get -> basic_op Dls_get, args
-      | Calloc mode -> basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
+      | Calloc (mode, alloc_block_kind), _ ->
+        let placeholder_for_alloc_block_kind =
+          { alloc_words = 0; alloc_block_kind; alloc_dbg = Debuginfo.none }
+        in
+        ( basic_op
+            (Alloc
+               { bytes = 0; dbginfo = [placeholder_for_alloc_block_kind]; mode }),
+          args )
       | Cpoll -> basic_op Poll, args
       | Caddi -> self#select_arith_comm Simple_operation.Iadd args
       | Csubi -> self#select_arith Simple_operation.Isub args

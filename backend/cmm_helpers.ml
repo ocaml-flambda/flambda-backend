@@ -794,7 +794,7 @@ let test_bool dbg cmm =
 
 let box_float32 dbg mode exp =
   Cop
-    ( Calloc mode,
+    ( Calloc (mode, Alloc_block_kind_float32),
       [ alloc_boxedfloat32_header mode dbg;
         Cconst_symbol (global_symbol caml_float32_ops, dbg);
         exp ],
@@ -821,7 +821,8 @@ let unbox_float32 dbg =
           [Cop (Cadda, [cmm; Cconst_int (size_addr, dbg)], dbg)],
           dbg ))
 
-let box_float dbg m c = Cop (Calloc m, [alloc_float_header m dbg; c], dbg)
+let box_float dbg m c =
+  Cop (Calloc (m, Alloc_block_kind_float), [alloc_float_header m dbg; c], dbg)
 
 let unbox_float dbg =
   map_tail ~kind:Any (function
@@ -837,7 +838,11 @@ let unbox_float dbg =
 
 (* Vectors *)
 
-let box_vec128 dbg m c = Cop (Calloc m, [alloc_boxedvec128_header m dbg; c], dbg)
+let box_vec128 dbg m c =
+  Cop
+    ( Calloc (m, Alloc_block_kind_vec128),
+      [alloc_boxedvec128_header m dbg; c],
+      dbg )
 
 let unbox_vec128 dbg =
   (* Boxed vectors are not 16-byte aligned by the GC, so we must use an
@@ -890,7 +895,7 @@ let float16_of_float dbg c =
 
 let box_complex dbg c_re c_im =
   Cop
-    ( Calloc Cmm.Alloc_mode.Heap,
+    ( Calloc (Cmm.Alloc_mode.Heap, Alloc_block_kind_float_array),
       [alloc_floatarray_header 2 dbg; c_re; c_im],
       dbg )
 
@@ -1744,7 +1749,7 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
       "Fields with memory_chunk %s are not supported in generic allocations"
       (Printcmm.chunk memory_chunk)
 
-let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
+let make_alloc_generic ~block_kind ~mode ~alloc_block_kind dbg tag wordsize args
     args_memory_chunks =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
@@ -1755,7 +1760,7 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
       | Local -> local_block_header ~block_kind tag wordsize
       | Heap -> block_header ~block_kind tag wordsize
     in
-    Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
+    Cop (Calloc (mode, alloc_block_kind), Cconst_natint (hdr, dbg) :: args, dbg)
   else
     let id = V.create_local "*alloc*" in
     let rec fill_fields idx args memory_chunks =
@@ -1797,11 +1802,12 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
 
 let make_alloc ~mode dbg ~tag args =
   make_alloc_generic ~block_kind:Regular_block ~mode dbg tag (List.length args)
-    args
+    ~alloc_block_kind:Alloc_block_kind_other args
     (List.map (fun _ -> Word_val) args)
 
 let make_float_alloc ~mode dbg ~tag args =
   make_alloc_generic ~block_kind:Regular_block ~mode dbg tag
+    ~alloc_block_kind:Alloc_block_kind_float
     (List.length args * size_float / size_addr)
     args
     (List.map (fun _ -> Double) args)
@@ -1814,7 +1820,7 @@ let make_closure_alloc ~mode dbg ~tag args args_memory_chunks =
       0 args_memory_chunks
   in
   make_alloc_generic ~block_kind:Regular_block ~mode dbg tag size args
-    args_memory_chunks
+    ~alloc_block_kind:Alloc_block_kind_closure args_memory_chunks
 
 let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
   let size =
@@ -1859,7 +1865,8 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
   in
   make_alloc_generic
     ~block_kind:(Mixed_block { scannable_prefix = value_prefix_size })
-    ~mode dbg tag size args args_memory_chunks
+    ~alloc_block_kind:Alloc_block_kind_other ~mode dbg tag size args
+    args_memory_chunks
 
 (* Record application and currying functions *)
 
@@ -2051,7 +2058,7 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
     else arg
   in
   Cop
-    ( Calloc mode,
+    ( Calloc (mode, Alloc_block_kind_boxed_int bi),
       [ alloc_header_boxed_int bi mode dbg;
         Cconst_symbol (operations_boxed_int bi, dbg);
         arg' ],
@@ -3249,7 +3256,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
             @ [VP.create clos, typ_val];
           fun_body =
             Cop
-              ( Calloc mode,
+              ( Calloc (mode, Alloc_block_kind_closure),
                 [ alloc_closure_header ~mode
                     (function_slot_size + machtype_stored_size arg_type + 1)
                     (dbg ());
@@ -4344,7 +4351,10 @@ let allocate_unboxed_int32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
     | Even -> custom_ops_unboxed_int32_even_array
     | Odd -> custom_ops_unboxed_int32_odd_array
   in
-  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
+  Cop
+    ( Calloc (mode, Alloc_block_kind_int32_u_array),
+      Cconst_natint (header, dbg) :: custom_ops :: payload,
+      dbg )
 
 let make_unboxed_float32_array_payload dbg unboxed_float32_list =
   if Sys.big_endian
@@ -4380,7 +4390,10 @@ let allocate_unboxed_float32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
     | Even -> custom_ops_unboxed_float32_even_array
     | Odd -> custom_ops_unboxed_float32_odd_array
   in
-  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
+  Cop
+    ( Calloc (mode, Alloc_block_kind_float32_u_array),
+      Cconst_natint (header, dbg) :: custom_ops :: payload,
+      dbg )
 
 let allocate_unboxed_int64_or_nativeint_array custom_ops ~elements
     (mode : Cmm.Alloc_mode.t) dbg =
@@ -4390,7 +4403,10 @@ let allocate_unboxed_int64_or_nativeint_array custom_ops ~elements
     | Heap -> custom_header ~size
     | Local -> custom_local_header ~size
   in
-  Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: elements, dbg)
+  Cop
+    ( Calloc (mode, Alloc_block_kind_int64_u_array),
+      Cconst_natint (header, dbg) :: custom_ops :: elements,
+      dbg )
 
 let allocate_unboxed_int64_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_int64_array
@@ -4408,7 +4424,7 @@ let allocate_unboxed_vec128_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
     | Local -> custom_local_header ~size
   in
   Cop
-    ( Calloc mode,
+    ( Calloc (mode, Alloc_block_kind_vec128_u_array),
       Cconst_natint (header, dbg) :: custom_ops_unboxed_vec128_array :: elements,
       dbg )
 

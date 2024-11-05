@@ -262,8 +262,22 @@ module Alloc_mode = struct
     | Local -> false
 end
 
+type alloc_block_kind =
+  | Alloc_block_kind_other
+  | Alloc_block_kind_closure
+  | Alloc_block_kind_float
+  | Alloc_block_kind_float32
+  | Alloc_block_kind_vec128
+  | Alloc_block_kind_boxed_int of Primitive.boxed_integer
+  | Alloc_block_kind_float_array
+  | Alloc_block_kind_float32_u_array
+  | Alloc_block_kind_int32_u_array
+  | Alloc_block_kind_int64_u_array
+  | Alloc_block_kind_vec128_u_array
+
 type alloc_dbginfo_item =
   { alloc_words : int;
+    alloc_block_kind : alloc_block_kind;
     alloc_dbg : Debuginfo.t }
 type alloc_dbginfo = alloc_dbginfo_item list
 
@@ -284,7 +298,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Alloc_mode.t
+  | Calloc of Alloc_mode.t * alloc_block_kind
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr

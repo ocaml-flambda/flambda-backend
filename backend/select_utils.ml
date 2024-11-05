@@ -488,8 +488,8 @@ class virtual ['env, 'op, 'instr] common_selector =
           | Cextcall { effects = e; coeffects = ce } ->
             EC.create (select_effects e) (select_coeffects ce)
           | Capply _ | Cprobe _ | Copaque | Cpoll -> EC.arbitrary
-          | Calloc Heap -> EC.none
-          | Calloc Local -> EC.coeffect_only Coeffect.Arbitrary
+          | Calloc (Heap, _) -> EC.none
+          | Calloc (Local, _) -> EC.coeffect_only Coeffect.Arbitrary
           | Cstore _ -> EC.effect_only Effect.Arbitrary
           | Cbeginregion | Cendregion -> EC.arbitrary
           | Cprefetch _ -> EC.arbitrary

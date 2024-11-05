@@ -209,7 +209,13 @@ class virtual selector_generic =
         (* Inversion addr/datum in Istore *)
       | Cdls_get, _ -> Idls_get, args
       | Cpoll, _ -> Ipoll { return_label = None }, args
-      | Calloc mode, _ -> Ialloc { bytes = 0; dbginfo = []; mode }, args
+      | Calloc (mode, alloc_block_kind), _ ->
+        let placeholder_for_alloc_block_kind =
+          { alloc_words = 0; alloc_block_kind; alloc_dbg = Debuginfo.none }
+        in
+        ( Ialloc
+            { bytes = 0; dbginfo = [placeholder_for_alloc_block_kind]; mode },
+          args )
       | Caddi, _ -> self#select_arith_comm Iadd args
       | Csubi, _ -> self#select_arith Isub args
       | Cmuli, _ -> self#select_arith_comm Imul args
@@ -417,14 +423,14 @@ class virtual selector_generic =
           self#insert_move_results env loc_res rd stack_ofs;
           Select_utils.set_traps_for_raise env;
           if returns then ret rd else None
-        | Ialloc { bytes = _; mode } ->
+        | Ialloc { bytes = _; mode; dbginfo = [placeholder] } ->
           let rd = self#regs_for typ_val in
           let bytes = Select_utils.size_expr env (Ctuple new_args) in
           let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
           let op =
             Mach.Ialloc
               { bytes = alloc_words * Arch.size_addr;
-                dbginfo = [{ alloc_words; alloc_dbg = dbg }];
+                dbginfo = [{ placeholder with alloc_words; alloc_dbg = dbg }];
                 mode
               }
           in
