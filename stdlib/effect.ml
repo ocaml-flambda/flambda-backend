@@ -76,7 +76,7 @@ module Deep = struct
   external reperform :
     'a t -> ('a, 'b) continuation -> last_fiber -> 'b = "%reperform"
 
-  let match_with comp arg handler =
+  let[@inline never] match_with comp arg handler =
     let effc eff k last_fiber =
       match handler.effc eff with
       | Some f ->
@@ -90,7 +90,7 @@ module Deep = struct
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b,'a) continuation -> 'a) option }
 
-  let try_with comp arg handler =
+  let[@inline never] try_with comp arg handler =
     let effc' eff k last_fiber =
       match handler.effc eff with
       | Some f ->
