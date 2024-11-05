@@ -532,7 +532,7 @@ let prove_unique_tag_and_size0 env t :
           | None -> Unknown
           | Some (tag, shape, size, product, alloc_mode) ->
             Proved (tag, shape, size, product, alloc_mode))
-    else Unknown)
+      else Unknown)
   | Value (Ok (Mutable_block _)) | Value (Ok _) | Value Unknown | Value Bottom
     ->
     Unknown
@@ -1063,12 +1063,12 @@ let prove_physical_equality env t1 t2 =
               extensions = _;
               is_unique = _
             },
-          ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-            ) )
-      | ( ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
-          | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-            ),
+          ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ) )
+      | ( ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+          | String _ | Array _ ),
           Variant
             { immediates = _;
               blocks = Known blocks;

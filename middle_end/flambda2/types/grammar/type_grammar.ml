@@ -3501,14 +3501,16 @@ let rec recover_some_aliases t =
                   ~const:(fun const ->
                     match Reg_width_const.descr const with
                     | Naked_immediate i -> this_tagged_immediate i
-                    | Tagged_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-                    | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+                    | Tagged_immediate _ | Naked_float _ | Naked_float32 _
+                    | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+                    | Naked_vec128 _ ->
                       Misc.fatal_errorf
                         "Immediates case returned wrong kind of constant:@ %a"
                         Reg_width_const.print const)
               | Unknown | Bottom | Ok (No_alias _) -> t)
-            | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-            | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+            | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+            | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
+            | Region _ ->
               Misc.fatal_errorf "Immediates case returned wrong kind:@ %a" print
                 t' ()))))
   | Naked_immediate ty -> (
