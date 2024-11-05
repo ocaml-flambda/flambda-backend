@@ -40,11 +40,22 @@
     this interface we will often use ['k] to refer to the capsule associated
     with that brand. *)
 
+(* CR tdelvecchio: Review, document, etc. *)
+
+(** Names are identifiers for a capsule. *)
+module Name : sig
+
+  type 'k t : value mod portable uncontended
+  type (_, _) eq = Eq : ('k, 'k) eq
+
+  val equal : _ t -> _ t -> bool @@ portable
+  val equal_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) eq option @@ portable
+
+end
+
 (** Passwords represent access to a capsule. *)
 module Password : sig
 
-    (* CR layouts v5: this should have layout [void], but
-       [void] can't be used for function argument and return types yet. *)
     type 'k t
     (** ['k t] is the type of "passwords" representing
         the ability of the current domain to have [uncontended]
@@ -57,6 +68,10 @@ module Password : sig
         guarantees that uncontended access to the capsule is only granted
         to a single domain at once. *)
 
+    type packed = P : 'k t -> packed
+
+    val name : 'k t @ local -> 'k Name.t @@ portable
+    val make : unit -> packed @@ portable
 end
 
   (** Mutual exclusion primtives for controlling uncontended access to a capsule.
@@ -73,6 +88,8 @@ module Mutex : sig
     (** [packed] is the type of a mutex for some unknown capsule.
         Unpacking one provides a ['k Mutex.t] together with a fresh
         existential type brand for ['k]. *)
+
+    val name : 'k t -> 'k Name.t
 
     exception Poisoned
     (** Mutexes can get marked as poisoned. Any operations on a poisoned mutex
@@ -108,9 +125,9 @@ module Data : sig
         Operations on [('a, 'k) t] require a ['k Password.t],
         created from the ['k Mutex.t]. *)
 
-    exception Contended of exn @@ contended
+    exception Encapsulated : 'k Name.t * (exn, 'k) t -> exn
     (** If a function accessing the contents of the capsule raises an exception,
-        it is wrapped in [Contended] to avoid leaking access to the data. *)
+        it is wrapped in [Encapsulated] to avoid leaking access to the data. *)
 
     val create :
       (unit -> 'a) @ local portable
@@ -119,6 +136,12 @@ module Data : sig
     (** [create f] runs [f] within the capsule ['k] and creates
         a pointer to the result of [f]. *)
 
+    exception Protected : 'k Mutex.t * (exn, 'k) t -> exn
+
+    val protect
+      :  (unit -> 'a @ portable contended) @ local portable
+      -> 'a @ portable contended
+      @@ portable
 
     val map :
       'k Password.t @ local
@@ -183,7 +206,6 @@ module Data : sig
       @@ portable
     (** [expose p t] retrieves the value stored by [Ptr.t]. It requires
         a [global] [Password.t] leaked by [Mutex.destroy]. *)
-
   end
 
 module Condition : sig

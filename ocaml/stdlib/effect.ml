@@ -139,7 +139,9 @@ module Deep = struct
     let handle = handler.effc in
     let effc' eff k last_fiber =
       match handle eff with
-      | Some f -> f k
+      | Some f ->
+          cont_set_last_fiber k last_fiber;
+          f k
       | None -> reperform_portable eff k last_fiber
     in
     let s = alloc_stack_portable (fun x -> x) (fun e -> raise e) effc' in
