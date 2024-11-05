@@ -129,6 +129,7 @@ external readdir : string -> string array = "caml_sys_read_directory"
    in any specific order; they are not, in particular, guaranteed to
    appear in alphabetical order. *)
 
+end @@ portable
 val interactive : bool ref
 [@@alert unsynchronized_access
     "The interactive status is a mutable global state."
@@ -136,6 +137,8 @@ val interactive : bool ref
  (** This reference is initially set to [false] in standalone
    programs and to [true] if the code is being executed under
    the interactive toplevel system [ocaml]. *)
+
+include sig
 
 val os_type : string
 (** Operating system currently executing the OCaml program. One of
@@ -238,6 +241,7 @@ external runtime_parameters : unit -> string = "caml_runtime_parameters"
 external poll_actions : unit -> unit = "%poll"
 (** Run any pending runtime actions, such as minor collections, major
     GC slices, signal handlers, finalizers, or memprof callbacks. *)
+end @@ portable
 
 (** {1 Signal handling} *)
 
@@ -255,15 +259,22 @@ type signal_behavior =
 
 external signal :
   int -> signal_behavior -> signal_behavior = "caml_install_signal_handler"
-(** Set the behavior of the system on receipt of a given signal.  The
-   first argument is the signal number.  Return the behavior
-   previously associated with the signal. If the signal number is
-   invalid (or not available on your system), an [Invalid_argument]
-   exception is raised. *)
+[@@alert unsafe]
 
 val set_signal : int -> signal_behavior -> unit
-(** Same as {!Sys.signal} but return value is ignored. *)
+[@@alert unsafe]
 
+include sig
+external signal_safe :
+  int -> signal_behavior @ portable -> signal_behavior @ portable = "caml_install_signal_handler"
+(** Set the behavior of the system on receipt of a given signal.  The
+    first argument is the signal number.  Return the behavior
+    previously associated with the signal. If the signal number is
+    invalid (or not available on your system), an [Invalid_argument]
+    exception is raised. *)
+
+val set_signal_safe : int -> signal_behavior @ portable -> unit
+(** Same as {!Sys.signal} but return value is ignored. *)
 
 (** {2 Signal numbers for the standard POSIX signals.} *)
 
@@ -363,7 +374,7 @@ exception Break
 (** Exception raised on interactive interrupt if {!Sys.catch_break}
    is enabled. *)
 
-
+end @@ portable
 val catch_break : bool -> unit
 (** [catch_break] governs whether interactive interrupt (ctrl-C)
     terminates the program or raises the [Break] exception.
@@ -380,6 +391,8 @@ val catch_break : bool -> unit
     interactive interrupt until all threads are terminated. Use
     signal masks from [Thread.sigmask] to direct the interrupt towards a
     specific thread. *)
+
+include sig
 
 val with_async_exns : (unit -> 'a) -> 'a
 (** [with_async_exns f] runs [f] and returns its result, in addition to
@@ -426,6 +439,7 @@ val ocaml_release : ocaml_release_info
     @since 4.14
 *)
 
+end @@ portable
 val enable_runtime_warnings: bool -> unit
 [@@alert unsynchronized_access
     "The status of runtime warnings is a mutable global state."
@@ -441,6 +455,8 @@ val runtime_warnings_enabled: unit -> bool
 [@@alert unsynchronized_access
     "The status of runtime warnings is a mutable global state."
 ]
+
+include sig
  (** Return whether runtime warnings are currently enabled.
 
     @since 4.03 *)
