@@ -3152,7 +3152,7 @@ let transl_match_on_option value_kind arg loc ~if_some ~if_none =
   else
     Lifthenelse(arg, if_some, if_none, value_kind)
 
-let combine_constructor value_kind loc arg pat_env cstr partial ctx def
+let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx def
     (descr_lambda_list, total1, pats) =
   match cstr.cstr_tag with
   | Extension _ ->
@@ -3183,11 +3183,11 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                       (Lprim (Pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
                   nonconsts default
               in
-              (* Since the tag is used directly in the tests, it would be sound
-                 to mark it Alias+Reads_agree but this would not change performance.
-                 We keep it this way to guarantee soundness of in-place overwriting. *)
-              Llet (StrictOpt, Lambda.layout_block, tag,
-                    Lprim (Pfield (0, Pointer, Reads_vary), [ arg ], loc),
+              let ubr = Translmode.transl_unique_barrier pat_barrier in
+              let sem = add_barrier_to_read ubr Reads_agree in
+              let str = add_barrier_to_let_kind ubr Alias in
+              Llet (str, Lambda.layout_block, tag,
+                    Lprim (Pfield (0, Pointer, sem), [ arg ], loc),
                     tests)
         in
         List.fold_right
@@ -3312,19 +3312,18 @@ let make_test_sequence_variant_constant value_kind fail arg int_lambda_list =
 let call_switcher_variant_constant kind loc fail arg int_lambda_list =
   call_switcher kind loc fail arg min_int max_int int_lambda_list
 
-let call_switcher_variant_constr value_kind loc fail arg int_lambda_list =
+let call_switcher_variant_constr value_kind loc fail arg pat_barrier int_lambda_list =
   let v = Ident.create_local "variant" in
-  (* Since v is used directly in the tests, it would be sound
-     to mark it Alias+May_be_pushed_down but this would not change performance.
-     We keep it this way to guarantee soundness of in-place overwriting. *)
+  let ubr = Translmode.transl_unique_barrier pat_barrier in
+  let str = add_barrier_to_let_kind ubr Alias in
   Llet
-    ( StrictOpt,
+    ( str,
       Lambda.layout_int,
       v,
-      Lprim (nonconstant_variant_field Must_stay_here 0, [ arg ], loc),
+      Lprim (nonconstant_variant_field ubr 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
 
-let combine_variant value_kind loc row arg partial ctx def
+let combine_variant value_kind loc row arg pat_barrier partial ctx def
     (tag_lambda_list, total1, _pats)
     =
   let num_constr = ref 0 in
@@ -3377,7 +3376,7 @@ let combine_variant value_kind loc row arg partial ctx def
           )
         | [], _ -> (
             let lam =
-              call_switcher_variant_constr value_kind loc fail arg nonconsts
+              call_switcher_variant_constr value_kind loc fail arg pat_barrier nonconsts
             in
             (* One must not dereference integers *)
             match fail with
@@ -3388,7 +3387,7 @@ let combine_variant value_kind loc row arg partial ctx def
             let lam_const =
               call_switcher_variant_constant value_kind loc fail arg consts
             and lam_nonconst =
-              call_switcher_variant_constr value_kind loc fail arg nonconsts
+              call_switcher_variant_constr value_kind loc fail arg pat_barrier nonconsts
             in
             test_int_or_block arg lam_const lam_nonconst
       )
@@ -3780,7 +3779,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_constructor ~scopes)
-            (combine_constructor value_kind ploc arg ph.pat_env cstr partial)
+            (combine_constructor value_kind ploc arg ph.pat_env ph.pat_unique_barrier cstr partial)
             ctx pm
       | Array (_, elt_sort, _) ->
           let kind = Typeopt.array_pattern_kind pomega elt_sort in
@@ -3797,7 +3796,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_variant ~scopes !row)
-            (combine_variant value_kind ploc !row arg partial)
+            (combine_variant value_kind ploc !row arg ph.pat_unique_barrier partial)
             ctx pm
     )
   | PmVar { inside = pmh } ->
@@ -4371,9 +4370,12 @@ let for_optional_arg_default
       ~if_some:
         (Lprim
            (* CR ncik-roberts: Check whether we need something better here. *)
-           (* Since overwriting this option is not possible, it would be sound to
-              use Reads_agree here, but we want to be conservative. *)
-           (Pfield (0, Pointer, Reads_vary),
+           (* CR uniqueness: Currently it is not possible for users to refer
+              to the [Some] allocation underlying the optional argument. This
+              makes it impossible to overwrite and safe to use [Reads_agree]
+              here. It would be slightly safer to use [Reads_vary] here, but
+              that could degrade performance of programs not using uniqueness *)
+           (Pfield (0, Pointer, Reads_agree),
             [ Lvar param ],
             Loc_unknown))
   in
