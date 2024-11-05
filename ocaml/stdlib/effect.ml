@@ -70,13 +70,13 @@ module Deep = struct
   external cont_set_last_fiber :
     ('a, 'b) continuation -> last_fiber -> unit @@ portable = "%setfield1"
 
-  let continue k v =
+  let[@inline never] continue k v =
     resume (take_cont_noexc k) (fun x -> x) v (cont_last_fiber k)
 
-  let discontinue k e =
+  let[@inline never] discontinue k e =
     resume (take_cont_noexc k) (fun e -> raise e) e (cont_last_fiber k)
 
-  let discontinue_with_backtrace k e bt =
+  let[@inline never] discontinue_with_backtrace k e bt =
     resume (take_cont_noexc k) (fun e -> Printexc.raise_with_backtrace e bt)
       e (cont_last_fiber k)
 
@@ -208,13 +208,13 @@ module Shallow = struct
     let stack = update_handler k handler.retc handler.exnc effc in
     resume stack resume_fun v last_fiber
 
-  let continue_with k v handler =
+  let[@inline never] continue_with k v handler =
     continue_gen k (fun x -> x) v handler
 
-  let discontinue_with k v handler =
+  let[@inline never] discontinue_with k v handler =
     continue_gen k (fun e -> raise e) v handler
 
-  let discontinue_with_backtrace k v bt handler =
+  let[@inline never] discontinue_with_backtrace k v bt handler =
     continue_gen k (fun e -> Printexc.raise_with_backtrace e bt) v handler
 
   external get_callstack :
