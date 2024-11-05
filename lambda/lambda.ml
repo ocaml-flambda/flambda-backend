@@ -655,12 +655,23 @@ type unique_barrier =
 let add_barrier_to_read ubr sem =
   match ubr with
   | May_be_pushed_down -> sem
+  (* CR uniqueness: We lose some performance here since flambda2 does not
+     perform certain optimizations on mutable reads. We should consider adding
+     a third option between Reads_agree and Reads_vary that selectively enables
+     those optimizations that are sound for reads from unique allocations. *)
   | Must_stay_here -> Reads_vary
 
 let add_barrier_to_let_kind ubr str =
   match ubr, str with
   | May_be_pushed_down, str -> str
   | Must_stay_here, Strict -> Strict
+  (* CR uniqueness: We lose some performance here since the new
+     pattern-matching code in 5.3 looks at the binding_kind to determine whether
+     an allocation is mutable or not. See [Matching.mut_of_binding_kind].
+     This can cause the analysis to re-match on unique data. However, we ensure
+     in the uniqueness analysis that guards can not change unique data during
+     pattern-matching. This means that the rematches in 5.3 are unnecessary for
+     unique data and it would be nice to avoid them. *)
   | Must_stay_here, (Alias|StrictOpt) -> StrictOpt
 
 type meth_kind = Self | Public | Cached
