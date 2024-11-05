@@ -279,11 +279,6 @@ end
 
 type t = { dbg : Dbg.t; assume_zero_alloc : ZA.Assume_info.t }
 
-type alloc_dbginfo_item =
-  { alloc_words : int;
-    alloc_dbg : t }
-type alloc_dbginfo = alloc_dbginfo_item list
-
 let none = { dbg = []; assume_zero_alloc = ZA.Assume_info.none }
 
 let of_items items = { dbg = items; assume_zero_alloc = ZA.Assume_info.none }

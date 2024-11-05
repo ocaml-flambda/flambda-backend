@@ -262,6 +262,11 @@ module Alloc_mode = struct
     | Local -> false
 end
 
+type alloc_dbginfo_item =
+  { alloc_words : int;
+    alloc_dbg : Debuginfo.t }
+type alloc_dbginfo = alloc_dbginfo_item list
+
 type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of

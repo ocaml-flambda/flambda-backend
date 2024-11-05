@@ -111,7 +111,7 @@ let emit_float32_directive directive x = emit_printf "\t%s\t0x%lx\n" directive x
 (* Record live pointers at call points *)
 
 type frame_debuginfo =
-  | Dbg_alloc of Debuginfo.alloc_dbginfo
+  | Dbg_alloc of Cmm.alloc_dbginfo
   | Dbg_raise of Debuginfo.t
   | Dbg_other of Debuginfo.t
 
@@ -132,7 +132,7 @@ let get_flags debuginfo =
   | Dbg_other d | Dbg_raise d -> if is_none_dbg d then 0 else 1
   | Dbg_alloc dbgs ->
     if !Clflags.debug
-       && List.exists (fun d -> not (is_none_dbg d.Debuginfo.alloc_dbg)) dbgs
+       && List.exists (fun d -> not (is_none_dbg d.Cmm.alloc_dbg)) dbgs
     then 3
     else 2
 
@@ -243,7 +243,7 @@ let emit_frames a =
       assert (List.length dbg < 256);
       a.efa_8 (List.length dbg);
       List.iter
-        (fun Debuginfo.{ alloc_words; _ } ->
+        (fun Cmm.{ alloc_words; _ } ->
           (* Possible allocations range between 2 and 257 *)
           assert (
             2 <= alloc_words
@@ -255,7 +255,7 @@ let emit_frames a =
       then (
         a.efa_align 4;
         List.iter
-          (fun Debuginfo.{ alloc_dbg; _ } ->
+          (fun Cmm.{ alloc_dbg; _ } ->
             if is_none_dbg alloc_dbg
             then a.efa_32 Int32.zero
             else a.efa_label_rel (label_debuginfos false alloc_dbg) Int32.zero)

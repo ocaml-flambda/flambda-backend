@@ -33,7 +33,7 @@ module Witness = struct
   type kind =
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Cmm.alloc_dbginfo
         }
     | Indirect_call
     | Indirect_tailcall
@@ -1626,7 +1626,7 @@ end = struct
         in
         let details =
           List.map
-            (fun (item : Debuginfo.alloc_dbginfo_item) ->
+            (fun (item : Cmm.alloc_dbginfo_item) ->
               let pp_alloc ppf =
                 Format.fprintf ppf "allocate %d words%a" item.alloc_words
                   pp_inlined_dbg item.alloc_dbg

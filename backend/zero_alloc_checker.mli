@@ -55,7 +55,7 @@ module Witness : sig
   type kind =
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Cmm.alloc_dbginfo
         }
     | Indirect_call
     | Indirect_tailcall

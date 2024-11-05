@@ -229,6 +229,17 @@ module Alloc_mode : sig
   val is_heap  : t -> bool
 end
 
+type alloc_dbginfo_item =
+  { alloc_words : int;
+    alloc_dbg : Debuginfo.t }
+(** Due to Comballoc, a single Ialloc instruction may combine several
+    unrelated allocations. Their Debuginfo.t (which may differ) are stored
+    as a list of alloc_dbginfo. This list is in order of increasing memory
+    address, which is the reverse of the original allocation order. Later
+    allocations are consed to the front of this list by Comballoc. *)
+
+type alloc_dbginfo = alloc_dbginfo_item list
+
 type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of

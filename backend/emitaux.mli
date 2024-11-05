@@ -61,7 +61,7 @@ val get_file_num :
   file_emitter:(file_num:int -> file_name:string -> unit) -> string -> int
 
 type frame_debuginfo =
-  | Dbg_alloc of Debuginfo.alloc_dbginfo
+  | Dbg_alloc of Cmm.alloc_dbginfo
   | Dbg_raise of Debuginfo.t
   | Dbg_other of Debuginfo.t
 
