@@ -91,9 +91,7 @@
 ]
 
 open! Stdlib
-include sig
 
-include sig
 
  (**
       Unsynchronized accesses to a {!Scanning.in_channel} may lead to an
@@ -166,11 +164,13 @@ val open_in_bin : file_name -> in_channel
     @since 3.12
 *)
 
+include sig
 val close_in : in_channel -> unit
 (** Closes the {!Stdlib.in_channel} associated with the given
   {!Scanning.in_channel} formatted input channel.
   @since 3.12
 *)
+end @@ portable
 
 val from_file : file_name -> in_channel
 (** An alias for {!Scanning.open_in} above. *)
@@ -178,6 +178,7 @@ val from_file : file_name -> in_channel
 val from_file_bin : string -> in_channel
 (** An alias for {!Scanning.open_in_bin} above. *)
 
+include sig
 val from_string : string -> in_channel
 (** [Scanning.from_string s] returns a {!Scanning.in_channel} formatted
     input channel which reads from the given string.
@@ -217,7 +218,7 @@ val name_of_input : in_channel -> string
     for the given {!Scanning.in_channel} formatted input channel.
     @since 3.09
 *)
-
+end @@ portable
 end
 
 (** {1 Type of formatted input functions} *)
@@ -257,6 +258,7 @@ exception Scan_failure of string
 
 (** {1 The general formatted input function} *)
 
+include sig
 val bscanf : Scanning.in_channel -> ('a, 'b, 'c, 'd) scanner
 
 (** [bscanf ic fmt r1 ... rN f] reads characters from the
@@ -500,6 +502,7 @@ val sscanf_opt : string -> ('a, 'b, 'c, 'd) scanner_opt
 
     @since 5.0 *)
 
+end @@ portable
 val scanf : ('a, 'b, 'c, 'd) scanner
 (** Same as {!Scanf.bscanf}, but reads from the predefined formatted input
     channel {!Scanf.Scanning.stdin} that is connected to {!Stdlib.stdin}.
@@ -510,6 +513,7 @@ val scanf_opt : ('a, 'b, 'c, 'd) scanner_opt
 
     @since 5.0 *)
 
+include sig
 val kscanf :
   Scanning.in_channel -> (Scanning.in_channel -> exn -> 'd) ->
     ('a, 'b, 'c, 'd) scanner
