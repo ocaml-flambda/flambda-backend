@@ -14,7 +14,7 @@ File "test_inference.ml", line 27, characters 16-34:
 Error: Annotation check for zero_alloc failed on function Test_inference.f_arity_one (camlTest_inference.f_arity_one_HIDE_STAMP)
 
 File "test_inference.ml", line 27, characters 20-34:
-Error: allocation of 32 bytes
+Error: allocation of 32 bytes for closure
 
 File "test_inference.ml", line 41, characters 19-29:
 Error: Annotation check for zero_alloc failed on function Test_inference.f_shadow_alloc (camlTest_inference.f_shadow_alloc_HIDE_STAMP)
