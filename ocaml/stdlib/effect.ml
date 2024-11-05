@@ -91,7 +91,7 @@ module Deep = struct
       exnc: exn -> 'b;
       effc: 'c.'c t -> (('c,'b) continuation -> 'b) option }
 
-  let match_with comp arg handler =
+  let[@inline never] match_with comp arg handler =
     let effc eff k last_fiber =
       match handler.effc eff with
       | Some f ->
@@ -107,7 +107,7 @@ module Deep = struct
       exnc: exn -> 'b;
       effc: 'c.'c t @ contended -> (('c,'b) continuation @ portable -> 'b) option }
 
-  let match_with_portable comp arg handler =
+  let[@inline never] match_with_portable comp arg handler =
     let effc eff k last_fiber =
       match handler.effc eff with
       | Some f ->
@@ -121,7 +121,7 @@ module Deep = struct
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b,'a) continuation -> 'a) option }
 
-  let try_with comp arg handler =
+  let[@inline never] try_with comp arg handler =
     let effc' eff k last_fiber =
       match handler.effc eff with
       | Some f ->
@@ -135,7 +135,7 @@ module Deep = struct
   type 'a effect_handler_portable =
     { effc: 'b. 'b t @ contended -> (('b,'a) continuation @ portable -> 'a) option }
 
-  let try_with_portable comp arg handler =
+  let[@inline never] try_with_portable comp arg handler =
     let handle = handler.effc in
     let effc' eff k last_fiber =
       match handle eff with
@@ -164,7 +164,7 @@ module Shallow = struct
   external cont_set_last_fiber :
     ('a, 'b) continuation -> last_fiber -> unit @@ portable = "%setfield1"
 
-  let fiber : type a b. (a -> b) -> (a, b) continuation @@ portable = fun f ->
+  let[@inline never] fiber : type a b. (a -> b) -> (a, b) continuation @@ portable = fun f ->
     let module M = struct type _ t += Initial_setup__ : a t end in
     let exception E of (a,b) continuation in
     let f' () = f (perform M.Initial_setup__) in
@@ -196,7 +196,7 @@ module Shallow = struct
   external reperform :
     'a t -> ('a, 'b) continuation -> last_fiber -> 'c @@ portable = "%reperform"
 
-  let continue_gen k resume_fun v handler =
+  let[@inline never] continue_gen k resume_fun v handler =
     let effc eff k last_fiber =
       match handler.effc eff with
       | Some f ->
@@ -208,13 +208,13 @@ module Shallow = struct
     let stack = update_handler k handler.retc handler.exnc effc in
     resume stack resume_fun v last_fiber
 
-  let[@inline never] continue_with k v handler =
+  let continue_with k v handler =
     continue_gen k (fun x -> x) v handler
 
-  let[@inline never] discontinue_with k v handler =
+  let discontinue_with k v handler =
     continue_gen k (fun e -> raise e) v handler
 
-  let[@inline never] discontinue_with_backtrace k v bt handler =
+  let discontinue_with_backtrace k v bt handler =
     continue_gen k (fun e -> Printexc.raise_with_backtrace e bt) v handler
 
   external get_callstack :
