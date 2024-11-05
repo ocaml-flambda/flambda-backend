@@ -199,4 +199,11 @@ let run cfg =
         let shortcircuit = block cfg b in
         registration_needed || shortcircuit)
   in
-  if registration_needed then Cfg.register_predecessors_for_all_blocks cfg
+  if registration_needed
+  then (
+    (* We may need to remove predecessors, and
+       `register_predecessors_for_all_blocks` is only adding predecessors, so we
+       first set all to empty. *)
+    C.iter_blocks cfg ~f:(fun _label block ->
+        block.predecessors <- Label.Set.empty);
+    Cfg.register_predecessors_for_all_blocks cfg)
