@@ -515,17 +515,7 @@ module Layout = struct
   end
 end
 
-module Modes = struct
-  open Mode.Alloc.Const
-
-  let less_or_equal a b : Misc.Le_result.t =
-    match le a b, le b a with
-    | true, true -> Equal
-    | true, false -> Less
-    | false, _ -> Not_le
-
-  let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
-end
+module Modes = Jkind_axis.Of_lattice (Mode.Alloc.Const)
 
 module Layout_and_axes = struct
   open Jkind_axis

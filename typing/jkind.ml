@@ -279,18 +279,7 @@ end
 
 module Externality = Jkind_axis.Externality
 module Nullability = Jkind_axis.Nullability
-
-module Modes = struct
-  include Alloc.Const
-
-  let less_or_equal a b : Misc.Le_result.t =
-    match le a b, le b a with
-    | true, true -> Equal
-    | true, false -> Less
-    | false, _ -> Not_le
-
-  let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
-end
+module Modes = Jkind_axis.Of_lattice (Alloc.Const)
 
 module History = struct
   include Jkind_intf.History
