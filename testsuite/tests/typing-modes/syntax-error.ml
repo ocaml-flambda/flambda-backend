@@ -95,3 +95,11 @@ let foo () =
 let foo ((x @ unique once), (y@local unique)) = x + y;;
 
 let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y;;
+
+module type S = sig
+  module M : S @ portable
+end;;
+
+module type S = sig
+  module F : S @@ portable -> S @@ portable
+end;;

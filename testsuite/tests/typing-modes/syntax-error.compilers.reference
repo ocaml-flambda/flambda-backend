@@ -136,4 +136,16 @@ Line 2, characters 31-32:
 2 | let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y;;
                                    ^
 Error: Syntax error
+Line 4, characters 0-3:
+4 | end;;
+    ^^^
+Error: Syntax error
+Line 3, characters 27-29:
+3 |   module F : S @@ portable -> S @@ portable
+                               ^^
+Error: Syntax error: "end" expected
+Line 2, characters 16-19:
+2 | module type S = sig
+                    ^^^
+  This "sig" might be unmatched
 

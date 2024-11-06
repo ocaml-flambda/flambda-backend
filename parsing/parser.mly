@@ -1590,8 +1590,8 @@ functor_arg:
     LPAREN RPAREN
       { $startpos, Unit }
   | (* An argument accompanied with an explicit type. *)
-    LPAREN x = mkrhs(module_name) COLON mty = module_type RPAREN
-      { $startpos, Named (x, mty) }
+    LPAREN x = mkrhs(module_name) COLON mty = module_type mm = optional_atat_mode_expr RPAREN
+      { $startpos, Named (x, mty, mm) }
 ;
 
 module_name:
@@ -1656,8 +1656,10 @@ module_expr:
 
 paren_module_expr:
     (* A module expression annotated with a module type. *)
-    LPAREN me = module_expr COLON mty = module_type RPAREN
-      { mkmod ~loc:$sloc (Pmod_constraint(me, mty)) }
+    LPAREN me = module_expr COLON mty = module_type mm = optional_atat_mode_expr RPAREN
+      { mkmod ~loc:$sloc (Pmod_constraint(me, Some mty, mm)) }
+  | LPAREN me = module_expr mm = at_mode_expr RPAREN
+      { mkmod ~loc:$sloc (Pmod_constraint(me, None, mm)) }
   | LPAREN module_expr COLON module_type error
       { unclosed "(" $loc($1) ")" $loc($5) }
   | (* A module expression within parentheses. *)
@@ -1791,8 +1793,10 @@ module_binding_body:
   | COLON error
       { expecting $loc($1) "=" }
   | mkmod(
-      COLON mty = module_type EQUAL me = module_expr
-        { Pmod_constraint(me, mty) }
+      COLON mty = module_type mm = optional_atat_mode_expr EQUAL me = module_expr
+        { Pmod_constraint(me, Some mty, mm) }
+    | mm = at_mode_expr EQUAL me = module_expr
+        { Pmod_constraint(me, None, mm) }
     | arg_and_pos = functor_arg body = module_binding_body
         { let (_, arg) = arg_and_pos in
           Pmod_functor(arg, body) }
@@ -1935,12 +1939,17 @@ module_type:
   | STRUCT error
       { expecting $loc($1) "sig" }
   | FUNCTOR attrs = attributes args = functor_args
-    MINUSGREATER mty = module_type
+    MINUSGREATER mty = module_type mm = optional_at_mode_expr
       %prec below_WITH
       { wrap_mty_attrs ~loc:$sloc attrs (
-          List.fold_left (fun acc (startpos, arg) ->
-            mkmty ~loc:(startpos, $endpos) (Pmty_functor (arg, acc))
-          ) mty args
+          let mty, mm =
+            List.fold_left (fun (acc, mm) (startpos, arg) ->
+              mkmty ~loc:(startpos, $endpos) (Pmty_functor (arg, acc, mm)), []
+            ) (mty, mm) args
+          in
+          match mm with
+          | [] -> mty
+          | _ :: _ -> assert false
         ) }
   | MODULE TYPE OF attributes module_expr %prec below_LBRACKETAT
       { mkmty ~loc:$sloc ~attrs:$4 (Pmty_typeof $5) }
@@ -1953,11 +1962,11 @@ module_type:
   | mkmty(
       mkrhs(mty_longident)
         { Pmty_ident $1 }
-    | LPAREN RPAREN MINUSGREATER module_type
-        { Pmty_functor(Unit, $4) }
-    | module_type MINUSGREATER module_type
+    | LPAREN RPAREN MINUSGREATER module_type optional_at_mode_expr
+        { Pmty_functor(Unit, $4, $5) }
+    | module_type m1=optional_at_mode_expr MINUSGREATER module_type m2=optional_at_mode_expr
         %prec below_WITH
-        { Pmty_functor(Named (mknoloc None, $1), $3) }
+        { Pmty_functor(Named (mknoloc None, $1, m1), $4, m2) }
     | module_type WITH separated_nonempty_llist(AND, with_constraint)
         { Pmty_with($1, $3) }
 /*  | LPAREN MODULE mkrhs(mod_longident) RPAREN
@@ -2045,28 +2054,30 @@ signature_item:
   MODULE
   ext = ext attrs1 = attributes
   name = mkrhs(module_name)
-  body = module_declaration_body
+  body = module_declaration_body(optional_atat_modalities_expr)
   attrs2 = post_item_attributes
   {
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
-    Md.mk name body ~attrs ~loc ~docs, ext
+    let mty, modalities = body in
+    Md.mk name mty ~attrs ~loc ~docs ~modalities, ext
   }
 ;
 
 (* The body (right-hand side) of a module declaration. *)
-module_declaration_body:
-    COLON mty = module_type
-      { mty }
+module_declaration_body(mm):
+    COLON mty = module_type mm = mm
+      { mty, mm }
   | EQUAL error
       { expecting $loc($1) ":" }
   | mkmty(
-      arg_and_pos = functor_arg body = module_declaration_body
+      arg_and_pos = functor_arg body = module_declaration_body(optional_atat_mode_expr)
         { let (_, arg) = arg_and_pos in
-          Pmty_functor(arg, body) }
+          let (ret, mret) = body in
+          Pmty_functor(arg, ret, mret) }
     )
-    { $1 }
+    { $1, [] }
 ;
 
 (* A module alias declaration (in a signature). *)

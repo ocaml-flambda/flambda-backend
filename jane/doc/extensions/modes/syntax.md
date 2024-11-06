@@ -87,6 +87,21 @@ val foo : string -> string @ local @@ portable
 (expression : _ @@ local)
 ```
 
+## Modules
+```ocaml
+module M : S @@ portable = ..
+module M @ portable = ..
+module F (M : S @@ portable) : S @@ portable = ..
+module F (M : S @@ portable) @ portable = ..
+module type S = functor (M : S @@ portable) (_ : S @@ portable) -> S @ portable
+module type S = S @ portable -> S @ portable -> S @ portable
+module M : S @@ portable
+module M (_ : S @@ portable) (X : S @@ portable) : S @@ portable
+module M : S @ portable -> S @ portable -> S @ portable @@ portable
+module M' = (M @ portable)
+module M' = (M : S @@ portable)
+```
+
 # Future works
 ## Unzipped syntax
 In the future we will support
