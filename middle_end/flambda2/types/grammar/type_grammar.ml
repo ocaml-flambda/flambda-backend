@@ -55,6 +55,7 @@ and head_of_kind_value =
   | Variant of
       { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
+        extensions : variant_extensions;
         is_unique : bool
       }
   | Mutable_block of { alloc_mode : Alloc_mode.For_types.t }
@@ -196,6 +197,13 @@ and array_contents =
 
 and env_extension = { equations : t Name.Map.t } [@@unboxed]
 
+and variant_extensions =
+  | No_extensions
+  | Ext of
+      { when_immediate : env_extension;
+        when_block : env_extension
+      }
+
 type flambda_type = t
 
 let get_alias_exn t =
@@ -258,12 +266,13 @@ let rec free_names0 ~follow_value_slots t =
 
 and free_names_head_of_kind_value0 ~follow_value_slots head =
   match head with
-  | Variant { blocks; immediates; is_unique = _ } ->
-    Name_occurrences.union
-      (Or_unknown.free_names
-         (free_names_row_like_for_blocks ~follow_value_slots)
-         blocks)
-      (Or_unknown.free_names (free_names0 ~follow_value_slots) immediates)
+  | Variant { blocks; immediates; extensions; is_unique = _ } ->
+    Name_occurrences.union_list
+      [ Or_unknown.free_names
+          (free_names_row_like_for_blocks ~follow_value_slots)
+          blocks;
+        Or_unknown.free_names (free_names0 ~follow_value_slots) immediates;
+        free_names_variant_extensions ~follow_value_slots extensions ]
   | Mutable_block { alloc_mode = _ } -> Name_occurrences.empty
   | Boxed_float32 (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
   | Boxed_float (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
@@ -445,6 +454,15 @@ and free_names_env_extension ~follow_value_slots { equations } =
       Name_occurrences.add_name acc name Name_mode.in_types)
     equations Name_occurrences.empty
 
+and free_names_variant_extensions ~follow_value_slots
+    (extensions : variant_extensions) =
+  match extensions with
+  | No_extensions -> Name_occurrences.empty
+  | Ext { when_immediate; when_block } ->
+    Name_occurrences.union
+      (free_names_env_extension ~follow_value_slots when_immediate)
+      (free_names_env_extension ~follow_value_slots when_block)
+
 let free_names_except_through_value_slots t =
   free_names0 ~follow_value_slots:false t
 
@@ -533,7 +551,7 @@ let rec apply_renaming t renaming =
 
 and apply_renaming_head_of_kind_value head renaming =
   match head with
-  | Variant { blocks; immediates; is_unique } ->
+  | Variant { blocks; immediates; extensions; is_unique } ->
     let immediates' =
       let>+$ immediates = immediates in
       apply_renaming immediates renaming
@@ -542,9 +560,17 @@ and apply_renaming_head_of_kind_value head renaming =
       let>+$ blocks = blocks in
       apply_renaming_row_like_for_blocks blocks renaming
     in
+    let extensions' = apply_renaming_variant_extensions extensions renaming in
     if immediates == immediates' && blocks == blocks'
+       && extensions == extensions'
     then head
-    else Variant { is_unique; blocks = blocks'; immediates = immediates' }
+    else
+      Variant
+        { is_unique;
+          blocks = blocks';
+          immediates = immediates';
+          extensions = extensions'
+        }
   | Mutable_block { alloc_mode = _ } -> head
   | Boxed_float32 (ty, alloc_mode) ->
     let ty' = apply_renaming ty renaming in
@@ -768,6 +794,18 @@ and apply_renaming_env_extension ({ equations } as env_extension) renaming =
   in
   if !changed then { equations = equations' } else env_extension
 
+and apply_renaming_variant_extensions extensions renaming =
+  match extensions with
+  | No_extensions -> extensions
+  | Ext { when_immediate; when_block } ->
+    let when_immediate' =
+      apply_renaming_env_extension when_immediate renaming
+    in
+    let when_block' = apply_renaming_env_extension when_block renaming in
+    if when_immediate == when_immediate' && when_block == when_block'
+    then extensions
+    else Ext { when_immediate = when_immediate'; when_block = when_block' }
+
 let rec print ppf t =
   match t with
   | Value ty ->
@@ -813,15 +851,16 @@ let rec print ppf t =
 
 and print_head_of_kind_value ppf head =
   match head with
-  | Variant { blocks; immediates; is_unique } ->
+  | Variant { blocks; immediates; extensions; is_unique } ->
     (* CR-someday mshinwell: Improve so that we elide blocks and/or immediates
        when they're empty. *)
     Format.fprintf ppf
       "@[<hov 1>(Variant%s@ @[<hov 1>(blocks@ %a)@]@ @[<hov 1>(tagged_imms@ \
-       %a)@])@]"
+       %a)@]%a)@]"
       (if is_unique then " unique" else "")
       (Or_unknown.print print_row_like_for_blocks)
-      blocks (Or_unknown.print print) immediates
+      blocks (Or_unknown.print print) immediates print_variant_extensions
+      extensions
   | Mutable_block { alloc_mode } ->
     Format.fprintf ppf "@[<hov 1>(Mutable_block@ %a)@]"
       Alloc_mode.For_types.print alloc_mode
@@ -1030,6 +1069,14 @@ and print_env_extension ppf { equations } =
   Format.fprintf ppf "@[<hov 1>(equations@ @[<v 1>%a@])@]" print_equations
     equations
 
+and print_variant_extensions ppf (extensions : variant_extensions) =
+  match extensions with
+  | No_extensions -> ()
+  | Ext { when_immediate; when_block } ->
+    Format.fprintf ppf
+      "@ @[<hov 1>(when_immediate@ %a)@]@ @[<hov 1>(when_block@ %a)@]"
+      print_env_extension when_immediate print_env_extension when_block
+
 let rec ids_for_export t =
   match t with
   | Value ty ->
@@ -1063,10 +1110,11 @@ let rec ids_for_export t =
 
 and ids_for_export_head_of_kind_value head =
   match head with
-  | Variant { blocks; immediates; is_unique = _ } ->
-    Ids_for_export.union
-      (Or_unknown.ids_for_export ids_for_export_row_like_for_blocks blocks)
-      (Or_unknown.ids_for_export ids_for_export immediates)
+  | Variant { blocks; immediates; extensions; is_unique = _ } ->
+    Ids_for_export.union_list
+      [ Or_unknown.ids_for_export ids_for_export_row_like_for_blocks blocks;
+        Or_unknown.ids_for_export ids_for_export immediates;
+        ids_for_export_variant_extensions extensions ]
   | Mutable_block { alloc_mode = _ } -> Ids_for_export.empty
   | Boxed_float (t, _alloc_mode) -> ids_for_export t
   | Boxed_float32 (t, _alloc_mode) -> ids_for_export t
@@ -1210,6 +1258,14 @@ and ids_for_export_env_extension { equations } =
     (fun name t ids ->
       Ids_for_export.add_name (Ids_for_export.union ids (ids_for_export t)) name)
     equations Ids_for_export.empty
+
+and ids_for_export_variant_extensions ext =
+  match ext with
+  | No_extensions -> Ids_for_export.empty
+  | Ext { when_immediate; when_block } ->
+    Ids_for_export.union
+      (ids_for_export_env_extension when_immediate)
+      (ids_for_export_env_extension when_block)
 
 (* We need to be very careful here. A non-trivial coercion expects to be dealing
    with some very specific type. As of this writing, the only non-trivial
@@ -1646,7 +1702,7 @@ let rec remove_unused_value_slots_and_shortcut_aliases t ~used_value_slots
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
     ~used_value_slots ~canonicalise =
   match head with
-  | Variant { blocks; immediates; is_unique } ->
+  | Variant { blocks; immediates; extensions; is_unique } ->
     let immediates' =
       let>+$ immediates = immediates in
       remove_unused_value_slots_and_shortcut_aliases immediates
@@ -1657,9 +1713,20 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
       remove_unused_value_slots_and_shortcut_aliases_row_like_for_blocks blocks
         ~used_value_slots ~canonicalise
     in
+    let extensions' =
+      remove_unused_value_slots_and_shortcut_aliases_variant_extensions
+        extensions ~used_value_slots ~canonicalise
+    in
     if immediates == immediates' && blocks == blocks'
+       && extensions == extensions'
     then head
-    else Variant { is_unique; blocks = blocks'; immediates = immediates' }
+    else
+      Variant
+        { is_unique;
+          blocks = blocks';
+          immediates = immediates';
+          extensions = extensions'
+        }
   | Mutable_block { alloc_mode = _ } -> head
   | Boxed_float32 (ty, alloc_mode) ->
     let ty' =
@@ -2004,6 +2071,23 @@ and remove_unused_value_slots_and_shortcut_aliases_env_extension { equations }
   in
   { equations }
 
+and remove_unused_value_slots_and_shortcut_aliases_variant_extensions
+    (extensions : variant_extensions) ~used_value_slots ~canonicalise =
+  match extensions with
+  | No_extensions -> extensions
+  | Ext { when_immediate; when_block } ->
+    let when_immediate' =
+      remove_unused_value_slots_and_shortcut_aliases_env_extension
+        when_immediate ~used_value_slots ~canonicalise
+    in
+    let when_block' =
+      remove_unused_value_slots_and_shortcut_aliases_env_extension when_block
+        ~used_value_slots ~canonicalise
+    in
+    if when_immediate == when_immediate' && when_block == when_block'
+    then extensions
+    else Ext { when_immediate = when_immediate'; when_block = when_block' }
+
 let rec project_variables_out ~to_project ~expand t =
   match t with
   | Value ty ->
@@ -2198,7 +2282,7 @@ let rec project_variables_out ~to_project ~expand t =
 
 and project_head_of_kind_value ~to_project ~expand head =
   match head with
-  | Variant { blocks; immediates; is_unique } ->
+  | Variant { blocks; immediates; extensions; is_unique } ->
     let immediates' =
       let>+$ immediates = immediates in
       project_variables_out ~to_project ~expand immediates
@@ -2207,9 +2291,19 @@ and project_head_of_kind_value ~to_project ~expand head =
       let>+$ blocks = blocks in
       project_row_like_for_blocks ~to_project ~expand blocks
     in
+    let extensions' =
+      project_variant_extensions ~to_project ~expand extensions
+    in
     if immediates == immediates' && blocks == blocks'
+       && extensions == extensions'
     then head
-    else Variant { is_unique; blocks = blocks'; immediates = immediates' }
+    else
+      Variant
+        { is_unique;
+          blocks = blocks';
+          immediates = immediates';
+          extensions = extensions'
+        }
   | Mutable_block _ -> head
   | Boxed_float32 (ty, alloc_mode) ->
     let ty' = project_variables_out ~to_project ~expand ty in
@@ -2457,6 +2551,19 @@ and project_env_extension ~to_project ~expand ({ equations } as env_extension) =
   in
   if !changed then { equations = equations' } else env_extension
 
+and project_variant_extensions ~to_project ~expand
+    (extensions : variant_extensions) =
+  match extensions with
+  | No_extensions -> extensions
+  | Ext { when_immediate; when_block } ->
+    let when_immediate' =
+      project_env_extension ~to_project ~expand when_immediate
+    in
+    let when_block' = project_env_extension ~to_project ~expand when_block in
+    if when_immediate == when_immediate' && when_block == when_block'
+    then extensions
+    else Ext { when_immediate = when_immediate'; when_block = when_block' }
+
 let kind t =
   match t with
   | Value _ -> K.value
@@ -2470,7 +2577,8 @@ let kind t =
   | Rec_info _ -> K.rec_info
   | Region _ -> K.region
 
-let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks =
+let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks ~extensions
+    =
   (match immediates with
   | Unknown -> ()
   | Known immediates ->
@@ -2480,7 +2588,7 @@ let create_variant ~is_unique ~(immediates : _ Or_unknown.t) ~blocks =
         "Cannot create [immediates] with type that is not of kind \
          [Naked_immediate]:@ %a"
         print immediates);
-  Value (TD.create (Variant { immediates; blocks; is_unique }))
+  Value (TD.create (Variant { immediates; blocks; extensions; is_unique }))
 
 let mutable_block alloc_mode = Value (TD.create (Mutable_block { alloc_mode }))
 
@@ -3118,6 +3226,7 @@ let tag_immediate t : t =
          (Variant
             { is_unique = false;
               immediates = Known t;
+              extensions = No_extensions;
               blocks = Known Row_like_for_blocks.bottom
             }))
   | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
@@ -3249,8 +3358,8 @@ let create_from_head_region head = Region (TD.create head)
 module Head_of_kind_value = struct
   type t = head_of_kind_value
 
-  let create_variant ~is_unique ~blocks ~immediates =
-    Variant { is_unique; blocks; immediates }
+  let create_variant ~is_unique ~blocks ~immediates ~extensions =
+    Variant { is_unique; blocks; immediates; extensions }
 
   let create_mutable_block alloc_mode = Mutable_block { alloc_mode }
 
@@ -3270,7 +3379,8 @@ module Head_of_kind_value = struct
     Variant
       { is_unique = false;
         immediates = Known (this_naked_immediate imm);
-        blocks = Known Row_like_for_blocks.bottom
+        blocks = Known Row_like_for_blocks.bottom;
+        extensions = No_extensions
       }
 
   let create_closures by_function_slot alloc_mode =
@@ -3368,7 +3478,9 @@ let rec recover_some_aliases t =
           | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _
           | Closures _ | Array _ )) ->
       t
-    | Ok (No_alias (Variant { immediates; blocks; is_unique = _ })) -> (
+    | Ok
+        (No_alias
+          (Variant { immediates; blocks; extensions = _; is_unique = _ })) -> (
       match blocks with
       | Unknown -> t
       | Known blocks -> (

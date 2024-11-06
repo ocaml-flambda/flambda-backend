@@ -190,7 +190,8 @@ let meet_naked_immediates env t =
 
 let prove_equals_tagged_immediates env t : _ proof_of_property =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
+  | Value (Ok (Variant { immediates; blocks; extensions = _; is_unique = _ }))
+    -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
@@ -212,7 +213,9 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
 
 let meet_equals_tagged_immediates env t : _ meet_shortcut =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks = _; is_unique = _ })) -> (
+  | Value
+      (Ok (Variant { immediates; blocks = _; extensions = _; is_unique = _ }))
+    -> (
     match immediates with
     | Unknown -> Need_meet
     | Known imms -> meet_naked_immediates env imms)
@@ -403,7 +406,9 @@ let prove_is_a_boxed_or_tagged_number env t :
     boxed_or_tagged_number proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Variant { blocks; immediates = _; is_unique = _ })) -> (
+  | Value
+      (Ok (Variant { blocks; immediates = _; extensions = _; is_unique = _ }))
+    -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
@@ -713,7 +718,8 @@ type tagging_proof_kind =
 let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
     Simple.t generic_proof =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
+  | Value (Ok (Variant { immediates; blocks; extensions = _; is_unique = _ }))
+    -> (
     let inspect_immediates () =
       match immediates with
       | Unknown -> Unknown
@@ -838,7 +844,9 @@ let meet_boxed_vec128_containing_simple =
 let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
     Simple.t meet_shortcut =
   match expand_head env t with
-  | Value (Ok (Variant { immediates = _; blocks; is_unique = _ })) -> (
+  | Value
+      (Ok (Variant { immediates = _; blocks; extensions = _; is_unique = _ }))
+    -> (
     match blocks with
     | Unknown -> Need_meet
     | Known blocks -> (
@@ -1049,23 +1057,42 @@ let prove_physical_equality env t1 t2 =
         let module SS = String_info.Set in
         if SS.is_empty (SS.inter s1 s2) then Proved false else Unknown
       (* Immediates and allocated values -> Proved false *)
-      | ( Variant { immediates = _; blocks = Known blocks; is_unique = _ },
+      | ( Variant
+            { immediates = _;
+              blocks = Known blocks;
+              extensions = _;
+              is_unique = _
+            },
           ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
           | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
           | String _ | Array _ ) )
       | ( ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
           | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
           | String _ | Array _ ),
-          Variant { immediates = _; blocks = Known blocks; is_unique = _ } )
+          Variant
+            { immediates = _;
+              blocks = Known blocks;
+              extensions = _;
+              is_unique = _
+            } )
         when TG.Row_like_for_blocks.is_bottom blocks ->
         Proved false
       (* Variants:
        * incompatible immediates and incompatible block tags -> Proved false
        * same immediate on both sides, no blocks -> Proved true
        *)
-      | ( Variant { immediates = immediates1; blocks = blocks1; is_unique = _ },
-          Variant { immediates = immediates2; blocks = blocks2; is_unique = _ }
-        ) -> (
+      | ( Variant
+            { immediates = immediates1;
+              blocks = blocks1;
+              extensions = _;
+              is_unique = _
+            },
+          Variant
+            { immediates = immediates2;
+              blocks = blocks2;
+              extensions = _;
+              is_unique = _
+            } ) -> (
         match immediates1, immediates2, blocks1, blocks2 with
         | Known imms, _, _, Known blocks
           when TG.is_obviously_bottom imms

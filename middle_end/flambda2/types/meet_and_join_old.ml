@@ -179,10 +179,15 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
     | Some simple2 -> (
       match meet_expanded_head env expanded1 expanded2 with
       | Left_head_unchanged ->
+        let ty =
+          if ET.is_bottom expanded1
+          then MTC.bottom kind
+          else TG.alias_type_of kind simple2
+        in
         let env_extension =
           add_equation simple2 (ET.to_type expanded1) TEE.empty
         in
-        TG.alias_type_of kind simple2, env_extension
+        ty, env_extension
       | Right_head_unchanged -> TG.alias_type_of kind simple2, TEE.empty
       | New_head (expanded, env_extension) ->
         (* It makes things easier (to check if the result of [meet] was bottom)
@@ -214,10 +219,15 @@ and meet0 env (t1 : TG.t) (t2 : TG.t) : TG.t * TEE.t =
       match meet_expanded_head env expanded1 expanded2 with
       | Left_head_unchanged -> TG.alias_type_of kind simple1, TEE.empty
       | Right_head_unchanged ->
+        let ty =
+          if ET.is_bottom expanded2
+          then MTC.bottom kind
+          else TG.alias_type_of kind simple1
+        in
         let env_extension =
           add_equation simple1 (ET.to_type expanded2) TEE.empty
         in
-        TG.alias_type_of kind simple1, env_extension
+        ty, env_extension
       | New_head (expanded, env_extension) ->
         let ty =
           if ET.is_bottom expanded
@@ -337,16 +347,26 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
 and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : _ Or_bottom.t =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = _;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = _;
+          is_unique = is_unique2
+        } ) ->
     let<+ blocks, immediates, env_extension =
       meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    ( TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates,
+    ( TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+        ~extensions:No_extensions,
       env_extension )
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
@@ -1243,9 +1263,18 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
 and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
   match head1, head2 with
-  | ( Variant { blocks = blocks1; immediates = imms1; is_unique = is_unique1 },
-      Variant { blocks = blocks2; immediates = imms2; is_unique = is_unique2 } )
-    ->
+  | ( Variant
+        { blocks = blocks1;
+          immediates = imms1;
+          extensions = _;
+          is_unique = is_unique1
+        },
+      Variant
+        { blocks = blocks2;
+          immediates = imms2;
+          extensions = _;
+          is_unique = is_unique2
+        } ) ->
     let>+ blocks, immediates =
       join_variant env ~blocks1 ~imms1 ~blocks2 ~imms2
     in
@@ -1253,6 +1282,7 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
     TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+      ~extensions:No_extensions
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
