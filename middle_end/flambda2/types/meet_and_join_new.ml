@@ -568,9 +568,10 @@ and meet_head_of_kind_value initial_env
     | Bottom -> Bottom (New_result ())
     | Ok env -> (
       match is_null1, is_null2 with
-      | Not_null, Not_null | Maybe_null, Maybe_null -> Ok (Both_inputs, env)
-      | Not_null, Maybe_null -> Ok (Left_input, env)
-      | Maybe_null, Not_null -> Ok (Right_input, env))
+      | Not_null, Not_null -> Bottom Both_inputs
+      | Maybe_null, Maybe_null -> Ok (Both_inputs, env)
+      | Not_null, Maybe_null -> Bottom Left_input
+      | Maybe_null, Not_null -> Bottom Right_input)
   in
   match non_null_result, is_null_result with
   | Bottom r1, Bottom r2 ->
