@@ -445,7 +445,7 @@ let extend_args_with_extra_args (t : T.Acc.t) =
                     (add_extra_args_to_call ~extra_args)
                     rewrite_ids
               in
-              (* We must leave an empty [Apply_cont_rewrite_id] map here.
+              (* We must not leave an empty [Apply_cont_rewrite_id] map here.
                  Indeed, not having any actual continuation arguments will let
                  flow analysis find a dominator for parameters of [cont] that we
                  do not have access to. Since we then only look at which
