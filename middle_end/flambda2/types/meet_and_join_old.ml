@@ -633,18 +633,18 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     -> (
     match I.Set.elements is_null with
     | [] -> Bottom
-    | [is_int] -> (
+    | [is_null] -> (
       let shape =
-        if I.equal is_int I.zero
+        if I.equal is_null I.zero
         then Some TG.any_non_null_value
-        else if I.equal is_int I.one
+        else if I.equal is_null I.one
         then Some TG.null
         else None
       in
       match shape with
       | Some shape ->
         let<+ ty, env_extension = meet env ty shape in
-        TG.Head_of_kind_naked_immediate.create_is_int ty, env_extension
+        TG.Head_of_kind_naked_immediate.create_is_null ty, env_extension
       | None -> Bottom)
     | _ :: _ :: _ ->
       (* Note: we're potentially losing precision because the set could end up

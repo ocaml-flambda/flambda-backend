@@ -1057,6 +1057,10 @@ let prove_physical_equality env t1 t2 =
     | Value (Unknown | Bottom), _ | _, Value (Unknown | Bottom) -> Unknown
     | Value (Ok head1), Value (Ok head2) -> (
       match head1, head2 with
+      | ( { is_null = Maybe_null; non_null = Bottom },
+          { is_null = Maybe_null; non_null = Bottom } ) ->
+        (* Null is physically equal to Null *)
+        Proved true
       | { is_null = Maybe_null; _ }, _ | _, { is_null = Maybe_null; _ } ->
         Unknown
       | { is_null = Not_null; non_null = Unknown | Bottom }, _

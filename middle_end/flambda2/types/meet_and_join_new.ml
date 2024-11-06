@@ -983,13 +983,16 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
         meet_with_shape ~rebuild is_int_ty MTC.any_tagged_immediate is_int_side
   in
   let is_null_immediate ~is_null_ty ~immediates ~is_null_side =
-    let rebuild = TG.Head_of_kind_naked_immediate.create_is_null in
-    match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
-    | false, false -> Bottom (New_result ())
-    | true, true -> keep_side is_null_side
-    | true, false ->
-      meet_with_shape ~rebuild is_null_ty TG.any_non_null_value is_null_side
-    | false, true -> meet_with_shape ~rebuild is_null_ty TG.null is_null_side
+    if I.Set.is_empty immediates
+    then bottom_other_side is_null_side
+    else
+      let rebuild = TG.Head_of_kind_naked_immediate.create_is_null in
+      match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
+      | false, false -> Bottom (New_result ())
+      | true, true -> keep_side is_null_side
+      | true, false ->
+        meet_with_shape ~rebuild is_null_ty TG.any_non_null_value is_null_side
+      | false, true -> meet_with_shape ~rebuild is_null_ty TG.null is_null_side
   in
   let get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side =
     if I.Set.is_empty immediates
