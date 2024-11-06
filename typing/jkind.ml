@@ -1750,26 +1750,28 @@ let score_reason = function
 let combine_histories reason (Pack k1) (Pack k2) =
   if flattened_histories
   then
-    let choose_better_history history_a history_b =
+    let choose_higher_scored_history history_a history_b =
       if score_reason history_a >= score_reason history_b
       then history_a
       else history_b
     in
-    let choose_history k_a history_a k_b history_b =
+    let choose_subjkind_history k_a history_a k_b history_b =
       match Jkind_desc.sub k_a k_b with
       | Less -> history_a
       | Not_le ->
         (* CR layouts: this will be wrong if we ever have a non-trivial meet in
            the kind lattice -- which is now! So this is actually wrong. *)
         history_b
-      | Equal -> choose_better_history history_a history_b
+      | Equal -> choose_higher_scored_history history_a history_b
     in
     match Layout_and_axes.(try_allow_l k1.jkind, try_allow_r k2.jkind) with
-    | Some k1_l, Some k2_r -> choose_history k1_l k1.history k2_r k2.history
+    | Some k1_l, Some k2_r ->
+      choose_subjkind_history k1_l k1.history k2_r k2.history
     | _ -> (
       match Layout_and_axes.(try_allow_r k1.jkind, try_allow_l k2.jkind) with
-      | Some k1_r, Some k2_l -> choose_history k2_l k2.history k1_r k1.history
-      | _ -> choose_better_history k1.history k2.history)
+      | Some k1_r, Some k2_l ->
+        choose_subjkind_history k2_l k2.history k1_r k1.history
+      | _ -> choose_higher_scored_history k1.history k2.history)
   else
     Interact
       { reason;
