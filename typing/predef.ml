@@ -208,14 +208,17 @@ and ident_some = ident_create "Some"
 and ident_null = ident_create "Null"
 and ident_this = ident_create "This"
 
+let option_argument_sort = Jkind.Sort.Const.value
 let option_argument_jkind = Jkind.Builtin.value ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
+let list_jkind = Jkind.Builtin.value ~why:Boxed_variant
+let list_sort = Jkind.Sort.Const.value
+let list_argument_sort = Jkind.Sort.Const.value
 let list_argument_jkind = Jkind.Builtin.value ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
 
-let or_null_argument_jkind = Jkind.Builtin.value ~why:(
-  Type_argument {parent_path = path_or_null; position = 1; arity = 1})
+let or_null_argument_sort = Jkind.Sort.Const.value
 
 let mk_add_type add_type
       ?manifest type_ident
@@ -278,16 +281,14 @@ let mk_add_type1 add_type type_ident
   add_type type_ident decl env
 
 let mk_add_extension add_extension id args =
-  List.iter (fun (_, jkind) ->
+  List.iter (fun (_, sort) ->
       let raise_error () = Misc.fatal_error
           "sanity check failed: non-value jkind in predef extension \
             constructor; should this have Constructor_mixed shape?" in
-      match Jkind.get_layout jkind with
-      | Some (Base Value) -> ()
-      | Some (Any
-              | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
-              | Product _)
-      | None -> raise_error ())
+      match (sort : Jkind.Sort.Const.t) with
+      | Base Value -> ()
+      | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
+      | Product _ -> raise_error ())
     args;
   add_extension id
     { ext_type_path = path_exn;
@@ -295,10 +296,10 @@ let mk_add_extension add_extension id args =
       ext_args =
         Cstr_tuple
           (List.map
-            (fun (ca_type, ca_jkind) ->
+            (fun (ca_type, ca_sort) ->
               {
                 ca_type;
-                ca_jkind;
+                ca_sort;
                 ca_modalities=Mode.Modality.Value.Const.id;
                 ca_loc=Location.none
               })
@@ -316,20 +317,20 @@ let mk_add_extension add_extension id args =
 
 let variant constrs =
   let mk_elt { cd_args } =
-    let jkinds = match cd_args with
+    let sorts = match cd_args with
       | Cstr_tuple args ->
-        Misc.Stdlib.Array.of_list_map (fun { ca_jkind } -> ca_jkind) args
+        Misc.Stdlib.Array.of_list_map (fun { ca_sort } -> ca_sort) args
       | Cstr_record lbls ->
-        Misc.Stdlib.Array.of_list_map (fun { ld_jkind } -> ld_jkind) lbls
+        Misc.Stdlib.Array.of_list_map (fun { ld_sort } -> ld_sort) lbls
     in
-    Constructor_uniform_value, jkinds
+    Constructor_uniform_value, sorts
   in
   Type_variant (constrs,
                 Variant_boxed (Misc.Stdlib.Array.of_list_map mk_elt constrs))
 
-let unrestricted tvar jkind =
+let unrestricted tvar ca_sort =
   {ca_type=tvar;
-   ca_jkind=jkind;
+   ca_sort;
    ca_modalities=Mode.Modality.Value.Const.id;
    ca_loc=Location.none}
 
@@ -339,7 +340,6 @@ let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
   and add_extension = mk_add_extension add_extension in
-  let list_jkind = Jkind.Builtin.value ~why:Boxed_variant in
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
@@ -371,8 +371,8 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_nil [];
-                  cstr ident_cons [unrestricted tvar list_argument_jkind;
-                                   unrestricted (type_list tvar) list_jkind]])
+                  cstr ident_cons [unrestricted tvar list_argument_sort;
+                                   unrestricted (type_list tvar) list_sort]])
        ~jkind:list_jkind
   |> add_type ident_nativeint
       ~jkind:Jkind.Const.Builtin.immutable_data
@@ -381,35 +381,32 @@ let build_initial_env add_type add_extension empty_env =
        ~separability:Separability.Ind
        ~kind:(fun tvar ->
          variant [cstr ident_none [];
-                  cstr ident_some [unrestricted tvar option_argument_jkind]])
+                  cstr ident_some [unrestricted tvar option_argument_sort]])
        ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
-         let lbl (field, field_type, jkind) =
+         let lbl (field, field_type) =
            let id = Ident.create_predef field in
              {
                ld_id=id;
                ld_mutable=Immutable;
                ld_modalities=Mode.Modality.Value.Const.id;
                ld_type=field_type;
-               ld_jkind=jkind;
+               ld_sort=Jkind.Sort.Const.value;
                ld_loc=Location.none;
                ld_attributes=[];
                ld_uid=Uid.of_predef_id id;
              }
          in
-         let immediate = Jkind.Builtin.immediate ~why:(Primitive ident_int) in
          let labels = List.map lbl [
-           ("pos_fname", type_string,
-            Jkind.of_builtin ~why:(Primitive ident_string)
-              Jkind.Const.Builtin.immutable_data);
-           ("pos_lnum", type_int, immediate);
-           ("pos_bol", type_int, immediate);
-           ("pos_cnum", type_int, immediate) ]
+           ("pos_fname", type_string);
+           ("pos_lnum", type_int);
+           ("pos_bol", type_int);
+           ("pos_cnum", type_int) ]
          in
          Type_record (
            labels,
-           (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
+           (Record_boxed (List.map (fun label -> label.ld_sort) labels |> Array.of_list))
          )
        )
        ~jkind:Jkind.Const.Builtin.immutable_data
@@ -425,25 +422,25 @@ let build_initial_env add_type add_extension empty_env =
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),
-        Jkind.Builtin.value ~why:Tuple]
+        Jkind.Sort.Const.value]
   |> add_extension ident_division_by_zero []
   |> add_extension ident_end_of_file []
   |> add_extension ident_failure [type_string,
-       Jkind.Builtin.value ~why:(Primitive ident_string)]
+       Jkind.Sort.Const.value]
   |> add_extension ident_invalid_argument [type_string,
-       Jkind.Builtin.value ~why:(Primitive ident_string)]
+       Jkind.Sort.Const.value]
   |> add_extension ident_match_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),
-       Jkind.Builtin.value ~why:Tuple]
+       Jkind.Sort.Const.value]
   |> add_extension ident_not_found []
   |> add_extension ident_out_of_memory []
   |> add_extension ident_stack_overflow []
   |> add_extension ident_sys_blocked_io []
   |> add_extension ident_sys_error [type_string,
-       Jkind.Builtin.value ~why:(Primitive ident_string)]
+       Jkind.Sort.Const.value]
   |> add_extension ident_undefined_recursive_module
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),
-       Jkind.Builtin.value ~why:Tuple]
+       Jkind.Sort.Const.value]
 
 let add_simd_stable_extension_types add_type env =
   let add_type = mk_add_type add_type in
@@ -469,7 +466,7 @@ let add_small_number_extension_types add_type env =
 
 let or_null_kind tvar =
   variant [cstr ident_null [];
-           cstr ident_this [unrestricted tvar or_null_argument_jkind]]
+           cstr ident_this [unrestricted tvar or_null_argument_sort]]
 
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in

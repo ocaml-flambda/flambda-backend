@@ -124,11 +124,6 @@ let with_additional_action =
   in
   { s with additional_action; last_compose = None }
 
-let apply_prepare_jkind s lay loc =
-  match s.additional_action with
-  | Prepare_for_saving { prepare_jkind } -> prepare_jkind loc lay
-  | Duplicate_variables | No_action -> lay
-
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
 
 let loc s x =
@@ -467,7 +462,7 @@ let label_declaration copy_scope s l =
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
     ld_modalities = l.ld_modalities;
-    ld_jkind = apply_prepare_jkind s l.ld_jkind l.ld_loc;
+    ld_sort = l.ld_sort;
     ld_type = typexp copy_scope s l.ld_loc l.ld_type;
     ld_loc = loc s l.ld_loc;
     ld_attributes = attrs s l.ld_attributes;
@@ -477,13 +472,7 @@ let label_declaration copy_scope s l =
 let constructor_argument copy_scope s ca =
   {
     ca_type = typexp copy_scope s ca.ca_loc ca.ca_type;
-    ca_jkind = begin match s.additional_action with
-      | Prepare_for_saving { prepare_jkind } ->
-        prepare_jkind ca.ca_loc ca.ca_jkind
-      (* CR layouts v2.8: This will have to be copied once we
-         have with-types. *)
-      | Duplicate_variables | No_action -> ca.ca_jkind
-    end;
+    ca_sort = ca.ca_sort;
     ca_loc = loc s ca.ca_loc;
     ca_modalities = ca.ca_modalities;
   }
@@ -504,27 +493,6 @@ let constructor_declaration copy_scope s c =
     cd_uid = c.cd_uid;
   }
 
-(* called only when additional_action is [Prepare_for_saving] *)
-let variant_representation ~prepare_jkind loc = function
-  | Variant_unboxed -> Variant_unboxed
-  | Variant_boxed cstrs_and_jkinds  ->
-    Variant_boxed
-      (Array.map
-         (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
-         cstrs_and_jkinds)
-  | Variant_extensible -> Variant_extensible
-
-(* called only when additional_action is [Prepare_for_saving] *)
-let record_representation ~prepare_jkind loc = function
-  | Record_unboxed -> Record_unboxed
-  | Record_inlined (tag, constructor_rep, variant_rep) ->
-    Record_inlined (tag,
-                    constructor_rep,
-                    variant_representation ~prepare_jkind loc variant_rep)
-  | Record_boxed lays ->
-      Record_boxed (Array.map (prepare_jkind loc) lays)
-  | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
-
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
@@ -532,21 +500,9 @@ let type_declaration' copy_scope s decl =
       begin match decl.type_kind with
         Type_abstract r -> Type_abstract r
       | Type_variant (cstrs, rep) ->
-          let rep =
-            match s.additional_action with
-            | No_action | Duplicate_variables -> rep
-            | Prepare_for_saving { prepare_jkind } ->
-                variant_representation ~prepare_jkind decl.type_loc rep
-          in
           Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
                         rep)
       | Type_record(lbls, rep) ->
-          let rep =
-            match s.additional_action with
-            | No_action | Duplicate_variables -> rep
-            | Prepare_for_saving { prepare_jkind } ->
-                record_representation ~prepare_jkind decl.type_loc rep
-          in
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
       end;

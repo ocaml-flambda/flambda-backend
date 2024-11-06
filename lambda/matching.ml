@@ -104,17 +104,15 @@ exception Error of Location.t * error
 
 let dbg = false
 
-let jkind_layout_default_to_value_and_check_not_void loc jkind =
-  let rec contains_void : Jkind.Layout.Const.t -> bool = function
-    | Any -> false
+let sort_check_not_void loc sort =
+  let rec contains_void : Jkind.Sort.Const.t -> bool = function
     | Base Void -> true
     | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) -> false
     | Product [] ->
-      Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
-    | Product ts -> List.exists contains_void ts
+      Misc.fatal_error "nil in sort_check_not_void"
+    | Product ss -> List.exists contains_void ss
   in
-  let layout = Jkind.get_layout_defaulting_to_value jkind in
-  if contains_void layout then
+  if contains_void sort then
     raise (Error (loc, Void_layout))
 ;;
 
@@ -1877,9 +1875,7 @@ let get_pat_args_constr p rem =
   match p with
   | { pat_desc = Tpat_construct (_, {cstr_args}, args, _) } ->
     List.iter2
-      (fun { ca_jkind } arg ->
-         jkind_layout_default_to_value_and_check_not_void
-           arg.pat_loc ca_jkind)
+      (fun { ca_sort } arg -> sort_check_not_void arg.pat_loc ca_sort)
       cstr_args args;
       (* CR layouts v5: This sanity check will have to go (or be replaced with a
          void-specific check) when we have other non-value sorts *)
@@ -1895,12 +1891,11 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   let loc = head_loc ~scopes head in
   (* CR layouts v5: This sanity check should be removed or changed to
      specifically check for void when we add other non-value sorts. *)
-  List.iter (fun { ca_jkind } ->
-      jkind_layout_default_to_value_and_check_not_void head.pat_loc ca_jkind)
+  List.iter (fun { ca_sort } -> sort_check_not_void head.pat_loc ca_sort)
     cstr.cstr_args;
   let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
   let sem = add_barrier_to_read ubr Reads_agree in
-  let make_field_access binding_kind jkind ~field ~pos =
+  let make_field_access binding_kind sort ~field ~pos =
     let prim =
       match cstr.cstr_shape with
       | Constructor_uniform_value -> Pfield (pos, Pointer, sem)
@@ -1922,8 +1917,6 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
           let shape = Lambda.transl_mixed_product_shape shape in
           Pmixedfield (pos, read, shape, sem)
     in
-    let sort = Jkind.sort_of_jkind jkind in
-    let sort = Jkind.Sort.default_for_transl_and_get sort in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
   in
@@ -1934,15 +1927,15 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
     match cstr.cstr_repr with
     | Variant_boxed _ ->
         List.mapi
-          (fun i { ca_jkind } ->
-             make_field_access str ca_jkind ~field:i ~pos:i)
+          (fun i { ca_sort } ->
+             make_field_access str ca_sort ~field:i ~pos:i)
           cstr.cstr_args
         @ rem
     | Variant_unboxed -> (arg, str, sort, layout) :: rem
     | Variant_extensible ->
         List.mapi
-          (fun i { ca_jkind } ->
-             make_field_access str ca_jkind ~field:i ~pos:(i+1))
+          (fun i { ca_sort } ->
+             make_field_access str ca_sort ~field:i ~pos:(i+1))
           cstr.cstr_args
         @ rem
 
@@ -2264,7 +2257,7 @@ let record_matching_line num_fields lbl_pat_list =
   List.iter (fun (_, lbl, pat) ->
     (* CR layouts v5: This void sanity check can be removed when we add proper
        void support (or whenever we remove `lbl_pos_void`) *)
-    jkind_layout_default_to_value_and_check_not_void pat.pat_loc lbl.lbl_jkind;
+    sort_check_not_void pat.pat_loc lbl.lbl_sort;
     patv.(lbl.lbl_pos) <- pat)
     lbl_pat_list;
   Array.to_list patv
@@ -2291,12 +2284,9 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
-      jkind_layout_default_to_value_and_check_not_void
-        head.pat_loc lbl.lbl_jkind;
+      sort_check_not_void head.pat_loc lbl.lbl_sort;
       let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
-      let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
+      let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl.lbl_sort in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
@@ -2307,21 +2297,21 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_boxed _
         | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
-            lbl_sort, lbl_layout
+            lbl.lbl_sort, lbl_layout
         | Record_unboxed
         | Record_inlined (_, _, Variant_unboxed) -> arg, sort, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
            (* Here we are projecting a boxed float from a float record. *)
-           lbl_sort, lbl_layout
+           lbl.lbl_sort, lbl_layout
         | Record_ufloat ->
            Lprim (Pufloatfield (lbl.lbl_pos, sem), [ arg ], loc),
            (* Here we are projecting an unboxed float from a float record. *)
-           lbl_sort, lbl_layout
+           lbl.lbl_sort, lbl_layout
         | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
-            lbl_sort, lbl_layout
+            lbl.lbl_sort, lbl_layout
         | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
             (* CR layouts v5.9: support this *)
             fatal_error
@@ -2348,7 +2338,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               { value_prefix_len; flat_suffix }
             in
             Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [ arg ], loc),
-            lbl_sort, lbl_layout
+            lbl.lbl_sort, lbl_layout
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
       let str = add_barrier_to_let_kind ubr str in
