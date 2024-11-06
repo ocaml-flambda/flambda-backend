@@ -166,13 +166,16 @@ let create_with_mutex () =
 module Data = struct
   include Data_
 
+  external raise_with_backtrace: exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable
+    = "%raise_with_backtrace"
+
   exception Protected : 'k Mutex.t * (exn, 'k) t -> exn
 
   let protect f =
     try f () with
     | exn ->
       let (P mut) = create_with_mutex () in
-      raise (Protected (mut, unsafe_mk exn))
+      raise_with_backtrace (Protected (mut, unsafe_mk exn)) (Printexc.get_raw_backtrace ())
   ;;
 end
 
