@@ -265,9 +265,10 @@ end
 
 let iter_functor_param sub = function
   | Unit -> ()
-  | Named (name, mty) ->
+  | Named (name, mty, mm) ->
     iter_loc sub name;
-    sub.module_type sub mty
+    sub.module_type sub mty;
+    sub.modes sub mm
 
 module MT = struct
   (* Type expressions for the module language *)
@@ -279,9 +280,10 @@ module MT = struct
     | Pmty_ident s -> iter_loc sub s
     | Pmty_alias s -> iter_loc sub s
     | Pmty_signature sg -> sub.signature sub sg
-    | Pmty_functor (param, mt2) ->
+    | Pmty_functor (param, mt2, mm2) ->
         iter_functor_param sub param;
-        sub.module_type sub mt2
+        sub.module_type sub mt2;
+        sub.modes sub mm2
     | Pmty_with (mt, l) ->
         sub.module_type sub mt;
         List.iter (sub.with_constraint sub) l
@@ -353,8 +355,9 @@ module M = struct
         sub.module_expr sub m2
     | Pmod_apply_unit m1 ->
         sub.module_expr sub m1
-    | Pmod_constraint (m, mty) ->
-        sub.module_expr sub m; sub.module_type sub mty
+    | Pmod_constraint (m, mty, mm) ->
+        sub.module_expr sub m; Option.iter (sub.module_type sub) mty;
+        sub.modes sub mm
     | Pmod_unpack e -> sub.expr sub e
     | Pmod_extension x -> sub.extension sub x
     | Pmod_instance _ -> ()

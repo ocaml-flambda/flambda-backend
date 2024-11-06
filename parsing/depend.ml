@@ -402,11 +402,11 @@ and add_modtype bv mty =
     Pmty_ident l -> add bv l
   | Pmty_alias l -> add_module_path bv l
   | Pmty_signature s -> add_signature bv s
-  | Pmty_functor(param, mty2) ->
+  | Pmty_functor(param, mty2, _) ->
       let bv =
         match param with
         | Unit -> bv
-        | Named (id, mty1) ->
+        | Named (id, mty1, _) ->
           add_modtype bv mty1;
           match id.txt with
           | None -> bv
@@ -551,7 +551,7 @@ and add_module_expr bv modl =
       let bv =
         match param with
         | Unit -> bv
-        | Named (id, mty) ->
+        | Named (id, mty, _) ->
           add_modtype bv mty;
           match id.txt with
           | None -> bv
@@ -563,8 +563,8 @@ and add_module_expr bv modl =
       add_module_expr bv mod2
   | Pmod_apply_unit mod1 ->
       add_module_expr bv mod1
-  | Pmod_constraint(modl, mty) ->
-      add_module_expr bv modl; add_modtype bv mty
+  | Pmod_constraint(modl, mty, _) ->
+      add_module_expr bv modl; Option.iter (add_modtype bv) mty
   | Pmod_unpack(e) ->
       add_expr bv e
   | Pmod_extension e ->

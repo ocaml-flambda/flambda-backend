@@ -1032,3 +1032,124 @@ module type S' =
     module M : sig val foo : 'a -> 'a end
   end
 |}]
+
+(* Modules *)
+
+module type S = sig end
+module M = struct end
+[%%expect{|
+module type S = sig end
+module M : sig end
+|}]
+
+module F (X : S @@ portable) = struct
+end
+[%%expect{|
+Line 1, characters 19-27:
+1 | module F (X : S @@ portable) = struct
+                       ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module F (_ : S @@ portable) = struct
+end
+[%%expect{|
+Line 1, characters 19-27:
+1 | module F (_ : S @@ portable) = struct
+                       ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module M' = (M : S @@ portable)
+[%%expect{|
+Line 1, characters 22-30:
+1 | module M' = (M : S @@ portable)
+                          ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module F (M : S @@ portable) : S @@ portable = struct
+end
+[%%expect{|
+Line 1, characters 19-27:
+1 | module F (M : S @@ portable) : S @@ portable = struct
+                       ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module F (M : S @@ portable) @ portable = struct
+end
+[%%expect{|
+Line 1, characters 19-27:
+1 | module F (M : S @@ portable) @ portable = struct
+                       ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+
+
+(* CR zqian: the similar syntax for expressions are not allowed because @ might
+  be an binary operator *)
+module M' = (M @ portable)
+[%%expect{|
+Line 1, characters 17-25:
+1 | module M' = (M @ portable)
+                     ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module M' = (M : S @@ portable)
+[%%expect{|
+Line 1, characters 22-30:
+1 | module M' = (M : S @@ portable)
+                          ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module M @ portable = struct end
+[%%expect{|
+Line 1, characters 11-19:
+1 | module M @ portable = struct end
+               ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module M : S @@ portable = struct end
+[%%expect{|
+Line 1, characters 16-24:
+1 | module M : S @@ portable = struct end
+                    ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module type S' = functor () (M : S @@ portable) (_ : S @@ portable) -> S @ portable
+[%%expect{|
+Line 1, characters 38-46:
+1 | module type S' = functor () (M : S @@ portable) (_ : S @@ portable) -> S @ portable
+                                          ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+
+module type S' = () -> S @ portable -> S @ portable -> S @ portable
+[%%expect{|
+Line 1, characters 27-35:
+1 | module type S' = () -> S @ portable -> S @ portable -> S @ portable
+                               ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]
+
+module type T = sig
+  module M : S @@ portable
+  module M0 (_ : S @@ portable) (X : S @@ portable) : S @@ portable
+  (* The above [@@ portable] is the return mode of the functor, not the modality on the
+  module declaration; To do that, one must write in the following way. *)
+  module M0 : functor (_ : S @@ portable) (X : S @@ portable) -> S @ portable @@ portable
+  module M0 : S @ portable -> S @ portable -> S @ portable @@ portable
+end
+[%%expect{|
+Line 3, characters 22-30:
+3 |   module M0 (_ : S @@ portable) (X : S @@ portable) : S @@ portable
+                          ^^^^^^^^
+Error: Mode annotations on modules are not supported yet.
+|}]

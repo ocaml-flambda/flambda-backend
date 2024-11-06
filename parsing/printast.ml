@@ -812,13 +812,16 @@ and module_type i ppf x =
   | Pmty_signature (s) ->
       line i ppf "Pmty_signature\n";
       signature i ppf s;
-  | Pmty_functor (Unit, mt2) ->
+  | Pmty_functor (Unit, mt2, mm2) ->
       line i ppf "Pmty_functor ()\n";
       module_type i ppf mt2;
-  | Pmty_functor (Named (s, mt1), mt2) ->
+      modes i ppf mm2
+  | Pmty_functor (Named (s, mt1, mm1), mt2, mm2) ->
       line i ppf "Pmty_functor %a\n" fmt_str_opt_loc s;
       module_type i ppf mt1;
+      modes i ppf mm1;
       module_type i ppf mt2;
+      modes i ppf mm2
   | Pmty_with (mt, l) ->
       line i ppf "Pmty_with\n";
       module_type i ppf mt;
@@ -943,9 +946,10 @@ and module_expr i ppf x =
   | Pmod_functor (Unit, me) ->
       line i ppf "Pmod_functor ()\n";
       module_expr i ppf me;
-  | Pmod_functor (Named (s, mt), me) ->
+  | Pmod_functor (Named (s, mt, mm), me) ->
       line i ppf "Pmod_functor %a\n" fmt_str_opt_loc s;
       module_type i ppf mt;
+      modes i ppf mm;
       module_expr i ppf me;
   | Pmod_apply (me1, me2) ->
       line i ppf "Pmod_apply\n";
@@ -954,10 +958,11 @@ and module_expr i ppf x =
   | Pmod_apply_unit me1 ->
       line i ppf "Pmod_apply_unit\n";
       module_expr i ppf me1
-  | Pmod_constraint (me, mt) ->
+  | Pmod_constraint (me, mt, mm) ->
       line i ppf "Pmod_constraint\n";
       module_expr i ppf me;
-      module_type i ppf mt;
+      Option.iter (module_type i ppf) mt;
+      modes i ppf mm
   | Pmod_unpack (e) ->
       line i ppf "Pmod_unpack\n";
       expression i ppf e;

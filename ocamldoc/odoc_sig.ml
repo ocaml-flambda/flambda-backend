@@ -1639,10 +1639,10 @@ module Analyser =
                raise (Failure "Parsetree.Pmty_signature signature but not Types.Mty_signature signat")
           )
 
-      | Parsetree.Pmty_functor (param2, module_type2) ->
+      | Parsetree.Pmty_functor (param2, module_type2, _) ->
           (
            let loc = match param2 with Parsetree.Unit -> Location.none
-                     | Parsetree.Named (_, pmty) -> pmty.Parsetree.pmty_loc in
+                     | Parsetree.Named (_, pmty, _) -> pmty.Parsetree.pmty_loc in
            let loc_start = Loc.start loc in
            let loc_end = Loc.end_ loc in
            let mp_type_code = get_string_of_file loc_start loc_end in
@@ -1650,7 +1650,7 @@ module Analyser =
              Types.Mty_functor (param, body_module_type) ->
                let mp_name, mp_kind =
                  match param2, param with
-                   Parsetree.Named (_, pmty), Types.Named (Some ident, mty) ->
+                   Parsetree.Named (_, pmty, _), Types.Named (Some ident, mty) ->
                      Name.from_ident ident,
                      analyse_module_type_kind env current_module_name pmty mty
                  | _ -> "*", Module_type_struct []
@@ -1737,18 +1737,18 @@ module Analyser =
                (* if we're here something's wrong *)
                raise (Failure "Parsetree.Pmty_signature signature but not Types.Mty_signature signat")
           )
-      | Parsetree.Pmty_functor (param2,module_type2) (* of string * module_type * module_type *) ->
+      | Parsetree.Pmty_functor (param2,module_type2, _) (* of string * module_type * module_type *) ->
           (
            match sig_module_type with
              Types.Mty_functor (param, body_module_type) ->
                let loc = match param2 with Parsetree.Unit -> Location.none
-                     | Parsetree.Named (_, pmty) -> pmty.Parsetree.pmty_loc in
+                     | Parsetree.Named (_, pmty, _) -> pmty.Parsetree.pmty_loc in
                let loc_start = Loc.start loc in
                let loc_end = Loc.end_ loc in
                let mp_type_code = get_string_of_file loc_start loc_end in
                let mp_name, mp_kind =
                  match param2, param with
-                   Parsetree.Named (_, pmty), Types.Named (Some ident, mty) ->
+                   Parsetree.Named (_, pmty, _), Types.Named (Some ident, mty) ->
                      Name.from_ident ident,
                      analyse_module_type_kind env current_module_name pmty mty
                  | _ -> "*", Module_type_struct []

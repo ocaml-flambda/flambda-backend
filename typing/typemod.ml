@@ -104,6 +104,7 @@ type error =
     }
   | Duplicate_parameter_name of Global_module.Name.t
   | Submode_failed of Mode.Value.error
+  | Modal_module_not_supported
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1018,6 +1019,25 @@ and apply_modalities_module_type env modalities = function
       Mty_signature sg
   | (Mty_functor _ | Mty_alias _) as mty -> mty
 
+let loc_of_modes (modes : mode loc list) : Location.t option =
+  (* CR zqian: [Parsetree.modes] should be a record with a field that is
+  the location of the whole modes string. *)
+  let rec loc_end_of_modes (head : mode loc) = function
+    | [] -> head.loc.loc_end
+    | head' :: rest -> loc_end_of_modes head' rest
+  in
+  match modes with
+  | [] -> None
+  | head :: rest ->
+    let loc_start = head.loc.loc_start in
+    let loc_end = loc_end_of_modes head rest in
+    Some {loc_start; loc_end; loc_ghost=false}
+
+let check_no_modal_modules ~env modes =
+  match loc_of_modes modes with
+  | None -> ()
+  | Some loc -> raise(Error(loc, env, Modal_module_not_supported))
+
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
    type AST.  Retain only module, type, and module type
@@ -1039,11 +1059,12 @@ let rec approx_modtype env smty =
       Mty_alias(path)
   | Pmty_signature ssg ->
       Mty_signature(approx_sig env ssg)
-  | Pmty_functor(param, sres) ->
+  | Pmty_functor(param, sres, _) ->
       let (param, newenv) =
         match param with
         | Unit -> Types.Unit, env
-        | Named (param, sarg) ->
+        | Named (param, sarg, marg) ->
+          check_no_modal_modules ~env marg;
           let arg = approx_modtype env sarg in
           match param.txt with
           | None -> Types.Named (None, arg), env
@@ -1601,11 +1622,13 @@ and transl_modtype_aux env smty =
       let sg = transl_signature env ssg in
       mkmty (Tmty_signature sg) (Mty_signature sg.sig_type) env loc
         smty.pmty_attributes
-  | Pmty_functor(sarg_opt, sres) ->
+  | Pmty_functor(sarg_opt, sres, mres) ->
+      check_no_modal_modules ~env mres;
       let t_arg, ty_arg, newenv =
         match sarg_opt with
         | Unit -> Unit, Types.Unit, env
-        | Named (param, sarg) ->
+        | Named (param, sarg, marg) ->
+          check_no_modal_modules ~env marg;
           let arg = transl_modtype_functor_arg env sarg in
           let (id, newenv) =
             match param.txt with
@@ -2556,7 +2579,8 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
         match arg_opt with
         | Unit ->
           Unit, Types.Unit, env, Shape.for_unnamed_functor_param, false
-        | Named (param, smty) ->
+        | Named (param, smty, smode) ->
+          check_no_modal_modules ~env smode;
           let mty = transl_modtype_functor_arg env smty in
           let scope = Ctype.create_scope () in
           let (id, newenv, var) =
@@ -2592,7 +2616,9 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
       Shape.abs funct_shape_param body_shape
   | Pmod_apply _ | Pmod_apply_unit _ ->
       type_application smod.pmod_loc sttn funct_body env smod
-  | Pmod_constraint(sarg, smty) ->
+  | Pmod_constraint(sarg, smty, smode) ->
+      check_no_modal_modules ~env smode;
+      let smty = Option.get smty in
       let arg, arg_shape = type_module ~alias true funct_body anchor env sarg in
       let mty = transl_modtype env smty in
       let md, final_shape =
@@ -3161,10 +3187,12 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           List.map
             (function
               | {pmb_name = name;
-                 pmb_expr = {pmod_desc=Pmod_constraint(expr, typ)};
+                 pmb_expr = {pmod_desc=Pmod_constraint(expr, typ, mode)};
                  pmb_attributes = attrs;
                  pmb_loc = loc;
                 } ->
+                  check_no_modal_modules ~env mode;
+                  let typ = Option.get typ in
                   name, typ, expr, attrs, loc
               | mb ->
                   raise (Error (mb.pmb_expr.pmod_loc, env,
@@ -3176,7 +3204,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           transl_recmodule_modtypes env
             (List.map (fun (name, smty, _smodl, attrs, loc) ->
                  {pmd_name=name; pmd_type=smty;
-                  pmd_attributes=attrs; pmd_loc=loc}) sbind
+                  pmd_attributes=attrs; pmd_loc=loc; pmd_modalities=[]}) sbind
             ) in
         List.iter
           (fun (md, _, _) ->
@@ -4298,6 +4326,9 @@ let report_error ~loc _env = function
         "This value is %a, but expected to be %a because it is inside a module."
         (Style.as_inline_code (Mode.Value.Const.print_axis ax)) left
         (Style.as_inline_code (Mode.Value.Const.print_axis ax)) right
+  | Modal_module_not_supported ->
+      Location.errorf ~loc
+        "Mode annotations on modules are not supported yet."
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

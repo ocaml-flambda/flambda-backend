@@ -1659,7 +1659,7 @@ module Analyser =
       in
       let m_code_intf =
         match p_module_expr.Parsetree.pmod_desc with
-          Parsetree.Pmod_constraint (_, pmodule_type) ->
+          Parsetree.Pmod_constraint (_, Some pmodule_type, _) ->
             let loc_start = pmodule_type.Parsetree.pmty_loc.Location.loc_start.Lexing.pos_cnum in
             let loc_end = pmodule_type.Parsetree.pmty_loc.Location.loc_end.Lexing.pos_cnum in
             Some (get_string_of_file loc_start loc_end)
@@ -1707,7 +1707,7 @@ module Analyser =
              match param2, param with
              | Parsetree.Unit, Typedtree.Unit ->
                Location.none, "*", Module_type_struct [], None
-             | Parsetree.Named (_, pmty), Typedtree.Named (ident, _, mty) ->
+             | Parsetree.Named (_, pmty, _), Typedtree.Named (ident, _, mty) ->
                let loc =  pmty.Parsetree.pmty_loc in
                let mp_name = Option.fold ~none:"*" ~some:Name.from_ident ident in
                let mp_kind =
@@ -1785,7 +1785,7 @@ module Analyser =
           in
           { m_base with m_kind = Module_apply_unit m1.m_kind }
 
-      | (Parsetree.Pmod_constraint (p_module_expr2, p_modtype),
+      | (Parsetree.Pmod_constraint (p_module_expr2, Some p_modtype, _),
          Typedtree.Tmod_constraint (tt_module_expr2, tt_modtype, _, _)) ->
           let m_base2 = analyse_module
               env
