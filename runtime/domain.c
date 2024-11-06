@@ -384,7 +384,7 @@ asize_t caml_norm_minor_heap_size (intnat wsize)
 {
   asize_t bs;
   if (wsize < Minor_heap_min) wsize = Minor_heap_min;
-  bs = caml_mem_round_up_pages(Bsize_wsize (wsize));
+  bs = caml_mem_round_up_mapping_size(Bsize_wsize (wsize));
 
   return Wsize_bsize(bs);
 }
@@ -819,8 +819,9 @@ static void reserve_minor_heaps_from_stw_single(void) {
   uintnat minor_heap_reservation_bsize;
   uintnat minor_heap_max_bsz;
 
-  CAMLassert (caml_mem_round_up_pages(Bsize_wsize(caml_minor_heap_max_wsz))
-          == Bsize_wsize(caml_minor_heap_max_wsz));
+  CAMLassert (
+    caml_mem_round_up_mapping_size(Bsize_wsize(caml_minor_heap_max_wsz))
+    == Bsize_wsize(caml_minor_heap_max_wsz));
 
   minor_heap_max_bsz = (uintnat)Bsize_wsize(caml_minor_heap_max_wsz);
   minor_heap_reservation_bsize = minor_heap_max_bsz * Max_domains;

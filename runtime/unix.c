@@ -496,6 +496,13 @@ int caml_format_timestamp(char* buf, size_t sz, int formatted)
 void caml_init_os_params(void)
 {
   caml_plat_mmap_alignment = caml_plat_pagesize = sysconf(_SC_PAGESIZE);
+  /* For now, only support hugepage alignment on x86_64.
+     This is probably useful on other platforms too, but it's harder to
+     work out the correct size to use.
+     (The situation is particularly complicated on arm64) */
+#if defined(__x86_64__)
+  caml_plat_hugepagesize = 2*1024*1024;
+#endif
   return;
 }
 
@@ -503,15 +510,38 @@ void caml_init_os_params(void)
 
 void *caml_plat_mem_map(uintnat size, int reserve_only)
 {
-  uintnat alloc_sz = size;
   void* mem;
+  int prot = reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE);
+  int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+  uintnat alignment = caml_plat_hugepagesize;
 
-  mem = mmap(0, alloc_sz, reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE),
-             MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (mem == MAP_FAILED)
-    return 0;
+  if (size < alignment || alignment < caml_plat_pagesize) {
+    /* Short mapping or unknown/bad hugepagesize.
+       Either way, not worth bothering with alignment. */
+    return mmap(0, size, prot, flags, -1, 0);
+  }
 
-  return mem;
+  /* Sensible kernels (on Linux, that means >= 6.7) will always provide aligned
+     mappings. To avoid penalising such kernels, try mapping the exact desired
+     size first and see if it happens to be aligned. */
+  mem = mmap(0, size, prot, flags, -1, 0);
+  if (mem == MAP_FAILED) return NULL;
+  if ((((uintnat)mem) & (alignment - 1)) == 0) return mem;
+
+  /* Misaligned pointer, so unmap and try again.
+     munmap is unlikely to fail and there's not much we can do if it does, so
+     ignore any errors here */
+  munmap(mem, size);
+
+  /* Allocate a longer region than needed and trim it afterwards */
+  mem = mmap(0, size + alignment, prot, flags, -1, 0);
+  if (mem == MAP_FAILED) return NULL;
+
+  uintnat aligned = ((uintnat)mem + alignment) & ~(alignment - 1);
+  uintnat offset = aligned - (uintnat)mem;
+  munmap(mem, offset);
+  if (offset != alignment) munmap((void*)(aligned + size), alignment - offset);
+  return (void*)aligned;
 }
 
 static void* map_fixed(void* mem, uintnat size, int prot)
