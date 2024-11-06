@@ -566,7 +566,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
     end
-  | Variant_boxed cstrs_and_jkinds ->
+  | Variant_boxed cstrs_and_sorts ->
     let depth = depth + 1 in
     let for_constructor_fields fields ~depth ~num_nodes_visited ~field_to_type =
       List.fold_left_map
@@ -654,7 +654,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           | None -> None
           | Some (num_nodes_visited,
                   next_const, consts, next_tag, non_consts) ->
-            let cstr_shape, _ = cstrs_and_jkinds.(idx) in
+            let cstr_shape, _ = cstrs_and_sorts.(idx) in
             let (is_mutable, num_nodes_visited), fields =
               for_one_constructor constructor ~depth ~num_nodes_visited
                 ~cstr_shape

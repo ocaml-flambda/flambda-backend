@@ -527,11 +527,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             of_location ~scopes e.exp_loc)
   | Texp_construct(_, cstr, args, alloc_mode) ->
       let args_with_sorts =
-        List.map2 (fun { ca_jkind } e ->
-            let sort = Jkind.sort_of_jkind ca_jkind in
-            let sort = Jkind.Sort.default_for_transl_and_get sort in
-            e, sort)
-          cstr.cstr_args args
+        List.map2 (fun { ca_sort } e -> e, ca_sort) cstr.cstr_args args
       in
       let ll =
         List.map (fun (e, sort) -> transl_exp ~scopes sort e) args_with_sorts
@@ -647,9 +643,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let sem = add_barrier_to_read (transl_unique_barrier ubr) sem in
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
-      check_record_field_sort id.loc lbl_sort;
+      check_record_field_sort id.loc lbl.lbl_sort;
       begin match lbl.lbl_repres with
           Record_boxed _
         | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
@@ -707,11 +701,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_unboxed_field(arg, arg_sort, _id, lbl, _) ->
     begin match lbl.lbl_repres with
     | Record_unboxed_product ->
-      let lbl_layout l =
-        let lbl_sort = Jkind.sort_of_jkind l.lbl_jkind in
-        let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
-        layout e.exp_env l.lbl_loc lbl_sort l.lbl_arg
-      in
+      let lbl_layout l = layout e.exp_env l.lbl_loc l.lbl_sort l.lbl_arg in
       let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
       let arg_sort = Jkind.Sort.default_for_transl_and_get arg_sort in
       let targ = transl_exp ~scopes arg_sort arg in
@@ -727,9 +717,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          representability on construction, [sort_of_jkind] will be unsafe here.
          Probably we should add a sort to `Texp_setfield` in the typed tree,
          then. *)
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
-      check_record_field_sort id.loc lbl_sort;
+      check_record_field_sort id.loc lbl.lbl_sort;
       let mode =
         Assignment (transl_modify_mode arg_mode)
       in
@@ -767,7 +755,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.Const.for_record arg;
-                     transl_exp ~scopes lbl_sort newval],
+                     transl_exp ~scopes lbl.lbl_sort newval],
             of_location ~scopes e.exp_loc)
   | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode alloc_mode in
@@ -1888,9 +1876,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     let copy_id = Ident.create_local "newrecord" in
     let update_field cont (lbl, definition) =
       (* CR layouts v5: allow more unboxed types here. *)
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
-      check_record_field_sort lbl.lbl_loc lbl_sort;
+      check_record_field_sort lbl.lbl_loc lbl.lbl_sort;
       match definition with
       | Kept _ -> cont
       | Overridden (_lid, expr) ->
@@ -1937,7 +1923,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
               end
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
-                                transl_exp ~scopes lbl_sort expr],
+                                transl_exp ~scopes lbl.lbl_sort expr],
                           of_location ~scopes loc),
                     cont)
     in
@@ -1955,15 +1941,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     let lv =
       Array.mapi
         (fun i (lbl, definition) ->
-           (* CR layouts v2.5: When we allow `any` in record fields and check
-              representability on construction, [sort_of_layout] will be unsafe
-              here.  Probably we should add sorts to record construction in the
-              typed tree, then. *)
-           let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-           let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
            match definition with
            | Kept (typ, mut, _) ->
-               let field_layout = layout env lbl.lbl_loc lbl_sort typ in
+               let field_layout = layout env lbl.lbl_loc lbl.lbl_sort typ in
                let sem =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
@@ -2019,8 +1999,8 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                      of_location ~scopes loc),
                field_layout
            | Overridden (_lid, expr) ->
-               let field_layout = layout_exp lbl_sort expr in
-               transl_exp ~scopes lbl_sort expr, field_layout)
+               let field_layout = layout_exp lbl.lbl_sort expr in
+               transl_exp ~scopes lbl.lbl_sort expr, field_layout)
         fields
     in
     let ll, shape = List.split (Array.to_list lv) in
@@ -2115,11 +2095,9 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
     let shape =
       Array.map
         (fun (lbl, definition) ->
-            let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-            let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
             match definition with
-            | Kept (typ, _mut, _) -> layout env lbl.lbl_loc lbl_sort typ
-            | Overridden (_lid, expr) -> layout_exp lbl_sort expr)
+            | Kept (typ, _mut, _) -> layout env lbl.lbl_loc lbl.lbl_sort typ
+            | Overridden (_lid, expr) -> layout_exp lbl.lbl_sort expr)
         fields
       |> Array.to_list
     in
@@ -2131,9 +2109,7 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
               let access = Punboxed_product_field (i, shape) in
               Lprim (access, [Lvar init_id], of_location ~scopes loc)
             | Overridden (_lid, expr) ->
-              let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-              let lbl_sort = Jkind.Sort.default_for_transl_and_get lbl_sort in
-              transl_exp ~scopes lbl_sort expr)
+              transl_exp ~scopes lbl.lbl_sort expr)
         fields
       |> Array.to_list
     in
