@@ -107,6 +107,7 @@ module Layout = struct
         | Product sorts ->
           Option.map
             (fun x -> Product x)
+            (* [Sort.get] is deep, so no need to repeat it here *)
             (Misc.Stdlib.List.map_option of_sort sorts)
       in
       of_sort (Sort.get s)
