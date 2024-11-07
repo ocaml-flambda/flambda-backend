@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Message digest.
 
@@ -176,3 +177,4 @@ module MD5 : S
       and is not cryptographically secure at all. It should be used only
       for compatibility with earlier designs that mandate the use of MD5.
       @since 5.2 *)
+end @@ portable

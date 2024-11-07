@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Complex numbers.
 
@@ -86,3 +87,4 @@ val log: t -> t
 
 val pow: t -> t -> t
 (** Power function.  [pow z1 z2] returns [z1] to the [z2] power. *)
+end @@ portable

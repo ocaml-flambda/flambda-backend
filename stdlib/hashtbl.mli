@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* NOTE: If this file is hashtbl.mli, do not edit it directly! Instead,
    edit templates/hashtbl.template.mli and run tools/sync_stdlib_docs *)
@@ -643,3 +644,4 @@ val seeded_hash_param : int -> int -> int -> 'a -> int
   ]}
 
 *)
+end @@ portable

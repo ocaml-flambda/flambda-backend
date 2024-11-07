@@ -52,6 +52,8 @@
     "Unsynchronized accesses to dynamic arrays are a programming error."
 ]
 
+include sig
+
 (**
    Concurrent accesses to dynamic arrays must be synchronized
    (for instance with a {!Mutex.t}). Unsynchronized accesses to
@@ -639,3 +641,4 @@ let heap_sort (type a) cmp li =
 ]}
 
 *)
+end @@ portable

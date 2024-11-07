@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** 32-bit integers.
 
@@ -243,3 +244,4 @@ val hash : t -> int
     to the functor {!Hashtbl.Make}.
 
     @since 5.1 *)
+end @@ portable

@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+include sig
 
 (** Type introspection.
 
@@ -117,3 +118,4 @@ end
 ]}
 *)
 end
+end @@ portable

@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Arrays of weak pointers and hash sets of weak pointers. *)
 
@@ -200,3 +201,4 @@ module Make (H : Hashtbl.HashedType) : S with type data = H.t
     [H.equal] can't be the physical equality, since only shallow
     copies of the elements in the set are given to it.
  *)
+end @@ portable

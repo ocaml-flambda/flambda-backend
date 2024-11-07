@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* NOTE: If this file is map.mli, do not edit it directly! Instead,
    edit templates/map.template.mli and run tools/sync_stdlib_docs *)
@@ -369,3 +370,4 @@ module type S =
 module Make (Ord : OrderedType) : S with type key = Ord.t
 (** Functor building an implementation of the map structure
    given a totally ordered type. *)
+end @@ portable

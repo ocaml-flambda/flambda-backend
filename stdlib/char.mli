@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Character operations. *)
 
@@ -74,3 +75,4 @@ val hash : t -> int
 (* The following is for system use only. Do not call directly. *)
 
 external unsafe_chr : int -> char = "%identity"
+end @@ portable

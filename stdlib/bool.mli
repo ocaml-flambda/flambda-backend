@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Boolean values.
 
@@ -82,3 +83,4 @@ val hash : bool -> int
     to the functor {!Hashtbl.Make}.
 
     @since 5.1 *)
+end @@ portable

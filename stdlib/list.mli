@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* NOTE:
    If this file is listLabels.mli, run tools/sync_stdlib_docs after editing it
@@ -517,3 +518,4 @@ val of_seq : 'a Seq.t -> 'a list
 (** Create a list from a sequence.
     @since 4.07
  *)
+end @@ portable

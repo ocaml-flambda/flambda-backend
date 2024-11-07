@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Operations on internal representations of values.
 
@@ -199,3 +200,4 @@ module Uniform_or_mixed : sig
   (** Returns the [scannable_prefix_len] without materializing the return
       value of [repr]. Raises if [is_mixed] is [false]. *)
 end
+end @@ portable

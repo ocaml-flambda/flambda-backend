@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Sequences.
 
@@ -782,3 +783,4 @@ val ints : int -> int t
     counting up.
 
     @since 4.14 *)
+end @@ portable

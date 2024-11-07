@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** System interface.
 
@@ -487,3 +488,4 @@ module Immediate64 : sig
     val repr : t repr
   end
 end
+end @@ portable

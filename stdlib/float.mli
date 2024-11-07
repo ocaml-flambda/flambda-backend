@@ -15,6 +15,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* NOTE:
    If this file is float.template.mli, run tools/sync_stdlib_docs after editing
@@ -1232,3 +1233,4 @@ module ArrayLabels : sig
 
 end
 (** Float arrays with packed representation (labeled functions). *)
+end @@ portable
