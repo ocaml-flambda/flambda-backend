@@ -2114,6 +2114,42 @@ let unbox_once env ty =
   | Tpoly (ty, _) -> Stepped ty
   | _ -> Final_result
 
+let unbox_once' env ty =
+  match get_desc ty with
+  | Tconstr (p, args, abbrev) ->
+    begin match Env.find_type p env with
+    | exception Not_found -> Missing p
+    | decl ->
+      let level = get_level ty in
+      (* match decl.type_manifest with
+       * | None -> assert false
+       * | Some body -> *)
+      (* let apply ty2 = subst env level Private abbrev (Some ty) decl.type_params args body *)
+      let apply ty2 = subst env level Private abbrev (Some ty) decl.type_params args ty2 in
+      match find_unboxed_type decl with
+      | Some ty2 ->
+        let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
+        Stepped (apply ty2)
+      | None ->
+        begin match decl.type_kind with
+        | Type_record_unboxed_product ([{ld_type = arg; _}], Record_unboxed_product) ->
+          Stepped (apply arg)
+        | Type_record_unboxed_product ((_::_::_ as lbls), Record_unboxed_product) ->
+          Stepped_record_unboxed_product (List.map (fun ld -> apply ld.ld_type) lbls)
+        | _ -> Final_result
+        end
+    end
+  | Tpoly (ty, _) -> Stepped ty
+  | _ -> Final_result
+
+let reachable_unguarded_opt env ty =
+  match unbox_once' env ty with
+  | Stepped _ -> []
+  (* | Stepped ty' -> [ty'] *)
+  | Stepped_record_unboxed_product tyl -> tyl
+  | Final_result -> []
+  | Missing _ -> assert false
+
 (* We use ty_prev to track the last type for which we found a definition,
    allowing us to return a type for which a definition was found even if
    we eventually bottom out at a missing cmi file, or otherwise. *)

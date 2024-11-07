@@ -1925,7 +1925,7 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
     in
     if rec_ok then () else
     let parents = TypeSet.add ty parents in
-    match get_desc ty with
+    (match get_desc ty with
     | Tconstr(p, tyl, _) ->
         let to_check = to_check p in
         if to_check then List.iter (check_subtype parents trace ty) tyl;
@@ -1935,7 +1935,8 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
             if not to_check then List.iter (check_subtype parents trace ty) tyl
         end
     | _ ->
-        Btype.iter_type_expr (check_subtype parents trace ty) ty
+        Btype.iter_type_expr (check_subtype parents trace ty) ty);
+    List.iter (check_subtype parents trace ty) (Ctype.reachable_unguarded_opt env ty)
   and check_subtype parents trace outer_ty inner_ty =
       check parents (Contains (outer_ty, inner_ty) :: trace) inner_ty
   in
