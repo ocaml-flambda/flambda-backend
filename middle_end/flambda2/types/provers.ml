@@ -446,7 +446,6 @@ type boxed_or_tagged_number =
       Alloc_mode.For_types.t * Flambda_kind.Boxable_number.t * Type_grammar.t
   | Tagged_immediate
 
-(* CR pchambart: Remove fragile matchs and reuse this function *)
 let prove_is_a_boxed_or_tagged_number_value _env
     (value_head : TG.head_of_kind_value_non_null) :
     boxed_or_tagged_number generic_proof =
