@@ -1149,8 +1149,8 @@ module type T = sig
   module M0 : S @ portable -> S @ portable -> S @ portable @@ portable
 end
 [%%expect{|
-Line 3, characters 22-30:
-3 |   module M0 (_ : S @@ portable) (X : S @@ portable) : S @@ portable
-                          ^^^^^^^^
-Error: Mode annotations on modules are not supported yet.
+Line 3, characters 13-14:
+3 |   module M = N @@ portable
+                 ^
+Error: Unbound module "N"
 |}]
