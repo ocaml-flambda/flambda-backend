@@ -386,11 +386,16 @@ static uintnat round_up(uintnat size, uintnat align) {
 }
 
 intnat caml_plat_pagesize = 0;
+intnat caml_plat_hugepagesize = 0;
 intnat caml_plat_mmap_alignment = 0;
 
-uintnat caml_mem_round_up_pages(uintnat size)
+uintnat caml_mem_round_up_mapping_size(uintnat size)
 {
-  return round_up(size, caml_plat_pagesize);
+  if (caml_plat_hugepagesize > caml_plat_pagesize &&
+      size > caml_plat_hugepagesize/2)
+    return round_up(size, caml_plat_hugepagesize);
+  else
+    return round_up(size, caml_plat_pagesize);
 }
 
 #define Is_page_aligned(size) ((size & (caml_plat_pagesize - 1)) == 0)
