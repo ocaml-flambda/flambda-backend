@@ -587,6 +587,9 @@ module With_subkind = struct
       | Unboxed_nativeint_array
       | Unboxed_vec128_array
 
+    (* CR vlaviron: only [Value] kinds need [value_subkind] and [nullable]
+       fields. We should switch this to a variant in the future to avoid
+       confusion. *)
     and full_kind =
       { kind : kind;
         value_subkind : t;

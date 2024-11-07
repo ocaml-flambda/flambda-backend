@@ -206,6 +206,9 @@ module With_subkind : sig
       | Non_nullable
   end
 
+  (* Note: the current representation stores a non_null_value_subkind for every
+     kind, even though it is only relevant for [Value] kinds. Other kinds should
+     use the [Anything] constructor. *)
   module Non_null_value_subkind : sig
     type t =
       | Anything
