@@ -130,13 +130,17 @@ let next_instr_id () : int =
   incr next_instr_id;
   res
 
-(* A "sub" CFG is the counterpart of an instruction list in the original
+(* A "sub" CFG is the counterpart of an instruction list in the original Mach
    selection pass.
 
    It is essentially a collection of blocks (stored as a layout, i.e. as a
-   list), with two designated block: - an entry block; - an exit block.
+   list), with two designated blocks:
 
-   The exit block is where mere instructions are being added, which means that
+   - an entry block;
+
+   - an exit block.
+
+   The exit block is where more instructions are being added, which means that
    the terminator of an in-construction "sub" CFG is `Never`, and will be
    changed only when no additional instructions will be inserted to the
    block. *)
