@@ -52,4 +52,4 @@ let transl_unique_barrier barrier =
        we can simplify this to always return [Must_stay_here]. *)
     if Language_extension.is_enabled Unique
     then Must_stay_here
-    else May_be_pushed_down
+    else assert false
