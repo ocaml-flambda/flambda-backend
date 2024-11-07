@@ -42,7 +42,7 @@ let proj_aliased r =
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (y/289 = (field_imm 1 r/288)
+         (y/289 = (field_mut 1 r/288)
           r/290 =[(consts ()) (non_consts ([0: *, *]))]
             (apply aliased_use/280 r/288))
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/290 y/289))))
@@ -85,10 +85,10 @@ let match_aliased r =
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (r/300 =[(consts ()) (non_consts ([0: *, *]))]
+         (y/299 =o (field_mut 1 r/298)
+          r/300 =[(consts ()) (non_consts ([0: *, *]))]
             (apply aliased_use/280 r/298))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/300
-           (field_imm 1 r/298)))))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/300 y/299))))
   (apply (field_imm 1 (global Toploop!)) "match_aliased" match_aliased/296))
 val match_aliased : record -> record * string = <fun>
 |}]
@@ -131,11 +131,11 @@ let match_mini_anf_aliased r =
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (*match*/316 =[int] 1
+         (y/312 =o (field_mut 1 r/310)
+          *match*/316 =[int] 1
           r/313 =[(consts ()) (non_consts ([0: *, *]))]
             (apply aliased_use/280 r/310))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/313
-           (field_imm 1 r/310)))))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/313 y/312))))
   (apply (field_imm 1 (global Toploop!)) "match_mini_anf_aliased"
     match_mini_anf_aliased/308))
 val match_mini_anf_aliased : record -> record * string = <fun>
@@ -183,9 +183,10 @@ let match_anf_aliased r =
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (catch
-         (let (y/332 =a (field_imm 1 r/330))
+         (let (y/332 =o (field_mut 1 r/330))
            (if (== y/332 "") (let (*match*/339 =[int] 0) (exit 8 y/332))
-             (let (*match*/337 =[int] 1) (exit 8 (field_imm 1 r/330)))))
+             (let (y/333 =o (field_mut 1 r/330) *match*/337 =[int] 1)
+               (exit 8 y/333))))
         with (8 y/331)
          (let
            (r/334 =[(consts ()) (non_consts ([0: *, *]))]
@@ -262,24 +263,13 @@ let swap_inner (t : tree) =
                       [int], [(consts (0)) (non_consts ([0: *, [int], *]))]]))]
        (catch
          (if t/360
-           (let (*match*/369 =a (field_imm 0 t/360))
+           (let (*match*/369 =o (field_mut 0 t/360))
              (if *match*/369
-               (let (*match*/373 =a (field_imm 2 t/360))
+               (let
+                 (lr/361 =o (field_mut 2 *match*/369)
+                  *match*/373 =o (field_mut 2 t/360))
                  (if *match*/373
-                   (makeblock 0 ([(consts (0))
-                                  (non_consts ([0:
-                                                [(consts (0))
-                                                 (non_consts ([0: *, [int],
-                                                               *]))], [int],
-                                                [(consts (0))
-                                                 (non_consts ([0: *, [int],
-                                                               *]))]]))],int,
-                     [(consts (0))
-                      (non_consts ([0:
-                                    [(consts (0))
-                                     (non_consts ([0: *, [int], *]))], [int],
-                                    [(consts (0))
-                                     (non_consts ([0: *, [int], *]))]]))])
+                   (let (rl/363 =o (field_mut 0 *match*/373))
                      (makeblock 0 ([(consts (0))
                                     (non_consts ([0:
                                                   [(consts (0))
@@ -296,27 +286,43 @@ let swap_inner (t : tree) =
                                       [int],
                                       [(consts (0))
                                        (non_consts ([0: *, [int], *]))]]))])
-                       (field_imm 0 *match*/369) (field_int 1 *match*/369)
-                       (field_imm 0 *match*/373))
-                     (field_int 1 t/360)
-                     (makeblock 0 ([(consts (0))
-                                    (non_consts ([0:
-                                                  [(consts (0))
-                                                   (non_consts ([0: *, [int],
-                                                                 *]))],
-                                                  [int],
-                                                  [(consts (0))
-                                                   (non_consts ([0: *, [int],
-                                                                 *]))]]))],int,
-                       [(consts (0))
-                        (non_consts ([0:
-                                      [(consts (0))
-                                       (non_consts ([0: *, [int], *]))],
-                                      [int],
-                                      [(consts (0))
-                                       (non_consts ([0: *, [int], *]))]]))])
-                       (field_imm 2 *match*/369) (field_int 1 *match*/373)
-                       (field_imm 2 *match*/373)))
+                       (makeblock 0 ([(consts (0))
+                                      (non_consts ([0:
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [int], *]))],
+                                                    [int],
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [int], *]))]]))],int,
+                         [(consts (0))
+                          (non_consts ([0:
+                                        [(consts (0))
+                                         (non_consts ([0: *, [int], *]))],
+                                        [int],
+                                        [(consts (0))
+                                         (non_consts ([0: *, [int], *]))]]))])
+                         (field_mut 0 *match*/369) (field_int 1 *match*/369)
+                         rl/363)
+                       (field_int 1 t/360)
+                       (makeblock 0 ([(consts (0))
+                                      (non_consts ([0:
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [int], *]))],
+                                                    [int],
+                                                    [(consts (0))
+                                                     (non_consts ([0: *,
+                                                                   [int], *]))]]))],int,
+                         [(consts (0))
+                          (non_consts ([0:
+                                        [(consts (0))
+                                         (non_consts ([0: *, [int], *]))],
+                                        [int],
+                                        [(consts (0))
+                                         (non_consts ([0: *, [int], *]))]]))])
+                         lr/361 (field_int 1 *match*/373)
+                         (field_mut 2 *match*/373))))
                    (exit 19)))
                (exit 19)))
            (exit 19))

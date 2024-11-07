@@ -18,10 +18,14 @@ let last_is_anys = function
   (last_is_anys/12 =
      (function {nlocal = 0}
        param/14[(consts ()) (non_consts ([0: [int], [int]]))] : int
-       (catch
-         (if (field_imm 0 param/14) (if (field_imm 1 param/14) (exit 1) 1)
-           (if (field_imm 1 param/14) (exit 1) 2))
-        with (1) 3)))
+       (let (*match*/15 =o (field_mut 0 param/14))
+         (catch
+           (if *match*/15
+             (let (*match*/16 =o (field_mut 1 param/14))
+               (if *match*/16 (exit 1) 1))
+             (let (*match*/17 =o (field_mut 1 param/14))
+               (if *match*/17 (exit 1) 2)))
+          with (1) 3))))
   (apply (field_imm 1 (global Toploop!)) "last_is_anys" last_is_anys/12))
 val last_is_anys : bool * bool -> int = <fun>
 |}]
@@ -36,10 +40,14 @@ let last_is_vars = function
   (last_is_vars/19 =
      (function {nlocal = 0}
        param/23[(consts ()) (non_consts ([0: [int], [int]]))] : int
-       (catch
-         (if (field_imm 0 param/23) (if (field_imm 1 param/23) (exit 3) 1)
-           (if (field_imm 1 param/23) (exit 3) 2))
-        with (3) 3)))
+       (let (_x/21 =o (field_mut 0 param/23))
+         (catch
+           (if _x/21
+             (let (*match*/24 =o (field_mut 1 param/23))
+               (if *match*/24 (exit 3) 1))
+             (let (*match*/25 =o (field_mut 1 param/23))
+               (if *match*/25 (exit 3) 2)))
+          with (3) 3))))
   (apply (field_imm 1 (global Toploop!)) "last_is_vars" last_is_vars/19))
 val last_is_vars : bool * bool -> int = <fun>
 |}]
@@ -79,15 +87,21 @@ let f = function
    f/30 =
      (function {nlocal = 0}
        param/32[(consts ()) (non_consts ([0: *, [int], [int]]))] : int
-       (let (*match*/33 =a (field_imm 0 param/32))
+       (let (*match*/33 =o (field_mut 0 param/32))
          (catch
-           (if (== *match*/33 A/27) (if (field_imm 1 param/32) 1 (exit 8))
+           (if (== *match*/33 A/27)
+             (let (*match*/34 =o (field_mut 1 param/32))
+               (if *match*/34 1 (exit 8)))
              (exit 8))
           with (8)
-           (if (field_imm 1 param/32)
-             (if (== (field_imm 0 *match*/33) B/28) 2
-               (if (== (field_imm 0 *match*/33) C/29) 3 4))
-             (if (field_imm 2 param/32) 12 11))))))
+           (let (*match*/36 =o (field_mut 1 param/32))
+             (if *match*/36
+               (let (tag/41 =o (field_mut 0 *match*/33))
+                 (if (== tag/41 B/28) 2
+                   (let (tag/46 =o (field_mut 0 *match*/33))
+                     (if (== tag/46 C/29) 3 4))))
+               (let (*match*/37 =o (field_mut 2 param/32))
+                 (if *match*/37 12 11))))))))
   (apply (field_imm 1 (global Toploop!)) "f" f/30))
 val f : t * bool * bool -> int = <fun>
 |}]
