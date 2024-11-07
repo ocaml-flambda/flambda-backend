@@ -651,8 +651,12 @@ val prove_unique_fully_constructed_immutable_heap_block :
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 
-val meet_is_naked_number_array :
-  Typing_env.t -> t -> Flambda_kind.Naked_number_kind.t -> bool meet_shortcut
+(* Returns the result of [Is_flat_float_array] *)
+val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
+
+(* Checks that it is an unboxed array of the corresponding kind *)
+val meet_is_non_empty_naked_number_array :
+  Flambda_kind.Naked_number_kind.t -> Typing_env.t -> t -> unit meet_shortcut
 
 val prove_is_immediates_array : Typing_env.t -> t -> unit proof_of_property
 
@@ -692,10 +696,7 @@ val prove_single_closures_entry :
 
 val meet_strings : Typing_env.t -> t -> String_info.Set.t meet_shortcut
 
-val prove_strings :
-  Typing_env.t ->
-  t ->
-  (Alloc_mode.For_types.t * String_info.Set.t) proof_of_property
+val prove_strings : Typing_env.t -> t -> String_info.Set.t proof_of_property
 
 (** Attempt to show that the provided type describes the tagged version of a
     unique naked immediate [Simple].
