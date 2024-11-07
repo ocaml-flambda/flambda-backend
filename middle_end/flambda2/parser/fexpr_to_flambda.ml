@@ -289,7 +289,8 @@ let rec subkind :
 and value_kind_with_subkind :
     Fexpr.kind_with_subkind -> Flambda_kind.With_subkind.t = function
   | Value sk ->
-    Flambda_kind.With_subkind.create Flambda_kind.value (sk |> subkind) Non_nullable
+    Flambda_kind.With_subkind.create Flambda_kind.value (sk |> subkind)
+      Non_nullable
   | Naked_number nnk -> Flambda_kind.With_subkind.of_naked_number_kind nnk
   | Region -> Flambda_kind.With_subkind.region
   | Rec_info -> Flambda_kind.With_subkind.rec_info
