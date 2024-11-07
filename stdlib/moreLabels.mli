@@ -452,6 +452,11 @@ module Hashtbl : sig
       the [create] operation of the result structure always returns
       non-randomized hash tables. *)
 
+    module Make_portable : functor (H : sig include HashedType @@ portable end)
+      -> sig include S @@ portable end
+      with type key = H.t
+       and type 'a t = 'a Hashtbl.Make_portable(H).t
+
   module type SeededHashedType =
     sig
       type t
@@ -533,6 +538,11 @@ module Hashtbl : sig
       and returns randomized hash tables if [~random:true] is passed
       or if randomization is globally on (see {!Hashtbl.randomize}).
       @since 4.00 *)
+
+    module MakeSeeded_portable (H : sig include SeededHashedType @@ portable end) :
+      sig include SeededS @@ portable end
+      with type key = H.t
+       and type 'a t = 'a Hashtbl.MakeSeeded_portable(H).t
 
 
   (** {1 The polymorphic hash functions} *)
@@ -725,7 +735,7 @@ module Map : sig
       type key
       (** The type of the map keys. *)
 
-      type !+'a t
+      type +!'a t
       (** The type of maps from type [key] to type ['a]. *)
 
       val empty: 'a t
@@ -1024,6 +1034,10 @@ module Map : sig
   (** Functor building an implementation of the map structure
      given a totally ordered type. *)
 
+    module Make_portable : functor (Ord : sig include OrderedType @@ portable end)
+      -> sig include S @@ portable end
+      with type key = Ord.t
+       and type 'a t = 'a Map.Make_portable(Ord).t
 end
 
 module Set : sig
@@ -1335,5 +1349,9 @@ module Set : sig
   (** Functor building an implementation of the set structure
      given a totally ordered type. *)
 
+    module Make_portable : functor (Ord : sig include OrderedType @@ portable end)
+      -> sig include S @@ portable end
+      with type elt = Ord.t
+       and type t = Set.Make_portable(Ord).t
 end
 end @@ portable
