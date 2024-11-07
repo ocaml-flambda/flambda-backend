@@ -41,885 +41,26 @@ module Print_utils = struct
   end
 end
 
-module Occurrence = struct
-  (** The occurrence of a potentially unique ident in the expression. Currently
-  it's just the location; might add more things in the future *)
-  type t = { loc : Location.t }
-
-  let mk loc = { loc }
-
-  let print ppf { loc } = Location.print_loc ppf loc
-end
-
-let rec iter_error f = function
-  | [] -> Ok ()
-  | x :: xs -> ( match f x with Ok () -> iter_error f xs | Error e -> Error e)
-
-module Maybe_unique : sig
-  (** The type representing a usage that could be either unique or aliased *)
-  type t
-
-  (** extract an arbitrary occurrence from this usage *)
-  val extract_occurrence : t -> Occurrence.t
-
-  (** construct a single usage *)
-  val singleton : unique_use -> Occurrence.t -> t
-
-  val meet : t -> t -> t
-
-  type axis =
-    | Uniqueness
-    | Linearity
-
-  (** Describes why cannot force aliased - including the failing occurrence, and
-      the failing axis *)
-  type cannot_force =
-    { occ : Occurrence.t;
-      axis : axis
-    }
-
-  (** Call this function to indicate that this is used multiple times *)
-  val mark_multi_use : t -> (unit, cannot_force) result
-
-  (** Returns the uniqueness represented by this usage. If this identifier is
-      expected to be unique in any branch, it will return unique. If the current
-      usage is forced, it will return aliased. *)
-  val uniqueness : t -> Uniqueness.r
-
-  val print : Format.formatter -> t -> unit
-end = struct
-  (** Occurrences with modes to be forced aliased and many in the future if
-      needed. This is a list because of multiple control flows. For example, if
-      a value is used aliased in one branch but unique in another branch, then
-      overall the value is used uniquely (this is a "stricter" requirement).
-      Therefore, techincally, the mode this list represents is the meet of all
-      modes in the lists. (recall that aliased > unique). Therefore, if this
-      virtual mode needs to be forced aliased, the whole list needs to be forced
-      aliased. *)
-  type t = (unique_use * Occurrence.t) list
-
-  let singleton unique_use occ : t = [unique_use, occ]
-
-  let uniqueness l = Uniqueness.meet (List.map (fun ((uniq, _), _) -> uniq) l)
-
-  type axis =
-    | Uniqueness
-    | Linearity
-
-  type cannot_force =
-    { occ : Occurrence.t;
-      axis : axis
-    }
-
-  let mark_multi_use l =
-    let force_one ((uni, lin), occ) =
-      (* values being multi-used means two things:
-         - the expected mode must be higher than [aliased]
-         - the access mode must be lower than [many] *)
-      match Linearity.submode lin Linearity.many with
-      | Error _ -> Error { occ; axis = Linearity }
-      | Ok () -> (
-        match Uniqueness.submode Uniqueness.aliased uni with
-        | Ok () -> Ok ()
-        | Error _ -> Error { occ; axis = Uniqueness })
-    in
-    iter_error force_one l
-
-  let extract_occurrence = function [] -> assert false | (_, occ) :: _ -> occ
-
-  let meet l0 l1 = l0 @ l1
-
-  let print ppf t =
-    let open Format in
-    Print_utils.list
-      (fun ppf (uu, occ) ->
-        fprintf ppf "@[(%a,@ %a)@]" Typedtree.print_unique_use uu
-          Occurrence.print occ)
-      ppf t
-end
-
-module Maybe_aliased : sig
-  type t
-
-  type access =
-    | Read of Unique_barrier.t
-    | Write
-
-  val string_of_access : access -> string
-
-  (** The type representing a usage that could be either aliased or borrowed *)
-
-  (** Extract an arbitrary occurrence from the usage *)
-  val extract_occurrence : t -> Occurrence.t
-
-  (** extract an arbitrary access from this usage *)
-  val extract_access : t -> access
-
-  (** Add a barrier. The uniqueness mode represents the usage immediately
-      following the current usage. If that mode is Unique, the current usage
-       must be Borrowed (hence no code motion); if that mode is not restricted
-       to Unique, this usage can be Borrowed or Aliased (prefered). Can be called
-       multiple times for multiple barriers (for different branches). *)
-  val add_barrier : t -> Uniqueness.r -> unit
-
-  val meet : t -> t -> t
-
-  val singleton : Occurrence.t -> access -> t
-
-  val print_access : Format.formatter -> access -> unit
-
-  val print : Format.formatter -> t -> unit
-end = struct
-  type access =
-    | Read of Unique_barrier.t
-    | Write
-
-  let string_of_access = function
-    | Read _ -> "read from"
-    | Write -> "written to"
-
-  (** list of occurences together with modes to be forced as borrowed in the
-  future if needed. It is a list because of multiple control flows. For
-  example, if a value is used borrowed in one branch but aliased in another,
-  then the overall usage is aliased. Therefore, the mode this list represents
-  is the meet of all modes in the list. (recall that borrowed > aliased).
-  Therefore, if this virtual mode needs to be forced borrowed, the whole list
-  needs to be forced borrowed. *)
-  type t = (Occurrence.t * access) list
-
-  let meet l0 l1 = l0 @ l1
-
-  let singleton occ access = [occ, access]
-
-  let extract_occurrence = function [] -> assert false | (occ, _) :: _ -> occ
-
-  let extract_access = function
-    | [] -> assert false
-    | (_, access) :: _ -> access
-
-  let add_barrier t uniq =
-    List.iter
-      (fun (_, access) ->
-        match access with
-        | Read barrier -> Unique_barrier.add_upper_bound uniq barrier
-        | _ -> ())
-      t
-
-  let print_access ppf =
-    let open Format in
-    function
-    | Read ub -> fprintf ppf "Read(%a)" Unique_barrier.print ub
-    | Write -> fprintf ppf "Write"
-
-  let print ppf t =
-    let open Format in
-    Print_utils.list
-      (fun ppf (occ, access) ->
-        fprintf ppf "(%a,%a)" Occurrence.print occ print_access access)
-      ppf t
-end
-
-module Aliased : sig
-  type t
-
-  type reason =
-    | Forced  (** aliased because forced  *)
-    | Lazy  (** aliased because it is the argument of lazy forcing *)
-    | Lifted of Maybe_aliased.access
-        (** aliased because lifted from implicit borrowing, carries the original
-          access *)
-
-  (** The occurrence is only for future error messages. The share_reason must
-  corresponds to the occurrence *)
-  val singleton : Occurrence.t -> reason -> t
-
-  val extract_occurrence : t -> Occurrence.t
-
-  val reason : t -> reason
-
-  val print : Format.formatter -> t -> unit
-end = struct
-  type reason =
-    | Forced
-    | Lazy
-    | Lifted of Maybe_aliased.access
-
-  type t = Occurrence.t * reason
-
-  let singleton occ reason = occ, reason
-
-  let extract_occurrence (occ, _) = occ
-
-  let reason (_, reason) = reason
-
-  let print ppf (occ, reason) =
-    let open Format in
-    let print_reason ppf = function
-      | Forced -> fprintf ppf "Forced"
-      | Lazy -> fprintf ppf "Lazy"
-      | Lifted ma -> fprintf ppf "Lifted(%a)" Maybe_aliased.print_access ma
-    in
-    fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
-end
-
-module type Semiring = sig
-  (** Information can be composed using three operators:
-
-     - seq: sequential composition such as 'foo; bar'
-     - par: parallel composition such as '(foo, bar)'
-         where evaluation order is not specified.
-     - choose: non-deterministic choice such as 'if b then foo else bar'
-
-    subject to the following laws:
-
-     - seq, par, choose are associative
-     - par, choose are commutative
-     - seq and par both distribute over choose
-     - choose is idempotent (forall a. a `choose` a = a)
-     - seq and par have a common unit 'empty'
-
-    Note: These laws do not apply regarding the concrete error messages reported
-    to the user if the analysis fails. However, the laws do determine whether
-    the analysis may fail in the first place.
-
-    In practice, our semirings also have an ordering that all operations
-    above preserve. We write 's1 > s2' if it is sound to return 's2' whenever
-    the analysis returns 's1'.
-
-    Missing from a proper semiring is that we do not ask for a 'zero' which would
-    the unit of choose and annihilate seq and par. The reason for this is that
-    zero is not very useful in practice: it only applies to empty pattern matches
-    but not to exceptions or 'assert false'. If 'assert false' would map to zero,
-    the analysis would allow segfaulting code before an assertion failure.
-    Thus we only need zero for empty pattern matches, but to avoid the hassle of
-    defining it, we simply return 'empty' in that case, which is sound in every
-    semiring with '0 > 1'.
-
-    CR uniqueness: we might want to have a law relating seq and par.
-    See eg. 'concurrent semiring' in Hoare, Möller, Struth, Wehrmann
-    "Concurrent Kleene Algebra and its Foundations". *)
-
-  type t
-
-  (** Unused *)
-  val empty : t
-
-  (** Sequential composition *)
-  val seq : t -> t -> t
-
-  (** Non-deterministic choice *)
-  val choose : t -> t -> t
-
-  (** Parallel composition *)
-  val par : t -> t -> t
-
-  val print : Format.formatter -> t -> unit
-end
-
-module type Elementary_semiring = sig
-  (** We can form a tree of allocations and their children over
-      elementary semirings. *)
-
-  include Semiring
-
-  (** If an allocation is annotated by the element [s],
-      then its children will be annotated by [promote_to_children s].
-      This function has to be monotone. *)
-  val promote_to_children : t -> t
-
-  type error
-
-  exception Error of error
-end
-
-module type Product_S = sig
-  module L : Elementary_semiring
-
-  module R : Elementary_semiring
-
-  type t = L.t * R.t
-
-  type error =
-    | Left of L.error
-    | Right of R.error
-
-  include Elementary_semiring with type t := t and type error := error
-end
-
-(** The product semiring.
-    Since we only keep non-zero elements in our semirings, you could formally write
-    this as a smash-product that identifies all tuples where one entry is zero. *)
-module Product (L : Elementary_semiring) (R : Elementary_semiring) : sig
-  include Product_S with module L := L and module R := R
-end = struct
-  type t = L.t * R.t
-
-  type error =
-    | Left of L.error
-    | Right of R.error
-
-  exception Error of error
-
-  let wrap_left f = try f () with L.Error error -> raise (Error (Left error))
-
-  let wrap_right f =
-    try f () with R.Error error -> raise (Error (Right error))
-
-  let empty = L.empty, R.empty
-
-  let seq (l1, r1) (l2, r2) =
-    wrap_left (fun () -> L.seq l1 l2), wrap_right (fun () -> R.seq r1 r2)
-
-  let choose (l1, r1) (l2, r2) =
-    wrap_left (fun () -> L.choose l1 l2), wrap_right (fun () -> R.choose r1 r2)
-
-  let par (l1, r1) (l2, r2) =
-    wrap_left (fun () -> L.par l1 l2), wrap_right (fun () -> R.par r1 r2)
-
-  let promote_to_children (l, r) =
-    ( wrap_left (fun () -> L.promote_to_children l),
-      wrap_right (fun () -> R.promote_to_children r) )
-
-  let print ppf (l, r) =
-    let open Format in
-    fprintf ppf "(%a, %a)" L.print l R.print r
-end
-
-module Usage : sig
-  type t =
-    | Unused  (** empty usage *)
-    | Borrowed of Occurrence.t
-        (** A borrowed usage with an arbitrary occurrence. The occurrence is
-        only for future error messages. Currently not used, because we don't
-        have explicit borrowing *)
-    | Maybe_aliased of Maybe_aliased.t
-        (** A usage that could be either borrowed or aliased. *)
-    | Aliased of Aliased.t  (** A aliased usage *)
-    | Maybe_unique of Maybe_unique.t
-        (** A usage that could be either unique or aliased. *)
-
-  val aliased : Occurrence.t -> Aliased.reason -> t
-
-  val maybe_unique : unique_use -> Occurrence.t -> t
-
-  (** Extract an arbitrary occurrence from a usage *)
-  val extract_occurrence : t -> Occurrence.t option
-
-  type first_or_second =
-    | First
-    | Second
-
-  type access_order =
-    | Seq
-    | Par
-
-  type error =
-    { cannot_force : Maybe_unique.cannot_force;
-      there : t;  (** The other usage  *)
-      first_or_second : first_or_second;
-          (** Is it the first or second usage that's failing force? *)
-      access_order : access_order
-          (** Are the accesses in sequence or parallel? *)
-    }
-
-  include Elementary_semiring with type t := t and type error := error
-end = struct
-  (* We have Unused (top) > Borrowed > Aliased > Unique > Error (bot).
-
-     - Unused means unused
-     - Borrowed means read-only access confined to a region
-     - Aliased means read-only access that may escape a region. For example,
-     storing the value in a cell that can be accessed later.
-     - Unique means accessing the value as if it's the only pointer. Example
-     includes overwriting.
-     - Error means error happens when composing usage.
-
-     Some observations:
-     - It is sound to relax mode towards Error. It grants the access more
-     "capability" and usually helps performance.
-       For example, relaxing borrowed to aliased allows code motion of
-       projections. Relaxing aliased to unique allows in-place update.
-
-       An example of the relaxing borrowed to aliased:
-
-       let x = r.a in
-       (a lot of codes)
-       x
-
-       In first line, r.memory_address is accessed as borrowed. But if we weaken
-       it to aliased and it still mode checks, that means
-       - there is no "unique" access in the "a lot of codes"
-       - or equivalently, that r.memory_address stays unchanged and safe to read
-
-       and as a result, we can delay the projection at `x`.
-
-       The downside of relaxing is the loss of completeness: if we relax too
-       much the program will fail type check. In the extreme case we relax it to
-       Error which fails type check outright (and extremely sound, hehe).
-
-     - The purpose of this uniqueness analysis is to figure out the most relaxed
-     mode for each use, such that we get the best performance, while still
-     type-check. Currently there are really only two choices worth figuring out,
-     Namely
-     - borrowed or aliased?
-     - aliased or unique?
-
-     As a result, instead of having full-range inference, we only care about the
-     following ranges:
-     - unused
-     - borrowed (Currently not useful, because we don't have explicit borrowing)
-     - borrowed or aliased
-     - aliased
-     - aliased or unique
-     - error
-
-     error is represented as exception which is just easier.
-  *)
-
-  type t =
-    | Unused
-    | Borrowed of Occurrence.t
-    | Maybe_aliased of Maybe_aliased.t
-    | Aliased of Aliased.t
-    | Maybe_unique of Maybe_unique.t
-
-  let aliased occ reason = Aliased (Aliased.singleton occ reason)
-
-  let maybe_unique unique_use occ =
-    Maybe_unique (Maybe_unique.singleton unique_use occ)
-
-  let extract_occurrence = function
-    | Unused -> None
-    | Borrowed occ -> Some occ
-    | Maybe_aliased t -> Some (Maybe_aliased.extract_occurrence t)
-    | Aliased t -> Some (Aliased.extract_occurrence t)
-    | Maybe_unique t -> Some (Maybe_unique.extract_occurrence t)
-
-  let empty = Unused
-
-  let choose m0 m1 =
-    match m0, m1 with
-    | Unused, m | m, Unused -> m
-    | Borrowed _, t | t, Borrowed _ -> t
-    | Maybe_aliased l0, Maybe_aliased l1 ->
-      Maybe_aliased (Maybe_aliased.meet l0 l1)
-    | Maybe_aliased _, t | t, Maybe_aliased _ ->
-      (* The barrier stays empty; if there is any unique after this,
-         the analysis will error *)
-      t
-    | Aliased _, t | t, Aliased _ -> t
-    | Maybe_unique l0, Maybe_unique l1 -> Maybe_unique (Maybe_unique.meet l0 l1)
-
-  type first_or_second =
-    | First
-    | Second
-
-  type access_order =
-    | Seq
-    | Par
-
-  type error =
-    { cannot_force : Maybe_unique.cannot_force;
-      there : t;
-      first_or_second : first_or_second;
-      access_order : access_order
-    }
-
-  exception Error of error
-
-  let force_aliased_multiuse t there first_or_second access_order =
-    match Maybe_unique.mark_multi_use t with
-    | Ok () -> ()
-    | Error cannot_force ->
-      raise (Error { cannot_force; there; first_or_second; access_order })
-
-  let par m0 m1 =
-    match m0, m1 with
-    | Unused, m | m, Unused -> m
-    | Borrowed occ, Borrowed _ -> Borrowed occ
-    | Borrowed _, Maybe_aliased t | Maybe_aliased t, Borrowed _ ->
-      Maybe_aliased t
-    | Borrowed _, Aliased t | Aliased t, Borrowed _ -> Aliased t
-    | Borrowed occ, Maybe_unique t | Maybe_unique t, Borrowed occ ->
-      force_aliased_multiuse t (Borrowed occ) First Par;
-      aliased (Maybe_unique.extract_occurrence t) Aliased.Forced
-    | Maybe_aliased t0, Maybe_aliased t1 ->
-      Maybe_aliased (Maybe_aliased.meet t0 t1)
-    | Maybe_aliased _, Aliased occ | Aliased occ, Maybe_aliased _ ->
-      (* The barrier stays empty; if there is any unique after this,
-         the analysis will error *)
-      Aliased occ
-    | Maybe_aliased t0, Maybe_unique t1 | Maybe_unique t1, Maybe_aliased t0 ->
-      (* t1 must be aliased *)
-      force_aliased_multiuse t1 (Maybe_aliased t0) First Par;
-      (* The barrier stays empty; if there is any unique after this,
-         the analysis will error *)
-      aliased (Maybe_unique.extract_occurrence t1) Aliased.Forced
-    | Aliased t0, Aliased _ -> Aliased t0
-    | Aliased t0, Maybe_unique t1 ->
-      force_aliased_multiuse t1 (Aliased t0) Second Par;
-      Aliased t0
-    | Maybe_unique t1, Aliased t0 ->
-      force_aliased_multiuse t1 (Aliased t0) First Par;
-      Aliased t0
-    | Maybe_unique t0, Maybe_unique t1 ->
-      force_aliased_multiuse t0 m1 First Par;
-      force_aliased_multiuse t1 m0 Second Par;
-      aliased (Maybe_unique.extract_occurrence t0) Aliased.Forced
-
-  let seq m0 m1 =
-    match m0, m1 with
-    | Unused, m | m, Unused -> m
-    | Borrowed _, t -> t
-    | Maybe_aliased _, Borrowed _ -> m0
-    | Maybe_aliased l0, Maybe_aliased l1 ->
-      Maybe_aliased (Maybe_aliased.meet l0 l1)
-    | Maybe_aliased _, Aliased _ -> m1
-    | Maybe_aliased l0, Maybe_unique l1 ->
-      (* Four cases (semi-colon meaning sequential composition):
-          Borrowed;Aliased = Aliased
-          Borrowed;Unique = Unique
-          Aliased;Aliased = Aliased
-          Aliased;Unique = Error
-
-          We are in a dilemma: recall that Borrowed->Aliased allows code
-          motion, and Aliased->Unique allows unique overwriting. We can't have
-          both. We first note is that the first is a soft optimization, and
-          the second is a hard requirement.
-
-          A reasonable solution is thus to check if the m1 actually needs
-          to use the "unique" capabilities. If not, there is no need to
-          relax it to Unique, and we will make it Aliased, and make m0
-          Aliased for code-motion. However, there is no good way to do that,
-          because the "unique_use" in "maybe_unique" is not complete,
-          because the type-checking and uniqueness analysis is performed on
-          a per-top-level-expr basis.
-
-          Our solution is to record on the m0 that it is constrained by the
-          m1. I.e. if m1 is Unique, then m0 cannot be Aliased. After the type
-          checking of the whole file, m1 will correctly tells whether it needs
-          to be Unique, and by extension whether m0 can be Aliased. *)
-      let uniq = Maybe_unique.uniqueness l1 in
-      Maybe_aliased.add_barrier l0 uniq;
-      m1
-    | Aliased _, Borrowed _ -> m0
-    | Maybe_unique l, Borrowed occ ->
-      force_aliased_multiuse l m1 First Seq;
-      aliased occ Aliased.Forced
-    | Aliased _, Maybe_aliased _ ->
-      (* The barrier stays empty; if there is any unique after this,
-         the analysis will error *)
-      m0
-    | Maybe_unique l0, Maybe_aliased l1 ->
-      (* Four cases:
-          Aliased;Borrowed = Aliased
-          Aliased;Aliased = Aliased
-          Unique;Borrowed = Error
-          Unique;Aliased = Error
-
-          As you can see, we need to force the m0 to Aliased, and m1 needn't
-          be constrained. The result is always Aliased.
-          The barrier stays empty; if there is any unique after this,
-          the analysis will error.
-      *)
-      let occ = Maybe_aliased.extract_occurrence l1 in
-      force_aliased_multiuse l0 m1 First Seq;
-      aliased occ Aliased.Forced
-    | Aliased _, Aliased _ -> m0
-    | Maybe_unique l, Aliased _ ->
-      force_aliased_multiuse l m1 First Seq;
-      m1
-    | Aliased _, Maybe_unique l ->
-      force_aliased_multiuse l m0 Second Seq;
-      m0
-    | Maybe_unique l0, Maybe_unique l1 ->
-      force_aliased_multiuse l0 m1 First Seq;
-      force_aliased_multiuse l1 m0 Second Seq;
-      aliased (Maybe_unique.extract_occurrence l0) Aliased.Forced
-
-  (* In a tree of usages, each node records the choose on all possible
-     execution paths. As a result, trees such as `S -> U` are valid, even though
-     it would be invalid if it was the result of a single path: using a parent
-     aliased and a child uniquely is obviously bad. However, it might be the
-     result of "choos"ing multiple path: choose `S` `N -> U`, which is valid.
-
-     INVARIANT: children >= parent. For example, having an aliased child under a
-     unique parent is nonsense. The invariant is preserved because Usage.choose,
-     Usage.par, and Usage.seq above are monotone, and Tree(Usage).par and
-     Tree(Usage).seq, Tree(Usage).choose are node-wise. *)
-  let promote_to_children t = t
-
-  let print ppf =
-    let open Format in
-    function
-    | Unused -> fprintf ppf "Unused"
-    | Borrowed occ -> fprintf ppf "Borrowed(%a)" Occurrence.print occ
-    | Maybe_aliased ma -> fprintf ppf "Maybe_aliased(%a)" Maybe_aliased.print ma
-    | Aliased a -> fprintf ppf "Aliased(%a)" Aliased.print a
-    | Maybe_unique mu -> fprintf ppf "Maybe_unique(%a)" Maybe_unique.print mu
-end
-
-module Tag : sig
-  (** This module represents the tags of constructors at runtime.
-      When we overwrite a tag, we need to check that the
-      tag is equal to the old tag. This is to ensure that
-      the tag never changes during overwrites. Changing the
-      tag during overwrites is not supported by the multicore GC. *)
-
-  type t =
-    { tag : Types.tag;
-      name_for_error : Longident.t loc
-    }
-
-  module Set : Set.S with type elt = t
-
-  module Map : Map.S with type key = t
-
-  val print : Format.formatter -> t -> unit
-end = struct
-  type t =
-    { tag : Types.tag;
-      name_for_error : Longident.t loc
-    }
-
-  type tags = t
-
-  module Set = Set.Make (struct
-    type t = tags
-
-    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
-  end)
-
-  module Map = Map.Make (struct
-    type t = tags
-
-    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
-  end)
-
-  let print ppf { name_for_error; _ } =
-    Pprintast.longident ppf name_for_error.txt
-end
-
-module Learned_tags : sig
-  (** This module collects the tags of allocations which we may learn from
-      pattern matches. It is always sound to forget tags we have learned.
-
-      Perhaps surprisingly, we allow an allocation to have multiple
-      tags. This can only happen when there are two match-statements
-      and we enter branches of incompatible tags. Such code can never
-      run and so it does not matter which choice we make here. *)
-
-  type error = |
-
-  include Elementary_semiring with type error := error
-
-  (** Register a tag we know (eg. from a pattern-match) *)
-  val learn_tag : Tag.t -> t
-
-  (** Extract the tags that this cell may have *)
-  val extract_tags : t -> Tag.Set.t
-end = struct
-  type t = Tag.Set.t
-
-  let empty = Tag.Set.empty
-
-  let choose t0 t1 = Tag.Set.inter t0 t1
-
-  let par t0 t1 = Tag.Set.union t0 t1
-
-  let seq t0 t1 = Tag.Set.union t0 t1
-
-  let promote_to_children _ = empty
-
-  let learn_tag tag = Tag.Set.singleton tag
-
-  let extract_tags t = t
-
-  type error = |
-
-  exception Error of error
-
-  let print ppf t =
-    let open Format in
-    fprintf ppf "%a" (Format.pp_print_list Tag.print) (Tag.Set.elements t)
-end
-
-module Overwrites : sig
-  (** This module collects the tags of overwrites. It is always sound
-      to assume we have overwritten with additional tags.
-
-      However, it is in general unsound if the user mutates the tag
-      after we have learned its nature. Then all bets are off and we
-      always fail if there is an overwrite that depends on this
-      information. *)
-
-  type old_tag =
-    | Old_tag_unknown
-    | Old_tag_was of Tag.t
-    | Old_tag_mutated
-
-  type error =
-    | ChangedTag of
-        { old_tag : old_tag;
-          new_tag : Tag.t
-        }
-
-  include Elementary_semiring with type error := error
-
-  (** Overwrite using a certain tag *)
-  val overwrite_tag : Tag.t -> t
-
-  (** Indicate a mutation (which invalidates all tags we have learned
-      and will learn). If there is also an overwrite, we fail. *)
-  val mutate_tag : t
-
-  (** Accept the overwrites using tags that we have learned
-      from a pattern-match. *)
-  val match_with_learned_tags : Tag.Set.t -> t -> t
-
-  (** We may not overwrite a tag we don't know.
-      At the end of the analysis, this function should
-      be called to ensure all overwrites are on known tags. *)
-  val check_no_remaining_overwritten_as : t -> unit
-end = struct
-  type tags =
-    { overwritten : Tag.Set.t Tag.Map.t;
-          (** The keys of the map are the tags of the overwrite.
-          When we learn new tags, we can remove keys from this map,
-          that correspond to the new tags. We then keep the learned
-          tags on the keys that did not match them to produce good
-          error messages. It is always sound to add elements to this map.
-          *)
-      have_overwritten : Tag.Set.t
-          (** In the [seq] function we are allowed to remove
-          elements from [overwritten] as long as we have learned
-          the tag. We record the tags if that happens so that
-          we can fail if the tag was mutated. It is always sound
-          to add elements to this set. *)
-    }
-
-  type t =
-    | Tags of tags
-    | Tag_was_mutated
-        (** We have discovered a mutable write.
-        This is dangerous: We might have accepted a overwrite based on the wrong tag.
-        If we detect this state, we reject all overwrites to this cell. *)
-
-  type old_tag =
-    | Old_tag_unknown
-    | Old_tag_was of Tag.t
-    | Old_tag_mutated
-
-  type error =
-    | ChangedTag of
-        { old_tag : old_tag;
-          new_tag : Tag.t
-        }
-
-  exception Error of error
-
-  let empty =
-    Tags { overwritten = Tag.Map.empty; have_overwritten = Tag.Set.empty }
-
-  let overwrite_tag tag =
-    Tags
-      { overwritten = Tag.Map.singleton tag Tag.Set.empty;
-        have_overwritten = Tag.Set.empty
-      }
-
-  let mutate_tag = Tag_was_mutated
-
-  let fail_if_mutated f t0 t1 =
-    match t0, t1 with
-    | Tags t0, Tags t1 -> Tags (f t0 t1)
-    | Tags { overwritten; have_overwritten }, Tag_was_mutated
-    | Tag_was_mutated, Tags { overwritten; have_overwritten } -> (
-      match
-        Tag.Map.choose_opt overwritten, Tag.Set.choose_opt have_overwritten
-      with
-      | None, None -> Tag_was_mutated
-      | Some (t, _), _ | _, Some t ->
-        raise (Error (ChangedTag { old_tag = Old_tag_mutated; new_tag = t })))
-    | Tag_was_mutated, Tag_was_mutated -> Tag_was_mutated
-
-  let union_with_remembered =
-    Tag.Map.union (fun _ t0 t1 -> Some (Tag.Set.union t0 t1))
-
-  let choose t0 t1 =
-    fail_if_mutated
-      (fun t0 t1 ->
-        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
-          have_overwritten =
-            Tag.Set.union t0.have_overwritten t1.have_overwritten
-        })
-      t0 t1
-
-  let par t0 t1 =
-    fail_if_mutated
-      (fun t0 t1 ->
-        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
-          have_overwritten =
-            Tag.Set.union t0.have_overwritten t1.have_overwritten
-        })
-      t0 t1
-
-  let seq t0 t1 = par t0 t1
-
-  (* If we find out that a tag was mutated,
-      we need to promote this information to its children.
-      This is because a write to a mutable field can change
-      any tag that is reachable from the mutable field. *)
-  let promote_to_children t =
-    match t with Tag_was_mutated -> Tag_was_mutated | Tags _ -> empty
-
-  let match_with_learned_tags newly_learned t =
-    let keys_set t = Tag.Set.of_list (List.map fst (Tag.Map.bindings t)) in
-    match t with
-    | Tag_was_mutated -> Tag_was_mutated
-    | Tags { overwritten; have_overwritten } ->
-      Tags
-        { overwritten =
-            Tag.Map.filter_map
-              (fun overwrite learned_before ->
-                if Tag.Set.mem overwrite newly_learned
-                then None
-                else Some (Tag.Set.union learned_before newly_learned))
-              overwritten;
-          have_overwritten =
-            Tag.Set.union have_overwritten
-              (Tag.Set.inter (keys_set overwritten) newly_learned)
-        }
-
-  let check_no_remaining_overwritten_as t =
-    match t with
-    | Tags { overwritten } -> (
-      match Tag.Map.choose_opt overwritten with
-      | None -> ()
-      | Some (tag_overwritten, have_learned) ->
-        raise
-          (Error
-             (match Tag.Set.choose_opt have_learned with
-             | None ->
-               ChangedTag
-                 { old_tag = Old_tag_unknown; new_tag = tag_overwritten }
-             | Some tag_learned ->
-               ChangedTag
-                 { old_tag = Old_tag_was tag_learned;
-                   new_tag = tag_overwritten
-                 })))
-    | Tag_was_mutated -> ()
-
-  let print ppf =
-    let open Format in
-    function
-    | Tags tag ->
-      fprintf ppf "Tags { overwritten = %a; have_overwritten = %a }"
-        (Format.pp_print_list Tag.print)
-        (List.map fst (Tag.Map.bindings tag.overwritten))
-        (Format.pp_print_list Tag.print)
-        (Tag.Set.elements tag.have_overwritten)
-    | Tag_was_mutated -> fprintf ppf "Tag_was_mutated"
-end
+(******************************************************************************)
+(* Identifiers and paths
+
+   In this section, we map identifiers in the source program to locations in
+   memory. The locations in memory are given relative to other identifiers.
+   Terminology:
+   - A [Projection] denotes a parent-child relationship in memory. For example,
+     [y = x.l1] means that [y] is the [Record_field l1] of [x].
+   - A [Tree] contains projections from a certain root. For example, if we also
+     have [z = r.l2], then we can form a tree with root [x] and children [y, z]
+     linked by the respective projections.
+   - Every time an identifier is bound to an opaque term, eg. [x = f ()], we
+     create a new root [x]. A [Forest] collects the trees for all roots we have
+     collected.
+   - Surprisingly, a source-level identifier can actually correspond to several
+     memory locations. The reason for this are or-patterns. Consider:
+       match x, x.l1 with | z, _ | _, z -> ...
+     The [Paths] denote all the memory locations in the forest that a given
+     source-level identifier represents.
+   - The [Ienv] maps all source-level identifiers to their paths. *)
 
 module Projection : sig
   (** Projections from parent to child. *)
@@ -1273,8 +414,222 @@ end = struct
   let print ppf t = Print_utils.list Forest.Path.print ppf t
 end
 
+module Ienv : sig
+  module Extension : sig
+    (** Extention to Ienv. Usually generated by a pattern *)
+    type t
+
+    (** Composition for [OR] patterns. This operation is commutative *)
+    val disjunct : t -> t -> t
+
+    (** Composition for conjunctive patterns. The two extensions must be
+    disjoint. *)
+    val conjunct : t -> t -> t
+
+    (** Similar to [conjunct] but lifted to lists *)
+    val conjuncts : t list -> t
+
+    (** The empty extension *)
+    val empty : t
+
+    val singleton : Ident.t -> Paths.t -> t
+    (* Constructing a mapping with only one mapping  *)
+
+    val print : Format.formatter -> t -> unit
+  end
+
+  (** Mapping from identifiers to a list of possible nodes, each represented by
+      a path into the forest, instead of directly pointing to the node. *)
+  type t
+
+  (** Extend a mapping with an extension *)
+  val extend : t -> Extension.t -> t
+
+  (** The empty mapping  *)
+  val empty : t
+
+  (** Find the list of paths corresponding to an identifier  *)
+  val find_opt : Ident.t -> t -> Paths.t option
+
+  val print : Format.formatter -> t -> unit
+end = struct
+  module Extension = struct
+    type t = Paths.t Ident.Map.t
+
+    let disjunct ienv0 ienv1 =
+      Ident.Map.merge
+        (fun _id locs0 locs1 ->
+          match locs0, locs1 with
+          | None, None -> None
+          | Some paths0, Some paths1 -> Some (Paths.choose paths0 paths1)
+          (* cannot bind variable only in one of the OR-patterns *)
+          | _, _ -> assert false)
+        ienv0 ienv1
+
+    let empty = Ident.Map.empty
+
+    let conjunct ienv0 ienv1 =
+      Ident.Map.union
+        (fun _id _ _ ->
+          (* cannot bind variable twice in a single pattern *)
+          assert false)
+        ienv0 ienv1
+
+    let conjuncts = List.fold_left conjunct empty
+
+    let singleton id locs = Ident.Map.singleton id locs
+
+    let print ppf t =
+      let module M = Print_utils.Map (Ident.Map) in
+      M.print ~key:Ident.print ~value:Paths.print ppf t
+  end
+
+  type t = Paths.t Ident.Map.t
+
+  let empty = Ident.Map.empty
+
+  let extend t ex =
+    Ident.Map.union
+      (* the extension shadows the original *)
+        (fun _id _paths0 paths1 -> Some paths1)
+      t ex
+
+  let find_opt = Ident.Map.find_opt
+
+  let print ppf t =
+    let module M = Print_utils.Map (Ident.Map) in
+    M.print ~key:Ident.print ~value:Paths.print ppf t
+end
+
+(******************************************************************************)
+(* Semirings                                                                  *)
+(******************************************************************************)
+
+module type Semiring = sig
+  (** Information can be composed using three operators:
+
+     - seq: sequential composition such as 'foo; bar'
+     - par: parallel composition such as '(foo, bar)'
+         where evaluation order is not specified.
+     - choose: non-deterministic choice such as 'if b then foo else bar'
+
+    subject to the following laws:
+
+     - seq, par, choose are associative
+     - par, choose are commutative
+     - seq and par both distribute over choose
+     - choose is idempotent (forall a. a `choose` a = a)
+     - seq and par have a common unit 'empty'
+
+    Note: These laws do not apply regarding the concrete error messages reported
+    to the user if the analysis fails. However, the laws do determine whether
+    the analysis may fail in the first place.
+
+    In practice, our semirings also have an ordering that all operations
+    above preserve. We write 's1 > s2' if it is sound to return 's2' whenever
+    the analysis returns 's1'.
+
+    Missing from a proper semiring is that we do not ask for a 'zero' which would
+    the unit of choose and annihilate seq and par. The reason for this is that
+    zero is not very useful in practice: it only applies to empty pattern matches
+    but not to exceptions or 'assert false'. If 'assert false' would map to zero,
+    the analysis would allow segfaulting code before an assertion failure.
+    Thus we only need zero for empty pattern matches, but to avoid the hassle of
+    defining it, we simply return 'empty' in that case, which is sound in every
+    semiring with '0 > 1'.
+
+    CR uniqueness: we might want to have a law relating seq and par.
+    See eg. 'concurrent semiring' in Hoare, Möller, Struth, Wehrmann
+    "Concurrent Kleene Algebra and its Foundations". *)
+
+  type t
+
+  (** Unused *)
+  val empty : t
+
+  (** Sequential composition *)
+  val seq : t -> t -> t
+
+  (** Non-deterministic choice *)
+  val choose : t -> t -> t
+
+  (** Parallel composition *)
+  val par : t -> t -> t
+
+  val print : Format.formatter -> t -> unit
+end
+
+module type Promotable_semiring = sig
+  (** We can form a tree of allocations and their children over
+      elementary semirings. *)
+
+  include Semiring
+
+  (** If an allocation is annotated by the element [s],
+      then its children will be annotated by [promote_to_children s].
+      This function has to be monotone. *)
+  val promote_to_children : t -> t
+
+  type error
+
+  exception Error of error
+end
+
+module type Product_S = sig
+  module L : Promotable_semiring
+
+  module R : Promotable_semiring
+
+  type t = L.t * R.t
+
+  type error =
+    | Left of L.error
+    | Right of R.error
+
+  include Promotable_semiring with type t := t and type error := error
+end
+
+(** The product semiring.
+    Since we only keep non-zero elements in our semirings, you could formally write
+    this as a smash-product that identifies all tuples where one entry is zero. *)
+module Product (L : Promotable_semiring) (R : Promotable_semiring) : sig
+  include Product_S with module L := L and module R := R
+end = struct
+  type t = L.t * R.t
+
+  type error =
+    | Left of L.error
+    | Right of R.error
+
+  exception Error of error
+
+  let wrap_left f = try f () with L.Error error -> raise (Error (Left error))
+
+  let wrap_right f =
+    try f () with R.Error error -> raise (Error (Right error))
+
+  let empty = L.empty, R.empty
+
+  let seq (l1, r1) (l2, r2) =
+    wrap_left (fun () -> L.seq l1 l2), wrap_right (fun () -> R.seq r1 r2)
+
+  let choose (l1, r1) (l2, r2) =
+    wrap_left (fun () -> L.choose l1 l2), wrap_right (fun () -> R.choose r1 r2)
+
+  let par (l1, r1) (l2, r2) =
+    wrap_left (fun () -> L.par l1 l2), wrap_right (fun () -> R.par r1 r2)
+
+  let promote_to_children (l, r) =
+    ( wrap_left (fun () -> L.promote_to_children l),
+      wrap_right (fun () -> R.promote_to_children r) )
+
+  let print ppf (l, r) =
+    let open Format in
+    fprintf ppf "(%a, %a)" L.print l R.print r
+end
+
 module type Tree_S = sig
-  module S : Elementary_semiring
+  module S : Promotable_semiring
 
   type t = S.t Tree.t
 
@@ -1295,7 +650,7 @@ module type Tree_S = sig
   include Semiring with type t := t
 end
 
-module Tree_semiring (S : Elementary_semiring) : sig
+module Tree_semiring (S : Promotable_semiring) : sig
   include Tree_S with module S := S
 end = struct
   type t = S.t Tree.t
@@ -1332,7 +687,7 @@ end = struct
 end
 
 module type Forest_S = sig
-  module S : Elementary_semiring
+  module S : Promotable_semiring
 
   module Tree_semiring : Tree_S with module S := S
 
@@ -1354,7 +709,7 @@ module type Forest_S = sig
   val print : Format.formatter -> t -> unit
 end
 
-module Forest_semiring (S : Elementary_semiring) : sig
+module Forest_semiring (S : Promotable_semiring) : sig
   include Forest_S with module S := S
 end = struct
   module Tree_semiring = Tree_semiring (S)
@@ -1399,6 +754,778 @@ end = struct
 
   let print ppf t = Forest.print Tree_semiring.print ppf t
 end
+
+(******************************************************************************)
+(* Usages: Unique, borrowed, aliased                                          *)
+(******************************************************************************)
+
+module Occurrence = struct
+  (** The occurrence of a potentially unique ident in the expression. Currently
+  it's just the location; might add more things in the future *)
+  type t = { loc : Location.t }
+
+  let mk loc = { loc }
+
+  let print ppf { loc } = Location.print_loc ppf loc
+end
+
+let rec iter_error f = function
+  | [] -> Ok ()
+  | x :: xs -> ( match f x with Ok () -> iter_error f xs | Error e -> Error e)
+
+module Maybe_unique : sig
+  (** The type representing a usage that could be either unique or aliased *)
+  type t
+
+  (** extract an arbitrary occurrence from this usage *)
+  val extract_occurrence : t -> Occurrence.t
+
+  (** construct a single usage *)
+  val singleton : unique_use -> Occurrence.t -> t
+
+  val meet : t -> t -> t
+
+  type axis =
+    | Uniqueness
+    | Linearity
+
+  (** Describes why cannot force aliased - including the failing occurrence, and
+      the failing axis *)
+  type cannot_force =
+    { occ : Occurrence.t;
+      axis : axis
+    }
+
+  (** Call this function to indicate that this is used multiple times *)
+  val mark_multi_use : t -> (unit, cannot_force) result
+
+  (** Returns the uniqueness represented by this usage. If this identifier is
+      expected to be unique in any branch, it will return unique. If the current
+      usage is forced, it will return aliased. *)
+  val uniqueness : t -> Uniqueness.r
+
+  val print : Format.formatter -> t -> unit
+end = struct
+  (** Occurrences with modes to be forced aliased and many in the future if
+      needed. This is a list because of multiple control flows. For example, if
+      a value is used aliased in one branch but unique in another branch, then
+      overall the value is used uniquely (this is a "stricter" requirement).
+      Therefore, techincally, the mode this list represents is the meet of all
+      modes in the lists. (recall that aliased > unique). Therefore, if this
+      virtual mode needs to be forced aliased, the whole list needs to be forced
+      aliased. *)
+  type t = (unique_use * Occurrence.t) list
+
+  let singleton unique_use occ : t = [unique_use, occ]
+
+  let uniqueness l = Uniqueness.meet (List.map (fun ((uniq, _), _) -> uniq) l)
+
+  type axis =
+    | Uniqueness
+    | Linearity
+
+  type cannot_force =
+    { occ : Occurrence.t;
+      axis : axis
+    }
+
+  let mark_multi_use l =
+    let force_one ((uni, lin), occ) =
+      (* values being multi-used means two things:
+         - the expected mode must be higher than [aliased]
+         - the access mode must be lower than [many] *)
+      match Linearity.submode lin Linearity.many with
+      | Error _ -> Error { occ; axis = Linearity }
+      | Ok () -> (
+        match Uniqueness.submode Uniqueness.aliased uni with
+        | Ok () -> Ok ()
+        | Error _ -> Error { occ; axis = Uniqueness })
+    in
+    iter_error force_one l
+
+  let extract_occurrence = function [] -> assert false | (_, occ) :: _ -> occ
+
+  let meet l0 l1 = l0 @ l1
+
+  let print ppf t =
+    let open Format in
+    Print_utils.list
+      (fun ppf (uu, occ) ->
+        fprintf ppf "@[(%a,@ %a)@]" Typedtree.print_unique_use uu
+          Occurrence.print occ)
+      ppf t
+end
+
+module Maybe_aliased : sig
+  type t
+
+  type access =
+    | Read of Unique_barrier.t
+    | Write
+
+  val string_of_access : access -> string
+
+  (** The type representing a usage that could be either aliased or borrowed *)
+
+  (** Extract an arbitrary occurrence from the usage *)
+  val extract_occurrence : t -> Occurrence.t
+
+  (** extract an arbitrary access from this usage *)
+  val extract_access : t -> access
+
+  (** Add a barrier. The uniqueness mode represents the usage immediately
+      following the current usage. If that mode is Unique, the current usage
+       must be Borrowed (hence no code motion); if that mode is not restricted
+       to Unique, this usage can be Borrowed or Aliased (prefered). Can be called
+       multiple times for multiple barriers (for different branches). *)
+  val add_barrier : t -> Uniqueness.r -> unit
+
+  val meet : t -> t -> t
+
+  val singleton : Occurrence.t -> access -> t
+
+  val print_access : Format.formatter -> access -> unit
+
+  val print : Format.formatter -> t -> unit
+end = struct
+  type access =
+    | Read of Unique_barrier.t
+    | Write
+
+  let string_of_access = function
+    | Read _ -> "read from"
+    | Write -> "written to"
+
+  (** list of occurences together with modes to be forced as borrowed in the
+  future if needed. It is a list because of multiple control flows. For
+  example, if a value is used borrowed in one branch but aliased in another,
+  then the overall usage is aliased. Therefore, the mode this list represents
+  is the meet of all modes in the list. (recall that borrowed > aliased).
+  Therefore, if this virtual mode needs to be forced borrowed, the whole list
+  needs to be forced borrowed. *)
+  type t = (Occurrence.t * access) list
+
+  let meet l0 l1 = l0 @ l1
+
+  let singleton occ access = [occ, access]
+
+  let extract_occurrence = function [] -> assert false | (occ, _) :: _ -> occ
+
+  let extract_access = function
+    | [] -> assert false
+    | (_, access) :: _ -> access
+
+  let add_barrier t uniq =
+    List.iter
+      (fun (_, access) ->
+        match access with
+        | Read barrier -> Unique_barrier.add_upper_bound uniq barrier
+        | _ -> ())
+      t
+
+  let print_access ppf =
+    let open Format in
+    function
+    | Read ub -> fprintf ppf "Read(%a)" Unique_barrier.print ub
+    | Write -> fprintf ppf "Write"
+
+  let print ppf t =
+    let open Format in
+    Print_utils.list
+      (fun ppf (occ, access) ->
+        fprintf ppf "(%a,%a)" Occurrence.print occ print_access access)
+      ppf t
+end
+
+module Aliased : sig
+  type t
+
+  type reason =
+    | Forced  (** aliased because forced  *)
+    | Lazy  (** aliased because it is the argument of lazy forcing *)
+    | Lifted of Maybe_aliased.access
+        (** aliased because lifted from implicit borrowing, carries the original
+          access *)
+
+  (** The occurrence is only for future error messages. The share_reason must
+  corresponds to the occurrence *)
+  val singleton : Occurrence.t -> reason -> t
+
+  val extract_occurrence : t -> Occurrence.t
+
+  val reason : t -> reason
+
+  val print : Format.formatter -> t -> unit
+end = struct
+  type reason =
+    | Forced
+    | Lazy
+    | Lifted of Maybe_aliased.access
+
+  type t = Occurrence.t * reason
+
+  let singleton occ reason = occ, reason
+
+  let extract_occurrence (occ, _) = occ
+
+  let reason (_, reason) = reason
+
+  let print ppf (occ, reason) =
+    let open Format in
+    let print_reason ppf = function
+      | Forced -> fprintf ppf "Forced"
+      | Lazy -> fprintf ppf "Lazy"
+      | Lifted ma -> fprintf ppf "Lifted(%a)" Maybe_aliased.print_access ma
+    in
+    fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
+end
+
+module Usage : sig
+  type t =
+    | Unused  (** empty usage *)
+    | Borrowed of Occurrence.t
+        (** A borrowed usage with an arbitrary occurrence. The occurrence is
+        only for future error messages. Currently not used, because we don't
+        have explicit borrowing *)
+    | Maybe_aliased of Maybe_aliased.t
+        (** A usage that could be either borrowed or aliased. *)
+    | Aliased of Aliased.t  (** A aliased usage *)
+    | Maybe_unique of Maybe_unique.t
+        (** A usage that could be either unique or aliased. *)
+
+  val aliased : Occurrence.t -> Aliased.reason -> t
+
+  val maybe_unique : unique_use -> Occurrence.t -> t
+
+  (** Extract an arbitrary occurrence from a usage *)
+  val extract_occurrence : t -> Occurrence.t option
+
+  type first_or_second =
+    | First
+    | Second
+
+  type access_order =
+    | Seq
+    | Par
+
+  type error =
+    { cannot_force : Maybe_unique.cannot_force;
+      there : t;  (** The other usage  *)
+      first_or_second : first_or_second;
+          (** Is it the first or second usage that's failing force? *)
+      access_order : access_order
+          (** Are the accesses in sequence or parallel? *)
+    }
+
+  include Promotable_semiring with type t := t and type error := error
+end = struct
+  (* We have Unused (top) > Borrowed > Aliased > Unique > Error (bot).
+
+     - Unused means unused
+     - Borrowed means read-only access confined to a region
+     - Aliased means read-only access that may escape a region. For example,
+     storing the value in a cell that can be accessed later.
+     - Unique means accessing the value as if it's the only pointer. Example
+     includes overwriting.
+     - Error means error happens when composing usage.
+
+     Some observations:
+     - It is sound to relax mode towards Error. It grants the access more
+     "capability" and usually helps performance.
+       For example, relaxing borrowed to aliased allows code motion of
+       projections. Relaxing aliased to unique allows in-place update.
+
+       An example of the relaxing borrowed to aliased:
+
+       let x = r.a in
+       (a lot of codes)
+       x
+
+       In first line, r.memory_address is accessed as borrowed. But if we weaken
+       it to aliased and it still mode checks, that means
+       - there is no "unique" access in the "a lot of codes"
+       - or equivalently, that r.memory_address stays unchanged and safe to read
+
+       and as a result, we can delay the projection at `x`.
+
+       The downside of relaxing is the loss of completeness: if we relax too
+       much the program will fail type check. In the extreme case we relax it to
+       Error which fails type check outright (and extremely sound, hehe).
+
+     - The purpose of this uniqueness analysis is to figure out the most relaxed
+     mode for each use, such that we get the best performance, while still
+     type-check. Currently there are really only two choices worth figuring out,
+     Namely
+     - borrowed or aliased?
+     - aliased or unique?
+
+     As a result, instead of having full-range inference, we only care about the
+     following ranges:
+     - unused
+     - borrowed (Currently not useful, because we don't have explicit borrowing)
+     - borrowed or aliased
+     - aliased
+     - aliased or unique
+     - error
+
+     error is represented as exception which is just easier.
+  *)
+
+  type t =
+    | Unused
+    | Borrowed of Occurrence.t
+    | Maybe_aliased of Maybe_aliased.t
+    | Aliased of Aliased.t
+    | Maybe_unique of Maybe_unique.t
+
+  let aliased occ reason = Aliased (Aliased.singleton occ reason)
+
+  let maybe_unique unique_use occ =
+    Maybe_unique (Maybe_unique.singleton unique_use occ)
+
+  let extract_occurrence = function
+    | Unused -> None
+    | Borrowed occ -> Some occ
+    | Maybe_aliased t -> Some (Maybe_aliased.extract_occurrence t)
+    | Aliased t -> Some (Aliased.extract_occurrence t)
+    | Maybe_unique t -> Some (Maybe_unique.extract_occurrence t)
+
+  let empty = Unused
+
+  let choose m0 m1 =
+    match m0, m1 with
+    | Unused, m | m, Unused -> m
+    | Borrowed _, t | t, Borrowed _ -> t
+    | Maybe_aliased l0, Maybe_aliased l1 ->
+      Maybe_aliased (Maybe_aliased.meet l0 l1)
+    | Maybe_aliased _, t | t, Maybe_aliased _ ->
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
+      t
+    | Aliased _, t | t, Aliased _ -> t
+    | Maybe_unique l0, Maybe_unique l1 -> Maybe_unique (Maybe_unique.meet l0 l1)
+
+  type first_or_second =
+    | First
+    | Second
+
+  type access_order =
+    | Seq
+    | Par
+
+  type error =
+    { cannot_force : Maybe_unique.cannot_force;
+      there : t;
+      first_or_second : first_or_second;
+      access_order : access_order
+    }
+
+  exception Error of error
+
+  let force_aliased_multiuse t there first_or_second access_order =
+    match Maybe_unique.mark_multi_use t with
+    | Ok () -> ()
+    | Error cannot_force ->
+      raise (Error { cannot_force; there; first_or_second; access_order })
+
+  let par m0 m1 =
+    match m0, m1 with
+    | Unused, m | m, Unused -> m
+    | Borrowed occ, Borrowed _ -> Borrowed occ
+    | Borrowed _, Maybe_aliased t | Maybe_aliased t, Borrowed _ ->
+      Maybe_aliased t
+    | Borrowed _, Aliased t | Aliased t, Borrowed _ -> Aliased t
+    | Borrowed occ, Maybe_unique t | Maybe_unique t, Borrowed occ ->
+      force_aliased_multiuse t (Borrowed occ) First Par;
+      aliased (Maybe_unique.extract_occurrence t) Aliased.Forced
+    | Maybe_aliased t0, Maybe_aliased t1 ->
+      Maybe_aliased (Maybe_aliased.meet t0 t1)
+    | Maybe_aliased _, Aliased occ | Aliased occ, Maybe_aliased _ ->
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
+      Aliased occ
+    | Maybe_aliased t0, Maybe_unique t1 | Maybe_unique t1, Maybe_aliased t0 ->
+      (* t1 must be aliased *)
+      force_aliased_multiuse t1 (Maybe_aliased t0) First Par;
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
+      aliased (Maybe_unique.extract_occurrence t1) Aliased.Forced
+    | Aliased t0, Aliased _ -> Aliased t0
+    | Aliased t0, Maybe_unique t1 ->
+      force_aliased_multiuse t1 (Aliased t0) Second Par;
+      Aliased t0
+    | Maybe_unique t1, Aliased t0 ->
+      force_aliased_multiuse t1 (Aliased t0) First Par;
+      Aliased t0
+    | Maybe_unique t0, Maybe_unique t1 ->
+      force_aliased_multiuse t0 m1 First Par;
+      force_aliased_multiuse t1 m0 Second Par;
+      aliased (Maybe_unique.extract_occurrence t0) Aliased.Forced
+
+  let seq m0 m1 =
+    match m0, m1 with
+    | Unused, m | m, Unused -> m
+    | Borrowed _, t -> t
+    | Maybe_aliased _, Borrowed _ -> m0
+    | Maybe_aliased l0, Maybe_aliased l1 ->
+      Maybe_aliased (Maybe_aliased.meet l0 l1)
+    | Maybe_aliased _, Aliased _ -> m1
+    | Maybe_aliased l0, Maybe_unique l1 ->
+      (* Four cases (semi-colon meaning sequential composition):
+          Borrowed;Aliased = Aliased
+          Borrowed;Unique = Unique
+          Aliased;Aliased = Aliased
+          Aliased;Unique = Error
+
+          We are in a dilemma: recall that Borrowed->Aliased allows code
+          motion, and Aliased->Unique allows unique overwriting. We can't have
+          both. We first note is that the first is a soft optimization, and
+          the second is a hard requirement.
+
+          A reasonable solution is thus to check if the m1 actually needs
+          to use the "unique" capabilities. If not, there is no need to
+          relax it to Unique, and we will make it Aliased, and make m0
+          Aliased for code-motion. However, there is no good way to do that,
+          because the "unique_use" in "maybe_unique" is not complete,
+          because the type-checking and uniqueness analysis is performed on
+          a per-top-level-expr basis.
+
+          Our solution is to record on the m0 that it is constrained by the
+          m1. I.e. if m1 is Unique, then m0 cannot be Aliased. After the type
+          checking of the whole file, m1 will correctly tells whether it needs
+          to be Unique, and by extension whether m0 can be Aliased. *)
+      let uniq = Maybe_unique.uniqueness l1 in
+      Maybe_aliased.add_barrier l0 uniq;
+      m1
+    | Aliased _, Borrowed _ -> m0
+    | Maybe_unique l, Borrowed occ ->
+      force_aliased_multiuse l m1 First Seq;
+      aliased occ Aliased.Forced
+    | Aliased _, Maybe_aliased _ ->
+      (* The barrier stays empty; if there is any unique after this,
+         the analysis will error *)
+      m0
+    | Maybe_unique l0, Maybe_aliased l1 ->
+      (* Four cases:
+          Aliased;Borrowed = Aliased
+          Aliased;Aliased = Aliased
+          Unique;Borrowed = Error
+          Unique;Aliased = Error
+
+          As you can see, we need to force the m0 to Aliased, and m1 needn't
+          be constrained. The result is always Aliased.
+          The barrier stays empty; if there is any unique after this,
+          the analysis will error.
+      *)
+      let occ = Maybe_aliased.extract_occurrence l1 in
+      force_aliased_multiuse l0 m1 First Seq;
+      aliased occ Aliased.Forced
+    | Aliased _, Aliased _ -> m0
+    | Maybe_unique l, Aliased _ ->
+      force_aliased_multiuse l m1 First Seq;
+      m1
+    | Aliased _, Maybe_unique l ->
+      force_aliased_multiuse l m0 Second Seq;
+      m0
+    | Maybe_unique l0, Maybe_unique l1 ->
+      force_aliased_multiuse l0 m1 First Seq;
+      force_aliased_multiuse l1 m0 Second Seq;
+      aliased (Maybe_unique.extract_occurrence l0) Aliased.Forced
+
+  (* In a tree of usages, each node records the choose on all possible
+     execution paths. As a result, trees such as `S -> U` are valid, even though
+     it would be invalid if it was the result of a single path: using a parent
+     aliased and a child uniquely is obviously bad. However, it might be the
+     result of "choos"ing multiple path: choose `S` `N -> U`, which is valid.
+
+     INVARIANT: children >= parent. For example, having an aliased child under a
+     unique parent is nonsense. The invariant is preserved because Usage.choose,
+     Usage.par, and Usage.seq above are monotone, and Tree(Usage).par and
+     Tree(Usage).seq, Tree(Usage).choose are node-wise. *)
+  let promote_to_children t = t
+
+  let print ppf =
+    let open Format in
+    function
+    | Unused -> fprintf ppf "Unused"
+    | Borrowed occ -> fprintf ppf "Borrowed(%a)" Occurrence.print occ
+    | Maybe_aliased ma -> fprintf ppf "Maybe_aliased(%a)" Maybe_aliased.print ma
+    | Aliased a -> fprintf ppf "Aliased(%a)" Aliased.print a
+    | Maybe_unique mu -> fprintf ppf "Maybe_unique(%a)" Maybe_unique.print mu
+end
+
+(******************************************************************************)
+(* Tags: Learned Tags and Overwrites                                          *)
+(******************************************************************************)
+
+module Tag : sig
+  (** This module represents the tags of constructors at runtime.
+      When we overwrite a tag, we need to check that the
+      tag is equal to the old tag. This is to ensure that
+      the tag never changes during overwrites. Changing the
+      tag during overwrites is not supported by the multicore GC. *)
+
+  type t =
+    { tag : Types.tag;
+      name_for_error : Longident.t loc
+    }
+
+  module Set : Set.S with type elt = t
+
+  module Map : Map.S with type key = t
+
+  val print : Format.formatter -> t -> unit
+end = struct
+  type t =
+    { tag : Types.tag;
+      name_for_error : Longident.t loc
+    }
+
+  type tags = t
+
+  module Set = Set.Make (struct
+    type t = tags
+
+    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
+  end)
+
+  module Map = Map.Make (struct
+    type t = tags
+
+    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
+  end)
+
+  let print ppf { name_for_error; _ } =
+    Pprintast.longident ppf name_for_error.txt
+end
+
+module Learned_tags : sig
+  (** This module collects the tags of allocations which we may learn from
+      pattern matches. It is always sound to forget tags we have learned.
+
+      Perhaps surprisingly, we allow an allocation to have multiple
+      tags. This can only happen when there are two match-statements
+      and we enter branches of incompatible tags. Such code can never
+      run and so it does not matter which choice we make here. *)
+
+  type error = |
+
+  include Promotable_semiring with type error := error
+
+  (** Register a tag we know (eg. from a pattern-match) *)
+  val learn_tag : Tag.t -> t
+
+  (** Extract the tags that this cell may have *)
+  val extract_tags : t -> Tag.Set.t
+end = struct
+  type t = Tag.Set.t
+
+  let empty = Tag.Set.empty
+
+  let choose t0 t1 = Tag.Set.inter t0 t1
+
+  let par t0 t1 = Tag.Set.union t0 t1
+
+  let seq t0 t1 = Tag.Set.union t0 t1
+
+  let promote_to_children _ = empty
+
+  let learn_tag tag = Tag.Set.singleton tag
+
+  let extract_tags t = t
+
+  type error = |
+
+  exception Error of error
+
+  let print ppf t =
+    let open Format in
+    fprintf ppf "%a" (Format.pp_print_list Tag.print) (Tag.Set.elements t)
+end
+
+module Overwrites : sig
+  (** This module collects the tags of overwrites. It is always sound
+      to assume we have overwritten with additional tags.
+
+      However, it is in general unsound if the user mutates the tag
+      after we have learned its nature. Then all bets are off and we
+      always fail if there is an overwrite that depends on this
+      information. *)
+
+  type old_tag =
+    | Old_tag_unknown
+    | Old_tag_was of Tag.t
+    | Old_tag_mutated
+
+  type error =
+    | ChangedTag of
+        { old_tag : old_tag;
+          new_tag : Tag.t
+        }
+
+  include Promotable_semiring with type error := error
+
+  (** Overwrite using a certain tag *)
+  val overwrite_tag : Tag.t -> t
+
+  (** Indicate a mutation (which invalidates all tags we have learned
+      and will learn). If there is also an overwrite, we fail. *)
+  val mutate_tag : t
+
+  (** Accept the overwrites using tags that we have learned
+      from a pattern-match. *)
+  val match_with_learned_tags : Tag.Set.t -> t -> t
+
+  (** We may not overwrite a tag we don't know.
+      At the end of the analysis, this function should
+      be called to ensure all overwrites are on known tags. *)
+  val check_no_remaining_overwritten_as : t -> unit
+end = struct
+  type tags =
+    { overwritten : Tag.Set.t Tag.Map.t;
+          (** The keys of the map are the tags of the overwrite.
+          When we learn new tags, we can remove keys from this map,
+          that correspond to the new tags. We then keep the learned
+          tags on the keys that did not match them to produce good
+          error messages. It is always sound to add elements to this map.
+          *)
+      have_overwritten : Tag.Set.t
+          (** In the [seq] function we are allowed to remove
+          elements from [overwritten] as long as we have learned
+          the tag. We record the tags if that happens so that
+          we can fail if the tag was mutated. It is always sound
+          to add elements to this set. *)
+    }
+
+  type t =
+    | Tags of tags
+    | Tag_was_mutated
+        (** We have discovered a mutable write.
+        This is dangerous: We might have accepted a overwrite based on the wrong tag.
+        If we detect this state, we reject all overwrites to this cell. *)
+
+  type old_tag =
+    | Old_tag_unknown
+    | Old_tag_was of Tag.t
+    | Old_tag_mutated
+
+  type error =
+    | ChangedTag of
+        { old_tag : old_tag;
+          new_tag : Tag.t
+        }
+
+  exception Error of error
+
+  let empty =
+    Tags { overwritten = Tag.Map.empty; have_overwritten = Tag.Set.empty }
+
+  let overwrite_tag tag =
+    Tags
+      { overwritten = Tag.Map.singleton tag Tag.Set.empty;
+        have_overwritten = Tag.Set.empty
+      }
+
+  let mutate_tag = Tag_was_mutated
+
+  let fail_if_mutated f t0 t1 =
+    match t0, t1 with
+    | Tags t0, Tags t1 -> Tags (f t0 t1)
+    | Tags { overwritten; have_overwritten }, Tag_was_mutated
+    | Tag_was_mutated, Tags { overwritten; have_overwritten } -> (
+      match
+        Tag.Map.choose_opt overwritten, Tag.Set.choose_opt have_overwritten
+      with
+      | None, None -> Tag_was_mutated
+      | Some (t, _), _ | _, Some t ->
+        raise (Error (ChangedTag { old_tag = Old_tag_mutated; new_tag = t })))
+    | Tag_was_mutated, Tag_was_mutated -> Tag_was_mutated
+
+  let union_with_remembered =
+    Tag.Map.union (fun _ t0 t1 -> Some (Tag.Set.union t0 t1))
+
+  let choose t0 t1 =
+    fail_if_mutated
+      (fun t0 t1 ->
+        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
+          have_overwritten =
+            Tag.Set.union t0.have_overwritten t1.have_overwritten
+        })
+      t0 t1
+
+  let par t0 t1 =
+    fail_if_mutated
+      (fun t0 t1 ->
+        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
+          have_overwritten =
+            Tag.Set.union t0.have_overwritten t1.have_overwritten
+        })
+      t0 t1
+
+  let seq t0 t1 = par t0 t1
+
+  (* If we find out that a tag was mutated,
+      we need to promote this information to its children.
+      This is because a write to a mutable field can change
+      any tag that is reachable from the mutable field. *)
+  let promote_to_children t =
+    match t with Tag_was_mutated -> Tag_was_mutated | Tags _ -> empty
+
+  let match_with_learned_tags newly_learned t =
+    match t with
+    | Tag_was_mutated -> Tag_was_mutated
+    | Tags { overwritten; have_overwritten } ->
+      let overwritten_learned, overwritten_kept =
+        Tag.Map.partition
+          (fun tag _ -> Tag.Set.mem tag newly_learned)
+          overwritten
+      in
+      Tags
+        { overwritten =
+            Tag.Map.map
+              (fun learned_before -> Tag.Set.union learned_before newly_learned)
+              overwritten_kept;
+          have_overwritten =
+            (let keys_set t =
+               Tag.Set.of_list (List.map fst (Tag.Map.bindings t))
+             in
+             Tag.Set.union have_overwritten (keys_set overwritten_learned))
+        }
+
+  let check_no_remaining_overwritten_as t =
+    match t with
+    | Tags { overwritten } -> (
+      match Tag.Map.choose_opt overwritten with
+      | None -> ()
+      | Some (tag_overwritten, have_learned) ->
+        raise
+          (Error
+             (match Tag.Set.choose_opt have_learned with
+             | None ->
+               ChangedTag
+                 { old_tag = Old_tag_unknown; new_tag = tag_overwritten }
+             | Some tag_learned ->
+               ChangedTag
+                 { old_tag = Old_tag_was tag_learned;
+                   new_tag = tag_overwritten
+                 })))
+    | Tag_was_mutated -> ()
+
+  let print ppf =
+    let open Format in
+    function
+    | Tags tag ->
+      fprintf ppf "Tags { overwritten = %a; have_overwritten = %a }"
+        (Format.pp_print_list Tag.print)
+        (List.map fst (Tag.Map.bindings tag.overwritten))
+        (Format.pp_print_list Tag.print)
+        (Tag.Set.elements tag.have_overwritten)
+    | Tag_was_mutated -> fprintf ppf "Tag_was_mutated"
+end
+
+(******************************************************************************)
+(* Data flow analysis                                                         *)
+(******************************************************************************)
 
 (** Pattern matching code returns the usages and the tags
     learned in the pattern match. *)
@@ -1651,93 +1778,6 @@ end = struct
     | Existing { paths; unique_use; occ } ->
       fprintf ppf "@[{ paths = %a;@ unique_use = %a;@ occ = %a }@]" Paths.print
         paths Typedtree.print_unique_use unique_use Occurrence.print occ
-end
-
-module Ienv : sig
-  module Extension : sig
-    (** Extention to Ienv. Usually generated by a pattern *)
-    type t
-
-    (** Composition for [OR] patterns. This operation is commutative *)
-    val disjunct : t -> t -> t
-
-    (** Composition for conjunctive patterns. The two extensions must be
-    disjoint. *)
-    val conjunct : t -> t -> t
-
-    (** Similar to [conjunct] but lifted to lists *)
-    val conjuncts : t list -> t
-
-    (** The empty extension *)
-    val empty : t
-
-    val singleton : Ident.t -> Paths.t -> t
-    (* Constructing a mapping with only one mapping  *)
-
-    val print : Format.formatter -> t -> unit
-  end
-
-  (** Mapping from identifiers to a list of possible nodes, each represented by
-      a path into the forest, instead of directly pointing to the node. *)
-  type t
-
-  (** Extend a mapping with an extension *)
-  val extend : t -> Extension.t -> t
-
-  (** The empty mapping  *)
-  val empty : t
-
-  (** Find the list of paths corresponding to an identifier  *)
-  val find_opt : Ident.t -> t -> Paths.t option
-
-  val print : Format.formatter -> t -> unit
-end = struct
-  module Extension = struct
-    type t = Paths.t Ident.Map.t
-
-    let disjunct ienv0 ienv1 =
-      Ident.Map.merge
-        (fun _id locs0 locs1 ->
-          match locs0, locs1 with
-          | None, None -> None
-          | Some paths0, Some paths1 -> Some (Paths.choose paths0 paths1)
-          (* cannot bind variable only in one of the OR-patterns *)
-          | _, _ -> assert false)
-        ienv0 ienv1
-
-    let empty = Ident.Map.empty
-
-    let conjunct ienv0 ienv1 =
-      Ident.Map.union
-        (fun _id _ _ ->
-          (* cannot bind variable twice in a single pattern *)
-          assert false)
-        ienv0 ienv1
-
-    let conjuncts = List.fold_left conjunct empty
-
-    let singleton id locs = Ident.Map.singleton id locs
-
-    let print ppf t =
-      let module M = Print_utils.Map (Ident.Map) in
-      M.print ~key:Ident.print ~value:Paths.print ppf t
-  end
-
-  type t = Paths.t Ident.Map.t
-
-  let empty = Ident.Map.empty
-
-  let extend t ex =
-    Ident.Map.union
-      (* the extension shadows the original *)
-        (fun _id _paths0 paths1 -> Some paths1)
-      t ex
-
-  let find_opt = Ident.Map.find_opt
-
-  let print ppf t =
-    let module M = Print_utils.Map (Ident.Map) in
-    M.print ~key:Ident.print ~value:Paths.print ppf t
 end
 
 (* The fun algebraic stuff ends. Here comes the concrete mess *)
