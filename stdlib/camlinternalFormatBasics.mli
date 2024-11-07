@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+include sig
 
 (* No comments, OCaml stdlib internal use only. *)
 
@@ -325,3 +326,4 @@ val concat_fmt :
     ('a, 'b, 'c, 'd, 'e, 'f) fmt ->
     ('f, 'b, 'c, 'e, 'g, 'h) fmt ->
     ('a, 'b, 'c, 'd, 'g, 'h) fmt
+end @@ portable

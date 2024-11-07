@@ -12,8 +12,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+include sig
 
 (* Interface to the std_exit module *)
 
 (* This interface file is empty because the std_exit module only runs
    code during initialisation and does not export any function *)
+end @@ portable

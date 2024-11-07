@@ -21,6 +21,7 @@
 
     @since 4.14 *)
 open! Stdlib
+include sig
 
 (** {1:channels Channels}  *)
 
@@ -202,3 +203,4 @@ val isatty : t -> bool
           (fun oc -> Out_channel.output_string oc s))
     ]}
 *)
+end @@ portable

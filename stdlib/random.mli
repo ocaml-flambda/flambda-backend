@@ -15,6 +15,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Pseudo-random number generators (PRNG).
 
@@ -269,3 +270,4 @@ val split : unit -> State.t
     (The state of the domain-local generator is modified.)
     See {!Random.State.split}.
     @since 5.0 *)
+end @@ portable

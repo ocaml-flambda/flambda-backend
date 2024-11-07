@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Deferred computations. *)
 
@@ -141,3 +142,4 @@ val force_val : 'a t -> 'a
 
     @raise Undefined (see {!Undefined}).
 *)
+end @@ portable

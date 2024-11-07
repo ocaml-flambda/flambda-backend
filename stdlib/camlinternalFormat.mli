@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* No comments, OCaml stdlib internal use only. *)
 
@@ -122,3 +123,4 @@ val recast :
 -> ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
     'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel
 -> ('a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmt
+end @@ portable

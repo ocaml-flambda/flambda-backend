@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+include sig
 
 (** Locks for mutual exclusion.
 
@@ -72,3 +73,4 @@ val protect : t -> (unit -> 'a) -> 'a
     re-raised as a normal exception from [protect].
 
     @since 5.1 *)
+end @@ portable

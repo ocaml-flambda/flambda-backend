@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+include sig
 
 (** Either type.
 
@@ -113,3 +114,4 @@ val compare :
 (** [compare ~left ~right e0 e1] totally orders [e0] and [e1] using [left] and
     [right] to respectively compare values wrapped by [Left _ ] and [Right _].
     [Left _] values are smaller than [Right _] values. *)
+end @@ portable

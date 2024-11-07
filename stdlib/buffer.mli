@@ -39,6 +39,7 @@
 ]
 
 open! Stdlib
+include sig
 
  (**
     Unsynchronized accesses to a buffer may lead to an invalid buffer state.
@@ -321,3 +322,4 @@ val add_int64_le : t -> int64 -> unit
     [i] to [b].
     @since 4.08
 *)
+end @@ portable

@@ -14,6 +14,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+include sig
 
 (** Atomic references.
 
@@ -173,3 +174,4 @@ val decr : int t -> unit
     - : int option = None
     ]}
   *)
+end @@ portable

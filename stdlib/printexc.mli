@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Facilities for printing exceptions and inspecting current call stack. *)
 
@@ -422,3 +423,4 @@ val exn_slot_name: exn -> string
 *)
 
 val string_of_extension_constructor: Obj.t -> string
+end @@ portable

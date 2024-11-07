@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Pretty-printing.
 
@@ -1596,3 +1597,4 @@ val kasprintf : (string -> 'a) -> ('b, formatter, unit, 'a) format4 -> 'b
   using {{: ppx_deriving.show} https://github.com/ocaml-ppx/ppx_deriving}
   or similar ppx derivers.
 *)
+end @@ portable

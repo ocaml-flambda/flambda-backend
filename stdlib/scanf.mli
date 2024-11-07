@@ -90,6 +90,7 @@
 ]
 
 open! Stdlib
+include sig
 
  (**
       Unsynchronized accesses to a {!Scanning.in_channel} may lead to an
@@ -566,3 +567,4 @@ val unescaped : string -> string
     For instance, [Scanf.unescaped "\""] will fail.
     @since 4.00
 *)
+end @@ portable

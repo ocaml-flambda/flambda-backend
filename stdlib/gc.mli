@@ -15,6 +15,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Memory management control and statistics; finalised values. *)
 
@@ -645,3 +646,4 @@ module Tweak : sig
       have non-default values *)
   val list_active : unit -> (string * int) list
 end
+end @@ portable

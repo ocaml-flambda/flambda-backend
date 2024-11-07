@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Operations on file names. *)
 
@@ -238,3 +239,4 @@ val quote_command :
     @raise Failure if the command cannot be escaped on the current platform.
     @since 4.10
 *)
+end @@ portable

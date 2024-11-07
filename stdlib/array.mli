@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* NOTE:
    If this file is arrayLabels.mli, run tools/sync_stdlib_docs after editing it
@@ -464,3 +465,4 @@ module Floatarray : sig
   external unsafe_set : floatarray -> int -> float -> unit
       = "%floatarray_unsafe_set"
 end
+end @@ portable

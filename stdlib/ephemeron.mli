@@ -72,6 +72,7 @@
 ]
 
 open! Stdlib
+include sig
 
 (**
     Unsynchronized accesses to a weak hash table may lead to an invalid
@@ -300,3 +301,4 @@ module Kn : sig
 
 end
 (** Ephemerons with arbitrary number of keys of the same type. *)
+end @@ portable

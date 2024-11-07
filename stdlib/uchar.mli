@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Unicode characters.
 
@@ -141,3 +142,4 @@ val utf_8_byte_length : t -> int
 val utf_16_byte_length : t -> int
 (** [utf_16_byte_length u] is the number of bytes needed to encode
     [u] in UTF-16. *)
+end @@ portable

@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Standard labeled libraries.
 
@@ -38,3 +39,4 @@ module Array = ArrayLabels
 module Bytes = BytesLabels
 module List = ListLabels
 module String = StringLabels
+end @@ portable
