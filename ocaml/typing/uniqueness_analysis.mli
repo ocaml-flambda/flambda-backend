@@ -30,6 +30,8 @@ module type P := sig
   val print : Format.formatter -> t -> unit
 end
 
+module Occurrence : P
+
 module Maybe_unique : P
 
 module Maybe_aliased : P
@@ -40,13 +42,15 @@ module Usage : P
 
 module Tag : P
 
+module Learned_tags : P
+
+module Overwrites : P
+
 module Projection : P
 
-module Usage_tree : P
-
-module Usage_forest : P
-
 module Paths : P
+
+module UF : P
 
 module Value : P
 

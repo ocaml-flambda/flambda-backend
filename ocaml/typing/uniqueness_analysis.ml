@@ -22,6 +22,8 @@ open Typedtree
 module Uniqueness = Mode.Uniqueness
 module Linearity = Mode.Linearity
 
+(* CR uniqueness: currently printing does not work.
+   The debugger just returns <abstr> for all types. *)
 module Print_utils = struct
   open Format
 
@@ -260,10 +262,8 @@ end = struct
     fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
 end
 
-(** Usage algebra
-
-    In this file we track the usage of variables and tags throughout a source file.
-    Information can be composed using three operators:
+module type Semiring = sig
+  (** Information can be composed using three operators:
 
      - seq: sequential composition such as 'foo; bar'
      - par: parallel composition such as '(foo, bar)'
@@ -272,24 +272,118 @@ end
 
     subject to the following laws:
 
-     - seq, par, choice are associative
-     - par, choice are commutative
-     - seq and par both distribute over choice
-     - choice is idempotent (forall a. a `choice` a = a)
+     - seq, par, choose are associative
+     - par, choose are commutative
+     - seq and par both distribute over choose
+     - choose is idempotent (forall a. a `choose` a = a)
      - seq and par have a common unit 'empty'
 
     Note: These laws do not apply regarding the concrete error messages reported
     to the user if the analysis fails. However, the laws do determine whether
     the analysis may fail in the first place.
 
-    Aside: This structure is also known as a United Monoid (Mokhov et al.)
-    It differs from, say, Kleene algebra in that seq and choice share a unit.
-    To make this a Kleene algebra we would need a unit for choice that
-    annihilates seq. In most presentations, this corresponds to a code path
-    that can never be taken like 'assert false'. But we want to perform
-    the uniqueness analysis even such branches, since it would be a bad
-    user experience if a wrong use of uniqueness could lead to a segfault
-    before reporting the failed assertion. *)
+    In practice, our semirings also have an ordering that all operations
+    above preserve. We write 's1 > s2' if it is sound to return 's2' whenever
+    the analysis returns 's1'.
+
+    Missing from a proper semiring is that we do not ask for a 'zero' which would
+    the unit of choose and annihilate seq and par. The reason for this is that
+    zero is not very useful in practice: it only applies to empty pattern matches
+    but not to exceptions or 'assert false'. If 'assert false' would map to zero,
+    the analysis would allow segfaulting code before an assertion failure.
+    Thus we only need zero for empty pattern matches, but to avoid the hassle of
+    defining it, we simply return 'empty' in that case, which is sound in every
+    semiring with '0 > 1'.
+
+    CR uniqueness: we might want to have a law relating seq and par.
+    See eg. 'concurrent semiring' in Hoare, Möller, Struth, Wehrmann
+    "Concurrent Kleene Algebra and its Foundations". *)
+
+  type t
+
+  (** Unused *)
+  val empty : t
+
+  (** Sequential composition *)
+  val seq : t -> t -> t
+
+  (** Non-deterministic choice *)
+  val choose : t -> t -> t
+
+  (** Parallel composition *)
+  val par : t -> t -> t
+
+  val print : Format.formatter -> t -> unit
+end
+
+module type Elementary_semiring = sig
+  (** We can form a tree of allocations and their children over
+      elementary semirings. *)
+
+  include Semiring
+
+  (** If an allocation is annotated by the element [s],
+      then its children will be annotated by [promote_to_children s].
+      This function has to be monotone. *)
+  val promote_to_children : t -> t
+
+  type error
+
+  exception Error of error
+end
+
+module type Product_S = sig
+  module L : Elementary_semiring
+
+  module R : Elementary_semiring
+
+  type t = L.t * R.t
+
+  type error =
+    | Left of L.error
+    | Right of R.error
+
+  include Elementary_semiring with type t := t and type error := error
+end
+
+(** The product semiring.
+    Since we only keep non-zero elements in our semirings, you could formally write
+    this as a smash-product that identifies all tuples where one entry is zero. *)
+module Product (L : Elementary_semiring) (R : Elementary_semiring) : sig
+  include Product_S with module L := L and module R := R
+end = struct
+  type t = L.t * R.t
+
+  type error =
+    | Left of L.error
+    | Right of R.error
+
+  exception Error of error
+
+  let wrap_left f = try f () with L.Error error -> raise (Error (Left error))
+
+  let wrap_right f =
+    try f () with R.Error error -> raise (Error (Right error))
+
+  let empty = L.empty, R.empty
+
+  let seq (l1, r1) (l2, r2) =
+    wrap_left (fun () -> L.seq l1 l2), wrap_right (fun () -> R.seq r1 r2)
+
+  let choose (l1, r1) (l2, r2) =
+    wrap_left (fun () -> L.choose l1 l2), wrap_right (fun () -> R.choose r1 r2)
+
+  let par (l1, r1) (l2, r2) =
+    wrap_left (fun () -> L.par l1 l2), wrap_right (fun () -> R.par r1 r2)
+
+  let promote_to_children (l, r) =
+    ( wrap_left (fun () -> L.promote_to_children l),
+      wrap_right (fun () -> R.promote_to_children r) )
+
+  let print ppf (l, r) =
+    let open Format in
+    fprintf ppf "(%a, %a)" L.print l R.print r
+end
 
 module Usage : sig
   type t =
@@ -328,21 +422,7 @@ module Usage : sig
           (** Are the accesses in sequence or parallel? *)
     }
 
-  exception Error of error
-
-  (** Unused *)
-  val empty : t
-
-  (** Sequential composition *)
-  val seq : t -> t -> t
-
-  (** Non-deterministic choice *)
-  val choose : t -> t -> t
-
-  (** Parallel composition *)
-  val par : t -> t -> t
-
-  val print : Format.formatter -> t -> unit
+  include Elementary_semiring with type t := t and type error := error
 end = struct
   (* We have Unused (top) > Borrowed > Aliased > Unique > Error (bot).
 
@@ -557,6 +637,18 @@ end = struct
       force_aliased_multiuse l1 m0 Second Seq;
       aliased (Maybe_unique.extract_occurrence l0) Aliased.Forced
 
+  (* In a tree of usages, each node records the choose on all possible
+     execution paths. As a result, trees such as `S -> U` are valid, even though
+     it would be invalid if it was the result of a single path: using a parent
+     aliased and a child uniquely is obviously bad. However, it might be the
+     result of "choos"ing multiple path: choose `S` `N -> U`, which is valid.
+
+     INVARIANT: children >= parent. For example, having an aliased child under a
+     unique parent is nonsense. The invariant is preserved because Usage.choose,
+     Usage.par, and Usage.seq above are monotone, and Tree(Usage).par and
+     Tree(Usage).seq, Tree(Usage).choose are node-wise. *)
+  let promote_to_children t = t
+
   let print ppf =
     let open Format in
     function
@@ -568,110 +660,142 @@ end = struct
 end
 
 module Tag : sig
-  (** This module collects the tags of allocations.
-      When we overwrite a tag, this module checks that the
+  (** This module represents the tags of constructors at runtime.
+      When we overwrite a tag, we need to check that the
       tag is equal to the old tag. This is to ensure that
       the tag never changes during overwrites. Changing the
-      tag during overwrites is not supported by the multicore GC.
+      tag during overwrites is not supported by the multicore GC. *)
+
+  type t =
+    { tag : Types.tag;
+      name_for_error : Longident.t loc
+    }
+
+  module Set : Set.S with type elt = t
+
+  module Map : Map.S with type key = t
+
+  val print : Format.formatter -> t -> unit
+end = struct
+  type t =
+    { tag : Types.tag;
+      name_for_error : Longident.t loc
+    }
+
+  type tags = t
+
+  module Set = Set.Make (struct
+    type t = tags
+
+    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
+  end)
+
+  module Map = Map.Make (struct
+    type t = tags
+
+    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
+  end)
+
+  let print ppf { name_for_error; _ } =
+    Pprintast.longident ppf name_for_error.txt
+end
+
+module Learned_tags : sig
+  (** This module collects the tags of allocations which we may learn from
+      pattern matches. It is always sound to forget tags we have learned.
 
       Perhaps surprisingly, we allow an allocation to have multiple
       tags. This can only happen when there are two match-statements
       and we enter branches of incompatible tags. Such code can never
-      run and so it does not matter which choice we make here.
+      run and so it does not matter which choice we make here. *)
+
+  type error = |
+
+  include Elementary_semiring with type error := error
+
+  (** Register a tag we know (eg. from a pattern-match) *)
+  val learn_tag : Tag.t -> t
+
+  (** Extract the tags that this cell may have *)
+  val extract_tags : t -> Tag.Set.t
+end = struct
+  type t = Tag.Set.t
+
+  let empty = Tag.Set.empty
+
+  let choose t0 t1 = Tag.Set.inter t0 t1
+
+  let par t0 t1 = Tag.Set.union t0 t1
+
+  let seq t0 t1 = Tag.Set.union t0 t1
+
+  let promote_to_children _ = empty
+
+  let learn_tag tag = Tag.Set.singleton tag
+
+  let extract_tags t = t
+
+  type error = |
+
+  exception Error of error
+
+  let print ppf t =
+    let open Format in
+    fprintf ppf "%a" (Format.pp_print_list Tag.print) (Tag.Set.elements t)
+end
+
+module Overwrites : sig
+  (** This module collects the tags of overwrites. It is always sound
+      to assume we have overwritten with additional tags.
 
       However, it is in general unsound if the user mutates the tag
       after we have learned its nature. Then all bets are off and we
       always fail if there is an overwrite that depends on this
       information. *)
 
-  type tag =
-    { tag : Types.tag;
-      name_for_error : Longident.t loc
-    }
-
-  type t
-
   type old_tag =
     | Old_tag_unknown
-    | Old_tag_was of tag
+    | Old_tag_was of Tag.t
     | Old_tag_mutated
 
   type error =
     | ChangedTag of
         { old_tag : old_tag;
-          new_tag : tag
+          new_tag : Tag.t
         }
 
-  exception Error of error
-
-  (** Unknown tag *)
-  val empty : t
-
-  (** Register a tag we know (eg. from a pattern-match) *)
-  val learn_tag : tag -> t
+  include Elementary_semiring with type error := error
 
   (** Overwrite using a certain tag *)
-  val overwrite_tag : tag -> t
+  val overwrite_tag : Tag.t -> t
 
   (** Indicate a mutation (which invalidates all tags we have learned
       and will learn). If there is also an overwrite, we fail. *)
   val mutate_tag : t
 
-  (** Sequential composition *)
-  val seq : t -> t -> t
-
-  (** Non-deterministic choice *)
-  val choose : t -> t -> t
-
-  (** Parallel composition *)
-  val par : t -> t -> t
-
-  (** If we find out that a tag was mutated,
-      we need to promote this information to its children.
-      This is because a write to a mutable field can change
-      any tag that is reachable from the mutable field. *)
-  val promote_mutation_to_children : t -> t
+  (** Accept the overwrites using tags that we have learned
+      from a pattern-match. *)
+  val match_with_learned_tags : Tag.Set.t -> t -> t
 
   (** We may not overwrite a tag we don't know.
       At the end of the analysis, this function should
       be called to ensure all overwrites are on known tags. *)
   val check_no_remaining_overwritten_as : t -> unit
-
-  val print : Format.formatter -> t -> unit
 end = struct
-  type tag =
-    { tag : Types.tag;
-      name_for_error : Longident.t loc
-    }
-
-  module TagSet = Set.Make (struct
-    type t = tag
-
-    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
-  end)
-
-  module TagMap = Map.Make (struct
-    type t = tag
-
-    let compare t1 t2 = Types.compare_tag t1.tag t2.tag
-  end)
-
   type tags =
-    { learned : TagSet.t;
-          (** We have learned these tags from pattern-matches.
-          It is always sound to forget elements of this set. *)
-      overwritten : TagSet.t TagMap.t;
+    { overwritten : Tag.Set.t Tag.Map.t;
           (** The keys of the map are the tags of the overwrite.
           When we learn new tags, we can remove keys from this map,
           that correspond to the new tags. We then keep the learned
           tags on the keys that did not match them to produce good
           error messages. It is always sound to add elements to this map.
           *)
-      have_overwritten : TagSet.t
+      have_overwritten : Tag.Set.t
           (** In the [seq] function we are allowed to remove
           elements from [overwritten] as long as we have learned
           the tag. We record the tags if that happens so that
-          we can fail if the tag was mutated. *)
+          we can fail if the tag was mutated. It is always sound
+          to add elements to this set. *)
     }
 
   type t =
@@ -683,36 +807,24 @@ end = struct
 
   type old_tag =
     | Old_tag_unknown
-    | Old_tag_was of tag
+    | Old_tag_was of Tag.t
     | Old_tag_mutated
 
   type error =
     | ChangedTag of
         { old_tag : old_tag;
-          new_tag : tag
+          new_tag : Tag.t
         }
 
   exception Error of error
 
   let empty =
-    Tags
-      { learned = TagSet.empty;
-        overwritten = TagMap.empty;
-        have_overwritten = TagSet.empty
-      }
-
-  let learn_tag tag =
-    Tags
-      { learned = TagSet.singleton tag;
-        overwritten = TagMap.empty;
-        have_overwritten = TagSet.empty
-      }
+    Tags { overwritten = Tag.Map.empty; have_overwritten = Tag.Set.empty }
 
   let overwrite_tag tag =
     Tags
-      { learned = TagSet.empty;
-        overwritten = TagMap.singleton tag TagSet.empty;
-        have_overwritten = TagSet.empty
+      { overwritten = Tag.Map.singleton tag Tag.Set.empty;
+        have_overwritten = Tag.Set.empty
       }
 
   let mutate_tag = Tag_was_mutated
@@ -723,7 +835,7 @@ end = struct
     | Tags { overwritten; have_overwritten }, Tag_was_mutated
     | Tag_was_mutated, Tags { overwritten; have_overwritten } -> (
       match
-        TagMap.choose_opt overwritten, TagSet.choose_opt have_overwritten
+        Tag.Map.choose_opt overwritten, Tag.Set.choose_opt have_overwritten
       with
       | None, None -> Tag_was_mutated
       | Some (t, _), _ | _, Some t ->
@@ -731,64 +843,62 @@ end = struct
     | Tag_was_mutated, Tag_was_mutated -> Tag_was_mutated
 
   let union_with_remembered =
-    TagMap.union (fun _ t0 t1 -> Some (TagSet.union t0 t1))
+    Tag.Map.union (fun _ t0 t1 -> Some (Tag.Set.union t0 t1))
 
   let choose t0 t1 =
     fail_if_mutated
       (fun t0 t1 ->
-        { learned = TagSet.inter t0.learned t1.learned;
-          overwritten = union_with_remembered t0.overwritten t1.overwritten;
+        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
           have_overwritten =
-            TagSet.union t0.have_overwritten t1.have_overwritten
+            Tag.Set.union t0.have_overwritten t1.have_overwritten
         })
       t0 t1
 
   let par t0 t1 =
     fail_if_mutated
       (fun t0 t1 ->
-        { learned = TagSet.union t0.learned t1.learned;
-          overwritten = union_with_remembered t0.overwritten t1.overwritten;
+        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
           have_overwritten =
-            TagSet.union t0.have_overwritten t1.have_overwritten
+            Tag.Set.union t0.have_overwritten t1.have_overwritten
         })
       t0 t1
 
-  let keys_set t = TagSet.of_list (List.map fst (TagMap.bindings t))
+  let seq t0 t1 = par t0 t1
 
-  let diff_or_remember overwrites newly_learned =
-    TagMap.filter_map
-      (fun overwrite learned_before ->
-        if TagSet.mem overwrite newly_learned
-        then None
-        else Some (TagSet.union learned_before newly_learned))
-      overwrites
-
-  let seq t0 t1 =
-    fail_if_mutated
-      (fun t0 t1 ->
-        { learned = TagSet.union t0.learned t1.learned;
-          overwritten =
-            union_with_remembered t0.overwritten
-              (diff_or_remember t1.overwritten t0.learned);
-          have_overwritten =
-            TagSet.union
-              (TagSet.union t0.have_overwritten t1.have_overwritten)
-              (TagSet.inter (keys_set t1.overwritten) t0.learned)
-        })
-      t0 t1
-
-  let promote_mutation_to_children t =
+  (* If we find out that a tag was mutated,
+      we need to promote this information to its children.
+      This is because a write to a mutable field can change
+      any tag that is reachable from the mutable field. *)
+  let promote_to_children t =
     match t with Tag_was_mutated -> Tag_was_mutated | Tags _ -> empty
+
+  let match_with_learned_tags newly_learned t =
+    let keys_set t = Tag.Set.of_list (List.map fst (Tag.Map.bindings t)) in
+    match t with
+    | Tag_was_mutated -> Tag_was_mutated
+    | Tags { overwritten; have_overwritten } ->
+      Tags
+        { overwritten =
+            Tag.Map.filter_map
+              (fun overwrite learned_before ->
+                if Tag.Set.mem overwrite newly_learned
+                then None
+                else Some (Tag.Set.union learned_before newly_learned))
+              overwritten;
+          have_overwritten =
+            Tag.Set.union have_overwritten
+              (Tag.Set.inter (keys_set overwritten) newly_learned)
+        }
 
   let check_no_remaining_overwritten_as t =
     match t with
     | Tags { overwritten } -> (
-      match TagMap.choose_opt overwritten with
+      match Tag.Map.choose_opt overwritten with
       | None -> ()
       | Some (tag_overwritten, have_learned) ->
         raise
           (Error
-             (match TagSet.choose_opt have_learned with
+             (match Tag.Set.choose_opt have_learned with
              | None ->
                ChangedTag
                  { old_tag = Old_tag_unknown; new_tag = tag_overwritten }
@@ -799,21 +909,15 @@ end = struct
                  })))
     | Tag_was_mutated -> ()
 
-  let print_tag ppf { name_for_error; _ } =
-    Pprintast.longident ppf name_for_error.txt
-
   let print ppf =
     let open Format in
     function
     | Tags tag ->
-      fprintf ppf
-        "Tags { learned = %a; overwritten = %a; have_overwritten = %a }"
-        (Format.pp_print_list print_tag)
-        (TagSet.elements tag.learned)
-        (Format.pp_print_list print_tag)
-        (List.map fst (TagMap.bindings tag.overwritten))
-        (Format.pp_print_list print_tag)
-        (TagSet.elements tag.have_overwritten)
+      fprintf ppf "Tags { overwritten = %a; have_overwritten = %a }"
+        (Format.pp_print_list Tag.print)
+        (List.map fst (Tag.Map.bindings tag.overwritten))
+        (Format.pp_print_list Tag.print)
+        (Tag.Set.elements tag.have_overwritten)
     | Tag_was_mutated -> fprintf ppf "Tag_was_mutated"
 end
 
@@ -885,35 +989,12 @@ end = struct
     M.print ~key:print ~value:print_value ppf map
 end
 
-type boundary_reason =
-  | Paths_from_mod_class (* currently will never trigger *)
-  | Free_var_of_mod_class (* currently will never trigger *)
-  | Out_of_mod_class
-
-(** The relation between two nodes in a usage tree. Obviously the list must be
-    non-empty *)
 type relation =
   | Self
   | Ancestor of Projection.t list
   | Descendant of Projection.t list
 
-type error =
-  | Usage of
-      { inner : Usage.error;
-            (** Describes the error concerning the two usages  *)
-        first_is_of_second : relation
-            (** The relation between the two usages in the tree  *)
-      }
-  | Boundary of
-      { cannot_force : Maybe_unique.cannot_force;
-        reason : boundary_reason
-      }
-  | OverwriteChangedTag of Tag.error
-
-exception Error of error
-
-(** lifting module Usage to trees *)
-module Usage_tree : sig
+module Tree : sig
   module Path : sig
     (** Represents a path from the root to a node in a tree *)
     type t
@@ -927,51 +1008,33 @@ module Usage_tree : sig
     val print : Format.formatter -> t -> unit
   end
 
-  (** Usage tree, lifted from [Usage.t] *)
-  type t
-
-  (** Sequential composition lifted from [Usage.seq] *)
-  val seq : t -> t -> t
-
-  (** Non-deterministic choice lifted from [Usage.choose] *)
-  val choose : t -> t -> t
-
-  (** Parallel composition lifted from [Usage.par]  *)
-  val par : t -> t -> t
-
-  (** An empty tree containing only the root with empty usage *)
-  val empty : t
-
-  (** A singleton tree containing only one leaf *)
-  val singleton : Usage.t -> Tag.t -> Path.t -> t
-
-  (** Runs a function through the tree; the function must be monotone *)
-  val mapi : (Path.t -> Usage.t -> Usage.t) -> (Tag.t -> Tag.t) -> t -> t
-
-  (** Check that all overwrites are on known tags *)
-  val check_no_remaining_overwritten_as : t -> unit
-
-  (** Remove all usage information except tags *)
-  val split_usage_tags : t -> t * t
-
-  val print : Format.formatter -> t -> unit
-end = struct
-  (** Represents a tree of usage. Each node records the choose on all possible
-     execution paths. As a result, trees such as `S -> U` is valid, even though
-     it would be invalid if it was the result of a single path: using a parent
-     aliased and a child uniquely is obviously bad. However, it might be the
-     result of "choos"ing multiple path: choose `S` `N -> U`, which is valid.
-
-     INVARIANT: children >= parent. For example, having an aliased child under a
-     unique parent is nonsense. The invariant is preserved because Usage.choose,
-     Usage.par, and Usage.seq above are monotone, and Usage_tree.par and
-     Usage_tree.seq, Usage_tree.choose here are node-wise. *)
-  type t =
-    { children : t Projection.Map.t;
-      usage : Usage.t;
-      tag : Tag.t
+  type 'a t =
+    { children : 'a t Projection.Map.t;
+      node : 'a
     }
 
+  (** A singleton tree containing only one leaf at the given path.
+      All its parents are [S.empty]. *)
+  val singleton : leaf:'a -> parents:'a -> Path.t -> 'a t
+
+  (** Combine two trees. When one of the trees is missing a child
+      that the other possesses, we promote the node of the first
+      tree to that child and continue combining. When one of the
+      elements has been promoted, we indicate this in the [relation]. *)
+  val mapi2 :
+    combine:(relation -> 'a -> 'b -> 'c) ->
+    promote_left:('a -> 'a) ->
+    promote_right:('b -> 'b) ->
+    'a t ->
+    'b t ->
+    'c t
+
+  (** Runs a function through the tree; the function must be monotone *)
+  val mapi : (Path.t -> 'a -> 'b) -> 'a t -> 'b t
+
+  (** Runs a side-effecting function through the tree. *)
+  val iter : (Path.t -> 'a -> unit) -> 'a t -> unit
+end = struct
   module Path = struct
     type t = Projection.t list
 
@@ -982,21 +1045,25 @@ end = struct
     let print ppf t = Print_utils.list Projection.print ppf t
   end
 
-  let mapi_aux projs fu ft t =
+  type 'a t =
+    { children : 'a t Projection.Map.t;
+      node : 'a
+    }
+
+  let mapi_aux projs f t =
     let rec loop projs t =
-      let usage = fu projs t.usage in
+      let node = f projs t.node in
       let children =
         Projection.Map.mapi (fun proj t -> loop (proj :: projs) t) t.children
       in
-      let tag = ft t.tag in
-      { usage; children; tag }
+      { node; children }
     in
     loop projs t
 
   let mapi f t = mapi_aux [] f t
 
-  let rec mapi2 fu ft t0 t1 =
-    let usage = fu Self t0.usage t1.usage in
+  let rec mapi2 ~combine ~promote_left ~promote_right t0 t1 =
+    let node = combine Self t0.node t1.node in
     let children =
       Projection.Map.merge
         (fun proj c0 c1 ->
@@ -1005,73 +1072,39 @@ end = struct
           | None, Some c1 ->
             Some
               (mapi_aux [proj]
-                 (fun projs r -> fu (Ancestor projs) t0.usage r)
-                 (fun r -> ft (Tag.promote_mutation_to_children t0.tag) r)
+                 (fun projs r ->
+                   combine (Ancestor projs) (promote_left t0.node) r)
                  c1)
           | Some c0, None ->
             Some
               (mapi_aux [proj]
-                 (fun projs l -> fu (Descendant projs) l t1.usage)
-                 (fun l -> ft l (Tag.promote_mutation_to_children t1.tag))
+                 (fun projs l ->
+                   combine (Descendant projs) l (promote_right t1.node))
                  c0)
-          | Some c0, Some c1 -> Some (mapi2 fu ft c0 c1))
+          | Some c0, Some c1 ->
+            Some (mapi2 ~combine ~promote_left ~promote_right c0 c1))
         t0.children t1.children
     in
-    let tag = ft t0.tag t1.tag in
-    { usage; children; tag }
+    { node; children }
 
-  let lift fu ft t0 t1 =
-    mapi2
-      (fun first_is_of_second t0 t1 ->
-        try fu t0 t1
-        with Usage.Error error ->
-          raise (Error (Usage { inner = error; first_is_of_second })))
-      (fun t0 t1 ->
-        try ft t0 t1
-        with Tag.Error error -> raise (Error (OverwriteChangedTag error)))
-      t0 t1
-
-  let choose t0 t1 = lift Usage.choose Tag.choose t0 t1
-
-  let seq t0 t1 = lift Usage.seq Tag.seq t0 t1
-
-  let par t0 t1 = lift Usage.par Tag.par t0 t1
-
-  let empty =
-    { children = Projection.Map.empty; usage = Usage.empty; tag = Tag.empty }
-
-  let rec singleton leaf tag = function
-    | [] -> { usage = leaf; children = Projection.Map.empty; tag }
+  let rec singleton ~leaf ~parents = function
+    | [] -> { node = leaf; children = Projection.Map.empty }
     | proj :: path ->
-      { usage = Usage.empty;
-        children = Projection.Map.singleton proj (singleton leaf tag path);
-        tag = Tag.empty
+      { node = parents;
+        children = Projection.Map.singleton proj (singleton ~leaf ~parents path)
       }
 
-  let rec check_no_remaining_overwritten_as { children; tag } =
-    Projection.Map.iter
-      (fun _ t -> check_no_remaining_overwritten_as t)
-      children;
-    try Tag.check_no_remaining_overwritten_as tag
-    with Tag.Error error -> raise (Error (OverwriteChangedTag error))
-
-  let rec split_usage_tags { children; usage; tag } =
-    let children_usages, children_tags =
-      ( Projection.Map.map (fun x -> fst (split_usage_tags x)) children,
-        Projection.Map.map (fun x -> snd (split_usage_tags x)) children )
+  let iter_aux projs f t =
+    let rec loop projs t =
+      f projs t.node;
+      Projection.Map.iter (fun proj t -> loop (proj :: projs) t) t.children
     in
-    ( { children = children_usages; usage; tag = Tag.empty },
-      { children = children_tags; usage = Usage.empty; tag } )
+    loop projs t
 
-  let rec print ppf { children; usage; tag } =
-    let open Format in
-    fprintf ppf "@[{ children = %a;@ usage = %a;@ tag = %a }@]"
-      (Projection.print_map print)
-      children Usage.print usage Tag.print tag
+  let iter f t = iter_aux [] f t
 end
 
-(** Lift Usage_tree to forest *)
-module Usage_forest : sig
+module Forest : sig
   module Path : sig
     type t
 
@@ -1084,40 +1117,28 @@ module Usage_forest : sig
     val print : Format.formatter -> t -> unit
   end
 
-  (** Represents a forest of usage. *)
-  type t
-
-  (** Similar to [Usage_tree.seq] but lifted to forests *)
-  val seq : t -> t -> t
-
-  (** Similar to [Usage_tree.choose] but lifted to forests *)
-  val choose : t -> t -> t
-
-  (** Similar to [Usage_tree.par] but lifted to forests *)
-  val par : t -> t -> t
-
-  val seqs : t list -> t
-
-  val chooses : t list -> t
-
-  val pars : t list -> t
+  type 'a t
 
   (** The empty forest *)
-  val unused : t
+  val empty : 'a t
 
-  (** The forest with only one usage, given by the path and the usage *)
-  val singleton : Usage.t -> Tag.t -> Path.t -> t
+  (** The forest with only one element, given by the path and the element *)
+  val singleton : leaf:'a -> parents:'a -> Path.t -> 'a t
 
-  (** Run a function through a forest. The function must be monotone *)
-  val map : (Usage.t -> Usage.t) -> (Tag.t -> Tag.t) -> t -> t
+  (** Run a function through a forest *)
+  val map : ('a -> 'b) -> 'a t -> 'b t
 
-  (** Check that all overwrites are on known tags *)
-  val check_no_remaining_overwritten_as : t -> unit
+  val iter : ('a -> unit) -> 'a t -> unit
 
-  (** Remove all usage information except tags *)
-  val split_usage_tags : t -> t * t
+  (** Merge two forests *)
+  val merge :
+    ('a Tree.t option -> 'b Tree.t option -> 'c Tree.t option) ->
+    'a t ->
+    'b t ->
+    'c t
 
-  val print : Format.formatter -> t -> unit
+  val print :
+    (Format.formatter -> 'a Tree.t -> unit) -> Format.formatter -> 'a t -> unit
 end = struct
   module Root_id = struct
     module T = struct
@@ -1140,81 +1161,44 @@ end = struct
     let print ppf { id } = Format.fprintf ppf "{%d}" id
   end
 
-  type t = Usage_tree.t Root_id.Map.t
+  type 'a t = 'a Tree.t Root_id.Map.t
 
   module Path = struct
-    type t = Root_id.t * Usage_tree.Path.t
+    type t = Root_id.t * Tree.Path.t
 
-    let child proj ((rootid, path) : t) : t =
-      rootid, Usage_tree.Path.child proj path
+    let child proj ((rootid, path) : t) : t = rootid, Tree.Path.child proj path
 
-    let fresh_root () : t = Root_id.fresh (), Usage_tree.Path.root
+    let fresh_root () : t = Root_id.fresh (), Tree.Path.root
 
     let print ppf (root_id, path) =
       let open Format in
-      fprintf ppf "@[(%a,@ %a)@]" Root_id.print root_id Usage_tree.Path.print
-        path
+      fprintf ppf "@[(%a,@ %a)@]" Root_id.print root_id Tree.Path.print path
   end
 
-  let unused = Root_id.Map.empty
+  let empty = Root_id.Map.empty
 
-  (** [f] must be monotone  *)
-  let map2 f t0 t1 =
-    Root_id.Map.merge
-      (fun _rootid t0 t1 ->
-        match t0, t1 with
-        | None, None -> assert false
-        | None, Some t1 -> Some (f Usage_tree.empty t1)
-        | Some t0, None -> Some (f t0 Usage_tree.empty)
-        | Some t0, Some t1 -> Some (f t0 t1))
-      t0 t1
+  let singleton ~leaf ~parents ((rootid, path') : Path.t) =
+    Root_id.Map.singleton rootid (Tree.singleton ~leaf ~parents path')
 
-  let choose t0 t1 = map2 Usage_tree.choose t0 t1
-
-  let seq t0 t1 = map2 Usage_tree.seq t0 t1
-
-  let par t0 t1 = map2 Usage_tree.par t0 t1
-
-  let fold_left1 f = function [] -> unused | x :: l -> List.fold_left f x l
-
-  let chooses l = fold_left1 choose l
-
-  let seqs l = fold_left1 seq l
-
-  let pars l = fold_left1 par l
-
-  let singleton leaf tag ((rootid, path') : Path.t) =
-    Root_id.Map.singleton rootid (Usage_tree.singleton leaf tag path')
-
-  (** f must be monotone *)
-  let map fu ft =
+  let map f =
     Root_id.Map.mapi (fun _root tree ->
-        Usage_tree.mapi (fun _projs usage -> fu usage) (fun tag -> ft tag) tree)
+        Tree.mapi (fun _projs semi -> f semi) tree)
 
-  let check_no_remaining_overwritten_as t =
-    Root_id.Map.iter
-      (fun _ t -> Usage_tree.check_no_remaining_overwritten_as t)
-      t
+  let iter f t = Root_id.Map.iter (fun _ t -> Tree.iter (fun _ a -> f a) t) t
 
-  let split_usage_tags t =
-    ( Root_id.Map.map (fun x -> fst (Usage_tree.split_usage_tags x)) t,
-      Root_id.Map.map (fun x -> snd (Usage_tree.split_usage_tags x)) t )
+  let merge f t0 t1 = Root_id.Map.merge (fun _rootid t0 t1 -> f t0 t1) t0 t1
 
-  let print ppf t =
+  let print print_tree ppf t =
     let open Format in
     let module M = Print_utils.Map (Root_id.Map) in
-    M.print
-      ~key:(fun ppf { id } -> fprintf ppf "%d" id)
-      ~value:Usage_tree.print ppf t
+    M.print ~key:(fun ppf { id } -> fprintf ppf "%d" id) ~value:print_tree ppf t
 end
-
-module UF = Usage_forest
 
 module Paths : sig
   [@@@warning "-unused-value-declaration"]
 
-  (** Represents a list of [UF.Path.t]  *)
-  type t
+  (** Represents a list of [Forest.Path.t]  *)
+  type t = Forest.Path.t list
 
   (** Returns the element-wise child *)
   val child : Projection.t -> t -> t
@@ -1244,32 +1228,19 @@ module Paths : sig
   (** [memory_address t] is [child Projection.Memory_address t]. *)
   val memory_address : t -> t
 
-  val mark : Usage.t -> Tag.t -> t -> UF.t
-
   val fresh : unit -> t
 
   val choose : t -> t -> t
 
-  val mark_implicit_borrow_memory_address :
-    Occurrence.t -> Maybe_aliased.access -> t -> UF.t
-
-  val mark_aliased : Occurrence.t -> Aliased.reason -> t -> UF.t
-
-  val invalidate_tag : t -> UF.t
-
-  val overwrite_tag : Tag.tag -> t -> UF.t
-
-  val learn_tag : Tag.tag -> t -> UF.t
-
   val print : Format.formatter -> t -> unit
 end = struct
-  type t = UF.Path.t list
+  type t = Forest.Path.t list
 
   let choose a b = a @ b
 
   let untracked = []
 
-  let child proj t = List.map (UF.Path.child proj) t
+  let child proj t = List.map (Forest.Path.child proj) t
 
   let modal_child gf proj t =
     (* CR zqian: Instead of just ignoring such children, we should add modality
@@ -1297,32 +1268,273 @@ end = struct
 
   let memory_address t = child Projection.Memory_address t
 
-  let mark usage tag t = UF.chooses (List.map (UF.singleton usage tag) t)
+  let fresh () = [Forest.Path.fresh_root ()]
 
-  let fresh () = [UF.Path.fresh_root ()]
+  let print ppf t = Print_utils.list Forest.Path.print ppf t
+end
+
+module type Tree_S = sig
+  module S : Elementary_semiring
+
+  type t = S.t Tree.t
+
+  (** The relation between two nodes in a usage tree. Obviously the list must be
+      non-empty *)
+  type error =
+    { inner : S.error;  (** Describes the error concerning the two elements  *)
+      first_is_of_second : relation
+          (** The relation between the two elements in the tree  *)
+    }
+
+  exception Error of error
+
+  (** We lift the semiring [S] to a tree where the nodes correspond to the
+      children of an allocation and are annotated by [S]. The empty tree
+      contains just the root annotated by [S.empty]. All semiring operations
+      act pointwise on the tree. This makes the tree a semiring in itself. *)
+  include Semiring with type t := t
+end
+
+module Tree_semiring (S : Elementary_semiring) : sig
+  include Tree_S with module S := S
+end = struct
+  type t = S.t Tree.t
+
+  type error =
+    { inner : S.error;
+      first_is_of_second : relation
+    }
+
+  exception Error of error
+
+  let lift f t0 t1 =
+    Tree.mapi2
+      ~combine:(fun first_is_of_second t0 t1 ->
+        try f t0 t1
+        with S.Error error ->
+          raise (Error { inner = error; first_is_of_second }))
+      ~promote_left:S.promote_to_children ~promote_right:S.promote_to_children
+      t0 t1
+
+  let choose t0 t1 = lift S.choose t0 t1
+
+  let seq t0 t1 = lift S.seq t0 t1
+
+  let par t0 t1 = lift S.par t0 t1
+
+  let empty = { Tree.children = Projection.Map.empty; Tree.node = S.empty }
+
+  let rec print ppf { Tree.children; Tree.node } =
+    let open Format in
+    fprintf ppf "@[{ children = %a;@ node = %a }@]"
+      (Projection.print_map print)
+      children S.print node
+end
+
+module type Forest_S = sig
+  module S : Elementary_semiring
+
+  module Tree_semiring : Tree_S with module S := S
+
+  type t = S.t Forest.t
+
+  include Semiring with type t := t
+
+  val seqs : t list -> t
+
+  val chooses : t list -> t
+
+  val pars : t list -> t
+
+  (** The forest with only one element, given by the path and the element *)
+  val singleton : S.t -> Forest.Path.t -> t
+
+  val mark : S.t -> Paths.t -> t
+
+  val print : Format.formatter -> t -> unit
+end
+
+module Forest_semiring (S : Elementary_semiring) : sig
+  include Forest_S with module S := S
+end = struct
+  module Tree_semiring = Tree_semiring (S)
+
+  type t = S.t Forest.t
+
+  let empty = Forest.empty
+
+  (** [f] must be monotone  *)
+  let map2 f t0 t1 =
+    Forest.merge
+      (fun t0 t1 ->
+        match t0, t1 with
+        | None, None -> assert false
+        | None, Some t1 -> Some (f Tree_semiring.empty t1)
+        | Some t0, None -> Some (f t0 Tree_semiring.empty)
+        | Some t0, Some t1 -> Some (f t0 t1))
+      t0 t1
+
+  let choose t0 t1 = map2 Tree_semiring.choose t0 t1
+
+  let seq t0 t1 = map2 Tree_semiring.seq t0 t1
+
+  let par t0 t1 = map2 Tree_semiring.par t0 t1
+
+  (* CR uniqueness: For convenience, our semirings do not have a zero.
+     However, when we fold the [choose] operation we need to initialize the
+     accumulator with zero. We avoid doing this here by skipping the initial
+     accumulator altogether. When [chooses] gets passed an empty list,
+     we return 'empty' which is sound in all semirings with '0 > 1'. *)
+  let fold_left1 f = function [] -> empty | x :: l -> List.fold_left f x l
+
+  let chooses l = fold_left1 choose l
+
+  let seqs l = fold_left1 seq l
+
+  let pars l = fold_left1 par l
+
+  let singleton leaf path = Forest.singleton ~leaf ~parents:S.empty path
+
+  let mark semi path = chooses (List.map (singleton semi) path)
+
+  let print ppf t = Forest.print Tree_semiring.print ppf t
+end
+
+(** Pattern matching code returns the usages and the tags
+    learned in the pattern match. *)
+module PF : sig
+  module S : Product_S with module L = Usage and module R = Learned_tags
+
+  include Forest_S with module S := S
+
+  val mark_implicit_borrow_memory_address :
+    Occurrence.t -> Maybe_aliased.access -> Paths.t -> t
+
+  val mark_aliased : Occurrence.t -> Aliased.reason -> Paths.t -> t
+
+  val learn_tag : Tag.t -> Paths.t -> t
+
+  val unused : t
+end = struct
+  module S = struct
+    module L = Usage
+    module R = Learned_tags
+    include Product (Usage) (Learned_tags)
+  end
+
+  include Forest_semiring (struct
+    include S
+  end)
 
   let mark_implicit_borrow_memory_address occ access paths =
     mark
-      (Maybe_aliased (Maybe_aliased.singleton occ access))
-      Tag.empty (memory_address paths)
+      (Maybe_aliased (Maybe_aliased.singleton occ access), Learned_tags.empty)
+      (Paths.memory_address paths)
 
   let mark_aliased occ reason paths =
-    mark (Usage.aliased occ reason) Tag.empty paths
+    mark (Usage.aliased occ reason, Learned_tags.empty) paths
 
-  let invalidate_tag paths = mark Usage.empty Tag.mutate_tag paths
+  let learn_tag tag paths = mark (Usage.empty, Learned_tags.learn_tag tag) paths
 
-  let overwrite_tag tag paths = mark Usage.empty (Tag.overwrite_tag tag) paths
-
-  let learn_tag tag paths = mark Usage.empty (Tag.learn_tag tag) paths
-
-  let print ppf t = Print_utils.list UF.Path.print ppf t
+  let unused = empty
 end
+
+(** For expressions we return the usages and the overwrites in them. *)
+module UF : sig
+  module S : Product_S with module L = Usage and module R = Overwrites
+
+  include Forest_S with module S := S
+
+  val mark_implicit_borrow_memory_address :
+    Occurrence.t -> Maybe_aliased.access -> Paths.t -> t
+
+  val invalidate_tag : Paths.t -> t
+
+  val overwrite_tag : Tag.t -> Paths.t -> t
+
+  val unused : t
+
+  (** Check that all overwrites are on known tags *)
+  val check_no_remaining_overwritten_as : t -> unit
+end = struct
+  module S = struct
+    module L = Usage
+    module R = Overwrites
+    include Product (Usage) (Overwrites)
+  end
+
+  include Forest_semiring (struct
+    include S
+  end)
+
+  let mark_implicit_borrow_memory_address occ access paths =
+    mark
+      (Maybe_aliased (Maybe_aliased.singleton occ access), Overwrites.empty)
+      (Paths.memory_address paths)
+
+  let invalidate_tag paths = mark (Usage.empty, Overwrites.mutate_tag) paths
+
+  let overwrite_tag tag paths =
+    mark (Usage.empty, Overwrites.overwrite_tag tag) paths
+
+  let unused = empty
+
+  let check_no_remaining_overwritten_as t =
+    try
+      Forest.iter
+        (fun (_, t) -> Overwrites.check_no_remaining_overwritten_as t)
+        t
+    with Overwrites.Error error ->
+      raise
+        (Tree_semiring.Error
+           { inner = S.Right error; first_is_of_second = Self })
+end
+
+module Learned_forest = Forest_semiring (struct
+  include Learned_tags
+end)
+
+let split_pf : PF.t -> UF.t * Learned_forest.t =
+ fun pf -> Forest.map (fun (u, _) -> u, Overwrites.empty) pf, Forest.map snd pf
+
+let learn_tags : Learned_forest.t -> UF.t -> UF.t =
+ fun lf uf ->
+  Forest.merge
+    (fun t0 t1 ->
+      match t0, t1 with
+      | Some t0, Some t1 ->
+        Some
+          (Tree.mapi2
+             ~combine:(fun _ t (u, o) ->
+               ( u,
+                 Overwrites.match_with_learned_tags
+                   (Learned_tags.extract_tags t)
+                   o ))
+             ~promote_left:Learned_tags.promote_to_children
+             ~promote_right:(fun (u, o) ->
+               Usage.promote_to_children u, Overwrites.promote_to_children o)
+             t0 t1)
+      | None, Some t1 -> Some t1
+      | _, None -> None)
+    lf uf
+
+type boundary_reason =
+  | Paths_from_mod_class (* currently will never trigger *)
+  | Free_var_of_mod_class (* currently will never trigger *)
+  | Out_of_mod_class
+
+type boundary_error =
+  { cannot_force : Maybe_unique.cannot_force;
+    reason : boundary_reason
+  }
+
+exception Boundary_error of boundary_error
 
 let force_aliased_boundary unique_use occ ~reason =
   let maybe_unique = Maybe_unique.singleton unique_use occ in
   match Maybe_unique.mark_multi_use maybe_unique with
   | Ok () -> ()
-  | Error cannot_force -> raise (Error (Boundary { cannot_force; reason }))
+  | Error cannot_force -> raise (Boundary_error { cannot_force; reason })
 
 module Value : sig
   (** See [existing] for its meaning *)
@@ -1363,9 +1575,12 @@ module Value : sig
 
   val mark_aliased : reason:boundary_reason -> t -> UF.t
 
+  (** Mark the value as aliased_or_unique   *)
+  val mark_maybe_unique_pattern : t -> PF.t
+
   val invalidate_tag : t -> UF.t
 
-  val overwrite_tag : Tag.tag -> t -> UF.t
+  val overwrite_tag : Tag.t -> t -> UF.t
 
   val print : Format.formatter -> t -> unit
 end = struct
@@ -1395,19 +1610,18 @@ end = struct
   let mark_implicit_borrow_memory_address access = function
     | Fresh -> UF.unused
     | Existing { paths; occ; _ } ->
-      Paths.mark_implicit_borrow_memory_address occ access paths
+      UF.mark_implicit_borrow_memory_address occ access paths
 
   let mark_maybe_unique = function
     | Fresh -> UF.unused
     | Existing { paths; unique_use; occ } ->
-      Paths.mark (Usage.maybe_unique unique_use occ) Tag.empty paths
+      UF.mark (Usage.maybe_unique unique_use occ, Overwrites.empty) paths
 
   let mark_consumed_memory_address = function
     | Fresh -> UF.unused
     | Existing { paths; unique_use; occ } ->
-      Paths.mark
-        (Usage.maybe_unique unique_use occ)
-        Tag.empty
+      UF.mark
+        (Usage.maybe_unique unique_use occ, Overwrites.empty)
         (Paths.memory_address paths)
 
   let mark_aliased ~reason = function
@@ -1415,15 +1629,20 @@ end = struct
     | Existing { paths; unique_use; occ } ->
       force_aliased_boundary unique_use occ ~reason;
       let aliased = Usage.aliased occ Aliased.Forced in
-      Paths.mark aliased Tag.empty paths
+      UF.mark (aliased, Overwrites.empty) paths
+
+  let mark_maybe_unique_pattern = function
+    | Fresh -> PF.unused
+    | Existing { paths; unique_use; occ } ->
+      PF.mark (Usage.maybe_unique unique_use occ, Learned_tags.empty) paths
 
   let invalidate_tag = function
     | Fresh -> UF.unused
-    | Existing { paths; _ } -> Paths.invalidate_tag paths
+    | Existing { paths; _ } -> UF.invalidate_tag paths
 
   let overwrite_tag tag = function
     | Fresh -> UF.unused
-    | Existing { paths; _ } -> Paths.overwrite_tag tag paths
+    | Existing { paths; _ } -> UF.overwrite_tag tag paths
 
   let print ppf =
     let open Format in
@@ -1459,7 +1678,7 @@ module Ienv : sig
   end
 
   (** Mapping from identifiers to a list of possible nodes, each represented by
-      a path into the forest, instead of directly ponting to the node. *)
+      a path into the forest, instead of directly pointing to the node. *)
   type t
 
   (** Extend a mapping with an extension *)
@@ -1523,9 +1742,6 @@ end
 
 (* The fun algebraic stuff ends. Here comes the concrete mess *)
 
-(* Forcing due to boundary is more about OCaml than the algebra, hence defined
-   here (as opposed to earlier) *)
-
 type value_to_match =
   | Match_tuple of Value.t list
       (** The value being matched is a tuple; we treat it specially so matching
@@ -1536,7 +1752,7 @@ type value_to_match =
 
 let conjuncts_pattern_match l =
   let exts, ufs = List.split l in
-  Ienv.Extension.conjuncts exts, UF.pars ufs
+  Ienv.Extension.conjuncts exts, PF.pars ufs
 
 let rec pattern_match_tuple pat values =
   match pat.pat_desc with
@@ -1544,7 +1760,7 @@ let rec pattern_match_tuple pat values =
     Unique_barrier.enable pat.pat_unique_barrier;
     let ext0, uf0 = pattern_match_tuple pat0 values in
     let ext1, uf1 = pattern_match_tuple pat1 values in
-    Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
+    Ienv.Extension.disjunct ext0 ext1, PF.choose uf0 uf1
   | Tpat_tuple pats ->
     (* No read: the tuple does not exist in memory *)
     Unique_barrier.enable pat.pat_unique_barrier;
@@ -1561,12 +1777,12 @@ let rec pattern_match_tuple pat values =
   | _ ->
     (* Mark all values in the tuple as used, because we are binding the tuple
        to a variable *)
-    let uf = UF.seqs (List.map Value.mark_maybe_unique values) in
+    let uf = PF.seqs (List.map Value.mark_maybe_unique_pattern values) in
     let paths = Paths.fresh () in
     let ext, uf' = pattern_match_single pat paths in
-    ext, UF.seq uf uf'
+    ext, PF.seq uf uf'
 
-and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
+and pattern_match_single pat paths : Ienv.Extension.t * PF.t =
   let loc = pat.pat_loc in
   let occ = Occurrence.mk loc in
   (* To read from the allocation, we need to borrow its memory cell
@@ -1578,7 +1794,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
   in
   let borrow_memory_address () =
     Unique_barrier.enable pat.pat_unique_barrier;
-    Paths.mark_implicit_borrow_memory_address occ (Read pat.pat_unique_barrier)
+    PF.mark_implicit_borrow_memory_address occ (Read pat.pat_unique_barrier)
       paths
   in
   match pat.pat_desc with
@@ -1586,13 +1802,13 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     no_borrow_memory_address ();
     let ext0, uf0 = pattern_match_single pat0 paths in
     let ext1, uf1 = pattern_match_single pat1 paths in
-    Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
+    Ienv.Extension.disjunct ext0 ext1, PF.choose uf0 uf1
   | Tpat_any ->
     no_borrow_memory_address ();
-    Ienv.Extension.empty, UF.unused
+    Ienv.Extension.empty, PF.unused
   | Tpat_var (id, _, _, _) ->
     no_borrow_memory_address ();
-    Ienv.Extension.singleton id paths, UF.unused
+    Ienv.Extension.singleton id paths, PF.unused
   | Tpat_alias (pat', id, _, _, _) ->
     no_borrow_memory_address ();
     let ext0 = Ienv.Extension.singleton id paths in
@@ -1603,7 +1819,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     Ienv.Extension.empty, uf_read
   | Tpat_construct (lbl, cd, pats, _) ->
     let uf_tag =
-      Paths.learn_tag { tag = cd.cstr_tag; name_for_error = lbl } paths
+      PF.learn_tag { tag = cd.cstr_tag; name_for_error = lbl } paths
     in
     let uf_read = borrow_memory_address () in
     let pats_args = List.combine pats cd.cstr_args in
@@ -1616,7 +1832,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
         pats_args
       |> conjuncts_pattern_match
     in
-    ext, UF.pars [uf_tag; uf_read; uf_pats]
+    ext, PF.pars [uf_tag; uf_read; uf_pats]
   | Tpat_variant (lbl, arg, _) ->
     let uf_read = borrow_memory_address () in
     let ext, uf_arg =
@@ -1624,9 +1840,9 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       | Some arg ->
         let paths = Paths.variant_field lbl paths in
         pattern_match_single arg paths
-      | None -> Ienv.Extension.empty, UF.unused
+      | None -> Ienv.Extension.empty, PF.unused
     in
-    ext, UF.pars [uf_read; uf_arg]
+    ext, PF.pars [uf_read; uf_arg]
   | Tpat_record (pats, _) ->
     let uf_read = borrow_memory_address () in
     let ext, uf_pats =
@@ -1637,7 +1853,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
         pats
       |> conjuncts_pattern_match
     in
-    ext, UF.par uf_read uf_pats
+    ext, PF.par uf_read uf_pats
   | Tpat_array (_, _, pats) ->
     let uf_read = borrow_memory_address () in
     let ext, uf_pats =
@@ -1648,15 +1864,15 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
         pats
       |> conjuncts_pattern_match
     in
-    ext, UF.par uf_read uf_pats
+    ext, PF.par uf_read uf_pats
   | Tpat_lazy arg ->
     no_borrow_memory_address ();
     (* forced below: *)
     (* forcing a lazy expression is like calling a nullary-function *)
-    let uf_force = Paths.mark_aliased occ Lazy paths in
+    let uf_force = PF.mark_aliased occ Lazy paths in
     let paths = Paths.fresh () in
     let ext, uf_arg = pattern_match_single arg paths in
-    ext, UF.par uf_force uf_arg
+    ext, PF.par uf_force uf_arg
   | Tpat_tuple args ->
     let uf_read = borrow_memory_address () in
     let ext, uf_args =
@@ -1667,7 +1883,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
         args
       |> conjuncts_pattern_match
     in
-    ext, UF.par uf_read uf_args
+    ext, PF.par uf_read uf_args
   | Tpat_unboxed_tuple args ->
     (* No borrow since unboxed data can not be consumed. *)
     no_borrow_memory_address ();
@@ -1696,7 +1912,7 @@ let comp_pattern_match pat value =
   | None -> ());
   match vals with
   | Some pat' -> pattern_match pat' value
-  | None -> Ienv.Extension.empty, UF.unused
+  | None -> Ienv.Extension.empty, PF.unused
 
 let value_of_ident ienv unique_use occ path =
   match path with
@@ -1759,17 +1975,16 @@ let mark_aliased_open_variables ienv f _loc =
   UF.pars ufs
 
 let lift_implicit_borrowing uf =
-  UF.map
+  Forest.map
     (function
-      | Maybe_aliased t ->
+      | Usage.Maybe_aliased t, overwrites ->
         (* implicit borrowing lifted. *)
         let occ = Maybe_aliased.extract_occurrence t in
         let access = Maybe_aliased.extract_access t in
-        Usage.aliased occ (Aliased.Lifted access)
+        Usage.aliased occ (Aliased.Lifted access), overwrites
       | m ->
         (* other usage stays the same *)
         m)
-    (function t -> t)
     uf
 
 let descend proj overwrite =
@@ -1811,13 +2026,14 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
             match param.fp_kind with
             | Tparam_pat pat ->
               let value = Match_single (Paths.fresh ()) in
-              pattern_match pat value
+              let ext, uf_pat = pattern_match pat value in
+              ext, (UF.unused, uf_pat)
             | Tparam_optional_default (pat, default, _) ->
               let value, uf_default =
                 check_uniqueness_exp_for_match ienv default
               in
               let ext, uf_pat = pattern_match pat value in
-              ext, UF.seq uf_default uf_pat
+              ext, (uf_default, uf_pat)
           in
           Ienv.extend ienv ext, uf_param)
         ienv params
@@ -1831,7 +2047,13 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
         let value = Match_single (Paths.fresh ()) in
         check_uniqueness_cases ienv value fc_cases
     in
-    let uf = UF.seq (UF.seqs uf_params) uf_body in
+    let uf =
+      List.fold_right
+        (fun (uf_default, pf_pat) uf_body ->
+          let uf_pat, tags = split_pf pf_pat in
+          UF.seqs [uf_default; uf_pat; learn_tags tags uf_body])
+        uf_params uf_body
+    in
     (* we are constructing a closure here, and therefore any implicit
        borrowing of free variables in the closure is in fact using aliased. *)
     lift_implicit_borrowing uf
@@ -2030,7 +2252,7 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
     | None -> assert false
     | Some p ->
       let occ = Occurrence.mk exp.exp_loc in
-      Paths.mark (Usage.maybe_unique use occ) Tag.empty p)
+      UF.mark (Usage.maybe_unique use occ, Overwrites.empty) p)
 
 (**
 Corresponds to the first mode.
@@ -2072,7 +2294,7 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
         | Non_boxing unique_use ->
           UF.unused, Value.existing paths unique_use occ
         | Boxing (_, unique_use) ->
-          ( Paths.mark (Usage.maybe_unique unique_use occ) Tag.empty paths,
+          ( UF.mark (Usage.maybe_unique unique_use occ, Overwrites.empty) paths,
             Value.fresh )
       in
       value, UF.seqs [uf; uf_read; uf_boxing])
@@ -2110,7 +2332,8 @@ and check_uniqueness_value_bindings ienv vbs =
            let value, uf_value =
              check_uniqueness_exp_for_match ienv vb.vb_expr
            in
-           let ienv, uf_pat = pattern_match vb.vb_pat value in
+           let ienv, pf_pat = pattern_match vb.vb_pat value in
+           let uf_pat, _ = split_pf pf_pat in
            ienv, UF.seq uf_value uf_pat)
          vbs)
   in
@@ -2119,7 +2342,11 @@ and check_uniqueness_value_bindings ienv vbs =
 (* type signature needed because invoked on both value and computation patterns *)
 and check_uniqueness_cases_gen :
       'a.
-      ('a Typedtree.general_pattern -> _ -> _) -> _ -> _ -> 'a case list -> _ =
+      ('a Typedtree.general_pattern -> _ -> _ * PF.t) ->
+      _ ->
+      _ ->
+      'a case list ->
+      _ =
  fun pat_match ienv value cases ->
   (* At first, we keep the information from patterns, guards and branches
      separate. We only use the Ienv from the patterns in the guards and
@@ -2128,14 +2355,14 @@ and check_uniqueness_cases_gen :
     List.split
       (List.map
          (fun case ->
-           let ext, uf_lhs = pat_match case.c_lhs value in
+           let ext, pf_lhs = pat_match case.c_lhs value in
            let uf_guard =
              match case.c_guard with
              | None -> UF.unused
              | Some g ->
                check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) g
            in
-           ext, (uf_lhs, uf_guard))
+           ext, (pf_lhs, uf_guard))
          cases)
   in
   let uf_cases =
@@ -2144,17 +2371,15 @@ and check_uniqueness_cases_gen :
         check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) case.c_rhs)
       exts cases
   in
-  let uf_lhss, uf_guards = List.split uf_pats in
-  let uf_lhss_usages, uf_lhss_tags =
-    List.split (List.map UF.split_usage_tags uf_lhss)
-  in
+  let pf_lhss, uf_guards = List.split uf_pats in
+  let uf_lhss, lhss_tags = List.split (List.map split_pf pf_lhss) in
   (* We combine patterns as follows: We assume that the patterns and guards
      could be evaluated in any order. This is necessary since the pattern-match
      compiler might permute them. After this stage, only one of the branches is
      evaluated. *)
   UF.seq
-    (UF.pars (List.map2 UF.par uf_lhss_usages uf_guards))
-    (UF.chooses (List.map2 UF.seq uf_lhss_tags uf_cases))
+    (UF.pars (List.append uf_lhss uf_guards))
+    (UF.chooses (List.map2 learn_tags lhss_tags uf_cases))
 
 and check_uniqueness_cases ienv value cases =
   check_uniqueness_cases_gen pattern_match ienv value cases
@@ -2284,7 +2509,7 @@ let report_boundary cannot_force reason =
   Location.errorf ~loc:occ.loc "@[%s.\nHint: This value comes from %s.@]" error
     reason
 
-let report_tag_change (err : Tag.error) =
+let report_tag_change (err : Overwrites.error) =
   match err with
   | ChangedTag { old_tag; new_tag } ->
     let new_tag_txt =
@@ -2301,15 +2526,21 @@ let report_tag_change (err : Tag.error) =
       "@[Overwrite may not change the tag to %t.\n\
        Hint: The old tag of this allocation %t@]" new_tag_txt old_tag_txt
 
+let report_wrapped f = Printtyp.wrap_printing_env ~error:true Env.empty f
+
 let report_error err =
-  Printtyp.wrap_printing_env ~error:true Env.empty (fun () ->
-      match err with
-      | Usage { inner; first_is_of_second } ->
-        report_multi_use inner first_is_of_second
-      | Boundary { cannot_force; reason } -> report_boundary cannot_force reason
-      | OverwriteChangedTag err -> report_tag_change err)
+  report_wrapped (fun () ->
+      match (err : UF.Tree_semiring.error) with
+      | { inner; first_is_of_second } -> (
+        match inner with
+        | UF.S.Left err -> report_multi_use err first_is_of_second
+        | UF.S.Right err -> report_tag_change err))
 
 let () =
   Location.register_error_of_exn (function
-    | Error e -> Some (report_error e)
+    | Boundary_error { cannot_force; reason } ->
+      Some (report_wrapped (fun () -> report_boundary cannot_force reason))
+    | _ -> None);
+  Location.register_error_of_exn (function
+    | UF.Tree_semiring.Error error -> Some (report_error error)
     | _ -> None)
