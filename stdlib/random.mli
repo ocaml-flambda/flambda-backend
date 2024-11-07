@@ -181,7 +181,7 @@ val nativebits : unit -> Nativeint.t
 *)
 
 module State : sig
-  type t
+  type t : value mod portable
   (** The type of PRNG states. *)
 
   val make : int array -> t

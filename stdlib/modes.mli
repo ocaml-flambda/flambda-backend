@@ -6,15 +6,15 @@ end
 
 (* CR tdelvecchio: make unboxed *)
 module Portable : sig
-  type 'a t : value mod portable = { portable : 'a @@ portable }
+  type 'a t : value mod portable = { portable : 'a @@ portable } [@@unboxed]
 end
 
 (* CR tdelvecchio: make unboxed *)
 module Contended : sig
-  type 'a t : value mod uncontended = { contended : 'a @@ contended }
+  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
 end
 
 (* CR tdelvecchio: make unboxed *)
 module Sync : sig
-  type 'a t : value mod portable uncontended = { sync : 'a @@ portable contended }
+  type 'a t : value mod portable uncontended = { sync : 'a @@ portable contended } [@@unboxed]
 end
