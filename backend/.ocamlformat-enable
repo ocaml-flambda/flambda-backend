@@ -34,6 +34,8 @@ select_utils.mli
 selectgen.ml
 selectgen.mli
 selection.mli
+simple_operation.ml
+simple_operation.mli
 stack_check.mli
 zero_alloc_checker.ml
 zero_alloc_checker.mli
