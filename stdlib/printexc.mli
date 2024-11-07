@@ -38,6 +38,7 @@ val print: ('a -> 'b) -> 'a -> 'b
    and the exception is raised again.
    The typical use is to catch and report exceptions that
    escape a function application. *)
+end @@ portable
 
 val catch: ('a -> 'b) -> 'a -> 'b
 [@@ocaml.deprecated "This function is no longer needed."]
@@ -50,6 +51,7 @@ val catch: ('a -> 'b) -> 'a -> 'b
    using the debugger or the stack backtrace facility.
    So, do not use [Printexc.catch] in new code.  *)
 
+include sig
 val print_backtrace: out_channel -> unit
 (** [Printexc.print_backtrace oc] prints an exception backtrace
     on the output channel [oc].  The backtrace lists the program
@@ -203,7 +205,7 @@ val default_uncaught_exception_handler: exn -> raw_backtrace -> unit
     @since 4.11
 *)
 
-val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
+val set_uncaught_exception_handler_safe: (exn -> raw_backtrace -> unit) @ portable -> unit
 (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
     for uncaught exceptions. The default handler is
     {!Printexc.default_uncaught_exception_handler}.
@@ -221,6 +223,10 @@ val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
     @since 4.02
 *)
 
+end @@ portable
+val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
+[@@alert unsafe]
+include sig
 
 (** {1 Manipulation of backtrace information}
 
