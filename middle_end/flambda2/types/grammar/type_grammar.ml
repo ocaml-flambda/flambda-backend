@@ -70,12 +70,7 @@ and head_of_kind_value =
         alloc_mode : Alloc_mode.For_types.t
       }
   | String of String_info.Set.t
-  | Array of
-      { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
-        length : t;
-        contents : array_contents Or_unknown.t;
-        alloc_mode : Alloc_mode.For_types.t
-      }
+  | Array of array_type
 
 (* CR someday vlaviron: comparison results are encoded as naked immediates, and
    in a few cases (physical equality mostly) some values of the boolean carry
@@ -194,6 +189,13 @@ and function_type =
 and array_contents =
   | Immutable of { fields : t array }
   | Mutable
+
+and array_type =
+  { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
+    length : t;
+    contents : array_contents Or_unknown.t;
+    alloc_mode : Alloc_mode.For_types.t
+  }
 
 and env_extension = { equations : t Name.Map.t } [@@unboxed]
 

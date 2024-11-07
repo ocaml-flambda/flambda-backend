@@ -61,12 +61,7 @@ and head_of_kind_value = private
         alloc_mode : Alloc_mode.For_types.t
       }
   | String of String_info.Set.t
-  | Array of
-      { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
-        length : t;
-        contents : array_contents Or_unknown.t;
-        alloc_mode : Alloc_mode.For_types.t
-      }
+  | Array of array_type
 
 and head_of_kind_naked_immediate = private
   | Naked_immediates of Targetint_31_63.Set.t
@@ -147,6 +142,13 @@ and function_type = private
 and array_contents =
   | Immutable of { fields : t array }
   | Mutable
+
+and array_type =
+  { element_kind : Flambda_kind.With_subkind.t Or_unknown_or_bottom.t;
+    length : t;
+    contents : array_contents Or_unknown.t;
+    alloc_mode : Alloc_mode.For_types.t
+  }
 
 and env_extension = private { equations : t Name.Map.t } [@@unboxed]
 

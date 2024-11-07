@@ -657,12 +657,23 @@ let simplify_duplicate_array ~kind:_ ~(source_mutability : Mutability.t)
   (* This simplification should eliminate bounds checks on array literals. *)
   match source_mutability, destination_mutability with
   | Immutable, Mutable -> (
-    match T.meet_is_immutable_array (DA.typing_env dacc) arg_ty with
+    match T.meet_is_array (DA.typing_env dacc) arg_ty with
     | Invalid -> SPR.create_invalid dacc
-    | Need_meet ->
+    | Need_meet
+    | Known_result
+        { element_kind = _;
+          length = _;
+          contents = Known Mutable | Unknown;
+          alloc_mode = _
+        } ->
       let dacc = DA.add_variable dacc result_var T.any_value in
       SPR.create original_term ~try_reify:false dacc
-    | Known_result (element_kind, fields, alloc_mode) ->
+    | Known_result
+        { element_kind;
+          length = _;
+          contents = Known (Immutable { fields });
+          alloc_mode
+        } ->
       let length =
         T.this_tagged_immediate (Array.length fields |> Targetint_31_63.of_int)
       in
