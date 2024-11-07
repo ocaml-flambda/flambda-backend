@@ -1294,6 +1294,11 @@ end = struct
 
   let par t0 t1 = map2 Usage_tree.par t0 t1
 
+  (* CR uniqueness: For convenience, our semirings do not have a zero.
+     However, when we fold the [choose] operation we need to initialize the
+     accumulator with zero. We avoid doing this here by skipping the initial
+     accumulator altogether. When [chooses] gets passed an empty list,
+     we return 'empty' which is sound in all semirings with '0 > 1'. *)
   let fold_left1 f = function [] -> unused | x :: l -> List.fold_left f x l
 
   let chooses l = fold_left1 choose l
