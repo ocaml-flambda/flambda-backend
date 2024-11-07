@@ -2161,7 +2161,7 @@ let add_types_to_env decls shapes env =
     decls shapes env
 
 (* Translate a set of type declarations, mutually recursive or not *)
-let transl_type_decl env rec_flag sdecl_list =
+let transl_type_decl_no_add_unboxed_records env rec_flag sdecl_list =
   List.iter check_redefined_unit sdecl_list;
   (* Add dummy types for fixed rows *)
   let fixed_types = List.filter is_fixed_type sdecl_list in
@@ -2200,7 +2200,8 @@ let transl_type_decl env rec_flag sdecl_list =
       (* Translate each declaration. *)
       let current_slot = ref None in
       let warn_unused =
-        Warnings.is_active (Warnings.Unused_type_declaration "") in
+        false in
+        (* Warnings.is_active (Warnings.Unused_type_declaration "") in *)
       let ids_slots (id, _uid as ids) =
         match rec_flag with
         | Asttypes.Recursive when warn_unused ->
@@ -2360,6 +2361,34 @@ let transl_type_decl env rec_flag sdecl_list =
   in
   (* Done *)
   (final_decls, final_env, shapes)
+
+let transl_type_decl env rec_flag sdecl_list =
+  let tdecls, env, shapes = transl_type_decl_no_add_unboxed_records env rec_flag sdecl_list in
+  let derive_unboxed_record_sdecl decl =
+    (* CR rtjoa: don't do this for [@@unboxed] records *)
+    if not (Language_extension.is_at_least Layouts Language_extension.Beta) then None else
+    match decl.ptype_kind with
+    | Ptype_abstract | Ptype_variant _ | Ptype_record_unboxed_product _ | Ptype_open ->
+      None
+    | Ptype_record lbls ->
+
+      Some {
+        ptype_name = { txt = decl.ptype_name.txt ^ "#" ; loc = decl.ptype_name.loc };
+        ptype_params = decl.ptype_params;
+        ptype_cstrs = [];
+        ptype_kind = Ptype_record_unboxed_product lbls;
+        ptype_private = decl.ptype_private;
+        ptype_manifest = None;
+        ptype_attributes = [];
+        ptype_jkind_annotation = None;
+        ptype_loc = decl.ptype_loc;
+      }
+  in
+  let sdecl_list' =
+    List.filter_map derive_unboxed_record_sdecl sdecl_list in
+  let tdecls', env, shapes' =
+    transl_type_decl_no_add_unboxed_records env rec_flag sdecl_list' in
+  List.append tdecls tdecls', env, List.append shapes shapes'
 
 (* Translating type extensions *)
 let transl_extension_constructor_decl

@@ -2188,6 +2188,7 @@ and store_label
   if check && not type_decl.type_loc.Location.loc_ghost
      && Warnings.is_active
           (Warnings.Unused_field (record_form_to_string record_form, "", Unused))
+     && false
   then begin
     let ty_name = Ident.name type_id in
     let priv = type_decl.type_private in
@@ -2203,7 +2204,7 @@ and store_label
           (fun () ->
             Option.iter
               (fun complaint ->
-                 if not (is_in_signature env) then
+                 if not (is_in_signature env) && false then
                    Location.prerr_warning
                      loc (Warnings.Unused_field(record_form_to_string record_form,
                                                 name, complaint)))
@@ -2219,6 +2220,7 @@ and store_label
 
 and store_type ~check id info shape env =
   let loc = info.type_loc in
+  let check = check && false in
   if check then
     check_usage loc id info.type_uid
       (fun s -> Warnings.Unused_type_declaration s)
