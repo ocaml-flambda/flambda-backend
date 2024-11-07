@@ -4096,16 +4096,6 @@ let cmm_arith_size (e : Cmm.expression) =
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
 
-let kind_of_layout (layout : Lambda.layout) =
-  match layout with
-  | Pvalue { raw_kind = Pboxedfloatval bf; _ } -> Boxed_float bf
-  | Pvalue { raw_kind = Pboxedintval bi; _ } -> Boxed_integer bi
-  | Pvalue { raw_kind = Pboxedvectorval vi; _ } -> Boxed_vector vi
-  | Pvalue { raw_kind = Pgenval | Pintval | Pvariant _ | Parrayval _; _ }
-  | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
-  | Punboxed_product _ ->
-    Any
-
 (* Atomics *)
 
 let atomic_load ~dbg (imm_or_ptr : Lambda.immediate_or_pointer) atomic =

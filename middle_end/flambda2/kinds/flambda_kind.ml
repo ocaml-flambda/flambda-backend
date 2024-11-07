@@ -699,7 +699,6 @@ module With_subkind = struct
           Format.fprintf ppf "%t=boxed_@<1>\u{2115}@<1>\u{1d54d}128%t" colour
             Flambda_colours.pop
         | Variant { consts; non_consts } ->
-          (* CR vlaviron: print nullability *)
           let print_field ppf { kind = _; value_subkind; nullable = _ } =
             print ppf value_subkind
           in
@@ -786,23 +785,23 @@ module With_subkind = struct
 
   let nullable (t : t) = t.nullable
 
-  let any_value = create value Anything Nullable
+  let any_value = anything value
 
-  let naked_immediate = create naked_immediate Anything Non_nullable
+  let naked_immediate = anything naked_immediate
 
-  let naked_float32 = create naked_float32 Anything Non_nullable
+  let naked_float32 = anything naked_float32
 
-  let naked_float = create naked_float Anything Non_nullable
+  let naked_float = anything naked_float
 
-  let naked_int32 = create naked_int32 Anything Non_nullable
+  let naked_int32 = anything naked_int32
 
-  let naked_int64 = create naked_int64 Anything Non_nullable
+  let naked_int64 = anything naked_int64
 
-  let naked_nativeint = create naked_nativeint Anything Non_nullable
+  let naked_nativeint = anything naked_nativeint
 
-  let naked_vec128 = create naked_vec128 Anything Non_nullable
+  let naked_vec128 = anything naked_vec128
 
-  let region = create region Anything Non_nullable
+  let region = anything region
 
   let boxed_float32 = create value Boxed_float32 Non_nullable
 
@@ -880,9 +879,10 @@ module With_subkind = struct
     | Naked_vec128 -> boxed_vec128
 
   let of_flat_suffix_element elt =
-    (* CR vlaviron: tagged immediates can be nullable and can appear in the flat
-       suffix; we need to properly propagate that *)
-    create (Flat_suffix_element0.kind elt) Anything Non_nullable
+    (* CR vlaviron: We should generate the appropriate subkind for immediates.
+       This requires us to know the nullability, so we need a patch in the
+       front-end for that. *)
+    anything (Flat_suffix_element0.kind elt)
 
   let of_lambda_flat_element_kind elt =
     Flat_suffix_element0.from_lambda elt |> of_flat_suffix_element

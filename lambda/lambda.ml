@@ -346,6 +346,7 @@ and nullable =
   | Non_nullable
 
 and value_kind =
+  (* CR vlaviron: find a better name for raw_kind *)
   { raw_kind : value_kind_non_null;
     nullable : nullable;
   }

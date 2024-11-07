@@ -975,8 +975,6 @@ val cmm_arith_size : expression -> int option
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
 
-val kind_of_layout : Lambda.layout -> kind_for_unboxing
-
 val machtype_of_layout : Lambda.layout -> machtype
 
 val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
