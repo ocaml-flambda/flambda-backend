@@ -390,6 +390,15 @@ let comp_bint_primitive bi suff args =
                 | Pint64 -> "caml_int64_" in
   Kccall(pref ^ suff, List.length args)
 
+let comp_bint_primitive_new int_dst suff args =
+  let pref =
+    match boxed_integer_of_integer_dst int_dst with
+    | Pnativeint -> "caml_nativeint_"
+    | Pint32 -> "caml_int32_"
+    | Pint64 -> "caml_int64_"
+  in
+  Kccall (pref ^ suff, List.length args)
+
 let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
   let suffix =
     match index_kind with
@@ -576,7 +585,7 @@ let comp_primitive stack_info p sz args =
           fatal_error "Bytegen.comp_primitive: invalid Pcvtbint cast"
       end
   | Pnegbint (bi,_) -> comp_bint_primitive bi "neg" args
-  | Paddbint (bi,_) -> comp_bint_primitive bi "add" args
+  | Paddbint integer_dst -> comp_bint_primitive_new integer_dst "add" args
   | Psubbint (bi,_) -> comp_bint_primitive bi "sub" args
   | Pmulbint (bi,_) -> comp_bint_primitive bi "mul" args
   | Pdivbint { size = bi } -> comp_bint_primitive bi "div" args

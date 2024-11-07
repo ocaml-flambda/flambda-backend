@@ -79,6 +79,9 @@ let standard_int_of_boxed_integer (bint : L.boxed_integer) : K.Standard_int.t =
   | Pint32 -> Naked_int32
   | Pint64 -> Naked_int64
 
+let standard_int_of_integer_dst (int_dst : L.integer_dst) : K.Standard_int.t =
+  int_dst |> L.boxed_integer_of_integer_dst |> standard_int_of_boxed_integer
+
 let standard_int_or_float_of_boxed_integer (bint : L.boxed_integer) :
     K.Standard_int_or_float.t =
   match bint with
@@ -393,6 +396,20 @@ let bint_binary_prim bi mode prim arg1 arg2 =
        ( Int_arith (standard_int_of_boxed_integer bi, prim),
          unbox_bint bi arg1,
          unbox_bint bi arg2 ))
+
+let bint_binary_prim_new (int_dst : L.integer_dst) prim arg1 arg2
+    ~current_region =
+  let unwrap, wrap =
+    match int_dst with
+    | Pbint_dst { bint; mode } ->
+      unbox_bint bint, box_bint bint mode ~current_region
+    | Puint_dst _ -> (fun x -> x), fun x -> x
+  in
+  wrap
+    (Binary
+       ( Int_arith (standard_int_of_integer_dst int_dst, prim),
+         unwrap arg1,
+         unwrap arg2 ))
 
 let bint_shift bi mode prim arg1 arg2 =
   box_bint bi mode
@@ -1534,8 +1551,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~current_region ]
   | Pnegbint (bi, mode), [[arg]] ->
     [bint_unary_prim bi mode Neg arg ~current_region]
-  | Paddbint (bi, mode), [[arg1]; [arg2]] ->
-    [bint_binary_prim bi mode Add arg1 arg2 ~current_region]
+  | Paddbint int_dst, [[arg1]; [arg2]] ->
+    [bint_binary_prim_new int_dst Add arg1 arg2 ~current_region]
   | Psubbint (bi, mode), [[arg1]; [arg2]] ->
     [bint_binary_prim bi mode Sub arg1 arg2 ~current_region]
   | Pmulbint (bi, mode), [[arg1]; [arg2]] ->

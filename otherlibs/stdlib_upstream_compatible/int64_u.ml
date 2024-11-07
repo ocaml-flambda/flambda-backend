@@ -25,7 +25,7 @@ external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64" [@@warning "-187"]
 
 let[@inline always] neg x = of_int64 (Int64.neg (to_int64 x))
 
-let[@inline always] add x y = of_int64 (Int64.add (to_int64 x) (to_int64 y))
+external add : t -> t -> t = "%int64#_add" [@@warning "-187"]
 
 let[@inline always] sub x y = of_int64 (Int64.sub (to_int64 x) (to_int64 y))
 

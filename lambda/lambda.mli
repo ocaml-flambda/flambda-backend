@@ -197,7 +197,7 @@ type primitive =
   | Pcvtbint of boxed_integer (*source*) * boxed_integer (*destination*)
                 * locality_mode
   | Pnegbint of boxed_integer * locality_mode
-  | Paddbint of boxed_integer * locality_mode
+  | Paddbint of integer_dst
   | Psubbint of boxed_integer * locality_mode
   | Pmulbint of boxed_integer * locality_mode
   | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: locality_mode }
@@ -462,6 +462,10 @@ and unboxed_integer = boxed_integer
 
 and unboxed_vector = boxed_vector
 
+and integer_dst =
+  | Pbint_dst of {bint: boxed_integer; mode: locality_mode}
+  | Puint_dst of {uint: unboxed_integer}
+
 and bigarray_kind =
     Pbigarray_unknown
   | Pbigarray_float16
@@ -508,6 +512,8 @@ val must_be_value : layout -> value_kind
    [layout_unboxed_float].
 *)
 val layout_of_extern_repr : extern_repr -> layout
+
+val boxed_integer_of_integer_dst : integer_dst -> boxed_integer
 
 type structured_constant =
     Const_base of constant

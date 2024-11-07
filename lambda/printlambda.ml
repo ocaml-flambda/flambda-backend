@@ -273,8 +273,17 @@ let unboxed_integer_mark name bi m =
   | Pint32 -> Printf.sprintf "Int32_u.%s%s" name (locality_kind m)
   | Pint64 -> Printf.sprintf "Int64_u.%s%s" name (locality_kind m)
 
+let unboxed_integer_mark_new name ui =
+  match ui with
+  | Pnativeint -> Printf.sprintf "Nativeint_u.%s" name
+  | Pint32 -> Printf.sprintf "Int32_u.%s" name
+  | Pint64 -> Printf.sprintf "Int64_u.%s" name
+
 let print_unboxed_integer name ppf bi m =
   fprintf ppf "%s" (unboxed_integer_mark name bi m);;
+
+let print_unboxed_integer_new name ppf ui =
+  fprintf ppf "%s" (unboxed_integer_mark_new name ui);;
 
 let boxed_float_mark name bf m =
   match bf with
@@ -623,7 +632,9 @@ let primitive ppf = function
   | Pintofbint bi -> print_boxed_integer "to_int" ppf bi alloc_heap
   | Pcvtbint (bi1, bi2, m) -> print_boxed_integer_conversion ppf bi1 bi2 m
   | Pnegbint (bi,m) -> print_boxed_integer "neg" ppf bi m
-  | Paddbint (bi,m) -> print_boxed_integer "add" ppf bi m
+  | Paddbint (Pbint_dst { bint; mode }) ->
+      print_boxed_integer "add" ppf bint mode
+  | Paddbint (Puint_dst { uint }) -> print_unboxed_integer_new "add" ppf uint
   | Psubbint (bi,m) -> print_boxed_integer "sub" ppf bi m
   | Pmulbint (bi,m) -> print_boxed_integer "mul" ppf bi m
   | Pdivbint { size; is_safe = Safe; mode } ->

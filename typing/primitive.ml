@@ -680,6 +680,22 @@ let prim_has_valid_reprs ~loc prim =
     | "%unbox_vec128" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.vec128]
 
+    | "%nativeint#_add" ->
+      exactly
+        [ Same_as_ocaml_repr C.word
+        ; Same_as_ocaml_repr C.word
+        ; Same_as_ocaml_repr C.word ]
+    | "%int32#_add" ->
+      exactly
+        [ Same_as_ocaml_repr C.bits32
+        ; Same_as_ocaml_repr C.bits32
+        ; Same_as_ocaml_repr C.bits32 ]
+    | "%int64#_add" ->
+      exactly
+        [ Same_as_ocaml_repr C.bits64
+        ; Same_as_ocaml_repr C.bits64
+        ; Same_as_ocaml_repr C.bits64 ]
+
     | "%reinterpret_tagged_int63_as_unboxed_int64" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.bits64]
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->

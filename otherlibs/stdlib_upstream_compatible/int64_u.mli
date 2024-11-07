@@ -69,7 +69,7 @@ external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64" [@@warning "-187"]
 val neg : t -> t
 (** Unary negation. *)
 
-val add : t -> t -> t
+external add : t -> t -> t = "%int64#_add" [@@warning "-187"]
 (** Addition. *)
 
 val sub : t -> t -> t

@@ -205,7 +205,7 @@ type primitive =
   | Pcvtbint of boxed_integer (*source*) * boxed_integer (*destination*)
                 * locality_mode
   | Pnegbint of boxed_integer * locality_mode
-  | Paddbint of boxed_integer * locality_mode
+  | Paddbint of integer_dst
   | Psubbint of boxed_integer * locality_mode
   | Pmulbint of boxed_integer * locality_mode
   | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: locality_mode }
@@ -441,6 +441,10 @@ and unboxed_integer = boxed_integer
 
 and unboxed_vector = boxed_vector
 
+and integer_dst =
+  | Pbint_dst of {bint: boxed_integer; mode: locality_mode}
+  | Puint_dst of {uint: unboxed_integer}
+
 and bigarray_kind =
     Pbigarray_unknown
   | Pbigarray_float16
@@ -463,6 +467,9 @@ and raise_kind =
   | Raise_notrace
 
 let equal_boxed_integer = Primitive.equal_boxed_integer
+
+let boxed_integer_of_integer_dst
+      (Pbint_dst {bint= bi; _} | Puint_dst {uint= bi}) = bi
 
 let equal_boxed_float = Primitive.equal_boxed_float
 
@@ -1713,6 +1720,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pandint | Porint | Pxorint
   | Plslint | Plsrint | Pasrint
   | Pintcomp _
+  | Paddbint (Puint_dst _)
   | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _
   | Poffsetref _ -> None
@@ -1743,7 +1751,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pbintofint (_,m)
   | Pcvtbint (_,_,m)
   | Pnegbint (_, m)
-  | Paddbint (_, m)
+  | Paddbint (Pbint_dst {mode=m; _})
   | Psubbint (_, m)
   | Pmulbint (_, m)
   | Pdivbint {mode=m}
@@ -1959,12 +1967,13 @@ let primitive_result_layout (p : primitive) =
   | Parrayrefu (array_ref_kind, _, _) | Parrayrefs (array_ref_kind, _, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
-  | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)
+  | Pnegbint (bi, _) | Paddbint (Pbint_dst {bint = bi; _}) | Psubbint (bi, _)
   | Pmulbint (bi, _) | Pdivbint {size = bi} | Pmodbint {size = bi}
   | Pandbint (bi, _) | Porbint (bi, _) | Pxorbint (bi, _)
   | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _)
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
+  | Paddbint (Puint_dst { uint }) -> layout_unboxed_int uint
   | Punbox_int bi -> Punboxed_int bi
   | Pstring_load_32 { boxed = true; _ } | Pbytes_load_32 { boxed = true; _ }
   | Pbigstring_load_32 { boxed = true; _ } ->

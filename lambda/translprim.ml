@@ -525,7 +525,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
     | "%nativeint_to_int" -> Primitive ((Pintofbint Pnativeint), 1)
     | "%nativeint_neg" -> Primitive ((Pnegbint (Pnativeint, mode)), 1)
-    | "%nativeint_add" -> Primitive ((Paddbint (Pnativeint, mode)), 2)
+    | "%nativeint_add" ->
+      Primitive ((Paddbint (Pbint_dst { bint = Pnativeint; mode })), 2)
+    | "%nativeint#_add" ->
+      Primitive ((Paddbint (Puint_dst { uint = Pnativeint })), 2)
     | "%nativeint_sub" -> Primitive ((Psubbint (Pnativeint, mode)), 2)
     | "%nativeint_mul" -> Primitive ((Pmulbint (Pnativeint, mode)), 2)
     | "%nativeint_div" ->
@@ -541,7 +544,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%int32_of_int" -> Primitive ((Pbintofint (Pint32, mode)), 1)
     | "%int32_to_int" -> Primitive ((Pintofbint Pint32), 1)
     | "%int32_neg" -> Primitive ((Pnegbint (Pint32, mode)), 1)
-    | "%int32_add" -> Primitive ((Paddbint (Pint32, mode)), 2)
+    | "%int32_add" ->
+      Primitive ((Paddbint (Pbint_dst { bint = Pint32; mode })), 2)
+    | "%int32#_add" ->
+      Primitive ((Paddbint (Puint_dst { uint = Pint32 })), 2)
     | "%int32_sub" -> Primitive ((Psubbint (Pint32, mode)), 2)
     | "%int32_mul" -> Primitive ((Pmulbint (Pint32, mode)), 2)
     | "%int32_div" ->
@@ -557,7 +563,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%int64_of_int" -> Primitive ((Pbintofint (Pint64, mode)), 1)
     | "%int64_to_int" -> Primitive ((Pintofbint Pint64), 1)
     | "%int64_neg" -> Primitive ((Pnegbint (Pint64, mode)), 1)
-    | "%int64_add" -> Primitive ((Paddbint (Pint64, mode)), 2)
+    | "%int64_add" ->
+      Primitive ((Paddbint (Pbint_dst { bint = Pint64; mode })), 2)
+    | "%int64#_add" ->
+      Primitive ((Paddbint (Puint_dst { uint = Pint64 })), 2)
     | "%int64_sub" -> Primitive ((Psubbint (Pint64, mode)), 2)
     | "%int64_mul" -> Primitive ((Pmulbint (Pint64, mode)), 2)
     | "%int64_div" ->
