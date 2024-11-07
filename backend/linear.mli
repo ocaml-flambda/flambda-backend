@@ -37,7 +37,7 @@ and instruction_desc =
   | Lreturn
   | Llabel of { label : label; section_name : string option }
   | Lbranch of label
-  | Lcondbranch of Mach.test * label
+  | Lcondbranch of Simple_operation.test * label
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap
@@ -53,7 +53,6 @@ val instr_cons:
   instruction_desc -> Reg.t array -> Reg.t array -> instruction
   -> available_before:Reg_availability_set.t option
   -> available_across:Reg_availability_set.t option -> instruction
-val invert_test: Mach.test -> Mach.test
 
 type fundecl =
   { fun_name: string;

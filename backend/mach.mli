@@ -15,45 +15,7 @@
 
 (* Representation of machine code by sequences of pseudoinstructions *)
 
-type trap_stack =
-  | Uncaught
-  (** Exceptions escape the current function *)
-  | Specific_trap of Cmm.trywith_shared_label * trap_stack
-  (** Current handler is a delayed/shared Trywith *)
-
-type integer_comparison =
-    Isigned of Cmm.integer_comparison
-  | Iunsigned of Cmm.integer_comparison
-
-type integer_operation =
-    Iadd | Isub | Imul | Imulh of { signed: bool } | Idiv | Imod
-  | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-  | Iclz of { arg_is_non_zero: bool; }
-  | Ictz of { arg_is_non_zero: bool; }
-  | Ipopcnt
-  | Icomp of integer_comparison
-
-type float_comparison = Cmm.float_comparison
-
-type float_width = Cmm.float_width
-
-type float_operation =
-  | Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf
-  | Icompf of float_comparison
-
-type mutable_flag = Immutable | Mutable
-
-val of_ast_mutable_flag : Asttypes.mutable_flag -> mutable_flag
-val to_ast_mutable_flag : mutable_flag -> Asttypes.mutable_flag
-
-type test =
-    Itruetest
-  | Ifalsetest
-  | Iinttest of integer_comparison
-  | Iinttest_imm of integer_comparison * int
-  | Ifloattest of float_width * float_comparison
-  | Ioddtest
-  | Ieventest
+open Simple_operation
 
 type operation =
     Imove
@@ -158,11 +120,3 @@ val operation_can_raise : operation -> bool
   (** Returns [true] if the given operation can raise an exception. *)
 
 val free_conts_for_handlers : fundecl -> Numbers.Int.Set.t Numbers.Int.Map.t
-val equal_trap_stack : trap_stack -> trap_stack -> bool
-
-val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
-val equal_integer_operation : integer_operation -> integer_operation -> bool
-
-val equal_float_width : float_width -> float_width -> bool
-val equal_float_comparison : float_comparison -> float_comparison -> bool
-val equal_float_operation : float_operation -> float_operation -> bool

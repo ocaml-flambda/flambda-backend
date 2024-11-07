@@ -20,6 +20,7 @@ module M = Mach
 module R = Reg
 module RAS = Reg_availability_set
 module RD = Reg_with_debug_info
+module SO = Simple_operation
 module V = Backend_var
 
 (* If permitted to do so by the command line flags, this pass will extend live
@@ -38,7 +39,7 @@ let disable_extend_live = ref false
    collected in [avail_at_exit].) *)
 let avail_at_exit = Hashtbl.create 42
 
-let current_trap_stack = ref M.Uncaught
+let current_trap_stack = ref SO.Uncaught
 
 let augment_availability_at_exit nfail avail_before =
   let avail_at_top_of_handler =
@@ -474,7 +475,7 @@ let fundecl (f : M.fundecl) =
   if !Clflags.debug && not !Dwarf_flags.restrict_to_upstream_dwarf
   then (
     assert (Hashtbl.length avail_at_exit = 0);
-    current_trap_stack := M.Uncaught;
+    current_trap_stack := SO.Uncaught;
     disable_extend_live := false;
     let fun_args = R.set_of_array f.fun_args in
     let avail_before = RAS.Ok (RD.Set.without_debug_info fun_args) in

@@ -19,6 +19,7 @@ open Format
 open Cmm
 open Reg
 open Mach
+open Simple_operation
 open Interval
 
 module V = Backend_var
@@ -86,7 +87,7 @@ let regsetaddr' ?(print_reg = reg) ppf s =
 
 let regsetaddr ppf s = regsetaddr' ppf s
 
-let trap_stack ppf (ts : Mach.trap_stack) =
+let trap_stack ppf (ts : Simple_operation.trap_stack) =
   let has_specific = function
     | Uncaught -> false
     | Specific_trap _ -> true

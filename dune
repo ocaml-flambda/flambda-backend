@@ -466,6 +466,7 @@
   simd_selection
   simd_reload
   simd_proc
+  simple_operation
   stack_check
   reg
   reload
