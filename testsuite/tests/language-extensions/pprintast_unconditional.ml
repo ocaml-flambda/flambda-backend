@@ -58,6 +58,7 @@ module Example = struct
                                { pmd_name = located (Some "M")
                                ; pmd_type = module_type
                                ; pmd_attributes = []
+                               ; pmd_modalities = []
                                ; pmd_loc = loc
                                }
                          ; psig_loc = loc
