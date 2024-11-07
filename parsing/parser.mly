@@ -2087,12 +2087,13 @@ module_declaration_body(mm):
   name = mkrhs(module_name)
   EQUAL
   body = module_expr_alias
+  modalities = optional_atat_modalities_expr
   attrs2 = post_item_attributes
   {
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
-    Md.mk name body ~attrs ~loc ~docs, ext
+    Md.mk name body ~attrs ~modalities ~loc ~docs, ext
   }
 ;
 %inline module_expr_alias:

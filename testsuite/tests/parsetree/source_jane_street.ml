@@ -1141,6 +1141,7 @@ Error: Mode annotations on modules are not supported yet.
 
 module type T = sig
   module M : S @@ portable
+  module M = N @@ portable
   module M0 (_ : S @@ portable) (X : S @@ portable) : S @@ portable
   (* The above [@@ portable] is the return mode of the functor, not the modality on the
   module declaration; To do that, one must write in the following way. *)

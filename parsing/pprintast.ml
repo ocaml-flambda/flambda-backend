@@ -1528,15 +1528,17 @@ and signature_item ctxt f x : unit =
               (list ~sep:"@," (class_description "and")) xs
       end
   | Psig_module ({pmd_type={pmty_desc=Pmty_alias alias;
-                            pmty_attributes=[]; _};_} as pmd) ->
-      pp f "@[<hov>module@ %s@ =@ %a@]%a"
+                            pmty_attributes=[]; _}; _} as pmd) ->
+      pp f "@[<hov>module@ %s@ =@ %a%a@]%a"
         (Option.value pmd.pmd_name.txt ~default:"_")
         longident_loc alias
+        optional_space_atat_modalities pmd.pmd_modalities
         (item_attributes ctxt) pmd.pmd_attributes
   | Psig_module pmd ->
-      pp f "@[<hov>module@ %s@ :@ %a@]%a"
+      pp f "@[<hov>module@ %s@ :@ %a%a@]%a"
         (Option.value pmd.pmd_name.txt ~default:"_")
         (module_type ctxt) pmd.pmd_type
+        optional_space_atat_modalities pmd.pmd_modalities
         (item_attributes ctxt) pmd.pmd_attributes
   | Psig_modsubst pms ->
       pp f "@[<hov>module@ %s@ :=@ %a@]%a" pms.pms_name.txt
@@ -1573,14 +1575,16 @@ and signature_item ctxt f x : unit =
         | [] -> () ;
         | pmd :: tl ->
             if not first then
-              pp f "@ @[<hov2>and@ %s:@ %a@]%a"
+              pp f "@ @[<hov2>and@ %s:@ %a%a@]%a"
                 (Option.value pmd.pmd_name.txt ~default:"_")
                 (module_type1 ctxt) pmd.pmd_type
+                optional_space_atat_modalities pmd.pmd_modalities
                 (item_attributes ctxt) pmd.pmd_attributes
             else
-              pp f "@[<hov2>module@ rec@ %s:@ %a@]%a"
+              pp f "@[<hov2>module@ rec@ %s:@ %a%a@]%a"
                 (Option.value pmd.pmd_name.txt ~default:"_")
                 (module_type1 ctxt) pmd.pmd_type
+                optional_space_atat_modalities pmd.pmd_modalities
                 (item_attributes ctxt) pmd.pmd_attributes;
             string_x_module_type_list f ~first:false tl
       in
