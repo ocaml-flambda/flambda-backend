@@ -284,11 +284,13 @@ let indexing_primitives =
       ( (fun unsafe _boxed _index_kind ->
           Printf.sprintf "%%caml_string_set32%s" unsafe ),
         fun ~unsafe ~boxed:_ ~index_kind:_ ~mode:_ ->
-          Pbytes_set_32 {unsafe; index_kind= Ptagged_int_index; boxed= false} ) ;
+          Pbytes_set_32
+            { unsafe; index_kind = Ptagged_int_index; boxed = true } ) ;
       ( (fun unsafe _boxed _index_kind ->
           Printf.sprintf "%%caml_string_set64%s" unsafe ),
         fun ~unsafe ~boxed:_ ~index_kind:_ ~mode:_ ->
-          Pbytes_set_64 {unsafe; index_kind= Ptagged_int_index; boxed= false} )
+          Pbytes_set_64
+            { unsafe; index_kind = Ptagged_int_index; boxed = true } )
     ]
   in
   let index_kinds =
