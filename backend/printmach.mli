@@ -26,12 +26,12 @@ val regsetaddr': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> Reg.Set
 val regsetaddr: formatter -> Reg.Set.t -> unit
 val operation': ?print_reg:(formatter -> Reg.t -> unit) -> Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
 val operation: Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
-val test': ?print_reg:(formatter -> Reg.t -> unit) -> Mach.test -> formatter -> Reg.t array -> unit
-val test: Mach.test -> formatter -> Reg.t array -> unit
+val test': ?print_reg:(formatter -> Reg.t -> unit) -> Simple_operation.test -> formatter -> Reg.t array -> unit
+val test: Simple_operation.test -> formatter -> Reg.t array -> unit
 val instr: formatter -> Mach.instruction -> unit
 val fundecl: formatter -> Mach.fundecl -> unit
 val phase: string -> formatter -> Mach.fundecl -> unit
 val interferences: formatter -> unit -> unit
 val intervals: formatter -> unit -> unit
 val preferences: formatter -> unit -> unit
-val floatop: formatter -> Mach.float_operation -> unit
+val floatop: formatter -> Simple_operation.float_operation -> unit

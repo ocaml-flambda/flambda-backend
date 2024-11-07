@@ -63,19 +63,19 @@ module S = struct
     | Load of
         { memory_chunk : Cmm.memory_chunk;
           addressing_mode : Arch.addressing_mode;
-          mutability : Mach.mutable_flag;
+          mutability : Simple_operation.mutable_flag;
           is_atomic : bool
         }
     | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
-    | Intop of Mach.integer_operation
-    | Intop_imm of Mach.integer_operation * int
+    | Intop of Simple_operation.integer_operation
+    | Intop_imm of Simple_operation.integer_operation * int
     | Intop_atomic of
         { op : Cmm.atomic_op;
           size : Cmm.atomic_bitwidth;
           addr : Arch.addressing_mode
         }
-    | Floatop of Mach.float_width * Mach.float_operation
-    | Csel of Mach.test
+    | Floatop of Simple_operation.float_width * Simple_operation.float_operation
+    | Csel of Simple_operation.test
     | Reinterpret_cast of Cmm.reinterpret_cast
     | Static_cast of Cmm.static_cast
     | Probe_is_enabled of { name : string }

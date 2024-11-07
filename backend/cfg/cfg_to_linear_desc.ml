@@ -23,7 +23,7 @@ let from_basic (basic : basic) : Linear.instruction_desc =
         Iload
           { memory_chunk;
             addressing_mode;
-            mutability = Mach.to_ast_mutable_flag mutability;
+            mutability = Simple_operation.to_ast_mutable_flag mutability;
             is_atomic
           }
       | Store (c, m, b) -> Istore (c, m, b)

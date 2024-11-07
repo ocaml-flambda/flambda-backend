@@ -150,7 +150,7 @@ let basic_or_terminator_of_operation :
          (Load
             { memory_chunk;
               addressing_mode;
-              mutability = Mach.of_ast_mutable_flag mutability;
+              mutability = Simple_operation.of_ast_mutable_flag mutability;
               is_atomic
             }))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
@@ -244,13 +244,16 @@ let int_test_of_integer_comparison :
   { lt; eq; gt; is_signed; imm }
 
 let terminator_of_test :
-    Mach.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator =
+    Simple_operation.test ->
+    label_false:Label.t ->
+    label_true:Label.t ->
+    Cfg.terminator =
  fun test ~label_false ~label_true ->
   let int_test comparison immediate =
     let signed, comparison =
       match comparison with
-      | Mach.Isigned comparison -> true, comparison
-      | Mach.Iunsigned comparison -> false, comparison
+      | Simple_operation.Isigned comparison -> true, comparison
+      | Simple_operation.Iunsigned comparison -> false, comparison
     in
     int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
       ~label_true

@@ -76,13 +76,14 @@ class virtual selector_generic :
 
     (* The following methods must or can be overridden by the processor
        description *)
-    method is_immediate : Mach.integer_operation -> int -> bool
+    method is_immediate : Simple_operation.integer_operation -> int -> bool
     (* Must be overriden to indicate whether a constant is a suitable immediate
        operand to the given integer arithmetic instruction. The default
        implementation handles shifts by immediate amounts, but produces no
        immediate operations otherwise. *)
 
-    method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
+    method virtual is_immediate_test :
+      Simple_operation.integer_comparison -> int -> bool
     (* Must be defined to indicate whether a constant is a suitable immediate
        operand to the given integer test *)
 
@@ -104,7 +105,8 @@ class virtual selector_generic :
       basic_or_terminator * Cmm.expression list
     (* Can be overridden to deal with special arithmetic instructions *)
 
-    method select_condition : Cmm.expression -> Mach.test * Cmm.expression
+    method select_condition :
+      Cmm.expression -> Simple_operation.test * Cmm.expression
     (* Can be overridden to deal with special test instructions *)
 
     method select_store :

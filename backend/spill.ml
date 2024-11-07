@@ -466,8 +466,8 @@ let find_spill_at_exit env k =
 
 let at_raise_from_trap_stack env ts =
   match ts with
-  | Uncaught -> Reg.Set.empty
-  | Specific_trap (nfail, _) -> find_spill_at_exit env nfail
+  | Simple_operation.Uncaught -> Reg.Set.empty
+  | Simple_operation.Specific_trap (nfail, _) -> find_spill_at_exit env nfail
 
 let find_in_spill_cache nfail at_join env =
   try

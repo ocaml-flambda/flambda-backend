@@ -107,7 +107,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
                   ~available_before:None ~available_across:None)
                 ~available_before:None ~available_across:None
             in
-            instr.desc <- Lcondbranch (invert_test test, lbl2);
+            instr.desc <- Lcondbranch (Simple_operation.invert_test test, lbl2);
             instr.next <- cont;
             fixup true (pc + T.instr_size instr.desc) instr.next
           | Lcondbranch3 (lbl0, lbl1, lbl2) ->

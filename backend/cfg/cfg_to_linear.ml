@@ -296,13 +296,13 @@ let linearize_terminator cfg_with_layout (func : string) start
                 in
                 let comp =
                   match is_signed with
-                  | true -> Mach.Isigned cond
-                  | false -> Mach.Iunsigned cond
+                  | true -> Simple_operation.Isigned cond
+                  | false -> Simple_operation.Iunsigned cond
                 in
                 let test =
                   match imm with
-                  | None -> Mach.Iinttest comp
-                  | Some n -> Mach.Iinttest_imm (comp, n)
+                  | None -> Simple_operation.Iinttest comp
+                  | Some n -> Simple_operation.Iinttest_imm (comp, n)
                 in
                 L.Lcondbranch (test, lbl) :: acc)
               cond_successor_labels init,

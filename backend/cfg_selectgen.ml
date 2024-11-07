@@ -319,38 +319,40 @@ class virtual selector_generic =
       | Cdls_get, _ -> basic_op Dls_get, args
       | Calloc mode, _ ->
         basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
-      | Caddi, _ -> self#select_arith_comm Mach.Iadd args
-      | Csubi, _ -> self#select_arith Mach.Isub args
-      | Cmuli, _ -> self#select_arith_comm Mach.Imul args
+      | Caddi, _ -> self#select_arith_comm Simple_operation.Iadd args
+      | Csubi, _ -> self#select_arith Simple_operation.Isub args
+      | Cmuli, _ -> self#select_arith_comm Simple_operation.Imul args
       | Cmulhi { signed }, _ ->
-        self#select_arith_comm (Mach.Imulh { signed }) args
-      | Cdivi, _ -> basic_op (Intop Mach.Idiv), args
-      | Cmodi, _ -> basic_op (Intop Mach.Imod), args
-      | Cand, _ -> self#select_arith_comm Mach.Iand args
-      | Cor, _ -> self#select_arith_comm Mach.Ior args
-      | Cxor, _ -> self#select_arith_comm Mach.Ixor args
-      | Clsl, _ -> self#select_arith Mach.Ilsl args
-      | Clsr, _ -> self#select_arith Mach.Ilsr args
-      | Casr, _ -> self#select_arith Mach.Iasr args
+        self#select_arith_comm (Simple_operation.Imulh { signed }) args
+      | Cdivi, _ -> basic_op (Intop Idiv), args
+      | Cmodi, _ -> basic_op (Intop Imod), args
+      | Cand, _ -> self#select_arith_comm Simple_operation.Iand args
+      | Cor, _ -> self#select_arith_comm Simple_operation.Ior args
+      | Cxor, _ -> self#select_arith_comm Simple_operation.Ixor args
+      | Clsl, _ -> self#select_arith Simple_operation.Ilsl args
+      | Clsr, _ -> self#select_arith Simple_operation.Ilsr args
+      | Casr, _ -> self#select_arith Simple_operation.Iasr args
       | Cclz { arg_is_non_zero }, _ ->
-        basic_op (Intop (Mach.Iclz { arg_is_non_zero })), args
+        basic_op (Intop (Iclz { arg_is_non_zero })), args
       | Cctz { arg_is_non_zero }, _ ->
-        basic_op (Intop (Mach.Ictz { arg_is_non_zero })), args
-      | Cpopcnt, _ -> basic_op (Intop Mach.Ipopcnt), args
-      | Ccmpi comp, _ -> self#select_arith_comp (Mach.Isigned comp) args
-      | Caddv, _ -> self#select_arith_comm Mach.Iadd args
-      | Cadda, _ -> self#select_arith_comm Mach.Iadd args
-      | Ccmpa comp, _ -> self#select_arith_comp (Mach.Iunsigned comp) args
-      | Ccmpf (w, comp), _ -> basic_op (Floatop (w, Mach.Icompf comp)), args
+        basic_op (Intop (Ictz { arg_is_non_zero })), args
+      | Cpopcnt, _ -> basic_op (Intop Ipopcnt), args
+      | Ccmpi comp, _ ->
+        self#select_arith_comp (Simple_operation.Isigned comp) args
+      | Caddv, _ -> self#select_arith_comm Simple_operation.Iadd args
+      | Cadda, _ -> self#select_arith_comm Simple_operation.Iadd args
+      | Ccmpa comp, _ ->
+        self#select_arith_comp (Simple_operation.Iunsigned comp) args
+      | Ccmpf (w, comp), _ -> basic_op (Floatop (w, Icompf comp)), args
       | Ccsel _, [cond; ifso; ifnot] ->
         let cond, earg = self#select_condition cond in
         basic_op (Csel cond), [earg; ifso; ifnot]
-      | Cnegf w, _ -> basic_op (Floatop (w, Mach.Inegf)), args
-      | Cabsf w, _ -> basic_op (Floatop (w, Mach.Iabsf)), args
-      | Caddf w, _ -> basic_op (Floatop (w, Mach.Iaddf)), args
-      | Csubf w, _ -> basic_op (Floatop (w, Mach.Isubf)), args
-      | Cmulf w, _ -> basic_op (Floatop (w, Mach.Imulf)), args
-      | Cdivf w, _ -> basic_op (Floatop (w, Mach.Idivf)), args
+      | Cnegf w, _ -> basic_op (Floatop (w, Inegf)), args
+      | Cabsf w, _ -> basic_op (Floatop (w, Iabsf)), args
+      | Caddf w, _ -> basic_op (Floatop (w, Iaddf)), args
+      | Csubf w, _ -> basic_op (Floatop (w, Isubf)), args
+      | Cmulf w, _ -> basic_op (Floatop (w, Imulf)), args
+      | Cdivf w, _ -> basic_op (Floatop (w, Idivf)), args
       | Creinterpret_cast cast, _ -> basic_op (Reinterpret_cast cast), args
       | Cstatic_cast cast, _ -> basic_op (Static_cast cast), args
       | Catomic { op = Fetch_and_add; size }, [src; dst] ->
@@ -384,7 +386,7 @@ class virtual selector_generic =
       | Cendregion, _ -> basic_op End_region, args
       | _ -> Misc.fatal_error "Selection.select_oper"
 
-    method private select_arith_comm (op : Mach.integer_operation)
+    method private select_arith_comm (op : Simple_operation.integer_operation)
         (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
         =
       match args with
@@ -394,7 +396,7 @@ class virtual selector_generic =
         basic_op (Intop_imm (op, n)), [arg]
       | _ -> basic_op (Intop op), args
 
-    method private select_arith (op : Mach.integer_operation)
+    method private select_arith (op : Simple_operation.integer_operation)
         (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
         =
       match args with
@@ -402,14 +404,17 @@ class virtual selector_generic =
         basic_op (Intop_imm (op, n)), [arg]
       | _ -> basic_op (Intop op), args
 
-    method private select_arith_comp (cmp : Mach.integer_comparison)
+    method private select_arith_comp (cmp : Simple_operation.integer_comparison)
         (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
         =
       match args with
-      | [arg; Cconst_int (n, _)] when self#is_immediate (Mach.Icomp cmp) n ->
+      | [arg; Cconst_int (n, _)]
+        when self#is_immediate (Simple_operation.Icomp cmp) n ->
         basic_op (Intop_imm (Icomp cmp, n)), [arg]
       | [Cconst_int (n, _); arg]
-        when self#is_immediate (Mach.Icomp (Select_utils.swap_intcomp cmp)) n ->
+        when self#is_immediate
+               (Simple_operation.Icomp (Select_utils.swap_intcomp cmp))
+               n ->
         basic_op (Intop_imm (Icomp (Select_utils.swap_intcomp cmp), n)), [arg]
       | _ -> basic_op (Intop (Icomp cmp)), args
 
@@ -1348,7 +1353,8 @@ class virtual selector_generic =
             in
             build_all_reachable_handlers ~already_built ~not_built
         in
-        let new_handlers : (int * Mach.trap_stack * Sub_cfg.t * bool) list =
+        let new_handlers :
+            (int * Simple_operation.trap_stack * Sub_cfg.t * bool) list =
           build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
           (* Note: we're dropping unreachable handlers here *)
         in
