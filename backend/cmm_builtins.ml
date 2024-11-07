@@ -561,21 +561,29 @@ let transl_builtin name args dbg typ_res =
     Some (Cop (mk_load_mut Double, args, dbg))
   | "caml_native_pointer_store_unboxed_float" ->
     Some (return_unit dbg (Cop (Cstore (Double, Assignment), args, dbg)))
+  | "caml_native_pointer_load_unboxed_unsigned_int8"
   | "caml_native_pointer_load_unsigned_int8" ->
     Some (Cop (mk_load_mut Byte_unsigned, args, dbg))
+  | "caml_native_pointer_load_unboxed_signed_int8"
   | "caml_native_pointer_load_signed_int8" ->
     Some (Cop (mk_load_mut Byte_signed, args, dbg))
+  | "caml_native_pointer_load_unboxed_unsigned_int16"
   | "caml_native_pointer_load_unsigned_int16" ->
     Some (Cop (mk_load_mut Sixteen_unsigned, args, dbg))
+  | "caml_native_pointer_load_unboxed_signed_int16"
   | "caml_native_pointer_load_signed_int16" ->
     Some (Cop (mk_load_mut Sixteen_signed, args, dbg))
+  | "caml_native_pointer_store_unboxed_unsigned_int8"
   | "caml_native_pointer_store_unsigned_int8" ->
     Some (return_unit dbg (Cop (Cstore (Byte_unsigned, Assignment), args, dbg)))
+  | "caml_native_pointer_store_unboxed_signed_int8"
   | "caml_native_pointer_store_signed_int8" ->
     Some (return_unit dbg (Cop (Cstore (Byte_signed, Assignment), args, dbg)))
+  | "caml_native_pointer_store_unboxed_unsigned_int16"
   | "caml_native_pointer_store_unsigned_int16" ->
     Some
       (return_unit dbg (Cop (Cstore (Sixteen_unsigned, Assignment), args, dbg)))
+  | "caml_native_pointer_store_unboxed_signed_int16"
   | "caml_native_pointer_store_signed_int16" ->
     Some
       (return_unit dbg (Cop (Cstore (Sixteen_signed, Assignment), args, dbg)))
