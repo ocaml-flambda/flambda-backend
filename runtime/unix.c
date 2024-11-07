@@ -518,7 +518,9 @@ void *caml_plat_mem_map(uintnat size, int reserve_only)
   if (size < alignment || alignment < caml_plat_pagesize) {
     /* Short mapping or unknown/bad hugepagesize.
        Either way, not worth bothering with alignment. */
-    return mmap(0, size, prot, flags, -1, 0);
+    mem = mmap(0, size, prot, flags, -1, 0);
+    if (mem == MAP_FAILED) mem = NULL;
+    return mem;
   }
 
   /* Sensible kernels (on Linux, that means >= 6.7) will always provide aligned

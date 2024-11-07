@@ -890,8 +890,9 @@ void domain_resize_heap_reservation_from_stw_single(uintnat new_minor_wsz)
               "unreserve_minor_heaps");
 
   unreserve_minor_heaps_from_stw_single();
-  /* new_minor_wsz is page-aligned because caml_norm_minor_heap_size has
-     been called to normalize it earlier.
+  /* new_minor_wsz is (huge)page-aligned because caml_norm_minor_heap_size has
+     been called to normalize it earlier.  (An assertion checks this in
+     [reserve_minor_heaps_from_stw_single].)
   */
   caml_minor_heap_max_wsz = new_minor_wsz;
   caml_gc_log("stw_resize_minor_heap_reservation: reserve_minor_heaps");
