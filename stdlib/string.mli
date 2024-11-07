@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* NOTE:
    If this file is stringLabels.mli, run tools/sync_stdlib_docs after editing
@@ -540,3 +541,4 @@ external unsafe_get : string -> int -> char = "%string_unsafe_get"
 external unsafe_blit :
   string -> int -> bytes -> int -> int ->
     unit = "caml_blit_string" [@@noalloc]
+end @@ portable

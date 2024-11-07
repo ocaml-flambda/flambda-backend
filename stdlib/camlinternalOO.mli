@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Run-time support for objects and classes.
     All functions in this module are for system use only, not for the
@@ -153,3 +154,4 @@ type stats =
     methods : int;
     inst_vars : int }
 val stats : unit -> stats
+end @@ portable

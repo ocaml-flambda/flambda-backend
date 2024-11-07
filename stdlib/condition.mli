@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (**Condition variables.
 
@@ -176,3 +177,4 @@ val broadcast : t -> unit
 
    It is recommended to call [broadcast c] inside a critical section,
    that is, while the mutex [m] associated with [c] is locked. *)
+end @@ portable

@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Result values.
 
@@ -103,3 +104,4 @@ val to_list : ('a, 'e) result -> 'a list
 val to_seq : ('a, 'e) result -> 'a Seq.t
 (** [to_seq r] is [r] as a sequence. [Ok v] is the singleton sequence
     containing [v] and [Error _] is the empty sequence. *)
+end @@ portable

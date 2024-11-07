@@ -26,6 +26,7 @@
 ]
 
 open! Stdlib
+include sig
 
 (**
     Unsynchronized accesses to a queue may lead to an invalid queue state.
@@ -212,3 +213,4 @@ val of_seq : 'a Seq.t -> 'a t
     - : int option = Some 100
    ]}
    *)
+end @@ portable

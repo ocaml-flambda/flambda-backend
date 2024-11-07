@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Large, multi-dimensional, numerical arrays.
 
@@ -1124,3 +1125,4 @@ let () = Domain.join d1; Domain.join d2
     the [res] bigarray might contain values that are neither [Complex.i]
     nor [Complex.one] (for instance [1 + i]).
 *)
+end @@ portable

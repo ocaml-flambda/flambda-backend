@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Function manipulation.
 
@@ -69,3 +70,4 @@ exception Finally_raised of exn
     an unexpected exception or a programming error. As a general rule,
     one should not catch a [Finally_raised] exception except as part of
     a catch-all handler. *)
+end @@ portable

@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Option values.
 
@@ -84,3 +85,4 @@ val to_list : 'a option -> 'a list
 val to_seq : 'a option -> 'a Seq.t
 (** [to_seq o] is [o] as a sequence. [None] is the empty sequence and
     [Some v] is the singleton sequence containing [v]. *)
+end @@ portable

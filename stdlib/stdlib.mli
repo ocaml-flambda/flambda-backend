@@ -12,6 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+include sig
 
 (** The OCaml Standard library.
 
@@ -1462,3 +1463,4 @@ module Type           = Type
 module Uchar          = Uchar
 module Unit           = Unit
 module Weak           = Weak
+end @@ portable

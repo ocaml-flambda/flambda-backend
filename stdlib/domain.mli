@@ -20,6 +20,8 @@
     "The Domain interface may change in incompatible ways in the future."
 ]
 
+include sig
+
 (** Domains.
 
     See 'Parallel programming' chapter in the manual.
@@ -154,3 +156,4 @@ module DLS : sig
         to [k], which cannot be restored later. *)
 
 end
+end @@ portable

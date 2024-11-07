@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Run-time support for lazy values.
     All functions in this module are for system use only, not for the
@@ -26,3 +27,4 @@ exception Undefined
 val force_lazy_block : 'a lazy_t -> 'a
 
 val force_gen : only_val:bool -> 'a lazy_t -> 'a
+end @@ portable

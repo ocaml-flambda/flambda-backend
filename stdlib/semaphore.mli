@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Semaphores
 
@@ -140,3 +141,4 @@ val try_acquire : t -> bool
 *)
 
 end
+end @@ portable

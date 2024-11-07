@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Unit values.
 
@@ -36,3 +37,4 @@ val compare : t -> t -> int
 
 val to_string : t -> string
 (** [to_string b] is ["()"]. *)
+end @@ portable

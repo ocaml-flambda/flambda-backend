@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Input channels.
 
@@ -232,3 +233,4 @@ val isatty : t -> bool
     {[
       let user_input () = In_channel.input_line In_channel.stdin
     ]} *)
+end @@ portable

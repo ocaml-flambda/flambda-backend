@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Formatted output functions. *)
 
@@ -197,3 +198,4 @@ val ikbprintf : (Buffer.t -> 'd) -> Buffer.t ->
 val kprintf : (string -> 'b) -> ('a, unit, string, 'b) format4 -> 'a
 [@@ocaml.deprecated "Use Printf.ksprintf instead."]
 (** A deprecated synonym for [ksprintf]. *)
+end @@ portable

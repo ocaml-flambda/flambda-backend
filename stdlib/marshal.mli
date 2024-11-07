@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Marshaling of data structures.
 
@@ -196,3 +197,4 @@ val total_size : bytes -> int -> int
     suprising values (when unmarshaling) due to tearing, since marshaling
     involves byte-per-byte copy.
 *)
+end @@ portable

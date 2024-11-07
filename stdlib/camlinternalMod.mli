@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (** Run-time support for recursive modules.
     All functions in this module are for system use only, not for the
@@ -28,3 +29,4 @@ type shape =
 
 val init_mod: string * int * int -> shape -> Obj.t
 val update_mod: shape -> Obj.t -> Obj.t -> unit
+end @@ portable

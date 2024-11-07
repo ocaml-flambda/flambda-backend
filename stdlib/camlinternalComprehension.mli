@@ -1,4 +1,5 @@
 (** Supporting functions for list comprehensions *)
+include sig
 
 (** Backwards snoc lists that can be spine-local but element-global.  This
     allows list comprehensions to build their intermediate data structure on the
@@ -43,3 +44,4 @@ val rev_dlist_concat_iterate_down
     great if they could produce local values, too.  (Then they'd be able to/have
     to iterate over local lists.)  That requires either some form of mode
     polymorphism or code duplication, so it isn't present yet. *)
+end @@ portable

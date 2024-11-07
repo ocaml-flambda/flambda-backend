@@ -25,6 +25,7 @@
 ]
 
 open! Stdlib
+include sig
 
  (**
     Unsynchronized accesses to a stack may lead to an invalid queue state.
@@ -105,3 +106,4 @@ val add_seq : 'a t -> 'a Seq.t -> unit
 val of_seq : 'a Seq.t -> 'a t
 (** Create a stack from the sequence.
     @since 4.07 *)
+end @@ portable

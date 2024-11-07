@@ -14,6 +14,7 @@
 (**************************************************************************)
 
 open! Stdlib
+include sig
 
 (* NOTE:
    If this file is bytesLabels.mli, run tools/sync_stdlib_docs after editing it
@@ -826,3 +827,4 @@ external unsafe_fill :
   bytes -> pos:int -> len:int -> char -> unit = "caml_fill_bytes" [@@noalloc]
 
 val unsafe_escape : bytes -> bytes
+end @@ portable
