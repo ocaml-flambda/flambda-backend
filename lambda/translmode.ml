@@ -43,7 +43,4 @@ let transl_modify_mode locality =
   | Global -> modify_heap
   | Local -> modify_maybe_stack
 
-let transl_unique_barrier barrier =
-  match Typedtree.Unique_barrier.resolve barrier with
-  | Uniqueness.Const.Aliased -> May_be_pushed_down
-  | Uniqueness.Const.Unique -> Must_stay_here
+let transl_unique_barrier _ = Must_stay_here
