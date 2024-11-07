@@ -326,7 +326,7 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
           { start = add_label;
             body =
               [ { Instruction.id = make_id ();
-                  desc = Op (Intop Mach.Iadd);
+                  desc = Op (Intop Simple_operation.Iadd);
                   arg = [| int_arg1; int_arg2 |];
                   res = [| int_arg1 |]
                 } ];
