@@ -199,7 +199,8 @@ val sub_lexeme_opt : lexbuf -> int -> int -> string option
 val sub_lexeme_char : lexbuf -> int -> char
 val sub_lexeme_char_opt : lexbuf -> int -> char option
 
-type lex_tables =
+(* CR tdelvecchio: Unnecessary annotation. *)
+type lex_tables : value mod portable uncontended =
   { lex_base : string;
     lex_backtrk : string;
     lex_default : string;
