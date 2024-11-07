@@ -2390,12 +2390,20 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
          array pattern, once that's available *)
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
-      let mut = if Types.is_mutable am then Mutable else Immutable in
+      let ubr = Translmode.transl_unique_barrier head.pat_unique_barrier in
+      let mut =
+        add_barrier_to_mutable_flag ubr
+          (if Types.is_mutable am then Mutable else Immutable)
+      in
+      let str =
+        add_barrier_to_let_kind ubr
+          (if Types.is_mutable am then StrictOpt else Alias)
+      in
       ( Lprim
           (Parrayrefu (ref_kind, Ptagged_int_index, mut),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
-        (if Types.is_mutable am then StrictOpt else Alias),
+        str,
         arg_sort,
         result_layout)
       :: make_args (pos + 1)
@@ -3402,6 +3410,7 @@ let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, tota
     let switch =
       call_switcher value_kind loc fail (Lvar newvar) 0 max_int len_lambda_list
     in
+    (* CR uniqueness: This [Parraylength] read can be pushed down even if the array is unique. *)
     bind_with_layout Alias (newvar, Lambda.layout_int) (Lprim (Parraylength kind, [ arg ], loc)) switch
   in
   (lambda1, Jumps.union local_jumps total1)
