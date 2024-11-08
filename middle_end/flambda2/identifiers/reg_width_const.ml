@@ -41,6 +41,48 @@ let is_tagged_immediate t =
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
     None
 
+let is_naked_float32 t =
+  match descr t with
+  | Naked_float32 f -> Some f
+  | Naked_float _ | Naked_immediate _ | Tagged_immediate _ | Naked_int32 _
+  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+    None
+
+let is_naked_float t =
+  match descr t with
+  | Naked_float f -> Some f
+  | Naked_float32 _ | Naked_immediate _ | Tagged_immediate _ | Naked_int32 _
+  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+    None
+
+let is_naked_int32 t =
+  match descr t with
+  | Naked_int32 i -> Some i
+  | Naked_float _ | Naked_float32 _ | Naked_immediate _ | Tagged_immediate _
+  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
+    None
+
+let is_naked_int64 t =
+  match descr t with
+  | Naked_int64 i -> Some i
+  | Naked_float _ | Naked_float32 _ | Naked_immediate _ | Tagged_immediate _
+  | Naked_int32 _ | Naked_nativeint _ | Naked_vec128 _ ->
+    None
+
+let is_naked_nativeint t =
+  match descr t with
+  | Naked_nativeint i -> Some i
+  | Naked_float _ | Naked_float32 _ | Naked_immediate _ | Tagged_immediate _
+  | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ ->
+    None
+
+let is_naked_vec128 t =
+  match descr t with
+  | Naked_vec128 v -> Some v
+  | Naked_float _ | Naked_float32 _ | Naked_immediate _ | Tagged_immediate _
+  | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ ->
+    None
+
 let of_int_of_kind (kind : Flambda_kind.t) i =
   match kind with
   | Value -> tagged_immediate (Targetint_31_63.of_int i)

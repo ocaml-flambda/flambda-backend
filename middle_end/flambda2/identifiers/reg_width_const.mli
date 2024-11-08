@@ -26,6 +26,21 @@ val is_naked_immediate : t -> Targetint_31_63.t option
 
 val is_tagged_immediate : t -> Targetint_31_63.t option
 
+val is_naked_float32 : t -> Numeric_types.Float32_by_bit_pattern.t option
+
+val is_naked_float : t -> Numeric_types.Float_by_bit_pattern.t option
+
+val is_naked_int32 : t -> int32 option
+
+val is_naked_int64 : t -> int64 option
+
+val is_naked_nativeint : t -> Targetint_32_64.t option
+
+val is_naked_vec128 : t -> Vector_types.Vec128.Bit_pattern.t option
+
+(** Create a numeric constant of the given kind ([Region] and [Rec_info] are
+    forbidden). *)
+
 (** Create a numeric constant of the given kind ([Region] and [Rec_info] are
     forbidden). *)
 val of_int_of_kind : Flambda_kind.t -> int -> t
