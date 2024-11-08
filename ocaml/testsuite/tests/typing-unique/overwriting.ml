@@ -959,11 +959,12 @@ let mutating_tag_rematch r =
     end
   | _ -> OptionB ""
 [%%expect{|
-Line 7, characters 26-33:
+Line 7, characters 6-35:
 7 |       overwrite_ r.m with OptionB s
-                              ^^^^^^^
-Error: Overwrite may not change the tag to OptionB.
-Hint: The old tag of this allocation was changed through mutation.
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 (********************************)
