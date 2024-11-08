@@ -273,7 +273,7 @@ module Extended_machtype_component : sig
   type t =
     | Val
     | Addr
-    | Tagged_int
+    | Val_and_int
     | Any_int
     | Float
     | Vec128

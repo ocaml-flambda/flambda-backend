@@ -1507,7 +1507,7 @@ module Extended_machtype_component = struct
   type t =
     | Val
     | Addr
-    | Tagged_int
+    | Val_and_int
     | Any_int
     | Float
     | Vec128
@@ -1526,7 +1526,7 @@ module Extended_machtype_component = struct
     match t with
     | Val -> Val
     | Addr -> Addr
-    | Tagged_int | Any_int -> Int
+    | Val_and_int | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
     | Float32 -> Float32
@@ -1535,7 +1535,7 @@ module Extended_machtype_component = struct
     match t with
     | Val -> Val
     | Addr -> Addr
-    | Tagged_int -> Val
+    | Val_and_int -> Val
     | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
@@ -1547,7 +1547,7 @@ module Extended_machtype = struct
 
   let typ_val = [| Extended_machtype_component.Val |]
 
-  let typ_tagged_int = [| Extended_machtype_component.Tagged_int |]
+  let typ_tagged_int = [| Extended_machtype_component.Val_and_int |]
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
