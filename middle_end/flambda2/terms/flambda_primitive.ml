@@ -1181,7 +1181,7 @@ let compare_unary_primitive p1 p2 =
     let c = Stdlib.compare width1 width2 in
     if c <> 0 then c else Stdlib.compare op1 op2
   | Array_length (ak1, ubr1), Array_length (ak2, ubr2) ->
-    let c Array_kind_for_length.compare ak1 ak2 in
+    let c = Array_kind_for_length.compare ak1 ak2 in
     if c <> 0 then c else Unique_barrier.compare ubr1 ubr2
   | Bigarray_length { dimension = dim1 }, Bigarray_length { dimension = dim2 }
     ->
