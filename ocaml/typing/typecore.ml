@@ -5795,27 +5795,27 @@ and type_expect_
             (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
             lbl_exp_list
         in
-        let unify_kept loc exp_loc ty_exp mode lbl =
+        let unify_kept record_loc extended_expr_loc ty_exp mode lbl =
           let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
-          unify_exp_types exp_loc env ty_exp ty_res1;
+          unify_exp_types extended_expr_loc env ty_exp ty_res1;
           match matching_label lbl with
           | lid, _lbl, lbl_exp ->
               (* do not connect result types for overridden labels *)
               Overridden (lid, lbl_exp)
           | exception Not_found -> begin
               let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
-              unify_exp_types loc env ty_arg1 ty_arg2;
+              unify_exp_types record_loc env ty_arg1 ty_arg2;
               with_explanation (fun () ->
-                unify_exp_types loc env (instance ty_expected) ty_res2);
-              check_project_mutability ~loc:exp_loc ~env lbl.lbl_mut mode;
+                unify_exp_types record_loc env (instance ty_expected) ty_res2);
+              check_project_mutability ~loc:extended_expr_loc ~env lbl.lbl_mut mode;
               let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-              check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
+              check_construct_mutability ~loc:record_loc ~env lbl.lbl_mut argument_mode;
               let argument_mode =
                 mode_modality lbl.lbl_modalities argument_mode
               in
-              submode ~loc ~env mode argument_mode;
+              submode ~loc:extended_expr_loc ~env mode argument_mode;
               Kept (ty_arg1, lbl.lbl_mut,
-                    unique_use ~loc ~env mode
+                    unique_use ~loc:record_loc ~env mode
                       (as_single_mode argument_mode))
             end
         in

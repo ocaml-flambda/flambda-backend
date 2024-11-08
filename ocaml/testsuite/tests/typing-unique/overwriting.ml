@@ -359,9 +359,9 @@ let update : moded_record @ unique once -> moded_record @ many =
   function mr ->
     overwrite_ mr with { a = None }
 [%%expect{|
-Line 3, characters 23-35:
+Line 3, characters 15-17:
 3 |     overwrite_ mr with { a = None }
-                           ^^^^^^^^^^^^
+                   ^^
 Error: This value is "once" but expected to be "many".
 |}]
 
