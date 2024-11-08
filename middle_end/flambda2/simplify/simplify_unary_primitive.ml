@@ -910,7 +910,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Untag_immediate -> simplify_untag_immediate
     | Is_int { variant_only } -> simplify_is_int ~variant_only
     | Get_tag -> simplify_get_tag
-    | Array_length array_kind -> simplify_array_length array_kind
+    (* CR uniqueness: When you review this, please let me know what I should do here. *)
+    | Array_length (array_kind, _ubr) -> simplify_array_length array_kind
     | String_length _ -> simplify_string_length
     | Int_arith (kind, op) -> (
       match kind with
@@ -939,7 +940,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Bigarray_length { dimension } -> simplify_bigarray_length ~dimension
     | Duplicate_array { kind; source_mutability; destination_mutability } ->
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
-    | Duplicate_block { kind } -> simplify_duplicate_block ~kind
+    (* CR uniqueness: When you review this, please let me know what I should do here. *)
+    | Duplicate_block { kind; ubr = _ } -> simplify_duplicate_block ~kind
     | Opaque_identity { middle_end_only = _; kind } ->
       simplify_opaque_identity ~kind
     | End_region { ghost = _ } -> simplify_end_region

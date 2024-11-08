@@ -1,9 +1,10 @@
 let $camlTests0__first_const21 = Block 0 () in
-let code size(30)
+let code size(31)
       f_0 (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   (let prim = %is_int 0 in
    let is_scrutinee_int = %Tag_imm prim in
    let untagged = %untag_imm is_scrutinee_int in
@@ -11,6 +12,7 @@ let code size(30)
      | 0 -> k2
      | 1 -> k3)
     where k3 =
+      let untagged = %untag_imm 0 in
       cont k (0)
     where k2 =
       let prim = %get_tag 0 in

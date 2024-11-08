@@ -6,6 +6,7 @@ let code size(37)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %string_length str in
   let Pstringlength = %Tag_imm prim in
   let prim_1 = %string_length str in
@@ -25,6 +26,7 @@ let code size(31)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : float boxed =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %block_load float (1) af in
   let Pfloatfield = %Box_float prim in
   let prim_1 = %block_load float (0) af in

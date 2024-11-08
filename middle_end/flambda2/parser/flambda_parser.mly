@@ -156,6 +156,7 @@ let make_boxed_const_int (i, m) : static_data =
 %token KWD_LSL   [@symbol "lsl"]
 %token KWD_LSR   [@symbol "lsr"]
 %token KWD_LXOR  [@symbol "lxor"]
+%token KWD_MUST_STAY_HERE [@symbol "must_stay_here"]
 %token KWD_MUTABLE [@symbol "mutable"]
 %token KWD_NATIVEINT [@symbol "nativeint"]
 %token KWD_NEVER  [@symbol "never"]
@@ -263,6 +264,7 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.kind_with_subkind list> kinds_with_subkinds
 %type <Fexpr.loopify_attribute> loopify
 %type <Fexpr.mutability> mutability
+%type <Fexpr.unique_barrier> unique_barrier
 %type <Flambda_kind.Naked_number_kind.t> naked_number_kind
 %type <Fexpr.named> named
 %type <Fexpr.rec_info> rec_info
@@ -396,7 +398,8 @@ unary_int_arith_op:
   | TILDEMINUS { Neg }
 
 unop:
-  | PRIM_ARRAY_LENGTH; kind = array_kind_for_length { Array_length kind }
+  | PRIM_ARRAY_LENGTH; kind = array_kind_for_length; ubr = unique_barrier
+    { Array_length (kind, ubr) }
   | PRIM_BOOLEAN_NOT { Boolean_not }
   | PRIM_BOX_FLOAT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_float, alloc) }
@@ -466,6 +469,10 @@ mutability:
   | KWD_MUTABLE { Mutable }
   | KWD_IMMUTABLE_UNIQUE { Immutable_unique }
   | { Immutable }
+
+unique_barrier:
+  | KWD_MUST_STAY_HERE { Must_stay_here }
+  | { May_be_pushed_down }
 
 string_accessor_width:
   | i = INT
@@ -591,7 +598,7 @@ binop_app:
     { Binary (op, arg1, arg2) }
   | arg1 = simple; op = infix_binop; arg2 = simple
     { Binary (Infix op, arg1, arg2) }
-  | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability;
+  | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability; ubr = unique_barrier
     arg1 = simple; DOT;
     LPAREN; arg2 = simple; RPAREN
     {
@@ -606,7 +613,7 @@ binop_app:
       | Naked_nativeints -> Naked_nativeints
       | Naked_vec128s -> Naked_vec128s
     in
-    Binary (Array_load (ak, array_load_kind, mut), arg1, arg2) }
+    Binary (Array_load (ak, array_load_kind, mut, ubr), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
     arg1 = simple; c = binary_int_arith_op; arg2 = simple
     { Binary (Int_arith (i, c), arg1, arg2) }

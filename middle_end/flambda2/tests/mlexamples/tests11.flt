@@ -4,18 +4,21 @@ let code size(1)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 | 0 of val * val ] =
+  let next_depth = rec_info (succ my_depth) in
   cont k (0)
 in
 let code size(1)
       `fn[tests11.ml:15,39--51]_3` (x)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
   cont k (x)
 in
 let code size(23)
       `fn[tests11.ml:15,2--70]_1` (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
   let map_foo =
     %project_value_slot `fn[tests11.ml:15,2--70]`.map_foo my_closure
   in
@@ -32,6 +35,7 @@ let code size(23)
 in
 let code inline(always) size(32)
       bar_0 (map_foo) my_closure my_region my_ghost_region my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
   let `fn[tests11.ml:15,2--70]` =
     closure `fn[tests11.ml:15,2--70]_1` @`fn[tests11.ml:15,2--70]`
   with { map_foo = map_foo }

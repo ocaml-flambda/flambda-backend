@@ -11,6 +11,7 @@ let code size(18)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : any array =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %is_int param in
   let Pisint = %Tag_imm prim in
   (let untagged = %untag_imm Pisint in
@@ -31,6 +32,7 @@ let code size(18)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   (let prim = %get_tag param in
    let scrutinee_tag = %Tag_imm prim in
    let untagged = %untag_imm scrutinee_tag in
@@ -46,6 +48,7 @@ let code size(6)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %untag_imm 120 in
   let prim_1 = %num_conv (imm tagged -> imm) i in
   let Pbytessetu = %bytes_set 8 b.(prim_1) prim in
@@ -56,6 +59,7 @@ let code size(3)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let Pnot = %not b in
   let Pnot_1 = %not Pnot in
   cont k (Pnot_1)
@@ -65,6 +69,7 @@ let code size(9)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %untag_imm 287454020 in
   let prim_1 = %int_arith imm bswap prim in
   let Pbswap16 = %Tag_imm prim_1 in
@@ -75,6 +80,7 @@ let code size(2)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let Pnegint = %int_arith ~- x in
   cont k (Pnegint)
 in
@@ -83,6 +89,7 @@ let code size(2)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let Porint = x lor 42 in
   cont k (Porint)
 in

@@ -2391,11 +2391,16 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
       let mut = if Types.is_mutable am then Mutable else Immutable in
+      let ubr = Translmode.transl_unique_barrier head.pat_unique_barrier in
+      let str =
+        add_barrier_to_let_kind ubr
+          (if Types.is_mutable am then StrictOpt else Alias)
+      in
       ( Lprim
-          (Parrayrefu (ref_kind, Ptagged_int_index, mut),
+          (Parrayrefu (ref_kind, Ptagged_int_index, mut, ubr),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
-        (if Types.is_mutable am then StrictOpt else Alias),
+        str,
         arg_sort,
         result_layout)
       :: make_args (pos + 1)
@@ -3394,7 +3399,7 @@ let combine_variant value_kind loc row arg pat_barrier partial ctx def
   in
   (lambda1, Jumps.union local_jumps total1)
 
-let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, total1, _pats)
+let combine_array value_kind loc arg kind pat_barrier partial ctx def (len_lambda_list, total1, _pats)
     =
   let fail, local_jumps = mk_failaction_neg partial ctx def in
   let lambda1 =
@@ -3402,7 +3407,9 @@ let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, tota
     let switch =
       call_switcher value_kind loc fail (Lvar newvar) 0 max_int len_lambda_list
     in
-    bind_with_layout Alias (newvar, Lambda.layout_int) (Lprim (Parraylength kind, [ arg ], loc)) switch
+    let ubr = Translmode.transl_unique_barrier pat_barrier in
+    let str = add_barrier_to_let_kind ubr Alias in
+    bind_with_layout str (newvar, Lambda.layout_int) (Lprim (Parraylength (kind, ubr), [ arg ], loc)) switch
   in
   (lambda1, Jumps.union local_jumps total1)
 
@@ -3786,7 +3793,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_array ~scopes kind)
-            (combine_array value_kind ploc arg kind partial)
+            (combine_array value_kind ploc arg kind ph.pat_unique_barrier partial)
             ctx pm
       | Lazy ->
           compile_no_test ~scopes value_kind

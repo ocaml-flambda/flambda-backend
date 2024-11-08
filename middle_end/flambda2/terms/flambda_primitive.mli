@@ -357,8 +357,8 @@ type unary_primitive =
         mut : Mutability.t;
         field : Targetint_31_63.t
       }
-  | Duplicate_block of { kind : Duplicate_block_kind.t }
-      (** [Duplicate_block] may not be used to change the tag or the mutability
+  | Duplicate_block of { kind : Duplicate_block_kind.t; ubr : Unique_barrier.t }
+  (** [Duplicate_block] may not be used to change the tag or the mutability
           of a block. *)
   | Duplicate_array of
       { kind : Duplicate_array_kind.t;
@@ -367,7 +367,7 @@ type unary_primitive =
       }
   | Is_int of { variant_only : bool }
   | Get_tag
-  | Array_length of Array_kind_for_length.t
+  | Array_length of Array_kind_for_length.t * Unique_barrier.t
   | Bigarray_length of { dimension : int }
       (** This primitive is restricted by type-checking to bigarrays that have
           at least the correct number of dimensions. More specifically, they
@@ -476,7 +476,7 @@ type binary_primitive =
         init : Init_or_assign.t;
         field : Targetint_31_63.t
       }
-  | Array_load of Array_kind.t * Array_load_kind.t * Mutability.t
+  | Array_load of Array_kind.t * Array_load_kind.t * Mutability.t * Unique_barrier.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison

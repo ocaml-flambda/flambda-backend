@@ -77,6 +77,10 @@ type mutability = Mutability.t =
   | Immutable
   | Immutable_unique
 
+type unique_barrier = Unique_barrier.t =
+  | Must_stay_here
+  | May_be_pushed_down
+
 type empty_array_kind = Empty_array_kind.t
 
 type 'a or_variable =
@@ -286,7 +290,7 @@ type unop =
         mut : mutability;
         field : Targetint_31_63.t
       }
-  | Array_length of array_kind_for_length
+  | Array_length of array_kind_for_length * unique_barrier
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
   | End_region of { ghost : bool }
@@ -391,7 +395,7 @@ type binop =
         init : init_or_assign;
         field : Targetint_31_63.t
       }
-  | Array_load of array_kind * array_load_kind * mutability
+  | Array_load of array_kind * array_load_kind * mutability * unique_barrier
   | Phys_equal of equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
   | Int_comp of standard_int * signed_or_unsigned comparison_behaviour

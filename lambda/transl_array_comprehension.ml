@@ -481,7 +481,10 @@ let iterator ~transl_exp ~scopes ~loc :
       (* Extra let-binding if we're not in the fixed-size array case; the
          middle-end will simplify this for us *)
       Let_binding.make (Immutable Alias) (Pvalue Pintval) "iter_len"
-        (Lprim (Parraylength iter_arr_kind, [iter_arr.var], loc))
+        (Lprim
+           ( Parraylength (iter_arr_kind, May_be_pushed_down),
+             [iter_arr.var],
+             loc ))
     in
     let iter_ix = Ident.create_local "iter_ix" in
     let mk_iterator body =
@@ -502,7 +505,8 @@ let iterator ~transl_exp ~scopes ~loc :
                  ( Parrayrefu
                      ( Lambda.(array_ref_kind alloc_heap iter_arr_kind),
                        Ptagged_int_index,
-                       iter_arr_mut ),
+                       iter_arr_mut,
+                       May_be_pushed_down ),
                    [iter_arr.var; Lvar iter_ix],
                    loc ))
               pattern body

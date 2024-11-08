@@ -795,9 +795,9 @@ let unary_primitive env res dbg f arg =
         "caml_obj_dup" Cmm.typ_val [arg] )
   | Is_int _ -> None, res, C.and_int arg (C.int ~dbg 1) dbg
   | Get_tag -> None, res, C.get_tag arg dbg
-  | Array_length (Array_kind array_kind) ->
+  | Array_length (Array_kind array_kind, _ubr) ->
     None, res, array_length ~dbg arg array_kind
-  | Array_length Float_array_opt_dynamic ->
+  | Array_length (Float_array_opt_dynamic, _) ->
     (* See flambda2.ml (and comment in [array_length], above). *)
     None, res, array_length ~dbg arg Values
   | Bigarray_length { dimension } ->
@@ -911,7 +911,7 @@ let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
   | Block_set { kind; init; field } ->
     block_set ~dbg kind init ~field ~block:x ~new_value:y
-  | Array_load (array_kind, load_kind, _mut) ->
+  | Array_load (array_kind, load_kind, _mut, _ubr) ->
     array_load ~dbg array_kind load_kind ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y
