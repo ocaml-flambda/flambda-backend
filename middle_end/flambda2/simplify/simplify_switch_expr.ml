@@ -210,7 +210,21 @@ let find_cse_simple dacc required_names prim =
 
 type must_untag_lookup_table_result =
   | Must_untag
-  | Leave_as_tagged_immediate
+  | No_transformation
+
+type symbol_or_const =
+  | Symbol of Symbol.t
+  | Const of Reg_width_const.t
+
+type lookup_table_fields =
+  | Symbols of Symbol.t list
+  | Tagged_immediates of TI.t list
+  | Naked_float32s of Numeric_types.Float32_by_bit_pattern.t list
+  | Naked_floats of Numeric_types.Float_by_bit_pattern.t list
+  | Naked_int32s of int32 list
+  | Naked_int64s of int64 list
+  | Naked_nativeints of Targetint_32_64.t list
+  | Naked_vec128s of Vector_types.Vec128.Bit_pattern.t list
 
 (* Recognise sufficiently-large Switch expressions where all of the arms provide
    a single argument to a unique destination. These expressions can be compiled
@@ -232,43 +246,78 @@ let recognize_switch_with_single_arg_to_same_destination0 ~arms =
       | Some _ | None -> (
         match AC.to_one_arg_without_trap_action dest with
         | None ->
-          (* The destination continuations must have single constant arguments.
-             Trap actions are forbidden. *)
+          (* The destination continuations must have single constant or symbol
+             arguments. Trap actions are forbidden. *)
           None
         | Some arg ->
-          Simple.pattern_match arg
-            ~name:(fun _ ~coercion:_ ->
+          Simple.pattern_match'
+            arg (* CR mshinwell: we could allow variables, if at toplevel *)
+            ~var:(fun _ ~coercion:_ ->
               (* Aliases should have been followed by now. *) None)
+            ~symbol:(fun sym ~coercion:_ ->
+              let expected_discr = TI.add TI.one expected_discr in
+              Some (Some dest', Symbol sym :: args_rev, expected_discr))
             ~const:(fun const ->
               let expected_discr = TI.add TI.one expected_discr in
-              Some (Some dest', const :: args_rev, expected_discr))))
+              Some (Some dest', Const const :: args_rev, expected_discr))))
   in
   match TI.Map.fold check_arm arms (Some (None, [], TI.zero)) with
   | None | Some (None, _, _) | Some (_, [], _) -> None
   | Some (Some dest, args_rev, _) -> (
     let args = List.rev args_rev in
     assert (List.compare_length_with args 1 >= 0);
-    (* For the moment just do this for things that can be put in scannable
-       blocks (which might then need untagging depending on how they appeared in
-       the original [Switch]). *)
-    let[@inline] check_args prover must_untag_lookup_table_result =
-      let args' = List.filter_map prover args in
+    let[@inline] check_args prover must_untag_lookup_table_result wrapper =
+      let args' =
+        List.filter_map
+          (fun arg -> match arg with Const cst -> Some cst | Symbol _ -> None)
+          args
+      in
+      let args' = List.filter_map prover args' in
       if List.compare_lengths args args' = 0
-      then Some (dest, must_untag_lookup_table_result, args')
+      then Some (dest, must_untag_lookup_table_result, args, wrapper args')
       else None
     in
     (* All arguments must be of an appropriate kind and the same kind. *)
-    match Reg_width_const.descr (List.hd args) with
-    | Naked_immediate _ ->
-      check_args Reg_width_const.is_naked_immediate Must_untag
-    | Tagged_immediate _ ->
-      (* Note that even though the [Reg_width_const] is specifying a tagged
-         immediate, the value which we store inside values of that type is still
-         a normal untagged [TI.t]. *)
-      check_args Reg_width_const.is_tagged_immediate Leave_as_tagged_immediate
-    | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-    | Naked_nativeint _ | Naked_vec128 _ ->
-      None)
+    let module RWC = Reg_width_const in
+    match List.hd args with
+    | Symbol _ ->
+      let args' =
+        List.filter_map
+          (fun arg -> match arg with Const _ -> None | Symbol sym -> Some sym)
+          args
+      in
+      if List.compare_lengths args args' = 0
+      then Some (dest, No_transformation, args, Symbols args')
+      else None
+    | Const cst -> (
+      match RWC.descr cst with
+      | Naked_immediate _ ->
+        check_args RWC.is_naked_immediate Must_untag (fun args ->
+            Tagged_immediates args)
+      | Tagged_immediate _ ->
+        (* Note that even though the [RWC] is specifying a tagged immediate, the
+           value which we store inside values of that type is still a normal
+           untagged [TI.t]. *)
+        (check_args RWC.is_tagged_immediate No_transformation) (fun args ->
+            Tagged_immediates args)
+      | Naked_float _ ->
+        check_args RWC.is_naked_float No_transformation (fun args ->
+            Naked_floats args)
+      | Naked_float32 _ ->
+        check_args RWC.is_naked_float32 No_transformation (fun args ->
+            Naked_float32s args)
+      | Naked_int32 _ ->
+        check_args RWC.is_naked_int32 No_transformation (fun args ->
+            Naked_int32s args)
+      | Naked_int64 _ ->
+        check_args RWC.is_naked_int64 No_transformation (fun args ->
+            Naked_int64s args)
+      | Naked_nativeint _ ->
+        check_args RWC.is_naked_nativeint No_transformation (fun args ->
+            Naked_nativeints args)
+      | Naked_vec128 _ ->
+        check_args RWC.is_naked_vec128 No_transformation (fun args ->
+            Naked_vec128s args)))
 
 let recognize_switch_with_single_arg_to_same_destination ~arms =
   (* Switch must be large enough. *)
@@ -277,7 +326,8 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
   else recognize_switch_with_single_arg_to_same_destination0 ~arms
 
 let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
-    ~original ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result
+    ~original ~tagged_scrutinee ~dest ~(symbol_or_consts : symbol_or_const list)
+    ~(lookup_table_fields : lookup_table_fields) ~must_untag_lookup_table_result
     dbg =
   let rebuilding = UA.are_rebuilding_terms uacc in
   let block_sym =
@@ -286,33 +336,98 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
       (Compilation_unit.get_current_exn ())
       (Linkage_name.of_string (Variable.unique_name var))
   in
-  let uacc =
-    let fields =
-      List.map
-        (fun const -> Simple.With_debuginfo.create (Simple.const_int const) dbg)
-        consts
+  let simples =
+    List.map
+      (fun symbol_or_const ->
+        let simple =
+          match symbol_or_const with
+          | Const cst -> Simple.const cst
+          | Symbol sym -> Simple.symbol sym
+        in
+        Simple.With_debuginfo.create simple dbg)
+      symbol_or_consts
+  in
+  let uacc, array_kind, array_load_kind =
+    let array_const, array_kind, array_load_kind, element_kind =
+      let constify numbers =
+        assert (List.compare_lengths numbers symbol_or_consts = 0);
+        List.map (fun num -> Or_variable.Const num) numbers
+      in
+      let module AK = P.Array_kind in
+      let module ALK = P.Array_load_kind in
+      match lookup_table_fields with
+      | Symbols syms ->
+        assert (List.compare_lengths simples syms = 0);
+        ( RSC.create_immutable_value_array rebuilding simples,
+          AK.Values,
+          ALK.Values,
+          KS.any_value )
+      | Tagged_immediates imms ->
+        assert (List.compare_lengths simples imms = 0);
+        ( RSC.create_immutable_value_array rebuilding simples,
+          AK.Values,
+          ALK.Immediates,
+          KS.tagged_immediate )
+      | Naked_float32s fs ->
+        ( RSC.create_immutable_float32_array rebuilding (constify fs),
+          AK.Naked_float32s,
+          ALK.Naked_float32s,
+          KS.naked_float32 )
+      | Naked_floats fs ->
+        ( RSC.create_immutable_float_array rebuilding (constify fs),
+          AK.Naked_floats,
+          ALK.Naked_floats,
+          KS.naked_float )
+      | Naked_int32s is ->
+        ( RSC.create_immutable_int32_array rebuilding (constify is),
+          AK.Naked_int32s,
+          ALK.Naked_int32s,
+          KS.naked_int32 )
+      | Naked_int64s is ->
+        ( RSC.create_immutable_int64_array rebuilding (constify is),
+          AK.Naked_int64s,
+          ALK.Naked_int64s,
+          KS.naked_int64 )
+      | Naked_nativeints is ->
+        ( RSC.create_immutable_nativeint_array rebuilding (constify is),
+          AK.Naked_nativeints,
+          ALK.Naked_nativeints,
+          KS.naked_nativeint )
+      | Naked_vec128s vs ->
+        ( RSC.create_immutable_vec128_array rebuilding (constify vs),
+          AK.Naked_vec128s,
+          ALK.Naked_vec128s,
+          KS.naked_vec128 )
     in
     let block_type =
-      T.immutable_array ~element_kind:(Ok KS.tagged_immediate)
+      T.immutable_array ~element_kind:(Ok element_kind)
         ~fields:
           (List.map
-             (fun const ->
-               T.alias_type_of K.value
-                 (Simple.const (Reg_width_const.const_int const)))
-             consts)
+             (fun symbol_or_const ->
+               match symbol_or_const with
+               | Const cst ->
+                 T.alias_type_of (T.kind_for_const cst) (Simple.const cst)
+               | Symbol sym -> T.alias_type_of K.value (Simple.symbol sym))
+             symbol_or_consts)
         Alloc_mode.For_types.heap
     in
-    UA.add_lifted_constant uacc
-      (LC.create_definition
-         (LC.Definition.block_like
-            (DA.denv dacc_before_switch)
-            block_sym block_type ~symbol_projections:Variable.Map.empty
-            (RSC.create_immutable_value_array rebuilding fields)))
+    let uacc =
+      UA.add_lifted_constant uacc
+        (LC.create_definition
+           (LC.Definition.block_like
+              (DA.denv dacc_before_switch)
+              block_sym block_type ~symbol_projections:Variable.Map.empty
+              array_const))
+    in
+    uacc, array_kind, array_load_kind
   in
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
   let load_from_block_prim : P.t =
-    Binary (Array_load (Values, Values, Immutable), block, tagged_scrutinee)
+    Binary
+      ( Array_load (array_kind, array_load_kind, Immutable),
+        block,
+        tagged_scrutinee )
   in
   let load_from_block = Named.create_prim load_from_block_prim dbg in
   let arg_var = Variable.create "arg" in
@@ -322,7 +437,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
     | Must_untag ->
       let final_arg_var = Variable.create "final_arg" in
       final_arg_var, Simple.var final_arg_var
-    | Leave_as_tagged_immediate -> arg_var, arg
+    | No_transformation -> arg_var, arg
   in
   (* Note that, unlike for the untagging of normal Switch scrutinees, there's no
      problem with CSE and Data_flow here. The reason is that in this case the
@@ -339,7 +454,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
     let body =
       let body = RE.create_apply_cont apply_cont in
       match must_untag_lookup_table_result with
-      | Leave_as_tagged_immediate -> body
+      | No_transformation -> body
       | Must_untag ->
         let bound = BPt.singleton (BV.create final_arg_var NM.normal) in
         let untag_arg = Named.create_prim untag_arg_prim dbg in
@@ -362,7 +477,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
             (Code_size.apply_cont apply_cont)
             (match must_untag_lookup_table_result with
             | Must_untag -> Code_size.prim untag_arg_prim
-            | Leave_as_tagged_immediate -> Code_size.zero)))
+            | No_transformation -> Code_size.zero)))
       (Code_size.switch original)
   in
   let uacc =
@@ -445,8 +560,12 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
       let[@inline] normal_case uacc =
         match switch_is_single_arg_to_same_destination with
         | None -> normal_case0 uacc
-        | Some (dest, must_untag_lookup_table_result, consts) -> (
-          assert (List.length consts = TI.Map.cardinal arms);
+        | Some
+            ( dest,
+              must_untag_lookup_table_result,
+              symbol_or_consts,
+              lookup_table_fields ) -> (
+          assert (List.length symbol_or_consts = TI.Map.cardinal arms);
           let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
           match
             find_cse_simple dacc_before_switch (UA.required_names uacc)
@@ -455,7 +574,8 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
           | None -> normal_case0 uacc
           | Some tagged_scrutinee ->
             rebuild_switch_with_single_arg_to_same_destination uacc
-              ~dacc_before_switch ~original ~tagged_scrutinee ~dest ~consts
+              ~dacc_before_switch ~original ~tagged_scrutinee ~dest
+              ~symbol_or_consts ~lookup_table_fields
               ~must_untag_lookup_table_result dbg)
       in
       match switch_merged with
