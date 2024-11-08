@@ -82,6 +82,10 @@ let array_mut = function
   | Mutable -> "array"
   | Immutable | Immutable_unique -> "iarray"
 
+let unique_barrier = function
+  | Must_stay_here -> "_unique"
+  | May_be_pushed_down -> ""
+
 let array_ref_kind ppf k =
   let pp_mode ppf = function
     | Alloc_heap -> ()
@@ -516,7 +520,8 @@ let primitive ppf = function
       in
       fprintf ppf "setmixedfield%s %i %a"
         init n mixed_block_write write
-  | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
+  | Pduprecord (rep, size, ubr) ->
+      fprintf ppf "duprecord%s %a %i" (unique_barrier ubr) record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
   | Pperform -> fprintf ppf "perform"
   | Presume -> fprintf ppf "resume"
@@ -578,7 +583,8 @@ let primitive ppf = function
   | Pbytesrefs -> fprintf ppf "bytes.get"
   | Pbytessets -> fprintf ppf "bytes.set"
 
-  | Parraylength k -> fprintf ppf "array.length[%s]" (array_kind k)
+  | Parraylength (k, ubr) ->
+     fprintf ppf "array.length%s[%s]" (unique_barrier ubr) (array_kind k)
   | Pmakearray (k, Mutable, mode) ->
      fprintf ppf "make%sarray[%s]" (locality_mode_if_local mode) (array_kind k)
   | Pmakearray (k, Immutable, mode) ->
@@ -590,10 +596,11 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu (rk, idx, mut) -> fprintf ppf "%s.unsafe_get[%a indexed by %a]"
-                                 (array_mut mut)
-                                 array_ref_kind rk
-                                 array_index_kind idx
+  | Parrayrefu (rk, idx, mut, ubr) -> fprintf ppf "%s.unsafe_get%s[%a indexed by %a]"
+                                      (array_mut mut)
+                                      (unique_barrier ubr)
+                                      array_ref_kind rk
+                                      array_index_kind idx
   | Parraysetu (sk, idx) -> fprintf ppf "array.unsafe_set[%a indexed by %a]"
                               array_set_kind sk
                               array_index_kind idx

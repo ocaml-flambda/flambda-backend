@@ -679,7 +679,9 @@ let bytes_like_set ~dbg ~unsafe
 
 let multiple_word_array_access_validity_condition array ~size_int
     array_length_kind index_kind ~width_in_scalars ~index =
-  let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
+  let length_tagged =
+    H.Prim (Unary (Array_length (array_length_kind, May_be_pushed_down), array))
+  in
   if width_in_scalars < 1
   then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
   else if width_in_scalars = 1
@@ -741,7 +743,10 @@ let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
 let array_like_load_128 ~dbg ~size_int ~unsafe ~mode ~boxed ~current_region
     array_kind array index =
   let primitive =
-    H.Binary (Array_load (array_kind, Naked_vec128s, Mutable), array, index)
+    H.Binary
+      ( Array_load (array_kind, Naked_vec128s, Mutable, May_be_pushed_down),
+        array,
+        index )
   in
   let primitive =
     if boxed then box_vec128 mode ~current_region primitive else primitive
@@ -893,7 +898,8 @@ let check_array_access ~dbg ~array (array_kind : P.Array_kind_for_length.t)
          ~width_in_scalars:1 ~size_int)
     ~dbg
 
-let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
+let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag)
+    ~(ubr : Lambda.unique_barrier) array_kind
     (array_ref_kind : Array_ref_kind.t) ~current_region : H.expr_primitive list
     =
   (* CR mshinwell/ncourant: can we avoid taking [array_kind] here? *)
@@ -902,10 +908,11 @@ let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
     | Immutable | Immutable_unique -> Immutable
     | Mutable -> Mutable
   in
+  let ubr = Unique_barrier.from_lambda ubr in
   match array_ref_kind with
   | Naked_floats_to_be_boxed mode ->
     [ box_float mode
-        (Binary (Array_load (array_kind, Naked_floats, mut), array, index))
+        (Binary (Array_load (array_kind, Naked_floats, mut, ubr), array, index))
         ~current_region ]
   | No_float_array_opt nfo ->
     let array_load_kind : P.Array_load_kind.t =
@@ -919,11 +926,11 @@ let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
       | Naked_nativeints -> Naked_nativeints
       | Naked_vec128s -> Naked_vec128s
     in
-    [Binary (Array_load (array_kind, array_load_kind, mut), array, index)]
+    [Binary (Array_load (array_kind, array_load_kind, mut, ubr), array, index)]
 
-let array_load_unsafe ~array ~index ~mut array_kind array_load_kind
+let array_load_unsafe ~array ~index ~mut ~ubr array_kind array_load_kind
     ~current_region =
-  array_load_unsafe ~array ~index ~mut array_kind array_load_kind
+  array_load_unsafe ~array ~index ~mut ~ubr array_kind array_load_kind
     ~current_region
   |> H.maybe_create_unboxed_product
 
@@ -1168,7 +1175,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               [K.With_subkind.any_value] ) ]))
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
   | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
-  | Pduprecord (repr, num_fields), [[arg]] ->
+  | Pduprecord (repr, num_fields, ubr), [[arg]] ->
     let kind : P.Duplicate_block_kind.t =
       match repr with
       | Record_boxed _ ->
@@ -1205,7 +1212,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         Misc.fatal_errorf "Cannot handle record kind for Pduprecord: %a"
           Printlambda.primitive prim
     in
-    [Unary (Duplicate_block { kind }, arg)]
+    let ubr = Unique_barrier.from_lambda ubr in
+    [Unary (Duplicate_block { kind; ubr }, arg)]
   | Pnegint, [[arg]] -> [Unary (Int_arith (I.Tagged_immediate, Neg), arg)]
   | Paddint, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Add), arg1, arg2)]
@@ -1379,7 +1387,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj)
     in
     [ Binary
-        ( Array_load (Values, Values, convert_field_read_semantics sem),
+        ( Array_load
+            ( Values,
+              Values,
+              convert_field_read_semantics sem,
+              May_be_pushed_down ),
           Prim obj,
           field ) ]
   | ( Psetfield_computed (imm_or_pointer, init_or_assign),
@@ -1398,9 +1410,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pointer -> Values (convert_init_or_assign init_or_assign)
     in
     [Ternary (Array_set (array_kind, array_set_kind), Prim obj, field, value)]
-  | Parraylength kind, [[arg]] -> (
+  | Parraylength (kind, ubr), [[arg]] -> (
     let array_kind = convert_array_kind_for_length kind in
-    let prim : H.expr_primitive = Unary (Array_length array_kind, arg) in
+    let ubr = Unique_barrier.from_lambda ubr in
+    let prim : H.expr_primitive = Unary (Array_length (array_kind, ubr), arg) in
     match array_kind with
     | Array_kind
         ( Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
@@ -1707,12 +1720,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pmodbint { size = Pnativeint; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
     [ checked_arith_op ~dbg (Some Pnativeint) Mod (Some mode) arg1 arg2
         ~current_region ]
-  | Parrayrefu (array_ref_kind, index_kind, mut), [[array]; [index]] ->
+  | Parrayrefu (array_ref_kind, index_kind, mut, ubr), [[array]; [index]] ->
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
     [ match_on_array_ref_kind ~array array_ref_kind
-        (array_load_unsafe ~array ~mut
+        (array_load_unsafe ~array ~mut ~ubr
            ~index:(convert_index_to_tagged_int ~index ~index_kind)
            ~current_region) ]
   | Parrayrefs (array_ref_kind, index_kind, mut), [[array]; [index]] ->
@@ -1720,7 +1733,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ check_array_access ~dbg ~array array_length_kind ~index ~index_kind
         ~size_int
         (match_on_array_ref_kind ~array array_ref_kind
-           (array_load_unsafe ~array ~mut
+           (array_load_unsafe ~array ~mut ~ubr:L.May_be_pushed_down
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
               ~current_region)) ]
   | Parraysetu (array_set_kind, index_kind), [[array]; [index]; new_values] ->
@@ -2116,6 +2129,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ | Punboxedvectorarray_ref _ ),
+            _,
             _,
             _ )
       | Parrayrefs

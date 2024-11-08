@@ -4,6 +4,7 @@ let code size(21)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
      | 0 -> k2 (x)

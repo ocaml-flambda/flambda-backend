@@ -341,6 +341,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
   in
+  (* In the uniqueness analysis, calling a primitive is a use and not a projection.
+     That makes it possible to push down calls of primitives on immutable data. *)
+  let ubr = May_be_pushed_down in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
@@ -445,7 +448,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%bytes_safe_set" -> Primitive (Pbytessets, 3)
     | "%bytes_unsafe_get" -> Primitive (Pbytesrefu, 2)
     | "%bytes_unsafe_set" -> Primitive (Pbytessetu, 3)
-    | "%array_length" -> Primitive ((Parraylength gen_array_kind), 1)
+    | "%array_length" -> Primitive ((Parraylength (gen_array_kind, ubr)), 1)
     | "%array_safe_get" ->
       Primitive
         ((Parrayrefs (gen_array_ref_kind mode, Ptagged_int_index, Mutable)), 2)
@@ -455,7 +458,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
          3)
     | "%array_unsafe_get" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Ptagged_int_index, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Ptagged_int_index, Mutable, ubr), 2)
     | "%array_unsafe_set" ->
       Primitive
         ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index)),
@@ -470,7 +473,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
          3)
     | "%array_unsafe_get_indexed_by_int64#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint64, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint64, Mutable, ubr), 2)
     | "%array_unsafe_set_indexed_by_int64#" ->
       Primitive
         ((Parraysetu
@@ -486,7 +489,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
          3)
     | "%array_unsafe_get_indexed_by_int32#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint32, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint32, Mutable, ubr), 2)
     | "%array_unsafe_set_indexed_by_int32#" ->
       Primitive
         ((Parraysetu
@@ -502,24 +505,24 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
          3)
     | "%array_unsafe_get_indexed_by_nativeint#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pnativeint, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pnativeint, Mutable, ubr), 2)
     | "%array_unsafe_set_indexed_by_nativeint#" ->
       Primitive
         ((Parraysetu
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
         3)
-    | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
-    | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
+    | "%obj_size" -> Primitive ((Parraylength (Pgenarray, ubr)), 1)
+    | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable, ubr)), 2)
     | "%obj_set_field" ->
       Primitive
         ((Parraysetu (Pgenarray_set (get_first_arg_mode ()), Ptagged_int_index)), 3)
-    | "%floatarray_length" -> Primitive ((Parraylength Pfloatarray), 1)
+    | "%floatarray_length" -> Primitive ((Parraylength (Pfloatarray, ubr)), 1)
     | "%floatarray_safe_get" ->
       Primitive ((Parrayrefs (Pfloatarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%floatarray_safe_set" ->
       Primitive (Parraysets (Pfloatarray_set, Ptagged_int_index), 3)
     | "%floatarray_unsafe_get" ->
-      Primitive ((Parrayrefu (Pfloatarray_ref mode, Ptagged_int_index, Mutable)), 2)
+      Primitive ((Parrayrefu (Pfloatarray_ref mode, Ptagged_int_index, Mutable, ubr)), 2)
     | "%floatarray_unsafe_set" ->
       Primitive ((Parraysetu (Pfloatarray_set, Ptagged_int_index)), 3)
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
@@ -1073,7 +1076,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         | None -> Pointer
         | Some (_p1, rhs) -> maybe_pointer_type env rhs in
       Some (Primitive (Pfield (n, is_int, mut), arity))
-  | Primitive (Parraylength t, arity), [p] -> begin
+  | Primitive (Parraylength (t, ubr), arity), [p] -> begin
       let loc = to_location loc in
       (* CR layouts: [~elt_sort:None] here is not ideal and should be
          fixed. To do that, we will need more checking of primitives
@@ -1082,16 +1085,16 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         glb_array_type loc t (array_type_kind ~elt_sort:None env loc p)
       in
       if t = array_type then None
-      else Some (Primitive (Parraylength array_type, arity))
+      else Some (Primitive (Parraylength (array_type, ubr), arity))
     end
-  | Primitive (Parrayrefu (rt, index_kind, mut), arity), p1 :: _ -> begin
+  | Primitive (Parrayrefu (rt, index_kind, mut, ubr), arity), p1 :: _ -> begin
       let loc = to_location loc in
       let array_ref_type =
         glb_array_ref_type loc rt (array_type_kind ~elt_sort:None env loc p1)
       in
       let array_mut = array_type_mut env p1 in
       if rt = array_ref_type && mut = array_mut then None
-      else Some (Primitive (Parrayrefu (array_ref_type, index_kind, array_mut), arity))
+      else Some (Primitive (Parrayrefu (array_ref_type, index_kind, array_mut, ubr), arity))
     end
   | Primitive (Parraysetu (st, index_kind), arity), p1 :: _ -> begin
       let loc = to_location loc in
@@ -1603,7 +1606,7 @@ let lambda_primitive_needs_event_after = function
   | Pmulfloat (_, _) | Pdivfloat (_, _)
   | Pstringrefs | Pbytesrefs
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
-  | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _)
+  | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _, _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _

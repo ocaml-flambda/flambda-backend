@@ -9,6 +9,7 @@ let code size(51)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : float boxed =
+  let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
      | 0 -> k3
@@ -40,6 +41,7 @@ let code size(51)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : float boxed =
+  let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
      | 0 -> k3
@@ -71,6 +73,7 @@ let code size(67)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : float boxed =
+  let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
      | 0 -> k3
@@ -107,6 +110,7 @@ let code size(122)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 of int64 boxed * int32 boxed ] =
+  let next_depth = rec_info (succ my_depth) in
   (let untagged = %untag_imm z in
    switch untagged
      | 0 -> k3

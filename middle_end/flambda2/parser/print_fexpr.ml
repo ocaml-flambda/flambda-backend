@@ -283,6 +283,14 @@ let mutability ~space ppf mut =
   in
   pp_option ~space Format.pp_print_string ppf str
 
+let unique_barrier ~space ppf ubr =
+  let str =
+    match ubr with
+    | May_be_pushed_down -> None
+    | Must_stay_here -> Some "must_stay_here"
+  in
+  pp_option ~space Format.pp_print_string ppf str
+
 let array_kind ~space ppf (ak : array_kind) =
   let str =
     match ak with
@@ -523,9 +531,11 @@ let array_set_kind ~space ppf (set_kind : array_set_kind) =
 
 let binop ppf binop a b =
   match binop with
-  | Array_load (ak, width, mut) ->
-    Format.fprintf ppf "@[<2>%%array_load%a%a%a@ %a.(%a)@]"
+  | Array_load (ak, width, mut, ubr) ->
+    Format.fprintf ppf "@[<2>%%array_load%a%a%a%a@ %a.(%a)@]"
       (array_kind ~space:Before) ak (mutability ~space:Before) mut
+      (unique_barrier ~space:Before)
+      ubr
       (array_load_kind ~space:Before)
       width simple a simple b
   | Block_set { kind; init; field } ->
@@ -584,9 +594,10 @@ let unop ppf u =
     Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a)@]"
       (mutability ~space:Before) mut block_access_kind kind
       Targetint_31_63.print field
-  | Array_length ak ->
+  | Array_length (ak, ubr) ->
     str "%array_length";
-    array_kind_for_length ppf ~space:Before ak
+    array_kind_for_length ppf ~space:Before ak;
+    unique_barrier ppf ~space:Before ubr
   | Boolean_not -> str "%not"
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;

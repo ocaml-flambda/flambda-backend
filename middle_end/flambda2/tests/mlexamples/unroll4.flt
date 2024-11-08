@@ -42,6 +42,7 @@ let code inline(always) size(87)
       parity_is_0 (p : imm tagged, n : imm tagged, k)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
   let even = closure even_1 @even
   and odd = closure odd_2 @odd
   with { k = k }
@@ -57,6 +58,7 @@ let code inline(always) size(87)
 in
 let code inline(always) size(1)
       k_3 (b) my_closure my_region my_ghost_region my_depth -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
   cont k (b)
 in
 (let parity_is = closure parity_is_0 @parity_is in

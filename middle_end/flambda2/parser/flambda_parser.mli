@@ -115,6 +115,7 @@ type token =
   | KWD_NEVER
   | KWD_NATIVEINT
   | KWD_MUTABLE
+  | KWD_MUST_STAY_HERE
   | KWD_LXOR
   | KWD_LSR
   | KWD_LSL

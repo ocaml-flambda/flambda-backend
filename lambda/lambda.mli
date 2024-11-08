@@ -74,6 +74,12 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type unique_barrier =
+  | May_be_pushed_down
+  | Must_stay_here
+
+val add_barrier_to_read : unique_barrier -> field_read_semantics -> field_read_semantics
+
 (* Tail calls can close their enclosing region early *)
 type region_close =
   | Rc_normal         (* do not close region, may TCO if in tail position *)
@@ -132,7 +138,7 @@ type primitive =
   | Psetufloatfield of int * initialization_or_assignment
   | Psetmixedfield of
       int * mixed_block_write * mixed_block_shape * initialization_or_assignment
-  | Pduprecord of Types.record_representation * int
+  | Pduprecord of Types.record_representation * int * unique_barrier
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
@@ -182,8 +188,8 @@ type primitive =
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
-  | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
+  | Parraylength of array_kind * unique_barrier
+  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag * unique_barrier
   | Parraysetu of array_set_kind * array_index_kind
   | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
   | Parraysets of array_set_kind * array_index_kind
@@ -602,12 +608,6 @@ type let_kind = Strict | Alias | StrictOpt
     StrictOpt: e does not have side-effects, but depend on the store;
       we can discard e if x does not appear in e'
  *)
-
-type unique_barrier =
-  | May_be_pushed_down
-  | Must_stay_here
-
-val add_barrier_to_read : unique_barrier -> field_read_semantics -> field_read_semantics
 
 val add_barrier_to_let_kind : unique_barrier -> let_kind -> let_kind
 

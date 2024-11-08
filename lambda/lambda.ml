@@ -43,6 +43,19 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type unique_barrier =
+  | May_be_pushed_down
+  | Must_stay_here
+
+let add_barrier_to_read ubr sem =
+  match ubr with
+  | May_be_pushed_down -> sem
+  (* CR uniqueness: We lose some performance here since flambda2 does not
+     perform certain optimizations on mutable reads. We should consider adding
+     a third option between Reads_agree and Reads_vary that selectively enables
+     those optimizations that are sound for reads from unique allocations. *)
+  | Must_stay_here -> Reads_vary
+
 include (struct
 
   type locality_mode =
@@ -145,7 +158,7 @@ type primitive =
   | Psetufloatfield of int * initialization_or_assignment
   | Psetmixedfield of
       int * mixed_block_write * mixed_block_shape * initialization_or_assignment
-  | Pduprecord of Types.record_representation * int
+  | Pduprecord of Types.record_representation * int * unique_barrier
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
@@ -190,8 +203,8 @@ type primitive =
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
   | Pduparray of array_kind * mutable_flag
-  | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
+  | Parraylength of array_kind * unique_barrier
+  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag * unique_barrier
   | Parraysetu of array_set_kind * array_index_kind
   | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
   | Parraysets of array_set_kind * array_index_kind
@@ -647,19 +660,6 @@ type curried_function_kind = { nlocal : int } [@@unboxed]
 type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
-
-type unique_barrier =
-  | May_be_pushed_down
-  | Must_stay_here
-
-let add_barrier_to_read ubr sem =
-  match ubr with
-  | May_be_pushed_down -> sem
-  (* CR uniqueness: We lose some performance here since flambda2 does not
-     perform certain optimizations on mutable reads. We should consider adding
-     a third option between Reads_agree and Reads_vary that selectively enables
-     those optimizations that are sound for reads from unique allocations. *)
-  | Must_stay_here -> Reads_vary
 
 let add_barrier_to_let_kind ubr str =
   match ubr, str with
@@ -1732,11 +1732,11 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Parraysetu _ | Parraysets _
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
-      | Punboxedvectorarray_ref _), _, _)
+      | Punboxedvectorarray_ref _), _, _, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
       | Punboxedvectorarray_ref _), _, _) -> None
-  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
+  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _, _)
   | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
   | Pisint _ | Pisout -> None
   | Pintofbint _ -> None
@@ -1956,7 +1956,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu (array_ref_kind, _, _) | Parrayrefs (array_ref_kind, _, _) ->
+  | Parrayrefu (array_ref_kind, _, _, _) | Parrayrefs (array_ref_kind, _, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)

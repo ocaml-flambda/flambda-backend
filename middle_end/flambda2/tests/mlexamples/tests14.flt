@@ -4,6 +4,7 @@ let code size(5)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let Psetfield = %block_set imm t.(0) <- 42 in
   cont k (Psetfield)
 in
@@ -12,6 +13,7 @@ let code size(7)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %num_conv (imm tagged -> imm) n in
   let prim_1 = %string_load 8 (s, prim) in
   let Pstringrefu = %Tag_imm prim_1 in
@@ -22,6 +24,7 @@ let code size(30)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   (let try_region = %begin_try_region in
    let try_ghost_region = %begin_ghost_try_region in
    cont k4 push(k3)
@@ -44,10 +47,11 @@ let code size(30)
     where k2 (n : imm tagged) =
       cont k (1)
 in
-let code size(26)
+let code size(30)
       gadt_match_3 (x : [ 0 |1 | 0 of imm tagged ], n)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
   (let prim = %is_int x in
    let is_scrutinee_int = %Tag_imm prim in
    let untagged = %untag_imm is_scrutinee_int in
@@ -60,6 +64,8 @@ let code size(26)
         | 0 -> k (n)
         | 1 -> k2
     where k3 =
+      let prim = %get_tag x in
+      let scrutinee_tag = %Tag_imm prim in
       invalid "Zero_switch_arms"
     where k2 =
       let Popaque = %Opaque n in

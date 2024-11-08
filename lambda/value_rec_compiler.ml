@@ -225,7 +225,7 @@ let compute_static_size lam =
            but it doesn't hurt to be consistent. *)
         Constant
 
-    | Pduprecord (repres, size) ->
+    | Pduprecord (repres, size, _) ->
         begin match repres with
         | Record_boxed _
         | Record_inlined (_, Constructor_uniform_value,

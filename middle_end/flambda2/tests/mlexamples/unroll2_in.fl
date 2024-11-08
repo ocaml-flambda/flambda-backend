@@ -22,6 +22,7 @@ let code size(5)
       bar_1 (x : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
+  let next_depth = rec_info (succ my_depth) in
   let foo = %project_value_slot bar.foo my_closure in
   apply direct(foo_0) unroll(2) foo (x) -> k * k1
 in
