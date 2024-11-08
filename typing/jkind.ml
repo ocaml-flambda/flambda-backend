@@ -2101,10 +2101,10 @@ module Debug_printers = struct
   module Const = struct
     let t ppf (jkind : Const.t) =
       fprintf ppf
-        "@[{ layout = <v 2>%a@,\
-         ; modes_upper_bounds = <v 2>%a@,\
-         ; externality_upper_bound = <v 2>%a@,\
-         ; nullability_upper_bound = <v 2>%a@,\
+        "@[<v 2>{ layout = %a@,\
+         ; modes_upper_bounds = %a@,\
+         ; externality_upper_bound = %a@,\
+         ; nullability_upper_bound = %a@,\
          }@]"
         Layout.Const.Debug_printers.t jkind.layout Modes.print
         jkind.modes_upper_bounds Externality.print jkind.externality_upper_bound
