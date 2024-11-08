@@ -2857,3 +2857,36 @@ Error: This expression has type "float#" but an expression was expected of type
        But the layout of float# must be a sublayout of value
          because it's the type of the recursive variable x.
 |}]
+
+(**********************************************************)
+(* Test 46: errors when functions don't have layout value *)
+
+let f (x : ('a : bits64)) = x ()
+
+[%%expect{|
+Line 1, characters 28-29:
+1 | let f (x : ('a : bits64)) = x ()
+                                ^
+Error: This expression is used as a function, but its type "'a"
+       has kind "bits64", which cannot be the kind of a function.
+       (Functions always have kind "value mod unique uncontended".)
+|}]
+
+let f (x : ('a : value mod portable)) = x ()
+
+[%%expect{|
+Line 1, characters 40-41:
+1 | let f (x : ('a : value mod portable)) = x ()
+                                            ^
+Error: This expression is used as a function, but its type "'a"
+       has kind "value mod portable", which cannot be the kind of a function.
+       (Functions always have kind "value mod unique uncontended".)
+|}]
+
+let f (x : ('a : value)) = x ()
+let f (x : ('a : value mod uncontended)) = x ()
+
+[%%expect{|
+val f : (unit -> 'a) -> 'a = <fun>
+val f : (unit -> 'a) -> 'a = <fun>
+|}]
