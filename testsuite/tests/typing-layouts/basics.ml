@@ -2857,3 +2857,20 @@ Error: This expression has type "float#" but an expression was expected of type
        But the layout of float# must be a sublayout of value
          because it's the type of the recursive variable x.
 |}]
+
+(**********************************************************)
+(* Test 46: errors when functions don't have layout value *)
+
+let f (x : ('a : bits64)) = x ()
+
+[%%expect{|
+Uncaught exception: Ctype.Unify(_)
+
+|}]
+
+let f (x : ('a : value mod portable)) = x ()
+
+[%%expect{|
+Uncaught exception: Ctype.Unify(_)
+
+|}]
