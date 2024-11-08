@@ -322,8 +322,8 @@ let _ =fun a b -> match a, b with
                                                                     (if a/352
                                                                     (if b/353
                                                                     (let
-                                                                    (p/354 =a
-                                                                    (field_imm 0
+                                                                    (p/354 =o
+                                                                    (field_mut 0
                                                                     b/353))
                                                                     p/354)
                                                                     (exit 12))
@@ -349,7 +349,7 @@ let _ =fun a b -> match a, b with
    (non_consts ([0: [int], [(consts (0)) (non_consts ([0: *]))]]))](catch
                                                                     (if a/352
                                                                     (if b/353
-                                                                    (field_imm 0
+                                                                    (field_mut 0
                                                                     b/353)
                                                                     (exit 12))
                                                                     (exit 12))
@@ -374,8 +374,8 @@ let _ = fun a b -> match a, b with
                                                                     (if a/356
                                                                     (if b/357
                                                                     (let
-                                                                    (p/361 =a
-                                                                    (field_imm 0
+                                                                    (p/361 =o
+                                                                    (field_mut 0
                                                                     b/357))
                                                                     (exit 13
                                                                     p/361))
@@ -413,9 +413,12 @@ let _ = fun a b -> match a, b with
                                                                     (catch
                                                                     (if a/356
                                                                     (if b/357
-                                                                    (exit 13
-                                                                    (field_imm 0
+                                                                    (let
+                                                                    (p/361 =o
+                                                                    (field_mut 0
                                                                     b/357))
+                                                                    (exit 13
+                                                                    p/361))
                                                                     (exit 14))
                                                                     (exit 14))
                                                                     with (14)

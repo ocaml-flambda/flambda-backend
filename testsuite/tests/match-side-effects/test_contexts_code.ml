@@ -40,10 +40,11 @@ let example_1 () =
                                                           [(consts ())
                                                            (non_consts (
                                                            [1: *] [0: *]))])
-                                                          1 [0: 1]))
-                                                     (if
-                                                       (field_int 0
-                                                         input/297)
+                                                          1 [0: 1])
+                                                      *match*/320 =o
+                                                        (field_int 0
+                                                          input/297))
+                                                     (if *match*/320
                                                        (let
                                                          (*match*/322 =o
                                                             (field_mut 1
@@ -60,10 +61,12 @@ let example_1 () =
                                                              (let
                                                                (*match*/324 =o
                                                                   (field_mut 1
-                                                                    input/297))
+                                                                    input/297)
+                                                                y/298 =o
+                                                                  (field_mut 0
+                                                                    *match*/324))
                                                                (makeblock 0 (int)
-                                                                 (field_imm 0
-                                                                   *match*/324))))
+                                                                 y/298)))
                                                           case tag 1: [1: 2]))
                                                        [1: 1])))))
   (apply (field_imm 1 (global Toploop!)) "example_1" example_1/295))
@@ -109,33 +112,40 @@ let example_2 () =
                                                             [(consts ())
                                                              (non_consts (
                                                              [1: *] [0: *]))])
-                                                            [0: 1])))
-                                                     (if
-                                                       (field_int 0
-                                                         input/333)
+                                                            [0: 1]))
+                                                      *match*/336 =o
+                                                        (field_int 0
+                                                          input/333))
+                                                     (if *match*/336
                                                        (let
-                                                         (*match*/339 =o
+                                                         (*match*/338 =o
+                                                            (field_mut 1
+                                                              input/333)
+                                                          *match*/339 =o
                                                             (field_mut 0
-                                                              (field_imm 1
-                                                                input/333)))
+                                                              *match*/338))
                                                          (switch* *match*/339
                                                           case tag 0:
                                                            (if
                                                              (seq
                                                                (setfield_ptr(maybe-stack) 0
-                                                                 (field_imm 1
+                                                                 (field_mut 1
                                                                    input/333)
                                                                  [1: 3])
                                                                0)
                                                              [1: 3]
                                                              (let
-                                                               (*match*/342 =o
+                                                               (*match*/341 =o
+                                                                  (field_mut 1
+                                                                    input/333)
+                                                                *match*/342 =o
                                                                   (field_mut 0
-                                                                    (field_imm 1
-                                                                    input/333)))
+                                                                    *match*/341)
+                                                                y/334 =o
+                                                                  (field_mut 0
+                                                                    *match*/342))
                                                                (makeblock 0 (int)
-                                                                 (field_imm 0
-                                                                   *match*/342))))
+                                                                 y/334)))
                                                           case tag 1: [1: 2]))
                                                        [1: 1])))))
   (apply (field_imm 1 (global Toploop!)) "example_2" example_2/331))
@@ -179,25 +189,35 @@ let example_3 () =
                                                                     [0: *]))]]))]
                                                         [0: 1 [0: 1]]
                                                       *match*/353 =o
-                                                        *input/350)
-                                                     (if
-                                                       (field_imm 0
-                                                         *match*/353)
-                                                       (switch* (field_imm 1
-                                                                  *match*/353)
-                                                        case tag 0:
-                                                         (if
-                                                           (seq
-                                                             (assign
-                                                               input/350
-                                                               [0: 1 [1: 3]])
-                                                             0)
-                                                           [1: 3]
-                                                           (makeblock 0 (int)
-                                                             (field_imm 0
-                                                               (field_imm 1
-                                                                 *match*/353))))
-                                                        case tag 1: [1: 2])
+                                                        *input/350
+                                                      *match*/354 =o
+                                                        (field_mut 0
+                                                          *match*/353))
+                                                     (if *match*/354
+                                                       (let
+                                                         (*match*/356 =o
+                                                            (field_mut 1
+                                                              *match*/353))
+                                                         (switch* *match*/356
+                                                          case tag 0:
+                                                           (if
+                                                             (seq
+                                                               (assign
+                                                                 input/350
+                                                                 [0:
+                                                                  1 [1: 3]])
+                                                               0)
+                                                             [1: 3]
+                                                             (let
+                                                               (*match*/358 =o
+                                                                  (field_mut 1
+                                                                    *match*/353)
+                                                                y/351 =o
+                                                                  (field_mut 0
+                                                                    *match*/358))
+                                                               (makeblock 0 (int)
+                                                                 y/351)))
+                                                          case tag 1: [1: 2]))
                                                        [1: 1])))))
   (apply (field_imm 1 (global Toploop!)) "example_3" example_3/348))
 val example_3 : unit -> (bool, int) Result.t = <fun>

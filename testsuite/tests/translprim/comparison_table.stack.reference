@@ -309,11 +309,15 @@
                                                                     [(consts ())
                                                                     (non_consts (
                                                                     [0: *, *]))]
-                                                                    (apply f
-                                                                    (field_imm 0
+                                                                    (let
+                                                                    (x =o
+                                                                    (field_mut 0
                                                                     param)
-                                                                    (field_imm 1
-                                                                    param)))
+                                                                    y =o
+                                                                    (field_mut 1
+                                                                    param))
+                                                                    (apply f
+                                                                    x y)))
                                                                     map =
                                                                     (function
                                                                     {nlocal = 2}
@@ -512,7 +516,8 @@
                (uncurry =
                   (function {nlocal = 0} f
                     param[(consts ()) (non_consts ([0: *, *]))]
-                    (apply f (field_imm 0 param) (field_imm 1 param)))
+                    (let (x =o (field_mut 0 param) y =o (field_mut 1 param))
+                      (apply f x y)))
                 map =
                   (function {nlocal = 2} f
                     l[(consts (0))
