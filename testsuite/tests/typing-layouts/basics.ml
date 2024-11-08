@@ -2882,3 +2882,11 @@ Error: This expression is used as a function, but its type "'a"
        has kind "value mod portable", which cannot be the kind of a function.
        (Functions always have kind "value mod unique uncontended".)
 |}]
+
+let f (x : ('a : value)) = x ()
+let f (x : ('a : value mod uncontended)) = x ()
+
+[%%expect{|
+val f : (unit -> 'a) -> 'a = <fun>
+val f : (unit -> 'a) -> 'a = <fun>
+|}]
