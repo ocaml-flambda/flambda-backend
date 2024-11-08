@@ -927,8 +927,9 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     SPR.create original_term ~try_reify:false dacc
 
 let simplify_array_load (array_kind : P.Array_kind.t)
-    (array_load_kind : P.Array_load_kind.t) mutability ubr dacc ~original_term:_ dbg
-    ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:index_ty ~result_var =
+    (array_load_kind : P.Array_load_kind.t) mutability ubr dacc ~original_term:_
+    dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:index_ty ~result_var
+    =
   let result_kind =
     match array_load_kind with
     | Immediates -> (* CR mshinwell: use the subkind *) K.value
@@ -951,7 +952,8 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     SPR.create_invalid dacc
   | Ok array_kind -> (
     let prim : P.t =
-      Binary (Array_load (array_kind, array_load_kind, mutability, ubr), array, index)
+      Binary
+        (Array_load (array_kind, array_load_kind, mutability, ubr), array, index)
     in
     let[@inline] return_given_type ty ~try_reify =
       let named = Named.create_prim prim dbg in
@@ -964,7 +966,8 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     (* CR mshinwell/vlaviron: if immutable array accesses were consistently
        setting [mutability] to [Immutable], we could restrict the following code
        to immutable loads only and use [T.meet_is_immutable_array] instead. *)
-    (* CR uniqueness: When you review this, please let me know what I should do here. *)
+    (* CR uniqueness: When you review this, please let me know what I should do
+       here. *)
     match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
     | Unknown -> contents_unknown ()
     | Proved (elt_kind, fields, _mode) -> (

@@ -568,8 +568,8 @@ let reading_from_an_array (array_kind : Array_kind.t)
     match mutable_or_immutable, ubr with
     | Mutable, _ -> Coeffects.Has_coeffects
     | _, Must_stay_here -> Coeffects.Has_coeffects
-    | Immutable, May_be_pushed_down
-    | Immutable_unique, May_be_pushed_down -> Coeffects.No_coeffects
+    | Immutable, May_be_pushed_down | Immutable_unique, May_be_pushed_down ->
+      Coeffects.No_coeffects
   in
   effects, coeffects, Placement.Strict
 
@@ -1026,7 +1026,10 @@ type unary_primitive =
         mut : Mutability.t;
         field : Targetint_31_63.t
       }
-  | Duplicate_block of { kind : Duplicate_block_kind.t; ubr : Unique_barrier.t }
+  | Duplicate_block of
+      { kind : Duplicate_block_kind.t;
+        ubr : Unique_barrier.t
+      }
   | Duplicate_array of
       { kind : Duplicate_array_kind.t;
         source_mutability : Mutability.t;
@@ -1161,11 +1164,10 @@ let compare_unary_primitive p1 p2 =
       if c <> 0
       then c
       else Stdlib.compare destination_mutability1 destination_mutability2
-  | Duplicate_block { kind = kind1; ubr = ubr1 }, Duplicate_block { kind = kind2; ubr = ubr2 } ->
+  | ( Duplicate_block { kind = kind1; ubr = ubr1 },
+      Duplicate_block { kind = kind2; ubr = ubr2 } ) ->
     let c = Duplicate_block_kind.compare kind1 kind2 in
-    if c <> 0
-    then c
-    else Unique_barrier.compare ubr1 ubr2
+    if c <> 0 then c else Unique_barrier.compare ubr1 ubr2
   | ( Is_int { variant_only = variant_only1 },
       Is_int { variant_only = variant_only2 } ) ->
     Bool.compare variant_only1 variant_only2
@@ -1600,7 +1602,8 @@ type binary_primitive =
         init : Init_or_assign.t;
         field : Targetint_31_63.t
       }
-  | Array_load of Array_kind.t * Array_load_kind.t * Mutability.t * Unique_barrier.t
+  | Array_load of
+      Array_kind.t * Array_load_kind.t * Mutability.t * Unique_barrier.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -1658,18 +1661,18 @@ let compare_binary_primitive p1 p2 =
     else
       let c = Init_or_assign.compare init1 init2 in
       if c <> 0 then c else Targetint_31_63.compare field1 field2
-  | Array_load (kind1, load_kind1, mut1, ubr1), Array_load (kind2, load_kind2, mut2, ubr2)
-    ->
+  | ( Array_load (kind1, load_kind1, mut1, ubr1),
+      Array_load (kind2, load_kind2, mut2, ubr2) ) ->
     let c = Array_kind.compare kind1 kind2 in
     if c <> 0
     then c
     else
       let c = Array_load_kind.compare load_kind1 load_kind2 in
-      if c <> 0 then c
+      if c <> 0
+      then c
       else
         let c = Mutability.compare mut1 mut2 in
-        if c <> 0 then c
-        else Unique_barrier.compare ubr1 ubr2
+        if c <> 0 then c else Unique_barrier.compare ubr1 ubr2
   | ( String_or_bigstring_load (string_like1, width1),
       String_or_bigstring_load (string_like2, width2) ) ->
     let c = Stdlib.compare string_like1 string_like2 in
@@ -1719,7 +1722,8 @@ let print_binary_primitive ppf p =
       Init_or_assign.print init Targetint_31_63.print field
   | Array_load (kind, load_kind, mut, ubr) ->
     fprintf ppf "@[(Array_load@ %a@ %a@ %a@ %a)@]" Array_kind.print kind
-      Array_load_kind.print load_kind Mutability.print mut Unique_barrier.print ubr
+      Array_load_kind.print load_kind Mutability.print mut Unique_barrier.print
+      ubr
   | String_or_bigstring_load (string_like, width) ->
     fprintf ppf "@[(String_load %a %a)@]" print_string_like_value string_like
       print_string_accessor_width width

@@ -17,7 +17,7 @@
 type t =
   | Must_stay_here
   | May_be_pushed_down
-  (** The uniqueness mode allows overwriting and freeing unique
+      (** The uniqueness mode allows overwriting and freeing unique
       allocations even if they are marked as immutable. The frontend
       identifies reads from unique allocations and marks them as
       [Must_stay_here]. Those reads have coeffects and are not allowed

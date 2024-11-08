@@ -26,8 +26,7 @@ let [@ocamlformat "disable"] print ppf t =
 
 let compare t1 t2 =
   match t1, t2 with
-  | Must_stay_here, Must_stay_here | May_be_pushed_down, May_be_pushed_down
-    -> 0
+  | Must_stay_here, Must_stay_here | May_be_pushed_down, May_be_pushed_down -> 0
   | Must_stay_here, May_be_pushed_down -> -1
   | May_be_pushed_down, Must_stay_here -> 1
 
@@ -36,8 +35,8 @@ let join t1 t2 =
   | May_be_pushed_down, May_be_pushed_down -> May_be_pushed_down
   | Must_stay_here, May_be_pushed_down
   | May_be_pushed_down, Must_stay_here
-  | Must_stay_here, Must_stay_here
-    -> Must_stay_here
+  | Must_stay_here, Must_stay_here ->
+    Must_stay_here
 
 let from_lambda (ubr : Lambda.unique_barrier) : t =
   match ubr with

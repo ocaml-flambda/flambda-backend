@@ -743,7 +743,10 @@ let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
 let array_like_load_128 ~dbg ~size_int ~unsafe ~mode ~boxed ~current_region
     array_kind array index =
   let primitive =
-    H.Binary (Array_load (array_kind, Naked_vec128s, Mutable, May_be_pushed_down), array, index)
+    H.Binary
+      ( Array_load (array_kind, Naked_vec128s, Mutable, May_be_pushed_down),
+        array,
+        index )
   in
   let primitive =
     if boxed then box_vec128 mode ~current_region primitive else primitive
@@ -896,8 +899,8 @@ let check_array_access ~dbg ~array (array_kind : P.Array_kind_for_length.t)
     ~dbg
 
 let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag)
-    ~(ubr : Lambda.unique_barrier) array_kind (array_ref_kind : Array_ref_kind.t)
-    ~current_region : H.expr_primitive list
+    ~(ubr : Lambda.unique_barrier) array_kind
+    (array_ref_kind : Array_ref_kind.t) ~current_region : H.expr_primitive list
     =
   (* CR mshinwell/ncourant: can we avoid taking [array_kind] here? *)
   let mut : Mutability.t =
@@ -1384,7 +1387,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj)
     in
     [ Binary
-        ( Array_load (Values, Values, convert_field_read_semantics sem, May_be_pushed_down),
+        ( Array_load
+            ( Values,
+              Values,
+              convert_field_read_semantics sem,
+              May_be_pushed_down ),
           Prim obj,
           field ) ]
   | ( Psetfield_computed (imm_or_pointer, init_or_assign),
