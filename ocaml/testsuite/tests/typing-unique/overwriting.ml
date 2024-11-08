@@ -835,6 +835,20 @@ Error: Overwrite may not change the tag to OptionA.
 Hint: The old tag of this allocation was changed through mutation.
 |}]
 
+let mutating_tag_seq_same r =
+  match r with
+  | { m = OptionA s } ->
+    r.m <- OptionA s;
+    overwrite_ r.m with OptionA s
+  | _ -> OptionB ""
+[%%expect{|
+Line 5, characters 24-31:
+5 |     overwrite_ r.m with OptionA s
+                            ^^^^^^^
+Error: Overwrite may not change the tag to OptionA.
+Hint: The old tag of this allocation was changed through mutation.
+|}]
+
 let mutating_tag_seq_parent r =
   match r with
   | { m = { x = OptionA s } } ->
@@ -859,7 +873,7 @@ Line 4, characters 44-51:
 4 |     (r.m <- OptionB s), overwrite_ r.m with OptionA s
                                                 ^^^^^^^
 Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+Hint: The old tag of this allocation is being changed through mutation.
 |}]
 
 let mutating_tag_par_parent r =
@@ -872,7 +886,7 @@ Line 4, characters 54-61:
 4 |     (r.m <- { x = OptionB s }), overwrite_ r.m.x with OptionA s
                                                           ^^^^^^^
 Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+Hint: The old tag of this allocation is being changed through mutation.
 |}]
 
 let mutating_tag_choice r =
@@ -882,11 +896,12 @@ let mutating_tag_choice r =
             else overwrite_ r.m with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 37-44:
+Line 5, characters 17-46:
 5 |             else overwrite_ r.m with OptionA s
-                                         ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 let mutating_tag_choice_parent r =
@@ -896,11 +911,12 @@ let mutating_tag_choice_parent r =
     else overwrite_ r.m.x with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 31-38:
+Line 5, characters 9-40:
 5 |     else overwrite_ r.m.x with OptionA s
-                                   ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "ocaml/parsing/location.ml", line 1106, characters 2-8: Assertion failed
+
 |}]
 
 let mutating_tag_choice_seq r =

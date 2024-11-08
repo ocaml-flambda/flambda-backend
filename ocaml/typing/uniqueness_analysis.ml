@@ -262,6 +262,10 @@ end = struct
     fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
 end
 
+type access_order =
+  | Seq
+  | Par
+
 (** Usage algebra
 
     In this file we track the usage of variables and tags throughout a source file.
@@ -324,10 +328,6 @@ module Usage : sig
   type first_or_second =
     | First
     | Second
-
-  type access_order =
-    | Seq
-    | Par
 
   type error =
     { cannot_force : Maybe_unique.cannot_force;
@@ -443,10 +443,6 @@ end = struct
   type first_or_second =
     | First
     | Second
-
-  type access_order =
-    | Seq
-    | Par
 
   type error =
     { cannot_force : Maybe_unique.cannot_force;
@@ -681,7 +677,7 @@ module Overwrites : sig
   type old_tag =
     | Old_tag_unknown
     | Old_tag_was of Tag.t
-    | Old_tag_mutated
+    | Old_tag_mutated of access_order
 
   type error =
     | Changed_tag of
@@ -735,12 +731,13 @@ end = struct
           tags on the keys that did not match them to produce good
           error messages. It is always sound to add elements to this map.
           *)
-      have_overwritten : Tag.Set.t
+      have_overwritten : Tag.Set.t;
           (** In the [seq] function we are allowed to remove
           elements from [overwritten] as long as we have learned
           the tag. We record the tags if that happens so that
           we can fail if the tag was mutated. It is always sound
           to add elements to this set *)
+      was_mutated : bool
     }
 
   type t =
@@ -753,7 +750,7 @@ end = struct
   type old_tag =
     | Old_tag_unknown
     | Old_tag_was of Tag.t
-    | Old_tag_mutated
+    | Old_tag_mutated of access_order
 
   type error =
     | Changed_tag of
@@ -764,56 +761,68 @@ end = struct
   exception Error of error
 
   let empty =
-    Tags { overwritten = Tag.Map.empty; have_overwritten = Tag.Set.empty }
+    Tags
+      { overwritten = Tag.Map.empty;
+        have_overwritten = Tag.Set.empty;
+        was_mutated = false
+      }
 
   let overwrite_tag tag =
     Tags
       { overwritten = Tag.Map.singleton tag Tag.Set.empty;
-        have_overwritten = Tag.Set.empty
+        have_overwritten = Tag.Set.empty;
+        was_mutated = false
       }
 
   let mutate_tag = Tag_was_mutated
-
-  let fail_if_mutated f t0 t1 =
-    match t0, t1 with
-    | Tags t0, Tags t1 -> Tags (f t0 t1)
-    | Tags { overwritten; have_overwritten }, Tag_was_mutated
-    | Tag_was_mutated, Tags { overwritten; have_overwritten } -> (
-      match
-        Tag.Map.choose_opt overwritten, Tag.Set.choose_opt have_overwritten
-      with
-      | None, None -> Tag_was_mutated
-      | Some (t, _), _ | _, Some t ->
-        raise (Error (Changed_tag { old_tag = Old_tag_mutated; new_tag = t })))
-    | Tag_was_mutated, Tag_was_mutated -> Tag_was_mutated
 
   let union_with_remembered =
     Tag.Map.union (fun _ t0 t1 -> Some (Tag.Set.union t0 t1))
 
   let choose t0 t1 =
-    fail_if_mutated
-      (fun t0 t1 ->
+    match t0, t1 with
+    | Tags t0, Tags t1 ->
+      Tags
         { overwritten = union_with_remembered t0.overwritten t1.overwritten;
           have_overwritten =
-            Tag.Set.union t0.have_overwritten t1.have_overwritten
-        })
-      t0 t1
+            Tag.Set.union t0.have_overwritten t1.have_overwritten;
+          was_mutated = t0.was_mutated || t1.was_mutated
+        }
+    | Tags { overwritten; have_overwritten }, Tag_was_mutated
+    | Tag_was_mutated, Tags { overwritten; have_overwritten } ->
+      Tags { overwritten; have_overwritten; was_mutated = true }
+    | Tag_was_mutated, Tag_was_mutated -> Tag_was_mutated
 
-  let par t0 t1 =
-    fail_if_mutated
-      (fun t0 t1 ->
+  let seq_or_par access_order t0 t1 =
+    match t0, t1 with
+    | Tag_was_mutated, Tag_was_mutated -> Tag_was_mutated
+    | Tags t0, Tags t1 when (not t0.was_mutated) && not t1.was_mutated ->
+      Tags
         { overwritten = union_with_remembered t0.overwritten t1.overwritten;
           have_overwritten =
-            Tag.Set.union t0.have_overwritten t1.have_overwritten
-        })
-      t0 t1
+            Tag.Set.union t0.have_overwritten t1.have_overwritten;
+          was_mutated = false
+        }
+    | Tags { overwritten; have_overwritten }, _
+    | _, Tags { overwritten; have_overwritten } -> (
+      match
+        Tag.Map.choose_opt overwritten, Tag.Set.choose_opt have_overwritten
+      with
+      | None, None -> Tag_was_mutated
+      | Some (t, _), _ | _, Some t ->
+        raise
+          (Error
+             (Changed_tag
+                { old_tag = Old_tag_mutated access_order; new_tag = t })))
 
-  let seq t0 t1 = par t0 t1
+  let par t0 t1 = seq_or_par Par t0 t1
+
+  let seq t0 t1 = seq_or_par Seq t0 t1
 
   let match_with_learned_tags newly_learned t =
     match t with
     | Tag_was_mutated -> Tag_was_mutated
-    | Tags { overwritten; have_overwritten } ->
+    | Tags { overwritten; have_overwritten; was_mutated } ->
       let keys_set t = Tag.Set.of_list (List.map fst (Tag.Map.bindings t)) in
       let overwritten_learned, overwritten_kept =
         Tag.Map.partition
@@ -826,11 +835,14 @@ end = struct
               (fun learned_before -> Tag.Set.union learned_before newly_learned)
               overwritten_kept;
           have_overwritten =
-            Tag.Set.union have_overwritten (keys_set overwritten_learned)
+            Tag.Set.union have_overwritten (keys_set overwritten_learned);
+          was_mutated
         }
 
   let promote_mutation_to_children t =
-    match t with Tag_was_mutated -> Tag_was_mutated | Tags _ -> empty
+    match t with
+    | Tag_was_mutated -> Tag_was_mutated
+    | Tags { was_mutated } -> if was_mutated then Tag_was_mutated else empty
 
   let check_no_remaining_overwritten_as t =
     match t with
@@ -855,11 +867,13 @@ end = struct
     let open Format in
     function
     | Tags tag ->
-      fprintf ppf "Tags { overwritten = %a; have_overwritten = %a }"
+      fprintf ppf
+        "Tags { overwritten = %a; have_overwritten = %a; was_mutated = %a }"
         (Format.pp_print_list Tag.print)
         (List.map fst (Tag.Map.bindings tag.overwritten))
         (Format.pp_print_list Tag.print)
         (Tag.Set.elements tag.have_overwritten)
+        Format.pp_print_bool tag.was_mutated
     | Tag_was_mutated -> fprintf ppf "Tag_was_mutated"
 end
 
@@ -2450,7 +2464,10 @@ let report_tag_change (err : Overwrites.error) =
       | Old_tag_unknown -> Format.dprintf "is unknown."
       | Old_tag_was l ->
         Format.dprintf "is %a." Pprintast.longident l.name_for_error.txt
-      | Old_tag_mutated -> Format.dprintf "was changed through mutation."
+      | Old_tag_mutated access_order -> (
+        match access_order with
+        | Par -> Format.dprintf "is being changed through mutation."
+        | Seq -> Format.dprintf "was changed through mutation.")
     in
     Location.errorf ~loc:new_tag.name_for_error.loc
       "@[Overwrite may not change the tag to %t.\n\
