@@ -2864,13 +2864,21 @@ Error: This expression has type "float#" but an expression was expected of type
 let f (x : ('a : bits64)) = x ()
 
 [%%expect{|
-Uncaught exception: Ctype.Unify(_)
-
+Line 1, characters 28-29:
+1 | let f (x : ('a : bits64)) = x ()
+                                ^
+Error: This expression is used as a function, but its type "'a"
+       has kind "bits64", which cannot be the kind of a function.
+       (Functions always have kind "value mod unique uncontended".)
 |}]
 
 let f (x : ('a : value mod portable)) = x ()
 
 [%%expect{|
-Uncaught exception: Ctype.Unify(_)
-
+Line 1, characters 40-41:
+1 | let f (x : ('a : value mod portable)) = x ()
+                                            ^
+Error: This expression is used as a function, but its type "'a"
+       has kind "value mod portable", which cannot be the kind of a function.
+       (Functions always have kind "value mod unique uncontended".)
 |}]
