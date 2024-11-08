@@ -2572,7 +2572,7 @@ and type_pat_aux
   in
   let type_unboxed_tuple_pat spl closed =
     Language_extension.assert_enabled ~loc Layouts
-      Language_extension.Beta;
+      Language_extension.Stable;
     let args =
       match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
@@ -7821,7 +7821,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
 
 and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
       ~explanation ~attributes sexpl =
-  Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+  Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
   let arity = List.length sexpl in
   assert (arity >= 2);
   let argument_mode = expected_mode.mode in
