@@ -459,6 +459,7 @@ module Projection : sig
     | Record_field of string
     | Construct_field of string * int
     | Variant_field of label
+    | Array_index of int
     | Memory_address (* this is rendered as clubsuit in the ICFP'24 paper *)
 
   module Map : Map.S with type key = t
@@ -469,6 +470,7 @@ end = struct
       | Record_field of string
       | Construct_field of string * int
       | Variant_field of label
+      | Array_index of int
       | Memory_address
 
     let compare t1 t2 =
@@ -478,24 +480,31 @@ end = struct
       | Construct_field (l1, i), Construct_field (l2, j) -> (
         match String.compare l1 l2 with 0 -> Int.compare i j | i -> i)
       | Variant_field l1, Variant_field l2 -> String.compare l1 l2
+      | Array_index i, Array_index j -> Int.compare i j
       | Memory_address, Memory_address -> 0
       | ( Tuple_field _,
-          (Record_field _ | Construct_field _ | Variant_field _ | Memory_address)
-        ) ->
+          ( Record_field _ | Construct_field _ | Variant_field _ | Array_index _
+          | Memory_address ) ) ->
         -1
-      | ( (Record_field _ | Construct_field _ | Variant_field _ | Memory_address),
+      | ( ( Record_field _ | Construct_field _ | Variant_field _ | Array_index _
+          | Memory_address ),
           Tuple_field _ ) ->
         1
-      | Record_field _, (Construct_field _ | Variant_field _ | Memory_address)
-        ->
+      | ( Record_field _,
+          (Construct_field _ | Variant_field _ | Array_index _ | Memory_address)
+        ) ->
         -1
-      | (Construct_field _ | Variant_field _ | Memory_address), Record_field _
-        ->
+      | ( (Construct_field _ | Variant_field _ | Array_index _ | Memory_address),
+          Record_field _ ) ->
         1
-      | Construct_field _, (Variant_field _ | Memory_address) -> -1
-      | (Variant_field _ | Memory_address), Construct_field _ -> 1
-      | Variant_field _, Memory_address -> -1
-      | Memory_address, Variant_field _ -> 1
+      | Construct_field _, (Variant_field _ | Array_index _ | Memory_address) ->
+        -1
+      | (Variant_field _ | Array_index _ | Memory_address), Construct_field _ ->
+        1
+      | Variant_field _, (Array_index _ | Memory_address) -> -1
+      | (Array_index _ | Memory_address), Variant_field _ -> 1
+      | Array_index _, Memory_address -> -1
+      | Memory_address, Array_index _ -> 1
   end
 
   include T
@@ -774,6 +783,9 @@ module Paths : sig
   (** [variant_field s t] is [child (Projection.Variant_field s) t]. *)
   val variant_field : string -> t -> t
 
+  (** [array_index gf i t] is [modal_child gf (Projection.Array_index i) t]. *)
+  val array_index : Modality.Value.Const.t -> int -> t -> t
+
   (** [memory_address t] is [child Projection.Memory_address t]. *)
   val memory_address : t -> t
 
@@ -819,6 +831,8 @@ end = struct
     modal_child gf (Projection.Construct_field (s, i)) t
 
   let variant_field s t = child (Projection.Variant_field s) t
+
+  let array_index gf i t = modal_child gf (Projection.Array_index i) t
 
   let memory_address t = child Projection.Memory_address t
 
@@ -1106,12 +1120,13 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       |> conjuncts_pattern_match
     in
     ext, UF.par uf_read uf_pats
-  | Tpat_array (_, _, pats) ->
+  | Tpat_array (mut, _, pats) ->
     let uf_read = borrow_memory_address () in
+    let modality = Typemode.transl_modalities ~maturity:Stable mut [] [] in
     let ext, uf_pats =
-      List.map
-        (fun pat ->
-          let paths = Paths.fresh () in
+      List.mapi
+        (fun idx pat ->
+          let paths = Paths.array_index modality idx paths in
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match

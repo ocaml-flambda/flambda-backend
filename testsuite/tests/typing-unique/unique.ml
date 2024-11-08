@@ -640,3 +640,27 @@ Line 2, characters 11-19:
                ^^^^^^^^
 
 |}]
+
+let array_pats (arr : int option array) =
+  match arr with
+  | [| o |] -> let _ = unique_id arr in aliased_id o
+  | _ -> None
+[%%expect{|
+val array_pats : int option array @ unique -> int option = <fun>
+|}]
+
+let array_pats (arr : int option iarray) =
+  match arr with
+  | [: o :] -> let _ = unique_id arr in unique_id o
+  | _ -> None
+[%%expect{|
+Line 3, characters 50-51:
+3 |   | [: o :] -> let _ = unique_id arr in unique_id o
+                                                      ^
+Error: This value is used here,
+       but it is part of a value that has already been used as unique:
+Line 3, characters 33-36:
+3 |   | [: o :] -> let _ = unique_id arr in unique_id o
+                                     ^^^
+
+|}]
