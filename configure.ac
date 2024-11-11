@@ -390,6 +390,10 @@ AS_IF([test "x$enable_runtime5" = "xyes"],
   ]
 )
 AC_CONFIG_FILES([compilerlibs/META])
+AC_CONFIG_FILES([otherlibs/stdlib_upstream_compatible/META])
+AC_CONFIG_FILES([otherlibs/stdlib_stable/META])
+AC_CONFIG_FILES([otherlibs/stdlib_beta/META])
+AC_CONFIG_FILES([otherlibs/stdlib_alpha/META])
 AC_CONFIG_FILES([otherlibs/dynlink/META])
 AC_CONFIG_FILES([otherlibs/runtime_events/META])
 AC_CONFIG_FILES([stdlib/META])
