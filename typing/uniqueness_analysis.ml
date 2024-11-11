@@ -1012,13 +1012,13 @@ let conjuncts_pattern_match l =
 let rec pattern_match_tuple pat values =
   match pat.pat_desc with
   | Tpat_or (pat0, pat1, _) ->
-    Unique_barrier.enable pat.pat_unique_barrier;
     let ext0, uf0 = pattern_match_tuple pat0 values in
     let ext1, uf1 = pattern_match_tuple pat1 values in
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
-  | Tpat_tuple pats ->
-    (* No read: the tuple does not exist in memory *)
-    Unique_barrier.enable pat.pat_unique_barrier;
+  | Tpat_tuple (pats, ubr) ->
+    (* No read: the tuple does not exist in memory.
+       CR uniqueness: enforce this invariant. *)
+    Unique_barrier.enable ubr;
     List.map2
       (fun (_, pat) value ->
         let paths =
@@ -1041,39 +1041,26 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
   let loc = pat.pat_loc in
   let occ = Occurrence.mk loc in
   (* To read from the allocation, we need to borrow its memory cell
-     and set the unique_barrier. However, we do not read in every case,
-     since the user might want use a wildcard for already-consumed data. *)
-  let no_borrow_memory_address () =
-    Unique_barrier.enable pat.pat_unique_barrier;
-    ignore (Unique_barrier.resolve pat.pat_unique_barrier)
-  in
-  let borrow_memory_address () =
-    Unique_barrier.enable pat.pat_unique_barrier;
-    Paths.mark_implicit_borrow_memory_address occ (Read pat.pat_unique_barrier)
-      paths
+     and set the unique_barrier. You should always borrow the memory
+     address when you register a projection using the [Paths] module. *)
+  let borrow_memory_address ubr =
+    Unique_barrier.enable ubr;
+    Paths.mark_implicit_borrow_memory_address occ (Read ubr) paths
   in
   match pat.pat_desc with
   | Tpat_or (pat0, pat1, _) ->
-    no_borrow_memory_address ();
     let ext0, uf0 = pattern_match_single pat0 paths in
     let ext1, uf1 = pattern_match_single pat1 paths in
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
-  | Tpat_any ->
-    no_borrow_memory_address ();
-    Ienv.Extension.empty, UF.unused
-  | Tpat_var (id, _, _, _) ->
-    no_borrow_memory_address ();
-    Ienv.Extension.singleton id paths, UF.unused
+  | Tpat_any -> Ienv.Extension.empty, UF.unused
+  | Tpat_var (id, _, _, _) -> Ienv.Extension.singleton id paths, UF.unused
   | Tpat_alias (pat', id, _, _, _) ->
-    no_borrow_memory_address ();
     let ext0 = Ienv.Extension.singleton id paths in
     let ext1, uf = pattern_match_single pat' paths in
     Ienv.Extension.conjunct ext0 ext1, uf
-  | Tpat_constant _ ->
-    let uf_read = borrow_memory_address () in
-    Ienv.Extension.empty, uf_read
-  | Tpat_construct (lbl, cd, pats, _) ->
-    let uf_read = borrow_memory_address () in
+  | Tpat_constant _ -> Ienv.Extension.empty, UF.unused
+  | Tpat_construct (lbl, cd, pats, _, ubr) ->
+    let uf_read = borrow_memory_address ubr in
     let pats_args = List.combine pats cd.cstr_args in
     let ext, uf_pats =
       List.mapi
@@ -1085,8 +1072,8 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       |> conjuncts_pattern_match
     in
     ext, UF.par uf_read uf_pats
-  | Tpat_variant (lbl, arg, _) ->
-    let uf_read = borrow_memory_address () in
+  | Tpat_variant (lbl, arg, _, ubr) ->
+    let uf_read = borrow_memory_address ubr in
     let ext, uf_arg =
       match arg with
       | Some arg ->
@@ -1095,8 +1082,8 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       | None -> Ienv.Extension.empty, UF.unused
     in
     ext, UF.par uf_read uf_arg
-  | Tpat_record (pats, _) ->
-    let uf_read = borrow_memory_address () in
+  | Tpat_record (pats, _, ubr) ->
+    let uf_read = borrow_memory_address ubr in
     let ext, uf_pats =
       List.map
         (fun (_, l, pat) ->
@@ -1106,8 +1093,8 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       |> conjuncts_pattern_match
     in
     ext, UF.par uf_read uf_pats
-  | Tpat_array (_, _, pats) ->
-    let uf_read = borrow_memory_address () in
+  | Tpat_array (_, _, pats, ubr) ->
+    let uf_read = borrow_memory_address ubr in
     let ext, uf_pats =
       List.map
         (fun pat ->
@@ -1118,15 +1105,14 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_lazy arg ->
-    no_borrow_memory_address ();
     (* forced below: *)
     (* forcing a lazy expression is like calling a nullary-function *)
     let uf_force = Paths.mark_aliased occ Lazy paths in
     let paths = Paths.fresh () in
     let ext, uf_arg = pattern_match_single arg paths in
     ext, UF.par uf_force uf_arg
-  | Tpat_tuple args ->
-    let uf_read = borrow_memory_address () in
+  | Tpat_tuple (args, ubr) ->
+    let uf_read = borrow_memory_address ubr in
     let ext, uf_args =
       List.mapi
         (fun i (_, arg) ->
@@ -1137,8 +1123,6 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_args
   | Tpat_unboxed_tuple args ->
-    (* No borrow since unboxed data can not be consumed. *)
-    no_borrow_memory_address ();
     let ext, uf_args =
       List.mapi
         (fun i (_, arg, _) ->

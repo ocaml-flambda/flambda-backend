@@ -256,17 +256,17 @@ let pat
   | Tpat_any  -> ()
   | Tpat_var (_, s, _, _) -> iter_loc sub s
   | Tpat_constant _ -> ()
-  | Tpat_tuple l -> List.iter (fun (_, p) -> sub.pat sub p) l
+  | Tpat_tuple (l, _) -> List.iter (fun (_, p) -> sub.pat sub p) l
   | Tpat_unboxed_tuple l -> List.iter (fun (_, p, _) -> sub.pat sub p) l
-  | Tpat_construct (lid, _, l, vto) ->
+  | Tpat_construct (lid, _, l, vto, _) ->
       iter_loc sub lid;
       List.iter (sub.pat sub) l;
       Option.iter (fun (ids, ct) ->
         List.iter (iter_loc sub) ids; sub.typ sub ct) vto
-  | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
-  | Tpat_record (l, _) ->
+  | Tpat_variant (_, po, _, _) -> Option.iter (sub.pat sub) po
+  | Tpat_record (l, _, _) ->
       List.iter (fun (lid, _, i) -> iter_loc sub lid; sub.pat sub i) l
-  | Tpat_array (_, _, l) -> List.iter (sub.pat sub) l
+  | Tpat_array (_, _, l, _) -> List.iter (sub.pat sub) l
   | Tpat_alias (p, _, s, _, _) -> sub.pat sub p; iter_loc sub s
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)

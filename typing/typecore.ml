@@ -1067,7 +1067,7 @@ let has_variants p =
 let finalize_variants p =
   iter_general_pattern
     { f = fun (type k) (p : k general_pattern) -> match p.pat_desc with
-     | Tpat_variant(tag, opat, r) ->
+     | Tpat_variant(tag, opat, r, _) ->
         finalize_variant p tag opat r
      | _ -> () } p
 
@@ -1343,7 +1343,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
   let build_as_type env p = fst (build_as_type_and_mode env p ~mode) in
   match p.pat_desc with
     Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode env p1 ~mode
-  | Tpat_tuple pl ->
+  | Tpat_tuple (pl, _) ->
       let labeled_tyl =
         List.map (fun (label, p) -> label, build_as_type env p) pl in
       newty (Ttuple labeled_tyl), mode
@@ -1351,7 +1351,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
       let labeled_tyl =
         List.map (fun (label, p, _) -> label, build_as_type env p) pl in
       newty (Tunboxed_tuple labeled_tyl), mode
-  | Tpat_construct(_, cstr, pl, vto) ->
+  | Tpat_construct(_, cstr, pl, vto, _) ->
       let priv = (cstr.cstr_private = Private) in
       let mode =
         if priv || pl <> [] then mode
@@ -1373,7 +1373,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
         ty_res
       in
       ty, mode
-  | Tpat_variant(l, p', _) ->
+  | Tpat_variant(l, p', _, _) ->
       let ty = Option.map (build_as_type env) p' in
       let mode =
         if p' = None then Value.newvar ()
@@ -1386,7 +1386,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
                          ~name:None ~fixed:None ~closed:false))
       in
       ty, mode
-  | Tpat_record (lpl,_) ->
+  | Tpat_record (lpl,_,_) ->
       let lbl = snd3 (List.hd lpl) in
       if lbl.lbl_private = Private then p.pat_type, mode else
       (* The jkind here is filled in via unification with [ty_res] in
@@ -1795,7 +1795,7 @@ let build_or_pat env loc lid =
             let f = rf_either [ty] ~no_arg:false ~matched:true in
             (l, Some {pat_desc=Tpat_any; pat_loc=Location.none; pat_env=env;
                       pat_type=ty; pat_extra=[];
-                      pat_attributes=[];pat_unique_barrier=Unique_barrier.not_computed () })
+                      pat_attributes=[]; })
             :: pats,
             (l, f) :: fields
         | _ -> pats, fields)
@@ -1810,13 +1810,13 @@ let build_or_pat env loc lid =
   in
   let gloc = Location.ghostify loc in
   let row' = ref (make_row (newvar (Jkind.Builtin.value ~why:Row_variable))) in
+  let ubr = Unique_barrier.not_computed () in
   let pats =
     List.map
       (fun (l,p) ->
-        {pat_desc=Tpat_variant(l,p,row'); pat_loc=gloc;
+        {pat_desc=Tpat_variant(l,p,row',ubr); pat_loc=gloc;
          pat_env=env; pat_type=ty;
-         pat_extra=[]; pat_attributes=[];
-         pat_unique_barrier=Unique_barrier.not_computed () })
+         pat_extra=[]; pat_attributes=[]; })
       pats
   in
   match pats with
@@ -1830,7 +1830,7 @@ let build_or_pat env loc lid =
           (fun pat pat0 ->
             {pat_desc=Tpat_or(pat0,pat,Some row0); pat_extra=[];
              pat_loc=gloc; pat_env=env; pat_type=ty;
-             pat_attributes=[]; pat_unique_barrier=Unique_barrier.not_computed () })
+             pat_attributes=[]; })
           pat pats in
       (path, rp { r with pat_loc = loc })
 
@@ -2525,13 +2525,13 @@ and type_pat_aux
     let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
+    let ubr = Unique_barrier.not_computed () in
     rvp {
-      pat_desc = Tpat_array (mutability, arg_sort, pl);
+      pat_desc = Tpat_array (mutability, arg_sort, pl, ubr);
       pat_loc = loc; pat_extra=[];
       pat_type = instance expected_ty;
       pat_attributes;
-      pat_env = !!penv;
-      pat_unique_barrier = Unique_barrier.not_computed () }
+      pat_env = !!penv; }
   in
   let type_tuple_pat spl closed =
     (* CR layouts v5: consider sharing code with [type_unboxed_tuple_pat] below
@@ -2562,13 +2562,13 @@ and type_pat_aux
         lbl, type_pat tps Value ~alloc_mode p t)
         spl_ann
     in
+    let ubr = Unique_barrier.not_computed () in
     rvp {
-      pat_desc = Tpat_tuple pl;
+      pat_desc = Tpat_tuple (pl, ubr);
       pat_loc = loc; pat_extra=[];
       pat_type = newty (Ttuple (List.map (fun (lbl, p) -> lbl, p.pat_type) pl));
       pat_attributes = sp.ppat_attributes;
-      pat_env = !!penv;
-      pat_unique_barrier = Unique_barrier.not_computed () }
+      pat_env = !!penv; }
   in
   let type_unboxed_tuple_pat spl closed =
     Language_extension.assert_enabled ~loc Layouts
@@ -2608,8 +2608,7 @@ and type_pat_aux
       pat_loc = loc; pat_extra=[];
       pat_type = ty;
       pat_attributes = sp.ppat_attributes;
-      pat_env = !!penv;
-      pat_unique_barrier = Unique_barrier.not_computed () }
+      pat_env = !!penv; }
   in
   match sp.ppat_desc with
     Ppat_any ->
@@ -2618,8 +2617,7 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv;
-        pat_unique_barrier = Unique_barrier.not_computed () }
+        pat_env = !!penv; }
   | Ppat_var name ->
       let ty = instance expected_ty in
       let alloc_mode =
@@ -2633,8 +2631,7 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = ty;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv;
-        pat_unique_barrier = Unique_barrier.not_computed () }
+        pat_env = !!penv; }
   | Ppat_unpack name ->
       let t = instance expected_ty in
       begin match name.txt with
@@ -2645,8 +2642,7 @@ and type_pat_aux
             pat_extra=[Tpat_unpack, name.loc, sp.ppat_attributes];
             pat_type = t;
             pat_attributes = [];
-            pat_env = !!penv;
-            pat_unique_barrier = Unique_barrier.not_computed () }
+            pat_env = !!penv; }
       | Some s ->
           let v = { name with txt = s } in
           (* We're able to pass ~is_module:true here without an error because
@@ -2660,8 +2656,7 @@ and type_pat_aux
             pat_extra=[Tpat_unpack, loc, sp.ppat_attributes];
             pat_type = t;
             pat_attributes = [];
-            pat_env = !!penv;
-            pat_unique_barrier = Unique_barrier.not_computed () }
+            pat_env = !!penv; }
       end
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
@@ -2675,8 +2670,7 @@ and type_pat_aux
             pat_loc = loc; pat_extra=[];
             pat_type = q.pat_type;
             pat_attributes = sp.ppat_attributes;
-            pat_env = !!penv;
-            pat_unique_barrier = Unique_barrier.not_computed () }
+            pat_env = !!penv; }
   | Ppat_constant cst ->
       let cst = constant_or_raise !!penv loc cst in
       rvp @@ solve_expected {
@@ -2684,8 +2678,7 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = type_constant cst;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv;
-        pat_unique_barrier = Unique_barrier.not_computed () }
+        pat_env = !!penv; }
   | Ppat_interval (Pconst_char c1, Pconst_char c2) ->
       let open Ast_helper.Pat in
       let gloc = Location.ghostify loc in
@@ -2804,12 +2797,12 @@ and type_pat_aux
              type_pat ~alloc_mode tps Value p ty)
           sargs (List.combine ty_args_ty ty_args_gf)
       in
-      rvp { pat_desc=Tpat_construct(lid, constr, args, existential_ctyp);
+      let ubr = Unique_barrier.not_computed () in
+      rvp { pat_desc=Tpat_construct(lid, constr, args, existential_ctyp, ubr);
             pat_loc = loc; pat_extra=[];
             pat_type = instance expected_ty;
             pat_attributes = sp.ppat_attributes;
-            pat_env = !!penv;
-            pat_unique_barrier = Unique_barrier.not_computed () }
+            pat_env = !!penv; }
   | Ppat_variant(tag, sarg) ->
       assert (tag <> Parmatch.some_private_tag);
       let constant = (sarg = None) in
@@ -2821,13 +2814,13 @@ and type_pat_aux
           Some sp, [ty] -> Some (type_pat tps Value sp ty)
         | _             -> None
       in
+      let ubr = Unique_barrier.not_computed () in
       rvp {
-        pat_desc = Tpat_variant(tag, arg, ref row);
+        pat_desc = Tpat_variant(tag, arg, ref row, ubr);
         pat_loc = loc; pat_extra = [];
         pat_type = pat_type;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv;
-        pat_unique_barrier = Unique_barrier.not_computed () }
+        pat_env = !!penv; }
   | Ppat_record(lid_sp_list, closed) ->
       assert (lid_sp_list <> []);
       let expected_type, record_ty =
@@ -2854,13 +2847,13 @@ and type_pat_aux
       in
       let make_record_pat lbl_pat_list =
         check_recordpat_labels loc lbl_pat_list closed;
+        let ubr = Unique_barrier.not_computed () in
         {
-          pat_desc = Tpat_record (lbl_pat_list, closed);
+          pat_desc = Tpat_record (lbl_pat_list, closed, ubr);
           pat_loc = loc; pat_extra=[];
           pat_type = instance record_ty;
           pat_attributes = sp.ppat_attributes;
           pat_env = !!penv;
-          pat_unique_barrier = Unique_barrier.not_computed ();
         }
       in
       let lbl_a_list =
@@ -2933,8 +2926,7 @@ and type_pat_aux
            pat_loc = loc; pat_extra = [];
            pat_type = instance expected_ty;
            pat_attributes = sp.ppat_attributes;
-           pat_env = !!penv;
-           pat_unique_barrier = Unique_barrier.not_computed () }
+           pat_env = !!penv; }
   | Ppat_lazy sp1 ->
       submode ~loc ~env:!!penv alloc_mode.mode mode_force_lazy;
       let nv = solve_Ppat_lazy ~refine:false loc penv expected_ty in
@@ -2945,8 +2937,7 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
-        pat_env = !!penv;
-        pat_unique_barrier = Unique_barrier.not_computed () }
+        pat_env = !!penv; }
   | Ppat_constraint(sp_constrained, sty, ms) ->
       (* Pretend separate = true *)
       begin match sty with
@@ -2988,7 +2979,6 @@ and type_pat_aux
         pat_type = expected_ty;
         pat_env = !!penv;
         pat_attributes = sp.ppat_attributes;
-        pat_unique_barrier = Unique_barrier.not_computed ();
       }
   | Ppat_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
@@ -3315,8 +3305,7 @@ let rec check_counter_example_pat
   (* "make pattern" and "make pattern then continue" *)
   let mp ?(pat_type = expected_ty) desc =
     { pat_desc = desc; pat_loc = loc; pat_extra=[];
-      pat_type = instance pat_type; pat_attributes = []; pat_env = !!penv;
-      pat_unique_barrier = Unique_barrier.not_computed () } in
+      pat_type = instance pat_type; pat_attributes = []; pat_env = !!penv; } in
   let mkp k ?pat_type desc = k (mp ?pat_type desc) in
   let must_backtrack_on_gadt =
     match info.splitting_mode with
@@ -3345,7 +3334,7 @@ let rec check_counter_example_pat
   | Tpat_constant cst ->
       let cst = constant_or_raise !!penv loc (Untypeast.constant cst) in
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
-  | Tpat_tuple tpl ->
+  | Tpat_tuple (tpl, ubr) ->
       let tpl_ann =
         solve_Ppat_tuple ~refine ~alloc_mode loc penv tpl
           expected_ty
@@ -3353,7 +3342,7 @@ let rec check_counter_example_pat
       map_fold_cont (fun (l,p,t,_) k -> check_rec p t (fun p -> k (l, p)))
         tpl_ann
         (fun pl ->
-           mkp k (Tpat_tuple pl)
+           mkp k (Tpat_tuple (pl, ubr))
              ~pat_type:(newty (Ttuple (List.map (fun (l,p) -> (l,p.pat_type))
                                          pl))))
   | Tpat_unboxed_tuple tpl ->
@@ -3375,7 +3364,7 @@ let rec check_counter_example_pat
              ~pat_type:(newty (Tunboxed_tuple
                                  (List.map (fun (l,p,_) -> (l,p.pat_type))
                                     pl))))
-  | Tpat_construct(cstr_lid, constr, targs, _) ->
+  | Tpat_construct(cstr_lid, constr, targs, _, ubr) ->
       if constr.cstr_generalized && must_backtrack_on_gadt then
         raise Need_backtrack;
       let (ty_args, _, existential_ctyp) =
@@ -3386,20 +3375,20 @@ let rec check_counter_example_pat
         (fun (p,t) -> check_rec p t)
         (List.combine targs ty_args)
         (fun args ->
-          mkp k (Tpat_construct(cstr_lid, constr, args, existential_ctyp)))
-  | Tpat_variant(tag, targ, _) ->
+          mkp k (Tpat_construct(cstr_lid, constr, args, existential_ctyp, ubr)))
+  | Tpat_variant(tag, targ, _, ubr) ->
       let constant = (targ = None) in
       let arg_type, row, pat_type =
         solve_Ppat_variant ~refine loc penv tag constant expected_ty in
       let k arg =
-        mkp k ~pat_type (Tpat_variant(tag, arg, ref row))
+        mkp k ~pat_type (Tpat_variant(tag, arg, ref row, ubr))
       in begin
         (* PR#6235: propagate type information *)
         match targ, arg_type with
           Some p, [ty] -> check_rec p ty (fun p -> k (Some p))
         | _            -> k None
       end
-  | Tpat_record(fields, closed) ->
+  | Tpat_record(fields, closed, ubr) ->
       let record_ty = generic_instance expected_ty in
       let type_label_pat (label_lid, label, targ) k =
         let ty_arg =
@@ -3407,12 +3396,12 @@ let rec check_counter_example_pat
         check_rec targ ty_arg (fun arg -> k (label_lid, label, arg))
       in
       map_fold_cont type_label_pat fields
-        (fun fields -> mkp k (Tpat_record (fields, closed)))
-  | Tpat_array (mut, original_arg_sort, tpl) ->
+        (fun fields -> mkp k (Tpat_record (fields, closed, ubr)))
+  | Tpat_array (mut, original_arg_sort, tpl, ubr) ->
       let ty_elt, arg_sort = solve_Ppat_array ~refine loc penv mut expected_ty in
       assert (Jkind.Sort.equate original_arg_sort arg_sort);
       map_fold_cont (fun p -> check_rec p ty_elt) tpl
-        (fun pl -> mkp k (Tpat_array (mut, arg_sort, pl)))
+        (fun pl -> mkp k (Tpat_array (mut, arg_sort, pl, ubr)))
   | Tpat_or(tp1, tp2, _) ->
       (* We are in counter-example mode, but try to avoid backtracking *)
       let must_split =
@@ -4573,7 +4562,7 @@ let contains_polymorphic_variant p =
 let contains_gadt p =
   exists_general_pattern { f = fun (type k) (p : k general_pattern) ->
      match p.pat_desc with
-     | Tpat_construct (_, cd, _, _) when cd.cstr_generalized -> true
+     | Tpat_construct (_, cd, _, _, _) when cd.cstr_generalized -> true
      | _ -> false } p
 
 (* There are various things that we need to do in presence of GADT constructors
@@ -4620,7 +4609,7 @@ let may_contain_modules p =
 let check_absent_variant env =
   iter_general_pattern { f = fun (type k) (pat : k general_pattern) ->
     match pat.pat_desc with
-    | Tpat_variant (s, arg, row) ->
+    | Tpat_variant (s, arg, row, _ubr) ->
       let row = !row in
       if List.exists (fun (s',fi) -> s = s' && row_field_repr fi <> Rabsent)
           (row_fields row)
@@ -7506,8 +7495,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
          pat_type = ty;
          pat_extra=[];
          pat_attributes = [];
-         pat_loc = Location.none; pat_env = env;
-         pat_unique_barrier = Unique_barrier.not_computed () },
+         pat_loc = Location.none; pat_env = env; },
         {exp_type = ty; exp_loc = Location.none; exp_env = exp_env;
          exp_extra = []; exp_attributes = [];
          exp_desc =

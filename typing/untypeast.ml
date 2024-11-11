@@ -107,7 +107,7 @@ let rec extract_letop_patterns n pat =
   if n = 0 then pat, []
   else begin
     match pat.pat_desc with
-    | Tpat_tuple([None, first; None, rest]) ->
+    | Tpat_tuple([None, first; None, rest], _) ->
         (* Labels should always be None, from when [Texp_letop] are created in
            [Typecore.type_expect] *)
         let next, others = extract_letop_patterns (n-1) rest in
@@ -356,7 +356,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_alias (pat, _id, name, _uid, _mode) ->
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst -> Ppat_constant (constant cst)
-    | Tpat_tuple list ->
+    | Tpat_tuple (list, _) ->
         Ppat_tuple
           ( List.map (fun (label, p) -> label, sub.pat sub p) list
           , Closed)
@@ -364,7 +364,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Ppat_unboxed_tuple
           (List.map (fun (label, p, _) -> label, sub.pat sub p) list,
            Closed)
-    | Tpat_construct (lid, _, args, vto) ->
+    | Tpat_construct (lid, _, args, vto, _) ->
         let tyo =
           match vto with
             None -> None
@@ -387,12 +387,12 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
               Some (vl, Pat.mk ~loc (Ppat_constraint (arg, Some ty, [])))
           | None, Some arg -> Some ([], arg)
           | _, None -> None)
-    | Tpat_variant (label, pato, _) ->
+    | Tpat_variant (label, pato, _, _) ->
         Ppat_variant (label, Option.map (sub.pat sub) pato)
-    | Tpat_record (list, closed) ->
+    | Tpat_record (list, closed, _) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
-    | Tpat_array (am, _, list) ->
+    | Tpat_array (am, _, list, _) ->
         Ppat_array (mutable_ am, List.map (sub.pat sub) list)
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
 

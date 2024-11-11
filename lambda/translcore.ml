@@ -1453,7 +1453,7 @@ and transl_tupled_function
   match eligible_cases with
   | Some
       (cases, partial,
-       ({ pat_desc = Tpat_tuple pl } as arg_pat), arg_mode, arg_sort)
+       ({ pat_desc = Tpat_tuple (pl, _ubr) } as arg_pat), arg_mode, arg_sort)
     when is_alloc_heap mode
       && is_alloc_heap (transl_alloc_mode_l arg_mode)
       && !Clflags.native_code

@@ -170,9 +170,9 @@ let all_record_args lbls =
 let expand_record_head h =
   let open Patterns.Head in
   match h.pat_desc with
-  | Record [] -> fatal_error "Matching.expand_record_head"
-  | Record ({ lbl_all } :: _) ->
-      { h with pat_desc = Record (Array.to_list lbl_all) }
+  | Record ([], _) -> fatal_error "Matching.expand_record_head"
+  | Record ({ lbl_all } :: _, ubr) ->
+      { h with pat_desc = Record (Array.to_list lbl_all, ubr) }
   | _ -> h
 
 let bind_alias p id ~arg ~arg_sort ~action =
@@ -241,9 +241,9 @@ end = struct
           p1
         else
           { p with pat_desc = Tpat_or (p1, p2, o) }
-    | Tpat_record (lbls, closed) ->
+    | Tpat_record (lbls, closed, ubr) ->
         let all_lbls = all_record_args lbls in
-        { p with pat_desc = Tpat_record (all_lbls, closed) }
+        { p with pat_desc = Tpat_record (all_lbls, closed, ubr) }
     | _ -> p
 
   (* Explode or-patterns and turn aliases into bindings in actions *)
@@ -263,9 +263,9 @@ end = struct
           aux
             ( (General.view p, patl),
               bind_alias p id ~arg ~arg_sort ~action )
-      | `Record ([], _) as view -> stop p view
-      | `Record (lbls, closed) ->
-          let full_view = `Record (all_record_args lbls, closed) in
+      | `Record ([], _, _) as view -> stop p view
+      | `Record (lbls, closed, ubr) ->
+          let full_view = `Record (all_record_args lbls, closed, ubr) in
           stop p full_view
       | `Or _ -> (
           let orpat = General.view (simpl_under_orpat (General.erase p)) in
@@ -309,19 +309,20 @@ end = struct
       match p.pat_desc with
       | `Any -> `Any
       | `Constant cst -> `Constant cst
-      | `Tuple ps ->
-          `Tuple (List.map (fun (label, p) -> label, alpha_pat env p) ps)
+      | `Tuple (ps, ubr) ->
+          `Tuple (List.map (fun (label, p) -> label, alpha_pat env p) ps, ubr)
       | `Unboxed_tuple ps ->
           `Unboxed_tuple
             (List.map (fun (label, p, sort) -> label, alpha_pat env p, sort) ps)
-      | `Construct (cstr, cst_descr, args) ->
-          `Construct (cstr, cst_descr, List.map (alpha_pat env) args)
-      | `Variant (cstr, argo, row_desc) ->
-          `Variant (cstr, Option.map (alpha_pat env) argo, row_desc)
-      | `Record (fields, closed) ->
+      | `Construct (cstr, cst_descr, args, ubr) ->
+          `Construct (cstr, cst_descr, List.map (alpha_pat env) args, ubr)
+      | `Variant (cstr, argo, row_desc, ubr) ->
+          `Variant (cstr, Option.map (alpha_pat env) argo, row_desc, ubr)
+      | `Record (fields, closed, ubr) ->
           let alpha_field env (lid, l, p) = (lid, l, alpha_pat env p) in
-          `Record (List.map (alpha_field env) fields, closed)
-      | `Array (am, arg_sort, ps) -> `Array (am, arg_sort, List.map (alpha_pat env) ps)
+          `Record (List.map (alpha_field env) fields, closed, ubr)
+      | `Array (am, arg_sort, ps, ubr) ->
+          `Array (am, arg_sort, List.map (alpha_pat env) ps, ubr)
       | `Lazy p -> `Lazy (alpha_pat env p)
     in
     { p with pat_desc }
@@ -414,7 +415,7 @@ end
 let expand_record_simple : Simple.pattern -> Simple.pattern =
  fun p ->
   match p.pat_desc with
-  | `Record (l, _) -> { p with pat_desc = `Record (all_record_args l, Closed) }
+  | `Record (l, _, ubr) -> { p with pat_desc = `Record (all_record_args l, Closed, ubr) }
   | _ -> p
 
 type initial_clause = pattern list clause
@@ -456,18 +457,18 @@ let matcher discr (p : Simple.pattern) rem =
       Any ) ->
       omegas @ rem
   | Constant cst, Constant cst' -> yesif (const_compare cst cst' = 0)
-  | Construct cstr, Construct cstr' ->
+  | Construct (cstr, _), Construct (cstr', _) ->
       (* NB: may_equal_constr considers (potential) constructor rebinding;
           Types.may_equal_constr does check that the arities are the same,
           preserving row-size coherence. *)
       yesif (Types.may_equal_constr cstr cstr')
   | Variant { tag; has_arg }, Variant { tag = tag'; has_arg = has_arg' } ->
       yesif (tag = tag' && has_arg = has_arg')
-  | Array (am1, _, n1), Array (am2, _, n2) -> yesif (am1 = am2 && n1 = n2)
-  | Tuple n1, Tuple n2 -> yesif (n1 = n2)
+  | Array (am1, _, n1, _), Array (am2, _, n2, _) -> yesif (am1 = am2 && n1 = n2)
+  | Tuple (n1, _), Tuple (n2, _) -> yesif (n1 = n2)
   | Unboxed_tuple l1, Unboxed_tuple l2 ->
     yesif (List.for_all2 (fun (lbl1, _) (lbl2, _) -> lbl1 = lbl2) l1 l2)
-  | Record l, Record l' ->
+  | Record (l, _), Record (l', _) ->
       (* we already expanded the record fully *)
       yesif (List.length l = List.length l')
   | Lazy, Lazy -> yes ()
@@ -644,7 +645,7 @@ end
 let rec flatten_pat_line size p k =
   match p.pat_desc with
   | Tpat_any | Tpat_var _ -> Patterns.omegas size :: k
-  | Tpat_tuple args -> (List.map snd args) :: k
+  | Tpat_tuple (args, _) -> (List.map snd args) :: k
   | Tpat_or (p1, p2, _) ->
       flatten_pat_line size p1 (flatten_pat_line size p2 k)
   | Tpat_alias (p, _, _, _, _) ->
@@ -1236,7 +1237,7 @@ let can_group discr pat =
   | Constant (Const_unboxed_int64 _), Constant (Const_unboxed_int64 _)
   | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)->
       true
-  | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
+  | Construct ({ cstr_tag = Extension _ as discr_tag }, _), Construct (pat_cstr, _)
     ->
       (* Extension constructors with distinct names may be equal thanks to
          constructor rebinding. So we need to produce a specialized
@@ -1513,7 +1514,7 @@ and split_no_or cls args def k =
           ((idef, next) :: nexts)
   and should_split group_discr =
     match group_discr.pat_desc with
-    | Patterns.Head.Construct { cstr_tag = Extension _ } ->
+    | Patterns.Head.Construct ({ cstr_tag = Extension _ }, _) ->
         (* it is unlikely that we will raise anything, so we split now *)
         true
     | _ -> false
@@ -1871,12 +1872,12 @@ let divide_constant ctx m =
 (* Matching against a constructor *)
 
 let get_key_constr = function
-  | { pat_desc = Tpat_construct (_, cstr, _, _) } -> cstr
+  | { pat_desc = Tpat_construct (_, cstr, _, _, _) } -> cstr
   | _ -> assert false
 
 let get_pat_args_constr p rem =
   match p with
-  | { pat_desc = Tpat_construct (_, {cstr_arg_jkinds}, args, _) } ->
+  | { pat_desc = Tpat_construct (_, {cstr_arg_jkinds}, args, _, _) } ->
     List.iteri
       (fun i arg ->
          jkind_layout_default_to_value_and_check_not_void
@@ -1888,9 +1889,9 @@ let get_pat_args_constr p rem =
   | _ -> assert false
 
 let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
-  let cstr =
+  let cstr, ubr =
     match head.pat_desc with
-    | Patterns.Head.Construct cstr -> cstr
+    | Patterns.Head.Construct (cstr, ubr) -> cstr, ubr
     | _ -> fatal_error "Matching.get_expr_args_constr"
   in
   let loc = head_loc ~scopes head in
@@ -1899,7 +1900,7 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   Array.iter (fun jkind ->
       jkind_layout_default_to_value_and_check_not_void head.pat_loc jkind)
     cstr.cstr_arg_jkinds;
-  let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
+  let ubr = Translmode.transl_unique_barrier ubr in
   let sem = add_barrier_to_read ubr Reads_agree in
   let make_field_access binding_kind ~field ~pos =
     let prim =
@@ -1959,10 +1960,10 @@ let nonconstant_variant_field ubr index =
   let sem = add_barrier_to_read ubr Reads_agree in
   Lambda.Pfield(index, Pointer, sem)
 
-let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
+let get_expr_args_variant_nonconst ~scopes ubr head (arg, _mut, _sort, _layout)
       rem =
   let loc = head_loc ~scopes head in
-  let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
+  let ubr = Translmode.transl_unique_barrier ubr in
   let field_prim = nonconstant_variant_field ubr 1 in
   let str = add_barrier_to_let_kind ubr Alias in
   (Lprim (field_prim, [ arg ], loc), str, Jkind.Sort.for_variant_arg,
@@ -1974,8 +1975,8 @@ let divide_variant ~scopes row ctx { cases = cl; args; default = def } =
     | [] -> { args; cells = [] }
     | ((p, patl), action) :: rem
       -> (
-        let lab, pato = match p.pat_desc with
-          | `Variant (lab, pato, _) -> lab, pato
+        let lab, pato, ubr = match p.pat_desc with
+          | `Variant (lab, pato, _, ubr) -> lab, pato, ubr
           | _ -> assert false
         in
         let head = Simple.head p in
@@ -1992,7 +1993,7 @@ let divide_variant ~scopes row ctx { cases = cl; args; default = def } =
           | Some pat ->
               add_in_div
                 (make_matching
-                   (get_expr_args_variant_nonconst ~scopes)
+                   (get_expr_args_variant_nonconst ~scopes ubr)
                    head def ctx)
                 ( = ) (tag, false)
                 (pat :: patl, action)
@@ -2195,7 +2196,7 @@ let divide_lazy ~scopes head ctx pm =
 let get_pat_args_tuple arity p rem =
   match p with
   | { pat_desc = Tpat_any } -> Patterns.omegas arity @ rem
-  | { pat_desc = Tpat_tuple args } -> (List.map snd args) @ rem
+  | { pat_desc = Tpat_tuple (args, _) } -> (List.map snd args) @ rem
   | _ -> assert false
 
 let get_pat_args_unboxed_tuple arity p rem =
@@ -2205,10 +2206,10 @@ let get_pat_args_unboxed_tuple arity p rem =
     (List.map (fun (_, p, _) -> p) args) @ rem
   | _ -> assert false
 
-let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
+let get_expr_args_tuple ~scopes ubr head (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
   let arity = Patterns.Head.arity head in
-  let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
+  let ubr = Translmode.transl_unique_barrier ubr in
   let sem = add_barrier_to_read ubr Reads_agree in
   let str = add_barrier_to_let_kind ubr Alias in
   let rec make_args pos =
@@ -2239,10 +2240,10 @@ let get_expr_args_unboxed_tuple ~scopes shape head (arg, _mut, _sort, _layout)
     shape
   @ rem
 
-let divide_tuple ~scopes head ctx pm =
+let divide_tuple ~scopes ubr head ctx pm =
   let arity = Patterns.Head.arity head in
   divide_line (Context.specialize head)
-    (get_expr_args_tuple ~scopes)
+    (get_expr_args_tuple ubr ~scopes)
     (get_pat_args_tuple arity)
     head ctx pm
 
@@ -2268,17 +2269,17 @@ let record_matching_line num_fields lbl_pat_list =
 let get_pat_args_record num_fields p rem =
   match p with
   | { pat_desc = Tpat_any } -> record_matching_line num_fields [] @ rem
-  | { pat_desc = Tpat_record (lbl_pat_list, _) } ->
+  | { pat_desc = Tpat_record (lbl_pat_list, _, _) } ->
       record_matching_line num_fields lbl_pat_list @ rem
   | _ -> assert false
 
 let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
   let loc = head_loc ~scopes head in
-  let all_labels =
+  let all_labels, ubr =
     let open Patterns.Head in
     match head.pat_desc with
-    | Record (lbl :: _) -> lbl.lbl_all
-    | Record []
+    | Record (lbl :: _, ubr) -> lbl.lbl_all, ubr
+    | Record ([], _)
     | _ ->
         assert false
   in
@@ -2295,7 +2296,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
-      let ubr = Translmode.transl_unique_barrier head.pat_unique_barrier in
+      let ubr = Translmode.transl_unique_barrier ubr in
       let sem = add_barrier_to_read ubr sem in
       let access, sort, layout =
         match lbl.lbl_repres with
@@ -2366,19 +2367,19 @@ let divide_record all_labels ~scopes head ctx pm =
 (* Matching against an array pattern *)
 
 let get_key_array = function
-  | { pat_desc = Tpat_array (_, _, patl) } -> List.length patl
+  | { pat_desc = Tpat_array (_, _, patl, _) } -> List.length patl
   | _ -> assert false
 
 let get_pat_args_array p rem =
   match p with
-  | { pat_desc = Tpat_array (_, _, patl) } -> patl @ rem
+  | { pat_desc = Tpat_array (_, _, patl, _) } -> patl @ rem
   | _ -> assert false
 
 let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
-  let am, arg_sort, len =
+  let am, arg_sort, len, ubr =
     let open Patterns.Head in
     match head.pat_desc with
-    | Array (am, arg_sort, len) -> am, arg_sort, len
+    | Array (am, arg_sort, len, ubr) -> am, arg_sort, len, ubr
     | _ -> assert false
   in
   let loc = head_loc ~scopes head in
@@ -2391,6 +2392,8 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
       let mut = if Types.is_mutable am then Mutable else Immutable in
+      (* CR uniqueness: do not ignore _ubr, this is fixed in PR3243 *)
+      let _ubr = Translmode.transl_unique_barrier ubr in
       ( Lprim
           (Parrayrefu (ref_kind, Ptagged_int_index, mut),
            [ arg; Lconst (Const_base (Const_int pos)) ],
@@ -2920,9 +2923,9 @@ let complete_pats_constrs = function
   | constr :: _ as constrs ->
       let constr_of_pat cstr_pat =
         cstr_pat.pat_desc in
-      let pat_of_constr cstr =
+      let pat_of_constr (cstr, ubr) =
         let open Patterns.Head in
-        to_omega_pattern { constr with pat_desc = Construct cstr } in
+        to_omega_pattern { constr with pat_desc = Construct (cstr, ubr) } in
       List.map pat_of_constr
         (complete_constrs constr (List.map constr_of_pat constrs))
   | _ -> assert false
@@ -3754,16 +3757,16 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             divide_var
             Context.rshift repr partial ctx pm
-      | Tuple _ ->
+      | Tuple (_, ubr) ->
           compile_no_test ~scopes value_kind
-            (divide_tuple ~scopes ph)
+            (divide_tuple ubr ~scopes ph)
             Context.combine repr partial ctx pm
       | Unboxed_tuple shape ->
           compile_no_test ~scopes value_kind
             (divide_unboxed_tuple ~scopes ph shape)
             Context.combine repr partial ctx pm
-      | Record [] -> assert false
-      | Record (lbl :: _) ->
+      | Record ([], _) -> assert false
+      | Record (lbl :: _, _ubr) -> (* CR uniqueness: this can't be right *)
           compile_no_test ~scopes value_kind
             (divide_record ~scopes lbl.lbl_all ph)
             Context.combine repr partial ctx pm
@@ -3775,13 +3778,13 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
             partial divide_constant
             (combine_constant value_kind ploc arg cst partial)
             ctx pm
-      | Construct cstr ->
+      | Construct (cstr, ubr) ->
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_constructor ~scopes)
-            (combine_constructor value_kind ploc arg ph.pat_env ph.pat_unique_barrier cstr partial)
+            (combine_constructor value_kind ploc arg ph.pat_env ubr cstr partial)
             ctx pm
-      | Array (_, elt_sort, _) ->
+      | Array (_, elt_sort, _, _ubr) -> (* CR uniqueness: this can't be right *)
           let kind = Typeopt.array_pattern_kind pomega elt_sort in
           compile_test
             (compile_match ~scopes value_kind repr partial)
@@ -3792,11 +3795,11 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             (divide_lazy ~scopes ph)
             Context.combine repr partial ctx pm
-      | Variant { cstr_row = row } ->
+      | Variant { cstr_row = row; unique_barrier } ->
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_variant ~scopes !row)
-            (combine_variant value_kind ploc !row arg ph.pat_unique_barrier partial)
+            (combine_variant value_kind ploc !row arg unique_barrier partial)
             ctx pm
     )
   | PmVar { inside = pmh } ->
@@ -3856,7 +3859,7 @@ let has_lazy p = Typedtree.exists_pattern is_lazy_pat p
 
 let is_record_with_mutable_field p =
   match p.pat_desc with
-  | Tpat_record (lps, _) ->
+  | Tpat_record (lps, _, _) ->
       List.exists
         (fun (_, lbl, _) -> Types.is_mutable lbl.lbl_mut)
         lps
@@ -4107,13 +4110,13 @@ let rec map_return f = function
 let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
   let rec collect pat_sort acc pat lam =
     match (pat.pat_desc, lam) with
-    | Tpat_tuple patl, Lprim (Pmakeblock _, lams, _) ->
+    | Tpat_tuple (patl, _), Lprim (Pmakeblock _, lams, _) ->
         opt := true;
         List.fold_left2
           (fun acc (_, pat) lam ->
              collect Jkind.Sort.for_tuple_element acc pat lam)
           acc patl lams
-    | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
+    | Tpat_tuple (patl, _), Lconst (Const_block (_, scl)) ->
         opt := true;
         let collect_const acc (_, pat) sc =
           collect Jkind.Sort.for_tuple_element acc pat (Lconst sc)
@@ -4207,13 +4210,13 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
 
 let flatten_pattern size p =
   match p.pat_desc with
-  | Tpat_tuple args -> List.map snd args
+  | Tpat_tuple (args, _) -> List.map snd args
   | Tpat_any -> Patterns.omegas size
   | _ -> raise Cannot_flatten
 
 let flatten_simple_pattern size (p : Simple.pattern) =
   match p.pat_desc with
-  | `Tuple args -> (List.map snd args)
+  | `Tuple (args, _) -> (List.map snd args)
   | `Any -> Patterns.omegas size
   | `Array _
   | `Variant _

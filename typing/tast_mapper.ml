@@ -299,20 +299,21 @@ let pat
     | Tpat_any
     | Tpat_constant _ -> x.pat_desc
     | Tpat_var (id, s, uid, m) -> Tpat_var (id, map_loc sub s, uid, m)
-    | Tpat_tuple l ->
-        Tpat_tuple (List.map (fun (label, p) -> label, sub.pat sub p) l)
+    | Tpat_tuple (l, ubr) ->
+        Tpat_tuple (List.map (fun (label, p) -> label, sub.pat sub p) l, ubr)
     | Tpat_unboxed_tuple l ->
       Tpat_unboxed_tuple
         (List.map (fun (label, p, sort) -> label, sub.pat sub p, sort) l)
-    | Tpat_construct (loc, cd, l, vto) ->
+    | Tpat_construct (loc, cd, l, vto, ubr) ->
         let vto = Option.map (fun (vl,cty) ->
           List.map (map_loc sub) vl, sub.typ sub cty) vto in
-        Tpat_construct (map_loc sub loc, cd, List.map (sub.pat sub) l, vto)
-    | Tpat_variant (l, po, rd) ->
-        Tpat_variant (l, Option.map (sub.pat sub) po, rd)
-    | Tpat_record (l, closed) ->
-        Tpat_record (List.map (tuple3 (map_loc sub) id (sub.pat sub)) l, closed)
-    | Tpat_array (am, arg_sort, l) -> Tpat_array (am, arg_sort, List.map (sub.pat sub) l)
+        Tpat_construct (map_loc sub loc, cd, List.map (sub.pat sub) l, vto, ubr)
+    | Tpat_variant (l, po, rd, ubr) ->
+        Tpat_variant (l, Option.map (sub.pat sub) po, rd, ubr)
+    | Tpat_record (l, closed, ubr) ->
+        Tpat_record (List.map (tuple3 (map_loc sub) id (sub.pat sub)) l, closed, ubr)
+    | Tpat_array (am, arg_sort, l, ubr) ->
+        Tpat_array (am, arg_sort, List.map (sub.pat sub) l, ubr)
     | Tpat_alias (p, id, s, uid, m) ->
         Tpat_alias (sub.pat sub p, id, map_loc sub s, uid, m)
     | Tpat_lazy p -> Tpat_lazy (sub.pat sub p)

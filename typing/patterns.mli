@@ -40,14 +40,14 @@ module Simple : sig
   type view = [
     | `Any
     | `Constant of constant
-    | `Tuple of (string option * pattern) list
+    | `Tuple of (string option * pattern) list * Unique_barrier.t
     | `Unboxed_tuple of (string option * pattern * Jkind.sort) list
     | `Construct of
-        Longident.t loc * constructor_description * pattern list
-    | `Variant of label * pattern option * row_desc ref
+        Longident.t loc * constructor_description * pattern list * Unique_barrier.t
+    | `Variant of label * pattern option * row_desc ref * Unique_barrier.t
     | `Record of
-        (Longident.t loc * label_description * pattern) list * closed_flag
-    | `Array of mutability * Jkind.sort * pattern list
+        (Longident.t loc * label_description * pattern) list * closed_flag * Unique_barrier.t
+    | `Array of mutability * Jkind.sort * pattern list * Unique_barrier.t
     | `Lazy of pattern
   ]
   type pattern = view pattern_data
@@ -80,18 +80,20 @@ end
 module Head : sig
   type desc =
     | Any
-    | Construct of constructor_description
+    | Construct of constructor_description * Unique_barrier.t
     | Constant of constant
-    | Tuple of string option list
+    | Tuple of string option list * Unique_barrier.t
     | Unboxed_tuple of (string option * Jkind.sort) list
-    | Record of label_description list
+    | Record of label_description list * Unique_barrier.t
     | Variant of
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;
-          type_row : unit -> row_desc; }
+          type_row : unit -> row_desc;
+          unique_barrier: Unique_barrier.t;
+        }
           (* the row of the type may evolve if [close_variant] is called,
              hence the (unit -> ...) delay *)
-    | Array of mutability * Jkind.sort * int
+    | Array of mutability * Jkind.sort * int * Unique_barrier.t
     | Lazy
 
   type t = desc pattern_data
