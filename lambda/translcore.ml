@@ -1837,7 +1837,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
             | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
                 let ptr = maybe_pointer expr in
                 Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
-            | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
+            | Record_unboxed | Record_inlined (_, _, (Variant_unboxed | Variant_with_null)) ->
                 assert false
             | Record_float ->
                 Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)

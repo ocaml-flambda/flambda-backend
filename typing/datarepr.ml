@@ -115,7 +115,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
          users to write their own null constructors. *)
       (* CR layouts v3.3: generalize to [any_non_null]. *)
-      let arg_jkind = Jkind.Primitive.value ~why:(Type_argument {
+      let arg_jkind = Jkind.Builtin.value ~why:(Type_argument {
         parent_path = ty_path;
         position = 1;
         arity = 1})
