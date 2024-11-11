@@ -1,4 +1,5 @@
 (* TEST
+   arch_amd64;
    include stdlib_stable;
    flags = "-dlambda";
    expect;

@@ -1,4 +1,5 @@
 (* TEST
+ arch_amd64;
  flags = "-extension-universe stable";
  include stdlib_stable;
  {

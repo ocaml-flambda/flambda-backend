@@ -621,6 +621,7 @@ let main n ~bytecode =
     List.iter2 values (List.tl values @ [ List.hd values]) ~f
   in
   line {|(* TEST
+ arch_amd64;
  include stdlib_stable;
  include stdlib_upstream_compatible;|};
   if bytecode then (

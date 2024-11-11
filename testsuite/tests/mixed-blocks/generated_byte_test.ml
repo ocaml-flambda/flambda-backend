@@ -1,4 +1,5 @@
 (* TEST
+ arch_amd64;
  include stdlib_stable;
  include stdlib_upstream_compatible;
  flags = "-extension layouts_beta";

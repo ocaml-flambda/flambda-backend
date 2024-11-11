@@ -7,6 +7,7 @@ let indent spaces string =
 
 let template ~tests = {|(* TEST
  flambda2;
+ arch_amd64;
  include stdlib_upstream_compatible;
  include stdlib_stable;
  {
