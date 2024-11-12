@@ -536,7 +536,7 @@ module Layout_and_axes = struct
   let map_option f t =
     match f t.layout with None -> None | Some layout -> Some { t with layout }
 
-  let equal eq_layout
+  let equal_after_all_inference_is_done eq_layout
       { layout = lay1;
         modes_upper_bounds = modes1;
         externality_upper_bound = ext1;
@@ -550,8 +550,6 @@ module Layout_and_axes = struct
     eq_layout lay1 lay2 && Modes.equal modes1 modes2
     && Externality.equal ext1 ext2
     && Nullability.equal null1 null2
-
-  let equal_after_all_inference_is_done x y z = equal x y z
 
   (* Once we have more interesting mode stuff, this won't be trivial. *)
   let try_allow_l ({ layout = _; _ } as t) = Some t
