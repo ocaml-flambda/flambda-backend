@@ -165,10 +165,6 @@ let rec view_texp (e : expression_desc) =
   | Texp_match (e, cases, partial) -> Texp_match (e, cases, partial, ())
   | _ -> O e
 
-let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
-    ~pat_attributes =
-  { pat_desc; pat_loc; pat_extra; pat_type; pat_env; pat_attributes }
-
 type tpat_var_identifier = unit
 
 let mkTpat_var ?id:(() = ()) (ident, name) = Tpat_var (ident, name)
@@ -184,6 +180,19 @@ let mkTpat_array ?id:(() = ()) l = Tpat_array l
 type tpat_tuple_identifier = unit
 
 let mkTpat_tuple ?id:(() = ()) l = Tpat_tuple l
+
+type tpat_construct_identifier = unit
+
+let mkTpat_construct ?id:(() = ()) (li, cd, args, typs) =
+  Tpat_construct (li, cd, args, typs)
+
+type tpat_variant_identifier = unit
+
+let mkTpat_variant ?id:(() = ()) (lbl, args, row) = Tpat_variant (lbl, args, row)
+
+type tpat_record_identifier = string option list * Unique_barrier.t
+
+let mkTpat_record ?id:(() = ()) (args, closed) = Tpat_construct (args, closed)
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -201,6 +210,24 @@ type 'a matched_pattern_desc =
   | Tpat_tuple :
       value general_pattern list * tpat_tuple_identifier
       -> value matched_pattern_desc
+  | Tpat_construct :
+      Longident.t Location.loc
+      * Types.constructor_description
+      * value general_pattern list
+      * (Ident.t loc list * core_type) option
+      * tpat_construct_identifier
+      -> value matched_pattern_desc
+  | Tpat_variant :
+      Asttypes.label
+      * value general_pattern option
+      * Types.row_desc ref
+      * tpat_variant_identifier
+      -> value matched_pattern_desc
+  | Tpat_record :
+      (Longident.t loc * Types.label_description * value general_pattern) list
+      * closed_flag
+      * tpat_record_identifier
+      -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
@@ -209,6 +236,10 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   | Tpat_alias (p, ident, name) -> Tpat_alias (p, ident, name, ())
   | Tpat_array l -> Tpat_array (l, ())
   | Tpat_tuple l -> Tpat_tuple (l, ())
+  | Tpat_construct (li, cd, args, typs) ->
+      Tpat_construct (li, cd, args, typs, ())
+  | Tpat_variant (lbl, args, row) -> Tpat_variant (lbl, args, row, ())
+  | Tpat_record (args, closed) -> Tpat_record (args, closed, ())
   | _ -> O p
 
 type tstr_eval_identifier = unit

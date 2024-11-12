@@ -41,8 +41,9 @@ let remove_cons_mapper (i, cons_to_rem, _) =
                            (let l =
                               List.fold_left
                                 (fun l val_case ->
-                                  match val_case.c_lhs.pat_desc with
-                                  | Tpat_construct (li, cd, pat_list, typs) ->
+                                  match view_tpat val_case.c_lhs.pat_desc with
+                                  | Tpat_construct (li, cd, pat_list, typs, id)
+                                    ->
                                       if cons_to_rem = cd.cstr_name then
                                         {
                                           val_case with
@@ -50,7 +51,7 @@ let remove_cons_mapper (i, cons_to_rem, _) =
                                             {
                                               val_case.c_lhs with
                                               pat_desc =
-                                                Tpat_construct
+                                                mkTpat_construct ~id
                                                   ( li,
                                                     cd,
                                                     List.filteri
@@ -79,9 +80,11 @@ let remove_cons_mapper (i, cons_to_rem, _) =
                              match comp_case.c_lhs.pat_desc with
                              | Tpat_value tva -> (
                                  match
-                                   (tva :> value general_pattern).pat_desc
+                                   view_tpat
+                                     (tva :> value general_pattern).pat_desc
                                  with
-                                 | Tpat_construct (li, cd, pat_list, typs) ->
+                                 | Tpat_construct (li, cd, pat_list, typs, id)
+                                   ->
                                      if cons_to_rem = cd.cstr_name then
                                        {
                                          comp_case with
@@ -90,7 +93,7 @@ let remove_cons_mapper (i, cons_to_rem, _) =
                                              {
                                                comp_case.c_lhs with
                                                pat_desc =
-                                                 Tpat_construct
+                                                 mkTpat_construct ~id
                                                    ( li,
                                                      cd,
                                                      List.filteri

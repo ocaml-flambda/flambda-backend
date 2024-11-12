@@ -279,18 +279,6 @@ let view_texp (e : expression_desc) =
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
 
-let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
-    ~pat_attributes =
-  {
-    pat_desc;
-    pat_loc;
-    pat_extra;
-    pat_type;
-    pat_env;
-    pat_attributes;
-    pat_unique_barrier = Unique_barrier.not_computed ();
-  }
-
 type tpat_var_identifier = Value.l
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =
@@ -301,22 +289,40 @@ type tpat_alias_identifier = Value.l
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_array_identifier = mutability * Jkind.sort
+type tpat_array_identifier = mutability * Jkind.sort * Unique_barrier.t
 
 let mkTpat_array
-    ?id:(mut, arg_sort =
-        (Mutable Alloc.Comonadic.Const.legacy, Jkind.Sort.value)) l =
-  Tpat_array (mut, arg_sort, l)
+    ?id:(mut, arg_sort, ubr =
+        ( Mutable Alloc.Comonadic.Const.legacy,
+          Jkind.Sort.value,
+          Unique_barrier.not_computed () )) l =
+  Tpat_array (mut, arg_sort, l, ubr)
 
-type tpat_tuple_identifier = string option list
+type tpat_tuple_identifier = string option list * Unique_barrier.t
 
 let mkTpat_tuple ?id pats =
-  let labels =
+  let labels, ubr =
     match id with
-    | None -> List.map (fun _ -> None) pats
-    | Some labels -> labels
+    | None -> (List.map (fun _ -> None) pats, Unique_barrier.not_computed ())
+    | Some (labels, ubr) -> (labels, ubr)
   in
-  Tpat_tuple (List.combine labels pats)
+  Tpat_tuple (List.combine labels pats, ubr)
+
+type tpat_construct_identifier = Unique_barrier.t
+
+let mkTpat_construct ?id:(ubr = Unique_barrier.not_computed ())
+    (li, cd, args, typs) =
+  Tpat_construct (li, cd, args, typs, ubr)
+
+type tpat_variant_identifier = Unique_barrier.t
+
+let mkTpat_variant ?id:(ubr = Unique_barrier.not_computed ()) (lbl, args, row) =
+  Tpat_variant (lbl, args, row, ubr)
+
+type tpat_record_identifier = Unique_barrier.t
+
+let mkTpat_record ?id:(ubr = Unique_barrier.not_computed ()) (args, closed) =
+  Tpat_record (args, closed, ubr)
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -334,16 +340,41 @@ type 'a matched_pattern_desc =
   | Tpat_tuple :
       value general_pattern list * tpat_tuple_identifier
       -> value matched_pattern_desc
+  | Tpat_construct :
+      Longident.t Location.loc
+      * Types.constructor_description
+      * value general_pattern list
+      * (Ident.t Location.loc list * core_type) option
+      * tpat_construct_identifier
+      -> value matched_pattern_desc
+  | Tpat_variant :
+      Asttypes.label
+      * value general_pattern option
+      * Types.row_desc ref
+      * tpat_variant_identifier
+      -> value matched_pattern_desc
+  | Tpat_record :
+      (Longident.t Location.loc
+      * Types.label_description
+      * value general_pattern)
+      list
+      * Asttypes.closed_flag
+      * tpat_record_identifier
+      -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 
 let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
   match p with
   | Tpat_var (ident, name, _uid, mode) -> Tpat_var (ident, name, mode)
   | Tpat_alias (p, ident, name, _uid, mode) -> Tpat_alias (p, ident, name, mode)
-  | Tpat_array (mut, arg_sort, l) -> Tpat_array (l, (mut, arg_sort))
-  | Tpat_tuple pats ->
+  | Tpat_array (mut, arg_sort, l, ubr) -> Tpat_array (l, (mut, arg_sort, ubr))
+  | Tpat_tuple (pats, ubr) ->
       let labels, pats = List.split pats in
-      Tpat_tuple (pats, labels)
+      Tpat_tuple (pats, (labels, ubr))
+  | Tpat_construct (l, cstr, args, opt, ubr) ->
+      Tpat_construct (l, cstr, args, opt, ubr)
+  | Tpat_variant (lbl, args, row, ubr) -> Tpat_variant (lbl, args, row, ubr)
+  | Tpat_record (args, closed, ubr) -> Tpat_record (args, closed, ubr)
   | _ -> O p
 
 type tstr_eval_identifier = Jkind.sort

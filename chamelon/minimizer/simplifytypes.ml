@@ -55,13 +55,13 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                            (let l =
                               List.fold_left
                                 (fun l val_case ->
-                                  match val_case.c_lhs.pat_desc with
-                                  | Tpat_construct (_, cd, _, _) ->
+                                  match view_tpat val_case.c_lhs.pat_desc with
+                                  | Tpat_construct (_, cd, _, _, _) ->
                                       if cons_to_rem = cd.cstr_name then l
                                       else
                                         Tast_mapper.default.case mapper val_case
                                         :: l
-                                  | Tpat_record (lab_list, flag) ->
+                                  | Tpat_record (lab_list, flag, id) ->
                                       let nlab_list =
                                         List.filter
                                           (fun (_, ld, _) ->
@@ -76,7 +76,8 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                                             {
                                               val_case.c_lhs with
                                               pat_desc =
-                                                Tpat_record (nlab_list, flag);
+                                                mkTpat_record ~id
+                                                  (nlab_list, flag);
                                             };
                                         }
                                         :: l
@@ -100,14 +101,15 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                              match comp_case.c_lhs.pat_desc with
                              | Tpat_value tva -> (
                                  match
-                                   (tva :> value general_pattern).pat_desc
+                                   view_tpat
+                                     (tva :> value general_pattern).pat_desc
                                  with
-                                 | Tpat_construct (_, cd, _, _) ->
+                                 | Tpat_construct (_, cd, _, _, _) ->
                                      if cons_to_rem = cd.cstr_name then l
                                      else
                                        Tast_mapper.default.case mapper comp_case
                                        :: l
-                                 | Tpat_record (lab_list, flag) ->
+                                 | Tpat_record (lab_list, flag, id) ->
                                      let nlab_list =
                                        List.filter
                                          (fun (_, ld, _) ->
@@ -123,7 +125,8 @@ let remove_cons_mapper (cons_to_rem, cons_typ) =
                                              {
                                                comp_case.c_lhs with
                                                pat_desc =
-                                                 Tpat_record (nlab_list, flag);
+                                                 mkTpat_record ~id
+                                                   (nlab_list, flag);
                                              };
                                        }
                                        :: l

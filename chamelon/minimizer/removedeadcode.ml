@@ -75,21 +75,23 @@ let rec var_from_pat pat_desc acc =
   match view_tpat pat_desc with
   | Tpat_var (id, _, _) -> id :: acc
   | Tpat_alias (pat, id, _, _) -> var_from_pat pat.pat_desc (id :: acc)
-  | Tpat_tuple (vl, _) | Tpat_array (vl, _) | O (Tpat_construct (_, _, vl, _))
-    ->
+  | Tpat_tuple (vl, _) | Tpat_array (vl, _) | Tpat_construct (_, _, vl, _, _) ->
       List.fold_left (fun l pat -> var_from_pat pat.pat_desc l) acc vl
   | O (Tpat_unboxed_tuple fields) ->
       List.fold_left
         (fun l pat -> var_from_pat pat.pat_desc l)
         acc
         (List.map (fun (_, pat, _) -> pat) fields)
-  | O (Tpat_record (r, _)) ->
+  | Tpat_record (r, _, _) ->
       List.fold_left (fun l (_, _, pat) -> var_from_pat pat.pat_desc l) acc r
   | O (Tpat_or (p1, p2, _)) ->
       var_from_pat p1.pat_desc (var_from_pat p2.pat_desc acc)
   | O (Tpat_lazy pat) -> var_from_pat pat.pat_desc acc
-  | O (Tpat_any | Tpat_constant _ | Tpat_variant _) -> []
-  | O (Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _) -> assert false
+  | O (Tpat_any | Tpat_constant _) | Tpat_variant _ -> []
+  | O
+      ( Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _
+      | Tpat_construct _ | Tpat_variant _ | Tpat_record _ ) ->
+      assert false
 
 let rec rem_in_pat str pat should_remove =
   match view_tpat pat.pat_desc with
@@ -129,21 +131,21 @@ let rec rem_in_pat str pat should_remove =
           mkTpat_array ~id
             (List.map (fun pat -> rem_in_pat str pat should_remove) vl);
       }
-  | O (Tpat_construct (a1, a2, vl, a3)) ->
+  | Tpat_construct (a1, a2, vl, a3, id) ->
       {
         pat with
         pat_desc =
-          Tpat_construct
+          mkTpat_construct ~id
             ( a1,
               a2,
               List.map (fun pat -> rem_in_pat str pat should_remove) vl,
               a3 );
       }
-  | O (Tpat_record (r, a1)) ->
+  | Tpat_record (r, a1, id) ->
       {
         pat with
         pat_desc =
-          Tpat_record
+          mkTpat_record ~id
             ( List.map
                 (fun (e1, e2, pat) ->
                   (e1, e2, rem_in_pat str pat should_remove))
@@ -156,8 +158,11 @@ let rec rem_in_pat str pat should_remove =
       { pat with pat_desc = Tpat_or (p1, p2, a1) }
   | O (Tpat_lazy pat) ->
       { pat with pat_desc = Tpat_lazy (rem_in_pat str pat should_remove) }
-  | O (Tpat_any | Tpat_constant _ | Tpat_variant _) -> pat
-  | O (Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _) -> assert false
+  | O (Tpat_any | Tpat_constant _) | Tpat_variant _ -> pat
+  | O
+      ( Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _
+      | Tpat_construct _ | Tpat_variant _ | Tpat_record _ ) ->
+      assert false
 
 let minimize should_remove map cur_name =
   let cur_str = Smap.find cur_name map in
