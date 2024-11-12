@@ -25,7 +25,7 @@ let assert_no_collisions set =
 let assert_compatible src dst =
   if not (Reg.types_are_compatible src dst) then
   Misc.fatal_errorf "found move between registers of incompatible types (%a to %a)"
-  Printmach.reg src Printmach.reg dst
+  Printreg.reg src Printreg.reg dst
 
 module IntPairSet =
   Hashtbl.Make(struct

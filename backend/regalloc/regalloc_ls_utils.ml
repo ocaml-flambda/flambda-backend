@@ -160,7 +160,7 @@ module Interval = struct
     }
 
   let print ppf t =
-    Format.fprintf ppf "%a[%d,%d]:" Printmach.reg t.reg t.begin_ t.end_;
+    Format.fprintf ppf "%a[%d,%d]:" Printreg.reg t.reg t.begin_ t.end_;
     DLL.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
 
   let overlap : t -> t -> bool =
@@ -256,7 +256,7 @@ end
 
 let log_interval ~indent ~kind (interval : Interval.t) =
   let reg_class = Proc.register_class interval.reg in
-  log ~indent "%s %a (class %d) [%d..%d]" kind Printmach.reg interval.reg
+  log ~indent "%s %a (class %d) [%d..%d]" kind Printreg.reg interval.reg
     reg_class interval.begin_ interval.end_;
   let ranges = Buffer.create 128 in
   let first = ref true in

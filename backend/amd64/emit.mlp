@@ -809,7 +809,7 @@ let move (src : Reg.t) (dst : Reg.t) =
   | (Float | Float32 | Vec128 | Int | Val | Addr), _, _, _ ->
     Misc.fatal_errorf
       "Illegal move between registers of differing types (%a to %a)\n"
-      Printmach.reg src Printmach.reg dst
+      Printreg.reg src Printreg.reg dst
   end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
@@ -2315,7 +2315,7 @@ let emit_probe_notes0 () =
       | Reg reg -> Proc.register_name arg.Reg.typ reg
       | Unknown ->
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
-          Printmach.reg arg
+          Printreg.reg arg
     in
     Printf.sprintf "%d@%s" (Reg.size_of_contents_in_bytes arg) arg_name
   in

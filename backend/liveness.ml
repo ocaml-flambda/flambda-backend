@@ -74,5 +74,5 @@ let fundecl f =
   let wrong_live = Reg.Set.diff initially_live (Reg.set_of_array f.fun_args) in
   if not (Reg.Set.is_empty wrong_live) then begin
     Misc.fatal_errorf "@[Liveness.fundecl:@\n%a@]"
-      Printmach.regset wrong_live
+      Printreg.regset wrong_live
   end

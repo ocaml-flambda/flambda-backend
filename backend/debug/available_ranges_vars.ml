@@ -25,7 +25,7 @@ module Key = struct
   module Set = struct
     include Reg_availability_set
 
-    let print ppf t = print ~print_reg:Printmach.reg ppf t
+    let print ppf t = print ~print_reg:Printreg.reg ppf t
   end
 
   module Map = Map.Make (struct
@@ -34,7 +34,7 @@ module Key = struct
     let compare = Reg_with_debug_info.compare
   end)
 
-  let print ppf t = Reg_with_debug_info.print ~print_reg:Printmach.reg ppf t
+  let print ppf t = Reg_with_debug_info.print ~print_reg:Printreg.reg ppf t
 
   let all_parents _ = []
 end
@@ -97,7 +97,7 @@ module Vars = struct
       }
 
     let print ppf { reg; offset } =
-      Format.fprintf ppf "@[<hov 1>((reg %a)@ (offset %a))@]" Printmach.reg reg
+      Format.fprintf ppf "@[<hov 1>((reg %a)@ (offset %a))@]" Printreg.reg reg
         (Misc.Stdlib.Option.print Stack_reg_offset.print)
         offset
 

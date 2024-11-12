@@ -461,6 +461,7 @@
   printcmm
   printlinear
   printmach
+  printreg
   proc
   simd
   simd_selection

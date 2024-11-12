@@ -13,18 +13,12 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Pretty-printing of pseudo machine code *)
+(* Pretty-printing of registers *)
 
-open Format
-
-val operation': ?print_reg:(formatter -> Reg.t -> unit) -> Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
-val operation: Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
-val test': ?print_reg:(formatter -> Reg.t -> unit) -> Simple_operation.test -> formatter -> Reg.t array -> unit
-val test: Simple_operation.test -> formatter -> Reg.t array -> unit
-val instr: formatter -> Mach.instruction -> unit
-val fundecl: formatter -> Mach.fundecl -> unit
-val phase: string -> formatter -> Mach.fundecl -> unit
-val interferences: formatter -> unit -> unit
-val intervals: formatter -> unit -> unit
-val preferences: formatter -> unit -> unit
-val floatop: formatter -> Simple_operation.float_operation -> unit
+val loc: ?wrap_out:(Format.formatter -> (Format.formatter -> unit) -> unit) -> unknown:(Format.formatter -> unit) -> Format.formatter -> Reg.location -> Cmm.machtype_component -> unit
+val reg: Format.formatter -> Reg.t -> unit
+val regs': ?print_reg:(Format.formatter -> Reg.t -> unit) -> Format.formatter -> Reg.t array -> unit
+val regs: Format.formatter -> Reg.t array -> unit
+val regset: Format.formatter -> Reg.Set.t -> unit
+val regsetaddr': ?print_reg:(Format.formatter -> Reg.t -> unit) -> Format.formatter -> Reg.Set.t -> unit
+val regsetaddr: Format.formatter -> Reg.Set.t -> unit

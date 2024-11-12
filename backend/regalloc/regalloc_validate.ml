@@ -128,7 +128,7 @@ end = struct
     | Stack stack -> Reg.Stack (Stack.to_stack_loc_lossy stack)
 
   let print typ ppf t =
-    Printmach.loc ~unknown:(fun _ -> assert false) ppf (to_loc_lossy t) typ
+    Printreg.loc ~unknown:(fun _ -> assert false) ppf (to_loc_lossy t) typ
 
   let compare (t1 : t) (t2 : t) : int =
     (* CR-someday azewierzejew: Implement proper comparison. *)
@@ -239,7 +239,7 @@ end = struct
     match t.reg_id with
     | Preassigned { location } ->
       Format.fprintf ppf "R[%a]" (Location.print t.for_print.typ) location
-    | Named _ -> Printmach.reg ppf (to_dummy_reg t)
+    | Named _ -> Printreg.reg ppf (to_dummy_reg t)
 
   let compare (t1 : t) (t2 : t) : int = Reg_id.compare t1.reg_id t2.reg_id
 
@@ -972,7 +972,7 @@ module type Description_value = sig
 end
 
 let print_reg_as_loc ppf reg =
-  Printmach.loc
+  Printreg.loc
     ~unknown:(fun ppf -> Format.fprintf ppf "<Unknown>")
     ppf reg.Reg.loc reg.Reg.typ
 
