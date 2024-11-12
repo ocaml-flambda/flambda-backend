@@ -232,13 +232,9 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
     in
     register_const acc dbg const "const_mixed_block"
 
-let close_const0 acc dbg (const : Lambda.structured_constant) =
-  let acc, const, name = declare_const acc dbg const in
-  acc, const, name
-
 let close_const acc const =
   (* For this code path, the debuginfo is discarded (see just below). *)
-  let acc, simple_with_dbg, name = close_const0 acc Debuginfo.none const in
+  let acc, simple_with_dbg, name = declare_const acc Debuginfo.none const in
   let named =
     Named.create_simple (Simple.With_debuginfo.simple simple_with_dbg)
   in
@@ -262,7 +258,7 @@ let find_simple acc env (simple : IR.simple) =
   match simple with
   | Const const ->
     (* For this code path, the debuginfo isn't relevant. *)
-    let acc, simple, _ = close_const0 acc Debuginfo.none const in
+    let acc, simple, _ = declare_const acc Debuginfo.none const in
     acc, Simple.With_debuginfo.simple simple
   | Var id -> acc, find_simple_from_id env id
 
