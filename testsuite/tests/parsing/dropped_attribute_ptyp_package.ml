@@ -2,7 +2,8 @@
    toplevel;
 *)
 
-(* CR tdelvecchio: The attributes below are silently dropped by the parser. *)
+(* There is no place for the following attributes to attach to; the compiler should error
+   rather than silently dropping them (as it used to do). *)
 
 module type T = sig
   type t
