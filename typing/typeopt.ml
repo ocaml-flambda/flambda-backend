@@ -273,9 +273,14 @@ let bigarray_specialize_kind_and_layout env ~kind ~layout typ =
   | _ ->
       (kind, layout)
 
-let value_kind_of_value_jkind jkind =
+let value_kind_of_value_jkind env jkind =
   let layout = Jkind.get_layout_defaulting_to_value jkind in
-  let externality_upper_bound = Jkind.get_externality_upper_bound jkind in
+  (* In other places, we use [Ctype.type_jkind_purely_if_principal]. Here, we omit
+     the principality check, as we're just trying to compute optimizations. *)
+  let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
+  let externality_upper_bound =
+    Jkind.get_externality_upper_bound ~jkind_of_type jkind
+  in
   match layout, externality_upper_bound with
   | Base Value, External -> Pintval
   | Base Value, External64 ->
@@ -442,7 +447,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       in
       if cannot_proceed () then
         num_nodes_visited,
-        mk_nn (value_kind_of_value_jkind decl.type_jkind)
+        mk_nn (value_kind_of_value_jkind env decl.type_jkind)
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
@@ -460,7 +465,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
                          ~num_nodes_visited labels rep)
         | Type_abstract _ ->
           num_nodes_visited,
-          mk_nn (value_kind_of_value_jkind decl.type_jkind)
+          mk_nn (value_kind_of_value_jkind env decl.type_jkind)
         | Type_open -> num_nodes_visited, mk_nn Pgenval
     end
   | Ttuple labeled_fields ->

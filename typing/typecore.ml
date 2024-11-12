@@ -865,7 +865,8 @@ let mode_cross_left_value env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
-    let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+    let jkind_of_type = type_jkind_purely_if_principal env in
+    let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
     let upper_bounds = Const.alloc_as_value upper_bounds in
     Value.meet_const upper_bounds mode
   in
@@ -883,7 +884,8 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let jkind_of_type = type_jkind_purely_if_principal env in
+  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
   let upper_bounds = Alloc.Const.split upper_bounds in
   let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
   let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
@@ -892,18 +894,19 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
 (** Mode cross a right mode *)
 (* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
    there, too. *)
-let expect_mode_cross_jkind jkind (expected_mode : expected_mode) =
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
+  let jkind_of_type = type_jkind_purely_if_principal env in
+  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   mode_morph (Value.imply upper_bounds) expected_mode
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
   let jkind = type_jkind_purely env ty in
-  expect_mode_cross_jkind jkind expected_mode
+  expect_mode_cross_jkind env jkind expected_mode
 
 (** The expected mode for objects *)
-let mode_object = expect_mode_cross_jkind Jkind.for_object mode_legacy
+let mode_object = expect_mode_cross_jkind Env.empty Jkind.for_object mode_legacy
 
 let mode_annots_from_pat pat =
   let modes =
@@ -8655,7 +8658,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
       List.iter
         (fun pv ->
           Ctype.check_and_update_generalized_ty_jkind
-            ~name:pv.pv_id ~loc:pv.pv_loc pv.pv_type)
+            ~name:pv.pv_id ~loc:pv.pv_loc env pv.pv_type)
         pvs;
       List.iter2
         (fun (_, _, expected_ty) (exp, vars) ->
@@ -8684,7 +8687,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
           | Tpat_alias(_, id, _, _, _) -> Some id
           | _ -> None in
         Ctype.check_and_update_generalized_ty_jkind
-          ?name:pat_name ~loc:exp.exp_loc exp.exp_type
+          ?name:pat_name ~loc:exp.exp_loc env exp.exp_type
       in
       List.iter2 update_exp_jkind mode_pat_typ_list exp_list;
     end

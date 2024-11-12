@@ -84,7 +84,7 @@ let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
     Jkind.Const.Builtin.all
-    |> List.map (fun (builtin : _ Jkind.Const.Builtin.t) ->
+    |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
           builtin.jkind,
           Jkind.of_const builtin.jkind
             ~annotation:(Some { pjkind_loc = Location.none;
@@ -111,7 +111,7 @@ let with_additional_action =
           | Some const ->
             let builtin =
               List.find_opt (fun (builtin, _) ->
-                  Jkind.Const.equal_after_all_inference_is_done const builtin)
+                  Jkind.Const.no_baggage_and_equal const builtin)
                 builtins
             in
             begin match builtin with
@@ -514,10 +514,13 @@ let type_declaration' copy_scope s decl =
       end;
     type_jkind =
       begin
-        match s.additional_action with
-        | Prepare_for_saving { prepare_jkind } ->
+        let jkind =
+          match s.additional_action with
+          | Prepare_for_saving { prepare_jkind } ->
             prepare_jkind decl.type_loc decl.type_jkind
-        | Duplicate_variables | No_action -> decl.type_jkind
+          | Duplicate_variables | No_action -> decl.type_jkind
+        in
+        Jkind.map_type_expr (typexp copy_scope s decl.type_loc) jkind
       end;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
