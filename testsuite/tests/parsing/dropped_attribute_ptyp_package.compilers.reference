@@ -1,0 +1,4 @@
+module type T = sig type t end
+module type U = sig val foo : (module T with type t = 'a) -> unit end
+module U : U
+
