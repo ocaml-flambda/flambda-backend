@@ -43,6 +43,8 @@ val reset : unit -> unit
 
 val to_int : t -> int
 
+val of_int_for_testing : int -> t
+
 val equal : t -> t -> bool
 
 val to_string : t -> string

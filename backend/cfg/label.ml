@@ -52,6 +52,8 @@ let reset () = label_counter := init_label
 
 let to_int t = t
 
+let of_int_for_testing t = t
+
 let to_string = Int.to_string
 
 let format fmt t = Format.fprintf fmt "%d" t
