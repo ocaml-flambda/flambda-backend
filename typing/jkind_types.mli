@@ -124,12 +124,6 @@ module Layout_and_axes : sig
 
   val map_option : ('a -> 'b option) -> ('a, 'd) t -> ('b, 'd) t option
 
-  val equal :
-    ('layout -> 'layout -> bool) ->
-    ('layout, allowed * allowed) t ->
-    ('layout, allowed * allowed) t ->
-    bool
-
   (* An equality check should work over [lr]s only. But we need this
      to do memoization in serialization. Happily, that's after all
      inference is done, when worrying about l and r does not matter
