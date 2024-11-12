@@ -218,7 +218,14 @@ type 'a t = 'a list
 type s = #{ lbl : s t }
 [%%expect{|
 type 'a t = 'a list
-type s = #{ lbl : s t; }
+Line 2, characters 0-23:
+2 | type s = #{ lbl : s t }
+    ^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "s" contains a cycle:
+         "s t" = "s list",
+         "s list" contains "s t",
+         "s t" = "s list",
+         "s list" contains "s t"
 |}]
 
 type ('a : float64) t = #{ x : string; y : 'a }

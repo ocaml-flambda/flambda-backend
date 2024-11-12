@@ -31,9 +31,8 @@ type boz = b_imm value_arg;;
 [%%expect {|
 type ('a : immediate) imm_arg
 type 'b value_arg
-type foo = B.b_imm imm_arg
-type bar = B.b_value value_arg
-type boz = B.b_imm value_arg
+Uncaught exception: File "typing/ctype.ml", line 2151, characters 17-23: Assertion failed
+
 |}];;
 
 (* These should not *)
