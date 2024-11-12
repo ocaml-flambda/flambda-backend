@@ -5,8 +5,12 @@ let indent spaces string =
     if String.equal line "" then [ "\n" ] else [ indent_string; line; "\n" ])
   |> String.concat ""
 
+(* CR layouts: this test only runs on AMD64 because ARM64
+   does not support float32#. Split off the non-float32#
+   parts into a separate test that runs everywhere. *)
 let template ~tests = {|(* TEST
  flambda2;
+ arch_amd64;
  include stdlib_upstream_compatible;
  include stdlib_stable;
  {

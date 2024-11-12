@@ -2,6 +2,7 @@
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files}";
  include stdlib_stable;
+ arch_amd64;
  flambda2;
  {
    bytecode;
