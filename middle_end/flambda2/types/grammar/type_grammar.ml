@@ -3457,6 +3457,8 @@ let create_from_head_region head = Region (TD.create head)
 module Head_of_kind_value = struct
   type t = head_of_kind_value
 
+  let null = { non_null = Bottom; is_null = Maybe_null }
+
   let mk_non_null non_null = { non_null = Ok non_null; is_null = Not_null }
 
   let create_variant ~is_unique ~blocks ~immediates ~extensions =
@@ -3661,7 +3663,7 @@ let rec recover_some_aliases t =
                     | Naked_immediate i -> this_tagged_immediate i
                     | Tagged_immediate _ | Naked_float _ | Naked_float32 _
                     | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-                    | Naked_vec128 _ ->
+                    | Naked_vec128 _ | Null ->
                       Misc.fatal_errorf
                         "Immediates case returned wrong kind of constant:@ %a"
                         Reg_width_const.print const)

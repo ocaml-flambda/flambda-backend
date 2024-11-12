@@ -366,6 +366,7 @@ type unary_primitive =
         destination_mutability : Mutability.t
       }
   | Is_int of { variant_only : bool }
+  | Is_null
   | Get_tag
   | Array_length of Array_kind_for_length.t
   | Bigarray_length of { dimension : int }

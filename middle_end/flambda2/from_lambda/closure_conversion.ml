@@ -175,7 +175,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
             ~symbol:(fun _sym ~coercion:_ -> ())
             ~const:(fun cst ->
               match RWC.descr cst with
-              | Tagged_immediate _ -> ()
+              | Tagged_immediate _ | Null -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
               | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
               | Naked_vec128 _ ->
@@ -200,7 +200,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
           | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
       | Const_block _ | Const_mixed_block _ | Const_float_array _
-      | Const_immstring _ | Const_float_block _ ->
+      | Const_immstring _ | Const_float_block _ | Const_null ->
         Misc.fatal_errorf
           "In constant mixed block, a field of kind Float_boxed contained the \
            constant %a"
@@ -231,6 +231,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
         Immutable (Mixed_record shape) fields
     in
     register_const acc dbg const "const_mixed_block"
+  | Const_null -> acc, reg_width RWC.const_null, "null"
 
 let close_const acc const =
   (* For this code path, the debuginfo is discarded (see just below). *)
@@ -943,7 +944,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pstringlength | Pstringrefu | Pstringrefs | Pbyteslength | Pbytesrefu
       | Pbytessetu | Pbytesrefs | Pbytessets | Pduparray _ | Parraylength _
       | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _ | Pisint _
-      | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
+      | Pisnull | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
       | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
       | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
       | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _ | Pbigarrayref _
@@ -1211,7 +1212,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                           | Naked_float f -> Or_variable.Const f
                           | Tagged_immediate _ | Naked_immediate _
                           | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-                          | Naked_nativeint _ | Naked_vec128 _ ->
+                          | Naked_nativeint _ | Naked_vec128 _ | Null ->
                             Misc.fatal_errorf
                               "Binding of %a to %a contains the constant %a \
                                inside a float record, whereas only naked \

@@ -375,6 +375,7 @@ let const c : Fexpr.const =
   | Naked_vec128 bits ->
     Naked_vec128 (Vector_types.Vec128.Bit_pattern.to_bits bits)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
+  | Null -> Misc.fatal_error "null not supported in fexpr"
 
 let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =
   match d with Finite d -> Depth d | Infinity -> Infinity
@@ -566,6 +567,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
+  | Is_null -> Misc.fatal_error "null not implemented in fexpr"
   | Num_conv { src; dst } -> Num_conv { src; dst }
   | Opaque_identity _ -> Opaque_identity
   | Unbox_number bk -> Unbox_number bk

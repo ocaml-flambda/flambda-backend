@@ -189,6 +189,8 @@ type primitive =
   | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
+  (* Test if the argument is a null pointer *)
+  | Pisnull
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
@@ -530,6 +532,7 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
+  | Const_null
 
 type tailcall_attribute =
   | Tailcall_expectation of bool

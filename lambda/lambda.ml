@@ -197,6 +197,8 @@ type primitive =
   | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
+  (* Test if the argument is a null pointer *)
+  | Pisnull
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
@@ -577,6 +579,7 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
+  | Const_null
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
@@ -1776,7 +1779,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       | Punboxedvectorarray_ref _), _, _) -> None
   | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
   | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
-  | Pisint _ | Pisout -> None
+  | Pisint _ | Pisnull | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
   | Pcvtbint (_,_,m)
@@ -1897,6 +1900,7 @@ let structured_constant_layout = function
     non_null_value Pgenval
   | Const_float_array _ | Const_float_block _ ->
     non_null_value (Parrayval Pfloatarray)
+  | Const_null -> nullable_value Pgenval
 
 let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   match c with
@@ -1991,7 +1995,7 @@ let primitive_result_layout (p : primitive) =
   | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytesrefs
-  | Parraylength _ | Pisint _ | Pisout | Pintofbint _
+  | Parraylength _ | Pisint _ | Pisnull | Pisout | Pintofbint _
   | Pbintcomp _ | Punboxed_int_comp _
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
