@@ -38,3 +38,9 @@
   (with-stdout-to
    to_install.sexp
    (run "%{first-dep}" "stdlib_upstream_compatible"))))
+
+(install
+ (files
+  (META as stdlib_upstream_compatible/META))
+ (section lib)
+ (package ocaml))

@@ -1,0 +1,8 @@
+# @configure_input@
+
+version = "@VERSION@"
+description = "Alpha extensions"
+archive(byte) = "stdlib_alpha.cma"
+archive(native) = "stdlib_alpha.cmxa"
+plugin(byte) = "stdlib_alpha.cma"
+plugin(native) = "stdlib_alpha.cmxs"
