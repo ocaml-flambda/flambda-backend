@@ -415,7 +415,7 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))])
-                                                                    (makeblock 0
+                                                                    (makeblock 0 (*,*)
                                                                     gen_eq
                                                                     eq)
                                                                     (makeblock 0 (
@@ -428,7 +428,7 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))])
-                                                                    (makeblock 0
+                                                                    (makeblock 0 (*,*)
                                                                     gen_ne
                                                                     ne)
                                                                     (makeblock 0 (
@@ -441,7 +441,7 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))])
-                                                                    (makeblock 0
+                                                                    (makeblock 0 (*,*)
                                                                     gen_lt
                                                                     lt)
                                                                     (makeblock 0 (
@@ -454,7 +454,7 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))])
-                                                                    (makeblock 0
+                                                                    (makeblock 0 (*,*)
                                                                     gen_gt
                                                                     gt)
                                                                     (makeblock 0 (
@@ -467,7 +467,7 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))])
-                                                                    (makeblock 0
+                                                                    (makeblock 0 (*,*)
                                                                     gen_le
                                                                     le)
                                                                     (makeblock 0 (
@@ -480,7 +480,7 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))])
-                                                                    (makeblock 0
+                                                                    (makeblock 0 (*,*)
                                                                     gen_ge
                                                                     ge) 0)))))))))))
     (seq
@@ -558,24 +558,24 @@
                      [(consts (0))
                       (non_consts ([0: *,
                                     [(consts (0)) (non_consts ([0: *, *]))]]))])
-                     (makeblock 0 eta_gen_eq eq)
+                     (makeblock 0 (*,*) eta_gen_eq eq)
                      (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],
                        [(consts (0))
                         (non_consts ([0: *,
                                       [(consts (0)) (non_consts ([0: *, *]))]]))])
-                       (makeblock 0 eta_gen_ne ne)
+                       (makeblock 0 (*,*) eta_gen_ne ne)
                        (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],
                          [(consts (0))
                           (non_consts ([0: *,
                                         [(consts (0))
                                          (non_consts ([0: *, *]))]]))])
-                         (makeblock 0 eta_gen_lt lt)
+                         (makeblock 0 (*,*) eta_gen_lt lt)
                          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],
                            [(consts (0))
                             (non_consts ([0: *,
                                           [(consts (0))
                                            (non_consts ([0: *, *]))]]))])
-                           (makeblock 0 eta_gen_gt gt)
+                           (makeblock 0 (*,*) eta_gen_gt gt)
                            (makeblock 0 ([(consts ())
                                           (non_consts ([0: *, *]))],[(consts (0))
                                                                     (non_consts (
@@ -583,14 +583,14 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))])
-                             (makeblock 0 eta_gen_le le)
+                             (makeblock 0 (*,*) eta_gen_le le)
                              (makeblock 0 ([(consts ())
                                             (non_consts ([0: *, *]))],
                                [(consts (0))
                                 (non_consts ([0: *,
                                               [(consts (0))
                                                (non_consts ([0: *, *]))]]))])
-                               (makeblock 0 eta_gen_ge ge) 0)))))))))))
+                               (makeblock 0 (*,*) eta_gen_ge ge) 0)))))))))))
         (seq
           (apply eta_test_vec eta_int_cmp eta_int_eq eta_int_ne eta_int_lt
             eta_int_gt eta_int_le eta_int_ge int_vec)
