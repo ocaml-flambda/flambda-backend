@@ -745,7 +745,7 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
                      Language_extension.(is_at_least SIMD Stable) ->
     Lambda.Punboxed_vector Pvec128
-  | Product consts when Language_extension.(is_at_least Layouts Beta) ->
+  | Product consts when Language_extension.(is_at_least Layouts Stable) ->
     (* CR layouts v7.1: assess whether it is important for performance to support
        deep value_kinds here *)
     Lambda.Punboxed_product
@@ -770,13 +770,9 @@ let layout env loc sort ty =
       | Base Vec128 as const ->
         raise (Error (loc, Simd_sort_without_extension
                              (Jkind.Sort.of_const const, Some ty)))
-      | Base (Float64 | Word | Bits32 | Bits64) as const ->
+      | (Base (Float64 | Word | Bits32 | Bits64) | Product _) as const ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
                                                    Stable,
-                                                   Some ty)))
-      | Product _ as const ->
-        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
-                                                   Beta,
                                                    Some ty)))
     )
 
@@ -794,13 +790,10 @@ let layout_of_sort loc sort =
     | Base Vec128 as const ->
       raise (Error (loc, Simd_sort_without_extension
                            (Jkind.Sort.of_const const, None)))
-    | Base (Float64 | Word | Bits32 | Bits64) as const ->
+    | (Base (Float64 | Word | Bits32 | Bits64) | Product _) as const ->
       raise (Error (loc, Sort_without_extension
                            (Jkind.Sort.of_const const, Stable, None)))
-    | Product _ as const ->
-      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
-                                                 Beta,
-                                                 None))))
+    )
 
 let layout_of_const_sort c =
   layout_of_const_sort_generic

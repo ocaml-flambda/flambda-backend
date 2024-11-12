@@ -16,7 +16,7 @@ said, we have confidence that these features are safe to use. Annoying, but safe
 # Layouts
 
 Every type is now classified by a *layout*, much like how every expression is classified
-by a *type*. There is a small fixed set of layouts:
+by a *type*. The type system knows about a collection of fixed *base* layouts:
 
 * `value` is the layout occupied by almost every OCaml type. Every type you have ever
   conceived of before reading this description is a `value`.
@@ -44,6 +44,10 @@ by a *type*. There is a small fixed set of layouts:
   `-extension-universe alpha` is set, it is displayed as `any`.
   Additionally, `any` jkind annotations are interpreted as `any_non_null` for
   backwards compatibility for definitions using arrays.
+
+The type system also supports one *composite* layout: unboxed products:
+* `l1 & l2 & ... & lk` is the layout of unboxed products where the first element
+  of the project has layout `l1`, the second has layout `l2`, and so on.
 
 Over time, we'll be adding more layouts here.
 
@@ -215,6 +219,37 @@ modules in the `janestreet_shims` library.)
   types that involve unboxed numbers will lead to inscrutable type errors, and other ppxs
   (such as e.g. `match%optional`) will fall over when given unboxed numbers. These
   failures will lead to hard-to-understand errors from the compiler, never unsafe code.
+
+# Unboxed products
+
+The unboxed product layout describes types that work like normal products (e.g.,
+tuples or records), but which are represented without a box.
+
+In OCaml, a tuple is a pointer to a block containg the elements of the tuple. If
+you pass a tuple to a function, it is passed by reference in one register. The
+function can access the tuple's elements through the pointer. By contrast, an
+unboxed product does not refer to a block at all. When used as a function
+argument or return type, its elements are passed separately in their own
+registers, with no indirection (or on the call stack, if the tuple has more
+elements than there are available registers).
+
+Currently the only types that have unboxed product layouts are *unboxed tuples*.
+Unboxed tuples are written `#(...)`. So, for example, you can write:
+```ocaml
+module Flipper : sig
+  val flip : #(int * float# * string) -> #(string * float# * int)
+end = struct
+  let flip #(x,y,z) = #(z,y,x)
+end
+```
+Unboxed tuples may have labels just like normal tuples. There are no limitations
+on the layouts of the elements of unboxed tuples, and they may be nested within
+themselves.
+
+*Limitations and future plans*: Unboxed tuples may not currently placed in
+blocks. We plan to lift this restriction in the near future. We also plan to add
+other types with unboxed product layouts (e.g., unboxed records and interior
+pointers).
 
 # The `any` layout
 

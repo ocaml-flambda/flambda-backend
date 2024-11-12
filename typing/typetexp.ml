@@ -772,7 +772,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
     in
     ctyp desc typ
   | Ptyp_unboxed_tuple stl ->
-    Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+    Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
     let tl =
       List.map
         (fun (label, t) ->
