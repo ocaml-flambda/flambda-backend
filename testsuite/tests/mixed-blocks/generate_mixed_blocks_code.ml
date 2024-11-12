@@ -630,6 +630,9 @@ let main n ~bytecode =
     line {| modules = "stubs.c";|};
     line {| flags = "-extension layouts_beta -extension simd_beta";|};
     line {| flambda2;|};
+    (* CR layouts: this test only runs on AMD64 because ARM64
+       does not support float32#. Split off the non-float32#
+       parts into a separate test that runs everywhere. *)
     line {| arch_amd64;|};
     line {| native;|};
   );
