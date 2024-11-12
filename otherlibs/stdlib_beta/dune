@@ -38,3 +38,9 @@
   (with-stdout-to
    to_install.sexp
    (run "%{first-dep}" "stdlib_beta"))))
+
+(install
+ (files
+  (META as stdlib_beta/META))
+ (section lib)
+ (package ocaml))

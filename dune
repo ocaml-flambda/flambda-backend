@@ -791,10 +791,6 @@
 (install
  (files
   (compilerlibs/META as compiler-libs/META)
-  (otherlibs/stdlib_upstream_compatible/META as stdlib_upstream_compatible/META)
-  (otherlibs/stdlib_stable/META as stdlib_stable/META)
-  (otherlibs/stdlib_beta/META as stdlib_beta/META)
-  (otherlibs/stdlib_alpha/META as stdlib_alpha/META)
   (external/owee/libcompiler_owee_stubs.a
    as
    compiler-libs/libcompiler_owee_stubs.a)
