@@ -495,8 +495,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
   match rep with
   | Variant_extensible -> assert false
   | Variant_with_null ->
-    (* CR layouts v3.0: change [Pgenval] here. *)
-    num_nodes_visited + 1, Pgenval
+    num_nodes_visited + 1, { raw_kind = Pgenval; nullable = Nullable }
   | Variant_unboxed -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
