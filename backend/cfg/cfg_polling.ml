@@ -170,8 +170,8 @@ let exists_unsafe_path :
       | None ->
         Misc.fatal_errorf
           "Cfg_polling.exists_unsafe_path: missing safety information for \
-           block %d"
-          label
+           block %a"
+          Label.format label
       | Some true -> ()
       | Some false ->
         let block = Cfg.get_block_exn cfg label in

@@ -50,7 +50,9 @@ let disconnect cfg_with_layout label =
   let has_predecessors = not (Label.Set.is_empty block.predecessors) in
   let n = Label.Set.cardinal successors in
   let has_more_than_one_successor = n > 1 in
-  if !C.verbose then Printf.printf "Disconnect %d in %s\n" label cfg.fun_name;
+  if !C.verbose
+  then
+    Printf.printf "Disconnect %s in %s\n" (Label.to_string label) cfg.fun_name;
   if has_more_than_one_successor && has_predecessors
   then
     (* CR-someday xclerc: it feels like this condition is really tied to the

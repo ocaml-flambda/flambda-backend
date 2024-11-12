@@ -65,7 +65,9 @@ let rec eliminate_dead_blocks cfg_with_layout =
       Printf.printf "Found and eliminated %d dead blocks in function %s.\n"
         (List.length found_dead) cfg.fun_name;
       Printf.printf "Eliminated blocks are:";
-      List.iter (Printf.printf "\n%d") found_dead;
+      List.iter
+        (fun label -> Printf.printf "\n%s" (Label.to_string label))
+        found_dead;
       Printf.printf "\n");
     (* Termination: the number of remaining blocks is strictly smaller in each
        recursive call. *)
@@ -75,7 +77,7 @@ let rec eliminate_dead_blocks cfg_with_layout =
     C.iter_blocks cfg ~f:(fun label block ->
         if block.dead
         then
-          Misc.fatal_errorf "Block %d in %s marked as dead but not eliminated\n"
-            label cfg.fun_name)
+          Misc.fatal_errorf "Block %a in %s marked as dead but not eliminated\n"
+            Label.format label cfg.fun_name)
 
 let run cfg_with_layout = eliminate_dead_blocks cfg_with_layout

@@ -422,7 +422,8 @@ class virtual selector_generic =
 
     val mutable sub_cfg = Sub_cfg.make_empty ()
 
-    val mutable tailrec_label : Label.t = -1 (* set in emit_fundecl *)
+    val mutable tailrec_label : Label.t = Label.none
+    (* set in emit_fundecl *)
 
     method insert
         : environment -> Cfg.basic -> Reg.t array -> Reg.t array -> unit =

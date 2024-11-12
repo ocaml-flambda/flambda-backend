@@ -97,7 +97,7 @@ type float_comparison = Lambda.float_comparison =
 val negate_float_comparison: float_comparison -> float_comparison
 val swap_float_comparison: float_comparison -> float_comparison
 
-type label = int
+type label = Label.t
 val new_label: unit -> label
 val set_label: label -> unit
 val cur_label: unit -> label
@@ -392,7 +392,7 @@ type phrase =
 val width_in_bytes : memory_chunk -> int
 
 val ccatch :
-     label * (Backend_var.With_provenance.t * machtype) list
+     Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
        * expression * expression * Debuginfo.t * kind_for_unboxing
        * bool
   -> expression

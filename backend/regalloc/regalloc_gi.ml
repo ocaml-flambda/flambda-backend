@@ -228,8 +228,8 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
           if occurs
           then (
             let dummy_liveness_for_log = Cfg_dataflow.Instr.Tbl.create 12 in
-            log ~indent:0 "block %d has an occurrence of a spilling register"
-              block.start;
+            log ~indent:0 "block %a has an occurrence of a spilling register"
+              Label.format block.start;
             log_body_and_terminator ~indent:1 block.body block.terminator
               dummy_liveness_for_log)));
     match

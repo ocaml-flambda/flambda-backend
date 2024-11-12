@@ -226,7 +226,7 @@ let rewrite_gen :
   Cfg.iter_blocks (Cfg_with_infos.cfg cfg_with_infos) ~f:(fun label block ->
       if Utils.debug
       then (
-        Utils.log ~indent:2 "body of #%d, before:" label;
+        Utils.log ~indent:2 "body of #%a, before:" Label.format label;
         Utils.log_body_and_terminator ~indent:3 block.body block.terminator
           liveness);
       let block_rewritten = ref false in

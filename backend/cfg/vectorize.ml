@@ -861,8 +861,8 @@ let cfg ppf_dump cl =
   DLL.iter layout ~f:(fun label ->
       let block = Cfg.get_block_exn cfg label in
       let instruction_count = DLL.length block.body in
-      Format.fprintf ppf_dump "\nBlock %d (%d basic instructions):\n" label
-        instruction_count;
+      Format.fprintf ppf_dump "\nBlock %a (%d basic instructions):\n"
+        Label.format label instruction_count;
       if instruction_count > 1000
       then
         Format.fprintf ppf_dump

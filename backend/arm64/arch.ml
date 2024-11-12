@@ -38,7 +38,7 @@ type addressing_mode =
 
 (* Specific operations *)
 
-type cmm_label = int
+type cmm_label = Label.t
   (* Do not introduce a dependency to Cmm *)
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour

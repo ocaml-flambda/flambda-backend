@@ -69,9 +69,9 @@ val save_as_dot :
     | `Terminator of Cfg.terminator Cfg.instruction ] ->
     unit)
     list ->
-  ?annotate_block:(int -> string) ->
+  ?annotate_block:(Label.t -> string) ->
   ?annotate_block_end:(Format.formatter -> Cfg.basic_block -> unit) ->
-  ?annotate_succ:(int -> int -> string) ->
+  ?annotate_succ:(Label.t -> Label.t -> string) ->
   ?filename:string ->
   t ->
   string ->

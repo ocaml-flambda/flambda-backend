@@ -519,7 +519,7 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
   if gi_debug && Lazy.force gi_verbose
   then
     iter_cfg_layout cfg_with_layout ~f:(fun block ->
-        log ~indent:2 "(block %d)" block.start;
+        log ~indent:2 "(block %a)" Label.format block.start;
         log_body_and_terminator ~indent:2 block.body block.terminator liveness);
   past_ranges
 

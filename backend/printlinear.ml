@@ -20,7 +20,7 @@ open Mach
 open Linear
 
 let label ppf l =
-  Format.fprintf ppf "L%i" l
+  Format.fprintf ppf "L%a" Label.format l
 
 let section_name_to_string ppf = function
   | None -> ()
