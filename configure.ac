@@ -23,6 +23,12 @@ AC_INIT([The Flambda backend for OCaml],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
 
+
+## Command-line arguments passed to configure
+# This must be set very soon after AC_INIT to avoid other macros from clobbering
+# argv
+CONFIGURE_ARGS="$*"
+
 DUNE_MAX_VERSION=[3.15]
 
 AC_MSG_NOTICE([Configuring Flambda backend version AC_PACKAGE_VERSION])
@@ -106,9 +112,6 @@ AS_IF([test x"$enable_dev" = xyes], [main_build_profile=dev])
 AC_SUBST([main_build_profile])
 
 # Configuration variables
-
-## Command-line arguments passed to configure
-CONFIGURE_ARGS="$*"
 
 # Command to build executables
 # Ultimately, MKEXE may build an executable using the C compiler or it may use
