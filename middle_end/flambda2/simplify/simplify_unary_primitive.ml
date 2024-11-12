@@ -889,7 +889,8 @@ let simplify_mutable_block_load _access_kind ~field:_ ~original_prim dacc
       ~original_term
 
 (* CR layouts v3: implement a real simplifier. *)
-let simplify_is_null dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty ~result_var =
+let simplify_is_null dacc ~original_term ~arg:scrutinee ~arg_ty:scrutinee_ty
+    ~result_var =
   simplify_relational_primitive dacc ~original_term ~scrutinee ~scrutinee_ty
     ~result_var ~make_shape:(fun scrutinee -> T.is_null ~scrutinee)
 
