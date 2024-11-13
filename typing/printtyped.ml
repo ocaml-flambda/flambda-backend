@@ -326,13 +326,13 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
       value_mode i ppf m;
       pattern i ppf p;
   | Tpat_constant (c) -> line i ppf "Tpat_constant %a\n" fmt_constant c;
-  | Tpat_tuple (l) ->
+  | Tpat_tuple (l, _) ->
       line i ppf "Tpat_tuple\n";
       list i labeled_pattern ppf l;
   | Tpat_unboxed_tuple (l) ->
       line i ppf "Tpat_unboxed_tuple\n";
       list i labeled_pattern_with_sorts ppf l;
-  | Tpat_construct (li, _, po, vto) ->
+  | Tpat_construct (li, _, po, vto, _) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
       list i pattern ppf po;
       option i
@@ -341,13 +341,13 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
           line i ppf "[%s]\n" (String.concat "; " names);
           core_type i ppf ct)
         ppf vto
-  | Tpat_variant (l, po, _) ->
+  | Tpat_variant (l, po, _, _) ->
       line i ppf "Tpat_variant \"%s\"\n" l;
       option i pattern ppf po;
-  | Tpat_record (l, _c) ->
+  | Tpat_record (l, _c, _) ->
       line i ppf "Tpat_record\n";
       list i longident_x_pattern ppf l;
-  | Tpat_array (am, arg_sort, l) ->
+  | Tpat_array (am, arg_sort, l, _) ->
       line i ppf "Tpat_array %a\n" fmt_mutable_mode_flag am;
       line i ppf "%a\n" Jkind.Sort.format arg_sort;
       list i pattern ppf l;

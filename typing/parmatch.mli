@@ -83,11 +83,11 @@ val get_mins : ('a -> 'a -> bool) -> 'a list -> 'a list
 val set_args : pattern -> pattern list -> pattern list
 val set_args_erase_mutable : pattern -> pattern list -> pattern list
 
-val pat_of_constr : pattern -> constructor_description -> pattern
+val pat_of_constr : pattern -> Unique_barrier.t -> constructor_description -> pattern
 val complete_constrs :
     constructor_description pattern_data ->
     constructor_description list ->
-    constructor_description list
+    (constructor_description * Unique_barrier.t) list
 
 (** [pats_of_type] builds a list of patterns from a given expected type,
     for explosion of wildcard patterns in Typecore.type_pat.

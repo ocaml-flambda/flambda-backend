@@ -101,9 +101,10 @@ let count_language_extensions typing_input =
           (fun (type k) sub
                ({ pat_desc; _ } as gen_pat : k Typedtree.general_pattern) ->
             (match pat_desc with
-            | Tpat_tuple label_opt_pair_list ->
+            | Tpat_tuple (label_opt_pair_list, _) ->
               check_for_labeled_tuples label_opt_pair_list
-            | Tpat_array (mutability, _, _) -> check_array_mutability mutability
+            | Tpat_array (mutability, _, _, _) ->
+              check_array_mutability mutability
             | _ -> ());
             default_iterator.pat sub gen_pat)
       }

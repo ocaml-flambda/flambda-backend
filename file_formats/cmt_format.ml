@@ -254,9 +254,9 @@ let iter_on_occurrences
     (fun (type a) sub
       ({ pat_desc; pat_extra; pat_env; _ } as pat : a general_pattern) ->
       (match pat_desc with
-      | Tpat_construct (lid, constr_desc, _, _) ->
+      | Tpat_construct (lid, constr_desc, _, _, _) ->
           add_constructor_description pat_env lid constr_desc
-      | Tpat_record (fields, _) ->
+      | Tpat_record (fields, _, _) ->
         List.iter (fun (lid, label_descr, pat) ->
           let lid =
             let open Location in

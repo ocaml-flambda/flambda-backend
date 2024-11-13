@@ -55,7 +55,7 @@ module Unique_barrier = struct
      - Barriers start out as Not_computed
      - They are enabled by the uniqueness analysis
      - They are resolved in translcore
-    This allows us to error if the barrier is not enabled or resolved. *)
+    This allows us to error if the barrier is not enabled or not resolved. *)
   type barrier =
     | Enabled of Mode.Uniqueness.lr
     | Resolved of Mode.Uniqueness.Const.t
@@ -63,11 +63,23 @@ module Unique_barrier = struct
 
   type t = barrier ref
 
-  let not_computed () = ref Not_computed
+  type counters =
+    { number_created : int;
+      number_enabled : int;
+      number_resolved : int
+    }
 
-  let enable barrier = match !barrier with
+  let counters = ref { number_created = 0; number_enabled = 0; number_resolved = 0 }
+
+  let not_computed () =
+    counters := { !counters with number_created = !counters.number_created + 1 };
+    ref Not_computed
+
+  let enable barrier =
+    match !barrier with
     | Not_computed ->
-      barrier := Enabled (Uniqueness.newvar ())
+      counters := { !counters with number_enabled = !counters.number_enabled + 1 };
+      barrier := Enabled (Uniqueness.newvar ());
     | _ -> Misc.fatal_error "Unique barrier was enabled twice"
 
   (* Due to or-patterns a barrier may have several upper bounds. *)
@@ -79,6 +91,7 @@ module Unique_barrier = struct
   let resolve barrier =
     match !barrier with
     | Enabled uniq ->
+      counters := { !counters with number_resolved = !counters.number_resolved + 1 };
       let zapped = Uniqueness.zap_to_ceil uniq in
       barrier := Resolved zapped;
       zapped
@@ -92,6 +105,14 @@ module Unique_barrier = struct
          not traversing the uniqueness analysis. This ensures that the
          unique barriers will stay sound for future extensions. *)
       Uniqueness.Const.legacy
+
+  (* It is fine if barriers are created and not enabled. This happens for example
+     when patterns are generated to check GADTs. These patterns do not make it into
+     generated code and if they did, they would fail in the [resolve] function. *)
+  let check_consistency () =
+    if !counters.number_enabled != !counters.number_resolved then
+      () (* CR uniqueness: fail *)
+    else ()
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
@@ -118,8 +139,7 @@ and 'a pattern_data =
     pat_extra : (pat_extra * Location.t * attribute list) list;
     pat_type: type_expr;
     pat_env: Env.t;
-    pat_attributes: attribute list;
-    pat_unique_barrier : Unique_barrier.t;
+    pat_attributes: attribute list
    }
 
 and pat_extra =
@@ -135,23 +155,26 @@ and 'k pattern_desc =
   | Tpat_alias :
       value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
-  | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
+  | Tpat_tuple :
+      (string option * value general_pattern) list * Unique_barrier.t ->
+      value pattern_desc
   | Tpat_unboxed_tuple :
       (string option * value general_pattern * Jkind.sort) list ->
       value pattern_desc
   | Tpat_construct :
       Longident.t loc * constructor_description * value general_pattern list
-      * (Ident.t loc list * core_type) option ->
+      * (Ident.t loc list * core_type) option * Unique_barrier.t ->
       value pattern_desc
   | Tpat_variant :
-      label * value general_pattern option * row_desc ref ->
+      label * value general_pattern option * row_desc ref * Unique_barrier.t ->
       value pattern_desc
   | Tpat_record :
       (Longident.t loc * label_description * value general_pattern) list *
-        closed_flag ->
+        closed_flag * Unique_barrier.t ->
       value pattern_desc
   | Tpat_array :
-      mutability * Jkind.sort * value general_pattern list -> value pattern_desc
+      mutability * Jkind.sort * value general_pattern list * Unique_barrier.t ->
+      value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
   (* computation patterns *)
   | Tpat_value : tpat_value_argument -> computation pattern_desc
@@ -898,7 +921,6 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_type = p.pat_type;
     pat_env = p.pat_env;
     pat_attributes = [];
-    pat_unique_barrier = p.pat_unique_barrier;
   }
 
 let function_arity params body =
@@ -941,13 +963,13 @@ let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
   | Tpat_alias(p, _, _, _, _) -> f.f p
-  | Tpat_tuple patl -> List.iter (fun (_, p) -> f.f p) patl
+  | Tpat_tuple (patl, _) -> List.iter (fun (_, p) -> f.f p) patl
   | Tpat_unboxed_tuple patl -> List.iter (fun (_, p, _) -> f.f p) patl
-  | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
-  | Tpat_variant(_, pat, _) -> Option.iter f.f pat
-  | Tpat_record (lbl_pat_list, _) ->
+  | Tpat_construct(_, _, patl, _, _) -> List.iter f.f patl
+  | Tpat_variant(_, pat, _, _) -> Option.iter f.f pat
+  | Tpat_record (lbl_pat_list, _, _) ->
       List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
-  | Tpat_array (_, _, patl) -> List.iter f.f patl
+  | Tpat_array (_, _, patl, _) -> List.iter f.f patl
   | Tpat_lazy p -> f.f p
   | Tpat_any
   | Tpat_var _
@@ -963,24 +985,24 @@ let shallow_map_pattern_desc
   = fun f d -> match d with
   | Tpat_alias (p1, id, s, uid, m) ->
       Tpat_alias (f.f p1, id, s, uid, m)
-  | Tpat_tuple pats ->
-      Tpat_tuple (List.map (fun (label, pat) -> label, f.f pat) pats)
+  | Tpat_tuple (pats, ubr) ->
+      Tpat_tuple (List.map (fun (label, pat) -> label, f.f pat) pats, ubr)
   | Tpat_unboxed_tuple pats ->
       Tpat_unboxed_tuple
         (List.map (fun (label, pat, sort) -> label, f.f pat, sort) pats)
-  | Tpat_record (lpats, closed) ->
-      Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
-  | Tpat_construct (lid, c, pats, ty) ->
-      Tpat_construct (lid, c, List.map f.f pats, ty)
-  | Tpat_array (am, arg_sort, pats) ->
-      Tpat_array (am, arg_sort, List.map f.f pats)
+  | Tpat_record (lpats, closed, ubr) ->
+      Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed, ubr)
+  | Tpat_construct (lid, c, pats, ty, ubr) ->
+      Tpat_construct (lid, c, List.map f.f pats, ty, ubr)
+  | Tpat_array (am, arg_sort, pats, ubr) ->
+      Tpat_array (am, arg_sort, List.map f.f pats, ubr)
   | Tpat_lazy p1 -> Tpat_lazy (f.f p1)
-  | Tpat_variant (x1, Some p1, x2) ->
-      Tpat_variant (x1, Some (f.f p1), x2)
+  | Tpat_variant (x1, Some p1, x2, ubr) ->
+      Tpat_variant (x1, Some (f.f p1), x2, ubr)
   | Tpat_var _
   | Tpat_constant _
   | Tpat_any
-  | Tpat_variant (_,None,_) -> d
+  | Tpat_variant (_,None,_, _) -> d
   | Tpat_value p -> Tpat_value (f.f p)
   | Tpat_exception p -> Tpat_exception (f.f p)
   | Tpat_or (p1,p2,path) ->
@@ -1064,7 +1086,7 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
         else loop f sort p1
       | Tpat_value p -> loop f sort p
       (* Cases where we compute the sort of the inner thing from the pattern *)
-      | Tpat_construct(_, cstr, patl, _) ->
+      | Tpat_construct(_, cstr, patl, _, _) ->
           let sorts =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
@@ -1073,19 +1095,19 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
                                           cstr.cstr_arg_jkinds)
           in
           List.iter2 (loop f) sorts patl
-      | Tpat_record (lbl_pat_list, _) ->
+      | Tpat_record (lbl_pat_list, _, _) ->
           List.iter (fun (_, lbl, pat) ->
             (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
             lbl_pat_list
       (* Cases where the inner things must be value: *)
-      | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
-      | Tpat_tuple patl ->
+      | Tpat_variant (_, pat, _, _) -> Option.iter (loop f Jkind.Sort.value) pat
+      | Tpat_tuple (patl, _) ->
         List.iter (fun (_, pat) -> loop f Jkind.Sort.value pat) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
       | Tpat_unboxed_tuple patl ->
         List.iter (fun (_, pat, sort) -> loop f sort pat) patl
-      | Tpat_array (_, arg_sort, patl) -> List.iter (loop f arg_sort) patl
+      | Tpat_array (_, arg_sort, patl, _) -> List.iter (loop f arg_sort) patl
       | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()

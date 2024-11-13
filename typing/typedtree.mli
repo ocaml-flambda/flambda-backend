@@ -27,7 +27,11 @@ module Uid = Shape.Uid
 (* We define a new constant type that can represent unboxed values.
    This is currently used only in [Typedtree], but the long term goal
    is to share this definition with [Lambda] and completely replace the
-   usage of [Asttypes.constant] *)
+   usage of [Asttypes.constant].
+
+   For the correctness of the uniqueness extension, it is important
+   that all constants mode-cross uniqueness. If you intend to break this
+   invariant, you need to add a unique barrier to [Tpat_constant]. *)
 type constant =
     Const_int of int
   | Const_char of char
@@ -80,6 +84,10 @@ module Unique_barrier : sig
 
   (* Resolve the unique barrier once type-checking is complete. *)
   val resolve : t -> Mode.Uniqueness.Const.t
+
+  (* After translation to lambda, this function should be called
+     to ensure that all unique barriers are actually read. *)
+  val check_consistency : unit -> unit
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
@@ -108,10 +116,7 @@ and 'a pattern_data =
     pat_extra : (pat_extra * Location.t * attributes) list;
     pat_type: Types.type_expr;
     pat_env: Env.t;
-    pat_attributes: attributes;
-    pat_unique_barrier : Unique_barrier.t;
-    (** This tracks whether the scrutinee of the pattern is used uniquely
-        within the body of the pattern match. *)
+    pat_attributes: attributes
    }
 
 and pat_extra =
@@ -134,6 +139,9 @@ and pat_extra =
             ; pat_extra = (Tpat_unpack, _, _) :: ... }
          *)
 
+(** When you extend [pattern_desc], you have to add a [Unique_barrier.t]
+    if your new pattern matches an allocation and allows users to follow
+    pointers residing in that allocation. *)
 and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
@@ -146,7 +154,9 @@ and 'k pattern_desc =
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
-  | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
+  | Tpat_tuple :
+      (string option * value general_pattern) list * Unique_barrier.t ->
+      value pattern_desc
         (** (P1, ..., Pn)                  [(None,P1); ...; (None,Pn)])
             (L1:P1, ... Ln:Pn)             [(Some L1,P1); ...; (Some Ln,Pn)])
             Any mix, e.g. (L1:P1, P2)      [(Some L1,P1); ...; (None,P2)])
@@ -161,10 +171,14 @@ and 'k pattern_desc =
             Any mix, e.g. #(L1:P1, P2)  [(Some L1,P1,s1); ...; (None,P2,s2)])
 
             Invariant: n >= 2
+
+            Unboxed tuples are not allocations in memory and thus do not need
+            a unique barrier.
          *)
   | Tpat_construct :
       Longident.t loc * Types.constructor_description *
-        value general_pattern list * (Ident.t loc list * core_type) option ->
+        value general_pattern list * (Ident.t loc list * core_type) option *
+        Unique_barrier.t ->
       value pattern_desc
         (** C                             ([], None)
             C P                           ([P], None)
@@ -175,7 +189,7 @@ and 'k pattern_desc =
             C (type a) (P1, ..., Pn : t)  ([P1; ...; Pn], Some ([a], t))
           *)
   | Tpat_variant :
-      label * value general_pattern option * Types.row_desc ref ->
+      label * value general_pattern option * Types.row_desc ref * Unique_barrier.t ->
       value pattern_desc
         (** `A             (None)
             `A P           (Some P)
@@ -184,7 +198,7 @@ and 'k pattern_desc =
          *)
   | Tpat_record :
       (Longident.t loc * Types.label_description * value general_pattern) list *
-        closed_flag ->
+        closed_flag * Unique_barrier.t ->
       value pattern_desc
         (** { l1=P1; ...; ln=Pn }     (flag = Closed)
             { l1=P1; ...; ln=Pn; _}   (flag = Open)
@@ -192,7 +206,8 @@ and 'k pattern_desc =
             Invariant: n > 0
          *)
   | Tpat_array :
-      Types.mutability * Jkind.sort * value general_pattern list -> value pattern_desc
+      Types.mutability * Jkind.sort * value general_pattern list * Unique_barrier.t ->
+      value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc

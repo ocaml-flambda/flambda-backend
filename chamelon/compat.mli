@@ -103,19 +103,13 @@ type matched_expression_desc =
 
 val view_texp : expression_desc -> matched_expression_desc
 
-val mkpattern_data :
-  pat_desc:'a ->
-  pat_loc:Location.t ->
-  pat_extra:(pat_extra * Location.t * attribute list) list ->
-  pat_type:type_expr ->
-  pat_env:Env.t ->
-  pat_attributes:attribute list ->
-  'a pattern_data
-
 type tpat_var_identifier
 type tpat_alias_identifier
 type tpat_array_identifier
 type tpat_tuple_identifier
+type tpat_construct_identifier
+type tpat_variant_identifier
+type tpat_record_identifier
 
 val mkTpat_var :
   ?id:tpat_var_identifier -> Ident.t * string Location.loc -> value pattern_desc
@@ -130,6 +124,26 @@ val mkTpat_array :
 
 val mkTpat_tuple :
   ?id:tpat_tuple_identifier -> value general_pattern list -> value pattern_desc
+
+val mkTpat_construct :
+  ?id:tpat_construct_identifier ->
+  Longident.t Location.loc
+  * Types.constructor_description
+  * value general_pattern list
+  * (Ident.t Location.loc list * core_type) option ->
+  value pattern_desc
+
+val mkTpat_variant :
+  ?id:tpat_variant_identifier ->
+  Asttypes.label * value general_pattern option * Types.row_desc ref ->
+  value pattern_desc
+
+val mkTpat_record :
+  ?id:tpat_record_identifier ->
+  (Longident.t Location.loc * Types.label_description * value general_pattern)
+  list
+  * Asttypes.closed_flag ->
+  value pattern_desc
 
 type 'a matched_pattern_desc =
   | Tpat_var :
@@ -146,6 +160,27 @@ type 'a matched_pattern_desc =
       -> value matched_pattern_desc
   | Tpat_tuple :
       value general_pattern list * tpat_tuple_identifier
+      -> value matched_pattern_desc
+  | Tpat_construct :
+      Longident.t Location.loc
+      * Types.constructor_description
+      * value general_pattern list
+      * (Ident.t Location.loc list * core_type) option
+      * tpat_construct_identifier
+      -> value matched_pattern_desc
+  | Tpat_variant :
+      Asttypes.label
+      * value general_pattern option
+      * Types.row_desc ref
+      * tpat_variant_identifier
+      -> value matched_pattern_desc
+  | Tpat_record :
+      (Longident.t Location.loc
+      * Types.label_description
+      * value general_pattern)
+      list
+      * Asttypes.closed_flag
+      * tpat_record_identifier
       -> value matched_pattern_desc
   | O : 'a pattern_desc -> 'a matched_pattern_desc
 

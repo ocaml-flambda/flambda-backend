@@ -94,10 +94,11 @@ let rec replace_in_pat : type k. _ -> k general_pattern -> k general_pattern =
                fields)
       | Tpat_array (vl, id) ->
           mkTpat_array ~id (List.map (replace_in_pat mod_name) vl)
-      | O (Tpat_construct (a1, a2, vl, a3)) ->
-          Tpat_construct (a1, a2, List.map (replace_in_pat mod_name) vl, a3)
-      | O (Tpat_record (r, a1)) ->
-          Tpat_record
+      | Tpat_construct (a1, a2, vl, a3, id) ->
+          mkTpat_construct ~id
+            (a1, a2, List.map (replace_in_pat mod_name) vl, a3)
+      | Tpat_record (r, a1, id) ->
+          mkTpat_record ~id
             ( List.map
                 (fun (e1, e2, pat) -> (e1, e2, replace_in_pat mod_name pat))
                 r,
@@ -105,13 +106,16 @@ let rec replace_in_pat : type k. _ -> k general_pattern -> k general_pattern =
       | O (Tpat_or (p1, p2, a1)) ->
           Tpat_or (replace_in_pat mod_name p1, replace_in_pat mod_name p2, a1)
       | O (Tpat_lazy pat) -> Tpat_lazy (replace_in_pat mod_name pat)
-      | O (Tpat_variant (lab, Some p, t)) ->
-          Tpat_variant (lab, Some (replace_in_pat mod_name p), t)
+      | Tpat_variant (lab, Some p, t, id) ->
+          mkTpat_variant ~id (lab, Some (replace_in_pat mod_name p), t)
       | O (Tpat_value _)
       (* p) -> as_computation_pattern (replace_in_pat mod_name p) *)
-      | O (Tpat_any | Tpat_constant _ | Tpat_variant _ | Tpat_exception _) ->
+      | O (Tpat_any | Tpat_constant _ | Tpat_exception _)
+      | Tpat_variant _ ->
           pat.pat_desc
-      | O (Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _) ->
+      | O
+          ( Tpat_var _ | Tpat_alias _ | Tpat_array _ | Tpat_tuple _
+          | Tpat_construct _ | Tpat_variant _ | Tpat_record _ ) ->
           assert false);
   }
 
