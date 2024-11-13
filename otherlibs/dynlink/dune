@@ -206,8 +206,6 @@
 
 (copy_files ../../utils/language_extension_kernel.ml)
 
-(copy_files ../../utils/language_extension.ml)
-
 (copy_files ../../utils/profile.ml)
 
 (copy_files ../../utils/profile_counters_functions.ml)
@@ -235,6 +233,8 @@
 (copy_files ../../utils/zero_alloc_utils.ml)
 
 (copy_files ../../parsing/location.ml)
+
+(copy_files ../../parsing/language_extension.ml)
 
 (copy_files ../../parsing/longident.ml)
 
@@ -362,8 +362,6 @@
 
 (copy_files ../../utils/language_extension_kernel.mli)
 
-(copy_files ../../utils/language_extension.mli)
-
 (copy_files ../../utils/profile.mli)
 
 (copy_files ../../utils/profile_counters_functions.mli)
@@ -391,6 +389,8 @@
 (copy_files ../../utils/zero_alloc_utils.mli)
 
 (copy_files ../../parsing/location.mli)
+
+(copy_files ../../parsing/language_extension.mli)
 
 (copy_files ../../parsing/longident.mli)
 

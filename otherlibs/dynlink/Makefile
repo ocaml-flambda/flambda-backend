@@ -90,7 +90,6 @@ COMPILERLIBS_SOURCES=\
   utils/zero_alloc_annotations.ml \
   utils/debug.ml \
   utils/language_extension_kernel.ml \
-  utils/language_extension.ml \
   utils/profile.ml \
   utils/profile_counters_functions.ml \
   utils/consistbl.ml \
@@ -110,6 +109,7 @@ COMPILERLIBS_SOURCES=\
   utils/compression.ml \
 >>>>>>> 5.2.0
   parsing/location.ml \
+  parsing/language_extension.ml \
   parsing/unit_info.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
