@@ -28,19 +28,20 @@ let log_renaming_info : indent:int -> t -> unit =
         (match kind with
         | Destruction_on_all_paths -> "[all-paths]"
         | Destruction_only_on_exceptional_path -> "[exn-only]")
-        Printmach.regset regset)
+        Printreg.regset regset)
     state.destructions_at_end;
   log ~indent:(indent + 1) "definitions:";
   Label.Map.iter
     (fun label regset ->
       log ~indent:(indent + 2) " - beginning of block %a (%a)" Label.format
-        label Printmach.regset regset)
+        label Printreg.regset regset)
+
     state.definitions_at_beginning;
   log ~indent:1 "phi:";
   Label.Map.iter
     (fun label regset ->
       log ~indent:(indent + 2) " - beginning of block %a (%a)" Label.format
-        label Printmach.regset regset)
+        label Printreg.regset regset)
     state.phi_at_beginning
 
 (* Optimizes `destructions_at_end` and `definitions_at_beginning`, by moving
@@ -109,7 +110,7 @@ end = struct
                   if split_debug
                   then
                     log ~indent:2 "moving %a from block %a to block %a"
-                      Printmach.regset to_move Label.format label Label.format
+                      Printreg.regset to_move Label.format label Label.format
                       successor_label;
                   definitions_at_beginning
                     := Label.Map.update label
@@ -187,7 +188,7 @@ end = struct
               if split_debug
               then
                 log ~indent:2 "moving %a from block %a to block %a"
-                  Printmach.regset to_move Label.format label Label.format
+                  Printreg.regset to_move Label.format label Label.format
                   predecessor_label;
               destructions_at_end
                 := Label.Map.update label
@@ -242,13 +243,13 @@ end = struct
           | Some (Destruction_on_all_paths, destructions) -> (
             if split_debug
             then (
-              log ~indent:2 "definitions: %a" Printmach.regset definitions;
-              log ~indent:2 "destructions: %a" Printmach.regset destructions);
+              log ~indent:2 "definitions: %a" Printreg.regset definitions;
+              log ~indent:2 "destructions: %a" Printreg.regset destructions);
             let can_be_removed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
                   if split_debug
-                  then log ~indent:3 "register %a" Printmach.reg reg;
+                  then log ~indent:3 "register %a" Printreg.reg reg;
                   match Reg.Set.mem reg destructions with
                   | false ->
                     if split_debug then log ~indent:3 "(not among destructions)";
@@ -264,7 +265,7 @@ end = struct
             in
             if split_debug
             then
-              log ~indent:2 "can be removed: %a" Printmach.regset can_be_removed;
+              log ~indent:2 "can be removed: %a" Printreg.regset can_be_removed;
             match Reg.Set.is_empty can_be_removed with
             | true -> definitions
             | false ->
@@ -324,7 +325,7 @@ end = struct
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
                   if split_debug
-                  then log ~indent:2 "register %a" Printmach.reg reg;
+                  then log ~indent:2 "register %a" Printreg.reg reg;
                   let keep =
                     match Reg.Tbl.find_opt num_sets reg with
                     | None | Some Maybe_more_than_once -> true
@@ -404,7 +405,7 @@ end = struct
       log ~indent:1 "num_sets:";
       Reg.Tbl.iter
         (fun reg num_set ->
-          log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
+          log ~indent:2 "%a ~> %s" Printreg.reg reg (string_of_set num_set))
         num_sets);
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     let forest = Cfg_dominators.dominator_forest doms in

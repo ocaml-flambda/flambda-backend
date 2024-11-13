@@ -299,7 +299,7 @@ let[@tail_mod_cons] rec map_stutter f xs =
                                    (non_consts ([0: *,
                                                  [(consts (0))
                                                   (non_consts ([0: *, *]))]]))])
-                  (apply f (makeblock 0 (field_imm 0 xs))) 24029))
+                  (apply f (makeblock 0 (*) (field_imm 0 xs))) 24029))
              (seq (apply map_stutter_dps block 1 f (field_imm 1 xs)) block))
            0)))
     map_stutter_dps
@@ -320,7 +320,7 @@ let[@tail_mod_cons] rec map_stutter f xs =
           (seq (setfield_ptr(heap-init)_computed dst offset block)
             (if xs
               (let
-                (block0_arg0 = (apply f (makeblock 0 (field_imm 0 xs)))
+                (block0_arg0 = (apply f (makeblock 0 (*) (field_imm 0 xs)))
                  block =
                    (makemutable 0 (*,[(consts (0))
                                       (non_consts ([0: *,
@@ -363,7 +363,7 @@ type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
                                          (non_consts ([0: *, *]))]]))])
            (apply f 0)
            (let
-             (v = (apply f (makeblock 0 (field_imm 0 xs)))
+             (v = (apply f (makeblock 0 (*) (field_imm 0 xs)))
               block =
                 (makemutable 0 (*,[(consts (0))
                                    (non_consts ([0: *,
@@ -382,7 +382,7 @@ type 'a stream = { hd : 'a; tl : unit -> 'a stream; }
         (if (== n 0) (setfield_ptr(heap-init)_computed dst offset 0)
           (let
             (block0_arg0 = (apply f 0)
-             v = (apply f (makeblock 0 (field_imm 0 xs)))
+             v = (apply f (makeblock 0 (*) (field_imm 0 xs)))
              block =
                (makemutable 0 (*,[(consts (0))
                                   (non_consts ([0: *,

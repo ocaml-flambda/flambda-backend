@@ -54,7 +54,7 @@ let log_substitution : indent:int -> Substitution.t -> unit =
  fun ~indent subst ->
   Reg.Tbl.iter
     (fun old_reg new_reg ->
-      log ~indent "%a -> %a" Printmach.reg old_reg Printmach.reg new_reg)
+      log ~indent "%a -> %a" Printreg.reg old_reg Printreg.reg new_reg)
     subst
 
 let log_substitutions : indent:int -> Substitution.map -> unit =

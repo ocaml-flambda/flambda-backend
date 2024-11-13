@@ -8,6 +8,12 @@ type maturity = Language_extension_kernel.maturity =
   | Beta
   | Alpha
 
+module Maturity : sig
+  (* Maturities are ordered such that the most experimental (Alpha) is
+     greatest *)
+  val max : maturity -> maturity -> maturity
+end
+
 (** The type of language extensions. An ['a t] is an extension that can either
     be off or be set to have any value in ['a], so a [unit t] can be either on
     or off, while a [maturity t] can have different maturity settings. *)

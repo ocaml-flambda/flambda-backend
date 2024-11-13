@@ -23,6 +23,12 @@ AC_INIT([The Flambda backend for OCaml],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
 
+
+## Command-line arguments passed to configure
+# This must be set very soon after AC_INIT to avoid other macros from clobbering
+# argv
+CONFIGURE_ARGS="$*"
+
 DUNE_MAX_VERSION=[3.15]
 
 AC_MSG_NOTICE([Configuring Flambda backend version AC_PACKAGE_VERSION])
@@ -106,9 +112,6 @@ AS_IF([test x"$enable_dev" = xyes], [main_build_profile=dev])
 AC_SUBST([main_build_profile])
 
 # Configuration variables
-
-## Command-line arguments passed to configure
-CONFIGURE_ARGS="$*"
 
 # Command to build executables
 # Ultimately, MKEXE may build an executable using the C compiler or it may use
@@ -390,6 +393,10 @@ AS_IF([test "x$enable_runtime5" = "xyes"],
   ]
 )
 AC_CONFIG_FILES([compilerlibs/META])
+AC_CONFIG_FILES([otherlibs/stdlib_upstream_compatible/META])
+AC_CONFIG_FILES([otherlibs/stdlib_stable/META])
+AC_CONFIG_FILES([otherlibs/stdlib_beta/META])
+AC_CONFIG_FILES([otherlibs/stdlib_alpha/META])
 AC_CONFIG_FILES([otherlibs/dynlink/META])
 AC_CONFIG_FILES([otherlibs/runtime_events/META])
 AC_CONFIG_FILES([stdlib/META])
@@ -2667,7 +2674,7 @@ AC_DEFINE_UNQUOTED([PROFINFO_WIDTH], [$profinfo_width])
 AS_IF([$profinfo], [AC_DEFINE([WITH_PROFINFO])])
 
 # Only gcc supports -fno-partial-inlining
-AS_CASE([$ocaml_cv_cc_vendor],
+AS_CASE([$ocaml_cc_vendor],
   [gcc-*],
     [no_partial_inlining_cflags="-fno-partial-inlining"],
   [no_partial_inlining_cflags=""])

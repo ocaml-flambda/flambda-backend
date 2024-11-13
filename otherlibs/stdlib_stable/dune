@@ -74,3 +74,9 @@
   (with-stdout-to
    to_install.sexp
    (run "%{first-dep}" "stdlib_stable"))))
+
+(install
+ (files
+  (META as stdlib_stable/META))
+ (section lib)
+ (package ocaml))

@@ -17,13 +17,6 @@
 
 open Format
 
-val loc: ?wrap_out:(formatter -> (formatter -> unit) -> unit) -> unknown:(formatter -> unit) -> formatter -> Reg.location -> Cmm.machtype_component -> unit
-val reg: formatter -> Reg.t -> unit
-val regs': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> Reg.t array -> unit
-val regs: formatter -> Reg.t array -> unit
-val regset: formatter -> Reg.Set.t -> unit
-val regsetaddr': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> Reg.Set.t -> unit
-val regsetaddr: formatter -> Reg.Set.t -> unit
 val operation': ?print_reg:(formatter -> Reg.t -> unit) -> Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
 val operation: Mach.operation -> Reg.t array -> formatter -> Reg.t array -> unit
 val test': ?print_reg:(formatter -> Reg.t -> unit) -> Simple_operation.test -> formatter -> Reg.t array -> unit

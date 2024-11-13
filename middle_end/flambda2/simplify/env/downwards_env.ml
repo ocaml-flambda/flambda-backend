@@ -124,7 +124,7 @@ let define_variable t var kind =
       match t.defined_variables_by_scope with
       | [] -> Misc.fatal_errorf "Empty stack of defined variables in denv."
       | variables_defined_in_current_continuation :: r ->
-        let kind = Flambda_kind.With_subkind.create kind Anything in
+        let kind = Flambda_kind.With_subkind.anything kind in
         let variables_defined_in_current_continuation =
           Lifted_cont_params.new_param variables_defined_in_current_continuation
             (Bound_parameter.create (Bound_var.var var) kind)

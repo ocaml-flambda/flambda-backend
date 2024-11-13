@@ -189,6 +189,8 @@ type primitive =
   | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
+  (* Test if the argument is a null pointer *)
+  | Pisnull
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
   (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
@@ -384,7 +386,19 @@ and array_index_kind =
   | Ptagged_int_index
   | Punboxed_int_index of unboxed_integer
 
+(** [Nullable] value kinds allow the special Null value in addition to the
+    values of its underlying type. [Non_nullable] only allows values of the
+    underlying type. *)
+and nullable =
+  | Nullable
+  | Non_nullable
+
 and value_kind =
+  { raw_kind : value_kind_non_null;
+    nullable : nullable;
+  }
+
+and value_kind_non_null =
   | Pgenval
   | Pintval
   | Pboxedfloatval of boxed_float
@@ -501,6 +515,8 @@ val print_boxed_vector : Format.formatter -> boxed_vector -> unit
 
 val must_be_value : layout -> value_kind
 
+val generic_value : value_kind
+
 (* This is the layout of ocaml values used as arguments to or returned from
    primitives for this [extern_repr].  So the legacy [Unboxed_float] - which is
    a float that is unboxed before being passed to a C function - is mapped to
@@ -516,6 +532,7 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
+  | Const_null
 
 type tailcall_attribute =
   | Tailcall_expectation of bool

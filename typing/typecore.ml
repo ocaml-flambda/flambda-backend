@@ -262,6 +262,7 @@ type error =
   | Cannot_stack_allocate of Env.locality_context option
   | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
+  | Impossible_function_jkind of type_expr * jkind_lr
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2572,7 +2573,7 @@ and type_pat_aux
   in
   let type_unboxed_tuple_pat spl closed =
     Language_extension.assert_enabled ~loc Layouts
-      Language_extension.Beta;
+      Language_extension.Stable;
     let args =
       match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
@@ -3696,7 +3697,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
         let (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res) =
           let ty_fun = expand_head env ty_fun in
           match get_desc ty_fun with
-          | Tvar _ ->
+          | Tvar { jkind; _ } ->
               let ty_arg_mono, sort_arg = new_rep_var ~why:Function_argument () in
               let ty_arg = newmono ty_arg_mono in
               let ty_res =
@@ -3711,8 +3712,14 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               let mode_arg = Alloc.newvar () in
               let mode_ret = Alloc.newvar () in
               let kind = (lbl, mode_arg, mode_ret) in
-              unify env ty_fun
-                (newty (Tarrow(kind,ty_arg,ty_res,commu_var ())));
+              begin try
+                unify env ty_fun
+                  (newty (Tarrow(kind,ty_arg,ty_res,commu_var ())));
+              with
+              | Unify _ ->
+                raise(Error(funct.exp_loc, env,
+                            Impossible_function_jkind (ty_fun, jkind)))
+              end;
               (sort_arg, mode_arg, ty_arg_mono, mode_ret, ty_res)
         | Tarrow ((l, mode_arg, mode_ret), ty_arg, ty_res, _)
           when labels_match ~param:l ~arg:lbl ->
@@ -7821,7 +7828,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
 
 and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
       ~explanation ~attributes sexpl =
-  Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+  Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
   let arity = List.length sexpl in
   assert (arity >= 2);
   let argument_mode = expected_mode.mode in
@@ -10424,6 +10431,14 @@ let report_error ~loc env = function
       print_unsupported_stack_allocation category
   | Not_allocation ->
       Location.errorf ~loc "This expression is not an allocation site."
+  | Impossible_function_jkind (ty, jkind) ->
+      Location.errorf ~loc
+        "@[@[This expression is used as a function, but its type@ %a@]@ \
+         has kind %a, which cannot be the kind of a function.@ \
+         (Functions always have kind %a.)@]"
+        (Style.as_inline_code Printtyp.type_expr) ty
+        (Style.as_inline_code Jkind.format) jkind
+        (Style.as_inline_code Jkind.format) Jkind.for_arrow
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env

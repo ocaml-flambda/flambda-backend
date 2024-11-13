@@ -70,6 +70,8 @@ let swap64 x =
   then bswap64 x
   else x
 
+let () = print_endline "bytes primitives:"
+
 let () =
   caml_bytes_set_16 s 0 (swap16 0x1234);
   Printf.printf "%x %x %x\n%!"
@@ -105,3 +107,59 @@ let () =
                 (swap64 (caml_bytes_get_64 s 0))
                 (swap64 (caml_bytes_get_64 s 1))
                 (swap64 (caml_bytes_get_64 s 2))
+
+
+(* The string-set versions of these primitives are deprecated but
+   useful to test to avoid regressions. *)
+let s = Bytes.make 10 '\x00'
+let empty_s = Bytes.create 0
+
+external caml_string_get_16 : bytes -> int -> int = "%caml_string_get16"
+external caml_string_get_32 : bytes -> int -> int32 = "%caml_string_get32"
+external caml_string_get_64 : bytes -> int -> int64 = "%caml_string_get64"
+
+external caml_string_set_16 : bytes -> int -> int -> unit =
+  "%caml_string_set16"
+external caml_string_set_32 : bytes -> int -> int32 -> unit =
+  "%caml_string_set32"
+external caml_string_set_64 : bytes -> int -> int64 -> unit =
+  "%caml_string_set64"
+
+let () = print_endline "string primitives:"
+
+let () =
+  caml_string_set_16 s 0 (swap16 0x1234);
+  Printf.printf "%x %x %x\n%!"
+                (swap16 (caml_string_get_16 s 0))
+                (swap16 (caml_string_get_16 s 1))
+                (swap16 (caml_string_get_16 s 2));
+  caml_string_set_16 s 0 (swap16 0xFEDC);
+  Printf.printf "%x %x %x\n%!"
+                (swap16 (caml_string_get_16 s 0))
+                (swap16 (caml_string_get_16 s 1))
+                (swap16 (caml_string_get_16 s 2))
+
+let () =
+  caml_string_set_32 s 0 (swap32 0x12345678l);
+  Printf.printf "%lx %lx %lx\n%!"
+                (swap32 (caml_string_get_32 s 0))
+                (swap32 (caml_string_get_32 s 1))
+                (swap32 (caml_string_get_32 s 2));
+  caml_string_set_32 s 0 (swap32 0xFEDCBA09l);
+  Printf.printf "%lx %lx %lx\n%!"
+                (swap32 (caml_string_get_32 s 0))
+                (swap32 (caml_string_get_32 s 1))
+                (swap32 (caml_string_get_32 s 2))
+
+let () =
+  caml_string_set_64 s 0 (swap64 0x1234567890ABCDEFL);
+  Printf.printf "%Lx %Lx %Lx\n%!"
+                (swap64 (caml_string_get_64 s 0))
+                (swap64 (caml_string_get_64 s 1))
+                (swap64 (caml_string_get_64 s 2));
+  caml_string_set_64 s 0 (swap64 0xFEDCBA0987654321L);
+  Printf.printf "%Lx %Lx %Lx\n%!"
+                (swap64 (caml_string_get_64 s 0))
+                (swap64 (caml_string_get_64 s 1))
+                (swap64 (caml_string_get_64 s 2))
+

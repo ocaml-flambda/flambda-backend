@@ -42,14 +42,21 @@
  (targets parser.ml)
  (deps ../../parser.ml)
  (action
-  (bash
-   "echo \"module MenhirLib = CamlinternalMenhirLib\" > parser.ml && cat ../../parser.ml >> parser.ml")))
+  (with-stdout-to %{targets}
+   (progn
+    (echo "module MenhirLib = CamlinternalMenhirLib")
+    (cat %{deps})))))
 
 (rule
- (targets camlinternalMenhirLib.ml)
- (deps ../../parsing/camlinternalMenhirLib.ml)
+ (targets parser.mli)
+ (deps ../../parser.mli)
  (action
-  (copy %{deps} %{targets})))
+  (with-stdout-to %{targets}
+   (progn
+    (echo "module MenhirLib = CamlinternalMenhirLib")
+    (cat %{deps})))))
+
+(copy_files ../../parsing/camlinternalMenhirLib.ml{,i})
 
 (library
  (name dynlink_compilerlibs)
@@ -59,8 +66,6 @@
   (:standard
    -strict-sequence
    -absname
-   -w
-   +67
    -bin-annot
    -safe-string
    -strict-formats))

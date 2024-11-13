@@ -1,8 +1,13 @@
 (* TEST
+   arch_amd64;
    include stdlib_stable;
    flags = "-dlambda";
    expect;
 *)
+
+(* CR dkalinichenko: this test generates slightly different code
+   on ARM64, so I disabled it there for now. Ideally, we'd split
+   this for different architectures. *)
 
 module Array = Stdlib.Array
 open Stdlib_stable.Iarray

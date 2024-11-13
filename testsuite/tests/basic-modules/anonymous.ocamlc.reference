@@ -19,7 +19,8 @@
           (let (x =[(consts ()) (non_consts ([0: *, *]))] [0: "foo" "bar"])
             (makeblock 0)))
         (let
-          (f = (function {nlocal = 0} param : int 0) s = (makemutable 0 ""))
+          (f = (function {nlocal = 0} param : int 0)
+           s = (makemutable 0 (*) ""))
           (seq
             (ignore
               (let (*match* =[int] (setfield_ptr 0 s "Hello World!"))

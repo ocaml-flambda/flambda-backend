@@ -159,10 +159,10 @@ let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
   in
   let live = live |> Reg.Set.elements |> Array.of_list in
   if Array.length instr.arg > 0
-  then Format.eprintf " arg:%a" Printmach.regs instr.arg;
+  then Format.eprintf " arg:%a" Printreg.regs instr.arg;
   if Array.length instr.res > 0
-  then Format.eprintf " res:%a" Printmach.regs instr.res;
-  if Array.length live > 0 then Format.eprintf " live:%a" Printmach.regs live;
+  then Format.eprintf " res:%a" Printreg.regs instr.res;
+  if Array.length live > 0 then Format.eprintf " live:%a" Printreg.regs live;
   Format.eprintf "\n%!"
 
 let make_log_body_and_terminator :
@@ -488,7 +488,7 @@ let check_same str1 reg1 str2 reg2 =
   if not (Reg.same reg1 reg2)
   then
     fatal "%s and %s were expected to be the same but they differ (%a vs %a)"
-      str1 str2 Printmach.reg reg1 Printmach.reg reg2
+      str1 str2 Printreg.reg reg1 Printreg.reg reg2
 
 type stack_operands_rewrite =
   | All_spilled_registers_rewritten
@@ -502,7 +502,7 @@ let use_stack_operand (map : spilled_map) (regs : Reg.t array) (index : int) :
     unit =
   let reg = regs.(index) in
   match Reg.Tbl.find_opt map reg with
-  | None -> fatal "register %a is missing from the map" Printmach.reg reg
+  | None -> fatal "register %a is missing from the map" Printreg.reg reg
   | Some spilled_reg -> regs.(index) <- spilled_reg
 
 let may_use_stack_operands_array : spilled_map -> Reg.t array -> unit =

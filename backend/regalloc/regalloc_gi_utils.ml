@@ -554,7 +554,7 @@ module Hardware_register = struct
     }
 
   let print_assigned ppf { pseudo_reg; interval; evictable } =
-    Format.fprintf ppf "%a %a (evitable=%B)" Printmach.reg pseudo_reg
+    Format.fprintf ppf "%a %a (evitable=%B)" Printreg.reg pseudo_reg
       Interval.print interval evictable
 
   type t =
@@ -686,7 +686,7 @@ module Hardware_registers = struct
                   let overlap = Interval.overlap interval itv in
                   if gi_debug
                   then
-                    log ~indent:5 "%a is assigned / overlap=%B" Printmach.reg
+                    log ~indent:5 "%a is assigned / overlap=%B" Printreg.reg
                       pseudo_reg overlap;
                   overlap)
             in

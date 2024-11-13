@@ -69,6 +69,11 @@ let any_tagged_immediate =
   TG.create_variant ~is_unique:false ~immediates:Unknown
     ~blocks:(Known TG.Row_like_for_blocks.bottom) ~extensions:No_extensions
 
+let any_tagged_immediate_non_null =
+  TG.Head_of_kind_value_non_null.create_variant ~is_unique:false
+    ~immediates:Unknown ~blocks:(Known TG.Row_like_for_blocks.bottom)
+    ~extensions:No_extensions
+
 let these_tagged_immediates0 imms =
   match Targetint_31_63.Set.get_singleton imms with
   | Some imm -> TG.this_tagged_immediate imm
@@ -134,8 +139,29 @@ let any_boxed_int64 =
 let any_boxed_nativeint =
   TG.box_nativeint TG.any_naked_nativeint (Alloc_mode.For_types.unknown ())
 
-let any_boxed_vec128 =
-  TG.box_vec128 TG.any_naked_vec128 (Alloc_mode.For_types.unknown ())
+let any_boxed_float32_non_null =
+  TG.Head_of_kind_value_non_null.create_boxed_float32 TG.any_naked_float32
+    (Alloc_mode.For_types.unknown ())
+
+let any_boxed_float_non_null =
+  TG.Head_of_kind_value_non_null.create_boxed_float TG.any_naked_float
+    (Alloc_mode.For_types.unknown ())
+
+let any_boxed_int32_non_null =
+  TG.Head_of_kind_value_non_null.create_boxed_int32 TG.any_naked_int32
+    (Alloc_mode.For_types.unknown ())
+
+let any_boxed_int64_non_null =
+  TG.Head_of_kind_value_non_null.create_boxed_int64 TG.any_naked_int64
+    (Alloc_mode.For_types.unknown ())
+
+let any_boxed_nativeint_non_null =
+  TG.Head_of_kind_value_non_null.create_boxed_nativeint TG.any_naked_nativeint
+    (Alloc_mode.For_types.unknown ())
+
+let any_boxed_vec128_non_null =
+  TG.Head_of_kind_value_non_null.create_boxed_vec128 TG.any_naked_vec128
+    (Alloc_mode.For_types.unknown ())
 
 let any_block =
   TG.create_variant ~is_unique:false
@@ -162,6 +188,20 @@ let immutable_block ~is_unique tag ~shape alloc_mode ~fields =
     Misc.fatal_error "Block too long for target"
   | Some _size ->
     TG.create_variant ~is_unique ~immediates:(Known TG.bottom_naked_immediate)
+      ~blocks:
+        (Known
+           (TG.Row_like_for_blocks.create ~shape ~field_tys:fields (Closed tag)
+              alloc_mode))
+      ~extensions:No_extensions
+
+let immutable_block_non_null ~is_unique tag ~shape alloc_mode ~fields =
+  match Targetint_31_63.of_int_option (List.length fields) with
+  | None ->
+    (* CR-someday mshinwell: This should be a special kind of error. *)
+    Misc.fatal_error "Block too long for target"
+  | Some _size ->
+    TG.Head_of_kind_value_non_null.create_variant ~is_unique
+      ~immediates:(Known TG.bottom_naked_immediate)
       ~blocks:
         (Known
            (TG.Row_like_for_blocks.create ~shape ~field_tys:fields (Closed tag)
@@ -198,6 +238,21 @@ let variant ~const_ctors ~non_const_ctors alloc_mode =
   in
   TG.create_variant ~is_unique:false ~immediates:(Known const_ctors)
     ~blocks:(Known blocks) ~extensions:No_extensions
+
+let variant_non_null ~const_ctors ~non_const_ctors alloc_mode =
+  let blocks =
+    let shape_and_field_tys_by_tag =
+      Tag.Scannable.Map.fold
+        (fun tag ty non_const_ctors ->
+          Tag.Map.add (Tag.Scannable.to_tag tag) ty non_const_ctors)
+        non_const_ctors Tag.Map.empty
+    in
+    TG.Row_like_for_blocks.create_exactly_multiple ~shape_and_field_tys_by_tag
+      alloc_mode
+  in
+  TG.Head_of_kind_value_non_null.create_variant ~is_unique:false
+    ~immediates:(Known const_ctors) ~blocks:(Known blocks)
+    ~extensions:No_extensions
 
 let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
     ~all_closure_types_in_set:closure_types
@@ -321,6 +376,7 @@ let type_for_const const =
   | Naked_int64 n -> TG.this_naked_int64 n
   | Naked_nativeint n -> TG.this_naked_nativeint n
   | Naked_vec128 n -> TG.this_naked_vec128 n
+  | Null -> TG.null
 
 let kind_for_const const = TG.kind (type_for_const const)
 
@@ -344,72 +400,101 @@ let arity_of_list ts =
   Flambda_arity.create_singletons
     (List.map (fun ty -> Flambda_kind.With_subkind.anything (TG.kind ty)) ts)
 
+let mutable_array_non_null ~element_kind ~length alloc_mode =
+  TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+    ~length Unknown alloc_mode
+
 let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
     (kind : Flambda_kind.With_subkind.t) =
   (* CR mshinwell: use [alloc_mode] more *)
-  match Flambda_kind.With_subkind.subkind kind with
-  | Anything -> (
-    match Flambda_kind.With_subkind.kind kind with
-    | Value -> TG.any_value
-    | Naked_number Naked_immediate -> TG.any_naked_immediate
-    | Naked_number Naked_float32 -> TG.any_naked_float32
-    | Naked_number Naked_float -> TG.any_naked_float
-    | Naked_number Naked_int32 -> TG.any_naked_int32
-    | Naked_number Naked_int64 -> TG.any_naked_int64
-    | Naked_number Naked_nativeint -> TG.any_naked_nativeint
-    | Naked_number Naked_vec128 -> TG.any_naked_vec128
-    | Rec_info -> TG.any_rec_info
-    | Region -> TG.any_region)
-  | Boxed_float -> any_boxed_float
-  | Boxed_float32 -> any_boxed_float32
-  | Boxed_int32 -> any_boxed_int32
-  | Boxed_int64 -> any_boxed_int64
-  | Boxed_nativeint -> any_boxed_nativeint
-  | Boxed_vec128 -> any_boxed_vec128
-  | Tagged_immediate -> any_tagged_immediate
-  | Variant { consts; non_consts } ->
-    let const_ctors = these_naked_immediates consts in
-    let non_const_ctors =
-      Tag.Scannable.Map.map
-        (fun (shape, fields) ->
-          shape, List.map (fun subkind -> unknown_with_subkind subkind) fields)
-        non_consts
+  match Flambda_kind.With_subkind.kind kind with
+  | Naked_number Naked_immediate -> TG.any_naked_immediate
+  | Naked_number Naked_float32 -> TG.any_naked_float32
+  | Naked_number Naked_float -> TG.any_naked_float
+  | Naked_number Naked_int32 -> TG.any_naked_int32
+  | Naked_number Naked_int64 -> TG.any_naked_int64
+  | Naked_number Naked_nativeint -> TG.any_naked_nativeint
+  | Naked_number Naked_vec128 -> TG.any_naked_vec128
+  | Rec_info -> TG.any_rec_info
+  | Region -> TG.any_region
+  | Value ->
+    let non_null : _ Or_unknown_or_bottom.t =
+      match Flambda_kind.With_subkind.non_null_value_subkind kind with
+      | Anything -> Unknown
+      | Boxed_float -> Ok any_boxed_float_non_null
+      | Boxed_float32 -> Ok any_boxed_float32_non_null
+      | Boxed_int32 -> Ok any_boxed_int32_non_null
+      | Boxed_int64 -> Ok any_boxed_int64_non_null
+      | Boxed_nativeint -> Ok any_boxed_nativeint_non_null
+      | Boxed_vec128 -> Ok any_boxed_vec128_non_null
+      | Tagged_immediate -> Ok any_tagged_immediate_non_null
+      | Variant { consts; non_consts } ->
+        let const_ctors = these_naked_immediates consts in
+        let non_const_ctors =
+          Tag.Scannable.Map.map
+            (fun (shape, fields) ->
+              ( shape,
+                List.map (fun subkind -> unknown_with_subkind subkind) fields ))
+            non_consts
+        in
+        Ok (variant_non_null ~const_ctors ~non_const_ctors alloc_mode)
+      | Float_block { num_fields } ->
+        Ok
+          (immutable_block_non_null ~is_unique:false Tag.double_array_tag
+             ~shape:Flambda_kind.Block_shape.Float_record
+             ~fields:(List.init num_fields (fun _ -> TG.any_naked_float))
+             alloc_mode)
+      | Float_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.naked_float)
+             ~length:any_tagged_immediate alloc_mode)
+      | Unboxed_float32_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.naked_float32)
+             ~length:any_tagged_immediate alloc_mode)
+      | Unboxed_int32_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.naked_int32)
+             ~length:any_tagged_immediate alloc_mode)
+      | Unboxed_int64_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.naked_int64)
+             ~length:any_tagged_immediate alloc_mode)
+      | Unboxed_nativeint_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.naked_nativeint)
+             ~length:any_tagged_immediate alloc_mode)
+      | Unboxed_vec128_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.naked_vec128)
+             ~length:any_tagged_immediate alloc_mode)
+      | Immediate_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.tagged_immediate)
+             ~length:any_tagged_immediate alloc_mode)
+      | Value_array ->
+        Ok
+          (mutable_array_non_null
+             ~element_kind:(Ok Flambda_kind.With_subkind.any_value)
+             ~length:any_tagged_immediate alloc_mode)
+      | Generic_array ->
+        Ok
+          (mutable_array_non_null ~element_kind:Unknown
+             ~length:any_tagged_immediate alloc_mode)
     in
-    variant ~const_ctors ~non_const_ctors alloc_mode
-  | Float_block { num_fields } ->
-    immutable_block ~is_unique:false Tag.double_array_tag
-      ~shape:Flambda_kind.Block_shape.Float_record
-      ~fields:(List.init num_fields (fun _ -> TG.any_naked_float))
-      alloc_mode
-  | Float_array ->
-    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_float)
-      ~length:any_tagged_immediate alloc_mode
-  | Unboxed_float32_array ->
-    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_float32)
-      ~length:any_tagged_immediate alloc_mode
-  | Unboxed_int32_array ->
-    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_int32)
-      ~length:any_tagged_immediate alloc_mode
-  | Unboxed_int64_array ->
-    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_int64)
-      ~length:any_tagged_immediate alloc_mode
-  | Unboxed_nativeint_array ->
-    TG.mutable_array
-      ~element_kind:(Ok Flambda_kind.With_subkind.naked_nativeint)
-      ~length:any_tagged_immediate alloc_mode
-  | Unboxed_vec128_array ->
-    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.naked_vec128)
-      ~length:any_tagged_immediate alloc_mode
-  | Immediate_array ->
-    TG.mutable_array
-      ~element_kind:(Ok Flambda_kind.With_subkind.tagged_immediate)
-      ~length:any_tagged_immediate alloc_mode
-  | Value_array ->
-    TG.mutable_array ~element_kind:(Ok Flambda_kind.With_subkind.any_value)
-      ~length:any_tagged_immediate alloc_mode
-  | Generic_array ->
-    TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
-      alloc_mode
+    let is_null : TG.is_null =
+      match Flambda_kind.With_subkind.nullable kind with
+      | Nullable -> Maybe_null
+      | Non_nullable -> Not_null
+    in
+    TG.create_from_head_value { non_null; is_null }
 
 let unknown_types_from_arity arity =
   List.map

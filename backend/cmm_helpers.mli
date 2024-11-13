@@ -273,7 +273,7 @@ module Extended_machtype_component : sig
   type t =
     | Val
     | Addr
-    | Tagged_int
+    | Val_and_int
     | Any_int
     | Float
     | Vec128
@@ -974,8 +974,6 @@ val cmm_arith_size : expression -> int option
 
 (* CR lmaurer: Return [Linkage_name.t] instead *)
 val make_symbol : ?compilation_unit:Compilation_unit.t -> string -> string
-
-val kind_of_layout : Lambda.layout -> kind_for_unboxing
 
 val machtype_of_layout : Lambda.layout -> machtype
 

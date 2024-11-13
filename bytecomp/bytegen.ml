@@ -169,7 +169,7 @@ let preserve_tailcall_for_prim = function
   | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _
+  | Parrayrefs _ | Parraysets _ | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _
   | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _
   | Pmodbint _ | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _
   | Pasrbint _ | Pbintcomp _ | Punboxed_int_comp _
@@ -561,6 +561,7 @@ let comp_primitive stack_info p sz args =
        | Runtime5 -> "runtime5" in
      Kccall(Printf.sprintf "caml_sys_const_%s" const_name, 1)
   | Pisint _ -> Kisint
+  | Pisnull -> Misc.fatal_error "null not implemented in bytecode" (* CR layouts v3: support null in bytecode *)
   | Pisout -> Kisout
   | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args

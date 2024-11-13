@@ -461,6 +461,7 @@
   printcmm
   printlinear
   printmach
+  printreg
   proc
   simd
   simd_selection
@@ -866,3 +867,20 @@
  (package ocaml)
  (files
   (include compiler-libs-installation.sexp)))
+
+; This is entirely redundant, but without it, each target in these libraries
+; and their dependencies waits until ocamlcommon is built, including those
+; targets that don't actually depend on it. This produces severe bottlenecking,
+; costing about 15 seconds when building in dev mode. It's not immediately clear
+; why Dune fails to parallelise here. Going by the progress indicator, my best
+; guess is that targets in subdirectories aren't even discovered until
+; ocamlcommon is built, unless something in the subdirectory is explicitly made
+; a dependency.
+(alias
+ (name install)
+ (package ocaml)
+ (deps
+  otherlibs/dynlink/dynlink.cma
+  otherlibs/dynlink/dynlink.cmxa
+  middle_end/flambda2/from_lambda/flambda2_from_lambda.cma
+  middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa))

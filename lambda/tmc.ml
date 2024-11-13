@@ -891,7 +891,7 @@ let rec choice ctx t =
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
-    | Pisint _ | Pisout
+    | Pisint _ | Pisnull | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     | Preinterpret_tagged_int63_as_unboxed_int64

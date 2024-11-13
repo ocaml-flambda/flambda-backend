@@ -267,6 +267,120 @@ let combine_results2 env ~meet_a ~meet_b ~left_a ~right_a ~left_b ~right_b
   combine_results env ~meet_ops:[meet_a; meet_b] ~left_inputs:[left_a; left_b]
     ~right_inputs:[right_a; right_b] ~rebuild:(fun (a, (b, ())) -> rebuild a b)
 
+type ext =
+  | No_extensions
+  | Ext of
+      { when_a : TEE.t;
+        when_b : TEE.t
+      }
+
+let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
+    ~join_env_extension initial_env val_a1 val_b1 extensions1 val_a2 val_b2
+    extensions2 =
+  let join_scope = TE.current_scope initial_env in
+  let env = TE.increment_scope initial_env in
+  let to_extension scoped_env =
+    TE.cut scoped_env ~cut_after:join_scope
+    |> Typing_env_level.as_extension_without_bindings
+  in
+  let direct_return r =
+    map_env r ~f:(fun scoped_env ->
+        TE.add_env_extension_strict initial_env (to_extension scoped_env)
+          ~meet_type:(New meet_type))
+  in
+  let env_a, env_b = Or_bottom.Ok env, Or_bottom.Ok env in
+  let env_a, env_b =
+    match extensions1 with
+    | No_extensions -> env_a, env_b
+    | Ext { when_a; when_b } ->
+      ( Or_bottom.bind env_a ~f:(fun env ->
+            TE.add_env_extension_strict env when_a ~meet_type:(New meet_type)),
+        Or_bottom.bind env_b ~f:(fun env ->
+            TE.add_env_extension_strict env when_b ~meet_type:(New meet_type)) )
+  in
+  let env_a, env_b =
+    match extensions2 with
+    | No_extensions -> env_a, env_b
+    | Ext { when_a; when_b } ->
+      ( Or_bottom.bind env_a ~f:(fun env ->
+            TE.add_env_extension_strict env when_a ~meet_type:(New meet_type)),
+        Or_bottom.bind env_b ~f:(fun env ->
+            TE.add_env_extension_strict env when_b ~meet_type:(New meet_type)) )
+  in
+  let a_result : _ meet_result =
+    match env_a with
+    | Bottom -> Bottom (New_result ())
+    | Ok env -> meet_a env val_a1 val_a2
+  in
+  let b_result : _ meet_result =
+    match env_b with
+    | Bottom -> Bottom (New_result ())
+    | Ok env -> meet_b env val_b1 val_b2
+  in
+  match a_result, b_result with
+  | Bottom r1, Bottom r2 ->
+    Bottom (combine_meet_return_values r1 r2 (fun () -> ()))
+  | Ok (a_result, env), Bottom b ->
+    let result =
+      combine_meet_return_values a_result b (fun () ->
+          let val_a = extract_value a_result val_a1 val_a2 in
+          let val_b = bottom_b () in
+          val_a, val_b, No_extensions)
+    in
+    direct_return (Ok (result, env))
+  | Bottom a, Ok (b_result, env) ->
+    let result =
+      combine_meet_return_values a b_result (fun () ->
+          let val_b = extract_value b_result val_b1 val_b2 in
+          let val_a = bottom_a () in
+          val_a, val_b, No_extensions)
+    in
+    direct_return (Ok (result, env))
+  | Ok (a_result, env_a), Ok (b_result, env_b) ->
+    let when_a = to_extension env_a in
+    let when_b = to_extension env_b in
+    let extensions =
+      if TEE.is_empty when_a && TEE.is_empty when_b
+      then
+        No_extensions
+        (* CR vlaviron: If both extensions have equations in common, the join
+           below will add them to the result environment. Keeping those common
+           equations in the variant extensions then becomes redundant, but we
+           don't have an easy way to detect redundancy. *)
+      else Ext { when_a; when_b }
+    in
+    let env_extension_result =
+      (* We only catch the cases where empty extensions are preserved *)
+      match extensions, extensions1, extensions2 with
+      | No_extensions, No_extensions, No_extensions -> Both_inputs
+      | No_extensions, No_extensions, Ext _ -> Left_input
+      | No_extensions, Ext _, No_extensions -> Right_input
+      | (No_extensions | Ext _), _, _ ->
+        (* This goes through combine_meet_return_values, so the value is not
+           needed *)
+        New_result ()
+    in
+    let result =
+      combine_meet_return_values
+        (combine_meet_return_values a_result b_result (fun () -> ()))
+        env_extension_result
+        (fun () ->
+          let val_a = extract_value a_result val_a1 val_a2 in
+          let val_b = extract_value b_result val_b1 val_b2 in
+          val_a, val_b, extensions)
+    in
+    let join_env =
+      Join_env.create initial_env ~left_env:env_a ~right_env:env_b
+    in
+    let result_extension = join_env_extension join_env when_a when_b in
+    let result_env =
+      (* Not strict, as we don't expect to be able to get bottom equations from
+         joining non-bottom ones *)
+      TE.add_env_extension initial_env result_extension
+        ~meet_type:(New meet_type)
+    in
+    Ok (result, result_env)
+
 let meet_code_id (env : TE.t) (code_id1 : Code_id.t) (code_id2 : Code_id.t) :
     Code_id.t meet_result =
   if Code_id.equal code_id1 code_id2
@@ -473,16 +587,28 @@ let rec meet env (t1 : TG.t) (t2 : TG.t) : TG.t meet_result =
         | Ok (_, env) -> Ok (Both_inputs, env)
         | Bottom r -> Bottom r))
 
-and meet_expanded_head env (expanded1 : ET.t) (expanded2 : ET.t) :
-    ET.t meet_result =
-  match ET.descr expanded1, ET.descr expanded2 with
+and meet_or_unknown_or_bottom :
+    type a b.
+    (TE.t -> a -> a -> b meet_result) ->
+    TE.t ->
+    a Or_unknown_or_bottom.t ->
+    a Or_unknown_or_bottom.t ->
+    b meet_result =
+ fun meet_elt env (input1 : a Or_unknown_or_bottom.t)
+     (input2 : a Or_unknown_or_bottom.t) ->
+  match input1, input2 with
   | Unknown, Unknown -> Ok (Both_inputs, env)
   | _, Unknown -> Ok (Left_input, env)
   | Unknown, _ -> Ok (Right_input, env)
   | Bottom, Bottom -> Bottom Both_inputs
   | Bottom, _ -> Bottom Left_input
   | _, Bottom -> Bottom Right_input
-  | Ok descr1, Ok descr2 -> meet_expanded_head0 env descr1 descr2
+  | Ok elt1, Ok elt2 -> meet_elt env elt1 elt2
+
+and meet_expanded_head env (expanded1 : ET.t) (expanded2 : ET.t) :
+    ET.t meet_result =
+  meet_or_unknown_or_bottom meet_expanded_head0 env (ET.descr expanded1)
+    (ET.descr expanded2)
 
 and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
     ET.t meet_result =
@@ -521,8 +647,38 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
       _ ) ->
     assert false
 
-and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
-    (head2 : TG.head_of_kind_value) : TG.head_of_kind_value meet_result =
+and meet_head_of_kind_value env
+    ({ non_null = non_null1; is_null = is_null1 } : TG.head_of_kind_value)
+    ({ non_null = non_null2; is_null = is_null2 } : TG.head_of_kind_value) :
+    TG.head_of_kind_value meet_result =
+  let meet_a =
+    let meet_elt env elt1 elt2 =
+      map_result
+        ~f:(fun x -> Or_unknown_or_bottom.Ok x)
+        (meet_head_of_kind_value_non_null env elt1 elt2)
+    in
+    meet_or_unknown_or_bottom meet_elt
+  in
+  let meet_b env (is_null1 : TG.is_null) (is_null2 : TG.is_null) =
+    match is_null1, is_null2 with
+    | Not_null, Not_null -> Bottom Both_inputs
+    | Maybe_null, Maybe_null -> Ok (Both_inputs, env)
+    | Not_null, Maybe_null -> Bottom Left_input
+    | Maybe_null, Not_null -> Bottom Right_input
+  in
+  let bottom_a () = Or_unknown_or_bottom.Bottom in
+  let bottom_b () : TG.is_null = Not_null in
+  map_result
+    ~f:(fun (non_null, is_null, _extensions) : TG.head_of_kind_value ->
+      { non_null; is_null })
+    (meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
+       ~join_env_extension env non_null1 is_null1 No_extensions non_null2
+       is_null2 No_extensions)
+
+and meet_head_of_kind_value_non_null env
+    (head1 : TG.head_of_kind_value_non_null)
+    (head2 : TG.head_of_kind_value_non_null) :
+    TG.head_of_kind_value_non_null meet_result =
   match head1, head2 with
   | ( Variant
         { blocks = blocks1;
@@ -541,15 +697,15 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let is_unique = is_unique1 || is_unique2 in
     map_result
       ~f:(fun (blocks, immediates, extensions) ->
-        TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
-          ~extensions)
+        TG.Head_of_kind_value_non_null.create_variant ~is_unique ~blocks
+          ~immediates ~extensions)
       (meet_variant env ~blocks1 ~imms1 ~blocks2 ~imms2 ~extensions1
          ~extensions2)
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     map_result
       ~f:(fun alloc_mode ->
-        TG.Head_of_kind_value.create_mutable_block alloc_mode)
+        TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode)
       (meet_alloc_mode env alloc_mode1 alloc_mode2)
   | Variant { blocks; _ }, Mutable_block { alloc_mode = alloc_mode_right } -> (
     match blocks with
@@ -584,11 +740,13 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       | Ok (Left_input, env) ->
         Ok
           ( New_result
-              (TG.Head_of_kind_value.create_mutable_block alloc_mode_left),
+              (TG.Head_of_kind_value_non_null.create_mutable_block
+                 alloc_mode_left),
             env )
       | Ok (New_result alloc_mode, env) ->
         Ok
-          ( New_result (TG.Head_of_kind_value.create_mutable_block alloc_mode),
+          ( New_result
+              (TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode),
             env )))
   | Mutable_block { alloc_mode = alloc_mode_left }, Variant { blocks; _ } -> (
     match blocks with
@@ -601,45 +759,53 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
       | Ok (Right_input, env) ->
         Ok
           ( New_result
-              (TG.Head_of_kind_value.create_mutable_block alloc_mode_right),
+              (TG.Head_of_kind_value_non_null.create_mutable_block
+                 alloc_mode_right),
             env )
       | Ok (New_result alloc_mode, env) ->
         Ok
-          ( New_result (TG.Head_of_kind_value.create_mutable_block alloc_mode),
+          ( New_result
+              (TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode),
             env )))
   | Boxed_float32 (n1, alloc_mode1), Boxed_float32 (n2, alloc_mode2) ->
-    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_boxed_float32
-      ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
-      ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_float32 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
-    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_boxed_float
-      ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
-      ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_float ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_int32 (n1, alloc_mode1), Boxed_int32 (n2, alloc_mode2) ->
-    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_boxed_int32
-      ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
-      ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_int32 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_int64 (n1, alloc_mode1), Boxed_int64 (n2, alloc_mode2) ->
-    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_boxed_int64
-      ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
-      ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_int64 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | Boxed_nativeint (n1, alloc_mode1), Boxed_nativeint (n2, alloc_mode2) ->
-    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_boxed_nativeint
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_nativeint
       ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
       ~left_b:alloc_mode1 ~right_b:alloc_mode2
   | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
-    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_boxed_vec128
-      ~meet_a:meet ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2
-      ~left_b:alloc_mode1 ~right_b:alloc_mode2
+    combine_results2 env
+      ~rebuild:TG.Head_of_kind_value_non_null.create_boxed_vec128 ~meet_a:meet
+      ~meet_b:meet_alloc_mode ~left_a:n1 ~right_a:n2 ~left_b:alloc_mode1
+      ~right_b:alloc_mode2
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
-    combine_results2 env ~rebuild:TG.Head_of_kind_value.create_closures
+    combine_results2 env ~rebuild:TG.Head_of_kind_value_non_null.create_closures
       ~meet_a:meet_row_like_for_closures ~meet_b:meet_alloc_mode
       ~left_a:by_function_slot1 ~right_a:by_function_slot2 ~left_b:alloc_mode1
       ~right_b:alloc_mode2
   | String strs1, String strs2 ->
-    map_result ~f:TG.Head_of_kind_value.create_string
+    map_result ~f:TG.Head_of_kind_value_non_null.create_string
       (set_meet (module String_info.Set) env strs1 strs2 ~of_set:Fun.id)
   | ( Array
         { element_kind = element_kind1;
@@ -669,8 +835,8 @@ and meet_array_type env (element_kind1, length1, contents1, alloc_mode1)
   let element_kind = meet_array_element_kinds element_kind1 element_kind2 in
   combine_results env
     ~rebuild:(fun (length, (contents, (alloc_mode, ()))) ->
-      TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
-        contents alloc_mode)
+      TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+        ~length contents alloc_mode)
     ~meet_ops:
       [ meet;
         meet_array_contents ~meet_element_kind:element_kind;
@@ -724,7 +890,7 @@ and meet_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
       | Immutable { fields } -> Array.exists TG.is_obviously_bottom fields)
     env array_contents1 array_contents2
 
-and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
+and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     ~(imms1 : TG.t Or_unknown.t)
     ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
     ~(imms2 : TG.t Or_unknown.t) ~(extensions1 : TG.variant_extensions)
@@ -733,119 +899,37 @@ and meet_variant initial_env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     * TG.t Or_unknown.t
     * TG.variant_extensions)
     meet_result =
-  let join_scope = TE.current_scope initial_env in
-  let env = TE.increment_scope initial_env in
-  let to_extension scoped_env =
-    TE.cut scoped_env ~cut_after:join_scope
-    |> Typing_env_level.as_extension_without_bindings
+  let meet_a = meet_unknown meet ~contents_is_bottom:TG.is_obviously_bottom in
+  let meet_b =
+    meet_unknown meet_row_like_for_blocks
+      ~contents_is_bottom:TG.Row_like_for_blocks.is_bottom
   in
-  let direct_return r =
-    map_env r ~f:(fun scoped_env ->
-        TE.add_env_extension_strict initial_env (to_extension scoped_env)
-          ~meet_type:(New meet_type))
-  in
-  let env_imms, env_blocks = Or_bottom.Ok env, Or_bottom.Ok env in
-  let env_imms, env_blocks =
+  let bottom_a () = Or_unknown.Known TG.bottom_naked_immediate in
+  let bottom_b () = Or_unknown.Known TG.Row_like_for_blocks.bottom in
+  let extensions1 =
     match extensions1 with
-    | No_extensions -> env_imms, env_blocks
+    | No_extensions -> No_extensions
     | Ext { when_immediate; when_block } ->
-      ( Or_bottom.bind env_imms ~f:(fun env ->
-            TE.add_env_extension_strict env when_immediate
-              ~meet_type:(New meet_type)),
-        Or_bottom.bind env_blocks ~f:(fun env ->
-            TE.add_env_extension_strict env when_block
-              ~meet_type:(New meet_type)) )
+      Ext { when_a = when_immediate; when_b = when_block }
   in
-  let env_imms, env_blocks =
+  let extensions2 =
     match extensions2 with
-    | No_extensions -> env_imms, env_blocks
+    | No_extensions -> No_extensions
     | Ext { when_immediate; when_block } ->
-      ( Or_bottom.bind env_imms ~f:(fun env ->
-            TE.add_env_extension_strict env when_immediate
-              ~meet_type:(New meet_type)),
-        Or_bottom.bind env_blocks ~f:(fun env ->
-            TE.add_env_extension_strict env when_block
-              ~meet_type:(New meet_type)) )
+      Ext { when_a = when_immediate; when_b = when_block }
   in
-  let immediates_result : _ meet_result =
-    match env_imms with
-    | Bottom -> Bottom (New_result ())
-    | Ok env ->
-      meet_unknown meet ~contents_is_bottom:TG.is_obviously_bottom env imms1
-        imms2
-  in
-  let blocks_result : _ meet_result =
-    match env_blocks with
-    | Bottom -> Bottom (New_result ())
-    | Ok env ->
-      meet_unknown meet_row_like_for_blocks
-        ~contents_is_bottom:TG.Row_like_for_blocks.is_bottom env blocks1 blocks2
-  in
-  match immediates_result, blocks_result with
-  | Bottom r1, Bottom r2 ->
-    Bottom (combine_meet_return_values r1 r2 (fun () -> ()))
-  | Ok (imms_result, env), Bottom blocks ->
-    let result =
-      combine_meet_return_values imms_result blocks (fun () ->
-          let imms = extract_value imms_result imms1 imms2 in
-          let blocks = Or_unknown.Known TG.Row_like_for_blocks.bottom in
-          blocks, imms, TG.No_extensions)
-    in
-    direct_return (Ok (result, env))
-  | Bottom imms, Ok (blocks_result, env) ->
-    let result =
-      combine_meet_return_values imms blocks_result (fun () ->
-          let blocks = extract_value blocks_result blocks1 blocks2 in
-          let imms = Or_unknown.Known TG.bottom_naked_immediate in
-          blocks, imms, TG.No_extensions)
-    in
-    direct_return (Ok (result, env))
-  | Ok (imms_result, env_imms), Ok (blocks_result, env_blocks) ->
-    let when_immediate = to_extension env_imms in
-    let when_block = to_extension env_blocks in
-    let extensions : TG.variant_extensions =
-      if TEE.is_empty when_immediate && TEE.is_empty when_block
-      then
-        No_extensions
-        (* CR vlaviron: If both extensions have equations in common, the join
-           below will add them to the result environment. Keeping those common
-           equations in the variant extensions then becomes redundant, but we
-           don't have an easy way to detect redundancy. *)
-      else Ext { when_immediate; when_block }
-    in
-    let env_extension_result =
-      (* We only catch the cases where empty extensions are preserved *)
-      match extensions, extensions1, extensions2 with
-      | No_extensions, No_extensions, No_extensions -> Both_inputs
-      | No_extensions, No_extensions, Ext _ -> Left_input
-      | No_extensions, Ext _, No_extensions -> Right_input
-      | (No_extensions | Ext _), _, _ ->
-        (* This goes through combine_meet_return_values, so the value is not
-           needed *)
-        New_result ()
-    in
-    let result =
-      combine_meet_return_values
-        (combine_meet_return_values imms_result blocks_result (fun () -> ()))
-        env_extension_result
-        (fun () ->
-          let imms = extract_value imms_result imms1 imms2 in
-          let blocks = extract_value blocks_result blocks1 blocks2 in
-          blocks, imms, extensions)
-    in
-    let join_env =
-      Join_env.create initial_env ~left_env:env_imms ~right_env:env_blocks
-    in
-    let result_extension =
-      join_env_extension join_env when_immediate when_block
-    in
-    let result_env =
-      (* Not strict, as we don't expect to be able to get bottom equations from
-         joining non-bottom ones *)
-      TE.add_env_extension initial_env result_extension
-        ~meet_type:(New meet_type)
-    in
-    Ok (result, result_env)
+  map_result
+    ~f:(fun (imms, blocks, extensions) ->
+      let extensions : TG.variant_extensions =
+        match extensions with
+        | No_extensions -> No_extensions
+        | Ext { when_a = when_immediate; when_b = when_block } ->
+          Ext { when_immediate; when_block }
+      in
+      blocks, imms, extensions)
+    (meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
+       ~join_env_extension env imms1 blocks1 extensions1 imms2 blocks2
+       extensions2)
 
 and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     (t2 : TG.head_of_kind_naked_immediate) :
@@ -875,6 +959,18 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
         meet_with_shape ~rebuild is_int_ty MTC.any_block is_int_side
       | false, true ->
         meet_with_shape ~rebuild is_int_ty MTC.any_tagged_immediate is_int_side
+  in
+  let is_null_immediate ~is_null_ty ~immediates ~is_null_side =
+    if I.Set.is_empty immediates
+    then bottom_other_side is_null_side
+    else
+      let rebuild = TG.Head_of_kind_naked_immediate.create_is_null in
+      match I.Set.mem I.zero immediates, I.Set.mem I.one immediates with
+      | false, false -> Bottom (New_result ())
+      | true, true -> keep_side is_null_side
+      | true, false ->
+        meet_with_shape ~rebuild is_null_ty TG.any_non_null_value is_null_side
+      | false, true -> meet_with_shape ~rebuild is_null_ty TG.null is_null_side
   in
   let get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side =
     if I.Set.is_empty immediates
@@ -913,7 +1009,11 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side:Left
   | Naked_immediates immediates, Get_tag get_tag_ty ->
     get_tag_immediate ~get_tag_ty ~immediates ~get_tag_side:Right
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) ->
+  | Is_null is_null_ty, Naked_immediates immediates ->
+    is_null_immediate ~is_null_ty ~immediates ~is_null_side:Left
+  | Naked_immediates immediates, Is_null is_null_ty ->
+    is_null_immediate ~is_null_ty ~immediates ~is_null_side:Right
+  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
     (* CR mshinwell: introduce improved handling for
      *   Is_int meet Is_int
      *   Get_tag meet Get_tag
@@ -1587,6 +1687,28 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
 
 and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
+  let non_null : _ Or_unknown_or_bottom.t =
+    match head1.non_null, head2.non_null with
+    | Unknown, _ | _, Unknown -> Unknown
+    | Bottom, x | x, Bottom -> x
+    | Ok head1, Ok head2 -> (
+      match join_head_of_kind_value_non_null env head1 head2 with
+      | Unknown -> Unknown
+      | Known head -> Ok head)
+  in
+  let is_null : TG.is_null =
+    match head1.is_null, head2.is_null with
+    | Maybe_null, _ | _, Maybe_null -> Maybe_null
+    | Not_null, Not_null -> Not_null
+  in
+  match[@warning "-4"] non_null, is_null with
+  | Unknown, Maybe_null -> Unknown
+  | _, _ -> Known { non_null; is_null }
+
+and join_head_of_kind_value_non_null env
+    (head1 : TG.head_of_kind_value_non_null)
+    (head2 : TG.head_of_kind_value_non_null) :
+    TG.head_of_kind_value_non_null Or_unknown.t =
   match head1, head2 with
   | ( Variant
         { blocks = blocks1;
@@ -1606,36 +1728,36 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     (* Uniqueness tracks whether duplication/lifting is allowed. It must always
        be propagated, both for meet and join. *)
     let is_unique = is_unique1 || is_unique2 in
-    TG.Head_of_kind_value.create_variant ~is_unique ~blocks ~immediates
+    TG.Head_of_kind_value_non_null.create_variant ~is_unique ~blocks ~immediates
       ~extensions
   | ( Mutable_block { alloc_mode = alloc_mode1 },
       Mutable_block { alloc_mode = alloc_mode2 } ) ->
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    Known (TG.Head_of_kind_value.create_mutable_block alloc_mode)
+    Known (TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode)
   | Boxed_float32 (n1, alloc_mode1), Boxed_float32 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_float32 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_float32 n alloc_mode
   | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_float n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_float n alloc_mode
   | Boxed_int32 (n1, alloc_mode1), Boxed_int32 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_int32 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_int32 n alloc_mode
   | Boxed_int64 (n1, alloc_mode1), Boxed_int64 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_int64 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_int64 n alloc_mode
   | Boxed_nativeint (n1, alloc_mode1), Boxed_nativeint (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_nativeint n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_nativeint n alloc_mode
   | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
     let>+ n = join env n1 n2 in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value.create_boxed_vec128 n alloc_mode
+    TG.Head_of_kind_value_non_null.create_boxed_vec128 n alloc_mode
   | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
       Closures
         { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
@@ -1643,10 +1765,12 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
       join_row_like_for_closures env by_function_slot1 by_function_slot2
     in
     let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    Known (TG.Head_of_kind_value.create_closures by_function_slot alloc_mode)
+    Known
+      (TG.Head_of_kind_value_non_null.create_closures by_function_slot
+         alloc_mode)
   | String strs1, String strs2 ->
     let strs = String_info.Set.union strs1 strs2 in
-    Known (TG.Head_of_kind_value.create_string strs)
+    Known (TG.Head_of_kind_value_non_null.create_string strs)
   | ( Array
         { element_kind = element_kind1;
           length = length1;
@@ -1666,8 +1790,8 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
         ~joined_element_kind:element_kind
     in
     let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
-      contents alloc_mode
+    TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+      ~length contents alloc_mode
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
       | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
       | Closures _ | String _ | Array _ ),
@@ -1753,6 +1877,9 @@ and join_head_of_kind_naked_immediate env
   | Get_tag ty1, Get_tag ty2 ->
     let>+ ty = join env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_get_tag ty
+  | Is_null ty1, Is_null ty2 ->
+    let>+ ty = join env ty1 ty2 in
+    TG.Head_of_kind_naked_immediate.create_is_null ty
   (* From now on: Irregular cases *)
   (* CR vlaviron: There could be improvements based on reduction (trying to
      reduce the is_int and get_tag cases to naked_immediate sets, then joining
@@ -1776,7 +1903,23 @@ and join_head_of_kind_naked_immediate env
     if I.Set.is_empty tags
     then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
     else Unknown
-  | (Is_int _ | Get_tag _), (Is_int _ | Get_tag _) -> Unknown
+  | Is_null ty, Naked_immediates is_null | Naked_immediates is_null, Is_null ty
+    -> (
+    if I.Set.is_empty is_null
+    then Known (TG.Head_of_kind_naked_immediate.create_is_null ty)
+    else
+      (* Slightly better than Unknown *)
+      let head =
+        TG.Head_of_kind_naked_immediate.create_naked_immediates
+          (I.Set.add I.zero (I.Set.add I.one is_null))
+      in
+      match head with
+      | Ok head -> Known head
+      | Bottom ->
+        Misc.fatal_error
+          "Did not expect [Bottom] from [create_naked_immediates]")
+  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
+    Unknown
 
 and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =
   Known (TG.Head_of_kind_naked_float32.union t1 t2)

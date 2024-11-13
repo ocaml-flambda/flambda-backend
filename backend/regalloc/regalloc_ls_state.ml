@@ -116,7 +116,7 @@ let[@inline] invariant_intervals state cfg_with_infos =
                 fatal
                   "Regalloc_ls_state.invariant_intervals: state.intervals \
                    duplicate register %a"
-                  Printmach.reg interval.reg)
+                  Printreg.reg interval.reg)
             acc)
     in
     let check_instr : type a. a Cfg.instruction -> unit =
@@ -128,7 +128,7 @@ let[@inline] invariant_intervals state cfg_with_infos =
             fatal
               "Regalloc_ls_state.invariant_intervals: register %a is not in \
                interval_map"
-              Printmach.reg reg
+              Printreg.reg reg
           | Some interval ->
             if instr.ls_order < interval.begin_
             then

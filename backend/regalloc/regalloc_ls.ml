@@ -117,7 +117,7 @@ type spilling_reg =
 
 let allocate_stack_slot : Reg.t -> spilling_reg =
  fun reg ->
-  log ~indent:3 "spilling register %a" Printmach.reg reg;
+  log ~indent:3 "spilling register %a" Printreg.reg reg;
   reg.spill <- true;
   Spilling reg
 
@@ -170,7 +170,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           intervals.active
             <- Interval.List.insert_sorted intervals.active interval;
           if ls_debug
-          then log ~indent:3 "assigning %d to register %a" idx Printmach.reg reg;
+          then log ~indent:3 "assigning %d to register %a" idx Printreg.reg reg;
           Not_spilling)
         else assign (succ idx)
       in

@@ -35,9 +35,9 @@ let check_invariants :
       Misc.fatal_errorf
         "Named live registers not a subset of available registers: live={%a}  \
          avail_before=%a missing={%a} insn=%a"
-        Printmach.regset live
-        (RAS.print ~print_reg:Printmach.reg)
-        (RAS.Ok avail_before) Printmach.regset
+        Printreg.regset live
+        (RAS.print ~print_reg:Printreg.reg)
+        (RAS.Ok avail_before) Printreg.regset
         (R.Set.diff live (RD.Set.forget_debug_info avail_before))
         print_instr instr;
     (* Every register that is an input to an instruction should be available. *)
@@ -48,8 +48,8 @@ let check_invariants :
       Misc.fatal_errorf
         "Instruction has unavailable input register(s): avail_before=%a \
          avail_before_fdi={%a} inputs={%a} insn=%a"
-        (RAS.print ~print_reg:Printmach.reg)
-        (RAS.Ok avail_before) Printmach.regset avail_before_fdi Printmach.regset
+        (RAS.print ~print_reg:Printreg.reg)
+        (RAS.Ok avail_before) Printreg.regset avail_before_fdi Printreg.regset
         args print_instr instr
 
 (* CR xclerc for xclerc: double check the whole `Domain` module. *)

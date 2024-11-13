@@ -138,8 +138,8 @@ let rewrite_gen :
         spilled.Reg.loc <- Reg.(Stack (Local slot));
         if Utils.debug
         then
-          Utils.log ~indent:2 "spilling %a to %a" Printmach.reg reg
-            Printmach.reg spilled;
+          Utils.log ~indent:2 "spilling %a to %a" Printreg.reg reg Printreg.reg
+            spilled;
         Reg.Tbl.replace spilled_map reg spilled;
         spilled_map)
   in
@@ -152,8 +152,8 @@ let rewrite_gen :
     new_inst_temporaries := res :: !new_inst_temporaries;
     if Utils.debug
     then
-      Utils.log ~indent:2 "adding temporary %a (to %s %a)" Printmach.reg res
-        (Move.to_string move) Printmach.reg reg;
+      Utils.log ~indent:2 "adding temporary %a (to %s %a)" Printreg.reg res
+        (Move.to_string move) Printreg.reg reg;
     res
   in
   let[@inline] array_contains_spilled (arr : Reg.t array) : bool =

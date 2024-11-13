@@ -284,11 +284,13 @@ let indexing_primitives =
       ( (fun unsafe _boxed _index_kind ->
           Printf.sprintf "%%caml_string_set32%s" unsafe ),
         fun ~unsafe ~boxed:_ ~index_kind:_ ~mode:_ ->
-          Pbytes_set_32 {unsafe; index_kind= Ptagged_int_index; boxed= false} ) ;
+          Pbytes_set_32
+            { unsafe; index_kind = Ptagged_int_index; boxed = true } ) ;
       ( (fun unsafe _boxed _index_kind ->
           Printf.sprintf "%%caml_string_set64%s" unsafe ),
         fun ~unsafe ~boxed:_ ~index_kind:_ ~mode:_ ->
-          Pbytes_set_64 {unsafe; index_kind= Ptagged_int_index; boxed= false} )
+          Pbytes_set_64
+            { unsafe; index_kind = Ptagged_int_index; boxed = true } )
     ]
   in
   let index_kinds =
@@ -521,6 +523,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%floatarray_unsafe_set" ->
       Primitive ((Parraysetu (Pfloatarray_set, Ptagged_int_index)), 3)
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
+    | "%is_null" -> Primitive (Pisnull, 1)
     | "%lazy_force" -> Lazy_force pos
     | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
     | "%nativeint_to_int" -> Primitive ((Pintofbint Pnativeint), 1)
@@ -1135,7 +1138,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
                                   Jkind.Sort.for_block_element typ))
           fields
       in
-      let useful = List.exists (fun knd -> knd <> Pgenval) shape in
+      let useful = List.exists (fun knd -> knd <> Lambda.generic_value) shape in
       if useful then
         Some (Primitive (Pmakeblock(tag, mut, Some shape, mode),arity))
       else None
@@ -1646,7 +1649,7 @@ let lambda_primitive_needs_event_after = function
   | Pbytessetu
   | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
       | Punboxedintarray _ | Punboxedvectorarray _), _, _)
-  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
+  | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
