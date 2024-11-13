@@ -151,6 +151,44 @@ module Shallow : sig
       resumed.
    *)
 
+   val fiber_portable : ('a -> 'b) @ portable -> ('a, 'b) continuation @ portable @@ portable
+   (** [fiber_portable f] constructs a continuation that runs the computation [f]. *)
+
+  type ('a,'b) handler_portable =
+    { retc: 'a -> 'b;
+      exnc: exn -> 'b;
+      effc: 'c.'c t @ contended -> (('c,'a) continuation @ portable -> 'b) option }
+  (** [('a,'b) handler] is a handler record with three fields -- [retc]
+      is the value handler, [exnc] handles exceptions, and [effc] handles the
+      effects performed by the computation enclosed by the handler. *)
+
+  val continue_with_portable : ('c,'a) continuation @ portable contended -> 'c -> ('a,'b) handler_portable @ portable -> 'b @@ portable
+  (** [continue_with_portable k v h] resumes the continuation [k] with value [v] with
+      the handler [h].
+
+      @raise Continuation_already_resumed if the continuation has already been
+      resumed.
+   *)
+
+  val discontinue_with_portable : ('c,'a) continuation @ portable contended -> exn -> ('a,'b) handler_portable @ portable -> 'b @@ portable
+  (** [discontinue_with_portable k e h] resumes the continuation [k] by raising the
+      exception [e] with the handler [h].
+
+      @raise Continuation_already_resumed if the continuation has already been
+      resumed.
+   *)
+
+  val discontinue_with_backtrace_portable :
+    ('a,'b) continuation @ portable contended -> exn -> Printexc.raw_backtrace ->
+    ('b,'c) handler_portable @ portable -> 'c @@ portable
+  (** [discontinue_with_portable k e bt h] resumes the continuation [k] by raising the
+      exception [e] with the handler [h] using the raw backtrace [bt] as the
+      origin of the exception.
+
+      @raise Continuation_already_resumed if the continuation has already been
+      resumed.
+   *)
+
   external get_callstack :
     ('a,'b) continuation -> int -> Printexc.raw_backtrace @@ portable =
     "caml_get_continuation_callstack"
