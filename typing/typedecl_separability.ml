@@ -482,8 +482,13 @@ let msig_of_external_type env decl =
     Result.is_error (Ctype.check_decl_jkind env decl
                         (Jkind.Builtin.value_or_null ~why:Separability_check))
   in
+  let type_equal = Ctype.type_equal env in
+  let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
   let is_external =
-    match Jkind.get_externality_upper_bound decl.type_jkind with
+    match
+      Jkind.get_externality_upper_bound ~type_equal ~jkind_of_type
+        decl.type_jkind
+    with
     | Internal -> false
     | External | External64 -> true
   in

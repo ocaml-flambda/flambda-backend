@@ -181,6 +181,7 @@ type error =
       ; expected: Path.t
       }
   | Non_abstract_reexport of Path.t
+  | Illegal_baggage of jkind_l
 
 exception Error of Location.t * error
 
