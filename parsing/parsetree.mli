@@ -1167,7 +1167,10 @@ and module_expr_desc =
   | Pmod_apply of module_expr * module_expr  (** [ME1(ME2)] *)
   | Pmod_apply_unit of module_expr (** [ME1()] *)
   | Pmod_constraint of module_expr * module_type option * modes
-      (** [(ME : MT @@ modes)] *)
+      (** - [(ME : MT @@ modes)]
+          - [(ME @ modes)]
+          - [(ME : MT)]
+      *)
   | Pmod_unpack of expression  (** [(val E)] *)
   | Pmod_extension of extension  (** [[%id]] *)
   | Pmod_instance of module_instance
