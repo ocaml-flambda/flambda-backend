@@ -331,7 +331,7 @@ let dump_basic ppf (basic : basic) =
   | Stack_check { max_frame_size_bytes } ->
     fprintf ppf "Stack_check size=%d" max_frame_size_bytes
 
-let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
+let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
     ?(specific_can_raise = fun ppf _ -> Format.fprintf ppf "specific_can_raise")
     ?(sep = "\n") ppf (terminator : terminator) =
   let first_arg =
@@ -347,11 +347,11 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
   let print_args ppf args =
     if Array.length args = 0
     then ()
-    else Format.fprintf ppf " %a" (Printmach.regs' ~print_reg) args
+    else Format.fprintf ppf " %a" (Printreg.regs' ~print_reg) args
   in
   let print_res ppf =
     if Array.length res > 0
-    then Format.fprintf ppf "%a := " (Printmach.regs' ~print_reg) res
+    then Format.fprintf ppf "%a := " (Printreg.regs' ~print_reg) res
   in
   let dump_mach_op ppf op = Printmach.operation' ~print_reg op args ppf [||] in
   let open Format in
