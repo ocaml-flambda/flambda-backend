@@ -20,7 +20,7 @@ end
 type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
   | Mode : maturity t
-  | Unique : unit t
+  | Unique : maturity t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
@@ -34,6 +34,10 @@ type 'a t = 'a Language_extension_kernel.t =
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception at the provided location saying otherwise. *)
 val assert_enabled : loc:Location.t -> 'a t -> 'a -> unit
+
+val maturity_of_unique_for_drf : maturity
+
+val maturity_of_unique_for_destruction : maturity
 
 (** Existentially packed language extension *)
 module Exist : sig

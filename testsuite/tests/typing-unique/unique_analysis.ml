@@ -1,5 +1,5 @@
 (* TEST
- flags += "-extension unique -extension layouts_beta";
+ flags += "-extension unique_alpha -extension layouts_beta";
  expect;
 *)
 
