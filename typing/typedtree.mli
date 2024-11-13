@@ -27,7 +27,10 @@ module Uid = Shape.Uid
 (* We define a new constant type that can represent unboxed values.
    This is currently used only in [Typedtree], but the long term goal
    is to share this definition with [Lambda] and completely replace the
-   usage of [Asttypes.constant] *)
+   usage of [Asttypes.constant].
+   For the soundness for the uniqueness extension it is important that all
+   types listed here mode-cross uniqueness. If you add a new constant,
+   ensure that it mode-crosses uniqueness and add it to the testsuite. *)
 type constant =
     Const_int of int
   | Const_char of char

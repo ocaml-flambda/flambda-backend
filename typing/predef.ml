@@ -379,8 +379,8 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_extension_constructor
   |> add_type ident_float
       ~jkind:(Jkind.of_const ~why:(Primitive ident_float)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+                Jkind.Const.Builtin.constant_data.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.constant_data
   |> add_type ident_floatarray
       ~jkind:(Jkind.of_const ~why:(Primitive ident_floatarray)
                Jkind.Const.Builtin.mutable_data.jkind)
@@ -389,12 +389,12 @@ let build_initial_env add_type add_extension empty_env =
       ~jkind_annotation:Jkind.Const.Builtin.immediate
   |> add_type ident_int32
       ~jkind:(Jkind.of_const ~why:(Primitive ident_int32)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+                Jkind.Const.Builtin.constant_data.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.constant_data
   |> add_type ident_int64
       ~jkind:(Jkind.of_const ~why:(Primitive ident_int64)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+                Jkind.Const.Builtin.constant_data.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.constant_data
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -414,8 +414,8 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
   |> add_type ident_nativeint
       ~jkind:(Jkind.of_const ~why:(Primitive ident_nativeint)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+                Jkind.Const.Builtin.constant_data.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.constant_data
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -458,7 +458,7 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_string
        ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
-                Jkind.Const.Builtin.immutable_data.jkind)
+                Jkind.Const.Builtin.constant_data.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float) Jkind.Const.Builtin.float64.jkind)
@@ -576,8 +576,8 @@ let add_small_number_extension_types add_type env =
   env
   |> add_type ident_float32
       ~jkind:(Jkind.of_const ~why:(Primitive ident_float32)
-                Jkind.Const.Builtin.immutable_data.jkind)
-      ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+                Jkind.Const.Builtin.constant_data.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.constant_data
   |> add_type ident_unboxed_float32
        ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float32)
           Jkind.Const.Builtin.float32.jkind)

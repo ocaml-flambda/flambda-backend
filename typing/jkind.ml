@@ -422,6 +422,17 @@ module Const = struct
         name = "mutable_data"
       }
 
+    let constant_data =
+      { jkind =
+          { immutable_data.jkind with
+            modes_upper_bounds =
+              { immutable_data.jkind.modes_upper_bounds with
+                uniqueness = Uniqueness.Const.min
+              }
+          };
+        name = "constant_data"
+      }
+
     (* CR layouts v3: change to [or_null] when separability is implemented. *)
     let void =
       { jkind = of_layout (Base Void) ~mode_crossing:false ~nullability:Non_null;
