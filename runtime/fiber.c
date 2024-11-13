@@ -183,7 +183,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   // 2Mb (= extra_size)
   // -------------------- <- [stack], returned from [mmap], page-aligned
   char* stack;
-  stack = caml_mem_map(len + stack_extra_size_for_mmap, 0);
+  stack = caml_mem_map(len + stack_extra_size_for_mmap, 0, "stack");
   if (stack == MAP_FAILED) {
     return NULL;
   }

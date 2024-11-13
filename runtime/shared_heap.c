@@ -211,7 +211,7 @@ static pool* pool_acquire(struct caml_heap_state* local) {
         caml_mem_round_up_mapping_size(Bsize_wsize(POOL_WSIZE) * new_pools);
       new_pools = mapping_size / Bsize_wsize(POOL_WSIZE);
 
-      void* mem = caml_mem_map(mapping_size, 0);
+      void* mem = caml_mem_map(mapping_size, 0, "major heap");
       if (mem) {
         pool_freelist.fresh_pools = new_pools;
         pool_freelist.next_fresh_pool = mem;
