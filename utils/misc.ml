@@ -522,24 +522,39 @@ module Stdlib = struct
       val ignore_m : 'a t -> unit t
       val all : 'a t list -> 'a list t
       val all_unit : unit t list -> unit t
+
+      module Syntax : sig
+        val (let+) : 'a t -> ('a -> 'b) -> 'b t
+        val (and+) : 'a t -> 'b t -> ('a * 'b) t
+        val (let*) : 'a t -> ('a -> 'b t) -> 'b t
+        val (and*) : 'a t -> 'b t -> ('a * 'b) t
+      end
     end
 
     module type S2 = sig
       type ('a, 'e) t
 
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+      val (>>=) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
       val return : 'a -> ('a, _) t
       val map : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
       val join : (('a, 'e) t, 'e) t -> ('a, 'e) t
       val ignore_m : (_, 'e) t -> (unit, 'e) t
       val all : ('a, 'e) t list -> ('a list, 'e) t
       val all_unit : (unit, 'e) t list -> (unit, 'e) t
+
+      module Syntax : sig
+        val (let+) : ('a, 'e) t -> ('a -> 'b) -> ('b, 'e) t
+        val (and+) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+        val (let*) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+        val (and*) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+      end
     end
 
-    module Make (X : Basic) = struct
+    module[@inline] Make (X : Basic) = struct
       include X
 
-      let ( >>= ) t f = bind t f
+      let[@inline] ( >>= ) t f = bind t f
 
       let map f ma = ma >>= fun a -> return (f a)
 
@@ -556,10 +571,19 @@ module Stdlib = struct
       let rec all_unit = function
         | [] -> return ()
         | t :: ts -> t >>= fun () -> all_unit ts
+
+      module Syntax = struct
+        let[@inline] (let+) t f = map f t
+        let[@inline] (and+) a b = a >>= fun a -> b >>= fun b -> return (a,b)
+        let[@inline] (let*) t f = bind t f
+        let[@inline] (and*) a b = (and+) a b
+      end
     end
 
-    module Make2 (X : Basic2) = struct
+    module[@inline] Make2 (X : Basic2) = struct
       include X
+
+      let[@inline] ( >>= ) t f = bind t f
 
       let map f m =
         bind m (fun a -> return (f a))
@@ -578,7 +602,20 @@ module Stdlib = struct
       let rec all_unit = function
         | [] -> return ()
         | m :: ms -> bind m (fun _ -> all_unit ms)
+
+      module Syntax = struct
+        let[@inline] (let+) t f = map f t
+        let[@inline] (and+) a b = a >>= fun a -> b >>= fun b -> return (a,b)
+        let[@inline] (let*) t f = bind t f
+        let[@inline] (and*) a b = (and+) a b
+      end
     end
+
+    module Identity = Make(struct
+        type 'a t = 'a
+        let[@inline] bind x f = f x
+        let[@inline] return x = x
+      end)
 
     module Option = Make(struct
         include Stdlib.Option

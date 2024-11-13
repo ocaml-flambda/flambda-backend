@@ -111,7 +111,7 @@ let with_additional_action =
           | Some const ->
             let builtin =
               List.find_opt (fun (builtin, _) ->
-                  Jkind.Const.equal_after_all_inference_is_done const builtin)
+                  Jkind.Const.no_baggage_and_equal const builtin)
                 builtins
             in
             begin match builtin with

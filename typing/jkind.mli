@@ -113,7 +113,7 @@ end
     the meets (intersections) of r-jkinds and check that an l-jkind is less
     than an r-jkind.
 *)
-type +'d t = (Types.type_expr, 'd) Jkind_types.t
+type 'd t = (Types.type_expr, 'd) Jkind_types.t
 
 type jkind_l := Types.jkind_l
 
@@ -197,11 +197,12 @@ module Const : sig
 
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
-  (* An equality check should work over [lr]s only. But we need this
-     to do memoization in serialization. Happily, that's after all
-     inference is done, when worrying about l and r does not matter
-     any more. *)
-  val equal_after_all_inference_is_done : 'd1 t -> 'd2 t -> bool
+  (** This returns [true] iff both types have no baggage and they are equal.
+      Normally, we want an equality check to happen only on values that are
+      allowed on both the left and the right. But a type with no baggage is
+      allowed on the left and the right, so we test for that condition first
+      before doing the proper equality check. *)
+  val no_baggage_and_equal : 'd1 t -> 'd2 t -> bool
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
@@ -386,7 +387,8 @@ val for_object : jkind_l
 
 module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
-  type 'd t = (Sort.Flat.t Layout.t, 'd) Jkind_types.Layout_and_axes.t
+  type 'd t =
+    (Types.type_expr, Sort.Flat.t Layout.t, 'd) Jkind_types.Layout_and_axes.t
 
   val get_const : 'd t -> 'd Const.t option
 

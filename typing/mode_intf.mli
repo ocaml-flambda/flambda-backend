@@ -17,7 +17,7 @@ open Allowance
 (* While all our lattices are bi-Heyting algebras (see [mode.ml]), the extra
    structure is not directly useful to the user, so we only expose the basic
    lattice structure. *)
-module type Lattice = sig
+module type Basic_lattice = sig
   type t
 
   val min : t
@@ -33,6 +33,14 @@ module type Lattice = sig
   val meet : t -> t -> t
 
   val print : Format.formatter -> t -> unit
+end
+
+module type Lattice = sig
+  include Basic_lattice
+
+  val less_or_equal : t -> t -> Misc.Le_result.t
+
+  val equal : t -> t -> bool
 end
 
 type equate_step =

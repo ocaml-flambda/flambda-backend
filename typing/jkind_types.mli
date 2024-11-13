@@ -102,56 +102,100 @@ module Layout : sig
   end
 end
 
-module Layout_and_axes : sig
+module Baggage : sig
+  type (+'type_expr, 'd) t =
+    | No_baggage : ('type_expr, 'l * 'r) t
+    (* There must always be at least one type. *)
+    | Baggage :
+        'type_expr * 'type_expr list
+        -> ('type_expr, 'l * Allowance.disallowed) t
+end
+
+module Bound : sig
   open Allowance
 
-  (* We need the variance annotation here to allow [any_dummy_jkind] to be
-     polymorphic in its allowances. Otherwise the value restriction bites.
-     Sigh. *)
-  type ('layout, +'d) t =
-    { layout : 'layout;
-      modes_upper_bounds : Mode.Alloc.Const.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
+  type (+'type_expr, 'd, 'a) t =
+    { modifier : 'a;
+      baggage : ('type_expr, 'd) Baggage.t
     }
     constraint 'd = 'l * 'r
 
-  val map : ('a -> 'b) -> ('a, 'd) t -> ('b, 'd) t
+  val try_allow_l :
+    ('type_expr, 'l * 'r, 'a) t -> ('type_expr, allowed * 'r, 'a) t option
 
-  val map_option : ('a -> 'b option) -> ('a, 'd) t -> ('b, 'd) t option
+  val try_allow_r :
+    ('type_expr, 'l * 'r, 'a) t -> ('type_expr, 'l * allowed, 'a) t option
 
-  (* An equality check should work over [lr]s only. But we need this
-     to do memoization in serialization. Happily, that's after all
-     inference is done, when worrying about l and r does not matter
-     any more. *)
-  val equal_after_all_inference_is_done :
-    ('layout -> 'layout -> bool) -> ('layout, 'd1) t -> ('layout, 'd2) t -> bool
+  val less_or_equal :
+    axis:'axis Jkind_axis.Axis.t ->
+    ('type_expr, allowed * 'r, 'axis) t ->
+    ('type_expr, 'l * allowed, 'axis) t ->
+    Misc.Le_result.t
+end
 
-  val try_allow_l : ('layout, 'l * 'r) t -> ('layout, allowed * 'r) t option
+module Bounds : sig
+  include module type of Jkind_axis.Axis_collection (Bound)
 
-  val try_allow_r : ('layout, 'l * 'r) t -> ('layout, 'l * allowed) t option
+  include Allowance.Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) t
+end
+
+module Layout_and_axes : sig
+  open Allowance
+
+  type (+'type_expr, 'layout, 'd) t =
+    { layout : 'layout;
+      upper_bounds : ('type_expr, 'd) Bounds.t
+    }
+    constraint 'd = 'l * 'r
+
+  module type Allow_disallow :=
+    Allow_disallow with type ('a, 'b, 'd) sided := ('a, 'b, 'd) t
+
+  module Allow_disallow : Allow_disallow
+
+  include Allow_disallow
+
+  val map : ('a -> 'b) -> ('type_expr, 'a, 'd) t -> ('type_expr, 'b, 'd) t
+
+  val map_option :
+    ('a -> 'b option) -> ('type_expr, 'a, 'd) t -> ('type_expr, 'b, 'd) t option
+
+  val equal :
+    ('layout -> 'layout -> bool) ->
+    ('type_expr, 'layout, allowed * allowed) t ->
+    ('type_expr, 'layout, allowed * allowed) t ->
+    bool
+
+  val try_allow_l :
+    ('type_expr, 'layout, 'l * 'r) t ->
+    ('type_expr, 'layout, allowed * 'r) t option
+
+  val try_allow_r :
+    ('type_expr, 'layout, 'l * 'r) t ->
+    ('type_expr, 'layout, 'l * allowed) t option
 
   val sub :
     ('layout -> 'layout -> Misc.Le_result.t) ->
-    ('layout, allowed * 'r) t ->
-    ('layout, 'l * allowed) t ->
+    ('type_expr, 'layout, allowed * 'r) t ->
+    ('type_expr, 'layout, 'l * allowed) t ->
     Misc.Le_result.t
 
-  val format :
+  val debug_print :
+    print_type_expr:(Format.formatter -> 'type_expr -> unit) ->
     (Format.formatter -> 'layout -> unit) ->
     Format.formatter ->
-    ('layout, 'd) t ->
+    ('type_expr, 'layout, 'd) t ->
     unit
 end
 
 module Jkind_desc : sig
-  type ('type_expr, +'d) t = (Sort.t Layout.t, 'd) Layout_and_axes.t
+  type (+'type_expr, 'd) t = ('type_expr, Sort.t Layout.t, 'd) Layout_and_axes.t
 
-  type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
+  type +'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
   [@@unboxed]
 end
 
-type 'type_expr history =
+type +'type_expr history =
   | Interact of
       { reason : Jkind_intf.History.interact_reason;
         jkind1 : 'type_expr Jkind_desc.packed;
@@ -161,7 +205,7 @@ type 'type_expr history =
       }
   | Creation of Jkind_intf.History.creation_reason
 
-type ('type_expr, +'d) t =
+type (+'type_expr, 'd) t =
   { jkind : ('type_expr, 'd) Jkind_desc.t;
     annotation : Parsetree.jkind_annotation option;
     history : 'type_expr history;
@@ -170,5 +214,5 @@ type ('type_expr, +'d) t =
 
 (** CR layouts v2.8: remove this when printing is improved *)
 module Const : sig
-  type ('type_expr, +'d) t = (Layout.Const.t, 'd) Layout_and_axes.t
+  type (+'type_expr, 'd) t = ('type_expr, Layout.Const.t, 'd) Layout_and_axes.t
 end
