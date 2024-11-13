@@ -5,20 +5,8 @@ In this document, we use the new [syntax for modes](../modes/syntax.md).
 
 The `unique` mode designates values that have only a single reference pointing
 to them. If an operation takes a `unique` argument, it will consume the only
-reference to the value. This is particularly useful for the password of the
-mutual exclusion primitive in our design for data-race freedom.
-
-__Currently, uniqueness should only be used in the limited interface of
-data-race freedom! Other use-cases of uniqueness (like those described in the
-rest of this documentation) can lead to silent miscompilations and segfaults!__
-
-In the future, we hope to support other use-cases for uniqueness. This
-documentation describes these use-cases and the compiler currently accepts every
-program discussed here. You might find this useful to understand the uniqueness
-of keys better or to see what might be possible.
-
-For example, an externally allocated data structure might support a `free`
-operation:
+reference to the value. For example, an externally allocated data structure
+might support a `free` operation:
 
 ```ocaml
 val free : t @ unique -> unit
