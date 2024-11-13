@@ -783,8 +783,9 @@ module Paths : sig
   (** [variant_field s t] is [child (Projection.Variant_field s) t]. *)
   val variant_field : string -> t -> t
 
-  (** [array_index gf i t] is [modal_child gf (Projection.Array_index i) t]. *)
-  val array_index : Modality.Value.Const.t -> int -> t -> t
+  (** [array_index mut i t] is [modal_child gf (Projection.Array_index i) t]
+      where [gf] is the appropriate modality for mutability [mut]. *)
+  val array_index : Types.mutability -> int -> t -> t
 
   (** [memory_address t] is [child Projection.Memory_address t]. *)
   val memory_address : t -> t
@@ -832,7 +833,9 @@ end = struct
 
   let variant_field s t = child (Projection.Variant_field s) t
 
-  let array_index gf i t = modal_child gf (Projection.Array_index i) t
+  let array_index mut i t =
+    let modality = Typemode.transl_modalities ~maturity:Stable mut [] [] in
+    modal_child modality (Projection.Array_index i) t
 
   let memory_address t = child Projection.Memory_address t
 
@@ -1122,11 +1125,10 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     ext, UF.par uf_read uf_pats
   | Tpat_array (mut, _, pats) ->
     let uf_read = borrow_memory_address () in
-    let modality = Typemode.transl_modalities ~maturity:Stable mut [] [] in
     let ext, uf_pats =
       List.mapi
         (fun idx pat ->
-          let paths = Paths.array_index modality idx paths in
+          let paths = Paths.array_index mut idx paths in
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match
