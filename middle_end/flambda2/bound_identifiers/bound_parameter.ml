@@ -56,6 +56,10 @@ let with_kind t kind = { t with kind }
 
 let rename t = { t with param = Variable.rename t.param }
 
+let is_renamed_version_of t t' =
+  Flambda_kind.With_subkind.equal t.kind t'.kind
+  && Variable.is_renamed_version_of t.param t'.param
+
 let equal_kinds t1 t2 = Flambda_kind.With_subkind.equal t1.kind t2.kind
 
 let free_names ({ param = _; kind = _ } as t) =

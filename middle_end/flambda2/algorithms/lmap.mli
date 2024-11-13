@@ -105,6 +105,10 @@ module type S = sig
 
   val exists : (key -> 'a -> bool) -> 'a t -> bool
 
+  (** Returns an unspecified binding from the map
+      @raise Not_found if the map is empty *)
+  val choose : 'a t -> key * 'a
+
   (** Keys in the sequence must be distinct from each other and from keys
       already in the map; neither of these conditions is checked. *)
   val add_seq : (key * 'a) Seq.t -> 'a t -> 'a t
