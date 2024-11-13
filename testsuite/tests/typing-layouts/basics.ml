@@ -500,7 +500,7 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type "string" should be an instance of type "('a : immediate)"
-       The kind of string is immutable_data
+       The kind of string is constant_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of imm_id at line 1, characters 0-33.
@@ -523,7 +523,7 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "'a imm_id" = "('a : immediate)"
-       The kind of string is immutable_data
+       The kind of string is constant_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of id_for_imms at line 1, characters 16-35.
@@ -539,7 +539,7 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type "string" should be an instance of type "('a : immediate)"
-       The kind of string is immutable_data
+       The kind of string is constant_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
@@ -553,7 +553,7 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type "string" should be an instance of type "('a : immediate)"
-       The kind of string is immutable_data
+       The kind of string is constant_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
@@ -586,7 +586,7 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The kind of s5 is immutable_data
+       The kind of s5 is constant_data
          because it is the primitive type string.
        But the kind of s5 must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
@@ -910,7 +910,7 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type "('a : immediate)" is not compatible with the type "string"
-       The kind of string is immutable_data
+       The kind of string is constant_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
@@ -951,7 +951,7 @@ Error: Signature mismatch:
          val x : string
        The type "'a t" = "('a : immediate)" is not compatible with the type
          "string"
-       The kind of string is immutable_data
+       The kind of string is constant_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
@@ -2382,7 +2382,7 @@ Line 1, characters 10-16:
 1 | type t1 = string t2 as (_ : immediate)
               ^^^^^^
 Error: This type "string" should be an instance of type "('a : immediate)"
-       The kind of string is immutable_data
+       The kind of string is constant_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t2.

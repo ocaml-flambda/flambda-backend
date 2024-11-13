@@ -143,7 +143,7 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "string" is immutable_data
+Error: The kind of type "string" is constant_data
          because it is the primitive type string.
        But the kind of type "string" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-31.
@@ -213,7 +213,7 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The kind of the first is immutable_data
+       The kind of the first is constant_data
          because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 15-35.
@@ -231,7 +231,7 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The kind of the first is immutable_data
+       The kind of the first is constant_data
          because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 20-40.
@@ -248,7 +248,7 @@ Error: Modules do not match: sig type t = string end is not included in
        type t = string
      is not included in
        type t : immediate
-     The kind of the first is immutable_data
+     The kind of the first is constant_data
        because it is the primitive type string.
      But the kind of the first must be a subkind of immediate
        because of the definition of t at line 1, characters 20-40.
@@ -263,7 +263,7 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "s" is immutable_data
+Error: The kind of type "s" is constant_data
          because it is the primitive type string.
        But the kind of type "s" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-26.

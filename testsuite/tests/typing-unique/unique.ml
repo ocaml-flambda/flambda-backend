@@ -80,18 +80,27 @@ let dup x = once_ (x, x)
 val dup : 'a -> 'a * 'a @ once = <fun>
 |}]
 
+(* This value does not mode-cross uniqueness or linearity *)
+type non_mode_cross = (unit -> unit) list
+let mk_non_mode_cross : unit -> non_mode_cross @ unique many =
+  fun () -> [(fun () -> ())]
+[%%expect{|
+type non_mode_cross = (unit -> unit) list
+val mk_non_mode_cross : unit -> non_mode_cross @ unique = <fun>
+|}]
+
 (* closing over unique values gives once closure  *)
 let f () =
-  let unique_ k = "foo" in
-  let g () = (unique_ k) ^ (unique_ k) in
-  g () ^ g ()
+  let unique_ k = mk_non_mode_cross () in
+  let g () = (unique_ k) @ (unique_ k) in
+  g () @ g ()
 [%%expect{|
 Line 3, characters 27-38:
-3 |   let g () = (unique_ k) ^ (unique_ k) in
+3 |   let g () = (unique_ k) @ (unique_ k) in
                                ^^^^^^^^^^^
 Error: This value is used here, but it has already been used as unique:
 Line 3, characters 13-24:
-3 |   let g () = (unique_ k) ^ (unique_ k) in
+3 |   let g () = (unique_ k) @ (unique_ k) in
                  ^^^^^^^^^^^
 
 |}]
@@ -99,17 +108,17 @@ Line 3, characters 13-24:
 (* but if the closure doesn't utilize the uniqueness,
   then it's not once *)
 let f () =
-  let unique_ k = "foo" in
-  let g () = k ^ k in
-  g () ^ g ()
+  let unique_ k = mk_non_mode_cross () in
+  let g () = k @ k in
+  g () @ g ()
 [%%expect{|
-val f : unit -> string = <fun>
+val f : unit -> (unit -> unit) list = <fun>
 |}]
 
 (* variables inside loops will be made both aliased and many *)
 (* the following is fine, because k inside loop is aliased *)
 let f () =
-  let unique_ k = "foo" in
+  let unique_ k = mk_non_mode_cross () in
   for i = 1 to 5 do
     ignore k
   done
@@ -120,7 +129,7 @@ val f : unit -> unit = <fun>
 
 (* The following is bad, because k is once and cannot be used more than once*)
 let f () =
-  let once_ k = "foo" in
+  let once_ k = mk_non_mode_cross () in
   for i = 1 to 5 do
     k
   done
@@ -133,7 +142,7 @@ Error: The value "k" is once, so cannot be used inside a for loop
 
 (* The following is bad, because k is used uniquely *)
 let f () =
-  let unique_ k = "foo" in
+  let unique_ k = mk_non_mode_cross () in
   for i = 1 to 5 do
     unique_ k
   done
@@ -147,7 +156,7 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let f =
-  let unique_ a = "hello" in
+  let unique_ a = mk_non_mode_cross () in
   let g (unique_ a) = a in
   for i = 0 to 5 do
     let _ = g a in ()
@@ -177,19 +186,19 @@ val f : unit = ()
 in fact, the k inside g is just aliased.
     *)
 let f () =
-  let unique_ k = "foo" in
-  let g () = k ^ k in
+  let unique_ k = mk_non_mode_cross () in
+  let g () = k @ k in
   (* k is unique, and thus g is once *)
-  g () ^ g ()
+  g () @ g ()
 [%%expect{|
-val f : unit -> string = <fun>
+val f : unit -> (unit -> unit) list = <fun>
 |}]
 
 (* closing over once values gives once closure *)
 (* note that in g we don't annotate k; becaue once_ is already the most relaxed mode
     *)
 let f () =
-  let once_ k = "foo" in
+  let once_ k = mk_non_mode_cross () in
   let g () = k in
   (g (), g () )
 [%%expect{|
@@ -204,30 +213,30 @@ Line 4, characters 3-4:
 
 |}]
 
-let x = "foo"
+let x = mk_non_mode_cross ()
 [%%expect{|
-val x : string = "foo"
+val x : non_mode_cross = [<fun>]
 |}]
 
 (* Top-level must be many *)
-let once_ foo = "foo"
+let once_ foo = mk_non_mode_cross ()
 [%%expect{|
-Line 1, characters 4-21:
-1 | let once_ foo = "foo"
-        ^^^^^^^^^^^^^^^^^
+Line 1, characters 4-36:
+1 | let once_ foo = mk_non_mode_cross ()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value is "once" but expected to be "many".
 |}]
 
 (* the following is fine - we relax many to once *)
 let foo y = once_ x
 [%%expect{|
-val foo : 'a -> string @ once = <fun>
+val foo : 'a -> non_mode_cross @ once = <fun>
 |}]
 
 (* top-level must be aliased; the following unique is weakened to aliased *)
-let unique_ foo = "foo"
+let unique_ foo = mk_non_mode_cross ()
 [%%expect{|
-val foo : string = "foo"
+val foo : non_mode_cross = [<fun>]
 |}]
 
 
@@ -275,9 +284,9 @@ val aliased_id : 'a -> 'a = <fun>
 |}]
 
 let tail_unique _x =
-  let unique_ y = "foo" in unique_id y
+  let unique_ y = mk_non_mode_cross () in unique_id y
 [%%expect{|
-val tail_unique : 'a -> string = <fun>
+val tail_unique : 'a -> non_mode_cross = <fun>
 |}]
 
 let tail_unique : unique_ 'a list -> unique_ 'a list = function
@@ -340,26 +349,29 @@ Line 1, characters 14-20:
 Error: Unbound value "update"
 |}]
 
-let inf1 (unique_ x : float) = unique_ let y = x in y
+let inf1 (unique_ x : non_mode_cross) = unique_ let y = x in y
 [%%expect{|
-val inf1 : float @ unique -> float = <fun>
+val inf1 : non_mode_cross @ unique -> non_mode_cross = <fun>
 |}]
 
-let inf2 (b : bool) (unique_ x : float) = unique_ let y = if b then x else 1.0 in y
+let inf2 (b : bool) (unique_ x : non_mode_cross) = unique_ let y = if b then x else [] in y
 [%%expect{|
-val inf2 : bool -> float @ unique -> float = <fun>
+val inf2 : bool -> non_mode_cross @ unique -> non_mode_cross = <fun>
 |}]
 
-let inf3 : bool -> float -> unique_ float -> float = fun b y x ->
-  let _ = aliased_id y in let unique_ z = if b then x else y in z
+let inf3 : bool -> non_mode_cross -> unique_ non_mode_cross -> non_mode_cross =
+  fun b y x ->
+    let _ = aliased_id y in
+    let unique_ z = if b then x else y in
+    z
 [%%expect{|
-Line 2, characters 59-60:
-2 |   let _ = aliased_id y in let unique_ z = if b then x else y in z
-                                                               ^
+Line 4, characters 37-38:
+4 |     let unique_ z = if b then x else y in
+                                         ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
-let inf4 (b : bool) (y : float) (unique_ x : float) =
+let inf4 (b : bool) (y : non_mode_cross) (unique_ x : non_mode_cross) =
   let _ = aliased_id y in let unique_ z = if b then x else y in z
 [%%expect{|
 Line 2, characters 59-60:
@@ -372,11 +384,13 @@ Line 2, characters 21-22:
 
 |}]
 
-
-let inf5 (b : bool) (y : float) (unique_ x : float) =
+let inf5 (b : bool) (y : non_mode_cross) (unique_ x : non_mode_cross) =
   let z = if b then x else y in unique_ z
 [%%expect{|
-val inf5 : bool -> float @ unique -> float @ unique -> float = <fun>
+val inf5 :
+  bool ->
+  non_mode_cross @ unique -> non_mode_cross @ unique -> non_mode_cross =
+  <fun>
 |}]
 
 let inf6 (unique_ x) = let f x = x in higher_order f x
@@ -521,7 +535,7 @@ Line 4, characters 25-28:
 |}]
 
 let curry =
-  let unique_ x = "foo" in
+  let unique_ x = mk_non_mode_cross () in
   let foo y = unique_ x in
   (foo 1, foo 2)
 [%%expect{|

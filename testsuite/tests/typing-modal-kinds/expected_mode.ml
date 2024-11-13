@@ -307,10 +307,7 @@ Error: This value is "once" but expected to be "many".
 let string_unshare : _ -> unique_ string = fun x -> x
 
 [%%expect{|
-Line 1, characters 52-53:
-1 | let string_unshare : _ -> unique_ string = fun x -> x
-                                                        ^
-Error: This value is "aliased" but expected to be "unique".
+val string_unshare : string -> string @ unique = <fun>
 |}]
 
 let int_unshare : _ -> unique_ int = fun x -> x
@@ -363,10 +360,7 @@ val hidden_int_unshare : Hidden_int.t -> Hidden_int.t @ unique = <fun>
 let float_unshare : _ -> unique_ float = fun x -> x
 
 [%%expect{|
-Line 1, characters 50-51:
-1 | let float_unshare : _ -> unique_ float = fun x -> x
-                                                      ^
-Error: This value is "aliased" but expected to be "unique".
+val float_unshare : float -> float @ unique = <fun>
 |}]
 
 let float_u_unshare : _ -> unique_ float# = fun x -> x

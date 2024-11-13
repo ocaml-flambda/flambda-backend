@@ -963,7 +963,7 @@ Line 1, characters 19-27:
                        ^^^^^^^^
 Error: This type "string t" = "#(string u * string u)"
        should be an instance of type "('a : any mod global)"
-       The kind of string t is immutable_data
+       The kind of string t is constant_data
          because it is the primitive type string.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
@@ -979,7 +979,7 @@ Line 3, characters 9-30:
              ^^^^^^^^^^^^^^^^^^^^^
 Error: This type "#(int * string * int)" should be an instance of type
          "('a : any mod external_)"
-       The kind of #(int * string * int) is immutable_data
+       The kind of #(int * string * int) is constant_data
          because it is the primitive type string.
        But the kind of #(int * string * int) must be a subkind of
          any mod external_

@@ -7,6 +7,15 @@
 (* CR layouts v7.1: When tuples are out of beta, this test no longer needs
    -extension layouts_beta *)
 
+(* This value does not mode-cross uniqueness or linearity *)
+type non_mode_cross = (unit -> unit) list
+let mk_non_mode_cross : unit -> non_mode_cross @ unique many =
+  fun () -> [(fun () -> ())]
+[%%expect{|
+type non_mode_cross = (unit -> unit) list
+val mk_non_mode_cross : unit -> non_mode_cross @ unique = <fun>
+|}]
+
 (* First some helper functions *)
 let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
@@ -180,10 +189,10 @@ Line 4, characters 21-23:
 
 
 
-let or_patterns1 : unique_ float list -> float list -> float =
+let or_patterns1 : unique_ non_mode_cross list -> non_mode_cross list -> non_mode_cross =
   fun x y -> match x, y with
   | z :: _, _ | _, z :: _ -> unique_ z
-  | _, _ -> 42.0
+  | _, _ -> []
 [%%expect{|
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
@@ -191,10 +200,10 @@ Line 3, characters 37-38:
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
-let or_patterns2 : float list -> unique_ float list -> float =
+let or_patterns2 : non_mode_cross list -> unique_ non_mode_cross list -> non_mode_cross =
   fun x y -> match x, y with
   | z :: _, _ | _, z :: _ -> unique_ z
-  | _, _ -> 42.0
+  | _, _ -> []
 [%%expect{|
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
@@ -203,39 +212,42 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let or_patterns3 p =
-  let unique_ x = 3 in let unique_ y = 4 in
+  let unique_ x = mk_non_mode_cross () in
+  let unique_ y = mk_non_mode_cross () in
   match p, x, y with
   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id y
 [%%expect{|
-Line 4, characters 65-66:
-4 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id y
+Line 5, characters 65-66:
+5 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id y
                                                                      ^
 Error: This value is used here, but it has already been used as unique:
-Line 4, characters 50-51:
-4 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id y
+Line 5, characters 50-51:
+5 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id y
                                                       ^
 
 |}]
 
 let or_patterns4 p =
-  let unique_ x = 3 in let unique_ y = 4 in
+  let unique_ x = mk_non_mode_cross () in
+  let unique_ y = mk_non_mode_cross () in
   match p, x, y with
   | true, z, _ | false, _, z -> let _ = unique_id x in unique_id y
 [%%expect{|
-val or_patterns4 : bool -> int = <fun>
+val or_patterns4 : bool -> non_mode_cross = <fun>
 |}]
 
 let or_patterns5 p =
-  let unique_ x = 3 in let unique_ y = 4 in
+  let unique_ x = mk_non_mode_cross () in
+  let unique_ y = mk_non_mode_cross () in
   match p, x, y with
   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id x
 [%%expect{|
-Line 4, characters 65-66:
-4 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id x
+Line 5, characters 65-66:
+5 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id x
                                                                      ^
 Error: This value is used here, but it has already been used as unique:
-Line 4, characters 50-51:
-4 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id x
+Line 5, characters 50-51:
+5 |   | true, z, _ | false, _, z -> let _ = unique_id z in unique_id x
                                                       ^
 
 |}]
@@ -433,8 +445,7 @@ let record_mode_vars (p : point) =
   let y = (p.y, p.y) in
   (x, y, unique_ p.z)
 [%%expect{|
-val record_mode_vars : point @ unique -> float * (float * float) * float =
-  <fun>
+val record_mode_vars : point -> float * (float * float) * float = <fun>
 |}]
 
 let record_mode_vars (p : point) =
@@ -760,8 +771,8 @@ type r = { x : float; y : float; }
 Line 13, characters 20-21:
 13 |   ignore (unique_id r);
                          ^
-Error: This value is used here,
-       but part of it has already been used as unique:
+Error: This value is used here as unique,
+       but part of it has already been used:
 Line 12, characters 10-13:
 12 |   let x = r.x in
                ^^^

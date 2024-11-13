@@ -7,17 +7,25 @@
 
 let unique_id (unique_ x) = ignore x
 
+(* This value does not mode-cross uniqueness or linearity *)
+type non_mode_cross = (unit -> unit) list
+let mk_non_mode_cross : unit -> non_mode_cross @ unique many =
+  fun () -> [(fun () -> ())]
+[%%expect{|
+val unique_id : 'a @ unique -> unit = <fun>
+type non_mode_cross = (unit -> unit) list
+val mk_non_mode_cross : unit -> non_mode_cross @ unique = <fun>
+|}]
 
 (* you cannot use env vars as unique in classes/objects  *)
 let texp_object () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   object (self)
   val bar = unique_ x
   end;
 [%%expect{|
-val unique_id : 'a @ unique -> unit = <fun>
-Line 8, characters 20-21:
-8 |   val bar = unique_ x
+Line 4, characters 20-21:
+4 |   val bar = unique_ x
                         ^
 Error: This value is "aliased" but expected to be "unique".
   Hint: This identifier cannot be used uniquely,
@@ -26,7 +34,7 @@ Error: This value is "aliased" but expected to be "unique".
 
 (* you can use env vars as aliased and many, but they might collide with the external uses *)
 let texp_object () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   unique_id x;
   object (self)
   val bar = x
@@ -44,7 +52,7 @@ Line 3, characters 12-13:
 
 (* you are not allowed to use x uniquely inside the module *)
 let texp_letmodule () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   let module Bar = struct
     let y = unique_ x
   end
@@ -60,7 +68,7 @@ Hint: This value comes from outside the current module or class.
 
 (* you can use x as aliased and many, but it might collide with external uses. *)
 let texp_letmodule () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   unique_id x;
   let module Bar = struct
     let y = x
@@ -79,7 +87,7 @@ Line 3, characters 12-13:
 |}]
 
 let texp_open () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   let open (struct let y = unique_ x end) in
   ()
 [%%expect{|
@@ -91,7 +99,7 @@ Hint: This value comes from outside the current module or class.
 |}]
 
 let texp_open () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   unique_id x;
   let open (struct let y = x end) in
   ()
@@ -106,14 +114,14 @@ Line 3, characters 12-13:
 
 |}]
 
-module type bar = sig val y : string end
+module type bar = sig val y : non_mode_cross end
 
 let texp_pack () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   let z = (module struct let y = unique_ x end : bar) in
   ()
 [%%expect{|
-module type bar = sig val y : string end
+module type bar = sig val y : non_mode_cross end
 Line 5, characters 33-42:
 5 |   let z = (module struct let y = unique_ x end : bar) in
                                      ^^^^^^^^^
@@ -122,7 +130,7 @@ Hint: This value comes from outside the current module or class.
 |}]
 
 let texp_pack () =
-  let x = "foo" in
+  let x = mk_non_mode_cross () in
   unique_id x;
   let z = (module struct let y = x end : bar) in
   ()
@@ -149,11 +157,12 @@ module M : sig val foo : string end
 Line 7, characters 12-17:
 7 |   unique_id M.foo
                 ^^^^^
-Error: This value is "aliased" but expected to be "unique".
+Error: This value is aliased but used as unique.
+Hint: This value comes from another module or class.
 |}]
 
 
-let foo (local_ x : string ref) =
+let foo (local_ x : non_mode_cross ref) =
   let module M = struct
     class c =
       let y = !x in
@@ -161,5 +170,6 @@ let foo (local_ x : string ref) =
       object method m = y end
   end in new M.c
 [%%expect{|
-val foo : local_ string ref -> (unit -> < m : string >) = <fun>
+val foo : local_ non_mode_cross ref -> (unit -> < m : non_mode_cross >) =
+  <fun>
 |}]

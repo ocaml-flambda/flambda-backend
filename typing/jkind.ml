@@ -531,6 +531,7 @@ module Const = struct
         value;
         immutable_data;
         mutable_data;
+        constant_data;
         void;
         immediate;
         immediate64;
@@ -548,6 +549,7 @@ module Const = struct
         value;
         immutable_data;
         mutable_data;
+        constant_data;
         void;
         immediate;
         immediate64;

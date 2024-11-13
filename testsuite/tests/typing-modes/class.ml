@@ -43,9 +43,8 @@ let foo () =
 Line 5, characters 27-28:
 5 |         val k = unique_use s
                                ^
-Error: This value is "aliased" but expected to be "unique".
-  Hint: This identifier cannot be used uniquely,
-  because it is defined in a class.
+Error: This value is aliased but used as unique.
+Hint: This value comes from outside the current module or class.
 |}]
 
 (* instance variables need to be defined as legacy *)
