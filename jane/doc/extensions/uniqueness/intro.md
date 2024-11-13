@@ -129,4 +129,46 @@ let okay t =
     store t
 ```
 
+## When can you rely on Uniqueness
+
+There are several cases where a value is unique but it is not permitted
+to perform a destructive update (such as a free) on the value:
+
+ - If a record is unique but contains a field annotated by the aliased
+   modality, you may free the record itself but not the aliased field.
+ - If a value mode-crosses uniqueness, it can be unique even though there might
+   be further references. In particular, all constants (eg. boxed floats, boxed
+   integers and strings) mode-cross uniqueness. You can check whether a value
+   mode-crosses uniqueness by attempting to cast it from unique to aliased.
+
+Furthermore, we are currently working around a limitation which makes it unsound
+to use uniqueness with pattern-matching. In particular, if `field` had the
+aliased modality, it is currently not permitted to write:
+
+```ocaml
+let bad t =
+  match t with
+  | Con { field } -> field, free t
+```
+
+Since `field` has the aliased modality, this is permitted in our full design for
+uniqueness. However, it is currently disallowed due to internal issues in the
+compiler. Instead, you should adopt the idiom of `Ext.Freeable` where all
+pattern matches are within a function that takes its argument locally, passed to
+`use`:
+
+```ocaml
+let okay t =
+  let field =
+    use t (fun t ->
+      match t with
+      | Con { field } -> field)
+  in
+  field, free t
+```
+
+If the function passed to `use` takes its argument locally, this will create the
+necessary protections in the compiler to make this sound. While the former
+program is currently rejected by the compiler, the latter program is accepted.
+
 For more details, read [the reference](./reference.md).
