@@ -1432,6 +1432,7 @@ let close_exact_or_unknown_apply acc env
     Alloc_mode.For_applications.from_lambda mode ~current_region
       ~current_ghost_region
   in
+  let dbg = Debuginfo.from_location loc in
   let acc, call_kind, can_erase_callee =
     match kind with
     | Function -> (
@@ -1445,6 +1446,19 @@ let close_exact_or_unknown_apply acc env
              now *)
           acc, Call_kind.indirect_function_call_unknown_arity mode, false
         else
+          let result_arity_from_code = Code_metadata.result_arity meta in
+          if (* See comment about when this check can be done, in
+                simplify_apply_expr.ml *)
+             not
+               (Flambda_arity.equal_ignoring_subkinds return_arity
+                  result_arity_from_code)
+          then
+            Misc.fatal_errorf
+              "Wrong return arity for direct OCaml function call to %a@ \
+               (expected %a, found %a):@ %a@ code metadata:@ %a"
+              Ident.print func Flambda_arity.print result_arity_from_code
+              Flambda_arity.print return_arity Debuginfo.print_compact dbg
+              Code_metadata.print meta;
           let can_erase_callee =
             Flambda_features.classic_mode ()
             && not (Code_metadata.is_my_closure_used meta)
@@ -1476,9 +1490,7 @@ let close_exact_or_unknown_apply acc env
     Apply.create
       ~callee:(if can_erase_callee then None else Some callee)
       ~continuation:(Return continuation) apply_exn_continuation ~args
-      ~args_arity ~return_arity ~call_kind
-      (Debuginfo.from_location loc)
-      ~inlined:inlined_call
+      ~args_arity ~return_arity ~call_kind dbg ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
       ~probe ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)

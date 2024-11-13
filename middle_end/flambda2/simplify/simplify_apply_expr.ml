@@ -817,10 +817,10 @@ let simplify_direct_function_call ~simplify_expr dacc apply
                 result_arity_of_application)
         then
           Misc.fatal_errorf
-            "Wrong return arity for direct OCaml function call\n\
-            \     (expected %a, found  %a):@ %a" Flambda_arity.print
-            result_arity Flambda_arity.print result_arity_of_application
-            Apply.print apply;
+            "Wrong return arity for direct OCaml function call@ (expected %a, \
+             found %a):@ %a"
+            Flambda_arity.print result_arity Flambda_arity.print
+            result_arity_of_application Apply.print apply;
         simplify_direct_full_application ~simplify_expr dacc apply
           (Some function_decl) ~params_arity ~result_arity ~result_types
           ~down_to_up ~coming_from_indirect ~callee's_code_metadata)
