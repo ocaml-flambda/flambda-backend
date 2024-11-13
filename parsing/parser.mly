@@ -1942,6 +1942,8 @@ module_type:
     MINUSGREATER mty = module_type mm = optional_at_mode_expr
       %prec below_WITH
       { wrap_mty_attrs ~loc:$sloc attrs (
+          (* return modes go to the innermost functor arrow;
+            all other return modes are empty *)
           let mty, mm =
             List.fold_left (fun (acc, mm) (startpos, arg) ->
               mkmty ~loc:(startpos, $endpos) (Pmty_functor (arg, acc, mm)), []
@@ -2066,8 +2068,8 @@ signature_item:
 ;
 
 (* The body (right-hand side) of a module declaration. *)
-module_declaration_body(mm):
-    COLON mty = module_type mm = mm
+module_declaration_body(optional_atat_modal_expr):
+    COLON mty = module_type mm = optional_atat_modal_expr
       { mty, mm }
   | EQUAL error
       { expecting $loc($1) ":" }
