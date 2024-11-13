@@ -524,9 +524,9 @@ end = struct
       then
         Regalloc_utils.fatal
           "When checking equivalence of labels before and after allocation got \
-           different successor id's. Successor (label, instr id) before: (%d, \
-           %d). Successor (label, instr id) after: (%d, %d)."
-          l1 s1 l2 s2
+           different successor id's. Successor (label, instr id) before: (%a, \
+           %d). Successor (label, instr id) after: (%a, %d)."
+          Label.format l1 s1 Label.format l2 s2
     in
     match old_instr, instr with
     | Never, Never -> ()
@@ -626,10 +626,10 @@ end = struct
         if Label.Tbl.mem visited_labels block.start
         then
           Misc.fatal_errorf
-            "Visiting the same block %d without knowing the successor \
+            "Visiting the same block %a without knowing the successor \
              instruction's id. That means there's a loop consisting of only \
              instructions added by the register allocator."
-            block.start;
+            Label.format block.start;
         Label.Tbl.add visited_labels block.start ();
         let first_id = get_first_non_regalloc_id t block in
         Label.Tbl.add successor_ids block.start first_id;

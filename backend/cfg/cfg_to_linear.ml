@@ -108,8 +108,10 @@ let cross_section cfg_with_layout src dst =
     match src_section, dst_section with
     | None, None -> false
     | Some src_name, Some dst_name -> not (String.equal src_name dst_name)
-    | Some _, None -> Misc.fatal_errorf "Missing section for %d" dst
-    | None, Some _ -> Misc.fatal_errorf "Missing section for %d" src
+    | Some _, None ->
+      Misc.fatal_errorf "Missing section for %a" Label.format dst
+    | None, Some _ ->
+      Misc.fatal_errorf "Missing section for %a" Label.format src
   else false
 
 let linearize_terminator cfg_with_layout (func : string) start
@@ -231,12 +233,14 @@ let linearize_terminator cfg_with_layout (func : string) start
               (* arbitrary choice (also see CR above) *)
               Label.Set.min_elt successor_labels
           | [lbl] ->
-            Printf.eprintf "One success label must be last: %d\n" lbl;
+            Printf.eprintf "One success label must be last: %s\n"
+              (Label.to_string lbl);
             (* CR-someday gyorsh: fail for safety, until we see a case that
                exhibits this behavior.. This behavior should not be possible
                with the current cfg construction. *)
             Misc.fatal_errorf
-              "Illegal branch: one successor label must be last %d" lbl ()
+              "Illegal branch: one successor label must be last %a" Label.format
+              lbl ()
           | _ ->
             Misc.fatal_error
               "Illegal branch: more than one successor label that must be last"
@@ -373,7 +377,7 @@ let run cfg_with_layout =
   DLL.iter_right_cell layout ~f:(fun cell ->
       let label = DLL.value cell in
       if not (Label.Tbl.mem cfg.blocks label)
-      then Misc.fatal_errorf "Unknown block labelled %d\n" label;
+      then Misc.fatal_errorf "Unknown block labelled %a\n" Label.format label;
       let block = Label.Tbl.find cfg.blocks label in
       assert (Label.equal label block.start);
       let body =

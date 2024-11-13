@@ -52,9 +52,9 @@ let create_contiguous_range_list_and_summarise subrange =
   let end_pos = IF.Subrange.end_pos subrange in
   let end_pos_offset = IF.Subrange.end_pos_offset subrange in
   Contiguous
-    { start_pos = Asm_label.create_int Text start_pos;
+    { start_pos = Asm_label.create_int Text (start_pos |> Label.to_int);
       start_pos_offset;
-      end_pos = Asm_label.create_int Text end_pos;
+      end_pos = Asm_label.create_int Text (end_pos |> Label.to_int);
       end_pos_offset
     }
 
@@ -67,12 +67,12 @@ let create_discontiguous_range_list_entry state dwarf_4_range_list_entries
   let start_of_code_symbol = DS.start_of_code_symbol state in
   let start_inclusive =
     Address_table.add (DS.address_table state)
-      (Asm_label.create_int Text start_pos)
+      (Asm_label.create_int Text (start_pos |> Label.to_int))
       ~adjustment:start_pos_offset ~start_of_code_symbol
   in
   let end_exclusive =
     Address_table.add (DS.address_table state)
-      (Asm_label.create_int Text end_pos)
+      (Asm_label.create_int Text (end_pos |> Label.to_int))
       ~adjustment:end_pos_offset ~start_of_code_symbol
   in
   let range_list_entry : Range_list_entry.entry =
@@ -93,12 +93,14 @@ let create_discontiguous_range_list_entry state dwarf_4_range_list_entries
     let range_list_entry =
       Dwarf_4_range_list_entry.create_range_list_entry
         ~start_of_code_symbol:(DS.start_of_code_symbol state)
-        ~first_address_when_in_scope:(Asm_label.create_int Text start_pos)
-        ~first_address_when_not_in_scope:(Asm_label.create_int Text end_pos)
+        ~first_address_when_in_scope:
+          (Asm_label.create_int Text (start_pos |> Label.to_int))
+        ~first_address_when_not_in_scope:
+          (Asm_label.create_int Text (end_pos |> Label.to_int))
         ~first_address_when_not_in_scope_offset:(Some end_pos_offset)
     in
-    DS.Debug.log "range_list_entry: start=%d end=%d+%d\n%!" start_pos end_pos
-      end_pos_offset;
+    DS.Debug.log "range_list_entry: start=%a end=%a+%d\n%!" Label.format
+      start_pos Label.format end_pos end_pos_offset;
     range_list_entry :: dwarf_4_range_list_entries, range_list, summary
   | Five -> dwarf_4_range_list_entries, range_list, summary
 

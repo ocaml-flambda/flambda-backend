@@ -290,5 +290,5 @@ module type S = sig
   (** An internal function used by [Coalesce_labels]. The [env] should come from
       [Coalesce_labels.fundecl]. *)
   val rewrite_labels_and_remove_empty_subranges_and_ranges :
-    t -> env:int Numbers.Int.Map.t -> t
+    t -> env:Label.t Label.Map.t -> t
 end

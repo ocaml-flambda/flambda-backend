@@ -236,7 +236,8 @@ class cse_generic =
           let numbering, block = Queue.take to_visit in
           if not (Label.Set.mem block.start !visited)
           then (
-            if debug then Format.eprintf "[cse] visiting %d\n%!" block.start;
+            if debug
+            then Format.eprintf "[cse] visiting %a\n%!" Label.format block.start;
             visited := Label.Set.add block.start !visited;
             let numbering = self#cse_body state numbering block.body in
             let numbering = self#cse_terminator numbering block.terminator in
@@ -258,8 +259,8 @@ class cse_generic =
                 in
                 if debug
                 then
-                  Format.eprintf "[cse] successor %d to_add=%B %d\n%!"
-                    successor_label to_add
+                  Format.eprintf "[cse] successor %a to_add=%B %d\n%!"
+                    Label.format successor_label to_add
                     (Label.Set.cardinal successor_block.predecessors);
                 if to_add then Queue.add (numbering, successor_block) to_visit)
               successor_labels)

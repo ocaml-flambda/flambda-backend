@@ -44,7 +44,8 @@ let invariant_doms : Cfg.t -> doms -> unit =
   Label.Tbl.iter
     (fun key _ ->
       if not (Label.Tbl.mem doms key)
-      then fatal "Cfg_dominators.invariant_doms: missing label %d" key)
+      then
+        fatal "Cfg_dominators.invariant_doms: missing label %a" Label.format key)
     cfg.blocks;
   (* Check that (i) the immediate dominator is a strict dominator, and (ii)
      there is no other intermediate strict dominator - except for the entry
@@ -57,9 +58,9 @@ let invariant_doms : Cfg.t -> doms -> unit =
         if not (is_strictly_dominating doms idom_n n)
         then
           fatal
-            "Cfg_dominators.invariant_doms: the immediate dominator of %d, %d, \
+            "Cfg_dominators.invariant_doms: the immediate dominator of %a, %a, \
              is not strictly dominating it"
-            n idom_n;
+            Label.format n Label.format idom_n;
         Label.Tbl.iter
           (fun m _ ->
             if is_strictly_dominating doms idom_n m
@@ -67,8 +68,8 @@ let invariant_doms : Cfg.t -> doms -> unit =
             then
               fatal
                 "Cfg_dominators.invariant_doms: there is a strict dominator, \
-                 %d, between %d and its immediate dominator, %d"
-                m n idom_n)
+                 %a, between %a and its immediate dominator, %a"
+                Label.format m Label.format n Label.format idom_n)
           doms))
     doms
 
@@ -103,7 +104,9 @@ end = struct
 
   let find_component components label =
     match Label.Tbl.find_opt components label with
-    | None -> Misc.fatal_errorf "no component identifier for label %d" label
+    | None ->
+      Misc.fatal_errorf "no component identifier for label %a" Label.format
+        label
     | Some component -> component
 
   let iter_blocks_from :
@@ -265,7 +268,8 @@ let compute_doms : Cfg.t -> doms =
                   ));
           let new_idom =
             match !new_idom with
-            | None -> Misc.fatal_errorf "no new idom for label %d" label
+            | None ->
+              Misc.fatal_errorf "no new idom for label %a" Label.format label
             | Some new_idom -> new_idom
           in
           match Label.Tbl.find_opt doms label with
@@ -291,9 +295,9 @@ let invariant_dominance_frontiers : Cfg.t -> doms -> dominance_frontiers -> unit
           if is_strictly_dominating doms label frontier_label
           then
             fatal
-              "Cfg_dominators.invariant_dominance_frontiers: %d is strictly \
-               dominating %d"
-              label frontier_label;
+              "Cfg_dominators.invariant_dominance_frontiers: %a is strictly \
+               dominating %a"
+              Label.format label Label.format frontier_label;
           let block = Cfg.get_block_exn cfg frontier_label in
           let dominates_a_predecessor =
             Label.Set.exists
@@ -303,9 +307,9 @@ let invariant_dominance_frontiers : Cfg.t -> doms -> dominance_frontiers -> unit
           if not dominates_a_predecessor
           then
             fatal
-              "Cfg_dominators.invariant_dominance_frontiers: %d does not \
-               dominate any predecessor of %d"
-              label frontier_label)
+              "Cfg_dominators.invariant_dominance_frontiers: %a does not \
+               dominate any predecessor of %a"
+              Label.format label Label.format frontier_label)
         frontier_labels)
     dominance_frontiers
 
@@ -381,9 +385,9 @@ let invariant_dominator_forest : Cfg.t -> doms -> dominator_tree list -> unit =
     then
       fatal
         "Cfg_dominators.invariant_dominator_forest: unexpected parent (%s) for \
-         label %d"
-        (Option.fold ~none:"none" ~some:string_of_int parent)
-        tree.label;
+         label %a"
+        (Option.fold ~none:"none" ~some:Label.to_string parent)
+        Label.format tree.label;
     List.iter tree.children ~f:(fun child ->
         check_parent ~parent:(Some tree.label) child)
   in
@@ -488,8 +492,8 @@ let find_dominance_frontier t label =
   match Label.Tbl.find_opt t.dominance_frontiers label with
   | Some frontier -> frontier
   | None ->
-    fatal "Cfg_dominators.find_dominance_frontier: no frontier for label %d"
-      label
+    fatal "Cfg_dominators.find_dominance_frontier: no frontier for label %a"
+      Label.format label
 
 let dominator_forest t = t.dominator_forest
 
@@ -501,8 +505,8 @@ let dominator_tree_for_entry_point t =
   | None ->
     fatal
       "Cfg_dominators.dominator_tree_for_entry_point: no tree for entry point \
-       (label %d)"
-      t.entry_label
+       (label %a)"
+      Label.format t.entry_label
   | Some tree -> tree
 
 let iter_breadth_dominator_forest t ~f =

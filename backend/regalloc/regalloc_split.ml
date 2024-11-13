@@ -42,7 +42,8 @@ let rec compute_substitution_tree :
     unit =
  fun state substs bindings tree ->
   let label = tree.label in
-  if split_debug then log ~indent:1 "compute_substitution_tree %d" label;
+  if split_debug
+  then log ~indent:1 "compute_substitution_tree %a" Label.format label;
   (* First, remove the phi and definitions from the bindings. *)
   if split_debug then log ~indent:2 "removing from phis";
   let bindings =
@@ -249,7 +250,7 @@ let insert_spills :
   let stack_subst = Reg.Tbl.create (Label.Map.cardinal destructions_at_end) in
   Label.Map.iter
     (fun label (_, live_at_destruction_point) ->
-      if split_debug then log ~indent:1 "block %d" label;
+      if split_debug then log ~indent:1 "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let block_subst = Substitution.for_label substs label in
       insert_spills_in_block state ~block_subst ~stack_subst block
@@ -309,7 +310,7 @@ let insert_reloads :
   if split_debug then log ~indent:0 "insert_reloads";
   Label.Map.iter
     (fun label live_at_definition_point ->
-      if split_debug then log ~indent:1 "block %d" label;
+      if split_debug then log ~indent:1 "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let block_subst = Substitution.for_label substs label in
       insert_reloads_in_block state ~block_subst ~stack_subst block
@@ -359,9 +360,10 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       if split_debug
       then
-        log ~indent:1 "insert_phi_moves for block %d: %a" label Printreg.regset
-          to_unify;
-      if block.is_trap_handler then fatal "phi block %d is a trap handler" label;
+        log ~indent:1 "insert_phi_moves for block %a: %a" Label.format label
+          Printreg.regset to_unify;
+      if block.is_trap_handler
+      then fatal "phi block %a is a trap handler" Label.format label;
       Label.Set.iter
         (fun predecessor_label ->
           let predecessor_block =

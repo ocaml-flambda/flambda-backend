@@ -21,7 +21,7 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
   module Range_info = S.Range_info
 
   let rewrite_label env label =
-    match Numbers.Int.Map.find label env with
+    match Label.Map.find label env with
     | exception Not_found -> label
     | label -> label
 
@@ -40,10 +40,10 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
         { start_pos; start_pos_offset; end_pos; end_pos_offset; subrange_info }
         =
       Format.fprintf ppf
-        "@[<hov 1>((start_pos@ L%d)@ (start_pos_offset@ %d)@ (end_pos@ L%d)@ \
+        "@[<hov 1>((start_pos@ L%a)@ (start_pos_offset@ %d)@ (end_pos@ L%a)@ \
          (end_pos_offset@ %d)@ (subrange_info@ %a))@]"
-        start_pos start_pos_offset end_pos end_pos_offset Subrange_info.print
-        subrange_info
+        Label.format start_pos start_pos_offset Label.format end_pos
+        end_pos_offset Subrange_info.print subrange_info
 
     let create ~(start_insn : L.instruction) ~start_pos ~start_pos_offset
         ~end_pos ~end_pos_offset ~subrange_info =
@@ -67,7 +67,8 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
     let rewrite_labels t ~env =
       let start_pos = rewrite_label env t.start_pos in
       let end_pos = rewrite_label env t.end_pos in
-      if start_pos = end_pos && t.start_pos_offset = 0 && t.end_pos_offset = 0
+      if Label.equal start_pos end_pos
+         && t.start_pos_offset = 0 && t.end_pos_offset = 0
       then None
       else Some { t with start_pos; end_pos }
   end
@@ -86,8 +87,8 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Subrange.print)
         subranges
         (Misc.Stdlib.Option.print (fun ppf (pos, offset) ->
-             Format.fprintf ppf "@[<hov 1>((pos@ L%d)@ (offset@ %d))@]" pos
-               offset))
+             Format.fprintf ppf "@[<hov 1>((pos@ L%a)@ (offset@ %d))@]"
+               Label.format pos offset))
         min_pos_and_offset Range_info.print range_info
 
     let create range_info =
@@ -109,7 +110,7 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
            ordering when constructing DWARF-4 location lists, to ensure that
            they are sorted in increasing program counter order by start
            address.) *)
-        let c = compare start_pos min_pos in
+        let c = Label.compare start_pos min_pos in
         if c < 0 || (c = 0 && start_pos_offset < min_pos_offset)
         then t.min_pos_and_offset <- Some (start_pos, start_pos_offset));
       t.subranges <- subrange :: t.subranges
@@ -380,10 +381,10 @@ module Make (S : Compute_ranges_intf.S_functor) = struct
           (Format.pp_print_list ~pp_sep:Format.pp_print_space
              (fun ppf (key, (label, start_pos_offset, label_insn)) ->
                Format.fprintf ppf
-                 "@[<hov 1>((key@ %a)@ (label@ L%d)@ (start_pos_offset@ %d)@ \
+                 "@[<hov 1>((key@ %a)@ (label@ L%a)@ (start_pos_offset@ %d)@ \
                   (insn@ %a))@]"
-                 S.Key.print key label start_pos_offset Printlinear.instr
-                 label_insn))
+                 S.Key.print key Label.format label start_pos_offset
+                 Printlinear.instr label_insn))
           (KM.bindings currently_open_subranges)
       | start_pos, start_pos_offset, start_insn -> (
         let currently_open_subranges = KM.remove key currently_open_subranges in

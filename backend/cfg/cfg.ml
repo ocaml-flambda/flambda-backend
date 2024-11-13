@@ -93,7 +93,7 @@ let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
     fun_args;
     fun_codegen_options;
     fun_dbg;
-    entry_label = 1;
+    entry_label = Label.entry_label;
     (* CR gyorsh: We should use [Cmm.new_label ()] here, but validator tests
        currently rely on it to be initialized as above. *)
     blocks = Label.Tbl.create 31;
@@ -147,8 +147,8 @@ let replace_successor_labels t ~normal ~exn block ~f =
     if not (mem_block t dst)
     then
       Misc.fatal_errorf
-        "Cfg.replace_successor_labels: \nnew successor %d not found in the cfg"
-        dst;
+        "Cfg.replace_successor_labels: \nnew successor %a not found in the cfg"
+        Label.format dst;
     dst
   in
   if exn then block.exn <- Option.map f block.exn;
@@ -183,14 +183,15 @@ let replace_successor_labels t ~normal ~exn block ~f =
 let add_block_exn t block =
   if Label.Tbl.mem t.blocks block.start
   then
-    Misc.fatal_errorf "Cfg.add_block_exn: block %d is already present"
-      block.start;
+    Misc.fatal_errorf "Cfg.add_block_exn: block %a is already present"
+      Label.format block.start;
   Label.Tbl.add t.blocks block.start block
 
 let remove_block_exn t label =
   match Label.Tbl.find t.blocks label with
   | exception Not_found ->
-    Misc.fatal_errorf "Cfg.remove_block_exn: block %d not found" label
+    Misc.fatal_errorf "Cfg.remove_block_exn: block %a not found" Label.format
+      label
   | _ -> Label.Tbl.remove t.blocks label
 
 let remove_blocks t labels_to_remove =
@@ -203,7 +204,7 @@ let get_block t label = Label.Tbl.find_opt t.blocks label
 let get_block_exn t label =
   match Label.Tbl.find t.blocks label with
   | exception Not_found ->
-    Misc.fatal_errorf "Cfg.get_block_exn: block %d not found" label
+    Misc.fatal_errorf "Cfg.get_block_exn: block %a not found" Label.format label
   | block -> block
 
 let can_raise_interproc block = block.can_raise && Option.is_none block.exn
@@ -325,7 +326,8 @@ let dump_basic ppf (basic : basic) =
   match basic with
   | Op op -> dump_operation ppf op
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
-  | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
+  | Pushtrap { lbl_handler } ->
+    fprintf ppf "Pushtrap handler=%a" Label.format lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"
   | Prologue -> fprintf ppf "Prologue"
   | Stack_check { max_frame_size_bytes } ->
@@ -357,35 +359,37 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
   let open Format in
   match terminator with
   | Never -> fprintf ppf "deadend"
-  | Always l -> fprintf ppf "goto %d" l
+  | Always l -> fprintf ppf "goto %a" Label.format l
   | Parity_test { ifso; ifnot } ->
-    fprintf ppf "if even%s goto %d%selse goto %d" first_arg ifso sep ifnot
+    fprintf ppf "if even%s goto %a%selse goto %a" first_arg Label.format ifso
+      sep Label.format ifnot
   | Truth_test { ifso; ifnot } ->
-    fprintf ppf "if true%s goto %d%selse goto %d" first_arg ifso sep ifnot
+    fprintf ppf "if true%s goto %a%selse goto %a" first_arg Label.format ifso
+      sep Label.format ifnot
   | Float_test { width = _; lt; eq; gt; uo } ->
-    fprintf ppf "if%s <%s goto %d%s" first_arg second_arg lt sep;
-    fprintf ppf "if%s =%s goto %d%s" first_arg second_arg eq sep;
-    fprintf ppf "if%s >%s goto %d%s" first_arg second_arg gt sep;
-    fprintf ppf "else goto %d" uo
+    fprintf ppf "if%s <%s goto %a%s" first_arg second_arg Label.format lt sep;
+    fprintf ppf "if%s =%s goto %a%s" first_arg second_arg Label.format eq sep;
+    fprintf ppf "if%s >%s goto %a%s" first_arg second_arg Label.format gt sep;
+    fprintf ppf "else goto %a" Label.format uo
   | Int_test { lt; eq; gt; is_signed; imm } ->
     let cmp =
       Printf.sprintf " %s%s"
         (if is_signed then "s" else "u")
         (match imm with None -> second_arg | Some i -> " " ^ Int.to_string i)
     in
-    fprintf ppf "if%s <%s goto %d%s" first_arg cmp lt sep;
-    fprintf ppf "if%s =%s goto %d%s" first_arg cmp eq sep;
-    fprintf ppf "if%s >%s goto %d" first_arg cmp gt
+    fprintf ppf "if%s <%s goto %a%s" first_arg cmp Label.format lt sep;
+    fprintf ppf "if%s =%s goto %a%s" first_arg cmp Label.format eq sep;
+    fprintf ppf "if%s >%s goto %a" first_arg cmp Label.format gt
   | Switch labels ->
     fprintf ppf "switch%s%s" first_arg sep;
     let label_count = Array.length labels in
     if label_count >= 1
     then (
       for i = 0 to label_count - 2 do
-        fprintf ppf "case %d: goto %d%s" i labels.(i) sep
+        fprintf ppf "case %d: goto %a%s" i Label.format labels.(i) sep
       done;
       let i = label_count - 1 in
-      fprintf ppf "case %d: goto %d" i labels.(i))
+      fprintf ppf "case %d: goto %a" i Label.format labels.(i))
   | Call_no_return { func_symbol; _ } ->
     fprintf ppf "Call_no_return %s%a" func_symbol print_args args
   | Return -> fprintf ppf "Return%a" print_args args
@@ -394,7 +398,8 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
     dump_mach_op ppf
       (Mach.Itailcall_imm
          { func =
-             { sym_name = Printf.sprintf "self(%d)" destination;
+             { sym_name =
+                 Printf.sprintf "self(%s)" (Label.to_string destination);
                sym_global = Local
              }
          })
@@ -408,7 +413,7 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
       (match call with
       | Indirect -> Mach.Icall_ind
       | Direct func -> Mach.Icall_imm { func });
-    Format.fprintf ppf "%sgoto %d" sep label_after
+    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
   | Prim { op = prim; label_after } ->
     Format.fprintf ppf "%t%a" print_res dump_mach_op
       (match prim with
@@ -417,10 +422,10 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Mach.Iprobe { name; handler_code_sym; enabled_at_init });
-    Format.fprintf ppf "%sgoto %d" sep label_after
+    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
   | Specific_can_raise { op; label_after } ->
     Format.fprintf ppf "%a" specific_can_raise op;
-    Format.fprintf ppf "%sgoto %d" sep label_after
+    Format.fprintf ppf "%sgoto %a" sep Label.format label_after
 
 let dump_terminator ?sep ppf terminator = dump_terminator' ?sep ppf terminator
 

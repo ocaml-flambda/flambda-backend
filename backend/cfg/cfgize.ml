@@ -71,8 +71,8 @@ end = struct
   let add_block t ~label ~block =
     if Label.Tbl.mem t.blocks label
     then
-      Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %d"
-        label
+      Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %a"
+        Label.format label
     else (
       DLL.add_end t.layout label;
       Label.Tbl.replace t.blocks label block)
@@ -158,8 +158,8 @@ let basic_or_terminator_of_operation :
     Basic (Op (Alloc { bytes; dbginfo; mode }))
   | Ipoll { return_label = None } -> Basic (Op Poll)
   | Ipoll { return_label = Some return_label } ->
-    Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
-      return_label
+    Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %a"
+      Label.format return_label
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
@@ -406,7 +406,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
 
 (* Represents the control flow exiting the function without encountering a
    return. *)
-let fallthrough_label : Label.t = -1
+let fallthrough_label : Label.t = Label.none
 
 (* [add_blocks instr state ~start ~next ~is_cold] adds the block beginning at
    [instr] with label [start], and all recursively-reachable blocks to [state].
@@ -564,8 +564,8 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
       | None ->
         Misc.fatal_errorf
           "Cfgize.update_trap_handler_blocks: inconsistent state (no block \
-           labelled %d)"
-          label
+           labelled %a)"
+          Label.format label
       | Some block -> block.is_trap_handler <- true)
     (State.get_exception_handlers state)
 

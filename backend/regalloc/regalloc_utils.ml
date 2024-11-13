@@ -207,12 +207,13 @@ let make_log_cfg_with_infos :
         let exn =
           match block.exn with
           | None -> " [no exn]"
-          | Some exn_label -> Printf.sprintf " [exn: %d]" exn_label
+          | Some exn_label ->
+            Printf.sprintf " [exn: %s]" (Label.to_string exn_label)
         in
         let handler =
           match block.is_trap_handler with false -> "" | true -> " [handler]"
         in
-        log ~indent "(block %d)%s%s" block.start exn handler;
+        log ~indent "(block %a)%s%s" Label.format block.start exn handler;
         log_body_and_terminator ~indent:(succ indent) block.body
           block.terminator liveness)
 
@@ -294,8 +295,11 @@ let save_cfg : string -> Cfg_with_layout.t -> unit =
       let block =
         Cfg.get_block_exn (Cfg_with_layout.cfg cfg_with_layout) label
       in
-      Printf.sprintf "label:%d stack_offset:%d" label block.stack_offset)
-    ~annotate_succ:(Printf.sprintf "%d->%d") str
+      Printf.sprintf "label:%s stack_offset:%d" (Label.to_string label)
+        block.stack_offset)
+    ~annotate_succ:(fun lbl1 lbl2 ->
+      Printf.sprintf "%s->%s" (Label.to_string lbl1) (Label.to_string lbl2))
+    str
 
 module Substitution = struct
   type t = Reg.t Reg.Tbl.t

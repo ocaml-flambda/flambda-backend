@@ -184,7 +184,7 @@ let operation' ?(print_reg = Printreg.reg) op arg ppf res =
       (match return_label with
       | None -> ()
       | Some return_label ->
-        fprintf ppf " returning to L%d" return_label)
+        fprintf ppf " returning to L%a" Label.format return_label)
   | Iprobe {name;handler_code_sym} ->
     fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
   | Iprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled \"%s\"" name
