@@ -2,8 +2,8 @@ compilation_unit.ml
 compilation_unit.mli
 import_info.ml
 import_info.mli
-language_extension.ml
-language_extension.mli
+language_extension_kernel.ml
+language_extension_kernel.mli
 zero_alloc_utils.ml
 zero_alloc_utils.mli
 profile_counters_functions.ml

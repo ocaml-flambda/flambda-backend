@@ -1,5 +1,7 @@
 include Language_extension_kernel
 
+type 'a language_extension = 'a t
+
 (* operations we want on every extension level *)
 module type Extension_level = sig
   type t
@@ -51,6 +53,11 @@ module Maturity = struct
     | Alpha -> "_alpha"
 end
 
+let maturity_to_string = function
+  | Alpha -> "alpha"
+  | Beta -> "beta"
+  | Stable -> "stable"
+
 let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   function
   | Comprehensions -> (module Unit)
@@ -66,8 +73,22 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Small_numbers -> (module Maturity)
   | Instances -> (module Unit)
 
+(* We'll do this in a more principled way later. *)
+(* CR layouts: Note that layouts is only "mostly" erasable, because of annoying
+   interactions with the pre-layouts [@@immediate] attribute like:
+
+     type ('a : immediate) t = 'a [@@immediate]
+
+   But we've decided to punt on this issue in the short term.
+*)
+let is_erasable : type a. a t -> bool = function
+  | Mode | Unique | Layouts -> true
+  | Comprehensions | Include_functor | Polymorphic_parameters | Immutable_arrays
+  | Module_strengthening | SIMD | Labeled_tuples | Small_numbers | Instances ->
+    false
+
 module Exist_pair = struct
-  include Exist_pair
+  type t = Pair : 'a language_extension * 'a -> t
 
   let maturity : t -> Maturity.t = function
     | Pair (Comprehensions, ()) -> Beta
@@ -97,11 +118,51 @@ module Exist_pair = struct
            | Instances ) as ext),
           _ ) ->
       to_string ext
+
+  (* converts full extension names, like "layouts_alpha" to a pair of
+     an extension and its maturity. For extensions that don't take an
+     argument, the conversion is just [Language_extension_kernel.of_string].
+  *)
+  let of_string extn_name : t option =
+    match String.lowercase_ascii extn_name with
+    | "comprehensions" -> Some (Pair (Comprehensions, ()))
+    | "mode" -> Some (Pair (Mode, Stable))
+    | "mode_beta" -> Some (Pair (Mode, Beta))
+    | "mode_alpha" -> Some (Pair (Mode, Alpha))
+    | "unique" -> Some (Pair (Unique, ()))
+    | "include_functor" -> Some (Pair (Include_functor, ()))
+    | "polymorphic_parameters" -> Some (Pair (Polymorphic_parameters, ()))
+    | "immutable_arrays" -> Some (Pair (Immutable_arrays, ()))
+    | "module_strengthening" -> Some (Pair (Module_strengthening, ()))
+    | "layouts" -> Some (Pair (Layouts, Stable))
+    | "layouts_alpha" -> Some (Pair (Layouts, Alpha))
+    | "layouts_beta" -> Some (Pair (Layouts, Beta))
+    | "simd" -> Some (Pair (SIMD, Stable))
+    | "simd_beta" -> Some (Pair (SIMD, Beta))
+    | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
+    | "small_numbers" -> Some (Pair (Small_numbers, Stable))
+    | "small_numbers_beta" -> Some (Pair (Small_numbers, Beta))
+    | "instances" -> Some (Pair (Instances, ()))
+    | _ -> None
 end
 
 type extn_pair = Exist_pair.t = Pair : 'a t * 'a -> extn_pair
 
-type exist = Exist.t = Pack : _ t -> exist
+type exist = Pack : _ t -> exist
+
+let all_extensions =
+  [ Pack Comprehensions;
+    Pack Mode;
+    Pack Unique;
+    Pack Include_functor;
+    Pack Polymorphic_parameters;
+    Pack Immutable_arrays;
+    Pack Module_strengthening;
+    Pack Layouts;
+    Pack SIMD;
+    Pack Labeled_tuples;
+    Pack Small_numbers;
+    Pack Instances ]
 
 (**********************************)
 (* string conversions *)
@@ -112,10 +173,15 @@ let to_command_line_string : type a. a t -> a -> string =
   to_string extn ^ Ops.to_command_line_suffix level
 
 let pair_of_string_exn extn_name =
-  match pair_of_string extn_name with
+  match Exist_pair.of_string extn_name with
   | Some pair -> pair
   | None ->
     raise (Arg.Bad (Printf.sprintf "Extension %s is not known" extn_name))
+
+let of_string extn_name : exist option =
+  match Exist_pair.of_string extn_name with
+  | Some (Pair (ext, _)) -> Some (Pack ext)
+  | None -> None
 
 (************************************)
 (* equality *)
@@ -264,7 +330,7 @@ end = struct
         let max_allowed_lvl = List.fold_left Ops.max lvl lvls in
         Some (Pair (extn, max_allowed_lvl))
     in
-    List.filter_map maximal_in_universe Exist.all
+    List.filter_map maximal_in_universe all_extensions
 end
 
 (*****************************************)
@@ -344,7 +410,7 @@ let unconditionally_enable_maximal_without_checks () =
     let (module Ops) = get_level_ops extn in
     Pair (extn, Ops.max_value)
   in
-  extensions := List.map maximal_pair Exist.all
+  extensions := List.map maximal_pair all_extensions
 
 let erasable_extensions_only () =
   Universe.is No_extensions || Universe.is Upstream_compatible
@@ -393,7 +459,9 @@ let get_command_line_string_if_enabled extn =
 (* existentially packed extension *)
 
 module Exist = struct
-  include Exist
+  type t = exist = Pack : _ language_extension -> t
+
+  let all = all_extensions
 
   let to_command_line_strings (Pack extn) =
     let (module Ops) = get_level_ops extn in

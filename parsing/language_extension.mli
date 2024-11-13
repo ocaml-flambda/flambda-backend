@@ -41,7 +41,7 @@ module Exist : sig
   (* this is removed from the sig by the [with] below; ocamldoc doesn't like
      [:=] in sigs *)
 
-  type t = Language_extension_kernel.Exist.t = Pack : 'a extn -> t
+  type t = Pack : 'a extn -> t
 
   val to_string : t -> string
 
