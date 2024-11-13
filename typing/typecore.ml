@@ -3885,7 +3885,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
-let type_omitted_parameters expected_mode env ty_ret mode_ret args =
+let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
   let ty_ret, mode_ret, _, _, args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
@@ -3896,6 +3896,12 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              (ty_ret, mode_ret, open_args, closed_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
+             let sort_eta_expansion_ret =
+               match type_sort ~why:Function_result ~fixed:false env ty_ret with
+               | Ok sort -> sort
+               | Error err ->
+                 raise (Error (loc, env, Function_type_not_rep (ty_ret, err)))
+             in
              let ty_ret =
                newty2 ~level
                  (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
@@ -3921,7 +3927,9 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
               Omitted {
                 mode_closure = Alloc.disallow_left mode_closure;
                 mode_arg = Alloc.disallow_right mode_arg;
-                mode_ret = Alloc.disallow_right mode_ret; sort_arg }
+                mode_ret = Alloc.disallow_right mode_ret;
+                sort_arg;
+                sort_eta_expansion_ret; }
              in
              let args = (lbl, arg) :: args in
              (ty_ret, mode_closure, open_args, closed_args, args))
@@ -7753,7 +7761,8 @@ and type_application env app_loc expected_mode position_and_mode
               untyped_args
           in
           let ty_ret, mode_ret, args =
-            type_omitted_parameters expected_mode env ty_ret mode_ret args
+            type_omitted_parameters expected_mode env app_loc ty_ret mode_ret
+              args
           in
           check_curried_application_complete ~env ~app_loc untyped_args;
           ty_ret, mode_ret, args, position_and_mode
