@@ -35,7 +35,6 @@ let log_renaming_info : indent:int -> t -> unit =
     (fun label regset ->
       log ~indent:(indent + 2) " - beginning of block %a (%a)" Label.format
         label Printreg.regset regset)
-
     state.definitions_at_beginning;
   log ~indent:1 "phi:";
   Label.Map.iter
