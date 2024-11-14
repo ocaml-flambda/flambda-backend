@@ -113,13 +113,13 @@ type primitive =
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape option (* XXX can we drop the option? *) * locality_mode
+  | Pmakeblock of int * mutable_flag * block_shape * locality_mode
   | Pmakefloatblock of mutable_flag * locality_mode
   | Pmakeufloatblock of mutable_flag * locality_mode
   | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
-  | Pfield of int * immediate_or_pointer * block_shape_access * field_read_semantics
+  | Pfield of int * immediate_or_pointer * block_shape * field_read_semantics
   | Pfield_computed of field_read_semantics
-  | Psetfield of int * immediate_or_pointer * block_shape_access * initialization_or_assignment
+  | Psetfield of int * immediate_or_pointer * block_shape * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
@@ -431,12 +431,9 @@ and known_layout =
   | Punboxed_vector of boxed_vector
   | Punboxed_product of layout list
 
-and block_shape_access =
-  | Unknown_all_values
-  | Shape of block_shape
-
 and block_shape =
-  block_shape_item list
+  | Unknown_all_values
+  | Shape of block_shape_item list
 
 and block_shape_item =
   | Value of value_kind
