@@ -1323,8 +1323,8 @@ and transl_apply ~scopes
        will occur exactly when all the arguments up to this parameter
        have been received.
   *)
-  let rec build_apply lam args loc pos ap_mode = function
-    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
+  let rec build_apply lam args loc pos ap_mode result_layout = function
+    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg; sort_ret } :: l ->
         (* Out-of-order partial application; we will need to build a closure *)
         assert (pos = Rc_normal);
         let defs = ref [] in
@@ -1361,7 +1361,11 @@ and transl_apply ~scopes
           let mode = transl_alloc_mode_r mode_closure in
           let arg_mode = transl_alloc_mode_l mode_arg in
           let ret_mode = transl_alloc_mode_l mode_ret in
-          let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
+          let result_layout = layout_of_sort (to_location loc) sort_ret in
+          let body =
+            build_apply handle [Lvar id_arg] loc Rc_normal ret_mode
+              result_layout l
+          in
           let nlocal =
             match join_locality_mode mode (join_locality_mode arg_mode ret_mode) with
             | Alloc_local -> 1
@@ -1388,7 +1392,8 @@ and transl_apply ~scopes
         List.fold_right
           (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
           !defs body
-    | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode l
+    | Arg (arg, _) :: l ->
+      build_apply lam (arg :: args) loc pos ap_mode result_layout l
     | [] -> lapply lam (List.rev args) loc pos ap_mode result_layout
   in
   let args =
@@ -1400,7 +1405,7 @@ and transl_apply ~scopes
            Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
       sargs
   in
-  build_apply lam [] loc position mode args
+  build_apply lam [] loc position mode result_layout args
 
 (* There are two cases in function translation:
     - [Tupled]. It takes a tupled argument, and we can flatten it.
