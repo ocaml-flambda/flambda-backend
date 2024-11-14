@@ -625,14 +625,16 @@ let main n ~bytecode =
  include stdlib_upstream_compatible;|};
   if bytecode then (
     line {| flags = "-extension layouts_beta";|};
+    (* CR layouts: this test only runs on AMD64 because ARM64
+       does not support float32# (including in bytecode).
+       Split off the non-float32# parts into a separate test
+       that runs everywhere. *)
+    line {| arch_amd64;|};
     line {| bytecode;|};
   ) else (
     line {| modules = "stubs.c";|};
     line {| flags = "-extension layouts_beta -extension simd_beta";|};
     line {| flambda2;|};
-    (* CR layouts: this test only runs on AMD64 because ARM64
-       does not support float32#. Split off the non-float32#
-       parts into a separate test that runs everywhere. *)
     line {| arch_amd64;|};
     line {| native;|};
   );
