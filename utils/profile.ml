@@ -95,7 +95,6 @@ end
 
 type hierarchy =
   | E of (string, Measure_diff.t * hierarchy) Hashtbl.t
-[@@unboxed]
 
 let create () = E (Hashtbl.create 2)
 let hierarchy = ref (create ())

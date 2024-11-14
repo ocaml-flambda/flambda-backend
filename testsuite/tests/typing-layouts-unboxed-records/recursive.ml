@@ -19,18 +19,30 @@
 
 type t : value = #{ t : t }
 [%%expect{|
-type t = #{ t : t; }
+Line 1, characters 0-27:
+1 | type t : value = #{ t : t }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t" contains a cycle:
+         "t" contains "t"
 |}]
 
 type t : float64 = #{ t : t }
 [%%expect{|
-type t = #{ t : t; }
+Line 1, characters 0-29:
+1 | type t : float64 = #{ t : t }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t" contains a cycle:
+         "t" contains "t"
 |}]
 
 
 type t : value = #{ t : t }
 [%%expect{|
-type t = #{ t : t; }
+Line 1, characters 0-27:
+1 | type t : value = #{ t : t }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t" contains a cycle:
+         "t" contains "t"
 |}]
 
 type bad = #{ bad : bad ; i : int}
@@ -38,11 +50,8 @@ type bad = #{ bad : bad ; i : int}
 Line 1, characters 0-34:
 1 | type bad = #{ bad : bad ; i : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of bad is any & any
-         because it is an unboxed record.
-       But the layout of bad must be representable
-         because it is the type of record field bad.
+Error: The definition of "bad" contains a cycle:
+         "bad" contains "bad"
 |}]
 
 type bad = #{ bad : bad }
@@ -50,12 +59,8 @@ type bad = #{ bad : bad }
 Line 1, characters 0-25:
 1 | type bad = #{ bad : bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of bad is any
-         because a dummy kind of any is used to check mutually recursive datatypes.
-                 Please notify the Jane Street compilers group if you see this output.
-       But the layout of bad must be representable
-         because it is the type of record field bad.
+Error: The definition of "bad" contains a cycle:
+         "bad" contains "bad"
 |}]
 
 type a_bad = #{ b_bad : b_bad }
@@ -64,12 +69,17 @@ and b_bad = #{ a_bad : a_bad }
 Line 1, characters 0-31:
 1 | type a_bad = #{ b_bad : b_bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of a_bad is any
-         because a dummy kind of any is used to check mutually recursive datatypes.
-                 Please notify the Jane Street compilers group if you see this output.
-       But the layout of a_bad must be representable
-         because it is the type of record field a_bad.
+Error: The definition of "a_bad" contains a cycle:
+         "b_bad" contains "a_bad"
+|}]
+
+type bad : value = #{ bad : bad }
+[%%expect{|
+Line 1, characters 0-33:
+1 | type bad : value = #{ bad : bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" contains a cycle:
+         "bad" contains "bad"
 |}]
 
 type bad : any = #{ bad : bad }
@@ -77,11 +87,8 @@ type bad : any = #{ bad : bad }
 Line 1, characters 0-31:
 1 | type bad : any = #{ bad : bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of bad is any
-         because of the annotation on the declaration of the type bad.
-       But the layout of bad must be representable
-         because it is the type of record field bad.
+Error: The definition of "bad" contains a cycle:
+         "bad" contains "bad"
 |}]
 
 type 'a id = #{ a : 'a }
@@ -102,11 +109,8 @@ type 'a bad = #{ bad : 'a bad ; u : 'a}
 Line 1, characters 0-39:
 1 | type 'a bad = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a bad is any & any
-         because it is an unboxed record.
-       But the layout of 'a bad must be representable
-         because it is the type of record field bad.
+Error: The definition of "bad" contains a cycle:
+         "'a bad" contains "'a0 bad"
 |}]
 
 type 'a bad = { bad : 'a bad ; u : 'a}
@@ -133,7 +137,11 @@ type t = { x : t_void; } [@@unboxed]
 
 type bad : void = #{ bad : bad }
 [%%expect{|
-type bad = #{ bad : bad; }
+Line 1, characters 0-32:
+1 | type bad : void = #{ bad : bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" contains a cycle:
+         "bad" contains "bad"
 |}]
 
 type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
@@ -141,11 +149,8 @@ type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
 Line 1, characters 0-49:
 1 | type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a bad is any & any
-         because it is an unboxed record.
-       But the layout of 'a bad must be representable
-         because it is the type of record field bad.
+Error: The definition of "bad" contains a cycle:
+         "'a bad" contains "'a0 bad"
 |}]
 
 
@@ -157,72 +162,6 @@ type bad : float64 = #{ bad : bad ; i : int}
 Line 1, characters 0-44:
 1 | type bad : float64 = #{ bad : bad ; i : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type "bad" is ((((((((((((((((((((((((((((((((((((
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (
-                                                                    (float64 & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value) & value
-         because it is an unboxed record.
-       But the layout of type "bad" must be a sublayout of float64
-         because of the annotation on the declaration of the type bad.
+Error: The definition of "bad" contains a cycle:
+         "bad" contains "bad"
 |}]

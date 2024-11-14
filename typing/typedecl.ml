@@ -1941,7 +1941,7 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
         end
     | _ ->
         Btype.iter_type_expr (check_subtype parents trace ty) ty);
-    List.iter (check_subtype parents trace ty) (Ctype.reachable_unguarded_opt env ty)
+        List.iter (check_subtype parents trace ty) (Ctype.reachable_unguarded_opt env ty)
   and check_subtype parents trace outer_ty inner_ty =
       check parents (Contains (outer_ty, inner_ty) :: trace) inner_ty
   in

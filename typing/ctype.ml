@@ -2116,12 +2116,12 @@ let unbox_once env ty =
 
 let unbox_once' env ty =
   match get_desc ty with
-  | Tconstr (p, args, abbrev) ->
+  | Tconstr (p, _args, _abbrev) ->
     begin match Env.find_type p env with
     | exception Not_found -> Missing p
     | decl ->
-      let level = get_level ty in
-      (* let apply ty2 = subst env level Private abbrev (Some ty) decl.type_params args ty2 in *)
+      let _level = get_level ty in
+      (* let apply ty2 = subst env level Private abbrev None decl.type_params args ty2 in *)
       let apply ty2 = ty2 in
       match find_unboxed_type decl with
       | Some ty2 ->
@@ -2141,8 +2141,7 @@ let unbox_once' env ty =
 
 let reachable_unguarded_opt env ty =
   match unbox_once' env ty with
-  | Stepped _ -> []
-  (* | Stepped ty' -> [ty'] *)
+  | Stepped ty' -> [ty']
   | Stepped_record_unboxed_product tyl -> tyl
   | Final_result -> []
   | Missing _ -> assert false

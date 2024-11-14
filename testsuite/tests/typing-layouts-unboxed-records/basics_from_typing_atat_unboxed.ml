@@ -58,11 +58,19 @@ in assert (f x = #{ f = 3.14});;
 (* Check for a potential infinite loop in the typing algorithm. *)
 type 'a t12 : value = #{ a : 'a t12 };;
 [%%expect{|
-type 'a t12 = #{ a : 'a t12; }
+Line 1, characters 0-37:
+1 | type 'a t12 : value = #{ a : 'a t12 };;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "t12" contains a cycle:
+         "'a t12" contains "'a0 t12"
 |}];;
 let f (a : int t12 array) = a.(0);;
 [%%expect{|
-val f : int t12 array -> int t12 = <fun>
+Line 1, characters 15-18:
+1 | let f (a : int t12 array) = a.(0);;
+                   ^^^
+Error: Unbound type constructor "t12"
+Hint: Did you mean "t11" or "t2"?
 |}];;
 
 (* should work *)

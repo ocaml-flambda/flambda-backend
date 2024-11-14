@@ -8,8 +8,11 @@
 type r = R of r list [@@unboxed]
 let rec a = R [a];;
 [%%expect{|
-type r = R of r list [@@unboxed]
-val a : r = R [<cycle>]
+Line 1, characters 0-32:
+1 | type r = R of r list [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "r" contains a cycle:
+         "r list" contains "r list"
 |}];;
 
 
@@ -26,11 +29,11 @@ Error: This kind of expression is not allowed as right-hand side of "let rec"
 type r : value = A of r [@@unboxed]
 let rec y = A y;;
 [%%expect{|
-type r : value = A of r [@@unboxed]
-Line 2, characters 12-15:
-2 | let rec y = A y;;
-                ^^^
-Error: This kind of expression is not allowed as right-hand side of "let rec"
+Line 1, characters 0-35:
+1 | type r : value = A of r [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "r" contains a cycle:
+         "r" contains "r"
 |}];;
 
 (* This test is not allowed if 'a' is unboxed, but should be accepted

@@ -1414,7 +1414,14 @@ type s17 = { lbl : s17 t17 } [@@unboxed];;
 
 [%%expect{|
 type 'a t17 = 'a list
-type s17 = { lbl : s17 t17; } [@@unboxed]
+Line 2, characters 0-40:
+2 | type s17 = { lbl : s17 t17 } [@@unboxed];;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "s17" contains a cycle:
+         "s17 t17" = "s17 list",
+         "s17 list" contains "s17 t17",
+         "s17 t17" = "s17 list",
+         "s17 list" contains "s17 t17"
 |}];;
 
 (*****************************************)
