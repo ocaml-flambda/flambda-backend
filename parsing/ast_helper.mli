@@ -280,7 +280,7 @@ module Mty:
     val ident: ?loc:loc -> ?attrs:attrs -> lid -> module_type
     val alias: ?loc:loc -> ?attrs:attrs -> lid -> module_type
     val signature: ?loc:loc -> ?attrs:attrs -> signature -> module_type
-    val functor_: ?loc:loc -> ?attrs:attrs ->
+    val functor_: ?loc:loc -> ?attrs:attrs -> ?ret_mode:modes ->
       functor_parameter -> module_type -> module_type
     val with_: ?loc:loc -> ?attrs:attrs -> module_type ->
       with_constraint list -> module_type
@@ -303,8 +303,8 @@ module Mod:
     val apply: ?loc:loc -> ?attrs:attrs -> module_expr -> module_expr ->
       module_expr
     val apply_unit: ?loc:loc -> ?attrs:attrs -> module_expr -> module_expr
-    val constraint_: ?loc:loc -> ?attrs:attrs -> module_expr -> module_type ->
-      module_expr
+    val constraint_: ?loc:loc -> ?attrs:attrs -> module_type option -> modes ->
+      module_expr -> module_expr
     val unpack: ?loc:loc -> ?attrs:attrs -> expression -> module_expr
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> module_expr
     val instance: ?loc:loc -> ?attrs:attrs -> module_instance -> module_expr
@@ -371,7 +371,7 @@ module Str:
 (** Module declarations *)
 module Md:
   sig
-    val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
+    val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text -> ?modalities:modalities ->
       str_opt -> module_type -> module_declaration
   end
 

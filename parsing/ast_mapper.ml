@@ -320,7 +320,7 @@ end
 
 let map_functor_param sub = function
   | Unit -> Unit
-  | Named (s, mt) -> Named (map_loc sub s, sub.module_type sub mt)
+  | Named (s, mt, mm) -> Named (map_loc sub s, sub.module_type sub mt, sub.modes sub mm)
 
 module MT = struct
   (* Type expressions for the module language *)
@@ -333,8 +333,8 @@ module MT = struct
     | Pmty_ident s -> ident ~loc ~attrs (map_loc sub s)
     | Pmty_alias s -> alias ~loc ~attrs (map_loc sub s)
     | Pmty_signature sg -> signature ~loc ~attrs (sub.signature sub sg)
-    | Pmty_functor (param, mt) ->
-        functor_ ~loc ~attrs
+    | Pmty_functor (param, mt, mm) ->
+        functor_ ~loc ~attrs ~ret_mode:(sub.modes sub mm)
           (map_functor_param sub param)
           (sub.module_type sub mt)
     | Pmty_with (mt, l) ->
@@ -414,9 +414,9 @@ module M = struct
         apply ~loc ~attrs (sub.module_expr sub m1) (sub.module_expr sub m2)
     | Pmod_apply_unit m1 ->
         apply_unit ~loc ~attrs (sub.module_expr sub m1)
-    | Pmod_constraint (m, mty) ->
-        constraint_ ~loc ~attrs (sub.module_expr sub m)
-                    (sub.module_type sub mty)
+    | Pmod_constraint (m, mty, mm) ->
+        constraint_ ~loc ~attrs (Option.map (sub.module_type sub) mty) (sub.modes sub mm)
+          (sub.module_expr sub m)
     | Pmod_unpack e -> unpack ~loc ~attrs (sub.expr sub e)
     | Pmod_extension x -> extension ~loc ~attrs (sub.extension sub x)
     | Pmod_instance x ->

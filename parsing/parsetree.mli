@@ -1002,8 +1002,8 @@ and module_type =
 and module_type_desc =
   | Pmty_ident of Longident.t loc  (** [Pmty_ident(S)] represents [S] *)
   | Pmty_signature of signature  (** [sig ... end] *)
-  | Pmty_functor of functor_parameter * module_type
-      (** [functor(X : MT1) -> MT2] *)
+  | Pmty_functor of functor_parameter * module_type * modes
+      (** [functor(X : MT1 @@ modes) -> MT2 @ modes] *)
   | Pmty_with of module_type * with_constraint list  (** [MT with ...] *)
   | Pmty_typeof of module_expr  (** [module type of ME] *)
   | Pmty_extension of extension  (** [[%id]] *)
@@ -1013,10 +1013,10 @@ and module_type_desc =
 
 and functor_parameter =
   | Unit  (** [()] *)
-  | Named of string option loc * module_type
+  | Named of string option loc * module_type * modes
       (** [Named(name, MT)] represents:
-            - [(X : MT)] when [name] is [Some X],
-            - [(_ : MT)] when [name] is [None] *)
+            - [(X : MT @@ modes)] when [name] is [Some X],
+            - [(_ : MT @@ modes)] when [name] is [None] *)
 
 and signature =
   {
@@ -1065,6 +1065,7 @@ and module_declaration =
     {
      pmd_name: string option loc;
      pmd_type: module_type;
+     pmd_modalities: modalities;
      pmd_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      pmd_loc: Location.t;
     }
@@ -1165,7 +1166,11 @@ and module_expr_desc =
       (** [functor(X : MT1) -> ME] *)
   | Pmod_apply of module_expr * module_expr  (** [ME1(ME2)] *)
   | Pmod_apply_unit of module_expr (** [ME1()] *)
-  | Pmod_constraint of module_expr * module_type  (** [(ME : MT)] *)
+  | Pmod_constraint of module_expr * module_type option * modes
+      (** - [(ME : MT @@ modes)]
+          - [(ME @ modes)]
+          - [(ME : MT)]
+      *)
   | Pmod_unpack of expression  (** [(val E)] *)
   | Pmod_extension of extension  (** [[%id]] *)
   | Pmod_instance of module_instance

@@ -163,6 +163,7 @@ type error =
     }
   | Duplicate_parameter_name of Global_module.Name.t
   | Submode_failed of Mode.Value.error
+  | Modal_module_not_supported
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

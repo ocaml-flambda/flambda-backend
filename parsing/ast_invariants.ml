@@ -36,6 +36,8 @@ let function_without_value_parameters loc =
   err loc "Function without any value parameters"
 let redundant_nested_constraints loc =
   err loc "Nested pattern constraints must all specify a type"
+let empty_constraint loc =
+  err loc "Constraint without type or mode"
 
 let simple_longident id =
   let rec is_simple = function
@@ -44,6 +46,11 @@ let simple_longident id =
     | Longident.Lapply _ -> false
   in
   if not (is_simple id.txt) then complex_id id.loc
+
+let check_empty_constraint ~loc ty mode =
+  match ty, mode with
+  | None, [] -> empty_constraint loc
+  | _ -> ()
 
 let iterator =
   let super = Ast_iterator.default_iterator in
@@ -85,7 +92,8 @@ let iterator =
     | Ppat_construct (id, _) -> simple_longident id
     | Ppat_record (fields, _) ->
       List.iter (fun (id, _) -> simple_longident id) fields
-    | Ppat_constraint (pat', cty, _) ->
+    | Ppat_constraint (pat', cty, mode) ->
+      check_empty_constraint ~loc cty mode;
       begin match pat'.ppat_desc with
       | Ppat_constraint (_, cty', _) ->
         begin match cty, cty' with
@@ -131,6 +139,7 @@ let iterator =
         | Pcomp_array_comprehension (_, {pcomp_clauses = []}) )
       ->
         empty_comprehension loc
+    | Pexp_constraint (_, ty, mode) -> check_empty_constraint ~loc ty mode
     | _ -> ()
   in
   let extension_constructor self ec =
@@ -167,6 +176,7 @@ let iterator =
     super.module_expr self me;
     match me.pmod_desc with
     | Pmod_ident id -> simple_longident id
+    | Pmod_constraint (_, ty, mode) -> check_empty_constraint ~loc:me.pmod_loc ty mode
     | _ -> ()
   in
   let structure_item self st =
