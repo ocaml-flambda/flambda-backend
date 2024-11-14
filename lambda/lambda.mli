@@ -113,13 +113,13 @@ type primitive =
   | Psetglobal of Compilation_unit.t
   | Pgetpredef of Ident.t
   (* Operations on heap blocks *)
-  | Pmakeblock of int * mutable_flag * block_shape * locality_mode
+  | Pmakeblock of int * mutable_flag * block_shape option (* XXX can we drop the option? *) * locality_mode
   | Pmakefloatblock of mutable_flag * locality_mode
   | Pmakeufloatblock of mutable_flag * locality_mode
   | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
-  | Pfield of int * immediate_or_pointer * field_read_semantics
+  | Pfield of int * immediate_or_pointer * block_shape * field_read_semantics
   | Pfield_computed of field_read_semantics
-  | Psetfield of int * immediate_or_pointer * initialization_or_assignment
+  | Psetfield of int * immediate_or_pointer * block_shape * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
@@ -425,7 +425,11 @@ and layout =
   | Pbottom
 
 and block_shape =
-  value_kind list option
+  block_shape_item list
+
+and block_shape_item =
+  | Block_field of value_kind
+  | Inlinable_block of block_shape
 
 and flat_element = Types.flat_element =
   | Imm
@@ -448,7 +452,7 @@ and mixed_block_write =
   | Mwrite_flat_suffix of flat_element
 
 and mixed_block_shape =
-  { value_prefix_len : int;
+  { value_prefix : block_shape;
     (* We use an array just so we can index into the middle. *)
     flat_suffix : flat_element array;
   }
