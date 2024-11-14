@@ -379,19 +379,25 @@ let modality f m =
 let modalities f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") modality f m
 
-let optional_atat_modalities ?(pre = fun _ () -> ()) ?(post = fun _ () -> ()) f m =
+let optional_modalities ?(pre = fun _ () -> ()) ?(post = fun _ () -> ()) f m =
   match m with
   | [] -> ()
   | m ->
     pre f ();
-    pp f "%@%@ %a" modalities m;
+    pp f "%a" modalities m;
     post f ()
 
 let optional_space_atat_modalities f m =
-  optional_atat_modalities ~pre:pp_print_space f m
+  let pre f () = Format.fprintf f "@ %@%@@ " in
+  optional_modalities ~pre f m
+
+let optional_space_at_modalities f m =
+  let pre f () = Format.fprintf f "@ %@@ " in
+  optional_modalities ~pre f m
 
 let optional_atat_modalities_newline f m =
-  optional_atat_modalities ~post:pp_print_newline f m
+  let pre f () = Format.fprintf f "%@%@@ " in
+  optional_modalities ~pre ~post:pp_print_newline f m
 
 (* helpers for printing both legacy/new mode syntax *)
 let split_out_legacy_modes =
@@ -1532,7 +1538,7 @@ and signature_item ctxt f x : unit =
       pp f "@[<hov>module@ %s@ =@ %a%a@]%a"
         (Option.value pmd.pmd_name.txt ~default:"_")
         longident_loc alias
-        optional_space_atat_modalities pmd.pmd_modalities
+        optional_space_at_modalities pmd.pmd_modalities
         (item_attributes ctxt) pmd.pmd_attributes
   | Psig_module pmd ->
       pp f "@[<hov>module@ %s@ :@ %a%a@]%a"
