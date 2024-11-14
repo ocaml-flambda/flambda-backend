@@ -1324,8 +1324,7 @@ and transl_apply ~scopes
        have been received.
   *)
   let rec build_apply lam args loc pos ap_mode result_layout = function
-    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg;
-                sort_eta_expansion_ret } :: l ->
+    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg; sort_ret } :: l ->
         (* Out-of-order partial application; we will need to build a closure *)
         assert (pos = Rc_normal);
         let defs = ref [] in
@@ -1362,9 +1361,7 @@ and transl_apply ~scopes
           let mode = transl_alloc_mode_r mode_closure in
           let arg_mode = transl_alloc_mode_l mode_arg in
           let ret_mode = transl_alloc_mode_l mode_ret in
-          let result_layout =
-            layout_of_sort (to_location loc) sort_eta_expansion_ret
-          in
+          let result_layout = layout_of_sort (to_location loc) sort_ret in
           let body =
             build_apply handle [Lvar id_arg] loc Rc_normal ret_mode
               result_layout l

@@ -3896,7 +3896,7 @@ let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
              (ty_ret, mode_ret, open_args, closed_args, args)
          | Omitted { mode_fun; ty_arg; mode_arg; level; sort_arg } ->
              let arrow_desc = (lbl, mode_arg, mode_ret) in
-             let sort_eta_expansion_ret =
+             let sort_ret =
                match type_sort ~why:Function_result ~fixed:false env ty_ret with
                | Ok sort -> sort
                | Error err ->
@@ -3929,7 +3929,7 @@ let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
                 mode_arg = Alloc.disallow_right mode_arg;
                 mode_ret = Alloc.disallow_right mode_ret;
                 sort_arg;
-                sort_eta_expansion_ret; }
+                sort_ret }
              in
              let args = (lbl, arg) :: args in
              (ty_ret, mode_closure, open_args, closed_args, args))

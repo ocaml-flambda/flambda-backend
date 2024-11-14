@@ -375,7 +375,7 @@ and omitted_parameter =
     mode_arg : Mode.Alloc.l;
     mode_ret : Mode.Alloc.l;
     sort_arg : Jkind.sort;
-    sort_eta_expansion_ret : Jkind.sort }
+    sort_ret : Jkind.sort }
 
 and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
 
