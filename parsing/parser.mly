@@ -898,6 +898,11 @@ let unboxed_float sign (f, m) = Pconst_unboxed_float (with_sign sign f, m)
 let unboxed_type sloc lident tys =
   let loc = make_loc sloc in
   Ptyp_constr (mkloc lident loc, tys)
+
+let maybe_pmod_constraint mode expr =
+  match mode with
+  | [] -> expr
+  | _ :: _ -> Mod.constraint_ None mode expr
 %}
 
 /* Tokens */
@@ -1603,6 +1608,10 @@ module_name:
       { None }
 ;
 
+module_name_modal(at_modal_expr):
+  | mkrhs(module_name) { $1, [] }
+  | LPAREN mkrhs(module_name) at_modal_expr RPAREN { $2, $3 }
+
 (* -------------------------------------------------------------------------- *)
 
 (* Module expressions. *)
@@ -1776,12 +1785,14 @@ structure_item:
 %inline module_binding:
   MODULE
   ext = ext attrs1 = attributes
-  name = mkrhs(module_name)
+  name_ = module_name_modal(at_mode_expr)
   body = module_binding_body
   attrs2 = post_item_attributes
     { let docs = symbol_docs $sloc in
       let loc = make_loc $sloc in
       let attrs = attrs1 @ attrs2 in
+      let name, modes = name_ in
+      let body = maybe_pmod_constraint modes body in
       let body = Mb.mk name body ~attrs ~loc ~docs in
       Pstr_module body, ext }
 ;
@@ -1815,13 +1826,15 @@ module_binding_body:
   ext = ext
   attrs1 = attributes
   REC
-  name = mkrhs(module_name)
+  name_ = module_name_modal(at_mode_expr)
   body = module_binding_body
   attrs2 = post_item_attributes
   {
     let loc = make_loc $sloc in
     let attrs = attrs1 @ attrs2 in
     let docs = symbol_docs $sloc in
+    let name, modes = name_ in
+    let body = maybe_pmod_constraint modes body in
     ext,
     Mb.mk name body ~attrs ~loc ~docs
   }
@@ -1831,7 +1844,7 @@ module_binding_body:
 %inline and_module_binding:
   AND
   attrs1 = attributes
-  name = mkrhs(module_name)
+  name_ = module_name_modal(at_mode_expr)
   body = module_binding_body
   attrs2 = post_item_attributes
   {
@@ -1839,6 +1852,8 @@ module_binding_body:
     let attrs = attrs1 @ attrs2 in
     let docs = symbol_docs $sloc in
     let text = symbol_text $symbolstartpos in
+    let name, modes = name_ in
+    let body = maybe_pmod_constraint modes body in
     Mb.mk name body ~attrs ~loc ~text ~docs
   }
 ;
@@ -2055,14 +2070,16 @@ signature_item:
 %inline module_declaration:
   MODULE
   ext = ext attrs1 = attributes
-  name = mkrhs(module_name)
+  name_ = module_name_modal(at_modalities_expr)
   body = module_declaration_body(optional_atat_modalities_expr)
   attrs2 = post_item_attributes
   {
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
+    let name, modalities' = name_ in
     let mty, modalities = body in
+    let modalities = modalities' @ modalities in
     Md.mk name mty ~attrs ~loc ~docs ~modalities, ext
   }
 ;
@@ -2086,15 +2103,17 @@ module_declaration_body(optional_atat_modal_expr):
 %inline module_alias:
   MODULE
   ext = ext attrs1 = attributes
-  name = mkrhs(module_name)
+  name_ = module_name_modal(at_modalities_expr)
   EQUAL
   body = module_expr_alias
-  modalities = optional_atat_modalities_expr
+  modalities = optional_at_modalities_expr
   attrs2 = post_item_attributes
   {
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
+    let name, modalities' = name_ in
+    let modalities = modalities' @ modalities in
     Md.mk name body ~attrs ~modalities ~loc ~docs, ext
   }
 ;
@@ -2133,12 +2152,13 @@ module_subst:
   name = mkrhs(module_name)
   COLON
   mty = module_type
+  modalities = optional_atat_modalities_expr
   attrs2 = post_item_attributes
   {
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
-    ext, Md.mk name mty ~attrs ~loc ~docs
+    ext, Md.mk name mty ~attrs ~loc ~docs ~modalities
   }
 ;
 %inline and_module_declaration:
@@ -2147,13 +2167,14 @@ module_subst:
   name = mkrhs(module_name)
   COLON
   mty = module_type
+  modalities = optional_atat_modalities_expr
   attrs2 = post_item_attributes
   {
     let attrs = attrs1 @ attrs2 in
     let docs = symbol_docs $sloc in
     let loc = make_loc $sloc in
     let text = symbol_text $symbolstartpos in
-    Md.mk name mty ~attrs ~loc ~text ~docs
+    Md.mk name mty ~attrs ~loc ~text ~docs ~modalities
   }
 ;
 
@@ -2809,8 +2830,11 @@ fun_expr:
   | or_function(fun_expr) { $1 }
 ;
 %inline fun_expr_attrs:
-  | LET MODULE ext_attributes mkrhs(module_name) module_binding_body IN seq_expr
-      { Pexp_letmodule($4, $5, $7), $3 }
+  | LET MODULE ext_attributes module_name_modal(at_mode_expr) module_binding_body IN seq_expr
+      {
+        let name, modes = $4 in
+        let body = maybe_pmod_constraint modes $5 in
+        Pexp_letmodule(name, body, $7), $3 }
   | LET EXCEPTION ext_attributes let_exception_declaration IN seq_expr
       { Pexp_letexception($4, $6), $3 }
   | LET OPEN override_flag ext_attributes module_expr IN seq_expr
@@ -4469,11 +4493,22 @@ atat_mode_expr:
 %inline modalities:
   | modality+ { $1 }
 
+at_modalities_expr:
+  | AT modalities {$2}
+  | AT error { expecting $loc($2) "modality expression" }
+;
+
 optional_atat_modalities_expr:
   | %prec below_HASH
     { [] }
   | ATAT modalities { $2 }
   | ATAT error { expecting $loc($2) "modality expression" }
+;
+
+optional_at_modalities_expr:
+  | { [] }
+  | AT modalities { $2 }
+  | AT error { expecting $loc($2) "modality expression" }
 ;
 
 %inline param_type:
