@@ -460,7 +460,8 @@ and mixed_block_write =
   | Mwrite_flat_suffix of flat_element
 
 and mixed_block_shape =
-  { value_prefix : block_shape;
+  { (* CR xclerc: try to find a better name, as this might contain unboxed products *)
+    value_prefix : block_shape;
     (* We use an array just so we can index into the middle. *)
     flat_suffix : flat_element array;
   }
