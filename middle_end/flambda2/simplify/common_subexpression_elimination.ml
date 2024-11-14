@@ -278,12 +278,27 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
       in
       cse, extra_bindings, extra_equations, allowed
 
-let cut_cse_environment { by_scope; _ } ~scope_at_fork =
+let cut_cse_environment ({ by_scope; _ } as t) ~scope_at_fork =
   (* This extracts those CSE equations that arose between the fork point and
      each use of the continuation in question. *)
   let _, _, levels = Scope.Map.split scope_at_fork by_scope in
   Scope.Map.fold
-    (fun _scope equations result -> EP.Map.disjoint_union equations result)
+    (fun scope equations result ->
+      try EP.Map.disjoint_union equations result
+      with Invalid_argument _ as exn ->
+        Format.eprintf
+          "cut_cse_environment failed:@ \n\
+           t = %a@ \n\
+           scope_at_fork = %a@ \n\
+           scope = %a@ \n\
+           equations = %a@ \n\
+           result=%a@ \n\n"
+          print t Scope.print scope_at_fork Scope.print scope
+          (EP.Map.print Simple.print)
+          equations
+          (EP.Map.print Simple.print)
+          result;
+        raise exn)
     levels EP.Map.empty
 
 module Join_result = struct
