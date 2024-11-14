@@ -424,16 +424,23 @@ and layout =
   | Punboxed_product of layout list
   | Pbottom
 
+and known_layout =
+  | Pvalue of value_kind
+  | Punboxed_float of boxed_float
+  | Punboxed_int of boxed_integer
+  | Punboxed_vector of boxed_vector
+  | Punboxed_product of layout list
+
 and block_shape_access =
-  | Unknown_shape (* all values *)
+  | Unknown_all_values
   | Shape of block_shape
 
 and block_shape =
   block_shape_item list
 
 and block_shape_item =
-  | Value_field of value_kind
-  | Unboxed_product of block_shape
+  | Value of value_kind
+  | Unboxed_product of known_layout list
 
 and flat_element = Types.flat_element =
   | Imm
