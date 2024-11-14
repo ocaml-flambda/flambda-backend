@@ -19,7 +19,7 @@ type t =
   | Must_stay_here
   | May_be_pushed_down
 
-let [@ocamlformat "disable"] print ppf t =
+let print ppf t =
   match t with
   | Must_stay_here -> Format.pp_print_string ppf "Must_stay_here"
   | May_be_pushed_down -> Format.pp_print_string ppf "May_be_pushed_down"
