@@ -117,9 +117,9 @@ type primitive =
   | Pmakefloatblock of mutable_flag * locality_mode
   | Pmakeufloatblock of mutable_flag * locality_mode
   | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
-  | Pfield of int * immediate_or_pointer * block_shape * field_read_semantics
+  | Pfield of int * immediate_or_pointer * block_shape_access * field_read_semantics
   | Pfield_computed of field_read_semantics
-  | Psetfield of int * immediate_or_pointer * block_shape * initialization_or_assignment
+  | Psetfield of int * immediate_or_pointer * block_shape_access * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
@@ -424,12 +424,16 @@ and layout =
   | Punboxed_product of layout list
   | Pbottom
 
+and block_shape_access =
+  | Unknown_shape (* all values *)
+  | Shape of block_shape
+
 and block_shape =
   block_shape_item list
 
 and block_shape_item =
-  | Block_field of value_kind
-  | Inlinable_block of block_shape
+  | Value_field of value_kind
+  | Unboxed_product of block_shape
 
 and flat_element = Types.flat_element =
   | Imm
@@ -532,6 +536,7 @@ val layout_of_extern_repr : extern_repr -> layout
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list
+  (* CR xclerc: double check whether `mixed_block_shape` should be changed. *)
   | Const_mixed_block of int * mixed_block_shape * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
