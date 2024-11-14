@@ -1397,7 +1397,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                       let mode_arg = Mode.Alloc.disallow_right Mode.Alloc.legacy in
                       let mode_ret = Mode.Alloc.disallow_right Mode.Alloc.legacy in
                       let sort_arg = Jkind.Sort.value in
-                      Omitted { mode_closure; mode_arg; mode_ret; sort_arg }
+                      let sort_ret = Jkind.Sort.value in
+                      Omitted { mode_closure; mode_arg; mode_ret; sort_arg;
+                                sort_ret }
                     end
             in
             let omitted =
