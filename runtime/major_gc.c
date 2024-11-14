@@ -456,13 +456,20 @@ void caml_orphan_finalisers (caml_domain_state* domain_state)
   if (f->todo_head != NULL || f->first.size != 0 || f->last.size != 0) {
     /* have some final structures */
     atomic_fetch_add(&num_domains_orphaning_finalisers, +1);
-    if (caml_gc_phase != Phase_sweep_and_mark_main) {
+    /* At present, we only call this function (during
+     * domain_terminate) after caml_finish_marking(), so should be in
+     * Phase_sweep_and_mark_main. However, we shouldn't rely on that;
+     * if we're not in a mark/sweep phase then we should force the
+     * current cycle into one. */
+    if (caml_gc_phase != Phase_sweep_main &&
+        caml_gc_phase != Phase_sweep_and_mark_main) {
       /* Force a major GC cycle to simplify constraints for orphaning
          finalisers. See note attached to the declaration of
          [num_domains_orphaning_finalisers] variable in major_gc.c */
       caml_finish_major_cycle(0);
     }
-    CAMLassert(caml_gc_phase == Phase_sweep_and_mark_main);
+    CAMLassert(caml_gc_phase == Phase_sweep_main ||
+               caml_gc_phase == Phase_sweep_and_mark_main);
     CAMLassert (!f->updated_first);
     CAMLassert (!f->updated_last);
 
