@@ -103,3 +103,5 @@ end;;
 module type S = sig
   module F : S @@ portable -> S @@ portable
 end;;
+
+let foo = ("bar" :> int @@ local);;
