@@ -138,7 +138,7 @@ to perform a destructive update (such as a free) on the value:
    modality, you may free the record itself but not the aliased field.
  - If a value mode-crosses uniqueness, it can be unique even though there might
    be further references. You can check whether a value mode-crosses uniqueness
-   by attempting to cast it from unique to aliased.
+   by attempting to cast it from aliased to unique.
 
 Furthermore, we are currently working around a limitation which makes it unsound
 to use uniqueness with pattern-matching. In particular, if `field` had the
