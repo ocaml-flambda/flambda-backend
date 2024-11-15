@@ -942,7 +942,7 @@ let add_runtime_parameters lam params =
     List.map
       (fun name ->
         { name;
-          layout = Pvalue Pgenval;
+          layout = Pvalue Lambda.generic_value;
           attributes = Lambda.default_param_attribute;
           mode = Lambda.alloc_heap })
       params
@@ -952,7 +952,10 @@ let add_runtime_parameters lam params =
        function call and actually substitutes. *)
     Always_inline
   in
-  lfunction ~kind:(Curried { nlocal = 0 }) ~params ~return:(Pvalue Pgenval)
+  lfunction
+    ~params
+    ~kind:(Curried { nlocal = 0 })
+    ~return:(Pvalue Lambda.generic_value)
     ~attr:{ default_function_attribute with is_a_functor = true; inline }
     ~loc:Loc_unknown
     ~body:lam
@@ -2035,7 +2038,7 @@ let transl_instance_plain_block
     Lapply {
       ap_func = instantiating_functor_lam;
       ap_args = runtime_args_lam;
-      ap_result_layout = Pvalue Pgenval;
+      ap_result_layout = Pvalue Lambda.generic_value;
       ap_loc = Loc_unknown;
       ap_inlined = Always_inlined; (* Definitely inline!! *)
       ap_tailcall = Default_tailcall;
