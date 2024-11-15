@@ -57,7 +57,7 @@ let current_unit =
     ui_arg_descr = None;
     ui_imports_cmi = [];
     ui_imports_cmx = [];
-    ui_format = Mb_record { mb_size = -1 };
+    ui_format = Mb_struct { mb_size = -1 };
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_zero_alloc_info = Zero_alloc_info.create ();
@@ -74,7 +74,7 @@ let reset compilation_unit =
   current_unit.ui_arg_descr <- None;
   current_unit.ui_imports_cmi <- [];
   current_unit.ui_imports_cmx <- [];
-  current_unit.ui_format <- Mb_record { mb_size = -1 };
+  current_unit.ui_format <- Mb_struct { mb_size = -1 };
   current_unit.ui_generic_fns <-
     { curry_fun = []; apply_fun = []; send_fun = [] };
   current_unit.ui_force_link <- !Clflags.link_everything;

@@ -92,13 +92,13 @@ let print_name_line cu =
 let print_runtime_param p =
   match (p : Lambda.runtime_param) with
   | Rp_argument_block glob
-  | Rp_dependency glob -> print_global_as_name_line glob
+  | Rp_main_module_block glob -> print_global_as_name_line glob
   | Rp_unit -> print_line "()"
 
 let print_main_module_block_format mbf =
   match (mbf : Lambda.main_module_block_format) with
-  | Mb_record _ -> ()
-  | Mb_wrapped_function { mb_runtime_params = params; _ } ->
+  | Mb_struct _ -> ()
+  | Mb_instantiating_functor { mb_runtime_params = params; _ } ->
     print_string "Runtime parameters:\n";
     List.iter print_runtime_param params
 
@@ -106,7 +106,7 @@ let print_required_global id =
   printf "\t%a\n" Compilation_unit.output id
 
 let print_arg_descr arg_descr =
-  let ({ arg_param; arg_block_field = _ } : Lambda.arg_descr) = arg_descr in
+  let ({ arg_param; arg_block_field_idx = _ } : Lambda.arg_descr) = arg_descr in
   printf "Parameter implemented: %a\n" Global_module.Name.output arg_param
 
 let print_cmo_infos cu =

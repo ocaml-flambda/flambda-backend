@@ -288,8 +288,8 @@ let load_lambda ppf ~compilation_unit ~required_globals lam size =
   let program =
     { Lambda.
       code = slam;
-      main_module_block_format = Mb_record { mb_size = size };
-      arg_block_field = None;
+      main_module_block_format = Mb_struct { mb_size = size };
+      arg_block_field_idx = None;
       compilation_unit;
       required_globals;
     }
@@ -427,8 +427,8 @@ let execute_phrase print_outcome ppf phr =
         remember compilation_unit sg';
         let size =
           match main_module_block_format with
-          | Mb_record { mb_size } -> mb_size;
-          | Mb_wrapped_function _ ->
+          | Mb_struct { mb_size } -> mb_size;
+          | Mb_instantiating_functor _ ->
             Misc.fatal_error "Unexpected parameterised module in toplevel"
         in
         compilation_unit, close_phrase res, required_globals, size

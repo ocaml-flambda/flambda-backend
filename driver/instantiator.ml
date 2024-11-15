@@ -1,3 +1,29 @@
+(**********************************************************************************
+ *                             MIT License                                        *
+ *                                                                                *
+ *                                                                                *
+ * Copyright (c) 2019-2024 Jane Street Group LLC                                  *
+ *                                                                                *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy   *
+ * of this software and associated documentation files (the "Software"), to deal  *
+ * in the Software without restriction, including without limitation the rights   *
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell      *
+ * copies of the Software, and to permit persons to whom the Software is          *
+ * furnished to do so, subject to the following conditions:                       *
+ *                                                                                *
+ * The above copyright notice and this permission notice shall be included in all *
+ * copies or substantial portions of the Software.                                *
+ *                                                                                *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR     *
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,       *
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE    *
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER         *
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,  *
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE  *
+ * SOFTWARE.                                                                      *
+ *                                                                                *
+ **********************************************************************************)
+
 module CU = Compilation_unit
 
 type error =
@@ -42,44 +68,49 @@ type unit_info = {
 
 let instantiate
       ~src ~args targetcm ~expected_extension ~read_unit_info ~compile =
-  let unit_infos = read_unit_info src in
-  let base_compilation_unit = unit_infos.ui_unit in
+  let base_unit_info = read_unit_info src in
+  let base_compilation_unit = base_unit_info.ui_unit in
   let arg_info_of_cm_path cm_path =
-    let base_unit_infos = unit_infos in
-    let unit_infos = read_unit_info cm_path in
-    match unit_infos.ui_arg_descr with
+    let unit_info = read_unit_info cm_path in
+    match unit_info.ui_arg_descr with
     | None ->
       error (Not_compiled_as_argument
-               { compilation_unit = unit_infos.ui_unit;
+               { compilation_unit = unit_info.ui_unit;
                  filename = cm_path;
-                 base_unit = base_unit_infos.ui_unit; })
-    | Some { arg_param; arg_block_field } ->
-      arg_param, (unit_infos.ui_unit, arg_block_field)
+                 base_unit = base_unit_info.ui_unit; })
+    | Some { arg_param; arg_block_field_idx } ->
+      arg_param, (unit_info.ui_unit, arg_block_field_idx)
   in
-  let arg_info = List.map arg_info_of_cm_path args in
+  let arg_infos = List.map arg_info_of_cm_path args in
   let arg_pairs : CU.argument list =
     List.map
       (fun (param, (value, _)) : CU.argument ->
          { param = CU.of_global_name param; value })
-      arg_info
+      arg_infos
   in
   let arg_map : (CU.t * int) Global_module.Name.Map.t =
-    match Global_module.Name.Map.of_list_checked arg_info with
+    match Global_module.Name.Map.of_list_checked arg_infos with
     | Ok map -> map
     | Error (Duplicate { key; value1 = (arg1, _); value2 = (arg2, _) }) ->
       error (Repeated_parameter { param = key; arg1; arg2 })
   in
   let compilation_unit = CU.create_instance base_compilation_unit arg_pairs in
-  let expected_output_prefix = CU.base_filename compilation_unit in
-  let output_prefix = Filename.remove_extension targetcm in
-  let output_prefix_basename = Filename.basename output_prefix in
-  if not (String.equal output_prefix_basename expected_output_prefix)
+  let expected_output_basename_without_extension =
+    CU.base_filename compilation_unit
+  in
+  let output_filename_without_extension = Filename.remove_extension targetcm in
+  let output_basename_without_extension =
+    Filename.basename output_filename_without_extension
+  in
+  if
+    not (String.equal output_basename_without_extension
+           expected_output_basename_without_extension)
   then begin
     (* The module will only work if given the correct filename *)
     error (Incorrect_target_filename
-             { expected_basename = expected_output_prefix;
+             { expected_basename = expected_output_basename_without_extension;
                expected_extension;
-               actual_basename = output_prefix_basename;
+               actual_basename = output_basename_without_extension;
                compilation_unit })
   end;
   let global =
@@ -92,13 +123,13 @@ let instantiate
       error (Missing_argument { param = e.parameter })
     | Persistent_env.Error (Imported_module_has_no_such_parameter e) ->
       begin
-        let base_unit = unit_infos.ui_unit in
         match e.valid_parameters with
         | [] ->
-          let compilation_unit = base_unit in
+          let compilation_unit = base_compilation_unit in
           let filename = src in
           error (Not_parameterised { compilation_unit; filename })
         | available_params ->
+          let base_unit = base_compilation_unit in
           let param = e.parameter in
           let arg = e.value in
           error (No_such_parameter { base_unit; available_params; param; arg })
@@ -110,11 +141,12 @@ let instantiate
     |> Global_module.Name.Map.of_list
   in
   let runtime_params, main_module_block_size =
-    match unit_infos.ui_format with
-    | Mb_record _ ->
+    match base_unit_info.ui_format with
+    | Mb_struct _ ->
       (* Should have raised [Not_parameterised] above *)
-      Misc.fatal_errorf "No runtime parameters for %a" CU.print unit_infos.ui_unit
-    | Mb_wrapped_function { mb_runtime_params; mb_returned_size } ->
+      Misc.fatal_errorf "No runtime parameters for %a"
+        CU.print base_compilation_unit
+    | Mb_instantiating_functor { mb_runtime_params; mb_returned_size } ->
       mb_runtime_params, mb_returned_size
   in
   let runtime_args =
@@ -127,27 +159,26 @@ let instantiate
                match
                  Global_module.Name.Map.find_opt global_name arg_map
                with
-               | Some (ra_unit, ra_field) ->
-                 Argument_block { ra_unit; ra_field }
+               | Some (ra_unit, ra_field_idx) ->
+                 Argument_block { ra_unit; ra_field_idx }
                | None ->
                  (* This should have been caught by
                     [Env.global_of_instance_compilation_unit] earlier *)
                  Misc.fatal_errorf "Can't find value for %a"
                    Global_module.Name.print global_name
              end
-           | Rp_dependency global ->
-             (* This is a dependency that will be passed in. We need to
-                substitute the arguments into the name of the dependency to find
-                the particular instance to pass. *)
+           | Rp_main_module_block global ->
+             (* Substitute away any references to parameters in [global] *)
              let instance =
                Global_module.subst_inside global arg_subst
                |> Compilation_unit.of_complete_global_exn
              in
-             Dependency instance
+             Main_module_block instance
            | Rp_unit ->
              Unit)
   in
-  let arg_descr = unit_infos.ui_arg_descr in
+  let output_prefix = output_filename_without_extension in
+  let arg_descr = base_unit_info.ui_arg_descr in
   compile
     ~source_file:src ~output_prefix ~compilation_unit ~runtime_args
     ~main_module_block_size ~arg_descr;

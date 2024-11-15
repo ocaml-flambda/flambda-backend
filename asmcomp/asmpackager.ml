@@ -128,9 +128,9 @@ let make_package_object unix ~ppf_dump members target coercion
     in
     let code = Simplif.simplify_lambda code in
     let main_module_block_format : Lambda.main_module_block_format =
-      Mb_record { mb_size = main_module_block_size }
+      Mb_struct { mb_size = main_module_block_size }
     in
-    let arg_block_field =
+    let arg_block_field_idx =
       (* Packs not supported as argument modules *)
       None
     in
@@ -138,7 +138,7 @@ let make_package_object unix ~ppf_dump members target coercion
       { Lambda.
         code;
         main_module_block_format;
-        arg_block_field;
+        arg_block_field_idx;
         compilation_unit;
         required_globals;
       }
@@ -195,7 +195,7 @@ let build_package_cmx members cmxfile ~main_module_block_size =
   let modname = Compilation_unit.name ui.ui_unit in
   let format : Lambda.main_module_block_format =
     (* Open modules not supported with packs, so always just a record *)
-    Mb_record { mb_size = main_module_block_size }
+    Mb_struct { mb_size = main_module_block_size }
   in
   let pkg_infos =
     { ui_unit = ui.ui_unit;

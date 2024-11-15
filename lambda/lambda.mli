@@ -771,31 +771,33 @@ type runtime_param =
                                              the argument being passed for the
                                              parameter [P] and pass in its
                                              argument block *)
-  | Rp_dependency of Global_module.t      (* [Rp_dependency M] means that [M] is
-                                             a parameterised module (not itself
-                                             a parameter) that this module
-                                             depends on and we should pass in
-                                             the main module block of (the
-                                             relevant instantiation of) [M]. [M]
-                                             must not be complete (if it were,
-                                             it would be a compile-time constant
-                                             and therefore not needed as a
-                                             parameter). *)
+  | Rp_main_module_block of Global_module.t
+                                          (* [Rp_main_module_block M] means that
+                                             [M] is a parameterised module (not
+                                             itself a parameter) that this
+                                             module depends on and we should
+                                             pass in the main module block of
+                                             (the relevant instantiation of)
+                                             [M]. [M] must not be complete (if
+                                             it were, it would be a compile-time
+                                             constant and therefore not needed
+                                             as a parameter). *)
   | Rp_unit                               (* The unit value (only used when
                                              there are no other parameters) *)
 
 (* The structure of the main module block. A module with no parameters will be
-   compiled to an [Mb_record] and a module with at least one parameter will be
-   compiled to an [Mb_wrapped_function]. *)
+   compiled to an [Mb_struct] and a module with at least one parameter will be
+   compiled to an [Mb_instantiating_functor]. *)
 type main_module_block_format =
-  | Mb_record of { mb_size : int }      (* A block with [mb_size] fields *)
-  | Mb_wrapped_function of { mb_runtime_params : runtime_param list;
-                             mb_returned_size : int;
-                           }
-                                        (* A block with exactly one field: a
-                                           function taking [mb_runtime_params]
-                                           and returning a block with
-                                           [mb_returned_size] fields *)
+  | Mb_struct of { mb_size : int }        (* A block with [mb_size] fields *)
+  | Mb_instantiating_functor of
+      { mb_runtime_params : runtime_param list;
+        mb_returned_size : int;
+      }
+                                          (* A block with exactly one field: a
+                                             function taking [mb_runtime_params]
+                                             and returning a block with
+                                             [mb_returned_size] fields *)
 
 (* The number of words in the main module block. *)
 val main_module_block_size : main_module_block_format -> int
@@ -803,8 +805,8 @@ val main_module_block_size : main_module_block_format -> int
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_format : main_module_block_format;
-    arg_block_field : int option;       (* Unnamed field with argument block
-                                           (see [arg_descr]) *)
+    arg_block_field_idx : int option;   (* Index of unnamed field with argument
+                                           block (see [arg_descr]) *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
@@ -827,7 +829,7 @@ type program =
 type arg_descr =
   { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
                                            [-as-argument-for P]) *)
-    arg_block_field: int; }             (* The index of an unnamed field
+    arg_block_field_idx: int; }         (* The index of an unnamed field
                                            containing the block to use as an
                                            argument value (may be a supertype of
                                            the whole compilation unit's type) *)

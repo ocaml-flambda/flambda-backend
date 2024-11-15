@@ -32,9 +32,10 @@ let interface ~source_file ~output_prefix =
 
 (** Bytecode compilation backend for .ml files. *)
 
-let make_arg_descr ~param ~arg_block_field : Lambda.arg_descr option =
-  match param, arg_block_field with
-  | Some arg_param, Some arg_block_field -> Some { arg_param; arg_block_field }
+let make_arg_descr ~param ~arg_block_field_idx : Lambda.arg_descr option =
+  match param, arg_block_field_idx with
+  | Some arg_param, Some arg_block_field_idx ->
+      Some { arg_param; arg_block_field_idx }
   | None, None -> None
   | Some _, None -> Misc.fatal_error "No argument field"
   | None, Some _ -> Misc.fatal_error "Unexpected argument field"
@@ -43,7 +44,7 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
   raw_lambda
   |> Profile.(record ~accumulate:true generate)
     (fun { Lambda.code = lambda; required_globals; main_module_block_format;
-           arg_block_field } ->
+           arg_block_field_idx } ->
        Builtin_attributes.warn_unused ();
        lambda
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
@@ -52,7 +53,9 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
        |> Bytegen.compile_implementation i.module_name
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode ->
-          let arg_descr = make_arg_descr ~param:as_arg_for ~arg_block_field in
+          let arg_descr =
+            make_arg_descr ~param:as_arg_for ~arg_block_field_idx
+          in
           bytecode, required_globals, main_module_block_format, arg_descr
     )
 
@@ -129,15 +132,15 @@ let implementation_aux ~start_from ~source_file ~output_prefix
           "-as-argument-for is not allowed (and not needed) with -instantiate"
       | None -> ()
     end;
-    let as_arg_for, arg_block_field =
+    let as_arg_for, arg_block_field_idx =
       match (arg_descr : Lambda.arg_descr option) with
-      | Some { arg_param; arg_block_field } ->
-        Some arg_param, Some arg_block_field
+      | Some { arg_param; arg_block_field_idx } ->
+        Some arg_param, Some arg_block_field_idx
       | None -> None, None
     in
     let impl =
       Translmod.transl_instance info.module_name ~runtime_args
-        ~main_module_block_size ~arg_block_field ~style:Set_global_to_block
+        ~main_module_block_size ~arg_block_field_idx ~style:Set_global_to_block
     in
     let bytecode = raw_lambda_to_bytecode info impl ~as_arg_for in
     emit_bytecode info bytecode

@@ -788,26 +788,31 @@ and lambda_event_kind =
 
 type runtime_param =
   | Rp_argument_block of Global_module.t
-  | Rp_dependency of Global_module.t
+  | Rp_main_module_block of Global_module.t
   | Rp_unit
 
 type main_module_block_format =
-  | Mb_record of { mb_size : int }
-  | Mb_wrapped_function of { mb_runtime_params : runtime_param list;
-                             mb_returned_size : int;
-                           }
+  | Mb_struct of { mb_size : int }
+  | Mb_instantiating_functor of
+      { mb_runtime_params : runtime_param list;
+        mb_returned_size : int;
+      }
 
 let main_module_block_size format =
   match format with
-  | Mb_record { mb_size } -> mb_size
-  | Mb_wrapped_function _ -> 1
+  | Mb_struct { mb_size } -> mb_size
+  | Mb_instantiating_functor _ -> 1
 
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_format : main_module_block_format;
-    arg_block_field : int option;
+    arg_block_field_idx : int option;
     required_globals : Compilation_unit.Set.t;
     code : lambda }
+
+type arg_descr =
+  { arg_param: Global_module.Name.t;
+    arg_block_field_idx: int; }
 
 let const_int n = Const_base (Const_int n)
 
@@ -2154,7 +2159,3 @@ let simple_prim_on_values ~name ~arity ~alloc =
         (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Const.value))
     ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Const.value)
     ~is_layout_poly:false
-
-type arg_descr =
-  { arg_param: Global_module.Name.t;
-    arg_block_field: int; }

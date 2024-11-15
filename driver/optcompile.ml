@@ -33,9 +33,10 @@ let interface ~source_file ~output_prefix =
 
 (** Native compilation backend for .ml files. *)
 
-let make_arg_descr ~param ~arg_block_field : Lambda.arg_descr option =
-  match param, arg_block_field with
-  | Some arg_param, Some arg_block_field -> Some { arg_param; arg_block_field }
+let make_arg_descr ~param ~arg_block_field_idx : Lambda.arg_descr option =
+  match param, arg_block_field_idx with
+  | Some arg_param, Some arg_block_field_idx ->
+      Some { arg_param; arg_block_field_idx }
   | None, None -> None
   | Some _, None -> Misc.fatal_error "No argument field"
   | None, Some _ -> Misc.fatal_error "Unexpected argument field"
@@ -62,7 +63,7 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline ~as_arg_for =
              program);
            let arg_descr =
              make_arg_descr ~param:as_arg_for
-               ~arg_block_field:program.arg_block_field
+               ~arg_block_field_idx:program.arg_block_field_idx
            in
            Compilenv.save_unit_info
              (Unit_info.Artifact.filename (Unit_info.cmx i.target))
@@ -157,15 +158,15 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
           "-as-argument-for is not allowed (and not needed) with -instantiate"
       | None -> ()
     end;
-    let as_arg_for, arg_block_field =
+    let as_arg_for, arg_block_field_idx =
       match (arg_descr : Lambda.arg_descr option) with
-      | Some { arg_param; arg_block_field } ->
-        Some arg_param, Some arg_block_field
+      | Some { arg_param; arg_block_field_idx } ->
+        Some arg_param, Some arg_block_field_idx
       | None -> None, None
     in
     let impl =
       Translmod.transl_instance info.module_name ~runtime_args
-        ~main_module_block_size ~arg_block_field
+        ~main_module_block_size ~arg_block_field_idx
         ~style:transl_style
     in
     if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
