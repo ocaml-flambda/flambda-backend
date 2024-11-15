@@ -188,7 +188,7 @@ val imports : 'a t -> Import_info.Intf.t list
 
    Note that the word "runtime" is a bit of a fiction reflecting a front-end view of the
    world. In fact we aim to inline away all passing of runtime parameters. *)
-val runtime_parameters : 'a t -> (Global_module.t * Ident.t) list
+val runtime_parameter_bindings : 'a t -> (Global_module.t * Ident.t) list
 
 (* Find whether a module has been imported as a parameter. This means that it
    is a registered parameter import (see [register_parameter_import]) _and_ it has

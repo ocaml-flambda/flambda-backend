@@ -874,7 +874,7 @@ let is_imported_parameter penv modname =
   | Some pers_struct -> pers_struct.ps_name_info.pn_import.imp_is_param
   | None -> false
 
-let runtime_parameters {persistent_structures; _} =
+let runtime_parameter_bindings {persistent_structures; _} =
   (* This over-approximates the runtime parameters that are actually needed:
      some modules get looked at during type checking but aren't relevant to
      generated lambda code. This is increasingly true with modes and layouts: we

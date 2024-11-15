@@ -1017,21 +1017,24 @@ let transl_implementation_plain_block compilation_unit impl =
         body, Mb_struct { mb_size = size }
     | true ->
         let mb_runtime_params, runtime_param_idents =
-          match Env.runtime_parameters () with
+          match Env.runtime_parameter_bindings () with
           | [] ->
               (* We didn't end up using any of the parameters, but this is still a
                  parameterised module, so it must still be implemented as a function that
                  produces a distinct value for each instance. *)
               let unit_ident = Ident.create_local "*unit*" in
               [ Rp_unit ], [ unit_ident ]
-          | globals ->
+          | bindings ->
               List.map
-                (fun (global, _) ->
-                   if Env.is_parameter_unit (Global_module.to_name global)
-                   then Rp_argument_block global
-                   else Rp_main_module_block global)
-                globals,
-              List.map (fun (_, ident) -> ident) globals
+                (fun (global, ident) ->
+                  let runtime_param =
+                    if Env.is_parameter_unit (Global_module.to_name global)
+                    then Rp_argument_block global
+                    else Rp_main_module_block global
+                  in
+                  runtime_param, ident)
+                bindings
+              |> List.split
         in
         let body = add_runtime_parameters body runtime_param_idents in
         let body = wrap_toplevel_functor_in_struct body in
