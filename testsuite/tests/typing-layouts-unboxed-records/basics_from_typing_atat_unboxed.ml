@@ -36,11 +36,7 @@ Error: Signature mismatch:
          sig type t = #{ a : string; } end
        is not included in
          sig type t = { a : string; } end
-       Type declarations do not match:
-         type t = #{ a : string; }
-       is not included in
-         type t = { a : string; }
-       The first is an unboxed record, but the second is a record.
+       The type "t#" is required but not provided
 |}];;
 
 (* Check interference with representation of float arrays. *)

@@ -2185,7 +2185,36 @@ let transl_type_decl env rec_flag sdecl_list =
       fixed_types
     @ sdecl_list
   in
-
+  (* Add unboxed record types derived from boxed record types *)
+  let sdecl_list =
+    if not (Language_extension.is_at_least Layouts Language_extension.Beta) then
+      sdecl_list
+    else
+      List.map
+        (fun sdecl ->
+          match sdecl.ptype_kind with
+          | Ptype_record lbls ->
+            [
+              sdecl;
+              {
+                ptype_name = {txt = sdecl.ptype_name.txt ^ "#" ;
+                              loc = Location.ghostify sdecl.ptype_name.loc };
+                ptype_params = sdecl.ptype_params;
+                ptype_cstrs = [];
+                ptype_kind = Ptype_record_unboxed_product lbls;
+                ptype_private = sdecl.ptype_private;
+                ptype_manifest = None;
+                ptype_attributes = [];
+                ptype_jkind_annotation = None;
+                ptype_loc = Location.ghostify sdecl.ptype_loc;
+              }
+            ]
+          | Ptype_abstract | Ptype_variant _ | Ptype_record_unboxed_product _
+          | Ptype_open ->
+            [sdecl])
+        sdecl_list
+      |> List.flatten
+  in
   (* Create identifiers. *)
   let scope = Ctype.create_scope () in
   let ids_list =

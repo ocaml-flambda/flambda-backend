@@ -20,8 +20,8 @@ module With_index : sig
   val box_t : 'a t -> 'a t_boxed
   val inc : 'a t -> 'a t
 end = struct
-  type 'a t = #{ data : 'a ; i : int }
   type 'a t_boxed = { data : 'a ; i : int }
+  type 'a t = 'a t_boxed#
 
   let unbox_t { data ; i = idx } = #{ data ; i = idx }
   let box_t #{ data ; i = idx } = { data ; i = idx }

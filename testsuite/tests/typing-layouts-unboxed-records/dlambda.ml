@@ -116,13 +116,13 @@ let t = { s = "hi" }
 [%%expect{|
 0
 type t = { s : string; } [@@unboxed]
-(let (t/317 = "hi") (apply (field_imm 1 (global Toploop!)) "t" t/317))
+(let (t/319 = "hi") (apply (field_imm 1 (global Toploop!)) "t" t/319))
 val t : t = {s = "hi"}
 |}]
 
 let s = { s = "hi"}.s
 [%%expect{|
-(let (s/319 = "hi") (apply (field_imm 1 (global Toploop!)) "s" s/319))
+(let (s/321 = "hi") (apply (field_imm 1 (global Toploop!)) "s" s/321))
 val s : string = "hi"
 |}]
 

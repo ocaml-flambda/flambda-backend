@@ -8,6 +8,11 @@ module Duplicate_label_definitions = struct
   and t2 = #{ a : int }
 end
 [%%expect{|
+Line 3, characters 14-21:
+3 |   and t2 = #{ a : int }
+                  ^^^^^^^
+Warning 30 [duplicate-definitions]: the unboxed record label a is defined in both types t# and t2.
+
 module Duplicate_label_definitions :
   sig type t = { a : int; } and t2 = #{ a : int; } end
 |}]

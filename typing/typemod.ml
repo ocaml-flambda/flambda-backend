@@ -1123,6 +1123,7 @@ and approx_module_declaration env pmd =
 
 and approx_sig env {psg_items; _} = approx_sig_items env psg_items
 
+(* CR rtjoa:  *)
 and approx_sig_items env ssg=
   match ssg with
     [] -> []

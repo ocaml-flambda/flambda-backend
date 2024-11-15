@@ -58,6 +58,14 @@ let next_group = function
             | t::q -> [t], q
             | _ -> assert false
            end
+        | Types.Sig_type (_, { type_kind = Type_record _} , _, _)
+          when Language_extension.is_at_least Layouts Language_extension.Beta ->
+            (* a record type declaration for [t] is followed by the unboxed record type
+               declaration of type [t#] *)
+            begin match q with
+              | t::q -> [t], q
+              | _ -> assert false
+            end
         | Types.(Sig_module _ | Sig_value _ | Sig_type _ | Sig_typext _
                 | Sig_modtype _) ->
             [],q
