@@ -114,10 +114,6 @@ module Maybe_aliased : sig
     | Read of Unique_barrier.t
     | Write
 
-  type error = { occ : Occurrence.t }
-
-  exception Error of error
-
   val string_of_access : access -> string
 
   (** The type representing a usage that could be either aliased or borrowed *)
@@ -133,7 +129,7 @@ module Maybe_aliased : sig
        must be Borrowed (hence no code motion); if that mode is not restricted
        to Unique, this usage can be Borrowed or Aliased (prefered). Can be called
        multiple times for multiple barriers (for different branches). *)
-  val add_barrier : t -> Uniqueness.r -> Occurrence.t -> unit
+  val add_barrier : t -> Uniqueness.r -> unit
 
   val meet : t -> t -> t
 
@@ -142,10 +138,6 @@ end = struct
   type access =
     | Read of Unique_barrier.t
     | Write
-
-  type error = { occ : Occurrence.t }
-
-  exception Error of error
 
   let string_of_access = function
     | Read _ -> "read from"
@@ -170,7 +162,7 @@ end = struct
     | [] -> assert false
     | (_, access) :: _ -> access
 
-  let add_barrier t uniq occ =
+  let add_barrier t uniq =
     if Language_extension.is_at_least Unique Language_extension.Alpha
     then
       List.iter
@@ -179,10 +171,7 @@ end = struct
           | Read barrier -> Unique_barrier.add_upper_bound uniq barrier
           | _ -> ())
         t
-    else
-      match Uniqueness.submode Uniqueness.aliased uniq with
-      | Ok () -> ()
-      | Error _ -> raise (Error { occ })
+    else ()
 end
 
 module Aliased : sig
@@ -428,8 +417,7 @@ end = struct
           checking of the whole file, m1 will correctly tells whether it needs
           to be Unique, and by extension whether m0 can be Aliased. *)
       let uniq = Maybe_unique.uniqueness l1 in
-      let occ = Maybe_unique.extract_occurrence l1 in
-      Maybe_aliased.add_barrier l0 uniq occ;
+      Maybe_aliased.add_barrier l0 uniq;
       m1
     | Aliased _, Borrowed _ -> m0
     | Maybe_unique l, Borrowed occ ->
@@ -549,7 +537,6 @@ type error =
       { cannot_force : Maybe_unique.cannot_force;
         reason : boundary_reason
       }
-  | Unique_projection of { occ : Occurrence.t }
 
 exception Error of error
 
@@ -644,12 +631,9 @@ end = struct
   let lift f t0 t1 =
     mapi2
       (fun first_is_of_second t0 t1 ->
-        try
-          try f t0 t1
-          with Usage.Error error ->
-            raise (Error (Usage { inner = error; first_is_of_second }))
-        with Maybe_aliased.Error { occ } ->
-          raise (Error (Unique_projection { occ })))
+        try f t0 t1
+        with Usage.Error error ->
+          raise (Error (Usage { inner = error; first_is_of_second })))
       t0 t1
 
   let choose t0 t1 = lift Usage.choose t0 t1
@@ -1713,18 +1697,12 @@ let report_boundary cannot_force reason =
   Location.errorf ~loc:occ.loc "@[%s.\nHint: This value comes from %s.@]" error
     reason
 
-let report_unique_projection (occ : Occurrence.t) =
-  Location.errorf ~loc:occ.loc
-    "@[This value is used uniquely, but you tried to project out of it.\n\
-     Hint: This is currently not supported, please consult the documentation.@]"
-
 let report_error err =
   Printtyp.wrap_printing_env ~error:true Env.empty (fun () ->
       match err with
       | Usage { inner; first_is_of_second } ->
         report_multi_use inner first_is_of_second
-      | Boundary { cannot_force; reason } -> report_boundary cannot_force reason
-      | Unique_projection { occ } -> report_unique_projection occ)
+      | Boundary { cannot_force; reason } -> report_boundary cannot_force reason)
 
 let () =
   Location.register_error_of_exn (function
