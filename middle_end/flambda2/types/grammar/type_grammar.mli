@@ -29,6 +29,10 @@ module Block_size : sig
   val inter : t -> t -> t
 end
 
+type is_null =
+  | Not_null
+  | Maybe_null
+
 type t = private
   | Value of head_of_kind_value Type_descr.t
   | Naked_immediate of head_of_kind_naked_immediate Type_descr.t
@@ -41,10 +45,16 @@ type t = private
   | Rec_info of head_of_kind_rec_info Type_descr.t
   | Region of head_of_kind_region Type_descr.t
 
-and head_of_kind_value = private
+and head_of_kind_value =
+  { non_null : head_of_kind_value_non_null Or_unknown_or_bottom.t;
+    is_null : is_null
+  }
+
+and head_of_kind_value_non_null = private
   | Variant of
       { immediates : t Or_unknown.t;
         blocks : row_like_for_blocks Or_unknown.t;
+        extensions : variant_extensions;
         is_unique : bool
       }
   (* CR mshinwell: It would be better to track per-field mutability. *)
@@ -71,6 +81,7 @@ and head_of_kind_naked_immediate = private
   | Naked_immediates of Targetint_31_63.Set.t
   | Is_int of t  (** For variants only *)
   | Get_tag of t  (** For variants only *)
+  | Is_null of t
 
 (** Invariant: the float/integer sets for naked float, int32, int64 and
     nativeint heads are non-empty. (Empty sets are represented as an overall
@@ -149,6 +160,13 @@ and array_contents =
 
 and env_extension = private { equations : t Name.Map.t } [@@unboxed]
 
+and variant_extensions =
+  | No_extensions
+  | Ext of
+      { when_immediate : env_extension;
+        when_block : env_extension
+      }
+
 type flambda_type = t
 
 val print : Format.formatter -> t -> unit
@@ -224,6 +242,10 @@ val any_region : t
 
 val any_rec_info : t
 
+val null : t
+
+val any_non_null_value : t
+
 val this_tagged_immediate : Targetint_31_63.t -> t
 
 val this_rec_info : Rec_info_expr.t -> t
@@ -291,10 +313,13 @@ val is_int_for_scrutinee : scrutinee:Simple.t -> t
 
 val get_tag_for_block : block:Simple.t -> t
 
+val is_null : scrutinee:Simple.t -> t
+
 val create_variant :
   is_unique:bool ->
   immediates:t Or_unknown.t ->
   blocks:row_like_for_blocks Or_unknown.t ->
+  extensions:variant_extensions ->
   t
 
 val mutable_block : Alloc_mode.For_types.t -> t
@@ -380,7 +405,7 @@ module Closures_entry : sig
     t
 
   val find_function_type :
-    t -> Function_slot.t -> Function_type.t Or_unknown_or_bottom.t
+    t -> exact:bool -> Function_slot.t -> Function_type.t Or_unknown_or_bottom.t
 
   val value_slot_types : t -> flambda_type Value_slot.Map.t
 end
@@ -451,6 +476,8 @@ module Row_like_for_blocks : sig
   val all_tags_and_sizes :
     t -> (Targetint_31_63.t * Flambda_kind.Block_shape.t) Tag.Map.t Or_unknown.t
 
+  (** If the type corresponds to a single block of known size (as created by
+      [create_exactly_multiple]) then return it. *)
   val get_singleton :
     t ->
     (Tag.t
@@ -516,9 +543,12 @@ module Row_like_for_closures : sig
       Or_bottom.t ->
     t
 
-  val get_singleton :
-    t ->
-    ((Function_slot.t * Set_of_closures_contents.t) * Closures_entry.t) option
+  type get_single_tag_result =
+    | No_singleton
+    | Exact_closure of Function_slot.t * Closures_entry.t
+    | Incomplete_closure of Function_slot.t * Closures_entry.t
+
+  val get_single_tag : t -> get_single_tag_result
 
   (** Same as For_blocks.get_field: attempt to find the type associated to the
       given environment variable without an expensive meet. *)
@@ -633,6 +663,49 @@ module Head_of_kind_value : sig
     is_unique:bool ->
     blocks:Row_like_for_blocks.t Or_unknown.t ->
     immediates:flambda_type Or_unknown.t ->
+    extensions:variant_extensions ->
+    t
+
+  val create_mutable_block : Alloc_mode.For_types.t -> t
+
+  (* CR-someday mshinwell: these alloc mode params should probably be
+     labelled *)
+  val create_boxed_float32 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_float : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_int32 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_int64 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_nativeint : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_boxed_vec128 : flambda_type -> Alloc_mode.For_types.t -> t
+
+  val create_tagged_immediate : Targetint_31_63.t -> t
+
+  val create_closures : Row_like_for_closures.t -> Alloc_mode.For_types.t -> t
+
+  val create_string : String_info.Set.t -> t
+
+  val create_array_with_contents :
+    element_kind:Flambda_kind.With_subkind.t Or_unknown_or_bottom.t ->
+    length:flambda_type ->
+    array_contents Or_unknown.t ->
+    Alloc_mode.For_types.t ->
+    t
+
+  val null : t
+end
+
+module Head_of_kind_value_non_null : sig
+  type t = head_of_kind_value_non_null
+
+  val create_variant :
+    is_unique:bool ->
+    blocks:Row_like_for_blocks.t Or_unknown.t ->
+    immediates:flambda_type Or_unknown.t ->
+    extensions:variant_extensions ->
     t
 
   val create_mutable_block : Alloc_mode.For_types.t -> t
@@ -677,6 +750,8 @@ module Head_of_kind_naked_immediate : sig
   val create_is_int : flambda_type -> t
 
   val create_get_tag : flambda_type -> t
+
+  val create_is_null : flambda_type -> t
 end
 
 module type Head_of_kind_naked_number_intf = sig

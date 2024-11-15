@@ -1,4 +1,4 @@
-File "bad_instance_wrong_mode.ml", line 3, characters 4-37:
+File "bad_instance_wrong_mode.ml", line 3, characters 4-68:
 3 |     Monoid_utils(Monoid)(List_monoid) [@jane.non_erasable.instances]
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Modules are nonportable, so cannot be used inside a function that is portable.

@@ -58,6 +58,7 @@ module Example = struct
                                { pmd_name = located (Some "M")
                                ; pmd_type = module_type
                                ; pmd_attributes = []
+                               ; pmd_modalities = []
                                ; pmd_loc = loc
                                }
                          ; psig_loc = loc
@@ -125,11 +126,7 @@ end = struct
   type nonrec space_formatter = space_formatter
 
   let print_test_case name printer wrap_value value =
-    let pp f x =
-      try printer f (wrap_value x)
-      with Jane_syntax_parsing.Error.Error _ ->
-        Format.fprintf f "JANE SYNTAX ERROR FROM PPRINTAST"
-    in
+    let pp f x = printer f (wrap_value x) in
     Format.printf "@.@[<2>%s:@;%a@]@." name pp value
   ;;
 

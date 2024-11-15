@@ -252,13 +252,6 @@ and object_field_desc =
 and pattern =
     {
      ppat_desc: pattern_desc;
-     (** (Jane Street specific; delete when upstreaming.)
-         Consider using [Jane_syntax.Pattern.of_ast] before matching on
-         this field directly, as the former will detect extension nodes
-         correctly. Our syntax extensions are encoded as
-         [Ppat_tuple [Ppat_extension _; _]]; if your pattern match avoids
-         matching that pattern, it is OK to skip [of_ast]. *)
-
      ppat_loc: Location.t;
      ppat_loc_stack: location_stack;
      ppat_attributes: attributes;  (** [... [\@id1] [\@id2]] *)
@@ -319,7 +312,8 @@ and pattern_desc =
 
            Invariant: [n > 0]
          *)
-  | Ppat_array of pattern list  (** Pattern [[| P1; ...; Pn |]] *)
+  | Ppat_array of mutable_flag * pattern list
+      (** Pattern [[| P1; ...; Pn |]] or [[: P1; ...; Pn :]] *)
   | Ppat_or of pattern * pattern  (** Pattern [P1 | P2] *)
   | Ppat_constraint of pattern * core_type option * modes
       (** [Ppat_constraint(tyopt, modes)] represents:
@@ -345,13 +339,6 @@ and pattern_desc =
 and expression =
     {
      pexp_desc: expression_desc;
-     (** (Jane Street specific; delete when upstreaming.)
-         Consider using [Jane_syntax.Expression.of_ast] before matching on
-         this field directly, as the former will detect extension nodes
-         correctly. Our syntax extensions are encoded as
-         [Pexp_apply(Pexp_extension _, _)]; if your pattern match avoids
-         matching that pattern, it is OK to skip [of_ast]. *)
-
      pexp_loc: Location.t;
      pexp_loc_stack: location_stack;
      pexp_attributes: attributes;  (** [... [\@id1] [\@id2]] *)
@@ -439,7 +426,8 @@ and expression_desc =
   | Pexp_field of expression * Longident.t loc  (** [E.l] *)
   | Pexp_setfield of expression * Longident.t loc * expression
       (** [E1.l <- E2] *)
-  | Pexp_array of expression list  (** [[| E1; ...; En |]] *)
+  | Pexp_array of mutable_flag * expression list
+      (** [[| E1; ...; En |]] or [[: E1; ...; En :]] *)
   | Pexp_ifthenelse of expression * expression * expression option
       (** [if E1 then E2 else E3] *)
   | Pexp_sequence of expression * expression  (** [E1; E2] *)
@@ -496,6 +484,12 @@ and expression_desc =
   | Pexp_extension of extension  (** [[%id]] *)
   | Pexp_unreachable  (** [.] *)
   | Pexp_stack of expression (** stack_ exp *)
+  | Pexp_comprehension of comprehension_expression
+    (** [[? BODY ...CLAUSES... ?]], where:
+          - [?] is either [""] (list), [:] (immutable array), or [|] (array).
+          - [BODY] is an expression.
+          - [CLAUSES] is a series of [comprehension_clause].
+    *)
 
 and case =
     {
@@ -589,6 +583,43 @@ and function_constraint =
     type_constraint : type_constraint;
   }
 (** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
+
+and comprehension_iterator =
+  | Pcomp_range of
+      { start : expression;
+        stop : expression;
+        direction : direction_flag
+      }
+    (** "= START to STOP" (direction = Upto)
+        "= START downto STOP" (direction = Downto) *)
+  | Pcomp_in of expression  (** "in EXPR" *)
+
+(** [@...] PAT (in/=) ... *)
+and comprehension_clause_binding =
+  { pcomp_cb_pattern : pattern;
+    pcomp_cb_iterator : comprehension_iterator;
+    pcomp_cb_attributes : attribute list
+  }
+
+and comprehension_clause =
+  | Pcomp_for of comprehension_clause_binding list
+      (** "for PAT (in/=) ... and PAT (in/=) ... and ..."; must be nonempty *)
+  | Pcomp_when of expression  (** "when EXPR" *)
+
+and comprehension =
+  { pcomp_body : expression;
+      (** The body/generator of the comprehension *)
+    pcomp_clauses : comprehension_clause list;
+      (** The clauses of the comprehension; must be nonempty *)
+  }
+
+and comprehension_expression =
+  | Pcomp_list_comprehension of comprehension (** [[BODY ...CLAUSES...]] *)
+  | Pcomp_array_comprehension of mutable_flag * comprehension
+      (** [[|BODY ...CLAUSES...|]] (flag = Mutable)
+          [[:BODY ...CLAUSES...:]] (flag = Immutable)
+          (only allowed with [-extension immutable_arrays])
+      *)
 
 (** {2 Value descriptions} *)
 
@@ -964,14 +995,6 @@ and class_declaration = class_expr class_infos
 and module_type =
     {
      pmty_desc: module_type_desc;
-     (** (Jane Street specific; delete when upstreaming.)
-         Consider using [Jane_syntax.Module_type.of_ast] before matching on
-         this field directly, as the former will detect extension nodes
-         correctly. Our syntax extensions are encoded as
-         [Pmty_functor(Named(_, Pmty_extension _), _)];
-         if your pattern match avoids
-         matching that pattern, it is OK to skip [of_ast]. *)
-
      pmty_loc: Location.t;
      pmty_attributes: attributes;  (** [... [\@id1] [\@id2]] *)
     }
@@ -979,19 +1002,21 @@ and module_type =
 and module_type_desc =
   | Pmty_ident of Longident.t loc  (** [Pmty_ident(S)] represents [S] *)
   | Pmty_signature of signature  (** [sig ... end] *)
-  | Pmty_functor of functor_parameter * module_type
-      (** [functor(X : MT1) -> MT2] *)
+  | Pmty_functor of functor_parameter * module_type * modes
+      (** [functor(X : MT1 @@ modes) -> MT2 @ modes] *)
   | Pmty_with of module_type * with_constraint list  (** [MT with ...] *)
   | Pmty_typeof of module_expr  (** [module type of ME] *)
   | Pmty_extension of extension  (** [[%id]] *)
   | Pmty_alias of Longident.t loc  (** [(module M)] *)
+  (*_ [Pmty_strengthen] might be a better fit for [with_constraint] *)
+  | Pmty_strengthen of module_type * Longident.t loc (** [MT with S] *)
 
 and functor_parameter =
   | Unit  (** [()] *)
-  | Named of string option loc * module_type
+  | Named of string option loc * module_type * modes
       (** [Named(name, MT)] represents:
-            - [(X : MT)] when [name] is [Some X],
-            - [(_ : MT)] when [name] is [None] *)
+            - [(X : MT @@ modes)] when [name] is [Some X],
+            - [(_ : MT @@ modes)] when [name] is [None] *)
 
 and signature =
   {
@@ -1040,6 +1065,7 @@ and module_declaration =
     {
      pmd_name: string option loc;
      pmd_type: module_type;
+     pmd_modalities: modalities;
      pmd_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      pmd_loc: Location.t;
     }
@@ -1140,9 +1166,24 @@ and module_expr_desc =
       (** [functor(X : MT1) -> ME] *)
   | Pmod_apply of module_expr * module_expr  (** [ME1(ME2)] *)
   | Pmod_apply_unit of module_expr (** [ME1()] *)
-  | Pmod_constraint of module_expr * module_type  (** [(ME : MT)] *)
+  | Pmod_constraint of module_expr * module_type option * modes
+      (** - [(ME : MT @@ modes)]
+          - [(ME @ modes)]
+          - [(ME : MT)]
+      *)
   | Pmod_unpack of expression  (** [(val E)] *)
   | Pmod_extension of extension  (** [[%id]] *)
+  | Pmod_instance of module_instance
+      (** [Foo(Param1)(Arg1(Param2)(Arg2)) [@jane.non_erasable.instances]]
+
+          The name of an instance module. Gets converted to [Global.Name.t] in
+          the flambda-backend compiler. *)
+
+and module_instance =
+  { pmod_instance_head : string;
+    pmod_instance_args : (string * module_instance) list
+  }
+  (** [M(P1)(MI1)...(Pn)(MIn)] *)
 
 and structure = structure_item list
 

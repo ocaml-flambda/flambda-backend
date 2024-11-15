@@ -117,8 +117,6 @@ COMPILERLIBS_SOURCES=\
   parsing/syntaxerr.ml \
   parsing/ast_helper.ml \
 <<<<<<< HEAD
-  parsing/jane_syntax_parsing.ml \
-  parsing/jane_syntax.ml \
   parsing/ast_iterator.ml \
   parsing/builtin_attributes.ml \
   parsing/ast_mapper.ml \

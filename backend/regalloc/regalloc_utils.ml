@@ -159,10 +159,10 @@ let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
   in
   let live = live |> Reg.Set.elements |> Array.of_list in
   if Array.length instr.arg > 0
-  then Format.eprintf " arg:%a" Printmach.regs instr.arg;
+  then Format.eprintf " arg:%a" Printreg.regs instr.arg;
   if Array.length instr.res > 0
-  then Format.eprintf " res:%a" Printmach.regs instr.res;
-  if Array.length live > 0 then Format.eprintf " live:%a" Printmach.regs live;
+  then Format.eprintf " res:%a" Printreg.regs instr.res;
+  if Array.length live > 0 then Format.eprintf " live:%a" Printreg.regs live;
   Format.eprintf "\n%!"
 
 let make_log_body_and_terminator :
@@ -207,12 +207,13 @@ let make_log_cfg_with_infos :
         let exn =
           match block.exn with
           | None -> " [no exn]"
-          | Some exn_label -> Printf.sprintf " [exn: %d]" exn_label
+          | Some exn_label ->
+            Printf.sprintf " [exn: %s]" (Label.to_string exn_label)
         in
         let handler =
           match block.is_trap_handler with false -> "" | true -> " [handler]"
         in
-        log ~indent "(block %d)%s%s" block.start exn handler;
+        log ~indent "(block %a)%s%s" Label.format block.start exn handler;
         log_body_and_terminator ~indent:(succ indent) block.body
           block.terminator liveness)
 
@@ -294,8 +295,11 @@ let save_cfg : string -> Cfg_with_layout.t -> unit =
       let block =
         Cfg.get_block_exn (Cfg_with_layout.cfg cfg_with_layout) label
       in
-      Printf.sprintf "label:%d stack_offset:%d" label block.stack_offset)
-    ~annotate_succ:(Printf.sprintf "%d->%d") str
+      Printf.sprintf "label:%s stack_offset:%d" (Label.to_string label)
+        block.stack_offset)
+    ~annotate_succ:(fun lbl1 lbl2 ->
+      Printf.sprintf "%s->%s" (Label.to_string lbl1) (Label.to_string lbl2))
+    str
 
 module Substitution = struct
   type t = Reg.t Reg.Tbl.t
@@ -484,7 +488,7 @@ let check_same str1 reg1 str2 reg2 =
   if not (Reg.same reg1 reg2)
   then
     fatal "%s and %s were expected to be the same but they differ (%a vs %a)"
-      str1 str2 Printmach.reg reg1 Printmach.reg reg2
+      str1 str2 Printreg.reg reg1 Printreg.reg reg2
 
 type stack_operands_rewrite =
   | All_spilled_registers_rewritten
@@ -498,7 +502,7 @@ let use_stack_operand (map : spilled_map) (regs : Reg.t array) (index : int) :
     unit =
   let reg = regs.(index) in
   match Reg.Tbl.find_opt map reg with
-  | None -> fatal "register %a is missing from the map" Printmach.reg reg
+  | None -> fatal "register %a is missing from the map" Printreg.reg reg
   | Some spilled_reg -> regs.(index) <- spilled_reg
 
 let may_use_stack_operands_array : spilled_map -> Reg.t array -> unit =

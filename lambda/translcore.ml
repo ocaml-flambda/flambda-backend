@@ -595,7 +595,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                         Lambda.must_be_value (layout_exp sort e))
                       args_with_sorts
                   in
-                  Pmakeblock(0, Immutable, Some (Pgenval :: shape),
+                  Pmakeblock(0, Immutable, Some (Lambda.generic_value :: shape),
                             alloc_mode)
               | Constructor_mixed shape ->
                   let shape = Lambda.transl_mixed_product_shape shape in
@@ -629,11 +629,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
-  | Texp_field(arg, id, lbl, float) ->
+  | Texp_field(arg, id, lbl, float, ubr) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
+      let sem = add_barrier_to_read (transl_unique_barrier ubr) sem in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
@@ -1322,8 +1323,8 @@ and transl_apply ~scopes
        will occur exactly when all the arguments up to this parameter
        have been received.
   *)
-  let rec build_apply lam args loc pos ap_mode = function
-    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
+  let rec build_apply lam args loc pos ap_mode result_layout = function
+    | Omitted { mode_closure; mode_arg; mode_ret; sort_arg; sort_ret } :: l ->
         (* Out-of-order partial application; we will need to build a closure *)
         assert (pos = Rc_normal);
         let defs = ref [] in
@@ -1360,7 +1361,11 @@ and transl_apply ~scopes
           let mode = transl_alloc_mode_r mode_closure in
           let arg_mode = transl_alloc_mode_l mode_arg in
           let ret_mode = transl_alloc_mode_l mode_ret in
-          let body = build_apply handle [Lvar id_arg] loc Rc_normal ret_mode l in
+          let result_layout = layout_of_sort (to_location loc) sort_ret in
+          let body =
+            build_apply handle [Lvar id_arg] loc Rc_normal ret_mode
+              result_layout l
+          in
           let nlocal =
             match join_locality_mode mode (join_locality_mode arg_mode ret_mode) with
             | Alloc_local -> 1
@@ -1387,7 +1392,8 @@ and transl_apply ~scopes
         List.fold_right
           (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
           !defs body
-    | Arg (arg, _) :: l -> build_apply lam (arg :: args) loc pos ap_mode l
+    | Arg (arg, _) :: l ->
+      build_apply lam (arg :: args) loc pos ap_mode result_layout l
     | [] -> lapply lam (List.rev args) loc pos ap_mode result_layout
   in
   let args =
@@ -1399,7 +1405,7 @@ and transl_apply ~scopes
            Arg (transl_exp ~scopes sort_arg exp, layout_exp sort_arg exp))
       sargs
   in
-  build_apply lam [] loc position mode args
+  build_apply lam [] loc position mode result_layout args
 
 (* There are two cases in function translation:
     - [Tupled]. It takes a tupled argument, and we can flatten it.
@@ -1467,8 +1473,10 @@ and transl_tupled_function
             cases in
         let kinds =
           match arg_layout with
-          | Pvalue (Pvariant { consts = [];
-                               non_consts = [0, Constructor_uniform kinds] }) ->
+          | Pvalue {
+              nullable = Non_nullable;
+              raw_kind = Pvariant { consts = [];
+                               non_consts = [0, Constructor_uniform kinds] }} ->
               (* CR layouts v5: to change when we have non-value tuple
                  elements. *)
               List.map (fun vk -> Pvalue vk) kinds
@@ -1640,7 +1648,7 @@ and transl_curried_function ~scopes loc repr params body
         in
         (* we return Pgenval (for a function) after the rightmost chunk *)
         { body;
-          return_layout = Pvalue Pgenval;
+          return_layout = Lambda.layout_function;
           return_mode = if enclosing_region then alloc_heap else alloc_local;
           nlocal = enclosing_nlocal;
           region = enclosing_region;
@@ -1804,16 +1812,79 @@ and transl_setinstvar ~scopes loc self var expr =
 
 (* CR layouts v5: Invariant - this is only called on values.  Relax that. *)
 and transl_record ~scopes loc env mode fields repres opt_init_expr =
-  let size = Array.length fields in
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
-  let no_init = match opt_init_expr with None -> true | _ -> false in
+  let size = Array.length fields in
   let on_heap = match mode with
     | None -> false (* unboxed is not on heap *)
     | Some m -> is_heap_mode m
   in
-  if no_init || size < Config.max_young_wosize || not on_heap
-  then begin
+  match opt_init_expr with
+  | Some (init_expr, _) when on_heap && size >= Config.max_young_wosize ->
+    (* Take a shallow copy of the init record, then mutate the fields
+       of the copy *)
+    let copy_id = Ident.create_local "newrecord" in
+    let update_field cont (lbl, definition) =
+      (* CR layouts v5: allow more unboxed types here. *)
+      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+      check_record_field_sort lbl.lbl_loc lbl_sort;
+      match definition with
+      | Kept _ -> cont
+      | Overridden (_lid, expr) ->
+          let upd =
+            match repres with
+              Record_boxed _
+            | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
+                let ptr = maybe_pointer expr in
+                Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
+            | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
+                assert false
+            | Record_float ->
+                Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)
+            | Record_ufloat ->
+                Psetufloatfield (lbl.lbl_pos, Assignment modify_heap)
+            | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
+                let pos = lbl.lbl_pos + 1 in
+                let ptr = maybe_pointer expr in
+                Psetfield(pos, ptr, Assignment modify_heap)
+            | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
+                (* CR layouts v5.9: support this *)
+                fatal_error
+                  "Mixed inlined records not supported for extensible variants"
+            | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
+            | Record_mixed shape -> begin
+                let { value_prefix_len; flat_suffix } : mixed_product_shape =
+                  shape
+                in
+                let write =
+                  if lbl.lbl_num < value_prefix_len then
+                    let ptr = maybe_pointer expr in
+                    Mwrite_value_prefix ptr
+                  else
+                    let flat_element =
+                      flat_suffix.(lbl.lbl_num - value_prefix_len)
+                    in
+                    Mwrite_flat_suffix flat_element
+                in
+                let shape : Lambda.mixed_block_shape =
+                  { value_prefix_len; flat_suffix }
+                in
+                Psetmixedfield
+                  (lbl.lbl_pos, write, shape, Assignment modify_heap)
+              end
+          in
+          Lsequence(Lprim(upd, [Lvar copy_id;
+                                transl_exp ~scopes lbl_sort expr],
+                          of_location ~scopes loc),
+                    cont)
+    in
+    assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
+    Llet(Strict, Lambda.layout_block, copy_id,
+         Lprim(Pduprecord (repres, size),
+               [transl_exp ~scopes Jkind.Sort.for_record init_expr],
+               of_location ~scopes loc),
+         Array.fold_left update_field (Lvar copy_id) fields)
+  | Some _ | None ->
     (* Allocate new record with given fields (and remaining fields
        taken from init_expr if any *)
     (* CR layouts v5: allow non-value fields beyond just float# *)
@@ -1832,6 +1903,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                let sem =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
+               let unique_barrier = match opt_init_expr with
+                 | Some (_, ubr) -> Translmode.transl_unique_barrier ubr
+                 | None -> assert false (* Kept fields only exist on extended records *)
+               in
+               let sem = add_barrier_to_read unique_barrier sem in
                let access =
                  match repres with
                    Record_boxed _
@@ -1945,7 +2021,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                           Constructor_uniform_value, Variant_extensible) ->
             let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
-            Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
+            Lprim(Pmakeblock(0,
+                             mut,
+                             Some (Lambda.generic_value :: shape),
+                             Option.get mode),
                   slot :: ll, loc)
         | Record_inlined (Extension _, _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, _, Variant_extensible) ->
@@ -1961,78 +2040,9 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     in
     begin match opt_init_expr with
       None -> lam
-    | Some init_expr -> Llet(Strict, Lambda.layout_block, init_id,
+    | Some (init_expr, _) -> Llet(Strict, Lambda.layout_block, init_id,
                              transl_exp ~scopes Jkind.Sort.for_record init_expr, lam)
     end
-  end else begin
-    (* Take a shallow copy of the init record, then mutate the fields
-       of the copy *)
-    let copy_id = Ident.create_local "newrecord" in
-    let update_field cont (lbl, definition) =
-      (* CR layouts v5: allow more unboxed types here. *)
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      check_record_field_sort lbl.lbl_loc lbl_sort;
-      match definition with
-      | Kept _ -> cont
-      | Overridden (_lid, expr) ->
-          let upd =
-            match repres with
-              Record_boxed _
-            | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
-                let ptr = maybe_pointer expr in
-                Psetfield(lbl.lbl_pos, ptr, Assignment modify_heap)
-            | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
-                assert false
-            | Record_float ->
-                Psetfloatfield (lbl.lbl_pos, Assignment modify_heap)
-            | Record_ufloat ->
-                Psetufloatfield (lbl.lbl_pos, Assignment modify_heap)
-            | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
-                let pos = lbl.lbl_pos + 1 in
-                let ptr = maybe_pointer expr in
-                Psetfield(pos, ptr, Assignment modify_heap)
-            | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
-                (* CR layouts v5.9: support this *)
-                fatal_error
-                  "Mixed inlined records not supported for extensible variants"
-            | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
-            | Record_mixed shape -> begin
-                let { value_prefix_len; flat_suffix } : mixed_product_shape =
-                  shape
-                in
-                let write =
-                  if lbl.lbl_num < value_prefix_len then
-                    let ptr = maybe_pointer expr in
-                    Mwrite_value_prefix ptr
-                  else
-                    let flat_element =
-                      flat_suffix.(lbl.lbl_num - value_prefix_len)
-                    in
-                    Mwrite_flat_suffix flat_element
-                in
-                let shape : Lambda.mixed_block_shape =
-                  { value_prefix_len; flat_suffix }
-                in
-                Psetmixedfield
-                  (lbl.lbl_pos, write, shape, Assignment modify_heap)
-              end
-          in
-          Lsequence(Lprim(upd, [Lvar copy_id;
-                                transl_exp ~scopes lbl_sort expr],
-                          of_location ~scopes loc),
-                    cont)
-    in
-    begin match opt_init_expr with
-      None -> assert false
-    | Some init_expr ->
-        assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
-        Llet(Strict, Lambda.layout_block, copy_id,
-             Lprim(Pduprecord (repres, size),
-                   [transl_exp ~scopes Jkind.Sort.for_record init_expr],
-                   of_location ~scopes loc),
-             Array.fold_left update_field (Lvar copy_id) fields)
-    end
-  end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   let return_layout = layout_exp return_sort e in

@@ -30,7 +30,7 @@ type labelled_insn =
     insn : Linear.instruction
   }
 
-let labelled_insn_end = { label = -1; insn = Linear.end_instr }
+let labelled_insn_end = { label = Label.none; insn = Linear.end_instr }
 
 let rec defines_label (i : Linear.instruction) =
   match i.desc with

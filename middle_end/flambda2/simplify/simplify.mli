@@ -21,11 +21,11 @@
     [Inlining_decision] module first. *)
 
 type simplify_result = private
-  { cmx : Flambda_cmx_format.t option;
-    unit : Flambda_unit.t;
+  { free_names : Name_occurrences.t;
+    final_typing_env : Typing_env.t option;
     all_code : Exported_code.t;
-    exported_offsets : Exported_offsets.t;
-    reachable_names : Name_occurrences.t
+    slot_offsets : Slot_offsets.t;
+    unit : Flambda_unit.t
   }
 
 val run :

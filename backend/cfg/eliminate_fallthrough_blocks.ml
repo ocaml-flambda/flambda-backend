@@ -61,8 +61,9 @@ let rec disconnect_fallthrough_blocks cfg_with_layout =
         | Some target_label ->
           if !C.verbose
           then
-            Printf.printf "block at %d has single successor %d\n" label
-              target_label;
+            Printf.printf "block at %s has single successor %s\n"
+              (Label.to_string label)
+              (Label.to_string target_label);
           Disconnect_block.disconnect cfg_with_layout label;
           label :: found)
       cfg.blocks []

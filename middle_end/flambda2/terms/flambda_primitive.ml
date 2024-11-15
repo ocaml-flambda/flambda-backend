@@ -1031,6 +1031,7 @@ type unary_primitive =
         destination_mutability : Mutability.t
       }
   | Is_int of { variant_only : bool }
+  | Is_null
   | Get_tag
   | Array_length of Array_kind_for_length.t
   | Bigarray_length of { dimension : int }
@@ -1075,7 +1076,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   | Block_load _ -> false
   | Duplicate_array _ -> false
   | Duplicate_block { kind = _ } -> false
-  | Is_int _ | Get_tag | Get_header -> true
+  | Is_int _ | Is_null | Get_tag | Get_header -> true
   | Array_length _ -> true
   | Bigarray_length _ -> false
   | String_length _ -> true
@@ -1131,6 +1132,7 @@ let compare_unary_primitive p1 p2 =
     | Obj_dup -> 25
     | Get_header -> 26
     | Atomic_load _ -> 27
+    | Is_null -> 28
   in
   match p1, p2 with
   | ( Block_load { kind = kind1; mut = mut1; field = field1 },
@@ -1216,13 +1218,13 @@ let compare_unary_primitive p1 p2 =
   | End_try_region { ghost = ghost1 }, End_try_region { ghost = ghost2 } ->
     Bool.compare ghost1 ghost2
   | ( ( Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _
-      | Get_tag | String_length _ | Int_as_pointer _ | Opaque_identity _
-      | Int_arith _ | Num_conv _ | Boolean_not | Reinterpret_64_bit_word _
-      | Float_arith _ | Array_length _ | Bigarray_length _ | Unbox_number _
-      | Box_number _ | Untag_immediate | Tag_immediate | Project_function_slot _
-      | Project_value_slot _ | Is_boxed_float | Is_flat_float_array
-      | End_region _ | End_try_region _ | Obj_dup | Get_header | Atomic_load _
-        ),
+      | Is_null | Get_tag | String_length _ | Int_as_pointer _
+      | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
+      | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
+      | Bigarray_length _ | Unbox_number _ | Box_number _ | Untag_immediate
+      | Tag_immediate | Project_function_slot _ | Project_value_slot _
+      | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
+      | Obj_dup | Get_header | Atomic_load _ ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -1243,6 +1245,7 @@ let print_unary_primitive ppf p =
       Mutability.print destination_mutability
   | Is_int { variant_only } ->
     if variant_only then fprintf ppf "Is_int" else fprintf ppf "Is_int_generic"
+  | Is_null -> fprintf ppf "Is_null"
   | Get_tag -> fprintf ppf "Get_tag"
   | String_length _ -> fprintf ppf "String_length"
   | Int_as_pointer alloc_mode ->
@@ -1294,6 +1297,7 @@ let arg_kind_of_unary_primitive p =
   | Block_load _ -> block_kind
   | Duplicate_array _ | Duplicate_block _ -> K.value
   | Is_int _ -> K.value
+  | Is_null -> K.value
   | Get_tag -> K.value
   | String_length _ -> K.value
   | Int_as_pointer _ -> K.value
@@ -1327,7 +1331,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Block_load { kind; _ } ->
     Singleton (Block_access_kind.element_kind_for_load kind)
   | Duplicate_array _ | Duplicate_block _ -> Singleton K.value
-  | Is_int _ | Get_tag -> Singleton K.naked_immediate
+  | Is_int _ | Is_null | Get_tag -> Singleton K.naked_immediate
   | String_length _ -> Singleton K.naked_immediate
   | Int_as_pointer _ ->
     (* This primitive is *only* to be used when the resulting pointer points at
@@ -1382,7 +1386,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
     (* We have to assume that the fields might be mutable. (This information
        isn't currently propagated from [Lambda].) *)
     Only_generative_effects Mutable, Has_coeffects, Strict
-  | Is_int _ -> No_effects, No_coeffects, Strict
+  | Is_int _ | Is_null -> No_effects, No_coeffects, Strict
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
     No_effects, No_coeffects, Strict
@@ -1452,8 +1456,8 @@ let unary_classify_for_printing p =
   match p with
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
-  | Is_int _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_64_bit_word _ | Float_arith _ ->
+  | Is_int _ | Is_null | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_64_bit_word _ | Float_arith _ ->
     Neither
   | Array_length _ | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
     Destructive
@@ -1479,9 +1483,9 @@ let free_names_unary_primitive p =
       (Name_occurrences.add_value_slot_in_projection Name_occurrences.empty
          value_slot Name_mode.normal)
       project_from Name_mode.normal
-  | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
-  | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
+  | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Is_null
+  | Get_tag | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Obj_dup | Get_header
@@ -1500,9 +1504,9 @@ let apply_renaming_unary_primitive p renaming =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
     in
     if alloc_mode == alloc_mode' then p else Int_as_pointer alloc_mode'
-  | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
-  | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
+  | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Is_null
+  | Get_tag | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
@@ -1513,9 +1517,9 @@ let ids_for_export_unary_primitive p =
   match p with
   | Box_number (_, alloc_mode) | Int_as_pointer alloc_mode ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
-  | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
-  | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
+  | Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _ | Is_null
+  | Get_tag | String_length _ | Opaque_identity _ | Int_arith _ | Num_conv _
+  | Boolean_not | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
@@ -2257,6 +2261,25 @@ let args t =
   | Binary (_, x0, x1) -> [x0; x1]
   | Ternary (_, x0, x1, x2) -> [x0; x1; x2]
   | Variadic (_, xs) -> xs
+
+let map_args f t =
+  match t with
+  | Nullary _ -> t
+  | Unary (p, x0) ->
+    let x0' = f x0 in
+    if x0 == x0' then t else Unary (p, x0')
+  | Binary (p, x0, x1) ->
+    let x0' = f x0 in
+    let x1' = f x1 in
+    if x0 == x0' && x1 == x1' then t else Binary (p, x0', x1')
+  | Ternary (p, x0, x1, x2) ->
+    let x0' = f x0 in
+    let x1' = f x1 in
+    let x2' = f x2 in
+    if x0 == x0' && x1 == x1' && x2 == x2' then t else Ternary (p, x0', x1', x2')
+  | Variadic (p, xs) ->
+    let xs' = Misc.Stdlib.List.map_sharing f xs in
+    if xs == xs' then t else Variadic (p, xs')
 
 let result_kind (t : t) =
   match t with

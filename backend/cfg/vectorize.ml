@@ -342,7 +342,7 @@ end = struct
           ~some:(sprintf "instruction %d" << Instruction.Id.to_int)
           reg_node.direct_dependency
       in
-      fprintf ppf "argument %d, %a depends on %s\n" arg_i Printmach.reg
+      fprintf ppf "argument %d, %a depends on %s\n" arg_i Printreg.reg
         reg_node.reg dependency
     in
     let print_node (instruction : Instruction.t) =
@@ -482,7 +482,7 @@ end = struct
         \ unsure_allocs: %a"
         (Instruction.id instruction |> Instruction.Id.to_int)
         Instruction.print instruction print_memory_chunk t
-        (Arch.print_addressing Printmach.reg t.addressing_mode)
+        (Arch.print_addressing Printreg.reg t.addressing_mode)
         (memory_arguments t) print_set t.dependent_allocs print_set
         t.unsure_allocs
 
@@ -861,8 +861,8 @@ let cfg ppf_dump cl =
   DLL.iter layout ~f:(fun label ->
       let block = Cfg.get_block_exn cfg label in
       let instruction_count = DLL.length block.body in
-      Format.fprintf ppf_dump "\nBlock %d (%d basic instructions):\n" label
-        instruction_count;
+      Format.fprintf ppf_dump "\nBlock %a (%d basic instructions):\n"
+        Label.format label instruction_count;
       if instruction_count > 1000
       then
         Format.fprintf ppf_dump

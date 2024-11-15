@@ -42,3 +42,14 @@ let transl_modify_mode locality =
   match Locality.zap_to_floor locality with
   | Global -> modify_heap
   | Local -> modify_maybe_stack
+
+let transl_unique_barrier barrier =
+  match Typedtree.Unique_barrier.resolve barrier with
+  | Uniqueness.Const.Aliased -> May_be_pushed_down
+  | Uniqueness.Const.Unique ->
+    (* CR uniqueness: this is a temporary measure to ensure that we can roll
+       the compiler without breaking existing code. Once uniqueness is stable,
+       we can simplify this to always return [Must_stay_here]. *)
+    if Language_extension.is_enabled Unique
+    then Must_stay_here
+    else assert false

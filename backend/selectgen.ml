@@ -94,6 +94,7 @@ class virtual selector_generic =
     method select_operation (op : Cmm.operation) (args : Cmm.expression list)
         _dbg : Mach.operation * Cmm.expression list =
       let open Mach in
+      let open Simple_operation in
       match op, args with
       | Capply _, Cconst_symbol (func, _dbg) :: rem -> Icall_imm { func }, rem
       | Capply _, _ -> Icall_ind, args
@@ -175,7 +176,7 @@ class virtual selector_generic =
       | Cendregion, _ -> Iendregion, args
       | _ -> Misc.fatal_error "Selection.select_oper"
 
-    method private select_arith_comm (op : Mach.integer_operation)
+    method private select_arith_comm (op : Simple_operation.integer_operation)
         (args : Cmm.expression list) : Mach.operation * Cmm.expression list =
       match args with
       | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
@@ -184,20 +185,23 @@ class virtual selector_generic =
         Iintop_imm (op, n), [arg]
       | _ -> Iintop op, args
 
-    method private select_arith (op : Mach.integer_operation)
+    method private select_arith (op : Simple_operation.integer_operation)
         (args : Cmm.expression list) : Mach.operation * Cmm.expression list =
       match args with
       | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
         Iintop_imm (op, n), [arg]
       | _ -> Iintop op, args
 
-    method private select_arith_comp (cmp : Mach.integer_comparison)
+    method private select_arith_comp (cmp : Simple_operation.integer_comparison)
         (args : Cmm.expression list) : Mach.operation * Cmm.expression list =
       match args with
-      | [arg; Cconst_int (n, _)] when self#is_immediate (Mach.Icomp cmp) n ->
+      | [arg; Cconst_int (n, _)]
+        when self#is_immediate (Simple_operation.Icomp cmp) n ->
         Iintop_imm (Icomp cmp, n), [arg]
       | [Cconst_int (n, _); arg]
-        when self#is_immediate (Mach.Icomp (Select_utils.swap_intcomp cmp)) n ->
+        when self#is_immediate
+               (Simple_operation.Icomp (Select_utils.swap_intcomp cmp))
+               n ->
         Iintop_imm (Icomp (Select_utils.swap_intcomp cmp), n), [arg]
       | _ -> Iintop (Icomp cmp), args
 

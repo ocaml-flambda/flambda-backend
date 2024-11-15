@@ -22,6 +22,9 @@ let mk_flambda2_debug f =
 let mk_no_flambda2_debug f =
   "-no-flambda2-debug", Arg.Unit f, " Disable debug output for the Flambda2 pass"
 
+let mk_no_mach_ir f =
+  "-no-mach-ir", Arg.Unit f, " Avoid using the Mach IR"
+
 let mk_ocamlcfg f =
   "-ocamlcfg", Arg.Unit f, " Use ocamlcfg"
 
@@ -318,6 +321,18 @@ let mk_flambda2_join_depth f =
     Flambda2.Default.join_depth
 ;;
 
+let mk_flambda2_reaper f =
+  "-flambda2-reaper", Arg.Unit f,
+  Printf.sprintf " Enable reaper pass%s (Flambda2 only)"
+    (format_default Flambda2.Default.enable_reaper)
+;;
+
+let mk_no_flambda2_reaper f =
+  "-no-flambda2-reaper", Arg.Unit f,
+  Printf.sprintf " Disable reaper pass%s (Flambda2 only)"
+    (format_not_default Flambda2.Default.enable_reaper)
+;;
+
 let mk_flambda2_expert_fallback_inlining_heuristic f =
   "-flambda2-expert-fallback-inlining-heuristic", Arg.Unit f,
   Printf.sprintf " Prevent inlining of functions\n\
@@ -598,6 +613,14 @@ let mk_dflow f =
   "-dflow", Arg.Unit f, " Dump debug info for the flow computation (Flambda 2 only)"
 ;;
 
+let mk_dsimplify f =
+  "-dsimplify", Arg.Unit f, " Print Flambda 2 terms after simplify (Flambda 2 only)"
+;;
+
+let mk_dreaper f =
+  "-dreaper", Arg.Unit f, " Dump debug info for the reaper pass (Flambda 2 only)"
+;;
+
 module Debugging = Dwarf_flags
 
 (* CR mshinwell: These help texts should show the default values. *)
@@ -735,6 +758,8 @@ module type Flambda_backend_options = sig
 
   val gc_timings : unit -> unit
 
+  val no_mach_ir : unit -> unit
+
   val flambda2_debug : unit -> unit
   val no_flambda2_debug : unit -> unit
   val flambda2_join_points : unit -> unit
@@ -750,6 +775,8 @@ module type Flambda_backend_options = sig
   val no_flambda2_backend_cse_at_toplevel : unit -> unit
   val flambda2_cse_depth : int -> unit
   val flambda2_join_depth : int -> unit
+  val flambda2_reaper : unit -> unit
+  val no_flambda2_reaper : unit -> unit
   val flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val no_flambda2_expert_fallback_inlining_heuristic : unit -> unit
   val flambda2_expert_inline_effects_in_cmm : unit -> unit
@@ -795,6 +822,8 @@ module type Flambda_backend_options = sig
   val dslot_offsets : unit -> unit
   val dfreshen : unit -> unit
   val dflow : unit -> unit
+  val dsimplify : unit -> unit
+  val dreaper : unit -> unit
   val use_cached_generic_functions : unit -> unit
   val cached_generic_functions_path : string -> unit
 end
@@ -868,6 +897,8 @@ struct
 
     mk_gc_timings F.gc_timings;
 
+    mk_no_mach_ir F.no_mach_ir;
+
     mk_flambda2_debug F.flambda2_debug;
     mk_no_flambda2_debug F.no_flambda2_debug;
     mk_flambda2_join_points F.flambda2_join_points;
@@ -889,6 +920,8 @@ struct
       F.no_flambda2_backend_cse_at_toplevel;
     mk_flambda2_cse_depth F.flambda2_cse_depth;
     mk_flambda2_join_depth F.flambda2_join_depth;
+    mk_flambda2_reaper F.flambda2_reaper;
+    mk_no_flambda2_reaper F.no_flambda2_reaper;
     mk_flambda2_expert_fallback_inlining_heuristic
       F.flambda2_expert_fallback_inlining_heuristic;
     mk_no_flambda2_expert_fallback_inlining_heuristic
@@ -956,6 +989,8 @@ struct
     mk_dslot_offsets F.dslot_offsets;
     mk_dfreshen F.dfreshen;
     mk_dflow F.dflow;
+    mk_dsimplify F.dsimplify;
+    mk_dreaper F.dreaper;
     mk_use_cached_generic_functions F.use_cached_generic_functions;
     mk_cached_generic_functions_path F.cached_generic_functions_path;
   ]
@@ -1067,6 +1102,12 @@ module Flambda_backend_options_impl = struct
 
   let gc_timings = set' Flambda_backend_flags.gc_timings
 
+  let no_mach_ir () =
+    Flambda_backend_flags.cfg_selection := true;
+    Flambda_backend_flags.cfg_cse_optimize := true;
+    Flambda_backend_flags.cfg_zero_alloc_checker := true;
+    Flambda_backend_flags.regalloc := "cfg"
+
   let flambda2_debug = set' Flambda_backend_flags.Flambda2.debug
   let no_flambda2_debug = clear' Flambda_backend_flags.Flambda2.debug
   let flambda2_join_points = set Flambda2.join_points
@@ -1091,6 +1132,8 @@ module Flambda_backend_options_impl = struct
     clear Flambda2.backend_cse_at_toplevel
   let flambda2_cse_depth n = Flambda2.cse_depth := Flambda_backend_flags.Set n
   let flambda2_join_depth n = Flambda2.join_depth := Flambda_backend_flags.Set n
+  let flambda2_reaper = set Flambda2.enable_reaper
+  let no_flambda2_reaper = clear Flambda2.enable_reaper
   let flambda2_expert_fallback_inlining_heuristic =
     set Flambda2.Expert.fallback_inlining_heuristic
   let no_flambda2_expert_fallback_inlining_heuristic =
@@ -1206,6 +1249,8 @@ module Flambda_backend_options_impl = struct
   let dslot_offsets = set' Flambda2.Dump.slot_offsets
   let dfreshen = set' Flambda2.Dump.freshen
   let dflow = set' Flambda2.Dump.flow
+  let dsimplify = set' Flambda2.Dump.simplify
+  let dreaper = set' Flambda2.Dump.reaper
   let use_cached_generic_functions = set' Flambda_backend_flags.use_cached_generic_functions
   let cached_generic_functions_path file = Flambda_backend_flags.cached_generic_functions_path := file
 end
@@ -1303,6 +1348,7 @@ module Extra_params = struct
     match name with
     | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
     | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
+    | "no-mach-ir" -> Flambda_backend_options_impl.no_mach_ir (); true
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "cfg-equivalence-check" -> set' Flambda_backend_flags.cfg_equivalence_check

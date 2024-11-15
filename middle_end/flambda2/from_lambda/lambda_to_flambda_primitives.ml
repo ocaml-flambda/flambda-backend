@@ -1509,6 +1509,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         Bytes ~boxed bytes ~index_kind index new_value ]
   | Pisint { variant_only }, [[arg]] ->
     [tag_int (Unary (Is_int { variant_only }, arg))]
+  | Pisnull, [[arg]] -> [tag_int (Unary (Is_null, arg))]
   | Pisout, [[arg1]; [arg2]] ->
     [ tag_int
         (Binary
@@ -2075,7 +2076,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pabsfloat (_, _)
       | Pstringlength | Pbyteslength | Pbintofint _ | Pintofbint _ | Pnegbint _
       | Popaque _ | Pduprecord _ | Parraylength _ | Pduparray _ | Pfloatfield _
-      | Pcvtbint _ | Poffsetref _ | Pbswap16 | Pbbswap _ | Pisint _
+      | Pcvtbint _ | Poffsetref _ | Pbswap16 | Pbbswap _ | Pisint _ | Pisnull
       | Pint_as_pointer _ | Pbigarraydim _ | Pobj_dup | Pobj_magic _
       | Punbox_float _
       | Pbox_float (_, _)

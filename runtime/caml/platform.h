@@ -429,7 +429,7 @@ Caml_inline unsigned caml_plat_spin_step(unsigned spins,
 
 /* Memory management primitives (mmap) */
 
-uintnat caml_mem_round_up_pages(uintnat size);
+uintnat caml_mem_round_up_mapping_size(uintnat size);
 /* The size given to caml_mem_map and caml_mem_commit must be a multiple of
    caml_plat_pagesize. The size given to caml_mem_unmap and caml_mem_decommit
    must match the size given to caml_mem_map/caml_mem_commit for mem.
@@ -490,6 +490,7 @@ Caml_inline void caml_plat_unlock(caml_plat_mutex* m)
 }
 
 extern intnat caml_plat_pagesize;
+extern intnat caml_plat_hugepagesize; /* zero if unknown/unsupported */
 extern intnat caml_plat_mmap_alignment;
 
 #endif /* CAML_INTERNALS */

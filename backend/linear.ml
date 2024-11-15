@@ -37,7 +37,7 @@ and instruction_desc =
   | Lreturn
   | Llabel of { label : label; section_name : string option }
   | Lbranch of label
-  | Lcondbranch of Mach.test * label
+  | Lcondbranch of Simple_operation.test * label
   | Lcondbranch3 of label option * label option * label option
   | Lswitch of label array
   | Lentertrap
@@ -69,18 +69,7 @@ type fundecl =
 
 (* Invert a test *)
 
-let invert_integer_test = function
-    Isigned cmp -> Isigned(Cmm.negate_integer_comparison cmp)
-  | Iunsigned cmp -> Iunsigned(Cmm.negate_integer_comparison cmp)
 
-let invert_test = function
-    Itruetest -> Ifalsetest
-  | Ifalsetest -> Itruetest
-  | Iinttest(cmp) -> Iinttest(invert_integer_test cmp)
-  | Iinttest_imm(cmp, n) -> Iinttest_imm(invert_integer_test cmp, n)
-  | Ifloattest(w, cmp) -> Ifloattest(w, Cmm.negate_float_comparison cmp)
-  | Ieventest -> Ioddtest
-  | Ioddtest -> Ieventest
 
 (* The "end" instruction *)
 

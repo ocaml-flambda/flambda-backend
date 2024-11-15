@@ -69,11 +69,11 @@ let [@ocamlformat "disable"] print ppf
 
 let fold_on_defined_vars f t init =
   Binding_time.Map.fold
-    (fun _bt vars acc ->
+    (fun bt vars acc ->
       Variable.Set.fold
         (fun var acc ->
           let kind = Variable.Map.find var t.defined_vars in
-          f var kind acc)
+          f ~binding_time:bt var kind acc)
         vars acc)
     t.binding_times init
 
@@ -113,7 +113,8 @@ let add_symbol_projection t var proj =
   { t with symbol_projections }
 
 let add_definition t var kind binding_time =
-  if Flambda_features.check_invariants () && Variable.Map.mem var t.defined_vars
+  if Flambda_features.check_light_invariants ()
+     && Variable.Map.mem var t.defined_vars
   then
     Misc.fatal_errorf "Environment extension already binds variable %a:@ %a"
       Variable.print var print t;

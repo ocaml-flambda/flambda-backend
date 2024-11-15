@@ -17,11 +17,11 @@
 open! Simplify_import
 
 type simplify_result =
-  { cmx : Flambda_cmx_format.t option;
-    unit : Flambda_unit.t;
+  { free_names : Name_occurrences.t;
+    final_typing_env : Typing_env.t option;
     all_code : Exported_code.t;
-    exported_offsets : Exported_offsets.t;
-    reachable_names : Name_occurrences.t
+    slot_offsets : Slot_offsets.t;
+    unit : Flambda_unit.t
   }
 
 let run ~cmx_loader ~round ~code_slot_offsets unit =
@@ -74,39 +74,19 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
       (Exported_code.mark_as_imported (get_imported_code ()))
   in
   let name_occurrences = UA.name_occurrences uacc in
-  let function_slots_in_normal_projections =
-    NO.function_slots_in_normal_projections name_occurrences
-  in
-  let value_slots_in_normal_projections =
-    NO.value_slots_in_normal_projections name_occurrences
-  in
-  let all_function_slots = NO.all_function_slots name_occurrences in
-  let all_value_slots = NO.all_value_slots name_occurrences in
-  let ({ used_value_slots; exported_offsets } : Slot_offsets.result) =
+  let slot_offsets =
     match UA.slot_offsets uacc with
     | Unknown ->
       Misc.fatal_error "Slot offsets must be computed and cannot be unknown"
-    | Known slot_offsets ->
-      let used_slots : Slot_offsets.used_slots =
-        { function_slots_in_normal_projections;
-          all_function_slots;
-          value_slots_in_normal_projections;
-          all_value_slots
-        }
-      in
-      let get_code_metadata code_id =
-        Exported_code.find_exn all_code code_id
-        |> Code_or_metadata.code_metadata
-      in
-      Slot_offsets.finalize_offsets slot_offsets ~get_code_metadata ~used_slots
-  in
-  let reachable_names, cmx =
-    Flambda_cmx.prepare_cmx_file_contents ~final_typing_env ~module_symbol
-      ~used_value_slots ~exported_offsets all_code
+    | Known slot_offsets -> slot_offsets
   in
   let unit =
     FU.create ~return_continuation ~exn_continuation ~toplevel_my_region
-      ~toplevel_my_ghost_region ~module_symbol ~body
-      ~used_value_slots:(Known used_value_slots)
+      ~toplevel_my_ghost_region ~module_symbol ~body ~used_value_slots:Unknown
   in
-  { cmx; unit; all_code; exported_offsets; reachable_names }
+  { unit;
+    free_names = name_occurrences;
+    final_typing_env;
+    all_code;
+    slot_offsets
+  }

@@ -15,7 +15,7 @@ let texp_object () =
   val bar = unique_ x
   end;
 [%%expect{|
-val unique_id : unique_ 'a -> unit = <fun>
+val unique_id : 'a @ unique -> unit = <fun>
 Line 8, characters 20-21:
 8 |   val bar = unique_ x
                         ^
@@ -150,4 +150,16 @@ Line 7, characters 12-17:
 7 |   unique_id M.foo
                 ^^^^^
 Error: This value is "aliased" but expected to be "unique".
+|}]
+
+
+let foo (local_ x : string ref) =
+  let module M = struct
+    class c =
+      let y = !x in
+      fun () ->
+      object method m = y end
+  end in new M.c
+[%%expect{|
+val foo : local_ string ref -> (unit -> < m : string >) = <fun>
 |}]

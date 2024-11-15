@@ -284,7 +284,7 @@ let cfg_profile to_cfg =
       let (_ : Cfg.basic_block) =
         Profile.record_with_counters ~accumulate:true
           ~counter_f:cfg_block_counters
-          (Format.sprintf "block=%d" label)
+          (Format.sprintf "block=%s" (Label.to_string label))
           Fun.id block
       in
       ()
@@ -357,6 +357,14 @@ let is_upstream = function Upstream -> true | GI | IRC | LS -> false
 type selection_output =
   | Mach_fundecl of Mach.fundecl
   | Cfg_with_layout of Cfg_with_layout.t
+
+let available_regs ~stack_slots ~f x =
+  (* Skip DWARF variable range generation for complicated functions to avoid
+     high compilation speed penalties *)
+  let total_num_stack_slots = Array.fold_left ( + ) 0 (stack_slots x) in
+  if total_num_stack_slots > !Dwarf_flags.dwarf_max_function_complexity
+  then x
+  else f x
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   Proc.init ();
@@ -493,6 +501,11 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                          Regalloc_ls.run
                      | Upstream -> assert false)
                   ++ Cfg_with_infos.cfg_with_layout
+                  ++ Profile.record ~accumulate:true "cfg_available_regs"
+                       (available_regs
+                          ~stack_slots:(fun x ->
+                            (Cfg_with_layout.cfg x).Cfg.fun_num_stack_slots)
+                          ~f:Cfg_available_regs.run)
                   ++ cfg_with_layout_profile ~accumulate:true
                        "cfg_validate_description"
                        (Regalloc_validate.run cfg_description)
@@ -544,17 +557,9 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                   ++ Profile.record ~accumulate:true "regalloc"
                        (regalloc ~ppf_dump 1)
                   ++ Profile.record ~accumulate:true "available_regs"
-                       (fun (fundecl : Mach.fundecl) ->
-                         (* Skip DWARF variable range generation for complicated
-                            functions to avoid high compilation speed
-                            penalties *)
-                         let total_num_stack_slots =
-                           Array.fold_left ( + ) 0 fundecl.fun_num_stack_slots
-                         in
-                         if total_num_stack_slots
-                            > !Dwarf_flags.dwarf_max_function_complexity
-                         then fundecl
-                         else Available_regs.fundecl fundecl)
+                       (available_regs
+                          ~stack_slots:(fun x -> x.Mach.fun_num_stack_slots)
+                          ~f:Available_regs.fundecl)
                   ++ pass_dump_if ppf_dump Flambda_backend_flags.davail
                        "Register availability analysis"
                   ++ Profile.record ~accumulate:true "cfgize"

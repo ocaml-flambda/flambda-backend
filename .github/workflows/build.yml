@@ -55,7 +55,7 @@ jobs:
             ocamlparam: '_,O3=1'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_polling
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5 --enable-poll-insertion
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5 --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
@@ -68,7 +68,7 @@ jobs:
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
 
           - name: flambda2_frame_pointers_oclassic_polling
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,Oclassic=1'
@@ -84,6 +84,13 @@ jobs:
 
           - name: irc
             config: --enable-middle-end=flambda2
+            os: ubuntu-latest
+            build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
+            ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
+            check_arch: true
+
+          - name: irc_polling
+            config: --enable-middle-end=flambda2 --enable-poll-insertion
             os: ubuntu-latest
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'

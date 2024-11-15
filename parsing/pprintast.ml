@@ -116,7 +116,7 @@ let protect_longident ppf print_longident longprefix txt =
       fprintf ppf "%a.(%s)" print_longident longprefix txt
 
 let is_curry_attr attr =
-  attr.attr_name.txt = Jane_syntax.Arrow_curry.curry_attr_name
+  attr.attr_name.txt = Builtin_attributes.curry_attr_name
 
 let filter_curry_attrs attrs =
   List.filter (fun attr -> not (is_curry_attr attr)) attrs
@@ -379,19 +379,25 @@ let modality f m =
 let modalities f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") modality f m
 
-let optional_atat_modalities ?(pre = fun _ () -> ()) ?(post = fun _ () -> ()) f m =
+let optional_modalities ?(pre = fun _ () -> ()) ?(post = fun _ () -> ()) f m =
   match m with
   | [] -> ()
   | m ->
     pre f ();
-    pp f "%@%@ %a" modalities m;
+    pp f "%a" modalities m;
     post f ()
 
 let optional_space_atat_modalities f m =
-  optional_atat_modalities ~pre:pp_print_space f m
+  let pre f () = Format.fprintf f "@ %@%@@ " in
+  optional_modalities ~pre f m
+
+let optional_space_at_modalities f m =
+  let pre f () = Format.fprintf f "@ %@@ " in
+  optional_modalities ~pre f m
 
 let optional_atat_modalities_newline f m =
-  optional_atat_modalities ~post:pp_print_newline f m
+  let pre f () = Format.fprintf f "%@%@@ " in
+  optional_modalities ~pre ~post:pp_print_newline f m
 
 (* helpers for printing both legacy/new mode syntax *)
 let split_out_legacy_modes =
@@ -627,9 +633,6 @@ and return_type ctxt f (x, m) =
 (********************pattern********************)
 (* be cautious when use [pattern], [pattern1] is preferred *)
 and pattern ctxt f x =
-  match Jane_syntax.Pattern.of_ast x with
-  | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
-  | None ->
   if x.ppat_attributes <> [] then begin
     pp f "((%a)%a)" (pattern ctxt) {x with ppat_attributes=[]}
       (attributes ctxt) x.ppat_attributes
@@ -658,8 +661,8 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
            ({ txt = Lident("::") ;_},
             Some ([], inner_pat));
        ppat_attributes = []} ->
-      begin match Jane_syntax.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
-      | None, Ppat_tuple([None, pat1; None, pat2], Closed) ->
+      begin match inner_pat.ppat_desc with
+      | Ppat_tuple([None, pat1; None, pat2], Closed) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
       | _ -> pattern1 ctxt f p
       end
@@ -702,16 +705,21 @@ and labeled_pattern1 ctxt (f:Format.formatter) (label, x) : unit =
 
 and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
   if x.ppat_attributes <> [] then pattern ctxt f x
-  else match Jane_syntax.Pattern.of_ast x with
-    | Some (jpat, attrs) -> pattern_jane_syntax ctxt attrs f jpat
-    | None ->
-    match x.ppat_desc with
+  else match x.ppat_desc with
     | Ppat_construct (({txt=Lident ("()"|"[]"|"true"|"false" as x);_}), None) ->
         pp f  "%s" x
     | Ppat_any -> pp f "_";
     | Ppat_var ({txt = txt;_}) -> ident_of_name f txt
-    | Ppat_array l ->
-        pp f "@[<2>[|%a|]@]"  (list (pattern1 ctxt) ~sep:";") l
+    | Ppat_array (mut, l) ->
+        let punct =
+          match mut with
+          | Mutable -> '|'
+          | Immutable -> ':'
+        in
+        pp f "@[<2>[%c%a%c]@]"
+          punct
+          (list (pattern1 ctxt) ~sep:";") l
+          punct
     | Ppat_unpack { txt = None } ->
         pp f "(module@ _)@ "
     | Ppat_unpack { txt = Some s } ->
@@ -770,11 +778,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
     | Ppat_extension e -> extension ctxt f e
     | Ppat_open (lid, p) ->
         let with_paren =
-        match Jane_syntax.Pattern.of_ast p with
-        | Some (jpat, _attrs) -> begin match jpat with
-        | Jpat_immutable_array (Iapat_immutable_array _) -> false
-        end
-        | None -> match p.ppat_desc with
+        match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
         | Ppat_construct (({txt=Lident ("()"|"[]"|"true"|"false");_}), None) ->
             false
@@ -782,15 +786,6 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         pp f "@[<2>%a.%a @]" longident_loc lid
           (paren with_paren @@ pattern1 ctxt) p
     | _ -> paren true (pattern ctxt) f x
-
-and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
-  if attrs <> [] then
-    pp f "((%a)%a)" (pattern_jane_syntax ctxt []) pat
-      (attributes ctxt) attrs
-  else
-    match pat with
-    | Jpat_immutable_array (Iapat_immutable_array l) ->
-        pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
 
 and labeled_tuple_pattern ctxt f ~unboxed l closed =
   let closed_flag ppf = function
@@ -884,7 +879,7 @@ and sugar_expr ctxt f e =
           | Ldot (Lident "Bigarray", "Array3"), i1 :: i2 :: i3 :: rest ->
             print ".{" "," "}" (simple_expr ctxt) [i1; i2; i3] rest
           | Ldot (Lident "Bigarray", "Genarray"),
-            {pexp_desc = Pexp_array indexes; pexp_attributes = []} :: rest ->
+            {pexp_desc = Pexp_array (_, indexes); pexp_attributes = []} :: rest ->
               print ".{" "," "}" (simple_expr ctxt) indexes rest
           | _ -> false
         end
@@ -897,7 +892,7 @@ and sugar_expr ctxt f e =
           let multi_indices = String.contains s ';' in
           let i =
               match i.pexp_desc with
-                | Pexp_array l when multi_indices -> l
+                | Pexp_array (_, l) when multi_indices -> l
                 | _ -> [ i ] in
           let assign = last_is '-' s in
           let kind =
@@ -921,9 +916,6 @@ and sugar_expr ctxt f e =
   | _ -> false
 
 and expression ctxt f x =
-  match Jane_syntax.Expression.of_ast x with
-  | Some (jexpr, attrs) -> jane_syntax_expr ctxt attrs f jexpr
-  | None ->
   if x.pexp_attributes <> [] then
     pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
       (attributes ctxt) x.pexp_attributes
@@ -1171,9 +1163,16 @@ and simple_expr ctxt f x =
         pp f "@[<hv0>@[<hv2>{@;%a%a@]@;}@]"(* "@[<hov2>{%a%a}@]" *)
           (option ~last:" with@;" (simple_expr ctxt)) eo
           (list longident_x_expression ~sep:";@;") l
-    | Pexp_array (l) ->
-        pp f "@[<0>@[<2>[|%a|]@]@]"
+    | Pexp_array (mut, l) ->
+        let punct = match mut with
+          | Immutable -> ':'
+          | Mutable -> '|'
+        in
+        pp f "@[<0>@[<2>[%c%a%c]@]@]"
+          punct
           (list (simple_expr (under_semi ctxt)) ~sep:";") l
+          punct
+    | Pexp_comprehension comp -> comprehension_expr ctxt f comp
     | Pexp_while (e1, e2) ->
         let fmt : (_,_,_) format = "@[<2>while@;%a@;do@;%a@;done@]" in
         pp f fmt (expression ctxt) e1 (expression ctxt) e2
@@ -1426,44 +1425,35 @@ and kind_abbrev ctxt f name jkind =
     (jkind_annotation ctxt) jkind
 
 and module_type ctxt f x =
-    match Jane_syntax.Module_type.of_ast x with
-    | Some (jmty, attrs) -> module_type_jane_syntax ctxt attrs f jmty
-    | None ->
   if x.pmty_attributes <> [] then begin
     pp f "((%a)%a)" (module_type ctxt) {x with pmty_attributes=[]}
       (attributes ctxt) x.pmty_attributes
   end else
     match x.pmty_desc with
-    | Pmty_functor (Unit, mt2) ->
-        pp f "@[<hov2>() ->@ %a@]" (module_type ctxt) mt2
-    | Pmty_functor (Named (s, mt1), mt2) ->
+    | Pmty_functor (Unit, mt2, mm2) ->
+        pp f "@[<hov2>() ->@ %a%a@]" (module_type ctxt) mt2 optional_at_modes mm2
+    | Pmty_functor (Named (s, mt1, mm1), mt2, mm2) ->
         begin match s.txt with
         | None ->
-            pp f "@[<hov2>%a@ ->@ %a@]"
-              (module_type1 ctxt) mt1 (module_type ctxt) mt2
+            pp f "@[<hov2>%a%a@ ->@ %a%a@]"
+              (module_type1 ctxt) mt1 optional_at_modes mm1
+              (module_type ctxt) mt2 optional_at_modes mm2
         | Some name ->
-            pp f "@[<hov2>functor@ (%s@ :@ %a)@ ->@ %a@]" name
-              (module_type ctxt) mt1 (module_type ctxt) mt2
+            pp f "@[<hov2>functor@ (%s@ :@ %a%a)@ ->@ %a%a@]" name
+              (module_type ctxt) mt1 optional_atat_modes mm1
+              (module_type ctxt) mt2 optional_at_modes mm2
         end
     | Pmty_with (mt, []) -> module_type ctxt f mt
     | Pmty_with (mt, l) ->
         pp f "@[<hov2>%a@ with@ %a@]"
           (module_type1 ctxt) mt
           (list (with_constraint ctxt) ~sep:"@ and@ ") l
-    | _ -> module_type1 ctxt f x
-
-and module_type_jane_syntax ctxt attrs f (mty : Jane_syntax.Module_type.t) =
-  if attrs <> [] then
-    pp f "((%a)%a)"
-      (module_type_jane_syntax ctxt []) mty
-      (attributes ctxt) attrs
-  else
-    match mty with
-    | Jmty_strengthen { mty; mod_id } ->
+    | Pmty_strengthen (mty, mod_id) ->
         pp f "@[<hov2>%a@ with@ %a@]"
           (module_type1 ctxt) mty
           longident_loc mod_id
 
+    | _ -> module_type1 ctxt f x
 and with_constraint ctxt f = function
   | Pwith_type (li, ({ptype_params= ls ;_} as td)) ->
       pp f "type@ %a %a =@ %a"
@@ -1485,9 +1475,6 @@ and with_constraint ctxt f = function
 
 
 and module_type1 ctxt f x =
-  match Jane_syntax.Module_type.of_ast x with
-  | Some (jmty, attrs) -> module_type_jane_syntax1 ctxt attrs f jmty
-  | None ->
   if x.pmty_attributes <> [] then module_type ctxt f x
   else match x.pmty_desc with
     | Pmty_ident li ->
@@ -1502,11 +1489,6 @@ and module_type1 ctxt f x =
         pp f "@[<hov2>module@ type@ of@ %a@]" (module_expr ctxt) me
     | Pmty_extension e -> extension ctxt f e
     | _ -> paren true (module_type ctxt) f x
-
-and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
-  function
-  | Jmty_strengthen _ as jmty ->
-      paren true (module_type_jane_syntax ctxt attrs) f jmty
 
 and signature ctxt f {psg_items; psg_modalities} =
   optional_atat_modalities_newline f psg_modalities;
@@ -1552,15 +1534,17 @@ and signature_item ctxt f x : unit =
               (list ~sep:"@," (class_description "and")) xs
       end
   | Psig_module ({pmd_type={pmty_desc=Pmty_alias alias;
-                            pmty_attributes=[]; _};_} as pmd) ->
-      pp f "@[<hov>module@ %s@ =@ %a@]%a"
+                            pmty_attributes=[]; _}; _} as pmd) ->
+      pp f "@[<hov>module@ %s@ =@ %a%a@]%a"
         (Option.value pmd.pmd_name.txt ~default:"_")
         longident_loc alias
+        optional_space_at_modalities pmd.pmd_modalities
         (item_attributes ctxt) pmd.pmd_attributes
   | Psig_module pmd ->
-      pp f "@[<hov>module@ %s@ :@ %a@]%a"
+      pp f "@[<hov>module@ %s@ :@ %a%a@]%a"
         (Option.value pmd.pmd_name.txt ~default:"_")
         (module_type ctxt) pmd.pmd_type
+        optional_space_atat_modalities pmd.pmd_modalities
         (item_attributes ctxt) pmd.pmd_attributes
   | Psig_modsubst pms ->
       pp f "@[<hov>module@ %s@ :=@ %a@]%a" pms.pms_name.txt
@@ -1597,14 +1581,16 @@ and signature_item ctxt f x : unit =
         | [] -> () ;
         | pmd :: tl ->
             if not first then
-              pp f "@ @[<hov2>and@ %s:@ %a@]%a"
+              pp f "@ @[<hov2>and@ %s:@ %a%a@]%a"
                 (Option.value pmd.pmd_name.txt ~default:"_")
                 (module_type1 ctxt) pmd.pmd_type
+                optional_space_atat_modalities pmd.pmd_modalities
                 (item_attributes ctxt) pmd.pmd_attributes
             else
-              pp f "@[<hov2>module@ rec@ %s:@ %a@]%a"
+              pp f "@[<hov2>module@ rec@ %s:@ %a%a@]%a"
                 (Option.value pmd.pmd_name.txt ~default:"_")
                 (module_type1 ctxt) pmd.pmd_type
+                optional_space_atat_modalities pmd.pmd_modalities
                 (item_attributes ctxt) pmd.pmd_attributes;
             string_x_module_type_list f ~first:false tl
       in
@@ -1620,24 +1606,30 @@ and module_expr ctxt f x =
   if x.pmod_attributes <> [] then
     pp f "((%a)%a)" (module_expr ctxt) {x with pmod_attributes=[]}
       (attributes ctxt) x.pmod_attributes
-  else match Jane_syntax.Module_expr.of_ast x with
-    | Some ext -> extension_module_expr ctxt f ext
-    | None -> match x.pmod_desc with
+  else match x.pmod_desc with
     | Pmod_structure (s) ->
         pp f "@[<hv2>struct@;@[<0>%a@]@;<1 -2>end@]"
           (list (structure_item ctxt) ~sep:"@\n") s;
-    | Pmod_constraint (me, mt) ->
-        pp f "@[<hov2>(%a@ :@ %a)@]"
-          (module_expr ctxt) me
-          (module_type ctxt) mt
+    | Pmod_constraint (me, mt, mm) ->
+        begin match mt with
+        | None ->
+            pp f "@[<hov2>(%a%a)@]"
+              (module_expr ctxt) me
+              optional_at_modes mm
+        | Some mt ->
+            pp f "@[<hov2>(%a@ :@ %a%a)@]"
+              (module_expr ctxt) me
+              (module_type ctxt) mt
+              optional_atat_modes mm
+        end
     | Pmod_ident (li) ->
         pp f "%a" longident_loc li;
     | Pmod_functor (Unit, me) ->
         pp f "functor ()@;->@;%a" (module_expr ctxt) me
-    | Pmod_functor (Named (s, mt), me) ->
-        pp f "functor@ (%s@ :@ %a)@;->@;%a"
+    | Pmod_functor (Named (s, mt, mm), me) ->
+        pp f "functor@ (%s@ :@ %a%a)@;->@;%a"
           (Option.value s.txt ~default:"_")
-          (module_type ctxt) mt (module_expr ctxt) me
+          (module_type ctxt) mt optional_atat_modes mm (module_expr ctxt) me
     | Pmod_apply (me1, me2) ->
         pp f "(%a)(%a)" (module_expr ctxt) me1 (module_expr ctxt) me2
         (* Cf: #7200 *)
@@ -1646,6 +1638,8 @@ and module_expr ctxt f x =
     | Pmod_unpack e ->
         pp f "(val@ %a)" (expression ctxt) e
     | Pmod_extension e -> extension ctxt f e
+    | Pmod_instance i ->
+        pp f "(%a [@jane.non_erasable.instances])"(instance ctxt) i
 
 and structure ctxt f x = list ~sep:"@\n" (structure_item ctxt) f x
 
@@ -1827,9 +1821,10 @@ and structure_item ctxt f x =
         | {pmod_desc=Pmod_functor(arg_opt,me'); pmod_attributes = []} ->
             begin match arg_opt with
             | Unit -> pp f "()"
-            | Named (s, mt) ->
-              pp f "(%s:%a)" (Option.value s.txt ~default:"_")
+            | Named (s, mt, mm) ->
+              pp f "(%s:%a%a)" (Option.value s.txt ~default:"_")
                 (module_type ctxt) mt
+                optional_atat_modes mm
             end;
             module_helper me'
         | me -> me
@@ -1842,11 +1837,11 @@ and structure_item ctxt f x =
            | {pmod_desc=
                 Pmod_constraint
                   (me',
-                   ({pmty_desc=(Pmty_ident (_)
-                               | Pmty_signature (_));_} as mt));
+                   Some ({pmty_desc=(Pmty_ident (_)
+                               | Pmty_signature (_));_} as mt), mm);
               pmod_attributes = []} ->
-               pp f " :@;%a@;=@;%a@;"
-                 (module_type ctxt) mt (module_expr ctxt) me'
+               pp f " :@;%a%a@;=@;%a@;"
+                 (module_type ctxt) mt optional_atat_modes mm (module_expr ctxt) me'
            | _ -> pp f " =@ %a" (module_expr ctxt) me
         ) x.pmb_expr
         (item_attributes ctxt) x.pmb_attributes
@@ -1912,12 +1907,19 @@ and structure_item ctxt f x =
       include_ ctxt f ~contents:module_expr incl
   | Pstr_recmodule decls -> (* 3.07 *)
       let aux f = function
-        | ({pmb_expr={pmod_desc=Pmod_constraint (expr, typ)}} as pmb) ->
-            pp f "@[<hov2>@ and@ %s:%a@ =@ %a@]%a"
+        | ({pmb_expr={pmod_desc=Pmod_constraint (expr, Some typ, mm)}} as pmb) ->
+            pp f "@[<hov2>@ and@ %s:%a%a@ =@ %a@]%a"
               (Option.value pmb.pmb_name.txt ~default:"_")
               (module_type ctxt) typ
+              optional_atat_modes mm
               (module_expr ctxt) expr
               (item_attributes ctxt) pmb.pmb_attributes
+        | ({pmb_expr={pmod_desc=Pmod_constraint (expr, None, mm)}} as pmb) ->
+          pp f "@[<hov2>@ and@ %s%a@ =@ %a@]%a"
+            (Option.value pmb.pmb_name.txt ~default:"_")
+            optional_at_modes mm
+            (module_expr ctxt) expr
+            (item_attributes ctxt) pmb.pmb_attributes
         | pmb ->
             pp f "@[<hov2>@ and@ %s@ =@ %a@]%a"
               (Option.value pmb.pmb_name.txt ~default:"_")
@@ -1925,13 +1927,21 @@ and structure_item ctxt f x =
               (item_attributes ctxt) pmb.pmb_attributes
       in
       begin match decls with
-      | ({pmb_expr={pmod_desc=Pmod_constraint (expr, typ)}} as pmb) :: l2 ->
-          pp f "@[<hv>@[<hov2>module@ rec@ %s:%a@ =@ %a@]%a@ %a@]"
+      | ({pmb_expr={pmod_desc=Pmod_constraint (expr, Some typ, mm)}} as pmb) :: l2 ->
+          pp f "@[<hv>@[<hov2>module@ rec@ %s:%a%a@ =@ %a@]%a@ %a@]"
             (Option.value pmb.pmb_name.txt ~default:"_")
             (module_type ctxt) typ
+            optional_atat_modes mm
             (module_expr ctxt) expr
             (item_attributes ctxt) pmb.pmb_attributes
             (fun f l2 -> List.iter (aux f) l2) l2
+      | ({pmb_expr={pmod_desc=Pmod_constraint (expr, None, mm)}} as pmb) :: l2 ->
+        pp f "@[<hv>@[<hov2>module@ rec@ %s%a@ =@ %a@]%a@ %a@]"
+          (Option.value pmb.pmb_name.txt ~default:"_")
+          optional_at_modes mm
+          (module_expr ctxt) expr
+          (item_attributes ctxt) pmb.pmb_attributes
+          (fun f l2 -> List.iter (aux f) l2) l2
       | pmb :: l2 ->
           pp f "@[<hv>@[<hov2>module@ rec@ %s@ =@ %a@]%a@ %a@]"
             (Option.value pmb.pmb_name.txt ~default:"_")
@@ -2154,19 +2164,11 @@ and directive_argument f x =
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 
-and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) =
-  if attrs <> [] then
-    pp f "((%a)@,%a)" (jane_syntax_expr ctxt []) jexp
-      (attributes ctxt) attrs
-  else match jexp with
-  | Jexp_comprehension x -> comprehension_expr ctxt f x
-  | Jexp_immutable_array x -> immutable_array_expr ctxt f x
-
-and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
+and comprehension_expr ctxt f cexp =
   let punct, comp = match cexp with
-    | Cexp_list_comprehension  comp ->
+    | Pcomp_list_comprehension  comp ->
         "", comp
-    | Cexp_array_comprehension (amut, comp) ->
+    | Pcomp_array_comprehension (amut, comp) ->
         let punct = match amut with
           | Mutable  -> "|"
           | Immutable -> ":"
@@ -2176,42 +2178,38 @@ and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   comprehension ctxt f ~open_:("[" ^ punct) ~close:(punct ^ "]") comp
 
 and comprehension ctxt f ~open_ ~close cexp =
-  let Jane_syntax.Comprehensions.{ body; clauses } = cexp in
+  let { pcomp_body = body; pcomp_clauses = clauses } = cexp in
   pp f "@[<hv0>@[<hv2>%s%a@ @[<hv2>%a@]%s@]@]"
     open_
     (expression ctxt) body
     (list ~sep:"@ " (comprehension_clause ctxt)) clauses
     close
 
-and comprehension_clause ctxt f (x : Jane_syntax.Comprehensions.clause) =
+and comprehension_clause ctxt f x =
   match x with
-  | For bindings ->
+  | Pcomp_for bindings ->
       pp f "@[for %a@]" (list ~sep:"@]@ @[and " (comprehension_binding ctxt)) bindings
-  | When cond ->
+  | Pcomp_when cond ->
       pp f "@[when %a@]" (expression ctxt) cond
 
 and comprehension_binding ctxt f x =
-  let Jane_syntax.Comprehensions.{ pattern = pat; iterator; attributes = attrs } = x in
+  let { pcomp_cb_pattern = pat;
+        pcomp_cb_iterator = iterator;
+        pcomp_cb_attributes = attrs } = x in
   pp f "%a%a %a"
     (attributes ctxt) attrs
     (pattern ctxt) pat
     (comprehension_iterator ctxt) iterator
 
-and comprehension_iterator ctxt f (x : Jane_syntax.Comprehensions.iterator) =
+and comprehension_iterator ctxt f x =
   match x with
-  | Range { start; stop; direction } ->
+  | Pcomp_range { start; stop; direction } ->
       pp f "=@ %a %a%a"
         (expression ctxt) start
         direction_flag direction
         (expression ctxt) stop
-  | In seq ->
+  | Pcomp_in seq ->
       pp f "in %a" (expression ctxt) seq
-
-and immutable_array_expr ctxt f (x : Jane_syntax.Immutable_arrays.expression) =
-  match x with
-  | Iaexp_immutable_array elts ->
-      pp f "@[<0>@[<2>[:%a:]@]@]"
-         (list (simple_expr (under_semi ctxt)) ~sep:";") elts
 
 and function_param ctxt f { pparam_desc; pparam_loc = _ } =
   match pparam_desc with
@@ -2261,18 +2259,10 @@ and labeled_tuple_expr ctxt f ~unboxed x =
   pp f "@[<hov2>%s(%a)@]" (if unboxed then "#" else "")
     (list (tuple_component ctxt) ~sep:",@;") x
 
-and extension_module_expr ctxt f (x : Jane_syntax.Module_expr.t) =
+and instance ctxt f x =
   match x with
-  | Emod_instance i -> instance_module_expr ctxt f i
-
-and instance_module_expr ctxt f (x : Jane_syntax.Instances.module_expr) =
-  match x with
-  | Imod_instance i -> instance ctxt f i
-
-and instance ctxt f (x : Jane_syntax.Instances.instance) =
-  match x with
-  | { head; args = [] } -> pp f "%s" head
-  | { head; args } ->
+  | { pmod_instance_head = head; pmod_instance_args = [] } -> pp f "%s" head
+  | { pmod_instance_head = head; pmod_instance_args = args } ->
     pp f "@[<2>%s %a@]" head (list (instance_arg ctxt)) args
 
 and instance_arg ctxt f (param, value) =

@@ -21,6 +21,7 @@ val set_paths : unit -> unit
 
 (* The interactive toplevel loop *)
 
+val reset_location : bool ref
 val loop : formatter -> unit
 
 (* Read and execute a script from the given file *)

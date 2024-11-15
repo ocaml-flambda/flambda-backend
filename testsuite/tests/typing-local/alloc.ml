@@ -443,7 +443,7 @@ let optionalarg ((f : ?foo:local_ int -> unit -> unit), n) =
 let[@inline never] optarg ?(n = 0) () = n
 
 let[@inline never] optionaleta () =
-  let[@inline never] use_clos (f : unit -> int) = () in
+  let[@opaque] use_clos (f : unit -> int) = () in
   use_clos (Sys.opaque_identity optarg);
   use_clos (Sys.opaque_identity optarg);
   ()
@@ -455,6 +455,20 @@ let[@inline never] huge () =
   let pos = Int.shift_left 4 30 in
   bytes_set b pos 'h';
   assert (bytes_get b pos = 'h')
+
+class cla = object
+    val x = 42
+end
+
+let obj () =
+  ignore_local (new cla);
+  ()
+
+let obj_direct () =
+  ignore_local (object
+    val x = 42
+  end);
+  ()
 
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
@@ -509,7 +523,9 @@ let () =
   run "verylong" makeverylong 42;
   run "manylong" makemanylong 100;
   run "optionalarg" optionalarg (fun_with_optional_arg, 10);
-  run "optionaleta" optionaleta ()
+  run "optionaleta" optionaleta ();
+  run "object" obj ();
+  run "object_direct" obj_direct ()
 
   (* The following test commented out as it require more memory than the CI has
      *)

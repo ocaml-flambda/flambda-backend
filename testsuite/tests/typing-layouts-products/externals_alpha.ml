@@ -11,7 +11,7 @@
    behavior. That PR should replace this test.
 
    For now, we just check that typechecking allows such external declarations on
-   alpha but not on beta (see also [externals_beta.ml]).  The backend PR will
+   alpha but not on beta/stable (see also [externals.ml]).  The backend PR will
    also allow them in beta. *)
 
 external foo1 : #(int * float#) -> int = "foo" "foo'"

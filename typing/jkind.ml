@@ -791,13 +791,19 @@ module Const = struct
   *)
   (* CR layouts: When everything is stable, remove this function. *)
   let get_required_layouts_level (_context : History.annotation_context)
-      (jkind : t) : Language_extension.maturity =
-    match jkind.layout, jkind.nullability_upper_bound with
-    | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
-    | Base Value, Non_null ->
-      Stable
-    | Base Void, _ | Base Value, Maybe_null -> Alpha
-    | Product _, _ -> Beta
+      (jkind : t) =
+    let rec scan_layout (l : Layout.Const.t) : Language_extension.maturity =
+      match l, jkind.nullability_upper_bound with
+      | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
+      | Base Value, Non_null ->
+        Stable
+      | Product layouts, _ ->
+        List.fold_left
+          (fun m l -> Language_extension.Maturity.max m (scan_layout l))
+          Language_extension.Stable layouts
+      | Base Void, _ | Base Value, Maybe_null -> Alpha
+    in
+    scan_layout jkind.layout
 
   let of_user_written_annotation ~context (annot : Parsetree.jkind_annotation) =
     let const = of_user_written_annotation_unchecked_level annot in
@@ -1251,6 +1257,22 @@ let for_arrow =
       nullability_upper_bound = Non_null
     }
     ~why:(Value_creation Arrow)
+
+let for_object =
+  fresh_jkind
+    { layout = Sort (Base Value);
+      modes_upper_bounds =
+        (* The crossing of objects are based on the fact that they are
+           produced/defined/allocated at legacy, which applies to only the
+           comonadic axes. *)
+        Alloc.Const.merge
+          { comonadic = Alloc.Comonadic.Const.legacy;
+            monadic = Alloc.Monadic.Const.max
+          };
+      externality_upper_bound = Externality.max;
+      nullability_upper_bound = Non_null
+    }
+    ~why:(Value_creation Object)
 
 (******************************)
 (* elimination and defaulting *)
@@ -2085,10 +2107,10 @@ module Debug_printers = struct
   module Const = struct
     let t ppf (jkind : Const.t) =
       fprintf ppf
-        "@[{ layout = <v 2>%a@,\
-         ; modes_upper_bounds = <v 2>%a@,\
-         ; externality_upper_bound = <v 2>%a@,\
-         ; nullability_upper_bound = <v 2>%a@,\
+        "@[<v 2>{ layout = %a@,\
+         ; modes_upper_bounds = %a@,\
+         ; externality_upper_bound = %a@,\
+         ; nullability_upper_bound = %a@,\
          }@]"
         Layout.Const.Debug_printers.t jkind.layout Modes.print
         jkind.modes_upper_bounds Externality.print jkind.externality_upper_bound

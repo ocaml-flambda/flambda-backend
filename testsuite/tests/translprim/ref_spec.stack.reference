@@ -2,7 +2,7 @@
   (let
     (int_ref = (makemutable 0 (int) 1)
      var_ref = (makemutable 0 (int) 65)
-     vargen_ref = (makemutable 0 65)
+     vargen_ref = (makemutable 0 (*) 65)
      cst_ref = (makemutable 0 (int) 0)
      gen_ref = (makemutable 0 ([(consts (0)) (non_consts ([0: *]))]) 0)
      flt_ref = (makemutable 0 (float) 0.))

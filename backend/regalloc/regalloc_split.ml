@@ -25,7 +25,7 @@ let[@inline] remove_from_bindings :
       (fun reg _ ->
         let remove = Reg.Set.mem reg regs in
         if split_debug
-        then if remove then log ~indent:3 "removing %a" Printmach.reg reg;
+        then if remove then log ~indent:3 "removing %a" Printreg.reg reg;
         not remove)
       bindings
 
@@ -42,7 +42,8 @@ let rec compute_substitution_tree :
     unit =
  fun state substs bindings tree ->
   let label = tree.label in
-  if split_debug then log ~indent:1 "compute_substitution_tree %d" label;
+  if split_debug
+  then log ~indent:1 "compute_substitution_tree %a" Label.format label;
   (* First, remove the phi and definitions from the bindings. *)
   if split_debug then log ~indent:2 "removing from phis";
   let bindings =
@@ -64,7 +65,7 @@ let rec compute_substitution_tree :
   Reg.Map.iter
     (fun old_reg new_reg ->
       if split_debug
-      then log ~indent:3 "%a -> %a" Printmach.reg old_reg Printmach.reg new_reg;
+      then log ~indent:3 "%a -> %a" Printreg.reg old_reg Printreg.reg new_reg;
       Reg.Tbl.replace subst old_reg new_reg)
     bindings;
   (* Third, add the definitions to the substitution and bindings. *)
@@ -82,8 +83,8 @@ let rec compute_substitution_tree :
             ~existing:old_reg;
           if split_debug
           then
-            log ~indent:3 "renaming %a to %a" Printmach.reg old_reg
-              Printmach.reg new_reg;
+            log ~indent:3 "renaming %a to %a" Printreg.reg old_reg Printreg.reg
+              new_reg;
           Reg.Tbl.replace subst old_reg new_reg;
           Reg.Map.add old_reg new_reg bindings)
         renames bindings
@@ -146,7 +147,7 @@ let make_spill : type a. a make_operation =
   in
   if split_debug
   then
-    log ~indent:3 "spill %a -> %a" Printmach.reg new_reg Printmach.reg stack_reg;
+    log ~indent:3 "spill %a -> %a" Printreg.reg new_reg Printreg.reg stack_reg;
   Move.make_instr Move.Store
     ~id:(State.get_and_incr_instruction_id state)
     ~copy ~from:new_reg ~to_:stack_reg
@@ -249,7 +250,7 @@ let insert_spills :
   let stack_subst = Reg.Tbl.create (Label.Map.cardinal destructions_at_end) in
   Label.Map.iter
     (fun label (_, live_at_destruction_point) ->
-      if split_debug then log ~indent:1 "block %d" label;
+      if split_debug then log ~indent:1 "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let block_subst = Substitution.for_label substs label in
       insert_spills_in_block state ~block_subst ~stack_subst block
@@ -279,8 +280,7 @@ let make_reload : type a. a make_operation =
   in
   if split_debug
   then
-    log ~indent:3 "reload %a -> %a" Printmach.reg stack_reg Printmach.reg
-      new_reg;
+    log ~indent:3 "reload %a -> %a" Printreg.reg stack_reg Printreg.reg new_reg;
   Move.make_instr Move.Load
     ~id:(State.get_and_incr_instruction_id state)
     ~copy ~from:stack_reg ~to_:new_reg
@@ -310,7 +310,7 @@ let insert_reloads :
   if split_debug then log ~indent:0 "insert_reloads";
   Label.Map.iter
     (fun label live_at_definition_point ->
-      if split_debug then log ~indent:1 "block %d" label;
+      if split_debug then log ~indent:1 "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       let block_subst = Substitution.for_label substs label in
       insert_reloads_in_block state ~block_subst ~stack_subst block
@@ -336,11 +336,11 @@ let add_phi_moves_to_instr_list :
       | true ->
         if split_debug
         then
-          log ~indent:3 "(no phi necessary because %a == %a)" Printmach.reg from
-            Printmach.reg to_
+          log ~indent:3 "(no phi necessary because %a == %a)" Printreg.reg from
+            Printreg.reg to_
       | false ->
         if split_debug
-        then log ~indent:3 "phi %a -> %a" Printmach.reg from Printmach.reg to_;
+        then log ~indent:3 "phi %a -> %a" Printreg.reg from Printreg.reg to_;
         let phi_move =
           Move.make_instr Move.Plain
             ~id:(State.get_and_incr_instruction_id state)
@@ -360,9 +360,10 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
       if split_debug
       then
-        log ~indent:1 "insert_phi_moves for block %d: %a" label Printmach.regset
-          to_unify;
-      if block.is_trap_handler then fatal "phi block %d is a trap handler" label;
+        log ~indent:1 "insert_phi_moves for block %a: %a" Label.format label
+          Printreg.regset to_unify;
+      if block.is_trap_handler
+      then fatal "phi block %a is a trap handler" Label.format label;
       Label.Set.iter
         (fun predecessor_label ->
           let predecessor_block =

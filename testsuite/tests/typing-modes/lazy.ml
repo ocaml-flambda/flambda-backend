@@ -122,7 +122,7 @@ Error: This value is "contended" but expected to be "uncontended".
 let use_unique (_ @ unique) = ()
 let use_many (_ @ many) = ()
 [%%expect{|
-val use_unique : unique_ 'a -> unit = <fun>
+val use_unique : 'a @ unique -> unit = <fun>
 val use_many : 'a -> unit = <fun>
 |}]
 

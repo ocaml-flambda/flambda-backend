@@ -81,6 +81,7 @@ val create :
   Exported_code.t ->
   trans_prim:t trans_prim ->
   return_continuation:Continuation.t ->
+  return_continuation_arity:Cmm.machtype list ->
   exn_continuation:Continuation.t ->
   t
 
@@ -90,6 +91,7 @@ val create :
 val enter_function_body :
   t ->
   return_continuation:Continuation.t ->
+  return_continuation_arity:Cmm.machtype list ->
   exn_continuation:Continuation.t ->
   t
 
@@ -109,9 +111,6 @@ val set_inlined_debuginfo : t -> Inlined_debuginfo.t -> t
 val currently_in_inlined_body : t -> bool
 
 (** {2 Continuations} *)
-
-(** Returns the return continuation of the environment. *)
-val return_continuation : t -> Continuation.t
 
 (** Returns the exception continuation of the environment. *)
 val exn_continuation : t -> Continuation.t
@@ -300,6 +299,7 @@ type 'a param_type =
     translated as a static jump to a Cmm continuation (represented as a Cmm
     label), or inlined at any unique use site. *)
 type cont = private
+  | Return of { param_types : Cmm.machtype list }
   | Jump of
       { cont : Lambda.static_label;
         param_types : Cmm.machtype param_type list

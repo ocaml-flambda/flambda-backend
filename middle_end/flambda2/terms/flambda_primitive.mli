@@ -366,6 +366,7 @@ type unary_primitive =
         destination_mutability : Mutability.t
       }
   | Is_int of { variant_only : bool }
+  | Is_null
   | Get_tag
   | Array_length of Array_kind_for_length.t
   | Bigarray_length of { dimension : int }
@@ -520,6 +521,8 @@ include Contains_names.S with type t := t
 include Contains_ids.S with type t := t
 
 val args : t -> Simple.t list
+
+val map_args : (Simple.t -> Simple.t) -> t -> t
 
 (** Simpler version (e.g. for [Inlining_cost]), where only the actual primitive
     matters, not the arguments. *)

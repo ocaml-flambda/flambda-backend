@@ -131,6 +131,7 @@ module Flambda2 = struct
     let join_depth = 5
     let function_result_types = Never
     let meet_algorithm = Basic
+    let enable_reaper = false
     let unicode = true
   end
 
@@ -143,6 +144,7 @@ module Flambda2 = struct
     join_depth : int;
     function_result_types : function_result_types;
     meet_algorithm : meet_algorithm;
+    enable_reaper : bool;
     unicode : bool;
   }
 
@@ -155,6 +157,7 @@ module Flambda2 = struct
     join_depth = Default.join_depth;
     function_result_types = Default.function_result_types;
     meet_algorithm = Default.meet_algorithm;
+    enable_reaper = Default.enable_reaper;
     unicode = Default.unicode;
   }
 
@@ -188,6 +191,7 @@ module Flambda2 = struct
   let unicode = ref Default
   let function_result_types = ref Default
   let meet_algorithm = ref Default
+  let enable_reaper = ref Default
 
   module Dump = struct
     type target = Nowhere | Main_dump_stream | File of Misc.filepath
@@ -198,6 +202,8 @@ module Flambda2 = struct
     let slot_offsets = ref false
     let freshen = ref false
     let flow = ref false
+    let simplify = ref false
+    let reaper = ref false
   end
 
   module Expert = struct

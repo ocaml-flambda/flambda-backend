@@ -50,7 +50,49 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-type unique_barrier = Mode.Uniqueness.r
+module Unique_barrier = struct
+  (* For added safety, we record the states in the life of a barrier:
+     - Barriers start out as Not_computed
+     - They are enabled by the uniqueness analysis
+     - They are resolved in translcore
+    This allows us to error if the barrier is not enabled or resolved. *)
+  type barrier =
+    | Enabled of Mode.Uniqueness.lr
+    | Resolved of Mode.Uniqueness.Const.t
+    | Not_computed
+
+  type t = barrier ref
+
+  let not_computed () = ref Not_computed
+
+  let enable barrier = match !barrier with
+    | Not_computed ->
+      barrier := Enabled (Uniqueness.newvar ())
+    | _ -> Misc.fatal_error "Unique barrier was enabled twice"
+
+  (* Due to or-patterns a barrier may have several upper bounds. *)
+  let add_upper_bound uniq barrier =
+    match !barrier with
+    | Enabled barrier -> Uniqueness.submode_exn barrier uniq
+    | _ -> Misc.fatal_error "Unique barrier got an upper bound in the wrong state"
+
+  let resolve barrier =
+    match !barrier with
+    | Enabled uniq ->
+      let zapped = Uniqueness.zap_to_ceil uniq in
+      barrier := Resolved zapped;
+      zapped
+    | Resolved barrier -> barrier
+    | Not_computed ->
+      (* CR uniqueness: The uniqueness analysis does not go into legacy
+         language constructs such as objects; for those, we default to legacy.
+         We should change the uniqueness analysis to also traverse these
+         constructs. Then this case will be impossible to reach and we can fail
+         here. Failing here will protect us when future language extensions are
+         not traversing the uniqueness analysis. This ensures that the
+         unique barriers will stay sound for future extensions. *)
+      Uniqueness.Const.legacy
+end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
@@ -77,6 +119,7 @@ and 'a pattern_data =
     pat_type: type_expr;
     pat_env: Env.t;
     pat_attributes: attribute list;
+    pat_unique_barrier : Unique_barrier.t;
    }
 
 and pat_extra =
@@ -168,11 +211,12 @@ and expression_desc =
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
-      extended_expression : expression option;
+      extended_expression : (expression * Unique_barrier.t) option;
       alloc_mode : alloc_mode option
     }
   | Texp_field of
-      expression * Longident.t loc * label_description * texp_field_boxing
+      expression * Longident.t loc * label_description * texp_field_boxing *
+        Unique_barrier.t
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
@@ -330,7 +374,8 @@ and omitted_parameter =
   { mode_closure : Mode.Alloc.r;
     mode_arg : Mode.Alloc.l;
     mode_ret : Mode.Alloc.l;
-    sort_arg : Jkind.sort }
+    sort_arg : Jkind.sort;
+    sort_ret : Jkind.sort }
 
 and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
 
@@ -854,6 +899,7 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_type = p.pat_type;
     pat_env = p.pat_env;
     pat_attributes = [];
+    pat_unique_barrier = p.pat_unique_barrier;
   }
 
 let function_arity params body =
@@ -1192,7 +1238,7 @@ let rec exp_is_nominal exp =
   | Texp_variant (_, None)
   | Texp_construct (_, _, [], _) ->
       true
-  | Texp_field (parent, _, _, _) | Texp_send (parent, _, _) ->
+  | Texp_field (parent, _, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false
 

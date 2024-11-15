@@ -440,7 +440,7 @@ let destroyed_at_oper = function
   | Iop(Ispecific(Isimd op)) -> destroyed_by_simd_op op
   | Iop(Ispecific(Isextend32 | Izextend32 | Ilea _
                  | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                 | Ipause | Iprefetch _
+                 | Ipause | Icldemote _ | Iprefetch _
                  | Ifloatarithmem (_, _, _) | Ibswap _))
   | Iop(Iintop(Iadd | Isub | Imul | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
               | Ipopcnt | Iclz _ | Ictz _ ))
@@ -515,7 +515,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
        | End_region
        | Specific (Ilea _ | Istore_int _ | Ioffset_loc _
                   | Ifloatarithmem _ | Ibswap _
-                  | Isextend32 | Izextend32 | Ipause
+                  | Isextend32 | Izextend32 | Ipause | Icldemote _
                   | Iprefetch _ | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
   | Poptrap | Prologue ->
@@ -544,7 +544,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
                        | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
                        | Isimd _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                       | Iprefetch _); _ } ->
+                       | Icldemote _ | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* CR-soon xclerc for xclerc: consider having more destruction points.
@@ -574,7 +574,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
                        | Ifloatarithmem _ | Irdtsc | Irdpmc | Ipause
                        | Isimd _ | Ilfence | Isfence | Imfence
                        | Istore_int (_, _, _) | Ioffset_loc (_, _)
-                       | Iprefetch _); _ } ->
+                       | Icldemote _ | Iprefetch _); _ } ->
     Misc.fatal_error "no instructions specific for this architecture can raise"
 
 (* Maximal register pressure *)
@@ -647,7 +647,7 @@ let max_register_pressure =
   | Iconst_symbol _ | Iconst_vec128 _
   | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
   | Istackoffset _ | Iload _
-  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
+  | Ispecific(Ilea _ | Isextend32 | Izextend32 | Icldemote _ | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)
              | Ilfence | Isfence | Imfence
              | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)

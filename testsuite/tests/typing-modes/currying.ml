@@ -445,27 +445,27 @@ let _ =
 let f g x =
   g (x: _ @@ once) x [@nontail]
 [%%expect{|
-val f : (once_ 'a -> 'a -> 'b) -> 'a -> 'b = <fun>
+val f : ('a @ once -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 
 let f g x y =
   g (x: _ @@ unique) y [@nontail]
 [%%expect{|
-val f : ('a -> 'b -> 'c) -> unique_ 'a -> 'b -> 'c = <fun>
+val f : ('a -> 'b -> 'c) -> 'a @ unique -> 'b -> 'c = <fun>
 |}]
 
 let f (g @ unique) x =
   g x x [@nontail]
 [%%expect{|
-val f : unique_ ('a -> 'a -> 'b) -> ('a -> 'b) = <fun>
+val f : ('a -> 'a -> 'b) @ unique -> ('a -> 'b) = <fun>
 |}, Principal{|
-val f : unique_ ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
+val f : ('a -> 'a -> 'b) @ unique -> 'a -> 'b = <fun>
 |}]
 
 let f (g @ once) x =
   g x x [@nontail]
 [%%expect{|
-val f : once_ ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
+val f : ('a -> 'a -> 'b) @ once -> 'a -> 'b = <fun>
 |}]
 
 (* portability and contention is not affected due to the choice of legacy modes. *)

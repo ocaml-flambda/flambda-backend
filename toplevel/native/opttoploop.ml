@@ -356,7 +356,8 @@ let name_expression ~loc ~attrs sort exp =
       pat_extra = [];
       pat_type = exp.exp_type;
       pat_env = exp.exp_env;
-      pat_attributes = []; }
+      pat_attributes = [];
+      pat_unique_barrier = Unique_barrier.not_computed () }
   in
   let vb =
     { vb_pat = pat;
@@ -718,6 +719,8 @@ let initialize_toplevel_env () =
 
 exception PPerror
 
+let reset_location = ref true
+
 let loop ppf =
   Location.formatter_for_warnings := ppf;
   if not !Clflags.noversion then
@@ -733,8 +736,10 @@ let loop ppf =
   while true do
     let snap = Btype.snapshot () in
     try
-      Lexing.flush_input lb;
-      Location.reset();
+      if !reset_location then begin
+        Lexing.flush_input lb;
+        Location.reset();
+      end;
       first_line := true;
       let phr = try !parse_toplevel_phrase lb with Exit -> raise PPerror in
       let phr = preprocess_phrase ppf phr  in

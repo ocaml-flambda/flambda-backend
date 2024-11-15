@@ -55,7 +55,7 @@ let update_register_locations : State.t -> unit =
       | Some location ->
         if gi_debug
         then
-          log ~indent:1 "updating %a to %a" Printmach.reg reg
+          log ~indent:1 "updating %a to %a" Printreg.reg reg
             Hardware_register.print_location location;
         reg.Reg.loc <- Hardware_register.reg_location_of_location location)
   in
@@ -86,7 +86,7 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
       | Reg _ ->
         if gi_debug
         then (
-          log ~indent:1 "pre-assigned register %a" Printmach.reg reg;
+          log ~indent:1 "pre-assigned register %a" Printreg.reg reg;
           log ~indent:2 "%a" Interval.print interval);
         let hardware_reg = Hardware_registers.of_reg hardware_registers reg in
         Hardware_register.add_non_evictable hardware_reg reg interval
@@ -94,14 +94,14 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
         let priority = priority_heuristics reg interval in
         if gi_debug
         then (
-          log ~indent:1 "register %a" Printmach.reg reg;
+          log ~indent:1 "register %a" Printreg.reg reg;
           log ~indent:2 "%a" Interval.print interval;
           log ~indent:2 "priority=%d" priority);
         Prio_queue.add prio_queue ~priority ~data:(reg, interval)
       | Stack _ ->
         if gi_debug
         then (
-          log ~indent:1 "stack register %a" Printmach.reg reg;
+          log ~indent:1 "stack register %a" Printreg.reg reg;
           log ~indent:2 "%a" Interval.print interval);
         ())
     intervals;
@@ -140,7 +140,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     log ~indent:0 "spilling costs";
     List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
         reg.Reg.spill <- false;
-        log ~indent:1 "%a: %d" Printmach.reg reg reg.spill_cost));
+        log ~indent:1 "%a: %d" Printreg.reg reg reg.spill_cost));
   let hardware_registers, prio_queue =
     make_hardware_registers_and_prio_queue cfg_with_infos
   in
@@ -154,12 +154,12 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
       Prio_queue.get_and_remove prio_queue
     in
     if gi_debug
-    then log ~indent:2 "got register %a (prio=%d)" Printmach.reg reg priority;
+    then log ~indent:2 "got register %a (prio=%d)" Printreg.reg reg priority;
     match Hardware_registers.find_available hardware_registers reg interval with
     | For_assignment { hardware_reg } ->
       if gi_debug
       then
-        log ~indent:3 "assigning %a to %a" Printmach.reg reg
+        log ~indent:3 "assigning %a to %a" Printreg.reg reg
           Hardware_register.print_location hardware_reg.location;
       State.add_assignment state reg ~to_:hardware_reg.location;
       hardware_reg.assigned
@@ -168,7 +168,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
     | For_eviction { hardware_reg; evicted_regs } ->
       if gi_debug
       then
-        log ~indent:3 "evicting %a from %a" Printmach.regs
+        log ~indent:3 "evicting %a from %a" Printreg.regs
           (Array.of_list
              (List.map evicted_regs
                 ~f:(fun { Hardware_register.pseudo_reg; _ } -> pseudo_reg)))
@@ -185,7 +185,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
             fatal
               "register %a has been picked up for eviction, but is not \
                evictable"
-              Printmach.reg evict_reg;
+              Printreg.reg evict_reg;
           State.remove_assignment state evict_reg;
           Prio_queue.add prio_queue
             ~priority:(priority_heuristics evict_reg evict_interval)
@@ -202,7 +202,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
                          Reg.same r r')))
     | Split_or_spill ->
       (* CR xclerc for xclerc: we should actually try to split. *)
-      if gi_debug then log ~indent:3 "spilling %a" Printmach.reg reg;
+      if gi_debug then log ~indent:3 "spilling %a" Printreg.reg reg;
       reg.Reg.spill <- true;
       spilling := (reg, interval) :: !spilling
   done;
@@ -215,7 +215,7 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
       log ~indent:1 "stack slots";
       Regalloc_stack_slots.iter (State.stack_slots state)
         ~f:(fun (reg : Reg.t) (slot : int) ->
-          log ~indent:2 "  - %a ~> %d" Printmach.reg reg slot);
+          log ~indent:2 "  - %a ~> %d" Printreg.reg reg slot);
       log ~indent:1 "needs to spill %d registers:" (List.length !spilling);
       List.iter !spilling ~f:(fun (_reg, interval) ->
           log ~indent:2 "  - %a" Interval.print interval);
@@ -228,8 +228,8 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
           if occurs
           then (
             let dummy_liveness_for_log = Cfg_dataflow.Instr.Tbl.create 12 in
-            log ~indent:0 "block %d has an occurrence of a spilling register"
-              block.start;
+            log ~indent:0 "block %a has an occurrence of a spilling register"
+              Label.format block.start;
             log_body_and_terminator ~indent:1 block.body block.terminator
               dummy_liveness_for_log)));
     match

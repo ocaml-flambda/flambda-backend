@@ -236,6 +236,7 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
                  | Istore_int (_, _, _)
                  | Ioffset_loc (_, _) | Ifloatarithmem (_, _, _)
                  | Ipause
+                 | Icldemote _
                  | Iprefetch _
                  | Ibswap _))
   | Reloadretaddr

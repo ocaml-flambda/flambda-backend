@@ -58,13 +58,13 @@ module Deep = struct
   external cont_set_last_fiber :
     ('a, 'b) continuation -> last_fiber -> unit = "%setfield1"
 
-  let continue k v =
+  let[@inline never] continue k v =
     resume (take_cont_noexc k) (fun x -> x) v (cont_last_fiber k)
 
-  let discontinue k e =
+  let[@inline never] discontinue k e =
     resume (take_cont_noexc k) (fun e -> raise e) e (cont_last_fiber k)
 
-  let discontinue_with_backtrace k e bt =
+  let[@inline never] discontinue_with_backtrace k e bt =
     resume (take_cont_noexc k) (fun e -> Printexc.raise_with_backtrace e bt)
       e (cont_last_fiber k)
 
@@ -76,7 +76,7 @@ module Deep = struct
   external reperform :
     'a t -> ('a, 'b) continuation -> last_fiber -> 'b = "%reperform"
 
-  let match_with comp arg handler =
+  let[@inline never] match_with comp arg handler =
     let effc eff k last_fiber =
       match handler.effc eff with
       | Some f ->
@@ -90,7 +90,7 @@ module Deep = struct
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b,'a) continuation -> 'a) option }
 
-  let try_with comp arg handler =
+  let[@inline never] try_with comp arg handler =
     let effc' eff k last_fiber =
       match handler.effc eff with
       | Some f ->
@@ -120,7 +120,7 @@ module Shallow = struct
   external cont_set_last_fiber :
     ('a, 'b) continuation -> last_fiber -> unit = "%setfield1"
 
-  let fiber : type a b. (a -> b) -> (a, b) continuation = fun f ->
+  let[@inline never] fiber : type a b. (a -> b) -> (a, b) continuation = fun f ->
     let module M = struct type _ t += Initial_setup__ : a t end in
     let exception E of (a,b) continuation in
     let f' () = f (perform M.Initial_setup__) in
@@ -152,7 +152,7 @@ module Shallow = struct
   external reperform :
     'a t -> ('a, 'b) continuation -> last_fiber -> 'c = "%reperform"
 
-  let continue_gen k resume_fun v handler =
+  let[@inline never] continue_gen k resume_fun v handler =
     let effc eff k last_fiber =
       match handler.effc eff with
       | Some f ->

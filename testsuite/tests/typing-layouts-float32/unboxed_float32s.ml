@@ -1,6 +1,7 @@
 (* TEST
  reference = "${test_source_directory}/unboxed_float32s.reference";
  include stdlib_stable;
+ arch_amd64;
  flambda2;
  {
    flags = "-extension layouts_alpha";
@@ -23,6 +24,9 @@
 (* mshinwell: This test is now only run with flambda2, as the corresponding
    ocamltest predicate is reliable for testing whether this is an
    flambda-backend build. *)
+
+(* CR layouts: this test and other tests using float32# are only run on amd64.
+   Enable them for arm64 when float32# is supported there. *)
 
 (* This file contains various tests for float32#.  It's not an expect test to make
    sure it gets tested for native code. *)

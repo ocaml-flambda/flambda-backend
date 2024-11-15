@@ -174,8 +174,6 @@
   builtin_attributes
   ast_invariants
   depend
-  jane_syntax_parsing
-  jane_syntax
   parser_types ; manual update: mli only files asttypes parsetree
   ;; TYPING
   ident
@@ -466,11 +464,13 @@
   printcmm
   printlinear
   printmach
+  printreg
   proc
   simd
   simd_selection
   simd_reload
   simd_proc
+  simple_operation
   stack_check
   reg
   reload
@@ -497,6 +497,7 @@
   zero_alloc_info
   ;; backend/cfg
   cfg
+  cfg_available_regs
   cfg_intf
   cfg_to_linear
   cfg_with_layout
@@ -700,6 +701,7 @@
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.a}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.a}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.a}
+   %{dep:middle_end/flambda2/reaper/flambda2_reaper.a}
    %{dep:middle_end/flambda2/parser/flambda2_parser.a}
    %{dep:external/owee/compiler_owee.a}
    %{dep:external/gc-timings/gc_timings.a}
@@ -737,6 +739,7 @@
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cma}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cma}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cma}
+   %{dep:middle_end/flambda2/reaper/flambda2_reaper.cma}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cma}
    %{dep:external/owee/compiler_owee.cma}
    %{dep:external/gc-timings/gc_timings.cma}
@@ -774,6 +777,7 @@
    %{dep:middle_end/flambda2/cmx/flambda2_cmx.cmxa}
    %{dep:middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa}
    %{dep:middle_end/flambda2/simplify/flambda2_simplify.cmxa}
+   %{dep:middle_end/flambda2/reaper/flambda2_reaper.cmxa}
    %{dep:middle_end/flambda2/parser/flambda2_parser.cmxa}
    %{dep:external/owee/compiler_owee.cmxa}
    %{dep:external/gc-timings/gc_timings.cmxa}
@@ -866,3 +870,20 @@
  (package ocaml)
  (files
   (include compiler-libs-installation.sexp)))
+
+; This is entirely redundant, but without it, each target in these libraries
+; and their dependencies waits until ocamlcommon is built, including those
+; targets that don't actually depend on it. This produces severe bottlenecking,
+; costing about 15 seconds when building in dev mode. It's not immediately clear
+; why Dune fails to parallelise here. Going by the progress indicator, my best
+; guess is that targets in subdirectories aren't even discovered until
+; ocamlcommon is built, unless something in the subdirectory is explicitly made
+; a dependency.
+(alias
+ (name install)
+ (package ocaml)
+ (deps
+  otherlibs/dynlink/dynlink.cma
+  otherlibs/dynlink/dynlink.cmxa
+  middle_end/flambda2/from_lambda/flambda2_from_lambda.cma
+  middle_end/flambda2/from_lambda/flambda2_from_lambda.cmxa))

@@ -1,0 +1,8 @@
+# @configure_input@
+
+version = "@VERSION@"
+description = "Upstream-compatible extensions"
+archive(byte) = "stdlib_upstream_compatible.cma"
+archive(native) = "stdlib_upstream_compatible.cmxa"
+plugin(byte) = "stdlib_upstream_compatible.cma"
+plugin(native) = "stdlib_upstream_compatible.cmxs"

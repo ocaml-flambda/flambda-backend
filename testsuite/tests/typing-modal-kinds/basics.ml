@@ -57,7 +57,7 @@ module Immediate :
   sig
     val id : ('a : immediate). 'a -> 'a
     val ignore : ('a : immediate). 'a -> unit
-    val unique : ('a : immediate). unique_ 'a -> 'a
+    val unique : ('a : immediate). 'a @ unique -> 'a
   end
 |}]
 
@@ -76,7 +76,7 @@ module Float_u :
   sig
     val id : ('a : float64). 'a -> 'a
     val ignore : ('a : float64). 'a -> unit
-    val unique : ('a : float64). unique_ 'a -> 'a
+    val unique : ('a : float64). 'a @ unique -> 'a
   end
 |}]
 
@@ -95,7 +95,7 @@ module Int64_u :
   sig
     val id : ('a : bits64). 'a -> 'a
     val ignore : ('a : bits64). 'a -> unit
-    val unique : ('a : bits64). unique_ 'a -> 'a
+    val unique : ('a : bits64). 'a @ unique -> 'a
   end
 |}]
 
@@ -422,7 +422,7 @@ Error: This value is "once" but expected to be "many".
 let unique (unique_ x) = x
 
 [%%expect{|
-val unique : unique_ 'a -> 'a = <fun>
+val unique : 'a @ unique -> 'a = <fun>
 |}]
 
 let string_unshare = let x : string = "hello" in ignore x; unique x
@@ -677,7 +677,7 @@ Line 2, characters 71-72:
 let foo : (string -> string) -> (string -> string) @ unique
   = fun f -> f
 [%%expect{|
-val foo : (string -> string) -> unique_ (string -> string) = <fun>
+val foo : (string -> string) -> (string -> string) @ unique = <fun>
 |}]
 
 let weaken_immutable_data : 'a -> 'a @ contended once nonportable =
@@ -685,7 +685,7 @@ let weaken_immutable_data : 'a -> 'a @ contended once nonportable =
 
 let take_strong_immutable_data (x @ uncontended many portable) = ()
 [%%expect{|
-val weaken_immutable_data : 'a -> once_ 'a @ contended = <fun>
+val weaken_immutable_data : 'a -> 'a @ once contended = <fun>
 val take_strong_immutable_data : 'a @ portable -> unit = <fun>
 |}]
 
@@ -694,7 +694,7 @@ let weaken_mutable_data : 'a -> 'a @ once nonportable =
 
 let take_strong_mutable_data (x @ many portable) = ()
 [%%expect{|
-val weaken_mutable_data : 'a -> once_ 'a = <fun>
+val weaken_mutable_data : 'a -> 'a @ once = <fun>
 val take_strong_mutable_data : 'a @ portable -> unit = <fun>
 |}]
 

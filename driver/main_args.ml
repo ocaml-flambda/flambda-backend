@@ -819,6 +819,10 @@ let mk_dflambda_invariants f =
   "-dflambda-invariants", Arg.Unit f, " Check Flambda (1 and 2) invariants"
 ;;
 
+let mk_dflambda_heavy_invariants f =
+  "-dflambda-heavy-invariants", Arg.Unit f, " Check Flambda 2 heavy invariants"
+;;
+
 let mk_dflambda_no_invariants f =
   "-dflambda-no-invariants", Arg.Unit f, " Do not check Flambda (1 and 2) \
       invariants"
@@ -1143,6 +1147,7 @@ module type Optcommon_options = sig
   val _dflambda : unit -> unit
   val _drawflambda : unit -> unit
   val _dflambda_invariants : unit -> unit
+  val _dflambda_heavy_invariants : unit -> unit
   val _dflambda_no_invariants : unit -> unit
   val _dflambda_let : int -> unit
   val _dflambda_verbose : unit -> unit
@@ -1586,6 +1591,7 @@ struct
     mk_dflambda F._dflambda;
     mk_drawflambda F._drawflambda;
     mk_dflambda_invariants F._dflambda_invariants;
+    mk_dflambda_heavy_invariants F._dflambda_heavy_invariants;
     mk_dflambda_no_invariants F._dflambda_no_invariants;
     mk_dflambda_let F._dflambda_let;
     mk_dflambda_verbose F._dflambda_verbose;
@@ -1950,9 +1956,13 @@ module Default = struct
     let _dcombine = set dump_combine
     let _dcse = set dump_cse
     let _dflambda = set dump_flambda
-    let _dflambda_invariants = set flambda_invariant_checks
+    let _dflambda_heavy_invariants () =
+      flambda_invariant_checks := Heavy_checks
+    let _dflambda_invariants () =
+      flambda_invariant_checks := Light_checks
     let _dflambda_let stamp = dump_flambda_let := (Some stamp)
-    let _dflambda_no_invariants = clear flambda_invariant_checks
+    let _dflambda_no_invariants () =
+      flambda_invariant_checks := No_checks
     let _dflambda_verbose () =
       set dump_flambda (); set dump_flambda_verbose ()
     let _dinterval = set dump_interval

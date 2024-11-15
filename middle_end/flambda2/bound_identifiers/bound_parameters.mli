@@ -46,6 +46,8 @@ val vars : t -> Variable.t list
 
 val var_set : t -> Variable.Set.t
 
+val iter : (Bound_parameter.t -> unit) -> t -> unit
+
 val filter : (Bound_parameter.t -> bool) -> t -> t
 
 val exists : (Bound_parameter.t -> bool) -> t -> bool

@@ -31,10 +31,8 @@ let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
 
-let is_bitwise_op (op : Mach.integer_operation) =
-  match op with
-  | Mach.Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true
-  | _ -> false
+let is_bitwise_op (op : Simple_operation.integer_operation) =
+  match op with Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true | _ -> false
   [@@ocaml.warning "-4"]
 
 let bitwise_shift_assert (imm1 : int) (imm2 : int) =

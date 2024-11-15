@@ -95,6 +95,8 @@ let renaming t1 ~guaranteed_fresh:t2 =
     Misc.fatal_errorf "Parameter lists are of differing lengths:@ %a@ and@ %a"
       print t1 print t2
 
+let iter f t = List.iter f t
+
 let filter f t = List.filter f t
 
 let exists f t = List.exists f t

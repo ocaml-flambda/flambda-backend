@@ -406,6 +406,46 @@ module Exist = struct
   let is_erasable : t -> bool = function Pack extn -> is_erasable extn
 end
 
+module Error = struct
+  type error =
+    | Disabled_extension :
+        { ext : _ t;
+          maturity : maturity option
+        }
+        -> error
+
+  let report_error ~loc = function
+    | Disabled_extension { ext; maturity } -> (
+      (* CR layouts: The [maturity] special case is a bit ad-hoc, but the
+         layouts error message would be much worse without it. It also would be
+         nice to mention the language construct in the error message. *)
+      match maturity with
+      | None ->
+        Location.errorf ~loc
+          "The extension \"%s\" is disabled and cannot be used" (to_string ext)
+      | Some maturity ->
+        Location.errorf ~loc
+          "This construct requires the %s version of the extension \"%s\", \
+           which is disabled and cannot be used"
+          (maturity_to_string maturity)
+          (to_string ext))
+
+  exception Error of Location.t * error
+
+  let () =
+    Location.register_error_of_exn (function
+      | Error (loc, err) -> Some (report_error ~loc err)
+      | _ -> None)
+end
+
+let assert_enabled (type a) ~loc (t : a t) (setting : a) =
+  if not (is_at_least t setting)
+  then
+    let maturity : maturity option =
+      match t with Layouts -> Some (setting : maturity) | _ -> None
+    in
+    raise (Error.Error (loc, Disabled_extension { ext = t; maturity }))
+
 (********************************************)
 (* Special functionality for [Pprintast] *)
 

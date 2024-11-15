@@ -95,7 +95,7 @@ let pseudoregs_for_operation op arg res =
       | Istore_int (_, _, _)
       | Ipause | Ilfence | Isfence | Imfence
       | Ioffset_loc (_, _)
-      | Irdtsc | Iprefetch _ )
+      | Irdtsc | Icldemote _ | Iprefetch _ )
   | Imove | Ispill | Ireload | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _ | Iconst_vec128 _
   | Iconst_symbol _ | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
@@ -186,13 +186,17 @@ class selector =
           Ispecific (Ilea addr), [arg])
       (* Recognize float arithmetic with memory. *)
       | Caddf width ->
-        self#select_floatarith true width Mach.Iaddf Arch.Ifloatadd args
+        self#select_floatarith true width Simple_operation.Iaddf Arch.Ifloatadd
+          args
       | Csubf width ->
-        self#select_floatarith false width Mach.Isubf Arch.Ifloatsub args
+        self#select_floatarith false width Simple_operation.Isubf Arch.Ifloatsub
+          args
       | Cmulf width ->
-        self#select_floatarith true width Mach.Imulf Arch.Ifloatmul args
+        self#select_floatarith true width Simple_operation.Imulf Arch.Ifloatmul
+          args
       | Cdivf width ->
-        self#select_floatarith false width Mach.Idivf Arch.Ifloatdiv args
+        self#select_floatarith false width Simple_operation.Idivf Arch.Ifloatdiv
+          args
       | Cpackf32 ->
         (* We must operate on registers. This is because if the second argument
            was a float stack slot, the resulting UNPCKLPS instruction would
@@ -211,6 +215,11 @@ class selector =
         | "caml_load_fence" -> Ispecific Ilfence, args
         | "caml_store_fence" -> Ispecific Isfence, args
         | "caml_memory_fence" -> Ispecific Imfence, args
+        | "caml_cldemote" ->
+          let addr, eloc =
+            self#select_addressing Word_int (one_arg "cldemote" args)
+          in
+          Ispecific (Icldemote addr), [eloc]
         | _ -> (
           match Simd_selection.select_operation func args with
           | Some (op, args) -> op, args

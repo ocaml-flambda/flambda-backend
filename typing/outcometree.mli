@@ -81,8 +81,6 @@ type arg_label =
 
 type out_mode_legacy =
   | Omd_local
-  | Omd_unique
-  | Omd_once
 
 type out_mode_new = string
 

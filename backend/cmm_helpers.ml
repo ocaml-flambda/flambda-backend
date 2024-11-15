@@ -1507,7 +1507,7 @@ module Extended_machtype_component = struct
   type t =
     | Val
     | Addr
-    | Tagged_int
+    | Val_and_int
     | Any_int
     | Float
     | Vec128
@@ -1526,7 +1526,7 @@ module Extended_machtype_component = struct
     match t with
     | Val -> Val
     | Addr -> Addr
-    | Tagged_int | Any_int -> Int
+    | Val_and_int | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
     | Float32 -> Float32
@@ -1535,7 +1535,7 @@ module Extended_machtype_component = struct
     match t with
     | Val -> Val
     | Addr -> Addr
-    | Tagged_int -> Val
+    | Val_and_int -> Val
     | Any_int -> Int
     | Float -> Float
     | Vec128 -> Vec128
@@ -1547,7 +1547,7 @@ module Extended_machtype = struct
 
   let typ_val = [| Extended_machtype_component.Val |]
 
-  let typ_tagged_int = [| Extended_machtype_component.Tagged_int |]
+  let typ_tagged_int = [| Extended_machtype_component.Val_and_int |]
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
@@ -1579,7 +1579,7 @@ module Extended_machtype = struct
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
-    | Pvalue Pintval -> typ_tagged_int
+    | Pvalue { raw_kind = Pintval; _ } -> typ_tagged_int
     | Pvalue _ -> typ_val
     | Punboxed_product fields -> Array.concat (List.map of_layout fields)
 end
@@ -4095,16 +4095,6 @@ let cmm_arith_size (e : Cmm.expression) =
   | Clet _ | Clet_mut _ | Cphantom_let _ | Cassign _ | Ctuple _ | Csequence _
   | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ ->
     None
-
-let kind_of_layout (layout : Lambda.layout) =
-  match layout with
-  | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
-  | Pvalue (Pboxedintval bi) -> Boxed_integer bi
-  | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
-  | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
-  | Punboxed_product _ ->
-    Any
 
 (* Atomics *)
 

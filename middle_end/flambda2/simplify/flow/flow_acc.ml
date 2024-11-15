@@ -434,15 +434,29 @@ let extend_args_with_extra_args (t : T.Acc.t) =
     Continuation.Map.map
       (fun (elt : T.Continuation_info.t) ->
         let apply_cont_args =
-          Continuation.Map.mapi
+          Continuation.Map.filter_map
             (fun cont rewrite_ids ->
-              match Continuation.Map.find cont t.extra with
-              | exception Not_found -> rewrite_ids
-              | epa ->
-                let extra_args = EPA.extra_args epa in
-                Apply_cont_rewrite_id.Map.filter_map
-                  (add_extra_args_to_call ~extra_args)
-                  rewrite_ids)
+              let rewrite_ids =
+                match Continuation.Map.find cont t.extra with
+                | exception Not_found -> rewrite_ids
+                | epa ->
+                  let extra_args = EPA.extra_args epa in
+                  Apply_cont_rewrite_id.Map.filter_map
+                    (add_extra_args_to_call ~extra_args)
+                    rewrite_ids
+              in
+              (* We must not leave an empty [Apply_cont_rewrite_id] map here.
+                 Indeed, not having any actual continuation arguments will let
+                 flow analysis find a dominator for parameters of [cont] that we
+                 do not have access to. Since we then only look at which
+                 continuation can call which to know which arguments to add,
+                 this causes the ‌adding of the extra parameters to assume we
+                 need access to that dominator since it looks like we can call
+                 [cont], but since neither we nor any of our callers have access
+                 to it, trying to add the dominator crashes the compiler. *)
+              if Apply_cont_rewrite_id.Map.is_empty rewrite_ids
+              then None
+              else Some rewrite_ids)
             elt.apply_cont_args
         in
         { elt with apply_cont_args })

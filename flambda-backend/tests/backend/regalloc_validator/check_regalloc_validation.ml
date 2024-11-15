@@ -209,17 +209,20 @@ let entry_label =
 
 exception Break_test
 
-let move_param_label = entry_label + 1
+let label_add lbl k =
+  Label.of_int_for_testing ((Label.to_int lbl) + k)
 
-let call_label = entry_label + 2
+let move_param_label = label_add entry_label 1
 
-let move_tmp_res_label = entry_label + 3
+let call_label = label_add entry_label 2
 
-let add_label = entry_label + 4
+let move_tmp_res_label = label_add entry_label 3
 
-let return_label = entry_label + 5
+let add_label = label_add entry_label 4
 
-let new_label i = entry_label + 6 + i
+let return_label = label_add entry_label 5
+
+let new_label i = label_add entry_label (6 + i)
 
 let int = Array.init 8 (fun _ -> Reg.create Int)
 
@@ -326,7 +329,7 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
           { start = add_label;
             body =
               [ { Instruction.id = make_id ();
-                  desc = Op (Intop Mach.Iadd);
+                  desc = Op (Intop Simple_operation.Iadd);
                   arg = [| int_arg1; int_arg2 |];
                   res = [| int_arg1 |]
                 } ];

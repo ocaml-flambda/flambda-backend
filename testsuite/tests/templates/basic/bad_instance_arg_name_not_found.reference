@@ -1,5 +1,5 @@
-File "bad_instance_arg_name_not_found.ml", line 2, characters 2-35:
+File "bad_instance_arg_name_not_found.ml", line 2, characters 2-66:
 2 |   Monoid_utils(Banana)(List_monoid) [@jane.non_erasable.instances]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The module "Monoid_utils" has no parameter "Banana".
 Hint: Parameters for "Monoid_utils": "Monoid"

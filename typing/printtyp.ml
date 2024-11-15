@@ -1423,9 +1423,9 @@ let tree_of_modes modes =
   (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
   let l = [
     tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
-    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_legacy Omd_once];
+    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_new "once"];
+    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_new "unique"];
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
-    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_legacy Omd_unique];
     tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
                                   Mode.Contention.Const.Shared, Omd_new "shared"]]
   in

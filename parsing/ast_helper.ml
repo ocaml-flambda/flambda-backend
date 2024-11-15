@@ -186,7 +186,7 @@ module Pat = struct
   let construct ?loc ?attrs a b = mk ?loc ?attrs (Ppat_construct (a, b))
   let variant ?loc ?attrs a b = mk ?loc ?attrs (Ppat_variant (a, b))
   let record ?loc ?attrs a b = mk ?loc ?attrs (Ppat_record (a, b))
-  let array ?loc ?attrs a = mk ?loc ?attrs (Ppat_array a)
+  let array ?loc ?attrs a b = mk ?loc ?attrs (Ppat_array (a, b))
   let or_ ?loc ?attrs a b = mk ?loc ?attrs (Ppat_or (a, b))
   let constraint_ ?loc ?attrs a b c = mk ?loc ?attrs (Ppat_constraint (a, b, c))
   let type_ ?loc ?attrs a = mk ?loc ?attrs (Ppat_type a)
@@ -219,7 +219,7 @@ module Exp = struct
   let record ?loc ?attrs a b = mk ?loc ?attrs (Pexp_record (a, b))
   let field ?loc ?attrs a b = mk ?loc ?attrs (Pexp_field (a, b))
   let setfield ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_setfield (a, b, c))
-  let array ?loc ?attrs a = mk ?loc ?attrs (Pexp_array a)
+  let array ?loc ?attrs a b = mk ?loc ?attrs (Pexp_array (a, b))
   let ifthenelse ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_ifthenelse (a, b, c))
   let sequence ?loc ?attrs a b = mk ?loc ?attrs (Pexp_sequence (a, b))
   let while_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_while (a, b))
@@ -244,6 +244,7 @@ module Exp = struct
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pexp_extension a)
   let unreachable ?loc ?attrs () = mk ?loc ?attrs Pexp_unreachable
   let stack ?loc ?attrs e = mk ?loc ?attrs (Pexp_stack e)
+  let comprehension ?loc ?attrs e = mk ?loc ?attrs (Pexp_comprehension e)
 
   let case lhs ?guard rhs =
     {
@@ -269,10 +270,11 @@ module Mty = struct
   let ident ?loc ?attrs a = mk ?loc ?attrs (Pmty_ident a)
   let alias ?loc ?attrs a = mk ?loc ?attrs (Pmty_alias a)
   let signature ?loc ?attrs a = mk ?loc ?attrs (Pmty_signature a)
-  let functor_ ?loc ?attrs a b = mk ?loc ?attrs (Pmty_functor (a, b))
+  let functor_ ?loc ?attrs ?(ret_mode=[]) a b = mk ?loc ?attrs (Pmty_functor (a, b, ret_mode))
   let with_ ?loc ?attrs a b = mk ?loc ?attrs (Pmty_with (a, b))
   let typeof_ ?loc ?attrs a = mk ?loc ?attrs (Pmty_typeof a)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmty_extension a)
+  let strengthen ?loc ?attrs a b = mk ?loc ?attrs (Pmty_strengthen (a, b))
 end
 
 module Mod = struct
@@ -286,9 +288,11 @@ module Mod = struct
     mk ?loc ?attrs (Pmod_functor (arg, body))
   let apply ?loc ?attrs m1 m2 = mk ?loc ?attrs (Pmod_apply (m1, m2))
   let apply_unit ?loc ?attrs m1 = mk ?loc ?attrs (Pmod_apply_unit m1)
-  let constraint_ ?loc ?attrs m mty = mk ?loc ?attrs (Pmod_constraint (m, mty))
+  let constraint_ ?loc ?attrs ty mode m =
+    mk ?loc ?attrs (Pmod_constraint (m, ty, mode))
   let unpack ?loc ?attrs e = mk ?loc ?attrs (Pmod_unpack e)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmod_extension a)
+  let instance ?loc ?attrs a = mk ?loc ?attrs (Pmod_instance a)
 end
 
 module Sig = struct
@@ -453,10 +457,11 @@ end
 
 module Md = struct
   let mk ?(loc = !default_loc) ?(attrs = [])
-        ?(docs = empty_docs) ?(text = []) name typ =
+        ?(docs = empty_docs) ?(text = []) ?(modalities=[]) name typ =
     {
      pmd_name = name;
      pmd_type = typ;
+     pmd_modalities = modalities;
      pmd_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
      pmd_loc = loc;

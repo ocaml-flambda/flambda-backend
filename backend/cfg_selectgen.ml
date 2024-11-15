@@ -130,6 +130,20 @@ let next_instr_id () : int =
   incr next_instr_id;
   res
 
+(* A "sub" CFG is the counterpart of an instruction list in the original Mach
+   selection pass.
+
+   It is essentially a collection of blocks (stored as a layout, i.e. as a
+   list), with two designated blocks:
+
+   - an entry block;
+
+   - an exit block.
+
+   The exit block is where more instructions are being added, which means that
+   the terminator of an in-construction "sub" CFG is `Never`, and will be
+   changed only when no additional instructions will be inserted to the
+   block. *)
 module Sub_cfg : sig
   type t =
     { entry : Cfg.basic_block;
@@ -142,6 +156,8 @@ module Sub_cfg : sig
 
   val make_empty_block :
     ?label:Label.t -> Cfg.terminator Cfg.instruction -> Cfg.basic_block
+
+  val make_never_block : ?label:Label.t -> unit -> Cfg.basic_block
 
   val make_empty : unit -> t
 
@@ -194,10 +210,11 @@ end = struct
       cold = false
     }
 
+  let make_never_block ?label () : Cfg.basic_block =
+    make_empty_block ?label (make_instr Cfg.Never [||] [||] Debuginfo.none)
+
   let make_empty () =
-    let exit =
-      make_empty_block (make_instr Cfg.Never [||] [||] Debuginfo.none)
-    in
+    let exit = make_never_block () in
     let entry =
       make_empty_block
         (make_instr (Cfg.Always exit.start) [||] [||] Debuginfo.none)
@@ -319,38 +336,40 @@ class virtual selector_generic =
       | Cdls_get, _ -> basic_op Dls_get, args
       | Calloc mode, _ ->
         basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
-      | Caddi, _ -> self#select_arith_comm Mach.Iadd args
-      | Csubi, _ -> self#select_arith Mach.Isub args
-      | Cmuli, _ -> self#select_arith_comm Mach.Imul args
+      | Caddi, _ -> self#select_arith_comm Simple_operation.Iadd args
+      | Csubi, _ -> self#select_arith Simple_operation.Isub args
+      | Cmuli, _ -> self#select_arith_comm Simple_operation.Imul args
       | Cmulhi { signed }, _ ->
-        self#select_arith_comm (Mach.Imulh { signed }) args
-      | Cdivi, _ -> basic_op (Intop Mach.Idiv), args
-      | Cmodi, _ -> basic_op (Intop Mach.Imod), args
-      | Cand, _ -> self#select_arith_comm Mach.Iand args
-      | Cor, _ -> self#select_arith_comm Mach.Ior args
-      | Cxor, _ -> self#select_arith_comm Mach.Ixor args
-      | Clsl, _ -> self#select_arith Mach.Ilsl args
-      | Clsr, _ -> self#select_arith Mach.Ilsr args
-      | Casr, _ -> self#select_arith Mach.Iasr args
+        self#select_arith_comm (Simple_operation.Imulh { signed }) args
+      | Cdivi, _ -> basic_op (Intop Idiv), args
+      | Cmodi, _ -> basic_op (Intop Imod), args
+      | Cand, _ -> self#select_arith_comm Simple_operation.Iand args
+      | Cor, _ -> self#select_arith_comm Simple_operation.Ior args
+      | Cxor, _ -> self#select_arith_comm Simple_operation.Ixor args
+      | Clsl, _ -> self#select_arith Simple_operation.Ilsl args
+      | Clsr, _ -> self#select_arith Simple_operation.Ilsr args
+      | Casr, _ -> self#select_arith Simple_operation.Iasr args
       | Cclz { arg_is_non_zero }, _ ->
-        basic_op (Intop (Mach.Iclz { arg_is_non_zero })), args
+        basic_op (Intop (Iclz { arg_is_non_zero })), args
       | Cctz { arg_is_non_zero }, _ ->
-        basic_op (Intop (Mach.Ictz { arg_is_non_zero })), args
-      | Cpopcnt, _ -> basic_op (Intop Mach.Ipopcnt), args
-      | Ccmpi comp, _ -> self#select_arith_comp (Mach.Isigned comp) args
-      | Caddv, _ -> self#select_arith_comm Mach.Iadd args
-      | Cadda, _ -> self#select_arith_comm Mach.Iadd args
-      | Ccmpa comp, _ -> self#select_arith_comp (Mach.Iunsigned comp) args
-      | Ccmpf (w, comp), _ -> basic_op (Floatop (w, Mach.Icompf comp)), args
+        basic_op (Intop (Ictz { arg_is_non_zero })), args
+      | Cpopcnt, _ -> basic_op (Intop Ipopcnt), args
+      | Ccmpi comp, _ ->
+        self#select_arith_comp (Simple_operation.Isigned comp) args
+      | Caddv, _ -> self#select_arith_comm Simple_operation.Iadd args
+      | Cadda, _ -> self#select_arith_comm Simple_operation.Iadd args
+      | Ccmpa comp, _ ->
+        self#select_arith_comp (Simple_operation.Iunsigned comp) args
+      | Ccmpf (w, comp), _ -> basic_op (Floatop (w, Icompf comp)), args
       | Ccsel _, [cond; ifso; ifnot] ->
         let cond, earg = self#select_condition cond in
         basic_op (Csel cond), [earg; ifso; ifnot]
-      | Cnegf w, _ -> basic_op (Floatop (w, Mach.Inegf)), args
-      | Cabsf w, _ -> basic_op (Floatop (w, Mach.Iabsf)), args
-      | Caddf w, _ -> basic_op (Floatop (w, Mach.Iaddf)), args
-      | Csubf w, _ -> basic_op (Floatop (w, Mach.Isubf)), args
-      | Cmulf w, _ -> basic_op (Floatop (w, Mach.Imulf)), args
-      | Cdivf w, _ -> basic_op (Floatop (w, Mach.Idivf)), args
+      | Cnegf w, _ -> basic_op (Floatop (w, Inegf)), args
+      | Cabsf w, _ -> basic_op (Floatop (w, Iabsf)), args
+      | Caddf w, _ -> basic_op (Floatop (w, Iaddf)), args
+      | Csubf w, _ -> basic_op (Floatop (w, Isubf)), args
+      | Cmulf w, _ -> basic_op (Floatop (w, Imulf)), args
+      | Cdivf w, _ -> basic_op (Floatop (w, Idivf)), args
       | Creinterpret_cast cast, _ -> basic_op (Reinterpret_cast cast), args
       | Cstatic_cast cast, _ -> basic_op (Static_cast cast), args
       | Catomic { op = Fetch_and_add; size }, [src; dst] ->
@@ -384,7 +403,7 @@ class virtual selector_generic =
       | Cendregion, _ -> basic_op End_region, args
       | _ -> Misc.fatal_error "Selection.select_oper"
 
-    method private select_arith_comm (op : Mach.integer_operation)
+    method private select_arith_comm (op : Simple_operation.integer_operation)
         (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
         =
       match args with
@@ -394,7 +413,7 @@ class virtual selector_generic =
         basic_op (Intop_imm (op, n)), [arg]
       | _ -> basic_op (Intop op), args
 
-    method private select_arith (op : Mach.integer_operation)
+    method private select_arith (op : Simple_operation.integer_operation)
         (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
         =
       match args with
@@ -402,14 +421,17 @@ class virtual selector_generic =
         basic_op (Intop_imm (op, n)), [arg]
       | _ -> basic_op (Intop op), args
 
-    method private select_arith_comp (cmp : Mach.integer_comparison)
+    method private select_arith_comp (cmp : Simple_operation.integer_comparison)
         (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list
         =
       match args with
-      | [arg; Cconst_int (n, _)] when self#is_immediate (Mach.Icomp cmp) n ->
+      | [arg; Cconst_int (n, _)]
+        when self#is_immediate (Simple_operation.Icomp cmp) n ->
         basic_op (Intop_imm (Icomp cmp, n)), [arg]
       | [Cconst_int (n, _); arg]
-        when self#is_immediate (Mach.Icomp (Select_utils.swap_intcomp cmp)) n ->
+        when self#is_immediate
+               (Simple_operation.Icomp (Select_utils.swap_intcomp cmp))
+               n ->
         basic_op (Intop_imm (Icomp (Select_utils.swap_intcomp cmp), n)), [arg]
       | _ -> basic_op (Intop (Icomp cmp)), args
 
@@ -417,7 +439,8 @@ class virtual selector_generic =
 
     val mutable sub_cfg = Sub_cfg.make_empty ()
 
-    val mutable tailrec_label : Label.t = -1 (* set in emit_fundecl *)
+    val mutable tailrec_label : Label.t = Label.none
+    (* set in emit_fundecl *)
 
     method insert
         : environment -> Cfg.basic -> Reg.t array -> Reg.t array -> unit =
@@ -536,10 +559,7 @@ class virtual selector_generic =
               self#insert_debug' env term dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 loc_res;
-              let next_block =
-                Sub_cfg.make_empty_block ~label:label_after
-                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-              in
+              let next_block = Sub_cfg.make_never_block ~label:label_after () in
               DLL.add_end sub_cfg.Sub_cfg.layout next_block;
               sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
               (* The destination registers (as per the procedure calling
@@ -561,10 +581,7 @@ class virtual selector_generic =
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug' env term dbg loc_arg loc_res;
               add_naming_op_for_bound_name loc_res;
-              let next_block =
-                Sub_cfg.make_empty_block ~label:label_after
-                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-              in
+              let next_block = Sub_cfg.make_never_block ~label:label_after () in
               DLL.add_end sub_cfg.Sub_cfg.layout next_block;
               sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
               self#insert_move_results env loc_res rd stack_ofs;
@@ -583,10 +600,7 @@ class virtual selector_generic =
                 self#insert_op_debug' env term dbg loc_arg
                   (Proc.loc_external_results (Reg.typv rd))
               in
-              let next_block =
-                Sub_cfg.make_empty_block ~label:label_after
-                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-              in
+              let next_block = Sub_cfg.make_never_block ~label:label_after () in
               DLL.add_end sub_cfg.Sub_cfg.layout next_block;
               sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
               add_naming_op_for_bound_name loc_res;
@@ -598,14 +612,14 @@ class virtual selector_generic =
               let rd = self#regs_for ty in
               let rd = self#insert_op_debug' env term dbg r1 rd in
               Select_utils.set_traps_for_raise env;
-              let next_block =
-                Sub_cfg.make_empty_block ~label:label_after
-                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-              in
+              let next_block = Sub_cfg.make_never_block ~label:label_after () in
               DLL.add_end sub_cfg.Sub_cfg.layout next_block;
               sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
               ret rd
-            | _ -> assert false)
+            | _ ->
+              Misc.fatal_errorf "unexpected terminator (%a)"
+                (Cfg.dump_terminator ~sep:"")
+                term)
           | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
             let loc_arg, stack_ofs =
               self#emit_extcall_args env ty_args new_args
@@ -625,17 +639,14 @@ class virtual selector_generic =
               then Cfg.Prim { op = Cfg.External r; label_after = label }
               else Cfg.Call_no_return r
             in
-            let _ =
+            let (_ : Reg.t array) =
               self#insert_op_debug' env term dbg loc_arg
                 (Proc.loc_external_results (Reg.typv rd))
             in
             Select_utils.set_traps_for_raise env;
             if returns
             then (
-              let dummy_block =
-                Sub_cfg.make_empty_block ~label
-                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-              in
+              let dummy_block = Sub_cfg.make_never_block ~label () in
               DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
               sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block };
               ret rd)
@@ -661,8 +672,12 @@ class virtual selector_generic =
             let rd = self#regs_for ty in
             add_naming_op_for_bound_name rd;
             ret (self#insert_op_debug env op dbg r1 rd)
-          | Basic _ -> assert false
-          | Terminator _ -> assert false)
+          | Basic basic ->
+            Misc.fatal_errorf "unexpected basic (%a)" Cfg.dump_basic basic
+          | Terminator term ->
+            Misc.fatal_errorf "unexpected terminator (%a)"
+              (Cfg.dump_terminator ~sep:"")
+              term)
 
     method emit_expr_aux_ifthenelse
         : environment ->
@@ -675,7 +690,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun env bound_name econd _ifso_dbg eif _ifnotdbg eelse _XXXdbg _value_kind ->
+      fun env bound_name econd _ifso_dbg eif _ifnotdbg eelse _dbg _value_kind ->
+        (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
         let cond, earg = self#select_condition econd in
         match self#emit_expr env earg ~bound_name:None with
         | None -> None
@@ -701,10 +717,7 @@ class virtual selector_generic =
                };
           DLL.transfer ~from:sub_if.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:sub_else.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          let join_block =
-            Sub_cfg.make_empty_block
-              (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-          in
+          let join_block = Sub_cfg.make_never_block () in
           Sub_cfg.link_if_needed ~from:sub_if.Sub_cfg.exit ~to_:join_block ();
           Sub_cfg.link_if_needed ~from:sub_else.Sub_cfg.exit ~to_:join_block ();
           DLL.add_end sub_cfg.Sub_cfg.layout join_block;
@@ -720,7 +733,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun env bound_name esel index ecases _XXXdbg _value_kind ->
+      fun env bound_name esel index ecases _dbg _value_kind ->
+        (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
         match self#emit_expr env esel ~bound_name:None with
         | None -> None
         | Some rsel ->
@@ -746,10 +760,7 @@ class virtual selector_generic =
             (fun sub_case ->
               DLL.transfer ~from:sub_case.Sub_cfg.layout ~to_:sub_cfg.layout ())
             subs;
-          let join_block =
-            Sub_cfg.make_empty_block
-              (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-          in
+          let join_block = Sub_cfg.make_never_block () in
           Array.iter
             (fun sub_case ->
               Sub_cfg.link_if_needed ~from:sub_case.Sub_cfg.exit ~to_:join_block
@@ -772,7 +783,7 @@ class virtual selector_generic =
           Cmm.expression ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun env bound_name _XXXrec_flag handlers body _value_kind ->
+      fun env bound_name _rec_flag handlers body _value_kind ->
         let handlers =
           List.map
             (fun (nfail, ids, e2, dbg, is_cold) ->
@@ -885,10 +896,7 @@ class virtual selector_generic =
                id = next_instr_id ()
              };
         DLL.transfer ~from:s_body.Sub_cfg.layout ~to_:sub_cfg.layout ();
-        let join_block =
-          Sub_cfg.make_empty_block
-            (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-        in
+        let join_block = Sub_cfg.make_never_block () in
         Sub_cfg.link_if_needed ~from:s_body.Sub_cfg.exit ~to_:join_block ();
         List.iter
           (fun sub_handler ->
@@ -972,7 +980,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun env bound_name e1 exn_cont v e2 _XXXdbg _value_kind ->
+      fun env bound_name e1 exn_cont v e2 _dbg _value_kind ->
+        (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
         assert (sub_cfg.exit.terminator.desc = Cfg.Never);
         let exn_label = Cmm.new_label () in
         let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
@@ -1014,10 +1023,7 @@ class virtual selector_generic =
                };
           DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          let join_block =
-            Sub_cfg.make_empty_block
-              (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-          in
+          let join_block = Sub_cfg.make_never_block () in
           DLL.add_end sub_cfg.Sub_cfg.layout join_block;
           Sub_cfg.link_if_needed ~from:s1.exit ~to_:join_block ();
           Sub_cfg.link_if_needed ~from:s2.exit ~to_:join_block ();
@@ -1071,7 +1077,8 @@ class virtual selector_generic =
             (fun trap ->
               let instr_desc =
                 match trap with
-                | Cmm.Push _ -> assert false
+                | Cmm.Push _ ->
+                  Misc.fatal_error "unexpected push on trap actions"
                 | Cmm.Pop _ -> Cfg.Poptrap
               in
               DLL.add_end sub_cfg.exit.body
@@ -1128,10 +1135,7 @@ class virtual selector_generic =
               self#insert_debug' env new_op dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 loc_res;
-              let new_exit =
-                Sub_cfg.make_empty_block ~label:label_after
-                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-              in
+              let new_exit = Sub_cfg.make_never_block ~label:label_after () in
               DLL.add_end sub_cfg.Sub_cfg.layout new_exit;
               sub_cfg <- { sub_cfg with exit = new_exit };
               Select_utils.set_traps_for_raise env;
@@ -1159,10 +1163,7 @@ class virtual selector_generic =
             else (
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug' env new_op dbg loc_arg loc_res;
-              let new_exit =
-                Sub_cfg.make_empty_block ~label:label_after
-                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-              in
+              let new_exit = Sub_cfg.make_never_block ~label:label_after () in
               DLL.add_end sub_cfg.Sub_cfg.layout new_exit;
               sub_cfg <- { sub_cfg with exit = new_exit };
               Select_utils.set_traps_for_raise env;
@@ -1180,7 +1181,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun env econd _ifso_dbg eif _ifnot_dbg eelse _XXXdbg _kind ->
+      fun env econd _ifso_dbg eif _ifnot_dbg eelse _dbg _kind ->
+        (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
         let cond, earg = self#select_condition econd in
         match self#emit_expr env earg ~bound_name:None with
         | None -> ()
@@ -1201,10 +1203,7 @@ class virtual selector_generic =
                };
           DLL.transfer ~from:sub_if.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:sub_else.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          let dummy_block =
-            Sub_cfg.make_empty_block
-              (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-          in
+          let dummy_block = Sub_cfg.make_never_block () in
           DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
           sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block }
 
@@ -1216,7 +1215,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun env esel index ecases _XXXdbg _king ->
+      fun env esel index ecases _dbg _king ->
+        (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
         match self#emit_expr env esel ~bound_name:None with
         | None -> ()
         | Some rsel ->
@@ -1240,10 +1240,7 @@ class virtual selector_generic =
             (fun sub_case ->
               DLL.transfer ~from:sub_case.Sub_cfg.layout ~to_:sub_cfg.layout ())
             sub_cases;
-          let dummy_block =
-            Sub_cfg.make_empty_block
-              (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-          in
+          let dummy_block = Sub_cfg.make_never_block () in
           DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
           sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block }
 
@@ -1259,7 +1256,7 @@ class virtual selector_generic =
           Cmm.expression ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun env _XXXrec_flag handlers e1 _value_kind ->
+      fun env _rec_flag handlers e1 _value_kind ->
         let handlers =
           List.map
             (fun (nfail, ids, e2, dbg, is_cold) ->
@@ -1348,7 +1345,8 @@ class virtual selector_generic =
             in
             build_all_reachable_handlers ~already_built ~not_built
         in
-        let new_handlers : (int * Mach.trap_stack * Sub_cfg.t * bool) list =
+        let new_handlers :
+            (int * Simple_operation.trap_stack * Sub_cfg.t * bool) list =
           build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
           (* Note: we're dropping unreachable handlers here *)
         in
@@ -1374,7 +1372,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun env e1 exn_cont v e2 _XXXdbg _value_kind ->
+      fun env e1 exn_cont v e2 _dbg _value_kind ->
+        (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
         assert (sub_cfg.exit.terminator.desc = Cfg.Never);
         let exn_label = Cmm.new_label () in
         let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
@@ -1413,10 +1412,7 @@ class virtual selector_generic =
                };
           DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          let dummy_block =
-            Sub_cfg.make_empty_block
-              (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
-          in
+          let dummy_block = Sub_cfg.make_never_block () in
           DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
           sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block }
         in
@@ -1590,7 +1586,7 @@ class virtual selector_generic =
         (* CR xclerc for xclerc: Regalloc_irc_utils.log_cfg_with_infos ~indent:1
            (Cfg_with_infos.make cfg_with_layout); *)
         Merge_straightline_blocks.run cfg_with_layout;
-        Eliminate_dead_code.run_dead_block cfg_with_layout;
         Simplify_terminator.run cfg;
+        Eliminate_dead_code.run_dead_block cfg_with_layout;
         cfg_with_layout
   end
