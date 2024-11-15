@@ -396,15 +396,16 @@ Caml_inline value ephe_list_tail(value e)
 #ifdef DEBUG
 static void orph_ephe_list_verify_status (int status)
 {
-  value v;
+  caml_plat_lock_blocking(&orphaned_lock);
 
-  v = orph_structs.ephe_list_live;
+  value v = orph_structs.ephe_list_live;
 
   while (v) {
     CAMLassert (Tag_val(v) == Abstract_tag);
     CAMLassert (Has_status_val(v, status));
     v = Ephe_link(v);
   }
+  caml_plat_unlock(&orphaned_lock);
 }
 #endif
 
