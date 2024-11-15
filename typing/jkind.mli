@@ -151,7 +151,10 @@ end
 
 module Violation : sig
   type violation =
-    | Not_a_subjkind : (allowed * 'r) t * ('l * allowed) t -> violation
+    (* [Not_a_subjkind] allows l-jkinds on the right so that it can be used
+       in [sub_jkind_l]. There is no downside to this, as the printing
+       machinery works over l-jkinds. *)
+    | Not_a_subjkind : (allowed * 'r1) t * ('l * 'r2) t -> violation
     | No_intersection : 'd t * ('l * allowed) t -> violation
 
   type t
@@ -332,27 +335,16 @@ val of_const :
 
 val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd t
 
-(** A [History.annotation_context] paired with a function for translating
-    types, if we're interpreting a [jkind_l]. *)
-module Context_with_transl : sig
-  type 'd t =
-    | Right_jkind :
-        ('l * allowed) History.annotation_context
-        -> ('l * allowed) t
-    | Left_jkind :
-        (Parsetree.core_type -> Types.type_expr)
-        * (allowed * disallowed) History.annotation_context
-        -> (allowed * disallowed) t
-end
-
 val of_annotation :
-  context:'d Context_with_transl.t -> Parsetree.jkind_annotation -> 'd t
+  context:('l * allowed) History.annotation_context ->
+  Parsetree.jkind_annotation ->
+  ('l * allowed) t
 
 val of_annotation_option_default :
-  default:'d t ->
-  context:'d Context_with_transl.t ->
+  default:('l * allowed) t ->
+  context:('l * allowed) History.annotation_context ->
   Parsetree.jkind_annotation option ->
-  'd t
+  ('l * allowed) t
 
 (** Find a jkind from a type declaration. Type declarations are special because
     the jkind may have been provided via [: jkind] syntax (which goes through
@@ -366,6 +358,7 @@ val of_annotation_option_default :
 *)
 val of_type_decl :
   context:History.annotation_context_l ->
+  transl_type:(Parsetree.core_type -> Types.type_expr) ->
   Parsetree.type_declaration ->
   (jkind_l * Parsetree.jkind_annotation option) option
 
@@ -376,6 +369,7 @@ val of_type_decl :
 *)
 val of_type_decl_default :
   context:History.annotation_context_l ->
+  transl_type:(Parsetree.core_type -> Types.type_expr) ->
   default:jkind_l ->
   Parsetree.type_declaration ->
   jkind_l
@@ -436,14 +430,17 @@ val sort_of_jkind : jkind_l -> sort
     Never does mutation. *)
 val get_layout : 'd t -> Layout.Const.t option
 
-(* CR layouts v2.8: This will need to become significantly more involved with
-   [with]-types. *)
+(* CR reisenberg: Do we need to return the option? *)
 
 (** Gets the maximum modes for types of this jkind. *)
-val get_modal_upper_bounds : 'd t -> Mode.Alloc.Const.t
+val get_modal_upper_bounds :
+  jkind_of_type:(Types.type_expr -> jkind_l option) ->
+  'd t ->
+  Mode.Alloc.Const.t
 
 (** Gets the maximum mode on the externality axis for types of this jkind. *)
-val get_externality_upper_bound : 'd t -> Externality.t
+val get_externality_upper_bound :
+  jkind_of_type:(Types.type_expr -> jkind_l option) -> 'd t -> Externality.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
@@ -493,14 +490,10 @@ val equate : jkind_lr -> jkind_lr -> bool
 val equal : jkind_lr -> jkind_lr -> bool
 
 (** Checks whether two jkinds have a non-empty intersection. Might mutate
-    sort variables. *)
-val has_intersection : jkind_r -> jkind_r -> bool
-
-(* CR layouts v2.8: This almost certainly has to get rewritten, as l-kinds do
-   not support meets. *)
-
-(** Like [has_intersection], but comparing two [l] jkinds. *)
-val has_intersection_l_l : jkind_l -> jkind_l -> bool
+    sort variables. Works over any mix of l- and r-jkinds, because the only
+    way not to have an intersection is by looking at the layout: all axes
+    have a bottom element. *)
+val has_intersection : 'd1 t -> 'd2 t -> bool
 
 (** Finds the intersection of two jkinds, constraining sort variables to
     create one if needed, or returns a [Violation.t] if an intersection does
@@ -536,17 +529,18 @@ val sub_or_error :
 (** Like [sub], but returns the subjkind with an updated history.
     Pre-condition: the super jkind must be fully settled; no variables
     which might be filled in later. *)
-val sub_jkind_l : jkind_l -> jkind_l -> (jkind_l, Violation.t) result
-
-(* CR layouts v2.8: This almost certainly has to get rewritten, as l-kinds do
-   not support meets. *)
-
-(** Like [intersection_or_error], but between an [l] and an [l], as an [l]. *)
-val intersect_l_l :
-  reason:History.interact_reason ->
-  (allowed * 'r1) t ->
-  (allowed * 'r2) t ->
+val sub_jkind_l :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
+  jkind_l ->
+  jkind_l ->
   (jkind_l, Violation.t) result
+
+(** "round up" a [jkind_l] to a [jkind_r] such that the input is less than the
+    output. *)
+val round_up :
+  jkind_of_type:(Types.type_expr -> jkind_l option) ->
+  (allowed * 'r) t ->
+  ('l * allowed) t
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
@@ -564,9 +558,17 @@ val is_value_for_printing : 'd t -> bool
 (* debugging *)
 
 module Debug_printers : sig
-  val t : Format.formatter -> 'd t -> unit
+  val t :
+    print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
+    Format.formatter ->
+    'd t ->
+    unit
 
   module Const : sig
-    val t : Format.formatter -> 'd Const.t -> unit
+    val t :
+      print_type_expr:(Format.formatter -> Types.type_expr -> unit) ->
+      Format.formatter ->
+      'd Const.t ->
+      unit
   end
 end

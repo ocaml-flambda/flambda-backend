@@ -322,8 +322,6 @@ include Allowance.Magic_allow_disallow (struct
   let allow_left t = { t with jkind = Layout_and_axes.allow_left t.jkind }
 end)
 
-let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
-
 let try_allow_r t =
   Option.map
     (fun jkind -> { t with jkind })
@@ -382,8 +380,8 @@ module Baggage = struct
     | Baggage (ty1, tys1), Baggage (ty2, tys2) ->
       Baggage (ty1, tys1 @ (ty2 :: tys2))
 
-  let meet (type l) (bag1 : (l * allowed) t) (bag2 : (l * allowed) t) :
-      (l * allowed) t =
+  let meet (type l1 l2) (bag1 : (l1 * allowed) t) (bag2 : (l2 * allowed) t) :
+      (l1 * allowed) t =
     match bag1, bag2 with No_baggage, No_baggage -> No_baggage
 
   let add_baggage (t : (allowed * 'r) t) baggage : (allowed * 'r) t =
@@ -878,7 +876,7 @@ module Const = struct
       | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
       |> allow_left |> allow_right
     | Mod (base, modifiers) ->
-      let base = of_user_written_annotation_unchecked_level context jkind in
+      let base = of_user_written_annotation_unchecked_level context base in
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let upper_bounds =
@@ -1191,10 +1189,13 @@ let of_annotated_const ~context ~annotation ~const ~const_loc =
   let context = Context_with_transl.get_context context in
   of_const ~annotation ~why:(Annotated (context, const_loc)) const
 
-let of_annotation ~context (annot : Parsetree.jkind_annotation) =
+let of_annotation_lr ~context (annot : Parsetree.jkind_annotation) =
   let const = Const.of_user_written_annotation ~context annot in
   of_annotated_const ~annotation:(Some annot) ~const ~const_loc:annot.pjkind_loc
     ~context
+
+let of_annotation ~context annot =
+  of_annotation_lr ~context:(Right_jkind context) annot
 
 let of_annotation_option_default ~default ~context = function
   | None -> default
@@ -1208,14 +1209,16 @@ let of_attribute ~context
   of_annotated_const ~context ~annotation:(mk_annot name) ~const
     ~const_loc:attribute.loc
 
-let of_type_decl ~context (decl : Parsetree.type_declaration) =
+let of_type_decl ~context ~transl_type (decl : Parsetree.type_declaration) =
+  let context = Context_with_transl.Left_jkind (transl_type, context) in
   let jkind_of_annotation =
     decl.ptype_jkind_annotation
-    |> Option.map (fun annot -> of_annotation ~context annot, annot)
+    |> Option.map (fun annot -> of_annotation_lr ~context annot, annot)
   in
   let jkind_of_attribute =
     Builtin_attributes.jkind decl.ptype_attributes
-    |> Option.map (fun attr -> (of_attribute ~context attr, None), attr)
+    |> Option.map (fun attr ->
+           (of_attribute ~context attr |> disallow_right, None), attr)
   in
   match jkind_of_annotation, jkind_of_attribute with
   | None, None -> None
@@ -1225,8 +1228,11 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
-  match of_type_decl ~context decl with Some (t, _) -> t | None -> default
+let of_type_decl_default ~context ~transl_type ~default
+    (decl : Parsetree.type_declaration) =
+  match of_type_decl ~context ~transl_type decl with
+  | Some (t, _) -> t
+  | None -> default
 
 let for_boxed_record ~all_void =
   if all_void
@@ -1732,7 +1738,7 @@ module Violation = struct
   open Format
 
   type violation =
-    | Not_a_subjkind : (allowed * 'r) t * ('l * allowed) t -> violation
+    | Not_a_subjkind : (allowed * 'r1) t * ('l * 'r2) t -> violation
     | No_intersection : 'd t * ('l * allowed) t -> violation
 
   type nonrec t =
@@ -1908,7 +1914,8 @@ let combine_histories reason (Pack k1) (Pack k2) =
       }
 
 let has_intersection t1 t2 =
-  Option.is_some (Jkind_desc.intersection t1.jkind t2.jkind)
+  (* Need to check only the layouts: all the axes have bottom elements. *)
+  Option.is_some (Layout.intersection t1.jkind.layout t2.jkind.layout)
 
 let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
@@ -1921,15 +1928,15 @@ let intersection_or_error ~reason t1 t2 =
         has_warned = t1.has_warned || t2.has_warned
       }
 
-let intersect_l_l ~reason t1 t2 =
-  (* CR layouts v2.8: Do something cleverer here once we have more
-     expressive l-kinds. *)
-  intersection_or_error ~reason t1 (terrible_relax_l t2)
-
-let has_intersection_l_l t1 t2 =
-  (* CR layouts v2.8: Do something cleverer here once we have more
-     expressive l-kinds. *)
-  has_intersection (terrible_relax_l t1) (terrible_relax_l t2)
+let round_up ~jkind_of_type t =
+  let reduced_bounds = reduce_bounds ~jkind_of_type t in
+  let upper_bounds =
+    Bounds.Create.f
+      { f =
+          (fun ~axis -> Bound.simple (Reduced_bounds.get ~axis reduced_bounds))
+      }
+  in
+  { t with jkind = { t.jkind with upper_bounds } }
 
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
@@ -1955,12 +1962,39 @@ let sub_or_error t1 t2 =
 
 (* CR layouts v2.8: Rewrite this to do the hard subjkind check from the
    kind polymorphism design. *)
-let sub_jkind_l sub super =
-  let super = terrible_relax_l super in
-  match check_sub sub super with
-  | Less | Equal ->
+let sub_jkind_l ~type_equal sub super =
+  let success =
     Ok { sub with history = combine_histories Subjkind (Pack sub) (Pack super) }
-  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+  in
+  let failure = Error (Violation.of_ (Not_a_subjkind (sub, super))) in
+  match try_allow_r super with
+  | Some super -> (
+    match check_sub sub super with Less | Equal -> success | Not_le -> failure)
+  | None ->
+    (* CR layouts v2.8: Do something better than just comparing for equality. *)
+    (* We can't use other functions, because they insist that we only compare
+       lr-jkinds for equality, not just l-jkinds. *)
+    let layouts =
+      Misc.Le_result.is_le (Layout.sub sub.jkind.layout super.jkind.layout)
+    in
+    let bounds =
+      Bounds.Fold2.f
+        { f =
+            (fun (type axis) ~(axis : axis Axis.t) (bound1 : _ Bound.t)
+                 (bound2 : _ Bound.t) ->
+              let (module Bound_ops) = Axis.get axis in
+              let baggage1 = Baggage.as_list bound1.baggage in
+              let baggage2 = Baggage.as_list bound2.baggage in
+              let modifiers = Bound_ops.equal bound1.modifier bound2.modifier in
+              let baggages =
+                List.compare_lengths baggage1 baggage2 = 0
+                && List.for_all2 type_equal baggage1 baggage2
+              in
+              modifiers && baggages)
+        }
+        ~combine:( && ) sub.jkind.upper_bounds super.jkind.upper_bounds
+    in
+    if layouts && bounds then success else failure
 
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s

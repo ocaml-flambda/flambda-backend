@@ -337,7 +337,7 @@ end = struct
   let mk_poly_univars_tuple_with_jkind ~context var jkind_annot =
     let name = var.txt in
     let original_jkind =
-      Jkind.of_annotation ~context:(Right_jkind (context name)) jkind_annot
+      Jkind.of_annotation ~context:(context name) jkind_annot
     in
     let jkind_info = { original_jkind; defaulted = false } in
     name, mk_pending_univar name original_jkind jkind_info
@@ -586,8 +586,7 @@ let transl_type_param env path jkind_default styp =
     match jkind_annot with
     | None -> jkind_default, None
     | Some jkind_annot ->
-      Jkind.of_annotation ~context:(Right_jkind (Type_parameter (path, name)))
-        jkind_annot,
+      Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot,
       Some jkind_annot
   in
   let attrs = styp.ptyp_attributes in
@@ -611,8 +610,7 @@ let transl_type_param env path jkind_default styp =
 let get_type_param_jkind path styp =
   let of_annotation jkind name =
     let jkind =
-      Jkind.of_annotation ~context:(Right_jkind (Type_parameter (path, name)))
-        jkind
+      Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind
     in
     jkind
   in
@@ -681,8 +679,7 @@ let enrich_with_attributes attrs annotation_context =
   | None -> annotation_context
 
 let jkind_of_annotation annotation_context attrs jkind =
-  Jkind.of_annotation
-    ~context:(Right_jkind (enrich_with_attributes attrs annotation_context))
+  Jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context)
     jkind
 
 (* translate the ['a 'b ('c : immediate) .] part of a polytype,

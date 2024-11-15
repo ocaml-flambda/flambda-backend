@@ -2337,21 +2337,28 @@ let check_type_externality env ty ext =
   | Error _ -> false
 
 let check_decl_jkind env decl jkind =
-  (* CR layouts v2.8: This will need to be deeply reimplemented. *)
-  match Jkind.try_allow_r jkind with
-  | None -> raise (Illegal_with_jkind jkind)
-  | Some jkind ->
-    match Jkind.sub_or_error decl.type_jkind jkind with
-    | Ok () as ok -> ok
-    | Error _ as err ->
-        match decl.type_manifest with
-        | None -> err
-        | Some ty -> check_type_jkind env ty jkind
+  (* CR layouts v2.8: This could use an algorithm like [constrain_type_jkind]
+     to expand only as much as needed, but the l/l subtype algorithm is tricky,
+     and so we leave this optimization for later. *)
+  match Jkind.sub_jkind_l decl.type_jkind jkind with
+  | Ok _ -> Ok ()
+  | Error _ as err ->
+    match decl.type_manifest with
+    | None -> err
+    | Some ty ->
+      (* CR layouts v2.8: Should this use [type_jkind_purely]? I think not. *)
+      let ty_jkind = type_jkind env ty in
+      match Jkind.sub_jkind_l ty_jkind jkind with
+      | Ok _ -> Ok ()
+      | Error _ as err -> err
 
 let constrain_decl_jkind env decl jkind =
   (* CR layouts v2.8: This will need to be deeply reimplemented. *)
   match Jkind.try_allow_r jkind with
-  | None -> raise (Illegal_with_jkind jkind)
+  (* This case is sad, because it can't refine type variables. Hence
+     the need for reimplementation. Hopefully no one hits this for
+     a while. *)
+  | None -> check_decl_jkind env decl jkind
   | Some jkind ->
     match Jkind.sub_or_error decl.type_jkind jkind with
     | Ok () as ok -> ok
@@ -2392,8 +2399,10 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
   | _ ->
     (* [intersect_type_jkind] is called rarely, so we don't bother with trying
        to avoid this call as in [constrain_type_jkind] *)
-    let ty1 = get_unboxed_type_approximation env ty1 in
-    Jkind.intersect_l_l ~reason (estimate_type_jkind env ty1) jkind2
+    let jkind1 = type_jkind env ty1 in
+    let jkind1 = Jkind.round_up jkind1 in
+    let jkind2 = Jkind.round_up jkind2 in
+    Jkind.intersect ~reason jkind1 jkind2
 
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
@@ -3019,7 +3028,7 @@ let equivalent_with_nolabels l1 l2 =
 
 (* the [tk] means we're comparing a type against a jkind *)
 let has_jkind_intersection_tk env ty jkind =
-  Jkind.has_intersection_l_l (type_jkind env ty) jkind
+  Jkind.has_intersection (type_jkind env ty) jkind
 
 (* [mcomp] tests if two types are "compatible" -- i.e., if they could ever
    unify.  (This is distinct from [eqtype], which checks if two types *are*
@@ -3173,7 +3182,7 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
     let check_jkinds () =
-      if not (Jkind.has_intersection_l_l decl.type_jkind decl'.type_jkind)
+      if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
       then raise Incompatible
     in
     if compatible_paths p1 p2 then begin
