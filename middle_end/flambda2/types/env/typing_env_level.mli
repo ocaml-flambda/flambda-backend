@@ -58,9 +58,6 @@ val variables_by_binding_time : t -> Variable.Set.t Binding_time.Map.t
 val variable_is_defined : t -> Variable.t -> bool
 
 val fold_on_defined_vars :
-  (binding_time:Binding_time.t -> Variable.t -> Flambda_kind.t -> 'a -> 'a) ->
-  t ->
-  'a ->
-  'a
+  (Variable.t -> Flambda_kind.t -> 'a -> 'a) -> t -> 'a -> 'a
 
 val as_extension_without_bindings : t -> Type_grammar.Env_extension.t
