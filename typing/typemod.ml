@@ -3773,10 +3773,10 @@ let type_implementation target modulename initial_env ast =
           in
           check_nongen_signature finalenv simple_sg;
           let simple_sg =
-            (* Generating [cmi] without [mli]. This [cmi] will only be on the
-               LHS of inclusion check, so we zap to floor (strongest). *)
+            (* Generating [cmi] without [mli]. This [cmi] could be on either side of
+              inclusion check, so we zap to identity for legacy compatibility. *)
             remove_modality_and_zero_alloc_variables_sg finalenv
-              ~zap_modality:Mode.Modality.Value.zap_to_floor simple_sg
+              ~zap_modality:Mode.Modality.Value.zap_to_id simple_sg
           in
           normalize_signature simple_sg;
           let argument_interface =
