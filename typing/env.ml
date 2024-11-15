@@ -710,7 +710,8 @@ and label_data = label_description
 and type_data =
   { tda_declaration : type_declaration;
     tda_descriptions : type_descriptions;
-    tda_shape : Shape.t; }
+    tda_shape : Shape.t;
+    tda_derived_unboxed : type_data option }
 
 and module_data =
   { mda_declaration : Subst.Lazy.module_declaration;
@@ -1326,6 +1327,7 @@ let type_of_cstr path = function
           tda_declaration = decl;
           tda_descriptions = Type_record (labels, repr);
           tda_shape = Shape.leaf decl.type_uid;
+          tda_derived_unboxed = None;
         }
       | _ -> assert false
       end
@@ -1338,9 +1340,15 @@ let rec find_type_data path env =
       tda_declaration = decl;
       tda_descriptions = Type_abstract (Btype.type_origin decl);
       tda_shape = Shape.leaf decl.type_uid;
+      tda_derived_unboxed = None;
     }
   | exception Not_found -> begin
       match path with
+      | Pextra_ty (path', Pderived_unboxed_ty) ->
+        begin match find_type_data path' env with
+        | { tda_derived_unboxed = Some data ; _ } -> data
+        | { tda_derived_unboxed = None ; _ } -> raise Not_found
+        end
       | Pident id -> IdTbl.find_same id env.types
       | Pdot(p, s) ->
           let sc = find_structure_components p env in
@@ -1354,6 +1362,7 @@ let rec find_type_data path env =
           | Pext_ty ->
               let cda = find_extension_full p env in
               type_of_cstr path cda.cda_description
+          | Pderived_unboxed_ty -> assert false
         end
     end
 and find_cstr path name env =
@@ -1904,6 +1913,46 @@ let is_identchar c =
   | _ ->
     false
 
+
+let derive_dur_decl decl lbl_decls =
+  let dur_lbl_decls = List.map (fun lbl_decl -> {
+      lbl_decl with ld_uid = Uid.mk ~current_unit:(get_unit_name ())
+    }) lbl_decls
+  in
+  let type_jkind =
+    Jkind.Builtin.product ~why:Unboxed_record
+      (List.map (fun lbl -> lbl.ld_jkind) dur_lbl_decls)
+  in
+  let type_manifest = match decl.type_manifest with
+    | None -> None
+    | Some ty -> match get_desc ty with
+      | Tconstr (path, params, _) ->
+        let desc =
+            Tconstr(Pextra_ty (path, Pderived_unboxed_ty), params, ref Mnil)
+        in
+        Some (newty3 ~level:(get_level ty) ~scope:(get_scope ty) desc)
+      | _ -> None
+  in
+  {
+    type_params = decl.type_params;
+    type_arity = decl.type_arity;
+    type_kind = Type_record_unboxed_product (dur_lbl_decls, Record_unboxed_product);
+    type_jkind = type_jkind;
+    type_jkind_annotation = None;
+    type_private = decl.type_private;
+    (* CR rtjoa: likely have to translate manifest *)
+    type_manifest;
+    type_variance = decl.type_variance;
+    type_separability = Types.Separability.default_signature ~arity:decl.type_arity;
+    type_is_newtype = false;
+    type_expansion_scope = decl.type_expansion_scope;
+    type_loc = Location.ghostify decl.type_loc;
+    type_attributes = [];
+    type_unboxed_default = false;
+    type_uid = Uid.mk ~current_unit:(get_unit_name ());
+    type_has_illegal_crossings = false;
+  }
+
 let rec components_of_module_maker
           {cm_env; cm_prefixing_subst;
            cm_path; cm_addr; cm_mty; cm_shape} : _ result =
@@ -1948,7 +1997,7 @@ let rec components_of_module_maker
             let final_decl = Subst.type_declaration sub decl in
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
-            let descrs =
+            let descrs, derived_unboxed =
               match decl.type_kind with
               | Type_variant (_,repr) ->
                   let cstrs = List.map snd
@@ -1966,8 +2015,9 @@ let rec components_of_module_maker
                       c.comp_constrs <-
                         add_to_tbl descr.cstr_name cda c.comp_constrs
                     ) cstrs;
-                 Type_variant (cstrs, repr)
-              | Type_record (_, repr) ->
+                 Type_variant (cstrs, repr), None
+              | Type_record (lbl_decls, repr) ->
+                  let dur_decl = derive_dur_decl decl lbl_decls in
                   let lbls = List.map snd
                     (Datarepr.labels_of_type path final_decl)
                   in
@@ -1976,9 +2026,31 @@ let rec components_of_module_maker
                       c.comp_labels <-
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
-                  Type_record (lbls, repr)
+                  let unboxed_path =
+                      Pextra_ty (path, Pderived_unboxed_ty) in
+                  let final_dur_decl = Subst.type_declaration sub dur_decl in
+                  let unboxed_lbls = List.map snd
+                    (Datarepr.unboxed_labels_of_type unboxed_path final_dur_decl)
+                  in
+                  List.iter
+                    (fun descr ->
+                      c.comp_unboxed_labels <-
+                        add_to_tbl descr.lbl_name descr c.comp_unboxed_labels)
+                    unboxed_lbls;
+                  let dur_kind = Type_record_unboxed_product (unboxed_lbls, Record_unboxed_product) in
+                  (* CR rtjoa: check this *)
+                  let shape = Shape.leaf final_dur_decl.type_uid in
+                  (* CR rtjoa: need to add DUR ? probably ... *)
+                  Type_record (lbls, repr),
+                  (* None *)
+                  Some {
+                    tda_declaration = final_dur_decl;
+                    tda_descriptions=dur_kind;
+                    tda_shape = shape;
+                    tda_derived_unboxed = None;
+                  }
               | Type_record_unboxed_product (_, repr) ->
-                  let (lbls : unboxed_label_description list) = List.map snd
+                  let lbls = List.map snd
                     (Datarepr.unboxed_labels_of_type path final_decl)
                   in
                   List.iter
@@ -1986,15 +2058,16 @@ let rec components_of_module_maker
                       c.comp_unboxed_labels <-
                         add_to_tbl descr.lbl_name descr c.comp_unboxed_labels)
                     lbls;
-                  Type_record_unboxed_product (lbls, repr)
-              | Type_abstract r -> Type_abstract r
-              | Type_open -> Type_open
+                  Type_record_unboxed_product (lbls, repr), None
+              | Type_abstract r -> Type_abstract r, None
+              | Type_open -> Type_open, None
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
               { tda_declaration = final_decl;
                 tda_descriptions = descrs;
-                tda_shape = shape; }
+                tda_shape = shape;
+                tda_derived_unboxed = derived_unboxed }
             in
             c.comp_types <- NameMap.add (Ident.name id) tda c.comp_types;
             env := store_type_infos ~tda_shape:shape id decl !env
@@ -2216,13 +2289,13 @@ and store_label
   end;
   add_label record_form env lbl_id lbl
 
-and store_type ~check id info shape env =
+and store_type ~check ?derived_unboxed_decl id info shape env =
   let loc = info.type_loc in
   if check then
     check_usage loc id info.type_uid
       (fun s -> Warnings.Unused_type_declaration s)
       !type_declarations;
-  let descrs, env =
+  let descrs, tda_derived_unboxed, env =
     let path = Pident id in
     match info.type_kind with
     | Type_variant (_,repr) ->
@@ -2230,31 +2303,68 @@ and store_type ~check id info shape env =
                             ~current_unit:(get_unit_name ())
         in
         Type_variant (List.map snd constructors, repr),
+        None,
         List.fold_left
           (fun env (cstr_id, cstr) ->
             store_constructor ~check info id cstr_id cstr env)
           env constructors
-    | Type_record (_, repr) ->
+    | Type_record (lbl_decls, repr) ->
+        let dur_decl = derive_dur_decl info lbl_decls in
         let labels = Datarepr.labels_of_type path info in
-        Type_record (List.map snd labels, repr),
-        List.fold_left
+        let env = List.fold_left
           (fun env (lbl_id, lbl) ->
             store_label ~record_form:Legacy ~check info id lbl_id lbl env)
           env labels
+        in
+        let unboxed_path = Pextra_ty (path, Pderived_unboxed_ty) in
+        let unboxed_labels = Datarepr.unboxed_labels_of_type unboxed_path dur_decl in
+        let env = List.fold_left
+          (fun env (lbl_id, lbl) ->
+            store_label ~record_form:Unboxed_product ~check:false info id lbl_id lbl env)
+          env unboxed_labels
+        in
+        let dur_kind = Type_record_unboxed_product (List.map snd unboxed_labels, Record_unboxed_product) in
+        (* CR rtjoa: check this *)
+        let shape = Shape.leaf dur_decl.type_uid in
+        Type_record (List.map snd labels, repr),
+        Some {
+          tda_declaration = dur_decl;
+          tda_descriptions=dur_kind;
+          tda_shape = shape;
+          tda_derived_unboxed = None;
+        },
+        env
     | Type_record_unboxed_product (_, repr) ->
         let labels = Datarepr.unboxed_labels_of_type path info in
         Type_record_unboxed_product (List.map snd labels, repr),
+        None,
         List.fold_left
           (fun env (lbl_id, lbl) ->
             store_label ~record_form:Unboxed_product ~check info id lbl_id lbl env)
           env labels
-    | Type_abstract r -> Type_abstract r, env
-    | Type_open -> Type_open, env
+    | Type_abstract r -> Type_abstract r, None, env
+    | Type_open -> Type_open, None, env
   in
+  let tda_derived_unboxed = match derived_unboxed_decl, tda_derived_unboxed with
+    | Some _, Some _ -> assert false
+    | None, None -> None
+    | None, Some data -> Some data
+    | Some decl, None ->
+      Some {
+        tda_declaration = decl;
+        tda_descriptions = (match decl.type_kind with
+            Type_abstract r -> Type_abstract r
+          | _ -> assert false);
+        tda_shape = Shape.leaf decl.type_uid;
+        tda_derived_unboxed = None
+      }
+        in
   let tda =
     { tda_declaration = info;
       tda_descriptions = descrs;
-      tda_shape = shape }
+      tda_shape = shape ;
+      tda_derived_unboxed;
+    }
   in
   Builtin_attributes.mark_alerts_used info.type_attributes;
   { env with
@@ -2271,7 +2381,9 @@ and store_type_infos ~tda_shape id info env =
     {
       tda_declaration = info;
       tda_descriptions = Type_abstract (Btype.type_origin info);
-      tda_shape
+      tda_shape;
+      (* CR rtjoa:  *)
+      tda_derived_unboxed = None;
     }
   in
   { env with
@@ -2422,9 +2534,9 @@ let add_value_lazy ?check ?shape ~mode id desc env =
   let mode = Mode.Value.disallow_right mode in
   store_value ?check ~mode id addr desc shape env
 
-let add_type ~check ?shape id info env =
+let add_type ~check ?shape ?derived_unboxed_decl id info env =
   let shape = shape_or_leaf info.type_uid shape in
-  store_type ~check id info shape env
+  store_type ~check ?derived_unboxed_decl id info shape env
 
 and add_extension ~check ?shape ~rebind id ext env =
   let addr = extension_declaration_address env id ext in
@@ -2737,7 +2849,7 @@ let add_language_extension_types env =
     match Language_extension.is_at_least ext lvl with
     | true ->
       (* CR-someday poechsel: Pass a correct shape here *)
-      f (add_type ?shape:None ~check:false) env
+      f (add_type ?shape:None ?derived_unboxed_decl:None ~check:false) env
     | false -> env
   in
   lazy
@@ -3619,11 +3731,42 @@ let lookup_value ~errors ~use ~loc lid env =
   in
   path, vd, vmode
 
-let lookup_type_full ~errors ~use ~loc lid env =
+let lookup_type_full' ~errors ~use ~loc lid env =
   match lid with
   | Lident s -> lookup_ident_type ~errors ~use ~loc s env
   | Ldot(l, s) -> lookup_dot_type ~errors ~use ~loc l s env
   | Lapply _ -> assert false
+
+let string_without_hash s =
+  if String.ends_with ~suffix:"#" s then
+    Some (String.sub s 0 (String.length s - 1))
+  else
+    None
+
+let lid_without_hash = function
+  | Lident s -> begin
+      match string_without_hash s with
+      | Some s -> Some (Lident s)
+      | None -> None
+      end
+  | Ldot(l, s) -> begin
+      match string_without_hash s with
+      | Some s -> Some (Ldot(l, s))
+      | None -> None
+      end
+  | Lapply _ -> None
+
+let lookup_type_full ~errors ~use ~loc lid env =
+  (* CR rtjoa: comment *)
+  match lid_without_hash lid with
+  | Some lid' ->
+    begin match lookup_type_full' ~errors:false ~use ~loc lid' env with
+    | path, { tda_derived_unboxed = Some type_data ; _ } ->
+      Pextra_ty (path, Pderived_unboxed_ty), type_data
+    | _, { tda_derived_unboxed = None ; _ } | exception Not_found ->
+      lookup_type_full' ~errors ~use ~loc lid env
+    end
+  | None -> lookup_type_full' ~errors ~use ~loc lid env
 
 let lookup_type ~errors ~use ~loc lid env =
   let (path, tda) = lookup_type_full ~errors ~use ~loc lid env in

@@ -20,21 +20,21 @@ end
 [%%expect{|
 {
  "M"[module] ->
-   {<.35>
-    "Exn"[extension constructor] -> {<.1>
-                                     "lbl_exn"[label] -> <.0>;
+   {<.55>
+    "Exn"[extension constructor] -> {<.3>
+                                     "lbl_exn"[label] -> <.2>;
                                      };
-    "Ext"[extension constructor] -> {<.7>
-                                     "lbl_ext"[label] -> <.6>;
+    "Ext"[extension constructor] -> {<.17>
+                                     "lbl_ext"[label] -> <.16>;
                                      };
-    "ext"[type] -> <.5>;
-    "l"[type] -> {<.3>
-                  "lbl"[label] -> <.4>;
+    "ext"[type] -> <.15>;
+    "l"[type] -> {<.5>
+                  "lbl"[label] -> <.6>;
                   };
     "t"[type] ->
-      {<.9>
-       "C"[constructor] -> {<.11>
-                            "lbl_cstr"[label] -> <.10>;
+      {<.19>
+       "C"[constructor] -> {<.21>
+                            "lbl_cstr"[label] -> <.20>;
                             };
        };
     };

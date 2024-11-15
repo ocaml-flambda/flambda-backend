@@ -18,8 +18,8 @@ module M : sig type t = A end
 include M
 [%%expect{|
 {
- "t"[type] -> {<.0>
-               "A"[constructor] -> {<.1>};
+ "t"[type] -> {<.2>
+               "A"[constructor] -> {<.3>};
                };
  }
 type t = M.t = A
@@ -29,10 +29,10 @@ module N = M
 [%%expect{|
 {
  "N"[module] ->
-   Alias(<.3>
-         {<.2>
-          "t"[type] -> {<.0>
-                        "A"[constructor] -> {<.1>};
+   Alias(<.5>
+         {<.4>
+          "t"[type] -> {<.2>
+                        "A"[constructor] -> {<.3>};
                         };
           });
  }
@@ -50,9 +50,9 @@ include struct
 end
 [%%expect{|
 {
- "M'"[module] -> {<.6>
-                  "t"[type] -> {<.4>
-                                "A"[constructor] -> {<.5>};
+ "M'"[module] -> {<.8>
+                  "t"[type] -> {<.6>
+                                "A"[constructor] -> {<.7>};
                                 };
                   };
  }
@@ -63,10 +63,10 @@ module N' = M'
 [%%expect{|
 {
  "N'"[module] ->
-   Alias(<.7>
-         {<.6>
-          "t"[type] -> {<.4>
-                        "A"[constructor] -> {<.5>};
+   Alias(<.9>
+         {<.8>
+          "t"[type] -> {<.6>
+                        "A"[constructor] -> {<.7>};
                         };
           });
  }
@@ -81,10 +81,10 @@ end
 [%%expect{|
 {
  "Test"[module] ->
-   {<.11>
-    "M"[module] -> {<.10>
-                    "t"[type] -> {<.8>
-                                  "A"[constructor] -> {<.9>};
+   {<.13>
+    "M"[module] -> {<.12>
+                    "t"[type] -> {<.10>
+                                  "A"[constructor] -> {<.11>};
                                   };
                     };
     };
@@ -95,9 +95,9 @@ module Test : sig module M : sig type t = A end end
 include Test
 [%%expect{|
 {
- "M"[module] -> {<.10>
-                 "t"[type] -> {<.8>
-                               "A"[constructor] -> {<.9>};
+ "M"[module] -> {<.12>
+                 "t"[type] -> {<.10>
+                               "A"[constructor] -> {<.11>};
                                };
                  };
  }
@@ -108,10 +108,10 @@ module N = M
 [%%expect{|
 {
  "N"[module] ->
-   Alias(<.12>
-         {<.10>
-          "t"[type] -> {<.8>
-                        "A"[constructor] -> {<.9>};
+   Alias(<.14>
+         {<.12>
+          "t"[type] -> {<.10>
+                        "A"[constructor] -> {<.11>};
                         };
           });
  }

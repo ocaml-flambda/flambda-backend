@@ -181,9 +181,9 @@ let make_params env path params =
 
 (* Enter all declared types in the environment as abstract types *)
 
-let add_type ~check ?shape id decl env =
+let add_type ~check ?shape ?derived_unboxed_decl id decl env =
   Builtin_attributes.warning_scope ~ppwarning:false decl.type_attributes
-    (fun () -> Env.add_type ~check ?shape id decl env)
+    (fun () -> Env.add_type ~check ?shape ?derived_unboxed_decl id decl env)
 
 (* Add a dummy type declaration to the environment, with the given arity.
    The [type_kind] is [Type_abstract], but there is a generic [type_manifest]
@@ -304,7 +304,29 @@ in
       type_has_illegal_crossings = false;
     }
   in
-  add_type ~check:true id decl env
+  let derived_unboxed_decl = match sdecl.ptype_kind with
+    | Ptype_record _ ->
+      Some {
+        type_params;
+        type_arity = arity;
+        type_kind = Type_abstract abstract_source;
+        type_jkind = any;
+        type_jkind_annotation = None;
+        type_private = sdecl.ptype_private;
+        type_manifest = Some (Ctype.newvar any);
+        type_variance = Variance.unknown_signature ~injective:false ~arity;
+        type_separability = Types.Separability.default_signature ~arity;
+        type_is_newtype = false;
+        type_expansion_scope = Btype.lowest_level;
+        type_loc = sdecl.ptype_loc;
+        type_attributes = sdecl.ptype_attributes;
+        type_unboxed_default = false;
+        type_uid = uid;
+        type_has_illegal_crossings = false;
+      }
+    | _ -> None
+  in
+  add_type ~check:true ?derived_unboxed_decl id decl env
 
 (* nroberts: The below [update_type] is deleted upstream in
    https://github.com/ocaml/ocaml/pull/12180 to stop ocamlc from looping on some
@@ -331,8 +353,7 @@ in
    that...  These circular types are ruled out just after [update_type] in
    [transl_type_decl], and then we perform the delayed checks.
 *)
-let update_type temp_env env id loc =
-  let path = Path.Pident id in
+let update_type temp_env env path loc =
   let decl = Env.find_type path temp_env in
   match decl.type_manifest with None -> assert false
   | Some ty ->
@@ -917,6 +938,14 @@ let transl_declaration env sdecl (id, uid) =
             transl_labels ~new_var_jkind:Any ~allow_unboxed:(not unbox)
             env None true lbls (Record { unboxed = unbox })
           in
+          (* let derived_unboxed_id, derived_unboxed_uid = match derived_unboxed_ids
+           * | Some id_uid -> id_uid
+           * | None -> assert false
+           * in
+           * let dur_lbls, dur_lbls' =
+           *   transl_labels ~new_var_jkind:Any ~allow_unboxed_true
+           *     env None true lbls Record_unboxed_product
+           * in *)
           let rep, jkind =
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
@@ -2159,6 +2188,8 @@ let check_redefined_unit (td: Parsetree.type_declaration) =
   | _ ->
       ()
 
+let filter_map2 f xs ys = List.map2 f xs ys |> List.filter_map Fun.id
+
 let add_types_to_env decls shapes env =
   List.fold_right2
     (fun (id, decl) shape env ->
@@ -2237,7 +2268,8 @@ let transl_type_decl env rec_flag sdecl_list =
          the coherence of the translated declarations in the resulting new
          enviroment. *)
       let tdecls =
-        List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
+        List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list)
+      in
       let decls, shapes =
         List.map (fun (tdecl, shape) ->
           (tdecl.typ_id, tdecl.typ_type), shape) tdecls
@@ -2255,9 +2287,24 @@ let transl_type_decl env rec_flag sdecl_list =
         | Asttypes.Recursive ->
           List.map2
             (fun (id, _) sdecl ->
-               update_type temp_env new_env id sdecl.ptype_loc,
+               update_type temp_env new_env (Path.Pident id) sdecl.ptype_loc,
                sdecl.ptype_loc)
             ids_list sdecl_list
+      in
+      let delayed_jkind_checks =
+        begin match rec_flag with
+        | Asttypes.Nonrecursive -> []
+        | Asttypes.Recursive ->
+          filter_map2
+            (fun (id, _) sdecl ->
+               match sdecl.ptype_kind with
+               | Ptype_record _ ->
+                 let path = Path.Pextra_ty (Path.Pident id, Path.Pderived_unboxed_ty) in
+                 let loc = Location.ghostify sdecl.ptype_loc in
+                 Some (update_type temp_env new_env path loc, loc)
+               | _ -> None)
+            ids_list sdecl_list
+        end @ delayed_jkind_checks
       in
       ((tdecls, decls, shapes, new_env, delayed_jkind_checks), List.map snd decls)
     end

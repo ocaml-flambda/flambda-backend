@@ -13,8 +13,8 @@ end
 ;;
 [%%expect{|
 {
- "Foo"[module] -> {<.2>
-                   "Bar"[module] -> {<.0>};
+ "Foo"[module] -> {<.4>
+                   "Bar"[module] -> {<.2>};
                    };
  }
 module Foo : sig module Bar : sig end end
@@ -29,7 +29,7 @@ end
 ;;
 [%%expect{|
 {
- "Extended"[module type] -> <.4>;
+ "Extended"[module type] -> <.6>;
  }
 module type Extended = sig module Bar : sig end end
 |}]
@@ -40,8 +40,8 @@ end
 
 [%%expect{|
 {
- "E"[module] -> {<.6>
-                 "Bar"[module] -> {<.5>};
+ "E"[module] -> {<.8>
+                 "Bar"[module] -> {<.7>};
                  };
  }
 module E : Extended

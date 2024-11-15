@@ -9,7 +9,7 @@
 module Mdirect = Stdlib__Unit
 [%%expect{|
 {
- "Mdirect"[module] -> Alias(<.0>
+ "Mdirect"[module] -> Alias(<.2>
                             CU Stdlib__Unit);
  }
 module Mdirect = Unit
@@ -18,7 +18,7 @@ module Mdirect = Unit
 module Mproj = Stdlib.Unit
 [%%expect{|
 {
- "Mproj"[module] -> Alias(<.1>
+ "Mproj"[module] -> Alias(<.3>
                           CU Stdlib . "Unit"[module]);
  }
 module Mproj = Unit
@@ -27,7 +27,7 @@ module Mproj = Unit
 module F (X : sig type t end) = X
 [%%expect{|
 {
- "F"[module] -> Abs<.4>(X, X<.3>);
+ "F"[module] -> Abs<.6>(X, X<.5>);
  }
 module F : functor (X : sig type t end) -> sig type t = X.t end
 |}]
@@ -43,7 +43,7 @@ module App_direct : sig type t = Unit.t end
 module App_proj = F (Stdlib.Unit)
 [%%expect{|
 {
- "App_proj"[module] -> (CU Stdlib . "Unit"[module])<.6>;
+ "App_proj"[module] -> (CU Stdlib . "Unit"[module])<.8>;
  }
 module App_proj : sig type t = Unit.t end
 |}]
@@ -51,7 +51,7 @@ module App_proj : sig type t = Unit.t end
 module App_direct_indir = F (Mdirect)
 [%%expect{|
 {
- "App_direct_indir"[module] -> Alias(<.7>
+ "App_direct_indir"[module] -> Alias(<.9>
                                      CU Stdlib__Unit);
  }
 module App_direct_indir : sig type t = Mdirect.t end
@@ -60,7 +60,7 @@ module App_direct_indir : sig type t = Mdirect.t end
 module App_proj_indir = F (Mproj)
 [%%expect{|
 {
- "App_proj_indir"[module] -> Alias(<.8>
+ "App_proj_indir"[module] -> Alias(<.10>
                                    CU Stdlib . "Unit"[module]);
  }
 module App_proj_indir : sig type t = Mproj.t end
@@ -101,7 +101,7 @@ module Without_constraint = Set.Make(Int)
 [%%expect{|
 {
  "Without_constraint"[module] ->
-   CU Stdlib . "Set"[module] . "Make"[module](CU Stdlib . "Int"[module])<.9>;
+   CU Stdlib . "Set"[module] . "Make"[module](CU Stdlib . "Int"[module])<.11>;
  }
 module Without_constraint :
   sig
@@ -161,10 +161,10 @@ end
 [%%expect{|
 {
  "With_identity_constraint"[module] ->
-   {<.12>
+   {<.14>
     "M"[module] ->
       CU Stdlib . "Set"[module] . "Make"[module](
-      CU Stdlib . "Int"[module])<.10>;
+      CU Stdlib . "Int"[module])<.12>;
     };
  }
 module With_identity_constraint : sig module M : Set.S end
@@ -178,12 +178,12 @@ end
 [%%expect{|
 {
  "With_constraining_constraint"[module] ->
-   {<.16>
+   {<.18>
     "M"[module] ->
-      {<.13>
+      {<.15>
        "t"[type] ->
          CU Stdlib . "Set"[module] . "Make"[module](
-         CU Stdlib . "Int"[module])<.13> . "t"[type];
+         CU Stdlib . "Int"[module])<.15> . "t"[type];
        };
     };
  }
