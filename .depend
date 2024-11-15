@@ -146,16 +146,6 @@ utils/int_replace_polymorphic_compare.cmo : \
 utils/int_replace_polymorphic_compare.cmx : \
     utils/int_replace_polymorphic_compare.cmi
 utils/int_replace_polymorphic_compare.cmi :
-utils/language_extension.cmo : \
-    utils/misc.cmi \
-    utils/language_extension_kernel.cmi \
-    utils/language_extension.cmi
-utils/language_extension.cmx : \
-    utils/misc.cmx \
-    utils/language_extension_kernel.cmx \
-    utils/language_extension.cmi
-utils/language_extension.cmi : \
-    utils/language_extension_kernel.cmi
 utils/language_extension_kernel.cmo : \
     utils/language_extension_kernel.cmi
 utils/language_extension_kernel.cmx : \
@@ -472,6 +462,16 @@ parsing/docstrings.cmx : \
 parsing/docstrings.cmi : \
     parsing/parsetree.cmi \
     parsing/location.cmi
+parsing/language_extension.cmo : \
+    utils/misc.cmi \
+    utils/language_extension_kernel.cmi \
+    parsing/language_extension.cmi
+parsing/language_extension.cmx : \
+    utils/misc.cmx \
+    utils/language_extension_kernel.cmx \
+    parsing/language_extension.cmi
+parsing/language_extension.cmi : \
+    utils/language_extension_kernel.cmi
 parsing/lexer.cmo : \
     utils/warnings.cmi \
     parsing/parser.cmi \
@@ -537,7 +537,7 @@ parsing/parser.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     parsing/docstrings.cmi \
     utils/clflags.cmi \
     parsing/camlinternalMenhirLib.cmi \
@@ -551,7 +551,7 @@ parsing/parser.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     parsing/docstrings.cmx \
     utils/clflags.cmx \
     parsing/camlinternalMenhirLib.cmx \
@@ -574,7 +574,7 @@ parsing/pprintast.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
     parsing/pprintast.cmi
@@ -583,7 +583,7 @@ parsing/pprintast.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
     parsing/pprintast.cmi
@@ -681,7 +681,7 @@ typing/ctype.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/local_store.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
@@ -701,7 +701,7 @@ typing/ctype.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/local_store.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     typing/jkind.cmx \
     typing/ident.cmx \
     typing/errortrace.cmx \
@@ -763,7 +763,7 @@ typing/env.cmo : \
     utils/local_store.cmi \
     utils/load_path.cmi \
     utils/lazy_backtrack.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
     typing/datarepr.cmi \
@@ -789,7 +789,7 @@ typing/env.cmx : \
     utils/local_store.cmx \
     utils/load_path.cmx \
     utils/lazy_backtrack.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     typing/jkind.cmx \
     typing/ident.cmx \
     typing/datarepr.cmx \
@@ -1042,7 +1042,7 @@ typing/jkind.cmo : \
     typing/mode.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind_types.cmi \
     typing/ident.cmi \
     parsing/builtin_attributes.cmi \
@@ -1056,7 +1056,7 @@ typing/jkind.cmx : \
     typing/mode.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     typing/jkind_types.cmx \
     typing/ident.cmx \
     parsing/builtin_attributes.cmx \
@@ -1319,7 +1319,7 @@ typing/primitive.cmo : \
     typing/outcometree.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind_types.cmi \
     parsing/attr_helper.cmi \
     typing/primitive.cmi
@@ -1328,7 +1328,7 @@ typing/primitive.cmx : \
     typing/outcometree.cmi \
     utils/misc.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     typing/jkind_types.cmx \
     parsing/attr_helper.cmx \
     typing/primitive.cmi
@@ -1709,7 +1709,7 @@ typing/typecore.cmo : \
     parsing/longident.cmi \
     parsing/location.cmi \
     utils/local_store.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
@@ -1750,7 +1750,7 @@ typing/typecore.cmx : \
     parsing/longident.cmx \
     parsing/location.cmx \
     utils/local_store.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     typing/jkind.cmx \
     typing/ident.cmx \
     typing/errortrace.cmx \
@@ -1772,7 +1772,7 @@ typing/typecore.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
     typing/errortrace.cmi \
@@ -1799,7 +1799,7 @@ typing/typedecl.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/includecore.cmi \
     typing/ident.cmi \
@@ -1836,7 +1836,7 @@ typing/typedecl.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     typing/jkind.cmx \
     typing/includecore.cmx \
     typing/ident.cmx \
@@ -1863,7 +1863,7 @@ typing/typedecl.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/includecore.cmi \
     typing/ident.cmi \
@@ -2117,7 +2117,7 @@ typing/typeopt.cmo : \
     utils/numbers.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     lambda/lambda.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
@@ -2135,7 +2135,7 @@ typing/typeopt.cmx : \
     utils/numbers.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     lambda/lambda.cmx \
     typing/jkind.cmx \
     typing/ident.cmx \
@@ -2210,7 +2210,7 @@ typing/typetexp.cmo : \
     utils/misc.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -2234,7 +2234,7 @@ typing/typetexp.cmx : \
     utils/misc.cmx \
     parsing/longident.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     typing/jkind.cmx \
     typing/errortrace.cmx \
     typing/env.cmx \
@@ -2252,7 +2252,7 @@ typing/typetexp.cmi : \
     typing/mode.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     typing/jkind.cmi \
     typing/errortrace.cmi \
     typing/env.cmi \
@@ -6628,7 +6628,7 @@ driver/compenv.cmo : \
     utils/profile.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     utils/config.cmi \
     utils/clflags.cmi \
     utils/ccomp.cmi \
@@ -6638,7 +6638,7 @@ driver/compenv.cmx : \
     utils/profile.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     utils/config.cmx \
     utils/clflags.cmx \
     utils/ccomp.cmx \
@@ -6784,7 +6784,7 @@ driver/main_args.cmo : \
     utils/profile.cmi \
     utils/misc.cmi \
     parsing/location.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     utils/config.cmi \
     driver/compenv.cmi \
     utils/clflags.cmi \
@@ -6794,7 +6794,7 @@ driver/main_args.cmx : \
     utils/profile.cmx \
     utils/misc.cmx \
     parsing/location.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     utils/config.cmx \
     driver/compenv.cmx \
     utils/clflags.cmx \
@@ -6841,7 +6841,7 @@ driver/makedepend.cmo : \
     utils/misc.cmi \
     parsing/location.cmi \
     parsing/lexer.cmi \
-    utils/language_extension.cmi \
+    parsing/language_extension.cmi \
     parsing/depend.cmi \
     utils/config.cmi \
     driver/compenv.cmi \
@@ -6855,7 +6855,7 @@ driver/makedepend.cmx : \
     utils/misc.cmx \
     parsing/location.cmx \
     parsing/lexer.cmx \
-    utils/language_extension.cmx \
+    parsing/language_extension.cmx \
     parsing/depend.cmx \
     utils/config.cmx \
     driver/compenv.cmx \
