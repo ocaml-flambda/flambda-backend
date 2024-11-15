@@ -85,9 +85,16 @@ module Unique_barrier : sig
   (* Resolve the unique barrier once type-checking is complete. *)
   val resolve : t -> Mode.Uniqueness.Const.t
 
+  (* Discard the unique barrier when it is not needed. *)
+  val discard : t -> unit
+
+  (* Before translation to lambda, this function should be called
+     to reset the counters for [check_consistency]. *)
+  val reset_counters : unit -> unit
+
   (* After translation to lambda, this function should be called
      to ensure that all unique barriers are actually read. *)
-  val check_consistency : unit -> unit
+  val check_consistency : ?file:string -> Location.t -> unit
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l

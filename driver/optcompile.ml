@@ -83,13 +83,16 @@ let implementation unix ~(flambda2 : flambda2) ~start_from ~source_file
       Direct_to_cmm (flambda2 ~keep_symbol_tables)
     in
     if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
-    compile info typed ~unix ~transl_style ~pipeline
+    let res = compile info typed ~unix ~transl_style ~pipeline in
+    Typedtree.Unique_barrier.check_consistency ~file:source_file Location.none;
+    res
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" @@ fun info ->
   if !Flambda_backend_flags.internal_assembler then
       Emitaux.binary_backend_available := true;
   match (start_from:Clflags.Compiler_pass.t) with
   | Parsing ->
+    Typedtree.Unique_barrier.reset_counters ();
     Compile_common.implementation
       ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_impl)
       ~hook_typed_tree:(fun (impl : Typedtree.implementation) ->

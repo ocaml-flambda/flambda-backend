@@ -179,6 +179,7 @@ let execute_phrase print_outcome ppf phr =
       in
       Compilenv.reset phrase_comp_unit;
       Typecore.reset_delayed_checks ();
+      Typedtree.Unique_barrier.reset_counters ();
       let (str, sg, names, shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
@@ -222,6 +223,7 @@ let execute_phrase print_outcome ppf phr =
           phrase_comp_unit, res, Compilation_unit.Set.empty, size
       in
       Warnings.check_fatal ();
+      Typedtree.Unique_barrier.check_consistency Location.none;
       begin try
         toplevel_env := newenv;
         toplevel_sig := List.rev_append sg' oldsig;

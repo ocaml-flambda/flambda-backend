@@ -2206,9 +2206,15 @@ let get_pat_args_unboxed_tuple arity p rem =
     (List.map (fun (_, p, _) -> p) args) @ rem
   | _ -> assert false
 
-let get_expr_args_tuple ~scopes ubr head (arg, _mut, _sort, _layout) rem =
+let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
-  let arity = Patterns.Head.arity head in
+  let arity, ubr =
+    let open Patterns.Head in
+    match head.pat_desc with
+    | Tuple (args, ubr) -> List.length args, ubr
+    | _ ->
+      assert false
+  in
   let ubr = Translmode.transl_unique_barrier ubr in
   let sem = add_barrier_to_read ubr Reads_agree in
   let str = add_barrier_to_let_kind ubr Alias in
@@ -2240,10 +2246,10 @@ let get_expr_args_unboxed_tuple ~scopes shape head (arg, _mut, _sort, _layout)
     shape
   @ rem
 
-let divide_tuple ~scopes ubr head ctx pm =
+let divide_tuple ~scopes head ctx pm =
   let arity = Patterns.Head.arity head in
   divide_line (Context.specialize head)
-    (get_expr_args_tuple ubr ~scopes)
+    (get_expr_args_tuple ~scopes)
     (get_pat_args_tuple arity)
     head ctx pm
 
@@ -2283,6 +2289,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
     | _ ->
         assert false
   in
+  let ubr = Translmode.transl_unique_barrier ubr in
   let rec make_args pos =
     if pos >= Array.length all_labels then
       rem
@@ -2296,7 +2303,6 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
-      let ubr = Translmode.transl_unique_barrier ubr in
       let sem = add_barrier_to_read ubr sem in
       let access, sort, layout =
         match lbl.lbl_repres with
@@ -2383,6 +2389,8 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
     | _ -> assert false
   in
   let loc = head_loc ~scopes head in
+  (* CR uniqueness: do not ignore _ubr, this is fixed in PR3243 *)
+  let _ubr = Translmode.transl_unique_barrier ubr in
   let rec make_args pos =
     if pos >= len then
       rem
@@ -2392,8 +2400,6 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let ref_kind = Lambda.(array_ref_kind alloc_heap kind) in
       let result_layout = array_ref_kind_result_layout ref_kind in
       let mut = if Types.is_mutable am then Mutable else Immutable in
-      (* CR uniqueness: do not ignore _ubr, this is fixed in PR3243 *)
-      let _ubr = Translmode.transl_unique_barrier ubr in
       ( Lprim
           (Parrayrefu (ref_kind, Ptagged_int_index, mut),
            [ arg; Lconst (Const_base (Const_int pos)) ],
@@ -3397,14 +3403,16 @@ let combine_variant value_kind loc row arg pat_barrier partial ctx def
   in
   (lambda1, Jumps.union local_jumps total1)
 
-let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, total1, _pats)
-    =
+let combine_array value_kind loc arg ubr kind partial ctx def
+      (len_lambda_list, total1, _pats) =
   let fail, local_jumps = mk_failaction_neg partial ctx def in
   let lambda1 =
     let newvar = Ident.create_local "len" in
     let switch =
       call_switcher value_kind loc fail (Lvar newvar) 0 max_int len_lambda_list
     in
+    (* CR uniqueness: do not ignore _ubr, this is fixed in PR3243 *)
+    let _ubr = Translmode.transl_unique_barrier ubr in
     bind_with_layout Alias (newvar, Lambda.layout_int) (Lprim (Parraylength kind, [ arg ], loc)) switch
   in
   (lambda1, Jumps.union local_jumps total1)
@@ -3757,16 +3765,16 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             divide_var
             Context.rshift repr partial ctx pm
-      | Tuple (_, ubr) ->
+      | Tuple _ ->
           compile_no_test ~scopes value_kind
-            (divide_tuple ubr ~scopes ph)
+            (divide_tuple ~scopes ph)
             Context.combine repr partial ctx pm
       | Unboxed_tuple shape ->
           compile_no_test ~scopes value_kind
             (divide_unboxed_tuple ~scopes ph shape)
             Context.combine repr partial ctx pm
       | Record ([], _) -> assert false
-      | Record (lbl :: _, _ubr) -> (* CR uniqueness: this can't be right *)
+      | Record (lbl :: _, _) ->
           compile_no_test ~scopes value_kind
             (divide_record ~scopes lbl.lbl_all ph)
             Context.combine repr partial ctx pm
@@ -3784,12 +3792,12 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
             partial (divide_constructor ~scopes)
             (combine_constructor value_kind ploc arg ph.pat_env ubr cstr partial)
             ctx pm
-      | Array (_, elt_sort, _, _ubr) -> (* CR uniqueness: this can't be right *)
+      | Array (_, elt_sort, _, ubr) ->
           let kind = Typeopt.array_pattern_kind pomega elt_sort in
           compile_test
             (compile_match ~scopes value_kind repr partial)
             partial (divide_array ~scopes kind)
-            (combine_array value_kind ploc arg kind partial)
+            (combine_array value_kind ploc arg ubr kind partial)
             ctx pm
       | Lazy ->
           compile_no_test ~scopes value_kind
@@ -4110,14 +4118,16 @@ let rec map_return f = function
 let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
   let rec collect pat_sort acc pat lam =
     match (pat.pat_desc, lam) with
-    | Tpat_tuple (patl, _), Lprim (Pmakeblock _, lams, _) ->
+    | Tpat_tuple (patl, ubr), Lprim (Pmakeblock _, lams, _) ->
         opt := true;
+        Unique_barrier.discard ubr;
         List.fold_left2
           (fun acc (_, pat) lam ->
              collect Jkind.Sort.for_tuple_element acc pat lam)
           acc patl lams
-    | Tpat_tuple (patl, _), Lconst (Const_block (_, scl)) ->
+    | Tpat_tuple (patl, ubr), Lconst (Const_block (_, scl)) ->
         opt := true;
+        Unique_barrier.discard ubr;
         let collect_const acc (_, pat) sc =
           collect Jkind.Sort.for_tuple_element acc pat (Lconst sc)
         in

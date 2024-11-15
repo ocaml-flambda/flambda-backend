@@ -120,6 +120,7 @@ let execute_phrase print_outcome ppf phr =
       let oldenv = !toplevel_env in
       let oldsig = !toplevel_sig in
       Typecore.reset_delayed_checks ();
+      Typedtree.Unique_barrier.reset_counters ();
       let (str, sg, sn, shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
@@ -131,6 +132,7 @@ let execute_phrase print_outcome ppf phr =
       if !Clflags.dump_shape then Shape.print ppf shape;
       let lam = Translmod.transl_toplevel_definition str in
       Warnings.check_fatal ();
+      Typedtree.Unique_barrier.check_consistency Location.none;
       begin try
         toplevel_env := newenv;
         toplevel_sig := List.rev_append sg' oldsig;

@@ -54,11 +54,36 @@ module Unique_barrier = struct
   (* For added safety, we record the states in the life of a barrier:
      - Barriers start out as Not_computed
      - They are enabled by the uniqueness analysis
-     - They are resolved in translcore
-    This allows us to error if the barrier is not enabled or not resolved. *)
+     - They are resolved in the translation to lambda if they are read
+       to protect the projections in the output from being pushed down.
+     - They are discarded in the translation to lambda if the pattern
+       is being thrown away.
+
+     It is fine if barriers are created but not enabled, resolved or discarded.
+     This happens when patterns are generated to type-check GADTs or
+     in Merlin where patterns are created and immediately printed as syntax.
+
+     It is not fine for a barrier to be resolved even though it wasn't enabled.
+     This means that we do code-gen on a barrier that the uniqueness analysis
+     hasn't visited. However, this can currently happen since the uniqueness
+     analysis does not traverse objects and modules. We should fix that.
+
+     It is not fine for an enabled barrier to not be resolved or discarded.
+     This means that the unique analysis visited a barrier and has potentially
+     marked it as Unique, but this information got lost somewhere. If this
+     happens, we throw an error.
+
+     It is fine for barriers to be discarded if they are never resolved. This
+     is a somewhat dangerous operation, but necessary since the pattern-matching
+     code removes matches on tuples if the scrutinee is known to be a tuple.
+     In that case, we discard the barrier of the tuple pattern and fail if it
+     is ever resolved (indicating that we were wrong about it being discardable).
+  *)
+
   type barrier =
     | Enabled of Mode.Uniqueness.lr
     | Resolved of Mode.Uniqueness.Const.t
+    | Discarded
     | Not_computed
 
   type t = barrier ref
@@ -66,10 +91,18 @@ module Unique_barrier = struct
   type counters =
     { number_created : int;
       number_enabled : int;
-      number_resolved : int
+      number_resolved : int;
+      number_discarded : int
     }
 
-  let counters = ref { number_created = 0; number_enabled = 0; number_resolved = 0 }
+  let zero_counters =
+    { number_created = 0;
+      number_enabled = 0;
+      number_resolved = 0;
+      number_discarded = 0
+    }
+
+  let counters = ref zero_counters
 
   let not_computed () =
     counters := { !counters with number_created = !counters.number_created + 1 };
@@ -96,6 +129,9 @@ module Unique_barrier = struct
       barrier := Resolved zapped;
       zapped
     | Resolved barrier -> barrier
+    | Discarded ->
+        Location.alert ~kind:"internal" Location.none "A discarded barrier was resolved";
+        Uniqueness.Const.legacy
     | Not_computed ->
       (* CR uniqueness: The uniqueness analysis does not go into legacy
          language constructs such as objects; for those, we default to legacy.
@@ -106,13 +142,41 @@ module Unique_barrier = struct
          unique barriers will stay sound for future extensions. *)
       Uniqueness.Const.legacy
 
-  (* It is fine if barriers are created and not enabled. This happens for example
-     when patterns are generated to check GADTs. These patterns do not make it into
-     generated code and if they did, they would fail in the [resolve] function. *)
-  let check_consistency () =
-    if !counters.number_enabled != !counters.number_resolved then
-      () (* CR uniqueness: fail *)
-    else ()
+  let discard barrier =
+    match !barrier with
+    | Enabled _ ->
+      counters := { !counters with number_discarded = !counters.number_discarded + 1 };
+      barrier := Discarded
+    | Resolved _ ->
+      Misc.fatal_error "A resolved barrier was discarded, this should never happen"
+    | Discarded ->
+      (* CR uniqueness: It is somewhat surprising
+         that this can happen, but not dangerous. *)
+      ()
+    | Not_computed ->
+      (* CR uniqueness: See the comment in [resolve]. *)
+      barrier := Discarded
+
+  let reset_counters () =
+    counters := zero_counters
+
+  let check_consistency ?file loc =
+    let file_if_available =
+      match file with
+      | Some f -> " in file " ^ f
+      | None -> ""
+    in
+    let resolved_and_discarded =
+      !counters.number_resolved + !counters.number_discarded
+    in
+    if !counters.number_enabled > resolved_and_discarded then
+      Location.alert ~kind:"internal" loc
+        ("Unique barrier was not resolved" ^ file_if_available)
+    else
+    if !counters.number_enabled < resolved_and_discarded then
+      assert false
+    else
+      reset_counters ()
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l

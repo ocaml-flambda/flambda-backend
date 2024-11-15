@@ -1016,8 +1016,10 @@ let rec pattern_match_tuple pat values =
     let ext1, uf1 = pattern_match_tuple pat1 values in
     Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
   | Tpat_tuple (pats, ubr) ->
-    (* No read: the tuple does not exist in memory.
-       CR uniqueness: enforce this invariant. *)
+    (* CR uniqueness: the tuple does not exist in memory
+          and so we don't need a unique barrier for it.
+          But it would be better to enable here and then explicitly
+          throw it away in the pattern matching code. *)
     Unique_barrier.enable ubr;
     List.map2
       (fun (_, pat) value ->
