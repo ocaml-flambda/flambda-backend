@@ -42,4 +42,6 @@ val module_symbol : t -> Symbol.t
 
 val used_value_slots : t -> Value_slot.Set.t Or_unknown.t
 
+val with_used_value_slots : t -> Value_slot.Set.t -> t
+
 val body : t -> Flambda.Expr.t

@@ -155,7 +155,9 @@ let rec combine : max_instr_id:int ref -> cell option -> unit =
             let res0 = other_allocation_instr.res.(0) in
             DLL.set_value other_allocation.cell
               { other_allocation_instr with
-                desc = Cfg.Op (Intop_imm (Mach.Iadd, -other_allocation.bytes));
+                desc =
+                  Cfg.Op
+                    (Intop_imm (Simple_operation.Iadd, -other_allocation.bytes));
                 arg = [| prev_res0 |]
               };
             ( size + other_allocation.bytes,
@@ -177,7 +179,9 @@ let rec combine : max_instr_id:int ref -> cell option -> unit =
       incr max_instr_id;
       DLL.insert_after cell
         { first_allocation_instr with
-          desc = Cfg.Op (Intop_imm (Mach.Iadd, total_size_of_other_allocations));
+          desc =
+            Cfg.Op
+              (Intop_imm (Simple_operation.Iadd, total_size_of_other_allocations));
           arg = [| first_allocation_res0 |];
           res = [| first_allocation_res0 |];
           id = !max_instr_id

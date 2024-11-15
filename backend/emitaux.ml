@@ -116,7 +116,7 @@ type frame_debuginfo =
   | Dbg_other of Debuginfo.t
 
 type frame_descr =
-  { fd_lbl : int; (* Return address *)
+  { fd_lbl : Label.t; (* Return address *)
     fd_frame_size : int; (* Size of stack frame *)
     fd_live_offset : int list; (* Offsets/regs of live addresses *)
     fd_debuginfo : frame_debuginfo; (* Location, if any *)
@@ -164,15 +164,15 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
        :: !frame_descriptors
 
 type emit_frame_actions =
-  { efa_code_label : int -> unit;
-    efa_data_label : int -> unit;
+  { efa_code_label : Label.t -> unit;
+    efa_data_label : Label.t -> unit;
     efa_8 : int -> unit;
     efa_16 : int -> unit;
     efa_32 : int32 -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
-    efa_label_rel : int -> int32 -> unit;
-    efa_def_label : int -> unit;
+    efa_label_rel : Label.t -> int32 -> unit;
+    efa_def_label : Label.t -> unit;
     efa_string : string -> unit
   }
 
@@ -326,7 +326,10 @@ let emit_frames a =
     a.efa_def_label lbl;
     let rec emit rs d rest =
       let open Debuginfo in
-      let defname = Scoped_location.string_of_scopes d.dinfo_scopes in
+      let defname =
+        Scoped_location.string_of_scopes ~include_zero_alloc:false
+          d.dinfo_scopes
+      in
       let char_end = d.dinfo_char_end + d.dinfo_start_bol - d.dinfo_end_bol in
       let is_fully_packable =
         d.dinfo_line <= 0xFFF
@@ -521,7 +524,8 @@ module Dwarf_helpers = struct
       let (module Asm_directives : Asm_targets.Asm_directives_intf.S) =
         asm_directives
       in
-      Asm_targets.Asm_label.initialize ~new_label:Cmm.new_label;
+      Asm_targets.Asm_label.initialize ~new_label:(fun () ->
+          Cmm.new_label () |> Label.to_int);
       Asm_directives.initialize ();
       let unit_name =
         (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)

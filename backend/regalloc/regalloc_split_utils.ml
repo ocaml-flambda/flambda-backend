@@ -30,16 +30,16 @@ let log_dominance_frontier : indent:int -> Cfg.t -> Cfg_dominators.t -> unit =
   log ~indent "dominance frontier:";
   Cfg.iter_blocks cfg ~f:(fun label _block ->
       let frontier = Cfg_dominators.find_dominance_frontier doms label in
-      log ~indent:(indent + 1) "block %d" label;
+      log ~indent:(indent + 1) "block %a" Label.format label;
       Label.Set.iter
         (fun frontier_label ->
-          log ~indent:(indent + 1) "block %d" frontier_label)
+          log ~indent:(indent + 1) "block %a" Label.format frontier_label)
         frontier)
 
 let log_dominator_tree : indent:int -> Cfg_dominators.dominator_tree -> unit =
  fun ~indent dom_tree ->
   let rec ldt ~indent tree =
-    log ~indent ". %d" tree.Cfg_dominators.label;
+    log ~indent ". %a" Label.format tree.Cfg_dominators.label;
     List.iter tree.Cfg_dominators.children ~f:(fun child ->
         ldt ~indent:(succ indent) child)
   in
@@ -54,7 +54,7 @@ let log_substitution : indent:int -> Substitution.t -> unit =
  fun ~indent subst ->
   Reg.Tbl.iter
     (fun old_reg new_reg ->
-      log ~indent "%a -> %a" Printmach.reg old_reg Printmach.reg new_reg)
+      log ~indent "%a -> %a" Printreg.reg old_reg Printreg.reg new_reg)
     subst
 
 let log_substitutions : indent:int -> Substitution.map -> unit =
@@ -62,7 +62,7 @@ let log_substitutions : indent:int -> Substitution.map -> unit =
   log ~indent "substitutions:";
   Label.Tbl.iter
     (fun label (subst : Substitution.t) ->
-      log ~indent:(indent + 1) "subst for block %d" label;
+      log ~indent:(indent + 1) "subst for block %a" Label.format label;
       log_substitution ~indent:(indent + 2) subst)
     substs
 

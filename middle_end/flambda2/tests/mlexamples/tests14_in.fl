@@ -1,16 +1,20 @@
-let $camlTests14__first_const55 = Block 0 () in
+let $camlTests14__first_const63 = Block 0 () in
 let code size(5)
-      set_0 (t) my_closure my_region my_ghost_region my_depth -> k * k1 : imm tagged =
+      set_0 (t)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1
+        : imm tagged =
   let Psetfield = %block_set imm t.(0) <- 42 in
   cont k (Psetfield)
 in
-let code size(6)
+let code size(7)
       nth_char_1 (s, n : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
-  let prim = %string_load 8 (s, n) in
-  let Pstringrefu = %Tag_imm prim in
+  let prim = %num_conv (imm tagged -> imm) n in
+  let prim_1 = %string_load 8 (s, prim) in
+  let Pstringrefu = %Tag_imm prim_1 in
   cont k (Pstringrefu)
 in
 let code size(30)
@@ -19,6 +23,7 @@ let code size(30)
         -> k * k1
         : imm tagged =
   (let try_region = %begin_try_region in
+   let try_ghost_region = %begin_ghost_try_region in
    cont k4 push(k3)
      where k4 =
        let Popaque = %Opaque 42 in
@@ -27,6 +32,7 @@ let code size(30)
             cont k2 (Popaque))
      where k3 exn (`exn`) =
        let `unit` = %end_try_region try_region in
+       let unit_1 = %end_ghost_try_region try_ghost_region in
        let prim = %phys_eq (`exn`, $`*predef*`.caml_exn_Not_found) in
        let Pintcomp = %Tag_imm prim in
        ((let untagged = %untag_imm Pintcomp in
@@ -66,9 +72,9 @@ in
  let Pmakeblock = %Block 0 (set, nth_char, needs_try_region, gadt_match) in
  cont k (Pmakeblock))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(4) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(4) (module_block, 1) in
-    let field_2 = %block_load tag(0) size(4) (module_block, 2) in
-    let field_3 = %block_load tag(0) size(4) (module_block, 3) in
+    let field_0 = %block_load tag(0) size(4) (0) module_block in
+    let field_1 = %block_load tag(0) size(4) (1) module_block in
+    let field_2 = %block_load tag(0) size(4) (2) module_block in
+    let field_3 = %block_load tag(0) size(4) (3) module_block in
     let $camlTests14 = Block 0 (field_0, field_1, field_2, field_3) in
     cont done ($camlTests14)

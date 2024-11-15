@@ -93,35 +93,47 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     | Some ti -> T.this_tagged_immediate ti
     | None -> T.unknown K.value
   in
+  let element_kinds = P.Array_kind.element_kinds array_kind in
   let element_kind =
     (* Remember that the element subkinds cannot in general be deduced from the
        types of the array members, it must be obtained from the array kind
        annotations that came via [Lambda]. *)
-    P.Array_kind.element_kind array_kind
+    match element_kinds with
+    | [kind] -> Some kind
+    | _ :: _ | [] ->
+      Misc.fatal_errorf
+        "Non-singleton list of element kinds given for array kind:@ %a@ %a"
+        P.Array_kind.print array_kind Debuginfo.print_compact dbg
   in
-  let initial_element_type = T.unknown_with_subkind element_kind in
-  let typing_env = DA.typing_env dacc in
   let env_extension =
-    List.fold_left
-      (fun env_extension element_type ->
-        let open Or_bottom.Let_syntax in
-        let<* env_extension = env_extension in
-        let<* _, env_extension' =
-          T.meet typing_env initial_element_type element_type
-        in
-        TEE.meet typing_env env_extension env_extension')
-      (Or_bottom.Ok TEE.empty) tys
+    match element_kind with
+    | None -> Or_bottom.Ok TEE.empty
+    | Some element_kind ->
+      let initial_element_type = T.unknown_with_subkind element_kind in
+      let typing_env = DA.typing_env dacc in
+      List.fold_left
+        (fun env_extension element_type ->
+          let open Or_bottom.Let_syntax in
+          let<* env_extension = env_extension in
+          let<* _, env_extension' =
+            T.meet typing_env initial_element_type element_type
+          in
+          TEE.meet typing_env env_extension env_extension')
+        (Or_bottom.Ok TEE.empty) tys
   in
   match env_extension with
   | Bottom -> SPR.create_invalid dacc
   | Ok env_extension ->
     let ty =
       let alloc_mode = Alloc_mode.For_allocations.as_type alloc_mode in
+      let element_kind : _ Or_unknown_or_bottom.t =
+        match element_kind with
+        | None -> assert false
+        | Some element_kind -> Ok element_kind
+      in
       match mutable_or_immutable with
-      | Mutable ->
-        T.mutable_array ~element_kind:(Ok element_kind) ~length alloc_mode
-      | Immutable ->
-        T.immutable_array ~element_kind:(Ok element_kind) ~fields:tys alloc_mode
+      | Mutable -> T.mutable_array ~element_kind ~length alloc_mode
+      | Immutable -> T.immutable_array ~element_kind ~fields:tys alloc_mode
       | Immutable_unique ->
         Misc.fatal_errorf "Immutable_unique is not expected for arrays:@ %a"
           Named.print original_term

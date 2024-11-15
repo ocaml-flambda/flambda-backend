@@ -24,6 +24,7 @@ open Cmm
 open Arch
 open Proc
 open Reg
+open Simple_operation
 open Mach
 open Linear
 open Emitaux
@@ -192,7 +193,7 @@ let label_name lbl =
   | _ -> ".L" ^ lbl
 
 let emit_label lbl =
-  label_name (Int.to_string lbl)
+  label_name (Label.to_string lbl)
 
 let rel_plt (s : Cmm.symbol) =
   match s.sym_global with
@@ -432,11 +433,11 @@ type safety_check_failure = {
 
 type safety_check_sites = {
     mutable sc_sites: safety_check_failure list;
-    mutable sc_call: label;
+    mutable sc_call: label option;
   }
 
-let bound_checks = { sc_sites = []; sc_call = 0 }
-let align_checks = { sc_sites = []; sc_call = 0 }
+let bound_checks = { sc_sites = []; sc_call = None }
+let align_checks = { sc_sites = []; sc_call = None }
 
 let emit_call_safety_error kind sc =
   def_label sc.sc_lbl;
@@ -448,19 +449,23 @@ let emit_call_safety_error kind sc =
 
 let clear_safety_checks () =
   bound_checks.sc_sites <- [];
-  bound_checks.sc_call <- 0;
+  bound_checks.sc_call <- None;
   align_checks.sc_sites <- [];
-  align_checks.sc_call <- 0
+  align_checks.sc_call <- None
 
 let emit_call_safety_errors () =
   List.iter (emit_call_safety_error Bound_check) bound_checks.sc_sites;
-  if bound_checks.sc_call > 0 then begin
-    def_label bound_checks.sc_call;
+  begin match bound_checks.sc_call with
+  | None -> ()
+  | Some sc_call ->
+    def_label sc_call;
     emit_call (Cmm.global_symbol "caml_ml_array_bound_error")
   end;
   List.iter (emit_call_safety_error Align_check) align_checks.sc_sites;
-  if align_checks.sc_call > 0 then begin
-    def_label align_checks.sc_call;
+  begin match align_checks.sc_call with
+  | None -> ()
+  | Some sc_call ->
+    def_label sc_call;
     emit_call (Cmm.global_symbol "caml_ml_array_align_error")
   end
 
@@ -808,7 +813,7 @@ let move (src : Reg.t) (dst : Reg.t) =
   | (Float | Float32 | Vec128 | Int | Val | Addr), _, _, _ ->
     Misc.fatal_errorf
       "Illegal move between registers of differing types (%a to %a)\n"
-      Printmach.reg src Printmach.reg dst
+      Printreg.reg src Printreg.reg dst
   end
 
 let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
@@ -849,7 +854,7 @@ type probe =
   }
 
 let probe_handler_wrapper_name probe_label =
-  let w = Printf.sprintf "probe_wrapper_%d" probe_label in
+  let w = Printf.sprintf "probe_wrapper_%s" (Label.to_string probe_label) in
   Cmm_helpers.make_symbol w
   |> emit_symbol
 
@@ -944,15 +949,15 @@ let emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label =
 
 type traps = { mutable push_traps : label list;
                mutable pop_traps : label list;
-               mutable enter_traps : Int.Set.t;
+               mutable enter_traps : Label.Set.t;
              }
 
-let traps = { push_traps = []; pop_traps = []; enter_traps = Int.Set.empty; }
+let traps = { push_traps = []; pop_traps = []; enter_traps = Label.Set.empty; }
 
 let reset_traps () =
   traps.push_traps <- [];
   traps.pop_traps <- [];
-  traps.enter_traps <- Int.Set.empty
+  traps.enter_traps <- Label.Set.empty
 
 let emit_pop_trap_label () =
   let lbl = Cmm.new_label () in
@@ -963,7 +968,7 @@ let emit_push_trap_label handler =
   let lbl = Cmm.new_label () in
   def_label lbl;
   traps.push_traps <- lbl::traps.push_traps;
-  traps.enter_traps <- Int.Set.add handler traps.enter_traps
+  traps.enter_traps <- Label.Set.add handler traps.enter_traps
 
 (* Emit Code *)
 
@@ -1725,6 +1730,8 @@ let emit_instr ~first ~fallthrough i =
     emit_reinterpret_cast cast i
   | Lop (Ispecific Ipause) ->
     I.pause ()
+  | Lop (Ispecific (Icldemote addr)) ->
+    I.cldemote (addressing addr QWORD i 0)
   | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->
     let locality =
       match locality with
@@ -1874,6 +1881,14 @@ let emit_instr ~first ~fallthrough i =
     end
   | Lstackcheck { max_frame_size_bytes; } ->
     emit_stack_check ~size_in_bytes:max_frame_size_bytes ~save_registers:(not first)
+
+let emit_instr ~first ~fallthrough i =
+  try emit_instr ~first ~fallthrough i
+  with exn -> (
+    Format.eprintf "Exception whilst emitting instruction:@ %a\n"
+      Printlinear.instr i;
+    raise exn
+  )
 
 let rec emit_all ~first ~fallthrough i =
   match i.desc with
@@ -2304,7 +2319,7 @@ let emit_probe_notes0 () =
       | Reg reg -> Proc.register_name arg.Reg.typ reg
       | Unknown ->
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
-          Printmach.reg arg
+          Printreg.reg arg
     in
     Printf.sprintf "%d@%s" (Reg.size_of_contents_in_bytes arg) arg_name
   in
@@ -2381,12 +2396,12 @@ let emit_trap_notes () =
   in
   let emit_desc () =
     D.qword (ConstLabel "_.stapsdt.base");
-    emit_labels (Int.Set.elements traps.enter_traps);
+    emit_labels (Label.Set.elements traps.enter_traps);
     emit_labels traps.push_traps;
     emit_labels traps.pop_traps
   in
   if is_system_supported && !Arch.trap_notes &&
-     not (Int.Set.is_empty traps.enter_traps) then begin
+     not (Label.Set.is_empty traps.enter_traps) then begin
     D.section [".note.ocaml_eh"] (Some "?") [ "\"note\"" ];
     emit_elf_note ~owner:"OCaml" ~typ:1l ~emit_desc;
     (* Reuse stapsdt base section for calcluating addresses after pre-link *)

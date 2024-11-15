@@ -95,6 +95,14 @@ let float_comparison = function
   | CFge -> ">="
   | CFnge -> "!>="
 
+let vec128_name = function
+  | Int8x16 -> "int8x16"
+  | Int16x8 -> "int16x8"
+  | Int32x4 -> "int32x4"
+  | Int64x2 -> "int64x2"
+  | Float32x4 -> "float32x4"
+  | Float64x2 -> "float64x2"
+
 let chunk = function
   | Byte_unsigned -> "unsigned int8"
   | Byte_signed -> "signed int8"
@@ -195,8 +203,8 @@ let static_cast : Cmm.static_cast -> string = function
   | Float_of_int Float32 -> "int->float32"
   | Float32_of_float -> "float->float32"
   | Float_of_float32 -> "float32->float"
-  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
-  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
+  | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (vec128_name ty)
+  | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (vec128_name ty)
 
 let operation d = function
   | Capply(_ty, _) -> "app" ^ location d

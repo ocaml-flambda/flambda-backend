@@ -1,5 +1,7 @@
 # Please make a pull request to change this file.
-# Keep this file in sync with other .ocamlformat files in this repo.
+disable=true
+# There is an .ocamlformat-enable file in this directory.
+# Keep the remainder of this file in sync with other .ocamlformat files in this repo.
 assignment-operator=begin-line
 cases-exp-indent=2
 doc-comments=before
@@ -13,4 +15,3 @@ space-around-variants=false
 type-decl=sparse
 wrap-comments=true
 version=0.24.1
-disable=false

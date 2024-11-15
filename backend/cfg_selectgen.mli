@@ -18,12 +18,30 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
-type environment = unit Select_utils.environment
+type environment = Label.t Select_utils.environment
 
 type basic_or_terminator =
   | Basic of Cfg.basic
   | Terminator of Cfg.terminator
   | With_next_label of (Label.t -> Cfg.terminator)
+
+module Sub_cfg : sig
+  type t =
+    { entry : Cfg.basic_block;
+      exit : Cfg.basic_block;
+      layout : Cfg.basic_block Flambda_backend_utils.Doubly_linked_list.t
+    }
+
+  val make_empty : unit -> t
+
+  val add_instruction :
+    t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
+
+  val set_terminator :
+    t -> Cfg.terminator -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
+end
+
+val reset_next_instr_id : unit -> unit
 
 class virtual selector_generic :
   object
@@ -58,13 +76,14 @@ class virtual selector_generic :
 
     (* The following methods must or can be overridden by the processor
        description *)
-    method is_immediate : Mach.integer_operation -> int -> bool
+    method is_immediate : Simple_operation.integer_operation -> int -> bool
     (* Must be overriden to indicate whether a constant is a suitable immediate
        operand to the given integer arithmetic instruction. The default
        implementation handles shifts by immediate amounts, but produces no
        immediate operations otherwise. *)
 
-    method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
+    method virtual is_immediate_test :
+      Simple_operation.integer_comparison -> int -> bool
     (* Must be defined to indicate whether a constant is a suitable immediate
        operand to the given integer test *)
 
@@ -86,7 +105,8 @@ class virtual selector_generic :
       basic_or_terminator * Cmm.expression list
     (* Can be overridden to deal with special arithmetic instructions *)
 
-    method select_condition : Cmm.expression -> Mach.test * Cmm.expression
+    method select_condition :
+      Cmm.expression -> Simple_operation.test * Cmm.expression
     (* Can be overridden to deal with special test instructions *)
 
     method select_store :
@@ -140,6 +160,17 @@ class virtual selector_generic :
     method insert_debug :
       environment ->
       Cfg.basic ->
+      Debuginfo.t ->
+      Reg.t array ->
+      Reg.t array ->
+      unit
+
+    method insert' :
+      environment -> Cfg.terminator -> Reg.t array -> Reg.t array -> unit
+
+    method insert_debug' :
+      environment ->
+      Cfg.terminator ->
       Debuginfo.t ->
       Reg.t array ->
       Reg.t array ->
@@ -291,6 +322,8 @@ class virtual selector_generic :
 
     method emit_return :
       environment -> Cmm.expression -> Cmm.trap_action list -> unit
+
+    method extract : Sub_cfg.t
 
     method emit_fundecl :
       future_funcnames:Misc.Stdlib.String.Set.t ->

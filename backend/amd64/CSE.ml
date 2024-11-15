@@ -41,6 +41,7 @@ method! class_of_operation op =
       | Pure -> Op_pure
       end
     | Ipause
+    | Icldemote _
     | Iprefetch _ -> Op_other
     end
   | Imove | Ispill | Ireload
@@ -84,6 +85,7 @@ class cfg_cse = object
       | Pure -> Op_pure
       end
     | Ipause
+    | Icldemote _
     | Iprefetch _ -> Op_other
       end
   | Move | Spill | Reload

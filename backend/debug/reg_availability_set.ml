@@ -128,6 +128,13 @@ let equal t1 t2 =
   | Unreachable, Ok _ | Ok _, Unreachable -> false
   | Ok regs1, Ok regs2 -> RD.Set.equal regs1 regs2
 
+let subset t1 t2 =
+  match t1, t2 with
+  | Unreachable, Unreachable -> true
+  | Unreachable, Ok _ -> false
+  | Ok _, Unreachable -> false
+  | Ok regs1, Ok regs2 -> RD.Set.subset regs1 regs2
+
 let print ~print_reg ppf = function
   | Unreachable -> Format.fprintf ppf "<unreachable>"
   | Ok availability ->

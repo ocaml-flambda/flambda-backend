@@ -20,7 +20,9 @@
 open Arch
 open Selection_utils
 
-let specific x = Cfg_selectgen.Basic (Op (Specific x))
+let specific x =
+  assert (not (Arch.operation_can_raise x));
+  Cfg_selectgen.Basic (Op (Specific x))
 
 let pseudoregs_for_operation op arg res =
   match (op : Cfg.operation) with
@@ -97,7 +99,7 @@ let pseudoregs_for_operation op arg res =
       | Istore_int (_, _, _)
       | Ipause | Ilfence | Isfence | Imfence
       | Ioffset_loc (_, _)
-      | Irdtsc | Iprefetch _ )
+      | Irdtsc | Icldemote _ | Iprefetch _ )
   | Move | Spill | Reload | Reinterpret_cast _ | Static_cast _ | Const_int _
   | Const_float32 _ | Const_float _ | Const_vec128 _ | Const_symbol _
   | Stackoffset _ | Load _
@@ -187,13 +189,17 @@ class selector =
           specific (Ilea addr), [arg])
       (* Recognize float arithmetic with memory. *)
       | Caddf width ->
-        self#select_floatarith true width Mach.Iaddf Arch.Ifloatadd args
+        self#select_floatarith true width Simple_operation.Iaddf Arch.Ifloatadd
+          args
       | Csubf width ->
-        self#select_floatarith false width Mach.Isubf Arch.Ifloatsub args
+        self#select_floatarith false width Simple_operation.Isubf Arch.Ifloatsub
+          args
       | Cmulf width ->
-        self#select_floatarith true width Mach.Imulf Arch.Ifloatmul args
+        self#select_floatarith true width Simple_operation.Imulf Arch.Ifloatmul
+          args
       | Cdivf width ->
-        self#select_floatarith false width Mach.Idivf Arch.Ifloatdiv args
+        self#select_floatarith false width Simple_operation.Idivf Arch.Ifloatdiv
+          args
       | Cpackf32 ->
         (* We must operate on registers. This is because if the second argument
            was a float stack slot, the resulting UNPCKLPS instruction would
@@ -318,4 +324,5 @@ class selector =
   end
 
 let fundecl ~future_funcnames f =
+  Cfg_selectgen.reset_next_instr_id ();
   (new selector)#emit_fundecl ~future_funcnames f

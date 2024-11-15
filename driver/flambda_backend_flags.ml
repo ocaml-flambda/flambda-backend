@@ -89,7 +89,7 @@ let disable_poll_insertion = ref (not Config.poll_insertion)
                                         (* -disable-poll-insertion *)
 let allow_long_frames = ref true        (* -no-long-frames *)
 (* Keep the value of [max_long_frames_threshold] in sync with LONG_FRAME_MARKER
-   in ocaml/runtime/roots_nat.c *)
+   in runtime/roots_nat.c *)
 let max_long_frames_threshold = 0x7FFF
 let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-threshold n *)
 
@@ -131,6 +131,7 @@ module Flambda2 = struct
     let join_depth = 5
     let function_result_types = Never
     let meet_algorithm = Basic
+    let enable_reaper = false
     let unicode = true
   end
 
@@ -143,7 +144,7 @@ module Flambda2 = struct
     join_depth : int;
     function_result_types : function_result_types;
     meet_algorithm : meet_algorithm;
-
+    enable_reaper : bool;
     unicode : bool;
   }
 
@@ -156,6 +157,7 @@ module Flambda2 = struct
     join_depth = Default.join_depth;
     function_result_types = Default.function_result_types;
     meet_algorithm = Default.meet_algorithm;
+    enable_reaper = Default.enable_reaper;
     unicode = Default.unicode;
   }
 
@@ -189,6 +191,7 @@ module Flambda2 = struct
   let unicode = ref Default
   let function_result_types = ref Default
   let meet_algorithm = ref Default
+  let enable_reaper = ref Default
 
   module Dump = struct
     type target = Nowhere | Main_dump_stream | File of Misc.filepath
@@ -199,6 +202,8 @@ module Flambda2 = struct
     let slot_offsets = ref false
     let freshen = ref false
     let flow = ref false
+    let simplify = ref false
+    let reaper = ref false
   end
 
   module Expert = struct
@@ -211,6 +216,7 @@ module Flambda2 = struct
       let can_inline_recursive_functions = false
       let max_function_simplify_run = 2
       let shorten_symbol_names = false
+      let cont_lifting_budget = 0
     end
 
     type flags = {
@@ -221,7 +227,8 @@ module Flambda2 = struct
       max_unboxing_depth : int;
       can_inline_recursive_functions : bool;
       max_function_simplify_run : int;
-      shorten_symbol_names : bool
+      shorten_symbol_names : bool;
+      cont_lifting_budget : int;
     }
 
     let default = {
@@ -233,6 +240,7 @@ module Flambda2 = struct
       can_inline_recursive_functions = Default.can_inline_recursive_functions;
       max_function_simplify_run = Default.max_function_simplify_run;
       shorten_symbol_names = Default.shorten_symbol_names;
+      cont_lifting_budget = Default.cont_lifting_budget;
     }
 
     let oclassic = {
@@ -259,6 +267,7 @@ module Flambda2 = struct
     let can_inline_recursive_functions = ref Default
     let max_function_simplify_run = ref Default
     let shorten_symbol_names = ref Default
+    let cont_lifting_budget = ref Default
   end
 
   module Debug = struct

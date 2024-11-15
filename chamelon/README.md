@@ -17,3 +17,6 @@ The following options are also available:
   version of OCaml chamelon is compiled with.
 - `-m [minimizers]`: this runs the minimizers from the comma-separated list of minimizers given
   as arguments instead of the default iteration order.
+- `-x [minimizers]`: do not run the minimizers from the comma-separated list of
+  minimizers given as arguments
+- `-l`: lists all available minimizers and exit

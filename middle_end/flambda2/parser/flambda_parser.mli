@@ -137,6 +137,7 @@ type token =
   | KWD_HINT
   | KWD_HEAP_OR_LOCAL
   | KWD_HCF
+  | KWD_GENERIC
   | KWD_FLOAT
   | KWD_EXN
   | KWD_ERROR

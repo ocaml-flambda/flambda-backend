@@ -45,6 +45,7 @@ let compile i typed ~transl_style ~unix ~pipeline =
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
       |> (fun program ->
+           if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
            Asmgen.compile_implementation
              unix
              ~pipeline

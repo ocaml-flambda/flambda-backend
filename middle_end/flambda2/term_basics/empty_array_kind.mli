@@ -19,6 +19,7 @@ type t =
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
+  | Naked_vec128s
       (** Arrays of unboxed numbers, with a slightly different runtime
           representation. *)
 

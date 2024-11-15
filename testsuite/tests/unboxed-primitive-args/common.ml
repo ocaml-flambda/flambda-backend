@@ -8,7 +8,6 @@ type 'a typ =
   | Int64     : int64     typ
   | Nativeint : nativeint typ
   | Float     : float     typ
-  | Float32   : float32   typ
   | Float64x2 : float64x2 typ
   | Int64x2   : int64x2   typ
 
@@ -55,9 +54,6 @@ external float64x2_of_int64s : int64 -> int64 -> float64x2 = "" "vec128_of_int64
 external float64x2_low_int64 : float64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
 external float64x2_high_int64 : float64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
 
-external float32_of_float : float -> float32 = "%float32offloat"
-external float_of_float32 : float32 -> float = "%floatoffloat32"
-
 let string_of : type a. a typ -> a -> string = function
   | Int       -> Int.to_string
   | Int32     -> Printf.sprintf "%ldl"
@@ -65,8 +61,6 @@ let string_of : type a. a typ -> a -> string = function
   | Nativeint -> Printf.sprintf "%ndn"
   | Float     ->
       fun f -> Printf.sprintf "float_of_bits 0x%LxL" (Int64.bits_of_float f)
-  | Float32   ->
-      fun f -> Printf.sprintf "float32_of_bits 0x%lxl" (Int32.bits_of_float (float_of_float32 f))
   | Int64x2   ->
       fun v -> Printf.sprintf "int64x2 %016Lx:%016Lx" (int64x2_high_int64 v) (int64x2_low_int64 v)
   | Float64x2   ->
@@ -137,9 +131,6 @@ module Buffer = struct
     else
       fun buf ~arg x -> set_int64 buf ~arg (Int64.of_int x)
 
-  let get_float32 buf ~arg = get_int32 buf ~arg |> Int32.float_of_bits |> float32_of_float
-  let set_float32 buf ~arg x = set_int32 buf ~arg (Int32.bits_of_float (float_of_float32 x))
-
   let get_float buf ~arg = get_int64 buf ~arg |> Int64.float_of_bits
   let set_float buf ~arg x = set_int64 buf ~arg (Int64.bits_of_float x)
 
@@ -149,7 +140,6 @@ module Buffer = struct
     | Int64     -> get_int64
     | Nativeint -> get_nativeint
     | Float     -> get_float
-    | Float32   -> get_float32
     | Int64x2   -> get_int64x2
     | Float64x2 -> get_float64x2
 
@@ -159,7 +149,6 @@ module Buffer = struct
     | Int64     -> set_int64
     | Nativeint -> set_nativeint
     | Float     -> set_float
-    | Float32   -> set_float32
     | Int64x2   -> set_int64x2
     | Float64x2 -> set_float64x2
 
@@ -206,7 +195,6 @@ let typ_size : type a. a typ -> int = function
   | Int64     -> 8
   | Nativeint -> Sys.word_size / 8
   | Float     -> 8
-  | Float32   -> 4
   | Int64x2 | Float64x2 -> 16
 
 let rec sizes : type a. a proto -> int list = function

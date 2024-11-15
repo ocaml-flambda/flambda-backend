@@ -37,12 +37,12 @@ let[@inline] get_or_create t reg =
 
 let[@inline] get_or_fatal t reg =
   match Reg.Tbl.find_opt t.stack_slots reg with
-  | None -> fatal "register %a has no associated slot" Printmach.reg reg
+  | None -> fatal "register %a has no associated slot" Printreg.reg reg
   | Some slot -> slot
 
 let[@inline] use_same_slot_or_fatal t reg ~existing =
   match Reg.Tbl.find_opt t.stack_slots existing with
-  | None -> fatal "register %a has no associated slot" Printmach.reg existing
+  | None -> fatal "register %a has no associated slot" Printreg.reg existing
   | Some slot -> Reg.Tbl.replace t.stack_slots reg slot
 
 let[@inline] update_cfg_with_layout t cfg_with_layout =
@@ -327,7 +327,7 @@ let optimize (t : t) (cfg_with_infos : Cfg_with_infos.t) : unit =
                 then
                   Format.eprintf
                     "changing the slot index of %a (class %d): %d ~> %d\n%!"
-                    Printmach.reg reg stack_class slot_index bucket_index;
+                    Printreg.reg reg stack_class slot_index bucket_index;
                 reg.loc <- Stack (Local bucket_index);
                 max_bucket_indices.(stack_class)
                   <- Stdlib.Int.max

@@ -73,7 +73,7 @@ let precondition : Cfg_with_layout.t -> unit =
     | Initial | Simplify | Freeze | Spill | Spilled | Coalesced | Colored
     | Select_stack ->
       fatal "instruction %d has a register (%a) already in a work list (%S)" id
-        Printmach.reg reg
+        Printreg.reg reg
         (Reg.string_of_irc_work_list reg.Reg.irc_work_list)
   in
   let register_must_be_on_unknown_list (id : Instruction.id)
@@ -109,7 +109,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> ()
     | Unknown ->
       fatal "instruction %d has a register (%a) with an unknown location" id
-        Printmach.reg reg
+        Printreg.reg reg
   in
   let registers_must_not_be_unknown (id : Instruction.id) (regs : Reg.t array) :
       unit =
@@ -150,7 +150,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         fatal
           "instruction %d assigned %a to register %i, which has an \
            incompatible class"
-          id Printmach.reg reg phys_reg)
+          id Printreg.reg reg phys_reg)
     | Stack _ | Unknown -> ()
   in
   let register_classes_must_be_consistent (id : Instruction.id)
@@ -240,9 +240,9 @@ let postcondition_liveness : Cfg_with_infos.t -> unit =
       | Unknown -> assert false (* already tested in `postcondition_layout` *)
       | Reg _ -> ()
       | Stack (Local _) ->
-        fatal "`Stack (Local _)`live at entry point: %a" Printmach.reg reg
+        fatal "`Stack (Local _)`live at entry point: %a" Printreg.reg reg
       | Stack (Incoming _) -> ()
       | Stack (Outgoing _) ->
-        fatal "`Stack (Outgoing _)` live at entry point: %a" Printmach.reg reg
+        fatal "`Stack (Outgoing _)` live at entry point: %a" Printreg.reg reg
       | Stack (Domainstate _) -> ())
     live_at_entry_point.before

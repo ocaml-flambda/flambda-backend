@@ -51,9 +51,9 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
     match Reg.Tbl.find_opt past_ranges reg with
     | None ->
       Reg.Tbl.replace past_ranges reg
-        { Interval.reg; begin_; end_; ranges = [range] }
+        { Interval.reg; begin_; end_; ranges = DLL.make_single range }
     | Some (interval : Interval.t) ->
-      interval.ranges <- range :: interval.ranges;
+      DLL.add_end interval.ranges range;
       interval.end_ <- end_
   in
   let update_range (reg : Reg.t) ~(begin_ : int) ~(end_ : int) : unit =
@@ -104,14 +104,10 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
          present at the end of every "block". *)
       incr pos);
   Reg.Tbl.iter (fun reg (range : Range.t) -> add_range reg range) current_ranges;
-  Reg.Tbl.iter
-    (fun _reg (interval : Interval.t) ->
-      interval.ranges <- List.rev interval.ranges)
-    past_ranges;
   if ls_debug && Lazy.force ls_verbose
   then
     iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
-        log ~indent:2 "(block %d)" block.start;
+        log ~indent:2 "(block %a)" Label.format block.start;
         log_body_and_terminator ~indent:2 block.body block.terminator liveness);
   State.update_intervals state past_ranges
 
@@ -121,7 +117,7 @@ type spilling_reg =
 
 let allocate_stack_slot : Reg.t -> spilling_reg =
  fun reg ->
-  log ~indent:3 "spilling register %a" Printmach.reg reg;
+  log ~indent:3 "spilling register %a" Printreg.reg reg;
   reg.spill <- true;
   Spilling reg
 
@@ -140,11 +136,18 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
     | 0 -> fatal "register class %d has no available registers" reg_class
     | num_available_registers ->
       let available = Array.make num_available_registers true in
+      let num_still_available = ref num_available_registers in
+      let set_not_available r =
+        let idx = r - first_available in
+        if available.(idx) then decr num_still_available;
+        available.(idx) <- false;
+        if !num_still_available = 0 then raise No_free_register
+      in
       List.iter intervals.active ~f:(fun (interval : Interval.t) ->
           match interval.reg.loc with
           | Reg r ->
             if r - first_available < num_available_registers
-            then available.(r - first_available) <- false
+            then set_not_available r
           | Stack _ | Unknown -> ());
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
@@ -152,14 +155,14 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           if r - first_available < num_available_registers
              && available.(r - first_available)
              && Interval.overlap itv interval
-          then available.(r - first_available) <- false
+          then set_not_available r
         | Stack _ | Unknown -> ()
       in
       List.iter intervals.inactive ~f:remove_bound_overlapping;
       List.iter intervals.fixed ~f:remove_bound_overlapping;
       let rec assign idx =
         if idx >= num_available_registers
-        then raise No_free_register
+        then Misc.fatal_error "No_free_register should have been raised earlier"
         else if available.(idx)
         then (
           reg.loc <- Reg (first_available + idx);
@@ -167,7 +170,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           intervals.active
             <- Interval.List.insert_sorted intervals.active interval;
           if ls_debug
-          then log ~indent:3 "assigning %d to register %a" idx Printmach.reg reg;
+          then log ~indent:3 "assigning %d to register %a" idx Printreg.reg reg;
           Not_spilling)
         else assign (succ idx)
       in
@@ -286,7 +289,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
       then
         let liveness = Cfg_with_infos.liveness cfg_with_infos in
         iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
-            log ~indent:2 "(block %d)" block.start;
+            log ~indent:2 "(block %a)" Label.format block.start;
             log_body_and_terminator ~indent:2 block.body block.terminator
               liveness))
     cfg_with_infos;

@@ -72,7 +72,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
      return the unit value). *)
   let env =
     Env.create offsets all_code ~return_continuation:dummy_k
-      ~trans_prim:To_cmm_primitive.trans_prim
+      ~return_continuation_arity:[] ~trans_prim:To_cmm_primitive.trans_prim
       ~exn_continuation:(Flambda_unit.exn_continuation flambda_unit)
   in
   let _env, return_cont_params =

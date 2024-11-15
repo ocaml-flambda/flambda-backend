@@ -1,0 +1,4 @@
+File "parsing_unary_term.ml", line 10, characters 12-13:
+10 | let x = #(42)
+                 ^
+Error: Syntax error

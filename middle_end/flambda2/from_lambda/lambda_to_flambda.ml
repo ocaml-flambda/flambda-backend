@@ -708,8 +708,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
-  | Paddbint _ | Psubbint _ | Pmulbint _
+  | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _
+  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
@@ -776,7 +776,9 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
   | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
   | Pbox_float (_, _)
-  | Punbox_float _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+  | Punbox_float _
+  | Pbox_vector (_, _)
+  | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
@@ -1639,21 +1641,30 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       Function_decl.unboxing_kind option =
     match[@warning "-fragile-match"] layout with
     | Pvalue
-        (Pvariant
-          { consts = []; non_consts = [(0, Constructor_uniform field_kinds)] })
-      ->
+        { nullable = Non_nullable;
+          raw_kind =
+            Pvariant
+              { consts = [];
+                non_consts = [(0, Constructor_uniform field_kinds)]
+              }
+        } ->
       Some
         (Fields_of_block_with_tag_zero
            (List.map Flambda_kind.With_subkind.from_lambda_value_kind
               field_kinds))
     | Pvalue
-        (Pvariant
-          { consts = []; non_consts = [(tag, Constructor_uniform field_kinds)] })
+        { nullable = Non_nullable;
+          raw_kind =
+            Pvariant
+              { consts = [];
+                non_consts = [(tag, Constructor_uniform field_kinds)]
+              }
+        }
       when tag = Obj.double_array_tag ->
       assert (
         List.for_all
           (fun (kind : Lambda.value_kind) ->
-            match kind with
+            match kind.raw_kind with
             | Pboxedfloatval Pfloat64 -> true
             | Pboxedfloatval Pfloat32
             | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
@@ -1661,9 +1672,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
-    | Pvalue (Pboxedfloatval Pfloat64) -> Some (Unboxed_number Naked_float)
-    | Pvalue (Pboxedfloatval Pfloat32) -> Some (Unboxed_number Naked_float32)
-    | Pvalue (Pboxedintval bi) ->
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat64 } ->
+      Some (Unboxed_number Naked_float)
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat32 } ->
+      Some (Unboxed_number Naked_float32)
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedintval bi } ->
       let bn : Flambda_kind.Boxable_number.t =
         match bi with
         | Pint32 -> Naked_int32
@@ -1671,12 +1684,16 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
         | Pnativeint -> Naked_nativeint
       in
       Some (Unboxed_number bn)
-    | Pvalue (Pboxedvectorval bv) ->
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedvectorval bv } ->
       let bn : Flambda_kind.Boxable_number.t =
-        match bv with Pvec128 _ -> Naked_vec128
+        match bv with Pvec128 -> Naked_vec128
       in
       Some (Unboxed_number bn)
-    | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+    | Pvalue
+        { nullable = Non_nullable;
+          raw_kind = Pgenval | Pintval | Pvariant _ | Parrayval _
+        }
+    | Pvalue { nullable = Nullable; raw_kind = _ }
     | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
     | Punboxed_product _ ->
       Location.prerr_warning

@@ -20,7 +20,7 @@
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of Mach.trap_stack
+  | Reachable of Simple_operation.trap_stack
 
 type 'a static_handler =
   { regs : Reg.t array list;
@@ -35,7 +35,7 @@ type 'a environment =
     static_exceptions : 'a static_handler Numbers.Int.Map.t;
         (** Which registers must be populated when jumping to the given
           handler. *)
-    trap_stack : Mach.trap_stack
+    trap_stack : Simple_operation.trap_stack
   }
 
 val env_add :
@@ -65,12 +65,13 @@ val env_find_static_exception :
 val env_enter_trywith :
   'a environment -> Cmm.trywith_shared_label -> 'a -> 'a environment
 
-val env_set_trap_stack : 'a environment -> Mach.trap_stack -> 'a environment
+val env_set_trap_stack :
+  'a environment -> Simple_operation.trap_stack -> 'a environment
 
 val set_traps :
   Lambda.static_label ->
   trap_stack_info ref ->
-  Mach.trap_stack ->
+  Simple_operation.trap_stack ->
   Cmm.trap_action list ->
   unit
 
@@ -86,11 +87,12 @@ val size_component : Cmm.machtype_component -> int
 
 val size_expr : 'a environment -> Cmm.expression -> int
 
-val select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag
+val select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
 
 val oper_result_type : Cmm.operation -> Cmm.machtype
 
-val swap_intcomp : Mach.integer_comparison -> Mach.integer_comparison
+val swap_intcomp :
+  Simple_operation.integer_comparison -> Simple_operation.integer_comparison
 
 val all_regs_anonymous : Reg.t array -> bool
 
@@ -212,9 +214,10 @@ class virtual ['env, 'op, 'instr] common_selector :
 
     method effects_of : Cmm.expression -> Effect_and_coeffect.t
 
-    method is_immediate : Mach.integer_operation -> int -> bool
+    method is_immediate : Simple_operation.integer_operation -> int -> bool
 
-    method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
+    method virtual is_immediate_test :
+      Simple_operation.integer_comparison -> int -> bool
 
     method virtual select_addressing :
       Cmm.memory_chunk ->
@@ -224,7 +227,8 @@ class virtual ['env, 'op, 'instr] common_selector :
     method virtual select_store :
       bool -> Arch.addressing_mode -> Cmm.expression -> 'op * Cmm.expression
 
-    method select_condition : Cmm.expression -> Mach.test * Cmm.expression
+    method select_condition :
+      Cmm.expression -> Simple_operation.test * Cmm.expression
 
     method regs_for : Cmm.machtype -> Reg.t array
 

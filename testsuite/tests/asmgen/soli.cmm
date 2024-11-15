@@ -1,6 +1,7 @@
 (* TEST
  readonly_files = "main.c";
  arguments = "-DUNIT_INT -DFUN=solitaire main.c";
+ no-tsan; (* The asmgen action does not support TSan *)
  asmgen;
 *)
 
@@ -47,7 +48,7 @@
   (store int "counter" (+ (load int "counter") 1))
   (if (== m 31)
       (== (intaref (addraref "board" 4) 4) 2)
-    (try val
+    (try
      (if (== (mod (load int "counter") 500) 0)
           (extcall "printf_int" "format" (load int "counter") unit)
        [])

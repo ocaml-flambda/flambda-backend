@@ -1,11 +1,11 @@
-let $camlTests15__empty_array12 = Empty_array in
-let $camlTests15__immstring16 = "tests15.ml" in
-let $camlTests15__const_block18 = Block 0 ($camlTests15__immstring16, 2, 52)
+let $camlTests15__empty_array14 = Empty_array in
+let $camlTests15__immstring18 = "tests15.ml" in
+let $camlTests15__const_block20 = Block 0 ($camlTests15__immstring18, 2, 52)
 in
-let $camlTests15__Pmakeblock21 =
-  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block18)
+let $camlTests15__Pmakeblock23 =
+  Block 0 ($`*predef*`.caml_exn_Assert_failure, $camlTests15__const_block20)
 in
-let $camlTests15__immstring67 = " \\ \n " in
+let $camlTests15__immstring75 = " \\ \n " in
 let code list_to_array_0 deleted in
 let code is_c_1 deleted in
 let code set_to_x_2 deleted in
@@ -20,8 +20,8 @@ let code loopify(never) size(11) newer_version_of(list_to_array_0)
         : any array =
   let prim = %is_int param in
   switch prim
-    | 0 -> k1 pop(regular k1) ($camlTests15__Pmakeblock21)
-    | 1 -> k ($camlTests15__empty_array12)
+    | 0 -> k1 pop(regular k1) ($camlTests15__Pmakeblock23)
+    | 1 -> k ($camlTests15__empty_array14)
 in
 let $camlTests15__list_to_array_7 = closure list_to_array_0_1 @list_to_array
 in
@@ -41,12 +41,13 @@ let code loopify(never) size(14) newer_version_of(is_c_1)
     | 1 -> k (1)
 in
 let $camlTests15__is_c_8 = closure is_c_1_1 @is_c in
-let code loopify(never) size(4) newer_version_of(set_to_x_2)
+let code loopify(never) size(5) newer_version_of(set_to_x_2)
       set_to_x_2_1 (b, i : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
-  let Pbytessetu = %bytes_set 8 b.(i) 120i in
+  let prim = %num_conv (imm tagged -> imm) i in
+  let Pbytessetu = %bytes_set 8 b.(prim) 120i in
   cont k (0)
 in
 let $camlTests15__set_to_x_9 = closure set_to_x_2_1 @set_to_x in
@@ -93,7 +94,7 @@ let $camlTests15 =
            $camlTests15__classical_id_10,
            $camlTests15__swapped_11,
            $camlTests15__negate_12,
-           $camlTests15__immstring67,
+           $camlTests15__immstring75,
            $camlTests15__foo_13)
 in
 cont done ($camlTests15)

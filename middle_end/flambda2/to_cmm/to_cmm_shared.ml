@@ -61,13 +61,13 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
 let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.kind kind with
   | Value -> (
-    match Flambda_kind.With_subkind.subkind kind with
+    match Flambda_kind.With_subkind.non_null_value_subkind kind with
     | Tagged_immediate -> Cmm.typ_int
     | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_float32 -> Cmm.typ_float32
@@ -81,13 +81,13 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
 let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.kind kind with
   | Value -> (
-    match Flambda_kind.With_subkind.subkind kind with
+    match Flambda_kind.With_subkind.non_null_value_subkind kind with
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_float32 -> Extended_machtype.typ_float32
@@ -102,13 +102,13 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     =
   match Flambda_kind.With_subkind.kind kind with
   | Value -> (
-    match Flambda_kind.With_subkind.subkind kind with
+    match Flambda_kind.With_subkind.non_null_value_subkind kind with
     | Tagged_immediate -> Word_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Value_array
-    | Generic_array ->
+    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Value_array | Generic_array ->
       Word_val)
   | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
   | Naked_number Naked_int32 ->
@@ -182,6 +182,7 @@ let const ~dbg cst =
     in
     vec128 ~dbg { high; low }
   | Naked_nativeint t -> targetint ~dbg t
+  | Null -> targetint ~dbg Targetint_32_64.zero
 
 let simple ?consider_inlining_effectful_expressions ~dbg env res s =
   Simple.pattern_match s
@@ -232,6 +233,7 @@ let const_static cst =
       Vector_types.Vec128.Bit_pattern.to_bits v
     in
     [cvec128 { high; low }]
+  | Null -> [cint 0n]
 
 let simple_static res s =
   Simple.pattern_match s
@@ -324,6 +326,13 @@ module Update_kind = struct
   let () =
     assert (Arch.size_addr = 8);
     assert (Arch.size_float = 8)
+
+  let field_size_in_words t =
+    match t.kind with
+    | Pointer | Immediate | Naked_int32 | Naked_int64 | Naked_float
+    | Naked_float32 ->
+      1
+    | Naked_vec128 -> 2
 
   let pointers = { kind = Pointer; stride = Arch.size_addr }
 

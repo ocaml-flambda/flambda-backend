@@ -82,3 +82,5 @@ val to_list : 'a t -> 'a list
 
 (* Adds all of the elements of `from` to `to_`, and clears `from`. *)
 val transfer : to_:'a t -> from:'a t -> unit -> unit
+
+val map : 'a t -> f:('a -> 'b) -> 'b t

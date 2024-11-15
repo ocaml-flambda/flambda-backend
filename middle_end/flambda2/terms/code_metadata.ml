@@ -25,7 +25,7 @@ type t =
        for instance as a result of a partial application. *)
     result_arity : [`Unarized] Flambda_arity.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
-    result_mode : Lambda.alloc_mode;
+    result_mode : Lambda.locality_mode;
     contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
@@ -106,6 +106,12 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
   let relative_history t = (metadata t).relative_history
 
   let loopify t = (metadata t).loopify
+
+  let function_slot_size t =
+    let metadata = metadata t in
+    let is_tupled = metadata.is_tupled in
+    let arity = Flambda_arity.num_params metadata.params_arity in
+    if (arity = 0 || arity = 1) && not is_tupled then 2 else 3
 end
 
 module type Code_metadata_accessors_result_type = sig
@@ -134,7 +140,7 @@ type 'a create_type =
   first_complex_local_param:int ->
   result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
-  result_mode:Lambda.alloc_mode ->
+  result_mode:Lambda.locality_mode ->
   contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
@@ -218,6 +224,8 @@ let with_code_id code_id t = { t with code_id }
 let with_newer_version_of newer_version_of t = { t with newer_version_of }
 
 let with_cost_metrics cost_metrics t = { t with cost_metrics }
+
+let with_is_my_closure_used is_my_closure_used t = { t with is_my_closure_used }
 
 module Option = struct
   include Option
@@ -550,7 +558,7 @@ let approx_equal
   && List.equal Alloc_mode.For_types.equal param_modes1 param_modes2
   && Int.equal first_complex_local_param1 first_complex_local_param2
   && Flambda_arity.equal_ignoring_subkinds result_arity1 result_arity2
-  && Lambda.equal_alloc_mode result_mode1 result_mode2
+  && Lambda.eq_locality_mode result_mode1 result_mode2
   && Bool.equal contains_no_escaping_local_allocs1
        contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2

@@ -44,6 +44,8 @@ type t = private
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
+  | Immutable_vec128_array of
+      Vector_types.Vec128.Bit_pattern.t Or_variable.t list
   | Immutable_value_array of Simple.With_debuginfo.t list
       (** [Immutable_*_array] constructors always have at least one field. For
         empty arrays, [Empty_array] must be used. *)
@@ -107,6 +109,11 @@ val immutable_int64_array : Int64.t Or_variable.t list -> t
 (** This function can accept empty lists of fields; [Empty_array] will be
     produced. *)
 val immutable_nativeint_array : Targetint_32_64.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_vec128_array :
+  Vector_types.Vec128.Bit_pattern.t Or_variable.t list -> t
 
 (** This function can accept empty lists of fields; [Empty_array] will be
     produced. *)

@@ -71,8 +71,8 @@ end = struct
   let add_block t ~label ~block =
     if Label.Tbl.mem t.blocks label
     then
-      Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %d"
-        label
+      Misc.fatal_errorf "Cfgize.State.add_block: duplicate block for label %a"
+        Label.format label
     else (
       DLL.add_end t.layout label;
       Label.Tbl.replace t.blocks label block)
@@ -150,7 +150,7 @@ let basic_or_terminator_of_operation :
          (Load
             { memory_chunk;
               addressing_mode;
-              mutability = Mach.of_ast_mutable_flag mutability;
+              mutability = Simple_operation.of_ast_mutable_flag mutability;
               is_atomic
             }))
   | Istore (mem, mode, assignment) -> Basic (Op (Store (mem, mode, assignment)))
@@ -158,8 +158,8 @@ let basic_or_terminator_of_operation :
     Basic (Op (Alloc { bytes; dbginfo; mode }))
   | Ipoll { return_label = None } -> Basic (Op Poll)
   | Ipoll { return_label = Some return_label } ->
-    Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %d"
-      return_label
+    Misc.fatal_errorf "Cfgize.basic_or_terminator: unexpected Ipoll %a"
+      Label.format return_label
   | Iintop
       (( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
        | Ilsr | Iasr | Iclz _ | Ictz _ | Ipopcnt | Icomp _ ) as op) ->
@@ -244,13 +244,16 @@ let int_test_of_integer_comparison :
   { lt; eq; gt; is_signed; imm }
 
 let terminator_of_test :
-    Mach.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator =
+    Simple_operation.test ->
+    label_false:Label.t ->
+    label_true:Label.t ->
+    Cfg.terminator =
  fun test ~label_false ~label_true ->
   let int_test comparison immediate =
     let signed, comparison =
       match comparison with
-      | Mach.Isigned comparison -> true, comparison
-      | Mach.Iunsigned comparison -> false, comparison
+      | Simple_operation.Isigned comparison -> true, comparison
+      | Simple_operation.Iunsigned comparison -> false, comparison
     in
     int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
       ~label_true
@@ -403,7 +406,7 @@ let extract_block_info : State.t -> Mach.instruction -> block_info =
 
 (* Represents the control flow exiting the function without encountering a
    return. *)
-let fallthrough_label : Label.t = -1
+let fallthrough_label : Label.t = Label.none
 
 (* [add_blocks instr state ~start ~next ~is_cold] adds the block beginning at
    [instr] with label [start], and all recursively-reachable blocks to [state].
@@ -561,8 +564,8 @@ let update_trap_handler_blocks : State.t -> Cfg.t -> unit =
       | None ->
         Misc.fatal_errorf
           "Cfgize.update_trap_handler_blocks: inconsistent state (no block \
-           labelled %d)"
-          label
+           labelled %a)"
+          Label.format label
       | Some block -> block.is_trap_handler <- true)
     (State.get_exception_handlers state)
 
@@ -592,9 +595,10 @@ module Stack_offset_and_exn = struct
     match term.desc with
     | Tailcall_self _
       when stack_offset <> 0 || List.compare_length_with traps 0 <> 0 ->
-      Misc.fatal_error
+      Misc.fatal_errorf
         "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
-         self tailcall"
+         self tailcall (id=%d)"
+        term.id
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
     | Tailcall_func _ | Call_no_return _ | Call _ | Prim _
@@ -616,9 +620,10 @@ module Stack_offset_and_exn = struct
     | Poptrap -> (
       match traps with
       | [] ->
-        Misc.fatal_error
+        Misc.fatal_errorf
           "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
-           empty stack"
+           empty stack (id=%d)"
+          instr.id
       | _ :: traps -> stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op

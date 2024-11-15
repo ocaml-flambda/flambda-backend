@@ -1,4 +1,4 @@
-let $camlUnroll3__first_const32 = Block 0 () in
+let $camlUnroll3__first_const35 = Block 0 () in
 let code rec size(22)
       even_0 (n : imm tagged)
         my_closure my_region my_ghost_region my_depth
@@ -47,10 +47,10 @@ in
           in
           cont k (Pmakeblock)))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(4) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(4) (module_block, 1) in
-    let field_2 = %block_load tag(0) size(4) (module_block, 2) in
-    let field_3 = %block_load tag(0) size(4) (module_block, 3) in
+    let field_0 = %block_load tag(0) size(4) (0) module_block in
+    let field_1 = %block_load tag(0) size(4) (1) module_block in
+    let field_2 = %block_load tag(0) size(4) (2) module_block in
+    let field_3 = %block_load tag(0) size(4) (3) module_block in
     let $camlUnroll3 = Block 0 (field_0, field_1, field_2, field_3) in
     cont done ($camlUnroll3)
 ===>

@@ -130,22 +130,11 @@ let negate_float_comparison = Lambda.negate_float_comparison
 
 let swap_float_comparison = Lambda.swap_float_comparison
 
-type label = int
+type label = Label.t
 
-let init_label = 99
-
-let label_counter = ref init_label
-
-let set_label l =
-  if (l < !label_counter) then begin
-    Misc.fatal_errorf "Cannot set label counter to %d, it must be >= %d"
-      l !label_counter ()
-  end;
-  label_counter := l
-
-let cur_label () = !label_counter
-
-let new_label() = incr label_counter; !label_counter
+let new_label = Label.new_label
+let set_label = Label.set_label
+let cur_label = Label.cur_label
 
 type static_label = Lambda.static_label
 
@@ -185,6 +174,14 @@ type initialization_or_assignment =
   | Initialization
   | Assignment
 
+type vec128_type =
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
 type float_width =
   | Float64
   | Float32
@@ -219,8 +216,8 @@ type static_cast =
   | Int_of_float of float_width
   | Float_of_float32
   | Float32_of_float
-  | V128_of_scalar of Primitive.vec128_type
-  | Scalar_of_v128 of Primitive.vec128_type
+  | V128_of_scalar of vec128_type
+  | Scalar_of_v128 of vec128_type
 
 module Alloc_mode = struct
   type t = Heap | Local
@@ -394,7 +391,7 @@ let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)
 
 let reset () =
-  label_counter := init_label
+  Label.reset ()
 
 let iter_shallow_tail f = function
   | Clet(_, _, body) | Cphantom_let (_, _, body) | Clet_mut(_, _, _, body) ->
@@ -596,6 +593,16 @@ let equal_exttype left right =
   | XFloat32, (XInt | XInt32 | XInt64 | XFloat | XVec128) ->
     false
 
+let equal_vec128_type v1 v2 =
+  match v1, v2 with
+  | Int8x16, Int8x16 -> true
+  | Int16x8, Int16x8 -> true
+  | Int32x4, Int32x4 -> true
+  | Int64x2, Int64x2 -> true
+  | Float32x4, Float32x4 -> true
+  | Float64x2, Float64x2 -> true
+  | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ -> false
+
 let equal_float_width left right =
   match left, right with
   | Float64, Float64 -> true
@@ -625,8 +632,8 @@ let equal_static_cast (left : static_cast) (right : static_cast) =
   | Float_of_float32, Float_of_float32 -> true
   | Float_of_int f1, Float_of_int f2 -> equal_float_width f1 f2
   | Int_of_float f1, Int_of_float f2 -> equal_float_width f1 f2
-  | Scalar_of_v128 v1, Scalar_of_v128 v2 -> Primitive.equal_vec128_type v1 v2
-  | V128_of_scalar v1, V128_of_scalar v2 -> Primitive.equal_vec128_type v1 v2
+  | Scalar_of_v128 v1, Scalar_of_v128 v2 -> equal_vec128_type v1 v2
+  | V128_of_scalar v1, V128_of_scalar v2 -> equal_vec128_type v1 v2
   | (Float32_of_float | Float_of_float32 |
      Float_of_int _ | Int_of_float _ |
      Scalar_of_v128 _ | V128_of_scalar _), _ -> false

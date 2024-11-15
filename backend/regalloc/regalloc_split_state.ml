@@ -24,23 +24,23 @@ let log_renaming_info : indent:int -> t -> unit =
   log ~indent:(indent + 1) "destructions:";
   Label.Map.iter
     (fun label (kind, regset) ->
-      log ~indent:(indent + 2) " - end of block %d %s (%a)" label
+      log ~indent:(indent + 2) " - end of block %a %s (%a)" Label.format label
         (match kind with
         | Destruction_on_all_paths -> "[all-paths]"
         | Destruction_only_on_exceptional_path -> "[exn-only]")
-        Printmach.regset regset)
+        Printreg.regset regset)
     state.destructions_at_end;
   log ~indent:(indent + 1) "definitions:";
   Label.Map.iter
     (fun label regset ->
-      log ~indent:(indent + 2) " - beginning of block %d (%a)" label
-        Printmach.regset regset)
+      log ~indent:(indent + 2) " - beginning of block %a (%a)" Label.format
+        label Printreg.regset regset)
     state.definitions_at_beginning;
   log ~indent:1 "phi:";
   Label.Map.iter
     (fun label regset ->
-      log ~indent:(indent + 2) " - beginning of block %d (%a)" label
-        Printmach.regset regset)
+      log ~indent:(indent + 2) " - beginning of block %a (%a)" Label.format
+        label Printreg.regset regset)
     state.phi_at_beginning
 
 (* Optimizes `destructions_at_end` and `definitions_at_beginning`, by moving
@@ -108,8 +108,9 @@ end = struct
                 then (
                   if split_debug
                   then
-                    log ~indent:2 "moving %a from block %d to block %d"
-                      Printmach.regset to_move label successor_label;
+                    log ~indent:2 "moving %a from block %a to block %a"
+                      Printreg.regset to_move Label.format label Label.format
+                      successor_label;
                   definitions_at_beginning
                     := Label.Map.update label
                          (function
@@ -185,8 +186,9 @@ end = struct
             then (
               if split_debug
               then
-                log ~indent:2 "moving %a from block %d to block %d"
-                  Printmach.regset to_move label predecessor_label;
+                log ~indent:2 "moving %a from block %a to block %a"
+                  Printreg.regset to_move Label.format label Label.format
+                  predecessor_label;
               destructions_at_end
                 := Label.Map.update label
                      (function
@@ -233,20 +235,20 @@ end = struct
     let definitions_at_beginning =
       Label.Map.mapi
         (fun (label : Label.t) (definitions : Reg.Set.t) ->
-          if split_debug then log ~indent:1 "block %d" label;
+          if split_debug then log ~indent:1 "block %a" Label.format label;
           match Label.Map.find_opt label !destructions_at_end with
           | None -> definitions
           | Some (Destruction_only_on_exceptional_path, _) -> definitions
           | Some (Destruction_on_all_paths, destructions) -> (
             if split_debug
             then (
-              log ~indent:2 "definitions: %a" Printmach.regset definitions;
-              log ~indent:2 "destructions: %a" Printmach.regset destructions);
+              log ~indent:2 "definitions: %a" Printreg.regset definitions;
+              log ~indent:2 "destructions: %a" Printreg.regset destructions);
             let can_be_removed : Reg.Set.t =
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
                   if split_debug
-                  then log ~indent:3 "register %a" Printmach.reg reg;
+                  then log ~indent:3 "register %a" Printreg.reg reg;
                   match Reg.Set.mem reg destructions with
                   | false ->
                     if split_debug then log ~indent:3 "(not among destructions)";
@@ -262,7 +264,7 @@ end = struct
             in
             if split_debug
             then
-              log ~indent:2 "can be removed: %a" Printmach.regset can_be_removed;
+              log ~indent:2 "can be removed: %a" Printreg.regset can_be_removed;
             match Reg.Set.is_empty can_be_removed with
             | true -> definitions
             | false ->
@@ -311,7 +313,8 @@ end = struct
       destructions_at_end:destructions_at_end ->
       destructions_at_end =
    fun doms tree ~num_sets ~already_spilled ~destructions_at_end ->
-    if split_debug then log ~indent:1 "remove_dominated_spills %d" tree.label;
+    if split_debug
+    then log ~indent:1 "remove_dominated_spills %a" Label.format tree.label;
     let already_spilled = ref already_spilled in
     let destructions_at_end : (destruction_kind * Reg.Set.t) Label.Map.t =
       Label.Map.update tree.label
@@ -321,7 +324,7 @@ end = struct
               Reg.Set.filter
                 (fun (reg : Reg.t) ->
                   if split_debug
-                  then log ~indent:2 "register %a" Printmach.reg reg;
+                  then log ~indent:2 "register %a" Printreg.reg reg;
                   let keep =
                     match Reg.Tbl.find_opt num_sets reg with
                     | None | Some Maybe_more_than_once -> true
@@ -339,8 +342,8 @@ end = struct
                           then fatal "inconsistent dominator tree";
                         if split_debug
                         then
-                          log ~indent:3 "case/3 (already spilled at %d)"
-                            spilled_at;
+                          log ~indent:3 "case/3 (already spilled at %a)"
+                            Label.format spilled_at;
                         false)
                   in
                   if keep
@@ -367,7 +370,7 @@ end = struct
     in
     List.fold_left tree.children ~init:destructions_at_end
       ~f:(fun destructions_at_end (child : Cfg_dominators.dominator_tree) ->
-        if split_debug then log ~indent:2 "child %d" child.label;
+        if split_debug then log ~indent:2 "child %a" Label.format child.label;
         remove_dominated_spills doms child ~num_sets
           ~already_spilled:!already_spilled ~destructions_at_end)
 
@@ -389,7 +392,8 @@ end = struct
       Cfg_with_infos.fold_blocks cfg_with_infos ~init:(Reg.Tbl.create 123)
         ~f:(fun label block acc ->
           let in_loop : bool = is_in_loop loops label in
-          if split_debug then log ~indent:1 "block %d in_loop? %B" label in_loop;
+          if split_debug
+          then log ~indent:1 "block %a in_loop? %B" Label.format label in_loop;
           incr_set acc block.terminator.res ~in_loop;
           DLL.iter block.body ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
               incr_set acc instr.res ~in_loop);
@@ -400,7 +404,7 @@ end = struct
       log ~indent:1 "num_sets:";
       Reg.Tbl.iter
         (fun reg num_set ->
-          log ~indent:2 "%a ~> %s" Printmach.reg reg (string_of_set num_set))
+          log ~indent:2 "%a ~> %s" Printreg.reg reg (string_of_set num_set))
         num_sets);
     let doms = Cfg_with_infos.dominators cfg_with_infos in
     let forest = Cfg_dominators.dominator_forest doms in
@@ -426,16 +430,16 @@ let add_destruction_point_at_end :
       | None ->
         fatal
           "Regalloc_split_state.add_destruction_point_at_end: no liveness \
-           information for block %d"
-          block.start
+           information for block %a"
+          Label.format block.start
       | Some { Cfg_liveness.across; before = _ } -> across)
     | Destruction_only_on_exceptional_path -> (
       match block.exn with
       | None ->
         fatal
           "Regalloc_split_state.add_destruction_point_at_end: no exceptional \
-           successor for block %d"
-          block.start
+           successor for block %a"
+          Label.format block.start
       | Some exn_succ -> live_at_block_beginning cfg_with_infos exn_succ)
   in
   Label.Map.add block.start (kind, destroyed_regs) destructions_at_end

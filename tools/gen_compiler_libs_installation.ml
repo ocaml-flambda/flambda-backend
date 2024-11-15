@@ -22,6 +22,17 @@ let () =
       | "zero_alloc_checker", ".mli" -> Some "mach_checks"
       | "cSE", (".cmi" | ".cmt" | ".cmx") -> Some "CSE"
       | "cSEgen", (".cmi" | ".cmt" | ".cmti" | ".cmx") -> Some "CSEgen"
+      | ( "allowance" | "cmt2annot" | "compression" | "debug" | "diffing"
+        | "diffing_with_keys" | "errortrace" | "file_sections" | "global_module"
+        | "import_info" | "includemod_errorprinter"
+        | "language_extension_kernel" | "lazy_backtrack" | "lru" | "main"
+        | "main_native" | "maindriver" | "mode_intf" | "optmain" | "parser.pp"
+        | "parser_types" | "shape" | "shape_reduce" | "signature_group"
+        | "solver_intf" | "tmc" | "transl_array_comprehension"
+        | "transl_comprehension_utils" | "transl_list_comprehension"
+        | "unit_info" | "value_rec_types" ), ".mli" ->
+        (* Preserve pre-pivot_root behaviour by leaving these out *)
+        None
       | _, _ -> Some prefix
     in
     let tgt_dir_prefix =

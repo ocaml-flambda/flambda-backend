@@ -158,7 +158,7 @@ let update_register_locations : unit -> unit =
           ()
         | Some color ->
           if irc_debug
-          then log ~indent:1 "updating %a to %d" Printmach.reg reg color;
+          then log ~indent:1 "updating %a to %d" Printreg.reg reg color;
           reg.Reg.loc <- Reg color))
 
 module Spilling_heuristics = struct

@@ -1,0 +1,56 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                Diana Kalinichenko, Jane Street, New York               *
+;*                                                                        *
+;*   Copyright 2024 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(library
+ (name stdlib_alpha)
+ (public_name ocaml.stdlib_alpha)
+ (modes byte native)
+ (flags
+  (:standard
+   -strict-sequence
+   -absname
+   -bin-annot
+   -safe-string
+   -strict-formats
+   -extension-universe
+   alpha
+   ;; Capsule API can't be defined legally.
+   -allow-illegal-crossing))
+ (ocamlopt_flags
+  (:include %{project_root}/ocamlopt_flags.sexp))
+ (foreign_stubs
+  (language c)
+  (names rwlock)
+  (flags
+   ((:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/sharedlib_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp))))
+ (library_flags
+  (:standard -linkall)))
+
+(rule
+ (deps
+  (:first-dep ../to_install.sh)
+  (source_tree .))
+ (action
+  (with-stdout-to
+   to_install.sexp
+   (run "%{first-dep}" "stdlib_alpha"))))
+
+(install
+ (files
+  (dllstdlib_alpha_stubs.so as stublibs/dllstdlib_alpha_stubs.so)
+  (META as stdlib_alpha/META))
+ (section lib)
+ (package ocaml))

@@ -580,7 +580,8 @@ and print_function_params_and_body ppf t =
       ~is_my_closure_used:_ ~my_region ~my_ghost_region ~my_depth
       ~free_names_of_body:_ =
     let my_closure =
-      Bound_parameter.create my_closure (K.With_subkind.create K.value Anything)
+      Bound_parameter.create my_closure
+        (K.With_subkind.create K.value Anything Non_nullable)
     in
     fprintf ppf
       "@[<hov 1>(%t@<1>\u{03bb}%t@[<hov \
@@ -1441,7 +1442,7 @@ module Named = struct
                  | Immutable_float32_array _ | Mutable_string _
                  | Immutable_string _ | Empty_array _ | Immutable_value_array _
                  | Immutable_int32_array _ | Immutable_int64_array _
-                 | Immutable_nativeint_array _ ) ->
+                 | Immutable_nativeint_array _ | Immutable_vec128_array _ ) ->
                acc)
            init
 end

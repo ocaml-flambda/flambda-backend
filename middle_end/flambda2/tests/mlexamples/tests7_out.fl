@@ -1,6 +1,6 @@
-let $camlTests7__empty_block3 = Block 0 () in
-let $camlTests7__immstring6 = "Cow" in
-let $camlTests7__immstring9 = "Sheep" in
+let $camlTests7__empty_block4 = Block 0 () in
+let $camlTests7__immstring7 = "Cow" in
+let $camlTests7__immstring10 = "Sheep" in
 let code f_0 deleted in
 let code foo_1 deleted in
 let code loopify(never) size(16) newer_version_of(f_0)
@@ -22,8 +22,8 @@ let code loopify(never) size(13) newer_version_of(foo_1)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : float boxed =
-  let prim = %block_load float (af, 1) in
-  let prim_1 = %block_load float (af, 0) in
+  let prim = %block_load float (1) af in
+  let prim_1 = %block_load float (0) af in
   let prim_2 = prim_1 *. prim in
   let prim_3 = %unbox_float y in
   let prim_4 = prim_2 +. prim_3 in
@@ -32,9 +32,9 @@ let code loopify(never) size(13) newer_version_of(foo_1)
 in
 let $camlTests7__foo_3 = closure foo_1_1 @foo in
 let $camlTests7 =
-  Block 0 ($camlTests7__empty_block3,
-           $camlTests7__immstring6,
-           $camlTests7__immstring9,
+  Block 0 ($camlTests7__empty_block4,
+           $camlTests7__immstring7,
+           $camlTests7__immstring10,
            $camlTests7__f_2,
            $camlTests7__foo_3)
 in

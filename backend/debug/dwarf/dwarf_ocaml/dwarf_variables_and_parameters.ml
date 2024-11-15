@@ -101,9 +101,13 @@ type location_list_entry =
 
 let location_list_entry state ~subrange single_location_description :
     location_list_entry =
-  let start_pos = Asm_label.create_int Text (ARV.Subrange.start_pos subrange) in
+  let start_pos =
+    Asm_label.create_int Text (ARV.Subrange.start_pos subrange |> Label.to_int)
+  in
   let start_pos_offset = ARV.Subrange.start_pos_offset subrange in
-  let end_pos = Asm_label.create_int Text (ARV.Subrange.end_pos subrange) in
+  let end_pos =
+    Asm_label.create_int Text (ARV.Subrange.end_pos subrange |> Label.to_int)
+  in
   let end_pos_offset = ARV.Subrange.end_pos_offset subrange in
   match !Dwarf_flags.gdwarf_version with
   | Four ->

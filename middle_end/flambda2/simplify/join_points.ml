@@ -24,59 +24,60 @@ type result =
     escapes : bool
   }
 
+let introduce_extra_params_in_use_env epa (denv_at_use, use_id, kind) =
+  let tenv_at_use = DE.typing_env denv_at_use in
+  let tenv_at_use =
+    TE.add_definitions_of_params tenv_at_use ~params:(EPA.extra_params epa)
+  in
+  match Apply_cont_rewrite_id.Map.find use_id (EPA.extra_args epa) with
+  | exception Not_found ->
+    Misc.fatal_errorf
+      "No extra args for rewrite Id %a@.Extra params and args: %a"
+      Apply_cont_rewrite_id.print use_id EPA.print epa
+  | Invalid -> None
+  | Ok extra_args ->
+    let tenv_at_use =
+      List.fold_left2
+        (fun tenv_at_use param (arg : EPA.Extra_arg.t) ->
+          match arg with
+          | Already_in_scope s ->
+            TE.add_equation tenv_at_use (BP.name param)
+              (T.alias_type_of
+                 (BP.kind param |> Flambda_kind.With_subkind.kind)
+                 s)
+          | New_let_binding _ | New_let_binding_with_named_args _ -> tenv_at_use)
+        tenv_at_use
+        (Bound_parameters.to_list (EPA.extra_params epa))
+        extra_args
+    in
+    Some (tenv_at_use, use_id, kind)
+
 let introduce_extra_params_for_join denv use_envs_with_ids
     ~extra_params_and_args =
   if EPA.is_empty extra_params_and_args
-  then denv, use_envs_with_ids
+  then
+    let use_tenvs_with_ids =
+      List.map
+        (fun (denv_at_use, use_id, kind) ->
+          DE.typing_env denv_at_use, use_id, kind)
+        use_envs_with_ids
+    in
+    denv, use_tenvs_with_ids
   else
     let extra_params = EPA.extra_params extra_params_and_args in
     let denv = DE.define_parameters denv ~params:extra_params in
     let use_envs_with_ids =
       List.filter_map
-        (fun (env_at_use, use_id, kind) ->
-          let env_at_use =
-            TE.add_definitions_of_params env_at_use ~params:extra_params
-          in
-          match
-            Apply_cont_rewrite_id.Map.find use_id
-              (EPA.extra_args extra_params_and_args)
-          with
-          | exception Not_found ->
-            Misc.fatal_errorf
-              "No extra args for rewrite Id %a@.Extra params and args: %a"
-              Apply_cont_rewrite_id.print use_id EPA.print extra_params_and_args
-          | Invalid -> None
-          | Ok extra_args ->
-            let env_at_use =
-              List.fold_left2
-                (fun env_at_use param (arg : EPA.Extra_arg.t) ->
-                  match arg with
-                  | Already_in_scope s ->
-                    TE.add_equation env_at_use (BP.name param)
-                      (T.alias_type_of
-                         (BP.kind param |> Flambda_kind.With_subkind.kind)
-                         s)
-                  | New_let_binding _ | New_let_binding_with_named_args _ ->
-                    env_at_use)
-                env_at_use
-                (Bound_parameters.to_list extra_params)
-                extra_args
-            in
-            Some (env_at_use, use_id, kind))
+        (introduce_extra_params_in_use_env extra_params_and_args)
         use_envs_with_ids
     in
     denv, use_envs_with_ids
 
-let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
+let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids
+    ~lifted_cont_extra_params_and_args =
   let definition_scope = DE.get_continuation_scope denv in
   let extra_lifted_consts_in_use_envs =
     LCS.all_defined_symbols consts_lifted_during_body
-  in
-  let use_envs_with_ids' =
-    (* CR-someday mshinwell: Stop allocating this *)
-    List.map
-      (fun (use_env, id, use_kind) -> DE.typing_env use_env, id, use_kind)
-      use_envs_with_ids
   in
   let module CSE = Common_subexpression_elimination in
   let cse_join_result =
@@ -89,15 +90,17 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids =
       ~get_cse:(fun (use_env, _, _) -> DE.cse use_env)
       ~params
   in
-  let extra_params_and_args, denv, use_envs_with_ids' =
+  let extra_params_and_args =
     match cse_join_result with
-    | None -> Continuation_extra_params_and_args.empty, denv, use_envs_with_ids'
+    | None -> lifted_cont_extra_params_and_args
     | Some cse_join_result ->
-      let denv, use_envs_with_ids' =
-        introduce_extra_params_for_join denv use_envs_with_ids'
-          ~extra_params_and_args:cse_join_result.extra_params
-      in
-      cse_join_result.extra_params, denv, use_envs_with_ids'
+      (* CR gbury: the order of the EPA should not matter here *)
+      EPA.concat ~outer:cse_join_result.extra_params
+        ~inner:lifted_cont_extra_params_and_args
+  in
+  let denv, use_envs_with_ids' =
+    introduce_extra_params_for_join denv use_envs_with_ids
+      ~extra_params_and_args
   in
   let extra_allowed_names =
     match cse_join_result with
@@ -174,7 +177,7 @@ let add_equations_on_params typing_env ~is_recursive ~params:params'
   add_equations_on_params typing_env params param_types
 
 let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
-    ~consts_lifted_during_body ~params =
+    ~consts_lifted_during_body ~params ~lifted_cont_extra_params_and_args =
   (* Augment the environment at each use with the parameter definitions and
      associated equations. *)
   let use_envs_with_ids =
@@ -192,7 +195,25 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
       uses
   in
   match use_envs_with_ids with
-  | [(use_env, _, Inlinable)] when not is_recursive ->
+  | [(use_env, use_id, Inlinable)] when not is_recursive ->
+    (* First add the extra params and args equations in the typing env *)
+    let use_tenv =
+      let use = use_env, use_id, Continuation_use_kind.Inlinable in
+      match
+        introduce_extra_params_in_use_env lifted_cont_extra_params_and_args use
+      with
+      | Some (use_env, _, _) -> use_env
+      | None ->
+        (* CR gbury: This case means that the EPA rewrite states the apply_cont
+           is actually invalid. This should not happen currently as lifted cont
+           epas do not generate invalid rewrites.
+
+           We could try and handle this case by replacing the continuation's
+           handler with an [Invalid] *)
+        Misc.fatal_errorf
+          "Apply_cont of a single-use inlinable continuation is Invalid."
+    in
+    let use_env = DE.with_typing_env use_env use_tenv in
     (* There is only one use of the continuation and it is inlinable. No join
        calculations are required.
 
@@ -226,7 +247,7 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
         (DE.at_unit_toplevel env_at_fork)
     in
     { handler_env;
-      extra_params_and_args = Continuation_extra_params_and_args.empty;
+      extra_params_and_args = EPA.empty;
       is_single_inlinable_use = true;
       escapes = false
     }
@@ -250,11 +271,15 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
            environments *)
         let denv = DE.define_parameters denv ~params in
         join ?cut_after denv params ~consts_lifted_during_body
-          ~use_envs_with_ids
+          ~use_envs_with_ids ~lifted_cont_extra_params_and_args
       else
         (* Define parameters with basic equations from the subkinds *)
         let denv = DE.add_parameters_with_unknown_types denv params in
-        denv, Continuation_extra_params_and_args.empty
+        let denv =
+          DE.add_parameters_with_unknown_types denv
+            (EPA.extra_params lifted_cont_extra_params_and_args)
+        in
+        denv, lifted_cont_extra_params_and_args
     in
     let escapes =
       List.exists
