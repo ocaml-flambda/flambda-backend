@@ -87,7 +87,7 @@ let is_erasable : type a. a t -> bool = function
   | Module_strengthening | SIMD | Labeled_tuples | Small_numbers | Instances ->
     false
 
-let maturity_of_unique_for_drf = Beta
+let maturity_of_unique_for_drf = Alpha
 
 let maturity_of_unique_for_destruction = Alpha
 
