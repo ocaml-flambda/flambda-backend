@@ -943,7 +943,7 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
       simplify_duplicate_array ~kind ~source_mutability ~destination_mutability
     (* CR uniqueness: When you review this, please let me know what I should do
        here. *)
-    | Duplicate_block { kind; ubr = _ } -> simplify_duplicate_block ~kind
+    | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity { middle_end_only = _; kind } ->
       simplify_opaque_identity ~kind
     | End_region { ghost = _ } -> simplify_end_region

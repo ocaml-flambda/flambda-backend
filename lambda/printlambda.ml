@@ -520,8 +520,8 @@ let primitive ppf = function
       in
       fprintf ppf "setmixedfield%s %i %a"
         init n mixed_block_write write
-  | Pduprecord (rep, size, ubr) ->
-      fprintf ppf "duprecord%s %a %i" (unique_barrier ubr) record_rep rep size
+  | Pduprecord (rep, size) ->
+      fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
   | Pperform -> fprintf ppf "perform"
   | Presume -> fprintf ppf "resume"
@@ -596,11 +596,10 @@ let primitive ppf = function
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayrefu (rk, idx, mut, ubr) -> fprintf ppf "%s.unsafe_get%s[%a indexed by %a]"
-                                      (array_mut mut)
-                                      (unique_barrier ubr)
-                                      array_ref_kind rk
-                                      array_index_kind idx
+  | Parrayrefu (rk, idx, mut) -> fprintf ppf "%s.unsafe_get[%a indexed by %a]"
+                                 (array_mut mut)
+                                 array_ref_kind rk
+                                 array_index_kind idx
   | Parraysetu (sk, idx) -> fprintf ppf "array.unsafe_set[%a indexed by %a]"
                               array_set_kind sk
                               array_index_kind idx

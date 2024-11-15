@@ -598,7 +598,7 @@ binop_app:
     { Binary (op, arg1, arg2) }
   | arg1 = simple; op = infix_binop; arg2 = simple
     { Binary (Infix op, arg1, arg2) }
-  | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability; ubr = unique_barrier
+  | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability
     arg1 = simple; DOT;
     LPAREN; arg2 = simple; RPAREN
     {
@@ -613,7 +613,7 @@ binop_app:
       | Naked_nativeints -> Naked_nativeints
       | Naked_vec128s -> Naked_vec128s
     in
-    Binary (Array_load (ak, array_load_kind, mut, ubr), arg1, arg2) }
+    Binary (Array_load (ak, array_load_kind, mut), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
     arg1 = simple; c = binary_int_arith_op; arg2 = simple
     { Binary (Int_arith (i, c), arg1, arg2) }

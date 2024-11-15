@@ -530,17 +530,17 @@ let comp_primitive stack_info p sz args =
   | Parraysets ((Punboxedfloatarray_set Pfloat32 | Punboxedintarray_set _
                 | Paddrarray_set _ | Pintarray_set), Ptagged_int_index) ->
     Kccall("caml_array_set_addr", 3)
-  | Parrayrefu (Pgenarray_ref _, index_kind, _, _)
+  | Parrayrefu (Pgenarray_ref _, index_kind, _)
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
                 | Punboxedfloatarray_ref (Pfloat64 | Pfloat32)
                 | Punboxedintarray_ref _),
-                (Punboxed_int_index _ as index_kind), _, _) ->
+                (Punboxed_int_index _ as index_kind), _) ->
       Kccall(indexing_primitive index_kind "caml_array_unsafe_get", 2)
   | Parrayrefu ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _),
-        Ptagged_int_index, _, _) ->
+        Ptagged_int_index, _) ->
       Kccall("caml_floatarray_unsafe_get", 2)
   | Parrayrefu ((Punboxedfloatarray_ref Pfloat32 | Punboxedintarray_ref _
-                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index, _, _) ->
+                | Paddrarray_ref | Pintarray_ref), Ptagged_int_index, _) ->
       Kgetvectitem
   | Parraysetu (Pgenarray_set _, index_kind)
   | Parraysetu ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
@@ -556,7 +556,7 @@ let comp_primitive stack_info p sz args =
       Ksetvectitem
   | Parrayrefs (Punboxedvectorarray_ref _, _, _)
   | Parraysets (Punboxedvectorarray_set _, _)
-  | Parrayrefu (Punboxedvectorarray_ref _, _, _, _)
+  | Parrayrefu (Punboxedvectorarray_ref _, _, _)
   | Parraysetu (Punboxedvectorarray_set _, _) ->
       fatal_error "SIMD is not supported in bytecode mode."
   | Pctconst c ->

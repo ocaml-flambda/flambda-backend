@@ -2392,12 +2392,17 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
       let result_layout = array_ref_kind_result_layout ref_kind in
       let mut = if Types.is_mutable am then Mutable else Immutable in
       let ubr = Translmode.transl_unique_barrier head.pat_unique_barrier in
+      let mut =
+        match ubr with
+        | Must_stay_here -> Mutable
+        | May_be_pushed_down -> mut
+      in
       let str =
         add_barrier_to_let_kind ubr
           (if Types.is_mutable am then StrictOpt else Alias)
       in
       ( Lprim
-          (Parrayrefu (ref_kind, Ptagged_int_index, mut, ubr),
+          (Parrayrefu (ref_kind, Ptagged_int_index, mut),
            [ arg; Lconst (Const_base (Const_int pos)) ],
            loc),
         str,

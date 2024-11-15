@@ -505,8 +505,7 @@ let iterator ~transl_exp ~scopes ~loc :
                  ( Parrayrefu
                      ( Lambda.(array_ref_kind alloc_heap iter_arr_kind),
                        Ptagged_int_index,
-                       iter_arr_mut,
-                       May_be_pushed_down ),
+                       iter_arr_mut ),
                    [iter_arr.var; Lvar iter_ix],
                    loc ))
               pattern body

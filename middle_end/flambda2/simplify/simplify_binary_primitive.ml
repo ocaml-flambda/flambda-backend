@@ -927,9 +927,8 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     SPR.create original_term ~try_reify:false dacc
 
 let simplify_array_load (array_kind : P.Array_kind.t)
-    (array_load_kind : P.Array_load_kind.t) mutability ubr dacc ~original_term:_
-    dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:index_ty ~result_var
-    =
+    (array_load_kind : P.Array_load_kind.t) mutability dacc ~original_term:_ dbg
+    ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:index_ty ~result_var =
   let result_kind =
     match array_load_kind with
     | Immediates -> (* CR mshinwell: use the subkind *) K.value
@@ -952,8 +951,7 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     SPR.create_invalid dacc
   | Ok array_kind -> (
     let prim : P.t =
-      Binary
-        (Array_load (array_kind, array_load_kind, mutability, ubr), array, index)
+      Binary (Array_load (array_kind, array_load_kind, mutability), array, index)
     in
     let[@inline] return_given_type ty ~try_reify =
       let named = Named.create_prim prim dbg in
@@ -1037,8 +1035,8 @@ let simplify_binary_primitive0 dacc original_prim (prim : P.binary_primitive)
   let simplifier =
     match prim with
     | Block_set { kind; init; field } -> simplify_block_set kind init ~field
-    | Array_load (array_kind, width, mutability, ubr) ->
-      simplify_array_load array_kind width mutability ubr
+    | Array_load (array_kind, width, mutability) ->
+      simplify_array_load array_kind width mutability
     | Int_arith (kind, op) -> (
       match kind with
       | Tagged_immediate -> Binary_int_arith_tagged_immediate.simplify op

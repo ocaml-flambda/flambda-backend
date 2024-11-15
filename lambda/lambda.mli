@@ -139,7 +139,7 @@ type primitive =
   | Psetufloatfield of int * initialization_or_assignment
   | Psetmixedfield of
       int * mixed_block_write * mixed_block_shape * initialization_or_assignment
-  | Pduprecord of Types.record_representation * int * unique_barrier
+  | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
@@ -191,7 +191,6 @@ type primitive =
       array being *produced* by the duplication. *)
   | Parraylength of array_kind * unique_barrier
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
-      * unique_barrier
   | Parraysetu of array_set_kind * array_index_kind
   | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
   | Parraysets of array_set_kind * array_index_kind

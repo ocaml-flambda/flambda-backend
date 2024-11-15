@@ -557,7 +557,7 @@ let reading_from_a_block mutable_or_immutable =
   effects, coeffects, Placement.Strict
 
 let reading_from_an_array (array_kind : Array_kind.t)
-    (mutable_or_immutable : Mutability.t) (ubr : Unique_barrier.t) =
+    (mutable_or_immutable : Mutability.t) =
   let effects : Effects.t =
     match array_kind with
     | Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
@@ -565,11 +565,9 @@ let reading_from_an_array (array_kind : Array_kind.t)
       No_effects
   in
   let coeffects =
-    match mutable_or_immutable, ubr with
-    | Mutable, _ -> Coeffects.Has_coeffects
-    | _, Must_stay_here -> Coeffects.Has_coeffects
-    | Immutable, May_be_pushed_down | Immutable_unique, May_be_pushed_down ->
-      Coeffects.No_coeffects
+    match mutable_or_immutable with
+    | Mutable -> Coeffects.Has_coeffects
+    | Immutable | Immutable_unique -> Coeffects.No_coeffects
   in
   effects, coeffects, Placement.Strict
 
@@ -1026,10 +1024,7 @@ type unary_primitive =
         mut : Mutability.t;
         field : Targetint_31_63.t
       }
-  | Duplicate_block of
-      { kind : Duplicate_block_kind.t;
-        ubr : Unique_barrier.t
-      }
+  | Duplicate_block of { kind : Duplicate_block_kind.t }
   | Duplicate_array of
       { kind : Duplicate_array_kind.t;
         source_mutability : Mutability.t;
@@ -1079,7 +1074,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   match p with
   | Block_load _ -> false
   | Duplicate_array _ -> false
-  | Duplicate_block { kind = _; ubr = _ } -> false
+  | Duplicate_block { kind = _ } -> false
   | Is_int _ | Get_tag | Get_header -> true
   | Array_length _ -> true
   | Bigarray_length _ -> false
@@ -1164,10 +1159,8 @@ let compare_unary_primitive p1 p2 =
       if c <> 0
       then c
       else Stdlib.compare destination_mutability1 destination_mutability2
-  | ( Duplicate_block { kind = kind1; ubr = ubr1 },
-      Duplicate_block { kind = kind2; ubr = ubr2 } ) ->
-    let c = Duplicate_block_kind.compare kind1 kind2 in
-    if c <> 0 then c else Unique_barrier.compare ubr1 ubr2
+  | Duplicate_block { kind = kind1 }, Duplicate_block { kind = kind2 } ->
+    Duplicate_block_kind.compare kind1 kind2
   | ( Is_int { variant_only = variant_only1 },
       Is_int { variant_only = variant_only2 } ) ->
     Bool.compare variant_only1 variant_only2
@@ -1243,9 +1236,9 @@ let print_unary_primitive ppf p =
   | Block_load { kind; mut; field } ->
     fprintf ppf "@[(Block_load@ %a@ %a@ %a)@]" Block_access_kind.print kind
       Mutability.print mut Targetint_31_63.print field
-  | Duplicate_block { kind; ubr } ->
-    fprintf ppf "@[<hov 1>(Duplicate_block %a@ %a)@]" Duplicate_block_kind.print
-      kind Unique_barrier.print ubr
+  | Duplicate_block { kind } ->
+    fprintf ppf "@[<hov 1>(Duplicate_block %a)@]" Duplicate_block_kind.print
+      kind
   | Duplicate_array { kind; source_mutability; destination_mutability } ->
     fprintf ppf "@[<hov 1>(Duplicate_array %a (source %a) (dest %a))@]"
       Duplicate_array_kind.print kind Mutability.print source_mutability
@@ -1388,16 +1381,10 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
       Only_generative_effects destination_mutability, No_coeffects, Strict
     | Mutable ->
       Only_generative_effects destination_mutability, Has_coeffects, Strict)
-  | Duplicate_block { kind = _; ubr } ->
+  | Duplicate_block { kind = _r } ->
     (* We have to assume that the fields might be mutable. (This information
        isn't currently propagated from [Lambda].) *)
-    let coeffects : Coeffects.t =
-      match ubr with
-      | Must_stay_here -> Has_coeffects (* don't change *)
-      | May_be_pushed_down ->
-        Has_coeffects (* can be No_coeffects for immutable allocations *)
-    in
-    Only_generative_effects Mutable, coeffects, Strict
+    Only_generative_effects Mutable, Has_coeffects, Strict
   | Is_int _ -> No_effects, No_coeffects, Strict
   | Get_tag ->
     (* [Obj.truncate] has now been removed. *)
@@ -1602,8 +1589,7 @@ type binary_primitive =
         init : Init_or_assign.t;
         field : Targetint_31_63.t
       }
-  | Array_load of
-      Array_kind.t * Array_load_kind.t * Mutability.t * Unique_barrier.t
+  | Array_load of Array_kind.t * Array_load_kind.t * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -1661,18 +1647,14 @@ let compare_binary_primitive p1 p2 =
     else
       let c = Init_or_assign.compare init1 init2 in
       if c <> 0 then c else Targetint_31_63.compare field1 field2
-  | ( Array_load (kind1, load_kind1, mut1, ubr1),
-      Array_load (kind2, load_kind2, mut2, ubr2) ) ->
+  | Array_load (kind1, load_kind1, mut1), Array_load (kind2, load_kind2, mut2)
+    ->
     let c = Array_kind.compare kind1 kind2 in
     if c <> 0
     then c
     else
       let c = Array_load_kind.compare load_kind1 load_kind2 in
-      if c <> 0
-      then c
-      else
-        let c = Mutability.compare mut1 mut2 in
-        if c <> 0 then c else Unique_barrier.compare ubr1 ubr2
+      if c <> 0 then c else Mutability.compare mut1 mut2
   | ( String_or_bigstring_load (string_like1, width1),
       String_or_bigstring_load (string_like2, width2) ) ->
     let c = Stdlib.compare string_like1 string_like2 in
@@ -1720,10 +1702,9 @@ let print_binary_primitive ppf p =
   | Block_set { kind; init; field } ->
     fprintf ppf "@[(Block_set@ %a@ %a@ %a)@]" Block_access_kind.print kind
       Init_or_assign.print init Targetint_31_63.print field
-  | Array_load (kind, load_kind, mut, ubr) ->
-    fprintf ppf "@[(Array_load@ %a@ %a@ %a@ %a)@]" Array_kind.print kind
-      Array_load_kind.print load_kind Mutability.print mut Unique_barrier.print
-      ubr
+  | Array_load (kind, load_kind, mut) ->
+    fprintf ppf "@[(Array_load@ %a@ %a@ %a)@]" Array_kind.print kind
+      Array_load_kind.print load_kind Mutability.print mut
   | String_or_bigstring_load (string_like, width) ->
     fprintf ppf "@[(String_load %a %a)@]" print_string_like_value string_like
       print_string_accessor_width width
@@ -1774,7 +1755,7 @@ let args_kind_of_binary_primitive p =
 let result_kind_of_binary_primitive p : result_kind =
   match p with
   | Block_set _ -> Unit
-  | Array_load (_array_kind, array_load_kind, _mut, _ubr) ->
+  | Array_load (_array_kind, array_load_kind, _mut) ->
     Singleton
       (Array_load_kind.element_kind array_load_kind |> K.With_subkind.kind)
   | String_or_bigstring_load (_, (Eight | Sixteen)) ->
@@ -1795,8 +1776,8 @@ let result_kind_of_binary_primitive p : result_kind =
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
   | Block_set _ -> writing_to_a_block
-  | Array_load (array_kind, _load_kind, mut, ubr) ->
-    reading_from_an_array array_kind mut ubr
+  | Array_load (array_kind, _load_kind, mut) ->
+    reading_from_an_array array_kind mut
   | Bigarray_load (_, kind, _) -> reading_from_a_bigarray kind
   | String_or_bigstring_load (String, _) ->
     reading_from_a_string_or_bigstring Immutable

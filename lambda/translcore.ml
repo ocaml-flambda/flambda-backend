@@ -1872,9 +1872,12 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     cont)
     in
     assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
-    let ubr = Translmode.transl_unique_barrier ubr in
+    (* CR uniqueness: [Pduprecord] may currently not be pushed down.
+       That makes it safe to not pass the unique barrier here.
+       Once that changes, we should add a barrier to [Pduprecord]. *)
+    let _ubr = Translmode.transl_unique_barrier ubr in
     Llet(Strict, Lambda.layout_block, copy_id,
-         Lprim(Pduprecord (repres, size, ubr),
+         Lprim(Pduprecord (repres, size),
                [transl_exp ~scopes Jkind.Sort.for_record init_expr],
                of_location ~scopes loc),
          Array.fold_left update_field (Lvar copy_id) fields)

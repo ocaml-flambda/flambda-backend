@@ -531,11 +531,9 @@ let array_set_kind ~space ppf (set_kind : array_set_kind) =
 
 let binop ppf binop a b =
   match binop with
-  | Array_load (ak, width, mut, ubr) ->
-    Format.fprintf ppf "@[<2>%%array_load%a%a%a%a@ %a.(%a)@]"
+  | Array_load (ak, width, mut) ->
+    Format.fprintf ppf "@[<2>%%array_load%a%a%a@ %a.(%a)@]"
       (array_kind ~space:Before) ak (mutability ~space:Before) mut
-      (unique_barrier ~space:Before)
-      ubr
       (array_load_kind ~space:Before)
       width simple a simple b
   | Block_set { kind; init; field } ->

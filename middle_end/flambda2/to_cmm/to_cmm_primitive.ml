@@ -911,7 +911,7 @@ let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
   | Block_set { kind; init; field } ->
     block_set ~dbg kind init ~field ~block:x ~new_value:y
-  | Array_load (array_kind, load_kind, _mut, _ubr) ->
+  | Array_load (array_kind, load_kind, _mut) ->
     array_load ~dbg array_kind load_kind ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y

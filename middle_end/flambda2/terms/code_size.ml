@@ -386,7 +386,7 @@ let unary_prim_size prim =
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
   | Block_set { kind; init; _ } -> block_set kind init
-  | Array_load (_kind, load_kind, _mut, _ubr) -> array_load load_kind
+  | Array_load (_kind, load_kind, _mut) -> array_load load_kind
   | String_or_bigstring_load (kind, width) ->
     string_or_bigstring_load kind width
   | Bigarray_load (_dims, (Complex32 | Complex64), _layout) ->

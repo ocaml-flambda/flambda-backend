@@ -591,7 +591,7 @@ let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
     let kind = block_access_kind kind in
     let init = init_or_assign env init in
     Block_set { kind; init; field }
-  | Array_load (ak, width, mut, ubr) -> Array_load (ak, width, mut, ubr)
+  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
   | Int_arith

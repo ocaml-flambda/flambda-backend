@@ -460,7 +460,7 @@ let infix_binop (binop : Fexpr.infix_binop) : Flambda_primitive.binary_primitive
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
-  | Array_load (ak, width, mut, ubr) -> Array_load (ak, width, mut, ubr)
+  | Array_load (ak, width, mut) -> Array_load (ak, width, mut)
   | Block_set { kind; init; field } ->
     let kind = block_access_kind kind in
     let init = init_or_assign () init in

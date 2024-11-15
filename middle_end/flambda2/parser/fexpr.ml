@@ -395,7 +395,7 @@ type binop =
         init : init_or_assign;
         field : Targetint_31_63.t
       }
-  | Array_load of array_kind * array_load_kind * mutability * unique_barrier
+  | Array_load of array_kind * array_load_kind * mutability
   | Phys_equal of equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
   | Int_comp of standard_int * signed_or_unsigned comparison_behaviour
