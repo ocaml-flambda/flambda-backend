@@ -118,6 +118,7 @@ let raise_escape_exn kind = raise (escape_exn kind)
 let raise_scope_escape_exn ty = raise (scope_escape_exn ty)
 
 exception Tags of label * label
+exception Illegal_with_jkind of jkind_l
 
 let () =
   Location.register_error_of_exn
@@ -132,6 +133,18 @@ let () =
                   have the same hash value.@ Change one of them."
                  inline_tag l inline_tag l'
               )
+      | Illegal_with_jkind jkind ->
+         let annotation = Jkind.get_annotation jkind in
+         let loc = match annotation with
+           | Some annot -> annot.pjkind_loc
+           | None -> Location.none
+         in
+         Some (Location.errorf ~loc
+           "@[I don't yet know how to tell when a kind with [with] is@ \
+            a superkind of another one, but the Jane Street OCaml@ \
+            Language team is trying to teach me. Offending kind:@ \
+              %a@]"
+           Jkind.format jkind)
       | _ -> None
     )
 
@@ -2325,23 +2338,27 @@ let check_type_externality env ty ext =
 
 let check_decl_jkind env decl jkind =
   (* CR layouts v2.8: This will need to be deeply reimplemented. *)
-  let jkind = Jkind.terrible_relax_l jkind in
-  match Jkind.sub_or_error decl.type_jkind jkind with
-  | Ok () as ok -> ok
-  | Error _ as err ->
-      match decl.type_manifest with
-      | None -> err
-      | Some ty -> check_type_jkind env ty jkind
+  match Jkind.try_allow_r jkind with
+  | None -> raise (Illegal_with_jkind jkind)
+  | Some jkind ->
+    match Jkind.sub_or_error decl.type_jkind jkind with
+    | Ok () as ok -> ok
+    | Error _ as err ->
+        match decl.type_manifest with
+        | None -> err
+        | Some ty -> check_type_jkind env ty jkind
 
 let constrain_decl_jkind env decl jkind =
   (* CR layouts v2.8: This will need to be deeply reimplemented. *)
-  let jkind = Jkind.terrible_relax_l jkind in
-  match Jkind.sub_or_error decl.type_jkind jkind with
-  | Ok () as ok -> ok
-  | Error _ as err ->
-      match decl.type_manifest with
-      | None -> err
-      | Some ty -> constrain_type_jkind env ty jkind
+  match Jkind.try_allow_r jkind with
+  | None -> raise (Illegal_with_jkind jkind)
+  | Some jkind ->
+    match Jkind.sub_or_error decl.type_jkind jkind with
+    | Ok () as ok -> ok
+    | Error _ as err ->
+        match decl.type_manifest with
+        | None -> err
+        | Some ty -> constrain_type_jkind env ty jkind
 
 let check_type_jkind_exn env texn ty jkind =
   match check_type_jkind env ty jkind with
@@ -3287,11 +3304,13 @@ let add_jkind_equation ~reason uenv destination jkind1 =
         begin
           try
             let decl = Env.find_type p env in
-            if not (Jkind.equal (Jkind.terrible_relax_l jkind)
-                                (Jkind.terrible_relax_l decl.type_jkind))
-            then
-              let refined_decl = { decl with type_jkind = jkind } in
-              set_env uenv (Env.add_local_constraint p refined_decl env);
+            (* CR layouts v2.8: We might be able to do better here. *)
+            match Jkind.try_allow_r jkind, Jkind.try_allow_r decl.type_jkind with
+            | Some jkind, Some decl_jkind when
+                   not (Jkind.equal jkind decl_jkind) ->
+               let refined_decl = { decl with type_jkind = Jkind.disallow_right jkind } in
+               set_env uenv (Env.add_local_constraint p refined_decl env)
+            | _ -> ()
           with
             Not_found -> ()
         end
@@ -3319,6 +3338,11 @@ let add_gadt_equation uenv source destination =
        When we check the jkind later, we may not be able to see the local
        equation because of its scope. *)
     let jkind = jkind_of_abstract_type_declaration env source in
+    let jkind = match Jkind.try_allow_r jkind with
+      | None -> Misc.fatal_errorf "Abstract kind with [with]: %a"
+                  Jkind.format jkind
+      | Some jkind -> jkind
+    in
     add_jkind_equation ~reason:(Gadt_equation source)
       uenv destination jkind;
     (* Adding a jkind equation may change the uenv. *)
@@ -3327,7 +3351,7 @@ let add_gadt_equation uenv source destination =
       new_local_type
         ~manifest_and_scope:(destination, expansion_scope)
         type_origin
-        (Jkind.terrible_relax_l jkind)
+        jkind
     in
     set_env uenv (Env.add_local_constraint source decl env);
     cleanup_abbrev ()

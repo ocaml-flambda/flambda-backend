@@ -326,6 +326,9 @@ end)
 
 let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
 
+let try_allow_r t =
+  Option.map (fun jkind -> { t with jkind }) (Layout_and_axes.try_allow_r t.jkind)
+
 let fresh_jkind jkind ~annotation ~why =
   { jkind; annotation; history = Creation why; has_warned = false }
 

@@ -125,9 +125,8 @@ type packed = Pack : 'd t -> packed [@@unboxed]
 
 include Allowance.Allow_disallow with type (_, _, 'd) sided = 'd t
 
-(** Convert an [l] into any jkind. This will soon become impossible, and so
-    uses of this function will have to be removed. *)
-val terrible_relax_l : jkind_l -> 'd t
+(** Try to treat this jkind as an r-jkind. *)
+val try_allow_r : ('l * 'r) t -> ('l * allowed) t option
 
 module History : sig
   include module type of struct
@@ -518,7 +517,7 @@ val sub_or_intersect : (allowed * 'r) t -> ('l * allowed) t -> sub_or_intersect
 
 (** [sub_or_error t1 t2] does a subtype check, returning an appropriate
     [Violation.t] upon failure. *)
-val sub_or_error : jkind_l -> jkind_r -> (unit, Violation.t) result
+val sub_or_error : (allowed * 'r) t -> ('l * allowed) t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history.
     Pre-condition: the super jkind must be fully settled; no variables
@@ -531,8 +530,8 @@ val sub_jkind_l : jkind_l -> jkind_l -> (jkind_l, Violation.t) result
 (** Like [intersection_or_error], but between an [l] and an [l], as an [l]. *)
 val intersect_l_l :
   reason:History.interact_reason ->
-  jkind_l ->
-  jkind_l ->
+  (allowed * 'r1) t ->
+  (allowed * 'r2) t ->
   (jkind_l, Violation.t) result
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
