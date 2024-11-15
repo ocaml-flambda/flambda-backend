@@ -4,6 +4,9 @@
     avoid a mutual dependency between files in utils/ and parsing/. Such
     a dependency prevents Merlin from compiling. *)
 
+(* CR lstevenson: consider moving [Profile_counters_functions] to parsing/ so
+   we can get rid of this file. *)
+
 type maturity =
   | Stable
   | Beta
