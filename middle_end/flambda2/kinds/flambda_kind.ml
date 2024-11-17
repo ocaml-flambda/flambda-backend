@@ -957,6 +957,8 @@ module With_subkind = struct
       | Parrayval (Punboxedintarray Pint64) -> Unboxed_int64_array
       | Parrayval (Punboxedintarray Pnativeint) -> Unboxed_nativeint_array
       | Parrayval (Punboxedvectorarray Pvec128) -> Unboxed_vec128_array
+      | Parrayval (Pgcscannableproductarray _ | Pgcignorableproductarray _) ->
+        Misc.fatal_errorf "Flambda_kind.from_lambda_value_kind: unimplemented"
     in
     let nullable : Nullable.t =
       match vk.nullable with

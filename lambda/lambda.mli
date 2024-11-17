@@ -178,10 +178,15 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
+  | Parrayblit of array_set_kind
+  (** For [Parrayblit], we record the [array_set_kind] of the destination
+      array. We check that the source array has the same shape, but do not
+      need to know anything about its locality. *)
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -359,6 +364,9 @@ and array_kind =
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
   | Punboxedvectorarray of unboxed_vector
+  | Pgcscannableproductarray of scannable_product_element_kind list
+  | Pgcignorableproductarray of ignorable_product_element_kind list
+  (* Invariant: the product element kind lists have length >= 2 *)
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
@@ -370,6 +378,9 @@ and array_ref_kind =
   | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
   | Punboxedvectorarray_ref of unboxed_vector
+  | Pgcscannableproductarray_ref of scannable_product_element_kind list
+  | Pgcignorableproductarray_ref of ignorable_product_element_kind list
+  (* Invariant: the product element kind lists have length >= 2 *)
 
 (** When updating an array that might contain pointers, we need to know what
     mode they're at; otherwise, access is uniform. *)
@@ -381,6 +392,23 @@ and array_set_kind =
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
   | Punboxedvectorarray_set of unboxed_vector
+  | Pgcscannableproductarray_set of
+      modify_mode * scannable_product_element_kind list
+  | Pgcignorableproductarray_set of ignorable_product_element_kind list
+  (* Invariant: the product element kind lists have length >= 2 *)
+
+and ignorable_product_element_kind =
+  | Pint_ignorable
+  | Punboxedfloat_ignorable of unboxed_float
+  | Punboxedint_ignorable of unboxed_integer
+  | Pproduct_ignorable of ignorable_product_element_kind list
+  (* Invariant: the product element kind list has length >= 2 *)
+
+and scannable_product_element_kind =
+  | Pint_scannable
+  | Paddr_scannable
+  | Pproduct_scannable of scannable_product_element_kind list
+  (* Invariant: the product element kind list has length >= 2 *)
 
 and array_index_kind =
   | Ptagged_int_index
@@ -512,6 +540,9 @@ val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
 val compare_boxed_vector : boxed_vector -> boxed_vector -> int
 
 val print_boxed_vector : Format.formatter -> boxed_vector -> unit
+
+val equal_ignorable_product_element_kind :
+  ignorable_product_element_kind -> ignorable_product_element_kind -> bool
 
 val must_be_value : layout -> value_kind
 

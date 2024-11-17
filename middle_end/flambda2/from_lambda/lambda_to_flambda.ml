@@ -680,6 +680,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pmodbint { is_safe = Safe; _ }
   | Pbigarrayref (false, _, _, _)
   | Pbigarrayset (false, _, _, _)
+  | Parrayblit _ | Pmakearray_dynamic _
   (* These bigarray primitives are translated into c-calls which may raise even
      if the unsafe flag is true *)
   | Pbigarrayref (_, _, Pbigarray_unknown, _)
@@ -708,7 +709,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Pisint _ | Pisnull | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _
+  | Pisint _ | Pisout | Pisnull | Pbintofint _ | Pintofbint _ | Pcvtbint _
   | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }

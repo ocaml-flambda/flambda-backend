@@ -67,17 +67,44 @@ and struct_consts ppf (hd, tl) =
   in
   fprintf ppf "%a%a" struct_const hd sconsts tl
 
+let unboxed_float = function
+  | Pfloat64 -> "unboxed_float"
+  | Pfloat32 -> "unboxed_float32"
+
+let unboxed_integer = function
+  | Pint32 -> "unboxed_int32"
+  | Pint64 -> "unboxed_int64"
+  | Pnativeint -> "unboxed_nativeint"
+
+let rec scannable_product_element_kinds kinds =
+  "[" ^ String.concat "; " (List.map scannable_product_element_kind kinds) ^ "]"
+
+and scannable_product_element_kind = function
+  | Pint_scannable -> "int"
+  | Paddr_scannable -> "addr"
+  | Pproduct_scannable kinds -> scannable_product_element_kinds kinds
+
+let rec ignorable_product_element_kinds kinds =
+  "[" ^ String.concat "; " (List.map ignorable_product_element_kind kinds) ^ "]"
+
+and ignorable_product_element_kind = function
+  | Pint_ignorable -> "int"
+  | Punboxedfloat_ignorable f -> unboxed_float f
+  | Punboxedint_ignorable i -> unboxed_integer i
+  | Pproduct_ignorable kinds -> ignorable_product_element_kinds kinds
+
 let array_kind = function
   | Pgenarray -> "gen"
   | Paddrarray -> "addr"
   | Pintarray -> "int"
   | Pfloatarray -> "float"
-  | Punboxedfloatarray Pfloat64 -> "unboxed_float"
-  | Punboxedfloatarray Pfloat32 -> "unboxed_float32"
-  | Punboxedintarray Pint32 -> "unboxed_int32"
-  | Punboxedintarray Pint64 -> "unboxed_int64"
-  | Punboxedintarray Pnativeint -> "unboxed_nativeint"
+  | Punboxedfloatarray f -> unboxed_float f
+  | Punboxedintarray i -> unboxed_integer i
   | Punboxedvectorarray Pvec128 -> "unboxed_vec128"
+  | Pgcscannableproductarray kinds ->
+    "scannableproduct " ^ scannable_product_element_kinds kinds
+  | Pgcignorableproductarray kinds ->
+    "ignorableproduct " ^ ignorable_product_element_kinds kinds
 
 let array_mut = function
   | Mutable -> "array"
@@ -99,6 +126,10 @@ let array_ref_kind ppf k =
   | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
   | Punboxedvectorarray_ref Pvec128 -> fprintf ppf "unboxed_vec128"
+  | Pgcscannableproductarray_ref kinds ->
+    fprintf ppf "scannableproduct %s" (scannable_product_element_kinds kinds)
+  | Pgcignorableproductarray_ref kinds ->
+    fprintf ppf "ignorableproduct %s" (ignorable_product_element_kinds kinds)
 
 let array_index_kind ppf k =
   match k with
@@ -123,6 +154,11 @@ let array_set_kind ppf k =
   | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
   | Punboxedvectorarray_set Pvec128 -> fprintf ppf "unboxed_vec128"
+  | Pgcscannableproductarray_set (mode, kinds) ->
+    fprintf ppf "scannableproduct%a %s" pp_mode mode
+      (scannable_product_element_kinds kinds)
+  | Pgcignorableproductarray_set kinds ->
+    fprintf ppf "ignorableproduct %s" (ignorable_product_element_kinds kinds)
 
 let locality_mode_if_local = function
   | Alloc_heap -> ""
@@ -627,10 +663,14 @@ let primitive ppf = function
   | Pmakearray (k, Immutable_unique, mode) ->
       fprintf ppf "make%sarray_unique[%s]" (locality_mode_if_local mode)
         (array_kind k)
+  | Pmakearray_dynamic (k, mode) ->
+      fprintf ppf "make%sarray_any[%s]" (locality_mode_if_local mode)
+        (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
+  | Parrayblit sk -> fprintf ppf "arrayblit[%a]" array_set_kind sk
   | Parrayrefu (rk, idx, mut) -> fprintf ppf "%s.unsafe_get[%a indexed by %a]"
                                  (array_mut mut)
                                  array_ref_kind rk
@@ -946,7 +986,9 @@ let name_of_primitive = function
   | Pbytessets -> "Pbytessets"
   | Parraylength _ -> "Parraylength"
   | Pmakearray _ -> "Pmakearray"
+  | Pmakearray_dynamic _ -> "Pmakearray_dynamic"
   | Pduparray _ -> "Pduparray"
+  | Parrayblit _ -> "Parrayblit"
   | Parrayrefu _ -> "Parrayrefu"
   | Parraysetu _ -> "Parraysetu"
   | Parrayrefs _ -> "Parrayrefs"

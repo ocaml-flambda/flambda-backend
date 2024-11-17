@@ -714,3 +714,26 @@ Error: "[@layout_poly]" on this external declaration has no
        effect. Consider removing it or adding a type
        variable for it to operate on.
 |}]
+
+(***********************************************)
+(* New untested array prims are gated to alpha *)
+
+external[@layout_poly] makearray_dynamic : ('a : any). int -> 'a -> 'a array =
+  "%makearray_dynamic"
+[%%expect{|
+Lines 1-2, characters 0-22:
+1 | external[@layout_poly] makearray_dynamic : ('a : any). int -> 'a -> 'a array =
+2 |   "%makearray_dynamic"
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
+|}]
+
+external[@layout_poly] arrayblit :
+  ('a : any). 'a array -> int -> 'a array -> int -> int -> unit =
+  "%arrayblit"
+[%%expect{|
+Lines 1-3, characters 0-14:
+1 | external[@layout_poly] arrayblit :
+2 |   ('a : any). 'a array -> int -> 'a array -> int -> int -> unit =
+3 |   "%arrayblit"
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
+|}]

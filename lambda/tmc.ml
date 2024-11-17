@@ -891,6 +891,7 @@ let rec choice ctx t =
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
+    | Parrayblit _
     | Pisint _ | Pisnull | Pisout
     | Pignore
     | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
@@ -907,7 +908,7 @@ let rec choice ctx t =
     | Punbox_vector _ | Pbox_vector (_, _)
 
     (* we don't handle array indices as destinations yet *)
-    | (Pmakearray _ | Pduparray _)
+    | (Pmakearray _ | Pduparray _ | Pmakearray_dynamic _)
 
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _
