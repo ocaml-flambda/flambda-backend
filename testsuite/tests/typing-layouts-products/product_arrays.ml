@@ -2028,6 +2028,9 @@ Error: This expression has type "#(string * a * bool option) array"
 (****************************************************)
 (* Test 25: literal expressions have the same rules *)
 
+(* CR layouts v7.1: Make sure literals are also adequately tested by the middle-
+   and back-ends when that support arrives. *)
+
 let f_scannable_literal (type a : value mod external_)
       (x : int) (y : a) (z : bool option) = [| #(x, y, z) |]
 let f_scannable_empty_literal (type a : value mod external_)

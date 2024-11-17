@@ -982,8 +982,9 @@ let glb_array_type loc t1 t2 =
   | Pgenarray,
     ((Pgcignorableproductarray _ | Pgcscannableproductarray _) as k) -> k
   | (Pgcignorableproductarray kinds1) as k, Pgcignorableproductarray kinds2 ->
-    if kinds1 = kinds2 then k else
-      Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
+    if List.equal equal_ignorable_product_element_kind kinds1 kinds2
+    then k
+    else Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
   | Pgcscannableproductarray kinds1, Pgcscannableproductarray kinds2 ->
     begin match glb_scannable_kinds kinds1 kinds2 with
     | Some kinds -> Pgcscannableproductarray kinds

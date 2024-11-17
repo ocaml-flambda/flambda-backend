@@ -366,6 +366,7 @@ and array_kind =
   | Punboxedvectorarray of unboxed_vector
   | Pgcscannableproductarray of scannable_product_element_kind list
   | Pgcignorableproductarray of ignorable_product_element_kind list
+  (* Invariant: the product element kind lists have length >= 2 *)
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
@@ -379,6 +380,7 @@ and array_ref_kind =
   | Punboxedvectorarray_ref of unboxed_vector
   | Pgcscannableproductarray_ref of scannable_product_element_kind list
   | Pgcignorableproductarray_ref of ignorable_product_element_kind list
+  (* Invariant: the product element kind lists have length >= 2 *)
 
 (** When updating an array that might contain pointers, we need to know what
     mode they're at; otherwise, access is uniform. *)
@@ -393,17 +395,20 @@ and array_set_kind =
   | Pgcscannableproductarray_set of
       modify_mode * scannable_product_element_kind list
   | Pgcignorableproductarray_set of ignorable_product_element_kind list
+  (* Invariant: the product element kind lists have length >= 2 *)
 
 and ignorable_product_element_kind =
   | Pint_ignorable
   | Punboxedfloat_ignorable of unboxed_float
   | Punboxedint_ignorable of unboxed_integer
   | Pproduct_ignorable of ignorable_product_element_kind list
+  (* Invariant: the product element kind list has length >= 2 *)
 
 and scannable_product_element_kind =
   | Pint_scannable
   | Paddr_scannable
   | Pproduct_scannable of scannable_product_element_kind list
+  (* Invariant: the product element kind list has length >= 2 *)
 
 and array_index_kind =
   | Ptagged_int_index
@@ -535,6 +540,9 @@ val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
 val compare_boxed_vector : boxed_vector -> boxed_vector -> int
 
 val print_boxed_vector : Format.formatter -> boxed_vector -> unit
+
+val equal_ignorable_product_element_kind :
+  ignorable_product_element_kind -> ignorable_product_element_kind -> bool
 
 val must_be_value : layout -> value_kind
 

@@ -582,6 +582,18 @@ let rec compatible_layout x y =
      Punboxed_product _), _ ->
       false
 
+let rec equal_ignorable_product_element_kind k1 k2 =
+  match k1, k2 with
+  | Pint_ignorable, Pint_ignorable -> true
+  | Punboxedfloat_ignorable f1, Punboxedfloat_ignorable f2 ->
+    equal_boxed_float f1 f2
+  | Punboxedint_ignorable i1, Punboxedint_ignorable i2 ->
+    equal_boxed_integer i1 i2
+  | Pproduct_ignorable p1, Pproduct_ignorable p2 ->
+    List.equal equal_ignorable_product_element_kind p1 p2
+  | ( Pint_ignorable | Punboxedfloat_ignorable _
+    | Punboxedint_ignorable _ | Pproduct_ignorable _), _ -> false
+
 let must_be_value layout =
   match layout with
   | Pvalue v -> v
