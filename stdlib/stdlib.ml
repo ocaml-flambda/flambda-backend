@@ -580,7 +580,7 @@ let rec at_exit f =
   if not success then at_exit f
 
 (* CR tdelvecchio: Document why this is okay. *)
-let at_exit_safe = magic_portable at_exit
+let at_exit_portable = magic_portable at_exit
 
 let do_domain_local_at_exit = ref (fun () -> ())
 
