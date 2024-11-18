@@ -104,17 +104,15 @@ exception Error of Location.t * error
 
 let dbg = false
 
-let jkind_layout_default_to_value_and_check_not_void loc jkind =
-  let rec contains_void : Jkind.Layout.Const.t -> bool = function
-    | Any -> false
+let sort_check_not_void loc sort =
+  let rec contains_void : Jkind.Sort.Const.t -> bool = function
     | Base Void -> true
     | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) -> false
     | Product [] ->
-      Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
-    | Product ts -> List.exists contains_void ts
+      Misc.fatal_error "nil in sort_check_not_void"
+    | Product ss -> List.exists contains_void ss
   in
-  let layout = Jkind.get_layout_defaulting_to_value jkind in
-  if contains_void layout then
+  if contains_void sort then
     raise (Error (loc, Void_layout))
 ;;
 
@@ -221,7 +219,7 @@ module Half_simple : sig
   type nonrec clause = pattern Non_empty_row.t clause
 
   val of_clause :
-    arg:lambda -> arg_sort:Jkind.sort -> General.clause -> clause
+    arg:lambda -> arg_sort:Jkind.Sort.Const.t -> General.clause -> clause
 end = struct
   include Patterns.Half_simple
 
@@ -290,7 +288,7 @@ module Simple : sig
 
   val explode_or_pat :
     arg:lambda ->
-    arg_sort:Jkind.sort ->
+    arg_sort:Jkind.Sort.Const.t ->
     Half_simple.pattern ->
     mk_action:(vars:Ident.t list -> lambda) ->
     patbound_action_vars:Ident.t list ->
@@ -978,7 +976,7 @@ end
 
 type 'row pattern_matching = {
   mutable cases : 'row list;
-  args : (lambda * let_kind * Jkind.sort * layout) list;
+  args : (lambda * let_kind * Jkind.Sort.Const.t * layout) list;
       (** args are not just Ident.t in at least the following cases:
         - when matching the arguments of a constructor,
           direct field projections are used (make_field_args)
@@ -1788,7 +1786,7 @@ let make_line_matching get_expr_args head def = function
       }
 
 type 'a division = {
-  args : (lambda * let_kind * Jkind.sort * layout) list;
+  args : (lambda * let_kind * Jkind.Sort.Const.t * layout) list;
   cells : ('a * cell) list
 }
 
@@ -1877,9 +1875,7 @@ let get_pat_args_constr p rem =
   match p with
   | { pat_desc = Tpat_construct (_, {cstr_args}, args, _) } ->
     List.iter2
-      (fun { ca_jkind } arg ->
-         jkind_layout_default_to_value_and_check_not_void
-           arg.pat_loc ca_jkind)
+      (fun { ca_sort } arg -> sort_check_not_void arg.pat_loc ca_sort)
       cstr_args args;
       (* CR layouts v5: This sanity check will have to go (or be replaced with a
          void-specific check) when we have other non-value sorts *)
@@ -1895,12 +1891,11 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   let loc = head_loc ~scopes head in
   (* CR layouts v5: This sanity check should be removed or changed to
      specifically check for void when we add other non-value sorts. *)
-  List.iter (fun { ca_jkind } ->
-      jkind_layout_default_to_value_and_check_not_void head.pat_loc ca_jkind)
+  List.iter (fun { ca_sort } -> sort_check_not_void head.pat_loc ca_sort)
     cstr.cstr_args;
   let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
   let sem = add_barrier_to_read ubr Reads_agree in
-  let make_field_access binding_kind jkind ~field ~pos =
+  let make_field_access binding_kind sort ~field ~pos =
     let prim =
       match cstr.cstr_shape with
       | Constructor_uniform_value -> Pfield (pos, Pointer, sem)
@@ -1922,7 +1917,6 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
           let shape = Lambda.transl_mixed_product_shape shape in
           Pmixedfield (pos, read, shape, sem)
     in
-    let sort = Jkind.sort_of_jkind jkind in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
   in
@@ -1933,15 +1927,15 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
     match cstr.cstr_repr with
     | Variant_boxed _ ->
         List.mapi
-          (fun i { ca_jkind } ->
-             make_field_access str ca_jkind ~field:i ~pos:i)
+          (fun i { ca_sort } ->
+             make_field_access str ca_sort ~field:i ~pos:i)
           cstr.cstr_args
         @ rem
     | Variant_unboxed -> (arg, str, sort, layout) :: rem
     | Variant_extensible ->
         List.mapi
-          (fun i { ca_jkind } ->
-             make_field_access str ca_jkind ~field:i ~pos:(i+1))
+          (fun i { ca_sort } ->
+             make_field_access str ca_sort ~field:i ~pos:(i+1))
           cstr.cstr_args
         @ rem
 
@@ -1967,7 +1961,7 @@ let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
   let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
   let field_prim = nonconstant_variant_field ubr 1 in
   let str = add_barrier_to_let_kind ubr Alias in
-  (Lprim (field_prim, [ arg ], loc), str, Jkind.Sort.for_variant_arg,
+  (Lprim (field_prim, [ arg ], loc), str, Jkind.Sort.Const.for_variant_arg,
    layout_variant_arg)
   :: rem
 
@@ -2183,7 +2177,7 @@ let inline_lazy_force arg pos loc =
 
 let get_expr_args_lazy ~scopes head (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
-  (inline_lazy_force arg Rc_normal loc, Strict, Jkind.Sort.for_lazy_body,
+  (inline_lazy_force arg Rc_normal loc, Strict, Jkind.Sort.Const.for_lazy_body,
    layout_lazy_contents) :: rem
 
 let divide_lazy ~scopes head ctx pm =
@@ -2218,7 +2212,7 @@ let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
       rem
     else
       (Lprim (Pfield (pos, Pointer, sem), [ arg ], loc), str,
-       Jkind.Sort.for_tuple_element, layout_tuple_element)
+       Jkind.Sort.Const.for_tuple_element, layout_tuple_element)
         :: make_args (pos + 1)
   in
   make_args 0
@@ -2228,6 +2222,7 @@ let get_expr_args_unboxed_tuple ~scopes shape head (arg, _mut, _sort, _layout)
   let loc = head_loc ~scopes head in
   let shape =
     List.map (fun (_, sort) ->
+      let sort = Jkind.Sort.default_for_transl_and_get sort in
       sort,
       (* CR layouts v7.1: consider whether more accurate [Lambda.layout]s here
          would make a difference for later optimizations. *)
@@ -2262,7 +2257,7 @@ let record_matching_line num_fields lbl_pat_list =
   List.iter (fun (_, lbl, pat) ->
     (* CR layouts v5: This void sanity check can be removed when we add proper
        void support (or whenever we remove `lbl_pos_void`) *)
-    jkind_layout_default_to_value_and_check_not_void pat.pat_loc lbl.lbl_jkind;
+    sort_check_not_void pat.pat_loc lbl.lbl_sort;
     patv.(lbl.lbl_pos) <- pat)
     lbl_pat_list;
   Array.to_list patv
@@ -2289,11 +2284,9 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
-      jkind_layout_default_to_value_and_check_not_void
-        head.pat_loc lbl.lbl_jkind;
+      sort_check_not_void head.pat_loc lbl.lbl_sort;
       let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
-      let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
+      let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl.lbl_sort in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
@@ -2304,21 +2297,21 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
         | Record_boxed _
         | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
-            lbl_sort, lbl_layout
+            lbl.lbl_sort, lbl_layout
         | Record_unboxed
         | Record_inlined (_, _, Variant_unboxed) -> arg, sort, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
            (* Here we are projecting a boxed float from a float record. *)
-           lbl_sort, lbl_layout
+           lbl.lbl_sort, lbl_layout
         | Record_ufloat ->
            Lprim (Pufloatfield (lbl.lbl_pos, sem), [ arg ], loc),
            (* Here we are projecting an unboxed float from a float record. *)
-           lbl_sort, lbl_layout
+           lbl.lbl_sort, lbl_layout
         | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
-            lbl_sort, lbl_layout
+            lbl.lbl_sort, lbl_layout
         | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
             (* CR layouts v5.9: support this *)
             fatal_error
@@ -2345,7 +2338,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
               { value_prefix_len; flat_suffix }
             in
             Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [ arg ], loc),
-            lbl_sort, lbl_layout
+            lbl.lbl_sort, lbl_layout
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
       let str = add_barrier_to_let_kind ubr str in
@@ -2383,6 +2376,7 @@ let get_expr_args_array ~scopes kind head (arg, _mut, _sort, _layout) rem =
     | Array (am, arg_sort, len) -> am, arg_sort, len
     | _ -> assert false
   in
+  let arg_sort = Jkind.Sort.default_for_transl_and_get arg_sort in
   let loc = head_loc ~scopes head in
   let rec make_args pos =
     if pos >= len then
@@ -3784,6 +3778,7 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
             (combine_constructor value_kind ploc arg ph.pat_env ph.pat_unique_barrier cstr partial)
             ctx pm
       | Array (_, elt_sort, _) ->
+          let elt_sort = Jkind.Sort.default_for_transl_and_get elt_sort in
           let kind = Typeopt.array_pattern_kind pomega elt_sort in
           compile_test
             (compile_match ~scopes value_kind repr partial)
@@ -3996,7 +3991,7 @@ let for_trywith ~scopes ~return_layout loc param pat_act_list =
      It is important to *not* include location information in
      the reraise (hence the [_noloc]) to avoid seeing this
      silent reraise in exception backtraces. *)
-  compile_matching ~scopes ~arg_sort:Jkind.Sort.for_predef_value
+  compile_matching ~scopes ~arg_sort:Jkind.Sort.Const.for_predef_value
     ~arg_layout:layout_block ~return_layout loc ~failer:(Reraise_noloc param)
     None param pat_act_list Partial
 
@@ -4113,12 +4108,12 @@ let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
         opt := true;
         List.fold_left2
           (fun acc (_, pat) lam ->
-             collect Jkind.Sort.for_tuple_element acc pat lam)
+             collect Jkind.Sort.Const.for_tuple_element acc pat lam)
           acc patl lams
     | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
         opt := true;
         let collect_const acc (_, pat) sc =
-          collect Jkind.Sort.for_tuple_element acc pat (Lconst sc)
+          collect Jkind.Sort.Const.for_tuple_element acc pat (Lconst sc)
         in
         List.fold_left2 collect_const acc patl scl
     | _ ->
@@ -4195,7 +4190,7 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
   (* The arguments of a tupled function are always values since they must be
      tuple elements *)
   let args =
-    List.map (fun id -> (Lvar id, Strict, Jkind.Sort.for_tuple_element,
+    List.map (fun id -> (Lvar id, Strict, Jkind.Sort.Const.for_tuple_element,
                          layout_tuple_element))
       paraml
   in
@@ -4294,12 +4289,12 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
     let sloc = Scoped_location.of_location ~scopes loc in
     Lprim (Pmakeblock (0, Immutable, None, mode), param_lambda, sloc)
   in
-  let arg_sort = Jkind.Sort.for_tuple in
+  let arg_sort = Jkind.Sort.Const.for_tuple in
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
     toplevel_handler ~scopes ~return_layout loc ~failer:Raise_match_failure
-      partial [ (arg, Strict, Jkind.Sort.for_tuple, layout_block) ] rows in
+      partial [ (arg, Strict, Jkind.Sort.Const.for_tuple, layout_block) ] rows in
   handler (fun partial pm1 ->
     let pm1_half =
       { pm1 with

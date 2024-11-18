@@ -9184,7 +9184,8 @@ and type_comprehension_expr ~loc ~env ~ty_expected ~attributes cexpr =
         container_type,
         (fun tcomp ->
           Texp_array_comprehension
-            (mut, Jkind.Sort.for_array_comprehension_element, tcomp)),
+            (mut, Jkind.Sort.of_const
+                    Jkind.Sort.Const.for_array_comprehension_element, tcomp)),
         comp,
         (* CR layouts v4: When this changes from [value], you will also have to
            update the use of [transl_exp] in transl_array_comprehension.ml. See

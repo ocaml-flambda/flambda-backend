@@ -478,8 +478,8 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_modalities = ld.ld_modalities;
-          ld_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
-            (* Updated by [update_label_jkinds] *)
+          ld_sort = Jkind.Sort.Const.void;
+            (* Updated by [update_label_sorts] *)
           ld_type = ty;
           ld_loc = ld.ld_loc;
           ld_attributes = ld.ld_attributes;
@@ -510,8 +510,8 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
       Types.ca_modalities = ca.ca_modalities;
       ca_loc = ca.ca_loc;
       ca_type = ca.ca_type.ctyp_type;
-      ca_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
-            (* Updated by [update_label_jkinds] *)
+      ca_sort = Jkind.Sort.Const.void;
+            (* Updated by [update_label_sorts] *)
     }) tyl_gfl
   in
   tyl_gfl, tyl_gfl'
@@ -539,7 +539,7 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
 (* Note that [make_constructor] does not fill in the [ld_jkind] field of any
    computed record types, because it's called too early in the translation of a
    type declaration to compute accurate jkinds in the presence of recursively
-   defined types. It is updated later by [update_constructor_arguments_jkinds]
+   defined types. It is updated later by [update_constructor_arguments_sorts]
 *)
 let make_constructor
       env loc ~cstr_path ~type_path ~unboxed type_params svars
@@ -782,7 +782,6 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  let any = Jkind.Builtin.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
@@ -875,21 +874,21 @@ let transl_declaration env sdecl (id, uid) =
             Variant_unboxed,
             Jkind.of_new_legacy_sort ~why:Old_style_unboxed_type
           else
-            (* We mark all arg jkinds "any" here.  They are updated later,
-               after the circular type checks make it safe to check jkinds.
+            (* We mark all arg sorts "void" here.  They are updated later,
+               after the circular type checks make it safe to check sorts.
                Likewise, [Constructor_uniform_value] is potentially wrong
                and will be updated later.
             *)
             Variant_boxed (
               Array.map
                 (fun cstr ->
-                   let jkinds =
+                   let sorts =
                      match Types.(cstr.cd_args) with
                      | Cstr_tuple args ->
-                       Array.make (List.length args) any
-                     | Cstr_record _ -> [| any |]
+                       Array.make (List.length args) Jkind.Sort.Const.void
+                     | Cstr_record _ -> [| Jkind.Sort.Const.value |]
                    in
-                   Constructor_uniform_value, jkinds)
+                   Constructor_uniform_value, sorts)
                 (Array.of_list cstrs)
             ),
             Jkind.Builtin.value ~why:Boxed_variant
@@ -910,8 +909,8 @@ let transl_declaration env sdecl (id, uid) =
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or
                [Record_mixed].  Those cases are fixed up after we can get
-               accurate jkinds for the fields, in [update_decl_jkind]. *)
-              Record_boxed (Array.make (List.length lbls) any),
+               accurate sorts for the fields, in [update_decl_jkind]. *)
+              Record_boxed (Array.make (List.length lbls) Jkind.Sort.Const.void),
               Jkind.Builtin.value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep), jkind
@@ -1189,59 +1188,70 @@ let check_coherence env loc dpath decl =
 let check_abbrev env sdecl (id, decl) =
   (id, check_coherence env sdecl.ptype_loc (Path.Pident id) decl)
 
-(* The [update_x_jkinds] functions infer more precise jkinds in the type kind,
+(* The [update_x_sorts] functions infer more precise jkinds in the type kind,
    including which fields of a record are void.  This would be hard to do during
    [transl_declaration] due to mutually recursive types.
 *)
-(* [update_label_jkinds] additionally returns whether all the jkinds
-   were void *)
-let update_label_jkinds env loc lbls named =
-  (* [named] is [Some jkinds] for top-level records (we will update the
-     jkinds) and [None] for inlined records. *)
+(* [update_label_sorts] additionally returns whether all the jkinds
+   were void, and the jkinds of the labels *)
+let update_label_sorts env loc lbls named =
+  (* [named] is [Some sorts] for top-level records (we will update the
+     sorts) and [None] for inlined records. *)
   (* CR layouts v5: it wouldn't be too hard to support records that are all
      void.  just needs a bit of refactoring in translcore *)
   let update =
     match named with
     | None -> fun _ _ -> ()
-    | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
+    | Some sorts -> fun idx sort -> sorts.(idx) <- sort
   in
-  let lbls =
+  let lbls_and_jkinds =
     List.mapi (fun idx (Types.{ld_type} as lbl) ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
-      update idx ld_jkind;
-      {lbl with ld_jkind}
+      let jkind = Ctype.type_jkind env ld_type in
+      (* Next line guaranteed to be safe because of [check_representable] *)
+      let sort = Jkind.sort_of_jkind jkind in
+      let ld_sort = Jkind.Sort.default_to_value_and_get sort in
+      update idx ld_sort;
+      {lbl with ld_sort}, jkind
     ) lbls
   in
-  if List.for_all (fun l -> Jkind.is_void_defaulting l.ld_jkind) lbls then
+  let lbls, jkinds = List.split lbls_and_jkinds in
+  if List.for_all (fun l -> Jkind.Sort.Const.(equal void l.ld_sort)) lbls then
     raise (Error (loc, Jkind_empty_record))
-  else lbls, false
+  else lbls, false, jkinds
 (* CR layouts v5: return true for a record with all voids *)
 
 (* In addition to updated constructor arguments, returns whether
    all arguments are void, useful for detecting enumerations that
    can be [immediate]. *)
-let update_constructor_arguments_jkinds env loc cd_args jkinds =
+let update_constructor_arguments_sorts env loc cd_args sorts =
   let update =
-    match jkinds with
+    match sorts with
     | None -> fun _ _ -> ()
-    | Some jkinds -> fun idx jkind -> jkinds.(idx) <- jkind
+    | Some sorts -> fun idx sort -> sorts.(idx) <- sort
   in
   match cd_args with
   | Types.Cstr_tuple args ->
-    let args =
+    let args_and_jkinds =
       List.mapi (fun idx ({Types.ca_type; _} as arg) ->
-        let ca_jkind = Ctype.type_jkind env ca_type in
-        update idx ca_jkind;
-        {arg with ca_jkind}) args
+          let jkind = Ctype.type_jkind env ca_type in
+          (* Next line guaranteed to be safe because of [check_representable] *)
+          let sort = Jkind.sort_of_jkind jkind in
+          let ca_sort = Jkind.Sort.default_to_value_and_get sort in
+          update idx ca_sort;
+          {arg with ca_sort}, jkind)
+        args
     in
+    let args, jkinds = List.split args_and_jkinds in
     Types.Cstr_tuple args,
-    List.for_all (fun { ca_jkind } -> Jkind.is_void_defaulting ca_jkind) args
+    List.for_all
+      (fun { ca_sort } -> Jkind_types.Sort.Const.(equal void ca_sort)) args,
+    jkinds
   | Types.Cstr_record lbls ->
-    let lbls, all_void =
-      update_label_jkinds env loc lbls None
+    let lbls, all_void, jkinds =
+      update_label_sorts env loc lbls None
     in
-    update 0 (Jkind.Builtin.value ~why:Boxed_record);
-    Types.Cstr_record lbls, all_void
+    update 0 Jkind.Sort.Const.value;
+    Types.Cstr_record lbls, all_void, jkinds
 
 let assert_mixed_product_support =
   let required_reserved_header_bits = 8 in
@@ -1395,17 +1405,17 @@ module Element_repr = struct
 end
 
 let update_constructor_representation
-    env (cd_args : Types.constructor_arguments) ~loc
+    env (cd_args : Types.constructor_arguments) arg_jkinds ~loc
     ~is_extension_constructor
   =
   let flat_suffix =
     match cd_args with
     | Cstr_tuple arg_types_and_modes ->
         let arg_reprs =
-          List.map (fun {Types.ca_type=arg_type; ca_jkind=arg_jkind; _} ->
+          List.map2 (fun {Types.ca_type=arg_type; _} arg_jkind ->
             let kloc : jkind_sort_loc = Cstr_tuple { unboxed = false } in
             Element_repr.classify env loc kloc arg_type arg_jkind, arg_type)
-            arg_types_and_modes
+            arg_types_and_modes arg_jkinds
         in
         Element_repr.mixed_product_shape loc arg_reprs Cstr_tuple
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
@@ -1418,11 +1428,11 @@ let update_constructor_representation
               raise (Error (loc, Illegal_mixed_product violation)))
     | Cstr_record fields ->
         let arg_reprs =
-          List.map (fun ld ->
+          List.map2 (fun ld arg_jkind ->
               let kloc = Inlined_record { unboxed = false } in
-              Element_repr.classify env loc kloc ld.Types.ld_type ld.ld_jkind,
+              Element_repr.classify env loc kloc ld.Types.ld_type arg_jkind,
               ld)
-            fields
+            fields arg_jkinds
         in
         Element_repr.mixed_product_shape loc arg_reprs Cstr_record
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
@@ -1474,20 +1484,24 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type} as lbl], Record_unboxed ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
-      [{lbl with ld_jkind}], Record_unboxed, ld_jkind
-    | _, Record_boxed jkinds ->
-      let lbls, all_void =
-        update_label_jkinds env loc lbls (Some jkinds)
+      let jkind = Ctype.type_jkind env ld_type in
+      (* This next line is guaranteed to be OK because of a call to
+         [check_representable] *)
+      let sort = Jkind.sort_of_jkind jkind in
+      let ld_sort = Jkind.Sort.default_to_value_and_get sort in
+      [{lbl with ld_sort}], Record_unboxed, jkind
+    | _, Record_boxed sorts ->
+      let lbls, all_void, jkinds =
+        update_label_sorts env loc lbls (Some sorts)
       in
       let jkind = Jkind.for_boxed_record ~all_void in
       let reprs =
-        List.mapi
-          (fun i lbl ->
+        List.map2
+          (fun lbl jkind ->
              let kloc = Record { unboxed = false } in
-             Element_repr.classify env loc kloc lbl.Types.ld_type jkinds.(i),
+             Element_repr.classify env loc kloc lbl.Types.ld_type jkind,
              lbl)
-          lbls
+          lbls jkinds
       in
       let repr_summary =
         { values = false; imms = false; floats = false; float64s = false;
@@ -1587,16 +1601,20 @@ let update_decl_jkind env dpath decl =
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _} as arg] -> begin
-            let ca_jkind = Ctype.type_jkind env ty in
+            let jkind = Ctype.type_jkind env ty in
+            let sort = Jkind.sort_of_jkind jkind in
+            let ca_sort = Jkind.Sort.default_to_value_and_get sort in
             [{ cstr with Types.cd_args =
-                           Cstr_tuple [{ arg with ca_jkind }] }],
-            Variant_unboxed, ca_jkind
+                           Cstr_tuple [{ arg with ca_sort }] }],
+            Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
-            let ld_jkind = Ctype.type_jkind env ld_type in
+            let jkind = Ctype.type_jkind env ld_type in
+            let sort = Jkind.sort_of_jkind jkind in
+            let ld_sort = Jkind.Sort.default_to_value_and_get sort in
             [{ cstr with Types.cd_args =
-                           Cstr_record [{ lbl with ld_jkind }] }],
-            Variant_unboxed, ld_jkind
+                           Cstr_record [{ lbl with ld_sort }] }],
+            Variant_unboxed, jkind
           end
         | (Cstr_tuple ([] | _ :: _ :: _) | Cstr_record ([] | _ :: _ :: _)) ->
           assert false
@@ -1604,27 +1622,27 @@ let update_decl_jkind env dpath decl =
     | cstrs, Variant_boxed cstr_shapes ->
       let (_,cstrs,all_voids) =
         List.fold_left (fun (idx,cstrs,all_voids) cstr ->
-          let arg_jkinds =
+          let arg_sorts =
             match cstr_shapes.(idx) with
-            | Constructor_uniform_value, arg_jkinds -> arg_jkinds
+            | Constructor_uniform_value, arg_sorts -> arg_sorts
             | Constructor_mixed _, _ ->
                 fatal_error
                   "Typedecl.update_variant_kind doesn't expect mixed \
                    constructor as input"
           in
-          let cd_args, all_void =
-            update_constructor_arguments_jkinds env cstr.Types.cd_loc
-              cstr.Types.cd_args (Some arg_jkinds)
+          let cd_args, all_void, jkinds =
+            update_constructor_arguments_sorts env cstr.Types.cd_loc
+              cstr.Types.cd_args (Some arg_sorts)
           in
           let cstr_repr =
-            update_constructor_representation env cd_args
+            update_constructor_representation env cd_args jkinds
               ~is_extension_constructor:false
               ~loc:cstr.Types.cd_loc
           in
           let () =
             match cstr_repr with
             | Constructor_uniform_value -> ()
-            | Constructor_mixed _ -> cstr_shapes.(idx) <- cstr_repr, arg_jkinds
+            | Constructor_mixed _ -> cstr_shapes.(idx) <- cstr_repr, arg_sorts
           in
           let cstr = { cstr with Types.cd_args } in
           (idx+1,cstr::cstrs,all_voids && all_void)
@@ -2315,11 +2333,11 @@ let transl_extension_constructor_decl
       ~cstr_path:(Pident id) ~type_path ~unboxed:false typext_params
       svars sargs sret_type
   in
-  let args, constant =
-    update_constructor_arguments_jkinds env loc args None
+  let args, constant, jkinds =
+    update_constructor_arguments_sorts env loc args None
   in
   let constructor_shape =
-    update_constructor_representation env args ~loc
+    update_constructor_representation env args jkinds ~loc
       ~is_extension_constructor:true
   in
   args, constructor_shape, constant, ret_type,

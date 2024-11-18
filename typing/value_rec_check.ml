@@ -706,11 +706,13 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_unboxed_tuple exprs ->
       list expression (List.map (fun (_, e, _) -> e) exprs) << Return
     | Texp_array (_, elt_sort, exprs, _) ->
+      let elt_sort = Jkind.Sort.default_for_transl_and_get elt_sort in
       list expression exprs << array_mode exp elt_sort
     | Texp_list_comprehension { comp_body; comp_clauses } ->
       join ((expression comp_body << Guard) ::
             comprehension_clauses comp_clauses)
     | Texp_array_comprehension (_, elt_sort, { comp_body; comp_clauses }) ->
+      let elt_sort = Jkind.Sort.default_for_transl_and_get elt_sort in
       join ((expression comp_body << array_mode exp elt_sort) ::
             comprehension_clauses comp_clauses)
     | Texp_construct (_, desc, exprs, _) ->
