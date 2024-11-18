@@ -60,7 +60,8 @@ end
                       "to_string"[value] -> <.15>;
                       };
  }
-module String : sig type t = string val to_string : 'a -> 'a end
+module String :
+  sig type t = string val to_string : ('a : value_or_null). 'a -> 'a end
 |}]
 
 module P = Pair(Int)(Pair(String)(Int))

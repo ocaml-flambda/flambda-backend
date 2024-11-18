@@ -171,7 +171,7 @@ let my_fun @ nonportable = fun x -> x
 let y : t @@ portable = { a = my_fun }
 [%%expect {|
 type t : value mod portable = { a : string -> string; }
-val my_fun : 'a -> 'a = <fun>
+val my_fun : ('a : value_or_null). 'a -> 'a = <fun>
 val y : t = {a = <fun>}
 |}]
 
@@ -218,7 +218,7 @@ let my_fun : _ @@ nonportable = fun x -> x
 let y = ({ a = my_fun } : _ @@ portable)
 [%%expect {|
 type t : value mod portable = { a : string -> string; }
-val my_fun : 'a -> 'a = <fun>
+val my_fun : ('a : value_or_null). 'a -> 'a = <fun>
 Line 3, characters 15-21:
 3 | let y = ({ a = my_fun } : _ @@ portable)
                    ^^^^^^
@@ -232,7 +232,7 @@ let f (_x : _ @@ portable uncontended) = ()
 type t : value mod portable uncontended = Foo of string | Bar of int
 let g (x : t @@ nonportable contended) = f x; f (Foo ""); f (Bar 10)
 [%%expect {|
-val f : 'a @ portable -> unit = <fun>
+val f : ('a : value_or_null). 'a @ portable -> unit = <fun>
 type t : value mod uncontended portable = Foo of string | Bar of int
 val g : t @ contended -> unit = <fun>
 |}]

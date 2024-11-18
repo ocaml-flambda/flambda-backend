@@ -44,7 +44,7 @@ let f2 = function
 let M.() = ()
 ;;
 [%%expect {|
-val f : M.t -> 'a -> M.c * 'a = <fun>
+val f : ('a : value_or_null). M.t -> 'a -> M.c * 'a = <fun>
 val g : int -> int -> int = <fun>
 val g : M.c list -> M.c list = <fun>
 val h : M.c array -> M.c option = <fun>

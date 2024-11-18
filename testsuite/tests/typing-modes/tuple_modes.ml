@@ -10,9 +10,9 @@ let use_global_product : ('a : value & value). 'a @ global -> unit = fun _ -> ()
 let use_local : 'a @ local -> unit = fun _ -> ()
 let use_local_product : ('a : value & value). 'a @ local -> unit = fun _ -> ()
 [%%expect{|
-val use_global : 'a -> unit = <fun>
+val use_global : ('a : value_or_null). 'a -> unit = <fun>
 val use_global_product : ('a : value & value). 'a -> unit = <fun>
-val use_local : local_ 'a -> unit = <fun>
+val use_local : ('a : value_or_null). local_ 'a -> unit = <fun>
 val use_local_product : ('a : value & value). local_ 'a -> unit = <fun>
 |}]
 
@@ -48,14 +48,16 @@ let f e0 (e1 @ local) =
     match e0, e1 with
     | x0, x1 -> use_global x0; use_local x1; ()
 [%%expect{|
-val f : 'a -> local_ 'b -> unit = <fun>
+val f : ('a : value_or_null) ('b : value_or_null). 'a -> local_ 'b -> unit =
+  <fun>
 |}]
 
 let f e0 (e1 @ local) =
     match #(e0, e1) with
     | #(x0, x1) -> use_global x0; use_local x1; ()
 [%%expect{|
-val f : 'a -> local_ 'b -> unit = <fun>
+val f : ('a : value_or_null) ('b : value_or_null). 'a -> local_ 'b -> unit =
+  <fun>
 |}]
 
 let f e0 (e1 @ local) =
@@ -166,14 +168,20 @@ let f b e0 (e1 @ local) e2 e3 =
     match if b then e0, e1 else e2, e3 with
     | x0, x1 -> use_global x0; use_local x1; ()
 [%%expect{|
-val f : bool -> 'a -> local_ 'b -> 'a -> 'b -> unit = <fun>
+val f :
+  ('a : value_or_null) ('b : value_or_null).
+    bool -> 'a -> local_ 'b -> 'a -> 'b -> unit =
+  <fun>
 |}]
 
 let f b e0 (e1 @ local) e2 e3 =
     match if b then #(e0, e1) else #(e2, e3) with
     | #(x0, x1) -> use_global x0; use_local x1; ()
 [%%expect{|
-val f : bool -> 'a -> local_ 'b -> 'a -> 'b -> unit = <fun>
+val f :
+  ('a : value_or_null) ('b : value_or_null).
+    bool -> 'a -> local_ 'b -> 'a -> 'b -> unit =
+  <fun>
 |}]
 
 let f b e0 (e1 @ local) e2 e3 =
@@ -202,7 +210,10 @@ let f_unboxed_tuple (local_ a) (local_ b) =
   let #(a', _) = t in
   a'
 [%%expect{|
-val f_unboxed_tuple : local_ 'a -> local_ 'b -> local_ 'a = <fun>
+val f_unboxed_tuple :
+  ('a : value_or_null) ('b : value_or_null).
+    local_ 'a -> local_ 'b -> local_ 'a =
+  <fun>
 |}]
 
 let f_boxed_tuple (local_ a) (local_ b) =

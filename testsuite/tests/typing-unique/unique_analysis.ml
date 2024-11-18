@@ -15,14 +15,14 @@ val unique_id : 'a @ unique -> 'a @ unique = <fun>
 
 let aliased_id : 'a -> 'a = fun x -> x
 [%%expect{|
-val aliased_id : 'a -> 'a = <fun>
+val aliased_id : ('a : value_or_null). 'a -> 'a = <fun>
 |}]
 
 let ignore_once: once_ 'a -> unit = fun x -> ()
 
 type box = { x : int }
 [%%expect{|
-val ignore_once : 'a @ once -> unit = <fun>
+val ignore_once : ('a : value_or_null). 'a @ once -> unit = <fun>
 type box = { x : int; }
 |}]
 
@@ -36,7 +36,7 @@ val update : box @ unique -> box @ unique = <fun>
 
 let branching (unique_ x) = unique_ if true then x else x
 [%%expect{|
-val branching : 'a @ unique -> 'a = <fun>
+val branching : ('a : value_or_null). 'a @ unique -> 'a = <fun>
 |}]
 
 (* whether we constrain uniqueness or linearity is irrelavant
@@ -44,7 +44,7 @@ val branching : 'a @ unique -> 'a = <fun>
    will only constrain uniqueness *)
 let branching (once_ x) = if true then x else x
 [%%expect{|
-val branching : 'a @ once -> 'a @ once = <fun>
+val branching : ('a : value_or_null). 'a @ once -> 'a @ once = <fun>
 |}]
 
 let branching b =
@@ -299,7 +299,10 @@ let expr_tuple_match f x y =
   | (a, b), c -> unique_ (a, c)
 [%%expect{|
 val expr_tuple_match :
-  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'b * 'd = <fun>
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
+    ('d : value_or_null).
+    ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'b * 'd =
+  <fun>
 |}]
 
 let expr_tuple_match f x y =
@@ -307,7 +310,10 @@ let expr_tuple_match f x y =
   | (a, b) as t, c -> let d = unique_id t in unique_ (c, d)
 [%%expect{|
 val expr_tuple_match :
-  ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'd * ('b * 'c) = <fun>
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
+    ('d : value_or_null).
+    ('a -> 'b * 'c @ unique) -> 'a -> 'd @ unique -> 'd * ('b * 'c) =
+  <fun>
 |}]
 
 let expr_tuple_match f x y =
@@ -329,7 +335,8 @@ let tuple_parent_marked a b =
   match (a, b) with
   | (_, b) as _t -> aliased_id b
 [%%expect{|
-val tuple_parent_marked : 'a -> 'b -> 'b = <fun>
+val tuple_parent_marked :
+  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> 'b = <fun>
 |}]
 
 (* TODO: Improve UA so that the following example can be allowed. The intuition
@@ -369,7 +376,10 @@ Line 2, characters 12-13:
 let unique_match_on a b =
   let unique_ t = (a, b) in t
 [%%expect{|
-val unique_match_on : 'a @ unique -> 'b @ unique -> 'a * 'b = <fun>
+val unique_match_on :
+  ('a : value_or_null) ('b : value_or_null).
+    'a @ unique -> 'b @ unique -> 'a * 'b =
+  <fun>
 |}]
 
 type ('a, 'b) record = { foo : 'a; bar : 'b }

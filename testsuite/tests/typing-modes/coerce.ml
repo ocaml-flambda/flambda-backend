@@ -14,5 +14,5 @@ module M = struct
 end
 
 [%%expect{|
-module M : sig val f : local_ 'a -> unit end
+module M : sig val f : ('a : value_or_null). local_ 'a -> unit end
 |}]

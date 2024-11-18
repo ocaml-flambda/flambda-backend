@@ -46,7 +46,7 @@ let f () = let g ~y = (raise Not_found : 'a) in
 let _ = Format.printf "%b@." (try f (); false with Not_found -> true)
 [%%expect {|
 - : unit = ()
-val f : t -> y:'a -> 'b = <fun>
+val f : ('a : value_or_null) ('b : value_or_null). t -> y:'a -> 'b = <fun>
 false
 - : unit = ()
 |}]

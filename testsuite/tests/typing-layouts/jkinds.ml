@@ -1314,7 +1314,7 @@ let f : ('a : any mod global unique) -> ('a: any mod uncontended) = fun x -> x
 let f : ('a : value mod external64) -> ('a: any mod external_) = fun x -> x
 let f : ('a : value) -> ('a: immediate) = fun x -> x
 [%%expect {|
-val f : ('a : value mod global unique uncontended). 'a -> 'a = <fun>
+val f : ('a : value_or_null mod global unique uncontended). 'a -> 'a = <fun>
 val f : ('a : value mod external_). 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
 |}]

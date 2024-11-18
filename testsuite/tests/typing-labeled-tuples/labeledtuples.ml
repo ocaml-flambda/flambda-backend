@@ -224,8 +224,14 @@ and swap' (~a, ~b) =
    | 0 -> ~swapped:(~a, ~b), ~same:false
    | n -> swap (~a:b, ~b:a) (n-1)
 [%%expect{|
-val swap : (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
-val swap' : (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool = <fun>
+val swap :
+  ('a : value_or_null).
+    (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool =
+  <fun>
+val swap' :
+  ('a : value_or_null).
+    (a:'a * b:'a) -> int -> swapped:(a:'a * b:'a) * same:bool =
+  <fun>
 |}]
 
 let foobar = swap (~a:"foo", ~b:"bar") 86

@@ -565,7 +565,7 @@ val g : 'a ('b : word). 'a -> 'b = <fun>
 let f : ('a : any) -> 'a = fun x -> x
 ;;
 [%%expect {|
-val f : 'a -> 'a = <fun>
+val f : ('a : value_or_null). 'a -> 'a = <fun>
 |}]
 
 let f : ('a : any). 'a -> 'a = fun x -> x
@@ -1582,11 +1582,24 @@ let f = fun x y (type (a : immediate mod global)) (z : a) -> z
 let f = fun x y (type (a : word mod external_ many aliased)) (z : a) -> z
 
 [%%expect{|
-val f : 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a = <fun>
+val f : ('b : value_or_null) ('c : value_or_null) 'a. 'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : immediate).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : value mod global).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : immediate).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : word).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
 |}]
 
 let f = fun x y (type a : value) (z : a) -> z
@@ -1596,11 +1609,24 @@ let f = fun x y (type a : immediate mod global) (z : a) -> z
 let f = fun x y (type a : word mod external_ many aliased) (z : a) -> z
 
 [%%expect{|
-val f : 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a = <fun>
+val f : ('b : value_or_null) ('c : value_or_null) 'a. 'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : immediate).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : value mod global).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : immediate).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
+val f :
+  ('b : value_or_null) ('c : value_or_null) ('a : word).
+    'b -> 'c -> 'a -> 'a =
+  <fun>
 |}]
 (* CR layouts: canonicalizing the order of quantification here
    would reduce wibbles in error messages *)

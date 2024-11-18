@@ -195,7 +195,10 @@ let f_mix_up_an_unboxed_tuple x =
   #(b, #(c, (f, e)), a, d)
 [%%expect{|
 val f_mix_up_an_unboxed_tuple :
-  #('a * 'b * #('c * #('d * 'e)) * 'f) -> #('b * #('c * ('f * 'e)) * 'a * 'd) =
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
+    ('d : value_or_null) ('e : value_or_null) ('f : value_or_null).
+    #('a * 'b * #('c * #('d * 'e)) * 'f) ->
+    #('b * #('c * ('f * 'e)) * 'a * 'd) =
   <fun>
 |}]
 
@@ -206,9 +209,13 @@ let f_take_a_few_unboxed_tuples x1 x2 x3 x4 x5 =
   #(h, g, x4, e, d, x2, b, a)
 [%%expect{|
 val f_take_a_few_unboxed_tuples :
-  #('a * 'b) ->
-  'c ->
-  #('d * 'e) -> 'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a) =
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
+    ('d : value_or_null) ('e : value_or_null) ('f : value_or_null)
+    ('g : value_or_null) ('h : value_or_null).
+    #('a * 'b) ->
+    'c ->
+    #('d * 'e) ->
+    'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a) =
   <fun>
 |}]
 
@@ -233,7 +240,7 @@ Line 1, characters 25-31:
 1 | let poly_var_term = `Foo #(1,2)
                              ^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_1 & '_representable_layout_2
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
@@ -258,7 +265,7 @@ Line 1, characters 24-31:
 1 | let tuple_term = ("hi", #(1, 2))
                             ^^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_3 & '_representable_layout_4
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
@@ -366,7 +373,7 @@ end;;
 Line 3, characters 17-21:
 3 |     let #(x,y) = utup in
                      ^^^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "#('b * 'c)"
        The layout of #('a * 'b) is '_representable_layout_7 & '_representable_layout_8
          because it is an unboxed tuple.
@@ -822,10 +829,12 @@ external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
 
 let _ = make 3 #(1,2)
 [%%expect{|
-Lines 1-2, characters 0-18:
+Line 1, characters 30-64:
 1 | external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
-2 |   "caml_make_vect"
-Error: Attribute "[@layout_poly]" can only be used on built-in primitives.
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind any_non_null
+         because it's the type argument to the array type.
 |}]
 
 (* CR layouts v7.1: The two errors below should be improved when we move product
@@ -834,30 +843,24 @@ external[@layout_poly] array_get : ('a : any) . 'a array -> int -> 'a =
   "%array_safe_get"
 let f x : #(int * int) = array_get x 3
 [%%expect{|
-external array_get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
-  [@@layout_poly]
-Line 3, characters 25-38:
-3 | let f x : #(int * int) = array_get x 3
-                             ^^^^^^^^^^^^^
-Error: Non-value layout value & value detected as sort for type #(int * int),
-       but this requires extension layouts_alpha, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
+Line 1, characters 35-69:
+1 | external[@layout_poly] array_get : ('a : any) . 'a array -> int -> 'a =
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind any_non_null
+         because it's the type argument to the array type.
 |}]
 
 external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
   "%array_safe_set"
 let f x = array_set x 3 #(1,2)
 [%%expect{|
-external array_set : ('a : any). 'a array -> int -> 'a -> unit
-  = "%array_safe_set" [@@layout_poly]
-Line 3, characters 10-30:
-3 | let f x = array_set x 3 #(1,2)
-              ^^^^^^^^^^^^^^^^^^^^
-Error: Non-value layout value & value detected as sort for type #(int * int),
-       but this requires extension layouts_alpha, which is not enabled.
-       If you intended to use this layout, please add this flag to your build file.
-       Otherwise, please report this error to the Jane Street compilers team.
+Line 1, characters 35-77:
+1 | external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind any_non_null
+         because it's the type argument to the array type.
 |}]
 
 

@@ -37,14 +37,14 @@ type t1 = float# array
 type t2 = int32# array
 type t3 = int64# array
 type t4 = nativeint# array
-type t5 = t_any array
-type t6 = float32# array
-type ('a : float64) t1' = 'a array
-type ('a : bits32) t2' = 'a array
-type ('a : bits64) t3' = 'a array
-type ('a : word) t4' = 'a array
-type ('a : any) t5' = 'a array
-type ('a : float32) t6' = 'a array
+Line 7, characters 10-15:
+7 | type t5 = t_any array
+              ^^^^^
+Error: This type "t_any" should be an instance of type "('a : any_non_null)"
+       The kind of t_any is any
+         because of the definition of t_any at line 1, characters 0-16.
+       But the kind of t_any must be a subkind of any_non_null
+         because it's the type argument to the array type.
 |}];;
 
 (*****************************)
@@ -134,8 +134,12 @@ external get : ('a : any). 'a array -> int -> float = "%floatarray_safe_get"
 let d (x : 'a array) = get x 0
 
 [%%expect{|
-external get : ('a : any). 'a array -> int -> float = "%floatarray_safe_get"
-val d : 'a array -> float = <fun>
+Line 1, characters 15-51:
+1 | external get : ('a : any). 'a array -> int -> float = "%floatarray_safe_get"
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind any_non_null
+         because it's the type argument to the array type.
 |}];;
 
 external get : int32# array -> int -> float = "%floatarray_safe_get"
@@ -197,13 +201,12 @@ let f4 (x : nativeint# array) = get x 0
 let f5 (x : float32# array) = get x 0
 
 [%%expect{|
-external get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
-  [@@layout_poly]
-val f1 : float# array -> float# = <fun>
-val f2 : int32# array -> int32# = <fun>
-val f3 : int64# array -> int64# = <fun>
-val f4 : nativeint# array -> nativeint# = <fun>
-val f5 : float32# array -> float32# = <fun>
+Line 1, characters 29-62:
+1 | external[@layout_poly] get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind any_non_null
+         because it's the type argument to the array type.
 |}];;
 
 external[@layout_poly] set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
@@ -214,13 +217,12 @@ let f4 (x : nativeint# array) v = set x 0 v
 let f5 (x : float32# array) v = set x 0 v
 
 [%%expect{|
-external set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
-  [@@layout_poly]
-val f1 : float# array -> float# -> unit = <fun>
-val f2 : int32# array -> int32# -> unit = <fun>
-val f3 : int64# array -> int64# -> unit = <fun>
-val f4 : nativeint# array -> nativeint# -> unit = <fun>
-val f5 : float32# array -> float32# -> unit = <fun>
+Line 1, characters 29-70:
+1 | external[@layout_poly] set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind any_non_null
+         because it's the type argument to the array type.
 |}]
 
 (***********************************)
@@ -265,15 +267,12 @@ end
 (* CR layouts v2.8: The jkind in the error message is wrong. It should really be
    ('a : layout float64) *)
 [%%expect{|
-Line 9, characters 24-35:
-9 |   let f2 idx : int32# = get arr idx
-                            ^^^^^^^^^^^
-Error: This expression has type "('a : float64)"
-       but an expression was expected of type "int32#"
-       The layout of int32# is bits32
-         because it is the primitive type int32#.
-       But the layout of int32# must be a sublayout of float64
-         because of the definition of arr at line 6, characters 12-16.
+Line 4, characters 31-64:
+4 |   external[@layout_poly] get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind any_non_null
+         because it's the type argument to the array type.
 |}]
 
 (*********************)

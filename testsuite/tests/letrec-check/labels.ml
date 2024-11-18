@@ -4,7 +4,7 @@
 
 let f ~x () = x ();;
 [%%expect{|
-val f : x:(unit -> 'a) -> unit -> 'a = <fun>
+val f : ('a : value_or_null). x:(unit -> 'a) -> unit -> 'a = <fun>
 |}];;
 
 let rec x = f ~x;;

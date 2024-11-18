@@ -13,6 +13,6 @@ let f (type output) ~(output : output t) =
     | A -> (id : bool -> output)
 [%%expect{|
 type _ t = A : bool t
-val id : 'a -> 'a = <fun>
+val id : ('a : value_or_null). 'a -> 'a = <fun>
 val f : output:'output t -> bool -> 'output = <fun>
 |}]
