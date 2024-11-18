@@ -779,7 +779,7 @@ let layout env loc sort ty =
     )
 
 let layout_of_sort loc sort =
-  layout_of_const_sort_generic
+  layout_of_const_sort_generic sort
     ~value_kind:(lazy Lambda.generic_value)
     ~error:(function
     | Base Value -> assert false

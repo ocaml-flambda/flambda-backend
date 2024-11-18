@@ -1367,6 +1367,7 @@ and transl_apply ~scopes
           let mode = transl_alloc_mode_r mode_closure in
           let arg_mode = transl_alloc_mode_l mode_arg in
           let ret_mode = transl_alloc_mode_l mode_ret in
+          let sort_ret = Jkind.Sort.default_for_transl_and_get sort_ret in
           let result_layout = layout_of_sort (to_location loc) sort_ret in
           let body =
             build_apply handle [Lvar id_arg] loc Rc_normal ret_mode
