@@ -136,6 +136,15 @@ module Data : sig
     (** [create f] runs [f] within the capsule ['k] and creates
         a pointer to the result of [f]. *)
 
+    exception Protected : 'k Mutex.t * (exn, 'k) t -> exn
+
+    val protect
+      :  (unit -> 'a @ portable contended) @ local portable
+      -> 'a @ portable contended
+      @@ portable
+    (** [protect f] runs [f] in a fresh capsule. If [f] returns normally, [protect]
+        merges this capsule into the caller's capsule. If [f] raises, [protect]
+        raises [Protected], giving the caller access to the encapsulated exception. *)
 
     val map :
       'k Password.t @ local
