@@ -751,6 +751,7 @@ let merge_constraint initial_env loc sg lid constr =
            which we need here to deal with type variables in package constraints
            (see tests in [typing-modules/package_constraint.ml]).  *)
         begin match
+          (* CR layouts v2.8: Does this type_jkind need to be instantiated? *)
           Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind
         with
         | Ok _-> ()

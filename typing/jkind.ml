@@ -1938,6 +1938,8 @@ let round_up ~jkind_of_type t =
   in
   { t with jkind = { t.jkind with upper_bounds } }
 
+let map_type_expr f t = { t with jkind = Jkind_desc.map_type_expr f t.jkind }
+
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
 

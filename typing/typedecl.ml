@@ -264,6 +264,19 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
+      (* CR layouts v2.8: This next line is truly terrible. But I think it's OK for
+         now: it will mean that any [with] constraints get interpreted to mean that
+         the thing does not cross that mode. That's OK: the jkind produced here can
+         be an overapproximation of the correct jkind (note that [any] is the default).
+         Indeed the only reason (I think) we need a non-[any] jkind here is to produce
+         better error messages.
+
+         Doing better here will be annoying, because a type is in scope in its own
+         jkind... and yet we don't have an env that we can use at this point. I think
+         probably the solution will be to have [Jkind.of_type_decl_default] just return
+         [max] every time it sees a [with]-kind... which basically just does this
+         [type_exn] trick but much more sanely. *)
+      ~transl_type:(fun _ -> Predef.type_exn)
       ~default:(Jkind.disallow_right any)
       sdecl
   in
@@ -769,8 +782,21 @@ let transl_declaration env sdecl (id, uid) =
     | _ -> false, false (* Not unboxable, mark as boxed *)
   in
   verify_unboxed_attr unboxed_attr sdecl;
+  (* CR layouts v2.8: This next call to [transl_simple_type] probably can loop
+     because it will do perhaps-circular jkind checks. But actually I think the
+     same problem exists in e.g. record fields. We should probably look into this. *)
+  let transl_type sty =
+    (* CR layouts v2.8: The [~new_var_jkind:Any] is weird. The type is closed,
+       and so there shouldn't be any new vars. Investigate. *)
+    let cty =
+      Typetexp.transl_simple_type env ~new_var_jkind:Any
+        ~closed:true Mode.Alloc.Const.legacy sty
+    in
+    cty.ctyp_type  (* CR layouts v2.8: Do this more efficiently. Or probably
+                      add with-kinds to Typedtree. *)
+  in
   let jkind_from_annotation, jkind_annotation =
-    match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
+    match Jkind.of_type_decl ~context:(Type_declaration path) ~transl_type sdecl with
     | Some (jkind, annot) ->
         Some jkind, annot
     | None -> None, None
@@ -1126,11 +1152,14 @@ let check_constraints env sdecl (_, decl) =
    immediate, we should check the manifest is immediate). Also, update the
    resulting jkind to match the manifest. *)
 let narrow_to_manifest_jkind env loc decl =
+  (* No need for the principality check of [type_jkind_purely_if_principal] here;
+     we're done doing inference at this point in checking declarations *)
+  let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
   match decl.type_manifest with
   | None -> decl
   | Some ty ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    match Jkind.sub_jkind_l jkind' decl.type_jkind with
+    match Jkind.sub_jkind_l ~jkind_of_type jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
       raise (Error (loc, Jkind_mismatch_of_type (ty,v)))

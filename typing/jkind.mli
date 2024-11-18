@@ -542,6 +542,9 @@ val round_up :
   (allowed * 'r) t ->
   ('l * allowed) t
 
+(** Map a function over types in [upper_bounds] *)
+val map_type_expr : (Types.type_expr -> Types.type_expr) -> (allowed * 'r) t -> (allowed * 'r) t
+
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
 val is_max : ('l * allowed) t -> bool

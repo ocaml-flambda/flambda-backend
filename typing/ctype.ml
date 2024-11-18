@@ -118,7 +118,6 @@ let raise_escape_exn kind = raise (escape_exn kind)
 let raise_scope_escape_exn ty = raise (scope_escape_exn ty)
 
 exception Tags of label * label
-exception Illegal_with_jkind of jkind_l
 
 let () =
   Location.register_error_of_exn
@@ -133,18 +132,6 @@ let () =
                   have the same hash value.@ Change one of them."
                  inline_tag l inline_tag l'
               )
-      | Illegal_with_jkind jkind ->
-         let annotation = Jkind.get_annotation jkind in
-         let loc = match annotation with
-           | Some annot -> annot.pjkind_loc
-           | None -> Location.none
-         in
-         Some (Location.errorf ~loc
-           "@[I don't yet know how to tell when a kind with [with] is@ \
-            a superkind of another one, but the Jane Street OCaml@ \
-            Language team is trying to teach me. Offending kind:@ \
-              %a@]"
-           Jkind.format jkind)
       | _ -> None
     )
 
@@ -1476,6 +1463,13 @@ let instance_parameterized_type ?keep_names sch_args sch =
     (ty_args, ty)
   )
 
+let instance_parameterized_kind args jkind =
+  For_copy.with_scope (fun copy_scope ->
+    let ty_args = List.map (fun t -> copy copy_scope t) args in
+    let jkind = Jkind.map_type_expr (copy copy_scope) jkind in
+    (ty_args, jkind)
+  )
+
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
 let map_kind f = function
   | (Type_abstract _ | Type_open) as k -> k
@@ -1502,6 +1496,7 @@ let instance_declaration decl =
     {decl with type_params = List.map copy decl.type_params;
      type_manifest = Option.map copy decl.type_manifest;
      type_kind = map_kind copy decl.type_kind;
+     type_jkind = Jkind.map_type_expr copy decl.type_jkind;
     }
   )
 
@@ -1832,6 +1827,20 @@ let subst env level priv abbrev oty params args body =
     undo_abbrev ();
     raise Cannot_subst
 
+let jkind_subst env level params args jkind =
+  if List.length params <> List.length args then raise Cannot_subst;
+  let old_level = !current_level in
+  current_level := level;
+  let (params', jkind') = instance_parameterized_kind params jkind in
+  let uenv = Expression {env; in_subst = true} in
+  try
+    List.iter2 (!unify_var' uenv) params' args;
+    current_level := old_level;
+    jkind'
+  with Unify _ ->
+    current_level := old_level;
+    raise Cannot_subst
+
 (* CR layouts: Can we actually just always ignore jkinds in apply/subst?
 
    It seems like almost, but there may be cases where it would forget
@@ -2080,6 +2089,8 @@ let try_expand_safe_opt env ty =
 let expand_head_opt env ty =
   try try_expand_head try_expand_safe_opt env ty with Cannot_expand -> ty
 
+let is_principal ty =
+  not !Clflags.principal || get_level ty = generic_level
 
 type unbox_result =
   (* unboxing process made a step: either an unboxing or removal of a [Tpoly] *)
@@ -2151,11 +2162,13 @@ let rec estimate_type_jkind ~expand_component env ty =
        (List.map (fun (_, ty) ->
           estimate_type_jkind ~expand_component env (expand_component ty)) ltys)
        ~why:Unboxed_tuple
-  | Tconstr (p, _, _) -> begin
-      try
-        (Env.find_type p env).type_jkind
-      with
-        Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
+  | Tconstr (p, args, _) -> begin try
+      let type_decl = Env.find_type p env in
+      let jkind = type_decl.type_jkind in
+      let level = get_level ty in
+      jkind_subst env level type_decl.type_params args jkind
+    with
+    | Cannot_subst | Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
     end
   | Tobject _ -> Jkind.for_object
   | Tfield _ -> Jkind.Builtin.value ~why:Tfield
@@ -2184,6 +2197,11 @@ let type_jkind_purely env ty =
     jkind
   else
     type_jkind env ty
+
+let type_jkind_purely_if_principal env ty =
+  match is_principal ty with
+  | true -> Some (type_jkind_purely env ty)
+  | false -> None
 
 let estimate_type_jkind = estimate_type_jkind ~expand_component:Fun.id
 
@@ -2336,37 +2354,6 @@ let check_type_externality env ty ext =
   | Ok () -> true
   | Error _ -> false
 
-let check_decl_jkind env decl jkind =
-  (* CR layouts v2.8: This could use an algorithm like [constrain_type_jkind]
-     to expand only as much as needed, but the l/l subtype algorithm is tricky,
-     and so we leave this optimization for later. *)
-  match Jkind.sub_jkind_l decl.type_jkind jkind with
-  | Ok _ -> Ok ()
-  | Error _ as err ->
-    match decl.type_manifest with
-    | None -> err
-    | Some ty ->
-      (* CR layouts v2.8: Should this use [type_jkind_purely]? I think not. *)
-      let ty_jkind = type_jkind env ty in
-      match Jkind.sub_jkind_l ty_jkind jkind with
-      | Ok _ -> Ok ()
-      | Error _ as err -> err
-
-let constrain_decl_jkind env decl jkind =
-  (* CR layouts v2.8: This will need to be deeply reimplemented. *)
-  match Jkind.try_allow_r jkind with
-  (* This case is sad, because it can't refine type variables. Hence
-     the need for reimplementation. Hopefully no one hits this for
-     a while. *)
-  | None -> check_decl_jkind env decl jkind
-  | Some jkind ->
-    match Jkind.sub_or_error decl.type_jkind jkind with
-    | Ok () as ok -> ok
-    | Error _ as err ->
-        match decl.type_manifest with
-        | None -> err
-        | Some ty -> constrain_type_jkind env ty jkind
-
 let check_type_jkind_exn env texn ty jkind =
   match check_type_jkind env ty jkind with
   | Ok _ -> ()
@@ -2400,9 +2387,10 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     (* [intersect_type_jkind] is called rarely, so we don't bother with trying
        to avoid this call as in [constrain_type_jkind] *)
     let jkind1 = type_jkind env ty1 in
-    let jkind1 = Jkind.round_up jkind1 in
-    let jkind2 = Jkind.round_up jkind2 in
-    Jkind.intersect ~reason jkind1 jkind2
+    let jkind_of_type = type_jkind_purely_if_principal env in
+    let jkind1 = Jkind.round_up ~jkind_of_type jkind1 in
+    let jkind2 = Jkind.round_up ~jkind_of_type jkind2 in
+    Jkind.intersection_or_error ~reason jkind1 jkind2
 
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
@@ -2410,13 +2398,15 @@ let unification_jkind_check env ty jkind =
   | Perform_checks -> constrain_type_jkind_exn env Unify ty jkind
   | Delay_checks r -> r := (ty,jkind) :: !r
 
-let check_and_update_generalized_ty_jkind ?name ~loc ty =
+let check_and_update_generalized_ty_jkind ?name ~loc env ty =
   let immediacy_check jkind =
     let is_immediate jkind =
       (* Just check externality and layout, because that's what actually matters
          for upstream code. We check both for a known value and something that
          might turn out later to be value. This is the conservative choice. *)
-      Jkind.(Externality.le (get_externality_upper_bound jkind) External64 &&
+      let jkind_of_type = type_jkind_purely_if_principal env in
+      Jkind.(Externality.le
+               (get_externality_upper_bound ~jkind_of_type jkind) External64 &&
              match get_layout jkind with
                | Some (Base Value) | None -> true
                | _ -> false)
@@ -3026,7 +3016,9 @@ let equivalent_with_nolabels l1 l2 =
   | (Nolabel | Labelled _), (Nolabel | Labelled _) -> true
   | _ -> false)
 
-(* the [tk] means we're comparing a type against a jkind *)
+(* the [tk] means we're comparing a type against a jkind; axes do
+   not matter, so a jkind extracted from a type_declaration does
+   not need to be substed *)
 let has_jkind_intersection_tk env ty jkind =
   Jkind.has_intersection (type_jkind env ty) jkind
 
@@ -4745,7 +4737,8 @@ let mode_cross_left_alloc env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
-    let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+    let jkind_of_type = type_jkind_purely_if_principal env in
+    let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
     Alloc.meet_const upper_bounds mode
   in
   mode |> Alloc.disallow_right
@@ -4755,7 +4748,8 @@ let mode_cross_left_alloc env ty mode =
 let mode_cross_right env ty mode =
   if not (is_principal ty) then Alloc.disallow_left mode else
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let jkind_of_type = type_jkind_purely_if_principal env in
+  let upper_bounds = Jkind.get_modal_upper_bounds ~jkind_of_type jkind in
   Alloc.imply upper_bounds mode
 
 let submode_with_cross env ~is_ret ty l r =
@@ -6698,6 +6692,12 @@ let nondep_type_decl env mid is_covariant decl =
                 Private
             with Nondep_cannot_erase _ ->
               None, decl.type_private
+    and jkind =
+      try Jkind.map_type_expr (nondep_type_rec env mid) decl.type_jkind
+      (* CR layouts v2.8: I have no idea what I'm doing on this next line. *)
+      with Nondep_cannot_erase _ when is_covariant ->
+        let jkind_of_type = type_jkind_purely_if_principal env in
+        Jkind.round_up ~jkind_of_type decl.type_jkind |> Jkind.disallow_right
     in
     clear_hash ();
     let priv =
@@ -6708,7 +6708,7 @@ let nondep_type_decl env mid is_covariant decl =
     { type_params = params;
       type_arity = decl.type_arity;
       type_kind = tk;
-      type_jkind = decl.type_jkind;
+      type_jkind = jkind;
       type_manifest = tm;
       type_private = priv;
       type_variance = decl.type_variance;
@@ -6877,3 +6877,41 @@ let print_global_state fmt global_state =
     print_field fmt "global_level" global_level;
   in
   Format.fprintf fmt "@[<1>{@;%a}@]" print_fields global_state
+
+              (*******************************)
+              (* checking declaration jkinds *)
+              (* this is down here so it can use [is_equal] *)
+
+let type_equal env ty1 ty2 = is_equal env false [ty1] [ty2]
+
+let check_decl_jkind env decl jkind =
+  (* CR layouts v2.8: This could use an algorithm like [constrain_type_jkind]
+     to expand only as much as needed, but the l/l subtype algorithm is tricky,
+     and so we leave this optimization for later. *)
+  let type_equal = type_equal env in
+  match Jkind.sub_jkind_l ~type_equal decl.type_jkind jkind with
+  | Ok _ -> Ok ()
+  | Error _ as err ->
+    match decl.type_manifest with
+    | None -> err
+    | Some ty ->
+      (* CR layouts v2.8: Should this use [type_jkind_purely]? I think not. *)
+      let ty_jkind = type_jkind env ty in
+      match Jkind.sub_jkind_l ~type_equal ty_jkind jkind with
+      | Ok _ -> Ok ()
+      | Error _ as err -> err
+
+let constrain_decl_jkind env decl jkind =
+  (* CR layouts v2.8: This will need to be deeply reimplemented. *)
+  match Jkind.try_allow_r jkind with
+  (* This case is sad, because it can't refine type variables. Hence
+     the need for reimplementation. Hopefully no one hits this for
+     a while. *)
+  | None -> check_decl_jkind env decl jkind
+  | Some jkind ->
+    match Jkind.sub_or_error decl.type_jkind jkind with
+    | Ok () as ok -> ok
+    | Error _ as err ->
+        match decl.type_manifest with
+        | None -> err
+        | Some ty -> constrain_type_jkind env ty jkind
