@@ -109,6 +109,8 @@ module Baggage : sig
     | Baggage :
         'type_expr * 'type_expr list
         -> ('type_expr, 'l * Allowance.disallowed) t
+
+  val as_list : ('type_expr, 'l * 'r) t -> 'type_expr list
 end
 
 module Bound : sig
@@ -137,6 +139,9 @@ module Bounds : sig
   include module type of Jkind_axis.Axis_collection (Bound)
 
   include Allowance.Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) t
+
+  val debug_print : print_type_expr:(Format.formatter -> 'type_expr -> unit) ->
+                    Format.formatter -> ('type_expr, 'd) t -> unit
 end
 
 module Layout_and_axes : sig

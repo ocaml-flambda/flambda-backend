@@ -104,14 +104,6 @@ and jkind_l = (allowed * disallowed) jkind
 and jkind_r = (disallowed * allowed) jkind
 and jkind_lr = (allowed * allowed) jkind
 
-(* jkind depends on types defined in this file, but Jkind.equal is required
-   here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
-   function. *)
-(** Corresponds to [Jkind.equal] *)
-let jkind_equal = ref (fun _ _ ->
-    failwith "jkind_equal should be set by jkind.ml")
-let set_jkind_equal f = jkind_equal := f
-
 module TransientTypeOps = struct
   type t = type_expr
   let compare t1 t2 = t1.id - t2.id

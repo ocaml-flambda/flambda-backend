@@ -525,6 +525,10 @@ module Baggage = struct
         'type_expr * 'type_expr list
         -> ('type_expr, 'l * Allowance.disallowed) t
 
+  let as_list : type l r. (_, l * r) t -> _ = function
+    | No_baggage -> []
+    | Baggage (ty, tys) -> ty :: tys
+
   open Allowance
 
   include Magic_allow_disallow (struct
