@@ -1375,8 +1375,8 @@ val at_exit : (unit -> unit) -> unit
    The functions are called in 'last in, first out' order: the
    function most recently added with [at_exit] is called first. *)
 
-(* CR tdelvecchio: Document, possibly rename. *)
-val at_exit_safe : (unit -> unit) @ portable -> unit
+(* CR tdelvecchio: Document. *)
+val at_exit_portable : (unit -> unit) @ portable -> unit @@ portable
 
 (**/**)
 

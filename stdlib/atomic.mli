@@ -76,7 +76,7 @@ end @@ portable
 (* CR tdelvecchio: Document. *)
 
 val get : 'a t -> 'a
-[@@alert unsfae]
+[@@alert unsafe]
 
 val exchange : 'a t -> 'a -> 'a
 [@@alert unsafe]

@@ -498,7 +498,7 @@ module Immediate64 : sig
 
   module Make(Immediate : Immediate)(Non_immediate : Non_immediate) : sig
     type t [@@immediate64]
-    type 'a repr =
+    type 'a repr : value mod portable uncontended =
       | Immediate : Immediate.t repr
       | Non_immediate : Non_immediate.t repr
     val repr : t repr
