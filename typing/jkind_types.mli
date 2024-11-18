@@ -160,6 +160,11 @@ module Layout_and_axes : sig
   val map_option :
     ('a -> 'b option) -> ('type_expr, 'a, 'd) t -> ('type_expr, 'b, 'd) t option
 
+  val map_type_expr :
+    ('type_expr -> 'type_expr) ->
+    ('type_expr, 'a, 'd) t ->
+    ('type_expr, 'a, 'd) t
+
   val equal :
     ('layout -> 'layout -> bool) ->
     ('type_expr, 'layout, allowed * allowed) t ->

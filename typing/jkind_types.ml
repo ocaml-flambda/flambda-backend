@@ -566,6 +566,11 @@ module Baggage = struct
     | No_baggage -> Some No_baggage
     | Baggage _ -> None
 
+  let map_type_expr (type l r) f :
+      ('type_expr, l * r) t -> ('type_expr, l * r) t = function
+    | No_baggage -> No_baggage
+    | Baggage (ty, tys) -> Baggage (f ty, List.map f tys)
+
   let debug_print (type l r) ~print_type_expr ppf : (_, l * r) t -> _ =
     let open Format in
     function
@@ -609,6 +614,8 @@ module Bound = struct
     match Baggage.try_allow_r baggage with
     | Some baggage -> Some { modifier; baggage }
     | None -> None
+
+  let map_type_expr f t = { t with baggage = Baggage.map_type_expr f t.baggage }
 
   let equal :
       _ -> (_, allowed * allowed, _) t -> (_, allowed * allowed, _) t -> bool =
@@ -655,6 +662,9 @@ module Bounds = struct
     let allow_right bounds =
       Map.f { f = (fun ~axis:_ bound -> Bound.allow_right bound) } bounds
   end)
+
+  let map_type_expr f t =
+    Map.f { f = (fun ~axis:_ bound -> Bound.map_type_expr f bound) } t
 
   let equal bounds1 bounds2 =
     Fold2.f
@@ -731,6 +741,9 @@ module Layout_and_axes = struct
 
   let map_option f t =
     match f t.layout with None -> None | Some layout -> Some { t with layout }
+
+  let map_type_expr f t =
+    { t with upper_bounds = Bounds.map_type_expr f t.upper_bounds }
 
   let equal eq_layout { layout = lay1; upper_bounds = bounds1 }
       { layout = lay2; upper_bounds = bounds2 } =

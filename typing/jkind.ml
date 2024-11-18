@@ -357,11 +357,12 @@ module Baggage = struct
 
   type nonrec 'd t = (type_expr, 'd) t
 
-  (* You might think that we can only do joins on the left. But that's
-     not true! We can join constants. The important thing is that the
-     allowances of both arguments are the same and that they match the
-     result: this will mean that if we have any baggage in either argument,
-     the result is an l-Baggage, as required. *)
+  (* You might think that we can only do joins on the left. But that's not true!
+     We can join constants. The important thing is that the allowances of both
+     arguments are the same and that they match the result: this will mean that
+     if we have any baggage in either argument, the result is an l-Baggage, as
+     required. This might change once we have arrow kinds, but we'll deal with
+     that when we get there. *)
   let join (type l r) (bag1 : (l * r) t) (bag2 : (l * r) t) : (l * r) t =
     match bag1, bag2 with
     | No_baggage, No_baggage -> No_baggage
@@ -369,6 +370,10 @@ module Baggage = struct
     | b, No_baggage -> b (* CR layouts v2.8: List concatentation is slow. *)
     | Baggage (ty1, tys1), Baggage (ty2, tys2) ->
       Baggage (ty1, tys1 @ (ty2 :: tys2))
+
+  let meet (type l) (bag1 : (l * allowed) t) (bag2 : (l * allowed) t) :
+      (l * allowed) t =
+    match bag1, bag2 with No_baggage, No_baggage -> No_baggage
 
   let add_baggage (t : (allowed * 'r) t) baggage : (allowed * 'r) t =
     match t with
@@ -387,6 +392,11 @@ module Bound = struct
       { modifier = mod2; baggage = bag2 } =
     let (module Ops) = Axis.get axis in
     { modifier = Ops.join mod1 mod2; baggage = Baggage.join bag1 bag2 }
+
+  let meet (type axis) ~(axis : axis Axis.t) { modifier = mod1; baggage = bag1 }
+      { modifier = mod2; baggage = bag2 } =
+    let (module Ops) = Axis.get axis in
+    { modifier = Ops.meet mod1 mod2; baggage = Baggage.meet bag1 bag2 }
 end
 
 module Bounds = struct
@@ -423,6 +433,8 @@ module Bounds = struct
 
   let join bounds1 bounds2 = Map2.f { f = Bound.join } bounds1 bounds2
 
+  let meet bounds1 bounds2 = Map2.f { f = Bound.meet } bounds1 bounds2
+
   let add_baggage ~deep_only ~baggage bounds =
     (* Add the type as a baggage type along all deep axes *)
     Map.f
@@ -438,6 +450,22 @@ end
 
 (***********************)
 (*** constant jkinds ***)
+
+module Context_with_transl = struct
+  type 'd t =
+    | Right_jkind :
+        ('l * allowed) History.annotation_context
+        -> ('l * allowed) t
+    | Left_jkind :
+        (Parsetree.core_type -> Types.type_expr)
+        * (allowed * disallowed) History.annotation_context
+        -> (allowed * disallowed) t
+
+  let get_context : type l r. (l * r) t -> (l * r) History.annotation_context =
+    function
+    | Right_jkind ctx -> ctx
+    | Left_jkind (_, ctx) -> ctx
+end
 
 module Const = struct
   open Jkind_types.Layout_and_axes
@@ -813,11 +841,8 @@ module Const = struct
 
   let rec of_user_written_annotation_unchecked_level :
       type l r.
-      (l * r) History.annotation_context ->
-      transl_type:_ ->
-      Parsetree.jkind_annotation ->
-      (l * r) t =
-   fun context ~transl_type jkind ->
+      (l * r) Context_with_transl.t -> Parsetree.jkind_annotation -> (l * r) t =
+   fun context jkind ->
     match jkind.pjkind_desc with
     | Abbreviation name ->
       (* CR layouts v2.8: move this to predef *)
@@ -842,9 +867,7 @@ module Const = struct
       | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
       |> allow_left |> allow_right
     | Mod (base, modifiers) ->
-      let base =
-        of_user_written_annotation_unchecked_level context ~transl_type jkind
-      in
+      let base = of_user_written_annotation_unchecked_level context jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let upper_bounds =
@@ -871,20 +894,14 @@ module Const = struct
       { layout = base.layout; upper_bounds }
     | Product ts ->
       let jkinds =
-        List.map
-          (of_user_written_annotation_unchecked_level context ~transl_type)
-          ts
+        List.map (of_user_written_annotation_unchecked_level context) ts
       in
       jkind_of_product_annotations jkinds
     | With (base, type_) -> (
-      let base =
-        of_user_written_annotation_unchecked_level context ~transl_type base
-      in
-      (* CR layouts v2.8: Could probably use the l/r discipline to statically
-         rule out a missing transl_type on the left. *)
-      match transl_type with
-      | None -> raise ~loc:type_.ptyp_loc With_on_right
-      | Some transl_type ->
+      let base = of_user_written_annotation_unchecked_level context base in
+      match context with
+      | Right_jkind _ -> raise ~loc:type_.ptyp_loc With_on_right
+      | Left_jkind (transl_type, _) ->
         let type_ = transl_type type_ in
         { layout = base.layout;
           upper_bounds =
@@ -898,10 +915,10 @@ module Const = struct
      parameter might effectively be unused.
   *)
   (* CR layouts: When everything is stable, remove this function. *)
-  let get_required_layouts_level (_context : 'd History.annotation_context)
+  let get_required_layouts_level (_context : 'd Context_with_transl.t)
       (jkind : 'd t) =
     let rec scan_layout (l : Layout.Const.t) : Language_extension.maturity =
-      match l, jkind.nullability_upper_bound with
+      match l, jkind.upper_bounds.nullability.modifier with
       | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
       | Base Value, Non_null ->
         Stable
@@ -924,7 +941,7 @@ module Const = struct
 end
 
 module Desc = struct
-  type 'd t = (Sort.Flat.t Layout.t, 'd) Layout_and_axes.t
+  type 'd t = (type_expr, Sort.Flat.t Layout.t, 'd) Layout_and_axes.t
 
   let get_const t = Layout_and_axes.map_option Layout.get_flat_const t
 
@@ -933,8 +950,7 @@ module Desc = struct
      algorithm. *)
   let format ppf t =
     let open Format in
-    let rec format_desc ~nested ppf
-        (desc : (Sort.Flat.t Layout.t, _) Layout_and_axes.t) =
+    let rec format_desc ~nested ppf (desc : _ t) =
       match desc.layout with
       | Sort (Var n) -> fprintf ppf "'s%d" (Sort.Var.get_print_number n)
       (* Analyze a product before calling [get_const]: the machinery in
@@ -957,77 +973,58 @@ module Jkind_desc = struct
   let of_const t = Layout_and_axes.map Layout.of_const t
 
   let add_nullability_crossing t =
-    { t with nullability_upper_bound = Nullability.min }
+    { t with
+      upper_bounds =
+        { t.upper_bounds with nullability = Bound.simple Nullability.min }
+    }
 
-  let add_portability_and_contention_crossing ~from t =
-    let new_portability =
-      Portability.Const.meet t.modes_upper_bounds.portability
-        from.modes_upper_bounds.portability
+  let add_portability_and_contention_crossing ~from to_ =
+    let add_crossing (type a) ~(axis : a Axis.t) to_ =
+      let (module A : Lattice with type t = a) = Axis.get axis in
+      let from_bound = Bounds.get ~axis from.upper_bounds in
+      let to_bound = Bounds.get ~axis to_ in
+      let new_bound =
+        { to_bound with
+          modifier = A.meet from_bound.modifier to_bound.modifier
+        }
+      in
+      let added_crossings = not (A.le to_bound.modifier new_bound.modifier) in
+      Bounds.set ~axis to_ new_bound, added_crossings
     in
-    let new_contention =
-      Contention.Const.meet t.modes_upper_bounds.contention
-        from.modes_upper_bounds.contention
+    let upper_bounds = to_.upper_bounds in
+    let upper_bounds, added1 =
+      add_crossing ~axis:(Modal Portability) upper_bounds
     in
-    let added_crossings =
-      (not
-         (Portability.Const.le t.modes_upper_bounds.portability new_portability))
-      || not
-           (Contention.Const.le t.modes_upper_bounds.contention new_contention)
+    let upper_bounds, added2 =
+      add_crossing ~axis:(Modal Contention) upper_bounds
     in
-    ( { t with
-        modes_upper_bounds =
-          { t.modes_upper_bounds with
-            portability = new_portability;
-            contention = new_contention
-          }
-      },
-      added_crossings )
+    { to_ with upper_bounds }, added1 || added2
+
+  let add_baggage ~deep_only ~baggage t =
+    { t with
+      upper_bounds = Bounds.add_baggage ~deep_only ~baggage t.upper_bounds
+    }
 
   let max = of_const Const.max
 
-  let equate_or_equal ~allow_mutation
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Layout.equate_or_equal ~allow_mutation lay1 lay2
-    && Modes.equal modes1 modes2
-    && Externality.equal ext1 ext2
-    && Nullability.equal null1 null2
+  let equate_or_equal ~allow_mutation t1 t2 =
+    Layout_and_axes.equal (Layout.equate_or_equal ~allow_mutation) t1 t2
 
   let sub t1 t2 = Layout_and_axes.sub Layout.sub t1 t2
 
-  let intersection
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Option.bind (Layout.intersection lay1 lay2) (fun layout ->
-        Some
-          { layout;
-            modes_upper_bounds = Modes.meet modes1 modes2;
-            externality_upper_bound = Externality.meet ext1 ext2;
-            nullability_upper_bound = Nullability.meet null1 null2
-          })
+  let intersection { layout = lay1; upper_bounds = bounds1 }
+      { layout = lay2; upper_bounds = bounds2 } =
+    match Layout.intersection lay1 lay2 with
+    | None -> None
+    | Some layout -> Some { layout; upper_bounds = Bounds.meet bounds1 bounds2 }
+
+  let map_type_expr f t = Layout_and_axes.map_type_expr f t
 
   let of_new_sort_var nullability_upper_bound =
     let layout, sort = Layout.of_new_sort_var () in
     ( { layout;
-        modes_upper_bounds = Modes.max;
-        externality_upper_bound = Externality.max;
-        nullability_upper_bound
+        upper_bounds =
+          { Bounds.max with nullability = Bound.simple nullability_upper_bound }
       },
       sort )
 
@@ -1048,27 +1045,18 @@ module Jkind_desc = struct
        jkinds. This is not great. We should, as part of a broader pass on error
        messages around product kinds, zip them up into some kind of product
        history. *)
-    let folder (layouts, annotations, mode_ub, ext_ub, null_ub)
-        { jkind =
-            { layout;
-              modes_upper_bounds;
-              externality_upper_bound;
-              nullability_upper_bound
-            };
+    let folder (layouts, annotations, upper_bounds_acc)
+        { jkind = { layout; upper_bounds };
           annotation;
           history = _;
           has_warned = _
         } =
       ( layout :: layouts,
         annotation :: annotations,
-        Modes.join mode_ub modes_upper_bounds,
-        Externality.join ext_ub externality_upper_bound,
-        Nullability.join null_ub nullability_upper_bound )
+        Bounds.join upper_bounds upper_bounds_acc )
     in
-    let layouts, annotations, mode_ub, ext_ub, null_ub =
-      List.fold_left folder
-        ([], [], Modes.min, Externality.min, Nullability.min)
-        jkinds
+    let layouts, annotations, upper_bounds =
+      List.fold_left folder ([], [], Bounds.min) jkinds
     in
     let layouts = List.rev layouts in
     let annotations = List.rev annotations in
@@ -1080,12 +1068,7 @@ module Jkind_desc = struct
             { pjkind_loc = Location.none; pjkind_desc = Product annotations })
         annotations
     in
-    ( { layout : _ Layout.t = Product layouts;
-        modes_upper_bounds = mode_ub;
-        externality_upper_bound = ext_ub;
-        nullability_upper_bound = null_ub
-      },
-      annotation )
+    { layout : _ Layout.t = Product layouts; upper_bounds }, annotation
 
   let get t = Layout_and_axes.map Layout.get t
 
@@ -1093,7 +1076,7 @@ module Jkind_desc = struct
 
   module Debug_printers = struct
     let t ppf t =
-      Layout_and_axes.format
+      Layout_and_axes.debug_print
         (Layout.Debug_printers.t Sort.Debug_printers.t)
         ppf t
   end
@@ -1178,19 +1161,8 @@ let of_new_legacy_sort_var ~why =
 
 let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
-let of_const ~annotation ~why
-    ({ layout;
-       modes_upper_bounds;
-       externality_upper_bound;
-       nullability_upper_bound
-     } :
-      'd Const.t) =
-  { jkind =
-      { layout = Layout.of_const layout;
-        modes_upper_bounds;
-        externality_upper_bound;
-        nullability_upper_bound
-      };
+let of_const ~annotation ~why (c : 'd Const.t) =
+  { jkind = Layout_and_axes.map Layout.of_const c;
     annotation;
     history = Creation why;
     has_warned = false
