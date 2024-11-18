@@ -89,6 +89,7 @@ val backtrace_status: unit -> bool
 *)
 
 val register_printer: (exn -> string option) -> unit
+[@@alert unsafe]
 (** [Printexc.register_printer fn] registers [fn] as an exception
     printer.  The printer should return [None] or raise an exception
     if it does not know how to convert the passed exception, and [Some
@@ -106,6 +107,8 @@ val register_printer: (exn -> string option) -> unit
     the backtrace if it has itself raised an exception before.
     @since 3.11.2
 *)
+
+val register_printer_safe : (exn -> string option) @ portable -> unit @@ portable
 
 val use_printers: exn -> string option
 (** [Printexc.use_printers e] returns [None] if there are no registered
