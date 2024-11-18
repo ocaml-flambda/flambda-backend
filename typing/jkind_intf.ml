@@ -199,15 +199,29 @@ module History = struct
     | Array_element
     | Old_style_unboxed_type
 
-  type annotation_context =
-    | Type_declaration of Path.t
-    | Type_parameter of Path.t * string option
-    | Newtype_declaration of string
-    | Constructor_type_parameter of Path.t * string
-    | Univar of string
-    | Type_variable of string
-    | Type_wildcard of Location.t
-    | With_error_message of string * annotation_context
+  open Allowance
+
+  type 'd annotation_context =
+    | Type_declaration : Path.t -> (allowed * 'r) annotation_context
+    | Type_parameter :
+        Path.t * string option
+        -> (allowed * allowed) annotation_context
+    | Newtype_declaration : string -> (allowed * allowed) annotation_context
+    | Constructor_type_parameter :
+        Path.t * string
+        -> (allowed * allowed) annotation_context
+    | Univar : string -> (allowed * allowed) annotation_context
+    | Type_variable : string -> (allowed * allowed) annotation_context
+    | Type_wildcard : Location.t -> (allowed * allowed) annotation_context
+    | With_error_message :
+        string * 'd annotation_context
+        -> 'd annotation_context
+
+  and annotation_context_l = (allowed * disallowed) annotation_context
+
+  and annotation_context_r = (disallowed * allowed) annotation_context
+
+  and annotation_context_lr = (allowed * allowed) annotation_context
 
   (* CR layouts v3: move some [value_creation_reason]s
      related to objects here. *)
@@ -284,7 +298,7 @@ module History = struct
   type product_creation_reason = Unboxed_tuple
 
   type creation_reason =
-    | Annotated of annotation_context * Location.t
+    | Annotated : ('l * 'r) annotation_context * Location.t -> creation_reason
     | Missing_cmi of Path.t
     | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason

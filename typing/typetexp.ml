@@ -164,7 +164,7 @@ module TyVarEnv : sig
   (* a version of [make_poly_univars_jkinds] that doesn't take jkinds *)
 
   val make_poly_univars_jkinds :
-    context:(string -> Jkind.History.annotation_context) ->
+    context:(string -> Jkind.History.annotation_context_lr) ->
     (string Location.loc * Parsetree.jkind_annotation option) list
     -> poly_univars
   (* see mli file *)

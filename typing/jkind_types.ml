@@ -578,10 +578,11 @@ type ('type_expr, 'd) t =
   }
 
 module Const = struct
-  type 'type_expr t =
+  type ('type_expr, +'d) t =
     { layout : Layout.Const.t;
       modes_upper_bounds : Modes.t;
       externality_upper_bound : Jkind_axis.Externality.t;
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
+    constraint 'd = 'l * 'r
 end

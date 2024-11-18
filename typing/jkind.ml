@@ -287,13 +287,11 @@ end
 (*********************************)
 (* Main type declarations *)
 
-type const = type_expr Jkind_types.Const.t
+type 'd const = (type_expr, 'd) Jkind_types.Const.t
 
 type 'd t = (type_expr, 'd) Jkind_types.t
 
 type jkind_l = (allowed * disallowed) t
-
-type jkind_r = (disallowed * allowed) t
 
 type packed = Pack : 'd t -> packed [@@unboxed]
 
@@ -329,10 +327,11 @@ let fresh_jkind_annot_opt jkind ~annotation ~why =
 
 module Error = struct
   type t =
-    | Insufficient_level of
-        { jkind : const;
+    | Insufficient_level :
+        { jkind : 'd const;
           required_layouts_level : Language_extension.maturity
         }
+        -> t
     | Unknown_jkind of Parsetree.jkind_annotation
     | Multiple_jkinds of
         { from_annotation : Parsetree.jkind_annotation;
@@ -347,7 +346,25 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 module Const = struct
   open Jkind_types.Const
 
-  type t = const
+  type 'd t = 'd const
+
+  type l = (allowed * disallowed) t
+
+  type r = (disallowed * allowed) t
+
+  type lr = (allowed * allowed) t
+
+  include Allowance.Magic_allow_disallow (struct
+    type (_, _, 'd) sided = 'd t
+
+    let disallow_left ({ layout = _; _ } as t) = t
+
+    let disallow_right ({ layout = _; _ } as t) = t
+
+    let allow_left ({ layout = _; _ } as t) = t
+
+    let allow_right ({ layout = _; _ } as t) = t
+  end)
 
   let max =
     { layout = Layout.Const.max;
@@ -362,7 +379,7 @@ module Const = struct
 
   let get_externality_upper_bound const = const.externality_upper_bound
 
-  let equal
+  let equal_after_all_inference_is_done
       { layout = lay1;
         modes_upper_bounds = modes1;
         externality_upper_bound = ext1;
@@ -409,7 +426,7 @@ module Const = struct
 
   module Builtin = struct
     type nonrec t =
-      { jkind : t;
+      { jkind : lr;
         name : string
       }
 
@@ -602,7 +619,7 @@ module Const = struct
         written in terms of [value] (as it appears above), or in terms of [immediate]
         (which would just be [immediate]). Since the latter requires less modes to be
         printed, it is chosen. *)
-    val convert : allow_null:bool -> t -> Outcometree.out_jkind_const
+    val convert : allow_null:bool -> 'd t -> Outcometree.out_jkind_const
   end = struct
     type printable_jkind =
       { base : string;
@@ -775,12 +792,16 @@ module Const = struct
       nullability_upper_bound = null_ub
     }
 
-  let rec of_user_written_annotation_unchecked_level
-      (jkind : Parsetree.jkind_annotation) : t =
+  let rec of_user_written_annotation_unchecked_level :
+      type l r.
+      (l * r) History.annotation_context ->
+      Parsetree.jkind_annotation ->
+      (l * r) t =
+   fun context jkind ->
     match jkind.pjkind_desc with
-    | Abbreviation name -> (
+    | Abbreviation name ->
       (* CR layouts v2.8: move this to predef *)
-      match name with
+      (match name with
       (* CR layouts v3.0: remove this hack once non-null jkinds are out of alpha.
          It is confusing, but preserves backwards compatibility for arrays. *)
       | "any" when Language_extension.(is_at_least Layouts Alpha) ->
@@ -799,8 +820,9 @@ module Const = struct
       | "bits64" -> Builtin.bits64.jkind
       | "vec128" -> Builtin.vec128.jkind
       | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
+      |> allow_left |> allow_right
     | Mod (jkind, modifiers) ->
-      let base = of_user_written_annotation_unchecked_level jkind in
+      let base = of_user_written_annotation_unchecked_level context jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let parsed_modes : Alloc.Const.Option.t =
@@ -823,7 +845,9 @@ module Const = struct
             (Option.value ~default:Externality.max parsed_modifiers.externality)
       }
     | Product ts ->
-      let jkinds = List.map of_user_written_annotation_unchecked_level ts in
+      let jkinds =
+        List.map (of_user_written_annotation_unchecked_level context) ts
+      in
       jkind_of_product_annotations jkinds
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
@@ -833,8 +857,8 @@ module Const = struct
      parameter might effectively be unused.
   *)
   (* CR layouts: When everything is stable, remove this function. *)
-  let get_required_layouts_level (_context : History.annotation_context)
-      (jkind : t) =
+  let get_required_layouts_level (_context : 'd History.annotation_context)
+      (jkind : 'd t) =
     let rec scan_layout (l : Layout.Const.t) : Language_extension.maturity =
       match l, jkind.nullability_upper_bound with
       | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
@@ -849,7 +873,7 @@ module Const = struct
     scan_layout jkind.layout
 
   let of_user_written_annotation ~context (annot : Parsetree.jkind_annotation) =
-    let const = of_user_written_annotation_unchecked_level annot in
+    let const = of_user_written_annotation_unchecked_level context annot in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
@@ -859,10 +883,10 @@ module Const = struct
 end
 
 module Desc = struct
-  type t =
-    | Const of Const.t
+  type 'd t =
+    | Const of 'd Const.t
     | Var of Sort.var
-    | Product of t list
+    | Product of 'd t list
 
   let format ppf =
     let rec pp_element ~nested ppf =
@@ -883,7 +907,9 @@ module Desc = struct
   let rec sub d1 d2 : Misc.Le_result.t =
     match d1, d2 with
     | Const c1, Const c2 -> Const.sub c1 c2
-    | Var _, Const c when Const.equal Const.max c -> Less
+    (* CR layouts v2.8: Fix this next line. All inference isn't done! *)
+    | Var _, Const c when Const.equal_after_all_inference_is_done Const.max c ->
+      Less
     | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
     | Product ds1, Product ds2 ->
       if List.compare_lengths ds1 ds2 = 0
@@ -904,7 +930,7 @@ module Jkind_desc = struct
          externality_upper_bound;
          nullability_upper_bound
        } :
-        Const.t) =
+        'd Const.t) =
     { layout = Layout.of_const layout;
       modes_upper_bounds;
       externality_upper_bound;
@@ -1063,7 +1089,7 @@ module Jkind_desc = struct
 
   (* Post-condition: If the result contains [Var v], then [!v] is [None]. *)
   let rec get_sort modes_upper_bounds externality_upper_bound
-      nullability_upper_bound s : Desc.t =
+      nullability_upper_bound s : 'd Desc.t =
     match Sort.get s with
     | Base b ->
       Const
@@ -1086,7 +1112,7 @@ module Jkind_desc = struct
          modes_upper_bounds;
          externality_upper_bound;
          nullability_upper_bound
-       } as k) : Desc.t =
+       } as k) : 'd Desc.t =
     match (layout : Layout.t) with
     | Any ->
       Const
@@ -1206,7 +1232,7 @@ let of_const ~annotation ~why
        externality_upper_bound;
        nullability_upper_bound
      } :
-      Const.t) =
+      'd Const.t) =
   { jkind =
       { layout = Layout.of_const layout;
         modes_upper_bounds;
@@ -1358,7 +1384,7 @@ let decompose_product ({ jkind; _ } as jk) =
 (* pretty printing *)
 
 let format ppf jkind =
-  let rec pp_element ~nested ppf (d : Desc.t) =
+  let rec pp_element ~nested ppf (d : _ Desc.t) =
     match d with
     | Const c -> Format.fprintf ppf "%a" Const.format c
     | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
@@ -1484,8 +1510,9 @@ module Format_history = struct
     | Array_element -> fprintf ppf "it's the type of an array element"
     | Old_style_unboxed_type -> fprintf ppf "it's an [@@@@unboxed] type"
 
-  let rec format_annotation_context ppf : History.annotation_context -> unit =
-    function
+  let rec format_annotation_context :
+      type l r. _ -> (l * r) History.annotation_context -> unit =
+   fun ppf -> function
     | Type_declaration p ->
       fprintf ppf "the declaration of the type %a" !printtyp_path p
     | Type_parameter (path, var) ->
@@ -1714,8 +1741,8 @@ module Violation = struct
   open Format
 
   type violation =
-    | Not_a_subjkind of jkind_l * jkind_r
-    | No_intersection of packed * jkind_r
+    | Not_a_subjkind : (allowed * 'r) t * ('l * allowed) t -> violation
+    | No_intersection : 'd t * ('l * allowed) t -> violation
 
   type nonrec t =
     { violation : violation;
@@ -1759,7 +1786,7 @@ module Violation = struct
       | Const _ | Product _ ->
         dprintf "%s a sub%s of %a" verb layout_or_kind format_layout_or_kind k2
     in
-    let Pack k1, k2, fmt_k1, fmt_k2, missing_cmi_option =
+    let Pack k1, Pack k2, fmt_k1, fmt_k2, missing_cmi_option =
       match t with
       | { violation = Not_a_subjkind (k1, k2); missing_cmi } -> (
         let missing_cmi =
@@ -1774,20 +1801,20 @@ module Violation = struct
         match missing_cmi with
         | None ->
           ( Pack k1,
-            k2,
+            Pack k2,
             dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
             subjkind_format "is not" k2,
             None )
         | Some p ->
           ( Pack k1,
-            k2,
+            Pack k2,
             dprintf "an unknown %s" layout_or_kind,
             subjkind_format "might not be" k2,
             Some p ))
-      | { violation = No_intersection (Pack k1, k2); missing_cmi } ->
+      | { violation = No_intersection (k1, k2); missing_cmi } ->
         assert (Option.is_none missing_cmi);
         ( Pack k1,
-          k2,
+          Pack k2,
           dprintf "%s %a" layout_or_kind format_layout_or_kind k1,
           dprintf "does not overlap with %a" format_layout_or_kind k2,
           None )
@@ -1883,7 +1910,7 @@ let has_intersection t1 t2 =
 
 let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.jkind t2.jkind with
-  | None -> Error (Violation.of_ (No_intersection (Pack t1, t2)))
+  | None -> Error (Violation.of_ (No_intersection (t1, t2)))
   | Some jkind ->
     Ok
       { jkind;
@@ -1997,7 +2024,9 @@ module Debug_printers = struct
     | Array_element -> fprintf ppf "Array_element"
     | Old_style_unboxed_type -> fprintf ppf "Old_style_unboxed_type"
 
-  let rec annotation_context ppf : History.annotation_context -> unit = function
+  let rec annotation_context :
+      type l r. _ -> (l * r) History.annotation_context -> unit =
+   fun ppf -> function
     | Type_declaration p -> fprintf ppf "Type_declaration %a" Path.print p
     | Type_parameter (p, var) ->
       fprintf ppf "Type_parameter (%a, %a)" Path.print p
@@ -2139,7 +2168,7 @@ module Debug_printers = struct
       a history h
 
   module Const = struct
-    let t ppf (jkind : Const.t) =
+    let t ppf (jkind : _ Const.t) =
       fprintf ppf
         "@[<v 2>{ layout = %a@,\
          ; modes_upper_bounds = %a@,\

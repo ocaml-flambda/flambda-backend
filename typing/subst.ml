@@ -106,14 +106,17 @@ let with_additional_action =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let rec prepare_desc : type l r. _ -> _ -> (l * r) Jkind.t =
-         fun loc : (Jkind.Desc.t -> _) -> function
+        let rec prepare_desc :
+          type l r. _ -> (l * r) Jkind.Desc.t -> (l * r) Jkind.t =
+         fun loc -> function
           | Const const ->
             let builtin =
-              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+              List.find_opt (fun (builtin, _) ->
+                Jkind.Const.equal_after_all_inference_is_done const builtin)
+                builtins
             in
             begin match builtin with
-            | Some (_, jkind) -> jkind
+            | Some (_, jkind) -> jkind |> Jkind.allow_left |> Jkind.allow_right
             | None -> Jkind.of_const const ~annotation:None
                         ~why:Jkind.History.Imported
             end
