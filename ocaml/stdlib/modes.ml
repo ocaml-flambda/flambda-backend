@@ -3,9 +3,9 @@ module Global = struct
 end
 
 module Portable = struct
-  type 'a t : value mod portable = { portable : 'a @@ portable }
+  type 'a t : value mod portable = { portable : 'a @@ portable } [@@unboxed]
 end
 
 module Contended = struct
-  type 'a t : value mod uncontended = { contended : 'a @@ contended }
+  type 'a t : value mod uncontended = { contended : 'a @@ contended } [@@unboxed]
 end
