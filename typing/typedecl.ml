@@ -1528,7 +1528,7 @@ let update_decl_jkind env dpath decl =
       let lbls, all_void, jkinds =
         update_label_sorts env loc lbls (Some sorts)
       in
-      let jkind = Jkind.for_boxed_record ~all_void in
+      let jkind = Jkind.for_boxed_record ~all_void lbls in
       let reprs =
         List.map2
           (fun lbl jkind ->
@@ -1682,7 +1682,7 @@ let update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs,all_voids && all_void)
         ) (0,[],true) cstrs
       in
-      let jkind = Jkind.for_boxed_variant ~all_voids in
+      let jkind = Jkind.for_boxed_variant ~all_voids cstrs in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
