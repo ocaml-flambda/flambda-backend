@@ -514,10 +514,13 @@ let type_declaration' copy_scope s decl =
       end;
     type_jkind =
       begin
-        match s.additional_action with
-        | Prepare_for_saving { prepare_jkind } ->
+        let jkind =
+          match s.additional_action with
+          | Prepare_for_saving { prepare_jkind } ->
             prepare_jkind decl.type_loc decl.type_jkind
-        | Duplicate_variables | No_action -> decl.type_jkind
+          | Duplicate_variables | No_action -> decl.type_jkind
+        in
+        Jkind.map_type_expr (typexp copy_scope s decl.type_loc) jkind
       end;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
