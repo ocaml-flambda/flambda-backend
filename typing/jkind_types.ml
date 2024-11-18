@@ -115,6 +115,44 @@ module Sort = struct
         in
         pp_element ~nested:false ppf c
     end
+
+    let for_function = value
+
+    let for_predef_value = value
+
+    let for_block_element = value
+
+    let for_probe_body = value
+
+    let for_poly_variant = value
+
+    let for_record = value
+
+    let for_object = value
+
+    let for_lazy_body = value
+
+    let for_tuple_element = value
+
+    let for_variant_arg = value
+
+    let for_instance_var = value
+
+    let for_class_arg = value
+
+    let for_method = value
+
+    let for_initializer = value
+
+    let for_module = value
+
+    let for_tuple = value
+
+    let for_array_get_result = value
+
+    let for_array_comprehension_element = value
+
+    let for_list_element = value
   end
 
   module Var = struct
@@ -327,6 +365,9 @@ module Sort = struct
         (* path compression *)
         result)
 
+  (* CR layouts v12: Default to void instead. *)
+  let default_for_transl_and_get s = default_to_value_and_get s
+
   (***********************)
   (* equality *)
 
@@ -461,44 +502,6 @@ module Sort = struct
     pp_element ~nested:false ppf t
 
   include Static.T
-
-  let for_function = value
-
-  let for_predef_value = value
-
-  let for_block_element = value
-
-  let for_probe_body = value
-
-  let for_poly_variant = value
-
-  let for_record = value
-
-  let for_object = value
-
-  let for_lazy_body = value
-
-  let for_tuple_element = value
-
-  let for_variant_arg = value
-
-  let for_instance_var = value
-
-  let for_class_arg = value
-
-  let for_method = value
-
-  let for_initializer = value
-
-  let for_module = value
-
-  let for_tuple = value
-
-  let for_array_get_result = value
-
-  let for_array_comprehension_element = value
-
-  let for_list_element = value
 end
 
 module Layout = struct

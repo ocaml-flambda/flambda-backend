@@ -132,7 +132,7 @@ type classification =
    Returning [Any] is safe, though may skip some optimizations. *)
 let classify env loc ty sort : classification =
   let ty = scrape_ty env ty in
-  match Jkind.(Sort.default_to_value_and_get sort) with
+  match (sort : Jkind.Sort.Const.t) with
   | Base Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
@@ -191,7 +191,8 @@ let array_type_kind ~elt_sort env loc ty =
         match elt_sort with
         | Some s -> s
         | None ->
-          type_legacy_sort ~why:Array_element env loc elt_ty
+          Jkind.Sort.default_for_transl_and_get
+            (type_legacy_sort ~why:Array_element env loc elt_ty)
       in
       begin match classify env loc elt_ty elt_sort with
       | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
@@ -754,8 +755,7 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
     error const
 
 let layout env loc sort ty =
-  layout_of_const_sort_generic
-    (Jkind.Sort.default_to_value_and_get sort)
+  layout_of_const_sort_generic sort
     ~value_kind:(lazy (value_kind env loc ty))
     ~error:(function
       | Base Value -> assert false
@@ -775,7 +775,6 @@ let layout env loc sort ty =
 
 let layout_of_sort loc sort =
   layout_of_const_sort_generic
-    (Jkind.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy Lambda.generic_value)
     ~error:(function
     | Base Value -> assert false
@@ -792,7 +791,7 @@ let layout_of_sort loc sort =
                            (Jkind.Sort.of_const const, Stable, None)))
     )
 
-let layout_of_const_sort c =
+let layout_of_non_void_sort c =
   layout_of_const_sort_generic
     c
     ~value_kind:(lazy Lambda.generic_value)
@@ -818,7 +817,7 @@ let function_arg_layout env loc sort ty =
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
 let lazy_val_requires_forward env loc ty =
-  let sort = Jkind.Sort.for_lazy_body in
+  let sort = Jkind.Sort.Const.for_lazy_body in
   match classify env loc ty sort with
   | Any | Lazy -> true
   (* CR layouts: Fix this when supporting lazy unboxed values.
