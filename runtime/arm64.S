@@ -77,6 +77,7 @@
 
 #define DW_CFA_def_cfa_expression 0x0f
 #define DW_REG_x21                21
+#define DW_REG_x29                29
 #define DW_REG_sp                 31
 #define DW_OP_breg                0x70
 #define DW_OP_deref               0x06
@@ -212,7 +213,12 @@ G(name):
 #define Handler_parent(reg)     [reg, #24]
 #define Handler_parent_offset   24
 
-/* Switch from OCaml to C stack. */
+/* Switch from OCaml to C stack.
+
+   If a C function is called which might call back into OCaml,
+   then nothing may be pushed to the C stack between SWITCH_OCAML_TO_C
+   and the next C call. (This is to ensure frame pointers are correctly
+   maintained if the stack is reallocated) */
 .macro SWITCH_OCAML_TO_C
     /* Fill in Caml_state->current_stack->sp */
         ldr     TMP, Caml_state(current_stack)
@@ -644,20 +650,8 @@ FUNCTION(caml_c_call_stack_args)
     /* Make the exception handler alloc ptr available to the C code */
         str     ALLOC_PTR, Caml_state(young_ptr)
         str     TRAP_PTR, Caml_state(exn_handler)
-    /* Store sp to restore after call */
-        mov     x19, sp
-    /* Copy arguments from OCaml to C stack
-       NB: STACK_ARG_{BEGIN,END} are 16-byte aligned */
-1:      sub     STACK_ARG_END, STACK_ARG_END, 16
-        cmp     STACK_ARG_END, STACK_ARG_BEGIN
-        b.lo    2f
-        ldp     TMP, TMP2, [STACK_ARG_END]
-        stp     TMP, TMP2, [sp, -16]!; CFI_ADJUST(16)
-        b       1b
-2:  /* Call the function */
-        blr     ADDITIONAL_ARG
-    /* Restore stack */
-        mov     sp, x19
+    /* Copy the arguments and call */
+        bl      G(caml_c_call_copy_stack_args)
     /* Reload new allocation pointer & exn handler */
         ldr     ALLOC_PTR, Caml_state(young_ptr)
         ldr     TRAP_PTR, Caml_state(exn_handler)
@@ -668,6 +662,34 @@ FUNCTION(caml_c_call_stack_args)
         RET_FROM_C_CALL
         CFI_ENDPROC
 END_FUNCTION(caml_c_call_stack_args)
+
+/* To correctly maintain frame pointers during stack reallocation,
+   the runtime assumes that the caml_c_call stub does not push
+   anything to the stack before the first frame pointer on the C stack.
+   To guarantee this when stack arguments are used, the actual pushing
+   of arguments is done by this separate function */
+FUNCTION(caml_c_call_copy_stack_args)
+        CFI_STARTPROC
+        ENTER_FUNCTION
+        CFI_DEF_CFA_REGISTER(DW_REG_x29)
+    /* Copy arguments from OCaml to C stack
+       NB: STACK_ARG_{BEGIN,END} are 16-byte aligned */
+1:      sub     STACK_ARG_END, STACK_ARG_END, 16
+        cmp     STACK_ARG_END, STACK_ARG_BEGIN
+        b.lo    2f
+        ldp     TMP, TMP2, [STACK_ARG_END]
+        stp     TMP, TMP2, [sp, -16]!
+        b       1b
+2:  /* Call the function */
+        blr     ADDITIONAL_ARG
+    /* Restore stack */
+        mov     sp, x29
+        CFI_DEF_CFA_REGISTER(DW_REG_sp)
+        LEAVE_FUNCTION
+        ret
+        CFI_ENDPROC
+END_FUNCTION(caml_c_call_copy_stack_args)
+
 
 /* Start the OCaml program */
 

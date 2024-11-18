@@ -749,63 +749,6 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
     CAMLassert(async_exn_ptr == NULL);
   }
 }
-
-#ifdef WITH_FRAME_POINTERS
-#if defined(STACK_CHECKS_ENABLED)
-/* Update absolute base pointers for new stack */
-static void rewrite_frame_pointers(struct stack_info *old_stack,
-    struct stack_info *new_stack)
-{
-  struct frame_walker {
-    struct frame_walker *base_addr;
-    uintnat return_addr;
-  } *frame, *next;
-  ptrdiff_t delta;
-  void *top, **p;
-
-  delta = (char*)Stack_high(new_stack) - (char*)Stack_high(old_stack);
-
-  /* Walk the frame-pointers linked list */
-  for (frame = __builtin_frame_address(0); frame; frame = next) {
-
-    top = (char*)&frame->return_addr
-      + 1 * sizeof(value) /* return address */
-      + 2 * sizeof(value) /* trap frame */
-      + 2 * sizeof(value); /* DWARF pointer & gc_regs */
-
-    /* Detect top of the fiber and bail out */
-    /* It also avoid to dereference invalid base pointer at main */
-    if (top == Stack_high(old_stack))
-      break;
-
-    /* Save the base address since it may be adjusted */
-    next = frame->base_addr;
-
-    if (!(Stack_base(old_stack) <= (value*)frame->base_addr
-        && (value*)frame->base_addr < Stack_high(old_stack))) {
-      /* No need to adjust base pointers that don't point into the reallocated
-       * fiber */
-      continue;
-    }
-
-    if (Stack_base(old_stack) <= (value*)&frame->base_addr
-        && (value*)&frame->base_addr < Stack_high(old_stack)) {
-      /* The base pointer itself is located inside the reallocated fiber
-       * and needs to be adjusted on the new fiber */
-      p = (void**)((char*)Stack_high(new_stack) - (char*)Stack_high(old_stack)
-          + (char*)&frame->base_addr);
-      CAMLassert(*p == frame->base_addr);
-      *p += delta;
-    }
-    else {
-      /* Base pointers on other stacks are adjusted in place */
-      frame->base_addr = (struct frame_walker*)((char*)frame->base_addr
-          + delta);
-    }
-  }
-}
-#endif
-#endif
 #endif
 
 int caml_try_realloc_stack(asize_t required_space)
@@ -858,9 +801,6 @@ int caml_try_realloc_stack(asize_t required_space)
   caml_rewrite_exception_stack(old_stack, (value**)&Caml_state->exn_handler,
                                (value**) &Caml_state->async_exn_handler,
                                new_stack);
-#ifdef WITH_FRAME_POINTERS
-  rewrite_frame_pointers(old_stack, new_stack);
-#endif
 #endif
 
   /* Update stack pointers in Caml_state->c_stack. It is possible to have
@@ -870,9 +810,29 @@ int caml_try_realloc_stack(asize_t required_space)
     struct c_stack_link* link;
     for (link = Caml_state->c_stack; link; link = link->prev) {
       if (link->stack == old_stack) {
+        ptrdiff_t delta =
+          (char*)Stack_high(new_stack) - (char*)Stack_high(old_stack);
+#ifdef WITH_FRAME_POINTERS
+        struct stack_frame {
+          struct stack_frame* prev;
+          void* retaddr;
+        };
+
+        /* Frame pointer is pushed just below the c_stack_link.
+           This is somewhat tricky to guarantee when there are stack
+           arguments to C calls: see caml_c_call_copy_stack_args */
+        struct stack_frame* fp = ((struct stack_frame*)link) - 1;
+        CAMLassert(fp->prev == link->sp);
+
+        /* Rewrite OCaml frame pointers above this C frame */
+        while (Stack_base(old_stack) <= (value*)fp->prev &&
+               (value*)fp->prev < Stack_high(old_stack)) {
+          fp->prev = (struct stack_frame*)((char*)fp->prev + delta);
+          fp = fp->prev;
+        }
+#endif
         link->stack = new_stack;
-        link->sp = (void*)((char*)Stack_high(new_stack) -
-                           ((char*)Stack_high(old_stack) - (char*)link->sp));
+        link->sp = (char*)link->sp + delta;
       }
       if (link->async_exn_handler >= (char*) Stack_base(old_stack)
           && link->async_exn_handler < (char*) Stack_high(old_stack)) {

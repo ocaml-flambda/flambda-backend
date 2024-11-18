@@ -186,7 +186,7 @@
      https://github.com/hjl-tools/x86-psABI/wiki/x86-64-psABI-1.0.pdf */
 
 #define DW_CFA_def_cfa_expression 0x0f
-#define DW_REG_rbx                3
+#define DW_REG_rbp                6
 #define DW_REG_rsp                7
 #define DW_REG_r13                13
 #define DW_OP_breg                0x70
@@ -232,7 +232,12 @@
 /* Stack switching operations */
 /******************************************************************************/
 
-/* Switch from OCaml to C stack. Clobbers %r10, %r11. */
+/* Switch from OCaml to C stack. Clobbers %r10, %r11.
+
+   If a C function is called which might call back into OCaml,
+   then nothing may be pushed to the C stack between SWITCH_OCAML_TO_C
+   and the next C call. (This is to ensure frame pointers are correctly
+   maintained if the stack is reallocated) */
 #ifdef ASM_CFI_SUPPORTED
 #define SWITCH_OCAML_TO_C_CFI                                   \
         CFI_REMEMBER_STATE;                                     \
@@ -806,34 +811,10 @@ CFI_STARTPROC
         C stack args        : begin=%r13 end=%r12 */
     /* Switch from OCaml to C */
         SWITCH_OCAML_TO_C
-    /* we use %rbx (otherwise unused) to enable backtraces */
-        movq    %rsp, %rbx
-#ifdef ASM_CFI_SUPPORTED
-        .cfi_escape DW_CFA_def_cfa_expression, 5,           \
-          /* %rbp points to the c_stack_link structure */   \
-          DW_OP_breg + DW_REG_rbx, Cstack_sp, DW_OP_deref,  \
-          DW_OP_plus_uconst, RETADDR_ENTRY_SIZE
-#endif
     /* Make the alloc ptr available to the C code */
         movq    %r15, Caml_state(young_ptr)
-    /* Copy arguments from OCaml to C stack */
-#if defined(SYS_mingw64) || defined (SYS_cygwin)
-        addq    $32, %rsp
-#endif
-LBL(105):
-        subq    $8, %r12
-        cmpq    %r13,%r12
-        jb      LBL(106)
-        push    (%r12); CFI_ADJUST(8)
-        jmp     LBL(105)
-LBL(106):
-#if defined(SYS_mingw64) || defined (SYS_cygwin)
-        subq    $32, %rsp
-#endif
-    /* Call the function (address in %rax) */
-        C_call  (*%rax)
-    /* Pop arguments back off the stack */
-        movq    Caml_state(c_stack), %rsp
+    /* Copy the arguments and call */
+        C_call  (GCALL(caml_c_call_copy_stack_args))
     /* Prepare for return to OCaml */
         movq    Caml_state(young_ptr), %r15
     /* Load ocaml stack and restore global variables */
@@ -843,6 +824,41 @@ LBL(106):
         RET_FROM_C_CALL
 CFI_ENDPROC
 ENDFUNCTION(G(caml_c_call_stack_args))
+
+/* To correctly maintain frame pointers during stack reallocation,
+   the runtime assumes that the caml_c_call stub does not push
+   anything to the stack before the first frame pointer on the C stack.
+   To guarantee this when stack arguments are used, the actual pushing
+   of arguments is done by this separate function */
+FUNCTION(G(caml_c_call_copy_stack_args))
+CFI_STARTPROC
+    /* Set up a frame pointer even without WITH_FRAME_POINTERS,
+       which we use to pop an unknown number of arguments later */
+        pushq   %rbp; CFI_ADJUST(8)
+        movq    %rsp, %rbp
+        CFI_DEF_CFA_REGISTER(DW_REG_rbp)
+    /* Copy arguments from OCaml to C stack */
+LBL(105):
+        subq    $8, %r12
+        cmpq    %r13,%r12
+        jb      LBL(106)
+        push    (%r12)
+        jmp     LBL(105)
+LBL(106):
+#if defined(SYS_mingw64) || defined (SYS_cygwin)
+    /* Allocate the shadow store on Windows (the c_stack_link store was used
+       in calling caml_c_call_copy_stack_args) */
+        subq    $32, %rsp
+#endif
+    /* Call the function (address in %rax) */
+        C_call  (*%rax)
+    /* Pop arguments back off the stack */
+        movq    %rbp, %rsp
+        CFI_DEF_CFA_REGISTER(DW_REG_rsp)
+        popq    %rbp; CFI_ADJUST(-8)
+        ret
+CFI_ENDPROC
+ENDFUNCTION(G(caml_c_call_copy_stack_args))
 
 /******************************************************************************/
 /* Start the OCaml program */
