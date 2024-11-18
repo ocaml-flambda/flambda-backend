@@ -60,7 +60,7 @@ end = struct
     P name
 end
 
-module Data = struct
+module Data_ = struct
   type ('a, 'k) t : value mod portable uncontended
 
   exception Encapsulated : 'k Name.t * (exn, 'k) t -> exn
@@ -141,8 +141,8 @@ module Mutex = struct
           (* NOTE: [unlock] does not poll for asynchronous exceptions *)
           Mutex_.unlock t.mutex;
           (match exn with
-           | Data.Encapsulated (exn_name, exn_cap) when Name.equal t.name exn_name ->
-             raise (Data.unsafe_get exn_cap)
+           | Data_.Encapsulated (exn_name, exn_cap) when Name.equal t.name exn_name ->
+             raise (Data_.unsafe_get exn_cap)
            | _ -> raise exn)
 
   let destroy t =
@@ -160,6 +160,22 @@ end
 let create_with_mutex () =
   let (P name) = Name.make () in
   Mutex.P { name; mutex = Mutex_.create (); poisoned = false }
+
+module Data = struct
+  include Data_
+
+  external raise_with_backtrace:
+    exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
+
+  exception Protected : 'k Mutex.t * (exn, 'k) t -> exn
+
+  let protect f =
+  try f () with
+  | exn ->
+    let (P mut) = create_with_mutex () in
+    raise_with_backtrace (Protected (mut, unsafe_mk exn)) (Printexc.get_raw_backtrace ())
+  ;;
+end
 
 module Condition = struct
   type 'k t : value mod portable uncontended
