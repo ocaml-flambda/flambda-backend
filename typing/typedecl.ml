@@ -264,18 +264,19 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      (* CR layouts v2.8: This next line is truly terrible. But I think it's OK for
-         now: it will mean that any [with] constraints get interpreted to mean that
-         the thing does not cross that mode. That's OK: the jkind produced here can
-         be an overapproximation of the correct jkind (note that [any] is the default).
-         Indeed the only reason (I think) we need a non-[any] jkind here is to produce
-         better error messages.
+      (* CR layouts v2.8: This next line is truly terrible. But I think it's OK
+         for now: it will mean that any [with] constraints get interpreted to
+         mean that the thing does not cross that mode. That's OK: the jkind
+         produced here can be an overapproximation of the correct jkind (note
+         that [any] is the default).  Indeed the only reason (I think) we need a
+         non-[any] jkind here is to produce better error messages.
 
-         Doing better here will be annoying, because a type is in scope in its own
-         jkind... and yet we don't have an env that we can use at this point. I think
-         probably the solution will be to have [Jkind.of_type_decl_default] just return
-         [max] every time it sees a [with]-kind... which basically just does this
-         [type_exn] trick but much more sanely. *)
+         Doing better here will be annoying, because a type is in scope in its
+         own jkind... and yet we don't have an env that we can use at this
+         point. I think probably the solution will be to have
+         [Jkind.of_type_decl_default] just return [max] every time it sees a
+         [with]-kind... which basically just does this [type_exn] trick but much
+         more sanely. *)
       ~transl_type:(fun _ -> Predef.type_exn)
       ~default:(Jkind.disallow_right any)
       sdecl
@@ -1152,14 +1153,14 @@ let check_constraints env sdecl (_, decl) =
    immediate, we should check the manifest is immediate). Also, update the
    resulting jkind to match the manifest. *)
 let narrow_to_manifest_jkind env loc decl =
-  (* No need for the principality check of [type_jkind_purely_if_principal] here;
-     we're done doing inference at this point in checking declarations *)
-  let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
   match decl.type_manifest with
   | None -> decl
   | Some ty ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    match Jkind.sub_jkind_l ~jkind_of_type jkind' decl.type_jkind with
+    match
+      Jkind.sub_jkind_l ~type_equal:(Ctype.type_equal env)
+        jkind' decl.type_jkind
+    with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
       raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1173,7 +1174,8 @@ let check_kind_coherence env loc dpath decl =
   | (Type_variant _ | Type_record _ | Type_open), Some ty ->
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
-        begin match Jkind.sub_jkind_l jkind' decl.type_jkind with
+        let type_equal = Ctype.type_equal env in
+        begin match Jkind.sub_jkind_l ~type_equal jkind' decl.type_jkind with
         | Ok _ -> ()
         | Error v ->
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1333,7 +1335,10 @@ module Element_repr = struct
     else
       let layout = Jkind.get_layout_defaulting_to_value jkind in
       let sort = Jkind.Layout.Const.get_sort layout in
-      let externality_upper_bound = Jkind.get_externality_upper_bound jkind in
+      let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
+      let externality_upper_bound =
+        Jkind.get_externality_upper_bound ~jkind_of_type jkind
+      in
       let base = match sort with
         | None ->
             Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
@@ -1721,22 +1726,25 @@ let update_decl_jkind env dpath decl =
 
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
-  if new_jkind != decl.type_jkind then
+  if new_jkind != decl.type_jkind then begin
     (* CR layouts v2.8: Consider making a function that doesn't compute
        histories for this use-case, which doesn't need it. *)
-    begin match Jkind.sub_jkind_l new_jkind decl.type_jkind with
+    (* The [decl.type_jkind] should never have [with]-types in it at this
+       point. *)
+    let type_equal _ _ = false in
+    match Jkind.sub_jkind_l ~type_equal new_jkind decl.type_jkind with
     | Ok _ -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
     end;
   new_decl
 
-let update_decls_jkind_reason decls =
+let update_decls_jkind_reason env decls =
   List.map
     (fun (id, decl) ->
        let update_generalized =
         Ctype.check_and_update_generalized_ty_jkind
-          ~name:id ~loc:decl.type_loc
+          ~name:id ~loc:decl.type_loc env
        in
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
@@ -2333,7 +2341,7 @@ let transl_type_decl env rec_flag sdecl_list =
       |> Typedecl_variance.update_decls env sdecl_list
       |> Typedecl_separability.update_decls env
       |> update_decls_jkind new_env
-      |> update_decls_jkind_reason
+      |> update_decls_jkind_reason new_env
     with
     | Typedecl_variance.Error (loc, err) ->
         raise (Error (loc, Variance err))
@@ -3108,7 +3116,7 @@ let transl_value_decl env loc ~sig_modalities valdecl =
     Env.enter_value ~mode:Mode.Value.legacy valdecl.pval_name.txt v env
       ~check:(fun s -> Warnings.Unused_value_declaration s)
   in
-  Ctype.check_and_update_generalized_ty_jkind ~name:id ~loc ty;
+  Ctype.check_and_update_generalized_ty_jkind ~name:id ~loc env ty;
   let desc =
     {
      val_id = id;
@@ -3340,9 +3348,17 @@ let approx_type_decl sdecl_list =
        let id = Ident.create_scoped ~scope sdecl.ptype_name.txt in
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
+       let transl_type sty =
+         Misc.fatal_errorf
+           "@[I do not yet know how to deal with [with]-types (such as %a)@ in \
+            recursive modules. Please contact the Jane Street OCaml Language@ \
+            team for help if you see this."
+           Pprintast.core_type sty
+       in
        let jkind =
          Jkind.of_type_decl_default
            ~context:(Type_declaration path)
+           ~transl_type
            ~default:(Jkind.Builtin.value ~why:Default_type_jkind)
            sdecl
        in

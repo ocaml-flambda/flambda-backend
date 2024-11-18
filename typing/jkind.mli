@@ -527,8 +527,13 @@ val sub_or_error :
   (allowed * 'r) t -> ('l * allowed) t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history.
-    Pre-condition: the super jkind must be fully settled; no variables
-    which might be filled in later. *)
+    Pre-condition: the super jkind must be fully settled; no variables which
+    might be filled in later. Right now, if the super jkind has any
+    [with]-types, the sub jkind must have exactly the same [with]-types, in the
+    same order.
+
+    CR layouts v2.8: Implement this properly.
+*)
 val sub_jkind_l :
   type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_l ->
@@ -543,7 +548,8 @@ val round_up :
   ('l * allowed) t
 
 (** Map a function over types in [upper_bounds] *)
-val map_type_expr : (Types.type_expr -> Types.type_expr) -> (allowed * 'r) t -> (allowed * 'r) t
+val map_type_expr :
+  (Types.type_expr -> Types.type_expr) -> (allowed * 'r) t -> (allowed * 'r) t
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)

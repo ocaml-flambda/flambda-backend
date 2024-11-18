@@ -629,6 +629,10 @@ val check_decl_jkind :
 val constrain_decl_jkind :
   Env.t -> type_declaration -> jkind_l -> (unit, Jkind.Violation.t) result
 
+(* Compare two types for equality, with no renaming. This is useful for
+   the [type_equal] function that must be passed to certain jkind functions. *)
+val type_equal: Env.t -> type_expr -> type_expr -> bool
+
 val check_type_jkind :
   Env.t -> type_expr -> ('l * allowed) jkind -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
