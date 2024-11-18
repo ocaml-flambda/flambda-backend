@@ -718,25 +718,22 @@ Error: "[@layout_poly]" on this external declaration has no
 (***********************************************)
 (* New untested array prims are gated to alpha *)
 
-external[@layout_poly] makearray_dynamic : ('a : any). int -> 'a -> 'a array =
+external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
   "%makearray_dynamic"
 [%%expect{|
-Line 1, characters 43-76:
-1 | external[@layout_poly] makearray_dynamic : ('a : any). int -> 'a -> 'a array =
-                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have kind any.
-       But it was inferred to have kind any_non_null
-         because it's the type argument to the array type.
+Lines 1-2, characters 0-22:
+1 | external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
+2 |   "%makearray_dynamic"
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
 |}]
 
 external[@layout_poly] arrayblit :
-  ('a : any). 'a array -> int -> 'a array -> int -> int -> unit =
+  ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit =
   "%arrayblit"
 [%%expect{|
-Line 2, characters 2-63:
-2 |   ('a : any). 'a array -> int -> 'a array -> int -> int -> unit =
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have kind any.
-       But it was inferred to have kind any_non_null
-         because it's the type argument to the array type.
+Lines 1-3, characters 0-14:
+1 | external[@layout_poly] arrayblit :
+2 |   ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit =
+3 |   "%arrayblit"
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
 |}]

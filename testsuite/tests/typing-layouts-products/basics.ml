@@ -824,43 +824,47 @@ Error: The primitive [caml_make_vect] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
 
-external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
+external[@layout_poly] make : ('a : any_non_null) . int -> 'a -> 'a array =
   "caml_make_vect"
 
 let _ = make 3 #(1,2)
 [%%expect{|
-Line 1, characters 30-64:
-1 | external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
-                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have kind any.
-       But it was inferred to have kind any_non_null
-         because it's the type argument to the array type.
+Lines 1-2, characters 0-18:
+1 | external[@layout_poly] make : ('a : any_non_null) . int -> 'a -> 'a array =
+2 |   "caml_make_vect"
+Error: Attribute "[@layout_poly]" can only be used on built-in primitives.
 |}]
 
 (* CR layouts v7.1: The two errors below should be improved when we move product
    arrays to beta. *)
-external[@layout_poly] array_get : ('a : any) . 'a array -> int -> 'a =
+external[@layout_poly] array_get : ('a : any_non_null) . 'a array -> int -> 'a =
   "%array_safe_get"
 let f x : #(int * int) = array_get x 3
 [%%expect{|
-Line 1, characters 35-69:
-1 | external[@layout_poly] array_get : ('a : any) . 'a array -> int -> 'a =
-                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have kind any.
-       But it was inferred to have kind any_non_null
-         because it's the type argument to the array type.
+external array_get : ('a : any_non_null). 'a array -> int -> 'a
+  = "%array_safe_get" [@@layout_poly]
+Line 3, characters 25-38:
+3 | let f x : #(int * int) = array_get x 3
+                             ^^^^^^^^^^^^^
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
-external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
+external[@layout_poly] array_set : ('a : any_non_null) . 'a array -> int -> 'a -> unit =
   "%array_safe_set"
 let f x = array_set x 3 #(1,2)
 [%%expect{|
-Line 1, characters 35-77:
-1 | external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
-                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have kind any.
-       But it was inferred to have kind any_non_null
-         because it's the type argument to the array type.
+external array_set : ('a : any_non_null). 'a array -> int -> 'a -> unit
+  = "%array_safe_set" [@@layout_poly]
+Line 3, characters 10-30:
+3 | let f x = array_set x 3 #(1,2)
+              ^^^^^^^^^^^^^^^^^^^^
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 
