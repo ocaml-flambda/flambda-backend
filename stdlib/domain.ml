@@ -377,8 +377,8 @@ module Runtime_5 = struct
         (fun (KI (k, split)) -> KV (k, (split (get k))))
         parent_keys
 
-    let set_initial_keys (l: key_value list) =
-      List.iter (fun (KV (k, v)) -> set k v) l
+    let set_initial_keys (l: key_value list) (pw : Password.t) =
+      List.iter (fun (KV (k, v)) -> set k (v pw)) l
   end
 
   (******** Identity **********)
@@ -450,7 +450,7 @@ module Runtime_5 = struct
       match
         let password = Capsule.Password.make () in
         DLS.create_dls password;
-        DLS.set_initial_keys pk;
+        DLS.set_initial_keys pk password;
         let res = f password in
         res
       with
