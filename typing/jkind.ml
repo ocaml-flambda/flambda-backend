@@ -1333,26 +1333,57 @@ let reduce_bound (type a l r) ~jkind_of_type ~(axis : a Axis.t)
     (bound : (l * r, a) Bound.t) =
   let module TypeSet = Btype.TypeSet in
   let (module A) = Axis.get axis in
-  let rec loop explored bound_so_far = function
+  (* Sadly, it seems hard (impossible?) to be sure to expand all types
+     here without using a fuel parameter to stop infinite regress. Here
+     is a nasty case:
+
+     {[
+       type zero
+       type 'n succ
+
+       type 'n loopy = Mk of 'n succ loopy list [@@unboxed]
+     ]}
+
+     First off: this type *is* inhabited, because of the [list] intervening
+     type (which can be empty). It's also inhabited by various circular
+     structures.
+
+     But what's the jkind of ['n loopy]? It must be the jkind of
+     ['n succ loopy list], which is [immutable_data with 'n succ loopy].
+     In order to see if we shouldn't mode-cross, we have to expand the
+     ['n succ loopy] in the jkind, but expanding that just yields the need
+     to expand ['n succ succ loopy], and around we go.
+
+     It seems hard to avoid this problem. And so we use fuel.
+
+     But we want to use a lot of fuel here, because we use a unit of fuel
+     for each expansion of a jkind. In contrast, the fuel used in unboxing
+     a type is used only for every [@@unboxed]. This is easy, though: just
+     use a bigger number.
+  *)
+  let rec loop fuel explored bound_so_far = function
+    | _ when fuel < 0 -> A.max (* sad *)
     | _ when A.le A.max bound_so_far -> bound_so_far (* early cutoff *)
     | [] -> bound_so_far
     | b :: bs -> (
       if TypeSet.mem b explored
-      then loop explored bound_so_far bs
+      then loop fuel explored bound_so_far bs
       else
         let explored = TypeSet.add b explored in
         match jkind_of_type b with
         | Some b_jkind ->
           let b_bound = Bounds.get ~axis b_jkind.jkind.upper_bounds in
           let bound_so_far = A.join bound_so_far b_bound.modifier in
-          loop explored bound_so_far (Baggage.as_list b_bound.baggage @ bs)
+          loop (fuel - 1) explored bound_so_far
+            (Baggage.as_list b_bound.baggage @ bs)
         | None ->
-          (* hd is not principally known, so we treat it as having the max bound *)
+          (* hd is not principally known, so we treat it as having the max bound
+             *)
           (* CR layouts v2.8: Does this ever trigger? Richard is skeptical that
              we need to worry about principality here. *)
           A.max)
   in
-  loop TypeSet.empty bound.modifier (Baggage.as_list bound.baggage)
+  loop 1000 TypeSet.empty bound.modifier (Baggage.as_list bound.baggage)
 
 let reduce_bounds ~jkind_of_type jk =
   Reduced_bounds.Create.f
