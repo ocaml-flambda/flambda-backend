@@ -1044,6 +1044,10 @@ module Jkind_desc = struct
 
     let value = of_const Const.Builtin.value.jkind
 
+    let immutable_data = of_const Const.Builtin.immutable_data.jkind
+
+    let mutable_data = of_const Const.Builtin.mutable_data.jkind
+
     let void = of_const Const.Builtin.void.jkind
 
     let immediate = of_const Const.Builtin.immediate.jkind
@@ -1139,6 +1143,15 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.value ~annotation:(mk_annot "value")
       ~why:(Value_creation why)
 
+  let immutable_data ~(why : History.value_creation_reason) =
+    fresh_jkind Jkind_desc.Builtin.immutable_data
+      ~annotation:(mk_annot "immutable_data")
+      ~why:(Value_creation why)
+
+  let mutable_data ~(why : History.value_creation_reason) =
+    fresh_jkind Jkind_desc.Builtin.mutable_data
+      ~annotation:(mk_annot "mutable_data") ~why:(Value_creation why)
+
   let immediate ~why =
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
@@ -1151,8 +1164,8 @@ end
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
-let add_baggage ?(deep_only = true) ~baggage t =
-  { t with jkind = Jkind_desc.add_baggage ~deep_only ~baggage t.jkind }
+let add_baggage ~baggage t =
+  { t with jkind = Jkind_desc.add_baggage ~deep_only:true ~baggage t.jkind }
 
 let add_portability_and_contention_crossing ~from t =
   let jkind, added_crossings =

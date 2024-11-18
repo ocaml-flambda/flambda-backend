@@ -287,6 +287,12 @@ module Builtin : sig
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> 'd t
 
+  (** This is suitable for records or variants without mutable fields. *)
+  val immutable_data : why:History.value_creation_reason -> 'd t
+
+  (** This is suitable for records or variants with mutable fields. *)
+  val mutable_data : why:History.value_creation_reason -> 'd t
+
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:History.immediate_creation_reason -> 'd t
 
@@ -300,6 +306,9 @@ end
 
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd t -> 'd t
+
+(** Take an existing [t] and add some baggage. *)
+val add_baggage : baggage:Types.type_expr -> jkind_l -> jkind_l
 
 (** Take an existing [t] and add an ability to mode-cross along the portability and
     contention axes, if [from] crosses the respective axes. Return the new jkind,
