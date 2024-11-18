@@ -737,7 +737,7 @@ module Const = struct
     | Abbreviation name ->
       (* CR layouts v2.8: move this to predef *)
       (match name with
-      | "any" -> Builtin.any_non_null.jkind
+      | "any" -> Builtin.any.jkind
       | "any_non_null" -> Builtin.any_non_null.jkind
       | "value_or_null" -> Builtin.value_or_null.jkind
       | "value" -> Builtin.value.jkind
