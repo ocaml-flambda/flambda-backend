@@ -790,8 +790,15 @@ let transl_declaration env sdecl (id, uid) =
     (* CR layouts v2.8: The [~new_var_jkind:Any] is weird. The type is closed,
        and so there shouldn't be any new vars. Investigate. *)
     let cty =
-      Typetexp.transl_simple_type env ~new_var_jkind:Any
-        ~closed:true Mode.Alloc.Const.legacy sty
+      Ctype.with_local_level begin fun () ->
+        Typetexp.transl_simple_type env ~new_var_jkind:Any
+          ~closed:true Mode.Alloc.Const.legacy sty
+      end
+      (* This call to [generalize_structure] is necessary so that copying
+         during instantiation traverses inside of any type constructors in the
+         [with]-bound. It's also necessary because the variables here are at
+         generic level, and so any containers of them should be, too! *)
+      ~post:(fun cty -> Ctype.generalize_structure cty.ctyp_type)
     in
     cty.ctyp_type  (* CR layouts v2.8: Do this more efficiently. Or probably
                       add with-kinds to Typedtree. *)
