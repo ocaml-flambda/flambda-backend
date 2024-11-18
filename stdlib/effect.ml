@@ -13,7 +13,7 @@
 (**************************************************************************)
 
 type 'a t = ..
-external perform : 'a t -> 'a = "%perform"
+external perform : 'a t -> 'a @@ portable = "%perform"
 
 type exn += Unhandled: 'a t -> exn
 exception Continuation_already_resumed
@@ -40,23 +40,35 @@ type ('a, 'b) stack [@@immediate]
 type last_fiber [@@immediate]
 
 external resume :
-  ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b = "%resume"
-external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b = "%runstack"
+  ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b @@ portable = "%resume"
+
+external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b @@ portable = "%runstack"
+
+external runstack_contended :
+  ('a, 'b) stack -> ('c @ contended -> 'a) -> 'c @ contended -> 'b @@ portable = "%runstack"
 
 module Deep = struct
 
-  type ('a,'b) continuation
+  type ('a,'b) continuation : value mod uncontended
 
-  external take_cont_noexc : ('a, 'b) continuation -> ('a, 'b) stack =
+  external take_cont_noexc : ('a, 'b) continuation -> ('a, 'b) stack @@ portable =
     "caml_continuation_use_noexc" [@@noalloc]
+
   external alloc_stack :
     ('a -> 'b) ->
     (exn -> 'b) ->
     ('c t -> ('c, 'b) continuation -> last_fiber -> 'b) ->
-    ('a, 'b) stack = "caml_alloc_stack"
-  external cont_last_fiber : ('a, 'b) continuation -> last_fiber = "%field1"
+    ('a, 'b) stack @@ portable = "caml_alloc_stack"
+
+  external alloc_stack_portable :
+    ('a -> 'b) @ portable ->
+    (exn -> 'b) @ portable ->
+    ('c t @ contended -> ('c, 'b) continuation @ portable -> last_fiber -> 'b) @ portable ->
+    ('a, 'b) stack @ portable @@ portable = "caml_alloc_stack"
+
+  external cont_last_fiber : ('a, 'b) continuation -> last_fiber @@ portable = "%field1"
   external cont_set_last_fiber :
-    ('a, 'b) continuation -> last_fiber -> unit = "%setfield1"
+    ('a, 'b) continuation -> last_fiber -> unit @@ portable = "%setfield1"
 
   let[@inline never] continue k v =
     resume (take_cont_noexc k) (fun x -> x) v (cont_last_fiber k)
@@ -68,13 +80,16 @@ module Deep = struct
     resume (take_cont_noexc k) (fun e -> Printexc.raise_with_backtrace e bt)
       e (cont_last_fiber k)
 
+  external reperform :
+    'a t -> ('a, 'b) continuation -> last_fiber -> 'b @@ portable = "%reperform"
+
+  external reperform_portable :
+    'a t @ contended -> ('a, 'b) continuation @ portable -> last_fiber -> 'b @@ portable = "%reperform"
+
   type ('a,'b) handler =
     { retc: 'a -> 'b;
       exnc: exn -> 'b;
       effc: 'c.'c t -> (('c,'b) continuation -> 'b) option }
-
-  external reperform :
-    'a t -> ('a, 'b) continuation -> last_fiber -> 'b = "%reperform"
 
   let[@inline never] match_with comp arg handler =
     let effc eff k last_fiber =
@@ -86,6 +101,22 @@ module Deep = struct
     in
     let s = alloc_stack handler.retc handler.exnc effc in
     runstack s comp arg
+
+  type ('a,'b) handler_portable =
+    { retc: 'a -> 'b;
+      exnc: exn -> 'b;
+      effc: 'c.'c t @ contended -> (('c,'b) continuation @ portable -> 'b) option }
+
+  let[@inline never] match_with_portable comp arg handler =
+    let effc eff k last_fiber =
+      match handler.effc eff with
+      | Some f ->
+        cont_set_last_fiber k last_fiber;
+        f k
+      | None -> reperform_portable eff k last_fiber
+    in
+    let s = alloc_stack_portable handler.retc handler.exnc effc in
+    runstack_contended s comp arg
 
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b,'a) continuation -> 'a) option }
@@ -101,8 +132,23 @@ module Deep = struct
     let s = alloc_stack (fun x -> x) (fun e -> raise e) effc' in
     runstack s comp arg
 
+  type 'a effect_handler_portable =
+    { effc: 'b. 'b t @ contended -> (('b,'a) continuation @ portable -> 'a) option }
+
+  let[@inline never] try_with_portable comp arg handler =
+    let handle = handler.effc in
+    let effc' eff k last_fiber =
+      match handle eff with
+      | Some f ->
+          cont_set_last_fiber k last_fiber;
+          f k
+      | None -> reperform_portable eff k last_fiber
+    in
+    let s = alloc_stack_portable (fun x -> x) (fun e -> raise e) effc' in
+    runstack_contended s comp arg
+
   external get_callstack :
-    ('a,'b) continuation -> int -> Printexc.raw_backtrace =
+    ('a,'b) continuation -> int -> Printexc.raw_backtrace @@ portable =
     "caml_get_continuation_callstack"
 end
 
@@ -114,13 +160,27 @@ module Shallow = struct
     ('a -> 'b) ->
     (exn -> 'b) ->
     ('c t -> ('c, 'b) continuation -> last_fiber -> 'b) ->
-    ('a, 'b) stack = "caml_alloc_stack"
+    ('a, 'b) stack @@ portable = "caml_alloc_stack"
 
-  external cont_last_fiber : ('a, 'b) continuation -> last_fiber = "%field1"
+  external alloc_stack_portable :
+    ('a -> 'b) @ portable ->
+    (exn -> 'b) @ portable ->
+    ('c t @ contended -> ('c, 'b) continuation @ portable -> last_fiber -> 'b) @ portable ->
+    ('a, 'b) stack @ portable @@ portable = "caml_alloc_stack"
+
+  external cont_last_fiber : ('a, 'b) continuation -> last_fiber @@ portable = "%field1"
   external cont_set_last_fiber :
-    ('a, 'b) continuation -> last_fiber -> unit = "%setfield1"
+    ('a, 'b) continuation -> last_fiber -> unit @@ portable = "%setfield1"
 
-  let[@inline never] fiber : type a b. (a -> b) -> (a, b) continuation = fun f ->
+  external cont_last_fiber_contended : ('a, 'b) continuation @ contended -> last_fiber @@ portable = "%field1"
+  external cont_set_last_fiber_contended :
+    ('a, 'b) continuation @ contended -> last_fiber -> unit @@ portable = "%setfield1"
+
+  external raise : exn -> 'a @ portable @@ portable = "%reraise"
+
+  let failwith msg = raise (Failure msg)
+
+  let[@inline never] fiber : type a b. (a -> b) -> (a, b) continuation @@ portable = fun f ->
     let module M = struct type _ t += Initial_setup__ : a t end in
     let exception E of (a,b) continuation in
     let f' () = f (perform M.Initial_setup__) in
@@ -147,10 +207,10 @@ module Shallow = struct
     ('b -> 'c) ->
     (exn -> 'c) ->
     ('d t -> ('d,'b) continuation -> last_fiber -> 'c) ->
-    ('a,'c) stack = "caml_continuation_use_and_update_handler_noexc" [@@noalloc]
+    ('a,'c) stack @@ portable = "caml_continuation_use_and_update_handler_noexc" [@@noalloc]
 
   external reperform :
-    'a t -> ('a, 'b) continuation -> last_fiber -> 'c = "%reperform"
+    'a t -> ('a, 'b) continuation -> last_fiber -> 'c @@ portable = "%reperform"
 
   let[@inline never] continue_gen k resume_fun v handler =
     let effc eff k last_fiber =
@@ -173,7 +233,60 @@ module Shallow = struct
   let discontinue_with_backtrace k v bt handler =
     continue_gen k (fun e -> Printexc.raise_with_backtrace e bt) v handler
 
+  let[@inline never] fiber_portable : type a b. (a -> b) @ portable -> (a, b) continuation @ portable @@ portable = fun f ->
+    let module M = struct type _ t += Initial_setup__ : a t end in
+    let exception E of (a,b) continuation @@ portable in
+    let f' () = f (perform M.Initial_setup__) in
+    let error _ = failwith "impossible" in
+    let effc eff k last_fiber =
+      match eff with
+      | M.Initial_setup__ ->
+          cont_set_last_fiber k last_fiber;
+          raise_notrace (E k)
+      | _ -> error ()
+    in
+    let s = alloc_stack_portable error error effc in
+    match runstack_contended s f' () with
+    | exception E k -> k
+    | _ -> error ()
+
+  type ('a,'b) handler_portable =
+    { retc: 'a -> 'b;
+      exnc: exn -> 'b;
+      effc: 'c.'c t @ contended -> (('c,'a) continuation @ portable -> 'b) option }
+
+  external update_handler_portable :
+    ('a,'b) continuation @ portable contended ->
+    ('b -> 'c) @ portable ->
+    (exn -> 'c) @ portable ->
+    ('d t @ contended -> ('d,'b) continuation @ portable -> last_fiber -> 'c) @ portable ->
+    ('a,'c) stack @@ portable = "caml_continuation_use_and_update_handler_noexc" [@@noalloc]
+
+  external reperform_portable :
+    'a t @ contended -> ('a, 'b) continuation @ portable -> last_fiber -> 'c @@ portable = "%reperform"
+
+  let[@inline never] continue_gen_portable (k @ contended) resume_fun v handler =
+    let effc eff k last_fiber =
+      match handler.effc eff with
+      | Some f ->
+          cont_set_last_fiber_contended k last_fiber;
+          f k
+      | None -> reperform_portable eff k last_fiber
+    in
+    let last_fiber = cont_last_fiber_contended k in
+    let stack = update_handler_portable k handler.retc handler.exnc effc in
+    resume stack resume_fun v last_fiber
+
+  let continue_with_portable k v handler =
+    continue_gen_portable k (fun x -> x) v handler
+
+  let discontinue_with_portable k v handler =
+    continue_gen_portable k (fun e -> raise e) v handler
+
+  let discontinue_with_backtrace_portable k v bt handler =
+    continue_gen_portable k (fun e -> Printexc.raise_with_backtrace e bt) v handler
+
   external get_callstack :
-    ('a,'b) continuation -> int -> Printexc.raw_backtrace =
+    ('a,'b) continuation -> int -> Printexc.raw_backtrace @@ portable =
     "caml_get_continuation_callstack"
 end
