@@ -548,24 +548,6 @@ module Const = struct
         bits64;
         vec128 ]
 
-    (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-    let all_non_null =
-      [ any;
-        { any_non_null with name = "any" };
-        { value_or_null with name = "value" };
-        value;
-        immutable_data;
-        mutable_data;
-        void;
-        immediate;
-        immediate64;
-        float64;
-        float32;
-        word;
-        bits32;
-        bits64;
-        vec128 ]
-
     let of_attribute : Builtin_attributes.jkind_attribute -> _ t = function
       | Immediate -> immediate
       | Immediate64 -> immediate64
@@ -579,7 +561,7 @@ module Const = struct
         written in terms of [value] (as it appears above), or in terms of [immediate]
         (which would just be [immediate]). Since the latter requires less modes to be
         printed, it is chosen. *)
-    val convert : allow_null:bool -> 'd t -> Outcometree.out_jkind_const
+    val convert : 'd t -> Outcometree.out_jkind_const
   end = struct
     type printable_jkind =
       { base : string;
@@ -658,14 +640,13 @@ module Const = struct
       | [out] -> Some out
       | [] -> None
 
-    let convert ~allow_null jkind =
+    let convert jkind =
       (* For each primitive jkind, we try to print the jkind in terms of it (this is
          possible if the primitive is a subjkind of it). We then choose the "simplest". The
            "simplest" is taken to mean the one with the least number of modes that need to
          follow the [mod]. *)
       let simplest =
-        (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-        (if allow_null then Builtin.all else Builtin.all_non_null)
+        Builtin.all
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in
@@ -719,9 +700,7 @@ module Const = struct
         Outcometree.Ojkind_const_abbreviation base
   end
 
-  let to_out_jkind_const jkind =
-    let allow_null = Language_extension.(is_at_least Layouts Alpha) in
-    To_out_jkind_const.convert ~allow_null jkind
+  let to_out_jkind_const jkind = To_out_jkind_const.convert jkind
 
   let format ppf jkind = to_out_jkind_const jkind |> !Oprint.out_jkind_const ppf
 
@@ -758,10 +737,6 @@ module Const = struct
     | Abbreviation name ->
       (* CR layouts v2.8: move this to predef *)
       (match name with
-      (* CR layouts v3.0: remove this hack once non-null jkinds are out of alpha.
-         It is confusing, but preserves backwards compatibility for arrays. *)
-      | "any" when Language_extension.(is_at_least Layouts Alpha) ->
-        Builtin.any.jkind
       | "any" -> Builtin.any_non_null.jkind
       | "any_non_null" -> Builtin.any_non_null.jkind
       | "value_or_null" -> Builtin.value_or_null.jkind
