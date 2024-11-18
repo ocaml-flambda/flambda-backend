@@ -476,6 +476,11 @@ module Context_with_transl = struct
     | Left_jkind (_, ctx) -> ctx
 end
 
+let print_type_expr =
+  ref (fun ppf _ -> Format.fprintf ppf "ERROR: unset [Jkind.print_type_expr]")
+
+let set_print_type_expr p = print_type_expr := p
+
 module Const = struct
   open Jkind_types.Layout_and_axes
 
@@ -707,9 +712,8 @@ module Const = struct
     let get_baggage : type l r. (l * r) Baggage.t -> _ = function
       | No_baggage -> ""
       | Baggage (ty, tys) ->
-        let type_print ppf _ = Format.fprintf ppf "(ty)" in
         Format.asprintf " with %a"
-          (Format.pp_print_list ~pp_sep:Format.pp_print_space type_print)
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space !print_type_expr)
           (ty :: tys)
 
     let get_modal_bound (type a) ~(axis : a Axis.t) ~(base : ('d1, a) Bound.t)
@@ -772,6 +776,18 @@ module Const = struct
       | [] -> None
 
     let convert ~allow_null jkind =
+      let jkind =
+        if Language_extension.(is_at_least Layouts Alpha)
+        then jkind
+        else
+          { jkind with
+            upper_bounds =
+              Bounds.Map.f
+                { f = (fun ~axis:_ bound -> { bound with baggage = No_baggage })
+                }
+                jkind.upper_bounds
+          }
+      in
       (* For each primitive jkind, we try to print the jkind in terms of it (this is
          possible if the primitive is a subjkind of it). We then choose the "simplest". The
            "simplest" is taken to mean the one with the least number of modes that need to
@@ -873,6 +889,8 @@ module Const = struct
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
       | "vec128" -> Builtin.vec128.jkind
+      | "immutable_data" -> Builtin.immutable_data.jkind
+      | "mutable_data" -> Builtin.mutable_data.jkind
       | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
       |> allow_left |> allow_right
     | Mod (base, modifiers) ->

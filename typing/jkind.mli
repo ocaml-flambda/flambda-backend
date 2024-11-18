@@ -470,6 +470,9 @@ val get_annotation : 'd t -> Parsetree.jkind_annotation option
 (*********************************)
 (* pretty printing *)
 
+(** Call this before trying to print. *)
+val set_print_type_expr : (Format.formatter -> Types.type_expr -> unit) -> unit
+
 val format : Format.formatter -> 'd t -> unit
 
 (** Format the history of this jkind: what interactions it has had and why
