@@ -192,7 +192,7 @@ end
 
 module Const : sig
   (** Constant jkinds are used for user-written annotations *)
-  type +'d t constraint 'd = 'l * 'r
+  type 'd t constraint 'd = 'l * 'r
 
   val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
@@ -206,67 +206,67 @@ module Const : sig
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
   module Builtin : sig
-    type nonrec 'd t =
-      { jkind : 'd t;
+    type nonrec t =
+      { jkind : (allowed * allowed) t;
         name : string
       }
 
     (** This jkind is the top of the jkind lattice. All types have jkind [any].
     But we cannot compile run-time manipulations of values of types with jkind
     [any]. *)
-    val any : 'd t
+    val any : t
 
     (** [any], except for null pointers. *)
-    val any_non_null : 'd t
+    val any_non_null : t
 
     (** Value of types of this jkind are not retained at all at runtime *)
-    val void : 'd t
+    val void : t
 
     (** This is the jkind of normal ocaml values or null pointers *)
-    val value_or_null : 'd t
+    val value_or_null : t
 
     (** This is the jkind of normal ocaml values *)
-    val value : 'd t
+    val value : t
 
     (** Immutable values that don't contain functions. *)
-    val immutable_data : 'd t
+    val immutable_data : t
 
     (** Mutable values that don't contain functions. *)
-    val mutable_data : 'd t
+    val mutable_data : t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
-    val immediate64 : 'd t
+    val immediate64 : t
 
     (** We know for sure that values of types of this jkind are always immediate *)
-    val immediate : 'd t
+    val immediate : t
 
     (** This is the jkind of unboxed 64-bit floats.  They have sort
     Float64. Mode-crosses. *)
-    val float64 : 'd t
+    val float64 : t
 
     (** This is the jkind of unboxed 32-bit floats.  They have sort
     Float32. Mode-crosses. *)
-    val float32 : 'd t
+    val float32 : t
 
     (** This is the jkind of unboxed native-sized integers. They have sort
     Word. Does not mode-cross. *)
-    val word : 'd t
+    val word : t
 
     (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
     not mode-cross. *)
-    val bits32 : 'd t
+    val bits32 : t
 
     (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
     not mode-cross. *)
-    val bits64 : 'd t
+    val bits64 : t
 
     (** This is the jkind of unboxed 128-bit simd vectors. They have sort Vec128. Does
     not mode-cross. *)
-    val vec128 : 'd t
+    val vec128 : t
 
     (** A list of all Builtin jkinds *)
-    val all : 'd t list
+    val all : t list
   end
 end
 
@@ -289,8 +289,10 @@ module Builtin : sig
 
   (** This is the jkind of unboxed products.  The layout will be the product of
       the layouts of the input kinds, and the other components of the kind will
-      be the join relevant component of the inputs. *)
-  val product : why:History.product_creation_reason -> 'd t list -> 'd t
+      be the join relevant component of the inputs. This is defined to work only
+      on [jkind_l] simply as a matter of convenience; it can be generalized if
+      need be. *)
+  val product : why:History.product_creation_reason -> jkind_l list -> jkind_l
 end
 
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
@@ -328,16 +330,27 @@ val of_const :
   'd Const.t ->
   'd t
 
-val of_builtin : why:History.creation_reason -> 'd Const.Builtin.t -> 'd t
+val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd t
 
-(* CR layouts v2.8: remove this when printing is improved *)
+(** A [History.annotation_context] paired with a function for translating
+    types, if we're interpreting a [jkind_l]. *)
+module Context_with_transl : sig
+  type 'd t =
+    | Right_jkind :
+        ('l * allowed) History.annotation_context
+        -> ('l * allowed) t
+    | Left_jkind :
+        (Parsetree.core_type -> Types.type_expr)
+        * (allowed * disallowed) History.annotation_context
+        -> (allowed * disallowed) t
+end
 
 val of_annotation :
-  context:'d History.annotation_context -> Parsetree.jkind_annotation -> 'd t
+  context:'d Context_with_transl.t -> Parsetree.jkind_annotation -> 'd t
 
 val of_annotation_option_default :
   default:'d t ->
-  context:'d History.annotation_context ->
+  context:'d Context_with_transl.t ->
   Parsetree.jkind_annotation option ->
   'd t
 
@@ -517,7 +530,8 @@ val sub_or_intersect : (allowed * 'r) t -> ('l * allowed) t -> sub_or_intersect
 
 (** [sub_or_error t1 t2] does a subtype check, returning an appropriate
     [Violation.t] upon failure. *)
-val sub_or_error : (allowed * 'r) t -> ('l * allowed) t -> (unit, Violation.t) result
+val sub_or_error :
+  (allowed * 'r) t -> ('l * allowed) t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history.
     Pre-condition: the super jkind must be fully settled; no variables

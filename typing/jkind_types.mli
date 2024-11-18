@@ -16,16 +16,16 @@
    types in this file) rather than using this file directly, unless you
    are in [Types] or [Primitive]. *)
 
-(* This module defines types used in the module Jkind. This is to avoid
-   a mutual dependencies between jkind.ml(i) and types.ml(i) and bewteen
-   jkind.ml(i) and primitive.ml(i). Polymorphic versions of types are defined
-   here, with type parameters that are meant to be filled by types defined in
-   types.ml(i). jkind.ml(i) redefines the types from this file types.ml
-   with the type variables instantiated. types.ml also redefines the types
-   from this file with the type variables instantiated, but only for internal
-   use. primitive.ml(i) uses the type [Jkind.const], and types.ml(i) depends on
-   prmitive.ml(i), so [Jkind.const] is defined here and primitive.ml(i) also
-   uses this module.
+(* This module defines types used in the module Jkind. This is to avoid a mutual
+   dependencies between jkind.ml(i) and types.ml(i) and bewteen jkind.ml(i) and
+   primitive.ml(i). Polymorphic versions of types are defined here, with type
+   parameters that are meant to be filled by types defined in
+   types.ml(i). jkind.ml(i) redefines the types from this file types.ml with the
+   type variables instantiated. types.ml also redefines the types from this file
+   with the type variables instantiated, but only for internal
+   use. primitive.ml(i) uses the type [Jkind.Const.t], and types.ml(i) depends
+   on primitive.ml(i), so [Jkind.Const.t] is defined here and primitive.ml(i)
+   also uses this module.
 
    Dependency chain without Jkind_types:
          _____________________
@@ -140,8 +140,11 @@ module Bounds : sig
 
   include Allowance.Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) t
 
-  val debug_print : print_type_expr:(Format.formatter -> 'type_expr -> unit) ->
-                    Format.formatter -> ('type_expr, 'd) t -> unit
+  val debug_print :
+    print_type_expr:(Format.formatter -> 'type_expr -> unit) ->
+    Format.formatter ->
+    ('type_expr, 'd) t ->
+    unit
 end
 
 module Layout_and_axes : sig

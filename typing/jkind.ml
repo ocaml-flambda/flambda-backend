@@ -303,8 +303,6 @@ end
 (*********************************)
 (* Main type declarations *)
 
-type 'd const = (type_expr, 'd) Jkind_types.Const.t
-
 type 'd t = (type_expr, 'd) Jkind_types.t
 
 type jkind_l = (allowed * disallowed) t
@@ -327,9 +325,16 @@ end)
 let terrible_relax_l ({ jkind = { layout = _; _ }; _ } as t) = t
 
 let try_allow_r t =
-  Option.map (fun jkind -> { t with jkind }) (Layout_and_axes.try_allow_r t.jkind)
+  Option.map
+    (fun jkind -> { t with jkind })
+    (Layout_and_axes.try_allow_r t.jkind)
 
 let fresh_jkind jkind ~annotation ~why =
+  { jkind; annotation; history = Creation why; has_warned = false }
+  |> allow_left |> allow_right
+
+(* This version propagates the allowances from the [jkind] to the output. *)
+let fresh_jkind_poly jkind ~annotation ~why =
   { jkind; annotation; history = Creation why; has_warned = false }
 
 (******************************)
@@ -476,7 +481,7 @@ end
 module Const = struct
   open Jkind_types.Layout_and_axes
 
-  type 'd t = 'd const
+  type 'd t = (type_expr, 'd) Jkind_types.Const.t
 
   include Layout_and_axes.Allow_disallow
 
@@ -1062,7 +1067,7 @@ module Jkind_desc = struct
         Bounds.join upper_bounds upper_bounds_acc )
     in
     let layouts, annotations, upper_bounds =
-      List.fold_left folder ([], [], Bounds.min) jkinds
+      List.fold_left folder ([], [], Bounds.(min |> disallow_right)) jkinds
     in
     let layouts = List.rev layouts in
     let annotations = List.rev annotations in
@@ -1107,7 +1112,9 @@ module Builtin = struct
   (* CR layouts: Should we be doing more memoization here? *)
   let any ~(why : History.any_creation_reason) =
     match why with
-    | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
+    | Dummy_jkind ->
+      any_dummy_jkind (* share this one common case *) |> allow_left
+      |> allow_right
     | _ ->
       fresh_jkind Jkind_desc.Builtin.any ~annotation:(mk_annot "any")
         ~why:(Any_creation why)
@@ -1125,7 +1132,7 @@ module Builtin = struct
 
   let value_or_null ~why =
     match (why : History.value_or_null_creation_reason) with
-    | V1_safety_check -> value_v1_safety_check
+    | V1_safety_check -> value_v1_safety_check |> allow_left |> allow_right
     | _ ->
       fresh_jkind Jkind_desc.Builtin.value_or_null
         ~annotation:(mk_annot "value_or_null") ~why:(Value_or_null_creation why)
@@ -1140,7 +1147,7 @@ module Builtin = struct
 
   let product ~why ts =
     let desc, annotation = Jkind_desc.product ts in
-    fresh_jkind desc ~annotation ~why:(Product_creation why)
+    fresh_jkind_poly desc ~annotation ~why:(Product_creation why)
 end
 
 let add_nullability_crossing t =
@@ -1178,7 +1185,7 @@ let of_const ~annotation ~why (c : 'd Const.t) =
   }
 
 let of_builtin ~why Const.Builtin.{ jkind; name } =
-  of_const ~annotation:(mk_annot name) ~why jkind
+  of_const ~annotation:(mk_annot name) ~why jkind |> allow_left |> allow_right
 
 let of_annotated_const ~context ~annotation ~const ~const_loc =
   let context = Context_with_transl.get_context context in
@@ -1244,7 +1251,7 @@ let for_arrow =
 
 let for_object =
   let ({ linearity; areality = locality; uniqueness; portability; contention }
-       : Mode.Alloc.Const.t) =
+        : Mode.Alloc.Const.t) =
     (* The crossing of objects are based on the fact that they are
        produced/defined/allocated at legacy, which applies to only the
        comonadic axes. *)
@@ -1256,8 +1263,8 @@ let for_object =
   fresh_jkind
     { layout = Sort (Base Value);
       upper_bounds =
-        Bounds.simple ~linearity ~locality ~uniqueness ~portability
-          ~contention ~externality:Externality.max ~nullability:Non_null
+        Bounds.simple ~linearity ~locality ~uniqueness ~portability ~contention
+          ~externality:Externality.max ~nullability:Non_null
     }
     ~annotation:None ~why:(Value_creation Object)
 
@@ -1290,32 +1297,38 @@ module Reduced_bounds = Axis_collection (struct
   type (_, 'd, 'a) t = 'a constraint 'd = 'l * 'r
 end)
 
-let reduce_bound (type a l r) ~jkind_of_type ~(axis : a Axis.t) (bound : (l * r, a) Bound.t) =
+let reduce_bound (type a l r) ~jkind_of_type ~(axis : a Axis.t)
+    (bound : (l * r, a) Bound.t) =
   let module TypeSet = Btype.TypeSet in
   let (module A) = Axis.get axis in
   let rec loop explored bound_so_far = function
-    | _ when A.le A.max bound_so_far -> bound_so_far  (* early cutoff *)
+    | _ when A.le A.max bound_so_far -> bound_so_far (* early cutoff *)
     | [] -> bound_so_far
-    | b :: bs ->
-       if TypeSet.mem b explored
-       then loop explored bound_so_far bs
-       else
-         let explored = TypeSet.add b explored in
-         match jkind_of_type b with
-         | Some b_jkind ->
-            let b_bound = Bounds.get ~axis b_jkind.jkind.upper_bounds in
-            let bound_so_far = A.join bound_so_far b_bound.modifier in
-            loop explored bound_so_far (Baggage.as_list b_bound.baggage @ bs)
-         | None ->
-            (* hd is not principally known, so we treat it as having the max bound *)
-            (* CR layouts v2.8: Does this ever trigger? Richard is skeptical that
-               we need to worry about principality here. *)
-            A.max
+    | b :: bs -> (
+      if TypeSet.mem b explored
+      then loop explored bound_so_far bs
+      else
+        let explored = TypeSet.add b explored in
+        match jkind_of_type b with
+        | Some b_jkind ->
+          let b_bound = Bounds.get ~axis b_jkind.jkind.upper_bounds in
+          let bound_so_far = A.join bound_so_far b_bound.modifier in
+          loop explored bound_so_far (Baggage.as_list b_bound.baggage @ bs)
+        | None ->
+          (* hd is not principally known, so we treat it as having the max bound *)
+          (* CR layouts v2.8: Does this ever trigger? Richard is skeptical that
+             we need to worry about principality here. *)
+          A.max)
   in
   loop TypeSet.empty bound.modifier (Baggage.as_list bound.baggage)
 
 let reduce_bounds ~jkind_of_type jk =
-  Reduced_bounds.Create.f { f = fun (type axis) ~(axis : axis Axis.t) -> reduce_bound ~jkind_of_type ~axis (Bounds.get ~axis jk.jkind.upper_bounds) }
+  Reduced_bounds.Create.f
+    { f =
+        (fun (type axis) ~(axis : axis Axis.t) ->
+          reduce_bound ~jkind_of_type ~axis
+            (Bounds.get ~axis jk.jkind.upper_bounds))
+    }
 
 let get_modal_upper_bounds ~jkind_of_type jk : Alloc.Const.t =
   let reduced_bounds = reduce_bounds ~jkind_of_type jk in
@@ -1964,18 +1977,22 @@ let is_value_for_printing { jkind; _ } =
   match Desc.get_const (Jkind_desc.get jkind) with
   | None -> false
   | Some const ->
-  let value = Const.Builtin.value.jkind in
-  let values = [ value ] in
-  let values =
-    if (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-      Language_extension.(is_at_least Layouts Alpha)
-    then values
-    else { value with upper_bounds =
-          { value.upper_bounds with nullability =
-                                      Bound.simple Nullability.Maybe_null } }
-         :: values
-  in
-  List.exists (fun v -> Const.no_baggage_and_equal const v) values
+    let value = Const.Builtin.value.jkind in
+    let values = [value] in
+    let values =
+      if (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+         Language_extension.(is_at_least Layouts Alpha)
+      then values
+      else
+        { value with
+          upper_bounds =
+            { value.upper_bounds with
+              nullability = Bound.simple Nullability.Maybe_null
+            }
+        }
+        :: values
+    in
+    List.exists (fun v -> Const.no_baggage_and_equal const v) values
 
 (*********************************)
 (* debugging *)
@@ -2150,20 +2167,19 @@ module Debug_printers = struct
         history1 jkind_desc jkind2 (history ~print_type_expr) history2
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t ~print_type_expr ppf ({ jkind; annotation = a; history = h; has_warned = _ } : 'd t) :
-      unit =
+  let t ~print_type_expr ppf
+      ({ jkind; annotation = a; history = h; has_warned = _ } : 'd t) : unit =
     fprintf ppf "@[<v 2>{ jkind = %a@,; annotation = %a@,; history = %a }@]"
-      (Jkind_desc.Debug_printers.t ~print_type_expr) jkind
+      (Jkind_desc.Debug_printers.t ~print_type_expr)
+      jkind
       (pp_print_option Pprintast.jkind_annotation)
       a (history ~print_type_expr) h
 
   module Const = struct
     let t ~print_type_expr ppf (jkind : _ Const.t) =
-      fprintf ppf
-        "@[<v 2>{ layout = %a@,\
-         ; modes_upper_bounds = %a@,\
-         }@]"
-        Layout.Const.Debug_printers.t jkind.layout (Bounds.debug_print ~print_type_expr)
+      fprintf ppf "@[<v 2>{ layout = %a@,; modes_upper_bounds = %a@,}@]"
+        Layout.Const.Debug_printers.t jkind.layout
+        (Bounds.debug_print ~print_type_expr)
         jkind.upper_bounds
   end
 end
