@@ -462,7 +462,7 @@
   printcmm
   printlinear
   printmach
- printoperation
+  printoperation
   printreg
   proc
   simd

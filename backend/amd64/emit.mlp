@@ -25,7 +25,6 @@ open Arch
 open Proc
 open Reg
 open Simple_operation
-open Mach
 open Linear
 open Emitaux
 
