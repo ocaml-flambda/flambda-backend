@@ -121,12 +121,12 @@ let rec call_alarm arec =
     Fun.protect ~finally arec.f
   end
 
-let delete_alarm a = Atomic.set a false
+let delete_alarm a = Atomic.set_safe a false
 
 (* We use [@inline never] to ensure [arec] is never statically allocated
    (which would prevent installation of the finaliser). *)
 let [@inline never] create_alarm f =
-  let alarm = Atomic.make true in
+  let alarm = Atomic.make_safe true in
   Domain.at_exit (fun () -> delete_alarm alarm);
   let arec = { active = alarm; f = f } in
   finalise call_alarm arec;

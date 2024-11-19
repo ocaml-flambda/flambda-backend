@@ -26,7 +26,7 @@ end = struct
   type 'k t = int
   type packed = P : 'k t -> packed
 
-  let ctr = Atomic.make 0
+  let ctr = Atomic.make_safe 0
   let make () = P (Atomic.fetch_and_add ctr 1)
 
   type (_, _) eq = Eq : ('k, 'k) eq

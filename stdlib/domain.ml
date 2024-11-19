@@ -95,7 +95,7 @@ module Runtime_4 = struct
   (******** Callbacks **********)
 
   (* first spawn, domain startup and at exit functionality *)
-  let first_domain_spawned = Atomic.make false
+  let first_domain_spawned = Atomic.make_safe false
 
   let first_spawn_function = ref (fun () -> ())
 
@@ -225,7 +225,7 @@ module Runtime_5 = struct
       let to_capsule_password t = t
     end
 
-    let key_counter = Atomic.make 0
+    let key_counter = Atomic.make_safe 0
     let password_idx = Atomic.fetch_and_add key_counter 1
 
     let create_dls password =
@@ -263,11 +263,11 @@ module Runtime_5 = struct
     (* CR tdelvecchio: Remove when we have [with]. *)
     type key_initializer_list : value mod portable uncontended = KIs of key_initializer list
 
-    let parent_keys = Atomic.make (KIs ([] : key_initializer list))
+    let parent_keys = Atomic.make_safe (KIs ([] : key_initializer list))
 
     let rec add_parent_key ki =
       let (KIs l) as old = Atomic.get_safe parent_keys in
-      if not (Atomic.compare_and_set parent_keys old (KIs (ki :: l)))
+      if not (Atomic.compare_and_set_safe parent_keys old (KIs (ki :: l)))
       then add_parent_key ki
 
     let new_key_safe ?split_from_parent init_orphan =
@@ -392,7 +392,7 @@ module Runtime_5 = struct
   (******** Callbacks **********)
 
   (* first spawn, domain startup and at exit functionality *)
-  let first_domain_spawned = Atomic.make false
+  let first_domain_spawned = Atomic.make_safe false
 
   let first_spawn_function = ref (fun () -> ())
 
@@ -408,7 +408,7 @@ module Runtime_5 = struct
   let do_before_first_spawn =
     Obj.magic_portable @@ fun () ->
     if not (Atomic.get_safe first_domain_spawned) then begin
-      Atomic.set first_domain_spawned true;
+      Atomic.set_safe first_domain_spawned true;
       !first_spawn_function();
       (* Release the old function *)
       first_spawn_function := (fun () -> ())
