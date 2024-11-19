@@ -43,6 +43,7 @@ and ccobjs = ref ([] : string list)     (* .o, .a, .so and -cclib -lxxx *)
 and dllibs = ref ([] : string list)     (* .so and -dllib -lxxx *)
 
 let cmi_file = ref None
+let strongest_intf_when_no_mli = ref false
 
 module Libloc = struct
   type t = {
