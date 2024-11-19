@@ -56,9 +56,9 @@ let randomized_default =
     try Sys.getenv "CAMLRUNPARAM" with Not_found -> "" in
   String.contains params 'R'
 
-let randomized = Atomic.make randomized_default
+let randomized = Atomic.make_safe randomized_default
 
-let randomize () = Atomic.set randomized true
+let randomize () = Atomic.set_safe randomized true
 let is_randomized () = Atomic.get_safe randomized
 
 let prng_key =

@@ -21,7 +21,7 @@ open Printf
 
 type t = exn = ..
 
-let printers = Atomic.make { Modes.Portable.portable = [] }
+let printers = Atomic.make_safe { Modes.Portable.portable = [] }
 
 let locfmt () = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
 
@@ -287,7 +287,7 @@ external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 let rec register_printer_safe fn =
   let { Modes.Portable.portable = old_printers } as cur = Atomic.get_safe printers in
   let new_printers = { Modes.Portable.portable = fn :: old_printers } in
-  let success = Atomic.compare_and_set printers cur new_printers in
+  let success = Atomic.compare_and_set_safe printers cur new_printers in
   if not success then register_printer_safe fn
 
 let register_printer fn = register_printer_safe (Obj.magic_portable fn)
@@ -334,10 +334,10 @@ let default_uncaught_exception_handler exn raw_backtrace =
   flush stderr
 
 let uncaught_exception_handler =
-  Atomic.make { Modes.Portable.portable = default_uncaught_exception_handler }
+  Atomic.make_safe { Modes.Portable.portable = default_uncaught_exception_handler }
 
 let set_uncaught_exception_handler_safe fn =
-  Atomic.set uncaught_exception_handler { Modes.Portable.portable = fn }
+  Atomic.set_safe uncaught_exception_handler { Modes.Portable.portable = fn }
 
 let set_uncaught_exception_handler fn =
   set_uncaught_exception_handler_safe (Obj.magic_portable fn)
