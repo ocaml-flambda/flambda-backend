@@ -1753,7 +1753,7 @@ let emit_instr ~first ~fallthrough i =
        intervening wrapper that deals with getting the arguments to the probe
        in the correct place and managing the spilling/reloading of live
        registers.  See [emit_probe_handler_wrapper] below. *)
-                                    emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label
+    emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label
   | Lop (Probe_is_enabled { name; }) ->
     let semaphore_sym = find_or_add_semaphore name None i.dbg in
     (* Load unsigned 2-byte integer value of the semaphore.
