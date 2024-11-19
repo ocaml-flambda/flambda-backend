@@ -67,6 +67,7 @@ val objfiles : string list ref
 val ccobjs : string list ref
 val dllibs : string list ref
 val cmi_file : string option ref
+val strongest_intf_when_no_mli : bool ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
