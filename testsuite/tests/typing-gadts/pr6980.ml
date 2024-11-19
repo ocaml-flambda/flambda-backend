@@ -17,7 +17,7 @@ let g (Aux(Second, f)) = f it;;
 [%%expect{|
 type 'a t = 'a constraint 'a = [< `Bar | `Foo ]
 type 'a s = 'a constraint 'a = [< `Bar | `Baz | `Foo > `Bar ]
-type 'a first = First : 'a t second -> ([< `Bar | `Foo ] as 'a) t first
+type 'a first = First : 'b t second -> ([< `Bar | `Foo ] as 'b) t first
 and 'a second = Second : [< `Bar | `Baz | `Foo > `Bar ] s second
 type aux = Aux : ([< `Bar | `Foo ] as 'a) t second * ('a -> int) -> aux
 val it : [< `Bar | `Foo > `Bar ] = `Bar
