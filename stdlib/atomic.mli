@@ -25,10 +25,10 @@ include sig
 *)
 
 (** An atomic (mutable) reference to a value of type ['a]. *)
-type (!'a : value mod portable) t : value mod portable uncontended
+type !'a t : value mod portable uncontended
 
 (** Create an atomic reference. *)
-val make : 'a @ contended -> 'a t
+val make_safe : 'a @ portable contended -> 'a t
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -43,24 +43,23 @@ val make : 'a @ contended -> 'a t
     enhance performance.
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
-
-val make_contended : 'a @ contended -> 'a t
+val make_contended_safe : 'a @ portable contended -> 'a t
 
 (** Get the current value of the atomic reference. *)
-val get_safe : 'a t -> 'a @ contended
+val get_safe : 'a t -> 'a @ portable contended
 
 (** Set a new value for the atomic reference. *)
-val set : 'a t -> 'a @ contended -> unit
+val set_safe : 'a t -> 'a @ portable contended -> unit
 
 (** Set a new value for the atomic reference, and return the current value. *)
-val exchange_safe : 'a t -> 'a @ contended -> 'a @ contended
+val exchange_safe : 'a t -> 'a @ portable contended -> 'a @ portable contended
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-val compare_and_set : 'a t -> 'a @ contended -> 'a @ contended -> bool
+val compare_and_set_safe : 'a t -> 'a @ portable contended -> 'a @ portable contended -> bool
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
@@ -75,11 +74,24 @@ end @@ portable
 
 (* CR tdelvecchio: Document. *)
 
+val make : 'a -> 'a t
+[@@alert unsafe]
+
+val make_contended : 'a -> 'a t
+[@@alert unsafe]
+
 val get : 'a t -> 'a
+[@@alert unsafe]
+
+val set : 'a t -> 'a -> unit
 [@@alert unsafe]
 
 val exchange : 'a t -> 'a -> 'a
 [@@alert unsafe]
+
+val compare_and_set : 'a t -> 'a -> 'a -> bool
+[@@alert unsafe]
+
 
 (** {1:examples Examples}
 
