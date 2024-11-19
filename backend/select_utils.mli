@@ -98,41 +98,6 @@ val all_regs_anonymous : Reg.t array -> bool
 
 val name_regs : Backend_var.With_provenance.t -> Reg.t array -> unit
 
-val join :
-  'a ->
-  Reg.t array option ->
-  (< insert_debug :
-       'a ->
-       Mach.instruction_desc ->
-       Debuginfo.t ->
-       'c array ->
-       'd array ->
-       unit
-   ; insert_move : 'a -> Reg.t -> Reg.t -> unit
-   ; .. >
-   as
-   'b) ->
-  Reg.t array option ->
-  'b ->
-  bound_name:Backend_var.With_provenance.t option ->
-  Reg.t array option
-
-val join_array :
-  'a ->
-  (Reg.t array option
-  * < insert_debug :
-        'a ->
-        Mach.instruction_desc ->
-        Debuginfo.t ->
-        'b array ->
-        'c array ->
-        unit
-    ; insert_moves : 'a -> Reg.t array -> Reg.t array -> unit
-    ; .. >)
-  array ->
-  bound_name:Backend_var.With_provenance.t option ->
-  Reg.t array option
-
 val current_function_name : string ref
 
 val current_function_is_check_enabled : bool ref
