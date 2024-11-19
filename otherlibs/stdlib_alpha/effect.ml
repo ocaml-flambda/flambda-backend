@@ -391,7 +391,9 @@ external perform : ('a, 'e) perform -> 'a = "%perform"
 
 type (-'a, +'b) stack
 
-external resume : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b = "%resume"
+type last_fiber
+
+external resume : ('a, 'b) stack -> ('c -> 'a) -> 'c -> last_fiber -> 'b = "%resume"
 external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b = "%runstack"
 
 type (-'a, +'b) cont
@@ -403,7 +405,9 @@ external get_cont_callstack :
   ('a, 'b) cont -> int -> Printexc.raw_backtrace =
   "caml_get_continuation_callstack"
 
-type last_fiber
+external cont_last_fiber : ('a, 'b) cont -> last_fiber = "%field1"
+external cont_set_last_fiber :
+  ('a, 'b) cont -> last_fiber -> unit = "%setfield1"
 
 type 'b effc =
   { effc : 'o 'e. ('o, 'e) perform -> ('o, 'b) cont -> last_fiber -> 'b }
@@ -439,9 +443,12 @@ let alloc_cont
   let effc (type o eh) ((op, h) as perf : (o, eh) perform)
       (k : (o, (b, e * es) r) cont) last_fiber =
     match h with
-    | H.C h -> Op(op, h, k, last_fiber)
+    | H.C h -> 
+      cont_set_last_fiber k last_fiber;
+      Op(op, h, k, last_fiber)
     | Handler.Dummy ->
         let k = (Obj.magic k : (a, (b, e * es) r) cont) in
+        cont_set_last_fiber k last_fiber;
         raise_notrace (Ready__ k)
     | _ -> reperform perf k last_fiber
   in
@@ -458,7 +465,9 @@ let run_stack
      (f : (*local_*) h -> a) (h : h) : (a, e * es) r =
   let effc ((op, h) as perf) k last_fiber =
     match h with
-    | H.C h -> Op(op, h, k, last_fiber)
+    | H.C h -> 
+      cont_set_last_fiber k last_fiber;
+      Op(op, h, k, last_fiber)
     | _ -> reperform perf k last_fiber
   in
   let s = alloc_stack valuec exnc {effc} in
@@ -487,7 +496,9 @@ let rec handle :
     | Exn e -> Exception e
     | Op(op, handler, k, last_fiber) -> begin
         match Raw_handler.is_zero handler with
-        | Some Refl -> Operation(op, Cont { cont = k; mapping })
+        | Some Refl -> 
+          cont_set_last_fiber k last_fiber;
+          Operation(op, Cont { cont = k; mapping })
         | None ->
             let handler = Raw_handler.weaken handler in
             let fwd = Mapping.lookup handler mapping in
@@ -497,7 +508,7 @@ let rec handle :
 
 let resume (Cont { cont; mapping }) f x ((*local_*) handlers) =
   Mapping.set handlers mapping;
-  handle mapping (resume (take_cont_noexc cont) f x)
+  handle mapping (resume (take_cont_noexc cont) f x (cont_last_fiber cont))
 
 let continue k v ((*local_*) hs) = resume k (fun x -> x) v hs
 
