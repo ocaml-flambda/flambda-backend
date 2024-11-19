@@ -1265,25 +1265,12 @@ let of_type_decl_default ~context ~transl_type ~default
   | Some (t, _) -> t
   | None -> default
 
-let for_boxed_record ~all_void lbls =
+let for_boxed_record ~all_void =
   if all_void
   then Builtin.immediate ~why:Empty_record
-  else
-    let open Types in
-    let is_mutable =
-      List.exists
-        (fun (lbl : Types.label_declaration) ->
-          match lbl.ld_mutable with Immutable -> false | Mutable _ -> true)
-        lbls
-    in
-    let base =
-      (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
-        ~why:Boxed_record
-    in
-    List.fold_right (fun lbl -> add_baggage ~baggage:lbl.ld_type) lbls base
+  else Builtin.value ~why:Boxed_record
 
-(* CR reisenberg: fix *)
-let for_boxed_variant ~all_voids _ =
+let for_boxed_variant ~all_voids =
   if all_voids
   then Builtin.immediate ~why:Enumeration
   else Builtin.value ~why:Boxed_variant
