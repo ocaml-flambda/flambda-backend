@@ -16,7 +16,6 @@
 (* Pretty-printing of linearized machine code *)
 
 open Format
-open Mach
 open Linear
 
 let label ppf l =
@@ -30,8 +29,24 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
   let reg = print_reg in
   let regs = Printreg.regs' ~print_reg in
   let regsetaddr = Printreg.regsetaddr' ~print_reg in
-  let test = Printmach.test' ~print_reg in
-  let operation = Printmach.operation' ~print_reg in
+  let test = Simple_operation.format_test ~print_reg in
+  let operation = Printoperation.operation ~print_reg in
+  let call_operation op arg ppf res =
+    match op with
+    | Lcall_ind ->
+      fprintf ppf "call %a" regs arg
+    | Lcall_imm { func; } ->
+      fprintf ppf "call \"%s\" %a" func.sym_name regs arg
+    | Ltailcall_ind ->
+      fprintf ppf "tailcall %a" regs arg
+    | Ltailcall_imm { func; } ->
+      fprintf ppf "tailcall \"%s\" %a" func.sym_name regs arg
+    | Lextcall { func; alloc; _ } ->
+      fprintf ppf "extcall \"%s\" %a%s" func regs arg
+        (if alloc then "" else " (noalloc)")
+    | Lprobe {name;handler_code_sym} ->
+      fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
+  in
   if !Flambda_backend_flags.davail then begin
     let module RAS = Reg_availability_set in
     let ras_is_nonempty (set : RAS.t) =
@@ -68,11 +83,18 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
       fprintf ppf "prologue"
   | Lop op ->
       begin match op with
-      | Ialloc _ | Ipoll _ | Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _ ->
+      | Alloc _ | Poll ->
           fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
       | _ -> ()
       end;
       operation op i.arg ppf i.res
+  | Lcall_op op ->
+      begin match op with
+      | Lcall_ind | Lcall_imm _ | Lextcall _ | Lprobe _ ->
+          fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
+      | _ -> ()
+    end;
+    call_operation op i.arg ppf i.res
   | Lreloadretaddr ->
       fprintf ppf "reload retaddr"
   | Lreturn ->
@@ -108,7 +130,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
   | Lraise k ->
       fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
   | Lstackcheck { max_frame_size_bytes; } ->
-      fprintf ppf "stack check (%d bytes)" max_frame_size_bytes
+    fprintf ppf "stack check (%d bytes)" max_frame_size_bytes
   end;
   if not (Debuginfo.is_none i.dbg) && !Clflags.locations then
     fprintf ppf " %s" (Debuginfo.to_string i.dbg)

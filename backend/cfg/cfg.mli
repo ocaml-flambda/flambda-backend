@@ -194,15 +194,11 @@ val is_pure_terminator : terminator -> bool
 
 val is_pure_basic : basic -> bool
 
-val is_pure_operation : operation -> bool
-
 val is_noop_move : basic instruction -> bool
 
 val set_stack_offset : 'a instruction -> int -> unit
 
 val string_of_irc_work_list : irc_work_list -> string
-
-val dump_operation : Format.formatter -> operation -> unit
 
 val dump_basic : Format.formatter -> basic -> unit
 

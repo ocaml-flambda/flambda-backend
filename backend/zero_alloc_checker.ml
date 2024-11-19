@@ -2574,7 +2574,7 @@ end = struct
           ~desc:("direct tailcall to " ^ func)
           dbg
 
-      let operation t ~next (op : Cfg.operation) dbg =
+      let operation t ~next (op : Operation.t) dbg =
         match op with
         | Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
         | Const_symbol _ | Const_vec128 _ | Load _ | Floatop _
@@ -2590,10 +2590,10 @@ end = struct
             | Int64_of_float | Float32_of_int32 | Int32_of_float32
             | V128_of_v128 )
         | Static_cast _ | Csel _ ->
-          if not (Cfg.is_pure_operation op)
+          if not (Operation.is_pure op)
           then
-            Misc.fatal_errorf "Expected pure operation, got %a\n"
-              Cfg.dump_operation op;
+            Misc.fatal_errorf "Expected pure operation, got %a\n" Operation.dump
+              op;
           next
         | Reinterpret_cast (Int_of_value | Value_of_int)
         | Name_for_debugger _ | Stackoffset _ | Probe_is_enabled _ | Opaque

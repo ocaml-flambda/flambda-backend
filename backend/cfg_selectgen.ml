@@ -35,7 +35,7 @@ let maybe_emit_naming_op env ~bound_name seq regs =
     then
       let bound_name = Backend_var.With_provenance.var bound_name in
       let naming_op =
-        Cfg.Name_for_debugger
+        Operation.Name_for_debugger
           { ident = bound_name;
             provenance;
             which_parameter = None;
@@ -250,38 +250,38 @@ end
 
 class virtual selector_generic =
   object (self : 'self)
-    inherit [Label.t, Cfg.operation, Cfg.basic] Select_utils.common_selector
+    inherit [Label.t, Operation.t, Cfg.basic] Select_utils.common_selector
 
     method is_store op = match op with Store (_, _, _) -> true | _ -> false
 
     method lift_op op = Cfg.Op op
 
     method make_store mem_chunk addr_mode is_assignment =
-      Cfg.Op (Cfg.Store (mem_chunk, addr_mode, is_assignment))
+      Cfg.Op (Operation.Store (mem_chunk, addr_mode, is_assignment))
 
     method make_stack_offset stack_ofs = Cfg.Op (Stackoffset stack_ofs)
 
     method make_name_for_debugger ~ident ~which_parameter ~provenance
         ~is_assignment ~regs =
       Cfg.Op
-        (Cfg.Name_for_debugger
+        (Operation.Name_for_debugger
            { ident; which_parameter; provenance; is_assignment; regs })
 
-    method make_const_int x = Cfg.Const_int x
+    method make_const_int x = Operation.Const_int x
 
-    method make_const_float32 x = Cfg.Const_float32 x
+    method make_const_float32 x = Operation.Const_float32 x
 
-    method make_const_float x = Cfg.Const_float x
+    method make_const_float x = Operation.Const_float x
 
-    method make_const_vec128 x = Cfg.Const_vec128 x
+    method make_const_vec128 x = Operation.Const_vec128 x
 
-    method make_const_symbol x = Cfg.Const_symbol x
+    method make_const_symbol x = Operation.Const_symbol x
 
-    method make_opaque () = Cfg.Opaque
+    method make_opaque () = Operation.Opaque
 
     (* Default instruction selection for stores (of words) *)
 
-    method select_store is_assign addr arg : Cfg.operation * Cmm.expression =
+    method select_store is_assign addr arg : Operation.t * Cmm.expression =
       Store (Word_val, addr, is_assign), arg
 
     (* Default instruction selection for operators *)
@@ -527,7 +527,7 @@ class virtual selector_generic =
               then
                 let bound_name = VP.var bound_name in
                 let naming_op =
-                  Cfg.Name_for_debugger
+                  Operation.Name_for_debugger
                     { ident = bound_name;
                       provenance;
                       which_parameter = None;
@@ -656,7 +656,7 @@ class virtual selector_generic =
             let bytes = Select_utils.size_expr env (Ctuple new_args) in
             let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
             let op =
-              Cfg.Alloc
+              Operation.Alloc
                 { bytes = alloc_words * Arch.size_addr;
                   dbginfo = [{ alloc_words; alloc_dbg = dbg }];
                   mode
@@ -836,7 +836,7 @@ class virtual selector_generic =
                     then
                       let var = VP.var var in
                       let naming_op =
-                        Cfg.Name_for_debugger
+                        Operation.Name_for_debugger
                           { ident = var;
                             provenance;
                             which_parameter = None;
@@ -995,7 +995,7 @@ class virtual selector_generic =
                 then
                   let var = VP.var v in
                   let naming_op =
-                    Cfg.Name_for_debugger
+                    Operation.Name_for_debugger
                       { ident = var;
                         provenance;
                         which_parameter = None;
@@ -1307,7 +1307,7 @@ class virtual selector_generic =
                     then
                       let var = VP.var var in
                       let naming_op =
-                        Cfg.Name_for_debugger
+                        Operation.Name_for_debugger
                           { ident = var;
                             provenance;
                             which_parameter = None;
@@ -1387,7 +1387,7 @@ class virtual selector_generic =
                 then
                   let var = VP.var v in
                   let naming_op =
-                    Cfg.Name_for_debugger
+                    Operation.Name_for_debugger
                       { ident = var;
                         provenance;
                         which_parameter = None;
@@ -1493,7 +1493,7 @@ class virtual selector_generic =
             if Option.is_some provenance
             then
               let naming_op =
-                Cfg.Name_for_debugger
+                Operation.Name_for_debugger
                   { ident = var;
                     provenance;
                     which_parameter = Some param_index;

@@ -15,6 +15,8 @@
 
 (* Operations common to Mach and CFG. *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 type trap_stack =
   | Uncaught  (** Exceptions escape the current function *)
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
@@ -25,6 +27,8 @@ val equal_trap_stack : trap_stack -> trap_stack -> bool
 type integer_comparison =
   | Isigned of Cmm.integer_comparison
   | Iunsigned of Cmm.integer_comparison
+
+val string_of_integer_comparison : integer_comparison -> string
 
 val equal_integer_comparison : integer_comparison -> integer_comparison -> bool
 
@@ -48,6 +52,10 @@ type integer_operation =
   | Ipopcnt
   | Icomp of integer_comparison
 
+val string_of_integer_operation : integer_operation -> string
+
+val is_unary_integer_operation : integer_operation -> bool
+
 val equal_integer_operation : integer_operation -> integer_operation -> bool
 
 type float_comparison = Cmm.float_comparison
@@ -67,6 +75,10 @@ type float_operation =
   | Idivf
   | Icompf of float_comparison
 
+val string_of_float_operation : float_operation -> string
+
+val format_float_operation : Format.formatter -> float_operation -> unit
+
 val equal_float_operation : float_operation -> float_operation -> bool
 
 type mutable_flag =
@@ -85,5 +97,12 @@ type test =
   | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
+
+val format_test :
+  print_reg:(Format.formatter -> Reg.t -> unit) ->
+  test ->
+  Format.formatter ->
+  Reg.t array ->
+  unit
 
 val invert_test : test -> test

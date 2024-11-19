@@ -1325,9 +1325,9 @@ let emit_instr ~first ~fallthrough i =
         cfi_adjust_cfa_offset n;
       end;
     end
-  | Lop(Imove | Ispill | Ireload) ->
+  | Lop(Move | Spill | Reload) ->
       move i.arg.(0) i.res.(0)
-  | Lop(Iconst_int n) ->
+  | Lop(Const_int n) ->
       if n = 0n then begin
         match i.res.(0).loc with
         | Reg _ ->
@@ -1346,7 +1346,7 @@ let emit_instr ~first ~fallthrough i =
           I.mov (nat n) (res i 0)
       end else
         I.mov (nat n) (res i 0)
-  | Lop(Iconst_float32 f) ->
+  | Lop(Const_float32 f) ->
       begin match f with
       | 0x0000_0000l ->       (* +0.0 *)
           I.xorpd (res i 0) (res i 0)
@@ -1355,7 +1355,7 @@ let emit_instr ~first ~fallthrough i =
           let lbl = add_float_constant (Int64.of_int32 f) in
           I.movss (mem64_rip REAL4 (emit_label lbl)) (res i 0)
       end
-  | Lop(Iconst_float f) ->
+  | Lop(Const_float f) ->
       begin match f with
       | 0x0000_0000_0000_0000L ->       (* +0.0 *)
           I.xorpd (res i 0) (res i 0)
@@ -1363,7 +1363,7 @@ let emit_instr ~first ~fallthrough i =
           let lbl = add_float_constant f in
           I.movsd (mem64_rip REAL8 (emit_label lbl)) (res i 0)
       end
-  | Lop(Iconst_vec128 {high; low}) ->
+  | Lop(Const_vec128 {high; low}) ->
       begin match (high, low) with
       | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L ->
           I.xorpd (res i 0) (res i 0)
@@ -1371,19 +1371,19 @@ let emit_instr ~first ~fallthrough i =
           let lbl = add_vec128_constant {high; low} in
           I.movapd (mem64_rip VEC128 (emit_label lbl)) (res i 0)
       end
-  | Lop(Iconst_symbol s) ->
+  | Lop(Const_symbol s) ->
       add_used_symbol s.sym_name;
       load_symbol_addr s (res i 0)
-  | Lop(Icall_ind) ->
+  | Lcall_op(Lcall_ind) ->
       I.call (arg i 0);
       record_frame i.live (Dbg_other i.dbg)
-  | Lop(Icall_imm { func; }) ->
+  | Lcall_op(Lcall_imm { func; }) ->
       add_used_symbol func.sym_name;
       emit_call func;
       record_frame i.live (Dbg_other i.dbg)
-  | Lop(Itailcall_ind) ->
+  | Lcall_op(Ltailcall_ind) ->
       output_epilogue (fun () -> I.jmp (arg i 0))
-  | Lop(Itailcall_imm { func; }) ->
+  | Lcall_op(Ltailcall_imm { func; }) ->
       begin
         if func.sym_name = !function_name then
           match !tailrec_entry_point with
@@ -1396,7 +1396,7 @@ let emit_instr ~first ~fallthrough i =
           end
         end
       end
-  | Lop(Iextcall { func; alloc; stack_ofs }) ->
+  | Lcall_op(Lextcall { func; alloc; stack_ofs }) ->
       add_used_symbol func;
       if Config.runtime5 && stack_ofs > 0 then begin
         I.mov rsp r13;
@@ -1435,10 +1435,10 @@ let emit_instr ~first ~fallthrough i =
           I.mov rbx rsp;
           cfi_restore_state ();
         end;
-      end
-  | Lop(Istackoffset n) ->
+           end
+  | Lop(Stackoffset n) ->
       emit_stack_offset n
-  | Lop(Iload { memory_chunk; addressing_mode; _ }) ->
+  | Lop(Load { memory_chunk; addressing_mode; _ }) ->
       let dest = res i 0 in
       begin match memory_chunk with
       | Word_int | Word_val ->
@@ -1466,7 +1466,7 @@ let emit_instr ~first ~fallthrough i =
       | Double ->
           I.movsd (addressing addressing_mode REAL8 i 0) dest
       end
-  | Lop(Istore(chunk, addr, _)) ->
+  | Lop(Store(chunk, addr, _)) ->
       begin match chunk with
       | Word_int | Word_val ->
           I.mov (arg i 0) (addressing addr QWORD i 1)
@@ -1488,7 +1488,7 @@ let emit_instr ~first ~fallthrough i =
       | Double ->
           I.movsd (arg i 0) (addressing addr REAL8 i 1)
       end
-  | Lop(Ialloc { bytes = n; dbginfo; mode = Heap }) ->
+  | Lop(Alloc { bytes = n; dbginfo; mode = Heap }) ->
       assert (n <= (Config.max_young_wosize + 1) * Arch.size_addr);
       if !fastcode_flag then begin
         I.sub (int n) r15;
@@ -1519,7 +1519,7 @@ let emit_instr ~first ~fallthrough i =
         def_label label;
         I.lea (mem64 NONE 8 R15) (res i 0)
       end
-  | Lop(Ialloc { bytes = n; dbginfo=_; mode = Local }) ->
+  | Lop(Alloc { bytes = n; dbginfo=_; mode = Local }) ->
       let r = res i 0 in
       I.mov (domain_field Domainstate.Domain_local_sp) r;
       I.sub (int n) r;
@@ -1535,71 +1535,63 @@ let emit_instr ~first ~fallthrough i =
         { lr_lbl = lbl_call;
           lr_dbg = i.dbg;
           lr_return_lbl = lbl_after_alloc } :: !local_realloc_sites
-  | Lop(Ipoll { return_label }) ->
+  | Lop (Poll) ->
       I.cmp (domain_field Domainstate.Domain_young_limit) r15;
       let gc_call_label = new_label () in
-      let lbl_after_poll = match return_label with
-                  | None -> new_label()
-                  | Some(lbl) -> lbl in
+      let lbl_after_poll = new_label() in
       let lbl_frame =
         record_frame_label i.live (Dbg_alloc [])
       in
-      begin match return_label with
-      | None -> I.jbe (label gc_call_label)
-      | Some return_label -> I.ja (label return_label)
-      end;
+      I.jbe (label gc_call_label);
       call_gc_sites :=
         { gc_lbl = gc_call_label;
           gc_return_lbl = lbl_after_poll;
           gc_dbg = i.dbg;
           gc_frame = lbl_frame; } :: !call_gc_sites;
-      begin match return_label with
-      | None -> def_label lbl_after_poll
-      | Some _ -> I.jmp (label gc_call_label)
-      end
-  | Lop(Iintop(Icomp cmp)) ->
+      def_label lbl_after_poll
+  | Lop(Intop(Icomp cmp)) ->
       I.cmp (arg i 1) (arg i 0);
       I.set (cond cmp) al;
       I.movzx al (res i 0)
-  | Lop(Iintop_imm(Icomp cmp, n)) ->
+  | Lop(Intop_imm(Icomp cmp, n)) ->
       I.cmp (int n) (arg i 0);
       I.set (cond cmp) al;
       I.movzx al (res i 0)
-  | Lop(Iintop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
+  | Lop(Intop_imm (Iand, n)) when n >= 0 && n <= 0xFFFF_FFFF && Reg.is_reg i.res.(0) ->
       I.and_ (int n) (res32 i 0)
-  | Lop(Iintop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->
+  | Lop(Intop Ixor) when i.arg.(1).loc = i.res.(0).loc && Reg.is_reg i.res.(0) ->
       I.xor (res32 i 0) (res32 i 0)
-  | Lop(Iintop(Idiv | Imod)) ->
+  | Lop(Intop(Idiv | Imod)) ->
       I.cqo ();
       I.idiv (arg i 1)
-  | Lop(Iintop(Ilsl | Ilsr | Iasr as op)) ->
+  | Lop(Intop(Ilsl | Ilsr | Iasr as op)) ->
       (* We have i.arg.(0) = i.res.(0) and i.arg.(1) = %rcx *)
       instr_for_intop op cl (res i 0)
-  | Lop(Iintop (Imulh { signed = true })) ->
+  | Lop(Intop (Imulh { signed = true })) ->
       I.imul (arg i 1) None
-  | Lop(Iintop (Imulh { signed = false })) ->
+  | Lop(Intop (Imulh { signed = false })) ->
       I.mul (arg i 1)
-  | Lop(Iintop ((Iadd|Isub|Imul|Iand|Ior|Ixor) as op)) ->
+  | Lop(Intop ((Iadd|Isub|Imul|Iand|Ior|Ixor) as op)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (arg i 1) (res i 0)
-  | Lop(Iintop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
+  | Lop(Intop_imm(Iadd, n)) when i.arg.(0).loc <> i.res.(0).loc ->
       I.lea (mem64 NONE n (arg64 i 0)) (res i 0)
-  | Lop(Iintop_imm(Iadd, 1) | Iintop_imm(Isub, -1)) ->
+  | Lop(Intop_imm(Iadd, 1) | Intop_imm(Isub, -1)) ->
       I.inc (res i 0)
-  | Lop(Iintop_imm(Iadd, -1) | Iintop_imm(Isub, 1)) ->
+  | Lop(Intop_imm(Iadd, -1) | Intop_imm(Isub, 1)) ->
       I.dec (res i 0)
-  | Lop(Iintop_imm(op, n)) ->
+  | Lop(Intop_imm(op, n)) ->
       (* We have i.arg.(0) = i.res.(0) *)
       instr_for_intop op (int n) (res i 0)
-  | Lop(Iintop_atomic{op; size; addr}) ->
+  | Lop(Intop_atomic{op; size; addr}) ->
       emit_atomic i op size addr
-  | Lop(Ifloatop(Float64, Icompf cmp)) ->
+  | Lop(Floatop(Float64, Icompf cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpsd cond a1 a0;
       I.movq a0 (res i 0);
       I.neg (res i 0)
-  | Lop(Ifloatop(Float32, Icompf cmp)) ->
+  | Lop(Floatop(Float32, Icompf cmp)) ->
       let cond, need_swap = float_cond_and_need_swap cmp in
       let a0, a1 = if need_swap then arg i 1, arg i 0 else arg i 0, arg i 1 in
       I.cmpss cond a1 a0;
@@ -1608,40 +1600,40 @@ let emit_instr ~first ~fallthrough i =
          copy the result to the top 32 bits. *)
       I.movsxd (res32 i 0) (res i 0);
       I.neg (res i 0)
-  | Lop(Ifloatop(Float64, Inegf)) ->
+  | Lop(Floatop(Float64, Inegf)) ->
       I.xorpd (mem64_rip VEC128 (emit_symbol "caml_negf_mask")) (res i 0)
-  | Lop(Ifloatop(Float64, Iabsf)) ->
+  | Lop(Floatop(Float64, Iabsf)) ->
       I.andpd (mem64_rip VEC128 (emit_symbol "caml_absf_mask")) (res i 0)
-  | Lop(Ifloatop(Float32, Inegf)) ->
+  | Lop(Floatop(Float32, Inegf)) ->
       I.xorps (mem64_rip VEC128 (emit_symbol "caml_negf32_mask")) (res i 0)
-  | Lop(Ifloatop(Float32, Iabsf)) ->
+  | Lop(Floatop(Float32, Iabsf)) ->
       I.andps (mem64_rip VEC128 (emit_symbol "caml_absf32_mask")) (res i 0)
-  | Lop(Ifloatop(width, (Iaddf | Isubf | Imulf | Idivf as floatop))) ->
+  | Lop(Floatop(width, (Iaddf | Isubf | Imulf | Idivf as floatop))) ->
       instr_for_floatop width floatop (arg i 1) (res i 0)
-  | Lop(Iopaque) ->
+  | Lop(Opaque) ->
       assert (i.arg.(0).loc = i.res.(0).loc)
-  | Lop(Ispecific(Ilea addr)) ->
+  | Lop(Specific(Ilea addr)) ->
       I.lea (addressing addr NONE i 0) (res i 0)
-  | Lop(Ispecific(Istore_int(n, addr, _))) ->
+  | Lop(Specific(Istore_int(n, addr, _))) ->
       I.mov (nat n) (addressing addr QWORD i 0)
-  | Lop(Ispecific(Ioffset_loc(n, addr))) ->
+  | Lop(Specific(Ioffset_loc(n, addr))) ->
       I.add (int n) (addressing addr QWORD i 0)
-  | Lop(Ispecific(Ifloatarithmem(Float64, op, addr))) ->
+  | Lop(Specific(Ifloatarithmem(Float64, op, addr))) ->
       instr_for_floatarithmem Float64 op (addressing addr REAL8 i 1) (res i 0)
-  | Lop(Ispecific(Ifloatarithmem(Float32, op, addr))) ->
+  | Lop(Specific(Ifloatarithmem(Float32, op, addr))) ->
       instr_for_floatarithmem Float32 op (addressing addr REAL4 i 1) (res i 0)
-  | Lop(Ispecific(Ibswap { bitwidth = Sixteen })) ->
+  | Lop(Specific(Ibswap { bitwidth = Sixteen })) ->
       I.xchg ah al;
       I.movzx (res16 i 0) (res i 0)
-  | Lop(Ispecific(Ibswap { bitwidth = Thirtytwo })) ->
+  | Lop(Specific(Ibswap { bitwidth = Thirtytwo })) ->
       I.bswap (res32 i 0);
-  | Lop(Ispecific(Ibswap { bitwidth = Sixtyfour })) ->
+  | Lop(Specific(Ibswap { bitwidth = Sixtyfour })) ->
       I.bswap (res i 0)
-  | Lop(Ispecific(Isextend32)) ->
+  | Lop(Specific(Isextend32)) ->
       I.movsxd (arg32 i 0) (res i 0)
-  | Lop(Ispecific(Izextend32)) ->
+  | Lop(Specific(Izextend32)) ->
       I.mov (arg32 i 0) (res32 i 0)
-  | Lop(Iintop(Iclz { arg_is_non_zero; })) ->
+  | Lop(Intop(Iclz { arg_is_non_zero; })) ->
       (* CR-someday gyorsh: can we do it at selection?
          mshinwell: We need to address this and the similar CRs below.
          My feeling is that we should try to do this earlier, based on
@@ -1666,7 +1658,7 @@ let emit_instr ~first ~fallthrough i =
         I.mov (int 64) (res i 0);
         def_label lbl_nz
       end
-  | Lop(Iintop(Ictz { arg_is_non_zero; })) ->
+  | Lop(Intop(Ictz { arg_is_non_zero; })) ->
     (* CR-someday gyorsh: can we do it at selection? *)
     if Arch.Extension.enabled BMI then begin
       I.tzcnt (arg i 0) (res i 0)
@@ -1680,10 +1672,10 @@ let emit_instr ~first ~fallthrough i =
       I.mov (int 64) (res i 0);
       def_label lbl_nz
     end
-  | Lop(Iintop Ipopcnt) ->
+  | Lop(Intop Ipopcnt) ->
       assert (Arch.Extension.enabled POPCNT);
       I.popcnt (arg i 0) (res i 0)
-  | Lop(Icsel tst) ->
+  | Lop(Csel tst) ->
     let len = Array.length i.arg in
     let ifso = i.arg.(len - 2) in
     let ifnot = i.arg.(len - 1) in
@@ -1692,7 +1684,7 @@ let emit_instr ~first ~fallthrough i =
       I.cmov c (reg ifso) (res i 0)
     in
     emit_test i tst ~taken
-  | Lop(Ispecific Irdtsc) ->
+  | Lop(Specific Irdtsc) ->
     I.rdtsc ();
     let rdx = Reg64 RDX in
     (* The instruction fills in the low 32 bits of the result registers. *)
@@ -1707,7 +1699,7 @@ let emit_instr ~first ~fallthrough i =
        (* combine high and low into res *)
        I.mov rax (res i 0);
        I.or_ rdx (res i 0))
-  | Lop(Ispecific Irdpmc) ->
+  | Lop(Specific Irdpmc) ->
     assert (arg64 i 0 = RCX);
     I.rdpmc ();
     let rdx = Reg64 RDX in
@@ -1716,23 +1708,23 @@ let emit_instr ~first ~fallthrough i =
     I.sal (int 32) rdx; (* shift edx to the high part of rdx *)
     I.mov eax (res32 i 0); (* zero-extend eax *)
     I.or_ rdx (res i 0) (* combine high and low into rax *)
-  | Lop (Ispecific Ilfence) ->
+  | Lop (Specific Ilfence) ->
     I.lfence ()
-  | Lop (Ispecific Isfence) ->
+  | Lop (Specific Isfence) ->
     I.sfence ()
-  | Lop (Ispecific Imfence) ->
+  | Lop (Specific Imfence) ->
     I.mfence ()
-  | Lop (Ispecific (Isimd op)) ->
+  | Lop (Specific (Isimd op)) ->
     emit_simd_instr op i
-  | Lop (Istatic_cast cast) ->
+  | Lop (Static_cast cast) ->
     emit_static_cast cast i
-  | Lop (Ireinterpret_cast cast) ->
+  | Lop (Reinterpret_cast cast) ->
     emit_reinterpret_cast cast i
-  | Lop (Ispecific Ipause) ->
+  | Lop (Specific Ipause) ->
     I.pause ()
-  | Lop (Ispecific (Icldemote addr)) ->
+  | Lop (Specific (Icldemote addr)) ->
     I.cldemote (addressing addr QWORD i 0)
-  | Lop (Ispecific (Iprefetch { is_write; locality; addr; })) ->
+  | Lop (Specific (Iprefetch { is_write; locality; addr; })) ->
     let locality =
       match locality with
       | Nonlocal -> Nta
@@ -1741,12 +1733,12 @@ let emit_instr ~first ~fallthrough i =
       | High -> T0
     in
     I.prefetch is_write locality (addressing addr QWORD i 0)
-  | Lop(Ibeginregion) ->
+  | Lop(Begin_region) ->
       I.mov (domain_field Domainstate.Domain_local_sp) (res i 0)
-  | Lop(Iendregion) ->
+  | Lop(End_region) ->
       I.mov (arg i 0) (domain_field Domainstate.Domain_local_sp)
-  | Lop (Iname_for_debugger _) -> ()
-  | Lop (Iprobe { enabled_at_init; _ }) ->
+  | Lop (Name_for_debugger _) -> ()
+  | Lcall_op (Lprobe { enabled_at_init; _ }) ->
     let probe_label = new_label () in
     let probe =
       { probe_label;
@@ -1762,8 +1754,8 @@ let emit_instr ~first ~fallthrough i =
        intervening wrapper that deals with getting the arguments to the probe
        in the correct place and managing the spilling/reloading of live
        registers.  See [emit_probe_handler_wrapper] below. *)
-    emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label
-  | Lop (Iprobe_is_enabled { name; }) ->
+                                    emit_call_probe_handler_wrapper i ~enabled_at_init ~probe_label
+  | Lop (Probe_is_enabled { name; }) ->
     let semaphore_sym = find_or_add_semaphore name None i.dbg in
     (* Load unsigned 2-byte integer value of the semaphore.
        According to the documentation [1],
@@ -1779,7 +1771,7 @@ let emit_instr ~first ~fallthrough i =
     I.cmp (int 0) (res16 i 0);
     I.set (cond (Iunsigned Cne)) (res8 i 0);
     I.movzx (res8 i 0) (res i 0)
-  | Lop (Idls_get) ->
+  | Lop (Dls_get) ->
     if Config.runtime5
     then I.mov (domain_field Domainstate.Domain_dls_root) (res i 0)
     else Misc.fatal_error "Dls is not supported in runtime4.";
@@ -2167,8 +2159,8 @@ let emit_probe_handler_wrapper p =
   let wrap_label = probe_handler_wrapper_name p.probe_label in
   let probe_name, handler_code_sym =
     match p.probe_insn.desc with
-    | Lop (Iprobe { name; handler_code_sym; enabled_at_init = _; }) ->
-      name, handler_code_sym
+    | Lcall_op (Lprobe { name; handler_code_sym; enabled_at_init = _; }) ->
+       name, handler_code_sym
     | _ -> assert false
   in
   (* Restore stack frame info as it was at the probe site, so we can easily
@@ -2326,8 +2318,8 @@ let emit_probe_notes0 () =
   let describe_one_probe p =
     let probe_name, enabled_at_init =
       match p.probe_insn.desc with
-      | Lop (Iprobe { name; enabled_at_init; handler_code_sym=_; }) ->
-        name, enabled_at_init
+      | Lcall_op (Lprobe { name; enabled_at_init; handler_code_sym=_; }) ->
+         name, enabled_at_init
       | _ -> assert false
     in
     let args =
