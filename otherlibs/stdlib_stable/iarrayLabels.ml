@@ -36,53 +36,54 @@ type +'a t = 'a iarray
 
 (* Array operations *)
 
-external length : local_ 'a iarray -> int = "%array_length"
-external get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) =
+external length : local_ 'a iarray -> int @@ portable = "%array_length"
+external get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) @@ portable =
   "%array_safe_get"
-external ( .:() ) : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) =
+external ( .:() ) : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) @@ portable =
   "%array_safe_get"
-external unsafe_get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) =
+external unsafe_get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) @@ portable =
   "%array_unsafe_get"
-external concat : 'a iarray list -> 'a iarray = "caml_array_concat"
-external concat_local : local_ 'a iarray list -> local_ 'a iarray =
+external concat : 'a iarray list -> 'a iarray @@ portable = "caml_array_concat"
+external concat_local : local_ 'a iarray list -> local_ 'a iarray @@ portable =
   "caml_array_concat_local"
 
-external append_prim : 'a iarray -> 'a iarray -> 'a iarray = "caml_array_append"
+external append_prim : 'a iarray -> 'a iarray -> 'a iarray @@ portable = "caml_array_append"
 external append_prim_local :
-  local_ 'a iarray -> local_ 'a iarray -> local_ 'a iarray =
+  local_ 'a iarray -> local_ 'a iarray -> local_ 'a iarray @@ portable =
   "caml_array_append_local"
-external unsafe_sub : 'a iarray -> int -> int -> 'a iarray = "caml_array_sub"
-external unsafe_sub_local : local_ 'a iarray -> int -> int -> local_ 'a iarray =
+external unsafe_sub : 'a iarray -> int -> int -> 'a iarray @@ portable = "caml_array_sub"
+external unsafe_sub_local : local_ 'a iarray -> int -> int -> local_ 'a iarray @@ portable =
   "caml_array_sub_local"
-external unsafe_of_array : 'a array -> 'a iarray = "%array_to_iarray"
-external unsafe_to_array : 'a iarray -> 'a array = "%array_of_iarray"
+external unsafe_of_array : 'a array -> 'a iarray @@ portable = "%array_to_iarray"
+external unsafe_to_array : 'a iarray -> 'a array @@ portable = "%array_of_iarray"
 
 (* Used only to reimplement [init] *)
-external unsafe_set_mutable : 'a array -> int -> 'a -> unit =
+external unsafe_set_mutable : 'a array -> int -> 'a -> unit @@ portable =
   "%array_unsafe_set"
 
 (* VERY UNSAFE: Any of these functions can be used to violate the "no forward
    pointers" restriction for the local stack if not used carefully.  Each of
    these can either make a local mutable array or mutate its contents, and if
-   not careful, this can lead to an array's contents pointing forwards. *)
-external make_mutable_local : int -> local_ 'a -> local_ 'a array =
+   not careful, this can lead to an array's contents pointing forwards.  The
+   latter two functions could be overloaded via [[@local_opt]], but we don't do
+   that in order to isolate the unsafety. *)
+external make_mutable_local : int -> local_ 'a -> local_ 'a array @@ portable =
   "caml_make_local_vect"
-external unsafe_of_local_array : local_ 'a array -> local_ 'a iarray =
+external unsafe_of_local_array : local_ 'a array -> local_ 'a iarray @@ portable =
   "%array_to_iarray"
-external unsafe_set_local : local_ 'a array -> int -> local_ 'a -> unit =
+external unsafe_set_local : local_ 'a array -> int -> local_ 'a -> unit @@ portable =
   "%array_unsafe_set"
 
 (* We can't use immutable array literals in this file, since we don't want to
    require the stdlib to be compiled with extensions, so instead of [[::]] we
-   use [unsafe_of_array [||]] below.  Thankfully, we never need it in the
-   [local] case so we don't have to think about the details. *)
+   use [unsafe_of_(local_)array [||]] below. *)
 
 (* Really trusting the inliner here; to get maximum performance, it has to
    inline both [unsafe_init_local] *and* [f]. *)
 (** Precondition: [l >= 0]. *)
-let[@inline always] unsafe_init_local l (local_ f : int -> local_ 'a) = exclave_
+let[@inline always] unsafe_init_local l (local_ f : int -> local_ 'a) =
   if l = 0 then
-    unsafe_of_local_array [||]
+    exclave_ unsafe_of_local_array [||]
   else
     (* The design of this function is exceedingly delicate, and is the only way
        we can correctly allocate a local array on the stack via mutation.  We
@@ -95,17 +96,17 @@ let[@inline always] unsafe_init_local l (local_ f : int -> local_ 'a) = exclave_
        function, and why it's not tail-recursive; if it were tail-recursive,
        then we wouldn't have anywhere to put the array elements during the whole
        process. *)
-    let rec go i = exclave_ begin
+    let rec go ~l ~f i = exclave_ begin
       let x = f i in
       if i = l - 1 then
         make_mutable_local l x
       else begin
-        let res = go (i+1) in
+        let res = go ~l ~f (i+1) in
         unsafe_set_local res i x;
         res
       end
     end in
-    unsafe_of_local_array (go 0)
+    exclave_ unsafe_of_local_array (go ~l ~f 0)
 
 (* The implementation is copied from [Array] so that [f] can be [local_] *)
 let init l (local_ f) =
@@ -408,9 +409,9 @@ let fold_left_map_local f acc input_array = exclave_
   let len = length input_array in
   if len = 0 then (acc, unsafe_of_local_array [||]) else begin
     let rec go acc i = exclave_
-      let acc', elt = f acc (unsafe_get input_array i) in
+      let acc, elt = f acc (unsafe_get input_array i) in
       if i = len - 1 then
-        acc', make_mutable_local len elt
+        acc, make_mutable_local len elt
       else begin
         let (_, output_array) as res = go acc (i+1) in
         unsafe_set_local output_array i elt;
@@ -439,9 +440,9 @@ let fold_left_map_local_output f acc input_array = exclave_
   let len = length input_array in
   if len = 0 then (acc, unsafe_of_local_array [||]) else begin
     let rec go acc i = exclave_
-      let acc', elt = f acc (unsafe_get input_array i) in
+      let acc, elt = f acc (unsafe_get input_array i) in
       if i = len - 1 then
-        acc', make_mutable_local len elt
+        acc, make_mutable_local len elt
       else begin
         let (_, output_array) as res = go acc (i+1) in
         unsafe_set_local output_array i elt;

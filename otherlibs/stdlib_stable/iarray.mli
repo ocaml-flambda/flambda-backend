@@ -17,6 +17,8 @@
 
 open! Stdlib
 
+include sig
+
 (* NOTE:
    If this file is iarrayLabels.mli, run tools/sync_stdlib_docs after editing it
    to generate iarray.mli.
@@ -539,3 +541,5 @@ val of_seq_local : local_ 'a Seq.t -> local_ 'a iarray
 
 external unsafe_get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) =
   "%array_unsafe_get"
+
+end @@ portable
