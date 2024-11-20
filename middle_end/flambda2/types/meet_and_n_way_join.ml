@@ -14,24 +14,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Join_env = Typing_env.Join_env
 module ET = Expand_head.Expanded_type
 module K = Flambda_kind
 module MTC = More_type_creators
 module TG = Type_grammar
 module TE = Typing_env
 module TEE = Typing_env_extension
+module TEL = Typing_env_level
 module Vec128 = Vector_types.Vec128.Bit_pattern
-open Or_unknown.Let_syntax
-
-let all_aliases_of env simple_opt ~in_env =
-  match simple_opt with
-  | None -> Aliases.Alias_set.empty
-  | Some simple ->
-    let simples = TE.aliases_of_simple_allowable_in_types env simple in
-    Aliases.Alias_set.filter
-      ~f:(fun simple -> TE.mem_simple in_env simple)
-      simples
 
 type 'a meet_return_value = 'a TE.meet_return_value =
   | Left_input
@@ -49,6 +39,12 @@ let map_return_value f (x : _ meet_return_value) =
 type 'a meet_result =
   | Bottom of unit meet_return_value
   | Ok of 'a meet_return_value * TE.t
+
+type 'a n_way_join_result = 'a Or_unknown.t * Join_env.t
+
+let map_join_result ~f (v, env) = Or_unknown.map ~f v, env
+
+let ( let>+ ) x f = map_join_result ~f x
 
 let add_equation (simple : Simple.t) ty_of_simple env ~meet_type :
     unit meet_result =
@@ -283,19 +279,25 @@ type ext =
         when_b : TEE.t
       }
 
-let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
-    ~join_env_extension initial_env val_a1 val_b1 extensions1 val_a2 val_b2
-    extensions2 =
+let add_defined_vars env level =
+  TEL.fold_on_defined_vars
+    (fun var kind env ->
+      TE.add_definition env
+        (Bound_name.create_var (Bound_var.create var Name_mode.in_types))
+        kind)
+    level env
+
+let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type ~n_way_join
+    initial_env val_a1 val_b1 extensions1 val_a2 val_b2 extensions2 =
   let join_scope = TE.current_scope initial_env in
   let env = TE.increment_scope initial_env in
-  let to_extension scoped_env =
-    TE.cut scoped_env ~cut_after:join_scope
-    |> Typing_env_level.as_extension_without_bindings
-  in
   let direct_return r =
     map_env r ~f:(fun scoped_env ->
-        TE.add_env_extension_strict initial_env (to_extension scoped_env)
-          ~meet_type)
+        (* Need to cut as a level because we could have added new variables. *)
+        let level = TE.cut scoped_env ~cut_after:join_scope in
+        let initial_env = add_defined_vars initial_env level in
+        let ext = TEE.from_map (TEL.equations level) in
+        TE.add_env_extension_strict initial_env ext ~meet_type)
   in
   let env_a, env_b = Or_bottom.Ok env, Or_bottom.Ok env in
   let env_a, env_b =
@@ -346,17 +348,30 @@ let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
     in
     direct_return (Ok (result, env))
   | Ok (a_result, env_a), Ok (b_result, env_b) ->
-    let when_a = to_extension env_a in
-    let when_b = to_extension env_b in
+    let result_env =
+      (* Not strict, as we don't expect to be able to get bottom equations from
+         joining non-bottom ones *)
+      Join_env.cut_and_n_way_join ~meet_type ~n_way_join_type:n_way_join
+        ~cut_after:join_scope initial_env [env_a; env_b]
+    in
+    let when_a_level = TE.cut env_a ~cut_after:join_scope in
+    let when_b_level = TE.cut env_b ~cut_after:join_scope in
+    (* Either [meet_a] or [meet_b] could have introduced new variables, which
+       need to be added to the result environment. *)
+    let result_env = add_defined_vars result_env when_a_level in
+    let result_env = add_defined_vars result_env when_b_level in
     let extensions =
-      if TEE.is_empty when_a && TEE.is_empty when_b
+      if TEL.is_empty when_a_level && TEL.is_empty when_b_level
       then
         No_extensions
         (* CR vlaviron: If both extensions have equations in common, the join
            below will add them to the result environment. Keeping those common
            equations in the variant extensions then becomes redundant, but we
            don't have an easy way to detect redundancy. *)
-      else Ext { when_a; when_b }
+      else
+        let when_a = TEE.from_map (TEL.equations when_a_level) in
+        let when_b = TEE.from_map (TEL.equations when_b_level) in
+        Ext { when_a; when_b }
     in
     let env_extension_result =
       (* We only catch the cases where empty extensions are preserved *)
@@ -377,15 +392,6 @@ let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
           let val_a = extract_value a_result val_a1 val_a2 in
           let val_b = extract_value b_result val_b1 val_b2 in
           val_a, val_b, extensions)
-    in
-    let join_env =
-      Join_env.create initial_env ~left_env:env_a ~right_env:env_b
-    in
-    let result_extension = join_env_extension join_env when_a when_b in
-    let result_env =
-      (* Not strict, as we don't expect to be able to get bottom equations from
-         joining non-bottom ones *)
-      TE.add_env_extension initial_env result_extension ~meet_type
     in
     Ok (result, result_env)
 
@@ -447,12 +453,82 @@ let[@inline always] meet_unknown meet_contents ~contents_is_bottom env
   | Known contents1, Known contents2 ->
     map_result ~f:Or_unknown.known (meet_contents env contents1 contents2)
 
-let[@inline always] join_unknown join_contents (env : Join_env.t)
-    (or_unknown1 : _ Or_unknown.t) (or_unknown2 : _ Or_unknown.t) :
-    _ Or_unknown.t =
-  match or_unknown1, or_unknown2 with
-  | _, Unknown | Unknown, _ -> Unknown
-  | Known contents1, Known contents2 -> join_contents env contents1 contents2
+let[@inline always] n_way_join_unknown n_way_join_contents (env : Join_env.t)
+    or_unknowns : _ n_way_join_result =
+  let exception Unknown_result in
+  try
+    n_way_join_contents env
+      (List.fold_left
+         (fun acc (id, or_unknown) ->
+           match (or_unknown : _ Or_unknown.t) with
+           | Known contents -> (id, contents) :: acc
+           | Unknown -> raise Unknown_result)
+         [] or_unknowns)
+  with Unknown_result -> Unknown, env
+
+let[@inline always] n_way_join_head_of_kind_naked_number ~union env (t1, _) ts :
+    _ n_way_join_result =
+  Known (List.fold_left (fun t1 (_, t2) -> union t1 t2) t1 ts), env
+
+let generic_merge_map_known :
+      'index 'value 'map 'maps 'other.
+      filter_map:
+        (('index -> 'value Join_env.join_arg list -> 'value option) ->
+        'maps ->
+        'map) ->
+      map:((_ -> _ Join_env.join_arg list) -> 'map -> 'maps) ->
+      merge:
+        ((_ ->
+         'value Join_env.join_arg list option ->
+         'value option ->
+         'value Join_env.join_arg list option) ->
+        'maps ->
+        'map ->
+        'maps) ->
+      bottom:'map ->
+      other:('other -> 'value) ->
+      (Join_env.t ->
+      'value Join_env.join_arg list ->
+      ('value * Join_env.t) Or_bottom.t) ->
+      Join_env.t ->
+      ('map * 'other Or_bottom.t) Join_env.join_arg list ->
+      'map * Join_env.t =
+ fun ~filter_map ~map ~merge ~bottom ~other n_way_join env maps ->
+  match maps with
+  | [] -> bottom, env
+  | (id1, (map1, other1)) :: maps ->
+    let add_other acc id other_or_bottom =
+      match (other_or_bottom : 'other Or_bottom.t) with
+      | Bottom -> acc
+      | Ok known -> (id, other known) :: acc
+    in
+    let maps, _ =
+      List.fold_left
+        (fun (maps, others) (id2, (map2, other2)) ->
+          ( merge
+              (fun _ vals_opt val2_opt ->
+                match vals_opt, val2_opt with
+                | None, None -> None
+                | None, Some val2 -> Some ((id2, val2) :: others)
+                | Some vals, None -> Some (add_other vals id2 other2)
+                | Some vals, Some val2 -> Some ((id2, val2) :: vals))
+              maps map2,
+            add_other others id2 other2 ))
+        (map (fun val1 -> [id1, val1]) map1, add_other [] id1 other1)
+        maps
+    in
+    let env_ref = ref env in
+    let maps =
+      filter_map
+        (fun _index values ->
+          match n_way_join !env_ref values with
+          | Bottom -> None
+          | Ok (value, env) ->
+            env_ref := env;
+            Some value)
+        maps
+    in
+    maps, !env_ref
 
 (* Note: Bottom is a valid element kind for empty arrays, so this function never
    leads to a general Bottom result *)
@@ -668,9 +744,8 @@ and meet_head_of_kind_value env
   map_result
     ~f:(fun (non_null, is_null, _extensions) : TG.head_of_kind_value ->
       { non_null; is_null })
-    (meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
-       ~join_env_extension env non_null1 is_null1 No_extensions non_null2
-       is_null2 No_extensions)
+    (meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type ~n_way_join
+       env non_null1 is_null1 No_extensions non_null2 is_null2 No_extensions)
 
 and meet_head_of_kind_value_non_null env
     (head1 : TG.head_of_kind_value_non_null)
@@ -924,9 +999,8 @@ and meet_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
           Ext { when_immediate; when_block }
       in
       blocks, imms, extensions)
-    (meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
-       ~join_env_extension env imms1 blocks1 extensions1 imms2 blocks2
-       extensions2)
+    (meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type ~n_way_join
+       env imms1 blocks1 extensions1 imms2 blocks2 extensions2)
 
 and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     (t2 : TG.head_of_kind_naked_immediate) :
@@ -1119,14 +1193,42 @@ and meet_row_like :
      ~is_empty_map_known ~get_singleton_map_known ~merge_map_known initial_env
      ~known1 ~known2 ~other1 ~other2 ->
   let common_scope = TE.current_scope initial_env in
+  (* Keep track of the variables used by all extensions and lift them to the
+     result env in [extract_and_join_extensions]. *)
+  let extra_variables = ref Variable.Map.empty in
   let base_env = TE.increment_scope initial_env in
-  let extract_extension scoped_env =
-    TE.cut_as_extension scoped_env ~cut_after:common_scope
+  let add_extra_variables_and_extract_extension scoped_env =
+    let level = TE.cut scoped_env ~cut_after:common_scope in
+    extra_variables
+      := Variable.Map.union
+           (fun var k1 k2 ->
+             if not (K.equal k1 k2)
+             then Misc.fatal_errorf "Different kinds for %a" Variable.print var;
+             Some k1)
+           !extra_variables
+           (TEL.defined_variables_with_kinds level);
+    TEE.from_map (TEL.equations level)
+  in
+  let extract_and_join_extensions scoped_envs =
+    (* We add the extra variables after the join, because some of the extra
+       variables could appear in one of the [scoped_envs] and the join expects
+       that variables defined in the central env are defined in all the joined
+       envs. *)
+    let result_env =
+      Join_env.cut_and_n_way_join ~n_way_join_type:n_way_join ~meet_type
+        ~cut_after:common_scope initial_env scoped_envs
+    in
+    Variable.Map.fold
+      (fun var kind env ->
+        TE.add_definition env
+          (Bound_name.create_var (Bound_var.create var Name_mode.in_types))
+          kind)
+      !extra_variables result_env
   in
   let open struct
     type result_env =
       | No_result
-      | Extension of TEE.t
+      | Extension of TE.t list
   end in
   let result_env = ref No_result in
   let need_join =
@@ -1172,15 +1274,10 @@ and meet_row_like :
   let join_result_env scoped_env =
     let new_result_env =
       match !result_env with
-      | No_result -> Extension (extract_extension scoped_env)
-      | Extension ext1 ->
+      | No_result -> Extension [scoped_env]
+      | Extension other_envs ->
         assert need_join;
-        let ext2 = extract_extension scoped_env in
-        let join_env =
-          Join_env.create base_env ~left_env:base_env ~right_env:scoped_env
-        in
-        let extension = join_env_extension join_env ext1 ext2 in
-        Extension extension
+        Extension (scoped_env :: other_envs)
     in
     result_env := new_result_env
   in
@@ -1252,7 +1349,9 @@ and meet_row_like :
             extract_value maps_to_result case1.maps_to case2.maps_to
           in
           let env_extension =
-            if need_join then extract_extension env else TEE.empty
+            if need_join
+            then add_extra_variables_and_extract_extension env
+            else TEE.empty
           in
           if TEE.is_empty env_extension
           then ()
@@ -1361,7 +1460,10 @@ and meet_row_like :
     let env : _ Or_bottom.t =
       match !result_env with
       | No_result -> Bottom
-      | Extension ext -> TE.add_env_extension_strict initial_env ext ~meet_type
+      | Extension scoped_envs ->
+        (* We used add_env_extension_strict here before, but we don't expect to
+           get bottom equations from joining non-bottom ones. *)
+        Or_bottom.Ok (extract_and_join_extensions scoped_envs)
     in
     let match_with_input v =
       match !result_is_t1, !result_is_t2 with
@@ -1526,417 +1628,616 @@ and meet_type env t1 t2 : _ Or_bottom.t =
     | Ok (res, env) -> Ok (res, env)
     | Bottom _ -> Bottom
 
-and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
-  (* Kind mismatches should have been caught (either turned into Invalid or a
-     fatal error) before we get here. *)
-  if not (K.equal (TG.kind t1) (TG.kind t2))
-  then
-    Misc.fatal_errorf "Kind mismatch upon join:@ %a@ versus@ %a" TG.print t1
-      TG.print t2;
-  let kind = TG.kind t1 in
-  let canonical_simple1 =
-    match
-      TE.get_alias_then_canonical_simple_exn
-        (Join_env.left_join_env env)
-        t1 ~min_name_mode:Name_mode.in_types
-    with
-    | exception Not_found -> None
-    | canonical_simple -> Some canonical_simple
+and n_way_join env (ts : _ Join_env.join_arg list) : TG.t n_way_join_result =
+  let kind =
+    match ts with
+    | [] -> Misc.fatal_error "N-way join of zero types"
+    | (_, t1) :: ts ->
+      let kind = TG.kind t1 in
+      if not (List.for_all (fun (_, t) -> K.equal kind (TG.kind t)) ts)
+      then
+        Misc.fatal_errorf "Kind mismatch upon join:@ %a"
+          (Format.pp_print_list
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf "@ versus@ ")
+             TG.print)
+          (List.map snd ts);
+      kind
   in
-  let canonical_simple2 =
-    match
-      TE.get_alias_then_canonical_simple_exn
-        (Join_env.right_join_env env)
-        t2 ~min_name_mode:Name_mode.in_types
-    with
-    | exception Not_found -> None
-    | canonical_simple -> Some canonical_simple
-  in
-  let expanded1 =
-    Expand_head.expand_head0
-      (Join_env.left_join_env env)
-      t1 ~known_canonical_simple_at_in_types_mode:canonical_simple1
-  in
-  let expanded2 =
-    Expand_head.expand_head0
-      (Join_env.right_join_env env)
-      t2 ~known_canonical_simple_at_in_types_mode:canonical_simple2
-  in
-  let shared_aliases =
-    let shared_aliases =
-      match
-        ( canonical_simple1,
-          ET.descr expanded1,
-          canonical_simple2,
-          ET.descr expanded2 )
-      with
-      | None, _, None, _
-      | None, (Ok _ | Unknown), _, _
-      | _, _, None, (Ok _ | Unknown) ->
-        Aliases.Alias_set.empty
-      | Some simple1, _, _, Bottom -> Aliases.Alias_set.singleton simple1
-      | _, Bottom, Some simple2, _ -> Aliases.Alias_set.singleton simple2
-      | Some simple1, _, Some simple2, _ ->
-        if Simple.same simple1 simple2
-        then Aliases.Alias_set.singleton simple1
-        else
-          Aliases.Alias_set.inter
-            (all_aliases_of
-               (Join_env.left_join_env env)
-               canonical_simple1
-               ~in_env:(Join_env.target_join_env env))
-            (all_aliases_of
-               (Join_env.right_join_env env)
-               canonical_simple2
-               ~in_env:(Join_env.target_join_env env))
+  let ts = List.filter (fun (_, ty) -> not (TG.is_obviously_bottom ty)) ts in
+  match
+    List.map
+      (fun (id, ty) ->
+        ( id,
+          TE.get_alias_then_canonical_simple_exn
+            ~min_name_mode:Name_mode.in_types
+            (Join_env.joined_env env id)
+            ty ))
+      ts
+  with
+  | canonical_simples -> (
+    match Join_env.n_way_join_simples env kind canonical_simples with
+    | Bottom, join_env -> Known (MTC.bottom kind), join_env
+    | Ok simple, join_env -> Known (TG.alias_type_of kind simple), join_env)
+  | exception Not_found ->
+    (* CR vlaviron: Fix this to return Unknown when Product can handle it *)
+    map_join_result ~f:ET.to_type
+      (n_way_join_expanded_head env kind
+         (List.map
+            (fun (id, ty) ->
+              id, Expand_head.expand_head (Join_env.joined_env env id) ty)
+            ts))
+
+and n_way_join_expanded_head env kind (expandeds : ET.t Join_env.join_arg list)
+    : ET.t n_way_join_result =
+  match expandeds with
+  | [] -> Known (ET.create_bottom kind), env
+  | (id1, expanded1) :: expandeds -> (
+    let exception Unknown_result in
+    let[@inline always] extract_head_exn extract expandeds =
+      List.filter_map
+        (fun (id2, expanded2) ->
+          match ET.descr expanded2 with
+          | Bottom -> None
+          | Unknown -> raise Unknown_result
+          | Ok head2 -> Some (id2, extract head2))
+        expandeds
     in
-    match bound_name with
-    | None -> shared_aliases
-    | Some bound_name ->
-      (* We only return one type for each name, so we have to decide whether to
-         return an alias or an expanded head. Usually we prefer aliases, because
-         we hope that the alias itself will have a concrete equation anyway, but
-         we must be careful to ensure that we don't return aliases to self
-         (obviously wrong) or, if two variables [x] and [y] alias each other,
-         redundant equations [x : (= y)] and [y : (= x)]. *)
-      Aliases.Alias_set.filter
-        ~f:(fun alias ->
-          TE.alias_is_bound_strictly_earlier
-            (Join_env.target_join_env env)
-            ~bound_name ~alias)
-        shared_aliases
-  in
-  let unknown () : _ Or_unknown.t =
-    (* CR vlaviron: Fix this to Unknown when Product can handle it *)
-    Known (MTC.unknown kind)
-  in
-  match Aliases.Alias_set.find_best shared_aliases with
-  | Some alias -> Known (TG.alias_type_of kind alias)
-  | None -> (
-    match canonical_simple1, canonical_simple2 with
-    | Some simple1, Some simple2
-      when Join_env.already_joining env simple1 simple2 ->
-      unknown ()
-    | Some _, Some _ | Some _, None | None, Some _ | None, None -> (
-      let join_heads env : _ Or_unknown.t =
-        Known (ET.to_type (join_expanded_head env kind expanded1 expanded2))
+    match ET.descr expanded1 with
+    | Bottom -> n_way_join_expanded_head env kind expandeds
+    | Unknown -> Known (ET.create_unknown kind), env
+    | Ok descr1 -> (
+      let expanded_or_unknown, env =
+        try
+          match descr1 with
+          | Value head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Value head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_value env ((id1, head1) :: heads)
+            in
+            ET.create_value head
+          | Naked_immediate head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_immediate head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_naked_immediate env ((id1, head1) :: heads)
+            in
+            ET.create_naked_immediate head
+          | Naked_float32 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_float32 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_naked_float32 env (head1, id1) heads
+            in
+            ET.create_naked_float32 head
+          | Naked_float head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_float head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_naked_float env (head1, id1) heads
+            in
+            ET.create_naked_float head
+          | Naked_int32 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_int32 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_naked_int32 env (head1, id1) heads
+            in
+            ET.create_naked_int32 head
+          | Naked_int64 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_int64 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_naked_int64 env (head1, id1) heads
+            in
+            ET.create_naked_int64 head
+          | Naked_nativeint head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_nativeint head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_naked_nativeint env (head1, id1) heads
+            in
+            ET.create_naked_nativeint head
+          | Naked_vec128 head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Naked_vec128 head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_naked_vec128 env (head1, id1) heads
+            in
+            ET.create_naked_vec128 head
+          | Rec_info head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Rec_info head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_rec_info env (head1, id1) heads
+            in
+            ET.create_rec_info head
+          | Region head1 ->
+            let heads =
+              extract_head_exn
+                (function[@warning "-fragile-match"]
+                  | Region head -> head | _ -> assert false)
+                expandeds
+            in
+            let>+ head =
+              n_way_join_head_of_kind_region env (head1, id1) heads
+            in
+            ET.create_region head
+        with Unknown_result -> Or_unknown.Unknown, env
       in
-      match canonical_simple1, canonical_simple2 with
-      | Some simple1, Some simple2 -> (
-        match Join_env.now_joining env simple1 simple2 with
-        | Continue env -> join_heads env
-        | Stop -> unknown ())
-      | Some _, None | None, Some _ | None, None -> join_heads env))
+      match expanded_or_unknown with
+      | Known expanded -> Known expanded, env
+      | Unknown -> Known (ET.unknown_like expanded1), env))
 
-and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
-  match ET.descr expanded1, ET.descr expanded2 with
-  | Bottom, Bottom -> ET.create_bottom kind
-  (* The target environment defines all the names from the left and right
-     environments, so we can safely return any input as the result *)
-  | Ok _, Bottom -> expanded1
-  | Bottom, Ok _ -> expanded2
-  | Unknown, _ | _, Unknown -> ET.create_unknown kind
-  | Ok descr1, Ok descr2 -> (
-    let expanded_or_unknown =
-      match descr1, descr2 with
-      | Value head1, Value head2 ->
-        let>+ head = join_head_of_kind_value env head1 head2 in
-        ET.create_value head
-      | Naked_immediate head1, Naked_immediate head2 ->
-        let>+ head = join_head_of_kind_naked_immediate env head1 head2 in
-        ET.create_naked_immediate head
-      | Naked_float32 head1, Naked_float32 head2 ->
-        let>+ head = join_head_of_kind_naked_float32 env head1 head2 in
-        ET.create_naked_float32 head
-      | Naked_float head1, Naked_float head2 ->
-        let>+ head = join_head_of_kind_naked_float env head1 head2 in
-        ET.create_naked_float head
-      | Naked_int32 head1, Naked_int32 head2 ->
-        let>+ head = join_head_of_kind_naked_int32 env head1 head2 in
-        ET.create_naked_int32 head
-      | Naked_int64 head1, Naked_int64 head2 ->
-        let>+ head = join_head_of_kind_naked_int64 env head1 head2 in
-        ET.create_naked_int64 head
-      | Naked_nativeint head1, Naked_nativeint head2 ->
-        let>+ head = join_head_of_kind_naked_nativeint env head1 head2 in
-        ET.create_naked_nativeint head
-      | Naked_vec128 head1, Naked_vec128 head2 ->
-        let>+ head = join_head_of_kind_naked_vec128 env head1 head2 in
-        ET.create_naked_vec128 head
-      | Rec_info head1, Rec_info head2 ->
-        let>+ head = join_head_of_kind_rec_info env head1 head2 in
-        ET.create_rec_info head
-      | Region head1, Region head2 ->
-        let>+ head = join_head_of_kind_region env head1 head2 in
-        ET.create_region head
-      | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-          | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-          | Rec_info _ | Region _ ),
-          _ ) ->
-        assert false
-    in
-    match expanded_or_unknown with
-    | Known expanded -> expanded
-    | Unknown -> ET.unknown_like expanded1)
-
-and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
-    (head2 : TG.head_of_kind_value) : TG.head_of_kind_value Or_unknown.t =
-  let non_null : _ Or_unknown_or_bottom.t =
-    match head1.non_null, head2.non_null with
-    | Unknown, _ | _, Unknown -> Unknown
-    | Bottom, x | x, Bottom -> x
-    | Ok head1, Ok head2 -> (
-      match join_head_of_kind_value_non_null env head1 head2 with
-      | Unknown -> Unknown
-      | Known head -> Ok head)
-  in
+and n_way_join_head_of_kind_value env
+    (heads : TG.head_of_kind_value Join_env.join_arg list) :
+    TG.head_of_kind_value n_way_join_result =
   let is_null : TG.is_null =
-    match head1.is_null, head2.is_null with
-    | Maybe_null, _ | _, Maybe_null -> Maybe_null
-    | Not_null, Not_null -> Not_null
+    match heads with
+    | [] -> Not_null
+    | (_, head1) :: heads -> (
+      match head1.is_null with
+      | Maybe_null -> Maybe_null
+      | Not_null ->
+        if List.for_all
+             (fun (_, (head2 : TG.head_of_kind_value)) ->
+               match head2.is_null with Not_null -> true | Maybe_null -> false)
+             heads
+        then Not_null
+        else Maybe_null)
+  in
+  let non_null : _ Or_unknown_or_bottom.t * _ =
+    let exception Unknown_result in
+    try
+      let non_nulls =
+        List.fold_left
+          (fun non_null (id2, (head2 : TG.head_of_kind_value)) ->
+            match head2.non_null with
+            | Unknown -> raise Unknown_result
+            | Bottom -> non_null
+            | Ok head_of_kind_value_non_null ->
+              (id2, head_of_kind_value_non_null) :: non_null)
+          [] heads
+      in
+      match non_nulls with
+      | [] -> Bottom, env
+      | _ :: _ -> (
+        match n_way_join_head_of_kind_value_non_null env non_nulls with
+        | Unknown, env -> Unknown, env
+        | Known head, env -> Ok head, env)
+    with Unknown_result -> Unknown, env
   in
   match[@warning "-4"] non_null, is_null with
-  | Unknown, Maybe_null -> Unknown
-  | _, _ -> Known { non_null; is_null }
+  | (Unknown, env), Maybe_null -> Unknown, env
+  | (non_null, env), _ -> Known { non_null; is_null }, env
 
-and join_head_of_kind_value_non_null env
-    (head1 : TG.head_of_kind_value_non_null)
-    (head2 : TG.head_of_kind_value_non_null) :
-    TG.head_of_kind_value_non_null Or_unknown.t =
-  match head1, head2 with
-  | ( Variant
-        { blocks = blocks1;
-          immediates = imms1;
-          extensions = extensions1;
-          is_unique = is_unique1
-        },
-      Variant
-        { blocks = blocks2;
-          immediates = imms2;
-          extensions = extensions2;
-          is_unique = is_unique2
-        } ) ->
-    let>+ blocks, immediates, extensions =
-      join_variant env ~blocks1 ~imms1 ~extensions1 ~blocks2 ~imms2 ~extensions2
-    in
-    (* Uniqueness tracks whether duplication/lifting is allowed. It must always
-       be propagated, both for meet and join. *)
-    let is_unique = is_unique1 || is_unique2 in
-    TG.Head_of_kind_value_non_null.create_variant ~is_unique ~blocks ~immediates
-      ~extensions
-  | ( Mutable_block { alloc_mode = alloc_mode1 },
-      Mutable_block { alloc_mode = alloc_mode2 } ) ->
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    Known (TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode)
-  | Boxed_float32 (n1, alloc_mode1), Boxed_float32 (n2, alloc_mode2) ->
-    let>+ n = join env n1 n2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value_non_null.create_boxed_float32 n alloc_mode
-  | Boxed_float (n1, alloc_mode1), Boxed_float (n2, alloc_mode2) ->
-    let>+ n = join env n1 n2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value_non_null.create_boxed_float n alloc_mode
-  | Boxed_int32 (n1, alloc_mode1), Boxed_int32 (n2, alloc_mode2) ->
-    let>+ n = join env n1 n2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value_non_null.create_boxed_int32 n alloc_mode
-  | Boxed_int64 (n1, alloc_mode1), Boxed_int64 (n2, alloc_mode2) ->
-    let>+ n = join env n1 n2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value_non_null.create_boxed_int64 n alloc_mode
-  | Boxed_nativeint (n1, alloc_mode1), Boxed_nativeint (n2, alloc_mode2) ->
-    let>+ n = join env n1 n2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value_non_null.create_boxed_nativeint n alloc_mode
-  | Boxed_vec128 (n1, alloc_mode1), Boxed_vec128 (n2, alloc_mode2) ->
-    let>+ n = join env n1 n2 in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    TG.Head_of_kind_value_non_null.create_boxed_vec128 n alloc_mode
-  | ( Closures { by_function_slot = by_function_slot1; alloc_mode = alloc_mode1 },
-      Closures
-        { by_function_slot = by_function_slot2; alloc_mode = alloc_mode2 } ) ->
-    let by_function_slot =
-      join_row_like_for_closures env by_function_slot1 by_function_slot2
-    in
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    Known
-      (TG.Head_of_kind_value_non_null.create_closures by_function_slot
-         alloc_mode)
-  | String strs1, String strs2 ->
-    let strs = String_info.Set.union strs1 strs2 in
-    Known (TG.Head_of_kind_value_non_null.create_string strs)
-  | ( Array
-        { element_kind = element_kind1;
-          length = length1;
-          contents = array_contents1;
-          alloc_mode = alloc_mode1
-        },
-      Array
-        { element_kind = element_kind2;
-          length = length2;
-          contents = array_contents2;
-          alloc_mode = alloc_mode2
-        } ) ->
-    let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-    let element_kind = join_array_element_kinds element_kind1 element_kind2 in
-    let contents =
-      join_array_contents env array_contents1 array_contents2
-        ~joined_element_kind:element_kind
-    in
-    let>+ length = join env length1 length2 in
-    TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
-      ~length contents alloc_mode
-  | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
-      | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
-      | Closures _ | String _ | Array _ ),
-      _ ) ->
-    Unknown
+and n_way_join_head_of_kind_value_non_null env
+    (heads : TG.head_of_kind_value_non_null Join_env.join_arg list) :
+    TG.head_of_kind_value_non_null n_way_join_result =
+  match heads with
+  | [] -> Misc.fatal_error "No n-way join of head of kind value non null"
+  | (first_id, first_head) :: other_heads -> (
+    let exception Unknown_result in
+    try
+      match first_head with
+      | Variant { blocks; immediates; extensions; is_unique } ->
+        let blocks, imms, extensions, is_unique =
+          List.fold_right
+            (fun (other_id, other_head)
+                 (blocks, immediates, extensions, is_unique) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Variant
+                  { blocks = other_blocks;
+                    immediates = other_immediates;
+                    extensions = other_extensions;
+                    is_unique = other_is_unique
+                  } ->
+                (* Uniqueness tracks whether duplication/lifting is allowed. It
+                   must always be propagated, both for meet and join. *)
+                ( (other_id, other_blocks) :: blocks,
+                  (other_id, other_immediates) :: immediates,
+                  (other_id, other_extensions) :: extensions,
+                  is_unique || other_is_unique )
+              | _ -> raise Unknown_result)
+            other_heads
+            ( [first_id, blocks],
+              [first_id, immediates],
+              [first_id, extensions],
+              is_unique )
+        in
+        let>+ blocks, immediates, extensions =
+          n_way_join_variant env ~blocks ~imms ~extensions
+        in
+        TG.Head_of_kind_value_non_null.create_variant ~is_unique ~blocks
+          ~immediates ~extensions
+      | Mutable_block { alloc_mode } ->
+        let alloc_mode =
+          List.fold_right
+            (fun (_, other_head) alloc_mode ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Mutable_block { alloc_mode = other_alloc_mode } ->
+                join_alloc_mode alloc_mode other_alloc_mode
+              | _ -> raise Unknown_result)
+            other_heads alloc_mode
+        in
+        ( Known (TG.Head_of_kind_value_non_null.create_mutable_block alloc_mode),
+          env )
+      | Boxed_float32 (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_float32 (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_float32 n alloc_mode
+      | Boxed_float (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_float (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_float n alloc_mode
+      | Boxed_int32 (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_int32 (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_int32 n alloc_mode
+      | Boxed_int64 (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_int64 (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_int64 n alloc_mode
+      | Boxed_nativeint (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_nativeint (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_nativeint n alloc_mode
+      | Boxed_vec128 (n, alloc_mode) ->
+        let ns, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ns, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Boxed_vec128 (other_n, other_alloc_mode) ->
+                ( (other_id, other_n) :: ns,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, n], alloc_mode)
+        in
+        let>+ n = n_way_join env ns in
+        TG.Head_of_kind_value_non_null.create_boxed_vec128 n alloc_mode
+      | Closures { by_function_slot; alloc_mode } ->
+        let function_slots, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (function_slots, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Closures
+                  { by_function_slot = other_by_function_slot;
+                    alloc_mode = other_alloc_mode
+                  } ->
+                ( (other_id, other_by_function_slot) :: function_slots,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, by_function_slot], alloc_mode)
+        in
+        let by_function_slot, env =
+          n_way_join_row_like_for_closures env function_slots
+        in
+        ( Known
+            (TG.Head_of_kind_value_non_null.create_closures by_function_slot
+               alloc_mode),
+          env )
+      | String strs ->
+        let all_strs =
+          List.fold_right
+            (fun (_, other_head) all_strs ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | String other_strs -> String_info.Set.union other_strs all_strs
+              | _ -> raise Unknown_result)
+            other_heads strs
+        in
+        Known (TG.Head_of_kind_value_non_null.create_string all_strs), env
+      | Array { element_kind; length; contents; alloc_mode } ->
+        let lengths, contents, element_kind, alloc_mode =
+          List.fold_right
+            (fun (other_id, other_head) (ls, cs, element_kind, alloc_mode) ->
+              match[@warning "-fragile-match"]
+                (other_head : TG.head_of_kind_value_non_null)
+              with
+              | Array
+                  { element_kind = other_element_kind;
+                    length = other_length;
+                    contents = other_contents;
+                    alloc_mode = other_alloc_mode
+                  } ->
+                ( (other_id, other_length) :: ls,
+                  (other_id, other_contents) :: cs,
+                  join_array_element_kinds other_element_kind element_kind,
+                  join_alloc_mode alloc_mode other_alloc_mode )
+              | _ -> raise Unknown_result)
+            other_heads
+            ([first_id, length], [first_id, contents], element_kind, alloc_mode)
+        in
+        let contents, env =
+          n_way_join_array_contents env contents
+            ~joined_element_kind:element_kind
+        in
+        let>+ length = n_way_join env lengths in
+        TG.Head_of_kind_value_non_null.create_array_with_contents ~element_kind
+          ~length contents alloc_mode
+    with Unknown_result -> Unknown, env)
 
-and join_array_contents env (array_contents1 : TG.array_contents Or_unknown.t)
-    (array_contents2 : TG.array_contents Or_unknown.t)
-    ~(joined_element_kind : _ Or_unknown_or_bottom.t) =
-  join_unknown
-    (fun env (array_contents1 : TG.array_contents)
-         (array_contents2 : TG.array_contents) : TG.array_contents Or_unknown.t ->
-      match array_contents1, array_contents2 with
-      | Mutable, Mutable -> Known TG.Mutable
-      | Mutable, Immutable _ | Immutable _, Mutable -> Unknown
-      | Immutable { fields = fields1 }, Immutable { fields = fields2 } -> (
-        if Array.length fields1 <> Array.length fields2
-        then Unknown
-        else
-          match joined_element_kind with
-          | Bottom | Unknown -> Unknown
-          | Ok _ -> (
-            let exception Unknown_result in
-            try
-              let fields =
-                Array.init (Array.length fields1) (fun idx ->
-                    match join env fields1.(idx) fields2.(idx) with
-                    | Unknown -> raise Unknown_result
-                    | Known ty -> ty)
-              in
-              Known (TG.Immutable { fields })
-            with Unknown_result -> Unknown)))
-    env array_contents1 array_contents2
+and n_way_join_array_contents env
+    (array_contents : TG.array_contents Or_unknown.t Join_env.join_arg list)
+    ~(joined_element_kind : _ Or_unknown_or_bottom.t) : _ n_way_join_result =
+  n_way_join_unknown
+    (fun env (array_contents : TG.array_contents Join_env.join_arg list) :
+         TG.array_contents n_way_join_result ->
+      match array_contents with
+      | [] -> Misc.fatal_error "no n-way join for array contents"
+      | (_, Mutable) :: array_contents ->
+        if List.for_all
+             (fun (_, array_content) ->
+               match (array_content : TG.array_contents) with
+               | Mutable -> true
+               | Immutable _ -> false)
+             array_contents
+        then Known TG.Mutable, env
+        else Unknown, env
+      | (first_id, Immutable { fields = first_fields }) :: array_contents -> (
+        match joined_element_kind with
+        | Bottom | Unknown -> Unknown, env
+        | Ok _ -> (
+          let exception Unknown_result in
+          try
+            let other_fields =
+              List.fold_left
+                (fun acc (id, array_content) ->
+                  match (array_content : TG.array_contents) with
+                  | Mutable -> raise Unknown_result
+                  | Immutable { fields = other_fields } ->
+                    if Array.length other_fields <> Array.length first_fields
+                    then raise Unknown_result
+                    else (id, other_fields) :: acc)
+                [] array_contents
+            in
+            let env_ref = ref env in
+            let fields =
+              Array.init (Array.length first_fields) (fun idx ->
+                  match
+                    n_way_join !env_ref
+                      ((first_id, first_fields.(idx))
+                      :: List.rev_map
+                           (fun (other_id, other_fields) ->
+                             other_id, other_fields.(idx))
+                           other_fields)
+                  with
+                  | Unknown, _ -> raise Unknown_result
+                  | Known ty, env ->
+                    env_ref := env;
+                    ty)
+            in
+            Known (TG.Immutable { fields }), !env_ref
+          with Unknown_result -> Unknown, env)))
+    env array_contents
 
-and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms1 : TG.t Or_unknown.t) ~(extensions1 : TG.variant_extensions)
-    ~(blocks2 : TG.Row_like_for_blocks.t Or_unknown.t)
-    ~(imms2 : TG.t Or_unknown.t) ~(extensions2 : TG.variant_extensions) :
+and n_way_join_variant env
+    ~(blocks : TG.Row_like_for_blocks.t Or_unknown.t Join_env.join_arg list)
+    ~(imms : TG.t Or_unknown.t Join_env.join_arg list)
+    ~(extensions : TG.variant_extensions Join_env.join_arg list) :
     (TG.Row_like_for_blocks.t Or_unknown.t
     * TG.t Or_unknown.t
     * TG.variant_extensions)
-    Or_unknown.t =
-  let blocks = join_unknown join_row_like_for_blocks env blocks1 blocks2 in
-  let imms = join_unknown (join ?bound_name:None) env imms1 imms2 in
-  let extensions : TG.variant_extensions =
-    match extensions1, extensions2 with
-    | No_extensions, Ext _ | Ext _, No_extensions | No_extensions, No_extensions
-      ->
-      No_extensions
-    | ( Ext { when_immediate = when_immediate1; when_block = when_block1 },
-        Ext { when_immediate = when_immediate2; when_block = when_block2 } ) ->
-      let when_immediate =
-        join_env_extension env when_immediate1 when_immediate2
+    n_way_join_result =
+  let blocks, env =
+    n_way_join_unknown n_way_join_row_like_for_blocks env blocks
+  in
+  let imms, env = n_way_join_unknown n_way_join env imms in
+  let (env, extensions) : _ * TG.variant_extensions =
+    let exception No_extensions in
+    try
+      let when_immediates, when_blocks =
+        List.fold_left
+          (fun (when_immediates, when_blocks) (id, extensions) ->
+            match (extensions : TG.variant_extensions) with
+            | No_extensions -> raise No_extensions
+            | Ext { when_immediate; when_block } ->
+              ( (id, when_immediate) :: when_immediates,
+                (id, when_block) :: when_blocks ))
+          ([], []) extensions
       in
-      let when_block = join_env_extension env when_block1 when_block2 in
+      let env0 = env in
+      let when_immediate, env = n_way_join_env_extension env when_immediates in
+      let when_block, env = n_way_join_env_extension env when_blocks in
       if TEE.is_empty when_immediate && TEE.is_empty when_block
-      then No_extensions
-      else Ext { when_immediate; when_block }
+      then env0, TG.No_extensions
+      else env, TG.Ext { when_immediate; when_block }
+    with No_extensions -> env, TG.No_extensions
   in
   match blocks, imms, extensions with
-  | Unknown, Unknown, No_extensions -> Unknown
+  | Unknown, Unknown, No_extensions -> Unknown, env
   | (Unknown | Known _), (Unknown | Known _), (No_extensions | Ext _) ->
-    Known (blocks, imms, extensions)
+    Known (blocks, imms, extensions), env
 
-and join_head_of_kind_naked_immediate env
-    (head1 : TG.Head_of_kind_naked_immediate.t)
-    (head2 : TG.Head_of_kind_naked_immediate.t) :
-    TG.Head_of_kind_naked_immediate.t Or_unknown.t =
+and n_way_join_head_of_kind_naked_immediate env
+    (heads : TG.Head_of_kind_naked_immediate.t Join_env.join_arg list) :
+    TG.Head_of_kind_naked_immediate.t n_way_join_result =
   let module I = Targetint_31_63 in
-  match head1, head2 with
-  | Naked_immediates is1, Naked_immediates is2 -> (
-    assert (not (Targetint_31_63.Set.is_empty is1));
-    assert (not (Targetint_31_63.Set.is_empty is2));
-    let is = I.Set.union is1 is2 in
-    let head = TG.Head_of_kind_naked_immediate.create_naked_immediates is in
+  let immediates, is_int, get_tag, is_null =
+    List.fold_left
+      (fun (immediates, is_int, get_tag, is_null) (id2, head2) ->
+        match (head2 : TG.head_of_kind_naked_immediate) with
+        | Is_int ty -> immediates, (id2, ty) :: is_int, get_tag, is_null
+        | Get_tag ty -> immediates, is_int, (id2, ty) :: get_tag, is_null
+        | Is_null ty -> immediates, is_int, get_tag, (id2, ty) :: is_null
+        | Naked_immediates is ->
+          I.Set.union is immediates, is_int, get_tag, is_null)
+      (I.Set.empty, [], [], []) heads
+  in
+  match is_int, get_tag, is_null with
+  | [], [], [] -> (
+    let head =
+      TG.Head_of_kind_naked_immediate.create_naked_immediates immediates
+    in
     match head with
-    | Ok head -> Known head
+    | Ok head -> Known head, env
     | Bottom ->
       Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
-  | Is_int ty1, Is_int ty2 ->
-    let>+ ty = join env ty1 ty2 in
+  | _ :: _, [], [] when I.Set.is_empty immediates ->
+    let>+ ty = n_way_join env is_int in
     TG.Head_of_kind_naked_immediate.create_is_int ty
-  | Get_tag ty1, Get_tag ty2 ->
-    let>+ ty = join env ty1 ty2 in
+  | [], _ :: _, [] when I.Set.is_empty immediates ->
+    let>+ ty = n_way_join env get_tag in
     TG.Head_of_kind_naked_immediate.create_get_tag ty
-  | Is_null ty1, Is_null ty2 ->
-    let>+ ty = join env ty1 ty2 in
+  | [], [], _ :: _ when I.Set.is_empty immediates ->
+    let>+ ty = n_way_join env is_null in
     TG.Head_of_kind_naked_immediate.create_is_null ty
   (* From now on: Irregular cases *)
   (* CR vlaviron: There could be improvements based on reduction (trying to
      reduce the is_int and get_tag cases to naked_immediate sets, then joining
      those) but this looks unlikely to be useful and could end up begin quite
      expensive. *)
-  | Is_int ty, Naked_immediates is_int | Naked_immediates is_int, Is_int ty -> (
-    if I.Set.is_empty is_int
-    then Known (TG.Head_of_kind_naked_immediate.create_is_int ty)
-    else
-      (* Slightly better than Unknown *)
-      let head =
-        TG.Head_of_kind_naked_immediate.create_naked_immediates
-          (I.Set.add I.zero (I.Set.add I.one is_int))
-      in
-      match head with
-      | Ok head -> Known head
-      | Bottom ->
-        Misc.fatal_error
-          "Did not expect [Bottom] from [create_naked_immediates]")
-  | Get_tag ty, Naked_immediates tags | Naked_immediates tags, Get_tag ty ->
-    if I.Set.is_empty tags
-    then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
-    else Unknown
-  | Is_null ty, Naked_immediates is_null | Naked_immediates is_null, Is_null ty
-    -> (
-    if I.Set.is_empty is_null
-    then Known (TG.Head_of_kind_naked_immediate.create_is_null ty)
-    else
-      (* Slightly better than Unknown *)
-      let head =
-        TG.Head_of_kind_naked_immediate.create_naked_immediates
-          (I.Set.add I.zero (I.Set.add I.one is_null))
-      in
-      match head with
-      | Ok head -> Known head
-      | Bottom ->
-        Misc.fatal_error
-          "Did not expect [Bottom] from [create_naked_immediates]")
-  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
-    Unknown
+  | _, _ :: _, _ -> Unknown, env
+  | _ :: _, [], _ | _, [], _ :: _ -> (
+    (* Slightly better than Unknown *)
+    let head =
+      TG.Head_of_kind_naked_immediate.create_naked_immediates
+        (I.Set.add I.zero (I.Set.add I.one immediates))
+    in
+    match head with
+    | Ok head -> Known head, env
+    | Bottom ->
+      Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
 
-and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =
-  Known (TG.Head_of_kind_naked_float32.union t1 t2)
+and n_way_join_head_of_kind_naked_float32 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number
+    ~union:TG.Head_of_kind_naked_float32.union env t1 ts
 
-and join_head_of_kind_naked_float _env t1 t2 : _ Or_unknown.t =
-  Known (TG.Head_of_kind_naked_float.union t1 t2)
+and n_way_join_head_of_kind_naked_float env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_float.union
+    env t1 ts
 
-and join_head_of_kind_naked_int32 _env t1 t2 : _ Or_unknown.t =
-  Known (TG.Head_of_kind_naked_int32.union t1 t2)
+and n_way_join_head_of_kind_naked_int32 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_int32.union
+    env t1 ts
 
-and join_head_of_kind_naked_int64 _env t1 t2 : _ Or_unknown.t =
-  Known (TG.Head_of_kind_naked_int64.union t1 t2)
+and n_way_join_head_of_kind_naked_int64 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_int64.union
+    env t1 ts
 
-and join_head_of_kind_naked_nativeint _env t1 t2 : _ Or_unknown.t =
-  Known (TG.Head_of_kind_naked_nativeint.union t1 t2)
+and n_way_join_head_of_kind_naked_nativeint env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number
+    ~union:TG.Head_of_kind_naked_nativeint.union env t1 ts
 
-and join_head_of_kind_naked_vec128 _env t1 t2 : _ Or_unknown.t =
-  Known (TG.Head_of_kind_naked_vec128.union t1 t2)
+and n_way_join_head_of_kind_naked_vec128 env t1 ts : _ n_way_join_result =
+  n_way_join_head_of_kind_naked_number ~union:TG.Head_of_kind_naked_vec128.union
+    env t1 ts
 
-and join_head_of_kind_rec_info _env t1 t2 : _ Or_unknown.t =
-  if Rec_info_expr.equal t1 t2 then Known t1 else Unknown
+and n_way_join_head_of_kind_rec_info env (t1, _) ts : _ n_way_join_result =
+  if List.for_all (fun (_, t2) -> Rec_info_expr.equal t1 t2) ts
+  then Known t1, env
+  else Unknown, env
 
-and join_head_of_kind_region _env () () : _ Or_unknown.t = Known ()
+and n_way_join_head_of_kind_region env ((), _) (_ : unit Join_env.join_arg list)
+    : _ n_way_join_result =
+  Known (), env
 
 (* Note that unlike the [join] function on types, for structures (closures
    entry, row-like, etc.) the return type is [t] (and not [t Or_unknown.t]).
@@ -1944,351 +2245,459 @@ and join_head_of_kind_region _env () () : _ Or_unknown.t = Known ()
    case gracefully. All join functions for structures can handle [Unknown]
    results from generic [join]s without needing to propagate them. *)
 
-and join_row_like :
+and n_way_join_row_like :
       'lattice 'shape 'maps_to 'row_tag 'known.
-      join_maps_to:(Join_env.t -> 'shape -> 'maps_to -> 'maps_to -> 'maps_to) ->
+      n_way_join_maps_to:
+        (Join_env.t ->
+        'shape ->
+        'maps_to Join_env.join_arg list ->
+        'maps_to * Join_env.t) ->
       equal_index:('lattice -> 'lattice -> bool) ->
       inter_index:('lattice -> 'lattice -> 'lattice) ->
-      join_shape:('shape -> 'shape -> 'shape Or_unknown.t) ->
+      n_way_join_shape:('shape list -> 'shape Or_unknown_or_bottom.t) ->
       merge_map_known:
-        (('row_tag ->
-         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
-         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
-         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) ->
-        'known ->
-        'known ->
-        'known) ->
+        ((Join_env.t ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t
+         Join_env.join_arg
+         list ->
+         (('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t
+         * Join_env.t)
+         Or_bottom.t) ->
+        Join_env.t ->
+        ('known * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t)
+        Join_env.join_arg
+        list ->
+        'known * Join_env.t) ->
       Join_env.t ->
-      known1:'known ->
-      known2:'known ->
-      other1:('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
-      other2:('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
+      known:
+        ('known * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t)
+        Join_env.join_arg
+        list ->
+      other:
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t
+        Join_env.join_arg
+        list ->
       ('known * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t)
-      Or_unknown.t =
- fun ~join_maps_to ~equal_index ~inter_index ~join_shape ~merge_map_known
-     join_env ~known1 ~known2 ~other1 ~other2 ->
-  let join_index (i1 : ('lattice, 'shape) TG.row_like_index)
-      (i2 : ('lattice, 'shape) TG.row_like_index) :
-      ('lattice, 'shape) TG.row_like_index Or_unknown.t =
-    match join_shape i1.shape i2.shape with
+      n_way_join_result =
+ fun ~n_way_join_maps_to ~equal_index ~inter_index ~n_way_join_shape
+     ~merge_map_known join_env ~known ~other ->
+  let n_way_join_index (is : ('lattice, 'shape) TG.row_like_index list) :
+      ('lattice, 'shape) TG.row_like_index Or_unknown_or_bottom.t =
+    match
+      n_way_join_shape
+        (List.map
+           (fun (i : ('lattice, 'shape) TG.row_like_index) -> i.shape)
+           is)
+    with
+    | Bottom -> Bottom
     | Unknown -> Unknown
-    | Known shape -> (
+    | Ok shape -> (
       let return_index domain =
-        Or_unknown.Known (TG.Row_like_index.create ~domain ~shape)
+        Or_unknown_or_bottom.Ok (TG.Row_like_index.create ~domain ~shape)
       in
-      match i1.domain, i2.domain with
-      | Known i1', Known i2' ->
-        if equal_index i1' i2'
-        then return_index i1.domain
+      match is with
+      | [] -> Bottom
+      | i1 :: is -> (
+        match i1.domain with
+        | Known i1'
+          when List.for_all
+                 (fun (i2 : ('lattice, 'shape) TG.row_like_index) ->
+                   match i2.domain with
+                   | Known i2' -> equal_index i1' i2'
+                   | At_least _ ->
+                     (* We can't represent exactly the union. Approximate with
+                        [at_least (inter_index)] below. *)
+                     false)
+                 is ->
+          return_index i1.domain
+        | Known i1' | At_least i1' ->
+          return_index
+            (TG.Row_like_index_domain.at_least
+               (List.fold_left
+                  (fun i1' (i2 : ('lattice, 'shape) TG.row_like_index) ->
+                    match i2.domain with
+                    | At_least i2' -> inter_index i1' i2'
+                    | Known i2' -> inter_index i1' i2')
+                  i1' is))))
+  in
+  let n_way_join_case join_env (cases : _ Join_env.join_arg list) :
+      _ n_way_join_result Or_bottom.t =
+    let index =
+      n_way_join_index (List.map (fun (_, case) -> case.TG.index) cases)
+    in
+    match index with
+    | Unknown -> Ok (Unknown, join_env)
+    | Bottom -> Bottom
+    | Ok index ->
+      let maps_to, join_env =
+        n_way_join_maps_to join_env index.shape
+          (List.map (fun (id, case) -> id, case.TG.maps_to) cases)
+      in
+      let env_extension, join_env =
+        n_way_join_env_extension join_env
+          (List.map (fun (id, case) -> id, case.TG.env_extension) cases)
+      in
+      Ok
+        ( Known (TG.Row_like_case.create ~maps_to ~index ~env_extension),
+          join_env )
+  in
+  let n_way_join_knowns join_env cases : _ n_way_join_result Or_bottom.t =
+    let exception Unknown_result in
+    try
+      let cases =
+        List.map
+          (fun (id, case) ->
+            match (case : _ Or_unknown.t) with
+            | Unknown -> raise Unknown_result
+            | Known case -> id, case)
+          cases
+      in
+      n_way_join_case join_env cases
+    with Unknown_result -> Ok (Unknown, join_env)
+  in
+  let known, join_env = merge_map_known n_way_join_knowns join_env known in
+  let other : _ Or_bottom.t n_way_join_result =
+    let others =
+      List.fold_left
+        (fun acc (id, other) ->
+          match (other : _ Or_bottom.t) with
+          | Bottom -> acc
+          | Ok other -> (id, other) :: acc)
+        [] other
+    in
+    match n_way_join_case join_env others with
+    | Bottom -> Known Bottom, join_env
+    | Ok others -> map_join_result others ~f:(fun case -> Or_bottom.Ok case)
+  in
+  match other with
+  | Known other, join_env -> Known (known, other), join_env
+  | Unknown, join_env -> Unknown, join_env
+
+and n_way_join_row_like_for_blocks env
+    (row_like_for_blocks : TG.Row_like_for_blocks.t Join_env.join_arg list) :
+    _ n_way_join_result =
+  let split_or_bottom =
+    List.fold_left
+      (fun (acc : _ Or_bottom.t) (id, (row_like : TG.row_like_for_blocks)) :
+           _ Or_bottom.t ->
+        if TG.Row_like_for_blocks.is_bottom row_like
+        then acc
         else
-          (* We can't represent exactly the union, This is the best
-             approximation *)
-          return_index (TG.Row_like_index_domain.at_least (inter_index i1' i2'))
-      | Known i1', At_least i2'
-      | At_least i1', Known i2'
-      | At_least i1', At_least i2' ->
-        return_index (TG.Row_like_index_domain.at_least (inter_index i1' i2')))
+          match acc with
+          | Bottom ->
+            Ok
+              ( [id, (row_like.known_tags, row_like.other_tags)],
+                [id, row_like.other_tags],
+                row_like.alloc_mode )
+          | Ok (known, other, alloc_mode) ->
+            Ok
+              ( (id, (row_like.known_tags, row_like.other_tags)) :: known,
+                (id, row_like.other_tags) :: other,
+                join_alloc_mode alloc_mode row_like.alloc_mode ))
+      Or_bottom.Bottom row_like_for_blocks
   in
-  let join_case join_env
-      (case1 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t)
-      (case2 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t) : _ Or_unknown.t
-      =
-    let index = join_index case1.index case2.index in
-    Or_unknown.map index
-      ~f:(fun (index : ('lattice, 'shape) TG.Row_like_index.t) ->
-        let maps_to =
-          join_maps_to join_env index.shape case1.maps_to case2.maps_to
-        in
-        let env_extension =
-          join_env_extension join_env case1.env_extension case2.env_extension
-        in
-        TG.Row_like_case.create ~maps_to ~index ~env_extension)
-  in
-  let join_knowns
-      (case1 :
-        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option)
-      (case2 :
-        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) :
-      ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
-    match case1, case2 with
-    | None, None -> None
-    | Some Unknown, _ | _, Some Unknown -> Some Unknown
-    | Some (Known case1), None -> (
-      let only_case1 () =
-        (* cf. Type_descr.join_head_or_unknown_or_bottom, we need to join these
-           to ensure that free variables not present in the target env are
-           cleaned out of the types. Same below *)
-        (* CR pchambart: This seems terribly inefficient. *)
-        let join_env =
-          Join_env.create
-            (Join_env.target_join_env join_env)
-            ~left_env:(Join_env.left_join_env join_env)
-            ~right_env:(Join_env.left_join_env join_env)
-        in
-        let case1 = join_case join_env case1 case1 in
-        Some case1
-      in
-      match other2 with
-      | Bottom -> only_case1 ()
-      | Ok other_case -> Some (join_case join_env case1 other_case))
-    | None, Some (Known case2) -> (
-      let only_case2 () =
-        (* See at the other bottom case *)
-        let join_env =
-          Join_env.create
-            (Join_env.target_join_env join_env)
-            ~left_env:(Join_env.right_join_env join_env)
-            ~right_env:(Join_env.right_join_env join_env)
-        in
-        let case2 = join_case join_env case2 case2 in
-        Some case2
-      in
-      match other1 with
-      | Bottom -> only_case2 ()
-      | Ok other_case -> Some (join_case join_env other_case case2))
-    | Some (Known case1), Some (Known case2) ->
-      Some (join_case join_env case1 case2)
-  in
-  let known =
-    merge_map_known
-      (fun _tag case1 case2 -> join_knowns case1 case2)
-      known1 known2
-  in
-  let other :
-      ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t Or_unknown.t =
-    match other1, other2 with
-    | Bottom, Bottom -> Known Bottom
-    | Ok other1, Bottom ->
-      (* See the previous cases *)
-      let env =
-        Join_env.create
-          (Join_env.target_join_env join_env)
-          ~left_env:(Join_env.left_join_env join_env)
-          ~right_env:(Join_env.left_join_env join_env)
-      in
-      let other1 = join_case env other1 other1 in
-      Or_unknown.map other1 ~f:(fun other1 -> Or_bottom.Ok other1)
-    | Bottom, Ok other2 ->
-      (* See the previous cases *)
-      let env =
-        Join_env.create
-          (Join_env.target_join_env join_env)
-          ~left_env:(Join_env.right_join_env join_env)
-          ~right_env:(Join_env.right_join_env join_env)
-      in
-      let other2 = join_case env other2 other2 in
-      Or_unknown.map other2 ~f:(fun other2 -> Or_bottom.Ok other2)
-    | Ok other1, Ok other2 ->
-      Or_unknown.map (join_case join_env other1 other2) ~f:(fun case ->
-          Or_bottom.Ok case)
-  in
-  Or_unknown.map other ~f:(fun other -> known, other)
+  match split_or_bottom with
+  | Bottom -> Known TG.Row_like_for_blocks.bottom, env
+  | Ok (known, other, alloc_mode) ->
+    let n_way_join_shape shapes : _ Or_unknown_or_bottom.t =
+      match shapes with
+      | [] -> Bottom
+      | shape1 :: shapes ->
+        if List.for_all (K.Block_shape.equal shape1) shapes
+        then Ok shape1
+        else Unknown
+    in
+    let merge_map_known =
+      generic_merge_map_known ~filter_map:Tag.Map.filter_map ~map:Tag.Map.map
+        ~merge:Tag.Map.merge ~bottom:Tag.Map.empty ~other:Or_unknown.known
+    in
+    map_join_result
+      (n_way_join_row_like ~n_way_join_maps_to:n_way_join_int_indexed_product
+         ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
+         ~n_way_join_shape ~merge_map_known env ~known ~other)
+      ~f:(fun (known_tags, other_tags) ->
+        TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode)
 
-and join_row_like_for_blocks env
-    ({ known_tags = known1; other_tags = other1; alloc_mode = alloc_mode1 } :
-      TG.Row_like_for_blocks.t)
-    ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
-      TG.Row_like_for_blocks.t) =
-  let join_shape shape1 shape2 : _ Or_unknown.t =
-    if K.Block_shape.equal shape1 shape2 then Known shape1 else Unknown
+and n_way_join_row_like_for_closures env
+    (closures : TG.Row_like_for_closures.t Join_env.join_arg list) :
+    TG.Row_like_for_closures.t * _ =
+  let known, other =
+    match closures with
+    | [] -> Misc.fatal_error "Join row_like for no closures."
+    | (id1, { known_closures = known1; other_closures = other1 })
+      :: other_closures ->
+      List.fold_left
+        (fun (known, other)
+             (id2, { TG.known_closures = known2; TG.other_closures = other2 }) ->
+          (id2, (known2, other2)) :: known, (id2, other2) :: other)
+        ([id1, (known1, other1)], [id1, other1])
+        other_closures
   in
-  Or_unknown.map
-    (join_row_like ~join_maps_to:join_int_indexed_product
-       ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
-       ~join_shape ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1
-       ~other2) ~f:(fun (known_tags, other_tags) ->
-      let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-      TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode)
-
-and join_row_like_for_closures env
-    ({ known_closures = known1; other_closures = other1 } :
-      TG.Row_like_for_closures.t)
-    ({ known_closures = known2; other_closures = other2 } :
-      TG.Row_like_for_closures.t) : TG.Row_like_for_closures.t =
-  let merge_map_known join_case known1 known2 =
-    Function_slot.Map.merge
-      (fun function_slot case1 case2 ->
-        let case1 = Option.map Or_unknown.known case1 in
-        let case2 = Option.map Or_unknown.known case2 in
-        match (join_case function_slot case1 case2 : _ Or_unknown.t option) with
-        | None -> None
-        | Some (Known case) -> Some case
-        | Some Unknown ->
+  let merge_map_known join_case env knowns =
+    generic_merge_map_known ~filter_map:Function_slot.Map.filter_map
+      ~map:Function_slot.Map.map ~merge:Function_slot.Map.merge
+      ~bottom:Function_slot.Map.empty
+      ~other:(fun case -> case)
+      (fun env cases ->
+        let cases =
+          List.map (fun (id, case) -> id, Or_unknown.known case) cases
+        in
+        match (join_case env cases : (_ Or_unknown.t * _) Or_bottom.t) with
+        | Bottom -> Or_bottom.Bottom
+        | Ok (Known case, env) -> Or_bottom.Ok (case, env)
+        | Ok (Unknown, _) ->
           Misc.fatal_error "Join row_like case for closures returned Unknown")
-      known1 known2
+      env knowns
   in
   match
-    join_row_like
-      ~join_maps_to:(fun env () x y -> join_closures_entry env x y)
+    n_way_join_row_like
+      ~n_way_join_maps_to:(fun env () entries ->
+        n_way_join_closures_entry env entries)
       ~equal_index:Set_of_closures_contents.equal
       ~inter_index:Set_of_closures_contents.inter
-      ~join_shape:(fun () () -> Or_unknown.Known ())
-      ~merge_map_known env ~known1 ~known2 ~other1 ~other2
+      ~n_way_join_shape:(fun _ -> Or_unknown_or_bottom.Ok ())
+      ~merge_map_known env ~known ~other
   with
-  | Known (known_closures, other_closures) ->
-    TG.Row_like_for_closures.create_raw ~known_closures ~other_closures
-  | Unknown ->
+  | Known (known_closures, other_closures), env ->
+    TG.Row_like_for_closures.create_raw ~known_closures ~other_closures, env
+  | Unknown, _ ->
     Misc.fatal_error "Join row_like case for closures returned Unknown"
 
-and join_closures_entry env
-    ({ function_types = function_types1;
-       closure_types = closure_types1;
-       value_slot_types = value_slot_types1
-     } :
-      TG.Closures_entry.t)
-    ({ function_types = function_types2;
-       closure_types = closure_types2;
-       value_slot_types = value_slot_types2
-     } :
-      TG.Closures_entry.t) : TG.Closures_entry.t =
-  let function_types =
-    Function_slot.Map.merge
-      (fun _function_slot func_type1 func_type2 ->
-        match func_type1, func_type2 with
-        | None, None | Some _, None | None, Some _ -> None
-        | Some func_type1, Some func_type2 ->
-          Some (join_function_type env func_type1 func_type2))
-      function_types1 function_types2
+and n_way_join_closures_entry env
+    (entries : TG.Closures_entry.t Join_env.join_arg list) :
+    TG.Closures_entry.t * _ =
+  let function_types, closure_types, value_slot_types =
+    match entries with
+    | [] -> Function_slot.Map.empty, [], []
+    | ( id1,
+        { TG.function_types = function_types1;
+          TG.closure_types = closure_types1;
+          TG.value_slot_types = value_slot_types1
+        } )
+      :: entries ->
+      let function_types =
+        Function_slot.Map.map
+          (fun func_type -> [id1, func_type])
+          function_types1
+      in
+      List.fold_left
+        (fun (function_types, closure_types, value_slot_types)
+             ( id2,
+               { TG.function_types = function_types2;
+                 TG.closure_types = closure_types2;
+                 TG.value_slot_types = value_slot_types2
+               } ) ->
+          let function_types =
+            Function_slot.Map.merge
+              (fun _ vals_opt val2_opt ->
+                match vals_opt, val2_opt with
+                | None, None -> None
+                | None, Some val2 -> Some [id2, val2]
+                | Some _, None -> vals_opt
+                | Some vals, Some val2 -> Some ((id2, val2) :: vals))
+              function_types function_types2
+          in
+          ( function_types,
+            (id2, closure_types2) :: closure_types,
+            (id2, value_slot_types2) :: value_slot_types ))
+        (function_types, [id1, closure_types1], [id1, value_slot_types1])
+        entries
   in
-  let closure_types =
-    join_function_slot_indexed_product env closure_types1 closure_types2
+  let function_types, env =
+    let env_ref = ref env in
+    let function_types =
+      Function_slot.Map.map
+        (fun func_types ->
+          let func_type, env = n_way_join_function_type !env_ref func_types in
+          env_ref := env;
+          func_type)
+        function_types
+    in
+    function_types, !env_ref
   in
-  let value_slot_types =
-    join_value_slot_indexed_product env value_slot_types1 value_slot_types2
+  let closure_types, env =
+    n_way_join_function_slot_indexed_product env closure_types
   in
-  TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types
+  let value_slot_types, env =
+    n_way_join_value_slot_indexed_product env value_slot_types
+  in
+  TG.Closures_entry.create ~function_types ~closure_types ~value_slot_types, env
 
-and join_generic_product :
-      'key 'key_map.
+and n_way_join_generic_product :
+      'product 'join_map 'map 'index.
       Join_env.t ->
-      components_by_index1:'key_map ->
-      components_by_index2:'key_map ->
+      'product Join_env.join_arg list ->
+      empty:'map ->
+      components_by_index:('product -> 'map) ->
+      map:((TG.t -> TG.t Join_env.join_arg list) -> 'map -> 'join_map) ->
       merge:
-        (('key -> TG.t option -> TG.t option -> TG.t option) ->
-        'key_map ->
-        'key_map ->
-        'key_map) ->
-      'key_map =
- fun env ~components_by_index1 ~components_by_index2 ~merge ->
-  merge
-    (fun _index ty1_opt ty2_opt ->
-      match ty1_opt, ty2_opt with
-      | None, _ | _, None -> None
-      | Some ty1, Some ty2 -> (
-        match join env ty1 ty2 with Known ty -> Some ty | Unknown -> None))
-    components_by_index1 components_by_index2
+        (('index ->
+         TG.t Join_env.join_arg list option ->
+         TG.t option ->
+         TG.t Join_env.join_arg list option) ->
+        'join_map ->
+        'map ->
+        'join_map) ->
+      filter_map:
+        (('index -> TG.t Join_env.join_arg list -> TG.t option) ->
+        'join_map ->
+        'map) ->
+      'map * Join_env.t =
+ fun env indexed_products ~empty ~components_by_index:get_components_by_index
+     ~map ~merge ~filter_map ->
+  match indexed_products with
+  | [] -> empty, env
+  | (id1, indexed_product1) :: indexed_products ->
+    let components_by_index =
+      List.fold_left
+        (fun components_by_index (id2, indexed_product2) ->
+          merge
+            (fun _ vals_opt val2_opt ->
+              match vals_opt, val2_opt with
+              | None, _ | _, None -> None
+              | Some vals, Some val2 -> Some ((id2, val2) :: vals))
+            components_by_index
+            (get_components_by_index indexed_product2))
+        (map
+           (fun val1 -> [id1, val1])
+           (get_components_by_index indexed_product1))
+        indexed_products
+    in
+    let env_ref = ref env in
+    let components_by_index =
+      filter_map
+        (fun _index tys ->
+          match n_way_join !env_ref tys with
+          | Known ty, env ->
+            env_ref := env;
+            Some ty
+          | Unknown, env ->
+            env_ref := env;
+            None)
+        components_by_index
+    in
+    components_by_index, !env_ref
 
-and join_function_slot_indexed_product env
-    ({ function_slot_components_by_index = components_by_index1 } :
-      TG.Product.Function_slot_indexed.t)
-    ({ function_slot_components_by_index = components_by_index2 } :
-      TG.Product.Function_slot_indexed.t) : TG.Product.Function_slot_indexed.t =
-  let function_slot_components_by_index =
-    join_generic_product env ~components_by_index1 ~components_by_index2
-      ~merge:Function_slot.Map.merge
+and n_way_join_function_slot_indexed_product env
+    (function_slots_indexed :
+      TG.Product.Function_slot_indexed.t Join_env.join_arg list) :
+    TG.Product.Function_slot_indexed.t * _ =
+  let function_slot_components_by_index, env =
+    n_way_join_generic_product env function_slots_indexed
+      ~filter_map:Function_slot.Map.filter_map ~empty:Function_slot.Map.empty
+      ~map:Function_slot.Map.map ~merge:Function_slot.Map.merge
+      ~components_by_index:(fun { TG.function_slot_components_by_index } ->
+        function_slot_components_by_index)
   in
-  TG.Product.Function_slot_indexed.create function_slot_components_by_index
+  TG.Product.Function_slot_indexed.create function_slot_components_by_index, env
 
-and join_value_slot_indexed_product env
-    ({ value_slot_components_by_index = components_by_index1 } :
-      TG.Product.Value_slot_indexed.t)
-    ({ value_slot_components_by_index = components_by_index2 } :
-      TG.Product.Value_slot_indexed.t) : TG.Product.Value_slot_indexed.t =
-  let value_slot_components_by_index =
-    join_generic_product env ~components_by_index1 ~components_by_index2
-      ~merge:Value_slot.Map.merge
+and n_way_join_value_slot_indexed_product env
+    (value_slots_indexed :
+      TG.Product.Value_slot_indexed.t Join_env.join_arg list) :
+    TG.Product.Value_slot_indexed.t * _ =
+  let value_slot_components_by_index, env =
+    n_way_join_generic_product env value_slots_indexed
+      ~filter_map:Value_slot.Map.filter_map ~empty:Value_slot.Map.empty
+      ~map:Value_slot.Map.map ~merge:Value_slot.Map.merge
+      ~components_by_index:(fun { TG.value_slot_components_by_index } ->
+        value_slot_components_by_index)
   in
-  TG.Product.Value_slot_indexed.create value_slot_components_by_index
+  TG.Product.Value_slot_indexed.create value_slot_components_by_index, env
 
-and join_int_indexed_product env shape (fields1 : TG.Product.Int_indexed.t)
-    (fields2 : TG.Product.Int_indexed.t) : TG.Product.Int_indexed.t =
-  let length1 = Array.length fields1 in
-  let length2 = Array.length fields2 in
-  let length = min length1 length2 in
-  let exception Exit in
-  let all_phys_equal =
-    try
-      for index = 0 to length - 1 do
-        if fields1.(index) != fields2.(index) then raise Exit
-      done;
-      true
-    with Exit -> false
+and n_way_join_int_indexed_product env shape
+    (fields : TG.Product.Int_indexed.t Join_env.join_arg list) :
+    TG.Product.Int_indexed.t * Join_env.t =
+  let length =
+    match fields with
+    | [] -> Misc.fatal_error "Join of empty int indexed product."
+    | (_, first_fields) :: other_fields ->
+      List.fold_left
+        (fun length (_, other_fields) -> min length (Array.length other_fields))
+        (Array.length first_fields)
+        other_fields
   in
-  let fields =
-    if all_phys_equal
-    then
-      if Int.equal length1 length
-      then fields1
-      else (
-        assert (Int.equal length2 length);
-        fields2)
-    else
+  let fields, env =
+    let env_ref = ref env in
+    let fields =
       Array.init length (fun index ->
-          if fields1.(index) == fields2.(index)
-          then fields1.(index)
-          else
-            match join env fields1.(index) fields2.(index) with
-            | Unknown -> MTC.unknown_from_shape shape index
-            | Known ty -> ty)
+          (* CR bclement: if fields are all physically equal and only involve
+             variables defined in the central env, we should reuse the type. *)
+          let fields =
+            List.map (fun (id, fields) -> id, fields.(index)) fields
+          in
+          match n_way_join !env_ref fields with
+          | Unknown, env ->
+            env_ref := env;
+            MTC.unknown_from_shape shape index
+          | Known ty, env ->
+            env_ref := env;
+            ty)
+    in
+    fields, !env_ref
   in
-  TG.Product.Int_indexed.create_from_array fields
+  TG.Product.Int_indexed.create_from_array fields, env
 
-and join_function_type (env : Join_env.t)
-    (func_type1 : TG.Function_type.t Or_unknown_or_bottom.t)
-    (func_type2 : TG.Function_type.t Or_unknown_or_bottom.t) :
-    TG.Function_type.t Or_unknown_or_bottom.t =
-  match func_type1, func_type2 with
-  | Bottom, func_type | func_type, Bottom -> func_type
-  | Unknown, _ | _, Unknown -> Unknown
-  | ( Ok { code_id = code_id1; rec_info = rec_info1 },
-      Ok { code_id = code_id2; rec_info = rec_info2 } ) -> (
-    let target_typing_env = Join_env.target_join_env env in
-    (* As a note, sometimes it might be preferable not to do the code age
-       relation join, and take the hit of an indirect call in exchange for
-       calling specialised versions of the code. Maybe an annotation would be
-       needed. Dolan thinks there isn't a single good answer here and we should
-       maybe just not do the join. (The code age relation meet would remain
-       though as it's useful elsewhere.) *)
-    match
-      Code_age_relation.join
-        ~target_t:(TE.code_age_relation target_typing_env)
-        ~resolver:(TE.code_age_relation_resolver target_typing_env)
-        (TE.code_age_relation (Join_env.left_join_env env))
-        (TE.code_age_relation (Join_env.right_join_env env))
-        code_id1 code_id2
-    with
-    | Unknown -> Unknown
-    | Known code_id -> (
-      match join env rec_info1 rec_info2 with
-      | Known rec_info -> Ok (TG.Function_type.create code_id ~rec_info)
-      | Unknown -> Unknown))
+and n_way_join_function_type (env : Join_env.t)
+    (func_types :
+      TG.Function_type.t Or_unknown_or_bottom.t Join_env.join_arg list) :
+    TG.Function_type.t Or_unknown_or_bottom.t * _ =
+  let exception Unknown_result in
+  try
+    let func_types =
+      List.fold_left
+        (fun func_types (id2, func_type2) ->
+          match (func_type2 : TG.Function_type.t Or_unknown_or_bottom.t) with
+          | Bottom -> func_types
+          | Unknown -> raise Unknown_result
+          | Ok func_type2 -> (id2, func_type2) :: func_types)
+        [] func_types
+    in
+    match func_types with
+    | [] -> Bottom, env
+    | (id1, { code_id = code_id1; rec_info = rec_info1 }) :: func_types -> (
+      let target_typing_env = Join_env.target_join_env env in
+      let code_id, _, rec_infos =
+        List.fold_left
+          (fun (code_id1, code_age_relation1, rec_infos)
+               (id2, { TG.code_id = code_id2; rec_info = rec_info2 }) ->
+            (* As a note, sometimes it might be preferable not to do the code
+               age relation join, and take the hit of an indirect call in
+               exchange for calling specialised versions of the code. Maybe an
+               annotation would be needed. Dolan thinks there isn't a single
+               good answer here and we should maybe just not do the join. (The
+               code age relation meet would remain though as it's useful
+               elsewhere.) *)
+            match
+              Code_age_relation.join
+                ~target_t:(TE.code_age_relation target_typing_env)
+                ~resolver:(TE.code_age_relation_resolver target_typing_env)
+                code_age_relation1
+                (TE.code_age_relation (Join_env.joined_env env id2))
+                code_id1 code_id2
+            with
+            | Unknown -> raise Unknown_result
+            | Known code_id ->
+              ( code_id,
+                TE.code_age_relation target_typing_env,
+                (id2, rec_info2) :: rec_infos ))
+          ( code_id1,
+            TE.code_age_relation (Join_env.joined_env env id1),
+            [id1, rec_info1] )
+          func_types
+      in
+      match n_way_join env rec_infos with
+      | Known rec_info, env ->
+        Ok (TG.Function_type.create code_id ~rec_info), env
+      | Unknown, env -> Unknown, env)
+  with Unknown_result -> Unknown, env
 
-and join_env_extension env (ext1 : TEE.t) (ext2 : TEE.t) : TEE.t =
-  let equations =
-    Name.Map.merge
-      (fun name ty1_opt ty2_opt ->
-        match ty1_opt, ty2_opt with
-        | None, _ | _, None -> None
-        | Some ty1, Some ty2 -> (
-          match join env ty1 ty2 with
-          | Known ty ->
-            if MTC.is_alias_of_name ty name
-            then
-              (* This is rare but not anomalous. It may mean that [ty1] and
-                 [ty2] are both alias types which canonicalize to [name], for
-                 instance. In any event, if the best type available for [name]
-                 is [= name], we effectively know nothing, so we drop [name].
-                 ([name = name] would be rejected by [TE.add_equation]
-                 anyway.) *)
-              None
-            else (
-              (* This should always pass due to the [is_alias_of_name] check. *)
-              MTC.check_equation name ty;
-              Some ty)
-          | Unknown -> None))
-      (TEE.to_map ext1) (TEE.to_map ext2)
-  in
-  TEE.from_map equations
+and n_way_join_env_extension env exts =
+  match
+    Join_env.n_way_join_env_extension ~n_way_join_type:n_way_join ~meet_type env
+      exts
+  with
+  | Bottom -> TEE.empty, env
+  | Ok (ext, env) -> ext, env
 
 (* Exposed to the outside world with Or_bottom type *)
 let meet env ty1 ty2 : _ Or_bottom.t =

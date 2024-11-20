@@ -5,8 +5,8 @@
 (*                       Pierre Chambart, OCamlPro                        *)
 (*           Mark Shinwell and Leo White, Jane Street Europe              *)
 (*                                                                        *)
-(*   Copyright 2013--2021 OCamlPro SAS                                    *)
-(*   Copyright 2014--2021 Jane Street Group LLC                           *)
+(*   Copyright 2013--2019 OCamlPro SAS                                    *)
+(*   Copyright 2014--2019 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,29 +14,14 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Greatest lower bound of two types. *)
-val meet :
-  Typing_env.t ->
-  Type_grammar.t ->
-  Type_grammar.t ->
-  (Type_grammar.t * Typing_env.t) Or_bottom.t
+(** Compute the typing environment for a join point given the environments at
+    each of the corresponding continuation's uses. *)
 
-(** Least upper bound of many types. *)
-val n_way_join :
-  Join_env.t ->
-  Type_grammar.t Join_env.join_arg list ->
-  Type_grammar.t Or_unknown.t * Join_env.t
-
-val meet_shape :
+val cut_and_n_way_join :
   Typing_env.t ->
-  Type_grammar.t ->
-  shape:Type_grammar.t ->
-  Typing_env.t Or_bottom.t
-
-(* This function has a slightly different interface; it is meant to be used only
-   by functions in Typing_env *)
-val meet_type :
-  Typing_env.t ->
-  Type_grammar.t ->
-  Type_grammar.t ->
-  (Type_grammar.t Typing_env.meet_return_value * Typing_env.t) Or_bottom.t
+  (Typing_env.t * Apply_cont_rewrite_id.t * Continuation_use_kind.t) list ->
+  params:Bound_parameters.t ->
+  cut_after:Scope.t ->
+  extra_lifted_consts_in_use_envs:Symbol.Set.t ->
+  extra_allowed_names:Name_occurrences.t ->
+  Typing_env.t
