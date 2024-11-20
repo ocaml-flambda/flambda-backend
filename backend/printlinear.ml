@@ -25,28 +25,29 @@ let section_name_to_string ppf = function
   | None -> ()
   | Some name -> fprintf ppf " in %s section" name
 
+let call_operation ?(print_reg = Printreg.reg) ppf op arg =
+  let regs = Printreg.regs' ~print_reg in
+  match op with
+  | Lcall_ind ->
+    fprintf ppf "call %a" regs arg
+  | Lcall_imm { func; } ->
+    fprintf ppf "call \"%s\" %a" func.sym_name regs arg
+  | Ltailcall_ind ->
+    fprintf ppf "tailcall %a" regs arg
+  | Ltailcall_imm { func; } ->
+    fprintf ppf "tailcall \"%s\" %a" func.sym_name regs arg
+  | Lextcall { func; alloc; _ } ->
+    fprintf ppf "extcall \"%s\" %a%s" func regs arg
+      (if alloc then "" else " (noalloc)")
+  | Lprobe {name;handler_code_sym} ->
+    fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
+
 let instr' ?(print_reg = Printreg.reg) ppf i =
   let reg = print_reg in
   let regs = Printreg.regs' ~print_reg in
   let regsetaddr = Printreg.regsetaddr' ~print_reg in
   let test = Simple_operation.format_test ~print_reg in
   let operation = Printoperation.operation ~print_reg in
-  let call_operation op arg ppf res =
-    match op with
-    | Lcall_ind ->
-      fprintf ppf "call %a" regs arg
-    | Lcall_imm { func; } ->
-      fprintf ppf "call \"%s\" %a" func.sym_name regs arg
-    | Ltailcall_ind ->
-      fprintf ppf "tailcall %a" regs arg
-    | Ltailcall_imm { func; } ->
-      fprintf ppf "tailcall \"%s\" %a" func.sym_name regs arg
-    | Lextcall { func; alloc; _ } ->
-      fprintf ppf "extcall \"%s\" %a%s" func regs arg
-        (if alloc then "" else " (noalloc)")
-    | Lprobe {name;handler_code_sym} ->
-      fprintf ppf "probe \"%s\" %s %a" name handler_code_sym regs arg
-  in
   if !Flambda_backend_flags.davail then begin
     let module RAS = Reg_availability_set in
     let ras_is_nonempty (set : RAS.t) =
@@ -94,7 +95,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
           fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
       | _ -> ()
     end;
-    call_operation op i.arg ppf i.res
+    call_operation ppf op i.arg
   | Lreloadretaddr ->
       fprintf ppf "reload retaddr"
   | Lreturn ->

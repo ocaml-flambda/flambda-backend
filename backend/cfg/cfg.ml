@@ -282,7 +282,9 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
     if Array.length res > 0
     then Format.fprintf ppf "%a := " (Printreg.regs' ~print_reg) res
   in
-  let dump_mach_op ppf op = Printmach.operation' ~print_reg op args ppf [||] in
+  let dump_linear_call_op ppf op =
+    Printlinear.call_operation ~print_reg ppf op args
+  in
   let open Format in
   match terminator with
   | Never -> fprintf ppf "deadend"
@@ -322,8 +324,8 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
   | Return -> fprintf ppf "Return%a" print_args args
   | Raise _ -> fprintf ppf "Raise%a" print_args args
   | Tailcall_self { destination } ->
-    dump_mach_op ppf
-      (Mach.Itailcall_imm
+    dump_linear_call_op ppf
+      (Linear.Ltailcall_imm
          { func =
              { sym_name =
                  Printf.sprintf "self(%s)" (Label.to_string destination);
@@ -331,24 +333,24 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
              }
          })
   | Tailcall_func call ->
-    dump_mach_op ppf
+    dump_linear_call_op ppf
       (match call with
-      | Indirect -> Mach.Itailcall_ind
-      | Direct func -> Mach.Itailcall_imm { func })
+      | Indirect -> Linear.Ltailcall_ind
+      | Direct func -> Linear.Ltailcall_imm { func })
   | Call { op = call; label_after } ->
-    Format.fprintf ppf "%t%a" print_res dump_mach_op
+    Format.fprintf ppf "%t%a" print_res dump_linear_call_op
       (match call with
-      | Indirect -> Mach.Icall_ind
-      | Direct func -> Mach.Icall_imm { func });
+      | Indirect -> Linear.Lcall_ind
+      | Direct func -> Linear.Lcall_imm { func });
     Format.fprintf ppf "%sgoto %a" sep Label.format label_after
   | Prim { op = prim; label_after } ->
-    Format.fprintf ppf "%t%a" print_res dump_mach_op
+    Format.fprintf ppf "%t%a" print_res dump_linear_call_op
       (match prim with
       | External { func_symbol = func; ty_res; ty_args; alloc; stack_ofs } ->
-        Mach.Iextcall
+        Linear.Lextcall
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
       | Probe { name; handler_code_sym; enabled_at_init } ->
-        Mach.Iprobe { name; handler_code_sym; enabled_at_init });
+        Linear.Lprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %a" sep Label.format label_after
   | Specific_can_raise { op; label_after } ->
     Format.fprintf ppf "%a" specific_can_raise op;
