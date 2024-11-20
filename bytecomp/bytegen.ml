@@ -199,7 +199,7 @@ let preserve_tailcall_for_prim = function
   | Patomic_exchange | Patomic_compare_exchange
   | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll ->
+  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _ ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -737,6 +737,8 @@ let comp_primitive stack_info p sz args =
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
     ->
       fatal_error "Bytegen.comp_primitive"
+  | Ppeek _ | Ppoke _ ->
+      fatal_error "Bytegen.comp_primitive: Ppeek/Ppoke not supported in bytecode"
 
 let is_immed n = immed_min <= n && n <= immed_max
 

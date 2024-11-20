@@ -334,6 +334,8 @@ type primitive =
   | Parray_to_iarray
   | Parray_of_iarray
   | Pget_header of locality_mode
+  | Ppeek of peek_or_poke
+  | Ppoke of peek_or_poke
   (* Fetching domain-local state *)
   | Pdls_get
   (* Poll for runtime actions *)
@@ -489,6 +491,14 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
+
+and peek_or_poke =
+  | Ppp_tagged_immediate
+  | Ppp_unboxed_float32
+  | Ppp_unboxed_float
+  | Ppp_unboxed_int32
+  | Ppp_unboxed_int64
+  | Ppp_unboxed_nativeint
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -1941,7 +1951,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Patomic_fetch_add
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ -> None
+  | Parray_element_size_in_bytes _
+  | Ppeek _ | Ppoke _ -> None
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if !Clflags.native_code then None
     else
@@ -2107,7 +2118,7 @@ let primitive_can_raise prim =
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ ->
+  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
     false
 
 let constant_layout: constant -> layout = function
@@ -2342,6 +2353,16 @@ let primitive_result_layout (p : primitive) =
   | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
+  | Ppeek layout -> (
+      match layout with
+      | Ppp_tagged_immediate -> layout_int
+      | Ppp_unboxed_float32 -> layout_unboxed_float Unboxed_float32
+      | Ppp_unboxed_float -> layout_unboxed_float Unboxed_float64
+      | Ppp_unboxed_int32 -> layout_unboxed_int32
+      | Ppp_unboxed_int64 -> layout_unboxed_int64
+      | Ppp_unboxed_nativeint -> layout_unboxed_nativeint
+    )
+  | Ppoke _ -> layout_unit
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function
