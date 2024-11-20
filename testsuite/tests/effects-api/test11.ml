@@ -1,5 +1,8 @@
 (* TEST
+ include stdlib_alpha;
 *)
+
+module Effect = Stdlib_alpha.Effect
 
 (* Tests RESUMETERM with extra_args != 0 in bytecode,
    by calling a handler with a tail-continue that returns a function *)

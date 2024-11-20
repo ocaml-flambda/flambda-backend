@@ -1,3 +1,9 @@
+(* TEST
+ include stdlib_alpha;
+*)
+
+module Effect = Stdlib_alpha.Effect
+
 open Effect
 
 type 'a op1 = Xchg : int -> int op1
