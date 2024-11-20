@@ -789,3 +789,10 @@ val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> unit proof_of_property
 
 val remove_outermost_alias : Typing_env.t -> t -> t
+
+module Equal_types_for_debug : sig
+  val equal_type : Typing_env.t -> Type_grammar.t -> Type_grammar.t -> bool
+
+  val equal_env_extension :
+    Typing_env.t -> Typing_env_extension.t -> Typing_env_extension.t -> bool
+end
