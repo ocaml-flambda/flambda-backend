@@ -60,29 +60,29 @@ type +'a t = 'a iarray
 
 (* Array operations *)
 
-external length : local_ 'a iarray -> int = "%array_length"
-external get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) =
+external length : local_ 'a iarray -> int @@ portable = "%array_length"
+external get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) @@ portable =
   "%array_safe_get"
-external ( .:() ) : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) =
+external ( .:() ) : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) @@ portable =
   "%array_safe_get"
-external unsafe_get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) =
+external unsafe_get : ('a iarray[@local_opt]) -> int -> ('a[@local_opt]) @@ portable =
   "%array_unsafe_get"
-external concat : 'a iarray list -> 'a iarray = "caml_array_concat"
-external concat_local : local_ 'a iarray list -> local_ 'a iarray =
+external concat : 'a iarray list -> 'a iarray @@ portable = "caml_array_concat"
+external concat_local : local_ 'a iarray list -> local_ 'a iarray @@ portable =
   "caml_array_concat_local"
 
-external append_prim : 'a iarray -> 'a iarray -> 'a iarray = "caml_array_append"
+external append_prim : 'a iarray -> 'a iarray -> 'a iarray @@ portable = "caml_array_append"
 external append_prim_local :
-  local_ 'a iarray -> local_ 'a iarray -> local_ 'a iarray =
+  local_ 'a iarray -> local_ 'a iarray -> local_ 'a iarray @@ portable =
   "caml_array_append_local"
-external unsafe_sub : 'a iarray -> int -> int -> 'a iarray = "caml_array_sub"
-external unsafe_sub_local : local_ 'a iarray -> int -> int -> local_ 'a iarray =
+external unsafe_sub : 'a iarray -> int -> int -> 'a iarray @@ portable = "caml_array_sub"
+external unsafe_sub_local : local_ 'a iarray -> int -> int -> local_ 'a iarray @@ portable =
   "caml_array_sub_local"
-external unsafe_of_array : 'a array -> 'a iarray = "%array_to_iarray"
-external unsafe_to_array : 'a iarray -> 'a array = "%array_of_iarray"
+external unsafe_of_array : 'a array -> 'a iarray @@ portable = "%array_to_iarray"
+external unsafe_to_array : 'a iarray -> 'a array @@ portable = "%array_of_iarray"
 
 (* Used only to reimplement [init] *)
-external unsafe_set_mutable : 'a array -> int -> 'a -> unit =
+external unsafe_set_mutable : 'a array -> int -> 'a -> unit @@ portable =
   "%array_unsafe_set"
 
 (* VERY UNSAFE: Any of these functions can be used to violate the "no forward
@@ -91,11 +91,11 @@ external unsafe_set_mutable : 'a array -> int -> 'a -> unit =
    not careful, this can lead to an array's contents pointing forwards.  The
    latter two functions could be overloaded via [[@local_opt]], but we don't do
    that in order to isolate the unsafety. *)
-external make_mutable_local : int -> local_ 'a -> local_ 'a array =
+external make_mutable_local : int -> local_ 'a -> local_ 'a array @@ portable =
   "caml_make_local_vect"
-external unsafe_of_local_array : local_ 'a array -> local_ 'a iarray =
+external unsafe_of_local_array : local_ 'a array -> local_ 'a iarray @@ portable =
   "%array_to_iarray"
-external unsafe_set_local : local_ 'a array -> int -> local_ 'a -> unit =
+external unsafe_set_local : local_ 'a array -> int -> local_ 'a -> unit @@ portable =
   "%array_unsafe_set"
 
 (* We can't use immutable array literals in this file, since we don't want to
