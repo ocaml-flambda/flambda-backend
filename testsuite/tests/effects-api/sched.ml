@@ -1,5 +1,8 @@
 (* TEST
+ include stdlib_alpha;
 *)
+
+module Effect = Stdlib_alpha.Effect
 
 type ('a, 'e) op =
   | Yield : (unit, 'e) op
