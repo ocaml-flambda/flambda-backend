@@ -188,6 +188,8 @@ module Sub_cfg : sig
 
   val join_tail : from:t list -> to_:t -> t
 
+  val update_exit_terminator : ?arg:Reg.t array -> t -> Cfg.terminator -> unit
+
   val dump : t -> unit
 end = struct
   type layout = Cfg.basic_block DLL.t
@@ -289,6 +291,14 @@ end = struct
   let join_tail ~from ~to_ =
     List.iter (fun from -> transfer ~from ~to_) from;
     add_never_block to_ ~label:(Cmm.new_label ())
+
+  let update_exit_terminator ?arg sub_cfg desc =
+    sub_cfg.exit.terminator
+      <- { sub_cfg.exit.terminator with
+           desc;
+           id = next_instr_id ();
+           arg = Option.value arg ~default:sub_cfg.exit.terminator.arg
+         }
 
   let dump sub_cfg =
     let liveness = Cfg_dataflow.Instr.Tbl.create 32 in
@@ -684,12 +694,7 @@ class virtual selector_generic =
             ~label_true:sub_if.Sub_cfg.entry.start
             ~label_false:sub_else.Sub_cfg.entry.start
         in
-        sub_cfg.exit.terminator
-          <- { sub_cfg.exit.terminator with
-               desc = term_desc;
-               arg = rarg;
-               id = next_instr_id ()
-             };
+        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
         sub_cfg <- Sub_cfg.join ~from:[sub_if; sub_else] ~to_:sub_cfg;
         r
 
@@ -710,12 +715,7 @@ class virtual selector_generic =
         let term_desc : Cfg.terminator =
           Switch (Array.map (fun idx -> subs.(idx).Sub_cfg.entry.start) index)
         in
-        sub_cfg.exit.terminator
-          <- { sub_cfg.exit.terminator with
-               desc = term_desc;
-               arg = rsel;
-               id = next_instr_id ()
-             };
+        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
         sub_cfg <- Sub_cfg.join ~from:(Array.to_list subs) ~to_:sub_cfg;
         r
 
@@ -828,11 +828,7 @@ class virtual selector_generic =
           l
       in
       let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
-      sub_cfg.exit.terminator
-        <- { sub_cfg.exit.terminator with
-             desc = term_desc;
-             id = next_instr_id ()
-           };
+      Sub_cfg.update_exit_terminator sub_cfg term_desc;
       sub_cfg <- Sub_cfg.join ~from:(s_body :: s_handlers) ~to_:sub_cfg;
       r
 
@@ -878,11 +874,7 @@ class virtual selector_generic =
               DLL.add_end sub_cfg.exit.body
                 (Sub_cfg.make_instr instr_desc [||] [||] Debuginfo.none))
             traps;
-          sub_cfg.exit.terminator
-            <- { sub_cfg.exit.terminator with
-                 desc = Cfg.Always handler.extra;
-                 id = next_instr_id ()
-               };
+          Sub_cfg.update_exit_terminator sub_cfg (Always handler.extra);
           Select_utils.set_traps nfail handler.Select_utils.traps_ref
             env.Select_utils.trap_stack traps;
           None
@@ -933,11 +925,7 @@ class virtual selector_generic =
         s2.entry.start <- exn_label;
         DLL.add_begin s2.entry.body move_exn_bucket;
         s2.entry.is_trap_handler <- true;
-        sub_cfg.exit.terminator
-          <- { sub_cfg.exit.terminator with
-               desc = Always s1.entry.start;
-               id = next_instr_id ()
-             };
+        Sub_cfg.update_exit_terminator sub_cfg (Always s1.entry.start);
         sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg;
         r
       in
@@ -1084,12 +1072,7 @@ class virtual selector_generic =
             ~label_true:sub_if.Sub_cfg.entry.start
             ~label_false:sub_else.Sub_cfg.entry.start
         in
-        sub_cfg.exit.terminator
-          <- { sub_cfg.exit.terminator with
-               desc = term_desc;
-               id = next_instr_id ();
-               arg = rarg
-             };
+        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
         sub_cfg <- Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:sub_cfg
 
     method emit_tail_switch env esel index ecases (_dbg : Debuginfo.t)
@@ -1108,12 +1091,7 @@ class virtual selector_generic =
           Cfg.Switch
             (Array.map (fun idx -> sub_cases.(idx).Sub_cfg.entry.start) index)
         in
-        sub_cfg.exit.terminator
-          <- { sub_cfg.exit.terminator with
-               desc = term_desc;
-               arg = rsel;
-               id = next_instr_id ()
-             };
+        Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
         sub_cfg
           <- Sub_cfg.join_tail ~from:(Array.to_list sub_cases) ~to_:sub_cfg
 
@@ -1216,11 +1194,7 @@ class virtual selector_generic =
       in
       assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
       let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
-      sub_cfg.exit.terminator
-        <- { sub_cfg.exit.terminator with
-             desc = term_desc;
-             id = next_instr_id ()
-           };
+      Sub_cfg.update_exit_terminator sub_cfg term_desc;
       (* XXX mshinwell: this used to say: Sub_cfg.transfer ~from:s_body
          ~to_:sub_cfg; List.iter (fun (_, _, sub_handler, _) -> Sub_cfg.transfer
          ~from:sub_handler ~to_:sub_cfg) new_handlers
@@ -1263,11 +1237,7 @@ class virtual selector_generic =
         in
         DLL.add_begin s2.entry.body move_exn_bucket;
         s2.entry.is_trap_handler <- true;
-        sub_cfg.exit.terminator
-          <- { sub_cfg.exit.terminator with
-               desc = Always s1.entry.start;
-               id = next_instr_id ()
-             };
+        Sub_cfg.update_exit_terminator sub_cfg (Always s1.entry.start);
         sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg
       in
       let env = Select_utils.env_add v rv env in
