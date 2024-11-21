@@ -17,12 +17,28 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Analyses related to the insertion of [Ipoll] operations. *)
+(** Analyses related to the insertion of poll operations (elements common to both pipelines). *)
 
-type unsafe_or_safe = Unsafe | Safe
+val function_is_assumed_to_never_poll : string -> bool
 
-module Unsafe_or_safe : sig
-  type t = unsafe_or_safe
+val is_disabled : string -> bool
+
+type polling_point =
+  | Alloc
+  | Poll
+  | Function_call
+  | External_call
+
+type error = Poll_error of Debuginfo.t * (polling_point * Debuginfo.t) list
+
+exception Error of error
+
+type polls_before_prtc =
+  | Might_not_poll
+  | Always_polls
+
+module Polls_before_prtc : sig
+  type t = polls_before_prtc
 
   val bot : t
 
@@ -30,9 +46,3 @@ module Unsafe_or_safe : sig
 
   val lessequal : t -> t -> bool
 end
-
-val instrument_fundecl : future_funcnames:Misc.Stdlib.String.Set.t
-    -> Mach.fundecl -> Mach.fundecl
-
-val requires_prologue_poll : future_funcnames:Misc.Stdlib.String.Set.t
-    -> fun_name:string -> Mach.instruction -> bool

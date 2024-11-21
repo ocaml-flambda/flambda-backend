@@ -19,19 +19,10 @@
 
 open Mach
 open Format
+open Polling_utils
 
 module Int = Numbers.Int
 module String = Misc.Stdlib.String
-
-let function_is_assumed_to_never_poll func =
-  String.begins_with ~prefix:"caml_apply" func
-  || String.begins_with ~prefix:"caml_send" func
-
-(* These are used for the poll error annotation later on*)
-type polling_point = Alloc | Poll | Function_call | External_call
-type error = Poll_error of Debuginfo.t * (polling_point * Debuginfo.t) list
-
-exception Error of error
 
 (* Detection of recursive handlers that are not guaranteed to poll
    at every loop iteration. *)
@@ -92,38 +83,7 @@ let polled_loops_analysis funbody =
    through a poll point. *)
 
 (* We use a backwards dataflow analysis to compute a single value: either
-   "Might_not_poll" or "Always_polls".
-
-   "Might_not_poll" means there exists a path from the function entry to a
-   Potentially Recursive Tail Call (an Itailcall_ind or
-   Itailcall_imm to a forward function)
-   that does not go through an Ialloc or Ipoll instruction.
-
-   "Always_polls", therefore, means the function always polls (via Ialloc or
-   Ipoll) before doing a PRTC.
-*)
-
-type polls_before_prtc = Might_not_poll | Always_polls
-
-module Polls_before_prtc = struct
-  type t = polls_before_prtc
-
-  let bot = Always_polls
-
-  let join t1 t2 =
-    match t1, t2 with
-    | Might_not_poll, Might_not_poll
-    | Might_not_poll, Always_polls
-    | Always_polls, Might_not_poll -> Might_not_poll
-    | Always_polls, Always_polls -> Always_polls
-
-  let lessequal t1 t2 =
-    match t1, t2 with
-    | Always_polls, Always_polls
-    | Always_polls, Might_not_poll
-    | Might_not_poll, Might_not_poll -> true
-    | Might_not_poll, Always_polls -> false
-end
+   "Might_not_poll" or "Always_polls". *)
 
 module PTRCAnalysis = Dataflow.Backward(Polls_before_prtc)
 
@@ -260,11 +220,6 @@ let find_poll_alloc_or_calls instr =
         | None -> ())
       instr;
   List.rev !matches
-
-let is_disabled fun_name =
-  (not Config.poll_insertion) ||
-  !Flambda_backend_flags.disable_poll_insertion ||
-  function_is_assumed_to_never_poll fun_name
 
 let instrument_fundecl ~future_funcnames:_ (f : Mach.fundecl) : Mach.fundecl =
   if is_disabled f.fun_name then f
