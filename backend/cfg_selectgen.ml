@@ -146,12 +146,14 @@ let next_instr_id () : int =
    changed only when no additional instructions will be inserted to the
    block. *)
 module Sub_cfg : sig
+  type exit
+
   type layout
 
   (* CR mshinwell: consider making this abstract *)
   type t = private
     { entry : Cfg.basic_block;
-      exit : Cfg.basic_block;
+      exit : exit;
       layout : layout
     }
 
@@ -192,11 +194,13 @@ module Sub_cfg : sig
 
   val dump : t -> unit
 end = struct
+  type exit = Cfg.basic_block
+
   type layout = Cfg.basic_block DLL.t
 
   type t =
     { entry : Cfg.basic_block;
-      exit : Cfg.basic_block;
+      exit : exit;
       layout : layout
     }
 
@@ -871,8 +875,8 @@ class virtual selector_generic =
                   Cfg.Pushtrap { lbl_handler }
                 | Cmm.Pop _ -> Cfg.Poptrap
               in
-              DLL.add_end sub_cfg.exit.body
-                (Sub_cfg.make_instr instr_desc [||] [||] Debuginfo.none))
+              Sub_cfg.add_instruction sub_cfg instr_desc [||] [||]
+                Debuginfo.none)
             traps;
           Sub_cfg.update_exit_terminator sub_cfg (Always handler.extra);
           Select_utils.set_traps nfail handler.Select_utils.traps_ref
@@ -985,8 +989,7 @@ class virtual selector_generic =
               | Cmm.Push _ -> Misc.fatal_error "unexpected push on trap actions"
               | Cmm.Pop _ -> Cfg.Poptrap
             in
-            DLL.add_end sub_cfg.exit.body
-              (Sub_cfg.make_instr instr_desc [||] [||] Debuginfo.none))
+            Sub_cfg.add_instruction sub_cfg instr_desc [||] [||] Debuginfo.none)
           traps;
         let loc = Proc.loc_results_return (Reg.typv r) in
         self#insert_moves env r loc;
