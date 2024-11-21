@@ -161,6 +161,8 @@ module Sub_cfg : sig
 
   val make_empty : unit -> t
 
+  val add_empty_block : t -> label:Label.t -> t
+
   val add_instruction :
     t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
@@ -223,6 +225,11 @@ end = struct
     DLL.add_end layout entry;
     DLL.add_end layout exit;
     { entry; exit; layout }
+
+  let add_empty_block sub_cfg ~label =
+    let next_block = make_never_block ~label () in
+    DLL.add_end sub_cfg.layout next_block;
+    { sub_cfg with exit = next_block }
 
   let add_instruction sub_cfg desc arg res dbg =
     assert (sub_cfg.exit.terminator.desc = Cfg.Never);
@@ -559,9 +566,7 @@ class virtual selector_generic =
               self#insert_debug' env term dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 loc_res;
-              let next_block = Sub_cfg.make_never_block ~label:label_after () in
-              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
-              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               (* The destination registers (as per the procedure calling
                  convention) need to be named right now, otherwise the result of
                  the function call may be unavailable in the debugger
@@ -581,9 +586,7 @@ class virtual selector_generic =
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug' env term dbg loc_arg loc_res;
               add_naming_op_for_bound_name loc_res;
-              let next_block = Sub_cfg.make_never_block ~label:label_after () in
-              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
-              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               self#insert_move_results env loc_res rd stack_ofs;
               Select_utils.set_traps_for_raise env;
               Some rd
@@ -600,9 +603,7 @@ class virtual selector_generic =
                 self#insert_op_debug' env term dbg loc_arg
                   (Proc.loc_external_results (Reg.typv rd))
               in
-              let next_block = Sub_cfg.make_never_block ~label:label_after () in
-              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
-              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               add_naming_op_for_bound_name loc_res;
               self#insert_move_results env loc_res rd stack_ofs;
               Select_utils.set_traps_for_raise env;
@@ -612,9 +613,7 @@ class virtual selector_generic =
               let rd = self#regs_for ty in
               let rd = self#insert_op_debug' env term dbg r1 rd in
               Select_utils.set_traps_for_raise env;
-              let next_block = Sub_cfg.make_never_block ~label:label_after () in
-              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
-              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               ret rd
             | _ ->
               Misc.fatal_errorf "unexpected terminator (%a)"
@@ -646,9 +645,7 @@ class virtual selector_generic =
             Select_utils.set_traps_for_raise env;
             if returns
             then (
-              let dummy_block = Sub_cfg.make_never_block ~label () in
-              DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
-              sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block };
+              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label;
               ret rd)
             else None
           | Basic (Op (Alloc { bytes = _; mode })) ->
@@ -1135,9 +1132,7 @@ class virtual selector_generic =
               self#insert_debug' env new_op dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 loc_res;
-              let new_exit = Sub_cfg.make_never_block ~label:label_after () in
-              DLL.add_end sub_cfg.Sub_cfg.layout new_exit;
-              sub_cfg <- { sub_cfg with exit = new_exit };
+              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               Select_utils.set_traps_for_raise env;
               self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
               self#insert_return env (Some loc_res) (pop_all_traps env))
@@ -1163,9 +1158,7 @@ class virtual selector_generic =
             else (
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug' env new_op dbg loc_arg loc_res;
-              let new_exit = Sub_cfg.make_never_block ~label:label_after () in
-              DLL.add_end sub_cfg.Sub_cfg.layout new_exit;
-              sub_cfg <- { sub_cfg with exit = new_exit };
+              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               Select_utils.set_traps_for_raise env;
               self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
               self#insert_return env (Some loc_res) (pop_all_traps env))
@@ -1203,9 +1196,7 @@ class virtual selector_generic =
                };
           DLL.transfer ~from:sub_if.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:sub_else.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          let dummy_block = Sub_cfg.make_never_block () in
-          DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
-          sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block }
+          sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
 
     method emit_tail_switch
         : environment ->
@@ -1240,9 +1231,7 @@ class virtual selector_generic =
             (fun sub_case ->
               DLL.transfer ~from:sub_case.Sub_cfg.layout ~to_:sub_cfg.layout ())
             sub_cases;
-          let dummy_block = Sub_cfg.make_never_block () in
-          DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
-          sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block }
+          sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
 
     method emit_tail_catch
         : environment ->
@@ -1412,9 +1401,7 @@ class virtual selector_generic =
                };
           DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
           DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          let dummy_block = Sub_cfg.make_never_block () in
-          DLL.add_end sub_cfg.Sub_cfg.layout dummy_block;
-          sub_cfg <- { sub_cfg with Sub_cfg.exit = dummy_block }
+          sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
         in
         let env = Select_utils.env_add v rv env in
         match Select_utils.env_find_static_exception exn_cont env_body with
