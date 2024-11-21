@@ -755,6 +755,27 @@ static void update_major_slice_work(intnat howmuch,
   atomic_fetch_add (&work_counter, dom_st->major_work_done_between_slices);
   dom_st->major_work_done_between_slices = 0;
   atomic_fetch_add (&alloc_counter, new_work);
+
+  /* If the work_counter is falling far behind the alloc_counter,
+   * artificially catch up some of the difference. This is a band-aid
+   * for general GC pacing problems revealed by the mark-delay changes
+   * (see comments on ocaml/ocaml PR #13580): when we rework the
+   * pacing this should go away. */
+  int64_t pending = diffmod(atomic_load(&alloc_counter),
+                             atomic_load(&work_counter));
+  if (pending > (int64_t)total_cycle_work * 2) {
+    intnat catchup = pending - total_cycle_work;
+    caml_gc_message(0x40,
+                    "work counter %"ARCH_INTNAT_PRINTF_FORMAT"u falling behind "
+                    "alloc counter %"ARCH_INTNAT_PRINTF_FORMAT"u by more than "
+                    "twice a total cycle's work %"ARCH_INTNAT_PRINTF_FORMAT"d; "
+                    "catching up by %"ARCH_INTNAT_PRINTF_FORMAT "d\n",
+                    atomic_load(&work_counter),
+                    atomic_load(&alloc_counter),
+                    total_cycle_work, catchup);
+    atomic_fetch_add (&work_counter, catchup);
+  }
+
   if (howmuch == AUTO_TRIGGERED_MAJOR_SLICE ||
       howmuch == GC_CALCULATE_MAJOR_SLICE) {
     dom_st->slice_target = atomic_load (&alloc_counter);
