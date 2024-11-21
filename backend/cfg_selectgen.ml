@@ -1061,9 +1061,9 @@ class virtual selector_generic =
         let sub_if = self#emit_tail_sequence env eif in
         let sub_else = self#emit_tail_sequence env eelse in
         let term_desc =
-          Cfgize_utils.terminator_of_test cond
-            ~label_false:(Sub_cfg.start_label sub_else)
+          Cfgize.terminator_of_test cond
             ~label_true:(Sub_cfg.start_label sub_if)
+            ~label_false:(Sub_cfg.start_label sub_else)
         in
         Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
         sub_cfg <- Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:sub_cfg
