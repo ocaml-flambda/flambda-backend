@@ -28,7 +28,6 @@ open Arch
 open Proc
 open Reg
 open Simple_operation
-open Mach
 open Linear
 open Emitaux
 
@@ -415,14 +414,14 @@ let num_call_gc_points instr =
   let rec loop instr call_gc =
     match instr.desc with
     | Lend -> call_gc
-    | Lop (Ialloc { mode = Heap; _ }) when !fastcode_flag ->
+    | Lop (Alloc { mode = Heap; _ }) when !fastcode_flag ->
       loop instr.next (call_gc + 1)
-    | Lop (Ipoll _) ->
+    | Lop Poll ->
       loop instr.next (call_gc + 1)
     (* The following four should never be seen, since this function is run
        before branch relaxation. *)
-    | Lop (Ispecific (Ifar_alloc _))
-    | Lop (Ispecific (Ifar_poll _)) -> assert false
+    | Lop (Specific (Ifar_alloc _))
+    | Lop (Specific (Ifar_poll _)) -> assert false
     | _ -> loop instr.next call_gc
   in
   loop instr 0
@@ -459,8 +458,8 @@ module BR = Branch_relaxation.Make (struct
       | CB | Bcc -> 1 * 1024 * 1024 / 4  (* +/- 1Mb *)
 
     let classify_instr = function
-      | Lop (Ialloc _)
-      | Lop (Ipoll _) -> Some Bcc
+      | Lop (Alloc _)
+      | Lop Poll -> Some Bcc
       (* The various "far" variants in [specific_operation] don't need to
          return [Some] here, since their code sequences never contain any
          conditional branches that might need relaxing. *)
@@ -487,36 +486,36 @@ module BR = Branch_relaxation.Make (struct
   let instr_size = function
     | Lend -> 0
     | Lprologue -> prologue_size ()
-    | Lop (Imove | Ispill | Ireload) -> 1
-    | Lop (Iconst_int n) ->
+    | Lop (Move | Spill | Reload) -> 1
+    | Lop (Const_int n) ->
       num_instructions_for_intconst n
-    | Lop (Iconst_float32 _) ->
+    | Lop (Const_float32 _) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Iconst_float _) -> 2
-    | Lop (Iconst_symbol _) -> 2
-    | Lop (Iconst_vec128 _) ->
+    | Lop (Const_float _) -> 2
+    | Lop (Const_symbol _) -> 2
+    | Lop (Const_vec128 _) ->
       (* CR mslater: (SIMD) arm64 *)
       Misc.fatal_error "SIMD is not supported on this architecture"
-    | Lop (Iintop_atomic _) ->
+    | Lop (Intop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
-    | Lop (Icall_ind) -> 1
-    | Lop (Icall_imm _) -> 1
-    | Lop (Itailcall_ind) -> epilogue_size ()
-    | Lop (Itailcall_imm { func; _ }) ->
+    | Lcall_op (Lcall_ind) -> 1
+    | Lcall_op (Lcall_imm _) -> 1
+    | Lcall_op (Ltailcall_ind) -> epilogue_size ()
+    | Lcall_op (Ltailcall_imm { func; _ }) ->
       if func.sym_name = !function_name then 1 else epilogue_size ()
-    | Lop (Iextcall {alloc; stack_ofs} ) ->
+    | Lcall_op (Lextcall {alloc; stack_ofs} ) ->
       if Config.runtime5 && stack_ofs > 0 then 5
       else if alloc then 3
       else 5
-    | Lop (Istackoffset _) -> 2
-    | Lop (Iload  { memory_chunk; addressing_mode; is_atomic }) ->
+    | Lop (Stackoffset _) -> 2
+    | Lop (Load  { memory_chunk; addressing_mode; is_atomic }) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
       and barrier = if is_atomic then 1 else 0
       and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
       based + barrier + single
-    | Lop (Istore (memory_chunk, addressing_mode, assignment)) ->
+    | Lop (Store (memory_chunk, addressing_mode, assignment)) ->
       let based = match addressing_mode with Iindexed _ -> 0 | Ibased _ -> 1
       and barrier =
         match memory_chunk, assignment with
@@ -524,66 +523,66 @@ module BR = Branch_relaxation.Make (struct
         | _ -> 0
       and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
       based + barrier + single
-    | Lop (Ialloc { mode = Local; _ }) -> 9
-    | Lop (Ialloc _) when !fastcode_flag -> 5
-    | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
-    | Lop (Ipoll _) -> 3
-    | Lop (Ispecific (Ifar_poll _)) -> 4
-    | Lop (Ialloc { bytes = num_bytes; _ })
-    | Lop (Ispecific (Ifar_alloc { bytes = num_bytes; _ })) ->
+    | Lop (Alloc { mode = Local; _ }) -> 9
+    | Lop (Alloc _) when !fastcode_flag -> 5
+    | Lop (Specific (Ifar_alloc _)) when !fastcode_flag -> 6
+    | Lop Poll -> 3
+    | Lop (Specific (Ifar_poll _)) -> 4
+    | Lop (Alloc { bytes = num_bytes; _ })
+    | Lop (Specific (Ifar_alloc { bytes = num_bytes; _ })) ->
       begin match num_bytes with
       | 16 | 24 | 32 -> 1
       | _ -> 1 + num_instructions_for_intconst (Nativeint.of_int num_bytes)
       end
-    | Lop (Icsel _) -> 4
-    | Lop (Ibeginregion | Iendregion) -> 1
-    | Lop (Iintop (Icomp _)) -> 2
-    | Lop (Ifloatop (Float64, Icompf _)) -> 2
-    | Lop (Ifloatop (Float32, Icompf _)) ->
+    | Lop (Csel _) -> 4
+    | Lop (Begin_region | End_region) -> 1
+    | Lop (Intop (Icomp _)) -> 2
+    | Lop (Floatop (Float64, Icompf _)) -> 2
+    | Lop (Floatop (Float32, Icompf _)) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Iintop_imm (Icomp _, _)) -> 2
-    | Lop (Iintop Imod) -> 2
-    | Lop (Iintop (Imulh _)) -> 1
-    | Lop (Iintop _) -> 1
-    | Lop (Iintop_imm _) -> 1
-    | Lop (Ifloatop (Float64, (Iabsf | Inegf)) | Ispecific Isqrtf) -> 1
-    | Lop (Ifloatop (Float32, (Iabsf | Inegf))) ->
+    | Lop (Intop_imm (Icomp _, _)) -> 2
+    | Lop (Intop Imod) -> 2
+    | Lop (Intop (Imulh _)) -> 1
+    | Lop (Intop _) -> 1
+    | Lop (Intop_imm _) -> 1
+    | Lop (Floatop (Float64, (Iabsf | Inegf)) | Specific Isqrtf) -> 1
+    | Lop (Floatop (Float32, (Iabsf | Inegf))) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Ireinterpret_cast (Value_of_int | Int_of_value |
+    | Lop (Reinterpret_cast (Value_of_int | Int_of_value |
                               Float_of_int64 | Int64_of_float)) -> 1
-    | Lop (Ireinterpret_cast (Float32_of_float | Float_of_float32 |
+    | Lop (Reinterpret_cast (Float32_of_float | Float_of_float32 |
                               Float32_of_int32 | Int32_of_float32)) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Ireinterpret_cast V128_of_v128) ->
+    | Lop (Reinterpret_cast V128_of_v128) ->
       (* CR mslater: (SIMD) arm64 *)
       Misc.fatal_error "SIMD is not supported on this architecture"
-    | Lop (Istatic_cast (Float_of_int Float64 | Int_of_float Float64)) -> 1
-    | Lop (Istatic_cast (Float_of_int Float32 | Int_of_float Float32 |
+    | Lop (Static_cast (Float_of_int Float64 | Int_of_float Float64)) -> 1
+    | Lop (Static_cast (Float_of_int Float32 | Int_of_float Float32 |
                          Float_of_float32 | Float32_of_float)) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Istatic_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
+    | Lop (Static_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
       (* CR mslater: (SIMD) arm64 *)
       Misc.fatal_error "SIMD is not supported on this architecture"
-    | Lop (Ifloatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Ispecific Inegmulf) -> 1
-    | Lop (Ifloatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
+    | Lop (Floatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Specific Inegmulf) -> 1
+    | Lop (Floatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
       (* CR mslater: (float32) arm64 *)
       Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop (Iopaque) -> 0
-    | Lop (Ispecific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
-    | Lop (Ispecific (Ishiftarith _)) -> 1
-    | Lop (Ispecific (Imuladd | Imulsub)) -> 1
-    | Lop (Ispecific (Ibswap { bitwidth = Sixteen } )) -> 2
-    | Lop (Ispecific (Ibswap { bitwidth = (Thirtytwo | Sixtyfour) })) -> 1
-    | Lop (Ispecific Imove32) -> 1
-    | Lop (Ispecific (Isignext _)) -> 1
-    | Lop (Iname_for_debugger _) -> 0
-    | Lop (Iprobe _ | Iprobe_is_enabled _) ->
+    | Lop (Opaque) -> 0
+    | Lop (Specific (Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf)) -> 1
+    | Lop (Specific (Ishiftarith _)) -> 1
+    | Lop (Specific (Imuladd | Imulsub)) -> 1
+    | Lop (Specific (Ibswap { bitwidth = Sixteen } )) -> 2
+    | Lop (Specific (Ibswap { bitwidth = (Thirtytwo | Sixtyfour) })) -> 1
+    | Lop (Specific Imove32) -> 1
+    | Lop (Specific (Isignext _)) -> 1
+    | Lop (Name_for_debugger _) -> 0
+    | Lcall_op (Lprobe _) | Lop (Probe_is_enabled _) ->
       fatal_error ("Probes not supported.")
-    | Lop (Idls_get) -> 1
+    | Lop (Dls_get) -> 1
     | Lreloadretaddr -> 0
     | Lreturn -> epilogue_size ()
     | Llabel _ -> 0
@@ -616,10 +615,10 @@ module BR = Branch_relaxation.Make (struct
     | Lstackcheck _ -> 5
 
   let relax_poll ~return_label =
-    Lop (Ispecific (Ifar_poll { return_label }))
+    Lop (Specific (Ifar_poll { return_label }))
 
   let relax_allocation ~num_bytes ~dbginfo =
-    Lop (Ispecific (Ifar_alloc { bytes = num_bytes; dbginfo }))
+    Lop (Specific (Ifar_alloc { bytes = num_bytes; dbginfo }))
 end)
 
 let name_for_float_comparison = function
@@ -784,28 +783,28 @@ let emit_instr i =
         cfi_offset ~reg:30 (* return address *) ~offset:(-8);
         `	str	x30, [sp, #{emit_int (n-8)}]\n`
       end
-    | Lop(Iintop_atomic _) ->
+    | Lop(Intop_atomic _) ->
       (* Never generated; builtins are not yet translated to atomics *)
       assert false
-    | Lop (Ireinterpret_cast (Int64_of_float | Float_of_int64)) ->
+    | Lop (Reinterpret_cast (Int64_of_float | Float_of_int64)) ->
         `	fmov {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Istatic_cast (Int_of_float Float64)) ->
+    | Lop(Static_cast (Int_of_float Float64)) ->
         `	fcvtzs {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Istatic_cast (Float_of_int Float64)) ->
+    | Lop(Static_cast (Float_of_int Float64)) ->
         `	scvtf	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop (Ireinterpret_cast (Float32_of_float | Float_of_float32 |
+    | Lop (Reinterpret_cast (Float32_of_float | Float_of_float32 |
                               Int32_of_float32 | Float32_of_int32))
-    | Lop (Istatic_cast (Float_of_int Float32 | Int_of_float Float32 |
+    | Lop (Static_cast (Float_of_int Float32 | Int_of_float Float32 |
                           Float_of_float32 | Float32_of_float)) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 not supported on this architecture"
-    | Lop(Ireinterpret_cast V128_of_v128)
-    | Lop(Istatic_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
+    | Lop(Reinterpret_cast V128_of_v128)
+    | Lop(Static_cast (V128_of_scalar _ | Scalar_of_v128 _)) ->
         (* CR mslater: (SIMD) arm64 *)
         Misc.fatal_error "SIMD is not supported on this architecture"
-    | Lop(Imove | Ispill | Ireload) ->
+    | Lop(Move | Spill | Reload) ->
         move i.arg.(0) i.res.(0)
-    | Lop(Ispecific Imove32) ->
+    | Lop(Specific Imove32) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
           match (src, dst) with
@@ -818,12 +817,12 @@ let emit_instr i =
           | _ ->
               assert false
         end
-    | Lop(Iconst_int n) ->
+    | Lop(Const_int n) ->
         emit_intconst i.res.(0) n
-    | Lop (Iconst_float32 _) ->
+    | Lop (Const_float32 _) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop(Iconst_float f) ->
+    | Lop(Const_float f) ->
         if f = 0L then
           `	fmov	{emit_reg i.res.(0)}, xzr\n`
         else if is_immediate_float f then
@@ -832,27 +831,27 @@ let emit_instr i =
           let lbl = float_literal f in
           emit_load_literal i.res.(0) lbl
         end
-    | Lop(Iconst_vec128 _) ->
+    | Lop(Const_vec128 _) ->
         (* CR mslater: (SIMD) arm64 *)
         Misc.fatal_error "SIMD is not supported on this architecture"
-    | Lop(Iconst_symbol s) ->
+    | Lop(Const_symbol s) ->
         emit_load_symbol_addr i.res.(0) s.sym_name
-    | Lop(Icall_ind) ->
+    | Lcall_op(Lcall_ind) ->
         `	blr	{emit_reg i.arg.(0)}\n`;
         `{record_frame i.live (Dbg_other i.dbg)}\n`
-    | Lop(Icall_imm { func; }) ->
+    | Lcall_op(Lcall_imm { func; }) ->
         `	bl	{emit_symbol func.sym_name}\n`;
         `{record_frame i.live (Dbg_other i.dbg)}\n`
-    | Lop(Itailcall_ind) ->
+    | Lcall_op(Ltailcall_ind) ->
         output_epilogue (fun () -> `	br	{emit_reg i.arg.(0)}\n`)
-    | Lop(Itailcall_imm { func; }) ->
+    | Lcall_op(Ltailcall_imm { func; }) ->
         if func.sym_name = !function_name then
           match !tailrec_entry_point with
           | None -> Misc.fatal_error "jump to missing tailrec entry point"
           | Some tailrec_entry_point -> `	b	{emit_label tailrec_entry_point}\n`
         else
           output_epilogue (fun () -> `	b	{emit_symbol func.sym_name}\n`)
-    | Lop(Iextcall {func; alloc; stack_ofs}) ->
+    | Lcall_op(Lextcall {func; alloc; stack_ofs}) ->
         if Config.runtime5 && stack_ofs > 0 then begin
           `	mov	{emit_reg reg_stack_arg_begin}, sp\n`;
           `	add	{emit_reg reg_stack_arg_end}, sp, #{emit_int (Misc.align stack_ofs 16)}\n`;
@@ -881,11 +880,11 @@ let emit_instr i =
           end;
           cfi_restore_state ()
         end
-    | Lop(Istackoffset n) ->
+    | Lop(Stackoffset n) ->
         assert (n mod 16 = 0);
         emit_stack_adjustment (-n);
         stack_offset := !stack_offset + n
-    | Lop(Iload { memory_chunk; addressing_mode; is_atomic }) ->
+    | Lop(Load { memory_chunk; addressing_mode; is_atomic }) ->
         assert(memory_chunk = Word_int || memory_chunk = Word_val || is_atomic = false);
         let dst = i.res.(0) in
         let base =
@@ -927,7 +926,7 @@ let emit_instr i =
             (* CR mslater: (SIMD) arm64 *)
             fatal_error "arm64: got 128 bit memory chunk"
         end
-    | Lop(Istore(size, addr, assignment)) ->
+    | Lop(Store(size, addr, assignment)) ->
       (* NB: assignments other than Word_int and Word_val do not follow the
       Multicore OCaml memory model and so do not emit a barrier *)
       let src = i.arg.(0) in
@@ -961,63 +960,63 @@ let emit_instr i =
             (* CR mslater: (SIMD) arm64 *)
             fatal_error "arm64: got 128 bit memory chunk"
         end
-    | Lop(Ialloc { bytes = n; dbginfo; mode = Heap }) ->
+    | Lop(Alloc { bytes = n; dbginfo; mode = Heap }) ->
         assembly_code_for_allocation i ~n ~local:false ~far:false ~dbginfo
-    | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
+    | Lop(Specific (Ifar_alloc { bytes = n; dbginfo })) ->
         assembly_code_for_allocation i ~n ~local:false ~far:true ~dbginfo
-    | Lop(Ialloc { bytes = n; dbginfo; mode = Local }) ->
+    | Lop(Alloc { bytes = n; dbginfo; mode = Local }) ->
         assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
-    | Lop(Ibeginregion) ->
+    | Lop(Begin_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
         `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
-    | Lop(Iendregion) ->
+    | Lop(End_region) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
         `	str	{emit_reg i.arg.(0)}, [{emit_reg reg_domain_state_ptr}, #{emit_int offset}]\n`
-    | Lop(Ipoll { return_label }) ->
-        assembly_code_for_poll i ~far:false ~return_label
-    | Lop(Ispecific (Ifar_poll { return_label })) ->
+    | Lop(Poll) ->
+        assembly_code_for_poll i ~far:false ~return_label:None
+    | Lop(Specific (Ifar_poll { return_label })) ->
         assembly_code_for_poll i ~far:true ~return_label
-    | Lop(Iintop_imm(Iadd, n)) ->
+    | Lop(Intop_imm(Iadd, n)) ->
         emit_addimm i.res.(0) i.arg.(0) n
-    | Lop(Iintop_imm(Isub, n)) ->
+    | Lop(Intop_imm(Isub, n)) ->
         emit_subimm i.res.(0) i.arg.(0) n
-    | Lop(Iintop(Icomp cmp)) ->
+    | Lop(Intop(Icomp cmp)) ->
         `	cmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
-    | Lop(Ifloatop(Float64, Icompf cmp)) ->
+    | Lop(Floatop(Float64, Icompf cmp)) ->
         let comp = name_for_float_comparison cmp in
         `	fcmp	{emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	cset	{emit_reg i.res.(0)}, {emit_string comp}\n`
-    | Lop(Ifloatop(Float32, Icompf _)) ->
+    | Lop(Floatop(Float32, Icompf _)) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop(Iintop_imm(Icomp cmp, n)) ->
+    | Lop(Intop_imm(Icomp cmp, n)) ->
         emit_cmpimm i.arg.(0) n;
         `	cset	{emit_reg i.res.(0)}, {emit_string (name_for_comparison cmp)}\n`
-    | Lop(Iintop Imod) ->
+    | Lop(Intop Imod) ->
         `	sdiv	{emit_reg reg_tmp1}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`;
         `	msub	{emit_reg i.res.(0)}, {emit_reg reg_tmp1}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iintop (Imulh { signed = true })) ->
+    | Lop(Intop (Imulh { signed = true })) ->
         `	smulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
-    | Lop(Iintop (Imulh { signed = false })) ->
+    | Lop(Intop (Imulh { signed = false })) ->
         `	umulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
-    | Lop(Iintop op) ->
+    | Lop(Intop op) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
-    | Lop(Iintop_imm(op, n)) ->
+    | Lop(Intop_imm(op, n)) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #{emit_int n}\n`
-    | Lop(Ifloatop (Float64, (Iabsf | Inegf)) | Ispecific Isqrtf as op) ->
+    | Lop(Floatop (Float64, (Iabsf | Inegf)) | Specific Isqrtf as op) ->
         let instr = (match op with
-                     | Ifloatop (Float64, Iabsf) -> "fabs"
-                     | Ifloatop (Float64, Inegf) -> "fneg"
-                     | Ispecific Isqrtf          -> "fsqrt"
-                     | _                         -> assert false) in
+                     | Floatop (Float64, Iabsf) -> "fabs"
+                     | Floatop (Float64, Inegf) -> "fneg"
+                     | Specific Isqrtf          -> "fsqrt"
+                     | _                        -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Ifloatop (Float32, (Iabsf | Inegf))) ->
+    | Lop(Floatop (Float32, (Iabsf | Inegf))) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop(Ireinterpret_cast (Int_of_value | Value_of_int)) ->
+    | Lop(Reinterpret_cast (Int_of_value | Value_of_int)) ->
         let src = i.arg.(0) and dst = i.res.(0) in
         if src.loc <> dst.loc then begin
           match (src, dst) with
@@ -1030,19 +1029,19 @@ let emit_instr i =
           | _ ->
               assert false
         end
-    | Lop(Ifloatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Ispecific Inegmulf as op) ->
+    | Lop(Floatop (Float64, (Iaddf | Isubf | Imulf | Idivf)) | Specific Inegmulf as op) ->
         let instr = (match op with
-                     | Ifloatop (Float64, Iaddf) -> "fadd"
-                     | Ifloatop (Float64, Isubf) -> "fsub"
-                     | Ifloatop (Float64, Imulf) -> "fmul"
-                     | Ifloatop (Float64, Idivf) -> "fdiv"
-                     | Ispecific Inegmulf        -> "fnmul"
-                     | _                         -> assert false) in
+                     | Floatop (Float64, Iaddf) -> "fadd"
+                     | Floatop (Float64, Isubf) -> "fsub"
+                     | Floatop (Float64, Imulf) -> "fmul"
+                     | Floatop (Float64, Idivf) -> "fdiv"
+                     | Specific Inegmulf        -> "fnmul"
+                     | _                        -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
-    | Lop(Ifloatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
+    | Lop(Floatop (Float32, (Iaddf | Isubf | Imulf | Idivf))) ->
         (* CR mslater: (float32) arm64 *)
         Misc.fatal_error "float32 is not supported on this architecture"
-    | Lop(Ispecific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf as op)) ->
+    | Lop(Specific(Imuladdf | Inegmuladdf | Imulsubf | Inegmulsubf as op)) ->
         let instr = (match op with
                      | Imuladdf    -> "fmadd"
                      | Inegmuladdf -> "fnmadd"
@@ -1050,9 +1049,9 @@ let emit_instr i =
                      | Inegmulsubf -> "fnmsub"
                      | _ -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}, {emit_reg i.arg.(0)}\n`
-    | Lop(Iopaque) ->
+    | Lop(Opaque) ->
         assert (i.arg.(0).loc = i.res.(0).loc)
-    | Lop(Ispecific(Ishiftarith(op, shift))) ->
+    | Lop(Specific(Ishiftarith(op, shift))) ->
         let instr = (match op with
                        Ishiftadd    -> "add"
                      | Ishiftsub    -> "sub") in
@@ -1060,13 +1059,13 @@ let emit_instr i =
         if shift >= 0
         then `, lsl #{emit_int shift}\n`
         else `, asr #{emit_int (-shift)}\n`
-    | Lop(Ispecific(Imuladd | Imulsub as op)) ->
+    | Lop(Specific(Imuladd | Imulsub as op)) ->
         let instr = (match op with
                        Imuladd -> "madd"
                      | Imulsub -> "msub"
                      | _ -> assert false) in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}, {emit_reg i.arg.(2)}\n`
-    | Lop(Ispecific(Ibswap { bitwidth })) ->
+    | Lop(Specific(Ibswap { bitwidth })) ->
         begin match bitwidth with
         | Sixteen ->
             `	rev16	{emit_wreg i.res.(0)}, {emit_wreg i.arg.(0)}\n`;
@@ -1076,17 +1075,17 @@ let emit_instr i =
         | Sixtyfour ->
             `	rev	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
         end
-    | Lop(Ispecific(Isignext size)) ->
+    | Lop(Specific(Isignext size)) ->
         `	sbfm	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, #0, #{emit_int (size - 1)}\n`
-    | Lop (Iname_for_debugger _) -> ()
-    | Lop (Iprobe _ | Iprobe_is_enabled _) ->
+    | Lop (Name_for_debugger _) -> ()
+    | Lcall_op (Lprobe _) | Lop (Probe_is_enabled _) ->
       fatal_error ("Probes not supported.")
-    | Lop(Idls_get) ->
+    | Lop(Dls_get) ->
       if Config.runtime5 then
         let offset = Domainstate.(idx_of_field Domain_dls_root) * 8 in
         `	ldr	{emit_reg i.res.(0)}, [{emit_reg reg_domain_state_ptr}, {emit_int offset}]\n`
       else Misc.fatal_error "Dls is not supported in runtime4."
-    | Lop (Icsel tst) ->
+    | Lop (Csel tst) ->
       let len = Array.length i.arg in
       let ifso = i.arg.(len - 2) in
       let ifnot = i.arg.(len - 1) in

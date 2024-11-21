@@ -735,7 +735,7 @@ let fundecl :
       | Iop
           (Iname_for_debugger
             { ident; which_parameter; provenance; is_assignment; regs }) ->
-        let cfg_op : Cfg.operation =
+        let cfg_op : Operation.t =
           Name_for_debugger
             { ident; which_parameter; provenance; is_assignment; regs }
         in

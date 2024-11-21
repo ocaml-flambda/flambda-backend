@@ -454,6 +454,7 @@
   linscan
   liveness
   mach
+  operation
   peephole_optimize
   peephole_rules
   peephole_utils
@@ -461,6 +462,7 @@
   printcmm
   printlinear
   printmach
+  printoperation
   printreg
   proc
   simd

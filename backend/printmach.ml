@@ -38,61 +38,7 @@ let trap_stack ppf (ts : Simple_operation.trap_stack) =
     Format.fprintf ppf "<%a>" p ts
   end else ()
 
-let intcomp = function
-  | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
-  | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
-
-let is_unary_op = function
-  | Iclz _
-  | Ictz _
-  | Ipopcnt -> true
-  | Iadd | Isub | Imul | Imulh _ | Idiv | Imod
-  | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-  | Icomp _
-    -> false
-
-let intop = function
-  | Iadd -> " + "
-  | Isub -> " - "
-  | Imul -> " * "
-  | Imulh { signed } -> " *h "^(if signed then "" else "u")
-  | Idiv -> " div "
-  | Imod -> " mod "
-  | Iand -> " & "
-  | Ior ->  " | "
-  | Ixor -> " ^ "
-  | Ilsl -> " << "
-  | Ilsr -> " >>u "
-  | Iasr -> " >>s "
-  | Iclz { arg_is_non_zero; } -> Printf.sprintf "clz %B " arg_is_non_zero
-  | Ictz { arg_is_non_zero; } -> Printf.sprintf "ctz %B " arg_is_non_zero
-  | Ipopcnt -> "popcnt "
-  | Icomp cmp -> intcomp cmp
-
-let floatop ppf op =
-  match op with
-  | Iaddf -> fprintf ppf "+."
-  | Isubf -> fprintf ppf "-."
-  | Imulf -> fprintf ppf "*."
-  | Idivf -> fprintf ppf "/."
-  | Iabsf -> fprintf ppf "abs"
-  | Inegf -> fprintf ppf "neg"
-  | Icompf cmp -> fprintf ppf "%s" (Printcmm.float_comparison cmp)
-
-let test' ?(print_reg = Printreg.reg) tst ppf arg =
-  let reg = print_reg in
-  match tst with
-  | Itruetest -> reg ppf arg.(0)
-  | Ifalsetest -> fprintf ppf "not %a" reg arg.(0)
-  | Iinttest cmp -> fprintf ppf "%a%s%a" reg arg.(0) (intcomp cmp) reg arg.(1)
-  | Iinttest_imm(cmp, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intcomp cmp) n
-  | Ifloattest (_, cmp) ->
-      fprintf ppf "%a %s %a"
-       reg arg.(0) (Printcmm.float_comparison cmp) reg arg.(1)
-  | Ieventest -> fprintf ppf "%a & 1 == 0" reg arg.(0)
-  | Ioddtest -> fprintf ppf "%a & 1 == 1" reg arg.(0)
-
-let test tst ppf arg = test' tst ppf arg
+let test tst ppf arg = Simple_operation.format_test ~print_reg:Printreg.reg tst ppf arg
 
 let operation' ?(print_reg = Printreg.reg) op arg ppf res =
   let reg = print_reg in
@@ -138,14 +84,14 @@ let operation' ?(print_reg = Printreg.reg) op arg ppf res =
   | Ialloc { bytes = n; mode = Alloc_mode.Local } ->
     fprintf ppf "alloc_local %i" n;
   | Iintop(op) ->
-      if is_unary_op op then begin
+      if Simple_operation.is_unary_integer_operation op then begin
         assert (Array.length arg = 1);
-        fprintf ppf "%s%a" (intop op) reg arg.(0)
+        fprintf ppf "%s%a" (Simple_operation.string_of_integer_operation op) reg arg.(0)
       end else begin
         assert (Array.length arg = 2);
-        fprintf ppf "%a%s%a" reg arg.(0) (intop op) reg arg.(1)
+        fprintf ppf "%a%s%a" reg arg.(0) (Simple_operation.string_of_integer_operation op) reg arg.(1)
       end
-  | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (intop op) n
+  | Iintop_imm(op, n) -> fprintf ppf "%a%s%i" reg arg.(0) (Simple_operation.string_of_integer_operation op) n
   | Iintop_atomic {op = Compare_and_swap; size; addr} ->
     fprintf ppf "lock cas %s[%a] ?%a %a"
       (Printcmm.atomic_bitwidth size)
@@ -157,9 +103,9 @@ let operation' ?(print_reg = Printreg.reg) op arg ppf res =
       (Arch.print_addressing reg addr) (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
   | Ifloatop (_, (Icompf _ | Iaddf | Isubf | Imulf | Idivf as op)) ->
-    fprintf ppf "%a %a %a" reg arg.(0) floatop op reg arg.(1)
+    fprintf ppf "%a %a %a" reg arg.(0) Simple_operation.format_float_operation op reg arg.(1)
   | Ifloatop (_, (Inegf | Iabsf as op)) ->
-    fprintf ppf "%a %a" floatop op reg arg.(0)
+    fprintf ppf "%a %a" Simple_operation.format_float_operation op reg arg.(0)
   | Icsel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"

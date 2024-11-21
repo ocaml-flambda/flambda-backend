@@ -32,7 +32,8 @@ type instruction =
 and instruction_desc =
   | Lprologue
   | Lend
-  | Lop of Mach.operation
+  | Lop of Operation.t
+  | Lcall_op of call_operation
   | Lreloadretaddr
   | Lreturn
   | Llabel of { label : label; section_name : string option }
@@ -46,6 +47,17 @@ and instruction_desc =
   | Lpoptrap
   | Lraise of Lambda.raise_kind
   | Lstackcheck of { max_frame_size_bytes : int; }
+
+and call_operation =
+  | Lcall_ind
+  | Lcall_imm of { func : Cmm.symbol; }
+  | Ltailcall_ind
+  | Ltailcall_imm of { func : Cmm.symbol; }
+  | Lextcall of { func : string;
+                  ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
+                  alloc : bool; returns : bool;
+                  stack_ofs : int; }
+  | Lprobe of { name: string; handler_code_sym: string; enabled_at_init: bool; }
 
 val has_fallthrough :  instruction_desc -> bool
 val end_instr: instruction

@@ -68,7 +68,7 @@ class cfg_cse = object
   inherit Cfg_cse.cse_generic as super
 
   method! class_of_operation
-  : Cfg.operation -> op_class
+  : Operation.t -> op_class
   = fun op ->
   match op with
     | Specific spec ->

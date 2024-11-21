@@ -25,7 +25,7 @@ let specific x =
   Cfg_selectgen.Basic (Op (Specific x))
 
 let pseudoregs_for_operation op arg res =
-  match (op : Cfg.operation) with
+  match (op : Operation.t) with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
   | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor)
   | Floatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->

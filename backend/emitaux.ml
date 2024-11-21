@@ -609,12 +609,13 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
       let s = fs + trap_size in
       loop i.next s (max s max_fs) nontail_flag
     | Lpoptrap -> loop i.next (fs - trap_size) max_fs nontail_flag
-    | Lop (Istackoffset n) ->
+    | Lop (Stackoffset n) ->
       let s = fs + n in
       loop i.next s (max s max_fs) nontail_flag
-    | Lop (Icall_ind | Icall_imm _) -> loop i.next fs max_fs true
-    | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _
-    | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
+    | Lcall_op (Lcall_ind | Lcall_imm _) -> loop i.next fs max_fs true
+    | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn | Llabel _
+    | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
+    | Lraise _ ->
       loop i.next fs max_fs nontail_flag
     | Lstackcheck _ ->
       (* should not be already present *)
