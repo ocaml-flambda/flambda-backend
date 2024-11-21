@@ -1202,7 +1202,7 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun env esel index ecases _dbg _king ->
+      fun env esel index ecases _dbg _kind ->
         (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
         match self#emit_expr env esel ~bound_name:None with
         | None -> ()
