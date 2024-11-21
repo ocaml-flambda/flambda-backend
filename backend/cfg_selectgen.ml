@@ -117,7 +117,6 @@ type environment = Label.t Select_utils.environment
 type basic_or_terminator =
   | Basic of Cfg.basic
   | Terminator of Cfg.terminator
-  | With_next_label of (Label.t -> Cfg.terminator)
 
 let basic_op x = Basic (Op x)
 
@@ -321,16 +320,12 @@ class virtual selector_generic =
     (* Default instruction selection for operators *)
 
     method select_operation (op : Cmm.operation) (args : Cmm.expression list)
-        (_dbg : Debuginfo.t) : basic_or_terminator * Cmm.expression list =
+        (_dbg : Debuginfo.t) ~label_after
+        : basic_or_terminator * Cmm.expression list =
       match op, args with
       | Capply _, Cconst_symbol (func, _dbg) :: rem ->
-        ( With_next_label
-            (fun label_after -> Call { op = Direct func; label_after }),
-          rem )
-      | Capply _, _ ->
-        ( With_next_label
-            (fun label_after -> Call { op = Indirect; label_after }),
-          args )
+        Terminator (Call { op = Direct func; label_after }), rem
+      | Capply _, _ -> Terminator (Call { op = Indirect; label_after }), args
       | Cextcall { func; builtin = true }, _ ->
         Misc.fatal_errorf
           "Selection.select_operation: builtin not recognized %s" func ()
@@ -345,10 +340,7 @@ class virtual selector_generic =
         in
         if returns
         then
-          ( With_next_label
-              (fun label_after ->
-                Prim { op = External external_call; label_after }),
-            args )
+          Terminator (Prim { op = External external_call; label_after }), args
         else Terminator (Call_no_return external_call), args
       | Cload { memory_chunk; mutability; is_atomic }, [arg] ->
         let addressing_mode, eloc = self#select_addressing memory_chunk arg in
@@ -424,12 +416,11 @@ class virtual selector_generic =
         ( basic_op (Intop_atomic { op = Compare_and_swap; size; addr }),
           [compare_with; set_to; eloc] )
       | Cprobe { name; handler_code_sym; enabled_at_init }, _ ->
-        ( With_next_label
-            (fun label_after ->
-              Prim
-                { op = Probe { name; handler_code_sym; enabled_at_init };
-                  label_after
-                }),
+        ( Terminator
+            (Prim
+               { op = Probe { name; handler_code_sym; enabled_at_init };
+                 label_after
+               }),
           args )
       | Cprobe_is_enabled { name }, _ ->
         basic_op (Probe_is_enabled { name }), []
@@ -572,80 +563,70 @@ class virtual selector_generic =
                 self#insert_debug env (Cfg.Op naming_op) Debuginfo.none [||] [||]
           in
           let ty = Select_utils.oper_result_type op in
-          let new_op, new_args = self#select_operation op simple_args dbg in
+          let label_after = Cmm.new_label () in
+          let new_op, new_args =
+            self#select_operation op simple_args dbg ~label_after
+          in
           match new_op with
-          | With_next_label (f : Label.t -> Cfg.terminator) -> (
-            let label = Cmm.new_label () in
-            let term = f label in
-            match term with
-            | Call { op = Indirect; label_after } ->
-              let r1 = self#emit_tuple env new_args in
-              let rarg = Array.sub r1 1 (Array.length r1 - 1) in
-              let rd = self#regs_for ty in
-              let loc_arg, stack_ofs_args =
-                Proc.loc_arguments (Reg.typv rarg)
-              in
-              let loc_res, stack_ofs_res =
-                Proc.loc_results_call (Reg.typv rd)
-              in
-              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-              self#insert_move_args env rarg loc_arg stack_ofs;
-              self#insert_debug' env term dbg
-                (Array.append [| r1.(0) |] loc_arg)
-                loc_res;
-              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
-              (* The destination registers (as per the procedure calling
-                 convention) need to be named right now, otherwise the result of
-                 the function call may be unavailable in the debugger
-                 immediately after the call. *)
-              add_naming_op_for_bound_name loc_res;
-              self#insert_move_results env loc_res rd stack_ofs;
-              Select_utils.set_traps_for_raise env;
-              Some rd
-            | Call { op = Direct _; label_after } ->
-              let r1 = self#emit_tuple env new_args in
-              let rd = self#regs_for ty in
-              let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
-              let loc_res, stack_ofs_res =
-                Proc.loc_results_call (Reg.typv rd)
-              in
-              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-              self#insert_move_args env r1 loc_arg stack_ofs;
-              self#insert_debug' env term dbg loc_arg loc_res;
-              add_naming_op_for_bound_name loc_res;
-              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
-              self#insert_move_results env loc_res rd stack_ofs;
-              Select_utils.set_traps_for_raise env;
-              Some rd
-            | Prim { op = External ({ ty_args; ty_res; _ } as r); label_after }
-              ->
-              let loc_arg, stack_ofs =
-                self#emit_extcall_args env ty_args new_args
-              in
-              let rd = self#regs_for ty_res in
-              let term =
-                Cfg.Prim { op = External { r with stack_ofs }; label_after }
-              in
-              let loc_res =
-                self#insert_op_debug' env term dbg loc_arg
-                  (Proc.loc_external_results (Reg.typv rd))
-              in
-              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
-              add_naming_op_for_bound_name loc_res;
-              self#insert_move_results env loc_res rd stack_ofs;
-              Select_utils.set_traps_for_raise env;
-              ret rd
-            | Prim { op = Probe _; label_after } ->
-              let r1 = self#emit_tuple env new_args in
-              let rd = self#regs_for ty in
-              let rd = self#insert_op_debug' env term dbg r1 rd in
-              Select_utils.set_traps_for_raise env;
-              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
-              ret rd
-            | _ ->
-              Misc.fatal_errorf "unexpected terminator (%a)"
-                (Cfg.dump_terminator ~sep:"")
-                term)
+          | Terminator (Call { op = Indirect; label_after } as term) ->
+            let r1 = self#emit_tuple env new_args in
+            let rarg = Array.sub r1 1 (Array.length r1 - 1) in
+            let rd = self#regs_for ty in
+            let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
+            let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
+            let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+            self#insert_move_args env rarg loc_arg stack_ofs;
+            self#insert_debug' env term dbg
+              (Array.append [| r1.(0) |] loc_arg)
+              loc_res;
+            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            (* The destination registers (as per the procedure calling
+               convention) need to be named right now, otherwise the result of
+               the function call may be unavailable in the debugger immediately
+               after the call. *)
+            add_naming_op_for_bound_name loc_res;
+            self#insert_move_results env loc_res rd stack_ofs;
+            Select_utils.set_traps_for_raise env;
+            Some rd
+          | Terminator (Call { op = Direct _; label_after } as term) ->
+            let r1 = self#emit_tuple env new_args in
+            let rd = self#regs_for ty in
+            let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
+            let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
+            let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+            self#insert_move_args env r1 loc_arg stack_ofs;
+            self#insert_debug' env term dbg loc_arg loc_res;
+            add_naming_op_for_bound_name loc_res;
+            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            self#insert_move_results env loc_res rd stack_ofs;
+            Select_utils.set_traps_for_raise env;
+            Some rd
+          | Terminator
+              (Prim
+                { op = External ({ ty_args; ty_res; _ } as r); label_after }) ->
+            let loc_arg, stack_ofs =
+              self#emit_extcall_args env ty_args new_args
+            in
+            let rd = self#regs_for ty_res in
+            let term =
+              Cfg.Prim { op = External { r with stack_ofs }; label_after }
+            in
+            let loc_res =
+              self#insert_op_debug' env term dbg loc_arg
+                (Proc.loc_external_results (Reg.typv rd))
+            in
+            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            add_naming_op_for_bound_name loc_res;
+            self#insert_move_results env loc_res rd stack_ofs;
+            Select_utils.set_traps_for_raise env;
+            ret rd
+          | Terminator (Prim { op = Probe _; label_after } as term) ->
+            let r1 = self#emit_tuple env new_args in
+            let rd = self#regs_for ty in
+            let rd = self#insert_op_debug' env term dbg r1 rd in
+            Select_utils.set_traps_for_raise env;
+            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            ret rd
           | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
             let loc_arg, stack_ofs =
               self#emit_extcall_args env ty_args new_args
@@ -1123,17 +1104,12 @@ class virtual selector_generic =
         match self#emit_parts_list env args with
         | None -> ()
         | Some (simple_args, env) -> (
-          let new_op, new_args = self#select_operation op simple_args dbg in
-          let new_op =
-            match new_op with
-            | With_next_label f ->
-              let label_after = Cmm.new_label () in
-              f label_after
-            | Basic _ | Terminator _ ->
-              Misc.fatal_error "Cfg_selectgen.emit_tail"
+          let label_after = Cmm.new_label () in
+          let new_op, new_args =
+            self#select_operation op simple_args dbg ~label_after
           in
           match new_op with
-          | Call { op = Indirect; label_after } ->
+          | Terminator (Call { op = Indirect; label_after } as term) ->
             let r1 = self#emit_tuple env new_args in
             let rd = self#regs_for ty in
             let rarg = Array.sub r1 1 (Array.length r1 - 1) in
@@ -1149,14 +1125,14 @@ class virtual selector_generic =
                 [||])
             else (
               self#insert_move_args env rarg loc_arg stack_ofs;
-              self#insert_debug' env new_op dbg
+              self#insert_debug' env term dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 loc_res;
               sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               Select_utils.set_traps_for_raise env;
               self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
               self#insert_return env (Some loc_res) (pop_all_traps env))
-          | Call { op = Direct func; label_after } ->
+          | Terminator (Call { op = Direct func; label_after } as term) ->
             let r1 = self#emit_tuple env new_args in
             let rd = self#regs_for ty in
             let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
@@ -1177,7 +1153,7 @@ class virtual selector_generic =
               self#insert_debug' env call dbg loc_arg [||])
             else (
               self#insert_move_args env r1 loc_arg stack_ofs;
-              self#insert_debug' env new_op dbg loc_arg loc_res;
+              self#insert_debug' env term dbg loc_arg loc_res;
               sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
               Select_utils.set_traps_for_raise env;
               self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
