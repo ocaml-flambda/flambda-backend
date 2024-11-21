@@ -145,10 +145,13 @@ let next_instr_id () : int =
    changed only when no additional instructions will be inserted to the
    block. *)
 module Sub_cfg : sig
-  type t =
+  type layout
+
+  (* CR mshinwell: consider making this abstract *)
+  type t = private
     { entry : Cfg.basic_block;
       exit : Cfg.basic_block;
-      layout : Cfg.basic_block DLL.t
+      layout : layout
     }
 
   val make_instr :
@@ -178,14 +181,18 @@ module Sub_cfg : sig
 
   val iter_basic_blocks : t -> f:(Cfg.basic_block -> unit) -> unit
 
+  val exists_basic_blocks : t -> f:(Cfg.basic_block -> bool) -> bool
+
   val transfer : from:t -> to_:t -> unit
 
   val dump : t -> unit
 end = struct
+  type layout = Cfg.basic_block DLL.t
+
   type t =
     { entry : Cfg.basic_block;
       exit : Cfg.basic_block;
-      layout : Cfg.basic_block DLL.t
+      layout : layout
     }
 
   let make_instr desc arg res dbg =
@@ -263,6 +270,8 @@ end = struct
            }
 
   let iter_basic_blocks sub_cfg ~f = DLL.iter sub_cfg.layout ~f
+
+  let exists_basic_blocks sub_cfg ~f = DLL.exists sub_cfg.layout ~f
 
   let transfer ~from ~to_ = DLL.transfer ~from:from.layout ~to_:to_.layout ()
 
@@ -1507,7 +1516,7 @@ class virtual selector_generic =
         (* CR xclerc for xclerc: implement polling insertion. *)
         let fun_poll = Lambda.Default_poll in
         let fun_contains_calls =
-          DLL.exists body.Sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
+          Sub_cfg.exists_basic_blocks body ~f:(fun (block : Cfg.basic_block) ->
               block.is_trap_handler
               || (match block.terminator.desc with
                  | Never | Always _ | Parity_test _ | Truth_test _
