@@ -182,11 +182,7 @@ let make_empty_block ?label terminator : Cfg.basic_block =
 module Sub_cfg : sig
   type t
 
-  val make_never_block : ?label:Label.t -> unit -> Cfg.basic_block
-
   val make_empty : unit -> t
-
-  val add_block_at_start : t -> Cfg.basic_block -> t
 
   val add_empty_block_at_start : t -> label:Label.t -> t
 
@@ -202,9 +198,6 @@ module Sub_cfg : sig
 
   val set_terminator :
     t -> Cfg.terminator -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
-
-  val link_if_needed :
-    from:Cfg.basic_block -> to_:Cfg.basic_block -> unit -> unit
 
   val iter_basic_blocks : t -> f:(Cfg.basic_block -> unit) -> unit
 
