@@ -492,14 +492,14 @@ class virtual selector_generic =
 
     method insert_move env src dst =
       if src.Reg.stamp <> dst.Reg.stamp
-      then self#insert env Cfg.(Op Move) [| src |] [| dst |]
+      then self#insert env (Op Move) [| src |] [| dst |]
 
     method emit_expr_aux_raise env k arg dbg =
       match self#emit_expr env arg ~bound_name:None with
       | None -> None
       | Some r1 ->
         let rd = [| Proc.loc_exn_bucket |] in
-        self#insert env Cfg.(Op Move) r1 rd;
+        self#insert env (Op Move) r1 rd;
         self#insert_debug' env (Cfg.Raise k) dbg rd [||];
         set_traps_for_raise env;
         None
@@ -527,7 +527,7 @@ class virtual selector_generic =
                     regs
                   }
               in
-              self#insert_debug env (Cfg.Op naming_op) Debuginfo.none [||] [||]
+              self#insert_debug env (Op naming_op) Debuginfo.none [||] [||]
         in
         let ty = Select_utils.oper_result_type op in
         let label_after = Cmm.new_label () in
@@ -608,10 +608,10 @@ class virtual selector_generic =
           let rd = self#regs_for ty in
           let label = Cmm.new_label () in
           let r = { r with stack_ofs } in
-          let term =
+          let term : Cfg.terminator =
             if keep_for_checking
-            then Cfg.Prim { op = Cfg.External r; label_after = label }
-            else Cfg.Call_no_return r
+            then Prim { op = External r; label_after = label }
+            else Call_no_return r
           in
           let (_ : Reg.t array) =
             self#insert_op_debug' env term dbg loc_arg
@@ -634,7 +634,7 @@ class virtual selector_generic =
                 mode
               }
           in
-          self#insert_debug env (Cfg.Op op) dbg [||] rd;
+          self#insert_debug env (Op op) dbg [||] rd;
           add_naming_op_for_bound_name rd;
           self#emit_stores env dbg new_args rd;
           Select_utils.set_traps_for_raise env;
@@ -699,8 +699,7 @@ class virtual selector_generic =
         let r = join_array env sub_cases ~bound_name in
         let subs = Array.map (fun (_, s) -> s#extract) sub_cases in
         let term_desc : Cfg.terminator =
-          Cfg.Switch
-            (Array.map (fun idx -> subs.(idx).Sub_cfg.entry.start) index)
+          Switch (Array.map (fun idx -> subs.(idx).Sub_cfg.entry.start) index)
         in
         sub_cfg.exit.terminator
           <- { sub_cfg.exit.terminator with
@@ -820,7 +819,7 @@ class virtual selector_generic =
         List.map
           (fun ((_, _, _, label), (_, sub_handler)) ->
             let seq : Sub_cfg.t = sub_handler#extract in
-            let pre_entry : Cfg.basic_block =
+            let pre_entry =
               Sub_cfg.make_empty_block ~label
                 (Sub_cfg.make_instr (Cfg.Always seq.entry.start) [||] [||]
                    Debuginfo.none)
@@ -1053,7 +1052,7 @@ class virtual selector_generic =
               loc_res;
             sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
             Select_utils.set_traps_for_raise env;
-            self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
+            self#insert env (Op (Stackoffset (-stack_ofs))) [||] [||];
             self#insert_return env (Some loc_res) (pop_all_traps env))
         | Terminator (Call { op = Direct func; label_after } as term) ->
           let r1 = self#emit_tuple env new_args in
@@ -1079,7 +1078,7 @@ class virtual selector_generic =
             self#insert_debug' env term dbg loc_arg loc_res;
             sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
             Select_utils.set_traps_for_raise env;
-            self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
+            self#insert env (Op (Stackoffset (-stack_ofs))) [||] [||];
             self#insert_return env (Some loc_res) (pop_all_traps env))
         | _ -> Misc.fatal_error "Cfg_selectgen.emit_tail")
 
@@ -1200,7 +1199,7 @@ class virtual selector_generic =
                       [||] [||])
                 ids_and_rs)
         in
-        let pre_entry : Cfg.basic_block =
+        let pre_entry =
           Sub_cfg.make_empty_block ~label
             (Sub_cfg.make_instr (Cfg.Always seq.entry.start) [||] [||]
                Debuginfo.none)
@@ -1406,7 +1405,7 @@ class virtual selector_generic =
                    | Op (Alloc _ | Poll) -> true
                    | _ -> false))
       in
-      let cfg : Cfg.t =
+      let cfg =
         Cfg.create ~fun_name:f.Cmm.fun_name.sym_name ~fun_args:loc_arg
           ~fun_codegen_options:
             (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
