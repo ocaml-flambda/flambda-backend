@@ -1821,11 +1821,17 @@ static void major_collection_slice(intnat howmuch,
 
   if (domain_state->sweeping_done) {
     /* We do not immediately trigger a minor GC, but instead wait for
-       the next one to happen normally. This gives some chance that
-       other domains will finish sweeping as well. */
+       the next one to happen normally, when marking will start. This
+       gives some chance that other domains will finish sweeping as
+       well. */
     request_mark_phase();
+    /* If there was no sweeping to do, but marking hasn't started,
+       then minor GC has not occurred naturally between major slices -
+       so we should force one now. */
+    if (sweep_work == 0 && !caml_marking_started()) {
+        caml_request_minor_gc();
+    }
   }
-
 
 mark_again:
   if (caml_marking_started() &&
