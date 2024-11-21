@@ -161,6 +161,8 @@ module Sub_cfg : sig
 
   val add_block_at_start : t -> Cfg.basic_block -> t
 
+  val add_empty_block_at_start : t -> label:Label.t -> t
+
   val add_never_block : t -> label:Label.t -> t
 
   val add_block : t -> Cfg.basic_block -> t
@@ -245,9 +247,16 @@ end = struct
     DLL.add_end layout exit;
     { entry; exit; layout }
 
+  let start_label sub_cfg = sub_cfg.entry.start
+
   let add_block_at_start sub_cfg block =
     DLL.add_begin sub_cfg.layout block;
     { sub_cfg with entry = block }
+
+  let add_empty_block_at_start sub_cfg ~label =
+    make_empty_block ~label
+      (make_instr (Cfg.Always (start_label sub_cfg)) [||] [||] Debuginfo.none)
+    |> add_block_at_start sub_cfg
 
   let add_block sub_cfg block =
     DLL.add_end sub_cfg.layout block;
@@ -301,8 +310,6 @@ end = struct
            id = next_instr_id ();
            arg = Option.value arg ~default:sub_cfg.exit.terminator.arg
          }
-
-  let start_label sub_cfg = sub_cfg.entry.start
 
   let mark_as_trap_handler sub_cfg ~exn_label =
     sub_cfg.entry.start <- exn_label;
@@ -827,13 +834,7 @@ class virtual selector_generic =
         List.map
           (fun ((_, _, _, label), (_, sub_handler)) ->
             let seq : Sub_cfg.t = sub_handler#extract in
-            let pre_entry =
-              Sub_cfg.make_empty_block ~label
-                (Sub_cfg.make_instr
-                   (Cfg.Always (Sub_cfg.start_label seq))
-                   [||] [||] Debuginfo.none)
-            in
-            Sub_cfg.add_block_at_start seq pre_entry)
+            Sub_cfg.add_empty_block_at_start seq ~label)
           l
       in
       let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
@@ -1163,13 +1164,7 @@ class virtual selector_generic =
                       [||] [||])
                 ids_and_rs)
         in
-        let pre_entry =
-          Sub_cfg.make_empty_block ~label
-            (Sub_cfg.make_instr
-               (Cfg.Always (Sub_cfg.start_label seq))
-               [||] [||] Debuginfo.none)
-        in
-        let seq = Sub_cfg.add_block_at_start seq pre_entry in
+        let seq = Sub_cfg.add_empty_block_at_start seq ~label in
         nfail, trap_stack, seq, is_cold
       in
       let rec build_all_reachable_handlers ~already_built ~not_built =
