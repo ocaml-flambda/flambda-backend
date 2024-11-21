@@ -184,7 +184,9 @@ module Sub_cfg : sig
 
   val exists_basic_blocks : t -> f:(Cfg.basic_block -> bool) -> bool
 
-  val transfer : from:t -> to_:t -> unit
+  val join : from:t list -> to_:t -> t
+
+  val join_tail : from:t list -> to_:t -> t
 
   val dump : t -> unit
 end = struct
@@ -275,6 +277,18 @@ end = struct
   let exists_basic_blocks sub_cfg ~f = DLL.exists sub_cfg.layout ~f
 
   let transfer ~from ~to_ = DLL.transfer ~from:from.layout ~to_:to_.layout ()
+
+  let join ~from ~to_ =
+    List.iter (fun from -> transfer ~from ~to_) from;
+    let join_block = make_never_block () in
+    List.iter
+      (fun from -> link_if_needed ~from:from.exit ~to_:join_block ())
+      from;
+    add_block to_ join_block
+
+  let join_tail ~from ~to_ =
+    List.iter (fun from -> transfer ~from ~to_) from;
+    add_never_block to_ ~label:(Cmm.new_label ())
 
   let dump sub_cfg =
     let liveness = Cfg_dataflow.Instr.Tbl.create 32 in
@@ -676,12 +690,7 @@ class virtual selector_generic =
                arg = rarg;
                id = next_instr_id ()
              };
-        Sub_cfg.transfer ~from:sub_if ~to_:sub_cfg;
-        Sub_cfg.transfer ~from:sub_else ~to_:sub_cfg;
-        let join_block = Sub_cfg.make_never_block () in
-        Sub_cfg.link_if_needed ~from:sub_if.Sub_cfg.exit ~to_:join_block ();
-        Sub_cfg.link_if_needed ~from:sub_else.Sub_cfg.exit ~to_:join_block ();
-        sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
+        sub_cfg <- Sub_cfg.join ~from:[sub_if; sub_else] ~to_:sub_cfg;
         r
 
     method emit_expr_aux_switch env bound_name esel index ecases
@@ -707,16 +716,7 @@ class virtual selector_generic =
                arg = rsel;
                id = next_instr_id ()
              };
-        Array.iter
-          (fun sub_case -> Sub_cfg.transfer ~from:sub_case ~to_:sub_cfg)
-          subs;
-        let join_block = Sub_cfg.make_never_block () in
-        Array.iter
-          (fun sub_case ->
-            Sub_cfg.link_if_needed ~from:sub_case.Sub_cfg.exit ~to_:join_block
-              ())
-          subs;
-        sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
+        sub_cfg <- Sub_cfg.join ~from:(Array.to_list subs) ~to_:sub_cfg;
         r
 
     method emit_expr_aux_catch env bound_name (_rec_flag : Cmm.rec_flag)
@@ -833,16 +833,7 @@ class virtual selector_generic =
              desc = term_desc;
              id = next_instr_id ()
            };
-      Sub_cfg.transfer ~from:s_body ~to_:sub_cfg;
-      let join_block = Sub_cfg.make_never_block () in
-      Sub_cfg.link_if_needed ~from:s_body.Sub_cfg.exit ~to_:join_block ();
-      List.iter
-        (fun sub_handler ->
-          Sub_cfg.transfer ~from:sub_handler ~to_:sub_cfg;
-          Sub_cfg.link_if_needed ~from:sub_handler.Sub_cfg.exit ~to_:join_block
-            ())
-        s_handlers;
-      sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
+      sub_cfg <- Sub_cfg.join ~from:(s_body :: s_handlers) ~to_:sub_cfg;
       r
 
     method emit_expr_aux_exit env lbl args traps =
@@ -947,12 +938,7 @@ class virtual selector_generic =
                desc = Always s1.entry.start;
                id = next_instr_id ()
              };
-        Sub_cfg.transfer ~from:s1 ~to_:sub_cfg;
-        Sub_cfg.transfer ~from:s2 ~to_:sub_cfg;
-        let join_block = Sub_cfg.make_never_block () in
-        Sub_cfg.link_if_needed ~from:s1.exit ~to_:join_block ();
-        Sub_cfg.link_if_needed ~from:s2.exit ~to_:join_block ();
-        sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
+        sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg;
         r
       in
       let env = Select_utils.env_add v rv env in
@@ -1104,9 +1090,7 @@ class virtual selector_generic =
                id = next_instr_id ();
                arg = rarg
              };
-        Sub_cfg.transfer ~from:sub_if ~to_:sub_cfg;
-        Sub_cfg.transfer ~from:sub_else ~to_:sub_cfg;
-        sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:(Cmm.new_label ())
+        sub_cfg <- Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:sub_cfg
 
     method emit_tail_switch env esel index ecases (_dbg : Debuginfo.t)
         (_kind : Cmm.kind_for_unboxing) =
@@ -1130,10 +1114,8 @@ class virtual selector_generic =
                arg = rsel;
                id = next_instr_id ()
              };
-        Array.iter
-          (fun sub_case -> Sub_cfg.transfer ~from:sub_case ~to_:sub_cfg)
-          sub_cases;
-        sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:(Cmm.new_label ())
+        sub_cfg
+          <- Sub_cfg.join_tail ~from:(Array.to_list sub_cases) ~to_:sub_cfg
 
     method emit_tail_catch env (_rec_flag : Cmm.rec_flag) handlers e1
         (_value_kind : Cmm.kind_for_unboxing) =
@@ -1239,11 +1221,13 @@ class virtual selector_generic =
              desc = term_desc;
              id = next_instr_id ()
            };
-      Sub_cfg.transfer ~from:s_body ~to_:sub_cfg;
-      List.iter
-        (fun (_, _, sub_handler, _) ->
-          Sub_cfg.transfer ~from:sub_handler ~to_:sub_cfg)
-        new_handlers
+      (* XXX mshinwell: this used to say: Sub_cfg.transfer ~from:s_body
+         ~to_:sub_cfg; List.iter (fun (_, _, sub_handler, _) -> Sub_cfg.transfer
+         ~from:sub_handler ~to_:sub_cfg) new_handlers
+
+         ...is it correct to use [join_tail]? *)
+      let s_handlers = List.map (fun (_, _, s, _) -> s) new_handlers in
+      sub_cfg <- Sub_cfg.join_tail ~from:(s_body :: s_handlers) ~to_:sub_cfg
 
     method emit_tail_trywith env e1 exn_cont v e2 (_dbg : Debuginfo.t)
         (_value_kind : Cmm.kind_for_unboxing) =
@@ -1284,9 +1268,7 @@ class virtual selector_generic =
                desc = Always s1.entry.start;
                id = next_instr_id ()
              };
-        Sub_cfg.transfer ~from:s1 ~to_:sub_cfg;
-        Sub_cfg.transfer ~from:s2 ~to_:sub_cfg;
-        sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:(Cmm.new_label ())
+        sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg
       in
       let env = Select_utils.env_add v rv env in
       match Select_utils.env_find_static_exception exn_cont env_body with
