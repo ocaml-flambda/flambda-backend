@@ -163,6 +163,8 @@ module Sub_cfg : sig
 
   val add_empty_block : t -> label:Label.t -> t
 
+  val add_block : t -> Cfg.basic_block -> t
+
   val add_instruction :
     t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
@@ -230,10 +232,12 @@ end = struct
     DLL.add_end layout exit;
     { entry; exit; layout }
 
+  let add_block sub_cfg block =
+    DLL.add_end sub_cfg.layout block;
+    { sub_cfg with exit = block }
+
   let add_empty_block sub_cfg ~label =
-    let next_block = make_never_block ~label () in
-    DLL.add_end sub_cfg.layout next_block;
-    { sub_cfg with exit = next_block }
+    add_block sub_cfg (make_never_block ~label ())
 
   let add_instruction sub_cfg desc arg res dbg =
     assert (sub_cfg.exit.terminator.desc = Cfg.Never);
@@ -725,8 +729,7 @@ class virtual selector_generic =
           let join_block = Sub_cfg.make_never_block () in
           Sub_cfg.link_if_needed ~from:sub_if.Sub_cfg.exit ~to_:join_block ();
           Sub_cfg.link_if_needed ~from:sub_else.Sub_cfg.exit ~to_:join_block ();
-          DLL.add_end sub_cfg.Sub_cfg.layout join_block;
-          sub_cfg <- { sub_cfg with Sub_cfg.exit = join_block };
+          sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
           r
 
     method emit_expr_aux_switch
@@ -770,8 +773,7 @@ class virtual selector_generic =
               Sub_cfg.link_if_needed ~from:sub_case.Sub_cfg.exit ~to_:join_block
                 ())
             subs;
-          DLL.add_end sub_cfg.Sub_cfg.layout join_block;
-          sub_cfg <- { sub_cfg with Sub_cfg.exit = join_block };
+          sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
           r
 
     method emit_expr_aux_catch
@@ -908,8 +910,7 @@ class virtual selector_generic =
             Sub_cfg.link_if_needed ~from:sub_handler.Sub_cfg.exit
               ~to_:join_block ())
           s_handlers;
-        DLL.add_end sub_cfg.Sub_cfg.layout join_block;
-        sub_cfg <- { sub_cfg with Sub_cfg.exit = join_block };
+        sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
         r
 
     method emit_expr_aux_exit
@@ -1028,10 +1029,9 @@ class virtual selector_generic =
           Sub_cfg.transfer ~from:s1 ~to_:sub_cfg;
           Sub_cfg.transfer ~from:s2 ~to_:sub_cfg;
           let join_block = Sub_cfg.make_never_block () in
-          DLL.add_end sub_cfg.Sub_cfg.layout join_block;
           Sub_cfg.link_if_needed ~from:s1.exit ~to_:join_block ();
           Sub_cfg.link_if_needed ~from:s2.exit ~to_:join_block ();
-          sub_cfg <- { sub_cfg with Sub_cfg.exit = join_block };
+          sub_cfg <- Sub_cfg.add_block sub_cfg join_block;
           r
         in
         let env = Select_utils.env_add v rv env in
