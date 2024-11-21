@@ -165,7 +165,7 @@ module Sub_cfg : sig
 
   val add_block_at_start : t -> Cfg.basic_block -> t
 
-  val add_empty_block : t -> label:Label.t -> t
+  val add_never_block : t -> label:Label.t -> t
 
   val add_block : t -> Cfg.basic_block -> t
 
@@ -248,7 +248,7 @@ end = struct
     DLL.add_end sub_cfg.layout block;
     { sub_cfg with exit = block }
 
-  let add_empty_block sub_cfg ~label =
+  let add_never_block sub_cfg ~label =
     add_block sub_cfg (make_never_block ~label ())
 
   let add_instruction sub_cfg desc arg res dbg =
@@ -579,7 +579,7 @@ class virtual selector_generic =
             self#insert_debug' env term dbg
               (Array.append [| r1.(0) |] loc_arg)
               loc_res;
-            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
             (* The destination registers (as per the procedure calling
                convention) need to be named right now, otherwise the result of
                the function call may be unavailable in the debugger immediately
@@ -597,7 +597,7 @@ class virtual selector_generic =
             self#insert_move_args env r1 loc_arg stack_ofs;
             self#insert_debug' env term dbg loc_arg loc_res;
             add_naming_op_for_bound_name loc_res;
-            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
             self#insert_move_results env loc_res rd stack_ofs;
             Select_utils.set_traps_for_raise env;
             Some rd
@@ -615,7 +615,7 @@ class virtual selector_generic =
               self#insert_op_debug' env term dbg loc_arg
                 (Proc.loc_external_results (Reg.typv rd))
             in
-            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
             add_naming_op_for_bound_name loc_res;
             self#insert_move_results env loc_res rd stack_ofs;
             Select_utils.set_traps_for_raise env;
@@ -625,7 +625,7 @@ class virtual selector_generic =
             let rd = self#regs_for ty in
             let rd = self#insert_op_debug' env term dbg r1 rd in
             Select_utils.set_traps_for_raise env;
-            sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+            sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
             ret rd
           | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
             let loc_arg, stack_ofs =
@@ -653,7 +653,7 @@ class virtual selector_generic =
             Select_utils.set_traps_for_raise env;
             if returns
             then (
-              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label;
+              sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label;
               ret rd)
             else None
           | Basic (Op (Alloc { bytes = _; mode })) ->
@@ -1128,7 +1128,7 @@ class virtual selector_generic =
               self#insert_debug' env term dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 loc_res;
-              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+              sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
               Select_utils.set_traps_for_raise env;
               self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
               self#insert_return env (Some loc_res) (pop_all_traps env))
@@ -1154,7 +1154,7 @@ class virtual selector_generic =
             else (
               self#insert_move_args env r1 loc_arg stack_ofs;
               self#insert_debug' env term dbg loc_arg loc_res;
-              sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:label_after;
+              sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:label_after;
               Select_utils.set_traps_for_raise env;
               self#insert env Cfg.(Op (Stackoffset (-stack_ofs))) [||] [||];
               self#insert_return env (Some loc_res) (pop_all_traps env))
@@ -1192,7 +1192,7 @@ class virtual selector_generic =
                };
           Sub_cfg.transfer ~from:sub_if ~to_:sub_cfg;
           Sub_cfg.transfer ~from:sub_else ~to_:sub_cfg;
-          sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
+          sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:(Cmm.new_label ())
 
     method emit_tail_switch
         : environment ->
@@ -1226,7 +1226,7 @@ class virtual selector_generic =
           Array.iter
             (fun sub_case -> Sub_cfg.transfer ~from:sub_case ~to_:sub_cfg)
             sub_cases;
-          sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
+          sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:(Cmm.new_label ())
 
     method emit_tail_catch
         : environment ->
@@ -1395,7 +1395,7 @@ class virtual selector_generic =
                };
           Sub_cfg.transfer ~from:s1 ~to_:sub_cfg;
           Sub_cfg.transfer ~from:s2 ~to_:sub_cfg;
-          sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
+          sub_cfg <- Sub_cfg.add_never_block sub_cfg ~label:(Cmm.new_label ())
         in
         let env = Select_utils.env_add v rv env in
         match Select_utils.env_find_static_exception exn_cont env_body with
