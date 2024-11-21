@@ -1088,7 +1088,7 @@ class virtual selector_generic =
             ecases
         in
         let term_desc : Cfg.terminator =
-          Cfg.Switch
+          Switch
             (Array.map (fun idx -> sub_cases.(idx).Sub_cfg.entry.start) index)
         in
         Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
