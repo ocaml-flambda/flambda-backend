@@ -131,6 +131,7 @@ let next_instr_id () : int =
   incr next_instr_id;
   res
 
+(* XXX mshinwell: I think this could reasonably be moved to its own file now. *)
 (* A "sub" CFG is the counterpart of an instruction list in the original Mach
    selection pass.
 
@@ -146,16 +147,7 @@ let next_instr_id () : int =
    changed only when no additional instructions will be inserted to the
    block. *)
 module Sub_cfg : sig
-  type exit
-
-  type layout
-
-  (* CR mshinwell: consider making this abstract *)
-  type t = private
-    { entry : Cfg.basic_block;
-      exit : exit;
-      layout : layout
-    }
+  type t
 
   val make_instr :
     'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a Cfg.instruction
@@ -172,6 +164,9 @@ module Sub_cfg : sig
   val add_never_block : t -> label:Label.t -> t
 
   val add_block : t -> Cfg.basic_block -> t
+
+  val add_instruction_at_start :
+    t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
   val add_instruction :
     t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
@@ -192,16 +187,16 @@ module Sub_cfg : sig
 
   val update_exit_terminator : ?arg:Reg.t array -> t -> Cfg.terminator -> unit
 
+  val start_label : t -> Label.t
+
+  val mark_as_trap_handler : t -> exn_label:Label.t -> unit
+
   val dump : t -> unit
 end = struct
-  type exit = Cfg.basic_block
-
-  type layout = Cfg.basic_block DLL.t
-
   type t =
     { entry : Cfg.basic_block;
-      exit : exit;
-      layout : layout
+      exit : Cfg.basic_block;
+      layout : Cfg.basic_block DLL.t
     }
 
   let make_instr desc arg res dbg =
@@ -261,6 +256,9 @@ end = struct
   let add_never_block sub_cfg ~label =
     add_block sub_cfg (make_never_block ~label ())
 
+  let add_instruction_at_start sub_cfg desc arg res dbg =
+    DLL.add_begin sub_cfg.entry.body (make_instr desc arg res dbg)
+
   let add_instruction sub_cfg desc arg res dbg =
     assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
     DLL.add_end sub_cfg.exit.body (make_instr desc arg res dbg)
@@ -303,6 +301,12 @@ end = struct
            id = next_instr_id ();
            arg = Option.value arg ~default:sub_cfg.exit.terminator.arg
          }
+
+  let start_label sub_cfg = sub_cfg.entry.start
+
+  let mark_as_trap_handler sub_cfg ~exn_label =
+    sub_cfg.entry.start <- exn_label;
+    sub_cfg.entry.is_trap_handler <- true
 
   let dump sub_cfg =
     let liveness = Cfg_dataflow.Instr.Tbl.create 32 in
@@ -695,8 +699,8 @@ class virtual selector_generic =
         let sub_else = selse#extract in
         let term_desc =
           Cfgize_utils.terminator_of_test cond
-            ~label_true:sub_if.Sub_cfg.entry.start
-            ~label_false:sub_else.Sub_cfg.entry.start
+            ~label_true:(Sub_cfg.start_label sub_if)
+            ~label_false:(Sub_cfg.start_label sub_else)
         in
         Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
         sub_cfg <- Sub_cfg.join ~from:[sub_if; sub_else] ~to_:sub_cfg;
@@ -717,7 +721,7 @@ class virtual selector_generic =
         let r = join_array env sub_cases ~bound_name in
         let subs = Array.map (fun (_, s) -> s#extract) sub_cases in
         let term_desc : Cfg.terminator =
-          Switch (Array.map (fun idx -> subs.(idx).Sub_cfg.entry.start) index)
+          Switch (Array.map (fun idx -> Sub_cfg.start_label subs.(idx)) index)
         in
         Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
         sub_cfg <- Sub_cfg.join ~from:(Array.to_list subs) ~to_:sub_cfg;
@@ -825,13 +829,14 @@ class virtual selector_generic =
             let seq : Sub_cfg.t = sub_handler#extract in
             let pre_entry =
               Sub_cfg.make_empty_block ~label
-                (Sub_cfg.make_instr (Cfg.Always seq.entry.start) [||] [||]
-                   Debuginfo.none)
+                (Sub_cfg.make_instr
+                   (Cfg.Always (Sub_cfg.start_label seq))
+                   [||] [||] Debuginfo.none)
             in
             Sub_cfg.add_block_at_start seq pre_entry)
           l
       in
-      let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
+      let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
       Sub_cfg.update_exit_terminator sub_cfg term_desc;
       sub_cfg <- Sub_cfg.join ~from:(s_body :: s_handlers) ~to_:sub_cfg;
       r
@@ -919,17 +924,13 @@ class virtual selector_generic =
                 in
                 seq#insert_debug env (Cfg.Op naming_op) Debuginfo.none [||] [||])
         in
-        let move_exn_bucket =
-          Sub_cfg.make_instr (Cfg.Op Move) [| Proc.loc_exn_bucket |] rv
-            Debuginfo.none
-        in
         let r = join env r1 s1 r2 s2 ~bound_name in
         let s1 : Sub_cfg.t = s1#extract in
         let s2 : Sub_cfg.t = s2#extract in
-        s2.entry.start <- exn_label;
-        DLL.add_begin s2.entry.body move_exn_bucket;
-        s2.entry.is_trap_handler <- true;
-        Sub_cfg.update_exit_terminator sub_cfg (Always s1.entry.start);
+        Sub_cfg.mark_as_trap_handler s2 ~exn_label;
+        Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move)
+          [| Proc.loc_exn_bucket |] rv Debuginfo.none;
+        Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
         sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg;
         r
       in
@@ -1072,8 +1073,8 @@ class virtual selector_generic =
         let sub_else = self#emit_tail_sequence env eelse in
         let term_desc =
           Cfgize_utils.terminator_of_test cond
-            ~label_true:sub_if.Sub_cfg.entry.start
-            ~label_false:sub_else.Sub_cfg.entry.start
+            ~label_false:(Sub_cfg.start_label sub_else)
+            ~label_true:(Sub_cfg.start_label sub_if)
         in
         Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rarg;
         sub_cfg <- Sub_cfg.join_tail ~from:[sub_if; sub_else] ~to_:sub_cfg
@@ -1092,7 +1093,7 @@ class virtual selector_generic =
         in
         let term_desc : Cfg.terminator =
           Switch
-            (Array.map (fun idx -> sub_cases.(idx).Sub_cfg.entry.start) index)
+            (Array.map (fun idx -> Sub_cfg.start_label sub_cases.(idx)) index)
         in
         Sub_cfg.update_exit_terminator sub_cfg term_desc ~arg:rsel;
         sub_cfg
@@ -1164,8 +1165,9 @@ class virtual selector_generic =
         in
         let pre_entry =
           Sub_cfg.make_empty_block ~label
-            (Sub_cfg.make_instr (Cfg.Always seq.entry.start) [||] [||]
-               Debuginfo.none)
+            (Sub_cfg.make_instr
+               (Cfg.Always (Sub_cfg.start_label seq))
+               [||] [||] Debuginfo.none)
         in
         let seq = Sub_cfg.add_block_at_start seq pre_entry in
         nfail, trap_stack, seq, is_cold
@@ -1196,7 +1198,7 @@ class virtual selector_generic =
         (* Note: we're dropping unreachable handlers here *)
       in
       assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
-      let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
+      let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
       Sub_cfg.update_exit_terminator sub_cfg term_desc;
       (* XXX mshinwell: this used to say: Sub_cfg.transfer ~from:s_body
          ~to_:sub_cfg; List.iter (fun (_, _, sub_handler, _) -> Sub_cfg.transfer
@@ -1233,14 +1235,10 @@ class virtual selector_generic =
                 seq#insert_debug env_handler (Cfg.Op naming_op) Debuginfo.none
                   [||] [||])
         in
-        s2.entry.start <- exn_label;
-        let move_exn_bucket =
-          Sub_cfg.make_instr (Cfg.Op Move) [| Proc.loc_exn_bucket |] rv
-            Debuginfo.none
-        in
-        DLL.add_begin s2.entry.body move_exn_bucket;
-        s2.entry.is_trap_handler <- true;
-        Sub_cfg.update_exit_terminator sub_cfg (Always s1.entry.start);
+        Sub_cfg.mark_as_trap_handler s2 ~exn_label;
+        Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move)
+          [| Proc.loc_exn_bucket |] rv Debuginfo.none;
+        Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
         sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg
       in
       let env = Select_utils.env_add v rv env in
@@ -1385,8 +1383,9 @@ class virtual selector_generic =
       DLL.add_end layout entry_block.start;
       let tailrec_block =
         Sub_cfg.make_empty_block ~label:tailrec_label
-          (Sub_cfg.make_instr (Cfg.Always body.Sub_cfg.entry.start) [||] [||]
-             Debuginfo.none)
+          (Sub_cfg.make_instr
+             (Cfg.Always (Sub_cfg.start_label body))
+             [||] [||] Debuginfo.none)
       in
       Cfg.add_block_exn cfg tailrec_block;
       DLL.add_end layout tailrec_block.start;
