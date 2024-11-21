@@ -161,6 +161,8 @@ module Sub_cfg : sig
 
   val make_empty : unit -> t
 
+  val add_block_at_start : t -> Cfg.basic_block -> t
+
   val add_empty_block : t -> label:Label.t -> t
 
   val add_block : t -> Cfg.basic_block -> t
@@ -231,6 +233,10 @@ end = struct
     DLL.add_end layout entry;
     DLL.add_end layout exit;
     { entry; exit; layout }
+
+  let add_block_at_start sub_cfg block =
+    DLL.add_begin sub_cfg.layout block;
+    { sub_cfg with entry = block }
 
   let add_block sub_cfg block =
     DLL.add_end sub_cfg.layout block;
@@ -890,9 +896,7 @@ class virtual selector_generic =
                   (Sub_cfg.make_instr (Cfg.Always seq.entry.start) [||] [||]
                      Debuginfo.none)
               in
-              DLL.add_begin seq.layout pre_entry;
-              let seq = { seq with entry = pre_entry } in
-              seq)
+              Sub_cfg.add_block_at_start seq pre_entry)
             l
         in
         let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
@@ -1319,8 +1323,7 @@ class virtual selector_generic =
               (Sub_cfg.make_instr (Cfg.Always seq.entry.start) [||] [||]
                  Debuginfo.none)
           in
-          DLL.add_begin seq.layout pre_entry;
-          let seq = { seq with entry = pre_entry } in
+          let seq = Sub_cfg.add_block_at_start seq pre_entry in
           nfail, trap_stack, seq, is_cold
         in
         let rec build_all_reachable_handlers ~already_built ~not_built =
