@@ -172,6 +172,10 @@ module Sub_cfg : sig
   val link_if_needed :
     from:Cfg.basic_block -> to_:Cfg.basic_block -> unit -> unit
 
+  val iter_basic_blocks : t -> f:(Cfg.basic_block -> unit) -> unit
+
+  val transfer : from:t -> to_:t -> unit
+
   val dump : t -> unit
 end = struct
   type t =
@@ -247,6 +251,10 @@ end = struct
              desc = Always to_.start;
              id = next_instr_id ()
            }
+
+  let iter_basic_blocks sub_cfg ~f = DLL.iter sub_cfg.layout ~f
+
+  let transfer ~from ~to_ = DLL.transfer ~from:from.layout ~to_:to_.layout ()
 
   let dump sub_cfg =
     let liveness = Cfg_dataflow.Instr.Tbl.create 32 in
@@ -712,8 +720,8 @@ class virtual selector_generic =
                  arg = rarg;
                  id = next_instr_id ()
                };
-          DLL.transfer ~from:sub_if.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          DLL.transfer ~from:sub_else.Sub_cfg.layout ~to_:sub_cfg.layout ();
+          Sub_cfg.transfer ~from:sub_if ~to_:sub_cfg;
+          Sub_cfg.transfer ~from:sub_else ~to_:sub_cfg;
           let join_block = Sub_cfg.make_never_block () in
           Sub_cfg.link_if_needed ~from:sub_if.Sub_cfg.exit ~to_:join_block ();
           Sub_cfg.link_if_needed ~from:sub_else.Sub_cfg.exit ~to_:join_block ();
@@ -754,8 +762,7 @@ class virtual selector_generic =
                  id = next_instr_id ()
                };
           Array.iter
-            (fun sub_case ->
-              DLL.transfer ~from:sub_case.Sub_cfg.layout ~to_:sub_cfg.layout ())
+            (fun sub_case -> Sub_cfg.transfer ~from:sub_case ~to_:sub_cfg)
             subs;
           let join_block = Sub_cfg.make_never_block () in
           Array.iter
@@ -892,12 +899,12 @@ class virtual selector_generic =
                desc = term_desc;
                id = next_instr_id ()
              };
-        DLL.transfer ~from:s_body.Sub_cfg.layout ~to_:sub_cfg.layout ();
+        Sub_cfg.transfer ~from:s_body ~to_:sub_cfg;
         let join_block = Sub_cfg.make_never_block () in
         Sub_cfg.link_if_needed ~from:s_body.Sub_cfg.exit ~to_:join_block ();
         List.iter
           (fun sub_handler ->
-            DLL.transfer ~from:sub_handler.Sub_cfg.layout ~to_:sub_cfg.layout ();
+            Sub_cfg.transfer ~from:sub_handler ~to_:sub_cfg;
             Sub_cfg.link_if_needed ~from:sub_handler.Sub_cfg.exit
               ~to_:join_block ())
           s_handlers;
@@ -1018,8 +1025,8 @@ class virtual selector_generic =
                  desc = Always s1.entry.start;
                  id = next_instr_id ()
                };
-          DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
+          Sub_cfg.transfer ~from:s1 ~to_:sub_cfg;
+          Sub_cfg.transfer ~from:s2 ~to_:sub_cfg;
           let join_block = Sub_cfg.make_never_block () in
           DLL.add_end sub_cfg.Sub_cfg.layout join_block;
           Sub_cfg.link_if_needed ~from:s1.exit ~to_:join_block ();
@@ -1194,8 +1201,8 @@ class virtual selector_generic =
                  id = next_instr_id ();
                  arg = rarg
                };
-          DLL.transfer ~from:sub_if.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          DLL.transfer ~from:sub_else.Sub_cfg.layout ~to_:sub_cfg.layout ();
+          Sub_cfg.transfer ~from:sub_if ~to_:sub_cfg;
+          Sub_cfg.transfer ~from:sub_else ~to_:sub_cfg;
           sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
 
     method emit_tail_switch
@@ -1228,8 +1235,7 @@ class virtual selector_generic =
                  id = next_instr_id ()
                };
           Array.iter
-            (fun sub_case ->
-              DLL.transfer ~from:sub_case.Sub_cfg.layout ~to_:sub_cfg.layout ())
+            (fun sub_case -> Sub_cfg.transfer ~from:sub_case ~to_:sub_cfg)
             sub_cases;
           sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
 
@@ -1346,10 +1352,10 @@ class virtual selector_generic =
                desc = term_desc;
                id = next_instr_id ()
              };
-        DLL.transfer ~from:s_body.Sub_cfg.layout ~to_:sub_cfg.layout ();
+        Sub_cfg.transfer ~from:s_body ~to_:sub_cfg;
         List.iter
           (fun (_, _, sub_handler, _) ->
-            DLL.transfer ~from:sub_handler.Sub_cfg.layout ~to_:sub_cfg.layout ())
+            Sub_cfg.transfer ~from:sub_handler ~to_:sub_cfg)
           new_handlers
 
     method emit_tail_trywith
@@ -1399,8 +1405,8 @@ class virtual selector_generic =
                  desc = Always s1.entry.start;
                  id = next_instr_id ()
                };
-          DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
-          DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
+          Sub_cfg.transfer ~from:s1 ~to_:sub_cfg;
+          Sub_cfg.transfer ~from:s2 ~to_:sub_cfg;
           sub_cfg <- Sub_cfg.add_empty_block sub_cfg ~label:(Cmm.new_label ())
         in
         let env = Select_utils.env_add v rv env in
@@ -1550,7 +1556,7 @@ class virtual selector_generic =
         in
         Cfg.add_block_exn cfg tailrec_block;
         DLL.add_end layout tailrec_block.start;
-        DLL.iter body.Sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
+        Sub_cfg.iter_basic_blocks body ~f:(fun (block : Cfg.basic_block) ->
             if block.terminator.desc <> Cfg.Never
             then (
               block.can_raise <- Cfg.can_raise_terminator block.terminator.desc;
