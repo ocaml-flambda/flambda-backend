@@ -1410,13 +1410,14 @@ void caml_mark_roots_stw (int participant_count, caml_domain_state** barrier_par
   Caml_global_barrier_if_final(participant_count) {
     caml_gc_phase = Phase_sweep_and_mark_main;
     atomic_store_relaxed(&global_roots_scanned, WORK_UNSTARTED);
+    /* Adopt orphaned work from domains that were spawned and
+       terminated in the previous cycle. Do this in the barrier,
+       before any domain can terminate on this cycle. */
+    adopt_orphaned_work (caml_global_heap_state.UNMARKED);
   }
 
   caml_domain_state* domain = Caml_state;
 
-  /* Adopt orphaned work from domains that were spawned and terminated in the
-     previous cycle. */
-  adopt_orphaned_work (caml_global_heap_state.UNMARKED);
 
   begin_ephe_marking();
 
