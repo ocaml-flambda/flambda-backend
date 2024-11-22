@@ -20,7 +20,7 @@ type t = Expr.t
 type rebuilt_expr = t
 
 let to_expr t are_rebuilding =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then
     Misc.fatal_error
       "Cannot ask [Rebuilt_expr] for the built expression when \
@@ -33,7 +33,7 @@ let to_apply_cont t =
   | Let _ | Let_cont _ | Apply _ | Switch _ | Invalid _ -> None
 
 let can_be_removed_as_invalid t are_rebuilding =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then false
   else
     match Expr.descr t with
@@ -42,7 +42,7 @@ let can_be_removed_as_invalid t are_rebuilding =
     | Let _ | Let_cont _ | Apply _ | Apply_cont _ | Switch _ -> false
 
 let [@ocamlformat "disable"] print are_rebuilding ppf t =
-  if ART.do_not_rebuild_terms are_rebuilding then
+  if ART.are_not_rebuilding are_rebuilding then
     Format.fprintf ppf "<unavailable, terms not being rebuilt>"
   else
     Expr.print ppf t
@@ -51,7 +51,7 @@ let term_not_rebuilt = Expr.create_invalid Code_not_rebuilt
 
 let create_let are_rebuilding bound_vars defining_expr ~body ~free_names_of_body
     =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then term_not_rebuilt
   else
     Let.create bound_vars defining_expr ~body
@@ -59,7 +59,7 @@ let create_let are_rebuilding bound_vars defining_expr ~body ~free_names_of_body
     |> Expr.create_let
 
 let create_apply are_rebuilding apply =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then term_not_rebuilt
   else Expr.create_apply apply
 
@@ -75,7 +75,7 @@ module Function_params_and_body = struct
       ~my_region ~my_ghost_region ~my_depth
 
   let to_function_params_and_body t are_rebuilding =
-    if ART.do_not_rebuild_terms are_rebuilding
+    if ART.are_not_rebuilding are_rebuilding
     then
       Misc.fatal_error
         "Cannot ask for function params and body when not rebuilding terms"
@@ -96,7 +96,7 @@ module Continuation_handler = struct
 
   let create are_rebuilding params ~handler ~free_names_of_handler
       ~is_exn_handler ~is_cold =
-    if ART.do_not_rebuild_terms are_rebuilding
+    if ART.are_not_rebuilding are_rebuilding
     then dummy
     else
       Continuation_handler.create params ~handler
@@ -104,7 +104,7 @@ module Continuation_handler = struct
         ~is_cold
 
   let create' are_rebuilding params ~handler ~is_exn_handler ~is_cold =
-    if ART.do_not_rebuild_terms are_rebuilding
+    if ART.are_not_rebuilding are_rebuilding
     then dummy
     else
       Continuation_handler.create params ~handler ~free_names_of_handler:Unknown
@@ -113,7 +113,7 @@ end
 
 let create_non_recursive_let_cont are_rebuilding cont handler ~body
     ~free_names_of_body =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then term_not_rebuilt
   else
     Let_cont.create_non_recursive cont handler ~body
@@ -121,7 +121,7 @@ let create_non_recursive_let_cont are_rebuilding cont handler ~body
 
 let create_non_recursive_let_cont' are_rebuilding cont handler ~body
     ~num_free_occurrences_of_cont_in_body ~is_applied_with_traps =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then term_not_rebuilt
   else
     Let_cont.create_non_recursive' ~cont handler ~body
@@ -130,18 +130,18 @@ let create_non_recursive_let_cont' are_rebuilding cont handler ~body
 
 let create_non_recursive_let_cont_without_free_names are_rebuilding cont handler
     ~body =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then term_not_rebuilt
   else
     Let_cont.create_non_recursive cont handler ~body ~free_names_of_body:Unknown
 
 let create_recursive_let_cont are_rebuilding ~invariant_params handlers ~body =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then term_not_rebuilt
   else Let_cont.create_recursive ~invariant_params handlers ~body
 
 let create_switch are_rebuilding switch =
-  if ART.do_not_rebuild_terms are_rebuilding
+  if ART.are_not_rebuilding are_rebuilding
   then term_not_rebuilt
   else Expr.create_switch switch
 

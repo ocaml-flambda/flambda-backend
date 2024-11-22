@@ -54,6 +54,8 @@ type t
 
 val print : Format.formatter -> t -> unit
 
+(** {2 Creation API} *)
+
 (** Create an empty replay history for a first downwards pass. *)
 val first_pass : t
 
@@ -61,24 +63,33 @@ val first_pass : t
     that is suitable for use for subsequent passes on [expr]. *)
 val replay : always_inline:bool -> t -> t
 
-(** Returns [true] is the replay history was created with the `always_inline` flag. (first pass
-    histories have the flage set to false). *)
-val must_inline : t -> bool
-
 (** Define a new bound variable. *)
 val define_variable : Variable.t -> t -> t
 
 (** Define a new set of bound mutually recursive continuations. *)
 val define_continuations : Continuation.t list -> t -> t
 
+(** {2 Inspection API} *)
+
+(** Returns [true] is the replay history was created with the `always_inline` flag. (first pass
+    histories have the flage set to false). *)
+val must_inline : t -> bool
+
+(** Type of results for inspection functions for which the result only makes sense
+    when replaying a downwards pass. *)
+type 'a replay_result =
+  | Still_recording
+  | Replayed of 'a (**)
+
 (** If called on a history created with {!replay}, returns the mapping from variables
     of the current pass to variables bound during the first pass.
 
     On a first pass replay, this will raise a fatal error. *)
-val replay_variable_mapping : t -> Variable.t Variable.Map.t
+val replay_variable_mapping : t -> Variable.t Variable.Map.t replay_result
 
 (** If called on a history created with {!replay}, returns the mapping from continuations
     of the current pass to continuations bound during the first pass.
 
     On a first pass replay, this will raise a fatal error. *)
-val replay_continuation_mapping : t -> Continuation.t Continuation.Map.t
+val replay_continuation_mapping :
+  t -> Continuation.t Continuation.Map.t replay_result
