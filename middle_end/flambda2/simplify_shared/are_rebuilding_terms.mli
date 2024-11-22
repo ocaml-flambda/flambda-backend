@@ -19,10 +19,16 @@
 
 type t
 
-val of_bool : bool -> t
-
-val do_not_rebuild_terms : t -> bool
+val print : Format.formatter -> t -> unit
 
 val are_rebuilding : t -> bool
 
-val print : Format.formatter -> t -> unit
+val are_not_rebuilding : t -> bool
+
+val are_rebuilding_partially : t -> bool
+
+val rebuild_nothing : t
+
+val rebuild_everything : t
+
+val partial_rebuilding : t
