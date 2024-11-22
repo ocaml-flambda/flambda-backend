@@ -670,6 +670,7 @@ and type_declaration =
      ptype_manifest: core_type option;  (** represents [= T] *)
      ptype_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      ptype_jkind_annotation: jkind_annotation option; (** for [: jkind] *)
+     ptype_boxes_jkind: jkind_annotation option; (** for [boxes jkind] *)
      ptype_loc: Location.t;
     }
 (**

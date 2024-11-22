@@ -927,6 +927,7 @@ let maybe_pmod_constraint mode expr =
 %token BARBAR                 "||"
 %token BARRBRACKET            "|]"
 %token BEGIN                  "begin"
+%token BOXES                  "boxes_"
 %token <char> CHAR            "'a'" (* just an example *)
 %token CLASS                  "class"
 %token COLON                  ":"
@@ -3866,6 +3867,7 @@ generic_type_declaration(flag, kind):
   params = type_parameters
   id = mkrhs(LIDENT)
   jkind_annotation = jkind_constraint?
+  boxes_jkind = boxes_jkind?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3876,7 +3878,7 @@ generic_type_declaration(flag, kind):
       let loc = make_loc $sloc in
       (flag, ext),
       Type.mk id ~params ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs
-        ?jkind_annotation
+        ?jkind_annotation ?boxes_jkind
     }
 ;
 %inline generic_and_type_declaration(kind):
@@ -3885,6 +3887,7 @@ generic_type_declaration(flag, kind):
   params = type_parameters
   id = mkrhs(LIDENT)
   jkind_annotation = jkind_constraint?
+  boxes_jkind = boxes_jkind?
   kind_priv_manifest = kind
   cstrs = constraints
   attrs2 = post_item_attributes
@@ -3895,7 +3898,7 @@ generic_type_declaration(flag, kind):
       let loc = make_loc $sloc in
       let text = symbol_text $symbolstartpos in
       Type.mk id ~params ~cstrs ~kind ~priv ?manifest ~attrs ~loc ~docs ~text
-        ?jkind_annotation
+        ?jkind_annotation ?boxes_jkind
     }
 ;
 %inline constraints:
@@ -3995,6 +3998,10 @@ jkind_annotation: (* : jkind_annotation *)
 
 jkind_constraint:
   COLON jkind_annotation { $2 }
+;
+
+boxes_jkind:
+  BOXES jkind_annotation { $2 }
 ;
 
 kind_abbreviation_decl:

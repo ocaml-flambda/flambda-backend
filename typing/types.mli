@@ -535,6 +535,8 @@ type type_declaration =
     for an e.g. local abstract type or an inlined record), then this field
     can safely be [None]. It's used only for printing and in untypeast. *)
 
+    type_boxes_jkind: type_expr Jkind_types.annotation option;
+
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;

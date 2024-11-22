@@ -570,6 +570,7 @@ module Type = struct
       ?(priv = Public)
       ?manifest
       ?jkind_annotation
+      ?boxes_jkind
       name =
     {
      ptype_name = name;
@@ -580,6 +581,7 @@ module Type = struct
      ptype_manifest = manifest;
      ptype_attributes = add_text_attrs text (add_docs_attrs docs attrs);
      ptype_jkind_annotation = jkind_annotation;
+     ptype_boxes_jkind = boxes_jkind;
      ptype_loc = loc;
     }
 

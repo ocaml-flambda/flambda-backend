@@ -81,6 +81,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_kind = Type_record (lbls, rep);
           type_jkind = jkind;
           type_jkind_annotation = None;
+          type_boxes_jkind = None;
           type_private = priv;
           type_manifest = None;
           type_variance = Variance.unknown_signature ~injective:true ~arity;

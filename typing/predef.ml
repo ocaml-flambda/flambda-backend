@@ -242,6 +242,7 @@ let mk_add_type add_type
          type, as then the type, if printed, will be clearer.
       *)
       ?jkind_annotation
+      ?boxes_jkind
       env =
   let decl =
     {type_params = [];
@@ -249,6 +250,7 @@ let mk_add_type add_type
      type_kind = kind;
      type_jkind = jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
+     type_boxes_jkind = boxes_jkind;
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
@@ -284,6 +286,7 @@ let mk_add_type1 add_type type_ident
       type_kind = kind param;
       type_jkind = jkind;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
+      type_boxes_jkind = None;
       type_loc = Location.none;
       type_private = Asttypes.Public;
       type_manifest = None;
@@ -425,7 +428,10 @@ let build_initial_env add_type add_extension empty_env =
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
        ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
-  |> add_type ident_lexing_position
+  |> (
+    let immediate = Jkind.Builtin.value ~why:(Primitive ident_int) in
+    let
+    add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =
            let id = Ident.create_predef field in
@@ -456,6 +462,13 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.of_const ~why:(Primitive ident_lexing_position)
                 Jkind.Const.Builtin.immutable_data.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.word
+       ~boxes_jkind:(
+         Jkind.Builtin.product ~why:Unboxed_record [
+           Jkind.of_const ~why:(Primitive ident_string)
+             Jkind.Const.Builtin.immutable_data.jkind;
+           immediate; immediate; immediate
+         ]
+       )
   |> add_type ident_string
        ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
                 Jkind.Const.Builtin.immutable_data.jkind)

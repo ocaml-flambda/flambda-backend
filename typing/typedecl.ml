@@ -1029,6 +1029,7 @@ let transl_declaration env sdecl (id, uid) =
         typ_private = sdecl.ptype_private;
         typ_attributes = sdecl.ptype_attributes;
         typ_jkind_annotation = Option.map snd jkind_annotation;
+        typ_boxes_jkind = None;
       }
     in
     let typ_shape =
@@ -3277,6 +3278,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_kind;
       type_jkind;
       type_jkind_annotation;
+      type_boxes_jkind;
       type_private = priv;
       type_manifest = Some man;
       type_variance = [];
@@ -3317,6 +3319,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_kind = new_sig_decl.type_kind;
       type_jkind = new_sig_decl.type_jkind;
       type_jkind_annotation = new_sig_decl.type_jkind_annotation;
+      type_boxes_jkind = new_sig_decl.type_boxes_jkind;
       type_private = new_sig_decl.type_private;
       type_manifest = new_sig_decl.type_manifest;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
@@ -3342,6 +3345,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
     typ_jkind_annotation = Option.map snd type_jkind_annotation;
+    typ_boxes_jkind = Option.map snd type_boxes_jkind;
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)

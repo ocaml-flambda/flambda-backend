@@ -234,7 +234,7 @@ module Type:
       ?params:(core_type * (variance * injectivity)) list ->
       ?cstrs:(core_type * core_type * loc) list ->
       ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type ->
-      ?jkind_annotation:jkind_annotation ->
+      ?jkind_annotation:jkind_annotation -> ?boxes_jkind:jkind_annotation ->
       str ->
       type_declaration
 

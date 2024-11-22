@@ -739,6 +739,7 @@ and type_declaration =
     typ_loc: Location.t;
     typ_attributes: attribute list;
     typ_jkind_annotation: Parsetree.jkind_annotation option;
+    typ_boxes_jkind: Parsetree.jkind_annotation option;
    }
 
 and type_kind =
