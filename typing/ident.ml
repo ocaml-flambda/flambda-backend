@@ -167,26 +167,31 @@ let to_global = function
   | Global_with_args g -> Some g
   | _ -> None
 
-let print ~with_scope ppf =
+let maybe_with_hash ~add_hash s =
+  if add_hash then
+    s ^ "#"
+  else
+    s
+
+let print_ ~with_scope ~add_hash ppf =
   let open Format in
   function
-  | Global name -> fprintf ppf "%s!" name
+  | Global name -> fprintf ppf "%s!" (maybe_with_hash ~add_hash name)
   | Predef { name; stamp = n } ->
-      fprintf ppf "%s%s!" name
+      fprintf ppf "%s%s!" (maybe_with_hash ~add_hash name)
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
   | Local { name; stamp = n } ->
-      fprintf ppf "%s%s" name
+      fprintf ppf "%s%s" (maybe_with_hash ~add_hash name)
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
   | Scoped { name; stamp = n; scope } ->
-      fprintf ppf "%s%s%s" name
+      fprintf ppf "%s%s%s" (maybe_with_hash ~add_hash name)
         (if !Clflags.unique_ids then sprintf "/%i" n else "")
         (if with_scope then sprintf "[%i]" scope else "")
   | Global_with_args g ->
+      assert (not add_hash);
       fprintf ppf "%a!" Global_module.Name.print g
 
-let print_with_scope ppf id = print ~with_scope:true ppf id
-
-let print ppf id = print ~with_scope:false ppf id
+let print ppf id = print_ ~with_scope:false ~add_hash:false ppf id
 
 let to_global_exn id =
   match to_global id with
@@ -430,3 +435,4 @@ include Identifiable.Make (struct
   let equal = same
 end)
 let equal = original_equal
+

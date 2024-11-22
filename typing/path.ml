@@ -114,14 +114,16 @@ let rec name ?(paren=kfalse) = function
     | Papply _ | Pextra_ty _ -> assert false
 
 let rec print ppf = function
-  | Pident id -> Ident.print_with_scope ppf id
+  | Pident id -> Ident.print_ ~add_hash:false ~with_scope:true ppf id
   | Pdot(p, s) | Pextra_ty (p, Pcstr_ty s) ->
       Format.fprintf ppf "%a.%s" print p s
   | Papply(p1, p2) -> Format.fprintf ppf "%a(%a)" print p1 print p2
   | Pextra_ty (p, Pext_ty) -> print ppf p
   | Pextra_ty (p, Pderived_unboxed_ty) ->
-      (* CR rtjoa: wrong, this can print "t/2#" *)
-      Format.fprintf ppf "%a#" print p
+    match p with
+    | Pident id -> Ident.print_ ~add_hash:true ~with_scope:true ppf id
+    | Pdot (p, s) -> print ppf (Pdot (p, s ^ "#"))
+    | Papply _ | Pextra_ty _ -> assert false
 
 let rec head = function
     Pident id -> id

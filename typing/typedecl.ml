@@ -318,8 +318,8 @@ in
         type_separability = Types.Separability.default_signature ~arity;
         type_is_newtype = false;
         type_expansion_scope = Btype.lowest_level;
-        type_loc = sdecl.ptype_loc;
-        type_attributes = sdecl.ptype_attributes;
+        type_loc = Location.ghostify sdecl.ptype_loc;
+        type_attributes = [];
         type_unboxed_default = false;
         type_uid = uid;
         type_has_illegal_crossings = false;
@@ -938,14 +938,6 @@ let transl_declaration env sdecl (id, uid) =
             transl_labels ~new_var_jkind:Any ~allow_unboxed:(not unbox)
             env None true lbls (Record { unboxed = unbox })
           in
-          (* let derived_unboxed_id, derived_unboxed_uid = match derived_unboxed_ids
-           * | Some id_uid -> id_uid
-           * | None -> assert false
-           * in
-           * let dur_lbls, dur_lbls' =
-           *   transl_labels ~new_var_jkind:Any ~allow_unboxed_true
-           *     env None true lbls Record_unboxed_product
-           * in *)
           let rep, jkind =
             (* Note this is inaccurate, using `Record_boxed` in cases where the
                correct representation is [Record_float], [Record_ufloat], or

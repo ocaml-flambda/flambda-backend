@@ -1940,7 +1940,6 @@ let derive_dur_decl decl lbl_decls =
     type_jkind = type_jkind;
     type_jkind_annotation = None;
     type_private = decl.type_private;
-    (* CR rtjoa: likely have to translate manifest *)
     type_manifest;
     type_variance = decl.type_variance;
     type_separability = Types.Separability.default_signature ~arity:decl.type_arity;
@@ -2040,9 +2039,7 @@ let rec components_of_module_maker
                   let dur_kind = Type_record_unboxed_product (unboxed_lbls, Record_unboxed_product) in
                   (* CR rtjoa: check this *)
                   let shape = Shape.leaf final_dur_decl.type_uid in
-                  (* CR rtjoa: need to add DUR ? probably ... *)
                   Type_record (lbls, repr),
-                  (* None *)
                   Some {
                     tda_declaration = final_dur_decl;
                     tda_descriptions=dur_kind;
