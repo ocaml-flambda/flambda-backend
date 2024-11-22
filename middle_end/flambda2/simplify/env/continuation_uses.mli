@@ -35,7 +35,7 @@ val add_use :
 
 val get_uses : t -> One_continuation_use.t list
 
-type arg_at_use = private
+type arg_at_use =
   { arg_type : Flambda2_types.t;
     typing_env : Flambda2_types.Typing_env.t
   }
@@ -66,3 +66,5 @@ val get_typing_env_no_more_than_one_use :
 val union : t -> t -> t
 
 val mark_non_inlinable : t -> t
+
+val clear_uses : t -> t
