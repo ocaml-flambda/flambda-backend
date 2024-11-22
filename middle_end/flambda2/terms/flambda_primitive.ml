@@ -2343,7 +2343,29 @@ let only_generative_effects t =
   | Only_generative_effects _, _, _ -> true
   | (No_effects | Arbitrary_effects), _, _ -> false
 
-module Eligible_for_cse = struct
+module Eligible_for_cse : sig
+  type t
+
+  include Contains_names.S with type t := t
+
+  val create : primitive_application -> t option
+
+  val create_exn : primitive_application -> t
+
+  val create_is_int : variant_only:bool -> immediate_or_block:Name.t -> t
+
+  val create_get_tag : block:Name.t -> t
+
+  val eligible : primitive_application -> bool
+
+  val to_primitive : t -> primitive_application
+
+  val fold_args : t -> init:'a -> f:('a -> Simple.t -> 'a * Simple.t) -> 'a * t
+
+  val filter_map_args : t -> f:(Simple.t -> Simple.t option) -> t option
+
+  include Container_types.S with type t := t
+end = struct
   type t = primitive_application
 
   let create t =

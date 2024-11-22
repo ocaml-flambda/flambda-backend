@@ -27,35 +27,52 @@ module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
 module List = ListLabels
 
-type t =
-  { by_scope : Simple.t EP.Map.t Scope.Map.t;
-    combined : Simple.t EP.Map.t
-  }
+module T0 : sig
+  type t = private
+    { by_scope : Simple.t EP.Map.t Scope.Map.t;
+      combined : Simple.t EP.Map.t
+    }
 
-let [@ocamlformat "disable"] print ppf { by_scope; combined; } =
-  Format.fprintf ppf "@[<hov 1>(\
-      @[<hov 1>(by_scope@ %a)@]@ \
-      @[<hov 1>(combined@ %a)@]\
-      @]"
-    (Scope.Map.print (EP.Map.print Simple.print)) by_scope
-    (EP.Map.print Simple.print) combined
+  val print : Format.formatter -> t -> unit
 
-let empty = { by_scope = Scope.Map.empty; combined = EP.Map.empty }
+  val empty : t
 
-let add t prim ~bound_to scope =
-  match EP.Map.find prim t.combined with
-  | exception Not_found ->
-    let level =
-      match Scope.Map.find scope t.by_scope with
-      | exception Not_found -> EP.Map.singleton prim bound_to
-      | level -> EP.Map.add prim bound_to level
-    in
-    let by_scope = Scope.Map.add (* replace *) scope level t.by_scope in
-    let combined = EP.Map.add prim bound_to t.combined in
-    { by_scope; combined }
-  | _bound_to -> t
+  val add : t -> EP.t -> bound_to:Simple.t -> Scope.t -> t
 
-let find t prim = EP.Map.find_opt prim t.combined
+  val find : t -> EP.t -> Simple.t option
+end = struct
+  type t =
+    { by_scope : Simple.t EP.Map.t Scope.Map.t;
+      combined : Simple.t EP.Map.t
+    }
+
+  let [@ocamlformat "disable"] print ppf { by_scope; combined; } =
+    Format.fprintf ppf "@[<hov 1>(\
+        @[<hov 1>(by_scope@ %a)@]@ \
+        @[<hov 1>(combined@ %a)@]\
+        @]"
+      (Scope.Map.print (EP.Map.print Simple.print)) by_scope
+      (EP.Map.print Simple.print) combined
+
+  let empty = { by_scope = Scope.Map.empty; combined = EP.Map.empty }
+
+  let add t prim ~bound_to scope =
+    match EP.Map.find prim t.combined with
+    | exception Not_found ->
+      let level =
+        match Scope.Map.find scope t.by_scope with
+        | exception Not_found -> EP.Map.singleton prim bound_to
+        | level -> EP.Map.add prim bound_to level
+      in
+      let by_scope = Scope.Map.add (* replace *) scope level t.by_scope in
+      let combined = EP.Map.add prim bound_to t.combined in
+      { by_scope; combined }
+    | _bound_to -> t
+
+  let find t prim = EP.Map.find_opt prim t.combined
+end
+
+include T0
 
 module Rhs_kind : sig
   type t =
