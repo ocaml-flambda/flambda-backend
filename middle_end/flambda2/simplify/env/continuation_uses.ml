@@ -139,3 +139,5 @@ let get_typing_env_no_more_than_one_use t =
 
 let mark_non_inlinable t =
   { t with uses = List.map U.mark_non_inlinable t.uses }
+
+let clear_uses t = { t with uses = [] }
