@@ -13,6 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* List of actions that should be replayed, currently only cares about bound
+   variables and continuations. In the future, we may want to also store
+   inlining decisions.
+
+   CR gbury: move to a [Replay_action.ml] file ? *)
 module Action = struct
   type t =
     | Bound_variable of Variable.t
@@ -24,6 +29,9 @@ module Action = struct
         Format.pp_print_list ~pp_sep:Format.pp_print_space Continuation.print ppf l
 end
 
+(* Type def *)
+(* ******** *)
+
 type t =
   | First_pass of
       { history : Action.t list
@@ -32,8 +40,8 @@ type t =
       }
   | Replaying of
       { always_inline : bool;
-            (** Force inlining of all function calls during replay. This is for instance
-          set by the match-in-match specialization. *)
+        (* Force inlining of all function calls during replay. This is for
+           instance set by the match-in-match specialization. *)
         previous_history : Action.t list;
         (* Bindables opened during the first pass, with the head of the list
            being the outermost/first one opened. *)
@@ -52,7 +60,7 @@ let[@ocamlformat "disable"] print ppf = function
         )@]"
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Action.print) history
   | Replaying { always_inline; previous_history; variables; continuations; } ->
-      Format.fprintf ppf "@[<hov 1>(first_pass@ \
+      Format.fprintf ppf "@[<hov 1>(replaying@ \
         @[<hov 1>(always_inline@ %b)@]@ \
         @[<hov 1>(previous_history@ %a)@]@ \
         @[<hov 1>(variables@ %a)@]@ \
@@ -62,6 +70,9 @@ let[@ocamlformat "disable"] print ppf = function
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Action.print) previous_history
         (Variable.Map.print Variable.print) variables
         (Continuation.Map.print Continuation.print) continuations
+
+(* Creating API *)
+(* ************ *)
 
 let first_pass = First_pass { history = [] }
 
@@ -80,14 +91,28 @@ let replay ~always_inline = function
        the [Replaying] case *)
     Misc.fatal_errorf "Cannot replay an already replayed binding history"
 
-let must_inline = function
-  | First_pass _ -> false
-  | Replaying { always_inline; _ } -> always_inline
+let error_empty_history replay action =
+  Misc.fatal_errorf
+    "@[<v>@[<hov>Found an empty replay history when replaying action:@ %a.@]@ \
+     Replay: %a@]"
+    Action.print action print replay
 
-let define_variable var = function
-  | First_pass { history } ->
-    let bound : Action.t = Bound_variable var in
-    First_pass { history = bound :: history }
+let error_mismatched_action replay old_action new_action =
+  Misc.fatal_errorf
+    "@[<v>Action mismatch when replaying history:@ old action: %a@ new action: \
+     %a@ replay: %a"
+    Action.print old_action Action.print new_action print replay
+
+let error_not_renamed_version_of replay old_action new_action =
+  Misc.fatal_errorf
+    "@[<v>Actions are not renamed versions when replaying history:@ old \
+     action: %a@ new action: %a@ replay: %a"
+    Action.print old_action Action.print new_action print replay
+
+let define_variable var replay =
+  let action : Action.t = Bound_variable var in
+  match replay with
+  | First_pass { history } -> First_pass { history = action :: history }
   | Replaying
       { previous_history = prev_bound :: previous_history;
         variables;
@@ -97,23 +122,17 @@ let define_variable var = function
     match prev_bound with
     | Bound_variable prev_var ->
       if not (Variable.is_renamed_version_of prev_var var)
-      then
-        Misc.fatal_errorf
-          "Mismatch in binding history beetween the first and second pass"
+      then error_not_renamed_version_of replay prev_bound action
       else
         let variables = Variable.Map.add var prev_var variables in
         Replaying { previous_history; variables; continuations; always_inline }
-    | Bound_continuations _ ->
-      Misc.fatal_errorf
-        "Mismatch in binding history beetween the first and second pass")
-  | Replaying { previous_history = []; _ } ->
-    Misc.fatal_errorf
-      "Mismatch in binding history beetween the first and second pass"
+    | Bound_continuations _ -> error_mismatched_action replay prev_bound action)
+  | Replaying { previous_history = []; _ } -> error_empty_history replay action
 
-let define_continuations conts = function
-  | First_pass { history } ->
-    let bound : Action.t = Bound_continuations conts in
-    First_pass { history = bound :: history }
+let define_continuations conts replay =
+  let action : Action.t = Bound_continuations conts in
+  match replay with
+  | First_pass { history } -> First_pass { history = action :: history }
   | Replaying
       { previous_history = prev_bound :: previous_history;
         variables;
@@ -126,9 +145,7 @@ let define_continuations conts = function
            (List.compare_lengths prev_conts conts = 0
            && Misc.Stdlib.List.equal Continuation.is_renamed_version_of
                 prev_conts conts)
-      then
-        Misc.fatal_errorf
-          "Mismatch in binding history beetween the first and second pass"
+      then error_not_renamed_version_of replay prev_bound action
       else
         let continuations =
           List.fold_left2
@@ -136,27 +153,30 @@ let define_continuations conts = function
             continuations prev_conts conts
         in
         Replaying { previous_history; variables; continuations; always_inline }
-    | Bound_variable _ ->
-      Misc.fatal_errorf
-        "Mismatch in binding history beetween the first and second pass")
-  | Replaying { previous_history = []; _ } ->
-    Misc.fatal_errorf
-      "Mismatch in binding history beetween the first and second pass"
+    | Bound_variable _ -> error_mismatched_action replay prev_bound action)
+  | Replaying { previous_history = []; _ } -> error_empty_history replay action
+
+(* Inspection API *)
+(* ************** *)
+
+let must_inline = function
+  | First_pass _ -> false
+  | Replaying { always_inline; _ } -> always_inline
+
+type 'a replay_result =
+  | Still_recording
+  | Replayed of 'a
 
 let replay_variable_mapping = function
+  | First_pass _ -> Still_recording
   | Replaying
       { variables; previous_history = _; continuations = _; always_inline = _ }
     ->
-    variables
-  | First_pass _ ->
-    Misc.fatal_errorf
-      "Cannot access the variable mapping when this is the first pass"
+    Replayed variables
 
 let replay_continuation_mapping = function
+  | First_pass _ -> Still_recording
   | Replaying
       { continuations; previous_history = _; variables = _; always_inline = _ }
     ->
-    continuations
-  | First_pass _ ->
-    Misc.fatal_errorf
-      "Cannot access the variable mapping when this is the first pass"
+    Replayed continuations

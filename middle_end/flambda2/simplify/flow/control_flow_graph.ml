@@ -42,6 +42,15 @@ let create ~dummy_toplevel_cont { T.Acc.map; _ } =
     Continuation.Map.fold
       (fun caller (elt : T.Continuation_info.t) acc ->
         let acc =
+          (* ensure that continuations that are never called, have a mapping in
+             the graph (this is a requirement of the strongly connected
+             component algorithm). *)
+          Continuation.Map.update caller
+            (function
+              | None -> Some Continuation.Set.empty | Some _ as res -> res)
+            acc
+        in
+        let acc =
           Continuation.Map.merge
             (fun _callee acc args ->
               match acc, args with

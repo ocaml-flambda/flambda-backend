@@ -69,9 +69,9 @@ let step_minimizer c minimize cur_file map ~pos ~len =
   in
   r
 
-(** [apply_minimizer test map cur_file minimize c] applies [minimize] for [cur_file]
-     in the file set [mapi] for the command [c] as much as possible if (not !test),
-     only once otherwise *)
+(** [apply_minimizer test map cur_file minimize c] applies [minimize] for
+    [cur_file] in the file set [mapi] for the command [c] as much as possible if
+    (not !test), only once otherwise *)
 let dicho = true
 
 let apply_minimizer test map cur_file minimize (c : string) =

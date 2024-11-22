@@ -214,6 +214,7 @@ module Flambda2 = struct
       let max_function_simplify_run = 2
       let shorten_symbol_names = false
       let cont_lifting_budget = 0
+      let cont_spec_budget = 0
     end
 
     type flags = {
@@ -226,6 +227,7 @@ module Flambda2 = struct
       max_function_simplify_run : int;
       shorten_symbol_names : bool;
       cont_lifting_budget : int;
+      cont_spec_budget : int;
     }
 
     let default = {
@@ -238,6 +240,7 @@ module Flambda2 = struct
       max_function_simplify_run = Default.max_function_simplify_run;
       shorten_symbol_names = Default.shorten_symbol_names;
       cont_lifting_budget = Default.cont_lifting_budget;
+      cont_spec_budget = Default.cont_spec_budget;
     }
 
     let oclassic = {
@@ -265,6 +268,7 @@ module Flambda2 = struct
     let max_function_simplify_run = ref Default
     let shorten_symbol_names = ref Default
     let cont_lifting_budget = ref Default
+    let cont_spec_budget = ref Default
   end
 
   module Debug = struct
