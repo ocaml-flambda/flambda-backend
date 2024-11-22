@@ -34,7 +34,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   let dacc = C.dacc_inside_functions context in
   let alloc_modes = Code_metadata.param_modes code_metadata in
   let denv =
-    DE.add_parameters_with_unknown_types ~extra:false ~alloc_modes (DA.denv dacc) params
+    DE.add_parameters_with_unknown_types ~extra:false ~alloc_modes
+      (DA.denv dacc) params
     |> DE.set_inlining_arguments inlining_arguments
     |> DE.set_inlining_history_tracker
          (Inlining_history.Tracker.inside_function absolute_history)
@@ -108,6 +109,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
   |> DA.reset_continuation_lifting_budget
+  |> DA.reset_continuation_specialization_budget
 
 let extract_accumulators_from_function outer_dacc ~dacc_after_body
     ~uacc_after_upwards_traversal =
@@ -300,8 +302,8 @@ let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
         ~cut_after:(Scope.prev (DE.get_continuation_scope env_at_fork))
         (Continuation_uses.get_uses uses)
         ~is_recursive:false ~params:return_cont_params ~env_at_fork
-        ~consts_lifted_during_body:lifted_consts_this_function
-        ~lifted_cont_extra_params_and_args:EPA.empty
+        ~consts_lifted_after_fork:lifted_consts_this_function
+        ~previous_extra_params_and_args:EPA.empty
     in
     let bound_params_and_results =
       Bound_parameters.append params return_cont_params
@@ -344,6 +346,8 @@ type simplify_function_result =
 
 let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     ~closure_bound_names_inside_function =
+  if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
+  then Format.eprintf "@\n___ FUNCTION %a ___@\n@." Code_id.print code_id;
   let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
   let inlining_arguments_from_denv =
     denv_prior_to_sets |> DE.inlining_arguments

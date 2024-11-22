@@ -22,8 +22,7 @@ type t =
 
 let print ppf { len = _; new_params_indexed } =
   Format.fprintf ppf "@[<hov 1>(@[<hov 1>(new_params_indexed@ %a)@])@]"
-    (BP.Map.print BP.print)
-    new_params_indexed
+    (BP.Map.print BP.print) new_params_indexed
 
 let empty = { len = 0; new_params_indexed = BP.Map.empty }
 
@@ -31,8 +30,17 @@ let is_empty { len; new_params_indexed = _ } = len = 0
 
 let length { len; new_params_indexed = _ } = len
 
-let new_param t bound_param =
-  let new_params_indexed = BP.Map.add bound_param bound_param t.new_params_indexed in
+let new_param t ~replay_history bound_param =
+  let key =
+    match Replay_history.replay_variable_mapping replay_history with
+    | Still_recording -> bound_param
+    | Replayed variable_mapping ->
+      let original_var =
+        Variable.Map.find (BP.var bound_param) variable_mapping
+      in
+      BP.create original_var (BP.kind bound_param)
+  in
+  let new_params_indexed = BP.Map.add key bound_param t.new_params_indexed in
   { len = t.len + 1; new_params_indexed }
 
 let rename t =
