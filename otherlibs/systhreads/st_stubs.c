@@ -390,7 +390,7 @@ static void caml_thread_leave_blocking_section(void)
   restore_runtime_state(th);
 }
 
-static int get_pthreads_stack_size(void)
+static int get_pthreads_stack_size_in_bytes(void)
 {
   pthread_attr_t attr;
   size_t res =
@@ -410,7 +410,9 @@ static caml_thread_t caml_thread_new_info(void)
 {
   caml_thread_t th = NULL;
   caml_domain_state *domain_state = Caml_state;
-  uintnat stack_wsize = caml_get_init_stack_wsize(get_pthreads_stack_size());
+  uintnat stack_wsize =
+    caml_get_init_stack_wsize(
+      get_pthreads_stack_size_in_bytes() / sizeof(uintnat));
 
   th = (caml_thread_t)caml_stat_alloc_noexc(sizeof(struct caml_thread_struct));
   if (th == NULL) return NULL;
