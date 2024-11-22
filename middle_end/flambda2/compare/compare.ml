@@ -419,7 +419,7 @@ and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
       ~f:(fun ~invariant_params ~body handlers ->
         let body = subst_expr env body in
         let handlers =
-          Continuation.Map.map_sharing (subst_cont_handler env)
+          Continuation.Lmap.map_sharing (subst_cont_handler env)
             (handlers |> Continuation_handlers.to_map)
         in
         Let_cont_expr.create_recursive handlers ~invariant_params ~body)
