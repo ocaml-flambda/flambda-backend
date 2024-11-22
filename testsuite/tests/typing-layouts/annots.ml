@@ -35,7 +35,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 type t_any_non_null : any_non_null;;
 
 [%%expect{|
-type t_any_non_null : any_non_null
+type t_any_non_null : any
 |}]
 
 type t_value_or_null : value_or_null;;
@@ -83,9 +83,9 @@ type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
 
 [%%expect {|
-type t1 : float32 mod internal aliased many local
-type t2 : bits64 mod once external64 unique
-type t3 : immediate mod local unique
+type t1 : float32
+type t2 : bits64
+type t3 : immediate
 |}]
 
 type t4 : value mod local local
@@ -231,7 +231,7 @@ Line 1, characters 16-18:
 Error: This alias is bound to type "int" but is used as an instance of type
          "('a : float64)"
        The layout of int is value
-         because it is the primitive immediate type int.
+         because it is the primitive type int.
        But the layout of int must be a sublayout of float64
          because of the annotation on the type variable 'a.
 |}]
@@ -314,8 +314,8 @@ type (_ : float64) t2_float64'
 type t3 = float# t2_float64
 type ('a : value mod global) t2_global
 type (_ : value mod global) t2_global'
-type ('a : word mod many external_) t2_complex
-type (_ : word mod many external_) t2_complex'
+type ('a : word) t2_complex
+type (_ : word) t2_complex'
 |}]
 
 module M1 : sig
@@ -382,8 +382,8 @@ end = struct
 end
 
 [%%expect {|
-module M1 : sig type ('a : word mod many external_) t end
-module M2 : sig type (_ : word mod many external_) t end
+module M1 : sig type ('a : word) t end
+module M2 : sig type (_ : word) t end
 |}]
 
 type t = string t2_imm
@@ -417,15 +417,7 @@ type t = u t2_complex
 ;;
 [%%expect {|
 type u : word
-Line 2, characters 9-10:
-2 | type t = u t2_complex
-             ^
-Error: This type "u" should be an instance of type
-         "('a : word mod many external_)"
-       The kind of u is word
-         because of the definition of u at line 1, characters 0-13.
-       But the kind of u must be a subkind of word mod many external_
-         because of the definition of t2_complex at line 10, characters 0-54.
+type t = u t2_complex
 |}]
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -434,8 +426,7 @@ let f : 'a t2_complex -> 'a t2_complex = fun x -> x
 [%%expect {|
 val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
 val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex =
-  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
 |}]
 
 let f : ('a : immediate) t2_imm -> ('a : value) t2_imm = fun x -> x
@@ -444,8 +435,7 @@ let f : ('a : word mod external_ many aliased) t2_complex -> ('a : word) t2_comp
 [%%expect {|
 val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
 val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex =
-  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
 |}]
 
 let f : ('a : value) t2_imm -> ('a : value) t2_imm = fun x -> x
@@ -454,8 +444,7 @@ let f : ('a : word) t2_complex -> ('a : word) t2_complex = fun x -> x
 [%%expect {|
 val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
 val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex =
-  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
 |}]
 
 let f : ('a : immediate). 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -464,8 +453,7 @@ let f : ('a : word mod external_ many aliased). 'a t2_complex -> 'a t2_complex =
 [%%expect {|
 val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
 val f : ('a : value mod global). 'a t2_global -> 'a t2_global = <fun>
-val f : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex =
-  <fun>
+val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
 |}]
 
 let f : ('a : value). 'a t2_imm -> 'a t2_imm = fun x -> x
@@ -493,12 +481,7 @@ Error: The universal type variable 'a was declared to have kind value.
 let f : ('a : word). 'a t2_complex -> 'a t2_complex = fun x -> x
 ;;
 [%%expect {|
-Line 1, characters 8-51:
-1 | let f : ('a : word). 'a t2_complex -> 'a t2_complex = fun x -> x
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have kind word.
-       But it was inferred to have kind word mod many external_
-         because of the definition of t2_complex at line 10, characters 0-54.
+val f : ('a : word). 'a t2_complex -> 'a t2_complex = <fun>
 |}]
 
 type 'a t = 'a t2_imm
@@ -507,7 +490,7 @@ type 'a t = 'a t2_complex
 [%%expect {|
 type ('a : immediate) t = 'a t2_imm
 type ('a : value mod global) t = 'a t2_global
-type ('a : word mod many external_) t = 'a t2_complex
+type ('a : word) t = 'a t2_complex
 |}]
 
 type ('a : value) t = 'a t2_imm
@@ -516,7 +499,7 @@ type ('a : word) t = 'a t2_complex
 [%%expect {|
 type ('a : immediate) t = 'a t2_imm
 type ('a : value mod global) t = 'a t2_global
-type ('a : word mod many external_) t = 'a t2_complex
+type ('a : word) t = 'a t2_complex
 |}]
 
 type ('a : immediate) t = 'a t2_imm
@@ -525,7 +508,7 @@ type ('a : word mod external_ many aliased) t = 'a t2_complex
 [%%expect {|
 type ('a : immediate) t = 'a t2_imm
 type ('a : value mod global) t = 'a t2_global
-type ('a : word mod many external_) t = 'a t2_complex
+type ('a : word) t = 'a t2_complex
 |}]
 
 let f : (_ : value) t2_imm -> unit = fun _ -> ()
@@ -542,8 +525,8 @@ val f : ('a : immediate). 'a t2_imm -> unit = <fun>
 val g : ('a : immediate). 'a t2_imm -> unit = <fun>
 val f : ('a : value mod global). 'a t2_global -> unit = <fun>
 val g : ('a : value mod global). 'a t2_global -> unit = <fun>
-val f : ('a : word mod many external_). 'a t2_complex -> unit = <fun>
-val g : ('a : word mod many external_). 'a t2_complex -> unit = <fun>
+val f : ('a : word). 'a t2_complex -> unit = <fun>
+val g : ('a : word). 'a t2_complex -> unit = <fun>
 |}]
 
 let f : (_ : immediate) -> unit = fun _ -> ()
@@ -554,7 +537,7 @@ let g : (_ : value) -> unit = fun _ -> ()
 [%%expect {|
 val f : ('a : immediate). 'a -> unit = <fun>
 val f : ('a : value mod global). 'a -> unit = <fun>
-val f : ('a : word mod many external_). 'a -> unit = <fun>
+val f : ('a : word). 'a -> unit = <fun>
 val g : 'a -> unit = <fun>
 |}]
 
@@ -572,8 +555,8 @@ val f : ('a : immediate) 'b. 'a -> 'b = <fun>
 val g : 'a ('b : immediate). 'a -> 'b = <fun>
 val f : ('a : value mod global) 'b. 'a -> 'b = <fun>
 val g : 'a ('b : value mod global). 'a -> 'b = <fun>
-val f : ('a : word mod many external_) 'b. 'a -> 'b = <fun>
-val g : 'a ('b : word mod many external_). 'a -> 'b = <fun>
+val f : ('a : word) 'b. 'a -> 'b = <fun>
+val g : 'a ('b : word). 'a -> 'b = <fun>
 |}]
 
 (********************************************)
@@ -637,8 +620,8 @@ let f { fieldc } =
   let x : _ as (_ : word mod external_ many aliased) = assert false in
   fieldc x;;
 [%%expect {|
-type rc = { fieldc : ('a : word mod many external_). 'a -> 'a; }
-val f : ('a : word mod many external_). rc -> 'a = <fun>
+type rc = { fieldc : ('a : word). 'a -> 'a; }
+val f : ('a : word). rc -> 'a = <fun>
 |}]
 
 let f { field } = field "hello"
@@ -676,7 +659,7 @@ Line 1, characters 26-33:
 1 | let f { fieldc } = fieldc "hello"
                               ^^^^^^^
 Error: This expression has type "string" but an expression was expected of type
-         "('a : word mod many external_)"
+         "('a : word)"
        The layout of string is value
          because it is the primitive type string.
        But the layout of string must be a sublayout of word
@@ -790,21 +773,9 @@ type ('a : word mod external_ many aliased) t_complex
 type s = { f : ('a : word). 'a -> 'a u }
 and 'a u = 'a t_complex
 [%%expect {|
-type ('a : word mod many external_) t_complex
-Line 3, characters 15-38:
-3 | type s = { f : ('a : word). 'a -> 'a u }
-                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Layout mismatch in final type declaration consistency check.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The kind of 'a is word
-           because of the annotation on the universal variable 'a.
-         But the kind of 'a must be a subkind of word mod many external_
-           because of the definition of t_complex at line 1, characters 0-53.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+type ('a : word) t_complex
+type s = { f : ('a : word). 'a -> 'a u; }
+and ('a : word) u = 'a t_complex
 |}]
 
 (********************)
@@ -837,7 +808,7 @@ val f : ('a : value mod global). 'a -> 'a = <fun>
 let f = fun (type (a : word mod external_ many aliased)) (x : a) -> x
 ;;
 [%%expect {|
-val f : ('a : word mod many external_). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a = <fun>
 |}]
 
 let f = fun (type (a : any)) (x : a) -> x
@@ -885,7 +856,7 @@ val f : ('a : value mod global). 'a -> 'a = <fun>
 let f : type (a : word mod external_ many aliased). a -> a = fun x -> x
 ;;
 [%%expect {|
-val f : ('a : word mod many external_). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a = <fun>
 |}]
 
 let f : type (a : any). a -> a = fun x -> x
@@ -973,8 +944,7 @@ end
 Line 2, characters 24-26:
 2 |   val f : ('a : value). 'a t2_complex -> 'a t2_complex
                             ^^
-Error: This type "('a : value)" should be an instance of type
-         "('b : word mod many external_)"
+Error: This type "('a : value)" should be an instance of type "('b : word)"
        The layout of 'a is value
          because of the annotation on the universal variable 'a.
        But the layout of 'a must overlap with word
@@ -986,12 +956,7 @@ module type S = sig
 end
 ;;
 [%%expect {|
-Line 2, characters 10-53:
-2 |   val f : ('a : word). 'a t2_complex -> 'a t2_complex
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have kind word.
-       But it was inferred to have kind word mod many external_
-         because of the definition of t2_complex at line 10, characters 0-54.
+module type S = sig val f : ('a : word). 'a t2_complex -> 'a t2_complex end
 |}]
 
 module type S = sig
@@ -1042,9 +1007,9 @@ end
 [%%expect {|
 module type S =
   sig
-    val f : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex
-    val g : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex
-    val h : ('a : word mod many external_). 'a t2_complex -> 'a t2_complex
+    val f : ('a : word). 'a t2_complex -> 'a t2_complex
+    val g : ('a : word). 'a t2_complex -> 'a t2_complex
+    val h : ('a : word). 'a t2_complex -> 'a t2_complex
   end
 |}]
 
@@ -1062,7 +1027,7 @@ let f (x : ('a : word mod external_ many aliased). 'a -> 'a) =
   x native_int
 
 [%%expect {|
-val f : (('a : word mod many external_). 'a -> 'a) -> nativeint# = <fun>
+val f : (('a : word). 'a -> 'a) -> nativeint# = <fun>
 |}]
 
 let f (x : ('a : immediate). 'a -> 'a) = x "string"
@@ -1123,8 +1088,6 @@ Error: The kind of type "t" is value
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: This should be accepted, because t should be inferred to be
-   immediate *)
 
 type t : any mod portable = { x : float }
 [%%expect {|
@@ -1136,8 +1099,8 @@ Error: The kind of type "t" is value
        But the kind of type "t" must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: This should be accepted, because t should be inferred to be
-   immediate *)
+(* CR layouts v2.8: This should be accepted, because t should be inferred to
+   mode-cross portability. *)
 
 type t = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
@@ -1149,15 +1112,14 @@ val f : t -> t = <fun>
 type t : value = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : value = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
-(* CR layouts v2.8: This should fail since t is nominative *)
 
 type t : immediate = { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : immediate = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 
@@ -1277,7 +1239,6 @@ let f (x : t) : _ as (_ : immediate) = x
 type t = Foo | Bar
 val f : t -> t = <fun>
 |}]
-(* CR layouts v2.8: This should fail since t is nominative *)
 
 type t : immediate = Foo | Bar
 let f (x : t) : _ as (_ : immediate) = x
@@ -1296,15 +1257,14 @@ val f : t -> t = <fun>
 type t : value = Foo of int [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : value = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
 val f : t -> t = <fun>
 |}]
-(* CR layouts v2.8: This should fail since t is nominative *)
 
 type t : immediate = Foo of int [@@unboxed]
 let f (x : t) : _ as (_ : immediate) = x
 [%%expect {|
-type t : immediate = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
 val f : t -> t = <fun>
 |}]
 
@@ -1403,7 +1363,7 @@ type t : bits64 mod portable unique
 type u = private t
 let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
-type t : bits64 mod portable unique
+type t : bits64
 type u = private t
 val f : t -> t = <fun>
 |}]
@@ -1412,7 +1372,7 @@ type t : bits64 mod portable unique
 type u : bits64 = private t
 let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
-type t : bits64 mod portable unique
+type t : bits64
 type u = private t
 val f : t -> t = <fun>
 |}]
@@ -1422,7 +1382,7 @@ type t : bits64 mod portable unique
 type u : bits64 mod portable unique = private t
 let f (x : t) : _ as (_ : bits64 mod portable unique) = x
 [%%expect {|
-type t : bits64 mod portable unique
+type t : bits64
 type u = private t
 val f : t -> t = <fun>
 |}]
@@ -1430,7 +1390,7 @@ val f : t -> t = <fun>
 type t : float64 mod global portable
 type u : bits64 mod global portable = private t
 [%%expect {|
-type t : float64 mod global portable
+type t : float64
 Line 2, characters 0-47:
 2 | type u : bits64 mod global portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1440,95 +1400,83 @@ Error: The layout of type "t" is float64
          because of the definition of u at line 2, characters 0-47.
 |}]
 
-type t : word
-type u : word mod global = private t
+type t : value
+type u : value mod global = private t
 [%%expect {|
-type t : word
-Line 2, characters 0-36:
-2 | type u : word mod global = private t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is word
-         because of the definition of t at line 1, characters 0-13.
-       But the kind of type "t" must be a subkind of word mod global
-         because of the definition of u at line 2, characters 0-36.
+type t
+Line 2, characters 0-37:
+2 | type u : value mod global = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because of the definition of t at line 1, characters 0-14.
+       But the kind of type "t" must be a subkind of value mod global
+         because of the definition of u at line 2, characters 0-37.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-  mismatch, not a layout mismatch. *)
 
-type t : word
-type u : word mod unique = private t
+type t : value
+type u : value mod unique = private t
 [%%expect {|
-type t : word
-Line 2, characters 0-36:
-2 | type u : word mod unique = private t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is word
-         because of the definition of t at line 1, characters 0-13.
-       But the kind of type "t" must be a subkind of word mod unique
-         because of the definition of u at line 2, characters 0-36.
+type t
+Line 2, characters 0-37:
+2 | type u : value mod unique = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because of the definition of t at line 1, characters 0-14.
+       But the kind of type "t" must be a subkind of value mod unique
+         because of the definition of u at line 2, characters 0-37.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-  mismatch, not a layout mismatch. *)
 
-type t : word
-type u : word mod many = private t
+type t : value
+type u : value mod many = private t
 [%%expect {|
-type t : word
-Line 2, characters 0-34:
-2 | type u : word mod many = private t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is word
-         because of the definition of t at line 1, characters 0-13.
-       But the kind of type "t" must be a subkind of word mod many
-         because of the definition of u at line 2, characters 0-34.
+type t
+Line 2, characters 0-35:
+2 | type u : value mod many = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because of the definition of t at line 1, characters 0-14.
+       But the kind of type "t" must be a subkind of value mod many
+         because of the definition of u at line 2, characters 0-35.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-  mismatch, not a layout mismatch. *)
 
-type t : word
-type u : word mod portable = private t
+type t : value
+type u : value mod portable = private t
 [%%expect {|
-type t : word
-Line 2, characters 0-38:
-2 | type u : word mod portable = private t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is word
-         because of the definition of t at line 1, characters 0-13.
-       But the kind of type "t" must be a subkind of word mod portable
-         because of the definition of u at line 2, characters 0-38.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-  mismatch, not a layout mismatch. *)
-
-type t : word
-type u : word mod uncontended = private t
-[%%expect {|
-type t : word
-Line 2, characters 0-41:
-2 | type u : word mod uncontended = private t
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is word
-         because of the definition of t at line 1, characters 0-13.
-       But the kind of type "t" must be a subkind of word mod uncontended
-         because of the definition of u at line 2, characters 0-41.
-|}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-  mismatch, not a layout mismatch. *)
-
-type t : word
-type u : word mod external_ = private t
-[%%expect {|
-type t : word
+type t
 Line 2, characters 0-39:
-2 | type u : word mod external_ = private t
+2 | type u : value mod portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is word
-         because of the definition of t at line 1, characters 0-13.
-       But the kind of type "t" must be a subkind of word mod external_
+Error: The kind of type "t" is value
+         because of the definition of t at line 1, characters 0-14.
+       But the kind of type "t" must be a subkind of value mod portable
          because of the definition of u at line 2, characters 0-39.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-  mismatch, not a layout mismatch. *)
+
+type t : value
+type u : value mod uncontended = private t
+[%%expect {|
+type t
+Line 2, characters 0-42:
+2 | type u : value mod uncontended = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because of the definition of t at line 1, characters 0-14.
+       But the kind of type "t" must be a subkind of value mod uncontended
+         because of the definition of u at line 2, characters 0-42.
+|}]
+
+type t : value
+type u : value mod external_ = private t
+[%%expect {|
+type t
+Line 2, characters 0-40:
+2 | type u : value mod external_ = private t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is value
+         because of the definition of t at line 1, characters 0-14.
+       But the kind of type "t" must be a subkind of value mod external_
+         because of the definition of u at line 2, characters 0-40.
+|}]
 
 (**************************************)
 (* Test 13: Parsing & pretty-printing *)
@@ -1544,7 +1492,7 @@ val f : 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
 val f : ('a : value mod global). 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word mod many external_). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a = <fun>
 |}]
 
 let f = fun (type a : value) (x : a) -> x
@@ -1558,7 +1506,7 @@ val f : 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
 val f : ('a : value mod global). 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word mod many external_). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a = <fun>
 |}]
 
 let o = object
@@ -1582,7 +1530,7 @@ val o : < m : 'a. 'a -> 'a > = <obj>
 val o : < m : ('a : immediate). 'a -> 'a > = <obj>
 val o : < m : ('a : value mod global). 'a -> 'a > = <obj>
 val o : < m : ('a : immediate). 'a -> 'a > = <obj>
-val o : < m : ('a : word mod many external_). 'a -> 'a > = <obj>
+val o : < m : ('a : word). 'a -> 'a > = <obj>
 |}]
 
 let f : type (a : value). a -> a = fun x -> x
@@ -1596,7 +1544,7 @@ val f : 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
 val f : ('a : value mod global). 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word mod many external_). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a = <fun>
 |}]
 
 let f x =
@@ -1624,7 +1572,7 @@ val f : 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
 val f : ('a : value mod global). 'a -> 'a = <fun>
 val f : ('a : immediate). 'a -> 'a = <fun>
-val f : ('a : word mod many external_). 'a -> 'a = <fun>
+val f : ('a : word). 'a -> 'a = <fun>
 |}]
 
 let f = fun x y (type (a : value)) (z : a) -> z
@@ -1638,7 +1586,7 @@ val f : 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : word mod many external_). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 
 let f = fun x y (type a : value) (z : a) -> z
@@ -1652,7 +1600,7 @@ val f : 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : value mod global). 'b -> 'c -> 'a -> 'a = <fun>
 val f : 'b 'c ('a : immediate). 'b -> 'c -> 'a -> 'a = <fun>
-val f : 'b 'c ('a : word mod many external_). 'b -> 'c -> 'a -> 'a = <fun>
+val f : 'b 'c ('a : word). 'b -> 'c -> 'a -> 'a = <fun>
 |}]
 (* CR layouts: canonicalizing the order of quantification here
    would reduce wibbles in error messages *)
@@ -1668,7 +1616,7 @@ external f : 'a -> 'a = "%identity"
 external f : ('a : immediate). 'a -> 'a = "%identity"
 external f : ('a : value mod global). 'a -> 'a = "%identity"
 external f : ('a : immediate). 'a -> 'a = "%identity"
-external f : ('a : word mod many external_). 'a -> 'a = "%identity"
+external f : ('a : word). 'a -> 'a = "%identity"
 |}]
 
 

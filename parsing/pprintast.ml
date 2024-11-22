@@ -471,7 +471,7 @@ and jkind_annotation ?(nested = false) ctxt f k = match k.pjkind_desc with
   | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
   | Product ts ->
     Misc.pp_parens_if nested (fun f ts ->
-      pp f "%a" (list (jkind_annotation ~nested:true ctxt) ~sep:"@;&@;") ts
+      pp f "@[%a@]" (list (jkind_annotation ~nested:true ctxt) ~sep:"@ & ") ts
     ) f ts
 
 and tyvar_jkind f (str, jkind) =

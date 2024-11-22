@@ -36,11 +36,11 @@ type t6a = t6 array
 type t1 = #(int * bool option) array
 type t2 = #(int * string) array
 type t3 = #(string * int * int option) array
-type t4 : immediate & value
+type t4 : value & value
 type t4a = t4 array
-type t5 : value & immediate
+type t5 : value & value
 type t5a = t5 array
-type t6 : value & immediate & value & immediate
+type t6 : value & value & value & value
 type t6a = t6 array
 |}]
 
@@ -93,9 +93,9 @@ type t5 : value & float64
 type t5a = t5 array
 type t6 : bits64 & value
 type t6a = t6 array
-type t7 : value & bits64 & immediate
+type t7 : value & bits64 & value
 type t7a = t7 array
-type t8 : immediate & bits64 & value
+type t8 : value & bits64 & value
 type t8a = t8 array
 |}]
 

@@ -36,7 +36,7 @@ module TyVarEnv : sig
         without jkind annotations *)
 
   val make_poly_univars_jkinds :
-    context:(string -> Jkind.History.annotation_context) ->
+    context:(string -> Jkind.History.annotation_context_lr) ->
     (string Location.loc * Parsetree.jkind_annotation option) list ->
     poly_univars
     (** remember that a list of strings connotes univars; this must
@@ -52,9 +52,6 @@ module TyVarEnv : sig
      Env.t -> Location.t -> poly_univars -> type_expr list
     (** Same as [check_poly_univars], but instantiates the resulting
        type scheme (i.e. variables become Tvar rather than Tunivar) *)
-
-  val ttyp_poly_arg : poly_univars -> (string * Jkind.annotation option) list
-    (** A suitable arg to the corresponding [Ttyp_poly] type. *)
 end
 
 (* Forward declaration, to be filled in by Typemod.type_open *)

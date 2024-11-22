@@ -84,8 +84,12 @@ let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
     Jkind.Const.Builtin.all
-    |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
-          builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+    |> List.map (fun (builtin : _ Jkind.Const.Builtin.t) ->
+          builtin.jkind,
+          Jkind.of_const builtin.jkind
+            ~annotation:(Some { pjkind_loc = Location.none;
+                                pjkind_desc = Abbreviation builtin.name })
+            ~why:Jkind.History.Imported)
   in
   fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
@@ -102,23 +106,19 @@ let with_additional_action =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let rec prepare_desc : type l r. _ -> _ -> (l * r) Jkind.t =
-         fun loc : (Jkind.Desc.t -> _) -> function
-          | Const const ->
+        let prepare_jkind loc jkind =
+          match Jkind.get_const jkind with
+          | Some const ->
             let builtin =
-              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+              List.find_opt (fun (builtin, _) ->
+                  Jkind.Const.equal_after_all_inference_is_done const builtin)
+                builtins
             in
             begin match builtin with
-            | Some (__, jkind) -> jkind
-            | None -> Jkind.of_const const ~why:Jkind.History.Imported
+            | Some (_, jkind) -> jkind |> Jkind.allow_left |> Jkind.allow_right
+            | None -> Jkind.of_const const ~annotation:None ~why:Imported
             end
-          | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
-          | Product descs ->
-            Jkind.Builtin.product ~why:Unboxed_tuple
-              (List.map (prepare_desc loc) descs)
-        in
-        let prepare_jkind loc lay : _ Jkind.t =
-          prepare_desc loc (Jkind.get lay)
+          | None -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving { prepare_jkind }
   in
@@ -477,6 +477,13 @@ let label_declaration copy_scope s l =
 let constructor_argument copy_scope s ca =
   {
     ca_type = typexp copy_scope s ca.ca_loc ca.ca_type;
+    ca_jkind = begin match s.additional_action with
+      | Prepare_for_saving { prepare_jkind } ->
+        prepare_jkind ca.ca_loc ca.ca_jkind
+      (* CR layouts v2.8: This will have to be copied once we
+         have with-types. *)
+      | Duplicate_variables | No_action -> ca.ca_jkind
+    end;
     ca_loc = loc s ca.ca_loc;
     ca_modalities = ca.ca_modalities;
   }
@@ -498,12 +505,6 @@ let constructor_declaration copy_scope s c =
   }
 
 (* called only when additional_action is [Prepare_for_saving] *)
-let constructor_tag ~prepare_jkind loc = function
-  | Ordinary _ as tag -> tag
-  | Extension (path, lays) ->
-      Extension (path, Array.map (prepare_jkind loc) lays)
-
-(* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
   | Variant_unboxed -> Variant_unboxed
   | Variant_boxed cstrs_and_jkinds  ->
@@ -517,7 +518,7 @@ let variant_representation ~prepare_jkind loc = function
 let record_representation ~prepare_jkind loc = function
   | Record_unboxed -> Record_unboxed
   | Record_inlined (tag, constructor_rep, variant_rep) ->
-    Record_inlined (constructor_tag ~prepare_jkind loc tag,
+    Record_inlined (tag,
                     constructor_rep,
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
@@ -562,8 +563,6 @@ let type_declaration' copy_scope s decl =
             prepare_jkind decl.type_loc decl.type_jkind
         | Duplicate_variables | No_action -> decl.type_jkind
       end;
-    (* CR layouts v10: Apply the substitution here, too *)
-    type_jkind_annotation = decl.type_jkind_annotation;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
     type_separability = decl.type_separability;
@@ -646,11 +645,6 @@ let extension_constructor' copy_scope s ext =
     ext_type_params =
       List.map (typexp copy_scope s ext.ext_loc) ext.ext_type_params;
     ext_args = constructor_arguments copy_scope s ext.ext_args;
-    ext_arg_jkinds = begin match s.additional_action with
-      | Prepare_for_saving { prepare_jkind } ->
-          Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
-      | Duplicate_variables | No_action -> ext.ext_arg_jkinds
-    end;
     ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;
     ext_ret_type =

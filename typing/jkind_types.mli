@@ -80,18 +80,18 @@ module Sort : sig
 
   val equate_tracking_mutation : t -> t -> equate_result
 
+  (** Post-condition (which holds deeply within the sort): If the
+      result is a [Var v], then [!v] is [None]. *)
   val get : t -> t
-
-  val to_string : t -> string
 end
 
 module Layout : sig
   (** Note that products have two possible encodings: as [Product ...] or as
       [Sort (Product ...]. This duplication is hard to eliminate because of the
       possibility that a sort variable may be instantiated by a product sort. *)
-  type t =
-    | Sort of Sort.t
-    | Product of t list
+  type 'sort t =
+    | Sort of 'sort
+    | Product of 'sort t list
     | Any
 
   module Const : sig
@@ -99,38 +99,59 @@ module Layout : sig
       | Any
       | Base of Sort.base
       | Product of t list
-
-    module Legacy : sig
-      type t =
-        | Any
-        | Any_non_null
-        | Value_or_null
-        | Value
-        | Void
-        (* CR layouts v3.0: implement [Immediate(64)_or_null]. *)
-        | Immediate64
-        | Immediate
-        | Float64
-        | Float32
-        | Word
-        | Bits32
-        | Bits64
-        | Product of t list
-    end
   end
 end
 
-module Jkind_desc : sig
+module Layout_and_axes : sig
+  open Allowance
+
   (* We need the variance annotation here to allow [any_dummy_jkind] to be
      polymorphic in its allowances. Otherwise the value restriction bites.
      Sigh. *)
-  type ('type_expr, +'d) t =
-    { layout : Layout.t;
+  type ('layout, +'d) t =
+    { layout : 'layout;
       modes_upper_bounds : Mode.Alloc.Const.t;
       externality_upper_bound : Jkind_axis.Externality.t;
       nullability_upper_bound : Jkind_axis.Nullability.t
     }
     constraint 'd = 'l * 'r
+
+  val map : ('a -> 'b) -> ('a, 'd) t -> ('b, 'd) t
+
+  val map_option : ('a -> 'b option) -> ('a, 'd) t -> ('b, 'd) t option
+
+  val equal :
+    ('layout -> 'layout -> bool) ->
+    ('layout, allowed * allowed) t ->
+    ('layout, allowed * allowed) t ->
+    bool
+
+  (* An equality check should work over [lr]s only. But we need this
+     to do memoization in serialization. Happily, that's after all
+     inference is done, when worrying about l and r does not matter
+     any more. *)
+  val equal_after_all_inference_is_done :
+    ('layout -> 'layout -> bool) -> ('layout, 'd1) t -> ('layout, 'd2) t -> bool
+
+  val try_allow_l : ('layout, 'l * 'r) t -> ('layout, allowed * 'r) t option
+
+  val try_allow_r : ('layout, 'l * 'r) t -> ('layout, 'l * allowed) t option
+
+  val sub :
+    ('layout -> 'layout -> Misc.Le_result.t) ->
+    ('layout, allowed * 'r) t ->
+    ('layout, 'l * allowed) t ->
+    Misc.Le_result.t
+
+  val format :
+    (Format.formatter -> 'layout -> unit) ->
+    Format.formatter ->
+    ('layout, 'd) t ->
+    unit
+end
+
+module Jkind_desc : sig
+  type ('type_expr, +'d) t = (Sort.t Layout.t, 'd) Layout_and_axes.t
 
   type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
   [@@unboxed]
@@ -148,19 +169,12 @@ type 'type_expr history =
 
 type ('type_expr, +'d) t =
   { jkind : ('type_expr, 'd) Jkind_desc.t;
+    annotation : Parsetree.jkind_annotation option;
     history : 'type_expr history;
     has_warned : bool
   }
 
 (** CR layouts v2.8: remove this when printing is improved *)
 module Const : sig
-  type 'type_expr t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Mode.Alloc.Const.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
+  type ('type_expr, +'d) t = (Layout.Const.t, 'd) Layout_and_axes.t
 end
-
-(** CR layouts v2.8: remove this when printing is improved *)
-type 'type_expr annotation = 'type_expr Const.t * Parsetree.jkind_annotation

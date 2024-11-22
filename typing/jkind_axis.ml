@@ -12,6 +12,38 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module type Axis_s = sig
+  type t
+
+  val max : t
+
+  val min : t
+
+  val equal : t -> t -> bool
+
+  val less_or_equal : t -> t -> Misc.Le_result.t
+
+  val le : t -> t -> bool
+
+  val meet : t -> t -> t
+
+  val join : t -> t -> t
+
+  val print : Format.formatter -> t -> unit
+end
+
+module Of_lattice (L : Mode_intf.Lattice) = struct
+  include L
+
+  let less_or_equal a b : Misc.Le_result.t =
+    match le a b, le b a with
+    | true, true -> Equal
+    | true, false -> Less
+    | false, _ -> Not_le
+
+  let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
+end
+
 module Externality = struct
   type t =
     | External
@@ -100,26 +132,6 @@ module Nullability = struct
   let print ppf = function
     | Non_null -> Format.fprintf ppf "non_null"
     | Maybe_null -> Format.fprintf ppf "maybe_null"
-end
-
-module type Axis_s = sig
-  type t
-
-  val max : t
-
-  val min : t
-
-  val equal : t -> t -> bool
-
-  val less_or_equal : t -> t -> Misc.Le_result.t
-
-  val le : t -> t -> bool
-
-  val meet : t -> t -> t
-
-  val join : t -> t -> t
-
-  val print : Format.formatter -> t -> unit
 end
 
 module Axis = struct

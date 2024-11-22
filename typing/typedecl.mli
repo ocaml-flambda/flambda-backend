@@ -52,9 +52,6 @@ val transl_package_constraint:
 val abstract_type_decl:
   injective:bool ->
   jkind:jkind_l ->
-  (* [jkind_annotation] is what the user wrote, and is just used when printing
-     the type produced by this function. *)
-  jkind_annotation:Jkind.annotation option ->
   params:jkind_lr list ->
   type_declaration
 

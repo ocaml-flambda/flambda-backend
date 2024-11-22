@@ -118,43 +118,47 @@ module Sort = struct
   end
 
   module Var = struct
-    type t = var
+    type id = int
+
+    let get_id { uid; _ } = uid
 
     (* Map var uids to smaller numbers for more consistent printing. *)
     let next_id = ref 1
 
     let names : (int, int) Hashtbl.t = Hashtbl.create 16
 
+    let get_print_number uid =
+      match Hashtbl.find_opt names uid with
+      | Some n -> n
+      | None ->
+        let id = !next_id in
+        incr next_id;
+        Hashtbl.add names uid id;
+        id
+
     let name { uid; _ } =
-      let id =
-        match Hashtbl.find_opt names uid with
-        | Some n -> n
-        | None ->
-          let id = !next_id in
-          incr next_id;
-          Hashtbl.add names uid id;
-          id
-      in
-      "'_representable_layout_" ^ Int.to_string id
+      "'_representable_layout_" ^ Int.to_string (get_print_number uid)
   end
 
   (*** debug printing **)
   module Debug_printers = struct
     open Format
 
+    let base ppf b =
+      fprintf ppf "%s"
+        (match b with
+        | Void -> "Void"
+        | Value -> "Value"
+        | Float64 -> "Float64"
+        | Float32 -> "Float32"
+        | Word -> "Word"
+        | Bits32 -> "Bits32"
+        | Bits64 -> "Bits64"
+        | Vec128 -> "Vec128")
+
     let rec t ppf = function
       | Var v -> fprintf ppf "Var %a" var v
-      | Base b ->
-        fprintf ppf
-          (match b with
-          | Void -> "Void"
-          | Value -> "Value"
-          | Float64 -> "Float64"
-          | Float32 -> "Float32"
-          | Word -> "Word"
-          | Bits32 -> "Bits32"
-          | Bits64 -> "Bits64"
-          | Vec128 -> "Vec128")
+      | Base b -> base ppf b
       | Product ts ->
         fprintf ppf "Product [ %a ]"
           (pp_print_list ~pp_sep:(fun ppf () -> pp_print_text ppf "; ") t)
@@ -295,7 +299,6 @@ module Sort = struct
     incr last_var_uid;
     Var { contents = None; uid = !last_var_uid }
 
-  (* Post-condition: If the result is a [Var v], then [!v] is [None]. *)
   let rec get : t -> t = function
     | Base _ as t -> t
     | Product ts as t ->
@@ -446,12 +449,6 @@ module Sort = struct
 
   (*** pretty printing ***)
 
-  let rec to_string s =
-    match get s with
-    | Base b -> to_string_base b
-    | Var v -> Var.name v
-    | Product ts -> String.concat " * " (List.map to_string ts)
-
   let format ppf t =
     let rec pp_element ~nested ppf t =
       match get t with
@@ -505,9 +502,9 @@ module Sort = struct
 end
 
 module Layout = struct
-  type t =
-    | Sort of Sort.t
-    | Product of t list
+  type 'sort t =
+    | Sort of 'sort
+    | Product of 'sort t list
     | Any
 
   module Const = struct
@@ -515,36 +512,84 @@ module Layout = struct
       | Any
       | Base of Sort.base
       | Product of t list
-
-    module Legacy = struct
-      type t =
-        | Any
-        | Any_non_null
-        | Value_or_null
-        | Value
-        | Void
-        | Immediate64
-        | Immediate
-        | Float64
-        | Float32
-        | Word
-        | Bits32
-        | Bits64
-        | Product of t list
-    end
   end
 end
 
-module Modes = Mode.Alloc.Const
+module Modes = Jkind_axis.Of_lattice (Mode.Alloc.Const)
 
-module Jkind_desc = struct
-  type ('type_expr, 'd) t =
-    { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
+module Layout_and_axes = struct
+  open Jkind_axis
+
+  type ('layout, +'d) t =
+    { layout : 'layout;
+      modes_upper_bounds : Mode.Alloc.Const.t;
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
     }
     constraint 'd = 'l * 'r
+
+  let map f t = { t with layout = f t.layout }
+
+  let map_option f t =
+    match f t.layout with None -> None | Some layout -> Some { t with layout }
+
+  let equal eq_layout
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
+      } =
+    eq_layout lay1 lay2 && Modes.equal modes1 modes2
+    && Externality.equal ext1 ext2
+    && Nullability.equal null1 null2
+
+  let equal_after_all_inference_is_done x y z = equal x y z
+
+  (* Once we have more interesting mode stuff, this won't be trivial. *)
+  let try_allow_l ({ layout = _; _ } as t) = Some t
+
+  (* Once we have more interesting mode stuff, this won't be trivial. *)
+  let try_allow_r ({ layout = _; _ } as t) = Some t
+
+  let sub sub_layout
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
+      } =
+    Misc.Le_result.combine_list
+      [ sub_layout lay1 lay2;
+        Modes.less_or_equal modes1 modes2;
+        Externality.less_or_equal ext1 ext2;
+        Nullability.less_or_equal null1 null2 ]
+    [@@inline]
+
+  let format format_layout ppf
+      { layout;
+        modes_upper_bounds;
+        externality_upper_bound;
+        nullability_upper_bound
+      } =
+    Format.fprintf ppf
+      "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
+       %a;@ nullability_upper_bound = %a }"
+      format_layout layout Mode.Alloc.Const.print modes_upper_bounds
+      Externality.print externality_upper_bound Nullability.print
+      nullability_upper_bound
+end
+
+module Jkind_desc = struct
+  type ('type_expr, 'd) t = (Sort.t Layout.t, 'd) Layout_and_axes.t
 
   type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
   [@@unboxed]
@@ -568,17 +613,11 @@ type 'type_expr history =
 
 type ('type_expr, 'd) t =
   { jkind : ('type_expr, 'd) Jkind_desc.t;
+    annotation : Parsetree.jkind_annotation option;
     history : 'type_expr history;
     has_warned : bool
   }
 
 module Const = struct
-  type 'type_expr t =
-    { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
-    }
+  type ('type_expr, +'d) t = (Layout.Const.t, 'd) Layout_and_axes.t
 end
-
-type 'type_expr annotation = 'type_expr Const.t * Parsetree.jkind_annotation

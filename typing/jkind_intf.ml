@@ -65,11 +65,21 @@ module type Sort = sig
   end
 
   module Var : sig
-    type t = var
+    type id = private int
+    (* the [private int] allows the debugger to print it *)
+
+    (** Extract the unique id for a [var]; this should be used only
+        for debugging or printing, not for decision making *)
+    val get_id : var -> id
+
+    (** Get the number of an [id], useful for printing. These numbers
+        get allocated only when an [id] gets printed, and so they are
+        less brittle than just printing the [id] itself. *)
+    val get_print_number : id -> int
 
     (** These names are generated lazily and only when this function is called,
       and are not guaranteed to be efficient to create *)
-    val name : t -> string
+    val name : var -> string
   end
 
   val void : t
@@ -93,7 +103,7 @@ module type Sort = sig
 
   val of_const : Const.t -> t
 
-  val of_var : Var.t -> t
+  val of_var : var -> t
 
   (** This checks for equality, and sets any variables to make two sorts
       equal, if possible *)
@@ -115,6 +125,8 @@ module type Sort = sig
   val undo_change : change -> unit
 
   module Debug_printers : sig
+    val base : Format.formatter -> base -> unit
+
     val t : Format.formatter -> t -> unit
 
     val var : Format.formatter -> var -> unit
@@ -197,16 +209,31 @@ module History = struct
     | Wildcard
     | Unification_var
     | Array_element
+    | Old_style_unboxed_type
 
-  type annotation_context =
-    | Type_declaration of Path.t
-    | Type_parameter of Path.t * string option
-    | Newtype_declaration of string
-    | Constructor_type_parameter of Path.t * string
-    | Univar of string
-    | Type_variable of string
-    | Type_wildcard of Location.t
-    | With_error_message of string * annotation_context
+  open Allowance
+
+  type 'd annotation_context =
+    | Type_declaration : Path.t -> (allowed * 'r) annotation_context
+    | Type_parameter :
+        Path.t * string option
+        -> (allowed * allowed) annotation_context
+    | Newtype_declaration : string -> (allowed * allowed) annotation_context
+    | Constructor_type_parameter :
+        Path.t * string
+        -> (allowed * allowed) annotation_context
+    | Univar : string -> (allowed * allowed) annotation_context
+    | Type_variable : string -> (allowed * allowed) annotation_context
+    | Type_wildcard : Location.t -> (allowed * allowed) annotation_context
+    | With_error_message :
+        string * 'd annotation_context
+        -> 'd annotation_context
+
+  and annotation_context_l = (allowed * disallowed) annotation_context
+
+  and annotation_context_r = (disallowed * allowed) annotation_context
+
+  and annotation_context_lr = (allowed * allowed) annotation_context
 
   (* CR layouts v3: move some [value_creation_reason]s
      related to objects here. *)
@@ -222,6 +249,7 @@ module History = struct
     | V1_safety_check
     | Probe
     | Captured_in_object
+    | Let_rec_variable of Ident.t
 
   type value_creation_reason =
     | Class_let_binding
@@ -255,7 +283,6 @@ module History = struct
     | Class_term_argument
     | Debug_printer_argument
     | Recmod_fun_arg
-    | Let_rec_variable of Ident.t
     | Unknown of string (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =
@@ -283,7 +310,7 @@ module History = struct
   type product_creation_reason = Unboxed_tuple
 
   type creation_reason =
-    | Annotated of annotation_context * Location.t
+    | Annotated : ('l * 'r) annotation_context * Location.t -> creation_reason
     | Missing_cmi of Path.t
     | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason

@@ -60,16 +60,30 @@ module Nullability : sig
   include module type of Jkind_axis.Nullability with type t := t
 end
 
-module Sort :
-  Jkind_intf.Sort
-    with type base = Jkind_types.Sort.base
-     and type Const.t = Jkind_types.Sort.Const.t
+module Sort : sig
+  include
+    Jkind_intf.Sort
+      with type base = Jkind_types.Sort.base
+       and type Const.t = Jkind_types.Sort.Const.t
+
+  module Flat : sig
+    (** A flat sort is returned from [get]. *)
+    type t =
+      | Var of Var.id (* [Var.id] is for debugging / printing only *)
+      | Base of base
+  end
+end
 
 type sort = Sort.t
 
 (* The layout of a type describes its memory layout. A layout is either the
    indeterminate [Any] or a sort, which is a concrete memory layout. *)
 module Layout : sig
+  type 'sort t = 'sort Jkind_types.Layout.t =
+    | Sort of 'sort
+    | Product of 'sort t list
+    | Any
+
   module Const : sig
     type t = Jkind_types.Layout.Const.t
 
@@ -138,8 +152,8 @@ end
 
 module Violation : sig
   type violation =
-    | Not_a_subjkind of jkind_l * jkind_r
-    | No_intersection of packed * jkind_r
+    | Not_a_subjkind : (allowed * 'r) t * ('l * allowed) t -> violation
+    | No_intersection : 'd t * ('l * allowed) t -> violation
 
   type t
 
@@ -178,91 +192,85 @@ end
 (* constants *)
 
 module Const : sig
-  (** Constant jkinds are used for user-written annotations *)
-  type t = Types.type_expr Jkind_types.Const.t
+  (** Constant jkinds are used for user-written annotations. They are not
+      actually constant, though: they might contain variables in [with]-types.
+      The "constant" refers to the fact that there are no sort variables here.
+      The existence of [with]-types means, though, that we still need the
+      allowance machinery here. *)
+  type +'d t constraint 'd = 'l * 'r
 
-  val to_out_jkind_const : t -> Outcometree.out_jkind_const
+  val to_out_jkind_const : 'd t -> Outcometree.out_jkind_const
 
-  val format : Format.formatter -> t -> unit
-
-  val equal : t -> t -> bool
-
-  (** Gets the layout of a constant jkind. Never does mutation. *)
-  val get_layout : t -> Layout.Const.t
-
-  (** Gets the maximum modes for types of this constant jkind. *)
-  val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
-
-  (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
-  val get_externality_upper_bound : t -> Externality.t
-
-  val of_user_written_annotation :
-    context:History.annotation_context -> Parsetree.jkind_annotation -> t
+  (* An equality check should work over [lr]s only. But we need this
+     to do memoization in serialization. Happily, that's after all
+     inference is done, when worrying about l and r does not matter
+     any more. *)
+  val equal_after_all_inference_is_done : 'd1 t -> 'd2 t -> bool
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
   module Builtin : sig
-    type nonrec t =
-      { jkind : t;
+    type nonrec 'd t =
+      { jkind : 'd t;
         name : string
       }
 
     (** This jkind is the top of the jkind lattice. All types have jkind [any].
     But we cannot compile run-time manipulations of values of types with jkind
     [any]. *)
-    val any : t
+    val any : 'd t
 
     (** [any], except for null pointers. *)
-    val any_non_null : t
+    val any_non_null : 'd t
 
     (** Value of types of this jkind are not retained at all at runtime *)
-    val void : t
+    val void : 'd t
 
     (** This is the jkind of normal ocaml values or null pointers *)
-    val value_or_null : t
+    val value_or_null : 'd t
 
     (** This is the jkind of normal ocaml values *)
-    val value : t
+    val value : 'd t
 
     (** Immutable values that don't contain functions. *)
-    val immutable_data : t
+    val immutable_data : 'd t
 
     (** Mutable values that don't contain functions. *)
-    val mutable_data : t
+    val mutable_data : 'd t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
-    val immediate64 : t
+    val immediate64 : 'd t
 
     (** We know for sure that values of types of this jkind are always immediate *)
-    val immediate : t
+    val immediate : 'd t
 
     (** This is the jkind of unboxed 64-bit floats.  They have sort
     Float64. Mode-crosses. *)
-    val float64 : t
+    val float64 : 'd t
 
     (** This is the jkind of unboxed 32-bit floats.  They have sort
     Float32. Mode-crosses. *)
-    val float32 : t
+    val float32 : 'd t
 
     (** This is the jkind of unboxed native-sized integers. They have sort
     Word. Does not mode-cross. *)
-    val word : t
+    val word : 'd t
 
     (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
     not mode-cross. *)
-    val bits32 : t
+    val bits32 : 'd t
 
     (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
     not mode-cross. *)
-    val bits64 : t
+    val bits64 : 'd t
 
     (** This is the jkind of unboxed 128-bit simd vectors. They have sort Vec128. Does
     not mode-cross. *)
-    val vec128 : t
+    val vec128 : 'd t
 
     (** A list of all Builtin jkinds *)
-    val all : t list
+    val all : 'd t list
   end
 end
 
@@ -288,9 +296,6 @@ module Builtin : sig
       be the join relevant component of the inputs. *)
   val product : why:History.product_creation_reason -> 'd t list -> 'd t
 end
-
-(** Take an existing [t] and add an ability to mode-cross along all the axes. *)
-val add_mode_crossing : 'd t -> 'd t
 
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd t -> 'd t
@@ -321,23 +326,24 @@ val of_new_legacy_sort_var :
     Defaulting the sort variable produces exactly [value].  *)
 val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> 'd t
 
-val of_const : why:History.creation_reason -> Const.t -> 'd t
+val of_const :
+  annotation:Parsetree.jkind_annotation option ->
+  why:History.creation_reason ->
+  'd Const.t ->
+  'd t
+
+val of_builtin : why:History.creation_reason -> 'd Const.Builtin.t -> 'd t
 
 (* CR layouts v2.8: remove this when printing is improved *)
 
-(** The [Jkind.Const.t] together with its user-written annotation. *)
-type annotation = Types.type_expr Jkind_types.annotation
-
 val of_annotation :
-  context:History.annotation_context ->
-  Parsetree.jkind_annotation ->
-  'd t * annotation
+  context:'d History.annotation_context -> Parsetree.jkind_annotation -> 'd t
 
 val of_annotation_option_default :
   default:'d t ->
-  context:History.annotation_context ->
+  context:'d History.annotation_context ->
   Parsetree.jkind_annotation option ->
-  'd t * annotation option
+  'd t
 
 (** Find a jkind from a type declaration. Type declarations are special because
     the jkind may have been provided via [: jkind] syntax (which goes through
@@ -350,9 +356,9 @@ val of_annotation_option_default :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
-  context:History.annotation_context ->
+  context:History.annotation_context_l ->
   Parsetree.type_declaration ->
-  (jkind_l * annotation) option
+  (jkind_l * Parsetree.jkind_annotation option) option
 
 (** Find a jkind from a type declaration in the same way as [of_type_decl],
     defaulting to ~default.
@@ -360,10 +366,10 @@ val of_type_decl :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl_default :
-  context:History.annotation_context ->
+  context:History.annotation_context_l ->
   default:jkind_l ->
   Parsetree.type_declaration ->
-  jkind_l * annotation option
+  jkind_l
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)
@@ -383,29 +389,32 @@ val for_object : jkind_l
 (* elimination and defaulting *)
 
 module Desc : sig
-  (** The description of a jkind, used as a return type from [get]. *)
-  type t =
-    | Const of Const.t
-    | Var of Sort.var
-    | Product of t list
+  (** The description of a jkind, used as a return type from [get].  This
+      description has no sort variables, but it might have [with]-types and thus
+      needs the allowance machinery. *)
+  type 'd t = (Sort.Flat.t Layout.t, 'd) Jkind_types.Layout_and_axes.t
 
-  val format : Format.formatter -> t -> unit
+  val get_const : 'd t -> 'd Const.t option
+
+  val format : Format.formatter -> 'd t -> unit
 end
 
-(** Extract the [const] from a [Jkind.t], looking through unified
-    sort variables. Returns [Var] if the final, non-variable jkind has not
-    yet been determined. *)
-val get : 'd t -> Desc.t
+(** Get a description of a jkind. *)
+val get : 'd t -> 'd Desc.t
 
-(** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
-    variable, it is set to [value] first. *)
-val default_to_value_and_get : 'd t -> Const.t
+(** [get_layout_defaulting_to_value] extracts a constant layout, defaulting
+    any sort variable to [value]. *)
+val get_layout_defaulting_to_value : 'd t -> Layout.Const.t
 
-(** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
+(** [get_const] returns a [Const.t] if the layout has no sort variables,
+    returning [None] otherwise *)
+val get_const : 'd t -> 'd Const.t option
+
+(** [default_to_value t] is [ignore (get_layout_defaulting_to_value t)] *)
 val default_to_value : 'd t -> unit
 
-(** [is_void t] is [Void = default_to_value_and_get t].  In particular, it will
-    default the jkind to value if needed to make this false. *)
+(** [is_void t] is [Void = get_layout_defaulting_to_value t].  In particular, it
+    will default the jkind to value if needed to make this false. *)
 val is_void_defaulting : 'd t -> bool
 (* CR layouts v5: When we have proper support for void, we'll want to change
    these three functions to default to void - it's the most efficient thing
@@ -439,6 +448,9 @@ val set_externality_upper_bound : jkind_r -> Externality.t -> jkind_r
     in the jkind lattice than they might need to be.
     *)
 val decompose_product : 'd t -> 'd t list option
+
+(** Get an annotation (that a user might write) for this [t]. *)
+val get_annotation : 'd t -> Parsetree.jkind_annotation option
 
 (*********************************)
 (* pretty printing *)
@@ -476,6 +488,9 @@ val equal : jkind_lr -> jkind_lr -> bool
     sort variables. *)
 val has_intersection : jkind_r -> jkind_r -> bool
 
+(* CR layouts v2.8: This almost certainly has to get rewritten, as l-kinds do
+   not support meets. *)
+
 (** Like [has_intersection], but comparing two [l] jkinds. *)
 val has_intersection_l_l : jkind_l -> jkind_l -> bool
 
@@ -488,9 +503,9 @@ val has_intersection_l_l : jkind_l -> jkind_l -> bool
     intersection of the two, not something that modifies the second jkind. *)
 val intersection_or_error :
   reason:History.interact_reason ->
-  ('l * allowed) t ->
-  jkind_r ->
-  (('l * allowed) t, Violation.t) Result.t
+  ('l1 * allowed) t ->
+  ('l2 * allowed) t ->
+  (('l1 * allowed) t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
@@ -503,7 +518,7 @@ type sub_or_intersect =
 
 (** [sub_or_intersect t1 t2] does a subtype check, returning a [sub_or_intersect];
     see comments there for more info. *)
-val sub_or_intersect : jkind_l -> jkind_r -> sub_or_intersect
+val sub_or_intersect : (allowed * 'r) t -> ('l * allowed) t -> sub_or_intersect
 
 (** [sub_or_error t1 t2] does a subtype check, returning an appropriate
     [Violation.t] upon failure. *)
@@ -526,10 +541,15 @@ val intersect_l_l :
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
-val is_max : jkind_r -> bool
+val is_max : ('l * allowed) t -> bool
 
 (** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : ('l * allowed) t -> bool
+
+(** Checks whether a jkind is [value]. This really should require a [jkind_lr],
+    but it works on any [jkind], because it's used in printing and is somewhat
+    unprincipled. *)
+val is_value_for_printing : 'd t -> bool
 
 (*********************************)
 (* debugging *)
@@ -538,6 +558,6 @@ module Debug_printers : sig
   val t : Format.formatter -> 'd t -> unit
 
   module Const : sig
-    val t : Format.formatter -> Const.t -> unit
+    val t : Format.formatter -> 'd Const.t -> unit
   end
 end
