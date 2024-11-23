@@ -484,7 +484,7 @@ let assemble_file infile outfile =
 let init () = ()
 
 let operation_supported = function
-  | Cclz _ | Cctz _ | Cpopcnt
+  | Cpopcnt
   | Cprefetch _ | Catomic _
   (* CR mslater: (float32) arm64 *)
   | Cnegf Float32 | Cabsf Float32 | Caddf Float32
@@ -514,6 +514,7 @@ let operation_supported = function
   | Cbeginregion | Cendregion | Ctuple_field _
   | Cdls_get
   | Cpoll
+  | Cclz _ | Cctz _ 
     -> true
 
 let trap_size_in_bytes = 16

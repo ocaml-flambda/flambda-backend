@@ -544,6 +544,8 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Intop_imm (Icomp _, _)) -> 2
     | Lop (Intop Imod) -> 2
     | Lop (Intop (Imulh _)) -> 1
+    | Lop (Intop (Iclz _)) -> 1
+    | Lop (Intop (Ictz _)) -> 2
     | Lop (Intop _) -> 1
     | Lop (Intop_imm _) -> 1
     | Lop (Floatop (Float64, (Iabsf | Inegf)) | Specific Isqrtf) -> 1
@@ -1000,6 +1002,13 @@ let emit_instr i =
         `	smulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
     | Lop(Intop (Imulh { signed = false })) ->
         `	umulh	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
+    | Lop(Intop (Iclz _)) ->
+        ` clz {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`
+    | Lop(Intop (Ictz _)) ->
+        (* `ctz Rd, Rn` is optionally supported from Armv8.7, but rbit and clz
+           are supported in all ARMv8 CPUs. *)
+        ` rbit {emit_reg i.res.(0)}, {emit_reg i.arg.(0)}\n`;
+        ` clz  {emit_reg i.res.(0)}, {emit_reg i.res.(0)}\n`
     | Lop(Intop op) ->
         let instr = name_for_int_operation op in
         `	{emit_string instr}	{emit_reg i.res.(0)}, {emit_reg i.arg.(0)}, {emit_reg i.arg.(1)}\n`
