@@ -1918,6 +1918,163 @@ let primitive_may_allocate : primitive -> locality_mode option = function
          to be native. *)
       Some alloc_heap
 
+let primitive_can_raise prim =
+  match prim with
+  | Pccall _ | Praise _ | Parrayrefs _ | Parraysets _ | Pmodint _ | Pdivint _
+  | Pstringrefs | Pbytesrefs | Pbytessets
+  | Pstring_load_16 { unsafe = false; _ }
+  | Pstring_load_32 { unsafe = false; _ }
+  | Pstring_load_f32 { unsafe = false; _ }
+  | Pstring_load_64 { unsafe = false; _ }
+  | Pstring_load_128 { unsafe = false; _ }
+  | Pbytes_load_16 { unsafe = false; _ }
+  | Pbytes_load_32 { unsafe = false; _ }
+  | Pbytes_load_f32 { unsafe = false; _ }
+  | Pbytes_load_64 { unsafe = false; _ }
+  | Pbytes_load_128 { unsafe = false; _ }
+  | Pbytes_set_16 { unsafe = false; index_kind = _ }
+  | Pbytes_set_32 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbytes_set_f32 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbytes_set_64 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbytes_set_128 { unsafe = false; _ }
+  | Pbigstring_load_16 { unsafe = false; index_kind = _ }
+  | Pbigstring_load_32 { unsafe = false; index_kind = _; mode = _; boxed = _ }
+  | Pbigstring_load_f32 { unsafe = false; index_kind = _; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = false; index_kind = _; mode = _; boxed = _ }
+  | Pbigstring_load_128 { unsafe = false; _ }
+  | Pbigstring_set_16 { unsafe = false; index_kind = _ }
+  | Pbigstring_set_32 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbigstring_set_f32 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbigstring_set_64 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbigstring_set_128 { unsafe = false; _ }
+  | Pfloatarray_load_128 { unsafe = false; _ }
+  | Pfloat_array_load_128 { unsafe = false; _ }
+  | Pint_array_load_128 { unsafe = false; _ }
+  | Punboxed_float_array_load_128 { unsafe = false; _ }
+  | Punboxed_float32_array_load_128 { unsafe = false; _ }
+  | Punboxed_int32_array_load_128 { unsafe = false; _ }
+  | Punboxed_int64_array_load_128 { unsafe = false; _ }
+  | Punboxed_nativeint_array_load_128 { unsafe = false; _ }
+  | Pfloatarray_set_128 { unsafe = false; _ }
+  | Pfloat_array_set_128 { unsafe = false; _ }
+  | Pint_array_set_128 { unsafe = false; _ }
+  | Punboxed_float_array_set_128 { unsafe = false; _ }
+  | Punboxed_float32_array_set_128 { unsafe = false; _ }
+  | Punboxed_int32_array_set_128 { unsafe = false; _ }
+  | Punboxed_int64_array_set_128 { unsafe = false; _ }
+  | Punboxed_nativeint_array_set_128 { unsafe = false; _ }
+  | Pdivbint { is_safe = Safe; _ }
+  | Pmodbint { is_safe = Safe; _ }
+  | Pbigarrayref (false, _, _, _)
+  | Pbigarrayset (false, _, _, _)
+  | Parrayblit _ | Pmakearray_dynamic _
+  (* These bigarray primitives are translated into c-calls which may raise even
+     if the unsafe flag is true *)
+  | Pbigarrayref (_, _, Pbigarray_unknown, _)
+  | Pbigarrayset (_, _, Pbigarray_unknown, _)
+  | Pbigarrayref (_, _, _, Pbigarray_unknown_layout)
+  | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
+    true
+  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
+  | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
+  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
+  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
+  | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
+  | Pmixedfield _ | Psetmixedfield _ | Pmakemixedblock _ | Pnot | Pnegint
+  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
+  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Poffsetint _ | Poffsetref _ | Pintoffloat _
+  | Pfloatofint (_, _)
+  | Pfloatoffloat32 _ | Pfloat32offloat _
+  | Pnegfloat (_, _)
+  | Pabsfloat (_, _)
+  | Paddfloat (_, _)
+  | Psubfloat (_, _)
+  | Pmulfloat (_, _)
+  | Pdivfloat (_, _)
+  | Pfloatcomp (_, _)
+  | Punboxed_float_comp (_, _)
+  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
+  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
+  | Pisint _ | Pisout | Pisnull | Pbintofint _ | Pintofbint _ | Pcvtbint _
+  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
+  | Pdivbint { is_safe = Unsafe; _ }
+  | Pmodbint { is_safe = Unsafe; _ }
+  | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
+  | Pbintcomp _ | Punboxed_int_comp _ | Pbigarraydim _
+  | Pbigarrayref
+      ( true,
+        _,
+        ( Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float32_t
+        | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
+        | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
+        | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
+        | Pbigarray_complex32 | Pbigarray_complex64 ),
+        _ )
+  | Pbigarrayset
+      ( true,
+        _,
+        ( Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float32_t
+        | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
+        | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
+        | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
+        | Pbigarray_complex32 | Pbigarray_complex64 ),
+        (Pbigarray_c_layout | Pbigarray_fortran_layout) )
+  | Pstring_load_16 { unsafe = true; _ }
+  | Pstring_load_32 { unsafe = true; _ }
+  | Pstring_load_f32 { unsafe = true; _ }
+  | Pstring_load_64 { unsafe = true; _ }
+  | Pstring_load_128 { unsafe = true; _ }
+  | Pbytes_load_16 { unsafe = true; _ }
+  | Pbytes_load_32 { unsafe = true; _ }
+  | Pbytes_load_f32 { unsafe = true; _ }
+  | Pbytes_load_64 { unsafe = true; _ }
+  | Pbytes_load_128 { unsafe = true; _ }
+  | Pbytes_set_16 { unsafe = true; index_kind = _ }
+  | Pbytes_set_32 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbytes_set_f32 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbytes_set_64 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbytes_set_128 { unsafe = true; _ }
+  | Pbigstring_load_16 { unsafe = true; index_kind = _ }
+  | Pbigstring_load_32 { unsafe = true; index_kind = _; mode = _; boxed = _ }
+  | Pbigstring_load_f32 { unsafe = true; index_kind = _; mode = _; boxed = _ }
+  | Pbigstring_load_64 { unsafe = true; index_kind = _; mode = _; boxed = _ }
+  | Pbigstring_load_128 { unsafe = true; _ }
+  | Pbigstring_set_16 { unsafe = true; _ }
+  | Pbigstring_set_32 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbigstring_set_f32 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbigstring_set_64 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbigstring_set_128 { unsafe = true; _ }
+  | Pfloatarray_load_128 { unsafe = true; _ }
+  | Pfloat_array_load_128 { unsafe = true; _ }
+  | Pint_array_load_128 { unsafe = true; _ }
+  | Punboxed_float_array_load_128 { unsafe = true; _ }
+  | Punboxed_float32_array_load_128 { unsafe = true; _ }
+  | Punboxed_int32_array_load_128 { unsafe = true; _ }
+  | Punboxed_int64_array_load_128 { unsafe = true; _ }
+  | Punboxed_nativeint_array_load_128 { unsafe = true; _ }
+  | Pfloatarray_set_128 { unsafe = true; _ }
+  | Pfloat_array_set_128 { unsafe = true; _ }
+  | Pint_array_set_128 { unsafe = true; _ }
+  | Punboxed_float_array_set_128 { unsafe = true; _ }
+  | Punboxed_float32_array_set_128 { unsafe = true; _ }
+  | Punboxed_int32_array_set_128 { unsafe = true; _ }
+  | Punboxed_int64_array_set_128 { unsafe = true; _ }
+  | Punboxed_nativeint_array_set_128 { unsafe = true; _ }
+  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
+  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
+  | Pbox_float (_, _)
+  | Punbox_float _
+  | Pbox_vector (_, _)
+  | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+  | Punboxed_product_field _ | Pget_header _ ->
+    false
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
+  | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
+  | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
+  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+    false
+
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> non_null_value Pintval
   | Const_string _ -> non_null_value Pgenval
@@ -2267,3 +2424,36 @@ let simple_prim_on_values ~name ~arity ~alloc =
         (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Const.value))
     ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Const.value)
     ~is_layout_poly:false
+
+let rec try_to_find_location lam =
+  (* This is very much best-effort and may overshoot, but will still likely be
+     better than nothing. *)
+  match lam with
+  | Lprim (_, _, loc)
+  | Lfunction { loc; _ }
+  | Lletrec ({ def = { loc; _ }; _ } :: _, _)
+  | Lapply { ap_loc = loc; _ }
+  | Lfor { for_loc = loc; _ }
+  | Lswitch (_, _, loc, _)
+  | Lstringswitch (_, _, _, loc, _)
+  | Lsend (_, _, _, _, _, _, loc, _)
+  | Levent (_, { lev_loc = loc; _ }) ->
+    loc
+  | Llet (_, _, _, lam, _)
+  | Lmutlet (_, _, lam, _)
+  | Lifthenelse (lam, _, _, _)
+  | Lstaticcatch (lam, _, _, _, _)
+  | Lstaticraise (_, lam :: _)
+  | Lwhile { wh_cond = lam; _ }
+  | Lsequence (lam, _)
+  | Lassign (_, lam)
+  | Lifused (_, lam)
+  | Lregion (lam, _)
+  | Lexclave lam
+  | Ltrywith (lam, _, _, _) ->
+    try_to_find_location lam
+  | Lvar _ | Lmutvar _ | Lconst _ | Lletrec _ | Lstaticraise (_, []) ->
+    Debuginfo.Scoped_location.Loc_unknown
+
+let try_to_find_debuginfo lam =
+  Debuginfo.from_location (try_to_find_location lam)

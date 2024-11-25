@@ -20,7 +20,6 @@
 module Env = Lambda_to_flambda_env
 module L = Lambda
 module CC = Closure_conversion
-module P = Flambda_primitive
 module IR = Closure_conversion.IR
 module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 module Function_decl = Closure_conversion_aux.Function_decls.Function_decl
@@ -28,10 +27,6 @@ module CCenv = Closure_conversion_aux.Env
 
 (* CR pchambart: Replace uses by CC.Acc.t *)
 module Acc = Closure_conversion_aux.Acc
-
-type primitive_transform_result =
-  | Primitive of L.primitive * L.lambda list * L.scoped_location
-  | Transformed of L.lambda
 
 let must_be_singleton_simple simples =
   match simples with
@@ -174,270 +169,6 @@ let compile_staticfail acc env ccenv ~(continuation : Continuation.t) ~args :
           CC.close_apply_cont acc ccenv ~dbg continuation None args)
         acc ccenv)
     acc ccenv
-
-let rec try_to_find_location (lam : L.lambda) =
-  (* This is very much best-effort and may overshoot, but will still likely be
-     better than nothing. *)
-  match lam with
-  | Lprim (_, _, loc)
-  | Lfunction { loc; _ }
-  | Lletrec ({ def = { loc; _ }; _ } :: _, _)
-  | Lapply { ap_loc = loc; _ }
-  | Lfor { for_loc = loc; _ }
-  | Lswitch (_, _, loc, _)
-  | Lstringswitch (_, _, _, loc, _)
-  | Lsend (_, _, _, _, _, _, loc, _)
-  | Levent (_, { lev_loc = loc; _ }) ->
-    loc
-  | Llet (_, _, _, lam, _)
-  | Lmutlet (_, _, lam, _)
-  | Lifthenelse (lam, _, _, _)
-  | Lstaticcatch (lam, _, _, _, _)
-  | Lstaticraise (_, lam :: _)
-  | Lwhile { wh_cond = lam; _ }
-  | Lsequence (lam, _)
-  | Lassign (_, lam)
-  | Lifused (_, lam)
-  | Lregion (lam, _)
-  | Lexclave lam
-  | Ltrywith (lam, _, _, _) ->
-    try_to_find_location lam
-  | Lvar _ | Lmutvar _ | Lconst _ | Lletrec _ | Lstaticraise (_, []) ->
-    Debuginfo.Scoped_location.Loc_unknown
-
-let try_to_find_debuginfo lam =
-  Debuginfo.from_location (try_to_find_location lam)
-
-let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
-  let switch : Lambda.lambda_switch =
-    { sw_numconsts = 2;
-      sw_consts = [0, ifnot; 1, ifso];
-      sw_numblocks = 0;
-      sw_blocks = [];
-      sw_failaction = None
-    }
-  in
-  L.Lswitch (cond, switch, try_to_find_location cond, kind)
-
-let transform_primitive env (prim : L.primitive) args loc =
-  match prim, args with
-  | Psequor, [arg1; arg2] ->
-    let const_true = Ident.create_local "const_true" in
-    let cond = Ident.create_local "cond_sequor" in
-    Transformed
-      (L.Llet
-         ( Strict,
-           Lambda.layout_int,
-           const_true,
-           Lconst (Const_base (Const_int 1)),
-           L.Llet
-             ( Strict,
-               Lambda.layout_int,
-               cond,
-               arg1,
-               switch_for_if_then_else ~cond:(L.Lvar cond)
-                 ~ifso:(L.Lvar const_true) ~ifnot:arg2 ~kind:Lambda.layout_int
-             ) ))
-  | Psequand, [arg1; arg2] ->
-    let const_false = Ident.create_local "const_false" in
-    let cond = Ident.create_local "cond_sequand" in
-    Transformed
-      (L.Llet
-         ( Strict,
-           Lambda.layout_int,
-           const_false,
-           Lconst (Const_base (Const_int 0)),
-           L.Llet
-             ( Strict,
-               Lambda.layout_int,
-               cond,
-               arg1,
-               switch_for_if_then_else ~cond:(L.Lvar cond) ~ifso:arg2
-                 ~ifnot:(L.Lvar const_false) ~kind:Lambda.layout_int ) ))
-  | (Psequand | Psequor), _ ->
-    Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
-  | ( (Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray),
-      [arg] ) ->
-    Transformed arg
-  | Pignore, [arg] ->
-    let result = L.Lconst (Const_base (Const_int 0)) in
-    Transformed (L.Lsequence (arg, result))
-  | Pfield _, [L.Lprim (Pgetglobal cu, [], _)]
-    when Compilation_unit.equal cu (Env.current_unit env) ->
-    Misc.fatal_error
-      "[Pfield (Pgetglobal ...)] for the current compilation unit is forbidden \
-       upon entry to the middle end"
-  | Psetfield (_, _, _), [L.Lprim (Pgetglobal _, [], _); _] ->
-    Misc.fatal_error
-      "[Psetfield (Pgetglobal ...)] is forbidden upon entry to the middle end"
-  | Pfield (index, _, _), _ when index < 0 ->
-    Misc.fatal_error "Pfield with negative field index"
-  | Pfloatfield (i, _, _), _ when i < 0 ->
-    Misc.fatal_error "Pfloatfield with negative field index"
-  | Psetfield (index, _, _), _ when index < 0 ->
-    Misc.fatal_error "Psetfield with negative field index"
-  | Pmakeblock (tag, _, _, _), _ when tag < 0 || tag >= Obj.no_scan_tag ->
-    Misc.fatal_errorf "Pmakeblock with wrong or non-scannable block tag %d" tag
-  | Pmakefloatblock (_mut, _mode), args when List.length args < 1 ->
-    Misc.fatal_errorf "Pmakefloatblock must have at least one argument"
-  | Pfloatcomp (bf, CFnlt), args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFlt), args, loc)], loc)
-  | Pfloatcomp (bf, CFngt), args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFgt), args, loc)], loc)
-  | Pfloatcomp (bf, CFnle), args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFle), args, loc)], loc)
-  | Pfloatcomp (bf, CFnge), args ->
-    Primitive (L.Pnot, [L.Lprim (Pfloatcomp (bf, CFge), args, loc)], loc)
-  | Punboxed_float_comp (bf, CFnlt), args ->
-    Primitive
-      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFlt), args, loc)], loc)
-  | Punboxed_float_comp (bf, CFngt), args ->
-    Primitive
-      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFgt), args, loc)], loc)
-  | Punboxed_float_comp (bf, CFnle), args ->
-    Primitive
-      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFle), args, loc)], loc)
-  | Punboxed_float_comp (bf, CFnge), args ->
-    Primitive
-      (L.Pnot, [L.Lprim (Punboxed_float_comp (bf, CFge), args, loc)], loc)
-  | Pbigarrayref (_unsafe, num_dimensions, kind, layout), args -> (
-    (* CR mshinwell: factor out with the [Pbigarrayset] case *)
-    match
-      P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
-    with
-    | Some _, Some _ -> Primitive (prim, args, loc)
-    | None, None | None, Some _ | Some _, None ->
-      if 1 <= num_dimensions && num_dimensions <= 3
-      then
-        let arity = 1 + num_dimensions in
-        let is_float32_t =
-          match kind with
-          | Pbigarray_float32_t -> "float32_"
-          | Pbigarray_unknown | Pbigarray_float16 | Pbigarray_float32
-          | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
-          | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
-          | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
-          | Pbigarray_complex32 | Pbigarray_complex64 ->
-            ""
-        in
-        let name =
-          "caml_ba_" ^ is_float32_t ^ "get_" ^ string_of_int num_dimensions
-        in
-        let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
-        Primitive (L.Pccall desc, args, loc)
-      else
-        Misc.fatal_errorf
-          "Lambda_to_flambda.transform_primitive: Pbigarrayref with unknown \
-           layout and elements should only have dimensions between 1 and 3 \
-           (see translprim).")
-  | Pbigarrayset (_unsafe, num_dimensions, kind, layout), args -> (
-    match
-      P.Bigarray_kind.from_lambda kind, P.Bigarray_layout.from_lambda layout
-    with
-    | Some _, Some _ -> Primitive (prim, args, loc)
-    | None, None | None, Some _ | Some _, None ->
-      if 1 <= num_dimensions && num_dimensions <= 3
-      then
-        let arity = 2 + num_dimensions in
-        let is_float32_t =
-          match kind with
-          | Pbigarray_float32_t -> "float32_"
-          | Pbigarray_unknown | Pbigarray_float16 | Pbigarray_float32
-          | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
-          | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
-          | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
-          | Pbigarray_complex32 | Pbigarray_complex64 ->
-            ""
-        in
-        let name =
-          "caml_ba_" ^ is_float32_t ^ "set_" ^ string_of_int num_dimensions
-        in
-        let desc = Lambda.simple_prim_on_values ~name ~arity ~alloc:true in
-        Primitive (L.Pccall desc, args, loc)
-      else
-        Misc.fatal_errorf
-          "Lambda_to_flambda.transform_primitive: Pbigarrayset with unknown \
-           layout and elements should only have dimensions between 1 and 3 \
-           (see translprim).")
-  | _, _ -> Primitive (prim, args, loc)
-  [@@ocaml.warning "-fragile-match"]
-
-let rec_catch_for_while_loop env cond body =
-  let cont = L.next_raise_count () in
-  let env = Env.mark_as_recursive_static_catch env cont in
-  let cond_result = Ident.create_local "while_cond_result" in
-  let lam : L.lambda =
-    Lstaticcatch
-      ( Lstaticraise (cont, []),
-        (cont, []),
-        Llet
-          ( Strict,
-            Lambda.layout_int,
-            cond_result,
-            cond,
-            Lifthenelse
-              ( Lvar cond_result,
-                Lsequence (body, Lstaticraise (cont, [])),
-                Lconst (Const_base (Const_int 0)),
-                Lambda.layout_unit ) ),
-        Same_region,
-        Lambda.layout_unit )
-  in
-  env, lam
-
-let rec_catch_for_for_loop env loc ident start stop
-    (dir : Asttypes.direction_flag) body =
-  let cont = L.next_raise_count () in
-  let env = Env.mark_as_recursive_static_catch env cont in
-  let start_ident = Ident.create_local "for_start" in
-  let stop_ident = Ident.create_local "for_stop" in
-  let first_test : L.lambda =
-    match dir with
-    | Upto -> Lprim (Pintcomp Cle, [L.Lvar start_ident; L.Lvar stop_ident], loc)
-    | Downto ->
-      Lprim (Pintcomp Cge, [L.Lvar start_ident; L.Lvar stop_ident], loc)
-  in
-  let subsequent_test : L.lambda =
-    Lprim (Pintcomp Cne, [L.Lvar ident; L.Lvar stop_ident], loc)
-  in
-  let one : L.lambda = Lconst (Const_base (Const_int 1)) in
-  let next_value_of_counter =
-    match dir with
-    | Upto -> L.Lprim (Paddint, [L.Lvar ident; one], loc)
-    | Downto -> L.Lprim (Psubint, [L.Lvar ident; one], loc)
-  in
-  let lam : L.lambda =
-    (* Care needs to be taken here not to cause overflow if, for an incrementing
-       for-loop, the upper bound is [max_int]; likewise, for a decrementing
-       for-loop, if the lower bound is [min_int]. *)
-    Llet
-      ( Strict,
-        Lambda.layout_int,
-        start_ident,
-        start,
-        Llet
-          ( Strict,
-            Lambda.layout_int,
-            stop_ident,
-            stop,
-            Lifthenelse
-              ( first_test,
-                Lstaticcatch
-                  ( Lstaticraise (cont, [L.Lvar start_ident]),
-                    (cont, [ident, Lambda.layout_int]),
-                    Lsequence
-                      ( body,
-                        Lifthenelse
-                          ( subsequent_test,
-                            Lstaticraise (cont, [next_value_of_counter]),
-                            L.lambda_unit,
-                            Lambda.layout_unit ) ),
-                    Same_region,
-                    Lambda.layout_unit ),
-                L.lambda_unit,
-                Lambda.layout_unit ) ) )
-  in
-  env, lam
 
 let is_user_visible env id : IR.user_visible =
   if Ident.stamp id >= Env.ident_stamp_upon_starting env
@@ -631,163 +362,6 @@ let wrap_return_continuation acc env ccenv (apply : IR.apply) =
   restore_continuation_context acc env ccenv apply.continuation
     ~close_current_region_early body
 
-let primitive_can_raise (prim : Lambda.primitive) =
-  match prim with
-  | Pccall _ | Praise _ | Parrayrefs _ | Parraysets _ | Pmodint _ | Pdivint _
-  | Pstringrefs | Pbytesrefs | Pbytessets
-  | Pstring_load_16 { unsafe = false; _ }
-  | Pstring_load_32 { unsafe = false; _ }
-  | Pstring_load_f32 { unsafe = false; _ }
-  | Pstring_load_64 { unsafe = false; _ }
-  | Pstring_load_128 { unsafe = false; _ }
-  | Pbytes_load_16 { unsafe = false; _ }
-  | Pbytes_load_32 { unsafe = false; _ }
-  | Pbytes_load_f32 { unsafe = false; _ }
-  | Pbytes_load_64 { unsafe = false; _ }
-  | Pbytes_load_128 { unsafe = false; _ }
-  | Pbytes_set_16 { unsafe = false; index_kind = _ }
-  | Pbytes_set_32 { unsafe = false; index_kind = _; boxed = _ }
-  | Pbytes_set_f32 { unsafe = false; index_kind = _; boxed = _ }
-  | Pbytes_set_64 { unsafe = false; index_kind = _; boxed = _ }
-  | Pbytes_set_128 { unsafe = false; _ }
-  | Pbigstring_load_16 { unsafe = false; index_kind = _ }
-  | Pbigstring_load_32 { unsafe = false; index_kind = _; mode = _; boxed = _ }
-  | Pbigstring_load_f32 { unsafe = false; index_kind = _; mode = _; boxed = _ }
-  | Pbigstring_load_64 { unsafe = false; index_kind = _; mode = _; boxed = _ }
-  | Pbigstring_load_128 { unsafe = false; _ }
-  | Pbigstring_set_16 { unsafe = false; index_kind = _ }
-  | Pbigstring_set_32 { unsafe = false; index_kind = _; boxed = _ }
-  | Pbigstring_set_f32 { unsafe = false; index_kind = _; boxed = _ }
-  | Pbigstring_set_64 { unsafe = false; index_kind = _; boxed = _ }
-  | Pbigstring_set_128 { unsafe = false; _ }
-  | Pfloatarray_load_128 { unsafe = false; _ }
-  | Pfloat_array_load_128 { unsafe = false; _ }
-  | Pint_array_load_128 { unsafe = false; _ }
-  | Punboxed_float_array_load_128 { unsafe = false; _ }
-  | Punboxed_float32_array_load_128 { unsafe = false; _ }
-  | Punboxed_int32_array_load_128 { unsafe = false; _ }
-  | Punboxed_int64_array_load_128 { unsafe = false; _ }
-  | Punboxed_nativeint_array_load_128 { unsafe = false; _ }
-  | Pfloatarray_set_128 { unsafe = false; _ }
-  | Pfloat_array_set_128 { unsafe = false; _ }
-  | Pint_array_set_128 { unsafe = false; _ }
-  | Punboxed_float_array_set_128 { unsafe = false; _ }
-  | Punboxed_float32_array_set_128 { unsafe = false; _ }
-  | Punboxed_int32_array_set_128 { unsafe = false; _ }
-  | Punboxed_int64_array_set_128 { unsafe = false; _ }
-  | Punboxed_nativeint_array_set_128 { unsafe = false; _ }
-  | Pdivbint { is_safe = Safe; _ }
-  | Pmodbint { is_safe = Safe; _ }
-  | Pbigarrayref (false, _, _, _)
-  | Pbigarrayset (false, _, _, _)
-  | Parrayblit _ | Pmakearray_dynamic _
-  (* These bigarray primitives are translated into c-calls which may raise even
-     if the unsafe flag is true *)
-  | Pbigarrayref (_, _, Pbigarray_unknown, _)
-  | Pbigarrayset (_, _, Pbigarray_unknown, _)
-  | Pbigarrayref (_, _, _, Pbigarray_unknown_layout)
-  | Pbigarrayset (_, _, _, Pbigarray_unknown_layout) ->
-    true
-  | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray
-  | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _ | Pmakeblock _
-  | Pmakefloatblock _ | Pfield _ | Pfield_computed _ | Psetfield _
-  | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
-  | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
-  | Pmixedfield _ | Psetmixedfield _ | Pmakemixedblock _ | Pnot | Pnegint
-  | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
-  | Poffsetint _ | Poffsetref _ | Pintoffloat _
-  | Pfloatofint (_, _)
-  | Pfloatoffloat32 _ | Pfloat32offloat _
-  | Pnegfloat (_, _)
-  | Pabsfloat (_, _)
-  | Paddfloat (_, _)
-  | Psubfloat (_, _)
-  | Pmulfloat (_, _)
-  | Pdivfloat (_, _)
-  | Pfloatcomp (_, _)
-  | Punboxed_float_comp (_, _)
-  | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
-  | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Pisint _ | Pisout | Pisnull | Pbintofint _ | Pintofbint _ | Pcvtbint _
-  | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
-  | Pdivbint { is_safe = Unsafe; _ }
-  | Pmodbint { is_safe = Unsafe; _ }
-  | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-  | Pbintcomp _ | Punboxed_int_comp _ | Pbigarraydim _
-  | Pbigarrayref
-      ( true,
-        _,
-        ( Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float32_t
-        | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
-        | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
-        | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
-        | Pbigarray_complex32 | Pbigarray_complex64 ),
-        _ )
-  | Pbigarrayset
-      ( true,
-        _,
-        ( Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float32_t
-        | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
-        | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
-        | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
-        | Pbigarray_complex32 | Pbigarray_complex64 ),
-        (Pbigarray_c_layout | Pbigarray_fortran_layout) )
-  | Pstring_load_16 { unsafe = true; _ }
-  | Pstring_load_32 { unsafe = true; _ }
-  | Pstring_load_f32 { unsafe = true; _ }
-  | Pstring_load_64 { unsafe = true; _ }
-  | Pstring_load_128 { unsafe = true; _ }
-  | Pbytes_load_16 { unsafe = true; _ }
-  | Pbytes_load_32 { unsafe = true; _ }
-  | Pbytes_load_f32 { unsafe = true; _ }
-  | Pbytes_load_64 { unsafe = true; _ }
-  | Pbytes_load_128 { unsafe = true; _ }
-  | Pbytes_set_16 { unsafe = true; index_kind = _ }
-  | Pbytes_set_32 { unsafe = true; index_kind = _; boxed = _ }
-  | Pbytes_set_f32 { unsafe = true; index_kind = _; boxed = _ }
-  | Pbytes_set_64 { unsafe = true; index_kind = _; boxed = _ }
-  | Pbytes_set_128 { unsafe = true; _ }
-  | Pbigstring_load_16 { unsafe = true; index_kind = _ }
-  | Pbigstring_load_32 { unsafe = true; index_kind = _; mode = _; boxed = _ }
-  | Pbigstring_load_f32 { unsafe = true; index_kind = _; mode = _; boxed = _ }
-  | Pbigstring_load_64 { unsafe = true; index_kind = _; mode = _; boxed = _ }
-  | Pbigstring_load_128 { unsafe = true; _ }
-  | Pbigstring_set_16 { unsafe = true; _ }
-  | Pbigstring_set_32 { unsafe = true; index_kind = _; boxed = _ }
-  | Pbigstring_set_f32 { unsafe = true; index_kind = _; boxed = _ }
-  | Pbigstring_set_64 { unsafe = true; index_kind = _; boxed = _ }
-  | Pbigstring_set_128 { unsafe = true; _ }
-  | Pfloatarray_load_128 { unsafe = true; _ }
-  | Pfloat_array_load_128 { unsafe = true; _ }
-  | Pint_array_load_128 { unsafe = true; _ }
-  | Punboxed_float_array_load_128 { unsafe = true; _ }
-  | Punboxed_float32_array_load_128 { unsafe = true; _ }
-  | Punboxed_int32_array_load_128 { unsafe = true; _ }
-  | Punboxed_int64_array_load_128 { unsafe = true; _ }
-  | Punboxed_nativeint_array_load_128 { unsafe = true; _ }
-  | Pfloatarray_set_128 { unsafe = true; _ }
-  | Pfloat_array_set_128 { unsafe = true; _ }
-  | Pint_array_set_128 { unsafe = true; _ }
-  | Punboxed_float_array_set_128 { unsafe = true; _ }
-  | Punboxed_float32_array_set_128 { unsafe = true; _ }
-  | Punboxed_int32_array_set_128 { unsafe = true; _ }
-  | Punboxed_int64_array_set_128 { unsafe = true; _ }
-  | Punboxed_nativeint_array_set_128 { unsafe = true; _ }
-  | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _ | Popaque _
-  | Pprobe_is_enabled _ | Pobj_dup | Pobj_magic _
-  | Pbox_float (_, _)
-  | Punbox_float _
-  | Pbox_vector (_, _)
-  | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
-  | Punboxed_product_field _ | Pget_header _ ->
-    false
-  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
-  | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
-  | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 ->
-    false
-
 type non_tail_continuation =
   Acc.t ->
   Env.t ->
@@ -961,11 +535,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         id,
         Lprim (prim, args, loc),
         body ) -> (
-    match transform_primitive env prim args loc with
+    match Lambda_to_lambda_transforms.transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       (* This case avoids extraneous continuations. *)
       let exn_continuation : IR.exn_continuation option =
-        if primitive_can_raise prim
+        if L.primitive_can_raise prim
         then
           Some
             { exn_handler = k_exn;
@@ -1307,14 +881,19 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                       (get_unarized_vars body_result env)))
               ~handler:(handler k)))
   | Lifthenelse (cond, ifso, ifnot, kind) ->
-    let lam = switch_for_if_then_else ~cond ~ifso ~ifnot ~kind in
+    let lam =
+      Lambda_to_lambda_transforms.switch_for_if_then_else ~cond ~ifso ~ifnot
+        ~kind
+    in
     cps acc env ccenv lam k k_exn
   | Lsequence (lam1, lam2) ->
     let k acc env ccenv _value _arity = cps acc env ccenv lam2 k k_exn in
     cps_non_tail_simple acc env ccenv lam1 k k_exn
   | Lwhile { wh_cond = cond; wh_body = body } ->
     (* CR-someday mshinwell: make use of wh_cond_region / wh_body_region? *)
-    let env, loop = rec_catch_for_while_loop env cond body in
+    let env, loop =
+      Lambda_to_lambda_transforms.rec_catch_for_while_loop env cond body
+    in
     cps acc env ccenv loop k k_exn
   | Lfor
       { for_id = ident;
@@ -1324,7 +903,10 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         for_dir = dir;
         for_body = body
       } ->
-    let env, loop = rec_catch_for_for_loop env loc ident start stop dir body in
+    let env, loop =
+      Lambda_to_lambda_transforms.rec_catch_for_for_loop env loc ident start
+        stop dir body
+    in
     cps acc env ccenv loop k k_exn
   | Lassign (being_assigned, new_value) ->
     if not (Env.is_mutable env being_assigned)
@@ -1913,7 +1495,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
              it is safe to exclude them from passing along the extra arguments
              for mutable values. *)
           let cont = Continuation.create () in
-          let dbg = try_to_find_debuginfo action in
+          let dbg = L.try_to_find_debuginfo action in
           let action acc ccenv = cps_tail acc env ccenv action k k_exn in
           let consts_rev = (arm, cont, dbg, None, []) :: consts_rev in
           let wrappers = (cont, action) :: wrappers in
@@ -1935,7 +1517,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         | None -> None, wrappers
         | Some action ->
           let cont = Continuation.create () in
-          let dbg = try_to_find_debuginfo action in
+          let dbg = L.try_to_find_debuginfo action in
           let action acc ccenv = cps_tail acc env ccenv action k k_exn in
           let wrappers = (cont, action) :: wrappers in
           Some (cont, dbg, None, []), wrappers
