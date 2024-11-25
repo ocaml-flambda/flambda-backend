@@ -276,10 +276,7 @@ module type Solver_polarized = sig
     log:changes ref option ->
     (unit, 'a error) result
 
-  (** Lowers a level of a variable, moves elements from/to [vlower] to/from [vupper] as
-      required to maintain invariant, spread upper/lower bounds as needed. All constraints
-      are semantically preserved. Since no new constraints are added, the operation always
-      succeeds *)
+  (** Lowers a level of a variable. *)
   val update_level :
     int ->
     'a obj ->

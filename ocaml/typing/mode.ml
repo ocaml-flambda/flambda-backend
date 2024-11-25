@@ -1874,10 +1874,7 @@ module Common (Obj : Obj) = struct
 
   let submode a b = try_with_log (submode_log a b)
 
-  let update_level i a =
-    let log' = ref S.empty_changes in
-    let log = Some log' in
-    (Solver.update_level i obj a ~log)
+  let update_level i a = with_log (Solver.update_level i obj a)
 
   let join l = Solver.join obj l
 

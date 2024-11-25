@@ -522,9 +522,10 @@ module Solver_mono (C : Lattices_mono) = struct
   No recursion into [u.vuppers] *)
   let push_lower_bound :
     type a b l r. log:_ -> b C.obj -> a var
-          -> b var -> (a, b, (l * r)) C.morph
+          -> (a, b, (l * r)) C.morph
+          -> b var
           -> unit =
-    fun ~log dst v u f' ->
+    fun ~log dst v f' u ->
       let mlower = mlower dst (Amorphvar (v, f')) in
       let ulower = C.join dst u.lower mlower in
       update_lower ~log dst u ulower
@@ -533,18 +534,38 @@ module Solver_mono (C : Lattices_mono) = struct
   No recursion into [u.vlowers] *)
   let push_upper_bound :
     type a b l r. log:_ -> b C.obj -> a var
-          -> b var -> (a, b, (l * r)) C.morph
+          -> (a, b, (l * r)) C.morph
+          -> b var
           -> unit =
-    fun ~log dst v u f' ->
+    fun ~log dst v f' u ->
       let mupper = mupper dst (Amorphvar (v, f')) in
       let uupper = C.meet dst u.upper mupper in
       update_upper ~log dst u uupper
+
+  let add_vlower_nocheck :
+    type a b r. log:_ -> a C.obj -> a var
+          -> b var -> (b, a, (allowed * r)) C.morph
+          -> unit =
+    fun ~log dst v u f ->
+      let x = Amorphvar (u, (C.disallow_right f)) in
+      if exists dst x v.vlower then ()
+      else set_vlower ~log v (x :: v.vlower)
+
+
+  let add_vupper_nocheck :
+    type a b l. log:_ -> a C.obj -> a var
+          -> b var -> (b, a, (l * allowed)) C.morph
+          -> unit =
+    fun ~log dst v u f ->
+      let x = Amorphvar (u, C.disallow_left f) in
+      if exists dst x v.vupper then ()
+      else set_vupper ~log v (x :: v.vupper)
 
   (* Add a vlower entry for the relation [f u <= v], tighten the upper bound of [u],
   and recursively add relations to maintain invariant.
   The lower and upper bounds of [u] and [v] are not checked, upper bound is not pushed
   down [u.vlower] *)
-  let rec add_vlower_nocheck :
+  let rec add_vlower_reversed :
     type a b r. log:_ -> a C.obj -> a var
           -> b var -> (b, a, (allowed * r)) C.morph
           -> unit =
@@ -554,7 +575,7 @@ module Solver_mono (C : Lattices_mono) = struct
       else begin
         let src = C.src dst f in
         let f' = C.right_adjoint dst f in
-        push_upper_bound ~log src v u f';
+        push_upper_bound ~log src v f' u;
         set_vlower ~log v (x :: v.vlower);
         List.iter
           (fun (Amorphvar(w, h)) ->
@@ -565,7 +586,7 @@ module Solver_mono (C : Lattices_mono) = struct
               let src = C.src dst h in
               let h' = C.left_adjoint dst h in
               let h'f = C.compose src h' (C.disallow_right f) in
-              add_vlower_nocheck ~log src w u h'f
+              add_vlower_reversed ~log src w u h'f
             end
           )
           v.vupper
@@ -575,7 +596,7 @@ module Solver_mono (C : Lattices_mono) = struct
     and recursively add relations to maintain invariant.
     The lower and upper bounds of [u] and [v] are not checked, lower bound is not pushed
     down [u.vupper] *)
-    and add_vupper_nocheck :
+    let rec add_vupper_reversed :
       type a b l. log:_ -> a C.obj -> a var
             -> b var -> (b, a, (l * allowed)) C.morph
             -> unit =
@@ -585,7 +606,7 @@ module Solver_mono (C : Lattices_mono) = struct
         else begin
           let src = C.src dst f in
           let f' = C.left_adjoint dst f in
-          push_lower_bound ~log src v u f';
+          push_lower_bound ~log src v f' u;
           set_vupper ~log v (x :: v.vupper);
           List.iter
             (fun (Amorphvar(w, h)) ->
@@ -593,7 +614,7 @@ module Solver_mono (C : Lattices_mono) = struct
                 let src = C.src dst h in
                 let h' = C.right_adjoint dst h in
                 let h'f = C.compose src h' (C.disallow_left f) in
-                add_vupper_nocheck ~log src w u h'f
+                add_vupper_reversed ~log src w u h'f
               end else begin
                 let f'h = C.compose src f' h in
                 add_vlower_nocheck ~log src u w f'h
@@ -619,13 +640,13 @@ module Solver_mono (C : Lattices_mono) = struct
         (fun (Amorphvar(v, f)) ->
           let f' = C.right_adjoint dst f in
           let src = C.src dst f in
-          add_vupper_nocheck ~log src v u f')
+          add_vupper_reversed ~log src v u f')
         vlower_gt;
       List.iter
         (fun (Amorphvar(v, f)) ->
           let f' = C.left_adjoint dst f in
           let src = C.src dst f in
-          add_vlower_nocheck ~log src v u f')
+          add_vlower_reversed ~log src v u f')
         vupper_ge;
       (* optimization: if lower = upper, we can remove vuppers and vlowers since the
         information is as precise as it can get *)
@@ -667,16 +688,8 @@ module Solver_mono (C : Lattices_mono) = struct
           update_level_v ~log obj level v)
         mvs
 
-  let cnt_debug = ref 0
-
   let submode (type a r l) (obj : a C.obj) (a : (a, allowed * r) mode)
       (b : (a, l * allowed) mode) ~log =
-    let db = !cnt_debug in
-    cnt_debug := db + 1;
-    begin
-    if !Clflags.debug_ocaml && db mod 3 = 0 then
-      (update_level 0 obj b ~log)
-    end;
     let submode_cc ~log:_ obj left right =
       if C.le obj left right then Ok () else Error { left; right }
     in
