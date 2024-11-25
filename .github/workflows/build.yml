@@ -80,7 +80,7 @@ jobs:
           # eventually fix this.
           - name: flambda2_macos
             config: --enable-middle-end=flambda2 --disable-warn-error
-            os: macos-12
+            os: macos-latest
 
           - name: irc
             config: --enable-middle-end=flambda2
