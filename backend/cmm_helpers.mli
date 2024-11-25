@@ -1034,6 +1034,9 @@ val reperform :
   last_fiber:expression ->
   expression
 
+(* CR mshinwell: change unboxed scalar arrays to use mixed block (or similar)
+   representations rather than custom blocks *)
+
 (** Allocate a block to hold an unboxed float32 array for the given number of
     elements. *)
 val allocate_unboxed_float32_array :
@@ -1076,14 +1079,82 @@ val unboxed_vec128_array_length : expression -> Debuginfo.t -> expression
 val unboxed_float32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+(** Read an unboxed float32 from a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The float32 is expected to be in the least significant bits of the
+    64-bit field.  The most significant 32 bits of such field are ignored.
+
+    The zero-indexed element number is specified as a tagged immediate.
+*)
+val unboxed_mutable_float32_unboxed_product_array_ref :
+  expression -> array_index:expression -> Debuginfo.t -> expression
+
+(* CR mshinwell/mslater: We could do movss xmm xmm, movsd mem xmm instead of
+   separate writes *)
+
+(** Write an unboxed float32 into a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+
+    The float32 will be written to the least significant bits of the
+    64-bit field.  The top 32 bits of the written word will be initialized
+    to zero.  Note that two writes are involved.
+*)
+val unboxed_mutable_float32_unboxed_product_array_set :
+  expression ->
+  array_index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
 (** Read from an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+(** Read an unboxed int32 from (the least significant bits of) a 64-bit field
+    in an array represented as a mixed block (with tag zero), as used for
+    unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+
+    The returned value is always sign extended, but it is not assumed that
+    the 64-bit field in the array contains a sign-extended representation.
+*)
+val unboxed_mutable_int32_unboxed_product_array_ref :
+  expression -> array_index:expression -> Debuginfo.t -> expression
+
+(** Write an unboxed int32 into a 64-bit field in an array represented as
+    a mixed block (with tag zero), as used for unboxed product arrays.
+
+    The zero-indexed element number is specified as a tagged immediate.
+
+    The write is done as a 64-bit write of a sign-extended version of the
+    supplied [new_value].
+*)
+val unboxed_mutable_int32_unboxed_product_array_set :
+  expression ->
+  array_index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
 (** Read from an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+
+    The zero-indexed element number is specified as a tagged immediate.
+*)
 val unboxed_int64_or_nativeint_array_ref :
-  expression -> expression -> Debuginfo.t -> expression
+  has_custom_ops:bool ->
+  expression ->
+  array_index:expression ->
+  Debuginfo.t ->
+  expression
 
 (** Update an unboxed float32 array (without bounds check). *)
 val unboxed_float32_array_set :
@@ -1102,8 +1173,14 @@ val unboxed_int32_array_set :
   expression
 
 (** Update an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+*)
 val unboxed_int64_or_nativeint_array_set :
+  has_custom_ops:bool ->
   expression ->
   index:expression ->
   new_value:expression ->

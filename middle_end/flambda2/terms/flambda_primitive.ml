@@ -106,8 +106,9 @@ module Array_kind = struct
     | Naked_int64s
     | Naked_nativeints
     | Naked_vec128s
+    | Unboxed_product of t list
 
-  let print ppf t =
+  let rec print ppf t =
     match t with
     | Immediates -> Format.pp_print_string ppf "Immediates"
     | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
@@ -117,10 +118,14 @@ module Array_kind = struct
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
     | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
     | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
+    | Unboxed_product fields ->
+      Format.fprintf ppf "@[<hov 1>(Unboxed_product@ @[<hov 1>(%a)@])@]"
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
+        fields
 
   let compare = Stdlib.compare
 
-  let element_kinds t =
+  let rec element_kinds t =
     match t with
     | Immediates -> [K.With_subkind.tagged_immediate]
     | Values -> [K.With_subkind.any_value]
@@ -130,22 +135,39 @@ module Array_kind = struct
     | Naked_int64s -> [K.With_subkind.naked_int64]
     | Naked_nativeints -> [K.With_subkind.naked_nativeint]
     | Naked_vec128s -> [K.With_subkind.naked_vec128]
+    | Unboxed_product kinds -> List.concat_map element_kinds kinds
 
   let element_kinds_for_primitive t =
     element_kinds t |> List.map K.With_subkind.kind
 
   let must_be_gc_scannable t =
     let kinds = element_kinds t in
-    match kinds with
-    | [kind] -> K.With_subkind.must_be_gc_scannable kind
-    | [] | _ :: _ -> assert false
+    if not (List.exists K.With_subkind.must_be_gc_scannable kinds)
+    then false
+    else if List.for_all K.With_subkind.may_be_gc_scannable kinds
+    then true
+    else
+      Misc.fatal_errorf
+        "Unboxed product array kind contains both elements that must be \
+         scannable and that cannot be scanned:@ %a"
+        print t
 
   let has_custom_ops t =
     match t with
-    | Immediates | Values | Naked_floats -> false
+    | Immediates | Values | Naked_floats | Unboxed_product _ -> false
     | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
     | Naked_vec128s ->
       true
+
+  let rec width_in_scalars t =
+    match t with
+    | Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
+    | Naked_int64s | Naked_nativeints | Naked_vec128s ->
+      1
+    | Unboxed_product kinds ->
+      List.fold_left
+        (fun width array_kind -> width + width_in_scalars array_kind)
+        0 kinds
 end
 
 module Array_load_kind = struct
@@ -172,7 +194,7 @@ module Array_load_kind = struct
 
   let compare = Stdlib.compare
 
-  let element_kind t =
+  let kind_of_loaded_value t =
     match t with
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
     | Values -> Flambda_kind.With_subkind.any_value
@@ -210,14 +232,7 @@ module Array_set_kind = struct
 
   let compare = Stdlib.compare
 
-  let init_or_assign t : Init_or_assign.t =
-    match t with
-    | Values ia -> ia
-    | Immediates | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
-    | Naked_nativeints | Naked_vec128s ->
-      Assignment Alloc_mode.For_assignments.heap
-
-  let element_kind t =
+  let kind_of_new_value t =
     match t with
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
     | Values _ -> Flambda_kind.With_subkind.any_value
@@ -246,6 +261,11 @@ module Array_kind_for_length = struct
     | Array_kind a -> Array_kind.print ppf a
     | Float_array_opt_dynamic ->
       Format.pp_print_string ppf "Float_array_opt_dynamic"
+
+  let width_in_scalars t =
+    match t with
+    | Float_array_opt_dynamic -> 1
+    | Array_kind array_kind -> Array_kind.width_in_scalars array_kind
 end
 
 module Duplicate_block_kind = struct
@@ -561,7 +581,7 @@ let reading_from_an_array (array_kind : Array_kind.t)
   let effects : Effects.t =
     match array_kind with
     | Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
-    | Naked_int64s | Naked_nativeints | Naked_vec128s ->
+    | Naked_int64s | Naked_nativeints | Naked_vec128s | Unboxed_product _ ->
       No_effects
   in
   let coeffects =
@@ -863,6 +883,7 @@ let print_unary_float_arith_op ppf width op =
 type arg_kinds =
   | Variadic_mixed of K.Mixed_block_shape.t
   | Variadic_all_of_kind of K.t
+  | Variadic_unboxed_product of Flambda_kind.t list
 
 type result_kind =
   | Singleton of K.t
@@ -1752,7 +1773,8 @@ let result_kind_of_binary_primitive p : result_kind =
   | Block_set _ -> Unit
   | Array_load (_array_kind, array_load_kind, _mut) ->
     Singleton
-      (Array_load_kind.element_kind array_load_kind |> K.With_subkind.kind)
+      (Array_load_kind.kind_of_loaded_value array_load_kind
+      |> K.With_subkind.kind)
   | String_or_bigstring_load (_, (Eight | Sixteen)) ->
     Singleton K.naked_immediate
   | String_or_bigstring_load (_, Thirty_two) -> Singleton K.naked_int32
@@ -1894,7 +1916,7 @@ let args_kind_of_ternary_primitive p =
   | Array_set (_kind, array_set_kind) ->
     ( array_kind,
       array_index_kind,
-      Array_set_kind.element_kind array_set_kind |> K.With_subkind.kind )
+      Array_set_kind.kind_of_new_value array_set_kind |> K.With_subkind.kind )
   | Bytes_or_bigstring_set (Bytes, (Eight | Sixteen)) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bytes, Thirty_two) ->
@@ -2013,12 +2035,8 @@ let args_kind_of_variadic_primitive p : arg_kinds =
   | Make_block (Values _, _, _) -> Variadic_all_of_kind K.value
   | Make_block (Naked_floats, _, _) -> Variadic_all_of_kind K.naked_float
   | Make_block (Mixed (_tag, shape), _, _) -> Variadic_mixed shape
-  | Make_array (kind, _, _) -> (
-    match Array_kind.element_kinds_for_primitive kind with
-    | [kind] -> Variadic_all_of_kind kind
-    | _ ->
-      Misc.fatal_errorf "Expected single element kind for %a"
-        print_variadic_primitive p)
+  | Make_array (kind, _, _) ->
+    Variadic_unboxed_product (Array_kind.element_kinds_for_primitive kind)
 
 let result_kind_of_variadic_primitive p : result_kind =
   match p with Make_block _ | Make_array _ -> Singleton K.value

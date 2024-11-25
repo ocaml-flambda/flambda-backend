@@ -233,6 +233,7 @@ module With_subkind : sig
       | Unboxed_int64_array
       | Unboxed_nativeint_array
       | Unboxed_vec128_array
+      | Unboxed_product_array
 
     include Container_types.S with type t := t
   end
@@ -295,6 +296,8 @@ module With_subkind : sig
   val generic_array : t
 
   val unboxed_vec128_array : t
+
+  val unboxed_product_array : t
 
   val block : Tag.t -> t list -> t
 

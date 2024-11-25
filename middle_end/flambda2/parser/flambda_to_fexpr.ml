@@ -440,10 +440,10 @@ let rec subkind (k : Flambda_kind.With_subkind.Non_null_value_subkind.t) :
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
   | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
-  | Unboxed_nativeint_array | Unboxed_vec128_array ->
+  | Unboxed_nativeint_array | Unboxed_vec128_array | Unboxed_product_array ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
-       yet implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128/unboxed \
+       product arrays not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -620,10 +620,10 @@ let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
   | Naked_floats -> Naked_floats
   | Values -> Values
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_vec128s ->
+  | Naked_vec128s | Unboxed_product _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
-       implemented"
+      "fexpr support for unboxed float32/int32/64/nativeint/unboxed product \
+       arrays not yet implemented"
 
 let fexpr_of_array_set_kind env
     (array_set_kind : Flambda_primitive.Array_set_kind.t) : Fexpr.array_set_kind
