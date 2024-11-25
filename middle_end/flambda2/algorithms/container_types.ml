@@ -135,6 +135,22 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
         t
     in
     if not !changed then t else t'
+
+  let filter_map_sharing f t =
+    let changed = ref false in
+    let t' =
+      filter_map
+        (fun k v ->
+          let v' = f k v in
+          let () =
+            match v' with
+            | Some v' -> if not (v == v') then changed := true
+            | None -> changed := true
+          in
+          v')
+        t
+    in
+    if not !changed then t else t'
 end
 [@@inline always]
 

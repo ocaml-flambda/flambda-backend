@@ -651,6 +651,14 @@ module Map_specs (V : Value) = struct
     Map.equal V.equal (Map.map_sharing f m) (Map.map f m)
 
   let map_sharing_id m = Map.map_sharing (fun v -> v) m == m
+
+  let filter_map_sharing_valid f m = Map.valid (Map.filter_map_sharing f m)
+
+  let filter_map_sharing_vs_filter_map f m =
+    Map.equal V.equal (Map.filter_map_sharing f m) (Map.filter_map f m)
+
+  let filter_map_sharing_id m =
+    Map.filter_map_sharing (fun _k v -> Some v) m == m
 end
 
 (* CR-someday lmaurer: Move the [Abitrary.t] for perms into a separate module
@@ -1132,6 +1140,11 @@ let () =
     c "map_sharing is valid" map_sharing_valid [value_to_value; map];
     c "map_sharing vs. map" map_sharing_vs_map [value_to_value; map];
     c "map_sharing of id" map_sharing_id [map];
+    c "filter_map_sharing is valid" filter_map_sharing_valid
+      [key_and_value_to_value_option; map];
+    c "filter_map_sharing vs. filter_map" filter_map_sharing_vs_filter_map
+      [key_and_value_to_value_option; map];
+    c "filter_map_sharing of id" filter_map_sharing_id [map];
     ()
   in
   let () =
