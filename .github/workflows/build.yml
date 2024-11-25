@@ -146,6 +146,10 @@ jobs:
       run: true
       # run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
 
+    - name: Install autoconf (for macOS workers)
+      if: matrix.os == 'macos-latest'
+      run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install autoconf
+
     - name: Cache OCaml 4.14, dune and menhir
       uses: actions/cache@v4
       id: cache
