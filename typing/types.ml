@@ -260,6 +260,7 @@ type type_declaration =
     type_kind: type_decl_kind;
     type_jkind: jkind_l;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
+    type_boxes_jkind: type_expr Jkind_types.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;

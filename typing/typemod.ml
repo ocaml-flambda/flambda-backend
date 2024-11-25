@@ -670,6 +670,8 @@ let merge_constraint initial_env loc sg lid constr =
             type_kind = Type_abstract Definition;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
+            (* CR rtjoa:  *)
+            type_boxes_jkind = None;
             type_private = Private;
             type_manifest = None;
             type_variance =

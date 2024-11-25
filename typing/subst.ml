@@ -576,6 +576,7 @@ let type_declaration' copy_scope s decl =
       end;
     (* CR layouts v10: Apply the substitution here, too *)
     type_jkind_annotation = decl.type_jkind_annotation;
+    type_boxes_jkind = decl.type_boxes_jkind;
     type_private = decl.type_private;
     type_variance = decl.type_variance;
     type_separability = decl.type_separability;

@@ -1393,6 +1393,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope origin
     type_kind = Type_abstract origin;
     type_jkind = Jkind.disallow_right jkind;
     type_jkind_annotation = jkind_annot;
+    type_boxes_jkind = None;
     type_private = Public;
     type_manifest = manifest;
     type_variance = [];
@@ -6776,6 +6777,8 @@ let nondep_type_decl env mid is_covariant decl =
       type_kind = tk;
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
+      (* CR rtjoa:   *)
+      type_boxes_jkind = None;
       type_manifest = tm;
       type_private = priv;
       type_variance = decl.type_variance;

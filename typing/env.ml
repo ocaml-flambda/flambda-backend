@@ -1939,6 +1939,7 @@ let derive_dur_decl decl lbl_decls =
     type_kind = Type_record_unboxed_product (dur_lbl_decls, Record_unboxed_product);
     type_jkind = type_jkind;
     type_jkind_annotation = None;
+    type_boxes_jkind = None;
     type_private = decl.type_private;
     type_manifest;
     type_variance = decl.type_variance;

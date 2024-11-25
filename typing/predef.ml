@@ -430,7 +430,8 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
   |> (
     let immediate = Jkind.Builtin.value ~why:(Primitive ident_int) in
-    let
+    let string_kind = Jkind.of_const ~why:(Primitive ident_string)
+                        Jkind.Const.Builtin.immutable_data.jkind in
     add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =
@@ -446,10 +447,8 @@ let build_initial_env add_type add_extension empty_env =
                ld_uid=Uid.of_predef_id id;
              }
          in
-         let immediate = Jkind.Builtin.value ~why:(Primitive ident_int) in
          let labels = List.map lbl [
-           ("pos_fname", type_string, (Jkind.of_const ~why:(Primitive ident_string)
-                                          Jkind.Const.Builtin.immutable_data.jkind));
+           ("pos_fname", type_string, string_kind);
            ("pos_lnum", type_int, immediate);
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
@@ -462,13 +461,38 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.of_const ~why:(Primitive ident_lexing_position)
                 Jkind.Const.Builtin.immutable_data.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.word
-       ~boxes_jkind:(
-         Jkind.Builtin.product ~why:Unboxed_record [
-           Jkind.of_const ~why:(Primitive ident_string)
-             Jkind.Const.Builtin.immutable_data.jkind;
-           immediate; immediate; immediate
-         ]
-       )
+       ?boxes_jkind:None
+       (* ~boxes_jkind:(
+        *   {
+        *     layout = Product [
+        *       (Base Value); (Base Value);
+        *       (Base Value); (Base Value);
+        *     ];
+        *     modes_upper_bounds =
+        *       { linearity = Mode.Linearity.Const.min;
+        *         contention = Mode.Contention.Const.min;
+        *         portability = Mode.Portability.Const.min;
+        *         uniqueness = Mode.Uniqueness.Const.max;
+        *         areality = Mode.Locality.Const.max
+        *       };
+        *     externality_upper_bound = Jkind.Externality.max;
+        *     nullability_upper_bound = Jkind.Nullability.Non_null
+        *   },
+        *   {
+        *     pjkind_desc = Product [
+        *       { pjkind_loc = Location.none;
+        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immutable_data.name };
+        *       { pjkind_loc = Location.none;
+        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
+        *       { pjkind_loc = Location.none;
+        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
+        *       { pjkind_loc = Location.none;
+        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
+        *     ];
+        *     pjkind_loc = Location.none
+        *   }
+        * ) *)
+  )
   |> add_type ident_string
        ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
                 Jkind.Const.Builtin.immutable_data.jkind)

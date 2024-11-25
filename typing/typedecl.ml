@@ -291,6 +291,7 @@ in
       type_kind = Type_abstract abstract_source;
       type_jkind;
       type_jkind_annotation;
+      type_boxes_jkind = None;
       type_private = sdecl.ptype_private;
       type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -312,6 +313,7 @@ in
         type_kind = Type_abstract abstract_source;
         type_jkind = any;
         type_jkind_annotation = None;
+        type_boxes_jkind = None;
         type_private = sdecl.ptype_private;
         type_manifest = Some (Ctype.newvar any);
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -987,6 +989,8 @@ let transl_declaration env sdecl (id, uid) =
         type_kind = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
+        (* CR rtjoa:  *)
+        type_boxes_jkind = None;
         type_private = sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -3278,7 +3282,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_kind;
       type_jkind;
       type_jkind_annotation;
-      type_boxes_jkind;
+      (* CR rtjoa:   *)
+      type_boxes_jkind = None;
       type_private = priv;
       type_manifest = Some man;
       type_variance = [];
@@ -3345,7 +3350,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_private = sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
     typ_jkind_annotation = Option.map snd type_jkind_annotation;
-    typ_boxes_jkind = Option.map snd type_boxes_jkind;
+    (* CR rtjoa:  *)
+    typ_boxes_jkind = None;
   }
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)
@@ -3362,6 +3368,7 @@ let transl_package_constraint ~loc ty =
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
     type_jkind_annotation = None;
+    type_boxes_jkind = None;
     type_private = Public;
     type_manifest = Some ty;
     type_variance = [];
@@ -3386,6 +3393,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_kind = Type_abstract Definition;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
+      type_boxes_jkind = None;
       type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;

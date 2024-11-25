@@ -2413,6 +2413,7 @@ let dummy =
     type_kind = Type_abstract Definition;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
+    type_boxes_jkind = None;
     type_private = Public;
     type_manifest = None;
     type_variance = [];
