@@ -276,6 +276,14 @@ module type Solver_polarized = sig
     log:changes ref option ->
     (unit, 'a error) result
 
+  (** Lowers a level of a variable. *)
+  val update_level :
+    int ->
+    'a obj ->
+    ('a, 'l * 'r) mode ->
+    log:changes ref option ->
+    unit
+
   (** Creates a new mode variable above the given mode and returns [true]. In
         the speical case where the given mode is top, returns the constant top
         and [false]. *)
