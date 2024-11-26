@@ -404,6 +404,10 @@ end = struct
      - error
 
      error is represented as exception which is just easier.
+
+     We could additionally include a zero for our semiring that sits above unused.
+     However, this would have to suppress errors which prevents us from representing
+     Error as an exception.
   *)
 
   type t =
@@ -617,6 +621,11 @@ module Learned_tags : sig
   (** This module collects the tags of allocations which we may learn from
       pattern matches. It is always sound to forget tags we have learned.
 
+      [choose] is used to combine information in or-patterns and [par]
+      is used to combine information from several pattern matches on
+      the same variable. [seq] is not used (but may still be called
+      while checking expressions; then the arguments are [empty]).
+
       Perhaps surprisingly, we allow an allocation to have multiple
       tags. This can only happen when there are two match-statements
       and we enter branches of incompatible tags. Such code can never
@@ -642,9 +651,15 @@ module Learned_tags : sig
   (** Extract the tags that this cell may have *)
   val extract_tags : t -> Tag.Set.t
 
+  (** Assert that no tags were learned and fail else. *)
+  val assert_empty : t -> unit
+
   val print : Format.formatter -> t -> unit
 end = struct
   type t = Tag.Set.t
+
+  (* If we were to define a zero for this semiring, it would be
+     the set of all possible tags. *)
 
   let empty = Tag.Set.empty
 
@@ -657,6 +672,8 @@ end = struct
   let learn_tag tag = Tag.Set.singleton tag
 
   let extract_tags t = t
+
+  let assert_empty t = assert (Tag.Set.is_empty t)
 
   let print ppf t =
     let open Format in
@@ -720,6 +737,9 @@ module Overwrites : sig
   (** Accept the overwrites using tags that we have learned
       from a pattern-match. *)
   val match_with_learned_tags : Tag.Set.t -> t -> t
+
+  (** Assert that no overwrites were collected and fail else. *)
+  val assert_empty : t -> unit
 
   val print : Format.formatter -> t -> unit
 end = struct
@@ -798,6 +818,9 @@ end = struct
 
   let seq t0 t1 = seq_or_par Seq t0 t1
 
+  (* This is effectively the set difference [overwrite - learned].
+     However, we also store the newly learned tags on the overwrites
+     that are not eliminated to give better error messages. *)
   let match_with_learned_tags newly_learned t =
     match t with
     | Tag_was_mutated -> Tag_was_mutated
@@ -836,6 +859,13 @@ end = struct
                    new_tag = tag_overwritten
                  })))
     | Tag_was_mutated -> ()
+
+  let assert_empty t =
+    match t with
+    | Tags { overwritten; was_mutated } ->
+      assert (not was_mutated);
+      assert (Tag.Map.is_empty overwritten)
+    | _ -> assert false
 
   let print ppf =
     let open Format in
@@ -1009,7 +1039,11 @@ end = struct
      INVARIANT: children >= parent. For example, having an aliased child under a
      unique parent is nonsense. The invariant is preserved because Usage.choose,
      Usage.par, and Usage.seq above are monotone, and Usage_tree.par and
-     Usage_tree.seq, Usage_tree.choose here are node-wise. *)
+     Usage_tree.seq, Usage_tree.choose here are node-wise.
+
+     INVARIANT: Either the [learned] or the [overwrites] is [empty]. When
+     checking patterns the latter is empty while for expression the former is
+     empty. *)
   type t =
     { children : t Projection.Map.t;
       usage : Usage.t;
@@ -1117,13 +1151,15 @@ end = struct
     with Overwrites.Error error -> raise (Error (Overwrite_changed_tag error))
 
   let rec split_usage_tags { children; usage; overwrites; learned } =
+    let split_children = Projection.Map.map split_usage_tags children in
     let children_usages, children_tags =
-      ( Projection.Map.map (fun x -> fst (split_usage_tags x)) children,
-        Projection.Map.map (fun x -> snd (split_usage_tags x)) children )
+      ( Projection.Map.map fst split_children,
+        Projection.Map.map snd split_children )
     in
+    Overwrites.assert_empty overwrites;
     ( { children = children_usages;
         usage;
-        overwrites;
+        overwrites = Overwrites.empty;
         learned = Learned_tags.empty
       },
       { children = children_tags;
@@ -1143,9 +1179,10 @@ end = struct
           | Some c0, Some c1 -> Some (match_with_learned_tags c0 c1))
         learned.children t.children
     in
+    Learned_tags.assert_empty t.learned;
     { usage = t.usage;
       children;
-      learned = t.learned;
+      learned = Learned_tags.empty;
       overwrites =
         Overwrites.match_with_learned_tags
           (Learned_tags.extract_tags learned.learned)
@@ -1279,7 +1316,7 @@ end = struct
 
   let par t0 t1 = map2 Usage_tree.par t0 t1
 
-  (* CR uniqueness: For convenience, our semirings do not have a zero.
+  (* For convenience, our semirings do not have a zero.
      However, when we fold the [choose] operation we need to initialize the
      accumulator with zero. We avoid doing this here by skipping the initial
      accumulator altogether. When [chooses] gets passed an empty list,
