@@ -1469,7 +1469,7 @@ class virtual selector_generic =
         : future_funcnames:Misc.Stdlib.String.Set.t ->
           Cmm.fundecl ->
           Cfg_with_layout.t =
-      fun ~future_funcnames:_ f ->
+      fun ~future_funcnames f ->
         Select_utils.current_function_name := f.Cmm.fun_name.sym_name;
         Select_utils.current_function_is_check_enabled
           := Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
@@ -1521,8 +1521,6 @@ class virtual selector_generic =
         self#emit_tail env f.Cmm.fun_body;
         let body = self#extract in
         if true then Sub_cfg.dump body;
-        (* CR xclerc for xclerc: implement polling insertion. *)
-        let fun_poll = Lambda.Default_poll in
         let fun_contains_calls =
           DLL.exists body.Sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
               block.is_trap_handler
@@ -1557,7 +1555,7 @@ class virtual selector_generic =
               (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
             ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls
             ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
-            ~fun_poll
+            ~fun_poll:f.Cmm.fun_poll
         in
         let layout = DLL.make_empty () in
         let entry_block =
@@ -1565,6 +1563,11 @@ class virtual selector_generic =
             (Sub_cfg.make_instr (Cfg.Always tailrec_label) [||] [||]
                Debuginfo.none)
         in
+        if Cfg_polling.requires_prologue_poll ~future_funcnames
+             ~fun_name:f.Cmm.fun_name.sym_name cfg
+        then
+          DLL.add_begin entry_block.body
+            (Sub_cfg.make_instr Cfg.(Op Poll) [||] [||] Debuginfo.none);
         DLL.add_begin entry_block.body
           (Sub_cfg.make_instr Cfg.Prologue [||] [||] Debuginfo.none);
         Cfg.add_block_exn cfg entry_block;

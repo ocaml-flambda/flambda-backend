@@ -127,17 +127,14 @@ module Polls_before_prtc_transfer = struct
 end
 
 let potentially_recursive_tailcall :
-    future_funcnames:String.Set.t ->
-    Cfg_with_layout.t ->
-    Polls_before_prtc_domain.t =
- fun ~future_funcnames cfg_with_layout ->
+    future_funcnames:String.Set.t -> Cfg.t -> Polls_before_prtc_domain.t =
+ fun ~future_funcnames cfg ->
   let module PTRCAnalysis =
     Cfg_dataflow.Backward
       (Polls_before_prtc_domain)
       (Polls_before_prtc_transfer)
   in
   let init : Polls_before_prtc_domain.t = Polls_before_prtc_domain.bot in
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
   match
     PTRCAnalysis.run ~init ~map:PTRCAnalysis.Block cfg { future_funcnames }
   with
@@ -365,12 +362,12 @@ let instrument_fundecl :
 let requires_prologue_poll :
     future_funcnames:Misc.Stdlib.String.Set.t ->
     fun_name:string ->
-    Cfg_with_layout.t ->
+    Cfg.t ->
     bool =
- fun ~future_funcnames ~fun_name cfg_with_layout ->
+ fun ~future_funcnames ~fun_name cfg ->
   if is_disabled fun_name
   then false
   else
-    match potentially_recursive_tailcall ~future_funcnames cfg_with_layout with
+    match potentially_recursive_tailcall ~future_funcnames cfg with
     | Might_not_poll -> true
     | Always_polls -> false
