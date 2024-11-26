@@ -23,14 +23,9 @@ type environment = Label.t Select_utils.environment
 type basic_or_terminator =
   | Basic of Cfg.basic
   | Terminator of Cfg.terminator
-  | With_next_label of (Label.t -> Cfg.terminator)
 
 module Sub_cfg : sig
-  type t =
-    { entry : Cfg.basic_block;
-      exit : Cfg.basic_block;
-      layout : Cfg.basic_block Flambda_backend_utils.Doubly_linked_list.t
-    }
+  type t
 
   val make_empty : unit -> t
 
@@ -102,6 +97,7 @@ class virtual selector_generic :
       Cmm.operation ->
       Cmm.expression list ->
       Debuginfo.t ->
+      label_after:Label.t ->
       basic_or_terminator * Cmm.expression list
     (* Can be overridden to deal with special arithmetic instructions *)
 

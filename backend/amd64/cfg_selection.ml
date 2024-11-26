@@ -178,12 +178,13 @@ class selector =
       | Ctrywith (_, _, _, _, _, _) ->
         super#select_store is_assign addr exp
 
-    method! select_operation op args dbg =
+    method! select_operation op args dbg ~label_after =
       match op with
       (* Recognize the LEA instruction *)
       | Caddi | Caddv | Cadda | Csubi -> (
         match self#select_addressing Word_int (Cop (op, args, dbg)) with
-        | Iindexed _, _ | Iindexed2 0, _ -> super#select_operation op args dbg
+        | Iindexed _, _ | Iindexed2 0, _ ->
+          super#select_operation op args dbg ~label_after
         | ( ((Iindexed2 _ | Iscaled _ | Iindexed2scaled _ | Ibased _) as addr),
             arg ) ->
           specific (Ilea addr), [arg])
@@ -221,7 +222,7 @@ class selector =
         | _ -> (
           match Simd_selection.select_operation_cfg func args with
           | Some (op, args) -> Basic (Op op), args
-          | None -> super#select_operation op args dbg))
+          | None -> super#select_operation op args dbg ~label_after))
       (* Recognize store instructions *)
       | Cstore (((Word_int | Word_val) as chunk), _init) -> (
         match args with
@@ -229,7 +230,7 @@ class selector =
           when loc = loc' && is_immediate n ->
           let addr, arg = self#select_addressing chunk loc in
           specific (Ioffset_loc (n, addr)), [arg]
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       | Cbswap { bitwidth } ->
         let bitwidth = select_bitwidth bitwidth in
         specific (Ibswap { bitwidth }), args
@@ -238,7 +239,7 @@ class selector =
         match args with
         | [Cop (Clsl, [k; Cconst_int (32, _)], _); Cconst_int (32, _)] ->
           specific Isextend32, [k]
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       (* Recognize zero extension *)
       | Cand -> (
         match args with
@@ -247,7 +248,7 @@ class selector =
         | [Cconst_int (0xffff_ffff, _); arg]
         | [Cconst_natint (0xffff_ffffn, _); arg] ->
           specific Izextend32, [arg]
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       | Ccsel _ -> (
         match args with
         | [cond; ifso; ifnot] -> (
@@ -259,7 +260,7 @@ class selector =
                arguments. *)
             Basic (Op (Csel (Ifloattest (w, CFneq)))), [earg; ifnot; ifso]
           | _ -> Basic (Op (Csel cond)), [earg; ifso; ifnot])
-        | _ -> super#select_operation op args dbg)
+        | _ -> super#select_operation op args dbg ~label_after)
       | Cprefetch { is_write; locality } ->
         (* Emit prefetch for read hint when prefetchw is not supported. Matches
            the behavior of gcc's __builtin_prefetch *)
@@ -279,7 +280,7 @@ class selector =
           self#select_addressing Word_int (one_arg "prefetch" args)
         in
         specific (Iprefetch { is_write; addr; locality }), [eloc]
-      | _ -> super#select_operation op args dbg
+      | _ -> super#select_operation op args dbg ~label_after
 
     (* Recognize float arithmetic with mem *)
 
