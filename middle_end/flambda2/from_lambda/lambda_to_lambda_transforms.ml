@@ -346,7 +346,8 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
    * heap and local modes.
    * Additionally, if the initializer is omitted, an uninitialized array will
    * be returned.  Initializers must however be provided when the array kind is
-   * Pgenarray, Paddrarray, Pintarray, Pfloatarray or Pgcscannableproductarray.
+   * Pgenarray, Paddrarray, Pintarray, Pfloatarray or Pgcscannableproductarray;
+   * or when a Pgcignorablearray involves an [int].  (See comment below.)
    *)
   let dbg = Debuginfo.from_location loc in
   let length, init =
