@@ -661,7 +661,7 @@ class virtual selector_generic =
         let sub_if = sif#extract in
         let sub_else = selse#extract in
         let term_desc =
-          Cfgize.terminator_of_test cond
+          Cfgize_utils.terminator_of_test cond
             ~label_false:sub_else.Sub_cfg.entry.start
             ~label_true:sub_if.Sub_cfg.entry.start
         in
@@ -1075,7 +1075,7 @@ class virtual selector_generic =
         let sub_if = self#emit_tail_sequence env eif in
         let sub_else = self#emit_tail_sequence env eelse in
         let term_desc =
-          Cfgize.terminator_of_test cond
+          Cfgize_utils.terminator_of_test cond
             ~label_false:sub_else.Sub_cfg.entry.start
             ~label_true:sub_if.Sub_cfg.entry.start
         in
@@ -1426,7 +1426,7 @@ class virtual selector_generic =
       (* note: `Cfgize.Stack_offset_and_exn.update_cfg` may add edges to the
          graph, and should hence be executed before
          `Cfg.register_predecessors_for_all_blocks`. *)
-      Cfgize.Stack_offset_and_exn.update_cfg cfg;
+      Cfgize_utils.Stack_offset_and_exn.update_cfg cfg;
       Cfg.register_predecessors_for_all_blocks cfg;
       let cfg_with_layout =
         Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false

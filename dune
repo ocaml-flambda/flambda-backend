@@ -431,6 +431,7 @@
   cfg_selectgen
   cfg_selection
   cfgize
+  cfgize_utils
   cmm_helpers
   cmm_builtins
   cmm_invariants
