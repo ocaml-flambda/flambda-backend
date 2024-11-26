@@ -4,9 +4,6 @@ module List = ListLabels
 module String = Misc.Stdlib.String
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let function_is_assumed_to_never_poll func =
-  Polling.function_is_assumed_to_never_poll func
-
 (* Compututation of the "safe" map, which is a map from labels to booleans where
    `true` indicates the block contains a safe point such as a poll or an alloc
    instruction. *)
@@ -45,18 +42,6 @@ let safe_map_of_cfg : Cfg.t -> bool Label.Tbl.t =
       Label.Tbl.replace acc label (is_safe_block block);
       acc)
 
-(* These are used for the poll error annotation later on*)
-type polling_point = Polling.polling_point =
-  | Alloc
-  | Poll
-  | Function_call
-  | External_call
-
-type error = Polling.error =
-  | Poll_error of Debuginfo.t * (polling_point * Debuginfo.t) list
-
-exception Error = Polling.Error
-
 (* Detection of functions that can loop via a tail-call without going through a
    poll point. *)
 
@@ -72,13 +57,13 @@ exception Error = Polling.Error
    Poll) before doing a PRTC. *)
 
 module Polls_before_prtc_domain = struct
-  type t = Polling.Polls_before_prtc.t
+  type t = Polling_utils.Polls_before_prtc.t
 
-  let bot = Polling.Polls_before_prtc.bot
+  let bot = Polling_utils.Polls_before_prtc.bot
 
-  let join = Polling.Polls_before_prtc.join
+  let join = Polling_utils.Polls_before_prtc.join
 
-  let less_equal = Polling.Polls_before_prtc.lessequal
+  let less_equal = Polling_utils.Polls_before_prtc.lessequal
 end
 
 module Polls_before_prtc_transfer = struct
@@ -113,7 +98,7 @@ module Polls_before_prtc_transfer = struct
     | Tailcall_self _ | Tailcall_func Indirect -> Ok Might_not_poll
     | Tailcall_func (Direct func) ->
       if String.Set.mem func.sym_name future_funcnames
-         || function_is_assumed_to_never_poll func.sym_name
+         || Polling_utils.function_is_assumed_to_never_poll func.sym_name
       then Ok Might_not_poll
       else Ok Always_polls
     | Return -> Ok Always_polls
@@ -237,7 +222,7 @@ let instr_cfg_with_layout :
       else added_poll)
     back_edges false
 
-type polling_points = (polling_point * Debuginfo.t) list
+type polling_points = (Polling_utils.polling_point * Debuginfo.t) list
 
 let add_poll_or_alloc_basic :
     Cfg.basic Cfg.instruction -> polling_points -> polling_points =
@@ -319,15 +304,13 @@ let contains_polls : Cfg.t -> bool =
     false
   with Found -> true
 
-let is_disabled fun_name = Polling.is_disabled fun_name
-
 let instrument_fundecl :
     future_funcnames:Misc.Stdlib.String.Set.t ->
     Cfg_with_layout.t ->
     Cfg_with_layout.t =
  fun ~future_funcnames:_ cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  if is_disabled cfg.fun_name
+  if Polling_utils.is_disabled cfg.fun_name
   then cfg_with_layout
   else
     let safe_map = safe_map_of_cfg cfg in
@@ -348,7 +331,8 @@ let instrument_fundecl :
             ~cmp:(fun left right -> Debuginfo.compare (snd left) (snd right))
             poll_error_instrs
         in
-        raise (Error (Poll_error (cfg.fun_dbg, poll_error_instrs))))
+        raise
+          (Polling_utils.Error (Poll_error (cfg.fun_dbg, poll_error_instrs))))
     | Default_poll -> ());
     let new_contains_calls =
       (* `added_poll` is used to avoid iterating over the CFG if we have added a
@@ -368,7 +352,7 @@ let requires_prologue_poll :
     Cfg_with_layout.t ->
     bool =
  fun ~future_funcnames ~fun_name cfg_with_layout ->
-  if is_disabled fun_name
+  if Polling_utils.is_disabled fun_name
   then false
   else
     match potentially_recursive_tailcall ~future_funcnames cfg_with_layout with

@@ -27,6 +27,8 @@ generic_fns.ml
 generic_fns.mli
 operation.ml
 operation.mli
+polling_utils.ml
+polling_utils.mli
 peephole/**/*.ml
 peephole/**/*.mli
 printoperation.ml

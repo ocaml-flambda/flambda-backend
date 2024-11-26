@@ -19,19 +19,10 @@
 
 open Mach
 open Format
+open Polling_utils
 
 module Int = Numbers.Int
 module String = Misc.Stdlib.String
-
-let function_is_assumed_to_never_poll func =
-  String.begins_with ~prefix:"caml_apply" func
-  || String.begins_with ~prefix:"caml_send" func
-
-(* These are used for the poll error annotation later on*)
-type polling_point = Alloc | Poll | Function_call | External_call
-type error = Poll_error of Debuginfo.t * (polling_point * Debuginfo.t) list
-
-exception Error of error
 
 (* Detection of recursive handlers that are not guaranteed to poll
    at every loop iteration. *)
@@ -92,38 +83,7 @@ let polled_loops_analysis funbody =
    through a poll point. *)
 
 (* We use a backwards dataflow analysis to compute a single value: either
-   "Might_not_poll" or "Always_polls".
-
-   "Might_not_poll" means there exists a path from the function entry to a
-   Potentially Recursive Tail Call (an Itailcall_ind or
-   Itailcall_imm to a forward function)
-   that does not go through an Ialloc or Ipoll instruction.
-
-   "Always_polls", therefore, means the function always polls (via Ialloc or
-   Ipoll) before doing a PRTC.
-*)
-
-type polls_before_prtc = Might_not_poll | Always_polls
-
-module Polls_before_prtc = struct
-  type t = polls_before_prtc
-
-  let bot = Always_polls
-
-  let join t1 t2 =
-    match t1, t2 with
-    | Might_not_poll, Might_not_poll
-    | Might_not_poll, Always_polls
-    | Always_polls, Might_not_poll -> Might_not_poll
-    | Always_polls, Always_polls -> Always_polls
-
-  let lessequal t1 t2 =
-    match t1, t2 with
-    | Always_polls, Always_polls
-    | Always_polls, Might_not_poll
-    | Might_not_poll, Might_not_poll -> true
-    | Might_not_poll, Always_polls -> false
-end
+   "Might_not_poll" or "Always_polls". *)
 
 module PTRCAnalysis = Dataflow.Backward(Polls_before_prtc)
 
@@ -261,11 +221,6 @@ let find_poll_alloc_or_calls instr =
       instr;
   List.rev !matches
 
-let is_disabled fun_name =
-  (not Config.poll_insertion) ||
-  !Flambda_backend_flags.disable_poll_insertion ||
-  function_is_assumed_to_never_poll fun_name
-
 let instrument_fundecl ~future_funcnames:_ (f : Mach.fundecl) : Mach.fundecl =
   if is_disabled f.fun_name then f
   else begin
@@ -289,50 +244,3 @@ let requires_prologue_poll ~future_funcnames ~fun_name i =
     match potentially_recursive_tailcall ~future_funcnames i with
     | Might_not_poll -> true
     | Always_polls -> false
-
-(* Error report *)
-
-let instr_type p =
-  match p with
-  | Poll -> "inserted poll"
-  | Alloc -> "allocation"
-  | Function_call -> "function call"
-  | External_call -> "external call that allocates"
-
-let report_error ppf = function
-| Poll_error (_fun_dbg, instrs) ->
-  begin
-    let num_inserted_polls =
-      List.fold_left
-      (fun s (p,_) -> s + match p with Poll -> 1
-                      | Alloc | Function_call | External_call -> 0
-      ) 0 instrs in
-      let num_user_polls = (List.length instrs) - num_inserted_polls in
-      if num_user_polls = 0 then
-        fprintf ppf "Function with poll-error attribute contains polling \
-        points (inserted by the compiler)\n"
-      else
-        fprintf ppf
-        "Function with poll-error attribute contains polling points:\n";
-      List.iter (fun (p,dbg) ->
-        begin match p with
-        | Poll
-        | Alloc | Function_call | External_call ->
-          fprintf ppf "\t%s" (instr_type p);
-          if not (Debuginfo.is_none dbg) then begin
-            fprintf ppf " at ";
-            Location.print_loc ppf (Debuginfo.to_location dbg);
-          end;
-          fprintf ppf "\n"
-        end
-      ) (List.sort (fun (_, left) (_, right) -> Debuginfo.compare left right) instrs)
-  end
-
-let () =
-  Location.register_error_of_exn
-    (function
-      | Error (Poll_error (fun_dbg, _instrs) as err) ->
-        let loc = Debuginfo.to_location fun_dbg in
-        Some (Location.error_of_printer ~loc report_error err)
-      | _ -> None
-    )
