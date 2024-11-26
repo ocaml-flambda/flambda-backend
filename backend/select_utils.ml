@@ -101,7 +101,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if Stdlib.( = ) prev_traps traps
+    if Stdlib.( <> ) prev_traps traps
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
