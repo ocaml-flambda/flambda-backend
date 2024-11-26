@@ -538,7 +538,16 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive (Pmakearray_dynamic (gen_array_kind, mode), 1)
     | "%arrayblit" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
-      Primitive (Parrayblit (gen_array_set_kind (get_third_arg_mode ())), 5)
+      Primitive (Parrayblit {
+        src_mutability = Mutable;
+        dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
+      }, 5);
+    | "%arrayblit_src_immut" ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
+      Primitive (Parrayblit {
+        src_mutability = Immutable;
+        dst_array_set_kind = gen_array_set_kind (get_third_arg_mode ())
+      }, 5);
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%obj_set_field" ->
@@ -1263,7 +1272,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     Misc.fatal_errorf
       "Wrong arity for Pmakearray_dynamic (arity=%d, args length %d)"
       arity (List.length args)
-  | Primitive (Parrayblit st, arity),
+  | Primitive (Parrayblit { src_mutability; dst_array_set_kind = st }, arity),
     _p1 :: _ :: p2 :: _ ->
     let loc = to_location loc in
     (* We only use the kind of one of two input arrays here. If you've bound the
@@ -1275,7 +1284,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       glb_array_set_type loc st (array_type_kind ~elt_sort:None env loc p2)
     in
     if st = array_type then None
-    else Some (Primitive (Parrayblit array_type, arity))
+    else Some (Primitive (Parrayblit {
+      src_mutability; dst_array_set_kind = st }, arity))
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with

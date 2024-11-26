@@ -424,6 +424,77 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     makearray_dynamic_non_scannable_unboxed_product env lambda_array_kind mode
       ~length ~init loc
 
+let arrayblit env ~(src_mutability : L.mutable_flag) ~dst_array_set_kind args
+    loc =
+  let src_array_ref_kind =
+    L.array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
+      dst_array_set_kind
+  in
+  match args with
+  | [src_expr; src_start_pos_expr; dst_expr; dst_start_pos_expr; length_expr] ->
+    (* Care: the [args] are arbitrary Lambda expressions, so need to be
+       [let]-bound *)
+    let id = Ident.create_local in
+    let bind = L.bind_with_layout in
+    let src = id "src" in
+    let src_start_pos = id "src_start_pos" in
+    let dst = id "dst" in
+    let dst_start_pos = id "dst_start_pos" in
+    let length = id "length" in
+    (* CR mshinwell: support indexing by other types apart from [int] *)
+    let src_end_pos_exclusive =
+      L.Lprim (Paddint, [Lvar src_start_pos; Lvar length], loc)
+    in
+    let src_end_pos_inclusive =
+      L.Lprim (Psubint, [src_end_pos_exclusive; Lconst (L.const_int 1)], loc)
+    in
+    let dst_start_pos_minus_src_start_pos =
+      L.Lprim (Psubint, [Lvar dst_start_pos; Lvar src_start_pos], loc)
+    in
+    let dst_start_pos_minus_src_start_pos_var =
+      Ident.create_local "dst_start_pos_minus_src_start_pos"
+    in
+    let env, loop =
+      let src_index = Ident.create_local "index" in
+      rec_catch_for_for_loop env loc src_index (Lvar src_start_pos)
+        src_end_pos_inclusive Upto
+        (Lprim
+           ( Parraysetu (dst_array_set_kind, Ptagged_int_index),
+             [ Lvar dst;
+               Lprim
+                 ( Paddint,
+                   [Lvar src_index; dst_start_pos_minus_src_start_pos],
+                   loc );
+               Lprim
+                 ( Parrayrefu
+                     ( src_array_ref_kind,
+                       Ptagged_int_index,
+                       match src_mutability with
+                       | Immutable | Immutable_unique -> Immutable
+                       | Mutable -> Mutable ),
+                   [Lvar src; Lvar src_index],
+                   loc ) ],
+             loc ))
+    in
+    let expr =
+      (* Preserve right-to-left evaluation order. *)
+      bind Strict (length, L.layout_int) length_expr
+      @@ bind Strict (dst_start_pos, L.layout_int) dst_start_pos_expr
+      @@ bind Strict (dst, L.layout_any_value) dst_expr
+      @@ bind Strict (src_start_pos, L.layout_int) src_start_pos_expr
+      @@ bind Strict (src, L.layout_any_value) src_expr
+      @@ bind Strict
+           (dst_start_pos_minus_src_start_pos_var, L.layout_int)
+           dst_start_pos_minus_src_start_pos loop
+    in
+    env, Transformed expr
+  | _ ->
+    Misc.fatal_errorf
+      "Wrong arity for Parrayblit{,_immut} (expected src, src_offset, \
+       dst_offset and length):@ %a"
+      Debuginfo.print_compact
+      (Debuginfo.from_location loc)
+
 let transform_primitive0 env (prim : L.primitive) args loc =
   match prim, args with
   | Psequor, [arg1; arg2] ->
@@ -570,5 +641,7 @@ let transform_primitive env (prim : L.primitive) args loc =
   match prim with
   | Pmakearray_dynamic (lambda_array_kind, mode) ->
     makearray_dynamic env lambda_array_kind mode args loc
+  | Parrayblit { src_mutability; dst_array_set_kind } ->
+    arrayblit env ~src_mutability ~dst_array_set_kind args loc
   | _ -> env, transform_primitive0 env prim args loc
   [@@ocaml.warning "-fragile-match"]
