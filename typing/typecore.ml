@@ -4774,7 +4774,8 @@ let with_explanation explanation f =
 let unique_use ~loc ~env mode_l mode_r  =
   let uniqueness = Uniqueness.disallow_left (Value.proj (Monadic Uniqueness) mode_r) in
   let linearity = Linearity.disallow_right (Value.proj (Comonadic Linearity) mode_l) in
-  if not (Language_extension.is_enabled Unique) then begin
+  if not (Language_extension.is_at_least Unique
+            Language_extension.maturity_of_unique_for_drf) then begin
     (* if unique extension is not enabled, we will not run uniqueness analysis;
        instead, we force all uses to be aliased and many. This is equivalent to
        running a UA which forces everything *)
@@ -9422,11 +9423,13 @@ and type_send env loc explanation e met =
 
 
 let maybe_check_uniqueness_exp exp =
-  if Language_extension.is_enabled Unique then
+  if Language_extension.is_at_least Unique
+       Language_extension.maturity_of_unique_for_drf then
     check_uniqueness_exp exp
 
 let maybe_check_uniqueness_value_bindings vbl =
-  if Language_extension.is_enabled Unique then
+  if Language_extension.is_at_least Unique
+       Language_extension.maturity_of_unique_for_drf then
     check_uniqueness_value_bindings vbl
 
 (* Typing of toplevel bindings *)

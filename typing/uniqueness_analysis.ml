@@ -163,12 +163,16 @@ end = struct
     | (_, access) :: _ -> access
 
   let add_barrier t uniq =
-    List.iter
-      (fun (_, access) ->
-        match access with
-        | Read barrier -> Unique_barrier.add_upper_bound uniq barrier
-        | _ -> ())
-      t
+    if Language_extension.is_at_least Unique
+         Language_extension.maturity_of_unique_for_destruction
+    then
+      List.iter
+        (fun (_, access) ->
+          match access with
+          | Read barrier -> Unique_barrier.add_upper_bound uniq barrier
+          | _ -> ())
+        t
+    else ()
 end
 
 module Aliased : sig
