@@ -1431,12 +1431,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                   List.map unbox_float args ),
               Variadic (Make_array (Values, mutability, mode), args),
               [K.With_subkind.any_value] ) ]))
-  | Pmakearray_dynamic (_lambda_array_kind, _mode), _ ->
+  | Pmakearray_dynamic _, _ | Parrayblit _, _ ->
     Misc.fatal_error
-      "Lambda_to_flambda_primitives.convert_lprim: Pmakearray_dynamic should \
-       have been expanded in [Lambda_to_flambda]"
-  | Parrayblit _array_set_kind, _ ->
-    Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
+      "Lambda_to_flambda_primitives.convert_lprim: Pmakearray_dynamic and \
+       Parrayblit should have been expanded in [Lambda_to_lambda_transforms]"
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
   | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
   | Pduprecord (repr, num_fields), [[arg]] ->

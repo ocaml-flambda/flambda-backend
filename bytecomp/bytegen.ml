@@ -703,8 +703,8 @@ let comp_primitive stack_info p sz args =
     | Alloc_heap -> Kccall("caml_make_vect", 2)
     | Alloc_local -> Kccall("caml_make_local_vect", 2)
     end
-  | Parrayblit(kind) ->
-    begin match kind with
+  | Parrayblit { src_mutability = _; dst_array_set_kind } ->
+    begin match dst_array_set_kind with
     | Punboxedvectorarray_set _ ->
       fatal_error "SIMD is not supported in bytecode mode."
     | Pgenarray_set _ | Pintarray_set | Paddrarray_set _

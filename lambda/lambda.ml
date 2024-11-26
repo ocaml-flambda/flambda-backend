@@ -191,7 +191,10 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * locality_mode
   | Pmakearray_dynamic of array_kind * locality_mode
   | Pduparray of array_kind * mutable_flag
-  | Parrayblit of array_set_kind (* Kind of the dest array. *)
+  | Parrayblit of {
+      src_mutability : mutable_flag;
+      dst_array_set_kind : array_set_kind;
+    }
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -2391,6 +2394,23 @@ let array_set_kind mode = function
   | Punboxedvectorarray vec_kind -> Punboxedvectorarray_set vec_kind
   | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
   | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
+
+let array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
+      (kind : array_set_kind) : array_ref_kind =
+  match kind with
+  | Pintarray_set -> Pintarray_ref
+  | Punboxedfloatarray_set uf -> Punboxedfloatarray_ref uf
+  | Punboxedintarray_set ui -> Punboxedintarray_ref ui
+  | Punboxedvectorarray_set uv -> Punboxedvectorarray_ref uv
+  | Pgcscannableproductarray_set (_, scannables) ->
+    Pgcscannableproductarray_ref scannables
+  | Pgcignorableproductarray_set ignorables ->
+    Pgcignorableproductarray_ref ignorables
+  | Pgenarray_set _
+  | Paddrarray_set _
+  | Pfloatarray_set ->
+    Misc.fatal_error "Array set kind %a cannot be converted via \
+      array_ref_kind_of_array_set_kind_for_unboxed_types_and_int"
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)
