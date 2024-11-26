@@ -420,6 +420,22 @@ let is_pure_terminator desc =
     (* CR gyorsh: fix for memory operands *)
     true
 
+let is_never_terminator desc =
+  match (desc : terminator) with
+  | Never -> true
+  | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
+  | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _ ->
+    false
+
+let is_return_terminator desc =
+  match (desc : terminator) with
+  | Return -> true
+  | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
+  | Switch _ | Raise _ | Tailcall_self _ | Tailcall_func _ | Call_no_return _
+  | Call _ | Prim _ | Specific_can_raise _ ->
+    false
+
 let is_pure_basic : basic -> bool = function
   | Op op -> Operation.is_pure op
   | Reloadretaddr ->
