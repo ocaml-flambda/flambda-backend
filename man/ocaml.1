@@ -318,28 +318,6 @@ Display a short usage summary and exit.
 When
 .BR ocaml (1)
 is invoked, it will read phrases from an initialization file before
-<<<<<<< HEAD
-giving control to the user. The default file is
-.B .ocamlinit
-in the current directory if it exists, otherwise
-.B XDG_CONFIG_HOME/ocaml/init.ml
-according to the XDG base directory specification lookup if it exists (on
-Windows this is skipped), otherwise
-.B .ocamlinit
-in the user's home directory
-.RB ( HOME " variable)."
-||||||| 121bedcfd2
-giving control to the user. The default file is
-.B .ocamlinit
-in the current directory if it exists, otherwise
-.B XDG_CONFIG_HOME/ocaml/init.ml
-according to the XDG base directory specification lookup if it exists (on
-Windows this is skipped), otherwise
-.B .ocamlinit
-in the user's home directory (
-.B HOME
-variable).
-=======
 giving control to the user. The file read is the first found of:
 .IP 1.
 \fB.ocamlinit\fP in the current directory;
@@ -363,7 +341,6 @@ if \fBXDG_CONFIG_DIRS\fP contained no absolute paths,
 .IP 6.
 \fBHOME/.ocamlinit\fP, if \fBHOME\fP is non-empty;
 
->>>>>>> 5.2.0
 You can specify a different initialization file
 by using the
 .BI \-init " file"

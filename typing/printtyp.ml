@@ -49,12 +49,8 @@ module Style = Misc.Style
 
    In this case, there is no way to know the jkind without the annotation.
 
-   (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
-   be impossible to deduce the jkind.  We thus defer to the user in determining
-   whether to print the jkind annotation.
-
    (* CR layouts v2.8: remove this case *)
-   (C1.3) The type has illegal mode crossings. In this case, the jkind is overridden by
+   (C1.2) The type has illegal mode crossings. In this case, the jkind is overridden by
    the user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
@@ -1313,48 +1309,40 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let out_jkind_of_user_jkind jkind =
-  let rec out_jkind_const_of_user_jkind (jkind : Parsetree.jkind_annotation) : out_jkind_const =
-    match jkind.pjkind_desc with
-    | Default -> Ojkind_const_default
-    | Abbreviation abbrev -> Ojkind_const_abbreviation abbrev
-    | Mod (base, modes) ->
-      let base = out_jkind_const_of_user_jkind base in
-      let modes =
-        List.map (fun {txt = (Parsetree.Mode s); _} -> s) modes
-      in
-      Ojkind_const_mod (base, modes)
-    | Product ts ->
-      Ojkind_const_product (List.map out_jkind_const_of_user_jkind ts)
-    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
-  in
-  Ojkind_const (out_jkind_const_of_user_jkind jkind)
-
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
 
+(* CR layouts v2.8: This is just like [Jkind.format], and likely needs to
+   be overhauled with [with]-types. *)
+let rec out_jkind_of_desc (desc : 'd Jkind.Desc.t) =
+  match desc.layout with
+  | Sort (Var n) ->
+    Ojkind_var ("'_representable_layout_" ^
+                Int.to_string (Jkind.Sort.Var.get_print_number n))
+  (* Analyze a product before calling [get_const]: the machinery in
+     [Jkind.Const.to_out_jkind_const] works better for atomic layouts, not
+     products. *)
+  | Product lays ->
+    Ojkind_product
+      (List.map (fun layout -> out_jkind_of_desc { desc with layout }) lays)
+  | _ -> match Jkind.Desc.get_const desc with
+    | Some c -> out_jkind_of_const_jkind c
+    | None -> assert false (* handled above *)
+
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
+(* CR layouts v2.8: This should use the annotation in the jkind, if there
+   is one. But first that annotation needs to be in Typedtree, not in
+   Parsetree. *)
 let out_jkind_option_of_jkind jkind =
-  let rec desc_to_out_jkind : Jkind.Desc.t -> out_jkind = function
-    | Const jkind -> out_jkind_of_const_jkind jkind
-    | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
-    | Product jkinds ->
-      Ojkind_product (List.map desc_to_out_jkind jkinds)
-  in
   let desc = Jkind.get jkind in
   let elide =
-    match desc with
-    | Const jkind -> (* C2.1 *)
-      Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
-      (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-      || (not Language_extension.(is_at_least Layouts Alpha)
-          && Jkind.Const.equal jkind Jkind.Const.Builtin.value_or_null.jkind)
-    | Var _ -> (* X1 *)
-      not !Clflags.verbose_types
-    | Product _ -> false
+    Jkind.is_value_for_printing jkind (* C2.1 *)
+    || (match desc.layout with
+        | Sort (Var _) -> not !Clflags.verbose_types (* X1 *)
+        | _ -> false)
   in
-  if elide then None else Some (desc_to_out_jkind desc)
+  if elide then None else Some (out_jkind_of_desc desc)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -1938,28 +1926,22 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let is_value =
-    match decl.type_jkind_annotation with
-    | Some (jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
-    | None -> false
-  in
-  let jkind_annotation = match ty, unboxed, is_value, decl.type_has_illegal_crossings with
-    | (Otyp_abstract, _, false, _) | (_, true, _, _) | (_, _, _, true) ->
+  let is_value = Jkind.is_value_for_printing decl.type_jkind in
+  let otype_jkind =
+    match ty, is_value, decl.type_has_illegal_crossings with
+    | (Otyp_abstract, false, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
-        (* type_has_illegal_crossings corresponds to C1.3 *)
-        decl.type_jkind_annotation
+        (* type_has_illegal_crossings corresponds to C1.2 *)
+        Some (out_jkind_of_desc (Jkind.get decl.type_jkind))
     | _ -> None (* other cases have no jkind annotation *)
   in
     { otype_name = name;
       otype_params = args;
       otype_type = ty;
       otype_private = priv;
-      otype_jkind =
-        Option.map
-          (fun (_, user_annot) -> out_jkind_of_user_jkind user_annot)
-          jkind_annotation;
+      otype_jkind;
       otype_unboxed = unboxed;
       otype_cstrs = constraints }
 
@@ -2391,7 +2373,6 @@ let dummy =
     type_arity = 0;
     type_kind = Type_abstract Definition;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
-    type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
     type_variance = [];
@@ -2731,13 +2712,7 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let rec okind_of_desc : Jkind.Desc.t -> _ = function
-            | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
-            | Product ds ->
-              Ojkind_product (List.map okind_of_desc ds)
-          in
-          let okind = okind_of_desc (Jkind.get jkind) in
+          let okind = out_jkind_of_desc (Jkind.get jkind) in
           Otyp_jkind_annot (out, okind)
       | _ ->
           out

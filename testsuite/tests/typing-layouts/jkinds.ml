@@ -217,14 +217,14 @@ Error: The layout of type "a" is value
 type a : value mod global unique many uncontended portable external_
 type b : value mod local aliased once contended nonportable internal = a
 [%%expect{|
-type a : value mod global unique many uncontended portable external_
+type a : immediate
 type b = a
 |}]
 
 type a : value mod global unique once uncontended portable external_
 type b : value mod local aliased many uncontended nonportable internal = a
 [%%expect{|
-type a : value mod global unique once uncontended portable external_
+type a : value mod global unique uncontended portable external_
 Line 2, characters 0-74:
 2 | type b : value mod local aliased many uncontended nonportable internal = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -246,7 +246,7 @@ type d : any = c
 [%%expect{|
 type a : any
 type b = a
-type c : any mod local aliased once contended nonportable internal
+type c : any
 type d = c
 |}]
 
@@ -280,7 +280,7 @@ type d : immediate = c
 [%%expect{|
 type a : immediate
 type b = a
-type c : value mod global unique many uncontended portable external_
+type c : immediate
 type d = c
 |}]
 
@@ -291,7 +291,7 @@ type d : immediate64 = c
 [%%expect{|
 type a : immediate64
 type b = a
-type c : value mod global unique many uncontended portable external64
+type c : immediate64
 type d = c
 |}]
 
@@ -302,7 +302,7 @@ type d : float64 = c
 [%%expect{|
 type a : float64
 type b = a
-type c : float64 mod global unique many uncontended portable external_
+type c : float64
 type d = c
 |}]
 
@@ -313,7 +313,7 @@ type d : float32 = c
 [%%expect{|
 type a : float32
 type b = a
-type c : float32 mod global unique many uncontended portable external_
+type c : float32
 type d = c
 |}]
 
@@ -324,7 +324,7 @@ type d : word = c
 [%%expect{|
 type a : word
 type b = a
-type c : word mod local aliased once contended nonportable internal
+type c : word
 type d = c
 |}]
 
@@ -335,7 +335,7 @@ type d : bits32 = c
 [%%expect{|
 type a : bits32
 type b = a
-type c : bits32 mod local aliased once contended nonportable internal
+type c : bits32
 type d = c
 |}]
 
@@ -346,7 +346,7 @@ type d : bits64 = c
 [%%expect{|
 type a : bits64
 type b = a
-type c : bits64 mod local aliased once contended nonportable internal
+type c : bits64
 type d = c
 |}]
 
@@ -668,7 +668,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod global) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -676,7 +676,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod unique) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -684,7 +684,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod many) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -692,7 +692,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod portable) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -700,7 +700,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod uncontended) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -708,7 +708,7 @@ val f : t -> t = <fun>
 type t : value = private { x : int } [@@unboxed]
 let f (x : t) : _ as (_ : value mod external_) = x
 [%%expect {|
-type t : value = private { x : int; } [@@unboxed]
+type t = private { x : int; } [@@unboxed]
 val f : t -> t = <fun>
 |}]
 (* CR layouts v2.8: This should fail since t is nominative *)
@@ -892,13 +892,13 @@ type t : any mod many = { x : int } [@@unboxed]
 type t : any mod unique = { x : int } [@@unboxed]
 type t : immediate = { x : int } [@@unboxed]
 [%%expect {|
-type t : any mod global = { x : int; } [@@unboxed]
-type t : any mod portable = { x : int; } [@@unboxed]
-type t : any mod uncontended = { x : int; } [@@unboxed]
-type t : any mod external_ = { x : int; } [@@unboxed]
-type t : any mod many = { x : int; } [@@unboxed]
-type t : any mod unique = { x : int; } [@@unboxed]
-type t : immediate = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 |}]
 
 type ('a : immediate) t : any mod global = { x : 'a } [@@unboxed]
@@ -909,13 +909,13 @@ type ('a : immediate) t : any mod many = { x : 'a } [@@unboxed]
 type ('a : immediate) t : any mod unique = { x : 'a } [@@unboxed]
 type ('a : immediate) t : immediate = { x : 'a } [@@unboxed]
 [%%expect {|
-type ('a : immediate) t : any mod global = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod portable = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod uncontended = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod external_ = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod many = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : any mod unique = { x : 'a; } [@@unboxed]
-type ('a : immediate) t : immediate = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
+type ('a : immediate) t = { x : 'a; } [@@unboxed]
 |}]
 
 type u : value
@@ -993,7 +993,7 @@ type t : value mod global = { x : int } [@@unboxed]
 let f (x : _ as (_ : immediate)) : (_ as (_ : value mod many)) = x.x
 let v : (int as (_ : value mod portable)) = f { x = 5 }
 [%%expect {|
-type t : value mod global = { x : int; } [@@unboxed]
+type t = { x : int; } [@@unboxed]
 val f : t -> int = <fun>
 val v : int = 5
 |}]
@@ -1135,7 +1135,7 @@ Error: The kind of type "t" is value
 type t : any mod portable = Foo of bool [@@unboxed]
 let x = (Foo true : _ as (_ : value mod portable uncontended unique))
 [%%expect {|
-type t : any mod portable = Foo of bool [@@unboxed]
+type t = Foo of bool [@@unboxed]
 val x : t = <unknown constructor>
 |}]
 (* CR layouts v2.8: This should be rejected once nominative types remember their kinds *)
@@ -1147,12 +1147,12 @@ type t : value mod portable = Foo of int [@@unboxed]
 type t : value mod uncontended = Foo of int [@@unboxed]
 type t : value mod external_ = Foo of int [@@unboxed]
 [%%expect {|
-type t : value mod global = Foo of int [@@unboxed]
-type t : value mod many = Foo of int [@@unboxed]
-type t : value mod unique = Foo of int [@@unboxed]
-type t : value mod portable = Foo of int [@@unboxed]
-type t : value mod uncontended = Foo of int [@@unboxed]
-type t : value mod external_ = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
+type t = Foo of int [@@unboxed]
 |}]
 
 type t : any mod portable = Foo of t_value [@@unboxed]
@@ -1178,7 +1178,7 @@ Lines 1-2, characters 0-67:
 2 |   { x : 'a @@ global portable uncontended many unique } [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
-         defaulted to kind value.
+         chosen to have kind value.
        But the kind of type "t" must be a subkind of
          immutable_data mod global unique
          because of the annotation on the declaration of the type t.
@@ -1193,7 +1193,7 @@ Lines 1-2, characters 0-66:
 2 |   Foo of 'a @@ global portable uncontended many unique [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
-         defaulted to kind value.
+         chosen to have kind value.
        But the kind of type "t" must be a subkind of
          immutable_data mod global unique
          because of the annotation on the declaration of the type t.
@@ -1207,12 +1207,12 @@ type ('a : value mod global) t : value mod global = Foo of 'a @@ global [@@unbox
 type ('a : immediate) t : immediate = Foo of 'a @@ global [@@unboxed]
 type ('a : value mod global) t : value mod global = Foo of 'a @@ local [@@unboxed]
 [%%expect {|
-type ('a : value mod global) t : value mod global = { global_ x : 'a; } [@@unboxed]
-type ('a : immediate) t : immediate = { global_ x : 'a; } [@@unboxed]
-type ('a : value mod global) t : value mod global = { x : 'a; } [@@unboxed]
-type ('a : value mod global) t : value mod global = Foo of global_ 'a [@@unboxed]
-type ('a : immediate) t : immediate = Foo of global_ 'a [@@unboxed]
-type ('a : value mod global) t : value mod global = Foo of 'a [@@unboxed]
+type ('a : value mod global) t = { global_ x : 'a; } [@@unboxed]
+type ('a : immediate) t = { global_ x : 'a; } [@@unboxed]
+type ('a : value mod global) t = { x : 'a; } [@@unboxed]
+type ('a : value mod global) t = Foo of global_ 'a [@@unboxed]
+type ('a : immediate) t = Foo of global_ 'a [@@unboxed]
+type ('a : value mod global) t = Foo of 'a [@@unboxed]
 |}]
 
 type ('a : value mod uncontended many) t : value mod uncontended many unique =
@@ -1295,7 +1295,7 @@ type ('a : immediate) t = 'a
 type ('a : immediate) t = 'a
 type 'a t = 'a
 type 'a t = 'a
-type ('a : bits32 mod global unique) t = 'a
+type ('a : bits32) t = 'a
 |}]
 
 type ('a : bits32) t = ('a : word)
@@ -1578,7 +1578,7 @@ Line 1, characters 0-52:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
-         defaulted to kind value.
+         chosen to have kind value.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]

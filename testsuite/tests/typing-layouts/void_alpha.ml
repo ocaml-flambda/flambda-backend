@@ -895,7 +895,7 @@ Line 9, characters 22-23:
 9 |   and v' = (cons_r 2; v)
                           ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value
@@ -932,7 +932,7 @@ Line 8, characters 25-26:
 8 |   let rec v1 = cons_r 1; v
                              ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value

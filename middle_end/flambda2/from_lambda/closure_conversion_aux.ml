@@ -367,7 +367,6 @@ module Acc = struct
       seen_a_function : bool;
       slot_offsets : Slot_offsets.t;
       code_slot_offsets : Slot_offsets.t Code_id.Map.t;
-      regions_closed_early : Ident.Set.t;
       closure_infos : closure_info list;
       symbol_short_name_counter : int
     }
@@ -456,7 +455,6 @@ module Acc = struct
       seen_a_function = false;
       slot_offsets = Slot_offsets.empty;
       code_slot_offsets = Code_id.Map.empty;
-      regions_closed_early = Ident.Set.empty;
       closure_infos = [];
       symbol_short_name_counter = 0
     }

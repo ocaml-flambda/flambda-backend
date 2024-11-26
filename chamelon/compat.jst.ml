@@ -54,7 +54,8 @@ type texp_function_param_identifier = {
   param_mode : Alloc.l;
   param_curry : function_curry;
   param_newtypes :
-    (Ident.t * string Location.loc * Jkind.annotation option * Uid.t) list;
+    (Ident.t * string Location.loc * Parsetree.jkind_annotation option * Uid.t)
+    list;
 }
 
 type texp_function_param = {
@@ -390,7 +391,6 @@ let mk_constructor_description cstr_name =
     cstr_attributes = [];
     cstr_inlined = None;
     cstr_uid = Uid.internal_not_actually_unique;
-    cstr_arg_jkinds = [||];
     cstr_repr = Variant_boxed [||];
     cstr_constant = true;
   }

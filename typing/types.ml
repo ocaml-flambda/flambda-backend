@@ -259,7 +259,6 @@ type type_declaration =
     type_arity: int;
     type_kind: type_decl_kind;
     type_jkind: jkind_l;
-    type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
@@ -283,7 +282,7 @@ and ('lbl, 'cstr) type_kind =
 
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
-        | Extension of Path.t * jkind_l array
+        | Extension of Path.t
 
 and type_origin =
     Definition
@@ -350,6 +349,7 @@ and constructor_argument =
   {
     ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
+    ca_jkind: jkind_l;
     ca_loc: Location.t;
   }
 
@@ -361,7 +361,6 @@ type extension_constructor =
   { ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_jkinds: jkind_l array;
     ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
@@ -581,7 +580,6 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: constructor_argument list; (* Type of the arguments *)
-    cstr_arg_jkinds: jkind_l array;     (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -601,7 +599,7 @@ let equal_tag t1 t2 =
   match (t1, t2) with
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     i2 = i1 (* If i1 = i2, the runtime_tags will also be equal *)
-  | Extension (path1,_), Extension (path2,_) -> Path.same path1 path2
+  | Extension path1, Extension path2 -> Path.same path1 path2
   | (Ordinary _ | Extension _), _ -> false
 
 let equal_flat_element e1 e2 =

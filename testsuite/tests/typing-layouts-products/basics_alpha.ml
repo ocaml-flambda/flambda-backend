@@ -24,7 +24,7 @@ type t1 : any mod non_null
 type t2 : value
 type t3 : any mod non_null = #(t1 * t2);;
 [%%expect{|
-type t1 : any mod non_null
+type t1 : any_non_null
 type t2
 type t3 = #(t1 * t2)
 |}]
@@ -33,7 +33,7 @@ type t1 : any mod non_null
 type t2 : value
 type t3 : any & value mod non_null = #(t1 * t2);;
 [%%expect{|
-type t1 : any mod non_null
+type t1 : any_non_null
 type t2
 type t3 = #(t1 * t2)
 |}]
@@ -42,7 +42,7 @@ type t1 : any mod non_null
 type t2 : value
 type t3 : (any mod non_null) & (value mod non_null) = #(t1 * t2);;
 [%%expect{|
-type t1 : any mod non_null
+type t1 : any_non_null
 type t2
 type t3 = #(t1 * t2)
 |}]
@@ -52,7 +52,7 @@ type t2 : any mod non_null
 type t3 : any & (any mod non_null) = #(t1 * t2);;
 [%%expect{|
 type t1 : any
-type t2 : any mod non_null
+type t2 : any_non_null
 type t3 = #(t1 * t2)
 |}]
 
@@ -62,7 +62,7 @@ type t2 : any mod non_null
 type t3 : any mod non_null = #(t1 * t2);;
 [%%expect{|
 type t1 : any
-type t2 : any mod non_null
+type t2 : any_non_null
 Line 3, characters 0-39:
 3 | type t3 : any mod non_null = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -77,7 +77,7 @@ type t2 : any mod non_null
 type t3 : any & any mod non_null = #(t1 * t2);;
 [%%expect{|
 type t1 : any
-type t2 : any mod non_null
+type t2 : any_non_null
 Line 3, characters 0-45:
 3 | type t3 : any & any mod non_null = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -93,7 +93,7 @@ type t2 : any mod non_null
 type t3 : (any mod non_null) & (any mod non_null) = #(t1 * t2);;
 [%%expect{|
 type t1 : any
-type t2 : any mod non_null
+type t2 : any_non_null
 Line 3, characters 0-62:
 3 | type t3 : (any mod non_null) & (any mod non_null) = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

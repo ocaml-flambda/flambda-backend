@@ -946,22 +946,10 @@ val open_process_full :
 
 val open_process_args : string -> string array -> in_channel * out_channel
 (** [open_process_args prog args] runs the program [prog] with arguments
-<<<<<<< HEAD
-    [args].  Note that the first argument is by convention the filename of
-    the program being executed, just like [Sys.argv.(0)].  The new process
-    executes concurrently with the current process.  The standard input and
-    output of the new process are redirected to pipes, which can be
-||||||| 121bedcfd2
-    [args].  Note that the first argument is by convention the filename of
-    the program being executed, just like {!Sys.argv.(0)}.  The new process
-    executes concurrently with the current process.  The standard input and
-    output of the new process are redirected to pipes, which can be
-=======
     [args].  Note that the first argument, [args.(0)], is by convention the
     filename of the program being executed, just like [Sys.argv.(0)].  The new
     process executes concurrently with the current process.  The standard
     input and output of the new process are redirected to pipes, which can be
->>>>>>> 5.2.0
     respectively read and written via the returned channels.  The input
     channel is connected to the output of the program, and the output channel
     to the input of the program.

@@ -1096,3 +1096,8 @@ val simple_prim_on_values
 -> arity:int
 -> alloc:bool
 -> external_call_description
+
+val try_to_find_location : lambda -> scoped_location
+val try_to_find_debuginfo : lambda -> Debuginfo.t
+
+val primitive_can_raise : primitive -> bool

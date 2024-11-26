@@ -22,16 +22,9 @@
 #include <caml/memory.h>
 #include <caml/fail.h>
 #include <caml/custom.h>
-<<<<<<< HEAD
-#include <caml/platform.h>
-#include "unixsupport.h"
-||||||| 121bedcfd2
-#include "unixsupport.h"
-=======
 #include <caml/platform.h>
 #include <caml/osdeps.h>
 #include "caml/unixsupport.h"
->>>>>>> 5.2.0
 #include "cst2constr.h"
 #include <errno.h>
 

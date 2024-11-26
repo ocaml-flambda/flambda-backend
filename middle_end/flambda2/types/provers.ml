@@ -647,7 +647,7 @@ let prove_is_immediates_array_value _env
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
     | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
-    | Unboxed_vec128_array ->
+    | Unboxed_vec128_array | Unboxed_product_array ->
       Unknown)
   | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
   | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _

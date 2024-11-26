@@ -166,6 +166,20 @@ let simplify_primitive dacc (prim : P.t) dbg ~result_var =
             (Array.to_list (K.Mixed_block_shape.field_kinds arg_kinds))
         | Variadic_all_of_kind kind ->
           List.map (fun arg_ty -> arg_ty, kind) arg_tys
+        | Variadic_unboxed_product kinds ->
+          (* CR mshinwell: move to Misc, may be useful in e.g.
+             simplify_variadic_primitive.ml for Make_array *)
+          let num_arg_tys = List.length arg_tys in
+          let num_kinds = List.length kinds in
+          if num_arg_tys mod num_kinds <> 0
+          then
+            Misc.fatal_errorf
+              "Number of arguments %d is not a multiple of the number of kinds \
+               %d for:@ %a"
+              num_arg_tys num_kinds P.print prim;
+          let num_repeats = num_arg_tys / num_kinds in
+          let kinds = List.init num_repeats (fun _ -> kinds) |> List.concat in
+          List.combine arg_tys kinds
       in
       check_arg_kinds prim arg_tys_and_expected_kinds);
     let original_prim : P.t =

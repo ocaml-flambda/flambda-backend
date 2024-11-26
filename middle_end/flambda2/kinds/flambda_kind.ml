@@ -586,6 +586,9 @@ module With_subkind = struct
       | Unboxed_int64_array
       | Unboxed_nativeint_array
       | Unboxed_vec128_array
+      | Unboxed_product_array
+    (* CR mshinwell: more information could be added to
+       [Unboxed_product_array] *)
 
     (* CR vlaviron: only [Value] kinds need [value_subkind] and [nullable]
        fields. We should switch this to a variant in the future to avoid
@@ -614,7 +617,8 @@ module With_subkind = struct
       | Unboxed_int32_array, Unboxed_int32_array
       | Unboxed_int64_array, Unboxed_int64_array
       | Unboxed_nativeint_array, Unboxed_nativeint_array
-      | Unboxed_vec128_array, Unboxed_vec128_array ->
+      | Unboxed_vec128_array, Unboxed_vec128_array
+      | Unboxed_product_array, Unboxed_product_array ->
         true
       | ( Variant { consts = consts1; non_consts = non_consts1 },
           Variant { consts = consts2; non_consts = non_consts2 } ) ->
@@ -665,8 +669,8 @@ module With_subkind = struct
           | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-          | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
-            ),
+          | Unboxed_int64_array | Unboxed_nativeint_array
+          | Unboxed_product_array | Unboxed_vec128_array ),
           _ ) ->
         false
 
@@ -736,6 +740,9 @@ module With_subkind = struct
         | Unboxed_vec128_array ->
           Format.fprintf ppf "%t=Unboxed_vec128_array%t" colour
             Flambda_colours.pop
+        | Unboxed_product_array ->
+          Format.fprintf ppf "%t=Unboxed_product_array%t" colour
+            Flambda_colours.pop
 
       let compare = Stdlib.compare
 
@@ -761,7 +768,7 @@ module With_subkind = struct
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
           | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
-            ),
+          | Unboxed_product_array ),
           _ ) ->
         Misc.fatal_errorf "Subkind %a is not valid for kind %a"
           Non_null_value_subkind.print value_subkind print kind
@@ -828,6 +835,8 @@ module With_subkind = struct
   let generic_array = create value Generic_array Non_nullable
 
   let unboxed_vec128_array = create value Unboxed_vec128_array Non_nullable
+
+  let unboxed_product_array = create value Unboxed_product_array Non_nullable
 
   let block tag fields =
     if List.exists (fun (t : t) -> not (equal t.kind Value)) fields
@@ -958,7 +967,7 @@ module With_subkind = struct
       | Parrayval (Punboxedintarray Pnativeint) -> Unboxed_nativeint_array
       | Parrayval (Punboxedvectorarray Pvec128) -> Unboxed_vec128_array
       | Parrayval (Pgcscannableproductarray _ | Pgcignorableproductarray _) ->
-        Misc.fatal_errorf "Flambda_kind.from_lambda_value_kind: unimplemented"
+        Unboxed_product_array
     in
     let nullable : Nullable.t =
       match vk.nullable with
@@ -997,7 +1006,7 @@ module With_subkind = struct
           | Float_block _ | Float_array | Immediate_array | Value_array
           | Generic_array | Unboxed_float32_array | Unboxed_int32_array
           | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
-            ),
+          | Unboxed_product_array ),
           Non_nullable )
       | (Naked_number _ | Region | Rec_info), _, Nullable ->
         assert false
@@ -1034,7 +1043,8 @@ module With_subkind = struct
       | Boxed_nativeint | Boxed_vec128 | Tagged_immediate | Variant _
       | Float_block _ | Float_array | Immediate_array | Value_array
       | Generic_array | Unboxed_float32_array | Unboxed_int32_array
-      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array ->
+      | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+      | Unboxed_product_array ->
         true)
     | Naked_number _ | Rec_info | Region -> false
 
@@ -1054,7 +1064,7 @@ module With_subkind = struct
       | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
       | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
       | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
-      | Unboxed_vec128_array ->
+      | Unboxed_vec128_array | Unboxed_product_array ->
         true)
     | Naked_number _ | Region | Rec_info -> false
 

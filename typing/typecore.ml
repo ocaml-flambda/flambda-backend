@@ -1573,7 +1573,6 @@ let solve_constructor_annotation
             annotations on explicitly quantified vars in gadt constructors.
             See: https://github.com/ocaml/ocaml/pull/9584/ *)
         let decl = new_local_type ~loc:name.loc
-                     ~jkind_annot:None
                      Definition
                      (Jkind.Builtin.value ~why:Existential_type_variable) in
         let (id, new_env) =
@@ -4976,7 +4975,8 @@ type type_function_result =
   { function_ :
       type_expr * type_function_result_param list * function_body;
     (* The uninterrupted prefix of newtypes of the parameter suffix. *)
-    newtypes: (Ident.t * string loc * Jkind.annotation option * Uid.t) list;
+    newtypes: (Ident.t * string loc *
+               Parsetree.jkind_annotation option * Uid.t) list;
     (* Whether any of the value parameters contains a GADT pattern. *)
     params_contain_gadt: contains_gadt;
     (* The alloc mode of the "rest of the function". None only for recursive
@@ -6403,7 +6403,7 @@ and type_expect_
               Env.lookup_constructor Env.Positive ~loc:lid.loc lid.txt env
             in
             match cd.cstr_tag with
-            | Extension (path,_) -> path
+            | Extension path -> path
             | _ -> raise (Error (lid.loc, env, Not_an_extension_constructor))
           in
           rue {
@@ -6729,7 +6729,7 @@ and type_function
   | { pparam_desc = Pparam_newtype (newtype_var, jkind_annot) } :: rest ->
       (* Check everything else in the scope of (type a). *)
       let (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
-          exp_type, jkind_annot, id, uid =
+          exp_type, id, uid =
         type_newtype env newtype_var jkind_annot (fun env ->
           let { function_ = exp_type, params, body;
                 newtypes; params_contain_gadt = contains_gadt;
@@ -8334,10 +8334,10 @@ and map_half_typed_cases
 *)
 and type_newtype
   : type a. _ -> _ -> _ -> (Env.t -> a * type_expr)
-    -> a * type_expr * Jkind.annotation option * Ident.t * Uid.t =
+    -> a * type_expr * Ident.t * Uid.t =
   fun env name jkind_annot_opt type_body  ->
   let { txt = name; loc = name_loc } : _ Location.loc = name in
-  let jkind, jkind_annot =
+  let jkind =
     Jkind.of_annotation_option_default ~context:(Newtype_declaration name)
       ~default:(Jkind.Builtin.value ~why:Univar) jkind_annot_opt
   in
@@ -8350,7 +8350,7 @@ and type_newtype
   (* Use [with_local_level] just for scoping *)
   with_local_level begin fun () ->
     (* Create a fake abstract type declaration for name. *)
-    let decl = new_local_type ~loc:name_loc Definition jkind ~jkind_annot in
+    let decl = new_local_type ~loc:name_loc Definition jkind in
     let scope = create_scope () in
     let (id, new_env) = Env.enter_type ~scope name decl env in
 
@@ -8370,13 +8370,13 @@ and type_newtype
     let ety = Subst.type_expr Subst.identity exp_type in
     replace ety;
     let uid = decl.type_uid in
-    (result, ety, jkind_annot, id, uid)
+    (result, ety, id, uid)
   end
 
 (** [type_newtype] where the "body" is just an expression. *)
 and type_newtype_expr
     ~loc ~env ~expected_mode ~rue ~attributes name jkind_annot_opt sbody =
-  let body, ety, jkind_annot, id, uid =
+  let body, ety, id, uid =
     type_newtype env name jkind_annot_opt (fun env ->
       let expr = type_exp env expected_mode sbody in
       expr, expr.exp_type)
@@ -8385,7 +8385,7 @@ and type_newtype_expr
      any new extra node in the typed AST. *)
   rue { body with exp_loc = loc; exp_type = ety;
         exp_extra =
-        (Texp_newtype (id, name, jkind_annot, uid),
+        (Texp_newtype (id, name, jkind_annot_opt, uid),
          loc, attributes) :: body.exp_extra }
 
 (* Typing of match cases *)
@@ -8552,7 +8552,9 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
              and route the appropriate sorts through to its uses. *)
           if is_recursive then begin
             List.iter (fun { pv_id; pv_loc; pv_type; _ } ->
-              let value = Jkind.Builtin.value ~why:(Let_rec_variable pv_id) in
+              let value =
+                Jkind.Builtin.value_or_null ~why:(Let_rec_variable pv_id)
+              in
               match constrain_type_jkind env pv_type value with
               | Ok () -> ()
               | Error e ->
@@ -9068,8 +9070,8 @@ and type_n_ary_function
         exp_loc = loc;
         exp_extra =
           List.map
-            (fun (id, txt_loc, layout, uid) ->
-              Texp_newtype (id, txt_loc, layout, uid), txt_loc.loc, [])
+            (fun (id, txt_loc, k, uid) ->
+              Texp_newtype (id, txt_loc, k, uid), txt_loc.loc, [])
             newtypes;
         exp_type;
         exp_attributes = attributes;

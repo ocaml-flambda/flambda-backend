@@ -880,7 +880,7 @@ let is_ext cda =
 
 let is_local_ext cda =
   match cda.cda_description with
-  | {cstr_tag = Extension(p, _)} -> begin
+  | {cstr_tag = Extension p} -> begin
       match p with
       | Pident _ -> true
       | Pdot _ | Papply _ | Pextra_ty _ -> false
