@@ -948,13 +948,8 @@ class virtual selector_generic =
       | { traps_ref = { contents = Reachable ts }; _ } ->
         with_handler (Select_utils.env_set_trap_stack env ts) e2
       | { traps_ref = { contents = Unreachable }; _ } ->
-        (* Note: The following [unreachable] expression has machtype [|Int|],
-           but this might not be the correct machtype for this function's return
-           value. It doesn't matter at runtime since the expression cannot
-           return, but if we start checking (or joining) the machtypes of the
-           different tails we will need to implement something like the
-           [emit_expr_aux] version above, that hides the machtype. *)
-        let unreachable =
+        let dummy_constant = Cconst_int (1, Debuginfo.none) in
+        let segfault =
           Cmm.(
             Cop
               ( Cload
@@ -965,9 +960,21 @@ class virtual selector_generic =
                 [Cconst_int (0, Debuginfo.none)],
                 Debuginfo.none ))
         in
+        let dummy_raise =
+          Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
+        in
+        let unreachable =
+          (* The use of a raise operation means that this handler is known not
+             to return, making it compatible with any layout for the body or
+             surrounding code. We also set the trap stack to [Uncaught] to
+             ensure that we don't introduce spurious control-flow edges inside
+             the function. *)
+          Csequence (segfault, dummy_raise)
+        in
+        let env = Select_utils.env_set_trap_stack env Uncaught in
         with_handler env unreachable
-      (* Misc.fatal_errorf "Selection.emit_expr: \ Unreachable exception handler
-         %d" lbl *)
+        (* Misc.fatal_errorf "Selection.emit_expr: \ * Unreachable exception
+           handler %d" lbl *)
       | exception Not_found ->
         Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
