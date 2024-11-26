@@ -16,6 +16,8 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Cmm
@@ -225,15 +227,15 @@ end = struct
     { entry; exit; layout }
 
   let add_instruction sub_cfg desc arg res dbg =
-    assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+    assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
     DLL.add_end sub_cfg.exit.body (make_instr desc arg res dbg)
 
   let set_terminator sub_cfg desc arg res dbg =
-    assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+    assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
     sub_cfg.exit.terminator <- make_instr desc arg res dbg
 
   let link_if_needed ~(from : Cfg.basic_block) ~(to_ : Cfg.basic_block) () =
-    if from.terminator.desc = Cfg.Never
+    if Cfg.is_never_terminator from.terminator.desc
     then
       from.terminator
         <- { from.terminator with
@@ -322,17 +324,17 @@ class virtual selector_generic =
         ( basic_op
             (Load { memory_chunk; addressing_mode; mutability; is_atomic }),
           [eloc] )
-      | Cstore (chunk, init), [arg1; arg2] ->
+      | Cstore (chunk, init), [arg1; arg2] -> (
         let addr, eloc = self#select_addressing chunk arg1 in
         let is_assign =
           match init with Initialization -> false | Assignment -> true
         in
-        if chunk = Word_int || chunk = Word_val
-        then
+        match chunk with
+        | Word_int | Word_val ->
           let op, newarg2 = self#select_store is_assign addr arg2 in
           basic_op op, [newarg2; eloc]
-        else basic_op (Store (chunk, addr, is_assign)), [arg2; eloc]
-        (* Inversion addr/datum in Istore *)
+        | _ -> basic_op (Store (chunk, addr, is_assign)), [arg2; eloc]
+        (* Inversion addr/datum in Istore *))
       | Cdls_get, _ -> basic_op Dls_get, args
       | Calloc mode, _ ->
         basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
@@ -517,7 +519,7 @@ class virtual selector_generic =
         match self#emit_parts_list env args with
         | None -> None
         | Some (simple_args, env) -> (
-          assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+          assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
           let add_naming_op_for_bound_name regs =
             match bound_name with
             | None -> ()
@@ -696,7 +698,7 @@ class virtual selector_generic =
         match self#emit_expr env earg ~bound_name:None with
         | None -> None
         | Some rarg ->
-          assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+          assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
           let rif, (sif : 'self) = self#emit_sequence env eif ~bound_name in
           let relse, (selse : 'self) =
             self#emit_sequence env eelse ~bound_name
@@ -738,7 +740,7 @@ class virtual selector_generic =
         match self#emit_expr env esel ~bound_name:None with
         | None -> None
         | Some rsel ->
-          assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+          assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
           let sub_cases : (Reg.t array option * 'self) array =
             Array.map
               (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
@@ -853,7 +855,10 @@ class virtual selector_generic =
         let rec build_all_reachable_handlers ~already_built ~not_built =
           let not_built, to_build =
             Int.Map.partition
-              (fun _n (r, _) -> !r = Select_utils.Unreachable)
+              (fun _n (r, _) ->
+                match !r with
+                | Select_utils.Unreachable -> true
+                | Select_utils.Reachable _ -> false)
               not_built
           in
           if Int.Map.is_empty to_build
@@ -873,7 +878,7 @@ class virtual selector_generic =
         in
         let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
         let r = join_array env a ~bound_name in
-        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
         let s_body : Sub_cfg.t = s_body#extract in
         let s_handlers =
           List.map
@@ -932,10 +937,15 @@ class virtual selector_generic =
                src are present in dest *)
             let tmp_regs = Reg.createv_like src in
             (* Ccatch registers must not contain out of heap pointers *)
-            Array.iter (fun reg -> assert (reg.Reg.typ <> Addr)) src;
+            Array.iter
+              (fun reg ->
+                match reg.Reg.typ with
+                | Addr -> assert false
+                | Val | Int | Float | Vec128 | Float32 -> ())
+              src;
             self#insert_moves env src tmp_regs;
             self#insert_moves env tmp_regs (Array.concat handler.regs);
-            assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+            assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
             List.iter
               (fun trap ->
                 let instr_desc =
@@ -982,7 +992,7 @@ class virtual selector_generic =
           Reg.t array option =
       fun env bound_name e1 exn_cont v e2 _dbg _value_kind ->
         (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
         let exn_label = Cmm.new_label () in
         let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
         let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
@@ -1091,7 +1101,7 @@ class virtual selector_generic =
     method emit_return
         : environment -> Cmm.expression -> Cmm.trap_action list -> unit =
       fun env exp traps ->
-        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
         let r = self#emit_expr_aux env exp ~bound_name:None in
         self#insert_return env r traps
 
@@ -1148,7 +1158,7 @@ class virtual selector_generic =
             let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
             let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
             if stack_ofs = 0
-               && func.sym_name = !Select_utils.current_function_name
+               && String.equal func.sym_name !Select_utils.current_function_name
                && Select_utils.trap_stack_is_empty env
             then (
               let call = Cfg.Tailcall_self { destination = tailrec_label } in
@@ -1187,7 +1197,7 @@ class virtual selector_generic =
         match self#emit_expr env earg ~bound_name:None with
         | None -> ()
         | Some rarg ->
-          assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+          assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
           let sub_if = self#emit_tail_sequence env eif in
           let sub_else = self#emit_tail_sequence env eelse in
           let term_desc =
@@ -1220,7 +1230,7 @@ class virtual selector_generic =
         match self#emit_expr env esel ~bound_name:None with
         | None -> ()
         | Some rsel ->
-          assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+          assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
           let sub_cases =
             Array.map
               (fun (case, _dbg) -> self#emit_tail_sequence env case)
@@ -1281,7 +1291,7 @@ class virtual selector_generic =
               env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold, label)) map)
             (env, Int.Map.empty) handlers
         in
-        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
         let s_body = self#emit_tail_sequence env e1 in
         let translate_one_handler nfail
             (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
@@ -1331,7 +1341,10 @@ class virtual selector_generic =
         let rec build_all_reachable_handlers ~already_built ~not_built =
           let not_built, to_build =
             Int.Map.partition
-              (fun _n (r, _) -> !r = Select_utils.Unreachable)
+              (fun _n (r, _) ->
+                match !r with
+                | Select_utils.Unreachable -> true
+                | Select_utils.Reachable _ -> false)
               not_built
           in
           if Int.Map.is_empty to_build
@@ -1350,7 +1363,7 @@ class virtual selector_generic =
           build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
           (* Note: we're dropping unreachable handlers here *)
         in
-        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
         let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
         sub_cfg.exit.terminator
           <- { sub_cfg.exit.terminator with
@@ -1374,7 +1387,7 @@ class virtual selector_generic =
           unit =
       fun env e1 exn_cont v e2 _dbg _value_kind ->
         (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
         let exn_label = Cmm.new_label () in
         let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
         let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
@@ -1564,10 +1577,10 @@ class virtual selector_generic =
         Cfg.add_block_exn cfg tailrec_block;
         DLL.add_end layout tailrec_block.start;
         DLL.iter body.Sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
-            if block.terminator.desc <> Cfg.Never
+            if not (Cfg.is_never_terminator block.terminator.desc)
             then (
               block.can_raise <- Cfg.can_raise_terminator block.terminator.desc;
-              if block.terminator.desc = Cfg.Return
+              if Cfg.is_return_terminator block.terminator.desc
               then
                 DLL.add_end block.body
                   (Sub_cfg.make_instr Cfg.Reloadretaddr [||] [||] Debuginfo.none);

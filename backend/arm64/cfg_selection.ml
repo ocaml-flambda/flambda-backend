@@ -17,6 +17,8 @@
 
 (* Instruction selection for the ARM processor *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Arch
@@ -166,7 +168,12 @@ class selector =
       | _ -> super#select_operation op args dbg
 
     method! insert_move_extcall_arg env ty_arg src dst =
-      if macosx && ty_arg = XInt32 && is_stack_slot dst
+      let ty_arg_is_int32 =
+        match ty_arg with
+        | XInt32 -> true
+        | XInt | XInt64 | XFloat32 | XFloat | XVec128 -> false
+      in
+      if macosx && ty_arg_is_int32 && is_stack_slot dst
       then self#insert env (Op (Specific Imove32)) src dst
       else self#insert_moves env src dst
   end

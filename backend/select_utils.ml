@@ -16,6 +16,8 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Cmm
@@ -99,7 +101,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if prev_traps <> traps
+    if Stdlib.( = ) prev_traps traps
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
@@ -739,7 +741,9 @@ class virtual ['env, 'op, 'instr] common_selector =
     method emit_extcall_args env ty_args args =
       let args = self#emit_tuple_not_flattened env args in
       let ty_args =
-        if ty_args = [] then List.map (fun _ -> XInt) args else ty_args
+        match ty_args with
+        | [] -> List.map (fun _ -> XInt) args
+        | _ :: _ -> ty_args
       in
       let locs, stack_ofs = Proc.loc_external_arguments ty_args in
       let ty_args = Array.of_list ty_args in
