@@ -197,6 +197,15 @@ type float = string
 val x : float/2# = #{a = 1}
 |}]
 
+include struct type floot = { a : int } end
+type floot = string
+let x = #{ a = 1 }
+[%%expect{|
+type floot = { a : int; }
+type floot = string
+val x : floot/2# = #{a = 1}
+|}]
+
 
 (*****************************************************)
 (* Propagating constraints from recursive type decls *)
@@ -249,7 +258,3 @@ Error:
        But the layout of q must be a sublayout of float64
          because of the definition of t at line 1, characters 0-29.
 |}]
-
-
-
-

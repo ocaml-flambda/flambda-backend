@@ -462,36 +462,34 @@ let build_initial_env add_type add_extension empty_env =
                 Jkind.Const.Builtin.immutable_data.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.word
        ?boxes_jkind:None
-       (* ~boxes_jkind:(
-        *   {
-        *     layout = Product [
-        *       (Base Value); (Base Value);
-        *       (Base Value); (Base Value);
-        *     ];
-        *     modes_upper_bounds =
-        *       { linearity = Mode.Linearity.Const.min;
-        *         contention = Mode.Contention.Const.min;
-        *         portability = Mode.Portability.Const.min;
-        *         uniqueness = Mode.Uniqueness.Const.max;
-        *         areality = Mode.Locality.Const.max
-        *       };
-        *     externality_upper_bound = Jkind.Externality.max;
-        *     nullability_upper_bound = Jkind.Nullability.Non_null
-        *   },
-        *   {
-        *     pjkind_desc = Product [
-        *       { pjkind_loc = Location.none;
-        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immutable_data.name };
-        *       { pjkind_loc = Location.none;
-        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
-        *       { pjkind_loc = Location.none;
-        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
-        *       { pjkind_loc = Location.none;
-        *         pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
-        *     ];
-        *     pjkind_loc = Location.none
-        *   }
-        * ) *)
+       (* CR rtjoa: check this *)
+       ~boxes_jkind:(
+         {
+           layout = Product [(Base Value); (Base Value); (Base Value); (Base Value)];
+           modes_upper_bounds =
+             { linearity = Mode.Linearity.Const.min;
+               contention = Mode.Contention.Const.min;
+               portability = Mode.Portability.Const.min;
+               uniqueness = Mode.Uniqueness.Const.max;
+               areality = Mode.Locality.Const.max
+             };
+           externality_upper_bound = Jkind.Externality.max;
+           nullability_upper_bound = Jkind.Nullability.Non_null
+         },
+         {
+           pjkind_desc = Product [
+             { pjkind_loc = Location.none;
+               pjkind_desc = Abbreviation Jkind.Const.Builtin.immutable_data.name };
+             { pjkind_loc = Location.none;
+               pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
+             { pjkind_loc = Location.none;
+               pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
+             { pjkind_loc = Location.none;
+               pjkind_desc = Abbreviation Jkind.Const.Builtin.immediate.name };
+           ];
+           pjkind_loc = Location.none
+         }
+       )
   )
   |> add_type ident_string
        ~jkind:(Jkind.of_const ~why:(Primitive ident_string)

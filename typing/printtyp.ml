@@ -416,7 +416,7 @@ let ident_name_simple namespace id =
 
 (** Same as {!ident_name_simple} but lookup to existing named identifiers
     in the current {!printing_env} *)
-let ident_name namespace id =
+let ident_name namespace id ~with_hash =
   begin match env_ident namespace (Ident.name id) with
   | Some id' -> ignore (ident_name_simple namespace id')
   | None -> ()
@@ -551,7 +551,9 @@ let rec tree_of_path namespace = function
       | Pext_ty ->
           tree_of_path None p
       | Pderived_unboxed_ty ->
-          Oide_hash (tree_of_path namespace p)
+        match p with
+        | Pident id -> Oide_ident (ident_name namespace id ~with_hash:true)
+        | Pdot(p, s) -> tree_of_path namespace Pdot(p, s ^ "#")
 
 
     end
