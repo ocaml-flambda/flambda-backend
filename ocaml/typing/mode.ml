@@ -1877,14 +1877,10 @@ module Common (Obj : Obj) = struct
   let update_level i a = with_log (Solver.update_level i obj a)
 
   let generalize ~current_level ~generic_level a =
-    let log' = ref S.empty_changes in
-    let log = Some log' in
-    Solver.generalize ~current_level ~generic_level obj a ~log
+    with_log (Solver.generalize ~current_level ~generic_level obj a)
 
   let generalize_structure ~current_level ~generic_level a =
-    let log' = ref S.empty_changes in
-    let log = Some log' in
-    Solver.generalize_structure ~current_level ~generic_level obj a ~log
+    with_log (Solver.generalize_structure ~current_level ~generic_level obj a)
 
   let join l = Solver.join obj l
 

@@ -294,8 +294,8 @@ module type Solver_polarized = sig
     log:changes ref option ->
     unit
 
-  (** Generalizes all reachable variables whose level is above [current_level], and whose
-      value can be determined (equal bounds), by putting their level to [generic_level].*)
+  (** Generalizes all reachable variables whose level is above [current_level],
+      whose value is fully determined, by putting their level to [generic_level].*)
       val generalize_structure :
       current_level:int ->
       generic_level:int ->
