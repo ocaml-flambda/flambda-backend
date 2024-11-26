@@ -71,3 +71,52 @@ module Polls_before_prtc = struct
       true
     | Might_not_poll, Always_polls -> false
 end
+
+(* Error report *)
+
+let instr_type p =
+  match p with
+  | Poll -> "inserted poll"
+  | Alloc -> "allocation"
+  | Function_call -> "function call"
+  | External_call -> "external call that allocates"
+
+let report_error ppf = function
+  | Poll_error (_fun_dbg, instrs) ->
+    let num_inserted_polls =
+      List.fold_left
+        (fun s (p, _) ->
+          s
+          +
+          match p with Poll -> 1 | Alloc | Function_call | External_call -> 0)
+        0 instrs
+    in
+    let num_user_polls = List.length instrs - num_inserted_polls in
+    if num_user_polls = 0
+    then
+      Format.fprintf ppf
+        "Function with poll-error attribute contains polling points (inserted \
+         by the compiler)\n"
+    else
+      Format.fprintf ppf
+        "Function with poll-error attribute contains polling points:\n";
+    List.iter
+      (fun (p, dbg) ->
+        match p with
+        | Poll | Alloc | Function_call | External_call ->
+          Format.fprintf ppf "\t%s" (instr_type p);
+          if not (Debuginfo.is_none dbg)
+          then (
+            Format.fprintf ppf " at ";
+            Location.print_loc ppf (Debuginfo.to_location dbg));
+          Format.fprintf ppf "\n")
+      (List.sort
+         (fun (_, left) (_, right) -> Debuginfo.compare left right)
+         instrs)
+
+let () =
+  Location.register_error_of_exn (function
+    | Error (Poll_error (fun_dbg, _instrs) as err) ->
+      let loc = Debuginfo.to_location fun_dbg in
+      Some (Location.error_of_printer ~loc report_error err)
+    | _ -> None)
