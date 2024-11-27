@@ -857,7 +857,9 @@ type program =
 *)
 
 (* Info for a compilation unit that implements a parameter (that is, was
-   compiled with [-as-argument-for]) *)
+   compiled with [-as-argument-for]). Note that if the CU is itself
+   parameterised, this information (in particular [arg_block_idx]) describes
+   instances rather than the base CU gs. *)
 type arg_descr =
   { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
                                            [-as-argument-for P]) *)
