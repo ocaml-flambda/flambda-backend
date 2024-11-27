@@ -308,6 +308,10 @@ module Tree_operations (Tree : Tree) : sig
 
   val mapi : 'b is_value -> ('a, 'b) Callback.t -> 'a t -> 'b t
 
+  val filter_map : 'b is_value -> (key -> 'a -> 'b option) -> 'a t -> 'b t
+
+  val filter_map_sharing : (key -> 'a -> 'a option) -> 'a t -> 'a t
+
   val to_seq : 'a t -> 'a Binding.t Seq.t
 
   val of_list : 'a is_value -> 'a Binding.t list -> 'a t
@@ -845,6 +849,28 @@ end = struct
     | Branch (prefix, bit, t0, t1) ->
       branch_non_empty prefix bit (mapi iv f t0) (mapi iv f t1)
 
+  let rec filter_map iv f t =
+    match descr t with
+    | Empty -> empty iv
+    | Leaf (k, d) -> (
+      match f k d with None -> empty iv | Some d' -> leaf iv k d')
+    | Branch (prefix, bit, t0, t1) ->
+      branch prefix bit (filter_map iv f t0) (filter_map iv f t1)
+
+  let rec filter_map_sharing f t =
+    let iv = is_value_of t in
+    match descr t with
+    | Empty -> t
+    | Leaf (k, d) -> (
+      match f k d with
+      | None -> empty iv
+      | Some d' when d == d' -> t
+      | Some d' -> leaf iv k d')
+    | Branch (prefix, bit, t0, t1) ->
+      let t0' = filter_map_sharing f t0 in
+      let t1' = filter_map_sharing f t1 in
+      if t0' == t0 && t1' == t1 then t else branch prefix bit t0' t1'
+
   let to_seq t =
     let rec aux acc () =
       match acc with
@@ -988,14 +1014,7 @@ module Map = struct
 
   let mapi f t = Ops.mapi Any f t
 
-  (* CR-someday lmaurer: Implement this in [Ops] in O(n) time rather than O(n
-     log n). Should be able to implement [filter] in terms of it, though
-     Flambda2 currently has trouble preserving sharing (unnecessary control flow
-     obscures a CSE opportunity). *)
-  let filter_map f t =
-    fold
-      (fun id v map -> match f id v with None -> map | Some r -> add id r map)
-      t empty
+  let filter_map f t = Ops.filter_map Any f t
 
   let of_list l = Ops.of_list Any l
 

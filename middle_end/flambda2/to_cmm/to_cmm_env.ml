@@ -962,7 +962,7 @@ let flush_delayed_lets ~mode env res =
     bindings_to_flush := M.add b.order binding !bindings_to_flush
   in
   let bindings_to_keep =
-    Variable.Map.filter_map
+    Variable.Map.filter_map_sharing
       (fun _ (Binding b as binding) ->
         match b.inline with
         | Do_not_inline ->
