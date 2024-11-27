@@ -166,7 +166,10 @@ let foo () =
    and the above bar is closing over an nonportable record. Once we allow mutable()
    syntax, we can test this. *)
 [%%expect{|
-val foo : unit -> unit = <fun>
+Line 2, characters 23-61:
+2 |     let r @ portable = {a = best_bytes (); b = best_bytes ()} in
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 

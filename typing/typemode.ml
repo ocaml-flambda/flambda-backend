@@ -191,8 +191,7 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
       Atom (Comonadic Portability, Meet_with Portability.Const.legacy) ]
   in
   let monadic : Modality.t list =
-    (* CR uniqueness: change back to old implementation *)
-    [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique);
+    [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
       Atom (Monadic Contention, Join_with Contention.Const.legacy) ]
   in
   match mut with

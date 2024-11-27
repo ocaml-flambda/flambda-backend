@@ -787,6 +787,17 @@ Error: Overwrite may not change the tag to OptionA.
 Hint: The old tag of this allocation is unknown.
 |}]
 
+(*****************************)
+(* Overwriting with mutation *)
+
+(* Currently all tests in this section fail because mutable record fields
+   are always aliased. But in the future, this will change!
+   When mutable record fields can be unique, we have to ensure that users
+   cannot change the tag using mutation before overwriting a cell with the
+   knowledge of the old tag. We took that into account when designing this
+   feature and all tests here should work correctly in that case.
+   You can find the expected test outputs at PR3157. *)
+
 type 'a mutable_record = { mutable m : 'a }
 
 let mutable_field_aliased r =
@@ -803,8 +814,10 @@ val mutable_field_aliased :
 let mutable_field_aliased r =
   unique_ r.m
 [%%expect{|
-val mutable_field_aliased : 'a mutable_record @ unique -> 'a @@ global many =
-  <fun>
+Line 2, characters 10-13:
+2 |   unique_ r.m
+              ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let tag_of_mutable_field r =
@@ -813,12 +826,10 @@ let tag_of_mutable_field r =
     overwrite_ r.m with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 4, characters 4-33:
+Line 4, characters 15-18:
 4 |     overwrite_ r.m with OptionA s
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
-
+                   ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_seq r =
@@ -828,11 +839,10 @@ let mutating_tag_seq r =
     overwrite_ r.m with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 24-31:
+Line 5, characters 15-18:
 5 |     overwrite_ r.m with OptionA s
-                            ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+                   ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_seq_same r =
@@ -842,11 +852,10 @@ let mutating_tag_seq_same r =
     overwrite_ r.m with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 24-31:
+Line 5, characters 15-18:
 5 |     overwrite_ r.m with OptionA s
-                            ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+                   ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_seq_parent r =
@@ -856,11 +865,10 @@ let mutating_tag_seq_parent r =
     overwrite_ r.m.x with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 26-33:
+Line 5, characters 15-20:
 5 |     overwrite_ r.m.x with OptionA s
-                              ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+                   ^^^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_par r =
@@ -869,11 +877,10 @@ let mutating_tag_par r =
     (r.m <- OptionB s), overwrite_ r.m with OptionA s
   | _ -> (), OptionB ""
 [%%expect{|
-Line 4, characters 44-51:
+Line 4, characters 35-38:
 4 |     (r.m <- OptionB s), overwrite_ r.m with OptionA s
-                                                ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation is being changed through mutation.
+                                       ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_par_parent r =
@@ -882,11 +889,10 @@ let mutating_tag_par_parent r =
     (r.m <- { x = OptionB s }), overwrite_ r.m.x with OptionA s
   | _ -> (), OptionB ""
 [%%expect{|
-Line 4, characters 54-61:
+Line 4, characters 43-48:
 4 |     (r.m <- { x = OptionB s }), overwrite_ r.m.x with OptionA s
-                                                          ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation is being changed through mutation.
+                                               ^^^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_choice r =
@@ -896,12 +902,10 @@ let mutating_tag_choice r =
             else overwrite_ r.m with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 17-46:
+Line 5, characters 28-31:
 5 |             else overwrite_ r.m with OptionA s
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
-
+                                ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_choice_parent r =
@@ -911,12 +915,10 @@ let mutating_tag_choice_parent r =
     else overwrite_ r.m.x with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 9-40:
+Line 5, characters 20-25:
 5 |     else overwrite_ r.m.x with OptionA s
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
-
+                        ^^^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_choice_seq r =
@@ -926,11 +928,10 @@ let mutating_tag_choice_seq r =
     overwrite_ r.m with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 24-31:
+Line 5, characters 15-18:
 5 |     overwrite_ r.m with OptionA s
-                            ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+                   ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let mutating_tag_choice_seq_parent r =
@@ -940,11 +941,10 @@ let mutating_tag_choice_seq_parent r =
     overwrite_ r.m.x with OptionA s
   | _ -> OptionB ""
 [%%expect{|
-Line 5, characters 26-33:
+Line 5, characters 15-20:
 5 |     overwrite_ r.m.x with OptionA s
-                              ^^^^^^^
-Error: Overwrite may not change the tag to OptionA.
-Hint: The old tag of this allocation was changed through mutation.
+                   ^^^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 
@@ -959,12 +959,10 @@ let mutating_tag_rematch r =
     end
   | _ -> OptionB ""
 [%%expect{|
-Line 7, characters 6-35:
+Line 7, characters 17-20:
 7 |       overwrite_ r.m with OptionB s
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
-
+                     ^^^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (********************************)

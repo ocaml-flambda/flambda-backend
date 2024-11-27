@@ -34,7 +34,7 @@ module M = struct
   let foo = {x = "hello"}
 end
 [%%expect{|
-module M : sig val foo : r @@ global many portable end
+module M : sig val foo : r @@ global many end
 |}]
 
 module type S = sig
