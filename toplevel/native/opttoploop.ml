@@ -289,7 +289,7 @@ let load_lambda ppf ~compilation_unit ~required_globals lam size =
     { Lambda.
       code = slam;
       main_module_block_format = Mb_struct { mb_size = size };
-      arg_block_field_idx = None;
+      arg_block_idx = None;
       compilation_unit;
       required_globals;
     }

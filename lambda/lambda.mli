@@ -830,8 +830,15 @@ val main_module_block_size : main_module_block_format -> int
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_format : main_module_block_format;
-    arg_block_field_idx : int option;   (* Index of unnamed field with argument
-                                           block (see [arg_descr]) *)
+    arg_block_idx : int option;         (* Index of argument block (see
+                                           [arg_descr]). If
+                                           [main_module_block_format] is
+                                           [Mb_struct], this is an index into
+                                           the main module block of the
+                                           compilation unit. For
+                                           [Mb_instantiating_functor], this is
+                                           an index into the module returned by
+                                           the instantiating functor. *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
@@ -854,10 +861,17 @@ type program =
 type arg_descr =
   { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
                                            [-as-argument-for P]) *)
-    arg_block_field_idx: int; }         (* The index of an unnamed field
-                                           containing the block to use as an
-                                           argument value (may be a supertype of
-                                           the whole compilation unit's type) *)
+    arg_block_idx: int; }               (* The index within the main module
+                                           block of the _argument block_. If
+                                           this compilation unit is used as an
+                                           argument when instantiating,
+                                           [-instantiate] will pass the argument
+                                           block to the instantiating functor
+                                           (see [main_module_block_format]). The
+                                           argument block's signature is exactly
+                                           that of the parameter, which is in
+                                           general a supertype of this
+                                           compilation unit's signature. *)
 
 (* Sharing key *)
 val make_key: lambda -> lambda option

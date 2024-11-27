@@ -78,8 +78,8 @@ let instantiate
                { compilation_unit = unit_info.ui_unit;
                  filename = cm_path;
                  base_unit = base_unit_info.ui_unit; })
-    | Some { arg_param; arg_block_field_idx } ->
-      arg_param, (unit_info.ui_unit, arg_block_field_idx)
+    | Some { arg_param; arg_block_idx } ->
+      arg_param, (unit_info.ui_unit, arg_block_idx)
   in
   let arg_infos = List.map arg_info_of_cm_path args in
   let arg_pairs : CU.argument list =

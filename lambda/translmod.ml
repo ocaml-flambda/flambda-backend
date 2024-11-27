@@ -1003,13 +1003,13 @@ let transl_implementation_plain_block compilation_unit impl =
   Translprim.clear_used_primitives ();
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let body, (size, arg_block_field_idx) =
+  let body, (size, arg_block_idx) =
     Translobj.transl_label_init (fun () ->
-      let body, size, arg_block_field_idx =
+      let body, size, arg_block_idx =
         transl_implementation_module ~scopes compilation_unit
           impl
       in
-      Translcore.declare_probe_handlers body, (size, arg_block_field_idx))
+      Translcore.declare_probe_handlers body, (size, arg_block_idx))
   in
   let body, main_module_block_format =
     match has_parameters () with
@@ -1046,7 +1046,7 @@ let transl_implementation_plain_block compilation_unit impl =
   in
   { compilation_unit;
     main_module_block_format;
-    arg_block_field_idx;
+    arg_block_idx;
     required_globals = required_globals ~flambda:true body;
     code = body }
 
@@ -1695,12 +1695,12 @@ let transl_implementation_set_fields compilation_unit impl =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let i, code, arg_block_field_idx =
+  let i, code, arg_block_idx =
     transl_store_gen ~scopes compilation_unit impl false
   in
   transl_store_subst := s;
   { Lambda.main_module_block_format = Mb_struct { mb_size = i };
-    arg_block_field_idx;
+    arg_block_idx;
     code;
     (* compilation_unit is not used by closure, but this allow to share
        the type with the flambda version *)
@@ -2024,7 +2024,7 @@ let transl_runtime_arg arg =
 
 let transl_instance_plain_block
       compilation_unit ~runtime_args ~main_module_block_size
-      ~arg_block_field_idx
+      ~arg_block_idx
     : Lambda.program =
   let base_compilation_unit, _args =
     Compilation_unit.split_instance_exn compilation_unit
@@ -2063,36 +2063,35 @@ let transl_instance_plain_block
     code;
     required_globals;
     main_module_block_format;
-    arg_block_field_idx;
+    arg_block_idx;
   }
 
 let transl_instance_set_global
-      compilation_unit ~runtime_args ~main_module_block_size
-      ~arg_block_field_idx =
+      compilation_unit ~runtime_args ~main_module_block_size ~arg_block_idx =
   transl_instance_plain_block compilation_unit ~runtime_args
-    ~main_module_block_size ~arg_block_field_idx
+    ~main_module_block_size ~arg_block_idx
   |> wrap_in_setglobal
 
 let transl_instance_set_fields
       _compilation_unit ~runtime_args:_ ~main_module_block_size:_
-      ~arg_block_field_idx:_ =
+      ~arg_block_idx:_ =
   Misc.fatal_error "Parameterised modules not supported in Closure"
 
 let transl_instance instance_unit ~runtime_args ~main_module_block_size
-      ~arg_block_field_idx ~style =
+      ~arg_block_idx ~style =
   assert (Compilation_unit.is_instance instance_unit);
   if (runtime_args = []) then
     Misc.fatal_error "Trying to instantiate but passing no arguments";
   match style with
   | Plain_block ->
       transl_instance_plain_block instance_unit ~runtime_args
-        ~main_module_block_size ~arg_block_field_idx
+        ~main_module_block_size ~arg_block_idx
   | Set_global_to_block ->
       transl_instance_set_global instance_unit ~runtime_args
-        ~main_module_block_size ~arg_block_field_idx
+        ~main_module_block_size ~arg_block_idx
   | Set_individual_fields ->
       transl_instance_set_fields instance_unit ~runtime_args
-        ~main_module_block_size ~arg_block_field_idx
+        ~main_module_block_size ~arg_block_idx
 
 (* Error report *)
 

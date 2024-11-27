@@ -59,7 +59,7 @@ type runtime_arg =
 
 val transl_instance:
       Compilation_unit.t -> runtime_args:runtime_arg list
-        -> main_module_block_size:int -> arg_block_field_idx:int option
+        -> main_module_block_size:int -> arg_block_idx:int option
         -> style:compilation_unit_style -> Lambda.program
 
 val toplevel_name: Ident.t -> string

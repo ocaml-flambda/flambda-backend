@@ -861,13 +861,13 @@ let main_module_block_size format =
 type program =
   { compilation_unit : Compilation_unit.t;
     main_module_block_format : main_module_block_format;
-    arg_block_field_idx : int option;
+    arg_block_idx : int option;
     required_globals : Compilation_unit.Set.t;
     code : lambda }
 
 type arg_descr =
   { arg_param: Global_module.Name.t;
-    arg_block_field_idx: int; }
+    arg_block_idx: int; }
 
 let const_int n = Const_base (Const_int n)
 

@@ -106,7 +106,7 @@ let print_required_global id =
   printf "\t%a\n" Compilation_unit.output id
 
 let print_arg_descr arg_descr =
-  let ({ arg_param; arg_block_field_idx = _ } : Lambda.arg_descr) = arg_descr in
+  let ({ arg_param; arg_block_idx = _ } : Lambda.arg_descr) = arg_descr in
   printf "Parameter implemented: %a\n" Global_module.Name.output arg_param
 
 let print_cmo_infos cu =
