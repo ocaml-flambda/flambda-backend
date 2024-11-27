@@ -562,9 +562,10 @@ int caml_do_opportunistic_major_slice
 static void minor_gc_leave_barrier
   (caml_domain_state* domain, int participating_count);
 
-static promote_result caml_empty_minor_heap_promote(caml_domain_state* domain,
-                                                    int participating_count,
-                                                    caml_domain_state** participating)
+static promote_result
+caml_empty_minor_heap_promote(caml_domain_state* domain,
+                              int participating_count,
+                              caml_domain_state** participating)
 {
   struct caml_minor_tables *self_minor_tables = domain->minor_tables;
   value* young_ptr = domain->young_ptr;
