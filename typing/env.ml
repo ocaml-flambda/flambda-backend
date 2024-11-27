@@ -4286,6 +4286,21 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "Unbound %s field %a"
         (record_form_to_string record_form) (Style.as_inline_code !print_longident) lid;
       spellcheck ppf (extract_labels record_form) env lid;
+      let label_of_other_form = match record_form with
+        | Legacy ->
+          (match find_label_by_name Unboxed_product lid env with
+          | _ -> Some "an unboxed record"
+          | exception Not_found -> None)
+        | Unboxed_product ->
+          (match find_label_by_name Legacy lid env with
+          | _ -> Some "a boxed record"
+          | exception Not_found -> None)
+      in
+      (match label_of_other_form with
+      | Some other_form ->
+        Format.fprintf ppf "@\n@{<hint>Hint@}: There is %s field with this name."
+          other_form
+      | None -> ());
   | Unbound_class lid -> begin
       fprintf ppf "Unbound class %a"
         (Style.as_inline_code !print_longident) lid;

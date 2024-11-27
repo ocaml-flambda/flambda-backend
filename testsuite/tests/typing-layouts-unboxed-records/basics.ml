@@ -12,32 +12,6 @@ open Stdlib_upstream_compatible
 (**************************************************************************)
 (* Basic examples: construction, functional updates, projection, matching *)
 
-module With_index : sig
-  type 'a t : value & immediate
-  type 'a t_boxed : value
-
-  val unbox_t : 'a t_boxed -> 'a t
-  val box_t : 'a t -> 'a t_boxed
-  val inc : 'a t -> 'a t
-end = struct
-  type 'a t = #{ data : 'a ; i : int }
-  type 'a t_boxed = { data : 'a ; i : int }
-
-  let unbox_t { data ; i = idx } = #{ data ; i = idx }
-  let box_t #{ data ; i = idx } = { data ; i = idx }
-  let inc t = #{ t with i = t.#i + 1 }
-end
-[%%expect{|
-module With_index :
-  sig
-    type 'a t : value & immediate
-    type 'a t_boxed
-    val unbox_t : 'a t_boxed -> 'a t
-    val box_t : 'a t -> 'a t_boxed
-    val inc : 'a t -> 'a t
-  end
-|}]
-
 (* We can change the type of an unboxed record with a functional update. *)
 
 type ('a : value & value) t = #{ x : 'a ; y : string }
@@ -56,7 +30,6 @@ let add (#{ i; _} as r) = i + r.#j
 type t = #{ i : int; j : int; }
 val add : t -> int = <fun>
 |}]
-
 
 (* Unboxed records are not subject to the mixed-block restriction *)
 
@@ -94,7 +67,26 @@ Error: Types of top-level module bindings must have layout "value", but
        the type of "disallowed" has layout "float64 & value".
 |}]
 
+;;
+#{ f = #3.14; i = 0};;
+[%%expect{|
+Line 1, characters 0-20:
+1 | #{ f = #3.14; i = 0};;
+    ^^^^^^^^^^^^^^^^^^^^
+Error: Types of unnamed expressions must have layout value when using
+       the toplevel, but this expression has layout "float64 & value".
+|}]
+
 (* However, we can have a top-level unboxed record if its kind is value *)
+
+type m_record = #{ i1 : int }
+module M = struct
+  let x = #{ i1 = 1 }
+end
+[%%expect{|
+type m_record = #{ i1 : int; }
+module M : sig val x : m_record end
+|}]
 
 type wrap_int = #{ i : int }
 type wrap_wrap_int = #{ wi : wrap_int}
@@ -114,6 +106,12 @@ type t = #{ s : string; }
 val s : t = #{s = "hi"}
 |}]
 
+;;
+#{ i1 = 1 };;
+[%%expect{|
+- : m_record = #{i1 = 1}
+|}]
+
 (* Accessing inner products *)
 
 type t = #{ is: #(int * int) }
@@ -126,63 +124,18 @@ type t = #{ is : #(int * int); }
 val add : t -> int = <fun>
 |}]
 
-(******************************)
-(* Basic unboxed record types *)
+(* Mutable fields are not allowed *)
 
-type t1 = #{ i1 : int }
-type t2 = #{ f2: float# ; i2: int ; s2 : string}
-type t3 = #{ f3: float# }
+type mut = #{ mutable i : int }
 [%%expect{|
-type t1 = #{ i1 : int; }
-type t2 = #{ f2 : float#; i2 : int; s2 : string; }
-type t3 = #{ f3 : float#; }
-|}]
-
-(* You can put unboxed and normal products inside unboxed products *)
-
-type t4 = #(string * t2)
-type t5 = #{ r5 : t1 ; r5_ : t2 ; s5 : string}
-[%%expect{|
-type t4 = #(string * t2)
-type t5 = #{ r5 : t1; r5_ : t2; s5 : string; }
-|}]
-
-(* But you can't put unboxed products into normal tuples and records (yet) *)
-
-type bad = { r : t2 }
-[%%expect{|
-Line 1, characters 0-21:
-1 | type bad = { r : t2 }
-    ^^^^^^^^^^^^^^^^^^^^^
-Error: Type "t2" has layout "float64 & value & value".
-       Records may not yet contain types of this layout.
-|}]
-
-type bad = t2 * t2
-[%%expect{|
-Line 1, characters 11-13:
-1 | type bad = t2 * t2
-               ^^
-Error: Tuple element types must have layout value.
-       The layout of "t2" is float64 & value & value
-         because of the definition of t2 at line 2, characters 0-48.
-       But the layout of "t2" must be a sublayout of value
-         because it's the type of a tuple element.
+Line 1, characters 14-29:
+1 | type mut = #{ mutable i : int }
+                  ^^^^^^^^^^^^^^^
+Error: Unboxed records labels cannot be mutable
 |}]
 
 (*********************************)
 (* Parameterized unboxed records *)
-
-type 'a t = #{ x : 'a }
-let convert (r : int t) : int t =
-  { r with x = string }
-[%%expect{|
-type 'a t = #{ x : 'a; }
-Line 3, characters 2-23:
-3 |   { r with x = string }
-      ^^^^^^^^^^^^^^^^^^^^^
-Error: This expression should not be a record, the expected type is "int t"
-|}]
 
 (* Checks of constrain_type_jkind *)
 
@@ -231,29 +184,90 @@ type ('a : float64, 'b : immediate) t = #{ x : string; y : 'a; z : 'b }
 type ('a : float64, 'b : immediate) t = #{ x : string; y : 'a; z : 'b; }
 |}];;
 
-(***************************************************)
-(* Simple kind annotations on unboxed record types *)
-
-type t1 : immediate = #{ i1 : int }
-type t2 : float64 & immediate & value = #{ f2: float# ; i2: int ; s2 : string}
-type t3 : float64 = #{ f3: float# }
-type t5 : immediate & (float64 & immediate & value) & value = #{ r5 : t1 ; r5_ : t2 ; s5 : string}
+type ('a : value & float64 & value) t1
+type ('a : value) t2
 [%%expect{|
-type t1 = #{ i1 : int; }
-type t2 = #{ f2 : float#; i2 : int; s2 : string; }
-type t3 = #{ f3 : float#; }
-type t5 = #{ r5 : t1; r5_ : t2; s5 : string; }
+type ('a : value & float64 & value) t1
+type 'a t2
 |}]
 
-type t5_bad : immediate & float64 & immediate & value & value = #{ r5 : t1 ; r5_ : t2 ; s5 : string}
+type s = r t1
+and r = #{ x : int; y : float#; z : s t2 }
 [%%expect{|
-Line 1, characters 0-100:
-1 | type t5_bad : immediate & float64 & immediate & value & value = #{ r5 : t1 ; r5_ : t2 ; s5 : string}
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type "t5_bad" is value & (float64 & value & value) & value
+type s = r t1
+and r = #{ x : int; y : float#; z : s t2; }
+|}]
+
+type s = r_bad t1
+and r_bad = #{ y : float#; z : s t2 }
+[%%expect{|
+Line 2, characters 0-37:
+2 | and r_bad = #{ y : float#; z : s t2 }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The layout of r_bad is any & any
          because it is an unboxed record.
-       But the layout of type "t5_bad" must be a sublayout of value & float64 & value & value & value
-         because of the annotation on the declaration of the type t5_bad.
+       But the layout of r_bad must be a sublayout of value & float64 & value
+         because of the definition of t1 at line 1, characters 0-38.
+|}]
+
+(* CR layouts v7.2: the following should typecheck. *)
+type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
+and r = #{ i : int ; f : float# }
+[%%expect{|
+Line 2, characters 0-33:
+2 | and r = #{ i : int ; f : float# }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The layout of r is any & any
+         because it is an unboxed record.
+       But the layout of r must be representable
+         because it instantiates an unannotated type parameter of t.
+|}]
+
+(*******************)
+(* Types with [as] *)
+
+let f (x : < m: 'a. ([< `Foo of int & float] as 'a) -> unit>)
+         : < m: 'a. ([< `Foo of int & float] as 'a) -> unit> = x;;
+
+type t = #{ x : 'a. ([< `Foo of int & float ] as 'a) -> unit };;
+let f t = #{ x = t.#x };;
+[%%expect{|
+val f :
+  < m : 'a. ([< `Foo of int & float ] as 'a) -> unit > ->
+  < m : 'b. ([< `Foo of int & float ] as 'b) -> unit > = <fun>
+type t = #{ x : 'a. ([< `Foo of int & float ] as 'a) -> unit; }
+val f : t -> t = <fun>
+|}]
+
+module Bad : sig
+  type t = #{ i : int ; a: (<x:'a> as 'a) }
+end = struct
+  type t = #{ i : int ; a: (<x:'a * 'a> as 'a) }
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = #{ i : int ; a: (<x:'a * 'a> as 'a) }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = #{ i : int; a : < x : 'a * 'a > as 'a; } end
+       is not included in
+         sig type t = #{ i : int; a : < x : 'a > as 'a; } end
+       Type declarations do not match:
+         type t = #{ i : int; a : < x : 'a * 'a > as 'a; }
+       is not included in
+         type t = #{ i : int; a : < x : 'a > as 'a; }
+       Fields do not match:
+         "a : < x : 'a * 'a > as 'a;"
+       is not the same as:
+         "a : < x : 'a > as 'a;"
+       The type "< x : 'a * 'a > as 'a" is not equal to the type
+         "< x : 'b > as 'b"
+       The method "x" has type "< x : 'c > * < x : 'c > as 'c",
+       but the expected method type was "< x : 'b > as 'b"
 |}]
 
 (**********************)
@@ -323,17 +337,15 @@ module M : sig type t : float64 & value end
 
 module M : sig
   type t
-  type tup = t * t
 end = struct
   type t = #{ s : string }
-  type tup = t * t
 end
 [%%expect{|
-module M : sig type t type tup = t * t end
+module M : sig type t end
 |}]
 
-(****************************)
-(* Types with external mode *)
+(*************************************)
+(* Types that mode cross externality *)
 
 type ('a : value mod external_) t = #{ x : float#; y : 'a }
 type ('a : immediate) t = #{ x : float#; y : 'a }
@@ -403,27 +415,36 @@ and ('a : float64, 'b : immediate, 'ptr) t = #{
 }
 |}];;
 
-(* Fields can be mutable, but we can't set them yet *)
-
-type r = #{ mutable i : int }
-
-let f = #{ i = 1 }
-
 (* We don't yet have syntax for setting an unboxed record field.
    However, the below, using a boxed set field, will never work. *)
 
+type r = #{ i : int }
+let f = #{ i = 1 }
+[%%expect{|
+type r = #{ i : int; }
+val f : r = #{i = 1}
+|}]
+
 let () = f.i <- 2
 [%%expect{|
-type r = #{ mutable i : int; }
-val f : r = #{i = 1}
-Line 8, characters 9-10:
-8 | let () = f.i <- 2
+Line 1, characters 9-10:
+1 | let () = f.i <- 2
              ^
-Error: This expression has type "r" which is not a record type.
+Error: This expression has type "r",
+       which is an unboxed record rather than a boxed one.
 |}]
 
 (********************************)
 (* Private unboxed record types *)
+
+module M : sig
+  type t = private #{ x : int; y : bool }
+end = struct
+  type t = #{ x : int; y : bool }
+end;;
+[%%expect{|
+module M : sig type t = private #{ x : int; y : bool; } end
+|}]
 
 module M : sig
   type t = #{ x : int; y : bool }
@@ -491,3 +512,103 @@ Error: Signature mismatch:
          type t = #{ x : int; y : bool; }
        A private unboxed record constructor would be revealed.
 |}];;
+
+(*****************************************************)
+(* Special-cased errors for boxed/unboxed mismatches *)
+
+type t_u = #{ u : int }
+type t = { b : int }
+[%%expect{|
+type t_u = #{ u : int; }
+type t = { b : int; }
+|}]
+
+let f () : t_u = { b = 1 }
+[%%expect{|
+Line 1, characters 17-26:
+1 | let f () : t_u = { b = 1 }
+                     ^^^^^^^^^
+Error: This boxed record expression should be unboxed instead,
+       the expected type is "t_u"
+|}]
+
+let f () : t = #{ u = 2 }
+[%%expect{|
+Line 1, characters 15-25:
+1 | let f () : t = #{ u = 2 }
+                   ^^^^^^^^^^
+Error: This unboxed record expression should be boxed instead,
+       the expected type is "t"
+|}]
+
+let ({ b } : t_u) = assert false
+[%%expect{|
+Line 1, characters 5-10:
+1 | let ({ b } : t_u) = assert false
+         ^^^^^
+Error: This boxed record pattern should be unboxed instead,
+       the expected type is "t_u"
+|}]
+
+let (#{ u } : t) = assert false
+[%%expect{|
+Line 1, characters 5-11:
+1 | let (#{ u } : t) = assert false
+         ^^^^^^
+Error: This unboxed record pattern should be boxed instead,
+       the expected type is "t"
+|}]
+
+let bad_get (t_u : t_u) = t_u.u
+[%%expect{|
+Line 1, characters 26-29:
+1 | let bad_get (t_u : t_u) = t_u.u
+                              ^^^
+Error: This expression has type "t_u",
+       which is an unboxed record rather than a boxed one.
+|}]
+
+let bad_get (t : t) = t.#b
+[%%expect{|
+Line 1, characters 22-23:
+1 | let bad_get (t : t) = t.#b
+                          ^
+Error: This expression has type "t",
+       which is a boxed record rather than an unboxed one.
+|}]
+
+let _ = #{ b = 5 }
+[%%expect{|
+Line 1, characters 11-12:
+1 | let _ = #{ b = 5 }
+               ^
+Error: Unbound unboxed record field "b"
+Hint: There is a boxed record field with this name.
+|}]
+
+let _ = { u = 5 }
+[%%expect{|
+Line 1, characters 10-11:
+1 | let _ = { u = 5 }
+              ^
+Error: Unbound record field "u"
+Hint: There is an unboxed record field with this name.
+|}]
+
+let bad_get t_u = t_u.u
+[%%expect{|
+Line 1, characters 22-23:
+1 | let bad_get t_u = t_u.u
+                          ^
+Error: Unbound record field "u"
+Hint: There is an unboxed record field with this name.
+|}]
+
+let bad_get t = t.#b
+[%%expect{|
+Line 1, characters 19-20:
+1 | let bad_get t = t.#b
+                       ^
+Error: Unbound unboxed record field "b"
+Hint: There is a boxed record field with this name.
+|}]

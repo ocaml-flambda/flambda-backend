@@ -850,10 +850,12 @@ result: 7
 
 type 'a with_idx : value & immediate = #{ data : 'a ; i : int }
 let idx #{ data = _ ; i } = i
+let #{ data = payload; _ } = #{ data = "payload" ; i = 0 }
 let inc r = #{ r with i = r.#i + 1 }
 [%%expect{|
 type 'a with_idx = #{ data : 'a; i : int; }
 val idx : 'a with_idx -> int @@ global many = <fun>
+val payload : string @@ global many = "payload"
 val inc : 'a with_idx -> 'a with_idx @@ global many = <fun>
 |}]
 

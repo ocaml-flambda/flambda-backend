@@ -1,5 +1,5 @@
 (* TEST
-   flags = "-extension layouts_alpha";
+   flags = "-extension layouts_beta";
    {
      expect;
    }
@@ -39,10 +39,10 @@ Error: The unboxed record field "contents" belongs to the type "'a ref_u"
 |}];;
 
 (* private types *)
-type u = private #{mutable u:int};;
+type u = private #{u:int};;
 #{u=3};;
 [%%expect{|
-type u = private #{ mutable u : int; }
+type u = private #{ u : int; }
 Line 2, characters 0-6:
 2 | #{u=3};;
     ^^^^^^
@@ -133,15 +133,12 @@ Error: This expression has type "bool" which is not a unboxed record type.
 
 type ('a, 'b) t = #{ fst : 'a; snd : 'b };;
 let with_fst r fst = #{ r with fst };;
-with_fst #{ fst=""; snd="" } 2;;
+let #{ fst;  snd} = with_fst #{ fst=""; snd="" } 2;;
 [%%expect{|
 type ('a, 'b) t = #{ fst : 'a; snd : 'b; }
 val with_fst : ('a, 'b) t -> 'c -> ('c, 'b) t = <fun>
-Line 3, characters 0-30:
-3 | with_fst #{ fst=""; snd="" } 2;;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Types of unnamed expressions must have layout value when using
-       the toplevel, but this expression has layout "value & value".
+val fst : int = 2
+val snd : string = ""
 |}];;
 
 (* PR#7695 *)
@@ -208,18 +205,8 @@ Error: This variant or record definition does not match that of type
 |}]
 
 type d = #{ x:int; y : int }
-type mut = d = #{x:int; mutable y:int}
 [%%expect{|
 type d = #{ x : int; y : int; }
-Line 2, characters 0-38:
-2 | type mut = d = #{x:int; mutable y:int}
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type "d"
-       Fields do not match:
-         "y : int;"
-       is not the same as:
-         "mutable y : int;"
-       This is mutable and the original is not.
 |}]
 
 type missing = d = #{ x:int }
@@ -253,7 +240,7 @@ Line 2, characters 0-44:
 2 | type unboxed = mono = #{foo:int} [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This type cannot be unboxed because
-       cannot use [@@unboxed] on unboxed record.
+       [@@unboxed] may not be used on unboxed records.
 |}]
 
 type perm = d = #{y:int; x:int}

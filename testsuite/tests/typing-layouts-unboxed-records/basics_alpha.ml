@@ -7,7 +7,44 @@
  }
 *)
 
-(* This test is adapted from [testsuite/tests/typing-layouts-products/basics_alpha.ml] *)
+(*****************************)
+(* Unboxed records with void *)
+
+type t_void  : void
+
+type ('a : void) t = #{ x : 'a ; y : t_void }
+[%%expect{|
+type t_void : void
+type ('a : void) t = #{ x : 'a; y : t_void; }
+|}]
+
+type t = { x : t_void } [@@unboxed]
+[%%expect{|
+type t = { x : t_void; } [@@unboxed]
+|}]
+
+type bad : void = #{ bad : bad }
+[%%expect{|
+type bad = #{ bad : bad; }
+|}]
+
+type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
+[%%expect{|
+Line 1, characters 0-49:
+1 | type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The layout of 'a bad is any & any
+         because it is an unboxed record.
+       But the layout of 'a bad must be representable
+         because it is the type of record field bad.
+|}]
+
+(***************************************************************************************)
+(* The below is adapted from [testsuite/tests/typing-layouts-products/basics_alpha.ml].
+
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into the
+   original or move it to [typing-layouts-products]. *)
 
 (* [t3] is allowed for unboxed tuples, and disallowed for (un)boxed records *)
 type t1 : any mod non_null
@@ -25,6 +62,9 @@ Error: Unboxed record element types must have a representable layout.
        But the layout of t1 must be representable
          because it is the type of record field t1.
 |}]
+
+(* CR layouts v7.2: once [any] is allowed in unboxed record declarations, check
+   that [non_null] behaves correctly in the following tests. *)
 
 type t1 : any mod non_null
 type t2 : value
@@ -122,4 +162,3 @@ Error: Unboxed record element types must have a representable layout.
        But the layout of t1 must be representable
          because it is the type of record field t1.
 |}]
-

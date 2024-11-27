@@ -292,7 +292,9 @@ type error =
   | Unbound_existential of Ident.t list * type_expr
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
+  | Wrong_expected_record_boxing of wrong_kind_context * record_form_packed * type_expr
   | Expr_not_a_record_type of record_form_packed * type_expr
+  | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.locality_context option *

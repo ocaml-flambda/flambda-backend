@@ -3,7 +3,10 @@
  expect;
 *)
 
-(* Adapted from [testsuite/tests/typing-warnings/unused_types.ml] *)
+(* Adapted from [testsuite/tests/typing-warnings/unused_types.ml].
+
+   CR layouts v7.2: Once unboxed records are in stable, fold this test back into the
+   original or move it to [typing-layouts-products]. *)
 
 module Unused_record : sig end = struct
   type t = #{ a : int; b : int }
@@ -56,21 +59,6 @@ Warning 69 [unused-field]: unboxed record field b is never read.
 module Unused_field : sig end
 |}]
 
-module Unused_mutable_field : sig end = struct
-  type t = #{ a : int; mutable b : int }
-  let foo () = #{ a = 0; b = 0 }
-  let bar x = x.#a, x.#b
-  let _ = foo, bar
-end;;
-[%%expect {|
-Line 2, characters 23-38:
-2 |   type t = #{ a : int; mutable b : int }
-                           ^^^^^^^^^^^^^^^
-Warning 69 [unused-field]: mutable unboxed record field b is never mutated.
-
-module Unused_mutable_field : sig end
-|}]
-
 module Unused_field_exported_private : sig
   type t = private #{ a : int }
 end = struct
@@ -89,23 +77,6 @@ end = struct
 end;;
 [%%expect {|
 module Unused_field_exported_private : sig type t = private #{ a : int; } end
-|}]
-
-module Unused_mutable_field_exported_private : sig
-  type t = private #{ a : int; mutable b : int }
-end = struct
-  type t = #{ a : int; mutable b : int }
-  let foo () = #{ a = 0; b = 0 }
-  let _ = foo
-end;;
-[%%expect {|
-Line 4, characters 23-38:
-4 |   type t = #{ a : int; mutable b : int }
-                           ^^^^^^^^^^^^^^^
-Warning 69 [unused-field]: mutable unboxed record field b is never mutated.
-
-module Unused_mutable_field_exported_private :
-  sig type t = private #{ a : int; mutable b : int; } end
 |}]
 
 module Unused_field_disable_warning : sig

@@ -8,7 +8,10 @@
 *)
 
 (* These tests are adapted from the tuple tests in
-   [testsuite/tests/typing-layouts-products/basics.ml] *)
+   [testsuite/tests/typing-layouts-products/basics.ml].
+
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into the
+   original or move it to [typing-layouts-products]. *)
 
 open Stdlib_upstream_compatible
 
@@ -49,10 +52,10 @@ Error: Tuple element types must have layout value.
 (* Test 2: Simple kind annotations on types *)
 
 type t1 : float64 & value = #{ f : float#; b : bool }
-type t2 : value & (float64 & value) = #(string option * t1)
+type t2 : value & (float64 & value) = #{ so : string option ; t1 : t1 }
 [%%expect{|
 type t1 = #{ f : float#; b : bool; }
-type t2 = #(string option * t1)
+type t2 = #{ so : string option; t1 : t1; }
 |}]
 
 type t2_wrong : value & float64 & value = #{ so : string option; t1 : t1 }
@@ -251,9 +254,6 @@ module F :
     end
 |}]
 
-[%%expect{|
-|}]
-
 (***************************************************)
 (* Test 4: Unboxed products don't go in structures *)
 
@@ -301,12 +301,12 @@ Error: Tuple element types must have layout value.
 |}]
 
 type record = #{ i : int; i2 : int }
-let record_term = ("hi", #{ i = 1; i2 = 2 })
+let tuple_term = ("hi", #{ i = 1; i2 = 2 })
 [%%expect{|
 type record = #{ i : int; i2 : int; }
-Line 2, characters 25-43:
-2 | let record_term = ("hi", #{ i = 1; i2 = 2 })
-                             ^^^^^^^^^^^^^^^^^^
+Line 2, characters 24-42:
+2 | let tuple_term = ("hi", #{ i = 1; i2 = 2 })
+                            ^^^^^^^^^^^^^^^^^^
 Error: This expression has type "record" but an expression was expected of type
          "('a : value)"
        The layout of record is value & value
@@ -375,16 +375,6 @@ Line 3, characters 6-7:
           ^
 Error: Types of top-level module bindings must have layout "value", but
        the type of "x" has layout "value & value".
-|}]
-
-(* This one is okay, because the record has layout vlue *)
-type m_record = #{ i1 : int }
-module M = struct
-  let x = #{ i1 = 1 }
-end
-[%%expect{|
-type m_record = #{ i1 : int; }
-module M : sig val x : m_record end
 |}]
 
 type object_inner = #{ i : int; b : bool }
@@ -477,6 +467,8 @@ class class_with_urecord_manipulating_method :
 
 (* This typechecks for unboxed tuples, but fail for [@@unboxed], unboxed, and boxed
    records, in the same way as below.
+
+   CR layouts v7.2: These should typecheck for all record forms.
 *)
 module type S_coherence_deep = sig
   type t1 : any
@@ -509,7 +501,7 @@ Error: [@@unboxed] record element types must have a representable layout.
 |}]
 
 (***********************************************)
-(* Test 7: modal kinds for unboxed tuple types *)
+(* Test 7: modal kinds for unboxed record types *)
 
 type local_cross1 = #{ i1 : int; i2 : int }
 let f_external_urecord_mode_crosses_local_1

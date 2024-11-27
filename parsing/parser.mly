@@ -3079,10 +3079,6 @@ comprehension_clause:
       { let (exten, fields) = $4 in
         Pexp_open(od, mkexp ~loc:($startpos($3), $endpos)
                         (Pexp_record(fields, exten))) }
-  | od=open_dot_declaration DOT HASHLBRACE record_expr_content RBRACE
-      { let (exten, fields) = $4 in
-        Pexp_open(od, mkexp ~loc:($startpos($3), $endpos)
-                        (Pexp_record_unboxed_product(fields, exten))) }
   | mod_longident DOT LBRACE record_expr_content error
       { unclosed "{" $loc($3) "}" $loc($5) }
   | array_exprs(LBRACKETBAR, BARRBRACKET)

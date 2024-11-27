@@ -1,7 +1,7 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
- flags = "-extension layouts_alpha";
+ flags = "-extension layouts_beta";
  {
    expect;
  }
@@ -33,6 +33,9 @@ type t : value = #{ t : t }
 type t = #{ t : t; }
 |}]
 
+(* CR layouts v7.2: Once we support unboxed records with elements of kind [any], and
+   detect bad recursive unboxed records with an occurs check, this error should improve.
+*)
 type bad = #{ bad : bad ; i : int}
 [%%expect{|
 Line 1, characters 0-34:
@@ -113,41 +116,6 @@ type 'a bad = { bad : 'a bad ; u : 'a}
 [%%expect{|
 type 'a bad = { bad : 'a bad; u : 'a; }
 |}]
-
-
-(***************************************)
-(* Recursive unboxed records with void *)
-
-type t_void  : void
-
-type ('a : void) t = #{ x : 'a ; y : t_void }
-[%%expect{|
-type t_void : void
-type ('a : void) t = #{ x : 'a; y : t_void; }
-|}]
-
-type t = { x : t_void } [@@unboxed]
-[%%expect{|
-type t = { x : t_void; } [@@unboxed]
-|}]
-
-type bad : void = #{ bad : bad }
-[%%expect{|
-type bad = #{ bad : bad; }
-|}]
-
-type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
-[%%expect{|
-Line 1, characters 0-49:
-1 | type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a bad is any & any
-         because it is an unboxed record.
-       But the layout of 'a bad must be representable
-         because it is the type of record field bad.
-|}]
-
 
 (****************************)
 (* A particularly bad error *)

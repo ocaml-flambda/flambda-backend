@@ -86,6 +86,7 @@ type error =
   | Duplicate_constructor of string
   | Too_many_constructors
   | Duplicate_label of string
+  | Unboxed_mutable_label
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
@@ -437,7 +438,8 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
 
-let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
+let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
+      ~allow_unboxed env univars closed lbls kloc =
   assert (lbls <> []);
   let all_labels = ref String.Set.empty in
   List.iter
@@ -453,7 +455,10 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
          let mut : mutability =
           match mut with
           | Immutable -> Immutable
-          | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
+          | Mutable ->
+              match record_form with
+              | Legacy -> Mutable Mode.Alloc.Comonadic.Const.legacy
+              | Unboxed_product -> raise(Error(loc, Unboxed_mutable_label))
          in
          let modalities =
           Typemode.transl_modalities ~maturity:Stable mut attrs modalities
@@ -531,7 +536,7 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
       let lbls, lbls' =
         (* CR layouts: we forbid [@@unboxed] variants from being
            non-value, see comment in [check_representable]. *)
-        transl_labels ~new_var_jkind ~allow_unboxed:(not unboxed)
+        transl_labels ~record_form:Legacy ~new_var_jkind ~allow_unboxed:(not unboxed)
           env univars closed l (Inlined_record { unboxed })
       in
       Types.Cstr_record lbls',
@@ -625,7 +630,8 @@ let verify_unboxed_attr unboxed_attr sdecl =
         | [{pld_mutable = Mutable}] -> bad "it is mutable"
         | [{pld_mutable = Immutable}] -> ()
       end
-    | Ptype_record_unboxed_product _ -> bad "cannot use [@@unboxed] on unboxed record"
+    | Ptype_record_unboxed_product _ ->
+        bad "[@@unboxed] may not be used on unboxed records"
     | Ptype_variant constructors -> begin match constructors with
         | [] -> bad "it has no constructor"
         | (_::_::_) -> bad "it has more than one constructor"
@@ -902,8 +908,8 @@ let transl_declaration env sdecl (id, uid) =
           let lbls, lbls' =
             (* CR layouts: we forbid [@@unboxed] records from being
                non-value, see comment in [check_representable]. *)
-            transl_labels ~new_var_jkind:Any ~allow_unboxed:(not unbox)
-            env None true lbls (Record { unboxed = unbox })
+            transl_labels ~record_form:Legacy ~new_var_jkind:Any
+              ~allow_unboxed:(not unbox) env None true lbls (Record { unboxed = unbox })
           in
           let rep, jkind =
             if unbox then
@@ -922,8 +928,8 @@ let transl_declaration env sdecl (id, uid) =
           Language_extension.assert_enabled ~loc:sdecl.ptype_loc Layouts
             Language_extension.Beta;
           let lbls, lbls' =
-            transl_labels ~new_var_jkind:Any ~allow_unboxed:true
-            env None true lbls Record_unboxed_product
+            transl_labels ~record_form:Unboxed_product ~new_var_jkind:Any
+              ~allow_unboxed:true env None true lbls Record_unboxed_product
           in
           let jkind_ls = List.map (fun _ -> any) lbls in
           let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
@@ -3495,6 +3501,8 @@ let report_error ppf = function
         (Config.max_tag + 1) "non-constant constructors"
   | Duplicate_label s ->
       fprintf ppf "Two labels are named %a" Style.inline_code s
+  | Unboxed_mutable_label ->
+      fprintf ppf "Unboxed records labels cannot be mutable"
   | Recursive_abbrev (s, env, reaching_path) ->
       let reaching_path = Reaching_path.simplify reaching_path in
       Printtyp.wrap_printing_env ~error:true env @@ fun () ->

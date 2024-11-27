@@ -246,7 +246,9 @@ type error =
   | Unbound_existential of Ident.t list * type_expr
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
+  | Wrong_expected_record_boxing of wrong_kind_context * record_form_packed * type_expr
   | Expr_not_a_record_type of record_form_packed * type_expr
+  | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -825,6 +827,7 @@ let src_pos loc attrs env =
 
 type 'rep record_extraction_result =
   | Record_type of Path.t * Path.t * Types.label_declaration list * 'rep
+  | Record_type_of_other_form
   | Not_a_record_type
   | Maybe_a_record_type
 
@@ -840,7 +843,8 @@ let extract_concrete_record (type rep) (record_form : rep record_form) env ty
     Typedecl(p0, p, {type_kind=Type_record_unboxed_product (fields, repres)}) ->
     Record_type (p0, p, fields, repres)
   | Legacy, Typedecl(_, _, {type_kind=Type_record_unboxed_product _})
-  | Unboxed_product, Typedecl(_, _, {type_kind=Type_record _})
+  | Unboxed_product, Typedecl(_, _, {type_kind=Type_record _}) ->
+    Record_type_of_other_form
   | _, Has_no_typedecl | _, Typedecl(_, _, _) -> Not_a_record_type
   | _, May_have_typedecl -> Maybe_a_record_type
 
@@ -861,7 +865,7 @@ let extract_concrete_variant env ty =
 let extract_label_names record_form env ty =
   match extract_concrete_record record_form env ty with
   | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
-  | Not_a_record_type | Maybe_a_record_type -> assert false
+  | Record_type_of_other_form | Not_a_record_type | Maybe_a_record_type -> assert false
 
 let has_poly_constraint spat =
   match spat.ppat_desc with
@@ -2673,6 +2677,9 @@ and type_pat_aux
         | Record_type(p0, p, _, _) ->
             let ty = generic_instance expected_ty in
             Some (p0, p, is_principal expected_ty), ty
+        | Record_type_of_other_form ->
+          let error = Wrong_expected_record_boxing(Pattern, P record_form, expected_ty) in
+          raise (Error (loc, !!penv, error))
         | Maybe_a_record_type ->
           None, newvar (Jkind.Builtin.any ~why:Dummy_jkind)
         | Not_a_record_type ->
@@ -5270,6 +5277,12 @@ and type_expect_
         let expected_opath =
           match extract_concrete_record record_form env ty_expected with
           | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty_expected)
+          | Record_type_of_other_form ->
+            let error =
+              Wrong_expected_record_boxing
+                (Expression explanation, P record_form, ty_expected)
+            in
+            raise (Error (loc, env, error))
           | Maybe_a_record_type -> None
           | Not_a_record_type ->
             let wks = record_form_to_wrong_kind_sort record_form in
@@ -5285,6 +5298,11 @@ and type_expect_
             match extract_concrete_record record_form env exp.exp_type with
             | Record_type (p0, p, _, _) -> Some (p0, p, is_principal exp.exp_type)
             | Maybe_a_record_type -> None
+            | Record_type_of_other_form ->
+              let error =
+                Expr_record_type_has_wrong_boxing (P record_form, exp.exp_type)
+              in
+              raise (Error (exp.exp_loc, env, error))
             | Not_a_record_type ->
               let error = Expr_not_a_record_type (P record_form, exp.exp_type) in
               raise (Error (exp.exp_loc, env, error))
@@ -7192,6 +7210,9 @@ and type_label_access
     | Record_type(p0, p, _, _) ->
         Some(p0, p, is_principal ty_exp)
     | Maybe_a_record_type -> None
+    | Record_type_of_other_form ->
+        let error = Expr_record_type_has_wrong_boxing (P record_form, ty_exp) in
+        raise (Error (record.exp_loc, env, error))
     | Not_a_record_type ->
         let error = Expr_not_a_record_type (P record_form, ty_exp) in
         raise (Error (record.exp_loc, env, error))
@@ -7541,7 +7562,6 @@ and type_label_exp
     | _ -> raise first_try_exn
   in
   (lid, label, arg)
-
 
 and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       ty_expected' ty_expected =
@@ -10463,12 +10483,39 @@ let report_error ~loc env = function
          the expected type is@ %a%t"
         ctx sort (Style.as_inline_code Printtyp.type_expr) ty
         (report_type_expected_explanation_opt explanation)
+  | Wrong_expected_record_boxing(ctx, P record_form, ty) ->
+      let ctx, explanation =
+        match ctx with
+        | Expression explanation -> "expression", explanation
+        | Pattern -> "pattern", None
+      in
+      let expected, actual =
+        match record_form with
+        | Legacy -> "unboxed", "boxed"
+        | Unboxed_product -> "boxed", "unboxed"
+      in
+      Location.errorf ~loc
+        "This %s record %s should be %s instead,@ \
+         the expected type is@ %a%t"
+        actual ctx expected (Style.as_inline_code Printtyp.type_expr) ty
+        (report_type_expected_explanation_opt explanation)
   | Expr_not_a_record_type (P record_form, ty) ->
       Location.errorf ~loc
         "This expression has type %a@ \
          which is not a %s type."
         (Style.as_inline_code Printtyp.type_expr) ty
         (record_form_to_string record_form)
+  | Expr_record_type_has_wrong_boxing (P record_form, ty) ->
+      let expected, actual =
+        match record_form with
+        | Legacy -> "a boxed", "an unboxed"
+        | Unboxed_product -> "an unboxed", "a boxed"
+      in
+      Location.errorf ~loc
+        "This expression has type %a,@ \
+         which is %s record rather than %s one."
+        (Style.as_inline_code Printtyp.type_expr) ty
+        actual expected
   | Submode_failed(fail_reason, submode_reason, locality_context,
       contention_context, shared_context)
      ->

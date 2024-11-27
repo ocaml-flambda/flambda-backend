@@ -3,7 +3,10 @@
  expect;
 *)
 (* This test is adapted from
-   [testsuite/tests/typing-unboxed-types/test.ml] *)
+   [testsuite/tests/typing-unboxed-types/test.ml].
+
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into the
+   original or move it to [typing-layouts-products]. *)
 
 (* Check the unboxing *)
 
@@ -42,6 +45,28 @@ Error: Signature mismatch:
          type t = { a : string; }
        The first is an unboxed record, but the second is a record.
 |}];;
+
+module M : sig
+  type t = #{ a : string }
+end = struct
+  type t = { a : string }
+end;;
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { a : string }
+5 | end..
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { a : string; } end
+       is not included in
+         sig type t = #{ a : string; } end
+       Type declarations do not match:
+         type t = { a : string; }
+       is not included in
+         type t = #{ a : string; }
+       The first is a record, but the second is an unboxed record.
+|}]
 
 (* Check interference with representation of float arrays. *)
 type t11 = #{ f : float };;
