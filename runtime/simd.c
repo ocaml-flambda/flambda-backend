@@ -75,7 +75,7 @@ CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
     return Val_unit;
 }
 
-static value caml_make_unboxed_vec128_vect(value len, int local)
+static value caml_make_unboxed_vec128_vect0(value len, int local)
 {
   /* This is only used on 64-bit targets. */
 
@@ -96,12 +96,12 @@ static value caml_make_unboxed_vec128_vect(value len, int local)
 
 CAMLprim value caml_make_unboxed_vec128_vect(value len)
 {
-  return caml_make_unboxed_vec128_vect(len, 0);
+  return caml_make_unboxed_vec128_vect0(len, 0);
 }
 
 CAMLprim value caml_make_local_unboxed_vec128_vect(value len)
 {
-  return caml_make_unboxed_vec128_vect(len, 1);
+  return caml_make_unboxed_vec128_vect0(len, 1);
 }
 
 CAMLprim value caml_make_unboxed_vec128_vect_bytecode(value len) {
