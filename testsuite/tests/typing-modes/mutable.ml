@@ -75,10 +75,7 @@ Error: This value escapes its region.
    portable record (ignoring mode-crossing). *)
 let foo (s @ portable) = ({s} : _ @@ portable)
 [%%expect{|
-Line 1, characters 26-29:
-1 | let foo (s @ portable) = ({s} : _ @@ portable)
-                              ^^^
-Error: This value is "nonportable" but expected to be "portable".
+val foo : 'a @ portable -> 'a r = <fun>
 |}]
 
 (* This attribute doesn't disable implied modalities on monadic axes. For
@@ -92,15 +89,15 @@ val foo : 'a r -> 'a -> unit = <fun>
 
 let foo (s @ aliased) = ({s} : _ @@ unique)
 [%%expect{|
-val foo : 'a -> 'a r = <fun>
+Line 1, characters 26-27:
+1 | let foo (s @ aliased) = ({s} : _ @@ unique)
+                              ^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let foo (r @ unique) = (r.s : _ @@ unique)
 [%%expect{|
-Line 1, characters 24-27:
-1 | let foo (r @ unique) = (r.s : _ @@ unique)
-                            ^^^
-Error: This value is "aliased" but expected to be "unique".
+val foo : 'a r @ unique -> 'a = <fun>
 |}]
 
 module M : sig
@@ -164,10 +161,7 @@ let r @ portable =
 (* CR mode-crossing: The [m0] in mutable should cross modes upon construction. *)
 [%%expect{|
 type r = { f : string -> string; mutable a : int; }
-Lines 5-6, characters 2-12:
-5 | ..{ f = (fun x -> x);
-6 |     a = 42 }
-Error: This value is "nonportable" but expected to be "portable".
+val r : r = {f = <fun>; a = 42}
 |}]
 
 type r =
@@ -180,8 +174,5 @@ let r @ portable =
    in modality; as a result, it enjoys mode crossing enabled by the modality. *)
 [%%expect{|
 type r = { f : string -> string; mutable g : string -> string @@ portable; }
-Lines 5-6, characters 2-20:
-5 | ..{ f = (fun x -> x);
-6 |     g = fun x -> x }
-Error: This value is "nonportable" but expected to be "portable".
+val r : r = {f = <fun>; g = <fun>}
 |}]

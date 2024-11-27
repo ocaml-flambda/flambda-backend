@@ -328,15 +328,130 @@ let swap_inner (t : tree) =
 val swap_inner : tree -> tree @@ global many = <fun>
 |}]
 
-(* TODO: Update this test once overwriting is fully implemented.
-let swap_inner (t : tree) =
-  match t with
-  | Node { l = Node { r = lr } as l; r = Node { l = rl } as r } as t ->
-      overwrite_ t with
-        Node { l = overwrite_ l with Node { r = rl; };
-               r = overwrite_ r with Node { l = lr; }}
-  | _ -> t
+(* CR uniqueness: Update this test once overwriting is fully implemented.
+   let swap_inner (t : tree) =
+   match t with
+   | Node { l = Node { r = lr } as l; r = Node { l = rl } as r } as t ->
+   overwrite_ t with
+   Node { l = overwrite_ l with Node { r = rl; };
+   r = overwrite_ r with Node { l = lr; }}
+   | _ -> t
+   [%%expect{|
+
+   |}]
+*)
+
+(***********************)
+(* Barriers for guards *)
+
+let match_guard r =
+  match r with
+  | { y } when String.equal y "" ->
+    let r = aliased_use r in
+    (r, y)
+  | { y } ->
+    let r = unique_use r in
+    (r, y)
 [%%expect{|
+(let
+  (unique_use/283 = (apply (field_imm 0 (global Toploop!)) "unique_use")
+   aliased_use/280 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
+   match_guard/376 =
+     (function {nlocal = 0} r/378[(consts ()) (non_consts ([0: *, *]))]
+       [(consts ())
+        (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
+       (let (y/379 =o (field_mut 1 r/378))
+         (if (apply (field_imm 8 (global Stdlib__String!)) y/379 "")
+           (let
+             (r/450 =[(consts ()) (non_consts ([0: *, *]))]
+                (apply aliased_use/280 r/378))
+             (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/450
+               y/379))
+           (let
+             (y/380 =o (field_mut 1 r/378)
+              r/451 =[(consts ()) (non_consts ([0: *, *]))]
+                (apply unique_use/283 r/378))
+             (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/451
+               y/380))))))
+  (apply (field_imm 1 (global Toploop!)) "match_guard" match_guard/376))
+val match_guard : record @ unique -> record * string @@ global many = <fun>
+|}]
+
+let match_guard_unique (unique_ r) =
+  match r with
+  | { y } when String.equal ((unique_use r).x) "" -> y
+  | _ -> ""
+[%%expect{|
+Line 3, characters 4-9:
+3 |   | { y } when String.equal ((unique_use r).x) "" -> y
+        ^^^^^
+Error: This value is read from here, but it is already being used as unique:
+Line 3, characters 41-42:
+3 |   | { y } when String.equal ((unique_use r).x) "" -> y
+                                             ^
 
 |}]
-*)
+
+(********************************************)
+(* Global allocations in overwritten fields *)
+
+type option_record = { x : string option; y : string option }
+[%%expect{|
+0
+type option_record = { x : string option; y : string option; }
+|}]
+
+let check_heap_alloc_in_overwrite (unique_ r : option_record) =
+  overwrite_ r with { x = Some "" }
+[%%expect{|
+Line 2, characters 2-35:
+2 |   overwrite_ r with { x = Some "" }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]
+
+let check_heap_alloc_in_overwrite (local_ unique_ r : option_record) =
+  overwrite_ r with { x = Some "" }
+[%%expect{|
+Line 2, characters 2-35:
+2 |   overwrite_ r with { x = Some "" }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]
+
+(*******************************)
+(* Overwrite of mutable fields *)
+
+type mutable_record = { mutable x : string; y : string }
+[%%expect{|
+0
+type mutable_record = { mutable x : string; y : string; }
+|}]
+
+let update (unique_ r : mutable_record) =
+  let x = overwrite_ r with { x = "foo" } in
+  x.x
+[%%expect{|
+Line 2, characters 10-41:
+2 |   let x = overwrite_ r with { x = "foo" } in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]
+
+let update (unique_ r : mutable_record) =
+  let x = overwrite_ r with { y = "foo" } in
+  x.x
+[%%expect{|
+Line 2, characters 10-41:
+2 |   let x = overwrite_ r with { y = "foo" } in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]

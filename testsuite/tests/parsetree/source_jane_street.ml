@@ -1217,6 +1217,11 @@ let overwrite_record = function
 let overwrite_record = function
     { a; b } as t -> overwrite_ t with { b = a }
 
+let ret_record () = { a = 1; b = 2 }
+
+let overwrite_record () =
+  overwrite_ (ret_record ()) with { b = a }
+
 type constructor = C of { a : int; b : int }
 
 let overwrite_constructor = function
@@ -1228,7 +1233,7 @@ let overwrite_constructor = function
 Line 2, characters 19-43:
 2 |     (a, b) as t -> overwrite_ t with (b, _)
                        ^^^^^^^^^^^^^^^^^^^^^^^^
-Alert : Overwrite not implemented.
+Alert Translcore: Overwrite not implemented.
 Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
 
 |}]
