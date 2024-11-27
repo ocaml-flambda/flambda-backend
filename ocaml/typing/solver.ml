@@ -765,9 +765,10 @@ module Solver_mono (C : Lattices_mono) = struct
         generalize_topology ~log dst ~current_level ~generic_level u;
         update_level_v ~log dst generic_level u
       end else if
-        u.vupper = [] && u.vlower = [] then
+        C.le dst (C.max dst) u.upper &&
+        C.le dst u.lower (C.min dst) then
         (* the bounds are fully open *)
-        ()
+        update_level_v ~log dst current_level u
       else begin
         (* the bounds are non-trivial *)
         let cond = { b = fun v -> v.level > current_level } in
