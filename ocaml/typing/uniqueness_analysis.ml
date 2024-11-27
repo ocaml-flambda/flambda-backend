@@ -262,6 +262,7 @@ end = struct
     fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
 end
 
+(** For error messages, we keep track of whether an access was sequential or parallel *)
 type access_order =
   | Seq
   | Par
@@ -288,7 +289,8 @@ type access_order =
     to the user if the analysis fails. However, the laws do determine whether
     the analysis may fail in the first place.
 
-    In practice, our semirings also have an ordering that all operations
+    These operations form a semiring, where choose is '+', seq is '*' and empty
+    is '1'. In practice, our semirings also have an ordering that all operations
     above preserve. We write 's1 > s2' if it is sound to return 's2' whenever
     the analysis returns 's1'.
 
@@ -619,7 +621,7 @@ end
 
 module Learned_tags : sig
   (** This module collects the tags of allocations which we may learn from
-      pattern matches. It is always sound to forget tags we have learned.
+      pattern matches. It is always sound to forget tags we have learned
 
       [choose] is used to combine information in or-patterns and [par]
       is used to combine information from several pattern matches on
@@ -633,16 +635,25 @@ module Learned_tags : sig
 
   type t
 
-  (** Unknown tag *)
+  (** No known tag: eg. '()' pattern *)
   val empty : t
 
-  (** Sequential composition *)
+  (** Sequential composition: This is not called for patterns in general
+      and we use the same implementation as for [par]. *)
   val seq : t -> t -> t
 
-  (** Non-deterministic choice *)
+  (** Non-deterministic choice: This is called for or-patterns like
+      '(TagA _ | TagB _) ->' where we learn the intersection of
+      the tags in the pattern. *)
   val choose : t -> t -> t
 
-  (** Parallel composition *)
+  (** Parallel composition: If we match on the same memory cell twice
+      we learn the union of the patterns. For example, in
+      'match (x, x) with (TagA _, TagB _) ->' we learn both tags.
+      This is a sound choice since 'x' can not possibly have two distinct
+      tags and also we are now aliasing 'x' which makes it impossible to
+      overwrite. Note that 'x' can have two distinct tags in the presence
+      of mutation but we track that in the Overwrites module below. *)
   val par : t -> t -> t
 
   (** Register a tag we know (eg. from a pattern-match) *)
@@ -651,7 +662,7 @@ module Learned_tags : sig
   (** Extract the tags that this cell may have *)
   val extract_tags : t -> Tag.Set.t
 
-  (** Assert that no tags were learned and fail else. *)
+  (** Assert that no tags were learned. *)
   val assert_empty : t -> unit
 
   val print : Format.formatter -> t -> unit
@@ -667,7 +678,7 @@ end = struct
 
   let par t0 t1 = Tag.Set.union t0 t1
 
-  let seq t0 t1 = Tag.Set.union t0 t1
+  let seq t0 t1 = par t0 t1
 
   let learn_tag tag = Tag.Set.singleton tag
 
@@ -686,8 +697,7 @@ module Overwrites : sig
 
       However, it is in general unsound if the user mutates the tag
       after we have learned its nature. Then all bets are off and we
-      always fail if there is an overwrite that depends on this
-      information. *)
+      always fail if there is an overwrite that follows a mutation. *)
 
   type t
 
@@ -704,7 +714,7 @@ module Overwrites : sig
 
   exception Error of error
 
-  (** Unknown tag *)
+  (** No overwrites as in eg. a constant expression '()'. *)
   val empty : t
 
   (** Overwrite using a certain tag *)
@@ -714,13 +724,25 @@ module Overwrites : sig
       and will learn). If there is also an overwrite, we fail. *)
   val mutate_tag : t
 
-  (** Sequential composition *)
+  (** Sequential composition: Union the overwrites that were collected
+      in either argument. Error if there was a mutation in one argument
+      and an overwrite in the second. Eg.
+      'x <- TagA; overwrite_ x with TagB' fails
+      'overwrite_ x with TagA; x <- TagB' fails
+      'overwrite_ x with TagA; overwrite_ x with TagB' succeeds
+      *)
   val seq : t -> t -> t
 
-  (** Non-deterministic choice *)
+  (** Non-deterministic choice: Union the overwrites that were collected
+      in either argument. Record if there was a mutation in either
+      argument but do not error since the branches are independent. Eg.
+      'if b then overwrite_ x with TagA else overwrite_ x with TagB' succeeds
+      'if b then x <- TagA else overwrite_ x with TagB' succeeds and records
+        that 'x' was mutated in a branch.
+      *)
   val choose : t -> t -> t
 
-  (** Parallel composition *)
+  (** Parallel composition: Same as [seq]. *)
   val par : t -> t -> t
 
   (** If we find out that a tag was mutated,
@@ -729,7 +751,7 @@ module Overwrites : sig
       any tag that is reachable from the mutable field. *)
   val promote_mutation_to_children : t -> t
 
-  (** We may not overwrite a tag we don't know.
+  (** We may not overwrite a tag we do not know.
       At the end of the analysis, this function should
       be called to ensure all overwrites are on known tags. *)
   val check_no_remaining_overwritten_as : t -> unit
@@ -738,7 +760,7 @@ module Overwrites : sig
       from a pattern-match. *)
   val match_with_learned_tags : Tag.Set.t -> t -> t
 
-  (** Assert that no overwrites were collected and fail else. *)
+  (** Assert that no overwrites were collected. *)
   val assert_empty : t -> unit
 
   val print : Format.formatter -> t -> unit
@@ -746,12 +768,17 @@ end = struct
   type tags =
     { overwritten : Tag.Set.t Tag.Map.t;
           (** The keys of the map are the tags of the overwrite.
-          When we learn new tags, we can remove keys from this map,
-          that correspond to the new tags. We then keep the learned
-          tags on the keys that did not match them to produce good
-          error messages. It is always sound to add elements to this map.
+              When we learn new tags, we can remove keys from this map,
+              that correspond to the new tags. We then keep the learned
+              tags on the keys that did not match them to produce good
+              error messages. It is always sound to add elements to this map.
           *)
       was_mutated : bool
+          (** If a mutation occurs in a branch with no overwriting, we set this flag.
+              It is acceptable for overwrites to occur in a different branch or
+              earlier in the control flow, but it is not okay for an overwrite to
+              happen later in the control flow.
+          *)
     }
 
   type t =
@@ -782,14 +809,20 @@ end = struct
 
   let mutate_tag = Tag_was_mutated
 
-  let union_with_remembered =
+  (* We union the overwrites and either intersect or union the learned tags.
+     The distinction between these two functions only affects error messages.
+  *)
+  let union_with_inter_learned =
+    Tag.Map.union (fun _ t0 t1 -> Some (Tag.Set.inter t0 t1))
+
+  let union_with_union_learned =
     Tag.Map.union (fun _ t0 t1 -> Some (Tag.Set.union t0 t1))
 
   let choose t0 t1 =
     match t0, t1 with
     | Tags t0, Tags t1 ->
       Tags
-        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
+        { overwritten = union_with_inter_learned t0.overwritten t1.overwritten;
           was_mutated = t0.was_mutated || t1.was_mutated
         }
     | Tags { overwritten }, Tag_was_mutated
@@ -802,7 +835,7 @@ end = struct
     | Tag_was_mutated, Tag_was_mutated -> Tag_was_mutated
     | Tags t0, Tags t1 when (not t0.was_mutated) && not t1.was_mutated ->
       Tags
-        { overwritten = union_with_remembered t0.overwritten t1.overwritten;
+        { overwritten = union_with_union_learned t0.overwritten t1.overwritten;
           was_mutated = false
         }
     | Tags { overwritten }, _ | _, Tags { overwritten } -> (
@@ -1003,7 +1036,9 @@ module Usage_tree : sig
   (** An empty tree containing only the root with empty usage *)
   val empty : t
 
-  (** A singleton tree containing only one leaf *)
+  (** A singleton tree containing only one leaf. In patterns, the
+      'Overwrites.t' should be empty and in expressions the 'Learned_tags.t'
+      should be empty. *)
   val singleton : Usage.t -> Learned_tags.t -> Overwrites.t -> Path.t -> t
 
   (** Runs a function through the tree; the function must be monotone *)
@@ -1320,7 +1355,8 @@ end = struct
      However, when we fold the [choose] operation we need to initialize the
      accumulator with zero. We avoid doing this here by skipping the initial
      accumulator altogether. When [chooses] gets passed an empty list,
-     we return 'empty' which is sound in all semirings with '0 > 1'. *)
+     we return the '1' of the semiring which is sound in all semirings
+     that have '0 > 1'. See the discussion about semirings above. *)
   let fold_left1 f = function [] -> unused | x :: l -> List.fold_left f x l
 
   let chooses l = fold_left1 choose l
@@ -1333,7 +1369,7 @@ end = struct
     Root_id.Map.singleton rootid
       (Usage_tree.singleton leaf learned overwrites path')
 
-  (** f must be monotone *)
+  (** 'fu fl fo' all must be monotone *)
   let map fu fl fo =
     Root_id.Map.mapi (fun _root tree ->
         Usage_tree.mapi (fun _projs usage -> fu usage) fl fo tree)
