@@ -281,6 +281,9 @@ end = struct
           block.terminator liveness)
 end
 
+(* note: `dump` is for debugging, and thus not always in use. *)
+let _ = Sub_cfg.dump
+
 class virtual selector_generic =
   object (self : 'self)
     inherit [Label.t, Operation.t, Cfg.basic] Select_utils.common_selector
@@ -1363,7 +1366,6 @@ class virtual selector_generic =
       self#insert_moves env loc_arg rarg;
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
-      if true then Sub_cfg.dump body;
       (* CR xclerc for xclerc: implement polling insertion. *)
       let fun_poll = Lambda.Default_poll in
       let fun_contains_calls =
