@@ -152,18 +152,18 @@ let linearize_terminator cfg_with_layout (func : string) start
     match terminator.desc with
     | Return -> [L.Lreturn], None
     | Raise kind -> [L.Lraise kind], None
-    | Tailcall_func Indirect -> [L.Lop Itailcall_ind], None
+    | Tailcall_func Indirect -> [L.Lcall_op Ltailcall_ind], None
     | Tailcall_func (Direct func_symbol) ->
-      [L.Lop (Itailcall_imm { func = func_symbol })], None
+      [L.Lcall_op (Ltailcall_imm { func = func_symbol })], None
     | Tailcall_self { destination } ->
-      ( [ L.Lop
-            (Itailcall_imm { func = { sym_name = func; sym_global = Local } })
+      ( [ L.Lcall_op
+            (Ltailcall_imm { func = { sym_name = func; sym_global = Local } })
         ],
         Some destination )
     | Call_no_return { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
       single
-        (L.Lop
-           (Iextcall
+        (L.Lcall_op
+           (Lextcall
               { func = func_symbol;
                 alloc;
                 ty_args;
@@ -172,17 +172,17 @@ let linearize_terminator cfg_with_layout (func : string) start
                 stack_ofs
               }))
     | Call { op; label_after } ->
-      let op : Mach.operation =
+      let op : Linear.call_operation =
         match op with
-        | Indirect -> Icall_ind
-        | Direct func_symbol -> Icall_imm { func = func_symbol }
+        | Indirect -> Lcall_ind
+        | Direct func_symbol -> Lcall_imm { func = func_symbol }
       in
-      branch_or_fallthrough [L.Lop op] label_after, None
+      branch_or_fallthrough [L.Lcall_op op] label_after, None
     | Prim { op; label_after } ->
-      let op : Mach.operation =
+      let op : Linear.call_operation =
         match op with
         | External { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
-          Iextcall
+          Lextcall
             { func = func_symbol;
               alloc;
               ty_args;
@@ -191,11 +191,11 @@ let linearize_terminator cfg_with_layout (func : string) start
               stack_ofs
             }
         | Probe { name; handler_code_sym; enabled_at_init } ->
-          Iprobe { name; handler_code_sym; enabled_at_init }
+          Lprobe { name; handler_code_sym; enabled_at_init }
       in
-      branch_or_fallthrough [L.Lop op] label_after, None
+      branch_or_fallthrough [L.Lcall_op op] label_after, None
     | Specific_can_raise { op; label_after } ->
-      branch_or_fallthrough [L.Lop (Ispecific op)] label_after, None
+      branch_or_fallthrough [L.Lop (Specific op)] label_after, None
     | Switch labels -> single (L.Lswitch labels)
     | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
     | Always label -> branch_or_fallthrough [] label, None

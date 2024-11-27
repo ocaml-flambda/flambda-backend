@@ -23,10 +23,10 @@ Line 2, characters 12-19:
 Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}];;
 
-type r : value = A of r [@@unboxed]
+type r = A of r [@@unboxed]
 let rec y = A y;;
 [%%expect{|
-type r : value = A of r [@@unboxed]
+type r = A of r [@@unboxed]
 Line 2, characters 12-15:
 2 | let rec y = A y;;
                 ^^^

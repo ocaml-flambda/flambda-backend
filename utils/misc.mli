@@ -133,6 +133,8 @@ module Stdlib : sig
     (** [map_option f l] is [some_if_all_elements_are_some (map f l)], but with
         short circuiting. *)
 
+    val map2_option : ('a -> 'b -> 'c option) -> 'a t -> 'b t -> 'c t option
+
     val map2_prefix : ('a -> 'b -> 'c) -> 'a t -> 'b t -> ('c t * 'b t)
     (** [let r1, r2 = map2_prefix f l1 l2]
         If [l1] is of length n and [l2 = h2 @ t2] with h2 of length n,
@@ -255,6 +257,8 @@ module Stdlib : sig
     val map_sharing : ('a -> 'a) -> 'a array -> 'a array
     (** [map_sharing f a] is [map f a]. If for all elements of the array
         [f e == e] then [map_sharing f a == a] *)
+
+    val of_list_map : ('a -> 'b) -> 'a list -> 'b array
   end
 
 (** {2 Extensions to the String module} *)
@@ -299,16 +303,58 @@ module Stdlib : sig
   external compare : 'a -> 'a -> int = "%compare"
 
   module Monad : sig
+    module type Basic = sig
+      type 'a t
+
+      val bind : 'a t -> ('a -> 'b t) -> 'b t
+      val return : 'a -> 'a t
+
+      (** The following identities ought to hold (for some value of =):
+
+          - [return x >>= f = f x]
+          - [t >>= fun x -> return x = t]
+          - [(t >>= f) >>= g = t >>= fun x -> (f x >>= g)]
+
+          Note: [>>=] is the infix notation for [bind]) *)
+    end
+
     module type Basic2 = sig
-      (** Multi parameter monad. The second parameter gets unified across all the computation.
-          This is used to encode monads working on a multi parameter data structure like
-          ([('a,'b) result]). *)
+      (** Multi parameter monad. The second parameter gets unified across all
+          the computation.  This is used to encode monads working on a multi
+          parameter data structure like ([('a,'b) result]). *)
 
       type ('a, 'e) t
 
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
 
       val return : 'a -> ('a, _) t
+    end
+
+    module type S = sig
+      type 'a t
+
+      val bind : 'a t -> ('a -> 'b t) -> 'b t
+
+      (** [>>=] is a synonym for [bind] *)
+      val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
+
+      (** [return v] returns the (trivial) computation that returns v. *)
+      val return : 'a -> 'a t
+
+      val map : ('a -> 'b) -> 'a t -> 'b t
+
+      (** [join t] is [t >>= (fun t' -> t')]. *)
+      val join : 'a t t -> 'a t
+
+      (** [ignore_m t] is [map (fun _ -> ()) t]. *)
+      val ignore_m : 'a t -> unit t
+
+      val all : 'a t list -> 'a list t
+
+      (** Like [all], but ensures that every monadic value in the list produces
+          a unit value, all of which are discarded rather than being collected
+          into a list. *)
+      val all_unit : unit t list -> unit t
     end
 
     module type S2 = sig
@@ -323,8 +369,10 @@ module Stdlib : sig
       val all_unit : (unit, 'e) t list -> (unit, 'e) t
     end
 
+    module Make (X : Basic) : S with type 'a t = 'a X.t
     module Make2 (X : Basic2) : S2 with type ('a, 'e) t = ('a, 'e) X.t
 
+    module Option : S with type 'a t = 'a option
     module Result : S2 with type ('a, 'e) t = ('a, 'e) result
   end
 end

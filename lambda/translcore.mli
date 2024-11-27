@@ -51,6 +51,8 @@ type error =
   | Illegal_void_record_field
   | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of Types.type_expr
+  | Unboxed_vector_in_array_comprehension
+  | Unboxed_product_in_array_comprehension
 
 exception Error of Location.t * error
 

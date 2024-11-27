@@ -50,6 +50,7 @@ let transl_unique_barrier barrier =
     (* CR uniqueness: this is a temporary measure to ensure that we can roll
        the compiler without breaking existing code. Once uniqueness is stable,
        we can simplify this to always return [Must_stay_here]. *)
-    if Language_extension.is_enabled Unique
+    if Language_extension.is_at_least Unique
+         Language_extension.maturity_of_unique_for_destruction
     then Must_stay_here
     else assert false

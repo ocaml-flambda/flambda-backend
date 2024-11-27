@@ -29,8 +29,22 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
+  | Product_iarrays_unsupported
 
 exception Error of Location.t * error
+
+(* CR layouts v7.1: This is temporary - we should support iarrays of unboxed
+   products. *)
+let unboxed_product_iarray_check loc kind mut =
+  match kind, mut with
+  | (Pgcscannableproductarray _ | Pgcignorableproductarray _),
+    (Immutable | Immutable_unique) ->
+    raise (Error (loc, Product_iarrays_unsupported))
+  | _, Mutable
+  | (Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+    | Punboxedintarray _ | Punboxedvectorarray _), _  ->
+    ()
+
 
 (* Insertion of debugging events *)
 
@@ -326,6 +340,14 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         Misc.fatal_errorf "Primitive \"%s\" unexpectedly had zero arguments"
           p.prim_name
   in
+  let get_third_arg_mode () =
+    match arg_modes with
+    | _ :: _ :: mode :: _ -> mode
+    | _ ->
+        Misc.fatal_errorf "Primitive \"%s\" unexpectedly had fewer than three \
+                           arguments"
+          p.prim_name
+  in
   let lambda_prim = to_lambda_prim p ~poly_sort in
   let layout =
     (* Extract the result layout of the primitive.  This can be a non-value
@@ -508,6 +530,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         ((Parraysetu
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
         3)
+    | "%makearray_dynamic" ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Primitive (Pmakearray_dynamic (gen_array_kind, mode), 2)
+    | "%arrayblit" ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Primitive (Parrayblit (gen_array_set_kind (get_third_arg_mode ())), 5)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index, Mutable)), 2)
     | "%obj_set_field" ->
@@ -881,6 +909,23 @@ let simplify_constant_constructor = function
   | Greater_than -> false
   | Compare -> false
 
+(* See [glb_array_type] *)
+let rec glb_scannable_kinds kinds1 kinds2 =
+  if List.length kinds1 = List.length kinds2 then
+    Misc.Stdlib.List.map2_option glb_scannable_kind kinds1 kinds2
+  else
+    None
+
+and glb_scannable_kind kind1 kind2 =
+  match kind1, kind2 with
+  | Pint_scannable, (Paddr_scannable | Pint_scannable)
+  | Paddr_scannable, Pint_scannable -> Some Pint_scannable
+  | Paddr_scannable, Paddr_scannable -> Some Paddr_scannable
+  | Pproduct_scannable kinds1, Pproduct_scannable kinds2 ->
+    Option.map (fun x -> Pproduct_scannable x)
+      (glb_scannable_kinds kinds1 kinds2)
+  | (Pint_scannable | Paddr_scannable | Pproduct_scannable _), _ -> None
+
 (* The following function computes the greatest lower bound of array kinds:
 
         gen      unboxed-float  unboxed-int32  unboxed-int64  unboxed-nativeint
@@ -890,6 +935,9 @@ let simplify_constant_constructor = function
     addr  float
       |
     int
+
+   For product kinds, we take the product of this lattice.
+
    Note that the GLB is not guaranteed to exist.
    In case of array kinds working with layout value, we return
    our first argument instead of raising a fatal error because, although
@@ -928,13 +976,32 @@ let glb_array_type loc t1 t2 =
   | Punboxedvectorarray _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
+  (* Unboxed product arrays. Same cheat as above for Pgenarray. *)
+  | Pgenarray,
+    ((Pgcignorableproductarray _ | Pgcscannableproductarray _) as k) -> k
+  | (Pgcignorableproductarray kinds1) as k, Pgcignorableproductarray kinds2 ->
+    if List.equal equal_ignorable_product_element_kind kinds1 kinds2
+    then k
+    else Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
+  | Pgcscannableproductarray kinds1, Pgcscannableproductarray kinds2 ->
+    begin match glb_scannable_kinds kinds1 kinds2 with
+    | Some kinds -> Pgcscannableproductarray kinds
+    | None -> Misc.fatal_error "mismatched scannableproductarray kinds in glb"
+    end
+  | Pgcignorableproductarray _, _ | _, Pgcignorableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcignorableproductarray kind in glb"
+  | Pgcscannableproductarray _, _ | _, Pgcscannableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcscannableproductarray kind in glb"
+
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray, (Paddrarray | Pintarray)
   | (Paddrarray | Pintarray), Pfloatarray -> t1
 
   (* Compute the correct GLB *)
-  | Pgenarray, x | x, Pgenarray -> x
-  | Paddrarray, x | x, Paddrarray -> x
+  | Pgenarray, ((Pgenarray | Paddrarray | Pintarray | Pfloatarray) as x)
+  | ((Paddrarray | Pintarray | Pfloatarray) as x), Pgenarray -> x
+  | Paddrarray, Paddrarray -> Paddrarray
+  | Paddrarray, Pintarray | Pintarray, Paddrarray -> Pintarray
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
 
@@ -969,6 +1036,25 @@ let glb_array_ref_type loc t1 t2 =
     Punboxedvectorarray_ref Pvec128
   | Punboxedvectorarray_ref _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
+
+  (* Unboxed product arrays. Same cheat as above for Pgenarray. *)
+  | Pgenarray_ref _, Pgcignorableproductarray kinds ->
+    Pgcignorableproductarray_ref kinds
+  | Pgenarray_ref _, Pgcscannableproductarray kinds ->
+    Pgcscannableproductarray_ref kinds
+  | (Pgcignorableproductarray_ref kinds1) as k,
+    Pgcignorableproductarray kinds2 ->
+    if kinds1 = kinds2 then k else
+      Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
+  | Pgcscannableproductarray_ref kinds1, Pgcscannableproductarray kinds2 ->
+    begin match glb_scannable_kinds kinds1 kinds2 with
+    | Some kinds -> Pgcscannableproductarray_ref kinds
+    | None -> Misc.fatal_error "mismatched scannableproductarray kinds in glb"
+    end
+  | Pgcignorableproductarray_ref _, _ | _, Pgcignorableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcignorableproductarray kind in glb"
+  | Pgcscannableproductarray_ref _, _ | _, Pgcscannableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcscannableproductarray kind in glb"
 
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray_ref _, (Paddrarray | Pintarray)
@@ -1026,6 +1112,26 @@ let glb_array_set_type loc t1 t2 =
   | Punboxedvectorarray_set _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
+  (* Unboxed product arrays. Same cheat as above for Pgenarray. *)
+  | Pgenarray_set _, Pgcignorableproductarray kinds ->
+    Pgcignorableproductarray_set kinds
+  | Pgenarray_set m, Pgcscannableproductarray kinds ->
+    Pgcscannableproductarray_set (m, kinds)
+  | (Pgcignorableproductarray_set kinds1) as k,
+    Pgcignorableproductarray kinds2 ->
+    if kinds1 = kinds2 then k else
+      Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
+  | Pgcscannableproductarray_set (mode, kinds1),
+    Pgcscannableproductarray kinds2 ->
+    begin match glb_scannable_kinds kinds1 kinds2 with
+    | Some kinds -> Pgcscannableproductarray_set (mode, kinds)
+    | None -> Misc.fatal_error "mismatched scannableproductarray kinds in glb"
+    end
+  | Pgcignorableproductarray_set _, _ | _, Pgcignorableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcignorableproductarray_set kind in glb"
+  | Pgcscannableproductarray_set _, _ | _, Pgcscannableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcscannableproductarray_set kind in glb"
+
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray_set, (Paddrarray | Pintarray)
   | (Paddrarray_set _ | Pintarray_set), Pfloatarray -> t1
@@ -1054,13 +1160,16 @@ let glb_array_set_type loc t1 t2 =
 (* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
 let specialize_primitive env loc ty ~has_constant_constructor prim =
-  let param_tys =
+  let param_tys, rest_ty =
     match is_function_type env ty with
-    | None -> []
+    | None -> [], ty
     | Some (p1, rhs) ->
       match is_function_type env rhs with
-      | None -> [p1]
-      | Some (p2, _) -> [p1;p2]
+      | None -> [p1], rhs
+      | Some (p2, rhs) ->
+        match is_function_type env rhs with
+        | None -> [p1;p2], rhs
+        | Some (p3, rhs) -> [p1;p2;p3], rhs
   in
   match prim, param_tys with
   | Primitive (Psetfield(n, Pointer, init), arity), [_; p2] -> begin
@@ -1119,6 +1228,31 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
+  | Primitive (Pmakearray_dynamic (at, mode), arity),
+    _ :: p2 :: _ -> begin
+      let loc = to_location loc in
+      let array_type =
+        glb_array_type loc at
+          (array_kind_of_elt ~elt_sort:None env loc p2)
+      in
+      let array_mut = array_type_mut env rest_ty in
+      unboxed_product_iarray_check loc array_type array_mut;
+      if at = array_type then None
+      else Some (Primitive (Pmakearray_dynamic (array_type, mode), arity))
+    end
+  | Primitive (Parrayblit st, arity),
+    _p1 :: _ :: p2 :: _ ->
+    let loc = to_location loc in
+    (* We only use the kind of one of two input arrays here. If you've bound the
+       "%arrayblit" primitive with a sane type, both arrays have the same array
+       kind.  If you haven't, then taking the glb of both would be just as
+       likely to compound your error (e.g., by treating a Pgenarray as a
+       Pfloatarray) as to help you. *)
+    let array_type =
+      glb_array_set_type loc st (array_type_kind ~elt_sort:None env loc p2)
+    in
+    if st = array_type then None
+    else Some (Primitive (Parrayblit array_type, arity))
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
@@ -1604,6 +1738,7 @@ let lambda_primitive_needs_event_after = function
   | Pmulfloat (_, _) | Pdivfloat (_, _)
   | Pstringrefs | Pbytesrefs
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
+  | Pmakearray_dynamic (Pgenarray, _)
   | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
@@ -1648,7 +1783,13 @@ let lambda_primitive_needs_event_after = function
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu
   | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
-      | Punboxedintarray _ | Punboxedvectorarray _), _, _)
+      | Punboxedintarray _ | Punboxedvectorarray _
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _), _, _)
+  | Pmakearray_dynamic
+      ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
+       | Punboxedintarray _ | Punboxedvectorarray _
+       | Pgcscannableproductarray _ | Pgcignorableproductarray _), _)
+  | Parrayblit _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
@@ -1717,6 +1858,9 @@ let report_error ppf = function
       fprintf ppf
         "@[Floatarray primitives can't be used on arrays containing@ \
          unboxed types.@]"
+  | Product_iarrays_unsupported ->
+      fprintf ppf
+        "Immutable arrays of unboxed products are not yet supported."
 
 let () =
   Location.register_error_of_exn

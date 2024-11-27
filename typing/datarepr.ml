@@ -80,7 +80,6 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
           type_jkind = jkind;
-          type_jkind_annotation = None;
           type_private = priv;
           type_manifest = None;
           type_variance = Variance.unknown_signature ~injective:true ~arity;
@@ -98,6 +97,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       [
         {
           ca_type = newgenconstr path type_params;
+          ca_jkind = jkind;
           ca_modalities = Mode.Modality.Value.Const.id;
           ca_loc = Location.none
         }
@@ -107,10 +107,28 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let ty_res = newgenconstr ty_path decl.type_params in
   let cstr_shapes_and_arg_jkinds =
-    match rep with
-    | Variant_extensible -> assert false
-    | Variant_boxed x -> x
-    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
+    match rep, cstrs with
+    | Variant_extensible, _ -> assert false
+    | Variant_boxed x, _ -> x
+    | Variant_unboxed, [{ cd_args }] ->
+      (* CR layouts: It's tempting just to use [decl.type_jkind] here, instead
+         of grabbing the jkind from the argument. However, doing so does not
+         work, now that we say [@@unboxed] types are classified by a sort
+         variable: it seems that the sort variable ends up getting copied
+         into the argument kind and then defaulted prematurely, causing errors
+         when the payload of the [@@unboxed] type is not a value. ccasinghino
+         believes that the choice of using [decl.type_jkind] vs the algorithm
+         written here should be irrelevant, and so would like to understand
+         this interaction better. *)
+      begin match cd_args with
+      | Cstr_tuple [{ ca_jkind = jkind }]
+      | Cstr_record [{ ld_jkind = jkind }] ->
+        [| Constructor_uniform_value, [| jkind |] |]
+      | Cstr_tuple ([] | _ :: _) | Cstr_record ([] | _ :: _) ->
+        Misc.fatal_error "Multiple or 0 arguments in [@@unboxed] variant"
+      end
+    | Variant_unboxed, ([] | _ :: _) ->
+      Misc.fatal_error "Multiple or 0 constructors in [@@unboxed] variant"
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
@@ -130,7 +148,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       | Some ty_res' -> ty_res'
       | None -> ty_res
     in
-    let cstr_shape, cstr_arg_jkinds = cstr_shapes_and_arg_jkinds.(src_index) in
+    let cstr_shape, _ = cstr_shapes_and_arg_jkinds.(src_index) in
     let cstr_constant = cstr_constant.(src_index) in
     let runtime_tag, const_tag, nonconst_tag =
       if cstr_constant
@@ -149,7 +167,6 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_res;
         cstr_existentials;
         cstr_args;
-        cstr_arg_jkinds;
         cstr_arity = List.length cstr_args;
         cstr_tag;
         cstr_repr = rep;
@@ -175,7 +192,7 @@ let extension_descr ~current_unit path_ext ext =
         Some type_ret -> type_ret
       | None -> newgenconstr ext.ext_type_path ext.ext_type_params
   in
-  let cstr_tag = Extension (path_ext, ext.ext_arg_jkinds) in
+  let cstr_tag = Extension path_ext in
   let existentials, cstr_args, cstr_inlined =
     constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
       Path.(Pextra_ty (path_ext, Pext_ty))
@@ -185,7 +202,6 @@ let extension_descr ~current_unit path_ext ext =
       cstr_res = ty_res;
       cstr_existentials = existentials;
       cstr_args;
-      cstr_arg_jkinds = ext.ext_arg_jkinds;
       cstr_arity = List.length cstr_args;
       cstr_tag;
       cstr_repr = Variant_extensible;

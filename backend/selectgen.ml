@@ -24,6 +24,95 @@ module VP = Backend_var.With_provenance
 
 (* The default instruction selection class *)
 
+let maybe_emit_naming_op env ~bound_name seq regs =
+  match bound_name with
+  | None -> ()
+  | Some bound_name ->
+    let provenance = VP.provenance bound_name in
+    if Option.is_some provenance
+    then
+      let bound_name = VP.var bound_name in
+      let naming_op =
+        Mach.Iname_for_debugger
+          { ident = bound_name;
+            provenance;
+            which_parameter = None;
+            is_assignment = false;
+            regs
+          }
+      in
+      seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]
+
+(* "Join" two instruction sequences, making sure they return their results in
+   the same registers. *)
+
+let join env opt_r1 seq1 opt_r2 seq2 ~bound_name =
+  let maybe_emit_naming_op = maybe_emit_naming_op env ~bound_name in
+  match opt_r1, opt_r2 with
+  | None, _ -> opt_r2
+  | _, None -> opt_r1
+  | Some r1, Some r2 ->
+    let l1 = Array.length r1 in
+    assert (l1 = Array.length r2);
+    let r = Array.make l1 Reg.dummy in
+    for i = 0 to l1 - 1 do
+      if Reg.anonymous r1.(i) && Cmm.ge_component r1.(i).Reg.typ r2.(i).Reg.typ
+      then (
+        r.(i) <- r1.(i);
+        seq2#insert_move env r2.(i) r1.(i);
+        maybe_emit_naming_op seq2 [| r1.(i) |])
+      else if Reg.anonymous r2.(i)
+              && Cmm.ge_component r2.(i).Reg.typ r1.(i).Reg.typ
+      then (
+        r.(i) <- r2.(i);
+        seq1#insert_move env r1.(i) r2.(i);
+        maybe_emit_naming_op seq1 [| r2.(i) |])
+      else
+        let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
+        r.(i) <- Reg.create typ;
+        seq1#insert_move env r1.(i) r.(i);
+        maybe_emit_naming_op seq1 [| r.(i) |];
+        seq2#insert_move env r2.(i) r.(i);
+        maybe_emit_naming_op seq2 [| r.(i) |]
+    done;
+    Some r
+
+(* Same, for N branches *)
+
+let join_array env rs ~bound_name =
+  let maybe_emit_naming_op = maybe_emit_naming_op env ~bound_name in
+  let some_res = ref None in
+  for i = 0 to Array.length rs - 1 do
+    let r, _ = rs.(i) in
+    match r with
+    | None -> ()
+    | Some r -> (
+      match !some_res with
+      | None -> some_res := Some (r, Array.map (fun r -> r.Reg.typ) r)
+      | Some (r', types) ->
+        let types =
+          Array.map2 (fun r typ -> Cmm.lub_component r.Reg.typ typ) r types
+        in
+        some_res := Some (r', types))
+  done;
+  match !some_res with
+  | None -> None
+  | Some (template, types) ->
+    let size_res = Array.length template in
+    let res = Array.make size_res Reg.dummy in
+    for i = 0 to size_res - 1 do
+      res.(i) <- Reg.create types.(i)
+    done;
+    for i = 0 to Array.length rs - 1 do
+      let r, s = rs.(i) in
+      match r with
+      | None -> ()
+      | Some r ->
+        s#insert_moves env r res;
+        maybe_emit_naming_op s res
+    done;
+    Some res
+
 type environment = unit Select_utils.environment
 
 class virtual selector_generic =
@@ -359,7 +448,7 @@ class virtual selector_generic =
       | Some rarg ->
         let rif, (sif : 'self) = self#emit_sequence env eif ~bound_name in
         let relse, (selse : 'self) = self#emit_sequence env eelse ~bound_name in
-        let r = Select_utils.join env rif sif relse selse ~bound_name in
+        let r = join env rif sif relse selse ~bound_name in
         self#insert_debug env
           (Mach.Iifthenelse (cond, sif#extract, selse#extract))
           dbg rarg [||];
@@ -375,7 +464,7 @@ class virtual selector_generic =
             (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
             ecases
         in
-        let r = Select_utils.join_array env rscases ~bound_name in
+        let r = join_array env rscases ~bound_name in
         self#insert_debug env
           (Mach.Iswitch (index, Array.map (fun (_, s) -> s#extract) rscases))
           dbg rsel [||];
@@ -470,7 +559,7 @@ class virtual selector_generic =
         (* Note: we're dropping unreachable handlers here *)
       in
       let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
-      let r = Select_utils.join_array env a ~bound_name in
+      let r = join_array env a ~bound_name in
       let aux ((nfail, ts, is_cold), (_r, s)) = nfail, ts, s#extract, is_cold in
       let final_trap_stack =
         match r_body with
@@ -551,7 +640,7 @@ class virtual selector_generic =
                 seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||]
                   [||])
         in
-        let r = Select_utils.join env r1 s1 r2 s2 ~bound_name in
+        let r = join env r1 s1 r2 s2 ~bound_name in
         self#insert env
           (Mach.Itrywith
              ( s1#extract,

@@ -210,7 +210,7 @@ let entry_label =
 exception Break_test
 
 let label_add lbl k =
-  Label.of_int_for_testing ((Label.to_int lbl) + k)
+  Label.of_int_unsafe ((Label.to_int lbl) + k)
 
 let move_param_label = label_add entry_label 1
 

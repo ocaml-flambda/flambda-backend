@@ -23,14 +23,9 @@ type environment = Label.t Select_utils.environment
 type basic_or_terminator =
   | Basic of Cfg.basic
   | Terminator of Cfg.terminator
-  | With_next_label of (Label.t -> Cfg.terminator)
 
 module Sub_cfg : sig
-  type t =
-    { entry : Cfg.basic_block;
-      exit : Cfg.basic_block;
-      layout : Cfg.basic_block Flambda_backend_utils.Doubly_linked_list.t
-    }
+  type t
 
   val make_empty : unit -> t
 
@@ -45,9 +40,9 @@ val reset_next_instr_id : unit -> unit
 
 class virtual selector_generic :
   object
-    method is_store : Cfg.operation -> bool
+    method is_store : Operation.t -> bool
 
-    method lift_op : Cfg.operation -> Cfg.basic
+    method lift_op : Operation.t -> Cfg.basic
 
     method make_store :
       Cmm.memory_chunk -> Arch.addressing_mode -> bool -> Cfg.basic
@@ -62,17 +57,17 @@ class virtual selector_generic :
       regs:Reg.t array ->
       Cfg.basic
 
-    method make_const_int : nativeint -> Cfg.operation
+    method make_const_int : nativeint -> Operation.t
 
-    method make_const_float32 : int32 -> Cfg.operation
+    method make_const_float32 : int32 -> Operation.t
 
-    method make_const_float : int64 -> Cfg.operation
+    method make_const_float : int64 -> Operation.t
 
-    method make_const_vec128 : Cmm.vec128_bits -> Cfg.operation
+    method make_const_vec128 : Cmm.vec128_bits -> Operation.t
 
-    method make_const_symbol : Cmm.symbol -> Cfg.operation
+    method make_const_symbol : Cmm.symbol -> Operation.t
 
-    method make_opaque : unit -> Cfg.operation
+    method make_opaque : unit -> Operation.t
 
     (* The following methods must or can be overridden by the processor
        description *)
@@ -102,6 +97,7 @@ class virtual selector_generic :
       Cmm.operation ->
       Cmm.expression list ->
       Debuginfo.t ->
+      label_after:Label.t ->
       basic_or_terminator * Cmm.expression list
     (* Can be overridden to deal with special arithmetic instructions *)
 
@@ -113,7 +109,7 @@ class virtual selector_generic :
       bool ->
       Arch.addressing_mode ->
       Cmm.expression ->
-      Cfg.operation * Cmm.expression
+      Operation.t * Cmm.expression
     (* Can be overridden to deal with special store constant instructions *)
 
     method regs_for : Cmm.machtype -> Reg.t array
@@ -122,13 +118,13 @@ class virtual selector_generic :
        stored as pairs of integer registers. *)
 
     method insert_op :
-      environment -> Cfg.operation -> Reg.t array -> Reg.t array -> Reg.t array
+      environment -> Operation.t -> Reg.t array -> Reg.t array -> Reg.t array
     (* Can be overridden to deal with 2-address instructions or instructions
        with hardwired input/output registers *)
 
     method insert_op_debug :
       environment ->
-      Cfg.operation ->
+      Operation.t ->
       Debuginfo.t ->
       Reg.t array ->
       Reg.t array ->

@@ -33,6 +33,9 @@ module type Axis_s = sig
   val print : Format.formatter -> t -> unit
 end
 
+(** Adapt a [Lattice] to be an [Axis_s] *)
+module Of_lattice (L : Mode_intf.Lattice) : Axis_s with type t = L.t
+
 (** The jkind axis of Externality *)
 module Externality : sig
   type t =

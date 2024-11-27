@@ -474,6 +474,10 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.naked_vec128)
              ~length:any_tagged_immediate alloc_mode)
+      | Unboxed_product_array ->
+        Ok
+          (mutable_array_non_null ~element_kind:Unknown
+             ~length:any_tagged_immediate alloc_mode)
       | Immediate_array ->
         Ok
           (mutable_array_non_null

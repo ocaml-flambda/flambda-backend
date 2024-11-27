@@ -63,6 +63,7 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
+  | Product_iarrays_unsupported
 
 exception Error of Location.t * error
 

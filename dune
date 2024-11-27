@@ -431,6 +431,7 @@
   cfg_selectgen
   cfg_selection
   cfgize
+  cfgize_utils
   cmm_helpers
   cmm_builtins
   cmm_invariants
@@ -454,13 +455,16 @@
   linscan
   liveness
   mach
+  operation
   peephole_optimize
   peephole_rules
   peephole_utils
   polling
+  polling_utils
   printcmm
   printlinear
   printmach
+  printoperation
   printreg
   proc
   simd

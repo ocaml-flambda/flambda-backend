@@ -648,7 +648,7 @@ let prim_has_valid_reprs ~loc prim =
         is (Same_as_ocaml_repr C.word);
         any;
         is (Same_as_ocaml_repr C.value)]
-    | "%make_unboxed_tuple_vect" ->
+    | "%makearray_dynamic" ->
       check [
         is (Same_as_ocaml_repr C.value);
         any;
@@ -759,6 +759,7 @@ let prim_has_valid_reprs ~loc prim =
 let prim_can_contain_layout_any prim =
   match prim.prim_name with
   | "%array_length"
+  | "%array_blit"
   | "%array_safe_get"
   | "%array_safe_set"
   | "%array_unsafe_get"

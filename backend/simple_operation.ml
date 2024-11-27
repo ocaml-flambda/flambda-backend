@@ -15,6 +15,8 @@
 
 (* Operations common to Mach and CFG. *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 type trap_stack =
   | Uncaught
   | Specific_trap of Cmm.trywith_shared_label * trap_stack
@@ -29,6 +31,10 @@ let rec equal_trap_stack ts1 ts2 =
 type integer_comparison =
   | Isigned of Cmm.integer_comparison
   | Iunsigned of Cmm.integer_comparison
+
+let string_of_integer_comparison = function
+  | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
+  | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
 
 let equal_integer_comparison left right =
   match left, right with
@@ -57,6 +63,30 @@ type integer_operation =
   | Ictz of { arg_is_non_zero : bool }
   | Ipopcnt
   | Icomp of integer_comparison
+
+let string_of_integer_operation = function
+  | Iadd -> " + "
+  | Isub -> " - "
+  | Imul -> " * "
+  | Imulh { signed } -> " *h " ^ if signed then "" else "u"
+  | Idiv -> " div "
+  | Imod -> " mod "
+  | Iand -> " & "
+  | Ior -> " | "
+  | Ixor -> " ^ "
+  | Ilsl -> " << "
+  | Ilsr -> " >>u "
+  | Iasr -> " >>s "
+  | Iclz { arg_is_non_zero } -> Printf.sprintf "clz %B " arg_is_non_zero
+  | Ictz { arg_is_non_zero } -> Printf.sprintf "ctz %B " arg_is_non_zero
+  | Ipopcnt -> "popcnt "
+  | Icomp cmp -> string_of_integer_comparison cmp
+
+let is_unary_integer_operation = function
+  | Iclz _ | Ictz _ | Ipopcnt -> true
+  | Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl | Ilsr
+  | Iasr | Icomp _ ->
+    false
 
 let equal_integer_operation left right =
   match left, right with
@@ -147,6 +177,18 @@ type float_operation =
   | Idivf
   | Icompf of float_comparison
 
+let string_of_float_operation = function
+  | Iaddf -> "+."
+  | Isubf -> "-."
+  | Imulf -> "*."
+  | Idivf -> "/."
+  | Iabsf -> "abs"
+  | Inegf -> "neg"
+  | Icompf cmp -> Printcmm.float_comparison cmp
+
+let format_float_operation ppf op =
+  Format.fprintf ppf "%s" (string_of_float_operation op)
+
 let equal_float_operation left right =
   match left, right with
   | Inegf, Inegf -> true
@@ -164,16 +206,6 @@ let equal_float_operation left right =
   | Idivf, (Inegf | Iabsf | Iaddf | Isubf | Imulf | Icompf _)
   | Icompf _, (Inegf | Iabsf | Iaddf | Isubf | Imulf | Idivf) ->
     false
-
-let format_float_operation ppf op =
-  match op with
-  | Iaddf -> Format.fprintf ppf "+."
-  | Isubf -> Format.fprintf ppf "-."
-  | Imulf -> Format.fprintf ppf "*."
-  | Idivf -> Format.fprintf ppf "/."
-  | Iabsf -> Format.fprintf ppf "abs"
-  | Inegf -> Format.fprintf ppf "neg"
-  | Icompf cmp -> Format.fprintf ppf "%s" (Printcmm.float_comparison cmp)
 
 type mutable_flag =
   | Immutable
@@ -195,6 +227,24 @@ type test =
   | Ifloattest of float_width * float_comparison
   | Ioddtest
   | Ieventest
+
+let format_test ~print_reg tst ppf arg =
+  let reg = print_reg in
+  match tst with
+  | Itruetest -> reg ppf arg.(0)
+  | Ifalsetest -> Format.fprintf ppf "not %a" reg arg.(0)
+  | Iinttest cmp ->
+    Format.fprintf ppf "%a%s%a" reg arg.(0)
+      (string_of_integer_comparison cmp)
+      reg arg.(1)
+  | Iinttest_imm (cmp, n) ->
+    Format.fprintf ppf "%a%s%i" reg arg.(0) (string_of_integer_comparison cmp) n
+  | Ifloattest (_, cmp) ->
+    Format.fprintf ppf "%a %s %a" reg arg.(0)
+      (Printcmm.float_comparison cmp)
+      reg arg.(1)
+  | Ieventest -> Format.fprintf ppf "%a & 1 == 0" reg arg.(0)
+  | Ioddtest -> Format.fprintf ppf "%a & 1 == 1" reg arg.(0)
 
 let invert_test = function
   | Itruetest -> Ifalsetest

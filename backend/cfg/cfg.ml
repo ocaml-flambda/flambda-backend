@@ -248,83 +248,10 @@ let register_predecessors_for_all_blocks (t : t) =
 
 (* Printing for debug *)
 
-(* The next 2 functions are copied almost as is from asmcomp/printmach.ml
-   because there is no interface to call them. Eventually this won't be needed
-   when we change cfg to have its own types rather than referring back to mach
-   and cmm. *)
-(* CR-someday gyorsh: implement desc printing, and args/res/dbg, etc, properly,
-   with regs, use the dreaded Format. *)
-
-let intcomp (comp : Simple_operation.integer_comparison) =
-  match comp with
-  | Isigned c -> Printf.sprintf " %ss " (Printcmm.integer_comparison c)
-  | Iunsigned c -> Printf.sprintf " %su " (Printcmm.integer_comparison c)
-
-let intop_atomic (op : Cmm.atomic_op) =
-  match op with Fetch_and_add -> " += " | Compare_and_swap -> " cas "
-
-let intop (op : Simple_operation.integer_operation) =
-  match op with
-  | Iadd -> " + "
-  | Isub -> " - "
-  | Imul -> " * "
-  | Imulh { signed : bool } -> " *h" ^ if signed then " " else "u "
-  | Idiv -> " div "
-  | Imod -> " mod "
-  | Iand -> " & "
-  | Ior -> " | "
-  | Ixor -> " ^ "
-  | Ilsl -> " << "
-  | Ilsr -> " >>u "
-  | Iasr -> " >>s "
-  | Ipopcnt -> " pop "
-  | Iclz _ -> " clz "
-  | Ictz _ -> " ctz "
-  | Icomp cmp -> intcomp cmp
-
-let dump_operation ppf = function
-  | Move -> Format.fprintf ppf "mov"
-  | Spill -> Format.fprintf ppf "spill"
-  | Reload -> Format.fprintf ppf "reload"
-  | Const_int n -> Format.fprintf ppf "const_int %nd" n
-  | Const_float32 f ->
-    Format.fprintf ppf "const_float32 %Fs" (Int32.float_of_bits f)
-  | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
-  | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
-  | Const_vec128 { high; low } ->
-    Format.fprintf ppf "const vec128 %016Lx:%016Lx" high low
-  | Stackoffset n -> Format.fprintf ppf "stackoffset %d" n
-  | Load _ -> Format.fprintf ppf "load"
-  | Store _ -> Format.fprintf ppf "store"
-  | Intop op -> Format.fprintf ppf "intop %s" (intop op)
-  | Intop_imm (op, n) -> Format.fprintf ppf "intop %s %d" (intop op) n
-  | Intop_atomic { op; size = _; addr = _ } ->
-    Format.fprintf ppf "intop atomic %s" (intop_atomic op)
-  | Floatop (Float64, op) ->
-    Format.fprintf ppf "floatop %a" Printmach.floatop op
-  | Floatop (Float32, op) ->
-    Format.fprintf ppf "float32op %a" Printmach.floatop op
-  | Csel _ -> Format.fprintf ppf "csel"
-  | Reinterpret_cast cast ->
-    Format.fprintf ppf "%s" (Printcmm.reinterpret_cast cast)
-  | Static_cast cast -> Format.fprintf ppf "%s" (Printcmm.static_cast cast)
-  | Specific _ -> Format.fprintf ppf "specific"
-  | Probe_is_enabled { name } -> Format.fprintf ppf "probe_is_enabled %s" name
-  | Opaque -> Format.fprintf ppf "opaque"
-  | Begin_region -> Format.fprintf ppf "beginregion"
-  | End_region -> Format.fprintf ppf "endregion"
-  | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
-  | Dls_get -> Format.fprintf ppf "dls_get"
-  | Poll -> Format.fprintf ppf "poll"
-  | Alloc { bytes; dbginfo = _; mode = Heap } ->
-    Format.fprintf ppf "alloc %i" bytes
-  | Alloc { bytes; dbginfo = _; mode = Local } ->
-    Format.fprintf ppf "alloc_local %i" bytes
-
 let dump_basic ppf (basic : basic) =
   let open Format in
   match basic with
-  | Op op -> dump_operation ppf op
+  | Op op -> Operation.dump ppf op
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } ->
     fprintf ppf "Pushtrap handler=%a" Label.format lbl_handler
@@ -355,7 +282,9 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
     if Array.length res > 0
     then Format.fprintf ppf "%a := " (Printreg.regs' ~print_reg) res
   in
-  let dump_mach_op ppf op = Printmach.operation' ~print_reg op args ppf [||] in
+  let dump_linear_call_op ppf op =
+    Printlinear.call_operation ~print_reg ppf op args
+  in
   let open Format in
   match terminator with
   | Never -> fprintf ppf "deadend"
@@ -395,8 +324,8 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
   | Return -> fprintf ppf "Return%a" print_args args
   | Raise _ -> fprintf ppf "Raise%a" print_args args
   | Tailcall_self { destination } ->
-    dump_mach_op ppf
-      (Mach.Itailcall_imm
+    dump_linear_call_op ppf
+      (Linear.Ltailcall_imm
          { func =
              { sym_name =
                  Printf.sprintf "self(%s)" (Label.to_string destination);
@@ -404,24 +333,24 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
              }
          })
   | Tailcall_func call ->
-    dump_mach_op ppf
+    dump_linear_call_op ppf
       (match call with
-      | Indirect -> Mach.Itailcall_ind
-      | Direct func -> Mach.Itailcall_imm { func })
+      | Indirect -> Linear.Ltailcall_ind
+      | Direct func -> Linear.Ltailcall_imm { func })
   | Call { op = call; label_after } ->
-    Format.fprintf ppf "%t%a" print_res dump_mach_op
+    Format.fprintf ppf "%t%a" print_res dump_linear_call_op
       (match call with
-      | Indirect -> Mach.Icall_ind
-      | Direct func -> Mach.Icall_imm { func });
+      | Indirect -> Linear.Lcall_ind
+      | Direct func -> Linear.Lcall_imm { func });
     Format.fprintf ppf "%sgoto %a" sep Label.format label_after
   | Prim { op = prim; label_after } ->
-    Format.fprintf ppf "%t%a" print_res dump_mach_op
+    Format.fprintf ppf "%t%a" print_res dump_linear_call_op
       (match prim with
       | External { func_symbol = func; ty_res; ty_args; alloc; stack_ofs } ->
-        Mach.Iextcall
+        Linear.Lextcall
           { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
       | Probe { name; handler_code_sym; enabled_at_init } ->
-        Mach.Iprobe { name; handler_code_sym; enabled_at_init });
+        Linear.Lprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %a" sep Label.format label_after
   | Specific_can_raise { op; label_after } ->
     Format.fprintf ppf "%a" specific_can_raise op;
@@ -491,45 +420,8 @@ let is_pure_terminator desc =
     (* CR gyorsh: fix for memory operands *)
     true
 
-let is_pure_operation : operation -> bool = function
-  | Move -> true
-  | Spill -> true
-  | Reload -> true
-  | Const_int _ -> true
-  | Const_float32 _ -> true
-  | Const_float _ -> true
-  | Const_symbol _ -> true
-  | Const_vec128 _ -> true
-  | Stackoffset _ -> false
-  | Load _ -> true
-  | Store _ -> false
-  | Intop _ -> true
-  | Intop_imm _ -> true
-  | Intop_atomic _ -> false
-  | Floatop _ -> true
-  | Csel _ -> true
-  | Reinterpret_cast
-      ( V128_of_v128 | Float32_of_float | Float32_of_int32 | Float_of_float32
-      | Float_of_int64 | Int64_of_float | Int32_of_float32 ) ->
-    true
-  | Static_cast _ -> true
-  (* Conservative to ensure valueofint/intofvalue are not eliminated before
-     emit. *)
-  | Reinterpret_cast (Value_of_int | Int_of_value) -> false
-  | Probe_is_enabled _ -> true
-  | Opaque -> false
-  | Begin_region -> false
-  | End_region -> false
-  | Specific s ->
-    assert (not (Arch.operation_can_raise s));
-    Arch.operation_is_pure s
-  | Name_for_debugger _ -> false
-  | Dls_get -> true
-  | Poll -> false
-  | Alloc _ -> false
-
 let is_pure_basic : basic -> bool = function
-  | Op op -> is_pure_operation op
+  | Op op -> Operation.is_pure op
   | Reloadretaddr ->
     (* This is a no-op on supported backends but on some others like "power" it
        wouldn't be. Saying it's not pure doesn't decrease the generated code

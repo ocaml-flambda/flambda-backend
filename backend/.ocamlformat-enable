@@ -25,8 +25,16 @@ emitaux.ml
 emitaux.mli
 generic_fns.ml
 generic_fns.mli
+operation.ml
+operation.mli
+polling_utils.ml
+polling_utils.mli
 peephole/**/*.ml
 peephole/**/*.mli
+printoperation.ml
+printoperation.mli
+printreg.ml
+printreg.mli
 regalloc/**/*.ml
 regalloc/**/*.mli
 select_utils.ml

@@ -399,7 +399,7 @@ Line 1, characters 12-15:
                 ^^^
 Error: This type "int" should be an instance of type "('a : void)"
        The layout of int is value
-         because it is the primitive immediate type int.
+         because it is the primitive type int.
        But the layout of int must be a sublayout of void
          because of the definition of void5 at line 1, characters 0-37.
 |}];;
@@ -412,7 +412,7 @@ Line 1, characters 26-27:
 Error: This expression has type "int" but an expression was expected of type
          "('a : void)"
        The layout of int is value
-         because it is the primitive immediate type int.
+         because it is the primitive type int.
        But the layout of int must be a sublayout of void
          because of the definition of void5 at line 1, characters 0-37.
 |}];;
@@ -561,7 +561,7 @@ Error: The type constraints are not consistent.
          because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         chosen to have layout value.
 |}];;
 
 module type S8_5 = sig
@@ -676,7 +676,7 @@ Error: The type constraints are not consistent.
          because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         chosen to have layout value.
 |}];;
 
 module type S9_7 = sig

@@ -45,12 +45,12 @@ Error: The kind of type "a" is value
 
 type t : value mod portable uncontended = { a : int; b : int }
 [%%expect {|
-type t : value mod portable uncontended = { a : int; b : int; }
+type t : value mod uncontended portable = { a : int; b : int; }
 |}]
 
 type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 [%%expect {|
-type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b; }
+type ('a, 'b) t : value mod uncontended portable = { a : 'a; b : 'b; }
 |}]
 
 type t : value mod portable = private { foo : string }
@@ -107,7 +107,7 @@ type a : value mod portable uncontended = Foo of string
 type ('a : value mod portable uncontended) b
 type c = a b
 [%%expect {|
-type a : value mod portable uncontended = Foo of string
+type a : value mod uncontended portable = Foo of string
 type ('a : value mod uncontended portable) b
 type c = a b
 |}]
@@ -116,7 +116,7 @@ type t : value mod portable uncontended = { a : string; b : int }
 let f : ('a : value mod portable uncontended). 'a -> 'a = fun x -> x
 let g (x : t) = f x
 [%%expect {|
-type t : value mod portable uncontended = { a : string; b : int; }
+type t : value mod uncontended portable = { a : string; b : int; }
 val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
 val g : t -> t = <fun>
 |}]
@@ -124,21 +124,21 @@ val g : t -> t = <fun>
 type t : value mod portable uncontended = { a : int; b : int }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
-type t : value mod portable uncontended = { a : int; b : int; }
+type t : value mod uncontended portable = { a : int; b : int; }
 val x : t = {a = 5; b = 5}
 |}]
 
 type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b }
 let x : _ as (_ : value mod portable uncontended) = { a = 5; b = 5 }
 [%%expect {|
-type ('a, 'b) t : value mod portable uncontended = { a : 'a; b : 'b; }
+type ('a, 'b) t : value mod uncontended portable = { a : 'a; b : 'b; }
 val x : (int, int) t = {a = 5; b = 5}
 |}]
 
 type t : value mod portable uncontended = Foo of string | Bar of int
 let x : _ as (_ : value mod portable uncontended) = Foo "hello world"
 [%%expect {|
-type t : value mod portable uncontended = Foo of string | Bar of int
+type t : value mod uncontended portable = Foo of string | Bar of int
 val x : t = Foo "hello world"
 |}]
 
@@ -208,7 +208,7 @@ let f () =
   ()
 [%%expect {|
 type t_value
-type t : value mod portable uncontended = Foo of t_value
+type t : value mod uncontended portable = Foo of t_value
 val make_value : unit -> t_value = <fun>
 val f : unit -> unit = <fun>
 |}]
@@ -233,7 +233,7 @@ type t : value mod portable uncontended = Foo of string | Bar of int
 let g (x : t @@ nonportable contended) = f x; f (Foo ""); f (Bar 10)
 [%%expect {|
 val f : 'a @ portable -> unit = <fun>
-type t : value mod portable uncontended = Foo of string | Bar of int
+type t : value mod uncontended portable = Foo of string | Bar of int
 val g : t @ contended -> unit = <fun>
 |}]
 
@@ -864,20 +864,13 @@ type a : word
 type b : any mod uncontended portable = private a
 [%%expect {|
 type a : word
-Line 2, characters 0-49:
-2 | type b : any mod uncontended portable = private a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "a" is word
-         because of the definition of a at line 1, characters 0-13.
-       But the kind of type "a" must be a subkind of
-         any mod uncontended portable
-         because of the definition of b at line 2, characters 0-49.
+type b = private a
 |}]
 
 type a : value mod global many unique external_
 type b : immediate = private a
 [%%expect {|
-type a : value mod global many unique external_
+type a : value mod global unique many external_
 Line 2, characters 0-30:
 2 | type b : immediate = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -158,6 +158,8 @@ module type Map = sig
 
   val filter_map : (key -> 'a -> 'b option) -> 'a t -> 'b t
 
+  val filter_map_sharing : (key -> 'a -> 'a option) -> 'a t -> 'a t
+
   val partition : (key -> 'a -> bool) -> 'a t -> 'a t * 'a t
 
   val cardinal : 'a t -> int

@@ -224,9 +224,9 @@ module Move = struct
     | Store
 
   let op_of_move = function
-    | Plain -> Cfg.Move
-    | Load -> Cfg.Reload
-    | Store -> Cfg.Spill
+    | Plain -> Operation.Move
+    | Load -> Operation.Reload
+    | Store -> Operation.Spill
 
   let make_instr :
       t ->

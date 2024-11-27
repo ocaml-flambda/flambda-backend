@@ -270,8 +270,9 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
         (* No need to add equations, as they will be computed from the use
            environments *)
         let denv = DE.define_parameters denv ~params in
-        join ?cut_after denv params ~consts_lifted_during_body
-          ~use_envs_with_ids ~lifted_cont_extra_params_and_args
+        Profile.record_call ~accumulate:true "join" (fun () ->
+            join ?cut_after denv params ~consts_lifted_during_body
+              ~use_envs_with_ids ~lifted_cont_extra_params_and_args)
       else
         (* Define parameters with basic equations from the subkinds *)
         let denv = DE.add_parameters_with_unknown_types denv params in
