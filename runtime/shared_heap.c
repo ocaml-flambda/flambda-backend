@@ -1095,6 +1095,9 @@ static void compact_update_pools(pool *cur_pool)
 
 static void compact_update_ephe_list(volatile value *ephe_p)
 {
+  /* Direct access to ephemeron fields instead of using ephe_key/Ephe_data
+     is OK here, since the barrier at the start of compaction means no
+     domain can be doing minor GC at this time. */
   while (*ephe_p) {
     compact_update_value_at(ephe_p);
 
