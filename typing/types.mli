@@ -864,6 +864,9 @@ type constructor_description =
 (* Constructors are the same *)
 val equal_tag :  tag -> tag -> bool
 
+(* Comparison of tags to store them in sets. *)
+val compare_tag :  tag -> tag -> int
+
 (* Constructors may be the same, given potential rebinding *)
 val may_equal_constr :
     constructor_description ->  constructor_description -> bool

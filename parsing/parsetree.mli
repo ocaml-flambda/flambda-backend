@@ -491,7 +491,7 @@ and expression_desc =
           - [CLAUSES] is a series of [comprehension_clause].
     *)
   (* CR uniqueness: allow arbitrary expressions instead of identifiers here *)
-  | Pexp_overwrite of Longident.t loc * expression (** overwrite_ x with exp *)
+  | Pexp_overwrite of expression * expression (** overwrite_ exp with exp *)
   | Pexp_hole (** _ *)
 
 and case =

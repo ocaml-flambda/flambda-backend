@@ -22,3 +22,36 @@ val check_uniqueness_exp : expression -> unit
 (* Check that idents which are used more than once, are not used with mode
    unique. *)
 val check_uniqueness_value_bindings : value_binding list -> unit
+
+(* These definitions are just to allow printing in the debugger *)
+module type P := sig
+  type t
+
+  val print : Format.formatter -> t -> unit
+end
+
+module Maybe_unique : P
+
+module Maybe_aliased : P
+
+module Aliased : P
+
+module Usage : P
+
+module Tag : P
+
+module Projection : P
+
+module Usage_tree : P
+
+module Usage_forest : P
+
+module Paths : P
+
+module Value : P
+
+module Ienv : sig
+  include P
+
+  module Extension : P
+end

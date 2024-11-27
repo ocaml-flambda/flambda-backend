@@ -9,7 +9,7 @@ let dup x = unique_ (x, x)
 Line 1, characters 24-25:
 1 | let dup x = unique_ (x, x)
                             ^
-Error: This value is used here, but it has already been used as unique:
+Error: This value is used here, but it is already being used as unique:
 Line 1, characters 21-22:
 1 | let dup x = unique_ (x, x)
                          ^
@@ -29,7 +29,7 @@ Line 1, characters 24-25:
 1 | let dup (once_ x) = (x, x)
                             ^
 Error: This value is used here,
-       but it is defined as once and has already been used:
+       but it is defined as once and is already being used:
 Line 1, characters 21-22:
 1 | let dup (once_ x) = (x, x)
                          ^
@@ -41,7 +41,7 @@ let dup (unique_ x) = (unique_ x, x, x)
 Line 1, characters 34-35:
 1 | let dup (unique_ x) = (unique_ x, x, x)
                                       ^
-Error: This value is used here, but it has already been used as unique:
+Error: This value is used here, but it is already being used as unique:
 Line 1, characters 31-32:
 1 | let dup (unique_ x) = (unique_ x, x, x)
                                    ^
@@ -53,7 +53,7 @@ let dup (unique_ x) = (x, (unique_ x), x)
 Line 1, characters 26-37:
 1 | let dup (unique_ x) = (x, (unique_ x), x)
                               ^^^^^^^^^^^
-Error: This value is used here as unique, but it has already been used:
+Error: This value is used here as unique, but it is already being used:
 Line 1, characters 23-24:
 1 | let dup (unique_ x) = (x, (unique_ x), x)
                            ^
@@ -66,7 +66,7 @@ let dup (unique_ x) = ((unique_ x), x)
 Line 1, characters 36-37:
 1 | let dup (unique_ x) = ((unique_ x), x)
                                         ^
-Error: This value is used here, but it has already been used as unique:
+Error: This value is used here, but it is already being used as unique:
 Line 1, characters 23-34:
 1 | let dup (unique_ x) = ((unique_ x), x)
                            ^^^^^^^^^^^
@@ -90,7 +90,7 @@ Line 4, characters 9-10:
 4 |   g () @ g ()
              ^
 Error: This value is used here,
-       but it is defined as once and has already been used:
+       but it is defined as once and is already being used:
 Line 4, characters 2-3:
 4 |   g () @ g ()
       ^
@@ -449,7 +449,7 @@ Line 4, characters 13-16:
 4 |   (bar ~d:3, bar ~d:5)
                  ^^^
 Error: This value is used here,
-       but it is defined as once and has already been used:
+       but it is defined as once and is already being used:
 Line 4, characters 3-6:
 4 |   (bar ~d:3, bar ~d:5)
        ^^^
@@ -465,7 +465,7 @@ Line 4, characters 35-38:
 4 |   let baz = bar ~b:4 in (baz ~d:3, baz ~d:5)
                                        ^^^
 Error: This value is used here,
-       but it is defined as once and has already been used:
+       but it is defined as once and is already being used:
 Line 4, characters 25-28:
 4 |   let baz = bar ~b:4 in (baz ~d:3, baz ~d:5)
                              ^^^
@@ -481,7 +481,7 @@ Line 4, characters 11-14:
 4 |   (foo (), foo ())
                ^^^
 Error: This value is used here,
-       but it is defined as once and has already been used:
+       but it is defined as once and is already being used:
 Line 4, characters 3-6:
 4 |   (foo (), foo ())
        ^^^
@@ -562,7 +562,7 @@ type tree = Leaf | Node of tree * tree
 Line 5, characters 19-20:
 5 |        in Node (x, x)
                        ^
-Error: This value is used here, but it has already been used as unique:
+Error: This value is used here, but it is already being used as unique:
 Line 5, characters 16-17:
 5 |        in Node (x, x)
                     ^
@@ -586,7 +586,7 @@ let f ~(call_pos : [%call_pos]) () =
 Line 2, characters 21-29:
 2 |   unique_ (call_pos, call_pos)
                          ^^^^^^^^
-Error: This value is used here, but it has already been used as unique:
+Error: This value is used here, but it is already being used as unique:
 Line 2, characters 11-19:
 2 |   unique_ (call_pos, call_pos)
                ^^^^^^^^
@@ -598,7 +598,15 @@ let array_pats (arr : int option array) =
   | [| o |] -> let _ = unique_id arr in aliased_id o
   | _ -> None
 [%%expect{|
-val array_pats : int option array @ unique -> int option = <fun>
+Line 3, characters 51-52:
+3 |   | [| o |] -> let _ = unique_id arr in aliased_id o
+                                                       ^
+Error: This value is used here,
+       but it is part of a value that has already been used as unique:
+Line 3, characters 33-36:
+3 |   | [| o |] -> let _ = unique_id arr in aliased_id o
+                                     ^^^
+
 |}]
 
 let array_pats (arr : int option iarray) =
@@ -615,4 +623,11 @@ Line 3, characters 33-36:
 3 |   | [: o :] -> let _ = unique_id arr in unique_id o
                                      ^^^
 
+|}]
+
+(* Shadowing of unique variables *)
+let shadow x =
+  x, (let x = (1, 2) in x)
+[%%expect{|
+val shadow : 'a -> 'a * (int * int) = <fun>
 |}]

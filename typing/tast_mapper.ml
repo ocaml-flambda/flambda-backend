@@ -602,6 +602,9 @@ let expr sub x =
     | Texp_exclave exp ->
         Texp_exclave (sub.expr sub exp)
     | Texp_src_pos -> Texp_src_pos
+    | Texp_overwrite (exp1, exp2) ->
+        Texp_overwrite (sub.expr sub exp1, sub.expr sub exp2)
+    | Texp_hole use -> Texp_hole use
   in
   let exp_attributes = sub.attributes sub x.exp_attributes in
   {x with exp_loc; exp_extra; exp_desc; exp_env; exp_attributes}
