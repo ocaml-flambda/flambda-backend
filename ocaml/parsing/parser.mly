@@ -2776,7 +2776,7 @@ fun_expr:
       { Pexp_try($3, $5), $2 }
   | TRY ext_attributes seq_expr WITH error
       { syntax_error() }
-  | OVERWRITE ext_attributes mkrhs(val_longident) WITH expr
+  | OVERWRITE ext_attributes seq_expr WITH expr
       { Pexp_overwrite($3, $5), $2 }
   | IF ext_attributes seq_expr THEN expr ELSE expr
       { Pexp_ifthenelse($3, $5, Some $7), $2 }

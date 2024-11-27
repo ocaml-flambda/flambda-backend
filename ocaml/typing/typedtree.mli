@@ -80,9 +80,27 @@ module Unique_barrier : sig
 
   (* Resolve the unique barrier once type-checking is complete. *)
   val resolve : t -> Mode.Uniqueness.Const.t
+
+  val print : Format.formatter -> t -> unit
 end
 
+(** A unique use annotates accesses to an allocation.
+    In the type checker we ensure that
+      actual_mode           <= expected_mode
+      unique_use.uniqueness == expected_mode.uniqueness
+      unique_use.linearity  == actual_mode.linearity
+    That is, if the user expects an access to be unique,
+    both the actual_mode and unique_use are also unique.
+    In the uniqueness analysis, we check whether a particular access
+    is the only lexically use in its branch and if not, we set
+      aliased /\ many <= unique_use
+    This means that an allocation's actual_mode can be unique,
+    while a particular access of the allocation is aliased.
+    Furthermore, if there is more than one access to an allocation,
+    its actual_mode will have to be many. *)
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
+
+val print_unique_use : Format.formatter -> unique_use -> unit
 
 type alloc_mode = {
   mode : Mode.Alloc.r;
@@ -448,6 +466,8 @@ and expression_desc =
     (* A source position value which has been automatically inferred, either
        as a result of [%call_pos] occuring in an expression, or omission of a
        Position argument in function application *)
+  | Texp_overwrite of expression * expression (** overwrite_ exp with exp *)
+  | Texp_hole of unique_use (** _ *)
 
 and function_curry =
   | More_args of { partial_mode : Mode.Alloc.l }
