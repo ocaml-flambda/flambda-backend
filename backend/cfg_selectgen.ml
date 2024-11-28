@@ -315,6 +315,7 @@ end = struct
   let dump sub_cfg =
     let liveness = Cfg_dataflow.Instr.Tbl.create 32 in
     DLL.iter sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
+        Format.eprintf "Block %a@." Label.print block.start;
         Regalloc_irc_utils.log_body_and_terminator ~indent:0 block.body
           block.terminator liveness)
 end
@@ -1226,7 +1227,7 @@ class virtual selector_generic =
         Sub_cfg.add_instruction_at_start s2 (Cfg.Op Move)
           [| Proc.loc_exn_bucket |] rv Debuginfo.none;
         Sub_cfg.update_exit_terminator sub_cfg (Always (Sub_cfg.start_label s1));
-        sub_cfg <- Sub_cfg.join ~from:[s1; s2] ~to_:sub_cfg
+        sub_cfg <- Sub_cfg.join_tail ~from:[s1; s2] ~to_:sub_cfg
       in
       let env = Select_utils.env_add v rv env in
       match Select_utils.env_find_static_exception exn_cont env_body with
@@ -1358,11 +1359,6 @@ class virtual selector_generic =
         make_empty_block ~label:(Cfg.entry_label cfg)
           (make_instr (Cfg.Always tailrec_label) [||] [||] Debuginfo.none)
       in
-      if Cfg_polling.requires_prologue_poll ~future_funcnames
-           ~fun_name:f.Cmm.fun_name.sym_name cfg
-      then
-        DLL.add_begin entry_block.body
-          (make_instr Cfg.(Op Poll) [||] [||] Debuginfo.none);
       DLL.add_begin entry_block.body
         (make_instr Cfg.Prologue [||] [||] Debuginfo.none);
       Cfg.add_block_exn cfg entry_block;
@@ -1391,6 +1387,11 @@ class virtual selector_generic =
          `Cfg.register_predecessors_for_all_blocks`. *)
       Cfgize_utils.Stack_offset_and_exn.update_cfg cfg;
       Cfg.register_predecessors_for_all_blocks cfg;
+      if Cfg_polling.requires_prologue_poll ~future_funcnames
+           ~fun_name:f.Cmm.fun_name.sym_name cfg
+      then
+        DLL.add_begin entry_block.body
+          (make_instr Cfg.(Op Poll) [||] [||] Debuginfo.none);
       let cfg_with_layout =
         Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false
           ~new_labels:Label.Set.empty
