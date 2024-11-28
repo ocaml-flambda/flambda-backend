@@ -1,0 +1,4 @@
+File "_none_", line 1:
+Error: Module "Widget" cannot be used as an argument.
+Hint: Compile "widget.cmx" with "-as-argument-for Foo"
+      where "Foo" is a parameter of "List_monoid".

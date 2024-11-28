@@ -1,0 +1,5 @@
+File "_none_", line 1:
+Error: Module "Int_list_element" is an argument for parameter "List_element",
+       which is not a parameter of "Monoid_of_semigroup".
+Hint: "Int_list_element" was compiled with "-as-argument-for List_element".
+Hint: Parameters of "Monoid_of_semigroup": "Semigroup"

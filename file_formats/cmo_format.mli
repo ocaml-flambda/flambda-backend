@@ -36,7 +36,11 @@ type compilation_unit_descr =
     mutable cu_pos: int;                (* Absolute position in file *)
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
+    cu_arg_descr: Lambda.arg_descr option;
+                                        (* If this is an argument unit, the
+                                           parameter it implements *)
     cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
+    cu_format: Lambda.main_module_block_format;
     cu_required_compunits: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects

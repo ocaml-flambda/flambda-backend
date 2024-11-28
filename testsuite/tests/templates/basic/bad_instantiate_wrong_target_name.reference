@@ -1,0 +1,4 @@
+File "_none_", line 1:
+Error: Incorrect output basename "not_the_correct_target_name"
+       for instance "List_monoid[List_element:Int_list_element]".
+Hint: Compile with "-o list_monoid-Int_list_element.cmx" or omit "-o" entirely.

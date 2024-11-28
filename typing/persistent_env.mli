@@ -147,12 +147,6 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
-(* [local_ident penv md] returns the local identifier generated for [md] if
-   [md] is either a parameter or a dependency with a parameter. This is used
-   strictly for code generation - types should always use persistent
-   [Ident.t]s. *)
-val local_ident : 'a t -> Global_module.Name.t -> Ident.t option
-
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
 val implemented_parameter : 'a t
@@ -194,7 +188,12 @@ val imports : 'a t -> Import_info.Intf.t list
 
    Note that the word "runtime" is a bit of a fiction reflecting a front-end view of the
    world. In fact we aim to inline away all passing of runtime parameters. *)
-val runtime_parameters : 'a t -> (Global_module.Name.t * Ident.t) list
+val runtime_parameter_bindings : 'a t -> (Global_module.t * Ident.t) list
+
+(* Find whether a module has been imported as a parameter. This means that it
+   is a registered parameter import (see [register_parameter_import]) _and_ it has
+   been actually imported (i.e., it has occurred at least once). *)
+val is_imported_parameter : 'a t -> Global_module.Name.t -> bool
 
 (* Return the list of parameters specified for the current unit, in alphabetical order.
    All of these will have been specified by [-parameter] but not all of them are
