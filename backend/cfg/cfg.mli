@@ -234,3 +234,6 @@ val next_instr_id : unit -> int
 val reset_next_instr_id : unit -> unit
 
 val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block
+
+(** "Contains calls" in the traditional sense as used in upstream [Selectgen]. *)
+val basic_block_contains_calls : basic_block -> bool
