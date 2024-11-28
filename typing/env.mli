@@ -360,6 +360,14 @@ val bound_cltype: string -> t -> bool
 
 val make_copy_of_types: t -> (t -> t)
 
+(* Resolution of globals *)
+
+(* [global_of_instance_compilation_unit cu] checks that a compilation unit is a
+   complete instantiation - that is, that all of its parameters are filled by
+   arguments, and all of those arguments' parameters are filled, and so on -
+   and converts it into a global. *)
+val global_of_instance_compilation_unit : Compilation_unit.t -> Global_module.t
+
 (* Insertion by identifier *)
 
 val add_value_lazy:
@@ -518,8 +526,8 @@ val imports: unit -> Import_info.t list
 val import_crcs: source:string -> Import_info.t array -> unit
 
 (* Return the set of imports represented as runtime parameters (see
-   [Persistent_env.runtime_parameters] for details) *)
-val runtime_parameters: unit -> (Global_module.Name.t * Ident.t) list
+   [Persistent_env.runtime_parameter_bindings] for details) *)
+val runtime_parameter_bindings: unit -> (Global_module.t * Ident.t) list
 
 (* Return the list of parameters specified for the current unit, in
    alphabetical order *)
@@ -539,6 +547,10 @@ val is_parameter_unit: Global_module.Name.t -> bool
    [md] was compiled *)
 val implemented_parameter: Global_module.Name.t -> Global_module.Name.t option
 
+(* [is_imported_parameter md] is true if [md] has been imported and is a
+   parameter to this module *)
+val is_imported_parameter: Global_module.Name.t -> bool
+
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
 
@@ -557,6 +569,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Incomplete_instantiation of { unset_param : Global_module.Name.t; }
 
 exception Error of error
 

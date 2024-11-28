@@ -1,3 +1,9 @@
+(* Parameters: [List_element], [Semigroup] *)
+
+module Monoid_utils_of_string =
+  Monoid_utils(Monoid)(Monoid_of_semigroup(Semigroup)(String_semigroup))
+  [@jane.non_erasable.instances]
+
 module Monoid_utils_of_semigroup =
   Monoid_utils(Monoid)(Monoid_of_semigroup) [@jane.non_erasable.instances]
 
@@ -12,6 +18,8 @@ module Category_utils_of_list =
 module Category_of_list_monoid =
   Category_of_monoid(Monoid)(List_monoid)
     [@jane.non_erasable.instances]
+
+let concat_string_options = Monoid_utils_of_string.concat
 
 let concat_semi : Monoid_utils_of_semigroup.ts -> Monoid_of_semigroup.t =
   Monoid_utils_of_semigroup.concat

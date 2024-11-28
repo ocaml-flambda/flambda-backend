@@ -818,24 +818,93 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
+(* A description of a parameter to be passed to the runtime representation of a
+   parameterised module, namely a function (called the instantiating functor)
+   that produces an instance when invoked. [-instantiate] reads these as
+   instructions for creating lambda terms. *)
+type runtime_param =
+  | Rp_argument_block of Global_module.t  (* [Rp_argument_block P] means take
+                                             the argument being passed for the
+                                             parameter [P] and pass in its
+                                             argument block *)
+  | Rp_main_module_block of Global_module.t
+                                          (* [Rp_main_module_block M] means that
+                                             [M] is a parameterised module (not
+                                             itself a parameter) that this
+                                             module depends on and we should
+                                             pass in the main module block of
+                                             (the relevant instantiation of)
+                                             [M]. [M] must not be complete (if
+                                             it were, it would be a compile-time
+                                             constant and therefore not needed
+                                             as a parameter). *)
+  | Rp_unit                               (* The unit value (only used when
+                                             there are no other parameters) *)
+
+(* The structure of the main module block. A module with no parameters will be
+   compiled to an [Mb_struct] and a module with at least one parameter will be
+   compiled to an [Mb_instantiating_functor]. *)
+type main_module_block_format =
+  | Mb_struct of { mb_size : int }        (* A block with [mb_size] fields *)
+  | Mb_instantiating_functor of
+      { mb_runtime_params : runtime_param list;
+        mb_returned_size : int;
+      }
+                                          (* A block with exactly one field: a
+                                             function taking [mb_runtime_params]
+                                             and returning a block with
+                                             [mb_returned_size] fields *)
+
+(* The number of words in the main module block. *)
+val main_module_block_size : main_module_block_format -> int
+
 type program =
   { compilation_unit : Compilation_unit.t;
-    main_module_block_size : int;
+    main_module_block_format : main_module_block_format;
+    arg_block_idx : int option;         (* Index of argument block (see
+                                           [arg_descr]). If
+                                           [main_module_block_format] is
+                                           [Mb_struct], this is an index into
+                                           the main module block of the
+                                           compilation unit. For
+                                           [Mb_instantiating_functor], this is
+                                           an index into the module returned by
+                                           the instantiating functor. *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
     code : lambda }
-(* Lambda code for the middle-end.
+(* Lambda code for the middle-end. Here [mbf] is the value of the
+   [main_module_block_format] field.
    * In the closure case the code is a sequence of assignments to a
-     preallocated block of size [main_module_block_size] using
+     preallocated block of size [main_module_block_size mbf] using
      (Setfield(Getpredef(compilation_unit))). The size is used to preallocate
      the block.
    * In the flambda case the code is an expression returning a block
-     value of size [main_module_block_size]. The size is used to build
+     value of size [main_module_block_size mbf]. The size is used to build
      the module root as an initialize_symbol
      Initialize_symbol(module_name, 0,
-       [getfield 0; ...; getfield (main_module_block_size - 1)])
+       [getfield 0; ...; getfield (main_module_block_size mbf - 1)])
 *)
+
+(* Info for a compilation unit that implements a parameter (that is, was
+   compiled with [-as-argument-for]). Note that if the CU is itself
+   parameterised, this information (in particular [arg_block_idx]) describes
+   instances rather than the base CU gs. *)
+type arg_descr =
+  { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
+                                           [-as-argument-for P]) *)
+    arg_block_idx: int; }               (* The index within the main module
+                                           block of the _argument block_. If
+                                           this compilation unit is used as an
+                                           argument when instantiating,
+                                           [-instantiate] will pass the argument
+                                           block to the instantiating functor
+                                           (see [main_module_block_format]). The
+                                           argument block's signature is exactly
+                                           that of the parameter, which is in
+                                           general a supertype of this
+                                           compilation unit's signature. *)
 
 (* Sharing key *)
 val make_key: lambda -> lambda option
@@ -945,6 +1014,8 @@ val transl_module_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
+
+val transl_address : scoped_location -> Persistent_env.address -> lambda
 
 val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
 

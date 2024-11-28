@@ -873,11 +873,33 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
+type runtime_param =
+  | Rp_argument_block of Global_module.t
+  | Rp_main_module_block of Global_module.t
+  | Rp_unit
+
+type main_module_block_format =
+  | Mb_struct of { mb_size : int }
+  | Mb_instantiating_functor of
+      { mb_runtime_params : runtime_param list;
+        mb_returned_size : int;
+      }
+
+let main_module_block_size format =
+  match format with
+  | Mb_struct { mb_size } -> mb_size
+  | Mb_instantiating_functor _ -> 1
+
 type program =
   { compilation_unit : Compilation_unit.t;
-    main_module_block_size : int;
+    main_module_block_format : main_module_block_format;
+    arg_block_idx : int option;
     required_globals : Compilation_unit.Set.t;
     code : lambda }
+
+type arg_descr =
+  { arg_param: Global_module.Name.t;
+    arg_block_idx: int; }
 
 let const_int n = Const_base (Const_int n)
 

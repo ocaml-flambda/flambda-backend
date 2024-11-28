@@ -288,7 +288,8 @@ let load_lambda ppf ~compilation_unit ~required_globals lam size =
   let program =
     { Lambda.
       code = slam;
-      main_module_block_size = size;
+      main_module_block_format = Mb_struct { mb_size = size };
+      arg_block_idx = None;
       compilation_unit;
       required_globals;
     }
@@ -418,12 +419,19 @@ let execute_phrase print_outcome ppf phr =
         | _ -> str, sg', false
       in
       let compilation_unit, res, required_globals, size =
-        let { Lambda.compilation_unit; main_module_block_size = size;
+        let { Lambda.compilation_unit; main_module_block_format;
               required_globals; code = res } =
-          Translmod.transl_implementation compilation_unit (str, coercion)
+          Translmod.transl_implementation compilation_unit
+            (str, coercion, None)
             ~style:Plain_block
         in
         remember compilation_unit sg';
+        let size =
+          match main_module_block_format with
+          | Mb_struct { mb_size } -> mb_size;
+          | Mb_instantiating_functor _ ->
+            Misc.fatal_error "Unexpected parameterised module in toplevel"
+        in
         compilation_unit, close_phrase res, required_globals, size
       in
       Warnings.check_fatal ();

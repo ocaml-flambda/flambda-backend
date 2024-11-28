@@ -89,13 +89,32 @@ let print_name_line cu =
   in
   printf "\t%a\n" Compilation_unit.output cu_without_prefix
 
+let print_runtime_param p =
+  match (p : Lambda.runtime_param) with
+  | Rp_argument_block glob
+  | Rp_main_module_block glob -> print_global_as_name_line glob
+  | Rp_unit -> print_line "()"
+
+let print_main_module_block_format mbf =
+  match (mbf : Lambda.main_module_block_format) with
+  | Mb_struct _ -> ()
+  | Mb_instantiating_functor { mb_runtime_params = params; _ } ->
+    print_string "Runtime parameters:\n";
+    List.iter print_runtime_param params
+
 let print_required_global id =
   printf "\t%a\n" Compilation_unit.output id
 
+let print_arg_descr arg_descr =
+  let ({ arg_param; arg_block_idx = _ } : Lambda.arg_descr) = arg_descr in
+  printf "Parameter implemented: %a\n" Global_module.Name.output arg_param
+
 let print_cmo_infos cu =
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
+  Option.iter print_arg_descr cu.cu_arg_descr;
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
+  print_main_module_block_format cu.cu_format;
   print_string "Required globals:\n";
   List.iter print_required_global cu.cu_required_compunits;
   printf "Uses unsafe features: ";
@@ -229,15 +248,18 @@ let print_cms_infos cms =
   printf "Source file: %s\n"
     (match cms.cms_sourcefile with None -> "(none)" | Some f -> f)
 
-let print_general_infos print_name name crc defines iter_cmi iter_cmx =
+let print_general_infos print_name name crc defines arg_descr mbf
+    iter_cmi iter_cmx =
   printf "Name: %a\n" print_name name;
   printf "CRC of implementation: %s\n" (string_of_crc crc);
   printf "Globals defined:\n";
   List.iter print_name_line defines;
+  Option.iter print_arg_descr arg_descr;
   printf "Interfaces imported:\n";
   iter_cmi print_intf_import;
   printf "Implementations imported:\n";
-  iter_cmx print_impl_import
+  iter_cmx print_impl_import;
+  Option.iter print_main_module_block_format mbf
 
 let print_global_table table =
   printf "Globals defined:\n";
@@ -283,6 +305,7 @@ let print_generic_fns gfns =
 
 let print_cmx_infos (uir, sections, crc) =
   print_general_infos Compilation_unit.output uir.uir_unit crc uir.uir_defines
+    uir.uir_arg_descr (Some uir.uir_format)
     (fun f -> Array.iter f uir.uir_imports_cmi)
     (fun f -> Array.iter f uir.uir_imports_cmx);
   begin
@@ -317,7 +340,7 @@ let print_cmxa_infos (lib : Cmx_format.library_infos) =
   lib.lib_units
   |> List.iter (fun u ->
         print_general_infos Compilation_unit.output u.li_name u.li_crc
-          u.li_defines
+          u.li_defines None None
           (fun f ->
             B.iter (fun i -> f lib.lib_imports_cmi.(i)) u.li_imports_cmi)
           (fun f ->
@@ -331,6 +354,8 @@ let print_cmxs_infos header =
          Compilation_unit.output ui.dynu_name
          ui.dynu_crc
          ui.dynu_defines
+         None
+         None
          (fun f -> Array.iter f ui.dynu_imports_cmi)
          (fun f -> Array.iter f ui.dynu_imports_cmx))
     header.dynu_units
