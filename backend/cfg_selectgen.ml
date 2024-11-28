@@ -188,8 +188,6 @@ module Sub_cfg : sig
 
   val add_never_block : t -> label:Label.t -> t
 
-  val add_block : t -> Cfg.basic_block -> t
-
   val add_instruction_at_start :
     t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
@@ -1061,7 +1059,7 @@ class virtual selector_generic =
         let sub_if = self#emit_tail_sequence env eif in
         let sub_else = self#emit_tail_sequence env eelse in
         let term_desc =
-          Cfgize.terminator_of_test cond
+          Cfgize_utils.terminator_of_test cond
             ~label_true:(Sub_cfg.start_label sub_if)
             ~label_false:(Sub_cfg.start_label sub_else)
         in
