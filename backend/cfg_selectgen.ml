@@ -1061,12 +1061,16 @@ class virtual selector_generic =
           let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
           let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
           let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-          if stack_ofs = 0
-             && String.equal func.sym_name !Select_utils.current_function_name
+          if String.equal func.sym_name !Select_utils.current_function_name
              && Select_utils.trap_stack_is_empty env
           then (
             let call = Cfg.Tailcall_self { destination = tailrec_label } in
-            let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
+            let loc_arg' =
+              assert (stack_ofs >= 0);
+              if stack_ofs = 0
+              then loc_arg
+              else Proc.loc_parameters (Reg.typv r1)
+            in
             self#insert_moves env r1 loc_arg';
             self#insert_debug' env call dbg loc_arg' [||])
           else if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
