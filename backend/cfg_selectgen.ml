@@ -198,6 +198,9 @@ module Sub_cfg : sig
   val add_instruction :
     t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
+  (** [add_instruction'] can only be called when the terminator is [Never]. *)
+  val add_instruction' : t -> Cfg.basic Cfg.instruction -> unit
+
   (** [set_terminator] can only be called when the terminator is [Never]. *)
   val set_terminator :
     t -> Cfg.terminator -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
@@ -265,9 +268,12 @@ end = struct
        comment in the interface). *)
     DLL.add_begin sub_cfg.entry.body (make_instr desc arg res dbg)
 
-  let add_instruction sub_cfg desc arg res dbg =
+  let add_instruction' sub_cfg instr =
     assert (exit_has_never_terminator sub_cfg);
-    DLL.add_end sub_cfg.exit.body (make_instr desc arg res dbg)
+    DLL.add_end sub_cfg.exit.body instr
+
+  let add_instruction sub_cfg desc arg res dbg =
+    add_instruction' sub_cfg (make_instr desc arg res dbg)
 
   let set_terminator sub_cfg desc arg res dbg =
     assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
@@ -508,6 +514,12 @@ class virtual selector_generic =
 
     method insert_debug (_env : environment) basic dbg arg res =
       Sub_cfg.add_instruction sub_cfg basic arg res dbg
+
+    method private insert_op_debug_returning_id (_env : environment) op dbg arg
+        res =
+      let instr = make_instr (Cfg.Op op) arg res dbg in
+      Sub_cfg.add_instruction' sub_cfg instr;
+      instr.id
 
     method insert (_env : environment) basic arg res =
       (* CR mshinwell: fix debuginfo *)
@@ -1316,6 +1328,10 @@ class virtual selector_generic =
               hard_regs_for_arg [||])
         f.Cmm.fun_args;
       self#insert_moves env loc_arg rarg;
+      let prologue_poll_instr_id =
+        self#insert_op_debug_returning_id env Operation.Poll Debuginfo.none [||]
+          [||]
+      in
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
       let fun_contains_calls =
@@ -1371,7 +1387,23 @@ class virtual selector_generic =
       in
       Cfg.add_block_exn cfg tailrec_block;
       DLL.add_end layout tailrec_block.start;
+      let delete_prologue_poll =
+        (* CR mshinwell/xclerc: find a neater way of doing this rather than
+           making a special case for the [optimistic_prologue_poll_instr_id]. *)
+        not
+          (Cfg_polling.requires_prologue_poll ~future_funcnames
+             ~fun_name:f.Cmm.fun_name.sym_name
+             ~optimistic_prologue_poll_instr_id:prologue_poll_instr_id cfg)
+      in
+      let found_prologue_poll = ref false in
       Sub_cfg.iter_basic_blocks body ~f:(fun (block : Cfg.basic_block) ->
+          if delete_prologue_poll && not !found_prologue_poll
+          then
+            DLL.filter_left block.body
+              ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
+                let is_prologue_poll = instr.id = prologue_poll_instr_id in
+                if is_prologue_poll then found_prologue_poll := true;
+                not is_prologue_poll);
           if not (Cfg.is_never_terminator block.terminator.desc)
           then (
             block.can_raise <- Cfg.can_raise_terminator block.terminator.desc;
@@ -1382,16 +1414,13 @@ class virtual selector_generic =
             Cfg.add_block_exn cfg block;
             DLL.add_end layout block.start)
           else assert (DLL.is_empty block.body));
+      if delete_prologue_poll && not !found_prologue_poll
+      then Misc.fatal_error "Did not find [Poll] instruction to delete";
       (* note: `Cfgize.Stack_offset_and_exn.update_cfg` may add edges to the
          graph, and should hence be executed before
          `Cfg.register_predecessors_for_all_blocks`. *)
       Cfgize_utils.Stack_offset_and_exn.update_cfg cfg;
       Cfg.register_predecessors_for_all_blocks cfg;
-      if Cfg_polling.requires_prologue_poll ~future_funcnames
-           ~fun_name:f.Cmm.fun_name.sym_name cfg
-      then
-        DLL.add_begin entry_block.body
-          (make_instr Cfg.(Op Poll) [||] [||] Debuginfo.none);
       let cfg_with_layout =
         Cfg_with_layout.create cfg ~layout ~preserve_orig_labels:false
           ~new_labels:Label.Set.empty

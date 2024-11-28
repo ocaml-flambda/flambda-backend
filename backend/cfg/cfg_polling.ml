@@ -69,15 +69,22 @@ end
 module Polls_before_prtc_transfer = struct
   type domain = Polls_before_prtc_domain.t
 
-  type context = { future_funcnames : String.Set.t } [@@unboxed]
+  type context =
+    { future_funcnames : String.Set.t;
+      optimistic_prologue_poll_instr_id : int
+    }
 
   type error = |
 
   let basic :
       domain -> Cfg.basic Cfg.instruction -> context -> (domain, error) result =
-   fun dom instr { future_funcnames = _ } ->
+   fun dom instr { future_funcnames = _; optimistic_prologue_poll_instr_id } ->
     match instr.desc with
-    | Op (Poll | Alloc _) -> Ok Always_polls
+    | Op Poll ->
+      if instr.id = optimistic_prologue_poll_instr_id
+      then Ok dom
+      else Ok Always_polls
+    | Op (Alloc _) -> Ok Always_polls
     | Op _ | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
       Ok dom
    [@@ocaml.warning "-4"]
@@ -88,7 +95,7 @@ module Polls_before_prtc_transfer = struct
       Cfg.terminator Cfg.instruction ->
       context ->
       (domain, error) result =
-   fun dom ~exn term { future_funcnames } ->
+   fun dom ~exn term { future_funcnames; optimistic_prologue_poll_instr_id = _ } ->
     match term.desc with
     | Never -> assert false
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
@@ -108,12 +115,16 @@ module Polls_before_prtc_transfer = struct
       else Ok dom
 
   let exception_ : domain -> context -> (domain, error) result =
-   fun dom { future_funcnames = _ } -> Ok dom
+   fun dom { future_funcnames = _; optimistic_prologue_poll_instr_id = _ } ->
+    Ok dom
 end
 
 let potentially_recursive_tailcall :
-    future_funcnames:String.Set.t -> Cfg.t -> Polls_before_prtc_domain.t =
- fun ~future_funcnames cfg ->
+    future_funcnames:String.Set.t ->
+    optimistic_prologue_poll_instr_id:int ->
+    Cfg.t ->
+    Polls_before_prtc_domain.t =
+ fun ~future_funcnames ~optimistic_prologue_poll_instr_id cfg ->
   let module PTRCAnalysis =
     Cfg_dataflow.Backward
       (Polls_before_prtc_domain)
@@ -121,7 +132,8 @@ let potentially_recursive_tailcall :
   in
   let init : Polls_before_prtc_domain.t = Polls_before_prtc_domain.bot in
   match
-    PTRCAnalysis.run ~init ~map:PTRCAnalysis.Block cfg { future_funcnames }
+    PTRCAnalysis.run ~init ~map:PTRCAnalysis.Block cfg
+      { future_funcnames; optimistic_prologue_poll_instr_id }
   with
   | Ok res -> (
     match Label.Tbl.find_opt res cfg.entry_label with
@@ -350,12 +362,16 @@ let instrument_fundecl :
 let requires_prologue_poll :
     future_funcnames:Misc.Stdlib.String.Set.t ->
     fun_name:string ->
+    optimistic_prologue_poll_instr_id:int ->
     Cfg.t ->
     bool =
- fun ~future_funcnames ~fun_name cfg ->
+ fun ~future_funcnames ~fun_name ~optimistic_prologue_poll_instr_id cfg ->
   if Polling_utils.is_disabled fun_name
   then false
   else
-    match potentially_recursive_tailcall ~future_funcnames cfg with
+    match
+      potentially_recursive_tailcall ~future_funcnames
+        ~optimistic_prologue_poll_instr_id cfg
+    with
     | Might_not_poll -> true
     | Always_polls -> false
