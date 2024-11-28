@@ -240,7 +240,14 @@ let register_predecessors_for_all_blocks (t : t) =
       let targets = successor_labels ~normal:true ~exn:true block in
       Label.Set.iter
         (fun target ->
-          let target_block = Label.Tbl.find t.blocks target in
+          let target_block =
+            match Label.Tbl.find t.blocks target with
+            | target_block -> target_block
+            | exception Not_found ->
+              Misc.fatal_errorf
+                "Cfg.register_predecessors_for_all_blocks: block %a not found"
+                Label.format target
+          in
           target_block.predecessors
             <- Label.Set.add label target_block.predecessors)
         targets)

@@ -125,7 +125,11 @@ let potentially_recursive_tailcall :
   with
   | Ok res -> (
     match Label.Tbl.find_opt res cfg.entry_label with
-    | None -> assert false
+    | None ->
+      Misc.fatal_errorf
+        "Cfg_polling.potentially_recursive_tailcall: missing entry label %a in \
+         result"
+        Label.print cfg.entry_label
     | Some res -> res)
   | Aborted _ -> .
   | Max_iterations_reached ->
