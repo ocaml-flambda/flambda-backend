@@ -667,8 +667,8 @@ class virtual selector_generic =
         let sub_else = selse#extract in
         let term_desc =
           Cfgize_utils.terminator_of_test cond
-            ~label_false:sub_else.Sub_cfg.entry.start
             ~label_true:sub_if.Sub_cfg.entry.start
+            ~label_false:sub_else.Sub_cfg.entry.start
         in
         sub_cfg.exit.terminator
           <- { sub_cfg.exit.terminator with
@@ -1095,8 +1095,8 @@ class virtual selector_generic =
         let sub_else = self#emit_tail_sequence env eelse in
         let term_desc =
           Cfgize_utils.terminator_of_test cond
-            ~label_false:sub_else.Sub_cfg.entry.start
             ~label_true:sub_if.Sub_cfg.entry.start
+            ~label_false:sub_else.Sub_cfg.entry.start
         in
         sub_cfg.exit.terminator
           <- { sub_cfg.exit.terminator with
