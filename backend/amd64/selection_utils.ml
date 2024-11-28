@@ -15,6 +15,8 @@
 
 (* Instruction selection for the AMD64 *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Arch
@@ -112,4 +114,6 @@ let inline_ops = ["sqrt"]
 
 let is_immediate n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
 
-let is_immediate_natint n = n <= 0x7FFF_FFFFn && n >= -0x8000_0000n
+let is_immediate_natint n =
+  Nativeint.compare n 0x7FFF_FFFFn <= 0
+  && Nativeint.compare n (-0x8000_0000n) >= 0

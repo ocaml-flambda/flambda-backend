@@ -15,6 +15,8 @@
 
 (* Instruction selection for the AMD64 *)
 
+open! Int_replace_polymorphic_compare
+
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
 open Arch
@@ -227,7 +229,7 @@ class selector =
       | Cstore (((Word_int | Word_val) as chunk), _init) -> (
         match args with
         | [loc; Cop (Caddi, [Cop (Cload _, [loc'], _); Cconst_int (n, _dbg)], _)]
-          when loc = loc' && is_immediate n ->
+          when Stdlib.( = ) loc loc' && is_immediate n ->
           let addr, arg = self#select_addressing chunk loc in
           specific (Ioffset_loc (n, addr)), [arg]
         | _ -> super#select_operation op args dbg ~label_after)
