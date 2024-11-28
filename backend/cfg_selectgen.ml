@@ -1132,32 +1132,7 @@ class virtual selector_generic =
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
       let fun_contains_calls =
-        Sub_cfg.exists_basic_blocks body ~f:(fun (block : Cfg.basic_block) ->
-            block.is_trap_handler
-            || (match block.terminator.desc with
-               | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
-               | Int_test _ | Switch _ | Return ->
-                 false
-               | Raise raise_kind -> (
-                 match raise_kind with
-                 | Lambda.Raise_notrace -> false
-                 | Lambda.Raise_regular | Lambda.Raise_reraise ->
-                   (* PR#6239 *)
-                   (* caml_stash_backtrace; we #mark_call rather than
-                      #mark_c_tailcall to get a good stack backtrace *)
-                   true)
-               | Tailcall_self _ -> false
-               | Tailcall_func _ -> false
-               | Call_no_return _ -> true
-               | Call _ -> true
-               | Prim { op = External _ } -> true
-               | Prim { op = Probe _ } -> true
-               | Specific_can_raise _ -> false)
-            || DLL.exists block.body
-                 ~f:(fun (instr : Cfg.basic Cfg.instruction) ->
-                   match instr.desc with
-                   | Op (Alloc _ | Poll) -> true
-                   | _ -> false))
+        Sub_cfg.exists_basic_blocks body ~f:Cfg.basic_block_contains_calls
       in
       let cfg =
         Cfg.create ~fun_name:f.Cmm.fun_name.sym_name ~fun_args:loc_arg
