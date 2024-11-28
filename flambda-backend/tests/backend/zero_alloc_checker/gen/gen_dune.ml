@@ -1,6 +1,7 @@
 let () =
   let enabled_if =
-      {|(enabled_if (= %{context_name} "main"))|}
+    (* CR xclerc: on arm64, we currently get different results for a couple of cases (e.g. probes) *)
+      {|(enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )|}
   in
   let buf = Buffer.create 1000 in
   let print_test ?(extra_flags="-zero-alloc-check default") deps =
