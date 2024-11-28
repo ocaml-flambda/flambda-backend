@@ -182,18 +182,23 @@ let make_empty_block ?label terminator : Cfg.basic_block =
 module Sub_cfg : sig
   type t
 
+  val exit_has_never_terminator : t -> bool
+
   val make_empty : unit -> t
 
   val add_empty_block_at_start : t -> label:Label.t -> t
 
   val add_never_block : t -> label:Label.t -> t
 
+  (** Use [add_instruction] in preference to this function. *)
   val add_instruction_at_start :
     t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
+  (** [add_instruction] can only be called when the terminator is [Never]. *)
   val add_instruction :
     t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
+  (** [set_terminator] can only be called when the terminator is [Never]. *)
   val set_terminator :
     t -> Cfg.terminator -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
 
@@ -218,6 +223,9 @@ end = struct
       exit : Cfg.basic_block;
       layout : Cfg.basic_block DLL.t
     }
+
+  let exit_has_never_terminator sub_cfg =
+    Cfg.is_never_terminator sub_cfg.exit.terminator.desc
 
   let make_never_block ?label () : Cfg.basic_block =
     make_empty_block ?label (make_instr Cfg.Never [||] [||] Debuginfo.none)
@@ -252,10 +260,13 @@ end = struct
     add_block sub_cfg (make_never_block ~label ())
 
   let add_instruction_at_start sub_cfg desc arg res dbg =
+    (* We don't check [exit_has_never_terminator] since we're adding at the
+       start, and this function is only used in very specific situations (note
+       comment in the interface). *)
     DLL.add_begin sub_cfg.entry.body (make_instr desc arg res dbg)
 
   let add_instruction sub_cfg desc arg res dbg =
-    assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+    assert (exit_has_never_terminator sub_cfg);
     DLL.add_end sub_cfg.exit.body (make_instr desc arg res dbg)
 
   let set_terminator sub_cfg desc arg res dbg =
@@ -534,7 +545,7 @@ class virtual selector_generic =
       match self#emit_parts_list env args with
       | None -> None
       | Some (simple_args, env) -> (
-        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let add_naming_op_for_bound_name regs =
           match bound_name with
           | None -> ()
@@ -684,7 +695,7 @@ class virtual selector_generic =
       match self#emit_expr env earg ~bound_name:None with
       | None -> None
       | Some rarg ->
-        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let rif, (sif : 'self) = self#emit_sequence env eif ~bound_name in
         let relse, (selse : 'self) = self#emit_sequence env eelse ~bound_name in
         let r = join env rif sif relse selse ~bound_name in
@@ -705,7 +716,7 @@ class virtual selector_generic =
       match self#emit_expr env esel ~bound_name:None with
       | None -> None
       | Some rsel ->
-        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let sub_cases : (Reg.t array option * 'self) array =
           Array.map
             (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
@@ -814,7 +825,7 @@ class virtual selector_generic =
       in
       let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
       let r = join_array env a ~bound_name in
-      assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
       let s_body : Sub_cfg.t = s_body#extract in
       let s_handlers =
         List.map
@@ -854,7 +865,7 @@ class virtual selector_generic =
             src;
           self#insert_moves env src tmp_regs;
           self#insert_moves env tmp_regs (Array.concat handler.regs);
-          assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+          assert (Sub_cfg.exit_has_never_terminator sub_cfg);
           List.iter
             (fun trap ->
               let instr_desc =
@@ -888,7 +899,7 @@ class virtual selector_generic =
     method emit_expr_aux_trywith env bound_name e1 exn_cont v e2
         (_dbg : Debuginfo.t) (_value_kind : Cmm.kind_for_unboxing) =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-      assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
       let exn_label = Cmm.new_label () in
       let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
       let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
@@ -984,7 +995,7 @@ class virtual selector_generic =
         self#insert' env Cfg.Return loc [||]
 
     method emit_return (env : environment) exp traps =
-      assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
       self#insert_return env (self#emit_expr_aux env exp ~bound_name:None) traps
 
     method emit_tail_apply env ty op args dbg =
@@ -1055,7 +1066,7 @@ class virtual selector_generic =
       match self#emit_expr env earg ~bound_name:None with
       | None -> ()
       | Some rarg ->
-        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let sub_if = self#emit_tail_sequence env eif in
         let sub_else = self#emit_tail_sequence env eelse in
         let term_desc =
@@ -1072,7 +1083,7 @@ class virtual selector_generic =
       match self#emit_expr env esel ~bound_name:None with
       | None -> ()
       | Some rsel ->
-        assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+        assert (Sub_cfg.exit_has_never_terminator sub_cfg);
         let sub_cases =
           Array.map
             (fun (case, _dbg) -> self#emit_tail_sequence env case)
@@ -1112,7 +1123,7 @@ class virtual selector_generic =
             env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold, label)) map)
           (env, Int.Map.empty) handlers
       in
-      assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
       let s_body = self#emit_tail_sequence env e1 in
       let translate_one_handler nfail
           (trap_info, (ids, rs, e2, _dbg, is_cold, label)) =
@@ -1178,7 +1189,7 @@ class virtual selector_generic =
         build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
         (* Note: we're dropping unreachable handlers here *)
       in
-      assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
       let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
       Sub_cfg.update_exit_terminator sub_cfg term_desc;
       let s_handlers = List.map (fun (_, _, s, _) -> s) new_handlers in
@@ -1187,7 +1198,7 @@ class virtual selector_generic =
     method emit_tail_trywith env e1 exn_cont v e2 (_dbg : Debuginfo.t)
         (_value_kind : Cmm.kind_for_unboxing) =
       (* CR-someday xclerc for xclerc: use the `_dbg` parameter *)
-      assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
+      assert (Sub_cfg.exit_has_never_terminator sub_cfg);
       let exn_label = Cmm.new_label () in
       let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
       let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
@@ -1351,7 +1362,7 @@ class virtual selector_generic =
            ~fun_name:f.Cmm.fun_name.sym_name cfg
       then
         DLL.add_begin entry_block.body
-          (Sub_cfg.make_instr Cfg.(Op Poll) [||] [||] Debuginfo.none);
+          (make_instr Cfg.(Op Poll) [||] [||] Debuginfo.none);
       DLL.add_begin entry_block.body
         (make_instr Cfg.Prologue [||] [||] Debuginfo.none);
       Cfg.add_block_exn cfg entry_block;
