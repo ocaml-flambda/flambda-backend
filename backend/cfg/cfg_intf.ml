@@ -146,6 +146,7 @@ module S = struct
     | Tailcall_self of { destination : Label.t }
     | Tailcall_func of func_call_operation
     | Call_no_return of external_call_operation
+      (* CR mshinwell: [Call_no_return] should have "external" in the name *)
     | Call of func_call_operation with_label_after
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after
