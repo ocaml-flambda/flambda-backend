@@ -1181,11 +1181,6 @@ class virtual selector_generic =
       assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
       let term_desc = Cfg.Always (Sub_cfg.start_label s_body) in
       Sub_cfg.update_exit_terminator sub_cfg term_desc;
-      (* XXX mshinwell: this used to say: Sub_cfg.transfer ~from:s_body
-         ~to_:sub_cfg; List.iter (fun (_, _, sub_handler, _) -> Sub_cfg.transfer
-         ~from:sub_handler ~to_:sub_cfg) new_handlers
-
-         ...is it correct to use [join_tail]? *)
       let s_handlers = List.map (fun (_, _, s, _) -> s) new_handlers in
       sub_cfg <- Sub_cfg.join_tail ~from:(s_body :: s_handlers) ~to_:sub_cfg
 
