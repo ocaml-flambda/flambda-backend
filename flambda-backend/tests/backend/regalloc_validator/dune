@@ -1,5 +1,6 @@
 (tests
  (names check_regalloc_validation)
+ (enabled_if (= %{architecture} "amd64"))
  ; FIXME Fix warnings
  (flags
   (:standard -no-principal -w -27-32))
