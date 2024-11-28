@@ -24,20 +24,6 @@ type basic_or_terminator =
   | Basic of Cfg.basic
   | Terminator of Cfg.terminator
 
-module Sub_cfg : sig
-  type t
-
-  val make_empty : unit -> t
-
-  val add_instruction :
-    t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
-
-  val set_terminator :
-    t -> Cfg.terminator -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
-end
-
-val reset_next_instr_id : unit -> unit
-
 class virtual selector_generic :
   object
     method is_store : Operation.t -> bool
