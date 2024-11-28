@@ -476,6 +476,7 @@
   simd_proc
   simple_operation
   stack_check
+  sub_cfg
   reg
   reload
   reloadgen

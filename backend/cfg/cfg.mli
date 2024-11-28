@@ -223,3 +223,14 @@ val make_instruction :
   ?available_across:Reg_availability_set.t option ->
   unit ->
   'a instruction
+
+(* CR mshinwell: consolidate with [make_instruction] and tidy up ID interface *)
+val make_instr :
+  'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a instruction
+
+(** These IDs are also used by [make_instr] *)
+val next_instr_id : unit -> int
+
+val reset_next_instr_id : unit -> unit
+
+val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block

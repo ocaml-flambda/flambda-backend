@@ -524,3 +524,45 @@ let make_instruction ~desc ?(arg = [||]) ?(res = [||]) ?(dbg = Debuginfo.none)
     available_before;
     available_across
   }
+
+let next_instr_id = ref 0
+
+let reset_next_instr_id () = next_instr_id := 0
+
+let next_instr_id () : int =
+  let res = !next_instr_id in
+  incr next_instr_id;
+  res
+
+let make_instr desc arg res dbg =
+  { desc;
+    arg;
+    res;
+    dbg;
+    fdo = Fdo_info.none;
+    live = Reg.Set.empty;
+    stack_offset = -1;
+    id = next_instr_id ();
+    irc_work_list = Unknown_list;
+    ls_order = 0;
+    (* CR mshinwell/xclerc: should this be [None]? *)
+    available_before =
+      Some (Reg_availability_set.Ok Reg_with_debug_info.Set.empty);
+    available_across = None
+  }
+
+let make_empty_block ?label terminator : basic_block =
+  let start =
+    match label with None -> Cmm.new_label () | Some label -> label
+  in
+  { start;
+    body = DLL.make_empty ();
+    terminator;
+    predecessors = Label.Set.empty;
+    stack_offset = -1;
+    exn = None;
+    can_raise = false;
+    is_trap_handler = false;
+    dead = false;
+    cold = false
+  }
