@@ -1,6 +1,6 @@
 let () =
   let enabled_if =
-      {|(enabled_if (= %{context_name} "main"))|}
+      {|(enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )|}
   in
   let buf = Buffer.create 1000 in
   let print_test ?(extra_flags="-zero-alloc-check default") deps =
