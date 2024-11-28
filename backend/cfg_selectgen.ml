@@ -144,6 +144,7 @@ let make_instr desc arg res dbg =
     irc_work_list = Unknown_list;
     ls_order = 0;
     available_before =
+      (* CR mshinwell/xclerc: should this be [None]? *)
       Some (Reg_availability_set.Ok Reg_with_debug_info.Set.empty);
     available_across = None
   }
