@@ -792,9 +792,9 @@ class virtual selector_generic =
         let not_built, to_build =
           Int.Map.partition
             (fun _n (r, _) ->
-                               match !r with
-                | Select_utils.Unreachable -> true
-                | Select_utils.Reachable _ -> false)
+              match !r with
+              | Select_utils.Unreachable -> true
+              | Select_utils.Reachable _ -> false)
             not_built
         in
         if Int.Map.is_empty to_build
@@ -864,12 +864,12 @@ class virtual selector_generic =
              src are present in dest *)
           let tmp_regs = Reg.createv_like src in
           (* Ccatch registers must not contain out of heap pointers *)
-            Array.iter
-              (fun reg ->
-                match reg.Reg.typ with
-                | Addr -> assert false
-                | Val | Int | Float | Vec128 | Float32 -> ())
-              src;
+          Array.iter
+            (fun reg ->
+              match reg.Reg.typ with
+              | Addr -> assert false
+              | Val | Int | Float | Vec128 | Float32 -> ())
+            src;
           self#insert_moves env src tmp_regs;
           self#insert_moves env tmp_regs (Array.concat handler.regs);
           assert (Cfg.is_never_terminator sub_cfg.exit.terminator.desc);
@@ -1212,9 +1212,9 @@ class virtual selector_generic =
         let not_built, to_build =
           Int.Map.partition
             (fun _n (r, _) ->
-                               match !r with
-                | Select_utils.Unreachable -> true
-                | Select_utils.Reachable _ -> false)
+              match !r with
+              | Select_utils.Unreachable -> true
+              | Select_utils.Reachable _ -> false)
             not_built
         in
         if Int.Map.is_empty to_build
@@ -1328,7 +1328,6 @@ class virtual selector_generic =
     (* Sequentialization of a function definition *)
 
     method emit_fundecl ~future_funcnames f =
-      let (_ : Misc.Stdlib.String.Set.t) = future_funcnames in
       Select_utils.current_function_name := f.Cmm.fun_name.sym_name;
       Select_utils.current_function_is_check_enabled
         := Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
@@ -1379,8 +1378,6 @@ class virtual selector_generic =
       self#insert_moves env loc_arg rarg;
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
-      (* CR xclerc for xclerc: implement polling insertion. *)
-      let fun_poll = Lambda.Default_poll in
       let fun_contains_calls =
         Sub_cfg.exists_basic_blocks body ~f:(fun (block : Cfg.basic_block) ->
             block.is_trap_handler
@@ -1415,7 +1412,7 @@ class virtual selector_generic =
             (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
           ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls
           ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
-          ~fun_poll
+          ~fun_poll:f.Cmm.fun_poll
       in
       let layout = DLL.make_empty () in
       let entry_block =
@@ -1423,6 +1420,11 @@ class virtual selector_generic =
           (Sub_cfg.make_instr (Cfg.Always tailrec_label) [||] [||]
              Debuginfo.none)
       in
+      if Cfg_polling.requires_prologue_poll ~future_funcnames
+           ~fun_name:f.Cmm.fun_name.sym_name cfg
+      then
+        DLL.add_begin entry_block.body
+          (Sub_cfg.make_instr Cfg.(Op Poll) [||] [||] Debuginfo.none);
       DLL.add_begin entry_block.body
         (Sub_cfg.make_instr Cfg.Prologue [||] [||] Debuginfo.none);
       Cfg.add_block_exn cfg entry_block;
