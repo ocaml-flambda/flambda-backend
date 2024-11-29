@@ -49,6 +49,18 @@ let ptr' =
   let (Mk (m, p)) = ptr in
   Mk (m, Capsule.Data.create (fun () -> mk_ref 2))
 
+(* [wrap] and [unwrap]. *)
+let ptr'' =
+  let (Mk (m, p)) = ptr in
+  let p' =
+  Capsule.Mutex.with_lock m (fun k ->
+    Capsule.access k (fun c ->
+      let x = Capsule.Data.unwrap c p in
+      x.v <- 45;
+      Capsule.Data.wrap c x))
+  in
+  Mk (m, p')
+
 (* [iter]. *)
 let () =
   with_guarded ptr (fun k p ->
@@ -71,7 +83,16 @@ exception Leak of int myref
 let () =
   with_guarded ptr (fun k p ->
     match Capsule.Data.iter k (fun r -> reraise (Leak r)) p with
-    | exception Capsule.Data.Contended (Leak r) -> ()
+    | exception Capsule.Contended (Leak r) -> ()
+    | _ -> assert false)
+;;
+
+(* An exception raised from [access] is marked as [contended]: *)
+let () =
+  with_guarded ptr (fun k p ->
+    match Capsule.access k
+            (fun c -> reraise (Leak (Capsule.Data.unwrap c p))) with
+    | exception Capsule.Contended (Leak r) -> ()
     | _ -> assert false)
 ;;
 
@@ -85,11 +106,11 @@ let ptr2 =
 ;;
 
 
-(* [expose]. *)
+(* [destroy]. *)
 let () =
   let (Mk (m, p)) = ptr2 in
-  let k = Capsule.Mutex.destroy m in
-  let (r1, r2) = Capsule.Data.expose k p in
+  let c = Capsule.Mutex.destroy m in
+  let (r1, r2) = Capsule.Data.unwrap c p in
   assert (read_ref r1 = 15 && read_ref r2 = 3)
 ;;
 
