@@ -308,6 +308,11 @@ let g () =
   let local_ unique_ once_ f : int -> int = fun z -> z + z in
   let local_ f x: int -> int = x in
   let local_ f x y : int -> int = fun z -> x + y + z in
+
+  let foo a b @ local = exclave_ "hello" in
+  let foo = fun a b @ local -> exclave_ "hello" in
+  let foo a b : int @@ local = 42 in
+  let foo = fun a b : int @@ local -> 42 in
   ();;
 
 [%%expect{|
@@ -340,6 +345,26 @@ Line 7, characters 13-14:
 7 |   let local_ f x y : int -> int = fun z -> x + y + z in
                  ^
 Warning 26 [unused-var]: unused variable f.
+
+Line 9, characters 6-9:
+9 |   let foo a b @ local = exclave_ "hello" in
+          ^^^
+Warning 26 [unused-var]: unused variable foo.
+
+Line 10, characters 6-9:
+10 |   let foo = fun a b @ local -> exclave_ "hello" in
+           ^^^
+Warning 26 [unused-var]: unused variable foo.
+
+Line 11, characters 6-9:
+11 |   let foo a b : int @@ local = 42 in
+           ^^^
+Warning 26 [unused-var]: unused variable foo.
+
+Line 12, characters 6-9:
+12 |   let foo = fun a b : int @@ local -> 42 in
+           ^^^
+Warning 26 [unused-var]: unused variable foo.
 
 val g : unit -> unit @@ global many = <fun>
 |}]

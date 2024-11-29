@@ -368,7 +368,7 @@ and expression_desc =
                when [flag] is {{!Asttypes.rec_flag.Recursive}[Recursive]}.
          *)
   | Pexp_function of
-      function_param list * function_constraint option * function_body
+      function_param list * function_constraint * function_body
   (** [Pexp_function ([P1; ...; Pn], C, body)] represents any construct
       involving [fun] or [function], including:
       - [fun P1 ... Pn -> E]
@@ -595,11 +595,23 @@ and type_constraint =
 
 and function_constraint =
   { mode_annotations : modes;
-    (** The mode annotation placed on a function let-binding when the function
-            has a type constraint on the body, e.g.
-            [let local_ f x : int -> int = ...].
+    (** The mode annotation placed on a function let-binding, e.g.
+       [let local_ f x : int -> int = ...].
+       The [local_] syntax is parsed into two nodes: the field here, and [pvb_modes].
+       This field only affects the interpretation of [ret_type_constraint], while the
+       latter is translated in [typecore] to [Pexp_constraint] to contrain the mode of the
+       function.
+       (* CR zqian: This field is not failthful representation of the user syntax, and
+       complicates [pprintast]. It should be removed and their functionality should be
+       moved to [pvb_modes]. *)
     *)
-    type_constraint : type_constraint;
+    ret_mode_annotations : modes;
+    (** The mode annotation placed on a function's body, e.g.
+       [let f x : int -> int @@ local = ...].
+       This field constrains the mode of function's body.
+    *)
+    ret_type_constraint : type_constraint option;
+    (** The type constraint placed on a function's body. *)
   }
 (** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
 

@@ -284,7 +284,7 @@ let make_method loc cl_num expr =
         pparam_loc = pat.ppat_loc;
       }
     ]
-    None (Pfunction_body expr)
+    {ret_type_constraint=None; ret_mode_annotations=[]; mode_annotations=[]} (Pfunction_body expr)
 
 (*******************************)
 

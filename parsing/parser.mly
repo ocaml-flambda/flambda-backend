@@ -382,9 +382,9 @@ let mkexp_type_constraint_with_modes ?(ghost=false) ~loc ~modes e t =
       mk ~loc (Pexp_coerce(e, t1, t2))
      | _ :: _ -> not_expecting loc "mode annotations"
 
-let mkexp_opt_type_constraint_with_modes ~loc ~modes e = function
+let mkexp_opt_type_constraint_with_modes ?ghost ~loc ~modes e = function
   | None -> e
-  | Some c -> mkexp_type_constraint_with_modes ~loc ~modes e c
+  | Some c -> mkexp_type_constraint_with_modes ?ghost ~loc ~modes e c
 
 (* Helper functions for desugaring array indexing operators *)
 type paren_kind = Paren | Brace | Bracket
@@ -740,18 +740,22 @@ let all_params_as_newtypes =
     then Some (List.filter_map as_newtype params)
     else None
 
+let empty_body_constraint =
+  { ret_type_constraint = None; mode_annotations = []; ret_mode_annotations = []}
+
 (* Given a construct [fun (type a b c) : t -> e], we construct
    [Pexp_newtype(a, Pexp_newtype(b, Pexp_newtype(c, Pexp_constraint(e, t))))]
    rather than a [Pexp_function].
 *)
 let mkghost_newtype_function_body newtypes body_constraint body ~loc =
   let wrapped_body =
-    match body_constraint with
-    | None -> body
-    | Some { type_constraint; mode_annotations } ->
-        let {Location.loc_start; loc_end} = body.pexp_loc in
-        let loc = loc_start, loc_end in
-        mkexp_type_constraint_with_modes ~ghost:true ~loc ~modes:mode_annotations body type_constraint
+    let { ret_type_constraint; mode_annotations; ret_mode_annotations } =
+      body_constraint
+    in
+    let modes = mode_annotations @ ret_mode_annotations in
+    let {Location.loc_start; loc_end} = body.pexp_loc in
+    let loc = loc_start, loc_end in
+    mkexp_opt_type_constraint_with_modes ~ghost:true ~loc ~modes body ret_type_constraint
   in
   mk_newtypes ~loc newtypes wrapped_body
 
@@ -2578,7 +2582,7 @@ class_type_declarations:
            typechecking. For standalone function cases, we want the compiler to
            respect, e.g., [@inline] attributes.
          *)
-        mkfunction [] None (Pfunction_cases (cases, loc, [])) ~attrs:$2
+        mkfunction [] empty_body_constraint (Pfunction_cases (cases, loc, [])) ~attrs:$2
           ~loc:$sloc
       }
 ;
@@ -2772,6 +2776,21 @@ let_pattern_no_modes:
 
 %inline qualified_dotop: ioption(DOT mod_longident {$2}) DOTOP { $1, $2 };
 
+optional_atomic_constraint_:
+  | COLON atomic_type optional_atat_mode_expr {
+    { ret_type_constraint = Some (Pconstraint $2)
+    ; mode_annotations = []
+    ; ret_mode_annotations = $3
+    }
+   }
+  | at_mode_expr {
+    { ret_type_constraint = None
+    ; mode_annotations = []
+    ; ret_mode_annotations = $1
+    }
+  }
+  | { empty_body_constraint }
+
 fun_expr:
     simple_expr %prec below_HASH
       { $1 }
@@ -2779,18 +2798,9 @@ fun_expr:
       { let desc, attrs = $1 in
         mkexp_attrs ~loc:$sloc desc attrs }
     /* Cf #5939: we used to accept (fun p when e0 -> e) */
-  | FUN ext_attributes fun_params preceded(COLON, atomic_type)?
+  | FUN ext_attributes fun_params body_constraint = optional_atomic_constraint_
       MINUSGREATER fun_body
-      { let body_constraint =
-          Option.map
-            (fun x ->
-              { type_constraint = Pconstraint x
-              ; mode_annotations = []
-              })
-          $4
-        in
-        mkfunction $3 body_constraint $6 ~loc:$sloc ~attrs:$2
-      }
+      {  mkfunction $3 body_constraint $6 ~loc:$sloc ~attrs:$2 }
   | expr_
       { $1 }
   | let_bindings(ext) IN seq_expr
@@ -3273,14 +3283,16 @@ letop_bindings:
 strict_binding_modes:
     EQUAL seq_expr
       { fun _ -> $2 }
-  | fun_params type_constraint? EQUAL fun_body
-  (* CR zqian: The above [type_constraint] should be replaced by [constraint_]
-    to support mode annotation *)
+  | fun_params constraint_? EQUAL fun_body
     { fun mode_annotations ->
-        let constraint_ : function_constraint option =
-          match $2 with
-          | None -> None
-          | Some type_constraint -> Some { type_constraint; mode_annotations }
+        let constraint_ : function_constraint =
+          let ret_type_constraint, ret_mode_annotations =
+            match $2 with
+            | None -> None, []
+            | Some (ret_type_constraint, ret_mode_annotations) ->
+                ret_type_constraint, ret_mode_annotations
+          in
+          {mode_annotations; ret_type_constraint ; ret_mode_annotations }
         in
         let exp = mkfunction $1 constraint_ $4 ~loc:$sloc ~attrs:(None, []) in
         { exp with pexp_loc = { exp.pexp_loc with loc_ghost = true } }
@@ -3299,7 +3311,7 @@ fun_body:
         | Some _ ->
           (* function%foo extension nodes interrupt the arity *)
           let cases = Pfunction_cases ($3, make_loc $sloc, []) in
-          let function_ = mkfunction [] None cases ~loc:$sloc ~attrs:$2 in
+          let function_ = mkfunction [] empty_body_constraint cases ~loc:$sloc ~attrs:$2 in
           Pfunction_body function_
       }
   | fun_seq_expr
