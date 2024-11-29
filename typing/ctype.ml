@@ -4098,7 +4098,7 @@ let unify_gadt (penv : Pattern_env.t) ty1 ty2 =
   unify uenv ty1 ty2;
   equated_types
 
-let unify_var ~from_subst uenv t1 t2 =
+let unify_var uenv t1 t2 =
   if eq_type t1 t2 then () else
   match get_desc t1, get_desc t2 with
     Tvar _, Tconstr _ when deep_occur t1 t2 ->
@@ -4110,7 +4110,9 @@ let unify_var ~from_subst uenv t1 t2 =
         occur_for Unify uenv t1 t2;
         update_level_for Unify env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
-        if not from_subst then begin
+        (* If we assume the original type is well-kinded, then we don't
+           need to check jkinds in substitution. *)
+        if not (in_subst_mode uenv) then begin
           unification_jkind_check env t2 (Jkind.disallow_left jkind)
         end;
         link_type t1 t2;
@@ -4124,10 +4126,7 @@ let unify_var ~from_subst uenv t1 t2 =
   | _ ->
       unify uenv t1 t2
 
-(* CR layouts: comment here explaining why it's safe to skip jkind checks in
-   this case when called from subst. *)
-let _ = unify_var' := unify_var ~from_subst:true
-let unify_var = unify_var ~from_subst:false
+let _ = unify_var' := unify_var
 
 (* the final versions of unification functions *)
 let unify_var env ty1 ty2 =
