@@ -9,57 +9,60 @@
 
 (* Uniqueness tests *)
 
+let unique_use : 'a @ unique -> unit = fun _ -> ()
+let unique_use2 : ('a : value & value) @ unique -> unit = fun _ -> ()
+
 type t = #{ x : string ; y : string }
-let use_string (_s @ unique) = ()
 let mk : unit -> t @ unique = fun () -> #{ x = "hi"; y = "hi" }
 [%%expect{|
+val unique_use : ('a : value_or_null). 'a @ unique -> unit = <fun>
+val unique_use2 : ('a : value & value). 'a @ unique -> unit = <fun>
 type t = #{ x : string; y : string; }
-val use_string : ('a : value_or_null). 'a @ unique -> unit = <fun>
 val mk : unit -> t @ unique = <fun>
 |}]
 
 (* Can access different fields *)
 let () =
   let t = mk () in
-  use_string t.#x;
-  use_string t.#y
+  unique_use t.#x;
+  unique_use t.#y
 [%%expect{|
 |}]
 
 let () =
   let #{ x ; y } = mk () in
-  use_string x;
-  use_string y
+  unique_use x;
+  unique_use y
 [%%expect{|
 |}]
 
 (* Cannot access the same field twice *)
 let () =
   let t = mk () in
-  use_string t.#x;
-  use_string t.#x
+  unique_use t.#x;
+  unique_use t.#x
 [%%expect{|
 Line 4, characters 13-17:
-4 |   use_string t.#x
+4 |   unique_use t.#x
                  ^^^^
 Error: This value is used here, but it has already been used as unique:
 Line 3, characters 13-17:
-3 |   use_string t.#x;
+3 |   unique_use t.#x;
                  ^^^^
 
 |}]
 
 let () =
   let #{ x ; y = _ } = mk () in
-  use_string x;
-  use_string x
+  unique_use x;
+  unique_use x
 [%%expect{|
 Line 4, characters 13-14:
-4 |   use_string x
+4 |   unique_use x
                  ^
 Error: This value is used here, but it has already been used as unique:
 Line 3, characters 13-14:
-3 |   use_string x;
+3 |   unique_use x;
                  ^
 
 |}]
@@ -67,26 +70,67 @@ Line 3, characters 13-14:
 (* A functional update to a field allows a field to be reused *)
 let () =
   let t = mk () in
-  use_string t.#x;
+  unique_use t.#x;
   let t = #{ t with x = "fresh" } in
-  use_string t.#x
+  unique_use t.#x
 [%%expect{|
 |}]
 
 (* But not a functional update to a different field *)
 let () =
   let t = mk () in
-  use_string t.#x;
+  unique_use t.#x;
   let t = #{ t with y = "fresh" } in
-  use_string t.#x
+  unique_use t.#x
 [%%expect{|
 Line 4, characters 13-14:
 4 |   let t = #{ t with y = "fresh" } in
                  ^
 Error: This value is used here, but it has already been used as unique:
 Line 3, characters 13-17:
-3 |   use_string t.#x;
+3 |   unique_use t.#x;
                  ^^^^
 
 |}]
 
+let () =
+  let t = mk () in
+  unique_use2 t;
+  let _ = #{ t with y = "fresh" } in
+  ()
+[%%expect{|
+Line 4, characters 13-14:
+4 |   let _ = #{ t with y = "fresh" } in
+                 ^
+Error: This value is used here,
+       but it is part of a value that has already been used as unique:
+Line 3, characters 14-15:
+3 |   unique_use2 t;
+                  ^
+
+|}]
+
+(* Functional updates to unboxed records don't implicitly borrow the record
+   (unlike boxed records). *)
+let [@warning "-23"] () =
+  let t = mk () in
+  unique_use2 t;
+  let t = #{ t with x = "fresh"; y = "fresh" } in
+  unique_use t.#x
+[%%expect{|
+|}]
+
+type t = #{ x : unit ; y : string }
+let mk : unit -> t @ unique = fun () -> #{ x = () ; y = "fresh" }
+[%%expect{|
+type t = #{ x : unit; y : string; }
+val mk : unit -> t @ unique = <fun>
+|}]
+
+let [@warning "-23"] () =
+  let t = mk () in
+  unique_use2 t;
+  let t = #{ t with x = (); y = "fresh" } in
+  unique_use t.#x
+[%%expect{|
+|}]
