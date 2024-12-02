@@ -462,6 +462,102 @@ module Inlining = struct
             ~result_arity:(Code.result_arity code) ~make_inlined_body)
 end
 
+type unarized_extern_repr =
+  { kind : K.t;
+    arg_transformer : P.unary_primitive option;
+    return_transformer : P.unary_primitive option
+  }
+
+(* The following two functions form part of what fixes the calling convention
+   for unboxed products in externals (the remainder being the register
+   assignment in the backend). *)
+
+let rec unarize_const_sort_for_extern_repr (sort : Jkind.Sort.Const.t) =
+  match sort with
+  | Base base -> (
+    match base with
+    | Void -> []
+    | Value ->
+      [{ kind = K.value; arg_transformer = None; return_transformer = None }]
+    | Float64 ->
+      [ { kind = K.naked_float;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Float32 ->
+      [ { kind = K.naked_float32;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Word ->
+      [ { kind = K.naked_nativeint;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Bits32 ->
+      [ { kind = K.naked_int32;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Bits64 ->
+      [ { kind = K.naked_int64;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Vec128 ->
+      [ { kind = K.naked_vec128;
+          arg_transformer = None;
+          return_transformer = None
+        } ])
+  | Product sorts -> List.concat_map unarize_const_sort_for_extern_repr sorts
+
+let unarize_extern_repr alloc_mode (extern_repr : Lambda.extern_repr) =
+  match extern_repr with
+  | Same_as_ocaml_repr (Base _ as sort) ->
+    let kind =
+      Typeopt.layout_of_const_sort sort
+      |> K.With_subkind.from_lambda_values_and_unboxed_numbers_only
+      |> K.With_subkind.kind
+    in
+    [{ kind; arg_transformer = None; return_transformer = None }]
+  | Same_as_ocaml_repr (Product sorts) ->
+    List.concat_map unarize_const_sort_for_extern_repr sorts
+  | Unboxed_float Pfloat64 ->
+    [ { kind = K.naked_float;
+        arg_transformer = Some (P.Unbox_number Naked_float);
+        return_transformer = Some (P.Box_number (Naked_float, alloc_mode))
+      } ]
+  | Unboxed_float Pfloat32 ->
+    [ { kind = K.naked_float32;
+        arg_transformer = Some (P.Unbox_number Naked_float32);
+        return_transformer = Some (P.Box_number (Naked_float32, alloc_mode))
+      } ]
+  | Unboxed_integer Pnativeint ->
+    [ { kind = K.naked_nativeint;
+        arg_transformer = Some (P.Unbox_number Naked_nativeint);
+        return_transformer = Some (P.Box_number (Naked_nativeint, alloc_mode))
+      } ]
+  | Unboxed_integer Pint32 ->
+    [ { kind = K.naked_int32;
+        arg_transformer = Some (P.Unbox_number Naked_int32);
+        return_transformer = Some (P.Box_number (Naked_int32, alloc_mode))
+      } ]
+  | Unboxed_integer Pint64 ->
+    [ { kind = K.naked_int64;
+        arg_transformer = Some (P.Unbox_number Naked_int64);
+        return_transformer = Some (P.Box_number (Naked_int64, alloc_mode))
+      } ]
+  | Unboxed_vector Pvec128 ->
+    [ { kind = K.naked_vec128;
+        arg_transformer = Some (P.Unbox_number Naked_vec128);
+        return_transformer = Some (P.Box_number (Naked_vec128, alloc_mode))
+      } ]
+  | Untagged_int ->
+    [ { kind = K.naked_immediate;
+        arg_transformer = Some P.Untag_immediate;
+        return_transformer = Some P.Tag_immediate
+      } ]
+
 let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     (({ prim_name;
         prim_arity;
@@ -482,38 +578,10 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   then
     Misc.fatal_errorf
       "close_c_call: C call primitive %s can't be layout polymorphic." prim_name;
-  let args =
-    List.map
-      (function
-        | [arg] -> arg
-        | [] | _ :: _ :: _ ->
-          Misc.fatal_errorf
-            "close_c_call: expected only singleton arguments for primitive %s, \
-             but got: [%a]"
-            prim_name
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf args ->
-                 Format.fprintf ppf "[%a]"
-                   (Format.pp_print_list ~pp_sep:Format.pp_print_space
-                      Simple.print)
-                   args))
-            args)
-      args
-  in
   let env, let_bound_vars =
     List.fold_left_map
       (fun env (id, kind) -> Env.add_var_like env id Not_user_visible kind)
       env let_bound_ids_with_kinds
-  in
-  let let_bound_var =
-    match let_bound_vars with
-    | [let_bound_var] -> let_bound_var
-    | [] | _ :: _ :: _ ->
-      Misc.fatal_errorf
-        "close_c_call: expected singleton return for primitive %s, but got: \
-         [%a]"
-        prim_name
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
-        let_bound_vars
   in
   let cost_metrics_of_body, free_names_of_body, acc, body =
     Acc.measure_cost_metrics acc ~f:(fun acc ->
@@ -536,19 +604,33 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Some alloc_mode ->
       Alloc_mode.For_allocations.from_lambda alloc_mode ~current_region
   in
-  let box_return_value =
-    match prim_native_repr_res with
-    | _, Same_as_ocaml_repr _ -> None
-    | _, Unboxed_float Pfloat64 -> Some (P.Box_number (Naked_float, alloc_mode))
-    | _, Unboxed_float Pfloat32 ->
-      Some (P.Box_number (Naked_float32, alloc_mode))
-    | _, Unboxed_integer Pnativeint ->
-      Some (P.Box_number (Naked_nativeint, alloc_mode))
-    | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
-    | _, Unboxed_integer Pint64 -> Some (P.Box_number (Naked_int64, alloc_mode))
-    | _, Unboxed_vector Pvec128 ->
-      Some (P.Box_number (Naked_vec128, alloc_mode))
-    | _, Untagged_int -> Some P.Tag_immediate
+  let unarized_params =
+    List.concat_map
+      (unarize_extern_repr alloc_mode)
+      (List.map snd prim_native_repr_args)
+  in
+  let unarized_results =
+    unarize_extern_repr alloc_mode (snd prim_native_repr_res)
+  in
+  if List.compare_lengths unarized_params args <> 0
+  then
+    Misc.fatal_errorf
+      "Mismatch between unarized [prim_native_repr_args] (length %d) and \
+       argument list (length %d):@ %a"
+      (List.length unarized_params)
+      (List.length args) Debuginfo.print_compact dbg;
+  if List.compare_lengths unarized_results let_bound_vars <> 0
+  then
+    Misc.fatal_errorf
+      "Mismatch between unarized [prim_native_repr_res] (length %d) and result \
+       var list (length %d):@ %a"
+      (List.length unarized_results)
+      (List.length let_bound_vars)
+      Debuginfo.print_compact dbg;
+  let need_return_transformer =
+    List.exists
+      (fun { return_transformer; _ } -> Option.is_some return_transformer)
+      unarized_results
   in
   let return_continuation, needs_wrapper =
     match Expr.descr body with
@@ -557,35 +639,18 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
              (Apply_cont_expr.args apply_cont)
              (Simple.vars let_bound_vars)
            && Option.is_none (Apply_cont_expr.trap_action apply_cont)
-           && Option.is_none box_return_value ->
+           && not need_return_transformer ->
       Apply_cont_expr.continuation apply_cont, false
     | _ -> Continuation.create (), true
   in
-  let kind_of_primitive_extern_repr
-      ((_, repr) : Primitive.mode * Lambda.extern_repr) =
-    match repr with
-    | Same_as_ocaml_repr sort ->
-      K.With_subkind.(
-        kind
-          (from_lambda_values_and_unboxed_numbers_only
-             (Typeopt.layout_of_const_sort sort)))
-    | Unboxed_float Pfloat64 -> K.naked_float
-    | Unboxed_float Pfloat32 -> K.naked_float32
-    | Unboxed_integer Pnativeint -> K.naked_nativeint
-    | Unboxed_integer Pint32 -> K.naked_int32
-    | Unboxed_integer Pint64 -> K.naked_int64
-    | Untagged_int -> K.naked_immediate
-    | Unboxed_vector Pvec128 -> K.naked_vec128
-  in
-  let param_arity =
-    List.map kind_of_primitive_extern_repr prim_native_repr_args
-    |> List.map K.With_subkind.anything
+  (* Unlike for OCaml function calls, we don't preserve unboxed product arity
+     information here, as there is no partial application etc. *)
+  let[@inline] build_arity unarized =
+    List.map (fun { kind; _ } -> K.With_subkind.anything kind) unarized
     |> Flambda_arity.create_singletons
   in
-  let return_kind = kind_of_primitive_extern_repr prim_native_repr_res in
-  let return_arity =
-    Flambda_arity.create_singletons [K.With_subkind.anything return_kind]
-  in
+  let param_arity = build_arity unarized_params in
+  let return_arity = build_arity unarized_results in
   let effects = Effects.from_lambda prim_effects in
   let coeffects = Coeffects.from_lambda prim_coeffects in
   let call_kind =
@@ -655,21 +720,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   in
   let call : Acc.t -> Expr_with_acc.t =
     List.fold_left2
-      (fun (call : Simple.t list -> Acc.t -> Expr_with_acc.t) arg
-           (arg_repr : Primitive.mode * Lambda.extern_repr) ->
-        let unbox_arg : P.unary_primitive option =
-          match arg_repr with
-          | _, Same_as_ocaml_repr _ -> None
-          | _, Unboxed_float Pfloat64 -> Some (P.Unbox_number Naked_float)
-          | _, Unboxed_float Pfloat32 -> Some (P.Unbox_number Naked_float32)
-          | _, Unboxed_integer Pnativeint ->
-            Some (P.Unbox_number Naked_nativeint)
-          | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
-          | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
-          | _, Untagged_int -> Some P.Untag_immediate
-          | _, Unboxed_vector Pvec128 -> Some (P.Unbox_number Naked_vec128)
-        in
-        match unbox_arg with
+      (fun (call : Simple.t list -> Acc.t -> Expr_with_acc.t) arg param ->
+        match param.arg_transformer with
         | None -> fun args acc -> call (arg :: args) acc
         | Some named ->
           fun args acc ->
@@ -680,12 +732,15 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
             Let_with_acc.create acc
               (Bound_pattern.singleton unboxed_arg')
               named ~body)
-      call args prim_native_repr_args []
+      call (List.flatten args) unarized_params []
   in
-  let wrap_c_call acc ~handler_param ~code_after_call c_call =
-    let return_kind = Flambda_kind.With_subkind.anything return_kind in
+  let wrap_c_call acc ~handler_params ~code_after_call c_call =
     let params =
-      [BP.create handler_param return_kind] |> Bound_parameters.create
+      List.map2
+        (fun ret_value { kind; _ } ->
+          BP.create ret_value (K.With_subkind.anything kind))
+        handler_params unarized_results
+      |> Bound_parameters.create
     in
     Let_cont_with_acc.build_non_recursive acc return_continuation
       ~handler_params:params ~handler:code_after_call ~body:c_call
@@ -697,27 +752,41 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         (Acc.with_free_names free_names_of_body acc),
       body )
   in
-  let box_unboxed_returns ~let_bound_var ~box_return_value =
-    let let_bound_var' = VB.create let_bound_var Name_mode.normal in
-    let handler_param = Variable.rename let_bound_var in
+  let box_unboxed_returns () =
+    let let_bound_vars' =
+      List.map
+        (fun let_bound_var -> VB.create let_bound_var Name_mode.normal)
+        let_bound_vars
+    in
+    let handler_params =
+      List.map
+        (fun let_bound_var -> Variable.rename let_bound_var)
+        let_bound_vars
+    in
     let body acc =
       let acc, body = keep_body acc in
-      let named =
-        Named.create_prim
-          (Unary (box_return_value, Simple.var handler_param))
-          dbg
-      in
-      Let_with_acc.create acc
-        (Bound_pattern.singleton let_bound_var')
-        named ~body
+      List.fold_left2
+        (fun (acc, body) unarized_param (handler_param, let_bound_var') ->
+          let named =
+            let handler_param = Simple.var handler_param in
+            match unarized_param.return_transformer with
+            | None -> Named.create_simple handler_param
+            | Some return_transformer ->
+              Named.create_prim (Unary (return_transformer, handler_param)) dbg
+          in
+          Let_with_acc.create acc
+            (Bound_pattern.singleton let_bound_var')
+            named ~body)
+        (acc, body) unarized_results
+        (List.combine handler_params let_bound_vars')
     in
-    body, handler_param
+    body, handler_params
   in
-  match box_return_value with
-  | None ->
+  if not need_return_transformer
+  then
     if needs_wrapper
     then
-      wrap_c_call acc ~handler_param:let_bound_var ~code_after_call:keep_body
+      wrap_c_call acc ~handler_params:let_bound_vars ~code_after_call:keep_body
         call
     else
       (* Here the body is discarded. It might be useful to explicitly remove
@@ -726,11 +795,9 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
          continuation where the only parameter is [let_bound_var] this operation
          would be a noop and we can skip it. *)
       call acc
-  | Some box_return_value ->
-    let code_after_call, handler_param =
-      box_unboxed_returns ~let_bound_var ~box_return_value
-    in
-    wrap_c_call acc ~handler_param ~code_after_call call
+  else
+    let code_after_call, handler_params = box_unboxed_returns () in
+    wrap_c_call acc ~handler_params ~code_after_call call
 
 let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
   let acc, extra_args =
