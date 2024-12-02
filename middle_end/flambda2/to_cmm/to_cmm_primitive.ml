@@ -53,7 +53,7 @@ let unbox_number ~dbg kind arg =
   | Naked_float -> C.unbox_float dbg arg
   | Naked_float32 -> C.unbox_float32 dbg arg
   | Naked_vec128 -> C.unbox_vec128 dbg arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
+  | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.unbox_int dbg primitive_kind arg
 
@@ -63,7 +63,7 @@ let box_number ~dbg kind alloc_mode arg =
   | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
+  | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint ->
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
 
@@ -100,6 +100,8 @@ let mixed_block_kinds shape =
         | Tagged_immediate -> KS.tagged_immediate
         | Naked_float -> KS.naked_float
         | Naked_float32 -> KS.naked_float32
+        | Naked_int8 -> KS.naked_int8
+        | Naked_int16 -> KS.naked_int16
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
         | Naked_vec128 -> KS.naked_vec128
@@ -146,6 +148,8 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
         | Tagged_immediate -> C.get_field_computed Immediate
         | Naked_float -> C.unboxed_float_array_ref
         | Naked_float32 -> C.get_field_unboxed_float32
+        | Naked_int8 -> C.get_field_unboxed_int8
+        | Naked_int16 -> C.get_field_unboxed_int16
         | Naked_int32 -> C.get_field_unboxed_int32
         | Naked_vec128 ->
           fun mut ~block ~index dbg ->

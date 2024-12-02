@@ -73,6 +73,10 @@ module Layout = struct
 
       let word = Base Sort.Word
 
+      let bits8 = Base Sort.Bits8
+
+      let bits16 = Base Sort.Bits16
+
       let bits32 = Base Sort.Bits32
 
       let bits64 = Base Sort.Bits64
@@ -85,6 +89,8 @@ module Layout = struct
         | Float64 -> float64
         | Float32 -> float32
         | Word -> word
+        | Bits8 -> bits8
+        | Bits16 -> bits16
         | Bits32 -> bits32
         | Bits64 -> bits64
         | Vec128 -> vec128
@@ -514,6 +520,18 @@ module Const = struct
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let bits8 =
+      { jkind = mk_jkind (Base Bits8) ~mode_crossing:true ~nullability:Non_null;
+        name = "bits8"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let bits16 =
+      { jkind = mk_jkind (Base Bits16) ~mode_crossing:true ~nullability:Non_null;
+        name = "bits16"
+      }
+
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
       { jkind = mk_jkind (Base Bits32) ~mode_crossing:true ~nullability:Non_null;
         name = "bits32"
@@ -544,6 +562,8 @@ module Const = struct
         float64;
         float32;
         word;
+        bits8;
+        bits16;
         bits32;
         bits64;
         vec128 ]
@@ -562,6 +582,8 @@ module Const = struct
         float64;
         float32;
         word;
+        bits8;
+        bits16;
         bits32;
         bits64;
         vec128 ]
@@ -772,6 +794,8 @@ module Const = struct
       | "float64" -> Builtin.float64.jkind
       | "float32" -> Builtin.float32.jkind
       | "word" -> Builtin.word.jkind
+      | "bits8" -> Builtin.bits8.jkind
+      | "bits16" -> Builtin.bits16.jkind
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
       | "vec128" -> Builtin.vec128.jkind
@@ -817,7 +841,9 @@ module Const = struct
       (jkind : 'd t) =
     let rec scan_layout (l : Layout.Const.t) : Language_extension.maturity =
       match l, jkind.nullability_upper_bound with
-      | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
+      | (Base (Float64 | Float32 | Word | Bits8 | Bits16 | Bits32 | Bits64
+               | Vec128)
+              | Any), _
       | Base Value, Non_null ->
         Stable
       | Product layouts, _ ->

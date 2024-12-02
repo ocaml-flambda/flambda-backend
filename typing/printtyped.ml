@@ -70,9 +70,13 @@ let fmt_constant f x =
   | Const_float32 (s) -> fprintf f "Const_float32 %s" s;
   | Const_unboxed_float (s) -> fprintf f "Const_unboxed_float %s" s
   | Const_unboxed_float32 (s) -> fprintf f "Const_unboxed_float32 %s" s
+  | Const_int8 (i) -> fprintf f "Const_int8 %ld" i
+  | Const_int16 (i) -> fprintf f "Const_int16 %ld" i
   | Const_int32 (i) -> fprintf f "Const_int32 %ld" i
   | Const_int64 (i) -> fprintf f "Const_int64 %Ld" i
   | Const_nativeint (i) -> fprintf f "Const_nativeint %nd" i
+  | Const_unboxed_int8 (i) -> fprintf f "Const_unboxed_int8 %ld" i
+  | Const_unboxed_int16 (i) -> fprintf f "Const_unboxed_int16 %ld" i
   | Const_unboxed_int32 (i) -> fprintf f "Const_unboxed_int32 %ld" i
   | Const_unboxed_int64 (i) -> fprintf f "Const_unboxed_int64 %Ld" i
   | Const_unboxed_nativeint (i) -> fprintf f "Const_unboxed_nativeint %nd" i

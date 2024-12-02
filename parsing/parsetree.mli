@@ -27,7 +27,8 @@ type constant =
       (** Integer constants such as [3] [3l] [3L] [3n].
 
      Suffixes [[g-z][G-Z]] are accepted by the parser.
-     Suffixes except ['l'], ['L'] and ['n'] are rejected by the typechecker
+     Suffixes except ['b'], ['s'], ['l'], ['L'] and ['n'] are rejected by the
+     typechecker
   *)
   | Pconst_unboxed_integer of string * char
       (** Integer constants such as [#3] [#3l] [#3L] [#3n].

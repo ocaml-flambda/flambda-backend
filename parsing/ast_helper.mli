@@ -49,6 +49,8 @@ module Const : sig
     ?quotation_delimiter:string -> ?loc:Location.t -> string -> constant
   val integer : ?suffix:char -> string -> constant
   val int : ?suffix:char -> int -> constant
+  (* val int8 : ?suffix:char -> int8 -> constant *)
+  (* val int16 : ?suffix:char -> int16 -> constant *)
   val int32 : ?suffix:char -> int32 -> constant
   val int64 : ?suffix:char -> int64 -> constant
   val nativeint : ?suffix:char -> nativeint -> constant

@@ -120,6 +120,10 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
   | Const_base (Const_float32 c) ->
     let c = Numeric_types.Float32_by_bit_pattern.create (float_of_string c) in
     register_const acc dbg (SC.boxed_float32 (Const c)) "float32"
+  | Const_base (Const_int8 c) ->
+    register_const acc dbg (SC.boxed_int8 (Const c)) "int8"
+  | Const_base (Const_int16 c) ->
+    register_const acc dbg (SC.boxed_int16 (Const c)) "int16"
   | Const_base (Const_int32 c) ->
     register_const acc dbg (SC.boxed_int32 (Const c)) "int32"
   | Const_base (Const_int64 c) ->

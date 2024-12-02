@@ -1198,8 +1198,8 @@ let message = function
       Printf.sprintf
       "External declaration here is not upstream compatible. \n\
        The only types with non-value layouts allowed are float#, \n\
-       int32#, int64#, and nativeint#. Unknown type with layout \n\
-       %s encountered."
+       int8#, int16#, int32#, int64#, and nativeint#. Unknown \n\
+       type with layout %s encountered."
       layout
   | Incompatible_with_upstream (Unboxed_attribute layout) ->
       Printf.sprintf

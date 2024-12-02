@@ -592,6 +592,10 @@ val emit_float_constant : symbol -> float -> data_item list -> data_item list
 
 val emit_string_constant : symbol -> string -> data_item list -> data_item list
 
+val emit_int8_constant : symbol -> int32 -> data_item list -> data_item list
+
+val emit_int16_constant : symbol -> int32 -> data_item list -> data_item list
+
 val emit_int32_constant : symbol -> int32 -> data_item list -> data_item list
 
 val emit_int64_constant : symbol -> int64 -> data_item list -> data_item list
@@ -629,6 +633,12 @@ val float32 : dbg:Debuginfo.t -> float -> expression
 
 (** Create a constant int expression. *)
 val int : dbg:Debuginfo.t -> int -> expression
+
+(** Create a constant int expression from an int32. *)
+val int8 : dbg:Debuginfo.t -> int32 -> expression
+
+(** Create a constant int expression from an int32. *)
+val int16 : dbg:Debuginfo.t -> int32 -> expression
 
 (** Create a constant int expression from an int32. *)
 val int32 : dbg:Debuginfo.t -> int32 -> expression
@@ -921,6 +931,12 @@ val infix_field_address : dbg:Debuginfo.t -> expression -> int -> expression
 (** Static integer. *)
 val cint : nativeint -> data_item
 
+(** Static 8-bit integer. *)
+val cint8 : int32 -> data_item
+
+(** Static 16-bit integer. *)
+val cint16 : int32 -> data_item
+
 (** Static 32-bit integer. *)
 val cint32 : int32 -> data_item
 
@@ -1042,6 +1058,16 @@ val reperform :
 val allocate_unboxed_float32_array :
   elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
+(** Allocate a block to hold an unboxed int8 array for the given number of
+    elements. *)
+val allocate_unboxed_int8_array :
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
+
+(** Allocate a block to hold an unboxed int16 array for the given number of
+    elements. *)
+val allocate_unboxed_int16_array :
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
+
 (** Allocate a block to hold an unboxed int32 array for the given number of
     elements. *)
 val allocate_unboxed_int32_array :
@@ -1064,6 +1090,12 @@ val allocate_unboxed_vec128_array :
 
 (** Compute the length of an unboxed float32 array. *)
 val unboxed_float32_array_length : expression -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int8 array. *)
+val unboxed_int8_array_length : expression -> Debuginfo.t -> expression
+
+(** Compute the length of an unboxed int16 array. *)
+val unboxed_int16_array_length : expression -> Debuginfo.t -> expression
 
 (** Compute the length of an unboxed int32 array. *)
 val unboxed_int32_array_length : expression -> Debuginfo.t -> expression
@@ -1108,6 +1140,14 @@ val unboxed_mutable_float32_unboxed_product_array_set :
   new_value:expression ->
   Debuginfo.t ->
   expression
+
+(** Read from an unboxed int8 array (without bounds check). *)
+val unboxed_int8_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Read from an unboxed int16 array (without bounds check). *)
+val unboxed_int16_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
 
 (** Read from an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_ref :

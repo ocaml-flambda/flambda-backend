@@ -126,6 +126,8 @@ let constant = function
   | Const_char c -> Pconst_char c
   | Const_string (s,loc,d) -> Pconst_string (s,loc,d)
   | Const_int i -> Pconst_integer (Int.to_string i, None)
+  | Const_int8 i -> Pconst_integer (Int32.to_string i, Some 'b')
+  | Const_int16 i -> Pconst_integer (Int32.to_string i, Some 's')
   | Const_int32 i -> Pconst_integer (Int32.to_string i, Some 'l')
   | Const_int64 i -> Pconst_integer (Int64.to_string i, Some 'L')
   | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, Some 'n')
@@ -133,6 +135,8 @@ let constant = function
   | Const_float32 f -> Pconst_float (f, Some 's')
   | Const_unboxed_float f -> Pconst_unboxed_float (f, None)
   | Const_unboxed_float32 f -> Pconst_unboxed_float (f, Some 's')
+  | Const_unboxed_int8 i -> Pconst_unboxed_integer (Int32.to_string i, 'b')
+  | Const_unboxed_int16 i -> Pconst_unboxed_integer (Int32.to_string i, 's')
   | Const_unboxed_int32 i -> Pconst_unboxed_integer (Int32.to_string i, 'l')
   | Const_unboxed_int64 i -> Pconst_unboxed_integer (Int64.to_string i, 'L')
   | Const_unboxed_nativeint i -> Pconst_unboxed_integer (Nativeint.to_string i, 'n')

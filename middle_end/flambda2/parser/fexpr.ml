@@ -56,6 +56,8 @@ type const =
   | Tagged_immediate of immediate
   | Naked_float32 of float
   | Naked_float of float
+  | Naked_int8 of int32
+  | Naked_int16 of int32
   | Naked_int32 of int32
   | Naked_int64 of int64
   | Naked_vec128 of Vector_types.Vec128.Bit_pattern.bits
@@ -91,6 +93,8 @@ type static_data =
       }
   | Boxed_float32 of float or_variable
   | Boxed_float of float or_variable
+  | Boxed_int8 of int32 or_variable
+  | Boxed_int16 of int32 or_variable
   | Boxed_int32 of int32 or_variable
   | Boxed_int64 of int64 or_variable
   | Boxed_nativeint of targetint or_variable
@@ -108,6 +112,8 @@ type subkind =
   | Anything
   | Boxed_float32
   | Boxed_float
+  | Boxed_int8
+  | Boxed_int16
   | Boxed_int32
   | Boxed_int64
   | Boxed_nativeint
@@ -181,6 +187,8 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Values
   | Naked_floats
   | Naked_float32s
+  | Naked_int8s
+  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
@@ -190,6 +198,8 @@ type array_kind = Flambda_primitive.Array_kind.t =
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float32
   | Naked_float
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -216,6 +226,8 @@ type block_access_kind =
 type standard_int = Flambda_kind.Standard_int.t =
   | Tagged_immediate
   | Naked_immediate
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -225,6 +237,8 @@ type standard_int_or_float = Flambda_kind.Standard_int_or_float.t =
   | Naked_immediate
   | Naked_float32
   | Naked_float
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -353,6 +367,8 @@ type array_load_kind = Flambda_primitive.Array_load_kind.t =
   | Values
   | Naked_floats
   | Naked_float32s
+  | Naked_int8s
+  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
@@ -363,6 +379,8 @@ type array_set_kind =
   | Values of init_or_assign
   | Naked_floats
   | Naked_float32s
+  | Naked_int8s
+  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints

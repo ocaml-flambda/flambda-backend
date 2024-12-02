@@ -19,6 +19,8 @@ module Naked_number_kind = struct
     | Naked_immediate
     | Naked_float32
     | Naked_float
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -29,6 +31,8 @@ module Naked_number_kind = struct
     | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
     | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
     | Naked_float -> Format.pp_print_string ppf "Naked_float"
+    | Naked_int8 -> Format.pp_print_string ppf "Naked_int8"
+    | Naked_int16 -> Format.pp_print_string ppf "Naked_int16"
     | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -39,12 +43,15 @@ module Naked_number_kind = struct
     | Naked_immediate, Naked_immediate -> true
     | Naked_float32, Naked_float32 -> true
     | Naked_float, Naked_float -> true
+    | Naked_int8, Naked_int8 -> true
+    | Naked_int16, Naked_int16 -> true
     | Naked_int32, Naked_int32 -> true
     | Naked_int64, Naked_int64 -> true
     | Naked_nativeint, Naked_nativeint -> true
     | Naked_vec128, Naked_vec128 -> true
-    | ( ( Naked_immediate | Naked_float32 | Naked_float | Naked_int32
-        | Naked_int64 | Naked_nativeint | Naked_vec128 ),
+    | ( ( Naked_immediate | Naked_float32 | Naked_float | Naked_int8
+        | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+        | Naked_vec128 ),
         _ ) ->
       false
 end
@@ -67,6 +74,10 @@ let naked_float = Naked_number Naked_float
 
 let naked_float32 = Naked_number Naked_float32
 
+let naked_int8 = Naked_number Naked_int8
+
+let naked_int16 = Naked_number Naked_int16
+
 let naked_int32 = Naked_number Naked_int32
 
 let naked_int64 = Naked_number Naked_int64
@@ -86,6 +97,8 @@ let to_lambda (t : t) : Lambda.layout =
     Misc.fatal_error "Can't convert kind [Naked_immediate] to lambda layout"
   | Naked_number Naked_float -> Punboxed_float Pfloat64
   | Naked_number Naked_float32 -> Punboxed_float Pfloat32
+  | Naked_number Naked_int8 -> Punboxed_int Pint8
+  | Naked_number Naked_int16 -> Punboxed_int Pint16
   | Naked_number Naked_int32 -> Punboxed_int Pint32
   | Naked_number Naked_int64 -> Punboxed_int Pint64
   | Naked_number Naked_nativeint -> Punboxed_int Pnativeint
@@ -123,6 +136,13 @@ include Container_types.Make (struct
         | Naked_float32 ->
           Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d557}32%t" colour
             Flambda_colours.pop
+        | Naked_int8 ->
+          (* CR aspsmith: colors? *)
+          Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d7db}@<1>\u{1d7da}%t" colour
+            Flambda_colours.pop
+        | Naked_int16 ->
+          Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d7db}@<1>\u{1d7da}%t" colour
+            Flambda_colours.pop
         | Naked_int32 ->
           Format.fprintf ppf "%t@<1>\u{2115}@<1>\u{1d7db}@<1>\u{1d7da}%t" colour
             Flambda_colours.pop
@@ -158,7 +178,8 @@ let is_naked_float t =
   | Naked_number Naked_float -> true
   | Value
   | Naked_number
-      ( Naked_immediate | Naked_float32 | Naked_int32 | Naked_int64
+      ( Naked_immediate | Naked_float32 | Naked_int8 | Naked_int16
+      | Naked_int32 | Naked_int64
       | Naked_nativeint | Naked_vec128 )
   | Region | Rec_info ->
     false
@@ -167,6 +188,8 @@ type flat_suffix_element =
   | Tagged_immediate
   | Naked_float
   | Naked_float32
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -180,6 +203,8 @@ module Flat_suffix_element0 = struct
     | Tagged_immediate -> value
     | Naked_float -> naked_float
     | Naked_float32 -> naked_float32
+    | Naked_int8 -> naked_int8
+    | Naked_int16 -> naked_int16
     | Naked_int32 -> naked_int32
     | Naked_int64 -> naked_int64
     | Naked_nativeint -> naked_nativeint
@@ -192,8 +217,8 @@ module Flat_suffix_element0 = struct
   let equal = Stdlib.( = )
 
   let size_in_words = function
-    | Tagged_immediate | Naked_float | Naked_float32 | Naked_int32 | Naked_int64
-    | Naked_nativeint ->
+    | Tagged_immediate | Naked_float | Naked_float32 | Naked_int8 | Naked_int16
+    | Naked_int32 | Naked_int64 | Naked_nativeint ->
       1
     | Naked_vec128 -> 2
 
@@ -202,6 +227,8 @@ module Flat_suffix_element0 = struct
     | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
     | Naked_float -> Format.pp_print_string ppf "Naked_float"
     | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
+    | Naked_int8 -> Format.pp_print_string ppf "Naked_int8"
+    | Naked_int16 -> Format.pp_print_string ppf "Naked_int16"
     | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -212,6 +239,8 @@ module Flat_suffix_element0 = struct
     | Imm -> Tagged_immediate
     | Float_boxed | Float64 -> Naked_float
     | Float32 -> Naked_float32
+    | Bits8 -> Naked_int8
+    | Bits16 -> Naked_int16
     | Bits32 -> Naked_int32
     | Bits64 -> Naked_int64
     | Vec128 -> Naked_vec128
@@ -375,6 +404,8 @@ module Standard_int = struct
   type t =
     | Tagged_immediate
     | Naked_immediate
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -383,6 +414,8 @@ module Standard_int = struct
     match t with
     | Tagged_immediate -> Value
     | Naked_immediate -> Naked_number Naked_immediate
+    | Naked_int8 -> Naked_number Naked_int8
+    | Naked_int16 -> Naked_number Naked_int16
     | Naked_int32 -> Naked_number Naked_int32
     | Naked_int64 -> Naked_number Naked_int64
     | Naked_nativeint -> Naked_number Naked_nativeint
@@ -394,6 +427,8 @@ module Standard_int = struct
       match t with
       | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
       | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
+      | Naked_int8 -> Format.pp_print_string ppf "Naked_int8"
+      | Naked_int16 -> Format.pp_print_string ppf "Naked_int16"
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -409,6 +444,8 @@ module Standard_int = struct
     match t with
     | Tagged_immediate -> Format.pp_print_string ppf "tagged_immediate"
     | Naked_immediate -> Format.pp_print_string ppf "naked_immediate"
+    | Naked_int8 -> Format.pp_print_string ppf "naked_int8"
+    | Naked_int16 -> Format.pp_print_string ppf "naked_int16"
     | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
@@ -420,6 +457,8 @@ module Standard_int_or_float = struct
     | Naked_immediate
     | Naked_float32
     | Naked_float
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -428,6 +467,8 @@ module Standard_int_or_float = struct
     match t with
     | Tagged_immediate -> Tagged_immediate
     | Naked_immediate -> Naked_immediate
+    | Naked_int8 -> Naked_int8
+    | Naked_int16 -> Naked_int16
     | Naked_int32 -> Naked_int32
     | Naked_int64 -> Naked_int64
     | Naked_nativeint -> Naked_nativeint
@@ -438,6 +479,8 @@ module Standard_int_or_float = struct
     | Naked_immediate -> Naked_number Naked_immediate
     | Naked_float32 -> Naked_number Naked_float32
     | Naked_float -> Naked_number Naked_float
+    | Naked_int8 -> Naked_number Naked_int8
+    | Naked_int16 -> Naked_number Naked_int16
     | Naked_int32 -> Naked_number Naked_int32
     | Naked_int64 -> Naked_number Naked_int64
     | Naked_nativeint -> Naked_number Naked_nativeint
@@ -451,6 +494,8 @@ module Standard_int_or_float = struct
       | Naked_immediate -> Format.pp_print_string ppf "Naked_immediate"
       | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
       | Naked_float -> Format.pp_print_string ppf "Naked_float"
+      | Naked_int8 -> Format.pp_print_string ppf "Naked_int8"
+      | Naked_int16 -> Format.pp_print_string ppf "Naked_int16"
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -468,6 +513,8 @@ module Standard_int_or_float = struct
     | Naked_immediate -> Format.pp_print_string ppf "naked_immediate"
     | Naked_float32 -> Format.pp_print_string ppf "naked_float32"
     | Naked_float -> Format.pp_print_string ppf "naked_float"
+    | Naked_int8 -> Format.pp_print_string ppf "naked_int8"
+    | Naked_int16 -> Format.pp_print_string ppf "naked_int16"
     | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
@@ -477,6 +524,8 @@ module Boxable_number = struct
   type t =
     | Naked_float32
     | Naked_float
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -486,6 +535,8 @@ module Boxable_number = struct
     match t with
     | Naked_float32 -> Naked_number Naked_float32
     | Naked_float -> Naked_number Naked_float
+    | Naked_int8 -> Naked_number Naked_int8
+    | Naked_int16 -> Naked_number Naked_int16
     | Naked_int32 -> Naked_number Naked_int32
     | Naked_int64 -> Naked_number Naked_int64
     | Naked_nativeint -> Naked_number Naked_nativeint
@@ -494,6 +545,8 @@ module Boxable_number = struct
   let primitive_kind t : Primitive.boxed_integer =
     match t with
     | Naked_vec128 | Naked_float | Naked_float32 -> assert false
+    | Naked_int8 -> Pint8
+    | Naked_int16 -> Pint16
     | Naked_int32 -> Pint32
     | Naked_int64 -> Pint64
     | Naked_nativeint -> Pnativeint
@@ -505,6 +558,8 @@ module Boxable_number = struct
       match t with
       | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
       | Naked_float -> Format.pp_print_string ppf "Naked_float"
+      | Naked_int8 -> Format.pp_print_string ppf "Naked_int8"
+      | Naked_int16 -> Format.pp_print_string ppf "Naked_int16"
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -521,6 +576,8 @@ module Boxable_number = struct
     match t with
     | Naked_float32 -> Format.pp_print_string ppf "naked_float32"
     | Naked_float -> Format.pp_print_string ppf "naked_float"
+    | Naked_int8 -> Format.pp_print_string ppf "naked_int8"
+    | Naked_int16 -> Format.pp_print_string ppf "naked_int16"
     | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
@@ -530,6 +587,8 @@ module Boxable_number = struct
     match t with
     | Naked_float32 -> Format.pp_print_string ppf "float32"
     | Naked_float -> Format.pp_print_string ppf "float"
+    | Naked_int8 -> Format.pp_print_string ppf "int8"
+    | Naked_int16 -> Format.pp_print_string ppf "int16"
     | Naked_int32 -> Format.pp_print_string ppf "int32"
     | Naked_int64 -> Format.pp_print_string ppf "int64"
     | Naked_nativeint -> Format.pp_print_string ppf "nativeint"
@@ -799,6 +858,10 @@ module With_subkind = struct
   let naked_float32 = anything naked_float32
 
   let naked_float = anything naked_float
+
+  let naked_int8 = anything naked_int8
+
+  let naked_int16 = anything naked_int16
 
   let naked_int32 = anything naked_int32
 

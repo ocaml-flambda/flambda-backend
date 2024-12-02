@@ -22,6 +22,8 @@ module S = Misc.Stdlib.String
 type ustructured_constant =
   | Const_float32 of float
   | Const_float of float
+  | Const_int8 of int32
+  | Const_int16 of int32
   | Const_int32 of int32
   | Const_int64 of int64
   | Const_nativeint of nativeint
@@ -71,18 +73,22 @@ let rec compare_constant_lists l1 l2 =
 
 let rank_structured_constant = function
   | Const_float _ -> 0
-  | Const_int32 _ -> 1
-  | Const_int64 _ -> 2
-  | Const_nativeint _ -> 3
-  | Const_block _ -> 4
-  | Const_float_array _ -> 5
-  | Const_string _ -> 6
-  | Const_vec128 _ -> 8
-  | Const_float32 _ -> 9
+  | Const_int8 _ -> 1
+  | Const_int16 _ -> 2
+  | Const_int32 _ -> 3
+  | Const_int64 _ -> 4
+  | Const_nativeint _ -> 5
+  | Const_block _ -> 6
+  | Const_float_array _ -> 7
+  | Const_string _ -> 8
+  | Const_vec128 _ -> 9
+  | Const_float32 _ -> 10
 
 let compare_structured_constants c1 c2 =
   match c1, c2 with
   | Const_float x1, Const_float x2 -> compare_floats x1 x2
+  | Const_int8 x1, Const_int8 x2 -> Int32.compare x1 x2
+  | Const_int16 x1, Const_int16 x2 -> Int32.compare x1 x2
   | Const_int32 x1, Const_int32 x2 -> Int32.compare x1 x2
   | Const_int64 x1, Const_int64 x2 -> Int64.compare x1 x2
   | Const_nativeint x1, Const_nativeint x2 -> Nativeint.compare x1 x2

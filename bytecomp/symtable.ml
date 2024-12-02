@@ -200,6 +200,10 @@ let rec transl_const = function
   | Const_base(Const_unboxed_float32 f) -> float32_of_string f
   | Const_base(Const_float f)
   | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)
+  | Const_base(Const_int8 i)
+  | Const_base(Const_unboxed_int8 i) -> Obj.repr i
+  | Const_base(Const_int16 i)
+  | Const_base(Const_unboxed_int16 i) -> Obj.repr i
   | Const_base(Const_int32 i)
   | Const_base(Const_unboxed_int32 i) -> Obj.repr i
   | Const_base(Const_int64 i)

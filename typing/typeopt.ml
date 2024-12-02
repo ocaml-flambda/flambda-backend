@@ -179,6 +179,8 @@ let classify ~classify_product env loc ty sort : _ classification =
   end
   | Base Float64 -> Unboxed_float Pfloat64
   | Base Float32 -> Unboxed_float Pfloat32
+  | Base Bits8 -> Unboxed_int Pint8
+  | Base Bits16 -> Unboxed_int Pint16
   | Base Bits32 -> Unboxed_int Pint32
   | Base Bits64 -> Unboxed_int Pint64
   | Base Vec128 -> Unboxed_vector Pvec128
@@ -196,7 +198,8 @@ and sort_to_scannable_product_element_kind loc (s : Jkind.Sort.Const.t) =
      kinds. *)
   match s with
   | Base Value -> Paddr_scannable
-  | Base (Float64 | Float32 | Bits32 | Bits64 | Word | Vec128) as c ->
+  | Base (Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Word
+          | Vec128) as c ->
     raise (Error (loc, Mixed_product_array c))
   | Base Void as c ->
     raise (Error (loc, Unsupported_sort c))
@@ -210,6 +213,8 @@ and sort_to_ignorable_product_element_kind loc (s : Jkind.Sort.Const.t) =
   | Base Value -> Pint_ignorable
   | Base Float64 -> Punboxedfloat_ignorable Pfloat64
   | Base Float32 -> Punboxedfloat_ignorable Pfloat32
+  | Base Bits8 -> Punboxedint_ignorable Pint8
+  | Base Bits16 -> Punboxedint_ignorable Pint16
   | Base Bits32 -> Punboxedint_ignorable Pint32
   | Base Bits64 -> Punboxedint_ignorable Pint64
   | Base Word -> Punboxedint_ignorable Pnativeint
@@ -335,7 +340,8 @@ let value_kind_of_value_jkind jkind =
   | Base Value, Internal -> Pgenval
   | Any, _
   | Product _, _
-  | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) , _ ->
+  | Base (Void | Float64 | Float32 | Word | Bits8 | Bits16 | Bits32 | Bits64
+          | Vec128) , _ ->
     Misc.fatal_error "expected a layout of value"
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
@@ -785,6 +791,10 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
     Lambda.Punboxed_float Pfloat64
   | Base Word when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pnativeint
+  | Base Bits8 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint8
+  | Base Bits16 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint16
   | Base Bits32 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint32
   | Base Bits64 when Language_extension.(is_at_least Layouts Stable) ->
@@ -802,7 +812,8 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
       (List.map (layout_of_const_sort_generic
                    ~value_kind:(lazy Lambda.generic_value) ~error)
          consts)
-  | ((  Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
+  | ((  Base (Void | Float32 | Float64 | Word | Bits8 | Bits16 | Bits32 | Bits64
+              | Vec128)
       | Product _) as const) ->
     error const
 
@@ -820,7 +831,8 @@ let layout env loc sort ty =
       | Base Vec128 as const ->
         raise (Error (loc, Simd_sort_without_extension
                              (Jkind.Sort.of_const const, Some ty)))
-      | (Base (Float64 | Word | Bits32 | Bits64) | Product _) as const ->
+      | (Base (Float64 | Word | Bits8 | Bits16 | Bits32 | Bits64) | Product _)
+        as const ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
                                                    Stable,
                                                    Some ty)))
@@ -840,7 +852,8 @@ let layout_of_sort loc sort =
     | Base Vec128 as const ->
       raise (Error (loc, Simd_sort_without_extension
                            (Jkind.Sort.of_const const, None)))
-    | (Base (Float64 | Word | Bits32 | Bits64) | Product _) as const ->
+    | (Base (Float64 | Word | Bits8 | Bits16 | Bits32 | Bits64) | Product _)
+      as const ->
       raise (Error (loc, Sort_without_extension
                            (Jkind.Sort.of_const const, Stable, None)))
     )

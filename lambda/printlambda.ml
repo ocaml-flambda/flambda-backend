@@ -30,9 +30,15 @@ let rec struct_const ppf = function
       fprintf ppf "%s" (Misc.format_as_unboxed_literal f)
   | Const_base(Const_unboxed_float32 f) ->
       fprintf ppf "%ss" (Misc.format_as_unboxed_literal f)
+  | Const_base(Const_int8 n) -> fprintf ppf "%lil" n
+  | Const_base(Const_int16 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int32 n) -> fprintf ppf "%lil" n
   | Const_base(Const_int64 n) -> fprintf ppf "%LiL" n
   | Const_base(Const_nativeint n) -> fprintf ppf "%nin" n
+  | Const_base(Const_unboxed_int8 i) ->
+      fprintf ppf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
+  | Const_base(Const_unboxed_int16 i) ->
+      fprintf ppf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
   | Const_base(Const_unboxed_int32 i) ->
       fprintf ppf "%sl" (Misc.format_as_unboxed_literal (Int32.to_string i))
   | Const_base(Const_unboxed_int64 i) ->
@@ -72,6 +78,8 @@ let unboxed_float = function
   | Pfloat32 -> "unboxed_float32"
 
 let unboxed_integer = function
+  | Pint8 -> "unboxed_int8"
+  | Pint16 -> "unboxed_int16"
   | Pint32 -> "unboxed_int32"
   | Pint64 -> "unboxed_int64"
   | Pnativeint -> "unboxed_nativeint"
@@ -122,6 +130,8 @@ let array_ref_kind ppf k =
   | Pfloatarray_ref mode -> fprintf ppf "float%a" pp_mode mode
   | Punboxedfloatarray_ref Pfloat64 -> fprintf ppf "unboxed_float"
   | Punboxedfloatarray_ref Pfloat32 -> fprintf ppf "unboxed_float32"
+  | Punboxedintarray_ref Pint8 -> fprintf ppf "unboxed_int8"
+  | Punboxedintarray_ref Pint16 -> fprintf ppf "unboxed_int16"
   | Punboxedintarray_ref Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_ref Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_ref Pnativeint -> fprintf ppf "unboxed_nativeint"
@@ -134,6 +144,8 @@ let array_ref_kind ppf k =
 let array_index_kind ppf k =
   match k with
   | Ptagged_int_index -> fprintf ppf "int"
+  | Punboxed_int_index Pint8 -> fprintf ppf "unboxed_int8"
+  | Punboxed_int_index Pint16 -> fprintf ppf "unboxed_int16"
   | Punboxed_int_index Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxed_int_index Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxed_int_index Pnativeint -> fprintf ppf "unboxed_nativeint"
@@ -150,6 +162,8 @@ let array_set_kind ppf k =
   | Pfloatarray_set -> fprintf ppf "float"
   | Punboxedfloatarray_set Pfloat64 -> fprintf ppf "unboxed_float"
   | Punboxedfloatarray_set Pfloat32 -> fprintf ppf "unboxed_float32"
+  | Punboxedintarray_set Pint8 -> fprintf ppf "unboxed_int8"
+  | Punboxedintarray_set Pint16 -> fprintf ppf "unboxed_int16"
   | Punboxedintarray_set Pint32 -> fprintf ppf "unboxed_int32"
   | Punboxedintarray_set Pint64 -> fprintf ppf "unboxed_int64"
   | Punboxedintarray_set Pnativeint -> fprintf ppf "unboxed_nativeint"
@@ -170,6 +184,8 @@ let locality_mode ppf = function
 
 let boxed_integer_name = function
   | Pnativeint -> "nativeint"
+  | Pint8 -> "int8"
+  | Pint16 -> "int16"
   | Pint32 -> "int32"
   | Pint64 -> "int64"
 
@@ -338,6 +354,8 @@ let print_boxed_integer_conversion ppf bi1 bi2 m =
 let boxed_integer_mark name bi m =
   match bi with
   | Pnativeint -> Printf.sprintf "Nativeint.%s%s" name (locality_kind m)
+  | Pint8 -> Printf.sprintf "Int8.%s%s" name (locality_kind m)
+  | Pint16 -> Printf.sprintf "Int16.%s%s" name (locality_kind m)
   | Pint32 -> Printf.sprintf "Int32.%s%s" name (locality_kind m)
   | Pint64 -> Printf.sprintf "Int64.%s%s" name (locality_kind m)
 
@@ -347,6 +365,8 @@ let print_boxed_integer name ppf bi m =
 let unboxed_integer_mark name bi m =
   match bi with
   | Pnativeint -> Printf.sprintf "Nativeint_u.%s%s" name (locality_kind m)
+  | Pint8 -> Printf.sprintf "Int8_u.%s%s" name (locality_kind m)
+  | Pint16 -> Printf.sprintf "Int16_u.%s%s" name (locality_kind m)
   | Pint32 -> Printf.sprintf "Int32_u.%s%s" name (locality_kind m)
   | Pint64 -> Printf.sprintf "Int64_u.%s%s" name (locality_kind m)
 

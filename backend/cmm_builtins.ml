@@ -440,12 +440,20 @@ let transl_builtin name args dbg typ_res =
         Cop (Caddi, [Cop (op, [arg], dbg); Cconst_int (-1, dbg)], dbg))
   | "caml_int64_clz_unboxed_to_untagged" ->
     clz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
+  | "caml_int8_clz_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:false Pint8 (one_arg name args) dbg
+  | "caml_int16_clz_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:false Pint16 (one_arg name args) dbg
   | "caml_int32_clz_unboxed_to_untagged" ->
     clz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
   | "caml_nativeint_clz_unboxed_to_untagged" ->
     clz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
   | "caml_int64_clz_nonzero_unboxed_to_untagged" ->
     clz ~arg_is_non_zero:true Pint64 (one_arg name args) dbg
+  | "caml_int8_clz_nonzero_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:true Pint8 (one_arg name args) dbg
+  | "caml_int16_clz_nonzero_unboxed_to_untagged" ->
+    clz ~arg_is_non_zero:true Pint16 (one_arg name args) dbg
   | "caml_int32_clz_nonzero_unboxed_to_untagged" ->
     clz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
   | "caml_nativeint_clz_nonzero_unboxed_to_untagged" ->
@@ -463,6 +471,10 @@ let transl_builtin name args dbg typ_res =
         Cop (Cpopcnt, [arg], dbg))
   | "caml_int64_popcnt_unboxed_to_untagged" ->
     popcnt Pint64 (one_arg name args) dbg
+  | "caml_int8_popcnt_unboxed_to_untagged" ->
+    popcnt Pint8 (one_arg name args) dbg
+  | "caml_int16_popcnt_unboxed_to_untagged" ->
+    popcnt Pint16 (one_arg name args) dbg
   | "caml_int32_popcnt_unboxed_to_untagged" ->
     popcnt Pint32 (one_arg name args) dbg
   | "caml_nativeint_popcnt_unboxed_to_untagged" ->
@@ -495,12 +507,20 @@ let transl_builtin name args dbg typ_res =
               dbg )
         in
         Cop (op, [Cop (Cor, [one_arg name args; c], dbg)], dbg))
+  | "caml_int8_ctz_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:false Pint8 (one_arg name args) dbg
+  | "caml_int16_ctz_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:false Pint16 (one_arg name args) dbg
   | "caml_int32_ctz_unboxed_to_untagged" ->
     ctz ~arg_is_non_zero:false Pint32 (one_arg name args) dbg
   | "caml_int64_ctz_unboxed_to_untagged" ->
     ctz ~arg_is_non_zero:false Pint64 (one_arg name args) dbg
   | "caml_nativeint_ctz_unboxed_to_untagged" ->
     ctz ~arg_is_non_zero:false Pnativeint (one_arg name args) dbg
+  | "caml_int8_ctz_nonzero_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:true Pint8 (one_arg name args) dbg
+  | "caml_int16_ctz_nonzero_unboxed_to_untagged" ->
+    ctz ~arg_is_non_zero:true Pint16 (one_arg name args) dbg
   | "caml_int32_ctz_nonzero_unboxed_to_untagged" ->
     ctz ~arg_is_non_zero:true Pint32 (one_arg name args) dbg
   | "caml_int64_ctz_nonzero_unboxed_to_untagged" ->
@@ -509,6 +529,10 @@ let transl_builtin name args dbg typ_res =
     ctz ~arg_is_non_zero:true Pnativeint (one_arg name args) dbg
   | "caml_signed_int64_mulh_unboxed" -> mulhi ~signed:true Pint64 args dbg
   | "caml_unsigned_int64_mulh_unboxed" -> mulhi ~signed:false Pint64 args dbg
+  | "caml_int8_unsigned_to_int_trunc_unboxed_to_untagged" ->
+    Some (zero_extend_8 dbg (one_arg name args))
+  | "caml_int16_unsigned_to_int_trunc_unboxed_to_untagged" ->
+    Some (zero_extend_16 dbg (one_arg name args))
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
     Some (zero_extend_32 dbg (one_arg name args))
   | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"

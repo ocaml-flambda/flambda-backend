@@ -31,6 +31,8 @@ type t = private
       * Simple.With_debuginfo.t list
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t Or_variable.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
+  | Boxed_int8 of Int32.t Or_variable.t
+  | Boxed_int16 of Int32.t Or_variable.t
   | Boxed_int32 of Int32.t Or_variable.t
   | Boxed_int64 of Int64.t Or_variable.t
   | Boxed_nativeint of Targetint_32_64.t Or_variable.t
@@ -41,6 +43,8 @@ type t = private
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float32_array of
       Numeric_types.Float32_by_bit_pattern.t Or_variable.t list
+  | Immutable_int8_array of Int32.t Or_variable.t list
+  | Immutable_int16_array of Int32.t Or_variable.t list
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
@@ -51,10 +55,10 @@ type t = private
         empty arrays, [Empty_array] must be used. *)
   | Empty_array of Empty_array_kind.t
       (** [Empty_array] must specify the kind of the empty array.  Arrays of
-      unboxed numbers such as int32 and int64 have a slightly different
-      representation (currently using custom blocks) from regular arrays of
-      values.  This affects all operations, most importantly the computation of
-      the length of the array. *)
+      unboxed numbers such as int8, int16, and int32 and int64 have a slightly
+      different representation (currently using custom blocks) from regular
+      arrays of values.  This affects all operations, most importantly the
+      computation of the length of the array. *)
   | Mutable_string of { initial_value : string }
   | Immutable_string of string
 
@@ -77,6 +81,10 @@ val boxed_float32 : Numeric_types.Float32_by_bit_pattern.t Or_variable.t -> t
 
 val boxed_float : Numeric_types.Float_by_bit_pattern.t Or_variable.t -> t
 
+val boxed_int8 : Int32.t Or_variable.t -> t
+
+val boxed_int16 : Int32.t Or_variable.t -> t
+
 val boxed_int32 : Int32.t Or_variable.t -> t
 
 val boxed_int64 : Int64.t Or_variable.t -> t
@@ -97,6 +105,14 @@ val immutable_float_array :
     produced. *)
 val immutable_float32_array :
   Numeric_types.Float32_by_bit_pattern.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_int8_array : Int32.t Or_variable.t list -> t
+
+(** This function can accept empty lists of fields; [Empty_array] will be
+    produced. *)
+val immutable_int16_array : Int32.t Or_variable.t list -> t
 
 (** This function can accept empty lists of fields; [Empty_array] will be
     produced. *)

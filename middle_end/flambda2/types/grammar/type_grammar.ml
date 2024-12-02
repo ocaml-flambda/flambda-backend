@@ -48,6 +48,8 @@ type t =
   | Naked_immediate of head_of_kind_naked_immediate TD.t
   | Naked_float32 of head_of_kind_naked_float32 TD.t
   | Naked_float of head_of_kind_naked_float TD.t
+  | Naked_int8 of head_of_kind_naked_int8 TD.t
+  | Naked_int16 of head_of_kind_naked_int16 TD.t
   | Naked_int32 of head_of_kind_naked_int32 TD.t
   | Naked_int64 of head_of_kind_naked_int64 TD.t
   | Naked_nativeint of head_of_kind_naked_nativeint TD.t
@@ -126,6 +128,10 @@ and head_of_kind_naked_immediate =
 and head_of_kind_naked_float32 = Float32.Set.t
 
 and head_of_kind_naked_float = Float.Set.t
+
+and head_of_kind_naked_int8 = Int8.Set.t
+
+and head_of_kind_naked_int16 = Int16.Set.t
 
 and head_of_kind_naked_int32 = Int32.Set.t
 
@@ -3176,6 +3182,10 @@ let any_naked_float32 = Naked_float32 TD.unknown
 
 let any_naked_float = Naked_float TD.unknown
 
+let any_naked_int8 = Naked_int8 TD.unknown
+
+let any_naked_int16 = Naked_int16 TD.unknown
+
 let any_naked_int32 = Naked_int32 TD.unknown
 
 let any_naked_int64 = Naked_int64 TD.unknown
@@ -3350,6 +3360,12 @@ let boxed_float32_alias_to ~naked_float32 =
 
 let boxed_float_alias_to ~naked_float =
   box_float (Naked_float (TD.create_equals (Simple.var naked_float)))
+
+let boxed_int8_alias_to ~naked_int8 =
+  box_int8 (Naked_int8 (TD.create_equals (Simple.var naked_int8)))
+
+let boxed_int16_alias_to ~naked_int16 =
+  box_int16 (Naked_int16 (TD.create_equals (Simple.var naked_int16)))
 
 let boxed_int32_alias_to ~naked_int32 =
   box_int32 (Naked_int32 (TD.create_equals (Simple.var naked_int32)))

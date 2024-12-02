@@ -145,6 +145,10 @@ module For_float32s : Boxable_number_kind
 
 module For_floats : Boxable_number_kind
 
+module For_int8s : Boxable_int_number_kind
+
+module For_int16s : Boxable_int_number_kind
+
 module For_int32s : Boxable_int_number_kind
 
 module For_int64s : Boxable_int_number_kind

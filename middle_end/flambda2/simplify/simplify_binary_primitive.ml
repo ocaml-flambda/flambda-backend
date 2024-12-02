@@ -187,6 +187,8 @@ end = struct
                   match N.arg_kind with
                   | Tagged_immediate -> Tagged_immediate
                   | Naked_immediate -> Naked_immediate
+                  | Naked_int8 -> Naked_int8
+                  | Naked_int16 -> Naked_int16
                   | Naked_int32 -> Naked_int32
                   | Naked_int64 -> Naked_int64
                   | Naked_nativeint -> Naked_nativeint
@@ -271,6 +273,8 @@ end = struct
     | Naked_immediate -> T.any_naked_immediate
     | Naked_float32 -> T.any_naked_float32
     | Naked_float -> T.any_naked_float
+    | Naked_int8 -> T.any_naked_int8
+    | Naked_int16 -> T.any_naked_int16
     | Naked_int32 -> T.any_naked_int32
     | Naked_int64 -> T.any_naked_int64
     | Naked_nativeint -> T.any_naked_nativeint
@@ -434,6 +438,8 @@ end = struct
     | Naked_immediate -> T.any_naked_immediate
     | Naked_float32 -> T.any_naked_float32
     | Naked_float -> T.any_naked_float
+    | Naked_int8 -> T.any_naked_int8
+    | Naked_int16 -> T.any_naked_int16
     | Naked_int32 -> T.any_naked_int32
     | Naked_int64 -> T.any_naked_int64
     | Naked_nativeint -> T.any_naked_nativeint
@@ -511,6 +517,8 @@ module Int_ops_for_binary_shift_tagged_immediate =
   Int_ops_for_binary_shift (A.For_tagged_immediates)
 module Int_ops_for_binary_shift_naked_immediate =
   Int_ops_for_binary_shift (A.For_naked_immediates)
+module Int_ops_for_binary_shift_int8 = Int_ops_for_binary_shift (A.For_int8s)
+module Int_ops_for_binary_shift_int16 = Int_ops_for_binary_shift (A.For_int16s)
 module Int_ops_for_binary_shift_int32 = Int_ops_for_binary_shift (A.For_int32s)
 module Int_ops_for_binary_shift_int64 = Int_ops_for_binary_shift (A.For_int64s)
 module Int_ops_for_binary_shift_nativeint =
@@ -519,6 +527,10 @@ module Binary_int_shift_tagged_immediate =
   Binary_arith_like (Int_ops_for_binary_shift_tagged_immediate)
 module Binary_int_shift_naked_immediate =
   Binary_arith_like (Int_ops_for_binary_shift_naked_immediate)
+module Binary_int_shift_int8 =
+  Binary_arith_like (Int_ops_for_binary_shift_int8)
+module Binary_int_shift_int16 =
+  Binary_arith_like (Int_ops_for_binary_shift_int16)
 module Binary_int_shift_int32 =
   Binary_arith_like (Int_ops_for_binary_shift_int32)
 module Binary_int_shift_int64 =
@@ -615,6 +627,8 @@ module Int_ops_for_binary_comp_tagged_immediate =
   Int_ops_for_binary_comp (A.For_tagged_immediates)
 module Int_ops_for_binary_comp_naked_immediate =
   Int_ops_for_binary_comp (A.For_naked_immediates)
+module Int_ops_for_binary_comp_int8 = Int_ops_for_binary_comp (A.For_int8s)
+module Int_ops_for_binary_comp_int16 = Int_ops_for_binary_comp (A.For_int16s)
 module Int_ops_for_binary_comp_int32 = Int_ops_for_binary_comp (A.For_int32s)
 module Int_ops_for_binary_comp_int64 = Int_ops_for_binary_comp (A.For_int64s)
 module Int_ops_for_binary_comp_nativeint =
@@ -623,6 +637,10 @@ module Binary_int_comp_tagged_immediate =
   Binary_arith_like (Int_ops_for_binary_comp_tagged_immediate)
 module Binary_int_comp_naked_immediate =
   Binary_arith_like (Int_ops_for_binary_comp_naked_immediate)
+module Binary_int_comp_int8 = Binary_arith_like (Int_ops_for_binary_comp_int8)
+module Binary_int_comp_int64 = Binary_arith_like (Int_ops_for_binary_comp_int64)
+module Binary_int_comp_int16 = Binary_arith_like (Int_ops_for_binary_comp_int16)
+module Binary_int_comp_int64 = Binary_arith_like (Int_ops_for_binary_comp_int64)
 module Binary_int_comp_int32 = Binary_arith_like (Int_ops_for_binary_comp_int32)
 module Binary_int_comp_int64 = Binary_arith_like (Int_ops_for_binary_comp_int64)
 module Binary_int_comp_nativeint =

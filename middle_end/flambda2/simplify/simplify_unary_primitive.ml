@@ -18,6 +18,8 @@ open! Simplify_import
 module A = Number_adjuncts
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
+module Int8 = Numeric_types.Int8
+module Int16 = Numeric_types.Int16
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 
@@ -106,6 +108,14 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
       ( T.boxed_float32_alias_to ~naked_float32:result_var'
           (Alloc_mode.For_types.unknown ()),
         K.naked_float32 )
+    | Naked_int8 ->
+      ( T.boxed_int8_alias_to ~naked_int8:result_var'
+          (Alloc_mode.For_types.unknown ()),
+        K.naked_int8 )
+    | Naked_int16 ->
+      ( T.boxed_int16_alias_to ~naked_int16:result_var'
+          (Alloc_mode.For_types.unknown ()),
+        K.naked_int16 )
     | Naked_int32 ->
       ( T.boxed_int32_alias_to ~naked_int32:result_var'
           (Alloc_mode.For_types.unknown ()),
@@ -175,6 +185,8 @@ let simplify_box_number (boxable_number_kind : K.Boxable_number.t) alloc_mode
     match boxable_number_kind with
     | Naked_float32 -> T.box_float32 naked_number_ty alloc_mode
     | Naked_float -> T.box_float naked_number_ty alloc_mode
+    | Naked_int8 -> T.box_int8 naked_number_ty alloc_mode
+    | Naked_int16 -> T.box_int16 naked_number_ty alloc_mode
     | Naked_int32 -> T.box_int32 naked_number_ty alloc_mode
     | Naked_int64 -> T.box_int64 naked_number_ty alloc_mode
     | Naked_nativeint -> T.box_nativeint naked_number_ty alloc_mode
@@ -284,6 +296,8 @@ end
 module Unary_int_arith_tagged_immediate =
   Unary_int_arith (A.For_tagged_immediates)
 module Unary_int_arith_naked_immediate = Unary_int_arith (A.For_naked_immediates)
+module Unary_int_arith_naked_int8 = Unary_int_arith (A.For_int8s)
+module Unary_int_arith_naked_int16 = Unary_int_arith (A.For_int16s)
 module Unary_int_arith_naked_int32 = Unary_int_arith (A.For_int32s)
 module Unary_int_arith_naked_int64 = Unary_int_arith (A.For_int64s)
 module Unary_int_arith_naked_nativeint = Unary_int_arith (A.For_nativeints)
@@ -355,6 +369,24 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
             let num_to_result_num = Num.to_naked_float
 
             let these = T.these_naked_floats
+          end) in
+          M.result
+        | Naked_int8 ->
+          let module M = For_kind [@inlined hint] (struct
+            module Result_num = Int8
+
+            let num_to_result_num = Num.to_naked_int8
+
+            let these = T.these_naked_int8s
+          end) in
+          M.result
+        | Naked_int16 ->
+          let module M = For_kind [@inlined hint] (struct
+            module Result_num = Int16
+
+            let num_to_result_num = Num.to_naked_int16
+
+            let these = T.these_naked_int16s
           end) in
           M.result
         | Naked_int32 ->

@@ -348,6 +348,10 @@ val any_naked_float32 : t
 
 val any_naked_float : t
 
+val any_naked_int8 : t
+
+val any_naked_int16 : t
+
 val any_naked_int32 : t
 
 val any_naked_int64 : t
@@ -418,6 +422,10 @@ val these_naked_float32s : Numeric_types.Float32_by_bit_pattern.Set.t -> t
 
 val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
 
+val these_naked_int8s : Numeric_types.Int8.Set.t -> t
+
+val these_naked_int16s : Numeric_types.Int16.Set.t -> t
+
 val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 
 val these_naked_int64s : Numeric_types.Int64.Set.t -> t
@@ -428,6 +436,10 @@ val boxed_float32_alias_to :
   naked_float32:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
+
+val boxed_int8_alias_to : naked_int8:Variable.t -> Alloc_mode.For_types.t -> t
+
+val boxed_int16_alias_to : naked_int16:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_int32_alias_to : naked_int32:Variable.t -> Alloc_mode.For_types.t -> t
 

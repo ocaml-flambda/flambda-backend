@@ -25,6 +25,8 @@ type t =
       * Simple.With_debuginfo.t list
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t Or_variable.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
+  | Boxed_int8 of Int32.t Or_variable.t
+  | Boxed_int16 of Int32.t Or_variable.t
   | Boxed_int32 of Int32.t Or_variable.t
   | Boxed_int64 of Int64.t Or_variable.t
   | Boxed_nativeint of Targetint_32_64.t Or_variable.t
@@ -35,6 +37,8 @@ type t =
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float32_array of
       Numeric_types.Float32_by_bit_pattern.t Or_variable.t list
+  | Immutable_int8_array of Int8.t Or_variable.t list
+  | Immutable_int16_array of Int16.t Or_variable.t list
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
@@ -52,6 +56,10 @@ let block tag mutability shape fields = Block (tag, mutability, shape, fields)
 let boxed_float32 or_var = Boxed_float32 or_var
 
 let boxed_float or_var = Boxed_float or_var
+
+let boxed_int8 or_var = Boxed_int8 or_var
+
+let boxed_int16 or_var = Boxed_int16 or_var
 
 let boxed_int32 or_var = Boxed_int32 or_var
 

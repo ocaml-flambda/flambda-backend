@@ -358,6 +358,10 @@ chunk:
   | SIGNED BYTE                 { Byte_signed }
   | UNSIGNED HALF               { Sixteen_unsigned }
   | SIGNED HALF                 { Sixteen_signed }
+  | UNSIGNED INT8               { Thirtytwo_unsigned }
+  | SIGNED INT8                 { Thirtytwo_signed }
+  | UNSIGNED INT16              { Thirtytwo_unsigned }
+  | SIGNED INT16                { Thirtytwo_signed }
   | UNSIGNED INT32              { Thirtytwo_unsigned }
   | SIGNED INT32                { Thirtytwo_signed }
   | INT                         { Word_int }

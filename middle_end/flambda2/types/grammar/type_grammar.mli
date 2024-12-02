@@ -38,6 +38,8 @@ type t = private
   | Naked_immediate of head_of_kind_naked_immediate Type_descr.t
   | Naked_float32 of head_of_kind_naked_float32 Type_descr.t
   | Naked_float of head_of_kind_naked_float Type_descr.t
+  | Naked_int8 of head_of_kind_naked_int8 Type_descr.t
+  | Naked_int16 of head_of_kind_naked_int16 Type_descr.t
   | Naked_int32 of head_of_kind_naked_int32 Type_descr.t
   | Naked_int64 of head_of_kind_naked_int64 Type_descr.t
   | Naked_nativeint of head_of_kind_naked_nativeint Type_descr.t
@@ -61,6 +63,8 @@ and head_of_kind_value_non_null = private
   | Mutable_block of { alloc_mode : Alloc_mode.For_types.t }
   | Boxed_float32 of t * Alloc_mode.For_types.t
   | Boxed_float of t * Alloc_mode.For_types.t
+  | Boxed_int8 of t * Alloc_mode.For_types.t
+  | Boxed_int16 of t * Alloc_mode.For_types.t
   | Boxed_int32 of t * Alloc_mode.For_types.t
   | Boxed_int64 of t * Alloc_mode.For_types.t
   | Boxed_nativeint of t * Alloc_mode.For_types.t
@@ -92,6 +96,10 @@ and head_of_kind_naked_float32 = private
   Numeric_types.Float32_by_bit_pattern.Set.t
 
 and head_of_kind_naked_float = private Numeric_types.Float_by_bit_pattern.Set.t
+
+and head_of_kind_naked_int8 = private Numeric_types.Int8.Set.t
+
+and head_of_kind_naked_int16 = private Numeric_types.Int16.Set.t
 
 and head_of_kind_naked_int32 = private Numeric_types.Int32.Set.t
 

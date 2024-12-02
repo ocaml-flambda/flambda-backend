@@ -460,6 +460,8 @@ and flat_element = Types.flat_element =
   | Float_boxed
   | Float64
   | Float32
+  | Bits8
+  | Bits16
   | Bits32
   | Bits64
   | Vec128
@@ -493,7 +495,7 @@ and boxed_float = Primitive.boxed_float =
   | Pfloat32
 
 and boxed_integer = Primitive.boxed_integer =
-    Pnativeint | Pint32 | Pint64
+    Pnativeint | Pint8 | Pint16 | Pint32 | Pint64
 
 and boxed_vector = Primitive.boxed_vector =
   | Pvec128

@@ -387,6 +387,8 @@ let check_stack stack_info sz =
 let comp_bint_primitive bi suff args =
   let pref =
     match bi with Pnativeint -> "caml_nativeint_"
+                | Pint8 -> "caml_int8_"
+                | Pint16 -> "caml_int16_"
                 | Pint32 -> "caml_int32_"
                 | Pint64 -> "caml_int64_" in
   Kccall(pref ^ suff, List.length args)
@@ -397,6 +399,8 @@ let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
     | Ptagged_int_index -> ""
     | Punboxed_int_index Pint64 -> "_indexed_by_int64"
     | Punboxed_int_index Pint32 -> "_indexed_by_int32"
+    | Punboxed_int_index Pint16 -> "_indexed_by_int16"
+    | Punboxed_int_index Pint8 -> "_indexed_by_int8"
     | Punboxed_int_index Pnativeint -> "_indexed_by_nativeint"
   in
   prefix ^ suffix
@@ -594,13 +598,21 @@ let comp_primitive stack_info p sz args =
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args
   | Pcvtbint(src, dst, _) ->
       begin match (src, dst) with
+      | (Pint8, Pnativeint) -> Kccall("caml_nativeint_of_int8", 1)
+      | (Pint16, Pnativeint) -> Kccall("caml_nativeint_of_int16", 1)
       | (Pint32, Pnativeint) -> Kccall("caml_nativeint_of_int32", 1)
+      | (Pnativeint, Pint8) -> Kccall("caml_nativeint_to_int8", 1)
+      | (Pnativeint, Pint16) -> Kccall("caml_nativeint_to_int16", 1)
       | (Pnativeint, Pint32) -> Kccall("caml_nativeint_to_int32", 1)
+      | (Pint8, Pint64) -> Kccall("caml_int64_of_int8", 1)
+      | (Pint16, Pint64) -> Kccall("caml_int64_of_int16", 1)
       | (Pint32, Pint64) -> Kccall("caml_int64_of_int32", 1)
+      | (Pint64, Pint8) -> Kccall("caml_int64_to_int8", 1)
+      | (Pint64, Pint16) -> Kccall("caml_int64_to_int16", 1)
       | (Pint64, Pint32) -> Kccall("caml_int64_to_int32", 1)
       | (Pnativeint, Pint64) -> Kccall("caml_int64_of_nativeint", 1)
       | (Pint64, Pnativeint) -> Kccall("caml_int64_to_nativeint", 1)
-      | ((Pint32 | Pint64 | Pnativeint), _) ->
+      | ((Pint8 | Pint16 | Pint32 | Pint64 | Pnativeint), _) ->
           fatal_error "Bytegen.comp_primitive: invalid Pcvtbint cast"
       end
   | Pnegbint (bi,_) -> comp_bint_primitive bi "neg" args

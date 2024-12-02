@@ -1402,6 +1402,32 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
 
 (* Getters for unboxed int fields *)
 
+let get_field_unboxed_int8 mutability ~block ~index dbg =
+  let memory_chunk = Thirtytwo_signed in
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int8 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
+   * int8s *)
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
+let get_field_unboxed_int16 mutability ~block ~index dbg =
+  let memory_chunk = Thirtytwo_signed in
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed int16 fields only supported on little-endian architectures";
+  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
+   * int16s *)
+  let field_address = array_indexing log2_size_addr block index dbg in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+
 let get_field_unboxed_int32 mutability ~block ~index dbg =
   let memory_chunk = Thirtytwo_signed in
   (* CR layouts v5.1: Properly support big-endian. *)
@@ -1985,6 +2011,42 @@ let sign_extend_63 dbg e =
       ( Casr,
         [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
         dbg )
+
+(* zero_extend_8 zero-extends values from 8 bits to the word size. *)
+let zero_extend_8 dbg e =
+  (* CR mshinwell for gbury: same question as above *)
+  match low_8 dbg e with
+  | Cop
+      ( Cload
+          { memory_chunk = Eight_signed | Thirtytwo_unsigned;
+            mutability;
+            is_atomic
+          },
+        args,
+        dbg ) ->
+    Cop
+      ( Cload { memory_chunk = Thirtytwo_unsigned; mutability; is_atomic },
+        args,
+        dbg )
+  | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
+
+(* zero_extend_16 zero-extends values from 16 bits to the word size. *)
+let zero_extend_16 dbg e =
+  (* CR mshinwell for gbury: same question as above *)
+  match low_16 dbg e with
+  | Cop
+      ( Cload
+          { memory_chunk = Thirtytwo_signed | Thirtytwo_unsigned;
+            mutability;
+            is_atomic
+          },
+        args,
+        dbg ) ->
+    Cop
+      ( Cload { memory_chunk = Thirtytwo_unsigned; mutability; is_atomic },
+        args,
+        dbg )
+  | e -> Cop (Cand, [e; natint_const_untagged dbg 0xFFFFFFFFn], dbg)
 
 (* zero_extend_32 zero-extends values from 32 bits to the word size. *)
 let zero_extend_32 dbg e =

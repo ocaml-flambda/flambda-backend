@@ -128,6 +128,10 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
     Static_const.boxed_float (rewrite_or_variable Float.zero env f)
   | Boxed_float32 f ->
     Static_const.boxed_float32 (rewrite_or_variable Float32.zero env f)
+  | Boxed_int8 n ->
+    Static_const.boxed_int8 (rewrite_or_variable Int32.zero env n)
+  | Boxed_int16 n ->
+    Static_const.boxed_int16 (rewrite_or_variable Int32.zero env n)
   | Boxed_int32 n ->
     Static_const.boxed_int32 (rewrite_or_variable Int32.zero env n)
   | Boxed_int64 n ->
@@ -150,6 +154,12 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
   | Immutable_value_array fields ->
     let fields = List.map (rewrite_simple_with_debuginfo kinds env) fields in
     Static_const.immutable_value_array fields
+  | Immutable_int8_array fields ->
+    let fields = List.map (rewrite_or_variable Int32.zero env) fields in
+    Static_const.immutable_int8_array fields
+  | Immutable_int16_array fields ->
+    let fields = List.map (rewrite_or_variable Int32.zero env) fields in
+    Static_const.immutable_int16_array fields
   | Immutable_int32_array fields ->
     let fields = List.map (rewrite_or_variable Int32.zero env) fields in
     Static_const.immutable_int32_array fields

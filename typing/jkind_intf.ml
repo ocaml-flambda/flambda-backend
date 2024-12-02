@@ -27,6 +27,8 @@ module type Sort = sig
     | Float64  (** Unboxed 64-bit floats *)
     | Float32  (** Unboxed 32-bit floats *)
     | Word  (** Unboxed native-size integers *)
+    | Bits8  (** Unboxed 8-bit integers *)
+    | Bits16  (** Unboxed 16-bit integers *)
     | Bits32  (** Unboxed 32-bit integers *)
     | Bits64  (** Unboxed 64-bit integers *)
     | Vec128  (** Unboxed 128-bit simd vectors *)
@@ -52,6 +54,10 @@ module type Sort = sig
     val float32 : t
 
     val word : t
+
+    val bits8 : t
+
+    val bits16 : t
 
     val bits32 : t
 
@@ -91,6 +97,10 @@ module type Sort = sig
   val float32 : t
 
   val word : t
+
+  val bits8 : t
+
+  val bits16 : t
 
   val bits32 : t
 

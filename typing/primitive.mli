@@ -15,7 +15,7 @@
 
 (* Description of primitive functions *)
 
-type boxed_integer = Pnativeint | Pint32 | Pint64
+type boxed_integer = Pnativeint | Pint8 | Pint16 | Pint32 | Pint64
 
 type boxed_float = Pfloat64 | Pfloat32
 

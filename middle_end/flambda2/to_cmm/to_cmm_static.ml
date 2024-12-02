@@ -66,7 +66,9 @@ let rec static_block_updates symb env res acc i = function
       (i + UK.field_size_in_words update_kind)
       r
 
-type maybe_int32 =
+type int_width =
+  | Int8
+  | Int16
   | Int32
   | Int64_or_nativeint
 
@@ -131,12 +133,12 @@ let preallocate_set_of_closures (res, updates, env) ~closure_symbols
   let res = R.set_data res data in
   res, updates, env
 
-let immutable_unboxed_int_array_payload maybe_int32 num_fields ~elts ~to_int64 =
+let immutable_unboxed_int_array_payload int_width num_fields ~elts ~to_int64 =
   let int64_of_elts =
     List.map (Or_variable.value_map ~default:0L ~f:to_int64) elts
   in
   let packed_int64s =
-    match maybe_int32 with
+    match int_width with
     | Int32 ->
       let rec aux acc = function
         | [] -> List.rev acc
@@ -151,12 +153,12 @@ let immutable_unboxed_int_array_payload maybe_int32 num_fields ~elts ~to_int64 =
   assert (List.length packed_int64s = num_fields);
   List.map (fun i -> Cmm.Cint (Int64.to_nativeint i)) packed_int64s
 
-let immutable_unboxed_int_array env res updates maybe_int32 ~symbol ~elts
+let immutable_unboxed_int_array env res updates int_width ~symbol ~elts
     ~to_int64 ~custom_ops_symbol =
   let sym = R.symbol res symbol in
   let num_elts = List.length elts in
   let num_fields, update_kind =
-    match maybe_int32 with
+    match int_width with
     | Int32 -> (1 + num_elts) / 2, UK.naked_int32s
     | Int64_or_nativeint -> num_elts, UK.naked_int64s
   in
@@ -172,7 +174,7 @@ let immutable_unboxed_int_array env res updates maybe_int32 ~symbol ~elts
       | Some sym_off -> C.symbol_offset (Cmm.global_symbol sym_base) sym_off
     in
     address
-    :: immutable_unboxed_int_array_payload maybe_int32 num_fields ~elts
+    :: immutable_unboxed_int_array_payload int_width num_fields ~elts
          ~to_int64
   in
   let block = C.emit_block sym header static_fields in
@@ -292,6 +294,8 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
               | Tagged_immediate -> UK.tagged_immediates
               | Naked_float -> UK.naked_floats
               | Naked_float32 -> UK.naked_float32_fields
+              | Naked_int8 -> UK.naked_int8_fields
+              | Naked_int16 -> UK.naked_int16_fields
               | Naked_int32 -> UK.naked_int32_fields
               | Naked_vec128 -> UK.naked_vec128_fields
               | Naked_int64 | Naked_nativeint -> UK.naked_int64s)
@@ -326,6 +330,34 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let res, env, updates =
       static_boxed_number ~kind:UK.naked_floats ~env ~symbol ~default
         ~emit:C.emit_float_constant ~transl ~structured v res updates
+    in
+    env, res, updates
+  | Block_like symbol, Boxed_int8 v ->
+    let structured i = Cmmgen_state.Const_int8 i in
+    let res, env, updates =
+      static_boxed_number ~kind:UK.naked_int8_fields ~env ~symbol ~default:0l
+        ~emit:C.emit_int8_constant ~transl:Fun.id ~structured v res updates
+    in
+    env, res, updates
+  | Block_like symbol, Boxed_int16 v ->
+    let structured i = Cmmgen_state.Const_int16 i in
+    let res, env, updates =
+      static_boxed_number ~kind:UK.naked_int16_fields ~env ~symbol ~default:0l
+        ~emit:C.emit_int16_constant ~transl:Fun.id ~structured v res updates
+    in
+    env, res, updates
+  | Block_like symbol, Boxed_int8 v ->
+    let structured i = Cmmgen_state.Const_int8 i in
+    let res, env, updates =
+      static_boxed_number ~kind:UK.naked_int8_fields ~env ~symbol ~default:0l
+        ~emit:C.emit_int8_constant ~transl:Fun.id ~structured v res updates
+    in
+    env, res, updates
+  | Block_like symbol, Boxed_int16 v ->
+    let structured i = Cmmgen_state.Const_int16 i in
+    let res, env, updates =
+      static_boxed_number ~kind:UK.naked_int16_fields ~env ~symbol ~default:0l
+        ~emit:C.emit_int16_constant ~transl:Fun.id ~structured v res updates
     in
     env, res, updates
   | Block_like symbol, Boxed_int32 v ->
@@ -384,6 +416,18 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     env, R.update_data res float_array, e
   | Block_like symbol, Immutable_float32_array elts ->
     immutable_unboxed_float32_array env res updates ~symbol ~elts
+  | Block_like symbol, Immutable_int8_array elts ->
+    assert (Arch.size_int = 8);
+    immutable_unboxed_int_array env res updates Int8 ~symbol ~elts
+      ~to_int64:Int64.of_int32 ~custom_ops_symbol:(fun ~num_elts ->
+        ( "caml_unboxed_int8_array_ops",
+          Some (Config.custom_ops_struct_size * (num_elts mod 2)) ))
+  | Block_like symbol, Immutable_int16_array elts ->
+    assert (Arch.size_int = 8);
+    immutable_unboxed_int_array env res updates Int16 ~symbol ~elts
+      ~to_int64:Int64.of_int32 ~custom_ops_symbol:(fun ~num_elts ->
+        ( "caml_unboxed_int16_array_ops",
+          Some (Config.custom_ops_struct_size * (num_elts mod 2)) ))
   | Block_like symbol, Immutable_int32_array elts ->
     assert (Arch.size_int = 8);
     immutable_unboxed_int_array env res updates Int32 ~symbol ~elts

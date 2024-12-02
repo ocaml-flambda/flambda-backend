@@ -490,6 +490,12 @@ module Int_literal_converter : sig
         this function accepts the string representation of [max_int + 1]
         and returns [min_int] in this case. *)
 
+  val int8 : string -> int32
+    (** Likewise, at type [int8] *)
+
+  val int16 : string -> int32
+    (** Likewise, at type [int16] *)
+
   val int32 : string -> int32
     (** Likewise, at type [int32] *)
 

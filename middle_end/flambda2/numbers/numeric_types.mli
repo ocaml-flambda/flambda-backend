@@ -38,6 +38,14 @@ module Int8 : sig
   val of_int_exn : int -> t
 
   val to_int : t -> int
+
+  include Container_types.S with type t := Int32.t
+
+  val swap_byte_endianness : t -> t
+
+  module Pair : Container_types.S with type t = t * t
+
+  val cross_product : Set.t -> Set.t -> Pair.Set.t
 end
 
 module Int16 : sig
@@ -48,6 +56,14 @@ module Int16 : sig
   val of_int64_exn : Int64.t -> t
 
   val to_int : t -> int
+
+  include Container_types.S with type t := Int32.t
+
+  val swap_byte_endianness : t -> t
+
+  module Pair : Container_types.S with type t = t * t
+
+  val cross_product : Set.t -> Set.t -> Pair.Set.t
 end
 
 module Int32 : sig

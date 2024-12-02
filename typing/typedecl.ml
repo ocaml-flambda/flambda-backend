@@ -430,7 +430,8 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
     if not allow_unboxed then
       match Jkind.Sort.default_to_value_and_get s with
       | Base (Void | Value) -> ()
-      | Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128)
+      | Base (Float64 | Float32 | Word | Bits8 | Bits16 | Bits32 | Bits64
+              | Vec128)
       | Product _ as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
@@ -1277,6 +1278,8 @@ module Element_repr = struct
   type unboxed_element =
     | Float64
     | Float32
+    | Bits8
+    | Bits16
     | Bits32
     | Bits64
     | Vec128
@@ -1324,6 +1327,8 @@ module Element_repr = struct
       | Float64, _ -> Unboxed_element Float64
       | Float32, _ -> Unboxed_element Float32
       | Word, _ -> Unboxed_element Word
+      | Bits8, _ -> Unboxed_element Bits8
+      | Bits16, _ -> Unboxed_element Bits16
       | Bits32, _ -> Unboxed_element Bits32
       | Bits64, _ -> Unboxed_element Bits64
       | Vec128, _ -> Unboxed_element Vec128
@@ -1332,6 +1337,8 @@ module Element_repr = struct
   let unboxed_to_flat : unboxed_element -> flat_element = function
     | Float64 -> Float64
     | Float32 -> Float32
+    | Bits8 -> Bits8
+    | Bits16 -> Bits16
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
@@ -1500,7 +1507,8 @@ let update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Float32 | Bits32 | Bits64 | Vec128 | Word) ->
+           | Unboxed_element (Float32 | Bits8 | Bits16 | Bits32 | Bits64
+                              | Vec128 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())

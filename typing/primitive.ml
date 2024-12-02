@@ -20,7 +20,7 @@ open Parsetree
 
 module String = Misc.Stdlib.String
 
-type boxed_integer = Pnativeint | Pint32 | Pint64
+type boxed_integer = Pnativeint | Pint8 | Pint16 | Pint32 | Pint64
 
 type boxed_float = Pfloat64 | Pfloat32
 
@@ -337,10 +337,12 @@ let equal_boxed_vector v1 v2 =
 let equal_boxed_integer bi1 bi2 =
   match bi1, bi2 with
   | Pnativeint, Pnativeint
+  | Pint8, Pint8
+  | Pint16, Pint16
   | Pint32, Pint32
   | Pint64, Pint64 ->
     true
-  | (Pnativeint | Pint32 | Pint64), _ ->
+  | (Pnativeint | Pint8 | Pint16 | Pint32 | Pint64), _ ->
     false
 
 let equal_boxed_float f1 f2 =
@@ -483,6 +485,8 @@ let prim_has_valid_reprs ~loc prim =
           ("64", "", C.value);
           ("a128", "", C.value);
           ("u128", "", C.value);
+          ("8", "#", C.bits8);
+          ("16", "#", C.bits16);
           ("32", "#", C.bits32);
           ("f32", "#", C.float32);
           ("64", "#", C.bits64);
@@ -494,6 +498,8 @@ let prim_has_valid_reprs ~loc prim =
         [
           ("", C.value);
           ("_indexed_by_nativeint#", C.word);
+          ("_indexed_by_int8#", C.bits8);
+          ("_indexed_by_int16#", C.bits16);
           ("_indexed_by_int32#", C.bits32);
           ("_indexed_by_int64#", C.bits64);
         ]

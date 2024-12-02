@@ -702,6 +702,10 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       Immutable StrictOpt, make_float_vect ~loc array_size.var
     | Fixed_size, Punboxedfloatarray Pfloat32 ->
       Immutable StrictOpt, make_unboxed_float32_vect ~loc array_size.var
+    | Fixed_size, Punboxedintarray Pint8 ->
+      Immutable StrictOpt, make_unboxed_int8_vect ~loc array_size.var
+    | Fixed_size, Punboxedintarray Pint16 ->
+      Immutable StrictOpt, make_unboxed_int16_vect ~loc array_size.var
     | Fixed_size, Punboxedintarray Pint32 ->
       Immutable StrictOpt, make_unboxed_int32_vect ~loc array_size.var
     | Fixed_size, Punboxedintarray Pint64 ->
@@ -719,6 +723,10 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
     | Dynamic_size, Punboxedfloatarray Pfloat32 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_float32 0.)
+    | Dynamic_size, Punboxedintarray Pint8 ->
+      Mutable, Resizable_array.make ~loc array_kind (unboxed_int8 0l)
+    | Dynamic_size, Punboxedintarray Pint16 ->
+      Mutable, Resizable_array.make ~loc array_kind (unboxed_int16 0l)
     | Dynamic_size, Punboxedintarray Pint32 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
     | Dynamic_size, Punboxedintarray Pint64 ->

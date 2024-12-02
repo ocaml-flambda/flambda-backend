@@ -41,6 +41,8 @@ and ident_iarray = ident_create "iarray"
 and ident_list = ident_create "list"
 and ident_option = ident_create "option"
 and ident_nativeint = ident_create "nativeint"
+and ident_int8 = ident_create "int8"
+and ident_int16 = ident_create "int16"
 and ident_int32 = ident_create "int32"
 and ident_int64 = ident_create "int64"
 and ident_lazy_t = ident_create "lazy_t"
@@ -52,6 +54,8 @@ and ident_lexing_position = ident_create "lexing_position"
 and ident_unboxed_float = ident_create "float#"
 and ident_unboxed_float32 = ident_create "float32#"
 and ident_unboxed_nativeint = ident_create "nativeint#"
+and ident_unboxed_int8= ident_create "int8#"
+and ident_unboxed_int16 = ident_create "int16#"
 and ident_unboxed_int32 = ident_create "int32#"
 and ident_unboxed_int64 = ident_create "int64#"
 and ident_or_null = ident_create "or_null"
@@ -82,6 +86,8 @@ and path_iarray = Pident ident_iarray
 and path_list = Pident ident_list
 and path_option = Pident ident_option
 and path_nativeint = Pident ident_nativeint
+and path_int8 = Pident ident_int8
+and path_int16 = Pident ident_int16
 and path_int32 = Pident ident_int32
 and path_int64 = Pident ident_int64
 and path_lazy_t = Pident ident_lazy_t
@@ -93,6 +99,8 @@ and path_lexing_position = Pident ident_lexing_position
 and path_unboxed_float = Pident ident_unboxed_float
 and path_unboxed_float32 = Pident ident_unboxed_float32
 and path_unboxed_nativeint = Pident ident_unboxed_nativeint
+and path_unboxed_int8 = Pident ident_unboxed_int8
+and path_unboxed_int16 = Pident ident_unboxed_int16
 and path_unboxed_int32 = Pident ident_unboxed_int32
 and path_unboxed_int64 = Pident ident_unboxed_int64
 and path_or_null = Pident ident_or_null
@@ -123,6 +131,8 @@ and type_iarray t = newgenty (Tconstr(path_iarray, [t], ref Mnil))
 and type_list t = newgenty (Tconstr(path_list, [t], ref Mnil))
 and type_option t = newgenty (Tconstr(path_option, [t], ref Mnil))
 and type_nativeint = newgenty (Tconstr(path_nativeint, [], ref Mnil))
+and type_int8 = newgenty (Tconstr(path_int8, [], ref Mnil))
+and type_int16 = newgenty (Tconstr(path_int16, [], ref Mnil))
 and type_int32 = newgenty (Tconstr(path_int32, [], ref Mnil))
 and type_int64 = newgenty (Tconstr(path_int64, [], ref Mnil))
 and type_lazy_t t = newgenty (Tconstr(path_lazy_t, [t], ref Mnil))
@@ -136,6 +146,8 @@ and type_unboxed_float = newgenty (Tconstr(path_unboxed_float, [], ref Mnil))
 and type_unboxed_float32 = newgenty (Tconstr(path_unboxed_float32, [], ref Mnil))
 and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
+and type_unboxed_int8 = newgenty (Tconstr(path_unboxed_int8, [], ref Mnil))
+and type_unboxed_int16 = newgenty (Tconstr(path_unboxed_int16, [], ref Mnil))
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
 and type_unboxed_int64 = newgenty (Tconstr(path_unboxed_int64, [], ref Mnil))
 and type_or_null t = newgenty (Tconstr(path_or_null, [t], ref Mnil))
@@ -285,7 +297,8 @@ let mk_add_extension add_extension id args =
       match Jkind.get_layout jkind with
       | Some (Base Value) -> ()
       | Some (Any
-              | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
+              | Base (Void | Float32 | Float64 | Word | Bits8 | Bits16
+                      | Bits32 | Bits64 | Vec128)
               | Product _)
       | None -> raise_error ())
     args;
