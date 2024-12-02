@@ -116,9 +116,9 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Lifted_cont_params.print) defined_variables_by_scope
     cost_of_lifting_continuations_out_of_current_one
 
-let define_variable t var kind =
+let define_variable0 ~extra t var kind =
   let defined_variables_by_scope =
-    if Variable.Set.mem (Bound_var.var var) t.lifted
+    if extra || Variable.Set.mem (Bound_var.var var) t.lifted
     then t.defined_variables_by_scope
     else
       match t.defined_variables_by_scope with
@@ -145,6 +145,9 @@ let define_variable t var kind =
     variables_defined_at_toplevel;
     defined_variables_by_scope
   }
+
+let define_variable t var kind =
+  (define_variable0 [@inlined hint]) ~extra:false t var kind
 
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
@@ -290,11 +293,14 @@ let define_name t name kind =
         kind)
     ~symbol:(fun [@inline] sym -> (define_symbol [@inlined hint]) t sym kind)
 
-let add_variable t var ty =
-  let t = (define_variable [@inlined hint]) t var (T.kind ty) in
+let add_variable0 ~extra t var ty =
+  let t = (define_variable0 [@inlined hint]) ~extra t var (T.kind ty) in
   { t with
     typing_env = TE.add_equation t.typing_env (Name.var (Bound_var.var var)) ty
   }
+
+let add_variable t var ty =
+  (add_variable0 [@inlined hint]) ~extra:false t var ty
 
 let add_symbol t sym ty =
   let t = (define_symbol [@inlined hint]) t sym (T.kind ty) in
@@ -339,15 +345,16 @@ let add_equation_on_name t name ty =
   let typing_env = TE.add_equation t.typing_env name ty in
   { t with typing_env }
 
-let define_parameters t ~params =
+let define_parameters ~extra t ~params =
   List.fold_left
     (fun t param ->
       let var = Bound_var.create (BP.var param) Name_mode.normal in
-      define_variable t var (K.With_subkind.kind (BP.kind param)))
+      define_variable0 ~extra t var (K.With_subkind.kind (BP.kind param)))
     t
     (Bound_parameters.to_list params)
 
-let add_parameters ?(name_mode = Name_mode.normal) t params ~param_types =
+let add_parameters ~extra ?(name_mode = Name_mode.normal) t params ~param_types
+    =
   let params' = params in
   let params = Bound_parameters.to_list params in
   if List.compare_lengths params param_types <> 0
@@ -360,10 +367,10 @@ let add_parameters ?(name_mode = Name_mode.normal) t params ~param_types =
   List.fold_left2
     (fun t param param_type ->
       let var = Bound_var.create (BP.var param) name_mode in
-      add_variable t var param_type)
+      add_variable0 ~extra t var param_type)
     t params param_types
 
-let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
+let add_parameters_with_unknown_types ~extra ?alloc_modes ?name_mode t params =
   let params' = params in
   let params = Bound_parameters.to_list params in
   let alloc_modes =
@@ -380,7 +387,7 @@ let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
     ListLabels.map2 params alloc_modes ~f:(fun param alloc_mode ->
         T.unknown_with_subkind ~alloc_mode (BP.kind param))
   in
-  add_parameters ?name_mode t params' ~param_types
+  add_parameters ~extra ?name_mode t params' ~param_types
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
