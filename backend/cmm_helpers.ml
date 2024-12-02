@@ -419,11 +419,31 @@ let lsr_int c1 c2 dbg =
 
 let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
-let asr_int c1 c2 dbg =
+let rec asr_int c1 c2 dbg =
   match c2 with
   | Cconst_int (0, _) -> c1
   | Cconst_int (n, _) when n > 0 -> (
     match ignore_low_bit_int c1 with
+    (* when used for sign extension at two different integer lengths, take the
+       smaller integer length. *)
+    | Cop
+        ( Clsl,
+          [ Cop
+              ( Casr,
+                [Cop (Clsl, [c; Cconst_int (l1, _)], _); Cconst_int (r1, _)],
+                _ );
+            Cconst_int (l2, _) ],
+          _ )
+      when r1 = l1 && n = l2
+           (* only perform the optimization on shifts where the behavior is
+              defined. *)
+           && l1 < size_int * 8
+           && l2 < size_int * 8 ->
+      let n = if l1 > l2 then l1 else l2 in
+      asr_int
+        (Cop (Clsl, [c; Cconst_int (n, dbg)], dbg))
+        (Cconst_int (n, dbg))
+        dbg
     (* some operations always return small enough integers that it is safe and
        correct to optimise [asr (lsl x 1) 1] into [x]. *)
     | Cop (Clsl, [c; Cconst_int (1, _)], _)
