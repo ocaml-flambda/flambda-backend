@@ -1,6 +1,7 @@
 (* TEST
  include unix;
  modules = "test_signalhandler_.c";
+ flags += " -alert=-unsafe--unsafe";
  libunix;
  {
    bytecode;

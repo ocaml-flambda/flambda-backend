@@ -1,5 +1,6 @@
 (* TEST
  include systhreads;
+ flags += " -alert=-unsafe--unsafe";
  hassysthreads;
  not-windows;
  {

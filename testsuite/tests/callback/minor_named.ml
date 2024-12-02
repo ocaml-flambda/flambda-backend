@@ -1,5 +1,6 @@
 (* TEST
  modules = "minor_named_.c";
+ flags += " -alert=-unsafe--unsafe";
 *)
 
 (* Tests Callback.register and caml_named_value on a young object *)

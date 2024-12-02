@@ -1,5 +1,6 @@
 (* TEST
  modules = "cmstub.c cmmain.c";
+ flags += " -alert=-unsafe--unsafe";
 *)
 
 (* OCaml part of the code *)

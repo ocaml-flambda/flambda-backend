@@ -65,8 +65,6 @@ module type OrderedType =
   end
 (** Input signature of the functor {!Make}. *)
 
-type 'elt t
-
 module type S =
   sig
 

@@ -1,6 +1,7 @@
 (* TEST
  include unix;
  modules = "callbackprim.c";
+ flags += " -alert=-unsafe--unsafe";
  libunix;
  {
    bytecode;

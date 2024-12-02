@@ -1,5 +1,6 @@
 (* TEST
  modules = "test3_.c";
+ flags += " -alert=-unsafe--unsafe";
  no-tsan; (* TSan does not support call stacks bigger than 64k frames *)
  {
    bytecode;

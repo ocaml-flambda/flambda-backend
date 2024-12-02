@@ -1,5 +1,6 @@
 (* TEST
  modules = "test6_.c";
+ flags += " -alert=-unsafe--unsafe";
 *)
 
 (* Tests nested calls from C (main C) to OCaml (main OCaml) to C (caml_to_c) to

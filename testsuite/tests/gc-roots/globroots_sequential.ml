@@ -1,5 +1,6 @@
 (* TEST
  flags += " -w a ";
+ flags += " -alert=-unsafe--unsafe";
  modules = "globrootsprim.c globroots.ml";
 *)
 open Globroots

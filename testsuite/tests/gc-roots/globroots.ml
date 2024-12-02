@@ -1,5 +1,6 @@
 (* TEST
  modules = "globrootsprim.c";
+ flags += " -alert=-unsafe--unsafe";
 *)
 
 module type GLOBREF = sig

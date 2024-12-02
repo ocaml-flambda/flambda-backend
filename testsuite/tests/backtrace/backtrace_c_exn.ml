@@ -34,6 +34,7 @@ let () =
 (* TEST
  modules = "backtrace_c_exn_.c";
  flags = "-g";
+ flags += " -alert=-unsafe--unsafe";
  ocamlrunparam += ",b=1";
  {
    runtime4;

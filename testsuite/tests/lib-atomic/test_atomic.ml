@@ -1,4 +1,6 @@
-(* TEST *)
+(* TEST
+ flags += " -alert=-unsafe--unsafe";
+*)
 
 let r = Atomic.make 1
 let () = assert (Atomic.get r = 1)
