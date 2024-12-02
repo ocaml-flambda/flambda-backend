@@ -767,17 +767,16 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       let acc, body = keep_body acc in
       List.fold_left2
         (fun (acc, body) unarized_param (handler_param, let_bound_var') ->
-          match unarized_param.return_transformer with
-          | None -> acc, body
-          | Some return_transformer ->
-            let named =
-              Named.create_prim
-                (Unary (return_transformer, Simple.var handler_param))
-                dbg
-            in
-            Let_with_acc.create acc
-              (Bound_pattern.singleton let_bound_var')
-              named ~body)
+          let named =
+            let handler_param = Simple.var handler_param in
+            match unarized_param.return_transformer with
+            | None -> Named.create_simple handler_param
+            | Some return_transformer ->
+              Named.create_prim (Unary (return_transformer, handler_param)) dbg
+          in
+          Let_with_acc.create acc
+            (Bound_pattern.singleton let_bound_var')
+            named ~body)
         (acc, body) unarized_results
         (List.combine handler_params let_bound_vars')
     in
