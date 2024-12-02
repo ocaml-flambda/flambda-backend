@@ -227,8 +227,10 @@ module Aliased : sig
   type t
 
   type reason =
-    | Forced  (** aliased because forced  *)
-    | Lazy  (** aliased because it is the argument of lazy forcing *)
+    | Forced  (** aliased because forced due to multiple usage *)
+    | Lazy  (** aliased because of a lazy pattern *)
+    | Array  (** aliased because of an array pattern *)
+    | Constant  (** aliased because of an constant pattern *)
     | Lifted of Maybe_aliased.access
         (** aliased because lifted from implicit borrowing, carries the original
           access *)
@@ -246,6 +248,8 @@ end = struct
   type reason =
     | Forced
     | Lazy
+    | Array
+    | Constant
     | Lifted of Maybe_aliased.access
 
   type t = Occurrence.t * reason
@@ -261,6 +265,8 @@ end = struct
     let print_reason ppf = function
       | Forced -> fprintf ppf "Forced"
       | Lazy -> fprintf ppf "Lazy"
+      | Array -> fprintf ppf "Array"
+      | Constant -> fprintf ppf "Constant"
       | Lifted ma -> fprintf ppf "Lifted(%a)" Maybe_aliased.print_access ma
     in
     fprintf ppf "(%a,%a)" Occurrence.print occ print_reason reason
@@ -1819,82 +1825,112 @@ let rec pattern_match_tuple pat values =
     let ext, uf' = pattern_match_single pat paths in
     ext, UF.seq uf uf'
 
-and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
+(** This function ensures the soundness of pattern-matching in the presence
+    of destructive updates on the memory that was matched on.
+    If the pattern-match reads from the underlying memory, we need to ensure
+    either that the memory access is not pushed down or that no destructive
+    updates can be performed on the memory.
+
+    Each pattern falls into one of three cases:
+    - If we do not read from the underlying memory,
+      we do not have to take an action.
+    - We can allow destructive updates later on by borrowing the
+      memory address. Then we have to protect the read from getting
+      pushed down using a unique barrier.
+    - We can disallow any destructive updates following the read
+      by consuming the memory address as aliased. *)
+and pattern_match_barrier pat paths : UF.t =
   let loc = pat.pat_loc in
   let occ = Occurrence.mk loc in
-  (* To read from the allocation, we need to borrow its memory cell
-     and set the unique_barrier. However, we do not read in every case,
-     since the user might want use a wildcard for already-consumed data. *)
-  let no_borrow_memory_address () =
-    Unique_barrier.enable pat.pat_unique_barrier;
-    ignore (Unique_barrier.resolve pat.pat_unique_barrier)
+  Unique_barrier.enable pat.pat_unique_barrier;
+  let no_memory_access () =
+    ignore (Unique_barrier.resolve pat.pat_unique_barrier);
+    UF.unused
   in
   let borrow_memory_address () =
-    Unique_barrier.enable pat.pat_unique_barrier;
     Paths.mark_implicit_borrow_memory_address occ (Read pat.pat_unique_barrier)
       paths
   in
+  let consume_memory_address reason =
+    ignore (Unique_barrier.resolve pat.pat_unique_barrier);
+    Paths.mark_aliased occ reason paths
+  in
   match pat.pat_desc with
-  | Tpat_or (pat0, pat1, _) ->
-    no_borrow_memory_address ();
-    let ext0, uf0 = pattern_match_single pat0 paths in
-    let ext1, uf1 = pattern_match_single pat1 paths in
-    Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
-  | Tpat_any ->
-    no_borrow_memory_address ();
-    Ienv.Extension.empty, UF.unused
-  | Tpat_var (id, _, _, _) ->
-    no_borrow_memory_address ();
-    Ienv.Extension.singleton id paths, UF.unused
-  | Tpat_alias (pat', id, _, _, _) ->
-    no_borrow_memory_address ();
-    let ext0 = Ienv.Extension.singleton id paths in
-    let ext1, uf = pattern_match_single pat' paths in
-    Ienv.Extension.conjunct ext0 ext1, uf
+  | Tpat_or _ -> no_memory_access ()
+  | Tpat_any -> no_memory_access ()
+  | Tpat_var _ -> no_memory_access ()
+  | Tpat_alias _ -> no_memory_access ()
   | Tpat_constant _ ->
-    let uf_read = borrow_memory_address () in
-    Ienv.Extension.empty, uf_read
-  | Tpat_construct (lbl, cd, pats, _) ->
-    let uf_tag =
-      Paths.learn_tag { tag = cd.cstr_tag; name_for_error = lbl } paths
-    in
-    let uf_read = borrow_memory_address () in
-    let pats_args = List.combine pats cd.cstr_args in
-    let ext, uf_pats =
-      List.mapi
-        (fun i (pat, { Types.ca_modalities = gf; _ }) ->
-          let name = Longident.last lbl.txt in
-          let paths = Paths.construct_field gf name i paths in
-          pattern_match_single pat paths)
-        pats_args
-      |> conjuncts_pattern_match
-    in
-    ext, UF.pars [uf_tag; uf_read; uf_pats]
-  | Tpat_variant (lbl, arg, _) ->
-    let uf_read = borrow_memory_address () in
-    let ext, uf_arg =
+    (* This is necessary since we can not guarantee that
+       the reads of constants in the pattern-matching code
+       are never pushed down. *)
+    consume_memory_address Constant
+  | Tpat_construct _ -> borrow_memory_address ()
+  | Tpat_variant _ -> borrow_memory_address ()
+  | Tpat_record _ -> borrow_memory_address ()
+  | Tpat_array _ ->
+    (* This is necessary since we do not yet guarantee that
+       the reads of arrays in the pattern-matching code
+       are never pushed down.
+       CR uniqueness: we should add a unique barrier to array reads
+       and change this to use [borrow_memory_address] as well. *)
+    consume_memory_address Array
+  | Tpat_lazy _ ->
+    (* Lazy patterns consume their memory anyway since
+       forcing a lazy expression is like calling a nullary-function *)
+    consume_memory_address Lazy
+  | Tpat_tuple _ -> borrow_memory_address ()
+  | Tpat_unboxed_tuple _ ->
+    (* unboxed tuples are not allocations *)
+    no_memory_access ()
+  | Tpat_record_unboxed_product _ ->
+    (* unboxed records are not allocations *)
+    no_memory_access ()
+
+and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
+  let uf_read = pattern_match_barrier pat paths in
+  let ext, uf_pats =
+    match pat.pat_desc with
+    | Tpat_or (pat0, pat1, _) ->
+      let ext0, uf0 = pattern_match_single pat0 paths in
+      let ext1, uf1 = pattern_match_single pat1 paths in
+      Ienv.Extension.disjunct ext0 ext1, UF.choose uf0 uf1
+    | Tpat_any -> Ienv.Extension.empty, UF.unused
+    | Tpat_var (id, _, _, _) -> Ienv.Extension.singleton id paths, UF.unused
+    | Tpat_alias (pat', id, _, _, _) ->
+      let ext0 = Ienv.Extension.singleton id paths in
+      let ext1, uf = pattern_match_single pat' paths in
+      Ienv.Extension.conjunct ext0 ext1, uf
+    | Tpat_constant _ -> Ienv.Extension.empty, UF.unused
+    | Tpat_construct (lbl, cd, pats, _) ->
+      let uf_tag =
+        Paths.learn_tag { tag = cd.cstr_tag; name_for_error = lbl } paths
+      in
+      let pats_args = List.combine pats cd.cstr_args in
+      let ext, uf_pats =
+        List.mapi
+          (fun i (pat, { Types.ca_modalities = gf; _ }) ->
+            let name = Longident.last lbl.txt in
+            let paths = Paths.construct_field gf name i paths in
+            pattern_match_single pat paths)
+          pats_args
+        |> conjuncts_pattern_match
+      in
+      ext, UF.par uf_tag uf_pats
+    | Tpat_variant (lbl, arg, _) -> (
       match arg with
       | Some arg ->
         let paths = Paths.variant_field lbl paths in
         pattern_match_single arg paths
-      | None -> Ienv.Extension.empty, UF.unused
-    in
-    ext, UF.pars [uf_read; uf_arg]
-  | Tpat_record (pats, _) ->
-    let uf_read = borrow_memory_address () in
-    let ext, uf_pats =
+      | None -> Ienv.Extension.empty, UF.unused)
+    | Tpat_record (pats, _) ->
       List.map
         (fun (_, l, pat) ->
           let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match
-    in
-    ext, UF.par uf_read uf_pats
-  | Tpat_record_unboxed_product (pats, _) ->
-    (* No borrow since unboxed data can not be consumed. *)
-    no_borrow_memory_address ();
-    let ext, uf_pats =
+    | Tpat_record_unboxed_product (pats, _) ->
       List.map
         (fun (_, l, pat) ->
           let paths =
@@ -1903,50 +1939,37 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match
-    in
-    ext, uf_pats
-  | Tpat_array (mut, _, pats) ->
-    let uf_read = borrow_memory_address () in
-    let ext, uf_pats =
+    | Tpat_array (mut, _, pats) ->
       List.mapi
         (fun idx pat ->
           let paths = Paths.array_index mut idx paths in
           pattern_match_single pat paths)
         pats
       |> conjuncts_pattern_match
-    in
-    ext, UF.par uf_read uf_pats
-  | Tpat_lazy arg ->
-    no_borrow_memory_address ();
-    (* forced below: *)
-    (* forcing a lazy expression is like calling a nullary-function *)
-    let uf_force = Paths.mark_aliased occ Lazy paths in
-    let paths = Paths.fresh () in
-    let ext, uf_arg = pattern_match_single arg paths in
-    ext, UF.par uf_force uf_arg
-  | Tpat_tuple args ->
-    let uf_read = borrow_memory_address () in
-    let ext, uf_args =
+    | Tpat_lazy arg ->
+      (* forcing a lazy expression is like calling a nullary-function *)
+      let loc = pat.pat_loc in
+      let occ = Occurrence.mk loc in
+      let uf_force = Paths.mark_aliased occ Lazy paths in
+      let ext, uf_arg = pattern_match_single arg (Paths.fresh ()) in
+      ext, UF.par uf_force uf_arg
+    | Tpat_tuple args ->
       List.mapi
         (fun i (_, arg) ->
           let paths = Paths.tuple_field i paths in
           pattern_match_single arg paths)
         args
       |> conjuncts_pattern_match
-    in
-    ext, UF.par uf_read uf_args
-  | Tpat_unboxed_tuple args ->
-    (* No borrow since unboxed data can not be consumed. *)
-    no_borrow_memory_address ();
-    let ext, uf_args =
+    | Tpat_unboxed_tuple args ->
+      (* No borrow since unboxed data can not be consumed. *)
       List.mapi
         (fun i (_, arg, _) ->
           let paths = Paths.tuple_field i paths in
           pattern_match_single arg paths)
         args
       |> conjuncts_pattern_match
-    in
-    ext, uf_args
+  in
+  ext, UF.par uf_read uf_pats
 
 let pattern_match pat = function
   | Match_tuple values -> pattern_match_tuple pat values
@@ -2535,7 +2558,10 @@ let report_multi_use inner first_is_of_second =
       Maybe_aliased.string_of_access (Maybe_aliased.extract_access t)
     | Usage.Aliased t -> (
       match Aliased.reason t with
-      | Forced | Lazy -> "used"
+      | Forced -> "used"
+      | Lazy -> "used in a lazy pattern"
+      | Array -> "used in an array pattern"
+      | Constant -> "used in a constant pattern"
       | Lifted access ->
         Maybe_aliased.string_of_access access
         ^ " in a closure that might be called later")
