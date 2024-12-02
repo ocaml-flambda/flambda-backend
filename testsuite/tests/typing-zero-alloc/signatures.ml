@@ -548,12 +548,14 @@ Lines 17-19, characters 46-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
+           val f : int -> int -> int @@ global many portable
+             [@@zero_alloc arity 1]
          end
        is not included in
          S_arity_int_int
        Values do not match:
-         val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
+         val f : int -> int -> int @@ global many portable
+           [@@zero_alloc arity 1]
        is not included in
          val f : int -> int -> int [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -599,12 +601,14 @@ Lines 1-3, characters 59-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
+           val f : int -> int -> int @@ global many portable
+             [@@zero_alloc arity 1]
          end
        is not included in
          S_alias_explicit_arity_2
        Values do not match:
-         val f : int -> int -> int @@ global many [@@zero_alloc arity 1]
+         val f : int -> int -> int @@ global many portable
+           [@@zero_alloc arity 1]
        is not included in
          val f : t_two_args [@@zero_alloc arity 2]
        zero_alloc arity mismatch:
@@ -629,11 +633,13 @@ Lines 5-7, characters 59-3:
 7 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int @@ global many [@@zero_alloc] end
+         sig
+           val f : int -> int -> int @@ global many portable [@@zero_alloc]
+         end
        is not included in
          S_alias_explicit_arity_1
        Values do not match:
-         val f : int -> int -> int @@ global many [@@zero_alloc]
+         val f : int -> int -> int @@ global many portable [@@zero_alloc]
        is not included in
          val f : t_two_args [@@zero_alloc arity 1]
        zero_alloc arity mismatch:
@@ -688,12 +694,12 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            type t = int -> int
-           val f : int -> int -> int @@ global many [@@zero_alloc]
+           val f : int -> int -> int @@ global many portable [@@zero_alloc]
          end
        is not included in
          S_subst
        Values do not match:
-         val f : int -> int -> int @@ global many [@@zero_alloc]
+         val f : int -> int -> int @@ global many portable [@@zero_alloc]
        is not included in
          val f : int -> t [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -734,13 +740,14 @@ Lines 13-16, characters 41-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val f : int -> int -> int -> int * int @@ global many
+           val f : int -> int -> int -> int * int @@ global many portable
              [@@zero_alloc]
          end
        is not included in
          S_fun_in_fun
        Values do not match:
-         val f : int -> int -> int -> int * int @@ global many [@@zero_alloc]
+         val f : int -> int -> int -> int * int @@ global many portable
+           [@@zero_alloc]
        is not included in
          val f : int -> int -> int -> int * int [@@zero_alloc arity 2]
        zero_alloc arity mismatch:
@@ -805,7 +812,7 @@ Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_1 :
-  sig val f : int -> int -> int @@ global many [@@zero_alloc] end
+  sig val f : int -> int -> int @@ global many portable [@@zero_alloc] end
 |}]
 
 module M_struct_arity_let_2 = struct
@@ -819,7 +826,7 @@ Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_2 :
-  sig val f : int -> int -> int @@ global many [@@zero_alloc] end
+  sig val f : int -> int -> int @@ global many portable [@@zero_alloc] end
 |}]
 
 module M_struct_arity_let_fun_1 = struct
@@ -833,7 +840,7 @@ Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_fun_1 :
-  sig val f : int -> int -> int @@ global many [@@zero_alloc] end
+  sig val f : int -> int -> int @@ global many portable [@@zero_alloc] end
 |}]
 
 module M_struct_arity_let_fun_2 = struct
@@ -851,7 +858,7 @@ Warning 47 [attribute-payload]: illegal payload for attribute 'zero_alloc'.
 The "arity" field is only supported on "zero_alloc" in signatures
 
 module M_struct_arity_let_fun_2 :
-  sig val f : int -> int -> int @@ global many end
+  sig val f : int -> int -> int @@ global many portable end
 |}]
 
 (*********************************)
@@ -873,7 +880,7 @@ end
 
 [%%expect{|
 module M_base_for_mto :
-  sig val f : int -> int @@ global many [@@zero_alloc] end
+  sig val f : int -> int @@ global many portable [@@zero_alloc] end
 module type S_base_mto = sig val f : int -> int [@@zero_alloc] end
 module M_mto_base_good : S_base_mto
 Lines 11-13, characters 37-3:
@@ -882,11 +889,13 @@ Lines 11-13, characters 37-3:
 13 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int @@ global many [@@zero_alloc opt] end
+         sig
+           val f : int -> int @@ global many portable [@@zero_alloc opt]
+         end
        is not included in
          S_base_mto
        Values do not match:
-         val f : int -> int @@ global many [@@zero_alloc opt]
+         val f : int -> int @@ global many portable [@@zero_alloc opt]
        is not included in
          val f : int -> int [@@zero_alloc]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -908,7 +917,7 @@ end
 
 [%%expect{|
 module M_strict_for_mto :
-  sig val f : int -> int @@ global many [@@zero_alloc strict] end
+  sig val f : int -> int @@ global many portable [@@zero_alloc strict] end
 module type S_strict_mto = sig val f : int -> int [@@zero_alloc strict] end
 module M_mto_strict_good : S_strict_mto
 Lines 11-13, characters 41-3:
@@ -917,11 +926,11 @@ Lines 11-13, characters 41-3:
 13 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int @@ global many [@@zero_alloc] end
+         sig val f : int -> int @@ global many portable [@@zero_alloc] end
        is not included in
          S_strict_mto
        Values do not match:
-         val f : int -> int @@ global many [@@zero_alloc]
+         val f : int -> int @@ global many portable [@@zero_alloc]
        is not included in
          val f : int -> int [@@zero_alloc strict]
        The former provides a weaker "zero_alloc" guarantee than the latter.
@@ -947,10 +956,10 @@ module type S_no_nrn = module type of M_nrn_for_mto
 
 [%%expect{|
 module M_assume_for_mto :
-  sig val f : int -> int * int @@ global many [@@zero_alloc] end
+  sig val f : int -> int * int @@ global many portable [@@zero_alloc] end
 module type S_no_assume = sig val f : int -> int * int [@@zero_alloc] end
 module M_nrn_for_mto :
-  sig val f : int -> int * int @@ global many [@@zero_alloc] end
+  sig val f : int -> int * int @@ global many portable [@@zero_alloc] end
 module type S_no_nrn = sig val f : int -> int * int [@@zero_alloc] end
 |}]
 
@@ -1110,17 +1119,18 @@ module _ : sig
   val[@zero_alloc] f : int -> int -> int
 end = M_inf_too_few_args
 [%%expect{|
-module M_inf_too_few_args : sig val f : int -> int -> int @@ global many end
+module M_inf_too_few_args :
+  sig val f : int -> int -> int @@ global many portable end
 Line 7, characters 6-24:
 7 | end = M_inf_too_few_args
           ^^^^^^^^^^^^^^^^^^
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int -> int @@ global many end
+         sig val f : int -> int -> int @@ global many portable end
        is not included in
          sig val f : int -> int -> int [@@zero_alloc] end
        Values do not match:
-         val f : int -> int -> int @@ global many
+         val f : int -> int -> int @@ global many portable
        is not included in
          val f : int -> int -> int [@@zero_alloc]
        zero_alloc arity mismatch:
@@ -1163,7 +1173,7 @@ end
 (* The current state of the variables is "no check" *)
 module type S = module type of M_for_mto
 [%%expect{|
-module M_for_mto : sig val f : int -> int @@ global many end
+module M_for_mto : sig val f : int -> int @@ global many portable end
 module type S = sig val f : int -> int end
 |}]
 
@@ -1286,7 +1296,9 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            module Plain2 :
-             sig val f : int -> int @@ global many [@@zero_alloc] end
+             sig
+               val f : int -> int @@ global many portable [@@zero_alloc]
+             end
            module type S_plain2 =
              sig module M2 : sig val f : int -> int end end
          end

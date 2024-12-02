@@ -1520,13 +1520,13 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            val add : local_ int32 -> local_ int32 -> local_ int32 @@ global
-             many
+             many portable
          end
        is not included in
          sig val add : local_ int32 -> local_ int32 -> int32 end
        Values do not match:
          val add : local_ int32 -> local_ int32 -> local_ int32 @@ global
-           many
+           many portable
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
        The type "local_ int32 -> local_ int32 -> local_ int32"

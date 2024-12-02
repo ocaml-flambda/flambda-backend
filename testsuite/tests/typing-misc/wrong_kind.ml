@@ -47,31 +47,31 @@ module Constr :
   sig
     type t = A | B | C
     val get : 'a -> 'b -> t @@ global many portable
-    val put : (unit -> t) -> unit @@ global many
+    val put : (unit -> t) -> unit @@ global many portable
   end
 module Record :
   sig
     type t = { a : int; b : int; c : int; }
     val get : 'a -> 'b -> t @@ global many portable
-    val put : (unit -> t) -> unit @@ global many
+    val put : (unit -> t) -> unit @@ global many portable
   end
 module Bool :
   sig
     type t = true | false
     val get : 'a -> 'b -> t @@ global many portable
-    val put : (unit -> t) -> unit @@ global many
+    val put : (unit -> t) -> unit @@ global many portable
   end
 module List :
   sig
     type 'a t = [] | (::) of 'a * 'a t
     val get : 'a -> 'b -> 'c t @@ global many portable
-    val put : (unit -> int t) -> unit @@ global many
+    val put : (unit -> int t) -> unit @@ global many portable
   end
 module Unit :
   sig
     type t = ()
     val get : 'a -> 'b -> t @@ global many portable
-    val put : (unit -> t) -> unit @@ global many
+    val put : (unit -> t) -> unit @@ global many portable
   end
 |}]
 

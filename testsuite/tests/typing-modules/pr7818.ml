@@ -337,9 +337,15 @@ module type S' =
     type u = t = E of (MkT(Term0).t, MkT(T).t) eq
   end
 module Asc :
-  sig type t = int val compare : int -> int -> int @@ global many end
+  sig
+    type t = int
+    val compare : int -> int -> int @@ global many portable
+  end
 module Desc :
-  sig type t = int val compare : int -> int -> int @@ global many end
+  sig
+    type t = int
+    val compare : int -> int -> int @@ global many portable
+  end
 Line 15, characters 0-69:
 15 | module rec M1 : S' with module Term0 := Asc and module T := Desc = M1;;
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

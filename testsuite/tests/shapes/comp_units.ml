@@ -78,9 +78,9 @@ include Stdlib__Unit
  "to_string"[value] -> CU Stdlib__Unit . "to_string"[value];
  }
 type t = unit = ()
-val equal : t -> t -> bool = <fun>
-val compare : t -> t -> int = <fun>
-val to_string : t -> string = <fun>
+val equal : t -> t -> bool @@ portable = <fun>
+val compare : t -> t -> int @@ portable = <fun>
+val to_string : t -> string @@ portable = <fun>
 |}]
 
 include Stdlib.Unit
@@ -92,9 +92,9 @@ include Stdlib.Unit
  "to_string"[value] -> CU Stdlib . "Unit"[module] . "to_string"[value];
  }
 type t = unit = ()
-val equal : t -> t -> bool = <fun>
-val compare : t -> t -> int = <fun>
-val to_string : t -> string = <fun>
+val equal : t -> t -> bool @@ portable = <fun>
+val compare : t -> t -> int @@ portable = <fun>
+val to_string : t -> string @@ portable = <fun>
 |}]
 
 module Without_constraint = Set.Make(Int)

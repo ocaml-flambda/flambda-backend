@@ -282,7 +282,7 @@ module PR6801 :
         String : string -> string value
       | Float : float -> float value
       | Any
-    val print_string_value : string value -> unit @@ global many
+    val print_string_value : string value -> unit @@ global many portable
   end
 |}];;
 

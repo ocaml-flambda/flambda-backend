@@ -125,8 +125,8 @@ module M1 :
     type ('a : any) s = { a : 'a -> 'a; }
     type q = t s
     val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
-    val f2 : unit -> string s @@ global many
-    val f3 : unit -> int s @@ global many
+    val f2 : unit -> string s @@ global many portable
+    val f3 : unit -> int s @@ global many portable
   end
 |}]
 
@@ -148,8 +148,8 @@ module M1 :
     type ('a : any) s = A of ('a -> 'a)
     type q = t s
     val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
-    val f2 : unit -> string s @@ global many
-    val f3 : unit -> int s @@ global many
+    val f2 : unit -> string s @@ global many portable
+    val f3 : unit -> int s @@ global many portable
   end
 |}]
 
@@ -171,8 +171,8 @@ module M1 :
     type ('a : any) s = A of { a : 'a -> 'a; }
     type q = t s
     val f1 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
-    val f2 : unit -> string s @@ global many
-    val f3 : unit -> int s @@ global many
+    val f2 : unit -> string s @@ global many portable
+    val f3 : unit -> int s @@ global many portable
   end
 |}]
 
@@ -197,11 +197,11 @@ module M1 :
     type ('a : any) s = A : ('a : any) 'b. { a : 'a -> 'b -> 'a; } -> 'a s
     type q = t s
     val f0 : unit -> 'a s @@ global many portable
-    val f1 : unit -> int s @@ global many
-    val f2 : unit -> string s @@ global many
+    val f1 : unit -> int s @@ global many portable
+    val f2 : unit -> string s @@ global many portable
     val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
-    val f4 : unit -> int s @@ global many
-    val f5 : unit -> string s @@ global many
+    val f4 : unit -> int s @@ global many portable
+    val f5 : unit -> string s @@ global many portable
   end
 |}]
 
@@ -226,11 +226,11 @@ module M1 :
     type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
     type q = t s
     val f0 : unit -> 'a s @@ global many portable
-    val f1 : unit -> int s @@ global many
-    val f2 : unit -> string s @@ global many
+    val f1 : unit -> int s @@ global many portable
+    val f2 : unit -> string s @@ global many portable
     val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s @@ global many
-    val f4 : unit -> int s @@ global many
-    val f5 : unit -> string s @@ global many
+    val f4 : unit -> int s @@ global many portable
+    val f5 : unit -> string s @@ global many portable
   end
 |}]
 
@@ -2237,11 +2237,11 @@ Lines 3-6, characters 6-3:
 6 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : ('a. 'a -> 'a) -> unit @@ global many end
+         sig val f : ('a. 'a -> 'a) -> unit @@ global many portable end
        is not included in
          sig val f : (('a : any). 'a -> 'a) -> unit end
        Values do not match:
-         val f : ('a. 'a -> 'a) -> unit @@ global many
+         val f : ('a. 'a -> 'a) -> unit @@ global many portable
        is not included in
          val f : (('a : any). 'a -> 'a) -> unit
        The type "('a. 'a -> 'a) -> unit" is not compatible with the type

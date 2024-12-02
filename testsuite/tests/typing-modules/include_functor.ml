@@ -613,7 +613,7 @@ module M18 :
   sig
     type t = int
     val x : int @@ global many portable
-    val equal : int -> int -> bool @@ global many
+    val equal : int -> int -> bool @@ global many portable
     type t'
     val z : t'
     val equal_t' : t' -> t' -> bool
@@ -691,8 +691,9 @@ let () = M20.go 3;;
 module I20 : sig type t = int end
 module F20 :
   functor (M : sig type t = string end) ->
-    sig val go : M.t -> unit @@ global many end
-module M20 : sig type t = string val go : string -> unit @@ global many end
+    sig val go : M.t -> unit @@ global many portable end
+module M20 :
+  sig type t = string val go : string -> unit @@ global many portable end
 Line 20, characters 16-17:
 20 | let () = M20.go 3;;
                      ^

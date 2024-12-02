@@ -50,7 +50,7 @@ end
                    };
  }
 module Int :
-  sig type t = int val to_string : int -> string @@ global many end
+  sig type t = int val to_string : int -> string @@ global many portable end
 |}]
 
 module String = struct

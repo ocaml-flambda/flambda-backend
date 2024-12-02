@@ -245,7 +245,7 @@ end
 module Disjunctions_disambiguated :
   sig
     type t = Leaf of int | Node of t * t
-    val shift : flip:bool -> int -> t -> t @@ global many
+    val shift : flip:bool -> int -> t -> t @@ global many portable
   end
 |}]
 

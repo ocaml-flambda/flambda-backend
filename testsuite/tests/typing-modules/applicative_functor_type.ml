@@ -11,7 +11,8 @@ type t = Set.Make(String).t
 (* Check the error messages of an ill-typed applicatived functor type. *)
 module M = struct type t let equal = (=) end
 [%%expect{|
-module M : sig type t val equal : 'a -> 'a -> bool @@ global many end
+module M :
+  sig type t val equal : 'a -> 'a -> bool @@ global many portable end
 |} ]
 
 type t = Set.Make(M).t
@@ -20,7 +21,10 @@ Line 1, characters 9-22:
 1 | type t = Set.Make(M).t
              ^^^^^^^^^^^^^
 Error: Modules do not match:
-       sig type t = M.t val equal : 'a -> 'a -> bool @@ global many end
+       sig
+         type t = M.t
+         val equal : 'a -> 'a -> bool @@ global many portable
+       end
      is not included in Set.OrderedType
      The value "compare" is required but not provided
      File "stdlib/set.mli", line 57, characters 4-31: Expected declaration
@@ -42,10 +46,13 @@ Line 1, characters 9-15:
 1 | type t = F(M).t
              ^^^^^^
 Error: Modules do not match:
-       sig type t = M.t val equal : 'a -> 'a -> bool @@ global many end
+       sig
+         type t = M.t
+         val equal : 'a -> 'a -> bool @@ global many portable
+       end
      is not included in sig type t = M.t val equal : unit end
      Values do not match:
-       val equal : 'a -> 'a -> bool @@ global many
+       val equal : 'a -> 'a -> bool @@ global many portable
      is not included in
        val equal : unit
      The type "'a -> 'a -> bool" is not compatible with the type "unit"

@@ -30,8 +30,8 @@ include struct
   let g y = aux 3 y
 end
 [%%expect{|
-val f : int -> int @@ global many = <fun>
-val g : int -> int @@ global many = <fun>
+val f : int -> int @@ global many portable = <fun>
+val g : int -> int @@ global many portable = <fun>
 |}];;
 
 include struct
@@ -42,7 +42,7 @@ include struct
     match run() with exception Interrupt -> () | _ -> assert false
 end
 [%%expect{|
-val run : unit -> 'a @@ global many = <fun>
+val run : unit -> 'a @@ global many portable = <fun>
 |}];;
 
 (* It was decided to not allow this anymore. *)

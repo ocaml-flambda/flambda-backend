@@ -22,7 +22,8 @@ end;;
 module O :
   functor (T : sig module N : sig val foo : int -> int end end) ->
     sig val go : unit -> int @@ global many end
-module T : sig module N : sig val foo : int -> int @@ global many end end
+module T :
+  sig module N : sig val foo : int -> int @@ global many portable end end
 |}]
 
 (* Incidentally, M isn't used in T2, but it doesn't seem to fail if

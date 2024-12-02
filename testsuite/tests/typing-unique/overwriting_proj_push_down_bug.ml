@@ -17,15 +17,15 @@ type record = { x : string; y : string @@ many aliased; }
 
 let aliased_use x = x
 [%%expect{|
-(let (aliased_use/280 = (function {nlocal = 0} x/282 x/282))
-  (apply (field_imm 1 (global Toploop!)) "aliased_use" aliased_use/280))
+(let (aliased_use/284 = (function {nlocal = 0} x/286 x/286))
+  (apply (field_imm 1 (global Toploop!)) "aliased_use" aliased_use/284))
 val aliased_use : 'a -> 'a @@ global many = <fun>
 |}]
 
 let unique_use (unique_ x) = x
 [%%expect{|
-(let (unique_use/283 = (function {nlocal = 0} x/285 x/285))
-  (apply (field_imm 1 (global Toploop!)) "unique_use" unique_use/283))
+(let (unique_use/287 = (function {nlocal = 0} x/289 x/289))
+  (apply (field_imm 1 (global Toploop!)) "unique_use" unique_use/287))
 val unique_use : 'a @ unique -> 'a @@ global many = <fun>
 |}]
 
@@ -36,17 +36,17 @@ let proj_aliased r =
   (r, y)
 [%%expect{|
 (let
-  (aliased_use/280 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
-   proj_aliased/286 =
-     (function {nlocal = 0} r/288[(consts ()) (non_consts ([0: *, *]))]
+  (aliased_use/284 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
+   proj_aliased/290 =
+     (function {nlocal = 0} r/292[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (y/289 = (field_imm 1 r/288)
-          r/290 =[(consts ()) (non_consts ([0: *, *]))]
-            (apply aliased_use/280 r/288))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/290 y/289))))
-  (apply (field_imm 1 (global Toploop!)) "proj_aliased" proj_aliased/286))
+         (y/293 = (field_imm 1 r/292)
+          r/294 =[(consts ()) (non_consts ([0: *, *]))]
+            (apply aliased_use/284 r/292))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/294 y/293))))
+  (apply (field_imm 1 (global Toploop!)) "proj_aliased" proj_aliased/290))
 val proj_aliased : record -> record * string @@ global many = <fun>
 |}]
 
@@ -56,17 +56,17 @@ let proj_unique r =
   (r, y)
 [%%expect{|
 (let
-  (unique_use/283 = (apply (field_imm 0 (global Toploop!)) "unique_use")
-   proj_unique/291 =
-     (function {nlocal = 0} r/293[(consts ()) (non_consts ([0: *, *]))]
+  (unique_use/287 = (apply (field_imm 0 (global Toploop!)) "unique_use")
+   proj_unique/295 =
+     (function {nlocal = 0} r/297[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (y/294 = (field_mut 1 r/293)
-          r/295 =[(consts ()) (non_consts ([0: *, *]))]
-            (apply unique_use/283 r/293))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/295 y/294))))
-  (apply (field_imm 1 (global Toploop!)) "proj_unique" proj_unique/291))
+         (y/298 = (field_mut 1 r/297)
+          r/299 =[(consts ()) (non_consts ([0: *, *]))]
+            (apply unique_use/287 r/297))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/299 y/298))))
+  (apply (field_imm 1 (global Toploop!)) "proj_unique" proj_unique/295))
 val proj_unique : record @ unique -> record * string @@ global many = <fun>
 |}]
 
@@ -79,17 +79,17 @@ let match_aliased r =
     (r, y)
 [%%expect{|
 (let
-  (aliased_use/280 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
-   match_aliased/296 =
-     (function {nlocal = 0} r/298[(consts ()) (non_consts ([0: *, *]))]
+  (aliased_use/284 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
+   match_aliased/300 =
+     (function {nlocal = 0} r/302[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (r/300 =[(consts ()) (non_consts ([0: *, *]))]
-            (apply aliased_use/280 r/298))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/300
-           (field_imm 1 r/298)))))
-  (apply (field_imm 1 (global Toploop!)) "match_aliased" match_aliased/296))
+         (r/304 =[(consts ()) (non_consts ([0: *, *]))]
+            (apply aliased_use/284 r/302))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/304
+           (field_imm 1 r/302)))))
+  (apply (field_imm 1 (global Toploop!)) "match_aliased" match_aliased/300))
 val match_aliased : record -> record * string @@ global many = <fun>
 |}]
 
@@ -101,17 +101,17 @@ let match_unique r =
     (r, y)
 [%%expect{|
 (let
-  (unique_use/283 = (apply (field_imm 0 (global Toploop!)) "unique_use")
-   match_unique/302 =
-     (function {nlocal = 0} r/304[(consts ()) (non_consts ([0: *, *]))]
+  (unique_use/287 = (apply (field_imm 0 (global Toploop!)) "unique_use")
+   match_unique/306 =
+     (function {nlocal = 0} r/308[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (y/305 =o (field_mut 1 r/304)
-          r/306 =[(consts ()) (non_consts ([0: *, *]))]
-            (apply unique_use/283 r/304))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/306 y/305))))
-  (apply (field_imm 1 (global Toploop!)) "match_unique" match_unique/302))
+         (y/309 =o (field_mut 1 r/308)
+          r/310 =[(consts ()) (non_consts ([0: *, *]))]
+            (apply unique_use/287 r/308))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/310 y/309))))
+  (apply (field_imm 1 (global Toploop!)) "match_unique" match_unique/306))
 val match_unique : record @ unique -> record * string @@ global many = <fun>
 |}]
 
@@ -125,19 +125,19 @@ let match_mini_anf_aliased r =
   (r, y)
 [%%expect{|
 (let
-  (aliased_use/280 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
-   match_mini_anf_aliased/308 =
-     (function {nlocal = 0} r/310[(consts ()) (non_consts ([0: *, *]))]
+  (aliased_use/284 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
+   match_mini_anf_aliased/312 =
+     (function {nlocal = 0} r/314[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (*match*/316 =[int] 1
-          r/313 =[(consts ()) (non_consts ([0: *, *]))]
-            (apply aliased_use/280 r/310))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/313
-           (field_imm 1 r/310)))))
+         (*match*/320 =[int] 1
+          r/317 =[(consts ()) (non_consts ([0: *, *]))]
+            (apply aliased_use/284 r/314))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/317
+           (field_imm 1 r/314)))))
   (apply (field_imm 1 (global Toploop!)) "match_mini_anf_aliased"
-    match_mini_anf_aliased/308))
+    match_mini_anf_aliased/312))
 val match_mini_anf_aliased : record -> record * string @@ global many = <fun>
 |}]
 
@@ -151,19 +151,19 @@ let match_mini_anf_unique r =
   (r, y)
 [%%expect{|
 (let
-  (unique_use/283 = (apply (field_imm 0 (global Toploop!)) "unique_use")
-   match_mini_anf_unique/318 =
-     (function {nlocal = 0} r/320[(consts ()) (non_consts ([0: *, *]))]
+  (unique_use/287 = (apply (field_imm 0 (global Toploop!)) "unique_use")
+   match_mini_anf_unique/322 =
+     (function {nlocal = 0} r/324[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (let
-         (y/322 =o (field_mut 1 r/320)
-          *match*/326 =[int] 1
-          r/323 =[(consts ()) (non_consts ([0: *, *]))]
-            (apply unique_use/283 r/320))
-         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/323 y/322))))
+         (y/326 =o (field_mut 1 r/324)
+          *match*/330 =[int] 1
+          r/327 =[(consts ()) (non_consts ([0: *, *]))]
+            (apply unique_use/287 r/324))
+         (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/327 y/326))))
   (apply (field_imm 1 (global Toploop!)) "match_mini_anf_unique"
-    match_mini_anf_unique/318))
+    match_mini_anf_unique/322))
 val match_mini_anf_unique : record @ unique -> record * string @@ global many =
   <fun>
 |}]
@@ -178,23 +178,23 @@ let match_anf_aliased r =
   (r, y)
 [%%expect{|
 (let
-  (aliased_use/280 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
-   match_anf_aliased/328 =
-     (function {nlocal = 0} r/330[(consts ()) (non_consts ([0: *, *]))]
+  (aliased_use/284 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
+   match_anf_aliased/332 =
+     (function {nlocal = 0} r/334[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (catch
-         (let (y/332 =a (field_imm 1 r/330))
-           (if (== y/332 "") (let (*match*/339 =[int] 0) (exit 8 y/332))
-             (let (*match*/337 =[int] 1) (exit 8 (field_imm 1 r/330)))))
-        with (8 y/331)
+         (let (y/336 =a (field_imm 1 r/334))
+           (if (== y/336 "") (let (*match*/343 =[int] 0) (exit 8 y/336))
+             (let (*match*/341 =[int] 1) (exit 8 (field_imm 1 r/334)))))
+        with (8 y/335)
          (let
-           (r/334 =[(consts ()) (non_consts ([0: *, *]))]
-              (apply aliased_use/280 r/330))
-           (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/334
-             y/331)))))
+           (r/338 =[(consts ()) (non_consts ([0: *, *]))]
+              (apply aliased_use/284 r/334))
+           (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/338
+             y/335)))))
   (apply (field_imm 1 (global Toploop!)) "match_anf_aliased"
-    match_anf_aliased/328))
+    match_anf_aliased/332))
 val match_anf_aliased : record -> record * string @@ global many = <fun>
 |}]
 
@@ -209,24 +209,24 @@ let match_anf_unique r =
   (r, y)
 [%%expect{|
 (let
-  (unique_use/283 = (apply (field_imm 0 (global Toploop!)) "unique_use")
-   match_anf_unique/340 =
-     (function {nlocal = 0} r/342[(consts ()) (non_consts ([0: *, *]))]
+  (unique_use/287 = (apply (field_imm 0 (global Toploop!)) "unique_use")
+   match_anf_unique/344 =
+     (function {nlocal = 0} r/346[(consts ()) (non_consts ([0: *, *]))]
        [(consts ())
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
        (catch
-         (let (y/344 =o (field_mut 1 r/342))
-           (if (== y/344 "") (let (*match*/351 =[int] 0) (exit 14 y/344))
-             (let (y/345 =o (field_mut 1 r/342) *match*/349 =[int] 1)
-               (exit 14 y/345))))
-        with (14 y/343)
+         (let (y/348 =o (field_mut 1 r/346))
+           (if (== y/348 "") (let (*match*/355 =[int] 0) (exit 14 y/348))
+             (let (y/349 =o (field_mut 1 r/346) *match*/353 =[int] 1)
+               (exit 14 y/349))))
+        with (14 y/347)
          (let
-           (r/346 =[(consts ()) (non_consts ([0: *, *]))]
-              (apply unique_use/283 r/342))
-           (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/346
-             y/343)))))
+           (r/350 =[(consts ()) (non_consts ([0: *, *]))]
+              (apply unique_use/287 r/346))
+           (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/350
+             y/347)))))
   (apply (field_imm 1 (global Toploop!)) "match_anf_unique"
-    match_anf_unique/340))
+    match_anf_unique/344))
 val match_anf_unique : record @ unique -> record * string @@ global many =
   <fun>
 |}]
@@ -253,9 +253,9 @@ let swap_inner (t : tree) =
   | _ -> t
 [%%expect{|
 (let
-  (swap_inner/358 =
+  (swap_inner/362 =
      (function {nlocal = 0}
-       t/360[(consts (0))
+       t/364[(consts (0))
              (non_consts ([0: [(consts (0)) (non_consts ([0: *, [int], *]))],
                            [int],
                            [(consts (0)) (non_consts ([0: *, [int], *]))]]))]
@@ -263,11 +263,11 @@ let swap_inner (t : tree) =
         (non_consts ([0: [(consts (0)) (non_consts ([0: *, [int], *]))],
                       [int], [(consts (0)) (non_consts ([0: *, [int], *]))]]))]
        (catch
-         (if t/360
-           (let (*match*/369 =a (field_imm 0 t/360))
-             (if *match*/369
-               (let (*match*/373 =a (field_imm 2 t/360))
-                 (if *match*/373
+         (if t/364
+           (let (*match*/373 =a (field_imm 0 t/364))
+             (if *match*/373
+               (let (*match*/377 =a (field_imm 2 t/364))
+                 (if *match*/377
                    (makeblock 0 ([(consts (0))
                                   (non_consts ([0:
                                                 [(consts (0))
@@ -298,9 +298,9 @@ let swap_inner (t : tree) =
                                       [int],
                                       [(consts (0))
                                        (non_consts ([0: *, [int], *]))]]))])
-                       (field_imm 0 *match*/369) (field_int 1 *match*/369)
-                       (field_imm 0 *match*/373))
-                     (field_int 1 t/360)
+                       (field_imm 0 *match*/373) (field_int 1 *match*/373)
+                       (field_imm 0 *match*/377))
+                     (field_int 1 t/364)
                      (makeblock 0 ([(consts (0))
                                     (non_consts ([0:
                                                   [(consts (0))
@@ -317,13 +317,13 @@ let swap_inner (t : tree) =
                                       [int],
                                       [(consts (0))
                                        (non_consts ([0: *, [int], *]))]]))])
-                       (field_imm 2 *match*/369) (field_int 1 *match*/373)
-                       (field_imm 2 *match*/373)))
+                       (field_imm 2 *match*/373) (field_int 1 *match*/377)
+                       (field_imm 2 *match*/377)))
                    (exit 19)))
                (exit 19)))
            (exit 19))
-        with (19) t/360)))
-  (apply (field_imm 1 (global Toploop!)) "swap_inner" swap_inner/358))
+        with (19) t/364)))
+  (apply (field_imm 1 (global Toploop!)) "swap_inner" swap_inner/362))
 val swap_inner : tree -> tree @@ global many = <fun>
 |}]
 

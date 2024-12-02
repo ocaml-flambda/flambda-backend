@@ -54,8 +54,8 @@ Warning 27 [unused-var-strict]: unused variable x.
 module OK :
   sig
     val f1 : M1.t -> int @@ global many portable
-    val f2 : M1.t -> int @@ global many
-    val f3 : M1.t -> int @@ global many
+    val f2 : M1.t -> int @@ global many portable
+    val f3 : M1.t -> int @@ global many portable
   end
 |}, Principal{|
 Line 3, characters 19-20:
@@ -95,8 +95,8 @@ Warning 27 [unused-var-strict]: unused variable x.
 module OK :
   sig
     val f1 : M1.t -> int @@ global many portable
-    val f2 : M1.t -> int @@ global many
-    val f3 : M1.t -> int @@ global many
+    val f2 : M1.t -> int @@ global many portable
+    val f3 : M1.t -> int @@ global many portable
   end
 |}]
 
@@ -143,7 +143,7 @@ Line 6, characters 8-9:
             ^
 Warning 27 [unused-var-strict]: unused variable x.
 
-module F2 : sig val f : M1.t -> int @@ global many end
+module F2 : sig val f : M1.t -> int @@ global many portable end
 |}, Principal{|
 Line 6, characters 8-9:
 6 |        {x; y} -> y + y
@@ -167,7 +167,7 @@ Line 6, characters 8-9:
             ^
 Warning 27 [unused-var-strict]: unused variable x.
 
-module F2 : sig val f : M1.t -> int @@ global many end
+module F2 : sig val f : M1.t -> int @@ global many portable end
 |}]
 
 (* Use type information with modules*)

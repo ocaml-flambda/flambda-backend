@@ -142,14 +142,17 @@ module M =
 module M :
   sig
     val ( .%?(;..) ) : ('a, 'b, 'c) A.t -> int array -> 'a @@ global many
+      portable
     val ( .%?(;..)<- ) : ('a, 'b, 'c) A.t -> int array -> 'a -> unit @@
-      global many
+      global many portable
     val ( .%![;..] ) : ('a, 'b, 'c) A.t -> int array -> 'a @@ global many
+      portable
     val ( .%![;..]<- ) : ('a, 'b, 'c) A.t -> int array -> 'a -> unit @@
-      global many
+      global many portable
     val ( .%%{;..} ) : ('a, 'b, 'c) A.t -> int array -> 'a @@ global many
+      portable
     val ( .%%{;..}<- ) : ('a, 'b, 'c) A.t -> int array -> 'a -> unit @@
-      global many
+      global many portable
   end
 
 ;;a.M.%![1;0;0] <- 7.;;

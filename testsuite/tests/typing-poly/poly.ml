@@ -1815,9 +1815,9 @@ module M :
   functor () ->
     sig
       val f : ('a : any). 'a -> 'a @@ global many portable
-      val g : ('a : any). 'a -> 'a @@ global many
+      val g : ('a : any). 'a -> 'a @@ global many portable
       val h : ('a : any). 'a -> 'a @@ global many
-      val i : ('a : any). 'a -> 'a @@ global many
+      val i : ('a : any). 'a -> 'a @@ global many portable
     end
 |}]
 

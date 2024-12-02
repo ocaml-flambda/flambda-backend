@@ -5,12 +5,12 @@ module Core :
         module T :
           sig
             type t = int
-            val compare : 'a -> 'a -> t @@ global many
-            val ( + ) : t -> t -> t @@ global many
+            val compare : 'a -> 'a -> t @@ global many portable
+            val ( + ) : t -> t -> t @@ global many portable
           end
         type t = int
-        val compare : 'a -> 'a -> t @@ global many
-        val ( + ) : t -> t -> t @@ global many
+        val compare : 'a -> 'a -> t @@ global many portable
+        val ( + ) : t -> t -> t @@ global many portable
         module Map :
           sig
             type key = t

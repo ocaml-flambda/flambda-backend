@@ -132,7 +132,12 @@ Line 1, characters 19-20:
                        ^
 Warning 20 [ignored-extra-argument]: this argument will not be used by the function.
 
-Exception: Stdlib.Exit.
+Line 1, characters 8-18:
+1 | let _ = raise Exit 3;;
+            ^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling nonportable values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
 |}]
 
 let f a b = a + b;;

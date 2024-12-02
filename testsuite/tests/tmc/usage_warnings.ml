@@ -210,7 +210,7 @@ module All_annotations_correctly_used :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t
     val graft : 'a -> 'b @@ global many portable
-    val map : ('a -> 'b) -> 'a t -> 'b t @@ global many
+    val map : ('a -> 'b) -> 'a t -> 'b t @@ global many portable
   end
 |}]
 
@@ -277,6 +277,6 @@ module All_annotations_flipped :
   sig
     type 'a t = N of 'a | Graft of int | Tau of 'a t | C of 'a t * 'a t
     val graft : 'a -> 'b @@ global many portable
-    val map_wrong : ('a -> 'b) -> 'a t -> 'b t @@ global many
+    val map_wrong : ('a -> 'b) -> 'a t -> 'b t @@ global many portable
   end
 |}]

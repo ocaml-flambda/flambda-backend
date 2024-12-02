@@ -37,11 +37,11 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : int -> int @@ global many end
+         sig val f : int -> int @@ global many portable end
        is not included in
          sig val f : int -> (float * string option) list end
        Values do not match:
-         val f : int -> int @@ global many
+         val f : int -> int @@ global many portable
        is not included in
          val f : int -> (float * string option) list
        The type "int -> int" is not compatible with the type

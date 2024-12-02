@@ -41,8 +41,8 @@ module Typeable :
       | Fun : ('a ty * 'b ty) -> ('a -> 'b) ty
     type (_, _) eq = Eq : ('a, 'a) eq
     exception CastFailure
-    val check_eq : 't ty -> ' t' ty -> ('t, ' t') eq @@ global many
-    val gcast : 't ty -> ' t' ty -> 't -> ' t' @@ global many
+    val check_eq : 't ty -> ' t' ty -> ('t, ' t') eq @@ global many portable
+    val gcast : 't ty -> ' t' ty -> 't -> ' t' @@ global many portable
   end
 |}];;
 
@@ -69,7 +69,7 @@ module HOAS :
       | Con : 't -> 't term
       | Lam : 's Typeable.ty * ('s term -> 't term) -> ('s -> 't) term
       | App : ('s -> 't) term * 's term -> 't term
-    val intp : 't term -> 't @@ global many
+    val intp : 't term -> 't @@ global many portable
   end
 |}];;
 
@@ -110,7 +110,7 @@ module DeBruijn :
     type ('env, 't) ix =
         ZeroIx : ('env * 't, 't) ix
       | SuccIx : ('env, 't) ix -> ('env * 's, 't) ix
-    val to_int : ('env, 't) ix -> int @@ global many
+    val to_int : ('env, 't) ix -> int @@ global many portable
     type ('env, 't) term =
         Var : ('env, 't) ix -> ('env, 't) term
       | Con : 't -> ('env, 't) term
@@ -169,15 +169,16 @@ module Convert :
         EmptyLayout : ('env, unit) layout
       | PushLayout : 't Typeable.ty * ('env, 'env') layout *
           ('env, 't) DeBruijn.ix -> ('env, 'env' * 't) layout
-    val size : ('env, 'env') layout -> int @@ global many
+    val size : ('env, 'env') layout -> int @@ global many portable
     val inc : ('env, 'env') layout -> ('env * 't, 'env') layout @@ global
       many portable
     val prj :
       't Typeable.ty -> int -> ('env, 'env') layout -> ('env, 't) DeBruijn.ix
-      @@ global many
+      @@ global many portable
     val cvt : ('env, 'env) layout -> 't HOAS.term -> ('env, 't) DeBruijn.term
-      @@ global many
+      @@ global many portable
     val convert : 'a HOAS.term -> (unit, 'a) DeBruijn.term @@ global many
+      portable
   end
 |}];;
 

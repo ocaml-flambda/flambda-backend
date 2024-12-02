@@ -8,6 +8,11 @@ Printexc.register_printer (fun e ->
     | Division_by_zero -> Some "A division by zero is undefined"
     | _ -> None);;
 [%%expect{|
+Line 1, characters 0-25:
+1 | Printexc.register_printer (fun e ->
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert unsafe: Stdlib.Printexc.register_printer
+
 - : unit = ()
 |}];;
 
@@ -16,6 +21,11 @@ Printexc.register_printer (fun e ->
     | Exit -> Some "Catching an exit"
     | _ -> None);;
 [%%expect{|
+Line 1, characters 0-25:
+1 | Printexc.register_printer (fun e ->
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert unsafe: Stdlib.Printexc.register_printer
+
 - : unit = ()
 |}];;
 

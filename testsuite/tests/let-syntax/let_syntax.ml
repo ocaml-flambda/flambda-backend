@@ -72,13 +72,18 @@ end;;
 [%%expect{|
 module List :
   sig
-    val map : 'a list -> ('a -> 'b) -> 'b list @@ global many
+    val map : 'a list -> ('a -> 'b) -> 'b list @@ global many portable
     val concat_map : 'a list -> ('a -> 'b list) -> 'b list @@ global many
+      portable
     val product : 'a list -> 'b list -> ('a * 'b) list @@ global many
-    val ( let+ ) : 'a list -> ('a -> 'b) -> 'b list @@ global many
+      portable
+    val ( let+ ) : 'a list -> ('a -> 'b) -> 'b list @@ global many portable
     val ( and+ ) : 'a list -> 'b list -> ('a * 'b) list @@ global many
+      portable
     val ( let* ) : 'a list -> ('a -> 'b list) -> 'b list @@ global many
+      portable
     val ( and* ) : 'a list -> 'b list -> ('a * 'b) list @@ global many
+      portable
   end
 |}];;
 
@@ -177,7 +182,7 @@ module Ill_typed_1 = struct
 end;;
 [%%expect{|
 module Ill_typed_1 :
-  sig val ( let+ ) : bool -> (bool -> 'a) -> 'a @@ global many end
+  sig val ( let+ ) : bool -> (bool -> 'a) -> 'a @@ global many portable end
 |}];;
 
 let ill_typed_1 =
@@ -203,7 +208,7 @@ end;;
 module Ill_typed_2 :
   sig
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
-    val ( and+ ) : float -> float -> float * float @@ global many
+    val ( and+ ) : float -> float -> float * float @@ global many portable
   end
 |}];;
 
@@ -254,7 +259,7 @@ end;;
 module Ill_typed_4 :
   sig
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
-    val ( and+ ) : bool -> bool @@ global many
+    val ( and+ ) : bool -> bool @@ global many portable
   end
 |}];;
 
@@ -282,7 +287,7 @@ end;;
 [%%expect{|
 module Ill_typed_5 :
   sig
-    val ( let+ ) : bool -> 'a -> bool @@ global many
+    val ( let+ ) : bool -> 'a -> bool @@ global many portable
     val ( and+ ) : 'a -> 'b -> 'a * 'b @@ global many
   end
 |}];;
@@ -313,7 +318,7 @@ end;;
 module Ill_typed_6 :
   sig
     val ( let+ ) : 'a -> ('a -> 'b) -> 'b @@ global many
-    val ( and+ ) : int -> 'a -> int * 'a @@ global many
+    val ( and+ ) : int -> 'a -> int * 'a @@ global many portable
   end
 |}];;
 
@@ -342,7 +347,7 @@ end;;
 [%%expect{|
 module Ill_typed_7 :
   sig
-    val ( let+ ) : (int -> 'a) -> int -> 'a @@ global many
+    val ( let+ ) : (int -> 'a) -> int -> 'a @@ global many portable
     val ( and+ ) : 'a -> 'b -> 'a * 'b @@ global many
   end
 |}];;
@@ -449,7 +454,7 @@ module Indexed_monad :
     type 'a state =
         Opened : in_channel -> opened state
       | Closed : closed state
-    val run : (closed, closed, 'a) t -> 'a @@ global many
+    val run : (closed, closed, 'a) t -> 'a @@ global many portable
     val ( let+ ) : ('a, 'b, 'c) t -> ('c -> 'd) -> ('a, 'b, 'd) t @@ global
       many portable
     val ( and+ ) : ('a, 'b, 'c) t -> ('b, 'd, 'e) t -> ('a, 'd, 'c * 'e) t @@

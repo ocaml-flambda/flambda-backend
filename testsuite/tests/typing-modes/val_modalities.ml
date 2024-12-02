@@ -441,7 +441,7 @@ Lines 13-19, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           module Plain : sig val f : int -> int @@ global many end
+           module Plain : sig val f : int -> int @@ global many portable end
            module type S_plain =
              sig module M : sig val f : int -> int end end
          end
@@ -451,14 +451,25 @@ Error: Signature mismatch:
            module type S_plain =
              sig module M : sig val f : int -> int @@ portable end end
          end
-       In module "Plain":
+       Module type declarations do not match:
+         module type S_plain = sig module M : sig val f : int -> int end end
+       does not match
+         module type S_plain =
+           sig module M : sig val f : int -> int @@ portable end end
+       The first module type is not included in the second
+       At position "module type S_plain = <here>"
+       Module types do not match:
+         sig module M : sig val f : int -> int end end
+       is not equal to
+         sig module M : sig val f : int -> int @@ portable end end
+       At position "module type S_plain = sig module M : <here> end"
        Modules do not match:
-         sig val f : int -> int @@ global many end
+         sig val f : int -> int end
        is not included in
          sig val f : int -> int @@ portable end
-       In module "Plain":
+       At position "module type S_plain = sig module M : <here> end"
        Values do not match:
-         val f : int -> int @@ global many
+         val f : int -> int
        is not included in
          val f : int -> int @@ portable
        The second is portable and the first is not.
