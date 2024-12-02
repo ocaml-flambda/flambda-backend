@@ -1137,7 +1137,7 @@ and simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
      uses (needed for the recursive continuation handlers). *)
   let handler_env =
     assert (not (DE.at_unit_toplevel denv_to_reset));
-    DE.add_parameters_with_unknown_types denv_to_reset params
+    DE.add_parameters_with_unknown_types ~extra:false denv_to_reset params
   in
   let handler_env = LCS.add_to_denv handler_env consts_lifted_during_body in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
