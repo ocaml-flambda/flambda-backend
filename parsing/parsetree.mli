@@ -598,7 +598,7 @@ and comprehension_iterator =
 and comprehension_clause_binding =
   { pcomp_cb_pattern : pattern;
     pcomp_cb_iterator : comprehension_iterator;
-    pcomp_cb_attributes : attribute list
+    pcomp_cb_attributes : attributes
   }
 
 and comprehension_clause =
