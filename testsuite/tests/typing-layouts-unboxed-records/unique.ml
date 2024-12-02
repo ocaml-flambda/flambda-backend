@@ -134,3 +134,23 @@ let [@warning "-23"] () =
   unique_use t.#x
 [%%expect{|
 |}]
+
+(* CR uniqueness: this test should succeed since unboxed records have no memory address
+   and the first field is of type unit and thus mode-crosses uniqueness. We should fix
+   this by allowing multiple unique uses for values that mode-cross uniqueness. *)
+let () =
+  let t = mk () in
+  unique_use2 t;
+  let t = #{ t with y = "fresh" } in
+  unique_use2 t
+[%%expect{|
+Line 4, characters 13-14:
+4 |   let t = #{ t with y = "fresh" } in
+                 ^
+Error: This value is used here,
+       but it is part of a value that has already been used as unique:
+Line 3, characters 14-15:
+3 |   unique_use2 t;
+                  ^
+
+|}]
