@@ -445,7 +445,7 @@ let untag_int i dbg =
   | Cconst_int (n, _) -> Cconst_int (n asr 1, dbg)
   | Cop (Cor, [Cop (Casr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
-    Cop (Casr, [c; Cconst_int (n + 1, dbg)], dbg)
+    asr_int c (Cconst_int (n + 1, dbg)) dbg
   | Cop (Cor, [Cop (Clsr, [c; Cconst_int (n, _)], _); Cconst_int (1, _)], _)
     when n > 0 && n < (size_int * 8) - 1 ->
     Cop (Clsr, [c; Cconst_int (n + 1, dbg)], dbg)
@@ -650,15 +650,14 @@ let rec div_int c1 c2 is_safe dbg =
          t = shift-right(t, W - l)
 
          t = c1 + t res = shift-right-signed(c1 + t, l) *)
-      Cop
-        ( Casr,
-          [ bind "dividend" c1 (fun c1 ->
-                assert (l >= 1);
-                let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
-                let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
-                add_int c1 t dbg);
-            Cconst_int (l, dbg) ],
-          dbg )
+      asr_int
+        (bind "dividend" c1 (fun c1 ->
+             assert (l >= 1);
+             let t = asr_int c1 (Cconst_int (l - 1, dbg)) dbg in
+             let t = lsr_int t (Cconst_int (Nativeint.size - l, dbg)) dbg in
+             add_int c1 t dbg))
+        (Cconst_int (l, dbg))
+        dbg
     else if n < 0
     then
       sub_int
@@ -682,9 +681,7 @@ let rec div_int c1 c2 is_safe dbg =
               (Cmulhi { signed = true }, [c1; natint_const_untagged dbg m], dbg)
           in
           let t = if m < 0n then Cop (Caddi, [t; c1], dbg) else t in
-          let t =
-            if p > 0 then Cop (Casr, [t; Cconst_int (p, dbg)], dbg) else t
-          in
+          let t = if p > 0 then asr_int t (Cconst_int (p, dbg)) dbg else t in
           add_int t (lsr_int c1 (Cconst_int (Nativeint.size - 1, dbg)) dbg) dbg)
   | c1, c2 when !Clflags.unsafe || is_safe = Lambda.Unsafe ->
     Cop (Cdivi, [c1; c2], dbg)
@@ -1286,10 +1283,10 @@ let sign_extend_32 dbg e =
         args,
         dbg )
   | e ->
-    Cop
-      ( Casr,
-        [Cop (Clsl, [e; Cconst_int (32, dbg)], dbg); Cconst_int (32, dbg)],
-        dbg )
+    asr_int
+      (Cop (Clsl, [e; Cconst_int (32, dbg)], dbg))
+      (Cconst_int (32, dbg))
+      dbg
 
 let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
   bind "arr" arr (fun arr ->
@@ -1981,10 +1978,10 @@ let sign_extend_63 dbg e =
     e
   | _ ->
     let e = low_63 dbg e in
-    Cop
-      ( Casr,
-        [Cop (Clsl, [e; Cconst_int (1, dbg)], dbg); Cconst_int (1, dbg)],
-        dbg )
+    asr_int
+      (Cop (Clsl, [e; Cconst_int (1, dbg)], dbg))
+      (Cconst_int (1, dbg))
+      dbg
 
 (* zero_extend_32 zero-extends values from 32 bits to the word size. *)
 let zero_extend_32 dbg e =
@@ -2652,11 +2649,10 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
             Cifthenelse
               ( Cop
                   ( Ccmpi Ceq,
-                    [ Cop
-                        ( Casr,
-                          [ get_field_gen mut clos 1 dbg;
-                            Cconst_int (pos_arity_in_closinfo, dbg) ],
-                          dbg );
+                    [ asr_int
+                        (get_field_gen mut clos 1 dbg)
+                        (Cconst_int (pos_arity_in_closinfo, dbg))
+                        dbg;
                       Cconst_int (List.length extended_args_type, dbg) ],
                     dbg ),
                 dbg,
@@ -2926,11 +2922,10 @@ let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
       Cifthenelse
         ( Cop
             ( Ccmpi Ceq,
-              [ Cop
-                  ( Casr,
-                    [ get_field_gen Asttypes.Mutable (Cvar clos) 1 (dbg ());
-                      Cconst_int (pos_arity_in_closinfo, dbg ()) ],
-                    dbg () );
+              [ asr_int
+                  (get_field_gen Asttypes.Mutable (Cvar clos) 1 (dbg ()))
+                  (Cconst_int (pos_arity_in_closinfo, dbg ()))
+                  (dbg ());
                 Cconst_int (List.length arity, dbg ()) ],
               dbg () ),
           dbg (),
