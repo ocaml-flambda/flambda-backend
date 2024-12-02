@@ -238,7 +238,7 @@ module Read = struct
 end
 
 let () =
-  Printexc.register_printer (function
+  Printexc.register_printer_safe (function
     | Write.Overflow n ->
        Some ("Buffer overflow at position " ^ string_of_int n)
     | Read.Underflow n ->

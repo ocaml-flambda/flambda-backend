@@ -16,39 +16,46 @@
 
 (* Handling of keyboard interrupts *)
 
-let interrupted = ref false
+let interrupted = Domain.DLS.new_key_safe (fun _ -> false)
 
-let is_protected = ref false
+let is_protected = Domain.DLS.new_key_safe (fun _ -> false)
 
-let break _signum =
-  if !is_protected
-  then interrupted := true
-  else raise Sys.Break
+let break _signum : unit =
+  Domain.DLS.with_password (fun pw ->
+    if Domain.DLS.get' pw is_protected
+    then Domain.DLS.set' pw interrupted true
+    else raise Sys.Break)
 
 let _ =
   match Sys.os_type with
     "Win32" -> ()
   | _ ->
-      Sys.set_signal Sys.sigint (Sys.Signal_handle break);
-      Sys.set_signal Sys.sigpipe (Sys.Signal_handle(fun _ -> raise End_of_file))
+      Sys.set_signal_safe Sys.sigint (Sys.Signal_handle break);
+      Sys.set_signal_safe Sys.sigpipe (Sys.Signal_handle(fun _ -> raise End_of_file))
 
 let protect f =
-  if !is_protected then
+  if Domain.DLS.get is_protected then
     f ()
   else begin
-    is_protected := true;
-    if not !interrupted then
+    Domain.DLS.set is_protected true;
+    if not (Domain.DLS.get interrupted) then
        f ();
-    is_protected := false;
-    if !interrupted then begin interrupted := false; raise Sys.Break end
+    Domain.DLS.set is_protected false;
+    if Domain.DLS.get interrupted then begin
+      Domain.DLS.set interrupted false;
+      raise Sys.Break
+    end
   end
 
 let unprotect f =
-  if not !is_protected then
+  if not (Domain.DLS.get is_protected) then
     f ()
   else begin
-    is_protected := false;
-    if !interrupted then begin interrupted := false; raise Sys.Break end;
+    Domain.DLS.set is_protected false;
+    if (Domain.DLS.get interrupted) then begin
+      Domain.DLS.set interrupted false;
+      raise Sys.Break
+    end;
     f ();
-    is_protected := true
+    Domain.DLS.set is_protected true
   end

@@ -83,7 +83,7 @@ let error_message = function
       privately (make a copy of the file to load it a second time)"
 
 let () =
-  Printexc.register_printer (function
+  Printexc.register_printer_safe (function
     | Error err ->
       let msg = match err with
       | Not_a_bytecode_file s -> Printf.sprintf "Not_a_bytecode_file %S" s

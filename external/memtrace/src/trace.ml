@@ -14,7 +14,7 @@ open Buf
 
 exception Parse_error of string
 let () =
-  Printexc.register_printer (function
+  Printexc.register_printer_safe (function
     | Parse_error s ->
       Some ("malformed trace: " ^ s)
     | _ -> None)
