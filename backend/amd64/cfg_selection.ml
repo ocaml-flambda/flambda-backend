@@ -221,6 +221,11 @@ class selector =
         | "caml_load_fence" -> specific Ilfence, args
         | "caml_store_fence" -> specific Isfence, args
         | "caml_memory_fence" -> specific Imfence, args
+        | "caml_cldemote" ->
+          let addr, eloc =
+            self#select_addressing Word_int (one_arg "cldemote" args)
+          in
+          specific (Icldemote addr), [eloc]
         | _ -> (
           match Simd_selection.select_operation_cfg func args with
           | Some (op, args) -> Basic (Op op), args
