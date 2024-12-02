@@ -2098,7 +2098,7 @@ let primitive_can_raise prim =
     false
 
 let constant_layout: constant -> layout = function
-  | Const_int _ | Const_char _ -> non_null_value Pintval
+  | Const_int _ | Const_char _ | Const_int8 _ | Const_int16 _ -> non_null_value Pintval
   | Const_string _ -> non_null_value Pgenval
   | Const_int32 _ -> non_null_value (Pboxedintval Pint32)
   | Const_int64 _ -> non_null_value (Pboxedintval Pint64)

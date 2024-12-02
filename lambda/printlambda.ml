@@ -21,6 +21,8 @@ open Lambda
 
 let rec struct_const ppf = function
   | Const_base(Const_int n) -> fprintf ppf "%i" n
+  | Const_base(Const_int8 n) -> fprintf ppf "%i" n
+  | Const_base(Const_int16 n) -> fprintf ppf "%i" n
   | Const_base(Const_char c) -> fprintf ppf "%C" c
   | Const_base(Const_string (s, _, _)) -> fprintf ppf "%S" s
   | Const_immstring s -> fprintf ppf "#%S" s

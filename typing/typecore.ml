@@ -228,6 +228,8 @@ type error =
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
+  | Int8_literal of string
+  | Int16_literal of string
   | Float32_literal of string
   | Illegal_letrec_pat
   | Illegal_letrec_expr
@@ -686,6 +688,8 @@ let type_constant: Typedtree.constant -> type_expr = function
   | Const_float32 _ -> instance Predef.type_float32
   | Const_unboxed_float _ -> instance Predef.type_unboxed_float
   | Const_unboxed_float32 _ -> instance Predef.type_unboxed_float32
+  | Const_int8 _ -> instance Predef.type_int8
+  | Const_int16 _ -> instance Predef.type_int16
   | Const_int32 _ -> instance Predef.type_int32
   | Const_int64 _ -> instance Predef.type_int64
   | Const_nativeint _ -> instance Predef.type_nativeint
@@ -726,6 +730,24 @@ let constant_integer i ~suffix :
 
 let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   function
+  | Pconst_integer (i, Some 'y') ->
+    if not (Language_extension.is_enabled Small_numbers)
+    then Error (Int8_literal i)
+    else
+      begin
+        match Misc.Int_literal_converter.int i with
+        | i when -0x80 <= i && i < 0x80 -> Ok (Const_int8 i)
+        | _ | exception Failure _ -> Error (Literal_overflow "int8")
+      end
+  | Pconst_integer (i, Some 'w') ->
+    if not (Language_extension.is_enabled Small_numbers)
+    then Error (Int16_literal i)
+    else
+    begin
+      match Misc.Int_literal_converter.int i with
+      | i when -0x8000 <= i && i < 0x8000 -> Ok (Const_int16 i)
+      | _ | exception Failure _ -> Error (Literal_overflow "int16")
+    end
   | Pconst_integer (i, Some suffix) ->
     begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_int32 v)
@@ -779,6 +801,7 @@ let constant_or_raise env loc cst =
            Language_extension.assert_enabled ~loc Layouts
              Language_extension.Stable
        | Const_int _ | Const_char _ | Const_string _ | Const_float _
+       | Const_int8 _ | Const_int16 _
        | Const_float32 _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ ->
            ());
       c
@@ -10246,6 +10269,12 @@ let report_error ~loc env = function
   | Float32_literal f ->
       Location.errorf ~loc "Found 32-bit float literal %ss, but float32 is not enabled. \
                             You must enable -extension small_numbers to use this feature." f
+  | Int16_literal i ->
+    Location.errorf ~loc "Found 16-bit integer literal %sw, but int16 is not enabled. \
+                          You must enable -extension small_numbers to use this feature." i
+  | Int8_literal i ->
+    Location.errorf ~loc "Found 8-bit integer literal %sy, but int8 is not enabled. \
+                          You must enable -extension small_numbers to use this feature." i
   | Illegal_letrec_pat ->
       Location.errorf ~loc
         "Only variables are allowed as left-hand side of %a"

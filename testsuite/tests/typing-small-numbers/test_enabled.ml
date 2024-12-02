@@ -189,3 +189,37 @@ let () =
 Line 1:
 Error: float32 literal patterns are not supported.
 |}];;
+
+
+
+(* int8/16  *)
+
+type i8 = int8;;
+[%%expect{|
+type t = i16
+|}];;
+
+type i16 = int16;;
+[%%expect{|
+type t = i16
+|}];;
+
+let _ : i8 = 10y;;
+[%%expect{|
+- : float32 = 1.s
+|}];;
+
+let _ : i16 = -0xfffw;;
+[%%expect{|
+- : float32 = 1.s
+|}];;
+
+
+let ()  =
+  match -0xfffw with
+  | 123w -> ()
+  | _ -> ()
+
+[%%expect{|
+- : float32 = 1.s
+|}];;

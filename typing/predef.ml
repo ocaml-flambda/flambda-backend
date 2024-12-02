@@ -41,6 +41,8 @@ and ident_iarray = ident_create "iarray"
 and ident_list = ident_create "list"
 and ident_option = ident_create "option"
 and ident_nativeint = ident_create "nativeint"
+and ident_int8 = ident_create "int8"
+and ident_int16 = ident_create "int16"
 and ident_int32 = ident_create "int32"
 and ident_int64 = ident_create "int64"
 and ident_lazy_t = ident_create "lazy_t"
@@ -82,6 +84,8 @@ and path_iarray = Pident ident_iarray
 and path_list = Pident ident_list
 and path_option = Pident ident_option
 and path_nativeint = Pident ident_nativeint
+and path_int8 = Pident ident_int8
+and path_int16 = Pident ident_int16
 and path_int32 = Pident ident_int32
 and path_int64 = Pident ident_int64
 and path_lazy_t = Pident ident_lazy_t
@@ -111,6 +115,8 @@ and path_unboxed_float32x4 = Pident ident_unboxed_float32x4
 and path_unboxed_float64x2 = Pident ident_unboxed_float64x2
 
 let type_int = newgenty (Tconstr(path_int, [], ref Mnil))
+and type_int8 = newgenty (Tconstr(path_int8, [], ref Mnil))
+and type_int16 = newgenty (Tconstr(path_int16, [], ref Mnil))
 and type_char = newgenty (Tconstr(path_char, [], ref Mnil))
 and type_bytes = newgenty (Tconstr(path_bytes, [], ref Mnil))
 and type_float = newgenty (Tconstr(path_float, [], ref Mnil))
@@ -361,6 +367,8 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_int8 ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_int32 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_int64 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_lazy_t

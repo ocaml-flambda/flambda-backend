@@ -281,6 +281,8 @@ type error =
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
   | Unknown_literal of string * char
+  | Int8_literal of string
+  | Int16_literal of string
   | Float32_literal of string
   | Illegal_letrec_pat
   | Illegal_letrec_expr

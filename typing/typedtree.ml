@@ -27,6 +27,8 @@ type constant =
   | Const_float32 of string
   | Const_unboxed_float of string
   | Const_unboxed_float32 of string
+  | Const_int8 of int
+  | Const_int16 of int
   | Const_int32 of int32
   | Const_int64 of int64
   | Const_nativeint of nativeint
