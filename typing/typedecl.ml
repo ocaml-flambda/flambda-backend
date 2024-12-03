@@ -931,6 +931,9 @@ let transl_declaration env sdecl (id, uid) =
             transl_labels ~record_form:Unboxed_product ~new_var_jkind:Any
               ~allow_unboxed:true env None true lbls Record_unboxed_product
           in
+          (* The jkinds below, and the ones in [lbls], are dummy jkinds which
+             are replaced and made to correspond to each other in
+             [update_decl_jkind]. *)
           let jkind_ls = List.map (fun _ -> any) lbls in
           let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
           Ttype_record_unboxed_product lbls,
