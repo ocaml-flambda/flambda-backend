@@ -397,5 +397,5 @@ val raise_errorf: ?loc:t -> ?sub:msg list ->
 val report_exception: formatter -> exn -> unit
 (** Reraise the exception if it is unknown. *)
 
-(** CR uniqueness: remove this *)
+(** CR uniqueness: remove this once overwriting is fully implemented *)
 val todo_overwrite_not_implemented : ?kind:string -> t -> 'a

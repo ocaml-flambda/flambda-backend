@@ -80,7 +80,6 @@ let keyword_table =
     "once_", ONCE;
     "open", OPEN;
     "or", OR;
-    (* CR uniqueness: Check that there are no variables named overwrite_ in Jane *)
     "overwrite_", OVERWRITE;
 (*  "parser", PARSER; *)
     "private", PRIVATE;
