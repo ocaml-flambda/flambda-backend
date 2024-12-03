@@ -1130,9 +1130,10 @@ let narrow_to_manifest_jkind env loc decl =
   match decl.type_manifest with
   | None -> decl
   | Some ty ->
-    let jkind' = Ctype.type_jkind_purely env ty in
-    match Jkind.sub_jkind_l jkind' decl.type_jkind with
-    | Ok jkind' -> { decl with type_jkind = jkind' }
+    match
+      Ctype.constrain_type_jkind env ty (Jkind.terrible_relax_l decl.type_jkind)
+    with
+    | Ok () -> { decl with type_jkind = Ctype.estimate_type_jkind env ty }
     | Error v ->
       raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
 
