@@ -277,7 +277,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       match kinds with
       | [] -> return_values
       | [kind] -> maybe_sign_extend kind dbg return_values
-      | kinds ->
+      | [_; _] as kinds ->
+        (* CR xclerc: we currently support only couples as unboxed return
+           values. *)
         let get_unarized_return_value exp n =
           C.tuple_field exp ~component_tys n dbg
         in
@@ -287,6 +289,10 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
                maybe_sign_extend kind dbg
                  (get_unarized_return_value return_values i))
              kinds)
+      | _ ->
+        Misc.fatal_errorf
+          "C functions are currently limited to a single return value or a \
+           couple of return values"
     in
     wrap extcall, free_vars, env, res, Ece.all
   | Method { kind; obj; alloc_mode } ->
