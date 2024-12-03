@@ -46,7 +46,6 @@ type type_structure =
   | Open
   | Algebraic
   | Unboxed of argument_to_unbox
-  | Unboxed_product
 
 let structure : type_definition -> type_structure = fun def ->
   match (def.type_kind, find_unboxed_type def) with
@@ -57,7 +56,7 @@ let structure : type_definition -> type_structure = fun def ->
       | Some type_expr -> Synonym type_expr
       end
   | (Type_record _ | Type_variant _), None -> Algebraic
-  | Type_record_unboxed_product _, None -> Unboxed_product
+  | Type_record_unboxed_product _, None -> Algebraic
   | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some ty ->
       let params =
         match def.type_kind with
@@ -632,12 +631,6 @@ let check_def
       check_type env constructor.argument_type Sep
       |> msig_of_context ~decl_loc:def.type_loc
            ~parameters:constructor.result_type_parameter_instances
-  | Unboxed_product ->
-      (* CR layouts 7.3: we give products best_msig, as they are
-         not affected by the flat float array optimization.
-         See test [typing-layouts-unboxed-records/separability.ml].
-      *)
-      best_msig def
 
 let compute_decl env decl =
   if Config.flat_float_array then check_def env decl
