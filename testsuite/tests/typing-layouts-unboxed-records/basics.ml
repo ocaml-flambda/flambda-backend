@@ -22,13 +22,24 @@ type ('a : value & value) t = #{ x : 'a; y : string; }
 val f : #(int * string) t -> #(string * int) t = <fun>
 |}]
 
-(* As-patterns, partial patterns *)
+(* Patterns, as-patterns, partial patterns *)
 
 type t = #{ i: int; j : int }
 let add (#{ i; _} as r) = i + r.#j
 [%%expect{|
 type t = #{ i : int; j : int; }
 val add : t -> int = <fun>
+|}]
+
+let bad_match (x : t) =
+  match x with
+  | _ -> .
+[%%expect{|
+Line 3, characters 4-5:
+3 |   | _ -> .
+        ^
+Error: This match case could not be refuted.
+       Here is an example of a value that would reach it: "{ _ }"
 |}]
 
 (* Unboxed records are not subject to the mixed-block restriction *)

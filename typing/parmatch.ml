@@ -954,8 +954,13 @@ let pats_of_type env ty =
               labels
           in
           [make_pat (Tpat_record (fields, Closed)) ty env]
-      | Type_record_unboxed_product (_labels, _) ->
-          assert false
+      | Type_record_unboxed_product (labels, _) ->
+          let fields =
+            List.map (fun ld ->
+              mknoloc (Longident.Lident ld.lbl_name), ld, omega)
+              labels
+          in
+          [make_pat (Tpat_record_unboxed_product (fields, Closed)) ty env]
       | Type_variant _ | Type_abstract _ | Type_open -> [omega]
       end
   | Has_no_typedecl ->
