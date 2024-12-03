@@ -3123,6 +3123,9 @@ let machtype_non_scanned_size t =
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l
 
+let tuple_field exp ~component_tys n dbg =
+  Cop (Ctuple_field (n, component_tys), [exp], dbg)
+
 let value_slot_given_machtype vs =
   let non_scanned, scanned =
     List.partition

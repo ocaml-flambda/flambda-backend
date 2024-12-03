@@ -238,25 +238,27 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
             Simple.print callee_simple)
     in
     let returns = Apply.returns apply in
-    let wrap =
-      match Flambda_arity.unarized_components return_arity with
-      (* Returned int32 values need to be sign_extended because it's not clear
-         whether C code that returns an int32 returns one that is sign extended
-         or not. There is no need to wrap other return arities. Note that
-         extcalls of arity 0 are allowed (these never return). *)
-      | [] -> fun _dbg cmm -> cmm
-      | [kind] -> (
-        match Flambda_kind.With_subkind.kind kind with
-        | Naked_number Naked_int32 -> C.sign_extend_32
-        | Naked_number
-            ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-            | Naked_vec128 | Naked_float32 )
-        | Value | Rec_info | Region ->
-          fun _dbg cmm -> cmm)
-      | _ ->
-        (* CR gbury: update when unboxed tuples are used *)
-        Misc.fatal_errorf
-          "C functions are currently limited to a single return value"
+    let return_ty = C.Extended_machtype.to_machtype return_ty in
+    let component_tys =
+      (* Two notes:
+
+         1. void has been erased in return arities by this point
+
+         2. All of the [machtype_component]s are singleton arrays. *)
+      Array.map (fun machtype -> [| machtype |]) return_ty
+    in
+    (* Returned int32 values need to be sign_extended because it's not clear
+       whether C code that returns an int32 returns one that is sign extended or
+       not. There is no need to wrap other return arities. Note that extcalls of
+       arity 0 are allowed (these never return). *)
+    let maybe_sign_extend kind dbg cmm =
+      match Flambda_kind.With_subkind.kind kind with
+      | Naked_number Naked_int32 -> C.sign_extend_32 dbg cmm
+      | Naked_number
+          ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
+          | Naked_vec128 | Naked_float32 )
+      | Value | Rec_info | Region ->
+        cmm
     in
     let ty_args =
       List.map C.exttype_of_kind
@@ -265,15 +267,28 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let effects = To_cmm_effects.transl_c_call_effects effects in
     let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
-    ( wrap dbg
-        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
-           ~coeffects ~returns ~ty_args callee
-           (C.Extended_machtype.to_machtype return_ty)
-           args),
-      free_vars,
-      env,
-      res,
-      Ece.all )
+    let extcall =
+      C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects ~coeffects
+        ~returns ~ty_args callee return_ty args
+    in
+    let wrap return_values =
+      let kinds = Flambda_arity.unarized_components return_arity in
+      assert (List.compare_length_with kinds (Array.length component_tys) = 0);
+      match kinds with
+      | [] -> return_values
+      | [kind] -> maybe_sign_extend kind dbg return_values
+      | kinds ->
+        let get_unarized_return_value exp n =
+          C.tuple_field exp ~component_tys n dbg
+        in
+        C.make_tuple
+          (List.mapi
+             (fun i kind ->
+               maybe_sign_extend kind dbg
+                 (get_unarized_return_value return_values i))
+             kinds)
+    in
+    wrap extcall, free_vars, env, res, Ece.all
   | Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
     let callee =

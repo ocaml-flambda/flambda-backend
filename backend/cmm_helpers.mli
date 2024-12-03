@@ -981,6 +981,9 @@ val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 
 val make_tuple : expression list -> expression
 
+val tuple_field :
+  expression -> component_tys:machtype array -> int -> Debuginfo.t -> expression
+
 (* Generated functions *)
 val curry_function :
   Lambda.function_kind * Cmm.machtype list * Cmm.machtype -> Cmm.phrase list
