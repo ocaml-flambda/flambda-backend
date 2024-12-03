@@ -161,7 +161,7 @@ let invariant
        exn_continuation = _;
        args;
        args_arity;
-       return_arity = _;
+       return_arity;
        call_kind;
        dbg = _;
        inlined = _;
@@ -179,7 +179,7 @@ let invariant
   (match call_kind with
   | Function _ | Method _ -> ()
   | C_call _ -> (
-    match callee with
+    (match callee with
     | Some callee when Simple.is_symbol callee -> ()
     | None | Some _ ->
       (* CR-someday mshinwell: We could expose indirect C calls at the source
@@ -187,10 +187,12 @@ let invariant
       Misc.fatal_errorf
         "For [C_call] applications the callee must be directly specified as a \
          [Symbol]:@ %a"
-        print t
-      (*; match Flambda_arity.unarized_components return_arity with | [] | [_]
-        -> () | _ :: _ :: _ -> Misc.fatal_errorf "Illegal return arity for C
-        call:@ %a" Flambda_arity.print return_arity *))
+        print t);
+    match Flambda_arity.unarized_components return_arity with
+    | [] | [_] | [_; _] -> ()
+    | _ :: _ :: _ ->
+      Misc.fatal_errorf "Illegal return arity for C call:@ %a"
+        Flambda_arity.print return_arity)
   | Effect _ -> (
     match callee, args with
     | None, [] -> ()
