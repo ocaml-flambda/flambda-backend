@@ -1,7 +1,7 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
- flags = "-extension layouts_alpha";
+ flags = "-extension layouts_beta";
  {
    expect;
  }
@@ -13,12 +13,12 @@
 
 
 (* makearray_dynamic *)
-external[@layout_poly] make_vect : ('a : any_non_null) . int -> 'a -> 'a iarray
+external[@layout_poly] make_vect : ('a : any) . int -> 'a -> 'a iarray
   = "%makearray_dynamic"
 
 let make_scannable (x : #(int * string)) = make_vect 42 x
 [%%expect{|
-external make_vect : ('a : any_non_null). int -> 'a -> 'a iarray
+external make_vect : ('a : any). int -> 'a -> 'a iarray
   = "%makearray_dynamic" [@@layout_poly]
 Line 4, characters 43-57:
 4 | let make_scannable (x : #(int * string)) = make_vect 42 x
@@ -46,13 +46,12 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* array length *)
-external[@layout_poly] len : ('a : any_non_null) . 'a iarray -> int =
+external[@layout_poly] len : ('a : any) . 'a iarray -> int =
   "%array_length"
 
 let length_scannable (x : #(int * string) iarray) = len x
 [%%expect{|
-external len : ('a : any_non_null). 'a iarray -> int = "%array_length"
-  [@@layout_poly]
+external len : ('a : any). 'a iarray -> int = "%array_length" [@@layout_poly]
 Line 4, characters 52-57:
 4 | let length_scannable (x : #(int * string) iarray) = len x
                                                         ^^^^^
@@ -78,13 +77,13 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* safe get *)
-external[@layout_poly] get : ('a : any_non_null) . 'a iarray -> int -> 'a =
+external[@layout_poly] get : ('a : any) . 'a iarray -> int -> 'a =
   "%array_safe_get"
 
 let get_scannable (x : #(int * string) iarray) = get x 42
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> int -> 'a
-  = "%array_safe_get" [@@layout_poly]
+external get : ('a : any). 'a iarray -> int -> 'a = "%array_safe_get"
+  [@@layout_poly]
 Line 4, characters 49-57:
 4 | let get_scannable (x : #(int * string) iarray) = get x 42
                                                      ^^^^^^^^
@@ -110,13 +109,13 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* unsafe get *)
-external[@layout_poly] get : ('a : any_non_null) . 'a iarray -> int -> 'a =
+external[@layout_poly] get : ('a : any) . 'a iarray -> int -> 'a =
   "%array_unsafe_get"
 
 let get_scannable (x : #(int * string) iarray) = get x 42
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> int -> 'a
-  = "%array_unsafe_get" [@@layout_poly]
+external get : ('a : any). 'a iarray -> int -> 'a = "%array_unsafe_get"
+  [@@layout_poly]
 Line 4, characters 49-57:
 4 | let get_scannable (x : #(int * string) iarray) = get x 42
                                                      ^^^^^^^^
@@ -142,12 +141,12 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* safe get indexed by int64# *)
-external[@layout_poly] get : ('a : any_non_null) . 'a iarray -> int64# -> 'a =
+external[@layout_poly] get : ('a : any) . 'a iarray -> int64# -> 'a =
   "%array_safe_get_indexed_by_int64#"
 
 let get_scannable (x : #(int * string) iarray) = get x #42L
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> int64# -> 'a
+external get : ('a : any). 'a iarray -> int64# -> 'a
   = "%array_safe_get_indexed_by_int64#" [@@layout_poly]
 Line 4, characters 49-59:
 4 | let get_scannable (x : #(int * string) iarray) = get x #42L
@@ -174,12 +173,12 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* unsafe get indexed by int64# *)
-external[@layout_poly] get : ('a : any_non_null) . 'a iarray -> int64# -> 'a =
+external[@layout_poly] get : ('a : any) . 'a iarray -> int64# -> 'a =
   "%array_unsafe_get_indexed_by_int64#"
 
 let get_scannable (x : #(int * string) iarray) = get x #42L
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> int64# -> 'a
+external get : ('a : any). 'a iarray -> int64# -> 'a
   = "%array_unsafe_get_indexed_by_int64#" [@@layout_poly]
 Line 4, characters 49-59:
 4 | let get_scannable (x : #(int * string) iarray) = get x #42L
@@ -206,12 +205,12 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* safe get indexed by int32# *)
-external[@layout_poly] get : ('a : any_non_null) . 'a iarray -> int32# -> 'a =
+external[@layout_poly] get : ('a : any) . 'a iarray -> int32# -> 'a =
   "%array_safe_get_indexed_by_int32#"
 
 let get_scannable (x : #(int * string) iarray) = get x #42l
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> int32# -> 'a
+external get : ('a : any). 'a iarray -> int32# -> 'a
   = "%array_safe_get_indexed_by_int32#" [@@layout_poly]
 Line 4, characters 49-59:
 4 | let get_scannable (x : #(int * string) iarray) = get x #42l
@@ -238,12 +237,12 @@ Error: Unboxed product array elements must be external or contain all gc
 |}]
 
 (* unsafe get indexed by int32# *)
-external[@layout_poly] get : ('a : any_non_null) . 'a iarray -> int32# -> 'a =
+external[@layout_poly] get : ('a : any) . 'a iarray -> int32# -> 'a =
   "%array_unsafe_get_indexed_by_int32#"
 
 let get_scannable (x : #(int * string) iarray) = get x #42l
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> int32# -> 'a
+external get : ('a : any). 'a iarray -> int32# -> 'a
   = "%array_unsafe_get_indexed_by_int32#" [@@layout_poly]
 Line 4, characters 49-59:
 4 | let get_scannable (x : #(int * string) iarray) = get x #42l
@@ -271,12 +270,12 @@ Error: Unboxed product array elements must be external or contain all gc
 
 (* safe get indexed by nativeint# *)
 external[@layout_poly] get :
-  ('a : any_non_null) . 'a iarray -> nativeint# -> 'a =
+  ('a : any) . 'a iarray -> nativeint# -> 'a =
   "%array_safe_get_indexed_by_nativeint#"
 
 let get_scannable (x : #(int * string) iarray) = get x #42n
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> nativeint# -> 'a
+external get : ('a : any). 'a iarray -> nativeint# -> 'a
   = "%array_safe_get_indexed_by_nativeint#" [@@layout_poly]
 Line 5, characters 49-59:
 5 | let get_scannable (x : #(int * string) iarray) = get x #42n
@@ -304,12 +303,12 @@ Error: Unboxed product array elements must be external or contain all gc
 
 (* unsafe get indexed by nativeint# *)
 external[@layout_poly] get :
-  ('a : any_non_null) . 'a iarray -> nativeint# -> 'a =
+  ('a : any) . 'a iarray -> nativeint# -> 'a =
   "%array_unsafe_get_indexed_by_nativeint#"
 
 let get_scannable (x : #(int * string) iarray) = get x #42n
 [%%expect{|
-external get : ('a : any_non_null). 'a iarray -> nativeint# -> 'a
+external get : ('a : any). 'a iarray -> nativeint# -> 'a
   = "%array_unsafe_get_indexed_by_nativeint#" [@@layout_poly]
 Line 5, characters 49-59:
 5 | let get_scannable (x : #(int * string) iarray) = get x #42n
