@@ -37,8 +37,21 @@ type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
 Line 1, characters 0-49:
 1 | type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<<<<<<< HEAD:testsuite/tests/typing-layouts-products/unboxed_records_alpha.ml
 Error: The definition of "bad" is recursive without boxing:
          "'a bad" contains "'a bad"
+||||||| parent of bf5bf8a120 (Add with-kinds.):testsuite/tests/typing-layouts-unboxed-records/basics_alpha.ml
+Error:
+       The layout of 'a bad is any & any
+         because it is an unboxed record.
+       But the layout of 'a bad must be representable
+         because it is the type of record field bad.
+=======
+Error: The layout of type "bad" is (value & value) & void
+         because it is an unboxed record.
+       But the layout of type "bad" must be a sublayout of value & value
+         because it is an unboxed record.
+>>>>>>> bf5bf8a120 (Add with-kinds.):testsuite/tests/typing-layouts-unboxed-records/basics_alpha.ml
 |}]
 
 (******************************************************************************)

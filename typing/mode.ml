@@ -369,13 +369,13 @@ module Lattices = struct
 
     let meet (a0, a1) (b0, b1) = Uniqueness.meet a0 b0, Contention.meet a1 b1
 
+    let print ppf (a0, a1) =
+      Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
+
     let imply (a0, a1) (b0, b1) = Uniqueness.imply a0 b0, Contention.imply a1 b1
 
     let subtract (a0, a1) (b0, b1) =
       Uniqueness.subtract a0 b0, Contention.subtract a1 b1
-
-    let print ppf (a0, a1) =
-      Format.fprintf ppf "%a,%a" Uniqueness.print a0 Contention.print a1
   end
 
   type 'areality comonadic_with =
@@ -1843,6 +1843,9 @@ module Value_with (Areality : Areality) = struct
     { comonadic; monadic }
 
   module Const = struct
+    module Monadic = Monadic.Const
+    module Comonadic = Comonadic.Const
+
     type t =
       ( Areality.Const.t,
         Linearity.Const.t,
@@ -1851,9 +1854,6 @@ module Value_with (Areality : Areality) = struct
         Contention.Const.t,
         Yielding.Const.t )
       modes
-
-    module Monadic = Monadic.Const
-    module Comonadic = Comonadic.Const
 
     let min = merge { comonadic = Comonadic.min; monadic = Monadic.min }
 
