@@ -86,11 +86,9 @@ f64_f64_struct f64_f64_make(void) {
 
 value f64_f64_make_bytecode(value unit) {
   CAMLparam1(unit);
-  CAMLlocal3(res, a, b);
-  a = caml_copy_double(123);
-  b = caml_copy_double(456);
+  CAMLlocal1(res);
   res = caml_alloc_float_array(2);
-  Store_double_array_field(res, 0, a);
-  Store_double_array_field(res, 1, b);
+  Store_double_array_field(res, 0, 123.0);
+  Store_double_array_field(res, 1, 456.0);
   CAMLreturn (res);
 }
