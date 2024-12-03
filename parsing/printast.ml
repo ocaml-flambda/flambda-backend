@@ -862,7 +862,8 @@ and signature_item i ppf x =
   | Psig_module pmd ->
       line i ppf "Psig_module %a\n" fmt_str_opt_loc pmd.pmd_name;
       attributes i ppf pmd.pmd_attributes;
-      module_type i ppf pmd.pmd_type
+      module_type i ppf pmd.pmd_type;
+      modalities i ppf pmd.pmd_modalities
   | Psig_modsubst pms ->
       line i ppf "Psig_modsubst %a = %a\n"
         fmt_string_loc pms.pms_name
@@ -1045,6 +1046,7 @@ and module_declaration i ppf pmd =
   str_opt_loc i ppf pmd.pmd_name;
   attributes i ppf pmd.pmd_attributes;
   module_type (i+1) ppf pmd.pmd_type;
+  modalities (i+1) ppf pmd.pmd_modalities
 
 and module_binding i ppf x =
   str_opt_loc i ppf x.pmb_name;
