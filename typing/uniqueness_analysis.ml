@@ -1838,7 +1838,11 @@ let rec pattern_match_tuple pat values =
       memory address. Then we have to protect the read from getting
       pushed down using a unique barrier.
     - We can disallow any destructive updates following the read
-      by consuming the memory address as aliased. *)
+      by consuming the memory address as aliased.
+      
+    [pattern_match_single] recurs down the structure of the pattern, calling [pattern_match_barrier]
+    at each step, so [pattern_match_barrier] itself does not need to recur into subpatterns.   
+         *)
 and pattern_match_barrier pat paths : UF.t =
   let loc = pat.pat_loc in
   let occ = Occurrence.mk loc in
