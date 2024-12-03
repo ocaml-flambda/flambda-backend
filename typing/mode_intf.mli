@@ -490,6 +490,9 @@ module type S = sig
         (** The identity modality. *)
         val id : t
 
+        (** Test if the given modality is the identity modality. *)
+        val is_id : t -> bool
+
         (** Apply a modality on mode. *)
         val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
 

@@ -1718,11 +1718,6 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 and transl_signature env {psg_items; psg_modalities; psg_loc} =
   let names = Signature_names.create () in
 
-  let has_sig_modalities =
-    match psg_modalities with
-    | [] -> false
-    | _ :: _ -> true
-  in
   let sig_modalities =
       Typemode.transl_modalities ~maturity:Alpha Immutable [] psg_modalities
   in
@@ -1746,14 +1741,14 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let has_modalities, modalities =
+    let modalities =
       match modalities with
-      | [] -> has_sig_modalities, sig_modalities
+      | [] -> sig_modalities
       | _ ->
-        true, Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
     in
     let sg =
-      if has_modalities then
+      if not @@ Mode.Modality.Value.Const.is_id modalities then
         let recursive =
           not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
             sincl.pincl_attributes
