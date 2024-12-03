@@ -639,3 +639,35 @@ Line 1, characters 19-20:
 Error: Unbound unboxed record field "b"
 Hint: There is a boxed record field with this name.
 |}]
+
+(* Initial expressions for functionally updated records are always evaluated *)
+
+type t = #{ x : string }
+
+let [@warning "-23"] update_t t =
+  let updated = ref false in
+  let _ = #{ (updated := true; t) with x = "" } in
+  assert !updated
+
+let _ = update_t #{ x = "x" }
+[%%expect{|
+type t = #{ x : string; }
+val update_t : t -> unit = <fun>
+- : unit = ()
+|}]
+
+type t = #{ x : string ; y : float# ; z : unit}
+
+let [@warning "-23"] update_t t =
+  let counter = ref 0 in
+  let _ = #{ (incr counter; t) with x = ""; y = #0.0 ; z = ()} in
+  assert (!counter = 1);
+  let _ = #{ (incr counter; t) with y = #0.0 } in
+  assert (!counter = 2)
+
+let _ = update_t #{ x = "x" ; y = #1.0 ; z = ()}
+[%%expect{|
+type t = #{ x : string; y : float#; z : unit; }
+val update_t : t -> unit = <fun>
+- : unit = ()
+|}]

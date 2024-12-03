@@ -2105,23 +2105,21 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
         fields
       |> Array.to_list
     in
-    begin match ll with
-    | [l] -> l (* erase singleton unboxed records before lambda *)
-    | _ ->
-      let lam = Lprim(Pmake_unboxed_product shape, ll, of_location ~scopes loc) in
-      begin match opt_init_expr with
-      | None -> lam
-      | Some init_expr ->
-        (* CR layouts v11: if a functional update can change the kind, then
-          the resulting kind may be different than [init_expr_jkind] *)
-        let init_expr_jkind =
-          Jkind.Builtin.product ~why:Unboxed_record
-            (Array.map (fun (lbl,_) -> lbl.lbl_jkind) fields |> Array.to_list) in
-        let init_expr_sort = Jkind.sort_of_jkind init_expr_jkind in
-        let layout = layout_exp init_expr_sort init_expr in
-        Llet(Strict, layout, init_id, transl_exp ~scopes init_expr_sort init_expr, lam)
-      end
-    end
+    let lam = match ll with
+      | [l] -> l (* erase singleton unboxed records before lambda *)
+      | _ -> Lprim(Pmake_unboxed_product shape, ll, of_location ~scopes loc)
+    in
+    match opt_init_expr with
+    | None -> lam
+    | Some init_expr ->
+      (* CR layouts v11: if a functional update can change the kind, then
+        the resulting kind may be different than [init_expr_jkind] *)
+      let init_expr_jkind =
+        Jkind.Builtin.product ~why:Unboxed_record
+          (Array.map (fun (lbl,_) -> lbl.lbl_jkind) fields |> Array.to_list) in
+      let init_expr_sort = Jkind.sort_of_jkind init_expr_jkind in
+      let layout = layout_exp init_expr_sort init_expr in
+      Llet(Strict, layout, init_id, transl_exp ~scopes init_expr_sort init_expr, lam)
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   let return_layout = layout_exp return_sort e in

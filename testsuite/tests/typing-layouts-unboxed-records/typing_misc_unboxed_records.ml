@@ -165,7 +165,7 @@ Line 1, characters 8-45:
 Warning 23 [useless-record-with]: all the fields are explicitly listed in this unboxed record:
 the 'with' clause is useless.
 
-val r : int ref_u = #{contents = 1}
+Exception: Assert_failure ("", 1, 11).
 |}]
 
 (* reexport *)
