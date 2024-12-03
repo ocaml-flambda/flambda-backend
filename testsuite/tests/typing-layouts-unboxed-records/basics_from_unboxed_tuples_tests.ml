@@ -114,7 +114,7 @@ Line 3, characters 11-15:
                ^^^^
 Error: This type "bool" should be an instance of type "('a : value & bits64)"
        The layout of bool is value
-         because it's an enumeration variant type (all constructors are constant).
+         because it is the primitive type bool.
        But the layout of bool must be a sublayout of value & bits64
          because of the definition of t6 at line 1, characters 0-37.
 |}]
@@ -813,8 +813,10 @@ type array_record = #{ i1 : int; i2 : int; }
 Line 2, characters 8-33:
 2 | let _ = [| #{ i1 = 1; i2 = 2 } |]
             ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed products are not yet supported with array primitives.
-       Here, layout value & value was used.
+Error: Non-value layout value & value detected as sort for type array_record,
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 type array_init_record = #{ i1 : int; i2 : int }

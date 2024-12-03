@@ -7,48 +7,8 @@ Line 1, characters 11-15:
 Warning 21 [nonreturning-statement]: this statement never returns (or has an unsound type.)
 
 val g : unit -> int = <fun>
-<<<<<<< HEAD
 Exception: E.
 Raised at f in file "//toplevel//", line 4, characters 11-18
-||||||| parent of 80bf6fd31d (Basic unboxed records)
-Exception: Not_found.
-Raised at Stdlib__Map.Make.find in file "map.ml", line 146, characters 10-25
-Called from Env.find_type_data in file "typing/env.ml", line 1300, characters 8-48
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Env.IdTbl.find_same_without_locks in file "typing/env.ml", line 432, characters 10-40
-Re-raised at Stdlib__Map.Make.find in file "map.ml", line 146, characters 10-25
-Called from Env.find_type_data in file "typing/env.ml", line 1300, characters 8-48
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Env.IdTbl.find_same_without_locks in file "typing/env.ml", line 432, characters 10-40
-Re-raised at Stdlib__Map.Make.find in file "map.ml", line 146, characters 10-25
-Called from Env.find_type_data in file "typing/env.ml", line 1300, characters 8-48
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Env.IdTbl.find_same_without_locks in file "typing/env.ml", line 432, characters 10-40
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Translmod.toplevel_name in file "lambda/translmod.ml", line 1599, characters 6-40
-Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 547, characters 13-28
-Called from Simplif.simplify_lets.simplif in file "lambda/simplif.ml", line 571, characters 8-28
-Re-raised at f in file "//toplevel//", line 2, characters 11-26
-=======
-Exception: Not_found.
-Raised at Stdlib__Map.Make.find in file "map.ml", line 146, characters 10-25
-Called from Env.find_type_data in file "typing/env.ml", line 1335, characters 8-48
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Env.IdTbl.find_same_without_locks in file "typing/env.ml", line 435, characters 10-40
-Re-raised at Stdlib__Map.Make.find in file "map.ml", line 146, characters 10-25
-Called from Env.find_type_data in file "typing/env.ml", line 1335, characters 8-48
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Env.IdTbl.find_same_without_locks in file "typing/env.ml", line 435, characters 10-40
-Re-raised at Stdlib__Map.Make.find in file "map.ml", line 146, characters 10-25
-Called from Env.find_type_data in file "typing/env.ml", line 1335, characters 8-48
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Env.IdTbl.find_same_without_locks in file "typing/env.ml", line 435, characters 10-40
-Re-raised at Ident.find_same in file "typing/ident.ml", line 307, characters 6-21
-Called from Translmod.toplevel_name in file "lambda/translmod.ml", line 1599, characters 6-40
-Re-raised at Stdlib__Hashtbl.find in file "hashtbl.ml", line 547, characters 13-28
-Called from Simplif.simplify_lets.simplif in file "lambda/simplif.ml", line 571, characters 8-28
-Re-raised at f in file "//toplevel//", line 2, characters 11-26
->>>>>>> 80bf6fd31d (Basic unboxed records)
 Called from g in file "//toplevel//", line 1, characters 11-15
 Called from <unknown> in file "//toplevel//", line 1, characters 0-4
 Called from Topeval.load_lambda in file "toplevel/byte/topeval.ml", line 87, characters 4-14

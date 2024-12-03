@@ -1064,19 +1064,13 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
 
-<<<<<<< HEAD
   let product ~why ts =
-    let desc, annotation = Jkind_desc.product ts in
-    fresh_jkind desc ~annotation ~why:(Product_creation why)
-||||||| parent of 80bf6fd31d (Basic unboxed records)
-  let product ~why ts =
-    fresh_jkind (Jkind_desc.product ts) ~why:(Product_creation why)
-=======
-  let product ~why = function
+    match ts with
     | [] -> Misc.fatal_error "Jkind.Builtin.product: empty product"
     | [t] -> t
-    | ts -> fresh_jkind (Jkind_desc.product ts) ~why:(Product_creation why)
->>>>>>> 80bf6fd31d (Basic unboxed records)
+    | ts ->
+      let desc, annotation = Jkind_desc.product ts in
+      fresh_jkind desc ~annotation ~why:(Product_creation why)
 end
 
 let add_nullability_crossing t =
