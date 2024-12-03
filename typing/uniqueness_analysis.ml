@@ -1830,6 +1830,9 @@ let rec pattern_match_tuple pat values =
     If the pattern-match reads from the underlying memory, we need to ensure
     either that the memory access is not pushed down or that no destructive
     updates can be performed on the memory.
+    Reads from the underlying memory occur when the pattern has to inspect the
+    tag or content of the memory to decide whether a branch should be taken
+    as well as when binding the contents of a subpattern to a name.
 
     Each pattern falls into one of three cases:
     - If we do not read from the underlying memory,
@@ -1839,10 +1842,10 @@ let rec pattern_match_tuple pat values =
       pushed down using a unique barrier.
     - We can disallow any destructive updates following the read
       by consuming the memory address as aliased.
-      
-    [pattern_match_single] recurs down the structure of the pattern, calling [pattern_match_barrier]
-    at each step, so [pattern_match_barrier] itself does not need to recur into subpatterns.   
-         *)
+
+    [pattern_match_single] recurs down the structure of the pattern,
+    calling [pattern_match_barrier] at each step, so [pattern_match_barrier]
+    itself does not need to recur into subpatterns. *)
 and pattern_match_barrier pat paths : UF.t =
   let loc = pat.pat_loc in
   let occ = Occurrence.mk loc in
@@ -1867,7 +1870,9 @@ and pattern_match_barrier pat paths : UF.t =
   | Tpat_constant _ ->
     (* This is necessary since we can not guarantee that
        the reads of constants in the pattern-matching code
-       are never pushed down. *)
+       are never pushed down.
+       CR uniqueness: We can probably use [borrow_memory_address]
+       for certain constants (eg. integers) here. *)
     consume_memory_address Constant
   | Tpat_construct _ -> borrow_memory_address ()
   | Tpat_variant _ -> borrow_memory_address ()
