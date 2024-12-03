@@ -249,8 +249,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     (* Returned int32 values need to be sign_extended because it's not clear
        whether C code that returns an int32 returns one that is sign extended or
-       not. There is no need to wrap other return arities. Note that extcalls of
-       arity 0 are allowed (these never return). *)
+       not. There is no need to wrap other return arities. *)
     let maybe_sign_extend kind dbg cmm =
       match Flambda_kind.With_subkind.kind kind with
       | Naked_number Naked_int32 -> C.sign_extend_32 dbg cmm
@@ -273,9 +272,14 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let wrap return_values =
       let kinds = Flambda_arity.unarized_components return_arity in
+      (* As per the comment above, [return_arity] does not mention void
+         components. (Unlike parameter arities; see the phantom type parameters
+         on the arity fields in [Apply_expr.t], for example.) *)
       assert (List.compare_length_with kinds (Array.length component_tys) = 0);
       match kinds with
-      | [] -> return_values
+      | [] ->
+        (* Extcalls of arity 0 are allowed (these never return). *)
+        return_values
       | [kind] -> maybe_sign_extend kind dbg return_values
       | [_; _] as kinds ->
         (* CR xclerc: we currently support only pairs as unboxed return
