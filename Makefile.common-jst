@@ -42,7 +42,7 @@ endef
 define dune_compiler_context
 (lang dune 2.8)
 (context (default
-  (name main)
+  (name compiler)
   (profile $(main_build_profile))
   (paths
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
@@ -102,16 +102,13 @@ compiler_targets = \
 
 compiler: runtime-stdlib
 # Build the same target as in [boot-compiler], but with our runtime stdlib.
-# Uses the [main] context to avoid duplicating work.
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_compiler) $(compiler_targets)
 
 main: _build/compiler_install compiler
-# Build the rest of the installation using the compiler from the [main] context.
+# Build the rest of the installation using the compiler from the [compiler] context.
 # The [boot-compiler] is not sufficient, since it marshals bytecode constants
 # incorrectly, using the upstream stdlib. This miscompiles code using new constants
 # like null pointers or float32 values.
-# However, otherwise [boot-compiler] produces identical artifacts to [compiler],
-# and it's safe-ish to reuse the [main] context again.
 	RUNTIME_DIR=$(RUNTIME_DIR) SYSTEM=$(SYSTEM) MODEL=$(MODEL) \
           ASPP="$(ASPP)" ASPPFLAGS="$(ASPPFLAGS)" \
           $(dune) build $(ws_main) \
@@ -202,11 +199,11 @@ _build/compiler_install: compiler
 	rm -rf _build/compiler_install
 	mkdir -p _build/compiler_install/{bin,lib/ocaml}
 	cp Makefile.config $(dune_config_targets) _build/compiler_install/lib/ocaml
-	cp _build/main/$(ocamlopt) _build/compiler_install/bin/ocamlopt.opt
-	cp _build/main/$(ocamlc) _build/compiler_install/bin/ocamlc.opt
-	cp _build/main/$(boot_ocamlmklib) _build/compiler_install/bin/ocamlmklib.opt
-	cp _build/main/$(boot_ocamldep) _build/compiler_install/bin/ocamldep.opt
-	cp _build/main/$(boot_ocamlobjinfo) _build/compiler_install/bin/ocamlobjinfo.opt
+	cp _build/compiler/$(ocamlopt) _build/compiler_install/bin/ocamlopt.opt
+	cp _build/compiler/$(ocamlc) _build/compiler_install/bin/ocamlc.opt
+	cp _build/compiler/$(boot_ocamlmklib) _build/compiler_install/bin/ocamlmklib.opt
+	cp _build/compiler/$(boot_ocamldep) _build/compiler_install/bin/ocamldep.opt
+	cp _build/compiler/$(boot_ocamlobjinfo) _build/compiler_install/bin/ocamlobjinfo.opt
 	cp "`which ocamllex`" _build/compiler_install/bin/ocamllex.opt
 	for prog in ocamlopt ocamlc ocamllex ocamldep ocamlmklib; do \
 	  ln -sf "$$prog.opt" "_build/compiler_install/bin/$$prog"; \
