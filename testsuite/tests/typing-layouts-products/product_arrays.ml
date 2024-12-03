@@ -1971,7 +1971,8 @@ Error: This expression has type "#(float# * a * int * int64#) array"
        but an expression was expected of type "'a array"
        The layout of #(float# * a * int * int64#) is float64 & any & value & bits64
          because it is an unboxed tuple.
-       But the layout of #(float# * a * int * int64#) must be representable
+       But the layout of #(float# * a * int * int64#) must be a sublayout of
+         float64 & '_representable_layout_1 & value & bits64
          because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
@@ -1987,7 +1988,8 @@ Error: This expression has type "#(string * a * bool option) array"
        but an expression was expected of type "'a array"
        The layout of #(string * a * bool option) is value & any & value
          because it is an unboxed tuple.
-       But the layout of #(string * a * bool option) must be representable
+       But the layout of #(string * a * bool option) must be a sublayout of
+         value & '_representable_layout_2 & value
          because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
@@ -2003,7 +2005,8 @@ Error: This expression has type "#(float# * a * int * int64#) array"
        but an expression was expected of type "'a array"
        The layout of #(float# * a * int * int64#) is float64 & any & value & bits64
          because it is an unboxed tuple.
-       But the layout of #(float# * a * int * int64#) must be representable
+       But the layout of #(float# * a * int * int64#) must be a sublayout of
+         float64 & '_representable_layout_3 & value & bits64
          because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).
@@ -2019,7 +2022,8 @@ Error: This expression has type "#(string * a * bool option) array"
        but an expression was expected of type "'a array"
        The layout of #(string * a * bool option) is value & any & value
          because it is an unboxed tuple.
-       But the layout of #(string * a * bool option) must be representable
+       But the layout of #(string * a * bool option) must be a sublayout of
+         value & '_representable_layout_4 & value
          because it's the layout polymorphic type in an external declaration
          ([@layout_poly] forces all variables of layout 'any' to be
          representable at call sites).

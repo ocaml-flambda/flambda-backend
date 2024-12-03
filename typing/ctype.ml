@@ -2351,7 +2351,9 @@ let constrain_type_jkind ~fixed env ty jkind =
                  Misc.Stdlib.List.map3
                    (loop ~fuel ~expanded:false) tys ty's_jkinds jkinds
                in
-               Misc.Stdlib.Monad.Result.all_unit results
+               if List.for_all Result.is_ok results
+               then Ok ()
+               else Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
              in
              begin match Jkind.decompose_product ty's_jkind,
                          Jkind.decompose_product jkind with

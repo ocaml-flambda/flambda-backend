@@ -1007,14 +1007,7 @@ let g (x : 'a) = f () x
 
 [%%expect{|
 val f : ('a : any & value). unit -> 'a -> 'a = <fun>
-Line 3, characters 22-23:
-3 | let g (x : 'a) = f () x
-                          ^
-Error: Function arguments and returns must be representable.
-       The layout of 'a is any & value
-         because of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable
-         because we must know concretely how to pass a function argument.
+val g : ('a : value & value). 'a -> 'a = <fun>
 |}]
 
 (* test subjkinding *)
@@ -1027,9 +1020,10 @@ val f : ('a : any & value). unit -> 'a -> 'a = <fun>
 Line 3, characters 30-31:
 3 | let g (type a) (x : a) = f () x
                                   ^
-Error: Function arguments and returns must be representable.
-       The layout of 'a is any & value
-         because of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable
+Error: This expression has type "a" but an expression was expected of type
+         "('a : '_representable_layout_21 & value)"
+       The layout of a is value
+         because it is or unifies with an unannotated universal variable.
+       But the layout of a must be a sublayout of '_representable_layout_21 & value
          because we must know concretely how to pass a function argument.
 |}]

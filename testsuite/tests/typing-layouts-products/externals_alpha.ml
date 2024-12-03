@@ -112,7 +112,8 @@ Line 1, characters 28-53:
 Error: Types in an external must have a representable layout.
        The layout of #(string * 'a * float#) is value & any & float64
          because it is an unboxed tuple.
-       But the layout of #(string * 'a * float#) must be representable
+       But the layout of #(string * 'a * float#) must be a sublayout of
+         value & '_representable_layout_1 & float64
          because it's the type of an argument in an external declaration.
 |}]
 
@@ -124,6 +125,7 @@ Line 1, characters 35-60:
 Error: Types in an external must have a representable layout.
        The layout of #(string * 'a * float#) is value & any & float64
          because it is an unboxed tuple.
-       But the layout of #(string * 'a * float#) must be representable
+       But the layout of #(string * 'a * float#) must be a sublayout of
+         value & '_representable_layout_2 & float64
          because it's the type of the result of an external declaration.
 |}]

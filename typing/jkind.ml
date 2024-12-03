@@ -231,31 +231,36 @@ module Layout = struct
       then Misc.Le_result.combine_list (List.map2 sub ts1 ts2)
       else Not_le
     | Product ts1, Sort s2 -> (
-      match to_product_sort ts1 with
+      match Sort.decompose_into_product s2 (List.length ts1) with
       | None -> Not_le
-      | Some s1 -> if Sort.equate s1 s2 then Equal else Not_le)
+      | Some ss2 ->
+        Misc.Le_result.combine_list
+          (List.map2 (fun t1 s2 -> sub t1 (Sort s2)) ts1 ss2))
     | Sort s1, Product ts2 -> (
-      match to_product_sort ts2 with
+      match Sort.decompose_into_product s1 (List.length ts2) with
       | None -> Not_le
-      | Some s2 -> if Sort.equate s1 s2 then Equal else Not_le)
+      | Some ss1 ->
+        Misc.Le_result.combine_list
+          (List.map2 (fun s1 t2 -> sub (Sort s1) t2) ss1 ts2))
 
   let rec intersection t1 t2 =
+    (* pre-condition to [products]: [ts1] and [ts2] have the same length *)
+    let products ts1 ts2 =
+      let components = List.map2 intersection ts1 ts2 in
+      Option.map
+        (fun x -> Product x)
+        (Misc.Stdlib.List.some_if_all_elements_are_some components)
+    in
     match t1, t2 with
     | _, Any -> Some t1
     | Any, _ -> Some t2
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
     | Product ts1, Product ts2 ->
-      if List.compare_lengths ts1 ts2 = 0
-      then
-        let components = List.map2 intersection ts1 ts2 in
-        Option.map
-          (fun x -> Product x)
-          (Misc.Stdlib.List.some_if_all_elements_are_some components)
-      else None
-    | (Product ts as t), Sort sort | Sort sort, (Product ts as t) -> (
-      match to_product_sort ts with
+      if List.compare_lengths ts1 ts2 = 0 then products ts1 ts2 else None
+    | Product ts, Sort sort | Sort sort, Product ts -> (
+      match Sort.decompose_into_product sort (List.length ts) with
       | None -> None
-      | Some sort' -> if Sort.equate sort sort' then Some t else None)
+      | Some sorts -> products ts (List.map (fun x -> Sort x) sorts))
 
   let of_new_sort_var () =
     let sort = Sort.new_var () in
