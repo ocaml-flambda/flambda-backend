@@ -278,8 +278,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       | [] -> return_values
       | [kind] -> maybe_sign_extend kind dbg return_values
       | [_; _] as kinds ->
-        (* CR xclerc: we currently support only couples as unboxed return
-           values. *)
+        (* CR xclerc: we currently support only pairs as unboxed return values. *)
         let get_unarized_return_value exp n =
           C.tuple_field exp ~component_tys n dbg
         in
@@ -292,7 +291,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       | _ ->
         Misc.fatal_errorf
           "C functions are currently limited to a single return value or a \
-           couple of return values"
+           pair of return values"
     in
     let extcall_ident = Ident.create_local "extcall" in
     let extcall_var = Backend_var.With_provenance.create extcall_ident in
