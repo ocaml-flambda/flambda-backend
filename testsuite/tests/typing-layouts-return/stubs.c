@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include "caml/alloc.h"
 #include "caml/memory.h"
-#include "caml/mlvalue.h"
+#include "caml/mlvalues.h"
 
 typedef struct {
   uint64_t a;
