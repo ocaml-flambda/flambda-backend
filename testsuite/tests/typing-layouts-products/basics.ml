@@ -973,8 +973,8 @@ Line 1, characters 19-27:
                        ^^^^^^^^
 Error: This type "string t" = "#(string u * string u)"
        should be an instance of type "('a : any mod global)"
-       The kind of string t is immutable_data
-         because it is the primitive type string.
+       The kind of string t is value & value
+         because it is an unboxed tuple.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
 |}]
@@ -989,13 +989,14 @@ Line 3, characters 9-30:
              ^^^^^^^^^^^^^^^^^^^^^
 Error: This type "#(int * string * int)" should be an instance of type
          "('a : any mod external_)"
-       The kind of #(int * string * int) is immutable_data
-         because it is the primitive type string.
+       The kind of #(int * string * int) is
+         immutable_data & immutable_data & immutable_data
+         because it is an unboxed tuple.
        But the kind of #(int * string * int) must be a subkind of
          any mod external_
          because of the definition of t at line 1, characters 0-31.
 |}]
-(* CR layouts v7.1: Both the above have very bad error messages. *)
+(* CR layouts v7.1: The appearance of [immutable_data] above is regrettable. *)
 
 (********************************************)
 (* Test 17: Subkinding with sorts and [any] *)
@@ -1024,6 +1025,6 @@ Error: This expression has type "a" but an expression was expected of type
          "('a : '_representable_layout_21 & value)"
        The layout of a is value
          because it is or unifies with an unannotated universal variable.
-       But the layout of a must be a sublayout of '_representable_layout_21 & value
+       But the layout of a must be representable
          because we must know concretely how to pass a function argument.
 |}]

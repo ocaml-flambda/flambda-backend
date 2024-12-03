@@ -1626,15 +1626,20 @@ module Violation = struct
     let layout_or_kind =
       match mismatch_type with Mode -> "kind" | Layout -> "layout"
     in
+    let rec has_sort_var : Sort.Flat.t Layout.t -> bool = function
+      | Sort (Var _) -> true
+      | Product layouts -> List.exists has_sort_var layouts
+      | Sort (Base _) | Any -> false
+    in
     let format_layout_or_kind ppf jkind =
       match mismatch_type with
       | Mode -> Format.fprintf ppf "@,%a" format jkind
       | Layout -> Layout.format ppf jkind.jkind.layout
     in
     let subjkind_format verb k2 =
-      match (get k2).layout with
-      | Sort (Var _) -> dprintf "%s representable" verb
-      | Sort (Base _) | Any | Product _ ->
+      if has_sort_var (get k2).layout
+      then dprintf "%s representable" verb
+      else
         dprintf "%s a sub%s of %a" verb layout_or_kind format_layout_or_kind k2
     in
     let Pack k1, Pack k2, fmt_k1, fmt_k2, missing_cmi_option =
@@ -1673,12 +1678,12 @@ module Violation = struct
     if display_histories
     then
       let connective =
-        match t.violation, (get k2).layout with
-        | Not_a_subjkind _, (Any | Sort (Base _) | Product _) ->
+        match t.violation, has_sort_var (get k2).layout with
+        | Not_a_subjkind _, false ->
           dprintf "be a sub%s of %a" layout_or_kind format_layout_or_kind k2
-        | No_intersection _, (Any | Sort (Base _) | Product _) ->
+        | No_intersection _, false ->
           dprintf "overlap with %a" format_layout_or_kind k2
-        | _, Sort (Var _) -> dprintf "be representable"
+        | _, true -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
         (Format_history.format_history
