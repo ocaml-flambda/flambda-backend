@@ -696,18 +696,17 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
       end
-  | Texp_unboxed_field(arg, _id, lbl, _) ->
+  | Texp_unboxed_field(arg, arg_sort, _id, lbl, _) ->
     begin match lbl.lbl_repres with
     | Record_unboxed_product ->
-      let layouts, jkinds =
+      let layouts, _jkinds =
         Array.map (fun lbl ->
           layout e.exp_env lbl.lbl_loc (Jkind.sort_of_jkind lbl.lbl_jkind) lbl.lbl_arg,
           lbl.lbl_jkind
         ) lbl.lbl_all
         |> Array.to_list |> List.split
       in
-      let arg_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
-      let targ = transl_exp ~scopes (Jkind.sort_of_jkind arg_jkind) arg in
+      let targ = transl_exp ~scopes arg_sort arg in
       if Array.length lbl.lbl_all == 1 then
         (* erase singleton unboxed records before lambda *)
         targ

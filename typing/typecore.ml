@@ -4080,7 +4080,7 @@ let rec is_nonexpansive exp =
         fields
       && is_nonexpansive_opt extended_expression
   | Texp_field(exp, _, _, _, _) -> is_nonexpansive exp
-  | Texp_unboxed_field(exp, _, _, _) -> is_nonexpansive exp
+  | Texp_unboxed_field(exp, _, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, _jkind, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -5941,12 +5941,19 @@ and type_expect_
       if Types.is_mutable label.lbl_mut then
         fatal_error
           "Typecore.type_expect_: unboxed record labels are never mutable";
+      let record_sort =
+        let jkinds =
+          Array.map (fun lbl -> lbl.lbl_jkind) label.lbl_all |> Array.to_list
+        in
+        let record_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
+        Jkind.sort_of_jkind record_jkind
+      in
       let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let mode = mode_cross_left_value env ty_arg mode in
       submode ~loc ~env mode expected_mode;
       let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
       rue {
-        exp_desc = Texp_unboxed_field(record, lid, label, uu);
+        exp_desc = Texp_unboxed_field(record, record_sort, lid, label, uu);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;

@@ -364,7 +364,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_field (exp, lid, _, _, _) ->
       iter_loc sub lid;
       sub.expr sub exp
-  | Texp_unboxed_field (exp, lid, _, _) ->
+  | Texp_unboxed_field (exp, _, lid, _, _) ->
       iter_loc sub lid;
       sub.expr sub exp
   | Texp_setfield (exp1, _, lid, _, exp2) ->

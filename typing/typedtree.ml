@@ -228,7 +228,8 @@ and expression_desc =
       expression * Longident.t loc * label_description * texp_field_boxing *
         Unique_barrier.t
   | Texp_unboxed_field of
-      expression * Longident.t loc * unboxed_label_description * unique_use
+      expression * Jkind.sort * Longident.t loc * unboxed_label_description *
+        unique_use
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode

@@ -1438,7 +1438,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
   | Texp_field _ ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
     UF.seq uf (Value.mark_maybe_unique value)
-  | Texp_unboxed_field (_, _, _, _) ->
+  | Texp_unboxed_field (_, _, _, _, _) ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
     UF.seq uf (Value.mark_maybe_unique value)
   | Texp_setfield (rcd, _, _, _, arg) ->
@@ -1578,7 +1578,7 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
           Paths.mark (Usage.maybe_unique unique_use occ) paths, Value.fresh
       in
       value, UF.seqs [uf; uf_read; uf_boxing])
-  | Texp_unboxed_field (e, _, l, unique_use) -> (
+  | Texp_unboxed_field (e, _, _, l, unique_use) -> (
     let value, uf = check_uniqueness_exp_as_value ienv e in
     match Value.paths value with
     | None -> Value.fresh, uf

@@ -864,7 +864,7 @@ let rec expression : Typedtree.expression -> term_judg =
         G |- e.x: m
       *)
       expression e << Dereference
-    | Texp_unboxed_field (e, _, _, _) ->
+    | Texp_unboxed_field (e, _, _, _, _) ->
       expression e << Dereference
     | Texp_setinstvar (pth,_,_,e) ->
       (*
