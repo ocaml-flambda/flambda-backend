@@ -278,7 +278,8 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       | [] -> return_values
       | [kind] -> maybe_sign_extend kind dbg return_values
       | [_; _] as kinds ->
-        (* CR xclerc: we currently support only pairs as unboxed return values. *)
+        (* CR xclerc: we currently support only pairs as unboxed return
+           values. *)
         let get_unarized_return_value exp n =
           C.tuple_field exp ~component_tys n dbg
         in
