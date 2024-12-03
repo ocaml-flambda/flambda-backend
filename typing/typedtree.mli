@@ -405,7 +405,7 @@ and expression_desc =
   | Texp_record_unboxed_product of {
       fields : ( Types.unboxed_label_description * record_label_definition ) array;
       representation : Types.record_unboxed_product_representation;
-      extended_expression : expression option;
+      extended_expression : (expression * Jkind.sort) option;
     }
         (** #{ l1=P1; ...; ln=Pn }           (extended_expression = None)
             #{ E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)

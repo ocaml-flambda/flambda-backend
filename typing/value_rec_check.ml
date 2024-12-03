@@ -790,7 +790,7 @@ let rec expression : Typedtree.expression -> term_judg =
         in
         join [
           array field es;
-          option expression eo << Dereference
+          option expression (Option.map fst eo) << Dereference
         ]
       end
     | Texp_ifthenelse (cond, ifso, ifnot) ->

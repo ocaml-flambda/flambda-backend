@@ -1419,7 +1419,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     let value, uf_ext =
       match extended_expression with
       | None -> Value.fresh, UF.unused
-      | Some exp -> check_uniqueness_exp_as_value ienv exp
+      | Some (exp, _) -> check_uniqueness_exp_as_value ienv exp
     in
     let uf_fields =
       Array.map

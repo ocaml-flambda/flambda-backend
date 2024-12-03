@@ -499,7 +499,9 @@ let expr sub x =
     | Texp_record_unboxed_product { fields; representation; extended_expression } ->
         Texp_record_unboxed_product {
           fields = map_fields fields; representation;
-          extended_expression = Option.map (sub.expr sub) extended_expression
+          extended_expression =
+            Option.map
+              (fun (exp, sort) -> (sub.expr sub exp, sort)) extended_expression
         }
     | Texp_field (exp, lid, ld, float, ubr) ->
         Texp_field (sub.expr sub exp, map_loc sub lid, ld, float, ubr)

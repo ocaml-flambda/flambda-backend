@@ -222,7 +222,7 @@ and expression_desc =
   | Texp_record_unboxed_product of {
       fields : ( Types.unboxed_label_description * record_label_definition ) array;
       representation : Types.record_unboxed_product_representation;
-      extended_expression : expression option;
+      extended_expression : (expression * Jkind.sort) option;
     }
   | Texp_field of
       expression * Longident.t loc * label_description * texp_field_boxing *

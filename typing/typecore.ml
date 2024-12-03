@@ -4078,7 +4078,7 @@ let rec is_nonexpansive exp =
                lbl.lbl_mut = Immutable && is_nonexpansive exp
            | Kept _ -> true)
         fields
-      && is_nonexpansive_opt extended_expression
+      && is_nonexpansive_opt (Option.map fst extended_expression)
   | Texp_field(exp, _, _, _, _) -> is_nonexpansive exp
   | Texp_unboxed_field(exp, _, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
@@ -5453,9 +5453,20 @@ and type_expect_
             alloc_mode;
           }
         | Unboxed_product ->
+          let opt_exp = match opt_exp with
+            | None -> None
+            | Some (exp, _) ->
+              let jkind =
+                Jkind.Builtin.product ~why:Unboxed_record
+                  (Array.map (fun lbl -> lbl.lbl_jkind) label_descriptions
+                   |> Array.to_list)
+              in
+              let sort = Jkind.sort_of_jkind jkind in
+              Some (exp, sort)
+          in
           Texp_record_unboxed_product {
             fields; representation;
-            extended_expression = (Option.map fst opt_exp);
+            extended_expression = opt_exp;
           }
       in
       re {
