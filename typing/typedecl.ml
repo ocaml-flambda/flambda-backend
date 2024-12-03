@@ -739,6 +739,11 @@ let shape_map_labels =
     Shape.Map.add_label map ld_id ld_uid)
     Shape.Map.empty
 
+let shape_map_unboxed_labels =
+  List.fold_left (fun map { Types.ld_id; ld_uid; _} ->
+    Shape.Map.add_unboxed_label map ld_id ld_uid)
+    Shape.Map.empty
+
 let shape_map_cstrs =
   List.fold_left (fun map { Types.cd_id; cd_uid; cd_args; _ } ->
     let cstr_shape_map =
@@ -1011,9 +1016,10 @@ let transl_declaration env sdecl (id, uid) =
       let uid = decl.typ_type.type_uid in
       match decl.typ_type.type_kind with
       | Type_variant (cstrs, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Type_record (labels, _)
-      | Type_record_unboxed_product (labels, _) ->
+      | Type_record (labels, _) ->
         Shape.str ~uid (shape_map_labels labels)
+      | Type_record_unboxed_product (labels, _) ->
+        Shape.str ~uid (shape_map_unboxed_labels labels)
       | Type_abstract _ | Type_open -> Shape.leaf uid
     in
     decl, typ_shape
