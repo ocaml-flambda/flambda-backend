@@ -7,6 +7,10 @@
    flags = "-extension layouts_alpha";
    native;
  }
+ {
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }
 *)
 
 external ui64_ui64_make : unit -> #(int64# * int64#) = "ui64_ui64_make_bytecode" "ui64_ui64_make"
