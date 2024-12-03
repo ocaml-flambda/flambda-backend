@@ -996,3 +996,40 @@ Error: This type "#(int * string * int)" should be an instance of type
          because of the definition of t at line 1, characters 0-31.
 |}]
 (* CR layouts v7.1: Both the above have very bad error messages. *)
+
+(********************************************)
+(* Test 17: Subkinding with sorts and [any] *)
+
+(* test intersection *)
+let rec f : ('a : any & value). unit -> 'a -> 'a = fun () -> f ()
+
+let g (x : 'a) = f () x
+
+[%%expect{|
+val f : ('a : any & value). unit -> 'a -> 'a = <fun>
+Line 3, characters 22-23:
+3 | let g (x : 'a) = f () x
+                          ^
+Error: Function arguments and returns must be representable.
+       The layout of 'a is any & value
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable
+         because we must know concretely how to pass a function argument.
+|}]
+
+(* test subjkinding *)
+let rec f : ('a : any & value). unit -> 'a -> 'a = fun () -> f ()
+
+let g (type a) (x : a) = f () x
+
+[%%expect{|
+val f : ('a : any & value). unit -> 'a -> 'a = <fun>
+Line 3, characters 30-31:
+3 | let g (type a) (x : a) = f () x
+                                  ^
+Error: Function arguments and returns must be representable.
+       The layout of 'a is any & value
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable
+         because we must know concretely how to pass a function argument.
+|}]
