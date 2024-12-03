@@ -313,7 +313,7 @@ let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
      first integer args in rdi, rsi, rdx, rcx, r8, r9
      first float args in xmm0 ... xmm7
      remaining args on stack
-     return value in rax or xmm0.
+     return value in rax and rdx for integers, and xmm0 and xmm1 for floats.
   C calling conventions under Win64:
      first integer args in rcx, rdx, r8, r9
      first float args in xmm0 ... xmm3
@@ -324,6 +324,8 @@ let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
 
 let loc_external_results res =
   let (loc, _ofs) =
+    (* `~last_int:4 ~step_int:4` below is to get rdx as the second int register
+       (See https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf, pages 21 and 22) *)
     calling_conventions
       ~first_int:0
       ~last_int:4
