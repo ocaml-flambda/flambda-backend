@@ -195,8 +195,15 @@ let word_addressed = false
 
 let size_domainstate_args = 64 * size_int
 
-let calling_conventions first_int last_int first_float last_float make_stack first_stack
-                        arg =
+let calling_conventions
+      ~first_int
+      ~last_int
+      ~step_int
+      ~first_float
+      ~last_float
+      ~make_stack
+      ~first_stack
+      arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let int = ref first_int in
   let float = ref first_float in
@@ -206,7 +213,7 @@ let calling_conventions first_int last_int first_float last_float make_stack fir
     | Val | Int | Addr as ty ->
         if !int <= last_int then begin
           loc.(i) <- phys_reg ty !int;
-          incr int
+          int := !int + step_int
         end else begin
           loc.(i) <- stack_slot (make_stack !ofs) ty;
           ofs := !ofs + size_int
@@ -253,18 +260,51 @@ let outgoing ofs =
 let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
 let loc_arguments arg =
-  calling_conventions 0 9 100 109 outgoing (- size_domainstate_args) arg
+  calling_conventions
+      ~first_int:0
+      ~last_int:9
+      ~step_int:1
+      ~first_float:100
+      ~last_float:109
+      ~make_stack:outgoing
+      ~first_stack:(- size_domainstate_args)
+      arg
+
 let loc_parameters arg =
   let (loc, _ofs) =
-    calling_conventions 0 9 100 109 incoming (- size_domainstate_args) arg
+    calling_conventions
+      ~first_int:0
+      ~last_int:9
+      ~step_int:1
+      ~first_float:100
+      ~last_float:109
+      ~make_stack:incoming
+      ~first_stack:(- size_domainstate_args)
+      arg
   in
   loc
 
 let loc_results_call res =
-  calling_conventions 0 9 100 109 outgoing (- size_domainstate_args) res
+  calling_conventions
+    ~first_int:0
+    ~last_int:9
+    ~step_int:1
+    ~first_float:100
+    ~last_float:109
+    ~make_stack:outgoing
+    ~first_stack:(- size_domainstate_args)
+    res
 let loc_results_return res =
   let (loc, _ofs) =
-    calling_conventions 0 9 100 109 incoming (- size_domainstate_args) res
+    calling_conventions
+      ~first_int:0
+      ~last_int:9
+      ~step_int:1
+      ~first_float:100
+      ~last_float:109
+      ~make_stack:incoming
+      ~first_stack:(- size_domainstate_args)
+      res
   in loc
 
 let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
@@ -283,10 +323,28 @@ let max_arguments_for_tailcalls = 10 (* in regs *) + 64 (* in domain state *)
      Return value in rax or xmm0. *)
 
 let loc_external_results res =
-  let (loc, _ofs) = calling_conventions 0 0 100 100 not_supported 0 res in loc
+  let (loc, _ofs) =
+    calling_conventions
+      ~first_int:0
+      ~last_int:4
+      ~step_int:4
+      ~first_float:100
+      ~last_float:101
+      ~make_stack:not_supported
+      ~first_stack:0
+      res
+  in loc
 
 let unix_loc_external_arguments arg =
-  calling_conventions 2 7 100 107 outgoing 0 arg
+  calling_conventions
+    ~first_int:2
+    ~last_int:7
+    ~step_int:1
+    ~first_float:100
+    ~last_float:107
+    ~make_stack:outgoing
+    ~first_stack:0
+    arg
 
 let win64_int_external_arguments =
   [| 5 (*rcx*); 4 (*rdx*); 6 (*r8*); 7 (*r9*) |]
