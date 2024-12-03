@@ -57,7 +57,7 @@ type t =
   | Labels_omitted of string list           (*  6 *)
   | Method_override of string list          (*  7 *)
   | Partial_match of string                 (*  8 *)
-  | Missing_record_field_pattern of string * string  (*  9 *)
+  | Missing_record_field_pattern of { form : string ; unbound : string } (* 9 *)
   | Non_unit_statement                      (* 10 *)
   | Redundant_case                          (* 11 *)
   | Redundant_subpat                        (* 12 *)
@@ -91,7 +91,8 @@ type t =
   | Unused_constructor of string * constructor_usage_warning (* 37 *)
   | Unused_extension of string * bool * constructor_usage_warning (* 38 *)
   | Unused_rec_flag                         (* 39 *)
-  | Name_out_of_scope of string * name_out_of_scope_warning (* 40 *)
+  | Name_out_of_scope of string * name_out_of_scope_warning (* 40
+      Tuple of (the type name, the name/fields out of scope) *)
   | Ambiguous_name of string list * string list * bool * string (* 41 *)
   | Disambiguated_name of string            (* 42 *)
   | Nonoptional_label of string             (* 43 *)
@@ -120,7 +121,8 @@ type t =
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
   | Match_on_mutable_state_prevent_uncurry  (* 68 *)
-  | Unused_field of string * string * field_usage_warning (* 69 *)
+  | Unused_field of
+      { form : string; field : string; complaint : field_usage_warning }(* 69 *)
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)

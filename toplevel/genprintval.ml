@@ -245,9 +245,6 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Outval_record_unboxed
       | Outval_record_mixed_block of mixed_product_shape
 
-    type outval_record_unboxed_product_rep =
-      | Outval_record_unboxed_product
-
     type printing_jkind =
       | Print_as_value (* can interpret as a value and print *)
       | Print_as of string (* can't print *)
@@ -520,18 +517,15 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           env path decl.type_params ty_list
                           lbl_list pos obj rep
                     end
-                | {type_kind = Type_record_unboxed_product(lbl_list, rep)} ->
+                | {type_kind = Type_record_unboxed_product
+                                 (lbl_list, Record_unboxed_product)} ->
                     begin match check_depth depth obj ty with
                       Some x -> x
                     | None ->
                         let pos = 0 in
-                        let rep =
-                          match rep with
-                          | Record_unboxed_product -> Outval_record_unboxed_product
-                        in
                         tree_of_record_unboxed_product_fields depth
                           env path decl.type_params ty_list
-                          lbl_list pos obj rep
+                          lbl_list pos obj
                     end
                 | {type_kind = Type_open} ->
                     tree_of_extension path ty_list depth obj
@@ -622,7 +616,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
 
       and tree_of_record_unboxed_product_fields depth env path type_params ty_list
-          lbl_list pos obj rep =
+          lbl_list pos obj =
         let rec tree_of_fields first pos = function
           | [] -> []
           | {ld_id; ld_type; ld_jkind} :: remainder ->
@@ -635,17 +629,14 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
               and v =
-                match rep with
-                | Outval_record_unboxed_product ->
-                  begin match get_and_default_jkind_for_printing ld_jkind with
-                  | Print_as msg -> Oval_stuff msg
-                  | Print_as_value ->
-                    match lbl_list with
-                    | [_] ->
-                      (* singleton unboxed records are erased *)
-                      tree_of_val (depth - 1) obj ty_arg
-                    | _ -> nest tree_of_val (depth - 1) (O.field obj pos) ty_arg
-                  end
+                match get_and_default_jkind_for_printing ld_jkind with
+                | Print_as msg -> Oval_stuff msg
+                | Print_as_value ->
+                  match lbl_list with
+                  | [_] ->
+                    (* singleton unboxed records are erased *)
+                    tree_of_val (depth - 1) obj ty_arg
+                  | _ -> nest tree_of_val (depth - 1) (O.field obj pos) ty_arg
               in
               let pos = if is_void then pos else pos + 1 in
               (lid, v) :: tree_of_fields false pos remainder

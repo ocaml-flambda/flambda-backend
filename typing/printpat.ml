@@ -72,12 +72,9 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
             if Array.length lbl.lbl_all > 1 + List.length q then
               fprintf ppf ";@ _@ "
             else () in
-        if unboxed then
-          fprintf ppf "@[#{%a%t}@]"
-            pretty_lvals filtered_lvs elision_mark
-        else
-          fprintf ppf "@[{%a%t}@]"
-            pretty_lvals filtered_lvs elision_mark
+        let hash = if unboxed then "#" else "" in
+        fprintf ppf "@[%s{%a%t}@]"
+          hash pretty_lvals filtered_lvs elision_mark
     end
   in
   match v.pat_desc with

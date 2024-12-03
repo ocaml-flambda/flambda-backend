@@ -600,9 +600,9 @@ let do_set_args ~erase_mutable q r = match q with
     make_pat
       (Tpat_record_unboxed_product
          (List.map2 (fun (lid, lbl,_) arg ->
-           if erase_mutable && Types.is_mutable lbl.lbl_mut
-           then
-             lid, lbl, omega
+           if Types.is_mutable lbl.lbl_mut then
+             fatal_error
+               "Parmatch.do_set_args: unboxed record labels are never mutable"
            else
              lid, lbl, arg)
             omegas args, closed))
@@ -2276,7 +2276,13 @@ let inactive ~partial pat =
               ldps
         | Tpat_record_unboxed_product (ldps,_) ->
             List.for_all
-              (fun (_, lbl, p) -> lbl.lbl_mut = Immutable && loop p)
+              (fun (_, lbl, p) ->
+                 match lbl.lbl_mut with
+                 | Immutable -> loop p
+                 | Mutable _ ->
+                   fatal_error
+                     ("Parmatch.inactive: "
+                        ^ "unboxed record labels are never mutable"))
               ldps
         | Tpat_or (p,q,_) ->
             loop p && loop q

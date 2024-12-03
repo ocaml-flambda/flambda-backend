@@ -124,6 +124,33 @@ type t = #{ is : #(int * int); }
 val add : t -> int = <fun>
 |}]
 
+(* An unboxed record is not an allocation, but a regular record is *)
+
+type ('a, 'b) ab = { left : 'a ; right : 'b }
+type ('a, 'b) ab_u = #{ left : 'a ; right : 'b }
+
+let f_unboxed_record (local_ left) (local_ right) =
+  let t = #{ left; right } in
+  let #{ left = left'; _ } = t in
+  left'
+[%%expect{|
+type ('a, 'b) ab = { left : 'a; right : 'b; }
+type ('a, 'b) ab_u = #{ left : 'a; right : 'b; }
+val f_unboxed_record : local_ 'a -> local_ 'b -> local_ 'a = <fun>
+|}]
+
+let f_boxed_record (local_ left) (local_ right) =
+  let t = { left; right } in
+  let { left = left'; _ } = t in
+  left'
+[%%expect{|
+Line 4, characters 2-7:
+4 |   left'
+      ^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
 (* Mutable fields are not allowed *)
 
 type mut = #{ mutable i : int }
@@ -131,7 +158,7 @@ type mut = #{ mutable i : int }
 Line 1, characters 14-29:
 1 | type mut = #{ mutable i : int }
                   ^^^^^^^^^^^^^^^
-Error: Unboxed records labels cannot be mutable
+Error: Unboxed record labels cannot be mutable
 |}]
 
 (*********************************)

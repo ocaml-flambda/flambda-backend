@@ -291,9 +291,13 @@ module Builtin : sig
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:History.immediate_creation_reason -> 'd t
 
-  (** This is the jkind of unboxed products.  The layout will be the product of
-      the layouts of the input kinds, and the other components of the kind will
-      be the join relevant component of the inputs. *)
+  (** Attempt to build a jkind of unboxed products.
+      - If zero input kinds are given, it errors.
+      - If a single input kind is given, then it returns that kind.
+      - If two or more input kinds are given, then the layout will be the
+        product of the layouts of the input kinds, and the other components of
+        the kind will be the join relevant component of the inputs.
+  *)
   val product : why:History.product_creation_reason -> 'd t list -> 'd t
 end
 

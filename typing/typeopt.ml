@@ -517,7 +517,8 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
             (fun () -> value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type)
         | Type_record_unboxed_product (([] | _::_::_), Record_unboxed_product) ->
-          assert false
+          Misc.fatal_error
+            "Typeopt.value_kind: non-unary unboxed record can't have kind value"
         | Type_abstract _ ->
           num_nodes_visited,
           mk_nn (value_kind_of_value_jkind decl.type_jkind)

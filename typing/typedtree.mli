@@ -195,8 +195,8 @@ and 'k pattern_desc =
       (Longident.t loc * Types.unboxed_label_description * value general_pattern) list *
         closed_flag ->
       value pattern_desc
-        (** { l1=P1; ...; ln=Pn }     (flag = Closed)
-            { l1=P1; ...; ln=Pn; _}   (flag = Open)
+        (** #{ l1=P1; ...; ln=Pn }     (flag = Closed)
+            #{ l1=P1; ...; ln=Pn; _}   (flag = Open)
 
             Invariant: n > 0
          *)

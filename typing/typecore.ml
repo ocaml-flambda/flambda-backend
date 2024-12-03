@@ -2205,7 +2205,8 @@ let label_get_type_path
     (type rep)
     (record_form : rep record_form)
     (d : rep gen_label_description) =
-  match record_form with  | Legacy -> Label.get_type_path d
+  match record_form with
+  | Legacy -> Label.get_type_path d
   | Unboxed_product -> Unboxed_label.get_type_path d
 
 (* In record-construction expressions and patterns, we have many labels
@@ -2362,16 +2363,18 @@ let check_recordpat_labels loc lbl_pat_list closed record_form =
         else defined.(label.lbl_num) <- true in
       List.iter check_defined lbl_pat_list;
       if closed = Closed
-      && Warnings.is_active (Warnings.Missing_record_field_pattern ("", ""))
+      && Warnings.is_active
+           (Warnings.Missing_record_field_pattern { form = ""; unbound = "" })
       then begin
         let undefined = ref [] in
         for i = 0 to Array.length all - 1 do
           if not defined.(i) then undefined := all.(i).lbl_name :: !undefined
         done;
         if !undefined <> [] then begin
-          let u = String.concat ", " (List.rev !undefined) in
+          let unbound = String.concat ", " (List.rev !undefined) in
           let form = record_form_to_string record_form in
-          Location.prerr_warning loc (Warnings.Missing_record_field_pattern (form, u))
+          Location.prerr_warning loc
+            (Warnings.Missing_record_field_pattern { form; unbound })
         end
       end
 
@@ -2681,7 +2684,7 @@ and type_pat_aux
           let error = Wrong_expected_record_boxing(Pattern, P record_form, expected_ty) in
           raise (Error (loc, !!penv, error))
         | Maybe_a_record_type ->
-          None, newvar (Jkind.Builtin.any ~why:Dummy_jkind)
+          None, newvar (Jkind.of_new_sort ~why:Record_projection)
         | Not_a_record_type ->
           let wks = record_form_to_wrong_kind_sort record_form in
           let error = Wrong_expected_kind(wks, Pattern, expected_ty) in
@@ -5441,28 +5444,25 @@ and type_expect_
         Array.map2 (fun descr def -> descr, def)
           label_descriptions label_definitions
       in
-      match record_form with
-      | Legacy ->
-        re {
-          exp_desc = Texp_record {
-              fields; representation;
-              extended_expression = opt_exp;
-              alloc_mode;
-            };
-          exp_loc = loc; exp_extra = [];
-          exp_type = instance ty_expected;
-          exp_attributes = sexp.pexp_attributes;
-          exp_env = env }
-      | Unboxed_product ->
-          re {
-            exp_desc = Texp_record_unboxed_product {
-                fields; representation;
-                extended_expression = (Option.map fst opt_exp);
-              };
-            exp_loc = loc; exp_extra = [];
-            exp_type = instance ty_expected;
-            exp_attributes = sexp.pexp_attributes;
-            exp_env = env }
+      let exp_desc =
+        match record_form with
+        | Legacy ->
+          Texp_record {
+            fields; representation;
+            extended_expression = opt_exp;
+            alloc_mode;
+          }
+        | Unboxed_product ->
+          Texp_record_unboxed_product {
+            fields; representation;
+            extended_expression = (Option.map fst opt_exp);
+          }
+      in
+      re {
+        exp_desc; exp_loc = loc; exp_extra = [];
+        exp_type = instance ty_expected;
+        exp_attributes = sexp.pexp_attributes;
+        exp_env = env }
   in
   match desc with
   | Pexp_ident lid ->
@@ -5938,7 +5938,9 @@ and type_expect_
           ty_arg
         end ~post:generalize_structure
       in
-      check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
+      if Types.is_mutable label.lbl_mut then
+        fatal_error
+          "Typecore.type_expect_: unboxed record labels are never mutable";
       let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let mode = mode_cross_left_value env ty_arg mode in
       submode ~loc ~env mode expected_mode;

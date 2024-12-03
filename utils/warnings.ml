@@ -55,7 +55,7 @@ type t =
   | Labels_omitted of string list           (*  6 *)
   | Method_override of string list          (*  7 *)
   | Partial_match of string                 (*  8 *)
-  | Missing_record_field_pattern of string * string (*  9 *)
+  | Missing_record_field_pattern of { form : string ; unbound : string } (* 9 *)
   | Non_unit_statement                      (* 10 *)
   | Redundant_case                          (* 11 *)
   | Redundant_subpat                        (* 12 *)
@@ -116,7 +116,8 @@ type t =
   | Unused_open_bang of string              (* 66 *)
   | Unused_functor_parameter of string      (* 67 *)
   | Match_on_mutable_state_prevent_uncurry  (* 68 *)
-  | Unused_field of string * string * field_usage_warning (* 69 *)
+  | Unused_field of
+      { form : string; field : string; complaint : field_usage_warning }(* 69 *)
   | Missing_mli                             (* 70 *)
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
@@ -959,8 +960,8 @@ let message = function
   | Partial_match s ->
       "this pattern-matching is not exhaustive.\n\
        Here is an example of a case that is not matched:\n" ^ s
-  | Missing_record_field_pattern (record_form, s) ->
-      "the following labels are not bound in this " ^ record_form ^ " pattern:\n" ^ s ^
+  | Missing_record_field_pattern { form ; unbound } ->
+      "the following labels are not bound in this " ^ form ^ " pattern:\n" ^ unbound ^
       "\nEither bind these labels explicitly or add '; _' to the pattern."
   | Non_unit_statement ->
       "this expression should have type unit."
@@ -1168,13 +1169,14 @@ let message = function
     "This pattern depends on mutable state.\n\
      It prevents the remaining arguments from being uncurried, which will \
      cause additional closure allocations."
-  | Unused_field (record_form, s, Unused) -> "unused " ^ record_form ^ " field " ^ s ^ "."
-  | Unused_field (record_form, s, Not_read) ->
-      record_form ^ " field " ^ s ^
+  | Unused_field { form; field; complaint = Unused } ->
+      "unused " ^ form ^ " field " ^ field ^ "."
+  | Unused_field { form; field; complaint = Not_read } ->
+      form ^ " field " ^ field ^
       " is never read.\n\
         (However, this field is used to build or mutate values.)"
-  | Unused_field (record_form, s, Not_mutated) ->
-      "mutable " ^ record_form ^ " field " ^ s ^
+  | Unused_field { form; field; complaint = Not_mutated } ->
+      "mutable " ^ form ^ " field " ^ field ^
       " is never mutated."
   | Missing_mli ->
     "Cannot find interface file."

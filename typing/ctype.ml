@@ -2098,8 +2098,9 @@ let unbox_once env ty =
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
         Stepped (apply ty2)
       | None -> begin match decl.type_kind with
-        | Type_record_unboxed_product ([{ld_type = arg; _}], Record_unboxed_product) ->
-          Stepped (apply arg)
+        | Type_record_unboxed_product ([_], Record_unboxed_product) ->
+          (* [find_unboxed_type] would have returned [Some] *)
+          Misc.fatal_error "Ctype.unbox_once"
         | Type_record_unboxed_product ((_::_::_ as lbls), Record_unboxed_product) ->
           Stepped_record_unboxed_product (List.map (fun ld -> apply ld.ld_type) lbls)
         | _ -> Final_result
@@ -2107,7 +2108,9 @@ let unbox_once env ty =
       end
     end
   | Tpoly (ty, _) -> Stepped ty
-  | _ -> Final_result
+  | Tvar _ | Tarrow _ | Ttuple _ | Tunboxed_tuple _ | Tobject _ | Tfield _
+  | Tnil | Tlink _ | Tsubst _ | Tvariant _ | Tunivar _ | Tpackage _ ->
+    Final_result
 
 (* We use ty_prev to track the last type for which we found a definition,
    allowing us to return a type for which a definition was found even if
@@ -2333,17 +2336,12 @@ let constrain_type_jkind ~fixed env ty jkind =
              message. *)
           Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
        | Has_intersection ->
-           let product tys =
+           let product ~fuel tys =
              let num_components = List.length tys in
              let recur ty's_jkinds jkinds =
-               (* Note: here we "duplicate" the fuel, which may seem like
-                  cheating. Fuel counts expansions, and its purpose is to guard
-                  against infinitely expanding a recursive type. In a wide
-                  product, we many need to expand many types shallowly, and
-                  that's fine. *)
                let results =
                  Misc.Stdlib.List.map3
-                   (loop ~fuel:(fuel - 1) ~expanded:false) tys ty's_jkinds jkinds
+                   (loop ~fuel ~expanded:false) tys ty's_jkinds jkinds
                in
                Misc.Stdlib.Monad.Result.all_unit results
              in
@@ -2378,9 +2376,14 @@ let constrain_type_jkind ~fixed env ty jkind =
                   loop ~fuel:(fuel - 1) ~expanded:false ty
                     (estimate_type_jkind env ty) jkind
                | Stepped_record_unboxed_product tys ->
-                  product tys
+                  product ~fuel:(fuel - 1) tys
                end
-          | Tunboxed_tuple ltys -> product (List.map snd ltys)
+          | Tunboxed_tuple ltys ->
+            (* Note: here we "duplicate" the fuel, which may seem like cheating.
+               Fuel counts expansions, and its purpose is to guard against
+               infinitely expanding a recursive type. In a wide tuple, we many
+               need to expand many types shallowly, and that's fine. *)
+            product ~fuel (List.map snd ltys)
           | _ -> Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
   in
   loop ~fuel:100 ~expanded:false ty (estimate_type_jkind env ty) jkind

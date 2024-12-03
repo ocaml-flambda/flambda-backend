@@ -386,23 +386,6 @@ let zero_alloc_of_application
     end
   | None, _ -> Zero_alloc_utils.Assume_info.none
 
-(* CR layouts v5: [Punboxed_product_field] does not use special indexing for void, whereas
-   [lbl.lbl_pos] does, so we need to find the "normal" index. This function should be
-   removed, and we should just use [lbl.lbl_pos], once we remove [lbl_pos_void].
-
-   Asserts that this lbl is not void. *)
-let lbl_idx lbl =
-  (* Reimplementation of OCaml 5's [Array.find_index] *)
-  let find_index f array =
-    let i = ref 0 in
-    while !i < (Array.length array) && not (f (Array.get array !i)) do
-      incr i
-    done;
-    if !i == Array.length array then None else Some !i
-  in
-  assert (lbl.lbl_pos <> lbl_pos_void);
-  find_index (fun { lbl_pos } -> lbl_pos = lbl.lbl_pos ) lbl.lbl_all |> Option.get
-
 let rec transl_exp ~scopes sort e =
   transl_exp1 ~scopes ~in_new_scope:false sort e
 
@@ -729,7 +712,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         (* erase singleton unboxed records before lambda *)
         targ
       else
-        Lprim (Punboxed_product_field (lbl_idx lbl, layouts), [targ],
+        Lprim (Punboxed_product_field (lbl.lbl_num, layouts), [targ],
                of_location ~scopes e.exp_loc)
     end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->

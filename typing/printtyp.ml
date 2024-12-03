@@ -1954,7 +1954,8 @@ let tree_of_type_decl id decl =
         decl.type_private,
         (match rep with Record_unboxed -> true | _ -> false)
     | Type_record_unboxed_product(lbls, Record_unboxed_product) ->
-        tree_of_manifest (Otyp_record_unboxed_product (List.map tree_of_label lbls)),
+        tree_of_manifest
+          (Otyp_record_unboxed_product (List.map tree_of_label lbls)),
         decl.type_private,
         false
     | Type_open ->

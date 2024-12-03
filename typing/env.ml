@@ -1417,8 +1417,7 @@ let find_ident_label record_form id env =
   TycompTbl.find_same id (env_labels record_form env)
 
 let find_type p env =
-  let td = (find_type_data p env) in
-  td.tda_declaration
+  (find_type_data p env).tda_declaration
 let find_type_descrs p env =
   (find_type_data p env).tda_descriptions
 
@@ -2211,7 +2210,8 @@ and store_label
   fun  ~record_form ~check type_decl type_id lbl_id lbl env ->
   Builtin_attributes.warning_scope lbl.lbl_attributes (fun () ->
   if check && not type_decl.type_loc.Location.loc_ghost
-     && Warnings.is_active (Warnings.Unused_field ("", "", Unused))
+     && Warnings.is_active
+          (Warnings.Unused_field { form = ""; field = ""; complaint = Unused })
   then begin
     let ty_name = Ident.name type_id in
     let priv = type_decl.type_private in
@@ -2228,9 +2228,10 @@ and store_label
             Option.iter
               (fun complaint ->
                  if not (is_in_signature env) then
+                   let form = record_form_to_string record_form in
                    Location.prerr_warning
-                     loc (Warnings.Unused_field(record_form_to_string record_form,
-                                                name, complaint)))
+                     loc
+                     (Warnings.Unused_field { form; field = name; complaint }))
               (label_usage_complaint priv mut used))
   end);
   Builtin_attributes.mark_alerts_used lbl.lbl_attributes;
@@ -2827,7 +2828,7 @@ let mark_constructor_description_used usage env cstr =
   | mark -> mark usage
   | exception Not_found -> ()
 
-let mark_label_description_used record_form usage env lbl  =
+let mark_label_description_used record_form usage env lbl =
   let ty_path =
     match get_desc lbl.lbl_res with
     | Tconstr(path, _, _) -> path

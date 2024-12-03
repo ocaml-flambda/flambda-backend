@@ -3502,7 +3502,7 @@ let report_error ppf = function
   | Duplicate_label s ->
       fprintf ppf "Two labels are named %a" Style.inline_code s
   | Unboxed_mutable_label ->
-      fprintf ppf "Unboxed records labels cannot be mutable"
+      fprintf ppf "Unboxed record labels cannot be mutable"
   | Recursive_abbrev (s, env, reaching_path) ->
       let reaching_path = Reaching_path.simplify reaching_path in
       Printtyp.wrap_printing_env ~error:true env @@ fun () ->

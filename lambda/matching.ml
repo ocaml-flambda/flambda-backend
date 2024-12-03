@@ -2401,21 +2401,31 @@ let get_expr_args_record_unboxed_product ~scopes head (arg, _mut, _sort, _layout
     | _ ->
         assert false
   in
+  let lbl_layouts =
+    Array.map (fun lbl ->
+      Typeopt.layout_of_sort lbl.lbl_loc (Jkind.sort_of_jkind lbl.lbl_jkind)
+    ) all_labels
+    |> Array.to_list
+  in
   let rec make_args pos =
     if pos >= Array.length all_labels then
       rem
     else
       let lbl = all_labels.(pos) in
       jkind_layout_default_to_value_and_check_not_void head.pat_loc lbl.lbl_jkind;
-      let lbl_layouts = Array.map (fun lbl ->
-        Typeopt.layout_of_sort lbl.lbl_loc (Jkind.sort_of_jkind lbl.lbl_jkind)
-      ) lbl.lbl_all |> Array.to_list in
       let access = if Array.length all_labels = 1 then
         arg (* erase singleton unboxed records before lambda *)
       else
         Lprim (Punboxed_product_field (pos, lbl_layouts), [ arg ], loc)
       in
-      let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
+      let str =
+        if Types.is_mutable lbl.lbl_mut then
+          fatal_error
+            ("Matching.get_expr_args_record_unboxed_product: "
+             ^ "unboxed record labels are never mutable")
+        else
+          Alias
+      in
       let sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       let layout = Typeopt.layout_of_sort lbl.lbl_loc sort in
       (access, str, sort, layout) :: make_args (pos + 1)

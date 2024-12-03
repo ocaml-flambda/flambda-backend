@@ -585,8 +585,8 @@ and print_out_type_3 ppf =
       pp_close_box ppf ()
   | Otyp_abstract | Otyp_open
   | Otyp_sum _ | Otyp_manifest (_, _) -> ()
-  | Otyp_record lbls -> print_record_decl ppf lbls
-  | Otyp_record_unboxed_product lbls -> print_record_unboxed_product_decl ppf lbls
+  | Otyp_record lbls -> print_record_decl ~unboxed:false ppf lbls
+  | Otyp_record_unboxed_product lbls -> print_record_decl ~unboxed:true ppf lbls
   | Otyp_module (p, fl) ->
       fprintf ppf "@[<1>(module %a" print_ident p;
       let first = ref true in
@@ -608,12 +608,10 @@ and print_out_type ppf typ =
   print_out_type_0 ppf typ
 and print_simple_out_type ppf typ =
   print_out_type_3 ppf typ
-and print_record_decl ppf lbls =
-  fprintf ppf "{%a@;<1 -2>}"
-    (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
-and print_record_unboxed_product_decl ppf lbls =
-  fprintf ppf "#{%a@;<1 -2>}"
-    (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
+and print_record_decl ~unboxed ppf lbls =
+  let hash = if unboxed then "#" else "" in
+  fprintf ppf "%s{%a@;<1 -2>}"
+    hash (print_list_init print_out_label (fun ppf -> fprintf ppf "@ ")) lbls
 and print_fields open_row ppf =
   function
     [] ->
@@ -982,11 +980,11 @@ and print_out_type_decl kwd ppf td =
   | Otyp_record lbls ->
       fprintf ppf " =%a %a"
         print_private td.otype_private
-        print_record_decl lbls
+        (print_record_decl ~unboxed:false) lbls
   | Otyp_record_unboxed_product lbls ->
       fprintf ppf " =%a %a"
         print_private td.otype_private
-        print_record_unboxed_product_decl lbls
+        (print_record_decl ~unboxed:true) lbls
   | Otyp_sum constrs ->
     let variants fmt constrs =
         if constrs = [] then fprintf fmt "|" else
