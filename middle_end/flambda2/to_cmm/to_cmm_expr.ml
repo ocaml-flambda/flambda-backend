@@ -294,7 +294,13 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
           "C functions are currently limited to a single return value or a \
            couple of return values"
     in
-    wrap extcall, free_vars, env, res, Ece.all
+    let extcall_ident = Ident.create_local "extcall" in
+    let extcall_var = Backend_var.With_provenance.create extcall_ident in
+    let cmm =
+      C.letin extcall_var ~defining_expr:extcall
+        ~body:(wrap (Cvar extcall_ident))
+    in
+    cmm, free_vars, env, res, Ece.all
   | Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
     let callee =
