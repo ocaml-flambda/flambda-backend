@@ -146,6 +146,22 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
     | [kind] -> maybe_sign_extend kind dbg return_values
     | [_; _] as kinds ->
       (* CR xclerc: we currently support only pairs as unboxed return values. *)
+      (* CR mshinwell: we also currently only support 64 bit integer and float
+         values, since on (at least) x86-64 the calling convention differs for
+         smaller widths. *)
+      List.iter
+        (fun kind ->
+          match Flambda_kind.With_subkind.kind kind with
+          | Naked_number
+              (Naked_immediate | Naked_int64 | Naked_nativeint | Naked_float) ->
+            ()
+          | Naked_number (Naked_int32 | Naked_vec128 | Naked_float32)
+          | Value | Region | Rec_info ->
+            Misc.fatal_errorf
+              "Cannot compile unboxed product return from external C call with \
+               a component of kind %a"
+              Flambda_kind.With_subkind.print kind)
+        kinds;
       let get_unarized_return_value exp n =
         C.tuple_field exp ~component_tys n dbg
       in
