@@ -417,6 +417,57 @@ CAMLprim value caml_atomic_fetch_add (value ref, value incr)
   return ret;
 }
 
+CAMLprim value caml_atomic_fetch_land (value ref, value x)
+{
+  value ret;
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    ret = *p;
+    *p = Val_long(Long_val(ret) & Long_val(x));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    ret = atomic_fetch_and(p, Long_val(x));
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return ret;
+}
+
+CAMLprim value caml_atomic_fetch_lor (value ref, value x)
+{
+  value ret;
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    ret = *p;
+    *p = Val_long(Long_val(ret) | Long_val(x));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    ret = atomic_fetch_or(p, Long_val(x));
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return ret;
+}
+
+CAMLprim value caml_atomic_fetch_lxor (value ref, value x)
+{
+  value ret;
+  if (caml_domain_alone()) {
+    value* p = Op_val(ref);
+    CAMLassert(Is_long(*p));
+    ret = *p;
+    *p = Val_long(Long_val(ret) ^ Long_val(x));
+    /* no write barrier needed, integer write */
+  } else {
+    atomic_value *p = &Op_atomic_val(ref)[0];
+    ret = atomic_fetch_xor(p, Long_val(x));
+    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
+  }
+  return ret;
+}
+
 CAMLexport int caml_is_stack (value v)
 {
   int i;

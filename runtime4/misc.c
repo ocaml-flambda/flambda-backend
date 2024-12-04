@@ -280,6 +280,39 @@ CAMLprim value caml_atomic_fetch_add(value ref, value incr)
   return ret;
 }
 
+CAMLprim value caml_atomic_fetch_land(value ref, value incr)
+{
+  value ret;
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  ret = *p;
+  *p = Val_long(Long_val(ret) & Long_val(incr));
+  return ret;
+}
+
+
+CAMLprim value caml_atomic_fetch_lor(value ref, value incr)
+{
+  value ret;
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  ret = *p;
+  *p = Val_long(Long_val(ret) | Long_val(incr));
+  return ret;
+}
+
+
+CAMLprim value caml_atomic_fetch_lxor(value ref, value incr)
+{
+  value ret;
+  value* p = Op_val(ref);
+  CAMLassert(Is_long(*p));
+  ret = *p;
+  *p = Val_long(Long_val(ret) ^ Long_val(incr));
+  return ret;
+}
+
+
 // Dummy implementations so effect.ml can compile
 
 CAMLprim value caml_continuation_use_noexc(void)

@@ -4188,6 +4188,54 @@ let atomic_fetch_and_add ~dbg atomic i =
       [atomic; i],
       dbg )
 
+let atomic_fetch_and_land ~dbg atomic i =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_fetch_land";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_int;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; i],
+      dbg )
+
+
+let atomic_fetch_and_lor ~dbg atomic i =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_fetch_lor";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_int;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; i],
+      dbg )
+
+
+let atomic_fetch_and_lxor ~dbg atomic i =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_fetch_lxor";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_int;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; i],
+      dbg )
+
+
 let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
   Cop
     ( Cextcall

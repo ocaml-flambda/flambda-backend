@@ -1043,7 +1043,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas
-      | Patomic_fetch_add | Pdls_get | Ppoll | Patomic_load _
+      | Patomic_fetch_add | Patomic_fetch_land | Patomic_fetch_lor
+      | Patomic_fetch_lxor | Pdls_get | Ppoll | Patomic_load _
       | Preinterpret_tagged_int63_as_unboxed_int64
       | Preinterpret_unboxed_int64_as_tagged_int63 ->
         (* Inconsistent with outer match *)

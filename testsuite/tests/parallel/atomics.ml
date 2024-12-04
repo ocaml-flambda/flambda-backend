@@ -41,6 +41,27 @@ let () =
   print_endline "ok"
 
 
+let test_fetch_land () =
+  let n = Atomic.make max_int in
+  let clear_bit b = Atomic.fetch_and_land n (lnot (1 lsl b)) in
+  let loop i () =
+    for b = i to (i + 16) do
+      if b <> 64 then ignore (clear_bit b)
+    done
+  in
+  let _ = Array.init 4 (fun i ->
+      Domain.spawn (loop i))
+      |> Array.map Domain.join in
+  print_string "CURRENT VALUE: ";
+  print_int (Atomic.get n);
+  print_endline "";
+
+  assert (Atomic.get n = 0)
+
+let () =
+  test_fetch_land ();
+  print_endline "ok"
+
 
 
 let test v =

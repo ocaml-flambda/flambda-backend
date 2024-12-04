@@ -65,6 +65,18 @@ val compare_and_set : 'a t -> 'a -> 'a -> bool
     and returns the current value (before the increment). *)
 val fetch_and_add : int t -> int -> int
 
+(** [fetch_and_land r n] atomically computes the bitwise AND of [r] and [n],
+    and returns the current value (before the AND). *)
+val fetch_and_land : int t -> int -> int
+
+(** [fetch_and_lor r n] atomically computes the bitwise OR of [r] and [n],
+    and returns the current value (before the OR). *)
+val fetch_and_lor : int t -> int -> int
+
+(** [fetch_and_lxor r n] atomically computes the bitwise XOR of [r] and [n],
+    and returns the current value (before the XOR). *)
+val fetch_and_lxor : int t -> int -> int
+
 (** [incr r] atomically increments the value of [r] by [1]. *)
 val incr : int t -> unit
 

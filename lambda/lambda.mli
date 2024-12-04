@@ -301,6 +301,9 @@ type primitive =
   | Patomic_exchange
   | Patomic_cas
   | Patomic_fetch_add
+  | Patomic_fetch_land
+  | Patomic_fetch_lor
+  | Patomic_fetch_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)

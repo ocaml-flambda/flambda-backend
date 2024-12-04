@@ -1618,6 +1618,9 @@ type binary_primitive =
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
+  | Atomic_fetch_and_land
+  | Atomic_fetch_and_lor
+  | Atomic_fetch_and_lxor
 
 let binary_primitive_eligible_for_cse p =
   match p with
@@ -1635,7 +1638,9 @@ let binary_primitive_eligible_for_cse p =
        floating-point arithmetic operations. See also the comment in
        effects_and_coeffects of unary primitives. *)
     Flambda_features.float_const_prop ()
-  | Atomic_exchange | Atomic_fetch_and_add -> false
+  | Atomic_exchange | Atomic_fetch_and_add | Atomic_fetch_and_land
+  | Atomic_fetch_and_lor | Atomic_fetch_and_lxor
+    -> false
 
 let compare_binary_primitive p1 p2 =
   let binary_primitive_numbering p =
@@ -1653,6 +1658,9 @@ let compare_binary_primitive p1 p2 =
     | Bigarray_get_alignment _ -> 10
     | Atomic_exchange -> 11
     | Atomic_fetch_and_add -> 12
+    | Atomic_fetch_and_land -> 13
+    | Atomic_fetch_and_lor -> 14
+    | Atomic_fetch_and_lxor -> 15
   in
   match p1, p2 with
   | ( Block_set { kind = kind1; init = init1; field = field1 },
@@ -1704,7 +1712,9 @@ let compare_binary_primitive p1 p2 =
   | ( ( Block_set _ | Array_load _ | String_or_bigstring_load _
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
       | Float_arith _ | Float_comp _ | Bigarray_get_alignment _
-      | Atomic_exchange | Atomic_fetch_and_add ),
+      | Atomic_exchange | Atomic_fetch_and_add | Atomic_fetch_and_land
+      | Atomic_fetch_and_lor | Atomic_fetch_and_lxor
+      ),
       _ ) ->
     Stdlib.compare
       (binary_primitive_numbering p1)
@@ -1742,6 +1752,9 @@ let print_binary_primitive ppf p =
     fprintf ppf "@[(Bigarray_get_alignment[%d])@]" align
   | Atomic_exchange -> fprintf ppf "Atomic_exchange"
   | Atomic_fetch_and_add -> fprintf ppf "Atomic_fetch_and_add"
+  | Atomic_fetch_and_land -> fprintf ppf "Atomic_fetch_and_land"
+  | Atomic_fetch_and_lor -> fprintf ppf "Atomic_fetch_and_lor"
+  | Atomic_fetch_and_lxor -> fprintf ppf "Atomic_fetch_and_lxor"
 
 let args_kind_of_binary_primitive p =
   match p with
@@ -1766,7 +1779,8 @@ let args_kind_of_binary_primitive p =
   | Float_arith (Float32, _) | Float_comp (Float32, _) ->
     K.naked_float32, K.naked_float32
   | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
-  | Atomic_exchange | Atomic_fetch_and_add -> K.value, K.value
+  | Atomic_exchange | Atomic_fetch_and_add | Atomic_fetch_and_land
+  | Atomic_fetch_and_lor | Atomic_fetch_and_lxor -> K.value, K.value
 
 let result_kind_of_binary_primitive p : result_kind =
   match p with
@@ -1788,7 +1802,9 @@ let result_kind_of_binary_primitive p : result_kind =
   | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
   | Bigarray_get_alignment _ -> Singleton K.naked_immediate
-  | Atomic_exchange | Atomic_fetch_and_add -> Singleton K.value
+  | Atomic_exchange | Atomic_fetch_and_add | Atomic_fetch_and_land
+  | Atomic_fetch_and_lor | Atomic_fetch_and_lxor ->
+    Singleton K.value
 
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1816,7 +1832,9 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
     then No_effects, No_coeffects, Strict
     else No_effects, Has_coeffects, Strict
   | Bigarray_get_alignment _ -> No_effects, No_coeffects, Strict
-  | Atomic_exchange | Atomic_fetch_and_add ->
+  | Atomic_exchange | Atomic_fetch_and_add | Atomic_fetch_and_land
+  | Atomic_fetch_and_lor | Atomic_fetch_and_lxor
+    ->
     Arbitrary_effects, Has_coeffects, Strict
 
 let binary_classify_for_printing p =
@@ -1824,7 +1842,9 @@ let binary_classify_for_printing p =
   | Array_load _ -> Destructive
   | Block_set _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
   | Float_arith _ | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _
-  | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ->
+  | Bigarray_get_alignment _ | Atomic_exchange
+  | Atomic_fetch_and_add | Atomic_fetch_and_land | Atomic_fetch_and_lor
+  | Atomic_fetch_and_lxor ->
     Neither
 
 let free_names_binary_primitive p =
@@ -1832,7 +1852,8 @@ let free_names_binary_primitive p =
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
   | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Atomic_fetch_and_add | Atomic_fetch_and_land | Atomic_fetch_and_lor
+  | Atomic_fetch_and_lxor ->
     Name_occurrences.empty
 
 let apply_renaming_binary_primitive p _renaming =
@@ -1840,7 +1861,8 @@ let apply_renaming_binary_primitive p _renaming =
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
   | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Atomic_fetch_and_add | Atomic_fetch_and_land | Atomic_fetch_and_lor
+  | Atomic_fetch_and_lxor ->
     p
 
 let ids_for_export_binary_primitive p =
@@ -1848,7 +1870,8 @@ let ids_for_export_binary_primitive p =
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
   | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Atomic_fetch_and_add | Atomic_fetch_and_land | Atomic_fetch_and_lor
+  | Atomic_fetch_and_lxor ->
     Ids_for_export.empty
 
 type ternary_primitive =

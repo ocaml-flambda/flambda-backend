@@ -74,8 +74,12 @@ typedef struct { intnat repr; } atomic_intnat;
   __atomic_exchange_n(&(x)->repr, (newv), memory_order_seq_cst)
 #define atomic_fetch_add(x, n) \
   __atomic_fetch_add(&(x)->repr, (n), memory_order_seq_cst)
+#define atomic_fetch_and(x, n) \
+  __atomic_fetch_and(&(x)->repr, (n), memory_order_seq_cst)
 #define atomic_fetch_or(x, n) \
   __atomic_fetch_or(&(x)->repr, (n), memory_order_seq_cst)
+#define atomic_fetch_xor(x, n) \
+  __atomic_fetch_xor(&(x)->repr, (n), memory_order_seq_cst)
 #define atomic_thread_fence __atomic_thread_fence
 
 #else

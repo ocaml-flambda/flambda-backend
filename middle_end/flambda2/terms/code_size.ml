@@ -403,7 +403,8 @@ let binary_prim_size prim =
     binary_float_comp_primitive width cmp
   | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
-  | Atomic_exchange | Atomic_fetch_and_add ->
+  | Atomic_exchange | Atomic_fetch_and_add | Atomic_fetch_and_land
+  | Atomic_fetch_and_lor | Atomic_fetch_and_lxor ->
     does_not_need_caml_c_call_extcall_size
 
 let ternary_prim_size prim =

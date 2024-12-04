@@ -2271,6 +2271,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
   | Patomic_fetch_add, [[atomic]; [i]] ->
     [Binary (Atomic_fetch_and_add, atomic, i)]
+  | Patomic_fetch_land, [[atomic]; [i]] ->
+    [Binary (Atomic_fetch_and_land, atomic, i)]
+  | Patomic_fetch_lor, [[atomic]; [i]] ->
+    [Binary (Atomic_fetch_and_lor, atomic, i)]
+  | Patomic_fetch_lxor, [[atomic]; [i]] ->
+    [Binary (Atomic_fetch_and_lxor, atomic, i)]
   | Pdls_get, _ -> [Nullary Dls_get]
   | Ppoll, _ -> [Nullary Poll]
   | Preinterpret_unboxed_int64_as_tagged_int63, [[i]] ->
@@ -2362,7 +2368,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _,
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
-      | Patomic_fetch_add ),
+      | Patomic_fetch_add | Patomic_fetch_land | Patomic_fetch_lor
+      | Patomic_fetch_lxor),
       ( []
       | [_]
       | _ :: _ :: _ :: _

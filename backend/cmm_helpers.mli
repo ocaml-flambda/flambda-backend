@@ -1001,6 +1001,15 @@ val atomic_exchange : dbg:Debuginfo.t -> expression -> expression -> expression
 val atomic_fetch_and_add :
   dbg:Debuginfo.t -> expression -> expression -> expression
 
+val atomic_fetch_and_land :
+  dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_fetch_and_lor :
+  dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_fetch_and_lxor :
+  dbg:Debuginfo.t -> expression -> expression -> expression
+
 val atomic_compare_and_set :
   dbg:Debuginfo.t ->
   expression ->

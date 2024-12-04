@@ -867,6 +867,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%atomic_exchange" -> Primitive (Patomic_exchange, 2)
     | "%atomic_cas" -> Primitive (Patomic_cas, 3)
     | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
+    | "%atomic_fetch_land" -> Primitive (Patomic_fetch_land, 2)
+    | "%atomic_fetch_lor" -> Primitive (Patomic_fetch_lor, 2)
+    | "%atomic_fetch_lxor" -> Primitive (Patomic_fetch_lxor, 2)
     | "%runstack" ->
       if runtime5 then Primitive (Prunstack, 3) else Unsupported Prunstack
     | "%reperform" ->
@@ -1792,7 +1795,8 @@ let lambda_primitive_needs_event_after = function
   | Parrayblit _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _
-  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
+  | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_fetch_land
+  | Patomic_fetch_lor | Patomic_fetch_lxor | Patomic_load _
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _

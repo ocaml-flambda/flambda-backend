@@ -1007,6 +1007,9 @@ let binary_primitive env dbg f x y =
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
   | Atomic_exchange -> C.atomic_exchange ~dbg x y
   | Atomic_fetch_and_add -> C.atomic_fetch_and_add ~dbg x y
+  | Atomic_fetch_and_land -> C.atomic_fetch_and_land ~dbg x y
+  | Atomic_fetch_and_lor -> C.atomic_fetch_and_lor ~dbg x y
+  | Atomic_fetch_and_lxor -> C.atomic_fetch_and_lxor ~dbg x y
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with

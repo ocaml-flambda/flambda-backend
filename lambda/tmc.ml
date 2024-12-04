@@ -902,7 +902,9 @@ let rec choice ctx t =
     | Prunstack | Pperform | Presume | Preperform | Pdls_get
 
     (* we don't handle atomic primitives *)
-    | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
+    | Patomic_exchange | Patomic_cas
+    | Patomic_fetch_add | Patomic_fetch_land | Patomic_fetch_lor
+    | Patomic_fetch_lxor | Patomic_load _
     | Punbox_float _ | Pbox_float (_, _)
     | Punbox_int _ | Pbox_int _
     | Punbox_vector _ | Pbox_vector (_, _)

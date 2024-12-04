@@ -499,6 +499,9 @@ type binary_primitive =
   | Bigarray_get_alignment of int
   | Atomic_exchange
   | Atomic_fetch_and_add
+  | Atomic_fetch_and_land
+  | Atomic_fetch_and_lor
+  | Atomic_fetch_and_lxor
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =

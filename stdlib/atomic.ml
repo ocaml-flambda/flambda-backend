@@ -20,6 +20,9 @@ external get : 'a t -> 'a = "%atomic_load"
 external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
 external compare_and_set : 'a t -> 'a -> 'a -> bool = "%atomic_cas"
 external fetch_and_add : int t -> int -> int = "%atomic_fetch_add"
+external fetch_and_land : int t -> int -> int = "%atomic_fetch_land"
+external fetch_and_lor : int t -> int -> int = "%atomic_fetch_lor"
+external fetch_and_lxor : int t -> int -> int = "%atomic_fetch_lxor"
 
 external ignore : 'a -> unit = "%ignore"
 
