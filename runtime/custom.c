@@ -117,7 +117,7 @@ CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
                                        mlsize_t mem)
 {
   mlsize_t max_minor = get_max_minor (); /* total allocs before minor GC */
-  mlsize_t max_minor_single;     /* largest single alloc before minor GC */
+  mlsize_t max_minor_single;      /* largest allowed alloc on minor heap */
   if (caml_custom_minor_max_bsz > 100) {
     max_minor_single = caml_custom_minor_max_bsz;
   } else {
