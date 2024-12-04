@@ -29,13 +29,6 @@ let null = {
   test_description = "dummy test inserted by parser; always pass"
 }
 
-let does_nothing = {
-  test_name = "test does nothing";
-  test_run_by_default = false;
-  test_actions = [Actions_helpers.fail_with_reason "test does nothing"];
-  test_description = "inserted when a test does not do any substantive action"
-}
-
 let compare t1 t2 = String.compare t1.test_name t2.test_name
 
 let (tests: (string, t) Hashtbl.t) = Hashtbl.create 20
@@ -98,3 +91,6 @@ module TestSet = Set.Make
   type nonrec t = t
   let compare = compare
 end)
+
+let does_something t =
+  List.exists Actions.does_something t.test_actions

@@ -74,19 +74,6 @@ type test_tree =
     string located list *
     (test_tree list)
 
-let tests_do_something (tests : Tests.t) =
-  List.exists Actions.does_something tests.test_actions
-
-(* CR mshinwell/xclerc: maybe sequences of actions that "do something" and
-   then have further actions that do not "do something" should be
-   flagged *)
-let rec test_tree_does_something_on_all_branches tree =
-  match tree with
-  | Node (_, tests, _, []) -> tests_do_something tests
-  | Node (_, tests, _, children) ->
-    tests_do_something tests
-    || List.for_all test_tree_does_something_on_all_branches children
-
 let too_deep testname max_level real_level =
   Printf.eprintf "Test %s should have depth atmost %d but has depth %d\n%!"
     testname max_level real_level;
@@ -152,21 +139,6 @@ let test_trees_of_tsl_block tsl_block =
     | [] -> (env, trees)
     | (Environment_statement s)::_ -> unexpected_environment_statement s
     | _ -> assert false
-
-let test_trees_of_tsl_block tsl_block =
-  let (env, trees) = test_trees_of_tsl_block tsl_block in
-  let does_something =
-    List.for_all test_tree_does_something_on_all_branches trees
-  in
-  if does_something then env, trees
-  else
-    let tree =
-      match trees with
-      | [] -> []
-      | Node (_, _, name, _) :: _ ->
-        [Node ([], Tests.does_nothing, name, [])]
-    in
-    env, tree
 
 let tests_in_stmt set stmt =
   match stmt with
