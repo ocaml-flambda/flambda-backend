@@ -1,6 +1,6 @@
 (* TEST
  modules = "stubs.c";
- reference = "${test_source_directory}/unboxed_return.reference";
+ reference = "${test_source_directory}/unboxed_return2.reference";
  include stdlib_stable;
  flambda2;
  arch_amd64;
