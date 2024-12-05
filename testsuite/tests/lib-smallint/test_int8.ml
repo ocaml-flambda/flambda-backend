@@ -1,0 +1,142 @@
+(* TEST include stdlib_beta; flags = "-extension small_numbers_beta"; *)
+
+module Int8 = Stdlib_beta.Int8
+
+let int_size = Int8.int_size
+
+let () = assert (0 < int_size && int_size < Sys.int_size)
+
+let max_int = (1 lsl (int_size - 1)) - 1
+
+let min_int = lnot max_int
+
+let mask = (1 lsl int_size) - 1
+
+let to_int x : int =
+  let i : int = Int8.to_int x in
+  assert (Obj.repr i == Obj.repr x);
+  assert (min_int <= i && i <= max_int);
+  i
+
+let of_int (i : int) =
+  let x = Int8.of_int i in
+  assert (to_int x land mask == i land mask);
+  x
+
+let rng = Random.State.make [| int_size |]
+
+(** sparse test cases, concentrated around 0 and the endpoints *)
+let test_cases =
+  ListLabels.init ~len:int_size ~f:(fun width ->
+      let rand () =
+        let min = if width = 0 then 0 else 1 lsl (width - 1) in
+        let max = (1 lsl width) - 1 in
+        Random.State.int_in_range rng ~min ~max
+      in
+      [rand (); lnot (rand ()); max_int - rand (); lnot (max_int - rand ())])
+  |> ListLabels.concat
+  |> ListLabels.sort_uniq ~cmp:Int.compare
+
+let test1 f = ListLabels.iter test_cases ~f
+
+let test2 f = test1 (fun x -> test1 (fun y -> f x y))
+
+let test_round_trip () =
+  let test hi lo =
+    let hi = hi lsl int_size in
+    assert (lo == to_int (of_int (hi lxor lo)))
+  in
+  test1 (fun lo ->
+      test1 (fun hi ->
+          (* generate test cases with different hi bits *)
+          test hi lo;
+          test (Random.bits ()) lo))
+
+let equal_arith x i = x == of_int i
+
+let equal_logical x i = to_int x == i
+
+let same_float x y = Int64.equal (Int64.bits_of_float x) (Int64.bits_of_float y)
+
+let assert_equal equal x y =
+  let x = try Ok (x ()) with exn -> Error exn in
+  let y = try Ok (y ()) with exn -> Error exn in
+  match x, y with
+  | Ok x, Ok y -> assert (equal x y)
+  | Error exn, Error exn' -> assert (exn = exn')
+  | Ok _, Error exn | Error exn, Ok _ -> raise exn
+
+let test_conv1 int8_f int_f ~equal =
+  test1 (fun x ->
+      assert_equal equal (fun () -> int8_f (of_int x)) (fun () -> int_f x))
+
+let test_conv2 int8_f int_f ~equal =
+  test2 (fun x y ->
+      assert_equal equal
+        (fun () -> int8_f (of_int x) (of_int y))
+        (fun () -> int_f x y))
+
+let test_arith1 = test_conv1 ~equal:equal_arith
+
+let test_arith2 = test_conv2 ~equal:equal_arith
+
+let test_logical1 = test_conv1 ~equal:equal_logical
+
+let test_logical2 = test_conv2 ~equal:equal_logical
+
+let () =
+  assert (to_int 0y = 0);
+  assert (to_int 1y = 1);
+  assert (to_int (-1y) = -1);
+  assert (to_int Int8.zero == Int.zero);
+  assert (to_int Int8.one == Int.one);
+  assert (to_int Int8.minus_one == Int.minus_one);
+  test_arith2 Int8.add Int.add;
+  test_arith2 Int8.sub Int.sub;
+  test_arith2 Int8.mul Int.mul;
+  test_arith2 Int8.div Int.div;
+  test_arith2 Int8.rem Int.rem;
+  test_arith1 Int8.succ Int.succ;
+  test_arith1 Int8.pred Int.pred;
+  test_arith1 Int8.abs Int.abs;
+  test_logical2 Int8.logand Int.logand;
+  test_logical2 Int8.logor Int.logor;
+  test_logical2 Int8.logxor Int.logxor;
+  test_logical1 Int8.lognot Int.lognot;
+  for shift = 0 to int_size do
+    let apply_shift f x = f x shift in
+    test_logical1 (apply_shift Int8.shift_right) (apply_shift Int.shift_right);
+    test_conv1
+      (apply_shift Int8.shift_right_logical)
+      (apply_shift Int.shift_right_logical)
+      ~equal:(if shift = 0 then equal_logical else equal_arith);
+    test_conv1
+      (apply_shift Int8.shift_left)
+      (apply_shift Int.shift_left)
+      ~equal:(if shift = 0 then equal_logical else equal_arith)
+  done;
+  test_conv2 Int8.equal Int.equal ~equal:Bool.equal;
+  test_conv2 Int8.compare Int.compare ~equal:Int.equal;
+  test_conv1 Int8.to_float Int.to_float ~equal:same_float;
+  assert (Int8.of_float (-0.) = 0y);
+  test1 (fun x ->
+      let f = Int.to_float x in
+      assert (equal_logical (Int8.of_float f) x));
+  test1 (fun x ->
+      (* test fractional values round toward zero *)
+      let f = Int.to_float x in
+      let f' =
+        let almost_one = Random.State.float rng (Float.pred 1.0) in
+        if x < 0
+        then f -. almost_one
+        else if x > 0
+        then f +. almost_one
+        else if Random.State.bool rng
+        then almost_one
+        else -.almost_one
+      in
+      assert (equal_logical (Int8.of_float f') x));
+  test1 (fun x -> assert (Int8.to_string (of_int x) = Int.to_string x));
+  test_logical2 Int8.min Int.min;
+  test_logical2 Int8.max Int.max;
+  ()

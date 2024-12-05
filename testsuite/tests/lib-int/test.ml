@@ -1,4 +1,23 @@
-(* TEST *)
+(* TEST
+   include stdlib_beta;
+   expect;
+*)
+module Int8 = Stdlib_beta.Int8
+
+let test1 f =
+  for i = -0x80 to 0x7f do
+    f i
+  done
+;;
+
+let test2 f =
+  for i = -0x80 to 0x7f do
+    for j = -0x80 to 0x7f do
+      f i j
+    done;
+  done
+;;
+
 
 let test_consts () =
   assert (Int.zero = 0);

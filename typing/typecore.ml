@@ -731,7 +731,7 @@ let constant_integer i ~suffix :
 let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   function
   | Pconst_integer (i, Some 'y') ->
-    if not (Language_extension.is_enabled Small_numbers)
+    if not (Language_extension.is_at_least Small_numbers Language_extension.Beta)
     then Error (Int8_literal i)
     else
       begin
@@ -740,7 +740,7 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
         | _ | exception Failure _ -> Error (Literal_overflow "int8")
       end
   | Pconst_integer (i, Some 'w') ->
-    if not (Language_extension.is_enabled Small_numbers)
+    if not (Language_extension.is_at_least Small_numbers Language_extension.Beta)
     then Error (Int16_literal i)
     else
     begin
@@ -10271,10 +10271,10 @@ let report_error ~loc env = function
                             You must enable -extension small_numbers to use this feature." f
   | Int16_literal i ->
     Location.errorf ~loc "Found 16-bit integer literal %sw, but int16 is not enabled. \
-                          You must enable -extension small_numbers to use this feature." i
+                          You must enable -extension small_numbers_beta to use this feature." i
   | Int8_literal i ->
     Location.errorf ~loc "Found 8-bit integer literal %sy, but int8 is not enabled. \
-                          You must enable -extension small_numbers to use this feature." i
+                          You must enable -extension small_numbers_beta to use this feature." i
   | Illegal_letrec_pat ->
       Location.errorf ~loc
         "Only variables are allowed as left-hand side of %a"
