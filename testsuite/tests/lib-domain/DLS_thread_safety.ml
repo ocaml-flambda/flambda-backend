@@ -1,6 +1,7 @@
 (* TEST
    include systhreads;
    hassysthreads;
+   runtime5;
    { bytecode; }
    { native; }
 *)
