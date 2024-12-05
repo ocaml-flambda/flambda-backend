@@ -1272,7 +1272,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
     Misc.fatal_errorf
       "Wrong arity for Pmakearray_dynamic (arity=%d, args length %d)"
       arity (List.length args)
-  | Primitive (Parrayblit { src_mutability; dst_array_set_kind = st }, arity),
+  | Primitive (Parrayblit { src_mutability; dst_array_set_kind }, arity),
     _p1 :: _ :: p2 :: _ ->
     let loc = to_location loc in
     (* We only use the kind of one of two input arrays here. If you've bound the
@@ -1280,12 +1280,13 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
        kind.  If you haven't, then taking the glb of both would be just as
        likely to compound your error (e.g., by treating a Pgenarray as a
        Pfloatarray) as to help you. *)
-    let array_type =
-      glb_array_set_type loc st (array_type_kind ~elt_sort:None env loc p2)
+    let array_kind = array_type_kind ~elt_sort:None env loc p2 in
+    let new_dst_array_set_kind =
+      glb_array_set_type loc dst_array_set_kind array_kind
     in
-    if st = array_type then None
+    if dst_array_set_kind = new_dst_array_set_kind then None
     else Some (Primitive (Parrayblit {
-      src_mutability; dst_array_set_kind = st }, arity))
+      src_mutability; dst_array_set_kind = new_dst_array_set_kind }, arity))
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
