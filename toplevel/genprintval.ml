@@ -229,7 +229,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
     and tree_of_label =
       tree_of_qualified
         (fun lid env ->
-          (Env.find_label_by_name lid env).lbl_res)
+          (Env.find_label_by_name Legacy lid env).lbl_res)
 
     (* An abstract type *)
 
@@ -517,6 +517,16 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           env path decl.type_params ty_list
                           lbl_list pos obj rep
                     end
+                | {type_kind = Type_record_unboxed_product
+                                 (lbl_list, Record_unboxed_product)} ->
+                    begin match check_depth depth obj ty with
+                      Some x -> x
+                    | None ->
+                        let pos = 0 in
+                        tree_of_record_unboxed_product_fields depth
+                          env path decl.type_params ty_list
+                          lbl_list pos obj
+                    end
                 | {type_kind = Type_open} ->
                     tree_of_extension path ty_list depth obj
               with
@@ -604,6 +614,34 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               (lid, v) :: tree_of_fields false pos remainder
         in
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
+
+      and tree_of_record_unboxed_product_fields depth env path type_params
+            ty_list lbl_list pos obj =
+        let rec tree_of_fields first pos = function
+          | [] -> []
+          | {ld_id; ld_type; ld_jkind} :: remainder ->
+              let ty_arg = instantiate_type env type_params ty_list ld_type in
+              let name = Ident.name ld_id in
+              (* PR#5722: print full module path only
+                 for first record field *)
+              let is_void = Jkind.is_void_defaulting ld_jkind in
+              let lid =
+                if first then tree_of_label env path (Out_name.create name)
+                else Oide_ident (Out_name.create name)
+              and v =
+                match get_and_default_jkind_for_printing ld_jkind with
+                | Print_as msg -> Oval_stuff msg
+                | Print_as_value ->
+                  match lbl_list with
+                  | [_] ->
+                    (* singleton unboxed records are erased *)
+                    tree_of_val (depth - 1) obj ty_arg
+                  | _ -> nest tree_of_val (depth - 1) (O.field obj pos) ty_arg
+              in
+              let pos = if is_void then pos else pos + 1 in
+              (lid, v) :: tree_of_fields false pos remainder
+        in
+        Oval_record_unboxed_product (tree_of_fields (pos = 0) pos lbl_list)
 
       and tree_of_labeled_val_list start depth obj labeled_tys =
         let rec tree_list i = function

@@ -126,6 +126,8 @@ module Pat:
     val variant: ?loc:loc -> ?attrs:attrs -> label -> pattern option -> pattern
     val record: ?loc:loc -> ?attrs:attrs -> (lid * pattern) list -> closed_flag
                 -> pattern
+    val record_unboxed_product: ?loc:loc -> ?attrs:attrs -> (lid * pattern) list
+                -> closed_flag -> pattern
     val array: ?loc:loc -> ?attrs:attrs -> mutable_flag -> pattern list ->
       pattern
     val or_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern -> pattern
@@ -166,7 +168,10 @@ module Exp:
                  -> expression
     val record: ?loc:loc -> ?attrs:attrs -> (lid * expression) list
                 -> expression option -> expression
+    val record_unboxed_product: ?loc:loc -> ?attrs:attrs -> (lid * expression) list
+                -> expression option -> expression
     val field: ?loc:loc -> ?attrs:attrs -> expression -> lid -> expression
+    val unboxed_field: ?loc:loc -> ?attrs:attrs -> expression -> lid -> expression
     val setfield: ?loc:loc -> ?attrs:attrs -> expression -> lid -> expression
                   -> expression
     val array: ?loc:loc -> ?attrs:attrs -> mutable_flag -> expression list ->

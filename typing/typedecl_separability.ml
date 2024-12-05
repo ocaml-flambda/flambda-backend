@@ -48,28 +48,26 @@ type type_structure =
   | Unboxed of argument_to_unbox
 
 let structure : type_definition -> type_structure = fun def ->
-  match def.type_kind with
-  | Type_open -> Open
-  | Type_abstract _ ->
+  match (def.type_kind, find_unboxed_type def) with
+  | Type_open, _ -> Open
+  | Type_abstract _, _ ->
       begin match def.type_manifest with
       | None -> Abstract
       | Some type_expr -> Synonym type_expr
       end
-  | Type_record _ | Type_variant _ ->
-      begin match find_unboxed_type def with
-      | None -> Algebraic
-      | Some ty ->
-        let params =
-          match def.type_kind with
-          | Type_variant ([{cd_res = Some ret_type}], _) ->
-             begin match get_desc ret_type with
-             | Tconstr (_, tyl, _) -> tyl
-             | _ -> assert false
-             end
-          | _ -> def.type_params
-        in
-        Unboxed { argument_type = ty; result_type_parameter_instances = params }
-      end
+  | (Type_record _ | Type_variant _), None -> Algebraic
+  | Type_record_unboxed_product _, None -> Algebraic
+  | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some ty ->
+      let params =
+        match def.type_kind with
+        | Type_variant ([{cd_res = Some ret_type}], _) ->
+            begin match get_desc ret_type with
+            | Tconstr (_, tyl, _) -> tyl
+            | _ -> assert false
+            end
+        | _ -> def.type_params
+      in
+      Unboxed { argument_type = ty; result_type_parameter_instances = params }
 
 type error =
   | Non_separable_evar of string option

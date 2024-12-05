@@ -189,6 +189,7 @@ module History = struct
     | Label_declaration of Ident.t
     | Record_projection
     | Record_assignment
+    | Record_functional_update
     | Let_binding
     | Function_argument
     | Function_result
@@ -307,7 +308,9 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
-  type product_creation_reason = Unboxed_tuple
+  type product_creation_reason =
+    | Unboxed_tuple
+    | Unboxed_record
 
   type creation_reason =
     | Annotated : ('l * 'r) annotation_context * Location.t -> creation_reason

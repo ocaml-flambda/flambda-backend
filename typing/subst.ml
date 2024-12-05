@@ -525,6 +525,9 @@ let record_representation ~prepare_jkind loc = function
       Record_boxed (Array.map (prepare_jkind loc) lays)
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
+let record_unboxed_product_representation ~prepare_jkind:_ _loc = function
+  | Record_unboxed_product -> Record_unboxed_product
+
 let type_declaration' copy_scope s decl =
   { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
     type_arity = decl.type_arity;
@@ -548,6 +551,16 @@ let type_declaration' copy_scope s decl =
                 record_representation ~prepare_jkind decl.type_loc rep
           in
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
+      | Type_record_unboxed_product(lbls, rep) ->
+          let rep =
+            match s.additional_action with
+            | No_action | Duplicate_variables -> rep
+            | Prepare_for_saving { prepare_jkind } ->
+              record_unboxed_product_representation
+                ~prepare_jkind decl.type_loc rep
+          in
+          Type_record_unboxed_product
+            (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
       end;
     type_manifest =

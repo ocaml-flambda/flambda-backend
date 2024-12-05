@@ -212,7 +212,7 @@ Line 1, characters 14-27:
 1 | type t5_3 = { x : t_float32 } [@@unboxed];;
                   ^^^^^^^^^^^^^
 Error: Type "t_float32" has layout "float32".
-       Unboxed records may not yet contain types of this layout.
+       [@@unboxed] records may not yet contain types of this layout.
 |}];;
 
 type t5_4 = A of t_float32;;
@@ -240,7 +240,7 @@ Line 1, characters 21-34:
 1 | type t5_6_1 = A of { x : t_float32 } [@@unboxed];;
                          ^^^^^^^^^^^^^
 Error: Type "t_float32" has layout "float32".
-       Unboxed inlined records may not yet contain types of this layout.
+       [@@unboxed] inlined records may not yet contain types of this layout.
 |}];;
 
 type ('a : float32) t5_7 = A of int

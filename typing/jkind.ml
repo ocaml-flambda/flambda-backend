@@ -1065,8 +1065,12 @@ module Builtin = struct
       ~why:(Immediate_creation why)
 
   let product ~why ts =
-    let desc, annotation = Jkind_desc.product ts in
-    fresh_jkind desc ~annotation ~why:(Product_creation why)
+    match ts with
+    | [] -> Misc.fatal_error "Jkind.Builtin.product: empty product"
+    | [t] -> t
+    | ts ->
+      let desc, annotation = Jkind_desc.product ts in
+      fresh_jkind desc ~annotation ~why:(Product_creation why)
 end
 
 let add_nullability_crossing t =
@@ -1342,6 +1346,8 @@ module Format_history = struct
       fprintf ppf "it's the record type used in a projection"
     | Record_assignment ->
       fprintf ppf "it's the record type used in an assignment"
+    | Record_functional_update ->
+      fprintf ppf "it's the record type used in a functional update"
     | Let_binding -> fprintf ppf "it's the type of a variable bound by a `let`"
     | Function_argument ->
       fprintf ppf "we must know concretely how to pass a function argument"
@@ -1506,6 +1512,7 @@ module Format_history = struct
   let format_product_creation_reason ppf : History.product_creation_reason -> _
       = function
     | Unboxed_tuple -> fprintf ppf "it is an unboxed tuple"
+    | Unboxed_record -> fprintf ppf "it is an unboxed record"
 
   let format_creation_reason ppf ~layout_or_kind :
       History.creation_reason -> unit = function
@@ -1885,6 +1892,7 @@ module Debug_printers = struct
       fprintf ppf "Label_declaration %a" Ident.print lbl
     | Record_projection -> fprintf ppf "Record_projection"
     | Record_assignment -> fprintf ppf "Record_assignment"
+    | Record_functional_update -> fprintf ppf "Record_functional_update"
     | Let_binding -> fprintf ppf "Let_binding"
     | Function_argument -> fprintf ppf "Function_argument"
     | Function_result -> fprintf ppf "Function_result"
@@ -1988,6 +1996,7 @@ module Debug_printers = struct
   let product_creation_reason ppf : History.product_creation_reason -> _ =
     function
     | Unboxed_tuple -> fprintf ppf "Unboxed_tuple"
+    | Unboxed_record -> fprintf ppf "Unboxed_record"
 
   let creation_reason ppf : History.creation_reason -> unit = function
     | Annotated (ctx, loc) ->
