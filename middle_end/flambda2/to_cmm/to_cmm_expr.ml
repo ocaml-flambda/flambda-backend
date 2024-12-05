@@ -162,6 +162,25 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
                a component of kind %a"
               Flambda_kind.With_subkind.print kind)
         kinds;
+      (* CR mshinwell: Digest page 35 of this doc:
+
+         https://github.com/ARM-software/abi-aa/releases/download/2024Q3/aapcs64.pdf
+
+         and figure out what happens for mixed int/float struct returns (it
+         looks like the floats may be returned in int regs) *)
+      (match Target_system.architecture () with
+      | X86_64 -> ()
+      | AArch64 ->
+        let kinds = Flambda_kind.With_subkind.Set.of_list kinds in
+        if Flambda_kind.With_subkind.Set.cardinal kinds <> 1
+        then
+          Misc.fatal_errorf
+            "Cannot compile unboxed product return from external C call on \
+             arm64 unless the components of the product are of the same kind:@ \
+             %a"
+            Apply.print apply
+      | IA32 | ARM | POWER | Z | Riscv ->
+        Misc.fatal_error "Only x86-64 and arm64 are supported");
       let get_unarized_return_value exp n =
         C.tuple_field exp ~component_tys n dbg
       in
