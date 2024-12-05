@@ -1346,7 +1346,8 @@ module Format_history = struct
       fprintf ppf "it's the record type used in a projection"
     | Record_assignment ->
       fprintf ppf "it's the record type used in an assignment"
-    | Record_construction -> fprintf ppf "it's a constructed record type"
+    | Record_functional_update ->
+      fprintf ppf "it's the record type used in a functional update"
     | Let_binding -> fprintf ppf "it's the type of a variable bound by a `let`"
     | Function_argument ->
       fprintf ppf "we must know concretely how to pass a function argument"
@@ -1891,7 +1892,7 @@ module Debug_printers = struct
       fprintf ppf "Label_declaration %a" Ident.print lbl
     | Record_projection -> fprintf ppf "Record_projection"
     | Record_assignment -> fprintf ppf "Record_assignment"
-    | Record_construction -> fprintf ppf "Record_construction"
+    | Record_functional_update -> fprintf ppf "Record_functional_update"
     | Let_binding -> fprintf ppf "Let_binding"
     | Function_argument -> fprintf ppf "Function_argument"
     | Function_result -> fprintf ppf "Function_result"

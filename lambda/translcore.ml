@@ -2109,8 +2109,6 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
     match opt_init_expr with
     | None -> lam
     | Some (init_expr, init_expr_sort) ->
-      (* CR layouts v11: if a functional update can change the kind, then
-        the resulting kind may be different than [init_expr_jkind] *)
       let layout = layout_exp init_expr_sort init_expr in
       let exp = transl_exp ~scopes init_expr_sort init_expr in
       Llet(Strict, layout, init_id, exp, lam)

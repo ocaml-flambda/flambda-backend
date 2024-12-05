@@ -5491,8 +5491,8 @@ and type_expect_
             | None -> None
             | Some (exp, _) ->
               let sort =
-                Ctype.type_sort ~why:Record_construction ~fixed:false
-                  env ty_expected
+                Ctype.type_sort ~why:Record_functional_update ~fixed:false
+                  env exp.exp_type
               in
               match sort with
               | Ok sort -> Some (exp, sort)
@@ -10689,7 +10689,7 @@ let report_error ~loc env = function
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Record_projection_not_rep (ty,violation) ->
       Location.errorf ~loc
-        "@[Record projections must be representable.@]@ %a"
+        "@[Records being projected from must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Record_not_rep (ty,violation) ->

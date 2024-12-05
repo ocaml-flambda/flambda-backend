@@ -691,9 +691,9 @@ type ('a : any) t = #{ x : int; y : 'a }
 type ('a : value_or_null) t = #{ x : int; y : 'a; }
 |}]
 
-(* CR layouts v7.2: once we allow record declarations with unknown kind
-   (right now, ['a] in the decl above is defaulted to value), then this should
-   give an error saying that record projections must be representable. *)
+(* CR layouts v7.2: once we allow record declarations with unknown kind (right
+   now, ['a] in the decl above is defaulted to value), then this should give an
+   error saying that records being projected from must be representable. *)
 let f : ('a : any). 'a t -> 'a = fun t -> t.#y
 [%%expect{|
 Line 1, characters 8-30:
@@ -706,7 +706,8 @@ Error: The universal type variable 'a was declared to have kind any.
 
 (* CR layouts v7.2: once we allow record declarations with unknown kind
    (right now, ['a] in the decl above is defaulted to value), then this should
-   give an error saying that record constructions must be representable.
+   give an error saying that records used in functional updates must be
+   representable.
 *)
 let f : ('a : any). 'a -> 'a t = fun a -> #{ x = 1; y = a }
 [%%expect{|
