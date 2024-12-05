@@ -1066,8 +1066,7 @@ let rec array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
     let unarized = List.concat_map unarize_kind array_ref_kinds in
     let index : H.expr_primitive =
       let multiplier =
-        List.length array_ref_kinds
-        |> Targetint_31_63.of_int |> Simple.const_int
+        List.length unarized |> Targetint_31_63.of_int |> Simple.const_int
       in
       Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
     in
@@ -1135,8 +1134,7 @@ let rec array_set_unsafe dbg ~array ~index array_kind
     let unarized = List.concat_map unarize_kind array_set_kinds in
     let index : H.expr_primitive =
       let multiplier =
-        List.length array_set_kinds
-        |> Targetint_31_63.of_int |> Simple.const_int
+        List.length unarized |> Targetint_31_63.of_int |> Simple.const_int
       in
       Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
     in
