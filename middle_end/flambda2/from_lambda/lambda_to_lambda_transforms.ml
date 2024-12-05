@@ -428,7 +428,7 @@ let arrayblit env ~(src_mutability : L.mutable_flag) ~dst_array_set_kind args
     loc =
   let src_array_ref_kind =
     L.array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
-      dst_array_set_kind
+      dst_array_set_kind ~print_array_set_kind:Printlambda.array_set_kind
   in
   match args with
   | [src_expr; src_start_pos_expr; dst_expr; dst_start_pos_expr; length_expr] ->
