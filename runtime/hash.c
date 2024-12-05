@@ -209,7 +209,7 @@ CAMLprim value caml_hash_exn(value count, value limit, value seed, value obj)
   while (rd < wr && num > 0) {
     v = queue[rd++];
   again:
-    if (Is_long(v)) {
+    if (Is_long(v) || v == Val_null) {
       h = caml_hash_mix_intnat(h, v);
       num--;
     } else {
