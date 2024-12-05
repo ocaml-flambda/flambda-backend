@@ -122,8 +122,10 @@ static intnat do_compare_val(struct compare_stack* stk,
   sp = stk->stack;
   while (1) {
     if (v1 == v2 && total) goto next_item;
-    if (Is_long(v1)) {
+    if (Is_long(v1) || v1 == Val_null) {
       if (v1 == v2) goto next_item;
+      if (v1 == Val_null) return LESS; /* v1 null < v2 non-null */
+      if (v2 == Val_null) return GREATER; /* v1 non-null > v2 null */
       if (Is_long(v2))
         return Long_val(v1) - Long_val(v2);
       /* Subtraction above cannot overflow and cannot result in UNORDERED */
@@ -147,7 +149,7 @@ static intnat do_compare_val(struct compare_stack* stk,
         }
       return LESS;                /* v1 long < v2 block */
     }
-    if (Is_long(v2)) {
+    if (Is_long(v2) || v2 == Val_null) {
       if (!Is_in_value_area(v1))
         return GREATER;
       switch (Tag_val(v1)) {
@@ -166,7 +168,7 @@ static intnat do_compare_val(struct compare_stack* stk,
         }
         default: /*fallthrough*/;
         }
-      return GREATER;            /* v1 block > v2 long */
+      return GREATER;            /* v1 block > v2 long or null */
     }
     /* If one of the objects is outside the heap (but is not an atom),
        use address comparison. Since both addresses are 2-aligned,

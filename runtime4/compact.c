@@ -100,8 +100,8 @@ void caml_invert_root (value v, value *p)
   /* Note: this assertion will become tautological and should be removed when
      we finally get rid of the page table in NNP mode.
   */
-  CAMLassert (Is_long (*p) || Is_in_heap (*p) || Is_black_val (*p)
-              || Tag_val (*p) == Infix_tag);
+  CAMLassert (Is_long (*p) || *p == Val_null || Is_in_heap (*p)
+              || Is_black_val (*p) || Tag_val (*p) == Infix_tag);
 #endif
   invert_pointer_at ((word *) p);
 }
