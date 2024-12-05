@@ -74,6 +74,115 @@ let warn_if_unused_inlined_attribute apply ~dbg_with_inlined =
       (Debuginfo.to_location dbg_with_inlined)
       (Warnings.Inlining_impossible reason)
 
+let fail_if_probe apply =
+  match Apply.probe apply with
+  | None -> ()
+  | Some _ ->
+    Misc.fatal_errorf
+      "[Apply] terms with a [probe] (i.e. that call a tracing probe) must \
+       always be direct applications of an OCaml function:@ %a"
+      Apply.print apply
+
+let translate_external_call env res ~free_vars apply ~callee_simple ~args
+    ~return_arity ~return_ty dbg ~needs_caml_c_call ~is_c_builtin ~effects
+    ~coeffects =
+  fail_if_probe apply;
+  let callee =
+    match callee_simple with
+    | None ->
+      Misc.fatal_errorf
+        "Application expression did not provide callee for C call:@ %a"
+        Apply.print apply
+    | Some callee_simple -> (
+      match Simple.must_be_symbol callee_simple with
+      | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
+      | None ->
+        Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
+          Simple.print callee_simple)
+  in
+  let returns = Apply.returns apply in
+  let return_ty = C.Extended_machtype.to_machtype return_ty in
+  let component_tys =
+    (* Two notes:
+
+       1. void has been erased in return arities by this point
+
+       2. All of the [machtype_component]s are singleton arrays. *)
+    Array.map (fun machtype -> [| machtype |]) return_ty
+  in
+  (* Returned int32 values need to be sign_extended because it's not clear
+     whether C code that returns an int32 returns one that is sign extended or
+     not. There is no need to wrap other return arities. *)
+  let maybe_sign_extend kind dbg cmm =
+    match Flambda_kind.With_subkind.kind kind with
+    | Naked_number Naked_int32 -> C.sign_extend_32 dbg cmm
+    | Naked_number
+        ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
+        | Naked_vec128 | Naked_float32 )
+    | Value | Rec_info | Region ->
+      cmm
+  in
+  let ty_args =
+    List.map C.exttype_of_kind
+      (Flambda_arity.unarize (Apply.args_arity apply)
+      |> List.map K.With_subkind.kind)
+  in
+  let effects = To_cmm_effects.transl_c_call_effects effects in
+  let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
+  let extcall =
+    C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects ~coeffects
+      ~returns ~ty_args callee return_ty args
+  in
+  let wrap return_values =
+    let kinds = Flambda_arity.unarized_components return_arity in
+    (* As per the comment above, [return_arity] does not mention void
+       components. (Unlike parameter arities; see the phantom type parameters on
+       the arity fields in [Apply_expr.t], for example.) *)
+    assert (List.compare_length_with kinds (Array.length component_tys) = 0);
+    match kinds with
+    | [] ->
+      (* Extcalls of arity 0 are allowed (these never return). *)
+      return_values
+    | [kind] -> maybe_sign_extend kind dbg return_values
+    | [_; _] as kinds ->
+      (* CR xclerc: we currently support only pairs as unboxed return values. *)
+      (* CR mshinwell: we also currently only support 64 bit integer and float
+         values, since on (at least) x86-64 the calling convention differs for
+         smaller widths. *)
+      List.iter
+        (fun kind ->
+          match Flambda_kind.With_subkind.kind kind with
+          | Naked_number
+              (Naked_immediate | Naked_int64 | Naked_nativeint | Naked_float) ->
+            ()
+          | Naked_number (Naked_int32 | Naked_vec128 | Naked_float32)
+          | Value | Region | Rec_info ->
+            Misc.fatal_errorf
+              "Cannot compile unboxed product return from external C call with \
+               a component of kind %a"
+              Flambda_kind.With_subkind.print kind)
+        kinds;
+      let get_unarized_return_value exp n =
+        C.tuple_field exp ~component_tys n dbg
+      in
+      C.make_tuple
+        (List.mapi
+           (fun i kind ->
+             maybe_sign_extend kind dbg
+               (get_unarized_return_value return_values i))
+           kinds)
+    | _ ->
+      Misc.fatal_errorf
+        "C functions are currently limited to a single return value or a pair \
+         of return values"
+  in
+  let extcall_ident = Ident.create_local "extcall" in
+  let extcall_var = Backend_var.With_provenance.create extcall_ident in
+  let cmm =
+    C.letin extcall_var ~defining_expr:extcall ~body:(wrap (Cvar extcall_ident))
+  in
+  cmm, free_vars, env, res, Ece.all
+
 let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   let callee_simple = Apply.callee apply in
   let args = Apply.args apply in
@@ -97,15 +206,6 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   in
   let args, args_free_vars, env, res, _ = C.simple_list ~dbg env res args in
   let free_vars = Backend_var.Set.union callee_free_vars args_free_vars in
-  let fail_if_probe apply =
-    match Apply.probe apply with
-    | None -> ()
-    | Some _ ->
-      Misc.fatal_errorf
-        "[Apply] terms with a [probe] (i.e. that call a tracing probe) must \
-         always be direct applications of an OCaml function:@ %a"
-        Apply.print apply
-  in
   let pos =
     match Apply.position apply with
     | Normal ->
@@ -223,57 +323,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         Ece.all )
   | C_call
       { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
-    fail_if_probe apply;
-    let callee =
-      match callee_simple with
-      | None ->
-        Misc.fatal_errorf
-          "Application expression did not provide callee for C call:@ %a"
-          Apply.print apply
-      | Some callee_simple -> (
-        match Simple.must_be_symbol callee_simple with
-        | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
-        | None ->
-          Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
-            Simple.print callee_simple)
-    in
-    let returns = Apply.returns apply in
-    let wrap =
-      match Flambda_arity.unarized_components return_arity with
-      (* Returned int32 values need to be sign_extended because it's not clear
-         whether C code that returns an int32 returns one that is sign extended
-         or not. There is no need to wrap other return arities. Note that
-         extcalls of arity 0 are allowed (these never return). *)
-      | [] -> fun _dbg cmm -> cmm
-      | [kind] -> (
-        match Flambda_kind.With_subkind.kind kind with
-        | Naked_number Naked_int32 -> C.sign_extend_32
-        | Naked_number
-            ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-            | Naked_vec128 | Naked_float32 )
-        | Value | Rec_info | Region ->
-          fun _dbg cmm -> cmm)
-      | _ ->
-        (* CR gbury: update when unboxed tuples are used *)
-        Misc.fatal_errorf
-          "C functions are currently limited to a single return value"
-    in
-    let ty_args =
-      List.map C.exttype_of_kind
-        (Flambda_arity.unarize (Apply.args_arity apply)
-        |> List.map K.With_subkind.kind)
-    in
-    let effects = To_cmm_effects.transl_c_call_effects effects in
-    let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
-    ( wrap dbg
-        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
-           ~coeffects ~returns ~ty_args callee
-           (C.Extended_machtype.to_machtype return_ty)
-           args),
-      free_vars,
-      env,
-      res,
-      Ece.all )
+    translate_external_call env res ~free_vars apply ~callee_simple ~args
+      ~return_arity ~return_ty dbg ~needs_caml_c_call ~is_c_builtin ~effects
+      ~coeffects
   | Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
     let callee =

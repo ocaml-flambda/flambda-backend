@@ -23,6 +23,10 @@ type machtype_component = Cmx_format.machtype_component =
 
 type machtype = machtype_component array
 
+(* Note: To_cmm_expr.translate_apply0 relies on non-void
+   [machtype_component]s being singleton arrays. *)
+(* CR mshinwell/xclerc: Maybe this should be a variant type instead, or an
+   option. *)
 let typ_void = ([||] : machtype_component array)
 let typ_val = [|Val|]
 let typ_addr = [|Addr|]

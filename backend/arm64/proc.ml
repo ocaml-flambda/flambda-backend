@@ -281,7 +281,7 @@ let loc_external_arguments ty_args =
   external_calling_conventions 0 7 100 107 outgoing ty_args
 
 let loc_external_results res =
-  let (loc, _) = calling_conventions 0 1 100 100 not_supported 0 res in loc
+  let (loc, _) = calling_conventions 0 1 100 101 not_supported 0 res in loc
 
 let loc_exn_bucket = phys_reg Int 0
 
