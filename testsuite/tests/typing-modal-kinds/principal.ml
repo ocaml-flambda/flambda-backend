@@ -95,7 +95,7 @@ Error: This value escapes its region.
 let escape : 'a -> unit = fun _ -> ()
 
 [%%expect{|
-val escape : ('a : value_or_null). 'a -> unit = <fun>
+val escape : 'a -> unit = <fun>
 |}]
 
 let pattern_l (local_ x) =

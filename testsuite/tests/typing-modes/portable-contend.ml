@@ -111,7 +111,7 @@ let x @ portable = fun a -> a
 
 let y @ portable = x
 [%%expect{|
-val x : ('a : value_or_null). 'a -> 'a = <fun>
+val x : 'a -> 'a = <fun>
 Line 3, characters 19-20:
 3 | let y @ portable = x
                        ^

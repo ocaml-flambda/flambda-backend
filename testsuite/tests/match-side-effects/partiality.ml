@@ -190,5 +190,5 @@ type _ t = Int : int -> int t | Bool : bool -> bool t
                  (~ (field_imm 0 (field_imm 1 *match*/330)))))
              3)))))
   (apply (field_imm 1 (global Toploop!)) "test" test/325))
-val test : ('a : value_or_null). 'a -> int = <fun>
+val test : 'a -> int = <fun>
 |}]

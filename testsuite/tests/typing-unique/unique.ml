@@ -18,7 +18,7 @@ Line 1, characters 21-22:
 (* unique value can be used more than once *)
 let dup (unique_ x) = (x, x)
 [%%expect{|
-val dup : ('a : value_or_null). 'a @ unique -> 'a * 'a = <fun>
+val dup : 'a @ unique -> 'a * 'a = <fun>
 |}]
 
 (* once value can be used only once*)
@@ -76,7 +76,7 @@ Line 1, characters 23-34:
   but manually relax it to once *)
 let dup x = once_ (x, x)
 [%%expect{|
-val dup : ('a : value_or_null). 'a -> 'a * 'a @ once = <fun>
+val dup : 'a -> 'a * 'a @ once = <fun>
 |}]
 
 (* closing over unique values gives once closure  *)
@@ -220,7 +220,7 @@ Error: This value is "once" but expected to be "many".
 (* the following is fine - we relax many to once *)
 let foo y = once_ x
 [%%expect{|
-val foo : ('a : value_or_null). 'a -> string @ once = <fun>
+val foo : 'a -> string @ once = <fun>
 |}]
 
 (* top-level must be aliased; the following unique is weakened to aliased *)
@@ -270,13 +270,13 @@ val unique_id : 'a @ unique -> 'a @ unique = <fun>
 
 let aliased_id : 'a -> 'a = fun x -> x
 [%%expect{|
-val aliased_id : ('a : value_or_null). 'a -> 'a = <fun>
+val aliased_id : 'a -> 'a = <fun>
 |}]
 
 let tail_unique _x =
   let unique_ y = "foo" in unique_id y
 [%%expect{|
-val tail_unique : ('a : value_or_null). 'a -> string = <fun>
+val tail_unique : 'a -> string = <fun>
 |}]
 
 let tail_unique : unique_ 'a list -> unique_ 'a list = function
@@ -288,17 +288,12 @@ val tail_unique : 'a list @ unique -> 'a list @ unique = <fun>
 
 let higher_order (f : unique_ 'a -> unique_ 'b) (unique_ x : 'a) = unique_ f x
 [%%expect{|
-val higher_order :
-  ('a : value_or_null) ('b : value_or_null).
-    ('a @ unique -> 'b @ unique) -> 'a @ unique -> 'b =
-  <fun>
+val higher_order : ('a @ unique -> 'b @ unique) -> 'a @ unique -> 'b = <fun>
 |}]
 
 let higher_order2 (f : 'a -> unique_ 'b) (x : 'a) = unique_ f x
 [%%expect{|
-val higher_order2 :
-  ('a : value_or_null) ('b : value_or_null). ('a -> 'b @ unique) -> 'a -> 'b =
-  <fun>
+val higher_order2 : ('a -> 'b @ unique) -> 'a -> 'b = <fun>
 |}]
 
 let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
@@ -319,7 +314,7 @@ Error: This value is "aliased" but expected to be "unique".
 
 let higher_order5 (unique_ x) = let f (unique_ x) = unique_ x in higher_order f x
 [%%expect{|
-val higher_order5 : ('a : value_or_null). 'a @ unique -> 'a = <fun>
+val higher_order5 : 'a @ unique -> 'a = <fun>
 |}]
 
 let higher_order6 (unique_ x) = let f (unique_ x) = unique_ x in higher_order2 f x
@@ -385,7 +380,7 @@ val inf5 : bool -> float @ unique -> float @ unique -> float = <fun>
 
 let inf6 (unique_ x) = let f x = x in higher_order f x
 [%%expect{|
-val inf6 : ('a : value_or_null). 'a @ unique -> 'a = <fun>
+val inf6 : 'a @ unique -> 'a = <fun>
 |}]
 
 let unique_default_args ?(unique_ x = 1.0) () = x
@@ -397,12 +392,12 @@ val unique_default_args : ?x:float @ unique -> unit -> float = <fun>
 
 let ul (unique_ local_ x) = x
 [%%expect{|
-val ul : ('a : value_or_null). local_ 'a @ unique -> local_ 'a = <fun>
+val ul : local_ 'a @ unique -> local_ 'a = <fun>
 |}]
 
 let ul_ret x = exclave_ unique_ x
 [%%expect{|
-val ul_ret : ('a : value_or_null). 'a @ unique -> local_ 'a = <fun>
+val ul_ret : 'a @ unique -> local_ 'a = <fun>
 |}]
 
 type point = { x : float; y : float }
@@ -595,8 +590,8 @@ Error: This expression has type "int" but an expression was expected of type
 let return_local : local_ 'a -> local_ 'a = fun x -> x
 let return_global : local_ 'a -> int = fun x -> 0
 [%%expect{|
-val return_local : ('a : value_or_null). local_ 'a -> local_ 'a = <fun>
-val return_global : ('a : value_or_null). local_ 'a -> int = <fun>
+val return_local : local_ 'a -> local_ 'a = <fun>
+val return_global : local_ 'a -> int = <fun>
 |}]
 
 

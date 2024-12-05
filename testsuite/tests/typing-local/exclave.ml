@@ -48,7 +48,7 @@ let foo x =
     let _ = escape x in
     x
 [%%expect{|
-val foo : ('a : value_or_null). 'a -> local_ int option = <fun>
+val foo : 'a -> local_ int option = <fun>
 |}]
 
 
@@ -95,7 +95,7 @@ let foo () =
   done
 
 [%%expect{|
-val foo : ('a : value_or_null). unit -> 'a = <fun>
+val foo : unit -> 'a = <fun>
 |}]
 
 (* we also require tail position *)
@@ -178,7 +178,7 @@ let bar _ =
 bar ();;
 [%%expect{|
 val foo : 'a -> local_ 'a option = <fun>
-val bar : ('a : value_or_null). 'a -> string = <fun>
+val bar : 'a -> string = <fun>
 - : string = "Some of 5"
 |}]
 

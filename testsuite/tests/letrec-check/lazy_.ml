@@ -12,7 +12,7 @@ Error: This kind of expression is not allowed as right-hand side of "let rec"
 
 let rec e = lazy (fun _ -> f) and f = ();;
 [%%expect{|
-val e : ('a : value_or_null). ('a -> unit) lazy_t = lazy <fun>
+val e : ('a -> unit) lazy_t = lazy <fun>
 val f : unit = ()
 |}];;
 

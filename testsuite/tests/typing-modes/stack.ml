@@ -5,7 +5,7 @@ expect;
 
 let ignore_local : 'a @ local -> unit = fun _ -> ()
 [%%expect{|
-val ignore_local : ('a : value_or_null). local_ 'a -> unit = <fun>
+val ignore_local : local_ 'a -> unit = <fun>
 |}]
 
 let f = ref (stack_ (fun x -> x))

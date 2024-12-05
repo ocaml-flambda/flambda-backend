@@ -77,8 +77,8 @@ end
 module Positive_and_negative_disambiguation :
   sig
     type 'a t = N | C of 'a t * ('a t * 'a t)
-    val map1 : ('a : value_or_null) 'b 'c. 'a -> 'b t -> 'c t
-    val map2 : ('a : value_or_null) 'b 'c. 'a -> 'b t -> 'c t
+    val map1 : 'a -> 'b t -> 'c t
+    val map2 : 'a -> 'b t -> 'c t
   end
 |}]
 

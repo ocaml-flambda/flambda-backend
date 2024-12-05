@@ -15,7 +15,7 @@ let ( and* ) a b =
   | _ -> None
 
 [%%expect{|
-val portable_use : ('a : value_or_null). 'a @ portable -> unit = <fun>
+val portable_use : 'a @ portable -> unit = <fun>
 val ( let* ) : 'a option -> ('a -> 'b option) -> 'b option = <fun>
 val ( and* ) : 'a option -> 'b option -> ('a * 'b) option = <fun>
 |}]

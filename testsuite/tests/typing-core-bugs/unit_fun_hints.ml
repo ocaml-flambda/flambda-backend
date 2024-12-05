@@ -7,7 +7,7 @@ let g f = f ()
 let _ = g 3;;       (* missing `fun () ->' *)
 
 [%%expect{|
-val g : ('a : value_or_null). (unit -> 'a) -> 'a = <fun>
+val g : (unit -> 'a) -> 'a = <fun>
 Line 2, characters 10-11:
 2 | let _ = g 3;;       (* missing `fun () ->' *)
               ^

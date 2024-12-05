@@ -132,7 +132,7 @@ module M :
     type j = C of < m : 'c. 'c -> a >
   end
 type _ t = A : M.i t
-val f : ('a : value_or_null). M.j t -> 'a = <fun>
+val f : M.j t -> 'a = <fun>
 |}]
 
 module M = struct
@@ -150,7 +150,7 @@ module M :
     type j = C of < m : 'c. 'c -> a >
   end
 type _ t = A : M.i t
-val f : ('a : value_or_null). M.j t -> 'a = <fun>
+val f : M.j t -> 'a = <fun>
 |}]
 
 module M = struct

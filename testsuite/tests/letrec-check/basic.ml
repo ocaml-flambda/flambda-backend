@@ -50,8 +50,8 @@ let rec x =
 and y =
   [x];;
 [%%expect{|
-val x : ('a : value_or_null). unit -> 'a = <fun>
-val y : ('a : value_or_null). (unit -> 'a) list = [<fun>]
+val x : unit -> 'a = <fun>
+val y : (unit -> 'a) list = [<fun>]
 |}];;
 
 let rec x = [|y|] and y = 0;;

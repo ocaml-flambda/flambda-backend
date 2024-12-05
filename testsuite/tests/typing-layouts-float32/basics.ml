@@ -411,7 +411,7 @@ let id_value x = x;;
 val make_t_float32 : unit -> t_float32 = <fun>
 val make_t_float32_id : ('a : float32). unit -> 'a t_float32_id = <fun>
 val make_floatu : unit -> float32# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val id_value : 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_float32 ());;

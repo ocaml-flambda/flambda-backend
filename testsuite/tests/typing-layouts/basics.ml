@@ -34,7 +34,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 type t_any_non_null : any_non_null;;
 
 [%%expect{|
-type t_any_non_null : any
+type t_any_non_null : any_non_null
 |}]
 
 type t_value_or_null : value_or_null;;
@@ -196,7 +196,7 @@ module M1 :
     type t : any
     type ('a : any) s = A : ('a : any) 'b. { a : 'a -> 'b -> 'a; } -> 'a s
     type q = t s
-    val f0 : ('a : value_or_null). unit -> 'a s
+    val f0 : unit -> 'a s
     val f1 : unit -> int s
     val f2 : unit -> string s
     val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s
@@ -225,7 +225,7 @@ module M1 :
     type t : any
     type ('a : any) s = A : ('a : any) 'b. ('a -> 'b -> 'a) -> 'a s
     type q = t s
-    val f0 : ('a : value_or_null). unit -> 'a s
+    val f0 : unit -> 'a s
     val f1 : unit -> int s
     val f2 : unit -> string s
     val f3 : unit -> Stdlib_upstream_compatible.Float_u.t s
@@ -617,7 +617,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 
 type ('a : any) any4 = Any4 of 'a
 [%%expect{|
-type ('a : value_or_null) any4 = Any4 of 'a
+type 'a any4 = Any4 of 'a
 |}];;
 
 (************************************************************)
@@ -1018,9 +1018,7 @@ end;;
 module M11_3f :
   sig
     type ('a : float64) t = 'a
-    val foo :
-      ('a : float64) ('b : value_or_null).
-        < usefloat : 'a t -> 'b; .. > -> 'a t -> 'b
+    val foo : ('a : float64) 'b. < usefloat : 'a t -> 'b; .. > -> 'a t -> 'b
   end
 |}];;
 
@@ -1604,7 +1602,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
+val ( let* ) : t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1616,8 +1614,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1629,8 +1626,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1642,8 +1638,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
+val ( let* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> t_float64 = <fun>
 |}]
 
@@ -1657,9 +1652,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) : ('a : value_or_null). 'a -> t_float64 -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> t_float64 -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1673,9 +1667,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1689,9 +1682,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : float64) ('b : value_or_null). 'a -> 'b -> unit = <fun>
-val ( and* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
+val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1705,12 +1697,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    'a -> 'b -> 'c =
-  <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> 'c = <fun>
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
@@ -2771,7 +2759,7 @@ let refute (x : t is_value) =
 [%%expect{|
 type ('a : any) is_value = V : 'a is_value
 type t : float64
-val refute : ('a : value_or_null). t is_value -> 'a = <fun>
+val refute : t is_value -> 'a = <fun>
 |}]
 
 type ('a : any) is_value =
@@ -2786,7 +2774,7 @@ let refute (x : 'a t is_value) =
 [%%expect{|
 type ('a : any) is_value = V : 'a is_value
 type 'a t : float64
-val refute : 'a ('b : value_or_null). 'a t is_value -> 'b = <fun>
+val refute : 'a t is_value -> 'b = <fun>
 |}]
 
 (***********************************)
@@ -2826,24 +2814,13 @@ type ('a : any) s = 'a
 module F :
   functor (X : S) ->
     sig
-      val f1 :
-        'a ('b : value_or_null).
-          ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> 'b
+      val f1 : ([ `K of 'a X.bits64 inj ], [ `K of 'a X.value inj ]) eq -> 'b
       val f2 :
-        'a ('b : value_or_null).
-          ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> 'b
-      val f3 :
-        'a 'b ('c : value_or_null).
-          ([ `K of 'a X.bits64 inj ], [ `K of 'b inj ]) eq -> 'c
-      val f4 :
-        'b 'a ('c : value_or_null).
-          ([ `K of 'b inj ], [ `K of 'a X.bits64 inj ]) eq -> 'c
-      val f5 :
-        'a 'b ('c : value_or_null).
-          ([ `K of 'a X.bits64 s inj ], [ `K of 'b s inj ]) eq -> 'c
-      val f6 :
-        'b 'a ('c : value_or_null).
-          ([ `K of 'b s inj ], [ `K of 'a X.bits64 s inj ]) eq -> 'c
+        ([ `K of 'a X.bits64 inj ], [ `K of (int -> int) inj ]) eq -> 'b
+      val f3 : ([ `K of 'a X.bits64 inj ], [ `K of 'b inj ]) eq -> 'c
+      val f4 : ([ `K of 'b inj ], [ `K of 'a X.bits64 inj ]) eq -> 'c
+      val f5 : ([ `K of 'a X.bits64 s inj ], [ `K of 'b s inj ]) eq -> 'c
+      val f6 : ([ `K of 'b s inj ], [ `K of 'a X.bits64 s inj ]) eq -> 'c
     end
 |}]
 
@@ -2875,7 +2852,7 @@ Line 2, characters 14-18:
 2 |   let rec x = #3.4 in
                   ^^^^
 Error: This expression has type "float#" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
@@ -2911,6 +2888,6 @@ let f (x : ('a : value)) = x ()
 let f (x : ('a : value mod uncontended)) = x ()
 
 [%%expect{|
-val f : ('a : value_or_null). (unit -> 'a) -> 'a = <fun>
-val f : ('a : value_or_null). (unit -> 'a) -> 'a = <fun>
+val f : (unit -> 'a) -> 'a = <fun>
+val f : (unit -> 'a) -> 'a = <fun>
 |}]

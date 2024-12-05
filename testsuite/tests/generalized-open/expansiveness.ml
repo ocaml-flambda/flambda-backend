@@ -7,21 +7,21 @@ module Fn = struct
 end
 ;;
 [%%expect{|
-module Fn : sig val id : ('a : value_or_null). 'a -> 'a end
+module Fn : sig val id : 'a -> 'a end
 |}]
 
 let f = fun x -> Fn.id x
 ;;
 [%%expect{|
-val f : ('a : value_or_null). 'a -> 'a = <fun>
+val f : 'a -> 'a = <fun>
 |}]
 
 let g = Fn.(fun x -> id x)
 let h = let open Fn in fun x -> id x
 ;;
 [%%expect{|
-val g : ('a : value_or_null). 'a -> 'a = <fun>
-val h : ('a : value_or_null). 'a -> 'a = <fun>
+val g : 'a -> 'a = <fun>
+val h : 'a -> 'a = <fun>
 |}]
 
 let i =
@@ -37,8 +37,8 @@ let iM =
   fun x -> M.id x
 ;;
 [%%expect{|
-val i : ('a : value_or_null). 'a -> 'a = <fun>
-val iM : ('a : value_or_null). 'a -> 'a = <fun>
+val i : 'a -> 'a = <fun>
+val iM : 'a -> 'a = <fun>
 |}]
 
 let j =

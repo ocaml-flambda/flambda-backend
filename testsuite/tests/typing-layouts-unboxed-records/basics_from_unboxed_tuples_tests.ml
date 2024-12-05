@@ -281,7 +281,7 @@ Line 2, characters 25-43:
 2 | let poly_var_term = `Foo #{ i = 1; i2 = 2 }
                              ^^^^^^^^^^^^^^^^^^
 Error: This expression has type "poly_var_term_record"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of poly_var_term_record is value & value
          because of the definition of poly_var_term_record at line 1, characters 0-50.
        But the layout of poly_var_term_record must be a sublayout of value
@@ -310,7 +310,7 @@ Line 2, characters 24-42:
 2 | let tuple_term = ("hi", #{ i = 1; i2 = 2 })
                             ^^^^^^^^^^^^^^^^^^
 Error: This expression has type "record" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of record is value & value
          because of the definition of record at line 1, characters 0-36.
        But the layout of record must be a sublayout of value
@@ -436,7 +436,7 @@ type capture_record = #{ x : int; y : int; }
 Line 4, characters 20-24:
 4 |     let #{ x; y } = utup in
                         ^^^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "capture_record"
        The layout of capture_record is value & value
          because of the definition of capture_record at line 1, characters 0-43.
@@ -699,7 +699,7 @@ Line 4, characters 37-56:
 4 | let[@warning "-26"] e2 = let rec x = #{ i1 = 1; i2 = y } and y = 42 in ()
                                          ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "letrec_record"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of letrec_record is value & value
          because of the definition of letrec_record at line 3, characters 0-44.
        But the layout of letrec_record must be a sublayout of value
@@ -728,7 +728,7 @@ Line 2, characters 21-41:
 2 | let _ = let rec _x = #{ i1 = 3; i2 = 10 } and _y = 42 in 42
                          ^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "letrec_simple"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of letrec_simple is value & value
          because of the definition of letrec_simple at line 1, characters 0-44.
        But the layout of letrec_simple must be a sublayout of value

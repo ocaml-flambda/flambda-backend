@@ -636,11 +636,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : ('b : value_or_null). 'b -> int end
+         sig val f : 'b -> int end
        is not included in
          sig val f : 'a -> float end
        Values do not match:
-         val f : ('b : value_or_null). 'b -> int
+         val f : 'b -> int
        is not included in
          val f : 'a -> float
        The type "'a -> int" is not compatible with the type "'a -> float"
@@ -748,11 +748,11 @@ Lines 3-5, characters 6-3:
 5 | end..
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : ('a : value_or_null). 'a -> 'a end
+         sig val f : 'a -> 'a end
        is not included in
          sig val f : int -> float end
        Values do not match:
-         val f : ('a : value_or_null). 'a -> 'a
+         val f : 'a -> 'a
        is not included in
          val f : int -> float
        The type "int -> int" is not compatible with the type "int -> float"

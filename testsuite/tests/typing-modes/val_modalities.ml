@@ -14,18 +14,17 @@ type r = {
 let uncontended_use (_ @ uncontended) = ()
 [%%expect{|
 type r = { mutable x : string; }
-val uncontended_use : ('a : value_or_null). 'a -> unit @@ global many = <fun>
+val uncontended_use : 'a -> unit @@ global many = <fun>
 |}]
 
 let share_use : 'a -> unit @@ portable = fun _ -> ()
 [%%expect{|
-val share_use : ('a : value_or_null). 'a -> unit @@ global many = <fun>
+val share_use : 'a -> unit @@ global many = <fun>
 |}]
 
 let (portable_use @ portable) (_ @ portable) = ()
 [%%expect{|
-val portable_use : ('a : value_or_null). 'a @ portable -> unit @@ global many =
-  <fun>
+val portable_use : 'a @ portable -> unit @@ global many = <fun>
 |}]
 
 (* The compiler building itself is a comprehensive test of legacy modules/values.
@@ -177,10 +176,7 @@ module Without_inclusion = struct
 end
 [%%expect{|
 module Without_inclusion :
-  sig
-    module M :
-      sig val x : ('a : value_or_null). 'a -> 'a @@ global many portable end
-  end
+  sig module M : sig val x : 'a -> 'a @@ global many portable end end
 |}]
 
 module Without_inclusion = struct

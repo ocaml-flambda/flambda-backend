@@ -195,10 +195,7 @@ let f_mix_up_an_unboxed_tuple x =
   #(b, #(c, (f, e)), a, d)
 [%%expect{|
 val f_mix_up_an_unboxed_tuple :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
-    ('d : value_or_null) ('e : value_or_null) ('f : value_or_null).
-    #('a * 'b * #('c * #('d * 'e)) * 'f) ->
-    #('b * #('c * ('f * 'e)) * 'a * 'd) =
+  #('a * 'b * #('c * #('d * 'e)) * 'f) -> #('b * #('c * ('f * 'e)) * 'a * 'd) =
   <fun>
 |}]
 
@@ -209,13 +206,9 @@ let f_take_a_few_unboxed_tuples x1 x2 x3 x4 x5 =
   #(h, g, x4, e, d, x2, b, a)
 [%%expect{|
 val f_take_a_few_unboxed_tuples :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
-    ('d : value_or_null) ('e : value_or_null) ('f : value_or_null)
-    ('g : value_or_null) ('h : value_or_null).
-    #('a * 'b) ->
-    'c ->
-    #('d * 'e) ->
-    'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a) =
+  #('a * 'b) ->
+  'c ->
+  #('d * 'e) -> 'f -> #('g * 'h) -> #('h * 'g * 'f * 'e * 'd * 'c * 'b * 'a) =
   <fun>
 |}]
 
@@ -711,7 +704,7 @@ Line 2, characters 37-44:
 2 | let[@warning "-26"] e2 = let rec x = #(1, y) and y = 42 in ()
                                          ^^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_9 & '_representable_layout_10
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
@@ -727,7 +720,7 @@ Line 1, characters 21-29:
 1 | let _ = let rec _x = #(3, 10) and _y = 42 in 42
                          ^^^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_11 & '_representable_layout_12
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value

@@ -8,10 +8,7 @@
  *)
 let g : local_ 'a -> int -> _ = fun _ _ -> (fun[@curry] (local_ _) (x : int) -> x)
 [%%expect{|
-val g :
-  ('a : value_or_null) ('b : value_or_null).
-    local_ 'a -> int -> (local_ 'b -> int -> int) =
-  <fun>
+val g : local_ 'a -> int -> (local_ 'b -> int -> int) = <fun>
 |}]
 let apply1 x = g x
 [%%expect{|
@@ -25,7 +22,7 @@ Error: This value escapes its region.
 |}]
 let apply2 x = g x x
 [%%expect{|
-val apply2 : ('a : value_or_null). int -> local_ 'a -> int -> int = <fun>
+val apply2 : int -> local_ 'a -> int -> int = <fun>
 |}]
 let apply3 x = g x x x
 [%%expect{|
@@ -78,9 +75,7 @@ Line 1, characters 29-30:
 
 let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null). (local_ int * int -> int -> int -> int -> 'a) -> 'a =
-  <fun>
+val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a = <fun>
 |}]
 
 (*
@@ -285,10 +280,7 @@ let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
 
 let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
 [%%expect{|
-val overapp :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null)
-    ('d : value_or_null). a:local_ 'a -> b:'b -> (c:'c -> d:'d -> unit) =
-  <fun>
+val overapp : a:local_ 'a -> b:'b -> (c:'c -> d:'d -> unit) = <fun>
 Line 3, characters 9-26:
 3 | let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
              ^^^^^^^^^^^^^^^^^
@@ -452,74 +444,50 @@ let _ =
 let f g x =
   g (x: _ @@ once) x [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null).
-    ('a @ once -> 'a -> 'b) -> 'a -> 'b =
-  <fun>
+val f : ('a @ once -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 
 let f g x y =
   g (x: _ @@ unique) y [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    ('a -> 'b -> 'c) -> 'a @ unique -> 'b -> 'c =
-  <fun>
+val f : ('a -> 'b -> 'c) -> 'a @ unique -> 'b -> 'c = <fun>
 |}]
 
 let f (g @ unique) x =
   g x x [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null).
-    ('a -> 'a -> 'b) @ unique -> ('a -> 'b) =
-  <fun>
+val f : ('a -> 'a -> 'b) @ unique -> ('a -> 'b) = <fun>
 |}, Principal{|
-val f :
-  ('a : value_or_null) ('b : value_or_null).
-    ('a -> 'a -> 'b) @ unique -> 'a -> 'b =
-  <fun>
+val f : ('a -> 'a -> 'b) @ unique -> 'a -> 'b = <fun>
 |}]
 
 let f (g @ once) x =
   g x x [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null).
-    ('a -> 'a -> 'b) @ once -> 'a -> 'b =
-  <fun>
+val f : ('a -> 'a -> 'b) @ once -> 'a -> 'b = <fun>
 |}]
 
 (* portability and contention is not affected due to the choice of legacy modes. *)
 let f g x =
   g (x: _ @@ nonportable) x [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null). ('a -> 'a -> 'b) -> 'a -> 'b =
-  <fun>
+val f : ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 
 let f g x y =
   g (x: _ @@ uncontended) y [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    ('a -> 'b -> 'c) -> 'a -> 'b -> 'c =
-  <fun>
+val f : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
 |}]
 
 let f (g @ uncontended) x =
   g x x [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null). ('a -> 'a -> 'b) -> 'a -> 'b =
-  <fun>
+val f : ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 
 let f (g @ nonportable) x =
   g x x [@nontail]
 [%%expect{|
-val f :
-  ('a : value_or_null) ('b : value_or_null). ('a -> 'a -> 'b) -> 'a -> 'b =
-  <fun>
+val f : ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]

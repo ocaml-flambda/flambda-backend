@@ -256,13 +256,12 @@ Error: This expression has type "int -> local_ (int -> int)"
 let f4 : int -> local_ 'a -> int -> int -> int =
   fun a _ b c -> a + b + c
 [%%expect{|
-val f4 : ('a : value_or_null). int -> local_ 'a -> int -> int -> int = <fun>
+val f4 : int -> local_ 'a -> int -> int -> int = <fun>
 |}]
 
 let apply1 x = f4 x
 [%%expect{|
-val apply1 : ('a : value_or_null). int -> local_ 'a -> int -> int -> int =
-  <fun>
+val apply1 : int -> local_ 'a -> int -> int -> int = <fun>
 |}]
 let apply2 x = f4 x x
 [%%expect{|
@@ -512,9 +511,8 @@ let use_locally' (local_ f : local_ 'a -> 'a) (x : 'a) =
   let res = f x in
   res
 [%%expect{|
-val use_locally : ('a : value_or_null). (local_ 'a -> 'a) -> 'a -> 'a = <fun>
-val use_locally' : ('a : value_or_null). local_ (local_ 'a -> 'a) -> 'a -> 'a =
-  <fun>
+val use_locally : (local_ 'a -> 'a) -> 'a -> 'a = <fun>
+val use_locally' : local_ (local_ 'a -> 'a) -> 'a -> 'a = <fun>
 |}]
 
 let no_leak = use_locally (fun x -> 1) 42
@@ -756,7 +754,7 @@ let foo (local_ x) =
       object end
   end in new M.c
 [%%expect{|
-val foo : ('a : value_or_null). local_ 'a -> <  > = <fun>
+val foo : local_ 'a -> <  > = <fun>
 |}]
 
 let foo (local_ x : string ref) =
@@ -837,7 +835,7 @@ let foo (local_ x) =
   let rec g () = let _ = x in h (); () and h () = g (); () in
   g (); ()
 [%%expect {|
-val foo : ('a : value_or_null). local_ 'a -> unit = <fun>
+val foo : local_ 'a -> unit = <fun>
 |}]
 
 let foo (local_ x) =
@@ -845,7 +843,7 @@ let foo (local_ x) =
   let _ = (x, 1) in
   1
 [%%expect {|
-val foo : ('a : value_or_null). local_ 'a -> int = <fun>
+val foo : local_ 'a -> int = <fun>
 |}]
 
 let foo (local_ x) =
@@ -879,7 +877,7 @@ Error: This value escapes its region.
 let local_cb (local_ f) = f ()
 let foo (local_ x) = local_cb (fun () -> x := 17; 42)
 [%%expect{|
-val local_cb : ('a : value_or_null). local_ (unit -> 'a) -> 'a = <fun>
+val local_cb : local_ (unit -> 'a) -> 'a = <fun>
 Line 2, characters 41-42:
 2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
                                              ^
@@ -914,7 +912,7 @@ let foo x =
   let local_ f () = 42 in
   f () [@nontail]
 [%%expect{|
-val foo : ('a : value_or_null). 'a -> int = <fun>
+val foo : 'a -> int = <fun>
 |}]
 
 (* Cannot call local values in tail calls *)
@@ -1266,7 +1264,7 @@ let foo (local_ x) y =
   | None, _ -> ()
   | pr  -> let _, _ = pr in ();;
 [%%expect{|
-val escape : ('a : value_or_null). 'a -> unit = <fun>
+val escape : 'a -> unit = <fun>
 val foo : local_ 'a option -> 'b option -> unit = <fun>
 |}]
 
@@ -1307,10 +1305,7 @@ let foo p (local_ x) y z =
   let _, _ = pr in
   escape b;;
 [%%expect{|
-val foo :
-  ('a : value_or_null) ('b : value_or_null).
-    bool -> local_ 'a -> 'b -> 'a * 'b -> unit =
-  <fun>
+val foo : bool -> local_ 'a -> 'b -> 'a * 'b -> unit = <fun>
 |}]
 
 let foo p (local_ x) y (local_ z) =
@@ -2333,19 +2328,13 @@ Lines 3-6, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val g :
-             ('a : value_or_null) ('b : value_or_null).
-               'a -> 'b -> local_ string
-           val f :
-             ('a : value_or_null) ('b : value_or_null).
-               'a -> local_ ('b -> local_ string)
+           val g : 'a -> 'b -> local_ string
+           val f : 'a -> local_ ('b -> local_ string)
          end
        is not included in
          sig val f : string -> string -> local_ string end
        Values do not match:
-         val f :
-           ('a : value_or_null) ('b : value_or_null).
-             'a -> local_ ('b -> local_ string)
+         val f : 'a -> local_ ('b -> local_ string)
        is not included in
          val f : string -> string -> local_ string
        The type "string -> local_ (string -> local_ string)"

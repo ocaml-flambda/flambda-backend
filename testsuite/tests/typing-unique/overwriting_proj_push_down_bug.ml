@@ -19,14 +19,14 @@ let aliased_use x = x
 [%%expect{|
 (let (aliased_use/280 = (function {nlocal = 0} x/282 x/282))
   (apply (field_imm 1 (global Toploop!)) "aliased_use" aliased_use/280))
-val aliased_use : ('a : value_or_null). 'a -> 'a = <fun>
+val aliased_use : 'a -> 'a = <fun>
 |}]
 
 let unique_use (unique_ x) = x
 [%%expect{|
 (let (unique_use/283 = (function {nlocal = 0} x/285 x/285))
   (apply (field_imm 1 (global Toploop!)) "unique_use" unique_use/283))
-val unique_use : ('a : value_or_null). 'a @ unique -> 'a = <fun>
+val unique_use : 'a @ unique -> 'a = <fun>
 |}]
 
 (* This output is fine with overwriting: The [r.y] is not pushed down. *)
