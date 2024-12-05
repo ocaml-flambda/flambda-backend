@@ -221,9 +221,16 @@ module Sort = struct
 
   let undo_change (v, t_op) = v.contents <- t_op
 
+  let rec occurs v1 s2 =
+    match s2 with
+    | Base _ -> false
+    | Var v2 -> v1 == v2
+    | Product ss2 -> List.exists (occurs v1) ss2
+
   let set : var -> t option -> unit =
    fun v t_op ->
     log_change (v, v.contents);
+    (* (match t_op with Some s -> assert (not (occurs v s)) | None -> ()); *)
     v.contents <- t_op
 
   module Static = struct
@@ -426,6 +433,7 @@ module Sort = struct
       | Some s1, _ -> swap_equate_result (equate_var_sort v2 s1)
       | _, Some s2 -> equate_var_sort v1 s2
       | None, None ->
+        (* No occurs check bc v1 != v2 *)
         set v1 (Some (of_var v2));
         Equal_mutated_first
 
@@ -433,8 +441,11 @@ module Sort = struct
     match v1.contents with
     | Some s1 -> equate_sort_product s1 s2
     | None ->
-      set v1 (Some s2);
-      Equal_mutated_first
+      if occurs v1 s2
+      then assert false (* Unequal? New constructor? *)
+      else (
+        set v1 (Some s2);
+        Equal_mutated_first)
 
   and equate_sort_product s1 s2 =
     match s1 with
