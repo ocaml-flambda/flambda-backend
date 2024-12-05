@@ -74,7 +74,7 @@ jobs:
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
 
-          - name: flambda2_macos
+          - name: flambda2_macos_arm64
             config: --enable-middle-end=flambda2 --disable-warn-error
             os: macos-latest
 
@@ -122,8 +122,7 @@ jobs:
 
     env:
       J: "3"
-      # On macOS, the testsuite is slow, so run only on push to main (#507)
-      run_testsuite: "${{matrix.os != 'macos-latest' || (github.event_name == 'push' && github.event.ref == 'refs/heads/main')}}"
+      run_testsuite: "true"
       expected_fail: "${{matrix.expected_fail == true}}"
 
     steps:
