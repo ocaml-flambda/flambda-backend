@@ -495,11 +495,12 @@ CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
   // Some of this is similar to [caml_make_vect], above.
   // This function is only used for native code.
 
+  CAMLparam0();
+  CAMLlocal1(res);
+
   mlsize_t num_initializers = Long_val(v_num_initializers);
   int is_local = Bool_val(v_is_local);
   mlsize_t non_unarized_length = Long_val(v_non_unarized_length);
-
-  value res;
   mlsize_t size;
 
   if (sizeof(uintnat) != sizeof(double)) {
@@ -541,7 +542,7 @@ CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
   /* Give the GC a chance to run, and run memprof callbacks */
   if (!is_local) caml_process_pending_actions ();
 
-  return res;
+  CAMLreturn(res);
 }
 
 CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
@@ -549,11 +550,13 @@ CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
 {
   // Some of this is similar to [caml_make_vect], above.
 
+  CAMLparam1(v_init);
+  CAMLlocal1(res);
+
   mlsize_t num_initializers = Wosize_val(v_init);
   int is_local = Bool_val(v_is_local);
   mlsize_t non_unarized_length = Long_val(v_non_unarized_length);
 
-  value res;
   mlsize_t size, i;
 
   // N.B. [v_init] may be on the local stack!
@@ -618,7 +621,7 @@ CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
   /* Give the GC a chance to run, and run memprof callbacks */
   if (!is_local) caml_process_pending_actions ();
 
-  return res;
+  CAMLreturn(res);
 }
 
 /* [len] is a [value] representing number of floats */
