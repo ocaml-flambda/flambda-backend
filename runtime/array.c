@@ -495,7 +495,7 @@ CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
   // Some of this is similar to [caml_make_vect], above.
   // This function is only used for native code.
 
-  mlsize_t num_initializers = Val_long(v_num_initializers);
+  mlsize_t num_initializers = Long_val(v_num_initializers);
   int is_local = Bool_val(v_is_local);
   mlsize_t non_unarized_length = Long_val(v_non_unarized_length);
 
