@@ -496,7 +496,8 @@ let expr sub x =
             Option.map (fun (exp, ubr) -> (sub.expr sub exp, ubr)) extended_expression;
           alloc_mode
         }
-    | Texp_record_unboxed_product { fields; representation; extended_expression } ->
+    | Texp_record_unboxed_product
+          { fields; representation; extended_expression } ->
         Texp_record_unboxed_product {
           fields = map_fields fields; representation;
           extended_expression =

@@ -553,7 +553,8 @@ module E = struct
         record ~loc ~attrs (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
           (map_opt (sub.expr sub) eo)
     | Pexp_record_unboxed_product (l, eo) ->
-        record_unboxed_product ~loc ~attrs (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
+        record_unboxed_product ~loc ~attrs
+          (List.map (map_tuple (map_loc sub) (sub.expr sub)) l)
           (map_opt (sub.expr sub) eo)
     | Pexp_field (e, lid) ->
         field ~loc ~attrs (sub.expr sub e) (map_loc sub lid)

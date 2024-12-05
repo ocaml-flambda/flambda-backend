@@ -530,7 +530,8 @@ and expression i ppf x =
       record_representation (i+1) ppf representation;
       line i ppf "extended_expression =\n";
       option (i+1) expression ppf (Option.map fst extended_expression);
-  | Texp_record_unboxed_product { fields; representation; extended_expression } ->
+  | Texp_record_unboxed_product
+        { fields; representation; extended_expression } ->
       line i ppf "Texp_record_unboxed_product\n";
       let i = i+1 in
       line i ppf "fields =\n";

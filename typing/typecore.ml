@@ -89,7 +89,8 @@ type wrong_kind_sort =
   | List
   | Unit
 
-let record_form_to_wrong_kind_sort : type rep. rep record_form -> wrong_kind_sort =
+let record_form_to_wrong_kind_sort
+  : type rep. rep record_form -> wrong_kind_sort =
   function
   | Legacy -> Record
   | Unboxed_product -> Record_unboxed_product
@@ -144,7 +145,8 @@ type error =
   | Partial_tuple_pattern_bad_type
   | Extra_tuple_label of string option * type_expr
   | Missing_tuple_label of string option * type_expr
-  | Label_mismatch of record_form_packed * Longident.t * Errortrace.unification_error
+  | Label_mismatch of
+      record_form_packed * Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * Parsetree.pattern_desc option -> error
   | Or_pattern_type_clash of Ident.t * Errortrace.unification_error
@@ -246,7 +248,8 @@ type error =
   | Unbound_existential of Ident.t list * type_expr
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
-  | Wrong_expected_record_boxing of wrong_kind_context * record_form_packed * type_expr
+  | Wrong_expected_record_boxing of
+      wrong_kind_context * record_form_packed * type_expr
   | Expr_not_a_record_type of record_form_packed * type_expr
   | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
   | Submode_failed of
@@ -867,7 +870,8 @@ let extract_concrete_variant env ty =
 let extract_label_names record_form env ty =
   match extract_concrete_record record_form env ty with
   | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
-  | Record_type_of_other_form | Not_a_record_type | Maybe_a_record_type -> assert false
+  | Record_type_of_other_form | Not_a_record_type | Maybe_a_record_type ->
+    assert false
 
 let has_poly_constraint spat =
   match spat.ppat_desc with
@@ -1724,7 +1728,8 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
   end;
   (ty_args_ty, ty_args_gf, existential_ctyp)
 
-let solve_Ppat_record_field ~refine loc penv label label_lid record_ty record_form =
+let solve_Ppat_record_field ~refine loc penv label label_lid record_ty
+      record_form =
   with_local_level_iter ~post:generalize_structure begin fun () ->
     let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
     begin try
@@ -2197,7 +2202,8 @@ module Unboxed_label = NameChoice (struct
   let get_name lbl = lbl.lbl_name
   let get_type lbl = lbl.lbl_res
   let lookup_all_from_type loc usage path env =
-    Env.lookup_all_labels_from_type ~record_form:Unboxed_product ~loc usage path env
+    Env.lookup_all_labels_from_type ~record_form:Unboxed_product ~loc usage path
+      env
   let in_env (lbl : t) =
     match lbl.lbl_repres with
     | Record_unboxed_product -> true
@@ -2239,7 +2245,9 @@ let disambiguate_label_by_ids closed ids labels  : (_, _) result =
 type 'rep candidates = ('rep gen_label_description * (unit -> unit)) list
 let label_disambiguate
     (type rep)
-    ?warn ?(filter : (rep candidates -> (rep candidates, rep candidates) result) option)
+    ?warn
+    ?(filter
+      : (rep candidates -> (rep candidates, rep candidates) result) option)
     (record_form : rep record_form) usage lid env expected_type
     (scope : (rep candidates, _) result)
   : rep gen_label_description =
@@ -2251,8 +2259,8 @@ let label_disambiguate
 
 (* Only issue warnings once per record constructor/pattern *)
 let disambiguate_sort_lid_a_list
-    (type rep)
-    (record_form : rep record_form) loc closed env usage expected_type lid_a_list =
+      (type rep) (record_form : rep record_form) loc closed env usage
+      expected_type lid_a_list =
   let ids = List.map (fun (lid, _) -> Longident.last lid.txt) lid_a_list in
   let w_pr = ref false and w_amb = ref []
   and w_scope = ref [] and w_scope_ty = ref "" in
@@ -2266,9 +2274,12 @@ let disambiguate_sort_lid_a_list
     | _ -> Location.prerr_warning loc msg
   in
   let process_label lid =
-    let scope = Env.lookup_all_labels ~record_form  ~loc:lid.loc usage lid.txt env in
+    let scope =
+      Env.lookup_all_labels ~record_form  ~loc:lid.loc usage lid.txt env in
     let filter = disambiguate_label_by_ids closed ids in
-    label_disambiguate ~warn ~filter record_form usage lid env expected_type scope in
+    label_disambiguate ~warn ~filter record_form usage lid env expected_type
+      scope
+  in
   let lbl_a_list =
     (* If one label is qualified [{ foo = ...; M.bar = ... }],
        we will disambiguate all labels using one of the qualifying modules,
@@ -2319,12 +2330,14 @@ let disambiguate_sort_lid_a_list
   if !w_pr then
     Location.prerr_warning loc
       (Warnings.Not_principal
-         ("this type-based " ^ (record_form_to_string record_form) ^" disambiguation"))
+         ("this type-based " ^ (record_form_to_string record_form)
+          ^ " disambiguation"))
   else begin
     match List.rev !w_amb with
       (_,types,ex)::_ as amb ->
         let paths =
-          List.map (fun (_,lbl,_) -> label_get_type_path record_form lbl) lbl_a_list in
+          List.map (fun (_,lbl,_) -> label_get_type_path record_form lbl)
+            lbl_a_list in
         let path = List.hd paths in
         let fst3 (x,_,_) = x in
         if List.for_all (compare_type_path env path) (List.tl paths) then
@@ -2338,9 +2351,10 @@ let disambiguate_sort_lid_a_list
     | _ -> ()
   end;
   (if !w_scope <> [] then
-    let warning = Warnings.Fields {record_form = record_form_to_string record_form;
-                                   fields = List.rev !w_scope} in
-    Location.prerr_warning loc (Warnings.Name_out_of_scope (!w_scope_ty, warning)));
+    let record_form = record_form_to_string record_form in
+    let warning = Warnings.Fields { record_form; fields = List.rev !w_scope} in
+    Location.prerr_warning loc
+      (Warnings.Name_out_of_scope (!w_scope_ty, warning)));
   (* Invariant: records are sorted in the typed tree *)
   List.sort
     (fun (_,lbl1,_) (_,lbl2,_) -> compare lbl1.lbl_num lbl2.lbl_num)
@@ -2675,7 +2689,8 @@ and type_pat_aux
       pat_env = !!penv;
       pat_unique_barrier = Unique_barrier.not_computed () }
   in
-  let type_record_pat (type rep) (record_form : rep record_form) lid_sp_list closed =
+  let type_record_pat (type rep) (record_form : rep record_form) lid_sp_list
+        closed =
       assert (lid_sp_list <> []);
       let expected_type, record_ty =
         match extract_concrete_record record_form !!penv expected_ty with
@@ -2683,7 +2698,8 @@ and type_pat_aux
             let ty = generic_instance expected_ty in
             Some (p0, p, is_principal expected_ty), ty
         | Record_type_of_other_form ->
-          let error = Wrong_expected_record_boxing(Pattern, P record_form, expected_ty) in
+          let error =
+            Wrong_expected_record_boxing(Pattern, P record_form, expected_ty) in
           raise (Error (loc, !!penv, error))
         | Maybe_a_record_type ->
           None, newvar (Jkind.of_new_sort ~why:Record_projection)
@@ -2703,11 +2719,13 @@ and type_pat_aux
         let alloc_mode = simple_pat_mode mode in
         (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
       in
-      let make_record_pat (lbl_pat_list : (_ * rep gen_label_description * _) list) =
+      let make_record_pat
+            (lbl_pat_list : (_ * rep gen_label_description * _) list) =
         check_recordpat_labels loc lbl_pat_list closed record_form;
         let pat_desc = match record_form with
           | Legacy -> Tpat_record (lbl_pat_list, closed)
-          | Unboxed_product -> Tpat_record_unboxed_product (lbl_pat_list, closed)
+          | Unboxed_product ->
+            Tpat_record_unboxed_product (lbl_pat_list, closed)
         in
         {
           pat_desc; pat_loc = loc; pat_extra=[];
@@ -2719,10 +2737,11 @@ and type_pat_aux
       in
       let lbl_a_list =
         wrap_disambiguate
-          ("This " ^ (record_form_to_string record_form) ^ " pattern is expected to have")
+          ("This " ^ (record_form_to_string record_form) ^
+           " pattern is expected to have")
           (mk_expected expected_ty)
-          (disambiguate_sort_lid_a_list record_form loc false !!penv Env.Projection
-             expected_type)
+          (disambiguate_sort_lid_a_list record_form loc false !!penv
+             Env.Projection expected_type)
           lid_sp_list
       in
       let lbl_a_list = List.map type_label_pat lbl_a_list in
@@ -3401,12 +3420,14 @@ let rec check_counter_example_pat
     | Backtrack_or -> false
     | Refine_or {inside_nonsplit_or} -> inside_nonsplit_or
   in
-  let type_label_pats (type rep) (fields : (_ * rep gen_label_description * _) list)
-        closed (record_form : rep record_form) =
+  let type_label_pats (type rep)
+        (fields : (_ * rep gen_label_description * _) list) closed
+        (record_form : rep record_form) =
     let record_ty = generic_instance expected_ty in
     let type_label_pat (label_lid, label, targ) k =
       let ty_arg =
-        solve_Ppat_record_field ~refine loc penv label label_lid record_ty record_form in
+        solve_Ppat_record_field ~refine loc penv label label_lid record_ty
+          record_form in
       check_rec targ ty_arg (fun arg -> k (label_lid, label, arg))
     in
     match record_form with
@@ -3494,7 +3515,8 @@ let rec check_counter_example_pat
         | _            -> k None
       end
   | Tpat_record(fields, closed) -> type_label_pats fields closed Legacy
-  | Tpat_record_unboxed_product(fields, closed) -> type_label_pats fields closed Unboxed_product
+  | Tpat_record_unboxed_product(fields, closed) ->
+      type_label_pats fields closed Unboxed_product
   | Tpat_array (mut, original_arg_sort, tpl) ->
       let ty_elt, arg_sort = solve_Ppat_array ~refine loc penv mut expected_ty in
       assert (Jkind.Sort.equate original_arg_sort arg_sort);
@@ -4562,8 +4584,8 @@ let check_partial_application ~statement exp =
             | Texp_ident _ | Texp_constant _ | Texp_tuple _
             | Texp_unboxed_tuple _
             | Texp_construct _ | Texp_variant _ | Texp_record _
-            | Texp_record_unboxed_product _
-            | Texp_field _ | Texp_unboxed_field _ | Texp_setfield _ |  Texp_array _
+            | Texp_record_unboxed_product _ | Texp_unboxed_field _
+            | Texp_field _ | Texp_setfield _ | Texp_array _
             | Texp_list_comprehension _ | Texp_array_comprehension _
             | Texp_while _ | Texp_for _ | Texp_instvar _
             | Texp_setinstvar _ | Texp_override _ | Texp_assert _
@@ -5301,7 +5323,8 @@ and type_expect_
           | None -> None
           | Some (exp, _) ->
             match extract_concrete_record record_form env exp.exp_type with
-            | Record_type (p0, p, _, _) -> Some (p0, p, is_principal exp.exp_type)
+            | Record_type (p0, p, _, _) ->
+              Some (p0, p, is_principal exp.exp_type)
             | Maybe_a_record_type -> None
             | Record_type_of_other_form ->
               let error =
@@ -5309,7 +5332,8 @@ and type_expect_
               in
               raise (Error (exp.exp_loc, env, error))
             | Not_a_record_type ->
-              let error = Expr_not_a_record_type (P record_form, exp.exp_type) in
+              let error =
+                Expr_not_a_record_type (P record_form, exp.exp_type) in
               raise (Error (exp.exp_loc, env, error))
         in
         match expected_opath, opt_exp_opath with
@@ -5328,12 +5352,15 @@ and type_expect_
       let closed = (opt_sexp = None) in
       let lbl_a_list =
         wrap_disambiguate
-          ("This " ^ (record_form_to_string record_form) ^ " expression is expected to have")
+          ("This " ^ (record_form_to_string record_form)
+            ^ " expression is expected to have")
           (mk_expected ty_record)
-          (disambiguate_sort_lid_a_list record_form loc closed env Env.Construct expected_type)
+          (disambiguate_sort_lid_a_list record_form loc closed env Env.Construct
+             expected_type)
           lid_sexp_list
       in
-      let repres_might_allocate (type rep) (record_form : rep record_form) (rep : rep) =
+      let repres_might_allocate (type rep) (record_form : rep record_form)
+            (rep : rep) =
         match record_form with
         | Legacy -> begin match rep with
           | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
@@ -5347,7 +5374,8 @@ and type_expect_
       in
       let alloc_mode, argument_mode =
         if List.exists
-            (fun (_, {lbl_repres; _}, _) -> repres_might_allocate record_form lbl_repres)
+            (fun (_, {lbl_repres; _}, _) ->
+              repres_might_allocate record_form lbl_repres)
             lbl_a_list then
           let alloc_mode, argument_mode = register_allocation expected_mode in
           Some alloc_mode, argument_mode
@@ -5390,7 +5418,8 @@ and type_expect_
                       let present_indices =
                         List.map (fun (_, lbl, _) -> lbl.lbl_num) lbl_exp_list
                       in
-                      let label_names = extract_label_names record_form env ty_expected in
+                      let label_names =
+                        extract_label_names record_form env ty_expected in
                       let rec missing_labels n = function
                           [] -> []
                         | lbl :: rem ->
@@ -5399,7 +5428,9 @@ and type_expect_
                             else lbl :: missing_labels (n + 1) rem
                       in
                       let missing = missing_labels 0 label_names in
-                      raise(Error(loc, env, Label_missing (P record_form, missing))))
+                      raise
+                        (Error(loc, env,
+                               Label_missing (P record_form, missing))))
                 lbl.lbl_all
             in
             None, label_definitions
@@ -5410,23 +5441,23 @@ and type_expect_
               unify_exp_types exp.exp_loc env ty_exp ty_res1;
               match matching_label lbl with
               | lid, _lbl, lbl_exp ->
-                  (* do not connect result types for overridden labels *)
-                  Overridden (lid, lbl_exp)
+                (* do not connect result types for overridden labels *)
+                Overridden (lid, lbl_exp)
               | exception Not_found -> begin
-                  let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
-                  unify_exp_types loc env ty_arg1 ty_arg2;
-                  with_explanation (fun () ->
-                    unify_exp_types loc env (instance ty_expected) ty_res2);
-                  check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-                  check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
-                  let argument_mode =
-                    mode_modality lbl.lbl_modalities argument_mode
-                  in
-                  submode ~loc ~env mode argument_mode;
-                  Kept (ty_arg1, lbl.lbl_mut,
-                        unique_use ~loc ~env mode
-                          (as_single_mode argument_mode))
+                let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
+                unify_exp_types loc env ty_arg1 ty_arg2;
+                with_explanation (fun () ->
+                  unify_exp_types loc env (instance ty_expected) ty_res2);
+                check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
+                let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
+                check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
+                let argument_mode =
+                  mode_modality lbl.lbl_modalities argument_mode
+                in
+                submode ~loc ~env mode argument_mode;
+                Kept (ty_arg1, lbl.lbl_mut,
+                      unique_use ~loc ~env mode
+                        (as_single_mode argument_mode))
                 end
             in
             let label_definitions = Array.map unify_kept lbl.lbl_all in
@@ -5437,7 +5468,8 @@ and type_expect_
         match lbl_exp_list with [] -> assert false
         | (_, lbl,_)::_ -> Array.length lbl.lbl_all in
       (if opt_sexp <> None && List.length lid_sexp_list = num_fields then
-        Location.prerr_warning loc (Warnings.Useless_record_with (record_form_to_string record_form)));
+         Location.prerr_warning loc
+           (Warnings.Useless_record_with (record_form_to_string record_form)));
       let label_descriptions, representation =
         let (_, { lbl_all; lbl_repres }, _) = List.hd lbl_exp_list in
         lbl_all, lbl_repres
@@ -5989,7 +6021,8 @@ and type_expect_
           submode ~loc:record.exp_loc ~env rmode mode_mutate_mutable;
           let mode = mutable_mode m0 |> mode_default in
           let mode = mode_modality label.lbl_modalities mode in
-          type_label_exp false env mode loc ty_record (lid, label, snewval) Legacy
+          type_label_exp false env mode loc ty_record (lid, label, snewval)
+            Legacy
         | Immutable ->
           raise(Error(loc, env, Label_not_mutable lid.txt))
       in
@@ -7223,7 +7256,8 @@ and type_function
      }
 
 and type_label_access
-  : 'rep . 'rep record_form -> _ -> _ -> _ -> _ -> _ * _ * 'rep gen_label_description * _
+  : 'rep . 'rep record_form -> _ -> _ -> _ -> _ ->
+    _ * _ * 'rep gen_label_description * _
   = fun record_form env srecord usage lid ->
   let mode = Value.newvar () in
   let record =
@@ -7243,7 +7277,8 @@ and type_label_access
         let error = Expr_not_a_record_type (P record_form, ty_exp) in
         raise (Error (record.exp_loc, env, error))
   in
-  let labels = Env.lookup_all_labels ~record_form ~loc:lid.loc usage lid.txt env in
+  let labels =
+    Env.lookup_all_labels ~record_form ~loc:lid.loc usage lid.txt env in
   let label =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
       (label_disambiguate record_form usage lid env expected_type) labels in
@@ -7536,7 +7571,8 @@ and type_label_exp
           begin try
             unify env (instance ty_res) (instance ty_expected)
           with Unify err ->
-            raise (Error(lid.loc, env, Label_mismatch(P record_form, lid.txt, err)))
+            raise
+              (Error(lid.loc, env, Label_mismatch(P record_form, lid.txt, err)))
           end;
           (* Instantiate so that we can generalize internal nodes *)
           let ty_arg = instance ty_arg in

@@ -556,9 +556,11 @@ let type_declaration' copy_scope s decl =
             match s.additional_action with
             | No_action | Duplicate_variables -> rep
             | Prepare_for_saving { prepare_jkind } ->
-                record_unboxed_product_representation ~prepare_jkind decl.type_loc rep
+              record_unboxed_product_representation
+                ~prepare_jkind decl.type_loc rep
           in
-          Type_record_unboxed_product (List.map (label_declaration copy_scope s) lbls, rep)
+          Type_record_unboxed_product
+            (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
       end;
     type_manifest =

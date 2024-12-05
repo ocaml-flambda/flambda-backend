@@ -36,8 +36,8 @@ val t : bx = {bx = <cycle>}
 
 (* The below is adapted from [testsuite/tests/letrec-check/unboxed.ml].
 
-   CR layouts v7.2: once unboxed records are in stable, fold this test back into the
-   original or move it to [typing-layouts-products]. *)
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into
+   the original or move it to [typing-layouts-products]. *)
 
 type t = #{x: int64}
 let rec x = #{x = y} and y = 3L;;

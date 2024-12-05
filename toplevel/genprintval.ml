@@ -615,8 +615,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
 
-      and tree_of_record_unboxed_product_fields depth env path type_params ty_list
-          lbl_list pos obj =
+      and tree_of_record_unboxed_product_fields depth env path type_params
+            ty_list lbl_list pos obj =
         let rec tree_of_fields first pos = function
           | [] -> []
           | {ld_id; ld_type; ld_jkind} :: remainder ->

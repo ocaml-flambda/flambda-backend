@@ -309,7 +309,8 @@ let rec sig_make_manifest sg =
         match decl.type_kind with
         | Type_abstract _ ->
           { decl with type_private = Public; type_manifest = manif }
-        | (Type_record _ | Type_record_unboxed_product _ | Type_variant _ | Type_open) ->
+        | (Type_record _ | Type_record_unboxed_product _ | Type_variant _
+          | Type_open) ->
           { decl with type_manifest = manif }
     in
     Sig_type(Ident.rename id, newdecl, rs, vis) :: sig_make_manifest rem

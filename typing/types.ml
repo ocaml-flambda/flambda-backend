@@ -272,12 +272,14 @@ type type_declaration =
     type_has_illegal_crossings: bool;
  }
 
-and type_decl_kind = (label_declaration, label_declaration, constructor_declaration) type_kind
+and type_decl_kind =
+  (label_declaration, label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'lbl_flat, 'cstr) type_kind =
     Type_abstract of type_origin
   | Type_record of 'lbl list * record_representation
-  | Type_record_unboxed_product of 'lbl_flat list * record_unboxed_product_representation
+  | Type_record_unboxed_product of
+      'lbl_flat list * record_unboxed_product_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
@@ -712,7 +714,8 @@ type 'a gen_label_description =
 
 type label_description = record_representation gen_label_description
 
-type unboxed_label_description = record_unboxed_product_representation gen_label_description
+type unboxed_label_description =
+  record_unboxed_product_representation gen_label_description
 
 type _ record_form =
   | Legacy : record_representation record_form

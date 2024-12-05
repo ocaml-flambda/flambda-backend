@@ -53,7 +53,8 @@ open Stdlib_upstream_compatible
 
 type ints = #{ x : int ; y : int }
 
-let print_floatu prefix x = Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
+let print_floatu prefix x =
+  Printf.printf "%s: %.2f\n" prefix (Float_u.to_float x)
 let print_float prefix x = Printf.printf "%s: %.2f\n" prefix x
 let print_int prefix x = Printf.printf "%s: %d\n" prefix x
 let print_ints prefix #{ x; y } = Printf.printf "%s: [%d %d]\n" prefix x y
@@ -166,7 +167,8 @@ let _ =
      let add_two = add_t two in
      let add_two_after = compose add_two in
      let minus_four =
-       add_two_after (twice (fun x -> add_t x #{ i = -1; ff' = #{f = -#1.0; f' = -1.0 } }))
+       add_two_after
+         (twice (fun x -> add_t x #{ i = -1; ff' = #{f = -#1.0; f' = -1.0 } }))
      in
      minus_four pi)
 
@@ -176,8 +178,8 @@ let _ =
 type int_floatu = #{ i : int ; f : float# }
 type floatarray_floatu = #{ fa : float array ; f : float# }
 
-(* [go]'s closure should have an unboxed record with an [int] (immediate), a [float#]
-   (float64) and a [float array] (value). *)
+(* [go]'s closure should have an unboxed record with an [int] (immediate), a
+   [float#] (float64) and a [float array] (value). *)
 let[@inline never] f3 bounds steps_init () =
   let[@inline never] rec go k =
     let #{ i = n; f = m } = bounds in
@@ -246,7 +248,8 @@ let test3 () =
   let x6 = #{ i = -242; ff' = #{ f = #5.5 ; f' = 84.5 } } in
   let x8 = #{ i = -2; ff' = #{ f = #20.0 ; f' = 2.0 } } in
 
-  let f3_manyargs = f3_manyargs #{ x = 4; y = 8} x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
+  let f3_manyargs =
+    f3_manyargs #{ x = 4; y = 8} x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
   print_float "Test 3, 610.68: " (f3_manyargs ());
   Array.iteri (Printf.printf "  Test 3, step %d: %.2f\n") steps
 
@@ -408,7 +411,7 @@ let print4 prefix #{ zy = #{ z; y }; x; w } =
   Printf.printf "%s: [%.1f %d %.1f %s]\n" prefix z y (Float_u.to_float x) w
 
 let _ =
-  let[@local] swap #{ w; x; yz = #{ y_; z_ }} = #{ zy = #{ z=z_; y=y_}; x; w } in
+  let[@local] swap #{ w; x; yz = #{ y_; z_ }} = #{ zy = #{ z=z_; y=y_}; x; w} in
   let[@inline never] g i p1 p2 =
     let z =
       if i < 0 then
@@ -423,7 +426,7 @@ let _ =
     (g (-1) #{ w = "a"; x = #1.0; yz = #{ y_ = 2; z_ = 3.0 } }
             #{ w = "a"; x = #4.0; yz = #{ y_ = 5; z_ = 6.0 } });
 
-  let[@local] swap #{ w; x; yz = #{ y_; z_ }} = #{ zy = #{ z=z_; y=y_}; x; w } in
+  let[@local] swap #{ w; x; yz = #{ y_; z_ }} = #{ zy = #{ z=z_; y=y_}; x; w} in
   let[@inline never] g i p1 p2 =
     let z =
       if i < 0 then
@@ -438,7 +441,7 @@ let _ =
     (g 0 #{ w = "a"; x = #1.0; yz = #{ y_ = 2; z_ = 3.0 } }
          #{ w = "b"; x = #4.0; yz = #{ y_ = 5; z_ = 6.0 } });
 
-  let[@local] swap #{ w; x; yz = #{ y_; z_ }} = #{ zy = #{ z=z_; y=y_}; x; w } in
+  let[@local] swap #{ w; x; yz = #{ y_; z_ }} = #{ zy = #{ z=z_; y=y_}; x; w} in
   let[@inline never] g i p1 p2 =
     let z =
       if i < 0 then
@@ -521,14 +524,14 @@ let () =
   Printf.printf "Test 11: %d\n" res
 
 
-(*******************************************************************************)
-(* Test 12: unboxed records in closures, using projection and partial patterns *)
+(******************************************************************************)
+(* Test 12: unboxed records in closures using projection and partial patterns *)
 
 (* This test is adapted from test 3. *)
 
-(* [go]'s closure should have an unboxed record with an [int] (immediate), a [float#]
-   (float64) and a [float array] (value). *)
-let[@inline never] f3 (bounds : int_floatu) (steps_init : floatarray_floatu) () =
+(* [go]'s closure should have an unboxed record with an [int] (immediate), a
+   [float#] (float64) and a [float array] (value). *)
+let[@inline never] f3 (bounds : int_floatu) (steps_init :floatarray_floatu) () =
   let[@inline never] rec go k =
     let n = bounds.#i in
     let (#{ f = m; _ } : int_floatu) = bounds in
@@ -596,10 +599,13 @@ let test12 () =
   let x2 = #{ i = 7; ff' = #{ f = #40.0 ; f' = 2.0 } } in
   let x4 = #{ #{ x2 with i = -23 } with ff' = #{ f = #100.0 ; f' = 9.0 } } in
   let x6 = #{
-    #{ (Sys.opaque_identity x4) with i = -242 } with ff' = #{ f = #5.5 ; f' = 84.5 }
+    #{ (Sys.opaque_identity x4) with i = -242 }
+    with ff' = #{ f = #5.5 ; f' = 84.5 }
   } in
-  let x8 = #{ i = -2; ff' = #{ (Sys.opaque_identity x2.#ff') with f = #20.0 } } in
-  let f3_manyargs = f3_manyargs #{ x = 4; y = 8} x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
+  let x8 =
+    #{ i = -2; ff' = #{ (Sys.opaque_identity x2.#ff') with f = #20.0 } } in
+  let f3_manyargs =
+    f3_manyargs #{ x = 4; y = 8} x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
   print_float "Test 3, 610.68: " (f3_manyargs ());
   Array.iteri (Printf.printf "  Test 12, step %d: %.2f\n") steps
 

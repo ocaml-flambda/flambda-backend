@@ -536,8 +536,9 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
       let lbls, lbls' =
         (* CR layouts: we forbid [@@unboxed] variants from being
            non-value, see comment in [check_representable]. *)
-        transl_labels ~record_form:Legacy ~new_var_jkind ~allow_unboxed:(not unboxed)
-          env univars closed l (Inlined_record { unboxed })
+        transl_labels ~record_form:Legacy ~new_var_jkind
+          ~allow_unboxed:(not unboxed) env univars closed l
+          (Inlined_record { unboxed })
       in
       Types.Cstr_record lbls',
       Cstr_record lbls
@@ -827,7 +828,8 @@ let transl_declaration env sdecl (id, uid) =
               ~why:(Primitive Predef.ident_or_null)
           in
           Ttype_abstract, type_kind, jkind
-      | (Ptype_variant _ | Ptype_record _ | Ptype_record_unboxed_product _ | Ptype_open)
+      | (Ptype_variant _ | Ptype_record _ | Ptype_record_unboxed_product _
+        | Ptype_open)
         when Builtin_attributes.has_or_null_reexport sdecl.ptype_attributes ->
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
@@ -914,7 +916,8 @@ let transl_declaration env sdecl (id, uid) =
             (* CR layouts: we forbid [@@unboxed] records from being
                non-value, see comment in [check_representable]. *)
             transl_labels ~record_form:Legacy ~new_var_jkind:Any
-              ~allow_unboxed:(not unbox) env None true lbls (Record { unboxed = unbox })
+              ~allow_unboxed:(not unbox) env None true lbls
+              (Record { unboxed = unbox })
           in
           let rep, jkind =
             if unbox then
@@ -1103,7 +1106,8 @@ let check_constraints env sdecl (_, decl) =
   | Type_variant (l, _rep) ->
       let find_pl = function
           Ptype_variant pl -> pl
-        | Ptype_record _ | Ptype_record_unboxed_product _ | Ptype_abstract | Ptype_open ->
+      | Ptype_record _ | Ptype_record_unboxed_product _ | Ptype_abstract
+      | Ptype_open ->
           assert false
       in
       let pl = find_pl sdecl.ptype_kind in
@@ -1148,7 +1152,8 @@ let check_constraints env sdecl (_, decl) =
   | Type_record_unboxed_product (l, _) ->
       let find_pl = function
         | Ptype_record_unboxed_product pl -> pl
-        | Ptype_record _ | Ptype_variant _ | Ptype_abstract | Ptype_open -> assert false
+        | Ptype_record _ | Ptype_variant _ | Ptype_abstract | Ptype_open ->
+          assert false
       in
       let pl = find_pl sdecl.ptype_kind in
       check_constraints_labels env visited l pl
@@ -1183,7 +1188,8 @@ let narrow_to_manifest_jkind env loc decl =
    with the same constructors and labels. *)
 let check_kind_coherence env loc dpath decl =
   match decl.type_kind, decl.type_manifest with
-  | (Type_variant _ | Type_record _ | Type_record_unboxed_product _ | Type_open),
+  | (Type_variant _ | Type_record _ | Type_record_unboxed_product _
+    | Type_open),
     Some ty ->
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
@@ -1713,7 +1719,8 @@ let update_decl_jkind env dpath decl =
             |> List.split
           in
           let type_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
-          let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+          let type_jkind, type_has_illegal_crossings =
+            add_crossings type_jkind in
           { decl with type_kind = Type_record_unboxed_product (lbls, rep);
                       type_jkind;
                       type_has_illegal_crossings },
@@ -2132,8 +2139,10 @@ let check_duplicates sdecl_list =
               let name' = Hashtbl.find unboxed_labels cname.txt in
               Location.prerr_warning loc
                 (Warnings.Duplicate_definitions
-                   ("unboxed record label", cname.txt, name', sdecl.ptype_name.txt))
-            with Not_found -> Hashtbl.add unboxed_labels cname.txt sdecl.ptype_name.txt)
+                   ("unboxed record label", cname.txt, name',
+                    sdecl.ptype_name.txt))
+            with Not_found ->
+              Hashtbl.add unboxed_labels cname.txt sdecl.ptype_name.txt)
           fl
     | Ptype_abstract -> ()
     | Ptype_open -> ())

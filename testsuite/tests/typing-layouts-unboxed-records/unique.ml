@@ -135,9 +135,10 @@ let [@warning "-23"] () =
 [%%expect{|
 |}]
 
-(* CR uniqueness: this test should succeed since unboxed records have no memory address
-   and the first field is of type unit and thus mode-crosses uniqueness. We should fix
-   this by allowing multiple unique uses for values that mode-cross uniqueness. *)
+(* CR uniqueness: this test should succeed since unboxed records have no memory
+   address and the first field is of type unit and thus mode-crosses uniqueness.
+   We should fix this by allowing multiple unique uses for values that
+   mode-cross uniqueness. *)
 let () =
   let t = mk () in
   unique_use2 t;

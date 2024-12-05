@@ -221,7 +221,8 @@ let none =
   create_expr (Ttuple []) ~level:(-1) ~scope:Btype.generic_level ~id:(-1)
     (* Clearly ill-formed type *)
 
-let dummy_label (type rep) (record_form : rep record_form) : rep gen_label_description =
+let dummy_label (type rep) (record_form : rep record_form)
+    : rep gen_label_description =
   let repres : rep = match record_form with
   | Legacy -> Record_unboxed
   | Unboxed_product -> Record_unboxed_product
@@ -284,7 +285,8 @@ let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
   | Type_variant (cstrs,rep) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
-  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
+  | Type_open -> []
 
 let labels_of_type ty_path decl =
   match decl.type_kind with

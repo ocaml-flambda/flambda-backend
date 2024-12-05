@@ -10,8 +10,8 @@
 (* CR layouts v7.2: figure out the story for recursive unboxed products.
    Consider that the following is allowed upstream:
       type t = { t : t } [@@unboxed]
-   We should also give good errors for infinite-size unboxed records (see the test at the
-   bottom of this file with a depth-100 kind).
+   We should also give good errors for infinite-size unboxed records (see the
+   test at the bottom of this file with a depth-100 kind).
 *)
 
 (************************************)
@@ -33,8 +33,9 @@ type t : value = #{ t : t }
 type t = #{ t : t; }
 |}]
 
-(* CR layouts v7.2: Once we support unboxed records with elements of kind [any], and
-   detect bad recursive unboxed records with an occurs check, this error should improve.
+(* CR layouts v7.2: Once we support unboxed records with elements of kind [any],
+   and detect bad recursive unboxed records with an occurs check, this error
+   should improve.
 *)
 type bad = #{ bad : bad ; i : int}
 [%%expect{|

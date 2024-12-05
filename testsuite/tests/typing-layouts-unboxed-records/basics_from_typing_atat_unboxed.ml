@@ -5,8 +5,8 @@
 (* This test is adapted from
    [testsuite/tests/typing-unboxed-types/test.ml].
 
-   CR layouts v7.2: once unboxed records are in stable, fold this test back into the
-   original or move it to [typing-layouts-products]. *)
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into
+   the original or move it to [typing-layouts-products]. *)
 
 (* Check the unboxing *)
 

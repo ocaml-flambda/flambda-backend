@@ -177,7 +177,8 @@ let expand_record_head h =
 let expand_record_unboxed_product_head h =
   let open Patterns.Head in
   match h.pat_desc with
-  | Record_unboxed_product [] -> fatal_error "Matching.expand_record_unboxed_product_head"
+  | Record_unboxed_product [] ->
+      fatal_error "Matching.expand_record_unboxed_product_head"
   | Record_unboxed_product ({ lbl_all } :: _) ->
       { h with pat_desc = Record_unboxed_product (Array.to_list lbl_all) }
   | _ -> h
@@ -279,7 +280,8 @@ end = struct
           stop p full_view
       | `Record_unboxed_product ([], _) as view -> stop p view
       | `Record_unboxed_product (lbls, closed) ->
-          let full_view = `Record_unboxed_product (all_record_args lbls, closed) in
+          let full_view =
+            `Record_unboxed_product (all_record_args lbls, closed) in
           stop p full_view
       | `Or _ -> (
           let orpat = General.view (simpl_under_orpat (General.erase p)) in
@@ -1290,8 +1292,8 @@ let can_group discr pat =
           | Const_int32 _ | Const_int64 _ | Const_nativeint _
           | Const_unboxed_int32 _ | Const_unboxed_int64 _
           | Const_unboxed_nativeint _ )
-      | Construct _ | Tuple _ | Unboxed_tuple _ | Record _ | Record_unboxed_product _
-      | Array _ | Variant _ | Lazy ) ) ->
+      | Construct _ | Tuple _ | Unboxed_tuple _ | Record _
+      | Record_unboxed_product _ | Array _ | Variant _ | Lazy ) ) ->
       false
 
 let is_or p =
@@ -2391,15 +2393,17 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
   in
   make_args 0
 
-let get_expr_args_record_unboxed_product ~scopes head (arg, _mut, _sort, _layout) rem =
+let get_expr_args_record_unboxed_product ~scopes head
+      (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
   let all_labels =
     let open Patterns.Head in
     match head.pat_desc with
-    | Record_unboxed_product ({ lbl_all ; lbl_repres = Record_unboxed_product} :: _) ->
-        lbl_all
+    | Record_unboxed_product
+        ({ lbl_all ; lbl_repres = Record_unboxed_product} :: _) ->
+      lbl_all
     | _ ->
-        assert false
+      assert false
   in
   let lbl_layouts =
     Array.map (fun lbl ->
@@ -2412,7 +2416,8 @@ let get_expr_args_record_unboxed_product ~scopes head (arg, _mut, _sort, _layout
       rem
     else
       let lbl = all_labels.(pos) in
-      jkind_layout_default_to_value_and_check_not_void head.pat_loc lbl.lbl_jkind;
+      jkind_layout_default_to_value_and_check_not_void
+        head.pat_loc lbl.lbl_jkind;
       let access = if Array.length all_labels = 1 then
         arg (* erase singleton unboxed records before lambda *)
       else

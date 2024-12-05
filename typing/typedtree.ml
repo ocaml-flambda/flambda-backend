@@ -151,8 +151,8 @@ and 'k pattern_desc =
         closed_flag ->
       value pattern_desc
   | Tpat_record_unboxed_product :
-      (Longident.t loc * unboxed_label_description * value general_pattern) list *
-        closed_flag ->
+      (Longident.t loc * unboxed_label_description * value general_pattern) list
+      * closed_flag ->
       value pattern_desc
   | Tpat_array :
       mutability * Jkind.sort * value general_pattern list -> value pattern_desc
@@ -220,7 +220,8 @@ and expression_desc =
       alloc_mode : alloc_mode option
     }
   | Texp_record_unboxed_product of {
-      fields : ( Types.unboxed_label_description * record_label_definition ) array;
+      fields :
+        ( Types.unboxed_label_description * record_label_definition ) array;
       representation : Types.record_unboxed_product_representation;
       extended_expression : (expression * Jkind.sort) option;
     }

@@ -631,7 +631,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
-  | Texp_record_unboxed_product {fields; representation; extended_expression } ->
+  | Texp_record_unboxed_product
+        {fields; representation; extended_expression } ->
       transl_record_unboxed_product ~scopes e.exp_loc e.exp_env
         fields representation extended_expression
   | Texp_field(arg, id, lbl, float, ubr) ->
@@ -2111,7 +2112,8 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
       (* CR layouts v11: if a functional update can change the kind, then
         the resulting kind may be different than [init_expr_jkind] *)
       let layout = layout_exp init_expr_sort init_expr in
-      Llet(Strict, layout, init_id, transl_exp ~scopes init_expr_sort init_expr, lam)
+      let exp = transl_exp ~scopes init_expr_sort init_expr in
+      Llet(Strict, layout, init_id, exp, lam)
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   let return_layout = layout_exp return_sort e in

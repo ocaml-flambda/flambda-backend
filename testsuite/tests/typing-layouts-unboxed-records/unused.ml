@@ -5,8 +5,8 @@
 
 (* Adapted from [testsuite/tests/typing-warnings/unused_types.ml].
 
-   CR layouts v7.2: Once unboxed records are in stable, fold this test back into the
-   original or move it to [typing-layouts-products]. *)
+   CR layouts v7.2: Once unboxed records are in stable, fold this test back into
+   the original or move it to [typing-layouts-products]. *)
 
 module Unused_record : sig end = struct
   type t = #{ a : int; b : int }

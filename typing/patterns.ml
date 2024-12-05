@@ -61,7 +61,8 @@ module Simple = struct
     | `Record of
         (Longident.t loc * label_description * pattern) list * closed_flag
     | `Record_unboxed_product of
-        (Longident.t loc * unboxed_label_description * pattern) list * closed_flag
+        (Longident.t loc * unboxed_label_description * pattern) list
+        * closed_flag
     | `Array of mutability * Jkind.sort * pattern list
     | `Lazy of pattern
   ]

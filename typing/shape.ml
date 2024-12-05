@@ -444,7 +444,8 @@ module Map = struct
     let item = Item.label id in
     Item.Map.add item (proj shape item) t
 
-  let add_unboxed_label t id uid = Item.Map.add (Item.unboxed_label id) (leaf uid) t
+  let add_unboxed_label t id uid =
+    Item.Map.add (Item.unboxed_label id) (leaf uid) t
   let add_unboxed_label_proj t id shape =
     let item = Item.unboxed_label id in
     Item.Map.add item (proj shape item) t

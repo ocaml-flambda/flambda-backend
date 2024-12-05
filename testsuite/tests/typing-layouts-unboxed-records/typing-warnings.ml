@@ -31,10 +31,11 @@ external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 external ignore_product : ('a : value & value). 'a -> unit = "%ignore"
 |}]
 
-(* This below tests are adapted from [testsuite/tests/typing-warnings/records.ml].
+(* This below tests are adapted from
+   [testsuite/tests/typing-warnings/records.ml].
 
-   CR layouts v7.2: once unboxed records are in stable, fold this test back into the
-   original or move it to [typing-layouts-products]. *)
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into
+   the original or move it to [typing-layouts-products]. *)
 
 (* Use type information *)
 module M1 = struct

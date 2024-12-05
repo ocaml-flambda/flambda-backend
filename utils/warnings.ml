@@ -961,7 +961,8 @@ let message = function
       "this pattern-matching is not exhaustive.\n\
        Here is an example of a case that is not matched:\n" ^ s
   | Missing_record_field_pattern { form ; unbound } ->
-      "the following labels are not bound in this " ^ form ^ " pattern:\n" ^ unbound ^
+      "the following labels are not bound in this " ^ form ^ " pattern:\n" ^
+      unbound ^
       "\nEither bind these labels explicitly or add '; _' to the pattern."
   | Non_unit_statement ->
       "this expression should have type unit."

@@ -739,8 +739,9 @@ module Record_diffing = struct
            representation is if one is a flat float record with a boxed float \
            field, and the other isn't."
 
-  let compare_with_representation (type rep) ~loc (record_form : rep record_form) env
-        params1 params2 l r (rep1 : rep) (rep2 : rep) =
+  let compare_with_representation (type rep) ~loc
+        (record_form : rep record_form) env params1 params2 l r
+        (rep1 : rep) (rep2 : rep) =
     if not (equal ~loc env params1 params2 l r) then
       let patch = diffing loc env params1 params2 l r in
       Some (Record_mismatch (Label_mismatch patch))

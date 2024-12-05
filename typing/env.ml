@@ -614,7 +614,8 @@ module IdTbl =
   end
 
 type type_descr_kind =
-  (label_description, unboxed_label_description, constructor_description) type_kind
+  (label_description, unboxed_label_description, constructor_description)
+    type_kind
 
 type type_descriptions = type_descr_kind
 
@@ -825,19 +826,22 @@ let used_labels_by_form (type rep) (record_form : rep record_form) =
 let find_used_label_by_uid (type rep) (record_form : rep record_form) uid =
   Types.Uid.Tbl.find (used_labels_by_form record_form) uid
 
-let env_labels (type rep) (record_form : rep record_form) env : rep gen_label_description TycompTbl.t  =
+let env_labels (type rep) (record_form : rep record_form) env
+    : rep gen_label_description TycompTbl.t  =
   match record_form with
   | Legacy -> env.labels
   | Unboxed_product -> env.unboxed_labels
 
-let add_label (type rep) (record_form : rep record_form) env lbl_id (lbl : rep gen_label_description) =
+let add_label (type rep) (record_form : rep record_form) env lbl_id
+      (lbl : rep gen_label_description) =
   match record_form with
   | Legacy ->
     { env with labels = TycompTbl.add lbl_id lbl env.labels }
   | Unboxed_product ->
     { env with unboxed_labels = TycompTbl.add lbl_id lbl env.unboxed_labels }
 
-let comp_labels (type rep) (record_form : rep record_form) sc : rep gen_label_description list NameMap.t =
+let comp_labels (type rep) (record_form : rep record_form) sc
+    : rep gen_label_description list NameMap.t =
   match record_form with
   | Legacy -> sc.comp_labels
   | Unboxed_product -> sc.comp_unboxed_labels
@@ -888,7 +892,8 @@ let check_shadowing env = function
 
 let empty = {
   values = IdTbl.empty; constrs = TycompTbl.empty;
-  labels = TycompTbl.empty; unboxed_labels = TycompTbl.empty; types = IdTbl.empty;
+  labels = TycompTbl.empty; unboxed_labels = TycompTbl.empty;
+  types = IdTbl.empty;
   modules = IdTbl.empty; modtypes = IdTbl.empty;
   classes = IdTbl.empty; cltypes = IdTbl.empty;
   summary = Env_empty; local_constraints = Path.Map.empty;
@@ -1366,7 +1371,8 @@ and find_cstr path name env =
   match tda.tda_descriptions with
   | Type_variant (cstrs, _) ->
       List.find (fun cstr -> cstr.cstr_name = name) cstrs
-  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _ | Type_open ->
+  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
+  | Type_open ->
       raise Not_found
 
 
@@ -2221,7 +2227,8 @@ and store_label
     let k = lbl.lbl_uid in
     if not (Types.Uid.Tbl.mem (used_labels_by_form record_form) k) then
       let used = label_usages () in
-      Types.Uid.Tbl.add (used_labels_by_form record_form) k (add_label_usage used);
+      Types.Uid.Tbl.add (used_labels_by_form record_form) k
+        (add_label_usage used);
       if not (ty_name = "" || ty_name.[0] = '_' || name.[0] = '_')
       then !add_delayed_check_forward
           (fun () ->
@@ -2272,7 +2279,8 @@ and store_type ~check id info shape env =
         Type_record_unboxed_product (List.map snd labels, repr),
         List.fold_left
           (fun env (lbl_id, lbl) ->
-            store_label ~record_form:Unboxed_product ~check info id lbl_id lbl env)
+             store_label ~record_form:Unboxed_product ~check info id lbl_id lbl
+               env)
           env labels
     | Type_abstract r -> Type_abstract r, env
     | Type_open -> Type_open, env
@@ -3164,10 +3172,11 @@ let find_all_labels (type rep) ~(record_form : rep record_form) ~mark s env
   | Legacy -> TycompTbl.find_all ~mark s env.labels
   | Unboxed_product -> TycompTbl.find_all ~mark s env.unboxed_labels
 
-let lookup_all_ident_labels (type rep) ~(record_form : rep record_form) ~errors ~use ~loc
-      usage s env =
+let lookup_all_ident_labels (type rep) ~(record_form : rep record_form) ~errors
+      ~use ~loc usage s env =
   match find_all_labels ~record_form ~mark:use s env with
-  | [] -> may_lookup_error errors loc env (Unbound_label (Lident s, P record_form))
+  | [] ->
+    may_lookup_error errors loc env (Unbound_label (Lident s, P record_form))
   | lbls -> begin
       List.map
         (fun (lbl, use_fn) ->
@@ -3373,7 +3382,8 @@ let lookup_all_dot_labels ~record_form ~errors ~use ~loc usage l s env =
   let (_, _, comps) = lookup_structure_components ~errors ~use ~loc l env in
   match NameMap.find s (comp_labels record_form comps) with
   | [] | exception Not_found ->
-      may_lookup_error errors loc env (Unbound_label (Ldot(l, s), P record_form))
+      may_lookup_error errors loc env
+        (Unbound_label (Ldot(l, s), P record_form))
   | lbls ->
       List.map
         (fun lbl ->
@@ -3418,7 +3428,8 @@ let add_components slot root env0 comps locks =
     add_l (fun x -> `Label x) comps.comp_labels env0.labels
   in
   let unboxed_labels =
-    add_l (fun x -> `Unboxed_label x) comps.comp_unboxed_labels env0.unboxed_labels
+    add_l (fun x -> `Unboxed_label x) comps.comp_unboxed_labels
+      env0.unboxed_labels
   in
   let values =
     add_v (fun x -> `Value x) comps.comp_values env0.values
@@ -3688,8 +3699,10 @@ let lookup_cltype ~errors ~use ~loc lid env =
 
 let lookup_all_labels ~errors ~use ~record_form ~loc usage lid env =
   match lid with
-  | Lident s -> lookup_all_ident_labels ~errors ~use ~record_form ~loc usage s env
-  | Ldot(l, s) -> lookup_all_dot_labels ~errors ~use ~record_form ~loc usage l s env
+  | Lident s ->
+    lookup_all_ident_labels ~errors ~use ~record_form ~loc usage s env
+  | Ldot(l, s) ->
+    lookup_all_dot_labels ~errors ~use ~record_form ~loc usage l s env
   | Lapply _ -> assert false
 
 let lookup_label ~errors ~use ~record_form ~loc usage lid env =
@@ -3698,7 +3711,8 @@ let lookup_label ~errors ~use ~record_form ~loc usage lid env =
   | (desc, use) :: _ -> use (); desc
 
 let lookup_all_labels_from_type (type rep) ~use ~(record_form : rep record_form)
-      ~loc usage ty_path env : (rep gen_label_description * (unit -> unit)) list =
+      ~loc usage ty_path env : (rep gen_label_description * (unit -> unit)) list
+  =
   match (find_type_descrs ty_path env, record_form) with
   | exception Not_found -> []
   | ((Type_variant _ | Type_abstract _ | Type_open), _) -> []
@@ -3731,7 +3745,8 @@ let lookup_constructor ~errors ~use ~loc usage lid env =
 let lookup_all_constructors_from_type ~use ~loc usage ty_path env =
   match find_type_descrs ty_path env with
   | exception Not_found -> []
-  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _ | Type_open -> []
+  | Type_record _ | Type_record_unboxed_product _ | Type_abstract _
+  | Type_open -> []
   | Type_variant (cstrs, _) ->
       List.map
         (fun cstr ->
@@ -3857,7 +3872,8 @@ let lookup_all_labels ?(use=true) ~record_form ~loc usage lid env =
 let lookup_label ?(use=true) ~record_form ~loc lid env =
   lookup_label ~errors:true ~use ~record_form ~loc lid env
 
-let lookup_all_labels_from_type ?(use=true) ~record_form ~loc usage ty_path env =
+let lookup_all_labels_from_type ?(use=true) ~record_form ~loc usage ty_path env
+  =
   lookup_all_labels_from_type ~use ~record_form ~loc usage ty_path env
 
 let lookup_instance_variable ?(use=true) ~loc name env =
@@ -4285,7 +4301,8 @@ let report_lookup_error _loc env ppf = function
   | Unbound_label (lid, record_form) ->
       let P record_form = record_form in
       fprintf ppf "Unbound %s field %a"
-        (record_form_to_string record_form) (Style.as_inline_code !print_longident) lid;
+        (record_form_to_string record_form)
+        (Style.as_inline_code !print_longident) lid;
       spellcheck ppf (extract_labels record_form) env lid;
       let label_of_other_form = match record_form with
         | Legacy ->
@@ -4299,8 +4316,8 @@ let report_lookup_error _loc env ppf = function
       in
       (match label_of_other_form with
       | Some other_form ->
-        Format.fprintf ppf "@\n@{<hint>Hint@}: There is %s field with this name."
-          other_form
+        Format.fprintf ppf
+          "@\n@{<hint>Hint@}: There is %s field with this name." other_form
       | None -> ());
   | Unbound_class lid -> begin
       fprintf ppf "Unbound class %a"

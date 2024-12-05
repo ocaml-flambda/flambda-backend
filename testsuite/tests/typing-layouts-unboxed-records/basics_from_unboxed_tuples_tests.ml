@@ -10,8 +10,8 @@
 (* These tests are adapted from the tuple tests in
    [testsuite/tests/typing-layouts-products/basics.ml].
 
-   CR layouts v7.2: once unboxed records are in stable, fold this test back into the
-   original or move it to [typing-layouts-products]. *)
+   CR layouts v7.2: once unboxed records are in stable, fold this test back into
+   the original or move it to [typing-layouts-products]. *)
 
 open Stdlib_upstream_compatible
 
@@ -206,9 +206,11 @@ module F(X : S) = struct
   type take_few_input1 = #{ a : a; b : b }
   type take_few_input3 = #{ d : d; e : e }
   type take_few_input5 = #{ g : g; h : h }
-  type take_few_output = #{ h : h; g2 : g; x4 : f; e2 : e; d : d; x2 : c; b : b; a2 : a }
+  type take_few_output =
+    #{ h : h; g2 : g; x4 : f; e2 : e; d : d; x2 : c; b : b; a2 : a }
 
-  let f_take_a_few_unboxed_records (x1 : take_few_input1) x2 (x3 : take_few_input3) x4 (x5 : take_few_input5) =
+  let f_take_a_few_unboxed_records (x1 : take_few_input1) x2
+        (x3 : take_few_input3) x4 (x5 : take_few_input5) =
     let #{ a; b } = x1 in
     let #{ d; e } = x3 in
     let #{ g; h } = x5 in
@@ -465,8 +467,8 @@ class class_with_urecord_manipulating_method :
 (*******************************************)
 (* Test 6: Nested expansion in kind checks *)
 
-(* This typechecks for unboxed tuples, but fail for [@@unboxed], unboxed, and boxed
-   records, in the same way as below.
+(* This typechecks for unboxed tuples, but fail for [@@unboxed], unboxed, and
+   boxed records, in the same way as below.
 
    CR layouts v7.2: These should typecheck for all record forms.
 *)
