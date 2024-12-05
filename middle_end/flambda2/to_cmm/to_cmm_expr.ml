@@ -141,6 +141,8 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
     assert (List.compare_length_with kinds (Array.length component_tys) = 0);
     match kinds with
     | [] ->
+      (* CR mshinwell: this statement would seem to be wrong if we permit void
+         returns from extcalls *)
       (* Extcalls of arity 0 are allowed (these never return). *)
       return_values
     | [kind] -> maybe_sign_extend kind dbg return_values
