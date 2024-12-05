@@ -233,7 +233,7 @@ Line 1, characters 25-31:
 1 | let poly_var_term = `Foo #(1,2)
                              ^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_1 & '_representable_layout_2
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
@@ -258,7 +258,7 @@ Line 1, characters 24-31:
 1 | let tuple_term = ("hi", #(1, 2))
                             ^^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_3 & '_representable_layout_4
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
@@ -366,7 +366,7 @@ end;;
 Line 3, characters 17-21:
 3 |     let #(x,y) = utup in
                      ^^^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "#('b * 'c)"
        The layout of #('a * 'b) is '_representable_layout_7 & '_representable_layout_8
          because it is an unboxed tuple.
@@ -704,7 +704,7 @@ Line 2, characters 37-44:
 2 | let[@warning "-26"] e2 = let rec x = #(1, y) and y = 42 in ()
                                          ^^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_9 & '_representable_layout_10
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
@@ -720,7 +720,7 @@ Line 1, characters 21-29:
 1 | let _ = let rec _x = #(3, 10) and _y = 42 in 42
                          ^^^^^^^^
 Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type "('c : value)"
+       but an expression was expected of type "('c : value_or_null)"
        The layout of #('a * 'b) is '_representable_layout_11 & '_representable_layout_12
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
@@ -817,25 +817,25 @@ Error: The primitive [caml_make_vect] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
 
-external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
+external[@layout_poly] make : ('a : any_non_null) . int -> 'a -> 'a array =
   "caml_make_vect"
 
 let _ = make 3 #(1,2)
 [%%expect{|
 Lines 1-2, characters 0-18:
-1 | external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
+1 | external[@layout_poly] make : ('a : any_non_null) . int -> 'a -> 'a array =
 2 |   "caml_make_vect"
 Error: Attribute "[@layout_poly]" can only be used on built-in primitives.
 |}]
 
 (* CR layouts v7.1: The two errors below should be improved when we move product
    arrays to beta. *)
-external[@layout_poly] array_get : ('a : any) . 'a array -> int -> 'a =
+external[@layout_poly] array_get : ('a : any_non_null) . 'a array -> int -> 'a =
   "%array_safe_get"
 let f x : #(int * int) = array_get x 3
 [%%expect{|
-external array_get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
-  [@@layout_poly]
+external array_get : ('a : any_non_null). 'a array -> int -> 'a
+  = "%array_safe_get" [@@layout_poly]
 Line 3, characters 25-38:
 3 | let f x : #(int * int) = array_get x 3
                              ^^^^^^^^^^^^^
@@ -845,11 +845,11 @@ Error: Non-value layout value & value detected as sort for type #(int * int),
        Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
-external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
+external[@layout_poly] array_set : ('a : any_non_null) . 'a array -> int -> 'a -> unit =
   "%array_safe_set"
 let f x = array_set x 3 #(1,2)
 [%%expect{|
-external array_set : ('a : any). 'a array -> int -> 'a -> unit
+external array_set : ('a : any_non_null). 'a array -> int -> 'a -> unit
   = "%array_safe_set" [@@layout_poly]
 Line 3, characters 10-30:
 3 | let f x = array_set x 3 #(1,2)

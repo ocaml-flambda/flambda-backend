@@ -6,7 +6,7 @@
 type t_any_non_null : any_non_null
 
 [%%expect{|
-type t_any_non_null : any
+type t_any_non_null : any_non_null
 |}]
 
 type t_value_or_null : value_or_null

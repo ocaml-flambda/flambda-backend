@@ -112,7 +112,7 @@ Line 1, characters 27-28:
 1 | let f4_1 (x : t_float32) = x, false;;
                                ^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value
@@ -125,7 +125,7 @@ Line 1, characters 33-34:
 1 | let f4_2 (x : 'a t_float32_id) = x, false;;
                                      ^
 Error: This expression has type "'a t_float32_id" = "('a : float32)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float32_id is float32
          because of the definition of t_float32_id at line 2, characters 0-37.
        But the layout of 'a t_float32_id must be a sublayout of value
@@ -138,7 +138,7 @@ Line 1, characters 26-27:
 1 | let f4_3 (x : float32#) = x, false;;
                               ^
 Error: This expression has type "float32#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of float32# is float32
          because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
@@ -342,7 +342,7 @@ Line 1, characters 30-31:
 1 | let f7_1 (x : t_float32) = `A x;;
                                   ^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value
@@ -355,7 +355,7 @@ Line 1, characters 36-37:
 1 | let f7_2 (x : 'a t_float32_id) = `A x;;
                                         ^
 Error: This expression has type "'a t_float32_id" = "('a : float32)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float32_id is float32
          because of the definition of t_float32_id at line 2, characters 0-37.
        But the layout of 'a t_float32_id must be a sublayout of value
@@ -368,7 +368,7 @@ Line 1, characters 29-30:
 1 | let f7_3 (x : float32#) = `A x;;
                                  ^
 Error: This expression has type "float32#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of float32# is float32
          because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
@@ -420,7 +420,7 @@ Line 1, characters 20-39:
 1 | let x8_1 = id_value (make_t_float32 ());;
                         ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value
@@ -433,7 +433,7 @@ Line 1, characters 20-42:
 1 | let x8_2 = id_value (make_t_float32_id ());;
                         ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a t_float32_id" = "('a : float32)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float32_id is float32
          because of the definition of t_float32_id at line 2, characters 0-37.
        But the layout of 'a t_float32_id must be a sublayout of value
@@ -446,7 +446,7 @@ Line 1, characters 20-36:
 1 | let x8_3 = id_value (make_floatu ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type "float32#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of float32# is float32
          because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
@@ -744,7 +744,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_float32"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
