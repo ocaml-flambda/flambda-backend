@@ -7,6 +7,8 @@ boot_ocamlopt = boot_ocamlopt.exe
 boot_ocamlmklib = tools/ocamlmklib.exe
 boot_ocamldep = tools/ocamldep.exe
 boot_ocamlobjinfo = tools/objinfo.exe
+ocamlc = main_native.exe
+ocamlopt = flambda_backend_main_native.exe
 ocamldir = .
 toplevels_installed = top opttop
 
