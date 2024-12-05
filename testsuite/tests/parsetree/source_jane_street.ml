@@ -1217,9 +1217,9 @@ let overwrite_record = function
 let overwrite_record = function
     { a; b } as t -> overwrite_ t with { b = a }
 
-let ret_record () = { a = 1; b = 2 }
+let ret_record : unit -> record @ unique = fun () -> { a = 1; b = 2 }
 
-let overwrite_record () =
+let overwrite_record a =
   overwrite_ (ret_record ()) with { b = a }
 
 type constructor = C of { a : int; b : int }
@@ -1236,9 +1236,11 @@ val overwrite_tuple :
 type record = { a : int; b : int; }
 val overwrite_record : record @ unique -> record @@ global many = <fun>
 val overwrite_record : record @ unique -> record @@ global many = <fun>
-val ret_record : unit -> record @@ global many = <fun>
-Line 15, characters 13-28:
-15 |   overwrite_ (ret_record ()) with { b = a }
-                  ^^^^^^^^^^^^^^^
-Error: This value is "aliased" but expected to be "unique".
+val ret_record : unit -> record @ unique @@ global many = <fun>
+val overwrite_record : int -> record @@ global many = <fun>
+type constructor = C of { a : int; b : int; }
+val overwrite_constructor : constructor @ unique -> constructor @@ global
+  many = <fun>
+val overwrite_constructor : constructor @ unique -> constructor @@ global
+  many = <fun>
 |}]
