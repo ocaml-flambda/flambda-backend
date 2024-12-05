@@ -166,7 +166,8 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
         Pvalue { raw_kind = Pgenval; nullable = Non_nullable },
         array,
         creation_expr,
-        Lsequence (maybe_zero_init_last_field, initialize) )
+        Lsequence
+          (maybe_zero_init_last_field, Lsequence (initialize, Lvar array)) )
   in
   env, Transformed term
 
