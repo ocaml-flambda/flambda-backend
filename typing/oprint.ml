@@ -34,8 +34,6 @@ let rec print_ident ppf =
       print_ident ppf id; pp_print_char ppf '.'; print_lident ppf s
   | Oide_apply (id1, id2) ->
       fprintf ppf "%a(%a)" print_ident id1 print_ident id2
-  | Oide_hash id ->
-      print_ident ppf id; pp_print_char ppf '#'
 
 let out_ident = ref print_ident
 

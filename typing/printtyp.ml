@@ -416,7 +416,8 @@ let ident_name_simple namespace id =
 
 (** Same as {!ident_name_simple} but lookup to existing named identifiers
     in the current {!printing_env} *)
-let ident_name namespace id ~with_hash =
+(* CR rtjoa:  *)
+let ident_name namespace id ~with_hash:_ =
   begin match env_ident namespace (Ident.name id) with
   | Some id' -> ignore (ident_name_simple namespace id')
   | None -> ()
@@ -438,8 +439,8 @@ let reset_naming_context = Naming_context.reset
 let ident ppf id = pp_print_string ppf
     (Out_name.print (Naming_context.ident_name_simple None id))
 
-let namespaced_ident namespace  id =
-  Out_name.print (Naming_context.ident_name (Some namespace) id)
+let namespaced_ident namespace id ~with_hash =
+  Out_name.print (Naming_context.ident_name ~with_hash (Some namespace) id)
 
 
 (* Print a path *)
@@ -535,7 +536,7 @@ let rec rewrite_double_underscore_longidents env (l : Longident.t) =
 
 let rec tree_of_path namespace = function
   | Pident id ->
-      Oide_ident (ident_name namespace id)
+      Oide_ident (ident_name namespace id ~with_hash:false)
   | Pdot(_, s) as path when non_shadowed_pervasive path ->
       Oide_ident (Naming_context.pervasives_name namespace s)
   | Pdot(p, s) ->
@@ -553,7 +554,8 @@ let rec tree_of_path namespace = function
       | Pderived_unboxed_ty ->
         match p with
         | Pident id -> Oide_ident (ident_name namespace id ~with_hash:true)
-        | Pdot(p, s) -> tree_of_path namespace Pdot(p, s ^ "#")
+        | Pdot(p, s) -> tree_of_path namespace (Pdot(p, s ^ "#"))
+        | Pextra_ty _ | Papply _ -> assert false
 
 
     end

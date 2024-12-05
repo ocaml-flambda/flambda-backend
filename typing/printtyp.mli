@@ -21,7 +21,8 @@ open Outcometree
 
 val longident: formatter -> Longident.t -> unit
 val ident: formatter -> Ident.t -> unit
-val namespaced_ident: Shape.Sig_component_kind.t -> Ident.t -> string
+val namespaced_ident: Shape.Sig_component_kind.t -> Ident.t -> with_hash:bool
+  -> string
 val tree_of_path: Path.t -> out_ident
 val path: formatter -> Path.t -> unit
 val string_of_path: Path.t -> string

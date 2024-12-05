@@ -4207,9 +4207,11 @@ let report_error ~loc _env = function
         shadower_id; user_id; user_kind; user_loc } ->
       let shadowed =
         Printtyp.namespaced_ident shadowed_item_kind shadowed_item_id
+          ~with_hash:false
       in
       let shadower =
         Printtyp.namespaced_ident shadowed_item_kind shadower_id
+          ~with_hash:false
       in
       let shadowed_item_kind= Sig_component_kind.to_string shadowed_item_kind in
       let shadowed_msg =
