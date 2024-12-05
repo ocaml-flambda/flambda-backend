@@ -682,3 +682,38 @@ type t = #{ x : string; y : float#; z : unit; }
 val update_t : t -> unit = <fun>
 - : unit = ()
 |}]
+
+(************************************************************)
+(* Basic tests for construction/projection representability *)
+
+type ('a : any) t = #{ x : int; y : 'a }
+[%%expect{|
+type ('a : value_or_null) t = #{ x : int; y : 'a; }
+|}]
+
+(* CR layouts v7.2: once we allow record declarations with unknown kind
+   (right now, ['a] in the decl above is defaulted to value), then this should
+   give an error saying that record projections must be representable. *)
+let f : ('a : any). 'a t -> 'a = fun t -> t.#y
+[%%expect{|
+Line 1, characters 8-30:
+1 | let f : ('a : any). 'a t -> 'a = fun t -> t.#y
+            ^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind value_or_null
+         because of the definition of t at line 1, characters 0-40.
+|}]
+
+(* CR layouts v7.2: once we allow record declarations with unknown kind
+   (right now, ['a] in the decl above is defaulted to value), then this should
+   give an error saying that record constructions must be representable.
+*)
+let f : ('a : any). 'a -> 'a t = fun a -> #{ x = 1; y = a }
+[%%expect{|
+Line 1, characters 8-30:
+1 | let f : ('a : any). 'a -> 'a t = fun a -> #{ x = 1; y = a }
+            ^^^^^^^^^^^^^^^^^^^^^^
+Error: The universal type variable 'a was declared to have kind any.
+       But it was inferred to have kind value_or_null
+         because of the definition of t at line 1, characters 0-40.
+|}]

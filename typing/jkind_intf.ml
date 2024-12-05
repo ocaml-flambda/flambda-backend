@@ -189,6 +189,7 @@ module History = struct
     | Label_declaration of Ident.t
     | Record_projection
     | Record_assignment
+    | Record_construction
     | Let_binding
     | Function_argument
     | Function_result

@@ -267,6 +267,8 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Record_projection_not_rep of type_expr * Jkind.Violation.t
+  | Record_not_rep of type_expr * Jkind.Violation.t
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
   | Cannot_stack_allocate of Env.locality_context option
@@ -5456,13 +5458,15 @@ and type_expect_
           let opt_exp = match opt_exp with
             | None -> None
             | Some (exp, _) ->
-              let jkind =
-                Jkind.Builtin.product ~why:Unboxed_record
-                  (Array.map (fun lbl -> lbl.lbl_jkind) label_descriptions
-                   |> Array.to_list)
+              let sort =
+                Ctype.type_sort ~why:Record_construction ~fixed:false
+                  env ty_expected
               in
-              let sort = Jkind.sort_of_jkind jkind in
-              Some (exp, sort)
+              match sort with
+              | Ok sort -> Some (exp, sort)
+              | Error err ->
+                raise
+                  (Error (loc, env, Record_not_rep(ty_expected, err)))
           in
           Texp_record_unboxed_product {
             fields; representation;
@@ -5953,11 +5957,13 @@ and type_expect_
         fatal_error
           "Typecore.type_expect_: unboxed record labels are never mutable";
       let record_sort =
-        let jkinds =
-          Array.map (fun lbl -> lbl.lbl_jkind) label.lbl_all |> Array.to_list
-        in
-        let record_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
-        Jkind.sort_of_jkind record_jkind
+        Ctype.type_sort ~why:Record_projection ~fixed:false env record.exp_type
+      in
+      let record_sort = match record_sort with
+        | Ok sort -> sort
+        | Error err ->
+          raise
+            (Error (loc, env, Record_projection_not_rep(record.exp_type, err)))
       in
       let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let mode = mode_cross_left_value env ty_arg mode in
@@ -10643,6 +10649,16 @@ let report_error ~loc env = function
   | Function_type_not_rep (ty,violation) ->
       Location.errorf ~loc
         "@[Function arguments and returns must be representable.@]@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Record_projection_not_rep (ty,violation) ->
+      Location.errorf ~loc
+        "@[Record projections must be representable.@]@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Record_not_rep (ty,violation) ->
+      Location.errorf ~loc
+        "@[Record expressions must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Invalid_label_for_src_pos arg_label ->

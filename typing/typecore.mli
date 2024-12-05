@@ -313,6 +313,8 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Record_projection_not_rep of type_expr * Jkind.Violation.t
+  | Record_not_rep of type_expr * Jkind.Violation.t
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
   | Cannot_stack_allocate of Env.locality_context option
