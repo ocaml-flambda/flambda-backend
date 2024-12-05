@@ -2103,14 +2103,15 @@ let unbox_once env ty =
           Misc.fatal_error "Ctype.unbox_once"
         | Type_record_unboxed_product ((_::_::_ as lbls), Record_unboxed_product) ->
           Stepped_record_unboxed_product (List.map (fun ld -> apply ld.ld_type) lbls)
-        | _ -> Final_result
+        | Type_record_unboxed_product ([], _) ->
+          Misc.fatal_error "Ctype.unboxed_once: fieldless record"
+        | Type_abstract _ | Type_record _ | Type_variant _ | Type_open ->
+          Final_result
         end
       end
     end
   | Tpoly (ty, _) -> Stepped ty
-  | Tvar _ | Tarrow _ | Ttuple _ | Tunboxed_tuple _ | Tobject _ | Tfield _
-  | Tnil | Tlink _ | Tsubst _ | Tvariant _ | Tunivar _ | Tpackage _ ->
-    Final_result
+  | _ -> Final_result
 
 (* We use ty_prev to track the last type for which we found a definition,
    allowing us to return a type for which a definition was found even if

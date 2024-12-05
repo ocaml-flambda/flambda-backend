@@ -39,7 +39,7 @@ Line 3, characters 4-5:
 3 |   | _ -> .
         ^
 Error: This match case could not be refuted.
-       Here is an example of a value that would reach it: "{ _ }"
+       Here is an example of a value that would reach it: "#{ _ }"
 |}]
 
 (* Unboxed records are not subject to the mixed-block restriction *)

@@ -699,13 +699,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_unboxed_field(arg, arg_sort, _id, lbl, _) ->
     begin match lbl.lbl_repres with
     | Record_unboxed_product ->
-      let layouts, _jkinds =
-        Array.map (fun lbl ->
-          layout e.exp_env lbl.lbl_loc (Jkind.sort_of_jkind lbl.lbl_jkind) lbl.lbl_arg,
-          lbl.lbl_jkind
-        ) lbl.lbl_all
-        |> Array.to_list |> List.split
+      let lbl_layout l =
+        layout e.exp_env l.lbl_loc (Jkind.sort_of_jkind l.lbl_jkind) l.lbl_arg
       in
+      let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
       let targ = transl_exp ~scopes arg_sort arg in
       if Array.length lbl.lbl_all == 1 then
         (* erase singleton unboxed records before lambda *)

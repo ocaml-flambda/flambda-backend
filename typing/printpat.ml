@@ -64,15 +64,15 @@ let rec pretty_val : type k . _ -> k general_pattern -> _ = fun ppf v ->
         (function
           | (_,_,{pat_desc=Tpat_any}) -> false (* do not show lbl=_ *)
           | _ -> true) lvs in
+    let hash = if unboxed then "#" else "" in
     begin match filtered_lvs with
-    | [] -> fprintf ppf "{ _ }"
+    | [] -> fprintf ppf "%s{ _ }" hash
     | (_, lbl, _) :: q ->
         let elision_mark ppf =
           (* we assume that there is no label repetitions here *)
             if Array.length lbl.lbl_all > 1 + List.length q then
               fprintf ppf ";@ _@ "
             else () in
-        let hash = if unboxed then "#" else "" in
         fprintf ppf "@[%s{%a%t}@]"
           hash pretty_lvals filtered_lvs elision_mark
     end
