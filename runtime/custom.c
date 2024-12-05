@@ -120,7 +120,8 @@ CAMLexport value caml_alloc_custom_local(const struct custom_operations * ops,
   if (ops->finalize != NULL)
     caml_invalid_argument("alloc_custom_local: finalizers not supported");
 
-   return caml_alloc_custom(ops, bsz, mem, max);
+  // XXX: actually do a local alloc
+  return caml_alloc_custom(ops, bsz, mem, max);
 }
 
 CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
