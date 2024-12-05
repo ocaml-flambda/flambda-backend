@@ -27,14 +27,12 @@ let rng = Random.State.make [| int_size |]
 
 (** sparse test cases, concentrated around 0 and the endpoints *)
 let test_cases =
-  ListLabels.init ~len:int_size ~f:(fun width ->
-      let rand () =
-        let min = if width = 0 then 0 else 1 lsl (width - 1) in
-        let max = (1 lsl width) - 1 in
-        Random.State.int_in_range rng ~min ~max
-      in
-      [rand (); lnot (rand ()); max_int - rand (); lnot (max_int - rand ())])
-  |> ListLabels.concat
+  ListLabels.init ~len:int_size ~f:(fun w -> 1 lsl w)
+  |> ListLabels.concat_map ~f:(fun bit ->
+         let rand () =
+           Random.State.int_in_range rng ~min:(bit lsr 1) ~max:(bit - 1)
+         in
+         [rand (); lnot (rand ()); max_int - rand (); lnot (max_int - rand ())])
   |> ListLabels.sort_uniq ~cmp:Int.compare
 
 let test1 f = ListLabels.iter test_cases ~f
@@ -46,11 +44,10 @@ let test_round_trip () =
     let hi = hi lsl int_size in
     assert (lo == to_int (of_int (hi lxor lo)))
   in
-  test1 (fun lo ->
-      test1 (fun hi ->
-          (* generate test cases with different hi bits *)
-          test hi lo;
-          test (Random.bits ()) lo))
+  test2 (fun hi lo ->
+      (* generate test cases with different hi bits *)
+      test hi lo;
+      test (Random.bits ()) lo)
 
 let equal_arith x i = x == of_int i
 
@@ -85,6 +82,7 @@ let test_logical1 = test_conv1 ~equal:equal_logical
 let test_logical2 = test_conv2 ~equal:equal_logical
 
 let () =
+  test_round_trip ();
   assert (to_int 0w = 0);
   assert (to_int 1w = 1);
   assert (to_int (-1w) = -1);
