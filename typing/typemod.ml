@@ -1037,6 +1037,37 @@ let check_no_modal_modules ~env modes =
   | None -> ()
   | Some loc -> raise(Error(loc, env, Modal_module_not_supported))
 
+let apply_pmd_modalities env sig_modalities pmd_modalities mty =
+  let modalities =
+    match pmd_modalities with
+    | [] -> sig_modalities
+    | _ :: _ ->
+      Typemode.transl_modalities ~maturity:Alpha Immutable [] pmd_modalities
+  in
+  (*
+  Workaround for pmd_modalities
+
+  Let [f] be the mapping representing [pmd_modalities].
+
+  In the future with proper modal modules, let [m] be the mode of the enclosing
+  structure. This module will be of mode [f m], and a value inside the module
+  will of mode [g (f m)] where [g] is the modalities on the value. Note that [m]
+  itself is of the form [f0 (f1 .. (fn legacy))] where [legacy] is the mode of
+  the file-level structure, and [fi] is the sequence of [pmd_modalities] that
+  corresponds to the enclosing structure nested inside layers of structures.
+  Therefore, the aforementioned value will be of mode
+  [g (f (f0 (f1 .. (fn legacy))))].
+
+  Currently, all modules are legacy. To simulate the above effect, we apply each
+  [pmd_modalities] of a structure deeply to all [val_modalities] in that
+  structure.
+
+  We still don't support [pmd_modalities] on functors.
+  *)
+  match Mode.Modality.Value.Const.is_id modalities with
+  | true -> mty
+  | false -> apply_modalities_module_type env modalities mty
+
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
    type AST.  Retain only module, type, and module type
@@ -1718,11 +1749,6 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 and transl_signature env {psg_items; psg_modalities; psg_loc} =
   let names = Signature_names.create () in
 
-  let has_sig_modalities =
-    match psg_modalities with
-    | [] -> false
-    | _ :: _ -> true
-  in
   let sig_modalities =
       Typemode.transl_modalities ~maturity:Alpha Immutable [] psg_modalities
   in
@@ -1746,14 +1772,14 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let has_modalities, modalities =
+    let modalities =
       match modalities with
-      | [] -> has_sig_modalities, sig_modalities
+      | [] -> sig_modalities
       | _ ->
-        true, Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+        Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
     in
     let sg =
-      if has_modalities then
+      if not @@ Mode.Modality.Value.Const.is_id modalities then
         let recursive =
           not @@ Builtin_attributes.has_attribute "no_recursive_modalities"
             sincl.pincl_attributes
@@ -1856,6 +1882,10 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           Builtin_attributes.warning_scope pmd.pmd_attributes
             (fun () -> transl_modtype env pmd.pmd_type)
         in
+        let mty_type =
+          apply_pmd_modalities env sig_modalities pmd.pmd_modalities tmty.mty_type
+        in
+        let tmty = {tmty with mty_type} in
         let pres =
           match tmty.mty_type with
           | Mty_alias _ -> Mp_absent
@@ -1931,7 +1961,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
         sig_item, [], newenv
     | Psig_recmodule sdecls ->
         let (tdecls, newenv) =
-          transl_recmodule_modtypes env sdecls in
+          transl_recmodule_modtypes env sig_modalities sdecls in
         let decls =
           List.filter_map (fun (md, uid, _) ->
             match md.md_id with
@@ -2096,7 +2126,7 @@ and transl_modtype_decl_aux env
   in
   newenv, mtd, decl
 
-and transl_recmodule_modtypes env sdecls =
+and transl_recmodule_modtypes env sig_modalities sdecls =
   let make_env curr =
     List.fold_left (fun env (id_shape, _, md, _) ->
       Option.fold ~none:env ~some:(fun (id, shape) ->
@@ -2112,6 +2142,10 @@ and transl_recmodule_modtypes env sdecls =
           Builtin_attributes.warning_scope pmd.pmd_attributes
             (fun () -> transl_modtype env_c pmd.pmd_type)
         in
+        let mty_type =
+          apply_pmd_modalities env sig_modalities pmd.pmd_modalities tmty.mty_type
+        in
+        let tmty = {tmty with mty_type} in
         let md = { md with Types.md_type = tmty.mty_type } in
         (id_shape, id_loc, md, tmty))
       sdecls curr in
@@ -2139,8 +2173,12 @@ and transl_recmodule_modtypes env sdecls =
     List.map2
       (fun id pmd ->
          let md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
+         let md_type =
+          approx_modtype approx_env pmd.pmd_type
+          |> apply_pmd_modalities env sig_modalities pmd.pmd_modalities
+         in
          let md =
-           { md_type = approx_modtype approx_env pmd.pmd_type;
+           { md_type;
              md_loc = pmd.pmd_loc;
              md_attributes = pmd.pmd_attributes;
              md_uid }
@@ -3200,7 +3238,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             sbind
         in
         let (decls, newenv) =
-          transl_recmodule_modtypes env
+          transl_recmodule_modtypes env Mode.Modality.Value.Const.id
             (List.map (fun (name, smty, _smodl, attrs, loc) ->
                  {pmd_name=name; pmd_type=smty;
                   pmd_attributes=attrs; pmd_loc=loc; pmd_modalities=[]}) sbind

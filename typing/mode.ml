@@ -2211,6 +2211,8 @@ module Modality = struct
 
       let id = Join_const Mode.Const.min
 
+      let is_id t = t = id
+
       let max = Join_const Mode.Const.max
 
       let sub left right : (_, error) Result.t =
@@ -2352,6 +2354,8 @@ module Modality = struct
 
       let id = Meet_const Mode.Const.max
 
+      let is_id t = t = id
+
       let max = Meet_const Mode.Const.max
 
       let sub left right : (_, error) Result.t =
@@ -2481,6 +2485,9 @@ module Modality = struct
       type t = (Monadic.t, Comonadic.t) monadic_comonadic
 
       let id = { monadic = Monadic.id; comonadic = Comonadic.id }
+
+      let is_id { monadic; comonadic } =
+        Monadic.is_id monadic && Comonadic.is_id comonadic
 
       let sub t0 t1 : (unit, error) Result.t =
         match Monadic.sub t0.monadic t1.monadic with
