@@ -26,6 +26,7 @@
      out-of-heap pointers may not point to odd addresses.
 
    A valid value is either:
+   - a null pointer
    - a tagged integer (Is_long)
    - a pointer to the minor heap
    - a pointer to a well-formed block outside the minor heap. It may be in the
