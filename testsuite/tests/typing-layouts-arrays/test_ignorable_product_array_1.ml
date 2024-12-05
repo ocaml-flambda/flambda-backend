@@ -9,6 +9,10 @@
    flags = "-extension layouts_beta";
    bytecode;
  }
+ {
+   flags = "-extension layouts_beta";
+   native;
+ }
 *)
 
 open Gen_product_array_helpers
