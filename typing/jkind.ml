@@ -210,6 +210,9 @@ module Layout = struct
     | Sort s1, Sort s2 ->
       sort_equal_result ~allow_mutation (Sort.equate_tracking_mutation s1 s2)
     | Product ts, Sort sort | Sort sort, Product ts -> (
+      (* If [ts] can't be turned into a product sort -- because it has [any]
+         -- then equality will surely fail. No need to create new sort
+         variables here. *)
       match to_product_sort ts with
       | None -> false
       | Some sort' ->
@@ -231,6 +234,10 @@ module Layout = struct
       then Misc.Le_result.combine_list (List.map2 sub ts1 ts2)
       else Not_le
     | Product ts1, Sort s2 -> (
+      (* This case could use [to_product_sort] because every component will need
+         to end up less than a sort (so, no [any]), but it seems easier to keep
+         this case lined up with the inverse case, which definitely cannot use
+         [to_product_sort]. *)
       match Sort.decompose_into_product s2 (List.length ts1) with
       | None -> Not_le
       | Some ss2 ->
