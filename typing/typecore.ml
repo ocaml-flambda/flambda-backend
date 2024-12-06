@@ -227,7 +227,7 @@ type error =
   | Probe_is_enabled_format
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
-  | Unknown_literal of string * char
+  | Unknown_literal of string * string
   | Int8_literal of string
   | Int16_literal of string
   | Float32_literal of string
@@ -711,17 +711,17 @@ type constant_integer_error =
 let constant_integer i ~suffix :
     (constant_integer_result, constant_integer_error) result =
   match suffix with
-  | 'l' ->
+  | "l" ->
     begin
       try Ok (Int32 (Misc.Int_literal_converter.int32 i))
       with Failure _ -> Error Int32_literal_overflow
     end
-  | 'L' ->
+  | "L" ->
     begin
       try Ok (Int64 (Misc.Int_literal_converter.int64 i))
       with Failure _ -> Error Int64_literal_overflow
     end
-  | 'n' ->
+  | "n" ->
     begin
       try Ok (Nativeint (Misc.Int_literal_converter.nativeint i))
       with Failure _ -> Error Nativeint_literal_overflow
@@ -730,7 +730,7 @@ let constant_integer i ~suffix :
 
 let constant : Parsetree.constant -> (Typedtree.constant, error) result =
   function
-  | Pconst_integer (i, Some 'y') ->
+  | Pconst_integer (i, "i8") ->
     if not (Language_extension.is_at_least Small_numbers Language_extension.Beta)
     then Error (Int8_literal i)
     else
@@ -739,7 +739,7 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
         | i when -0x80 <= i && i < 0x80 -> Ok (Const_int8 i)
         | _ | exception Failure _ -> Error (Literal_overflow "int8")
       end
-  | Pconst_integer (i, Some 'w') ->
+  | Pconst_integer (i, "i16") ->
     if not (Language_extension.is_at_least Small_numbers Language_extension.Beta)
     then Error (Int16_literal i)
     else
@@ -748,7 +748,12 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
       | i when -0x8000 <= i && i < 0x8000 -> Ok (Const_int16 i)
       | _ | exception Failure _ -> Error (Literal_overflow "int16")
     end
-  | Pconst_integer (i, Some suffix) ->
+  | Pconst_integer (i,"") ->
+    begin
+      try Ok (Const_int (Misc.Int_literal_converter.int i))
+      with Failure _ -> Error (Literal_overflow "int")
+    end
+  | Pconst_integer (i, suffix) ->
     begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_int32 v)
       | Ok (Int64 v) -> Ok (Const_int64 v)
@@ -758,25 +763,20 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
       | Error Nativeint_literal_overflow -> Error (Literal_overflow "nativeint")
       | Error Unknown_constant_literal -> Error (Unknown_literal (i, suffix))
     end
-  | Pconst_integer (i,None) ->
-     begin
-       try Ok (Const_int (Misc.Int_literal_converter.int i))
-       with Failure _ -> Error (Literal_overflow "int")
-     end
   | Pconst_char c -> Ok (Const_char c)
   | Pconst_string (s,loc,d) -> Ok (Const_string (s,loc,d))
-  | Pconst_float (f,None)-> Ok (Const_float f)
-  | Pconst_float (f,Some 's') ->
+  | Pconst_float (f,"")-> Ok (Const_float f)
+  | Pconst_float (f,"s") ->
     if Language_extension.is_enabled Small_numbers then Ok (Const_float32 f)
     else Error (Float32_literal f)
-  | Pconst_float (f,Some c) -> Error (Unknown_literal (f, c))
-  | Pconst_unboxed_float (f, None) ->
+  | Pconst_float (f,suffix) -> Error (Unknown_literal (f, suffix))
+  | Pconst_unboxed_float (f, "") ->
       Ok (Const_unboxed_float f)
-  | Pconst_unboxed_float (f, Some 's') ->
+  | Pconst_unboxed_float (f, "s") ->
       if Language_extension.is_enabled Small_numbers then Ok (Const_unboxed_float32 f)
       else Error (Float32_literal (Misc.format_as_unboxed_literal f))
-  | Pconst_unboxed_float (x, Some c) ->
-      Error (Unknown_literal (Misc.format_as_unboxed_literal x, c))
+  | Pconst_unboxed_float (x, s) ->
+      Error (Unknown_literal (Misc.format_as_unboxed_literal x, s))
   | Pconst_unboxed_integer (i, suffix) ->
       begin match constant_integer i ~suffix with
       | Ok (Int32 v) -> Ok (Const_unboxed_int32 v)
@@ -7105,7 +7105,7 @@ and type_format loc str env =
             Some (mk_exp_loc (Pexp_tuple (List.map (fun e -> None, e) args))) in
         mk_exp_loc (Pexp_construct (mk_lid_loc lid, arg)) in
       let mk_cst cst = mk_exp_loc (Pexp_constant cst) in
-      let mk_int n = mk_cst (Pconst_integer (Int.to_string n, None))
+      let mk_int n = mk_cst (Pconst_integer (Int.to_string n, ""))
       and mk_string str = mk_cst (Pconst_string (str, loc, None))
       and mk_char chr = mk_cst (Pconst_char chr) in
       let rec mk_formatting_lit fmting = match fmting with
@@ -10262,9 +10262,9 @@ let report_error ~loc env = function
         "Integer literal exceeds the range of representable integers of type %a"
         Style.inline_code ty
   | Unknown_literal (n, m) ->
-      let pp_lit ppf (n,m) = fprintf ppf "%s%c" n m in
+      let pp_lit ppf (n,m) = fprintf ppf "%s%s" n m in
       Location.errorf ~loc "Unknown modifier %a for literal %a"
-        (Style.as_inline_code pp_print_char) m
+        (Style.as_inline_code pp_print_string) m
         (Style.as_inline_code pp_lit) (n,m)
   | Float32_literal f ->
       Location.errorf ~loc "Found 32-bit float literal %ss, but float32 is not enabled. \

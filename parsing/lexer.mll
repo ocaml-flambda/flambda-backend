@@ -550,7 +550,8 @@ let hex_float_literal =
   ['0'-'9' 'A'-'F' 'a'-'f'] ['0'-'9' 'A'-'F' 'a'-'f' '_']*
   ('.' ['0'-'9' 'A'-'F' 'a'-'f' '_']* )?
   (['p' 'P'] ['+' '-']? ['0'-'9'] ['0'-'9' '_']* )?
-let literal_modifier = ['G'-'Z' 'g'-'z']
+let int_literal_modifier = ['G'-'Z' 'g'-'z']['a'-'z' 'A'-'Z' '0'-'9']*
+let float_literal_modifier = ['a'-'z' 'A'-'Z' '0'-'9']*
 let raw_ident_escape = "\\#"
 
 rule token = parse
@@ -633,17 +634,17 @@ rule token = parse
   | ('#'? as maybe_hash) (int_literal as lit)
       { if at_beginning_of_line lexbuf.lex_start_p && maybe_hash = "#" then
           try directive (Hash_and_line_num { line_num = lit }) lexbuf
-          with Failure _ -> int ~maybe_hash lit None
-        else int ~maybe_hash lit None
+          with Failure _ -> int ~maybe_hash lit ""
+        else int ~maybe_hash lit ""
       }
-  | ('#'? as maybe_hash) (int_literal as lit) (literal_modifier as modif)
-      { int ~maybe_hash lit (Some modif) }
+  | ('#'? as maybe_hash) (int_literal as lit) (int_literal_modifier as modif)
+      { int ~maybe_hash lit modif }
   | ('#'? as maybe_hash)
     (float_literal | hex_float_literal as lit)
-      { float ~maybe_hash lit None }
+      { float ~maybe_hash lit "" }
   | ('#'? as maybe_hash)
-    (float_literal | hex_float_literal as lit) (literal_modifier as modif)
-      { float ~maybe_hash lit (Some modif) }
+    (float_literal | hex_float_literal as lit) (float_literal_modifier as modif)
+      { float ~maybe_hash lit modif }
   | '#'? (float_literal | hex_float_literal | int_literal) identchar+ as invalid
       { error lexbuf (Invalid_literal invalid) }
   | "\""

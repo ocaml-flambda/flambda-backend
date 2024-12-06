@@ -1,9 +1,7 @@
 (* TEST
- flags = "-extension small_numbers";
+ flags = "-extension small_numbers_beta";
  expect;
 *)
-
-(* Operations are tested in tests/small_numbers *)
 
 (* Boxed float32 *)
 

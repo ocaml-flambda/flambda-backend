@@ -494,7 +494,7 @@ let execute_phrase print_outcome ppf phr =
           match d, pdir_arg with
           | Directive_none f, None -> f (); true
           | Directive_string f, Some {pdira_desc = Pdir_string s; _} -> f s; true
-          | Directive_int f, Some {pdira_desc = Pdir_int (n,None); _} ->
+          | Directive_int f, Some {pdira_desc = Pdir_int (n,""); _} ->
              begin match Int_literal_converter.int n with
              | n -> f n; true
              | exception _ ->
@@ -503,7 +503,7 @@ let execute_phrase print_outcome ppf phr =
                        dir_name;
                false
              end
-          | Directive_int _, Some {pdira_desc = Pdir_int (_, Some _); _} ->
+          | Directive_int _, Some {pdira_desc = Pdir_int (_, _); _} ->
               fprintf ppf "Wrong integer literal for directive `%s'.@."
                 dir_name;
               false

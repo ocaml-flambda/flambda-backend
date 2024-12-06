@@ -280,7 +280,7 @@ type error =
   | Probe_is_enabled_format
   | Extension_not_enabled : _ Language_extension.t -> error
   | Literal_overflow of string
-  | Unknown_literal of string * char
+  | Unknown_literal of string * string
   | Int8_literal of string
   | Int16_literal of string
   | Float32_literal of string

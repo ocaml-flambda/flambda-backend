@@ -27,13 +27,14 @@ let rng = Random.State.make [| int_size |]
 
 (** sparse test cases, concentrated around 0 and the endpoints *)
 let test_cases =
-  ListLabels.init ~len:int_size ~f:(fun w -> 1 lsl w)
-  |> ListLabels.concat_map ~f:(fun bit ->
-         let rand () =
-           Random.State.int_in_range rng ~min:(bit lsr 1) ~max:(bit - 1)
-         in
-         [rand (); lnot (rand ()); max_int - rand (); lnot (max_int - rand ())])
-  |> ListLabels.sort_uniq ~cmp:Int.compare
+  let is_even = 1 - (int_size land 1) in
+  List.init (int_size - is_even) (fun size ->
+      let bit = 1 lsl size in
+      let rand () =
+        Random.State.int_in_range rng ~min:(bit lsr 1) ~max:(bit - 1)
+      in
+      [rand (); lnot (rand ()); max_int - rand (); lnot (max_int - rand ())])
+  |> List.concat |> List.sort Int.compare
 
 let test1 f = ListLabels.iter test_cases ~f
 
@@ -83,9 +84,6 @@ let test_logical2 = test_conv2 ~equal:equal_logical
 
 let () =
   test_round_trip ();
-  assert (to_int 0y = 0);
-  assert (to_int 1y = 1);
-  assert (to_int (-1y) = -1);
   assert (to_int Int8.zero == Int.zero);
   assert (to_int Int8.one == Int.one);
   assert (to_int Int8.minus_one == Int.minus_one);
@@ -116,7 +114,7 @@ let () =
   test_conv2 Int8.equal Int.equal ~equal:Bool.equal;
   test_conv2 Int8.compare Int.compare ~equal:Int.equal;
   test_conv1 Int8.to_float Int.to_float ~equal:same_float;
-  assert (Int8.of_float (-0.) = 0y);
+  assert (Int8.of_float (-0.) = Int8.zero);
   test1 (fun x ->
       let f = Int.to_float x in
       assert (equal_logical (Int8.of_float f) x));

@@ -883,13 +883,13 @@ let with_sign sign num =
 
 let unboxed_int sloc int_loc sign (n, m) =
   match m with
-  | Some m -> Pconst_unboxed_integer (with_sign sign n, m)
-  | None ->
+  | "" ->
       if Language_extension.is_enabled unboxed_literals_extension then
         raise
           Syntaxerr.(Error(Missing_unboxed_literal_suffix (make_loc int_loc)))
       else
         not_expecting sloc "line number directive"
+  | _ -> Pconst_unboxed_integer (with_sign sign n, m)
 
 let unboxed_float sign (f, m) = Pconst_unboxed_float (with_sign sign f, m)
 
@@ -948,8 +948,8 @@ let maybe_pmod_constraint mode expr =
 %token EXCLAVE                "exclave_"
 %token EXTERNAL               "external"
 %token FALSE                  "false"
-%token <string * char option> FLOAT       "42.0" (* just an example *)
-%token <string * char option> HASH_FLOAT "#42.0" (* just an example *)
+%token <string * string> FLOAT       "42.0" (* just an example *)
+%token <string * string> HASH_FLOAT "#42.0" (* just an example *)
 %token FOR                    "for"
 %token FUN                    "fun"
 %token FUNCTION               "function"
@@ -974,8 +974,8 @@ let maybe_pmod_constraint mode expr =
 %token <string> ANDOP         "and*" (* just an example *)
 %token INHERIT                "inherit"
 %token INITIALIZER            "initializer"
-%token <string * char option> INT      "42"  (* just an example *)
-%token <string * char option> HASH_INT "#42l" (* just an example *)
+%token <string * string> INT      "42"  (* just an example *)
+%token <string * string> HASH_INT "#42l" (* just an example *)
 %token KIND_ABBREV            "kind_abbrev_"
 %token KIND_OF                "kind_of_"
 %token <string> LABEL         "~label:" (* just an example *)

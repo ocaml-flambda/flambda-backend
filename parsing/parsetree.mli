@@ -23,17 +23,17 @@
 open Asttypes
 
 type constant =
-  | Pconst_integer of string * char option
+  | Pconst_integer of string * string
       (** Integer constants such as [3] [3l] [3L] [3n].
 
-     Suffixes [[g-z][G-Z]] are accepted by the parser.
+     Suffixes [[g-zG-Z][0-9]*] are accepted by the parser.
      Suffixes except ['l'], ['L'] and ['n'] are rejected by the typechecker
   *)
-  | Pconst_unboxed_integer of string * char
+  | Pconst_unboxed_integer of string * string
       (** Integer constants such as [#3] [#3l] [#3L] [#3n].
 
           A suffix [[g-z][G-Z]] is required by the parser.
-          Suffixes except ['l'], ['L'] and ['n'] are rejected by the typechecker
+          Suffixes except ['l'], ['L'] and ['n'] are rejected by the typechecker unless extensions are enabled aft
       *)
   | Pconst_char of char  (** Character such as ['c']. *)
   | Pconst_string of string * Location.t * string option
@@ -42,13 +42,13 @@ type constant =
 
      The location span the content of the string, without the delimiters.
   *)
-  | Pconst_float of string * char option
+  | Pconst_float of string * string
       (** Float constant such as [3.4], [2e5] or [1.4e-4].
 
      Suffixes [g-z][G-Z] are accepted by the parser.
      Suffixes except ['s'] are rejected by the typechecker.
   *)
-  | Pconst_unboxed_float of string * char option
+  | Pconst_unboxed_float of string * string
   (** Float constant such as [#3.4], [#2e5] or [#1.4e-4].
 
       Suffixes [g-z][G-Z] are accepted by the parser.
@@ -1297,6 +1297,6 @@ and directive_argument =
 
 and directive_argument_desc =
   | Pdir_string of string
-  | Pdir_int of string * char option
+  | Pdir_int of string * string
   | Pdir_ident of Longident.t
   | Pdir_bool of bool

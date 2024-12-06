@@ -206,3 +206,43 @@ Line 2, characters 8-13:
             ^^^^^
 Error: Found 32-bit float literal #0.0s, but float32 is not enabled. You must enable -extension small_numbers to use this feature.
 |}];;
+
+let () = ignore 1i8;;
+[%%expect{|
+|}];;
+
+let () = ignore -1i8;;
+[%%expect{|
+|}];;
+
+let () = ignore 0xfffi8;;
+[%%expect{|
+|}];;
+
+let () = ignore -0o7i8;;
+[%%expect{|
+|}];;
+
+let () = ignore -0b1010i8;;
+[%%expect{|
+|}];;
+
+let () = ignore 1i16;;
+[%%expect{|
+|}];;
+
+let () = ignore -1i16;;
+[%%expect{|
+|}];;
+
+let () = ignore 0xfffi16;;
+[%%expect{|
+|}];;
+
+let () = ignore -0o7i16;;
+[%%expect{|
+|}];;
+
+let () = ignore -0b1010i16;;
+[%%expect{|
+|}];;

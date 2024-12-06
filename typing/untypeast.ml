@@ -125,19 +125,19 @@ let rec extract_letop_patterns n pat =
 let constant = function
   | Const_char c -> Pconst_char c
   | Const_string (s,loc,d) -> Pconst_string (s,loc,d)
-  | Const_int i -> Pconst_integer (Int.to_string i, None)
-  | Const_int8 i -> Pconst_integer (Int.to_string i, Some 'y')
-  | Const_int16 i -> Pconst_integer (Int.to_string i, Some 'w')
-  | Const_int32 i -> Pconst_integer (Int32.to_string i, Some 'l')
-  | Const_int64 i -> Pconst_integer (Int64.to_string i, Some 'L')
-  | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, Some 'n')
-  | Const_float f -> Pconst_float (f,None)
-  | Const_float32 f -> Pconst_float (f, Some 's')
-  | Const_unboxed_float f -> Pconst_unboxed_float (f, None)
-  | Const_unboxed_float32 f -> Pconst_unboxed_float (f, Some 's')
-  | Const_unboxed_int32 i -> Pconst_unboxed_integer (Int32.to_string i, 'l')
-  | Const_unboxed_int64 i -> Pconst_unboxed_integer (Int64.to_string i, 'L')
-  | Const_unboxed_nativeint i -> Pconst_unboxed_integer (Nativeint.to_string i, 'n')
+  | Const_int i -> Pconst_integer (Int.to_string i, "")
+  | Const_int8 i -> Pconst_integer (Int.to_string i, "i8")
+  | Const_int16 i -> Pconst_integer (Int.to_string i, "i16")
+  | Const_int32 i -> Pconst_integer (Int32.to_string i, "l")
+  | Const_int64 i -> Pconst_integer (Int64.to_string i, "L")
+  | Const_nativeint i -> Pconst_integer (Nativeint.to_string i, "n")
+  | Const_float f -> Pconst_float (f,"")
+  | Const_float32 f -> Pconst_float (f, "s")
+  | Const_unboxed_float f -> Pconst_unboxed_float (f, "")
+  | Const_unboxed_float32 f -> Pconst_unboxed_float (f, "s")
+  | Const_unboxed_int32 i -> Pconst_unboxed_integer (Int32.to_string i, "l")
+  | Const_unboxed_int64 i -> Pconst_unboxed_integer (Int64.to_string i, "L")
+  | Const_unboxed_nativeint i -> Pconst_unboxed_integer (Nativeint.to_string i, "n")
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;

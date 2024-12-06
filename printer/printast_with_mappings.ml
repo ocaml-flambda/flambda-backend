@@ -60,23 +60,19 @@ let fmt_str_opt_loc f (x : string option loc) =
   fprintf f "\"%s\" %a" (Option.value x.txt ~default:"_") fmt_location x.loc;
 ;;
 
-let fmt_char_option f = function
-  | None -> fprintf f "None"
-  | Some c -> fprintf f "Some %c" c
-
 let fmt_constant f x =
   match x with
-  | Pconst_integer (i,m) -> fprintf f "PConst_int (%s,%a)" i fmt_char_option m;
+  | Pconst_integer (i,m) -> fprintf f "PConst_int (%s,%s)" i m;
   | Pconst_unboxed_integer (i,m) ->
-      fprintf f "PConst_unboxed_int (%s,%c)" i m;
+      fprintf f "PConst_unboxed_int (%s,%s)" i m;
   | Pconst_char (c) -> fprintf f "PConst_char %02x" (Char.code c);
   | Pconst_string (s, strloc, None) ->
       fprintf f "PConst_string(%S,%a,None)" s fmt_location strloc ;
   | Pconst_string (s, strloc, Some delim) ->
       fprintf f "PConst_string (%S,%a,Some %S)" s fmt_location strloc delim;
-  | Pconst_float (s,m) -> fprintf f "PConst_float (%s,%a)" s fmt_char_option m;
+  | Pconst_float (s,m) -> fprintf f "PConst_float (%s,%s)" s m;
   | Pconst_unboxed_float (s,m) ->
-      fprintf f "PConst_unboxed_float (%s,%a)" s fmt_char_option m;
+      fprintf f "PConst_unboxed_float (%s,%s)" s m;
 ;;
 
 let fmt_mutable_flag f x =
@@ -1204,8 +1200,7 @@ let rec toplevel_phrase i ppf x =
 and directive_argument i ppf x =
   match x.pdira_desc with
   | Pdir_string (s) -> line i ppf "Pdir_string \"%s\"\n" s;
-  | Pdir_int (n, None) -> line i ppf "Pdir_int %s\n" n;
-  | Pdir_int (n, Some m) -> line i ppf "Pdir_int %s%c\n" n m;
+  | Pdir_int (n, m) -> line i ppf "Pdir_int %s%s\n" n m;
   | Pdir_ident (li) -> line i ppf "Pdir_ident %a\n" fmt_longident li;
   | Pdir_bool (b) -> line i ppf "Pdir_bool %s\n" (string_of_bool b);
 ;;

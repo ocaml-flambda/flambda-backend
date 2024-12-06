@@ -206,3 +206,73 @@ Line 2, characters 8-13:
             ^^^^^
 Error: Found 32-bit float literal #0.0s, but float32 is not enabled. You must enable -extension small_numbers to use this feature.
 |}];;
+
+type i8 = int8;;
+[%%expect {|
+|}];;
+
+let () = ignore 10y;;
+[%%expect{|
+|}];;
+
+let () = ignore 1i8;;
+[%%expect{|
+|}];;
+
+let () = ignore -1i8;;
+[%%expect{|
+|}];;
+
+let () = ignore 0xfffi8;;
+[%%expect{|
+|}];;
+
+let () = ignore -0o7i8;;
+[%%expect{|
+|}];;
+
+let () = ignore -0b1010i8;;
+[%%expect{|
+|}];;
+
+let () =
+  match -0xfi8 with
+  | -0xei8 -> ()
+  | 1i8 -> ()
+  | _ -> ()
+
+[%%expect{|
+|}];;
+
+type i16 = int16;;
+[%%expect{|
+|}];;
+
+let () = ignore 1i16;;
+[%%expect{|
+|}];;
+
+let () = ignore -1i16;;
+[%%expect{|
+|}];;
+
+let () = ignore 0xfffi16;;
+[%%expect{|
+|}];;
+
+let () = ignore -0o7i16;;
+[%%expect{|
+|}];;
+
+let () = ignore -0b1010i16;;
+[%%expect{|
+|}];;
+
+let () =
+  match -0xfi16 with
+  | -0xei16 -> ()
+  | 1i16 -> ()
+  | _ -> ()
+
+[%%expect{|
+|}];;

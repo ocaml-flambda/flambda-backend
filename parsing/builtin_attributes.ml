@@ -152,7 +152,7 @@ let string_of_cst = function
   | _ -> None
 
 let int_of_cst = function
-  | Pconst_integer(i, None) -> Some (int_of_string i)
+  | Pconst_integer(i, "") -> Some (int_of_string i)
   | _ -> None
 
 let string_of_payload = function
@@ -724,7 +724,7 @@ let get_optional_payload get_from_exp =
 let get_int_from_exp =
   let open Parsetree in
   function
-    | { pexp_desc = Pexp_constant (Pconst_integer(s, None)) } ->
+    | { pexp_desc = Pexp_constant (Pconst_integer(s, "")) } ->
         begin match Misc.Int_literal_converter.int s with
         | n -> Result.Ok n
         | exception (Failure _) -> Result.Error ()
@@ -759,7 +759,7 @@ let get_id_or_constant_from_exp =
   let open Parsetree in
   function
   | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
-  | { pexp_desc = Pexp_constant (Pconst_integer (s,None)) } -> Result.Ok s
+  | { pexp_desc = Pexp_constant (Pconst_integer (s,"")) } -> Result.Ok s
   | _ -> Result.Error ()
 
 let get_ids_and_constants_from_exp exp =

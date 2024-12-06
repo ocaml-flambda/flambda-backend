@@ -249,20 +249,12 @@ let constant f = function
       pp f "%S" i
   | Pconst_string (i, _, Some delim) ->
       pp f "{%s|%s|%s}" delim i delim
-  | Pconst_integer (i, None) ->
-      paren (first_is '-' i) (fun f -> pp f "%s") f i
-  | Pconst_integer (i, Some m) ->
-      paren (first_is '-' i) (fun f (i, m) -> pp f "%s%c" i m) f (i,m)
-  | Pconst_float (i, None) ->
-      paren (first_is '-' i) (fun f -> pp f "%s") f i
-  | Pconst_float (i, Some m) ->
-      paren (first_is '-' i) (fun f (i,m) -> pp f "%s%c" i m) f (i,m)
-  | Pconst_unboxed_float (x, None) ->
-      paren (first_is '-' x) (fun f -> pp f "%s") f
-        (Misc.format_as_unboxed_literal x)
-  | Pconst_unboxed_float (x, Some suffix)
+  | Pconst_integer (i, m)
+  | Pconst_float (i, m) ->
+      paren (first_is '-' i) (fun f (i,m) -> pp f "%s%s" i m) f (i,m)
+  | Pconst_unboxed_float (x, suffix)
   | Pconst_unboxed_integer (x, suffix) ->
-      paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%c" x suffix) f
+      paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%s" x suffix) f
         (Misc.format_as_unboxed_literal x, suffix)
 
 (* trailing space*)
@@ -2159,8 +2151,7 @@ and tuple_component ctxt f (l,e) =
 and directive_argument f x =
   match x.pdira_desc with
   | Pdir_string (s) -> pp f "@ %S" s
-  | Pdir_int (n, None) -> pp f "@ %s" n
-  | Pdir_int (n, Some m) -> pp f "@ %s%c" n m
+  | Pdir_int (n, m) -> pp f "@ %s%s" n m
   | Pdir_ident (li) -> pp f "@ %a" longident li
   | Pdir_bool (b) -> pp f "@ %s" (string_of_bool b)
 
