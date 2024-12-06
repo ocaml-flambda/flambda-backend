@@ -103,15 +103,15 @@ type t8a = t8 array
 (* Test 4: makearray_dynamic *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] make_vect : ('a : any) . int -> 'a -> 'a array =
+external[@layout_poly] make_vect : ('a : any_non_null) . int -> 'a -> 'a array =
   "%makearray_dynamic"
 
 let f_scannable (x : #(int * float * string)) = make_vect 42 x
 
 let f_ignorable (x : #(float# * int * int64# * bool)) = make_vect 42 x
 [%%expect{|
-external make_vect : ('a : any). int -> 'a -> 'a array = "%makearray_dynamic"
-  [@@layout_poly]
+external make_vect : ('a : any_non_null). int -> 'a -> 'a array
+  = "%makearray_dynamic" [@@layout_poly]
 val f_scannable : #(int * float * string) -> #(int * float * string) array =
   <fun>
 val f_ignorable :
@@ -198,14 +198,15 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 5: array length *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] len : ('a : any) . 'a array -> int =
+external[@layout_poly] len : ('a : any_non_null) . 'a array -> int =
   "%array_length"
 
 let f_scannable (x : #(int * float * string) array) = len x
 
 let f_ignorable (x : #(float# * int * int64# * bool) array) = len x
 [%%expect{|
-external len : ('a : any). 'a array -> int = "%array_length" [@@layout_poly]
+external len : ('a : any_non_null). 'a array -> int = "%array_length"
+  [@@layout_poly]
 val f_scannable : #(int * float * string) array -> int = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> int = <fun>
 |}]
@@ -276,13 +277,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 6: safe get *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] get : ('a : any) . 'a array -> int -> 'a =
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int -> 'a =
   "%array_safe_get"
 
 let f_scannable (x : #(int * float * string) array) = get x 42
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x 42
 [%%expect{|
-external get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+external get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
   [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
@@ -369,15 +370,15 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] set :
-  ('a : any) . 'a array -> int -> 'a -> unit = "%array_safe_set"
+  ('a : any_non_null) . 'a array -> int -> 'a -> unit = "%array_safe_set"
 
 let f_scannable (x : #(int * float * string) array) = set x 42 #(1, 2.0, "3")
 
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x 42 #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> int -> 'a -> unit = "%array_safe_set"
-  [@@layout_poly]
+external set : ('a : any_non_null). 'a array -> int -> 'a -> unit
+  = "%array_safe_set" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
 |}]
@@ -463,14 +464,14 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 8: unsafe get *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] get : ('a : any) . 'a array -> int -> 'a =
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int -> 'a =
   "%array_unsafe_get"
 
 let f_scannable (x : #(int * float * string) array) = get x 42
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x 42
 [%%expect{|
-external get : ('a : any). 'a array -> int -> 'a = "%array_unsafe_get"
-  [@@layout_poly]
+external get : ('a : any_non_null). 'a array -> int -> 'a
+  = "%array_unsafe_get" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
 val f_ignorable :
@@ -557,14 +558,14 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] set :
-  ('a : any) . 'a array -> int -> 'a -> unit = "%array_unsafe_set"
+  ('a : any_non_null) . 'a array -> int -> 'a -> unit = "%array_unsafe_set"
 
 let f_scannable (x : #(int * float * string) array) = set x 42 #(1, 2.0, "3")
 
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x 42 #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> int -> 'a -> unit
+external set : ('a : any_non_null). 'a array -> int -> 'a -> unit
   = "%array_unsafe_set" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -651,13 +652,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 10: safe get indexed by int64# *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] get : ('a : any) . 'a array -> int64# -> 'a =
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int64# -> 'a =
   "%array_safe_get_indexed_by_int64#"
 
 let f_scannable (x : #(int * float * string) array) = get x #42L
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42L
 [%%expect{|
-external get : ('a : any). 'a array -> int64# -> 'a
+external get : ('a : any_non_null). 'a array -> int64# -> 'a
   = "%array_safe_get_indexed_by_int64#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
@@ -747,7 +748,7 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] set :
-  ('a : any) . 'a array -> int64# -> 'a -> unit =
+  ('a : any_non_null) . 'a array -> int64# -> 'a -> unit =
   "%array_safe_set_indexed_by_int64#"
 
 let f_scannable (x : #(int * float * string) array) = set x #42L #(1, 2.0, "3")
@@ -755,7 +756,7 @@ let f_scannable (x : #(int * float * string) array) = set x #42L #(1, 2.0, "3")
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x #42L #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> int64# -> 'a -> unit
+external set : ('a : any_non_null). 'a array -> int64# -> 'a -> unit
   = "%array_safe_set_indexed_by_int64#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -844,13 +845,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 12: unsafe get indexed by int64# *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] get : ('a : any) . 'a array -> int64# -> 'a =
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int64# -> 'a =
   "%array_unsafe_get_indexed_by_int64#"
 
 let f_scannable (x : #(int * float * string) array) = get x #42L
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42L
 [%%expect{|
-external get : ('a : any). 'a array -> int64# -> 'a
+external get : ('a : any_non_null). 'a array -> int64# -> 'a
   = "%array_unsafe_get_indexed_by_int64#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
@@ -939,7 +940,7 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 13: unsafe set indexed by int64# *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] set : ('a : any) . 'a array -> int64# -> 'a -> unit =
+external[@layout_poly] set : ('a : any_non_null) . 'a array -> int64# -> 'a -> unit =
   "%array_unsafe_set_indexed_by_int64#"
 
 let f_scannable (x : #(int * float * string) array) = set x #42L #(1, 2.0, "3")
@@ -947,7 +948,7 @@ let f_scannable (x : #(int * float * string) array) = set x #42L #(1, 2.0, "3")
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x #42L #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> int64# -> 'a -> unit
+external set : ('a : any_non_null). 'a array -> int64# -> 'a -> unit
   = "%array_unsafe_set_indexed_by_int64#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -1036,13 +1037,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 14: safe get indexed by int32# *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] get : ('a : any) . 'a array -> int32# -> 'a =
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int32# -> 'a =
   "%array_safe_get_indexed_by_int32#"
 
 let f_scannable (x : #(int * float * string) array) = get x #42l
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42l
 [%%expect{|
-external get : ('a : any). 'a array -> int32# -> 'a
+external get : ('a : any_non_null). 'a array -> int32# -> 'a
   = "%array_safe_get_indexed_by_int32#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
@@ -1132,7 +1133,7 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] set :
-  ('a : any) . 'a array -> int32# -> 'a -> unit =
+  ('a : any_non_null) . 'a array -> int32# -> 'a -> unit =
   "%array_safe_set_indexed_by_int32#"
 
 let f_scannable (x : #(int * float * string) array) = set x #42l #(1, 2.0, "3")
@@ -1140,7 +1141,7 @@ let f_scannable (x : #(int * float * string) array) = set x #42l #(1, 2.0, "3")
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x #42l #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> int32# -> 'a -> unit
+external set : ('a : any_non_null). 'a array -> int32# -> 'a -> unit
   = "%array_safe_set_indexed_by_int32#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -1229,13 +1230,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 (* Test 16: unsafe get indexed by int32# *)
 
 (* An array poly version works at valid product layouts. *)
-external[@layout_poly] get : ('a : any) . 'a array -> int32# -> 'a =
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int32# -> 'a =
   "%array_unsafe_get_indexed_by_int32#"
 
 let f_scannable (x : #(int * float * string) array) = get x #42l
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42l
 [%%expect{|
-external get : ('a : any). 'a array -> int32# -> 'a
+external get : ('a : any_non_null). 'a array -> int32# -> 'a
   = "%array_unsafe_get_indexed_by_int32#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
@@ -1325,7 +1326,7 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] set :
-  ('a : any) . 'a array -> int32# -> 'a -> unit =
+  ('a : any_non_null) . 'a array -> int32# -> 'a -> unit =
   "%array_unsafe_set_indexed_by_int32#"
 
 let f_scannable (x : #(int * float * string) array) = set x #42l #(1, 2.0, "3")
@@ -1333,7 +1334,7 @@ let f_scannable (x : #(int * float * string) array) = set x #42l #(1, 2.0, "3")
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x #42l #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> int32# -> 'a -> unit
+external set : ('a : any_non_null). 'a array -> int32# -> 'a -> unit
   = "%array_unsafe_set_indexed_by_int32#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -1423,13 +1424,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] get :
-  ('a : any) . 'a array -> nativeint# -> 'a =
+  ('a : any_non_null) . 'a array -> nativeint# -> 'a =
   "%array_safe_get_indexed_by_nativeint#"
 
 let f_scannable (x : #(int * float * string) array) = get x #42n
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42n
 [%%expect{|
-external get : ('a : any). 'a array -> nativeint# -> 'a
+external get : ('a : any_non_null). 'a array -> nativeint# -> 'a
   = "%array_safe_get_indexed_by_nativeint#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
@@ -1522,7 +1523,7 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] set :
-  ('a : any) . 'a array -> nativeint# -> 'a -> unit =
+  ('a : any_non_null) . 'a array -> nativeint# -> 'a -> unit =
   "%array_safe_set_indexed_by_nativeint#"
 
 let f_scannable (x : #(int * float * string) array) = set x #42n #(1, 2.0, "3")
@@ -1530,7 +1531,7 @@ let f_scannable (x : #(int * float * string) array) = set x #42n #(1, 2.0, "3")
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x #42n #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> nativeint# -> 'a -> unit
+external set : ('a : any_non_null). 'a array -> nativeint# -> 'a -> unit
   = "%array_safe_set_indexed_by_nativeint#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -1622,13 +1623,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] get :
-  ('a : any) . 'a array -> nativeint# -> 'a =
+  ('a : any_non_null) . 'a array -> nativeint# -> 'a =
   "%array_unsafe_get_indexed_by_nativeint#"
 
 let f_scannable (x : #(int * float * string) array) = get x #42n
 let f_ignorable (x : #(float# * int * int64# * bool) array) = get x #42n
 [%%expect{|
-external get : ('a : any). 'a array -> nativeint# -> 'a
+external get : ('a : any_non_null). 'a array -> nativeint# -> 'a
   = "%array_unsafe_get_indexed_by_nativeint#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> #(int * float * string) =
   <fun>
@@ -1721,7 +1722,7 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] set :
-  ('a : any) . 'a array -> nativeint# -> 'a -> unit =
+  ('a : any_non_null) . 'a array -> nativeint# -> 'a -> unit =
   "%array_unsafe_set_indexed_by_nativeint#"
 
 let f_scannable (x : #(int * float * string) array) = set x #42n #(1, 2.0, "3")
@@ -1729,7 +1730,7 @@ let f_scannable (x : #(int * float * string) array) = set x #42n #(1, 2.0, "3")
 let f_ignorable (x : #(float# * int * int64# * bool) array) =
   set x #42n #(#1.0, 2, #3L, true)
 [%%expect{|
-external set : ('a : any). 'a array -> nativeint# -> 'a -> unit
+external set : ('a : any_non_null). 'a array -> nativeint# -> 'a -> unit
   = "%array_unsafe_set_indexed_by_nativeint#" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -1821,14 +1822,15 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* An array poly version works at valid product layouts. *)
 external[@layout_poly] blit :
-  ('a : any) . 'a array -> int -> 'a array -> int -> int -> unit =
+  ('a : any_non_null) . 'a array -> int -> 'a array -> int -> int -> unit =
   "%arrayblit"
 
 let f_scannable (x : #(int * float * string) array) = blit x 0 x 2 3
 
 let f_ignorable (x : #(float# * int * int64# * bool) array) = blit x 0 x 2 3
 [%%expect{|
-external blit : ('a : any). 'a array -> int -> 'a array -> int -> int -> unit
+external blit :
+  ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit
   = "%arrayblit" [@@layout_poly]
 val f_scannable : #(int * float * string) array -> unit = <fun>
 val f_ignorable : #(float# * int * int64# * bool) array -> unit = <fun>
@@ -1921,13 +1923,13 @@ Error: Unboxed vector types are not yet supported in arrays of unboxed
 
 (* These should work like [int] - be allowed in both product arrays. *)
 
-external[@layout_poly] get : ('a : any) . 'a array -> int -> 'a =
+external[@layout_poly] get : ('a : any_non_null) . 'a array -> int -> 'a =
   "%array_safe_get"
 
 let f1 (type a : value mod external_) (x : #(float# * a * int * int64#) array) =
   get x 42
 [%%expect{|
-external get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
+external get : ('a : any_non_null). 'a array -> int -> 'a = "%array_safe_get"
   [@@layout_poly]
 val f1 :
   ('a : value mod external_).
@@ -1952,13 +1954,14 @@ val f2 :
 
 (* CR layouts v7.1: change these tests to be about just "any" once we move to
    product arrays to beta. *)
-external[@layout_poly] len : ('a : any) . 'a array -> int =
+external[@layout_poly] len : ('a : any_non_null) . 'a array -> int =
   "%array_length"
 
-let f_any_1 (type a : any) (x : #(float# * a * int * int64#) array) =
+let f_any_1 (type a : any_non_null) (x : #(float# * a * int * int64#) array) =
   len x
 [%%expect{|
-external len : ('a : any). 'a array -> int = "%array_length" [@@layout_poly]
+external len : ('a : any_non_null). 'a array -> int = "%array_length"
+  [@@layout_poly]
 Line 5, characters 6-7:
 5 |   len x
           ^
@@ -1972,7 +1975,7 @@ Error: This expression has type "#(float# * a * int * int64#) array"
          representable at call sites).
 |}]
 
-let f_any_2 (type a : any) (x : #(string * a * bool option) array) =
+let f_any_2 (type a : any_non_null) (x : #(string * a * bool option) array) =
   len x
 [%%expect{|
 Line 2, characters 6-7:
@@ -1988,7 +1991,7 @@ Error: This expression has type "#(string * a * bool option) array"
          representable at call sites).
 |}]
 
-let f_any_external_1 (type a : any mod external_)
+let f_any_external_1 (type a : any_non_null mod external_)
       (x : #(float# * a * int * int64#) array) = len x
 [%%expect{|
 Line 2, characters 53-54:
@@ -2004,7 +2007,7 @@ Error: This expression has type "#(float# * a * int * int64#) array"
          representable at call sites).
 |}]
 
-let f_any_external_2 (type a : any mod external_)
+let f_any_external_2 (type a : any_non_null mod external_)
       (x : #(string * a * bool option) array) = len x
 [%%expect{|
 Line 2, characters 52-53:
