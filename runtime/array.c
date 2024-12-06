@@ -406,25 +406,6 @@ CAMLprim value caml_floatarray_create_local(value len)
   return caml_alloc_local (wosize, Double_array_tag);
 }
 
-CAMLprim value caml_floatarray_create_and_initialize(value len, double init)
-{
-  value v = caml_floatarray_create(len);
-  for (mlsize_t i = 0; i < Long_val(len); i++) {
-    Store_double_field(v, i, init);
-  }
-  return v;
-}
-
-CAMLprim value caml_floatarray_create_local_and_initialize(value len,
-  double init)
-{
-  value v = caml_floatarray_create_local(len);
-  for (mlsize_t i = 0; i < Long_val(len); i++) {
-    Store_double_field(v, i, init);
-  }
-  return v;
-}
-
 /* [len] is a [value] representing number of words or floats */
 static value make_vect_gen(value len, value init, int local)
 {
