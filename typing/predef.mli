@@ -31,6 +31,8 @@ val type_iarray: type_expr -> type_expr
 val type_list: type_expr -> type_expr
 val type_option: type_expr -> type_expr
 val type_nativeint: type_expr
+val type_int8: type_expr
+val type_int16: type_expr
 val type_int32: type_expr
 val type_int64: type_expr
 val type_lazy_t: type_expr -> type_expr
@@ -71,6 +73,8 @@ val path_iarray: Path.t
 val path_list: Path.t
 val path_option: Path.t
 val path_nativeint: Path.t
+val path_int8: Path.t
+val path_int16: Path.t
 val path_int32: Path.t
 val path_int64: Path.t
 val path_lazy_t: Path.t

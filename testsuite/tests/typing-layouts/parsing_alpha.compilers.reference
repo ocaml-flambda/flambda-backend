@@ -17,7 +17,7 @@ Line 2, characters 9-13:
 2 | type t = int#;;
              ^^^^
 Error: Unbound type constructor "int#"
-Hint: Did you mean "int"?
+Hint: Did you mean "int" or "int8"?
 Line 2, characters 9-17:
 2 | type t = Float.t#;;
              ^^^^^^^^

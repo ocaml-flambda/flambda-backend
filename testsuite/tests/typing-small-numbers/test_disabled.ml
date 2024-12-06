@@ -206,3 +206,11 @@ Line 2, characters 8-13:
             ^^^^^
 Error: Found 32-bit float literal #0.0s, but float32 is not enabled. You must enable -extension small_numbers to use this feature.
 |}];;
+
+type t = int8;;
+[%%expect{|
+|}];;
+
+type t = int16;;
+[%%expect{|
+|}];;
