@@ -425,8 +425,39 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     makearray_dynamic_non_scannable_unboxed_product env lambda_array_kind mode
       ~length ~init loc
 
-let arrayblit env ~(src_mutability : L.mutable_flag) ~dst_array_set_kind args
-    loc =
+let arrayblit env ~(src_mutability : L.mutable_flag)
+    ~(dst_array_set_kind : L.array_set_kind) args loc =
+  (* ignore src_mutability;
+
+     let name = match dst_array_set_kind with
+
+     | Pgenarray_set _ | Paddrarray_set _ | Pintarray_set |
+     Pgcscannableproductarray_set _ ->
+
+     "caml_array_blit" | Pfloatarray_set | Punboxedfloatarray_set Pfloat64 -> ->
+     "caml_floatarray_blit" | Punboxedfloatarray_set Pfloat32 ->
+     "caml_unboxed_float32_vect_blit" | Punboxedintarray_set Pint32 ->
+     "caml_unboxed_int32_vect_blit" | Punboxedintarray_set Pint64 ->
+     "caml_unboxed_int64_vect_blit" | Punboxedintarray_set Pnativeint ->
+     "caml_unboxed_nativeint_vect_blit" | Punboxedvectorarray_set Pvec128 ->
+     "caml_unboxed_vec128_vect_blit"
+
+     in
+
+     let extcall = Primitive.make ~name ~alloc:true (* the C stub may raise an
+     exception *) ~c_builtin:false ~effects:Arbitrary_effects
+     ~coeffects:Has_coeffects ~native_name:name ~native_repr_args: [
+     Prim_global, L.Same_as_ocaml_repr (Base Value); Prim_global,
+     L.Same_as_ocaml_repr (Base Value); Prim_global, L.Same_as_ocaml_repr (Base
+     Value); Prim_global, L.Same_as_ocaml_repr (Base Value); Prim_global,
+     L.Same_as_ocaml_repr (Base Value)
+
+     ] ~native_repr_res: ( Prim_global, L.Same_as_ocaml_repr (Base Value) )
+     ~is_layout_poly:false in let term = L.Lprim (Pccall extcall, [
+
+     ], loc)
+
+     in env, Transformed term *)
   let src_array_ref_kind =
     L.array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
       dst_array_set_kind ~print_array_set_kind:Printlambda.array_set_kind
@@ -455,10 +486,17 @@ let arrayblit env ~(src_mutability : L.mutable_flag) ~dst_array_set_kind args
     let dst_start_pos_minus_src_start_pos_var =
       Ident.create_local "dst_start_pos_minus_src_start_pos"
     in
-    let env, loop =
+    let must_copy_backwards =
+      L.Lprim (Pintcomp Cgt, [Lvar dst_start_pos; Lvar src_start_pos], loc)
+    in
+    let make_loop env (direction : Asttypes.direction_flag) =
       let src_index = Ident.create_local "index" in
-      rec_catch_for_for_loop env loc src_index (Lvar src_start_pos)
-        src_end_pos_inclusive Upto
+      let start_pos, end_pos =
+        match direction with
+        | Upto -> L.Lvar src_start_pos, src_end_pos_inclusive
+        | Downto -> src_end_pos_inclusive, L.Lvar src_start_pos
+      in
+      rec_catch_for_for_loop env loc src_index start_pos end_pos direction
         (Lprim
            ( Parraysetu (dst_array_set_kind, Ptagged_int_index),
              [ Lvar dst;
@@ -477,6 +515,12 @@ let arrayblit env ~(src_mutability : L.mutable_flag) ~dst_array_set_kind args
                    loc ) ],
              loc ))
     in
+    let env, copy_backwards = make_loop env Downto in
+    let env, copy_forwards = make_loop env Upto in
+    let body =
+      L.Lifthenelse
+        (must_copy_backwards, copy_backwards, copy_forwards, L.layout_unit)
+    in
     let expr =
       (* Preserve right-to-left evaluation order. *)
       bind Strict (length, L.layout_int) length_expr
@@ -486,7 +530,7 @@ let arrayblit env ~(src_mutability : L.mutable_flag) ~dst_array_set_kind args
       @@ bind Strict (src, L.layout_any_value) src_expr
       @@ bind Strict
            (dst_start_pos_minus_src_start_pos_var, L.layout_int)
-           dst_start_pos_minus_src_start_pos loop
+           dst_start_pos_minus_src_start_pos body
     in
     env, Transformed expr
   | _ ->
