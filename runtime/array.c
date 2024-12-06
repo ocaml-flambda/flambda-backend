@@ -470,7 +470,7 @@ CAMLprim value caml_make_local_vect(value len, value init)
 }
 
 CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
-  value v_num_initializers, value v_is_local,
+  value v_num_components, value v_is_local,
   value v_non_unarized_length)
 {
   // Some of this is similar to [caml_make_vect], above.
@@ -479,7 +479,7 @@ CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
   CAMLparam0();
   CAMLlocal1(res);
 
-  mlsize_t num_initializers = Long_val(v_num_initializers);
+  mlsize_t num_components = Long_val(v_num_components);
   int is_local = Bool_val(v_is_local);
   mlsize_t non_unarized_length = Long_val(v_non_unarized_length);
   mlsize_t size;
@@ -498,10 +498,10 @@ CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
   // custom block, and is packed.
   int reserved = Reserved_mixed_block_scannable_wosize_native(0);
 
-  size = non_unarized_length * num_initializers;
+  size = non_unarized_length * num_components;
   if (size == 0) {
     res = Atom(0);
-  } else if (num_initializers < 1) {
+  } else if (num_components < 1) {
     // This could happen with void layouts.  We don't rule it out in
     // [Lambda_to_flambda] since it is in fact ok, if the size is zero.
     caml_invalid_argument(
