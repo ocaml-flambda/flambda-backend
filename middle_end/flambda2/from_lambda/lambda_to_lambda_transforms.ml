@@ -247,7 +247,7 @@ let makearray_dynamic_non_scannable_unboxed_product env
     makearray_dynamic_unboxed_product_c_stub
       ~name:"caml_makearray_dynamic_non_scannable_unboxed_product" mode
   in
-  let num_initializers = L.count_initializers_array_kind lambda_array_kind in
+  let num_components = L.count_initializers_array_kind lambda_array_kind in
   (* Note that we don't check the number of unarized arguments against the
      layout; we trust the front end. If we wanted to do this, it would have to
      be done slightly later, after unarization. *)
@@ -255,7 +255,7 @@ let makearray_dynamic_non_scannable_unboxed_product env
     L.(
       Lprim
         ( Pccall external_call_desc,
-          [Lconst (L.const_int num_initializers); is_local; length],
+          [Lconst (L.const_int num_components); is_local; length],
           loc ))
   in
   match init with
