@@ -1095,6 +1095,12 @@ and expression ctxt f x =
           (expression ctxt) body
     | Pexp_extension e -> extension ctxt f e
     | Pexp_unreachable -> pp f "."
+    | Pexp_overwrite (e1, e2) ->
+        (* Similar to the case of [Pexp_stack] *)
+        pp f "@[<hov2>overwrite_@ %a@ with@ %a@]"
+          (expression2 reset_ctxt) e1
+          (expression2 reset_ctxt) e2
+    | Pexp_hole -> pp f "_"
     | _ -> expression1 ctxt f x
 
 and expression1 ctxt f x =

@@ -472,6 +472,12 @@ and expression i ppf x =
   | Pexp_comprehension c ->
       line i ppf "Pexp_comprehension\n";
       comprehension_expression i ppf c
+  | Pexp_overwrite (e1, e2) ->
+      line i ppf "Pexp_overwrite\n";
+      expression i ppf e1;
+      expression i ppf e2
+  | Pexp_hole ->
+      line i ppf "Pexp_hole"
   )
 
 and comprehension_expression i ppf = function

@@ -1,5 +1,5 @@
 (* TEST
-   flags += "-extension unique_alpha ";
+   flags += "-extension-universe alpha ";
    flags += "-dlambda";
    expect;
 *)
@@ -19,14 +19,15 @@ let aliased_use x = x
 [%%expect{|
 (let (aliased_use/280 = (function {nlocal = 0} x/282 x/282))
   (apply (field_imm 1 (global Toploop!)) "aliased_use" aliased_use/280))
-val aliased_use : 'a -> 'a = <fun>
+val aliased_use : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
 |}]
 
 let unique_use (unique_ x) = x
 [%%expect{|
 (let (unique_use/283 = (function {nlocal = 0} x/285 x/285))
   (apply (field_imm 1 (global Toploop!)) "unique_use" unique_use/283))
-val unique_use : 'a @ unique -> 'a = <fun>
+val unique_use : ('a : value_or_null). 'a @ unique -> 'a @@ global many =
+  <fun>
 |}]
 
 (* This output is fine with overwriting: The [r.y] is not pushed down. *)
@@ -47,7 +48,7 @@ let proj_aliased r =
             (apply aliased_use/280 r/288))
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/290 y/289))))
   (apply (field_imm 1 (global Toploop!)) "proj_aliased" proj_aliased/286))
-val proj_aliased : record -> record * string = <fun>
+val proj_aliased : record -> record * string @@ global many = <fun>
 |}]
 
 let proj_unique r =
@@ -67,7 +68,7 @@ let proj_unique r =
             (apply unique_use/283 r/293))
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/295 y/294))))
   (apply (field_imm 1 (global Toploop!)) "proj_unique" proj_unique/291))
-val proj_unique : record @ unique -> record * string = <fun>
+val proj_unique : record @ unique -> record * string @@ global many = <fun>
 |}]
 
 (* This output would be unsound if [aliased_use] was able to overwrite [r]
@@ -90,7 +91,7 @@ let match_aliased r =
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/300
            (field_imm 1 r/298)))))
   (apply (field_imm 1 (global Toploop!)) "match_aliased" match_aliased/296))
-val match_aliased : record -> record * string = <fun>
+val match_aliased : record -> record * string @@ global many = <fun>
 |}]
 
 (* This is sound since we bind [y] before the [unique_use] *)
@@ -112,7 +113,7 @@ let match_unique r =
             (apply unique_use/283 r/304))
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/306 y/305))))
   (apply (field_imm 1 (global Toploop!)) "match_unique" match_unique/302))
-val match_unique : record @ unique -> record * string = <fun>
+val match_unique : record @ unique -> record * string @@ global many = <fun>
 |}]
 
 (* Similarly, this would be unsound since Lambda performs a mini ANF pass. *)
@@ -138,7 +139,7 @@ let match_mini_anf_aliased r =
            (field_imm 1 r/310)))))
   (apply (field_imm 1 (global Toploop!)) "match_mini_anf_aliased"
     match_mini_anf_aliased/308))
-val match_mini_anf_aliased : record -> record * string = <fun>
+val match_mini_anf_aliased : record -> record * string @@ global many = <fun>
 |}]
 
 (* This is sound since we bind [y] before the [unique_use] *)
@@ -164,7 +165,8 @@ let match_mini_anf_unique r =
          (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/323 y/322))))
   (apply (field_imm 1 (global Toploop!)) "match_mini_anf_unique"
     match_mini_anf_unique/318))
-val match_mini_anf_unique : record @ unique -> record * string = <fun>
+val match_mini_anf_unique : record @ unique -> record * string @@ global many =
+  <fun>
 |}]
 
 let match_anf_aliased r =
@@ -194,7 +196,7 @@ let match_anf_aliased r =
              y/331)))))
   (apply (field_imm 1 (global Toploop!)) "match_anf_aliased"
     match_anf_aliased/328))
-val match_anf_aliased : record -> record * string = <fun>
+val match_anf_aliased : record -> record * string @@ global many = <fun>
 |}]
 
 (* This is sound since we bind [y] using [field_mut] *)
@@ -226,7 +228,8 @@ let match_anf_unique r =
              y/343)))))
   (apply (field_imm 1 (global Toploop!)) "match_anf_unique"
     match_anf_unique/340))
-val match_anf_unique : record @ unique -> record * string = <fun>
+val match_anf_unique : record @ unique -> record * string @@ global many =
+  <fun>
 |}]
 
 type tree =
@@ -322,18 +325,133 @@ let swap_inner (t : tree) =
            (exit 19))
         with (19) t/360)))
   (apply (field_imm 1 (global Toploop!)) "swap_inner" swap_inner/358))
-val swap_inner : tree -> tree = <fun>
+val swap_inner : tree -> tree @@ global many = <fun>
 |}]
 
-(* TODO: Update this test once overwriting is fully implemented.
-let swap_inner (t : tree) =
-  match t with
-  | Node { l = Node { r = lr } as l; r = Node { l = rl } as r } as t ->
-      overwrite_ t with
-        Node { l = overwrite_ l with Node { r = rl; };
-               r = overwrite_ r with Node { l = lr; }}
-  | _ -> t
-[%%expect{|
+(* CR uniqueness: Update this test once overwriting is fully implemented.
+   let swap_inner (t : tree) =
+   match t with
+   | Node { l = Node { r = lr } as l; r = Node { l = rl } as r } as t ->
+   overwrite_ t with
+   Node { l = overwrite_ l with Node { r = rl; };
+   r = overwrite_ r with Node { l = lr; }}
+   | _ -> t
+   [%%expect{|
 
-|}]
+   |}]
 *)
+
+(***********************)
+(* Barriers for guards *)
+
+let match_guard r =
+  match r with
+  | { y } when String.equal y "" ->
+    let r = aliased_use r in
+    (r, y)
+  | { y } ->
+    let r = unique_use r in
+    (r, y)
+[%%expect{|
+(let
+  (unique_use/283 = (apply (field_imm 0 (global Toploop!)) "unique_use")
+   aliased_use/280 = (apply (field_imm 0 (global Toploop!)) "aliased_use")
+   match_guard/376 =
+     (function {nlocal = 0} r/378[(consts ()) (non_consts ([0: *, *]))]
+       [(consts ())
+        (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))], *]))]
+       (let (y/379 =o (field_mut 1 r/378))
+         (if (apply (field_imm 8 (global Stdlib__String!)) y/379 "")
+           (let
+             (r/450 =[(consts ()) (non_consts ([0: *, *]))]
+                (apply aliased_use/280 r/378))
+             (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/450
+               y/379))
+           (let
+             (y/380 =o (field_mut 1 r/378)
+              r/451 =[(consts ()) (non_consts ([0: *, *]))]
+                (apply unique_use/283 r/378))
+             (makeblock 0 ([(consts ()) (non_consts ([0: *, *]))],*) r/451
+               y/380))))))
+  (apply (field_imm 1 (global Toploop!)) "match_guard" match_guard/376))
+val match_guard : record @ unique -> record * string @@ global many = <fun>
+|}]
+
+let match_guard_unique (unique_ r) =
+  match r with
+  | { y } when String.equal ((unique_use r).x) "" -> y
+  | _ -> ""
+[%%expect{|
+Line 3, characters 4-9:
+3 |   | { y } when String.equal ((unique_use r).x) "" -> y
+        ^^^^^
+Error: This value is read from here, but it is already being used as unique:
+Line 3, characters 41-42:
+3 |   | { y } when String.equal ((unique_use r).x) "" -> y
+                                             ^
+
+|}]
+
+(********************************************)
+(* Global allocations in overwritten fields *)
+
+type option_record = { x : string option; y : string option }
+[%%expect{|
+0
+type option_record = { x : string option; y : string option; }
+|}]
+
+let check_heap_alloc_in_overwrite (unique_ r : option_record) =
+  overwrite_ r with { x = Some "" }
+[%%expect{|
+Line 2, characters 2-35:
+2 |   overwrite_ r with { x = Some "" }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]
+
+let check_heap_alloc_in_overwrite (local_ unique_ r : option_record) =
+  overwrite_ r with { x = Some "" }
+[%%expect{|
+Line 2, characters 2-35:
+2 |   overwrite_ r with { x = Some "" }
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]
+
+(*******************************)
+(* Overwrite of mutable fields *)
+
+type mutable_record = { mutable x : string; y : string }
+[%%expect{|
+0
+type mutable_record = { mutable x : string; y : string; }
+|}]
+
+let update (unique_ r : mutable_record) =
+  let x = overwrite_ r with { x = "foo" } in
+  x.x
+[%%expect{|
+Line 2, characters 10-41:
+2 |   let x = overwrite_ r with { x = "foo" } in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]
+
+let update (unique_ r : mutable_record) =
+  let x = overwrite_ r with { y = "foo" } in
+  x.x
+[%%expect{|
+Line 2, characters 10-41:
+2 |   let x = overwrite_ r with { y = "foo" } in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]

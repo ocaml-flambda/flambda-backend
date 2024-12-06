@@ -321,6 +321,8 @@ type error =
   | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
   | Impossible_function_jkind of type_expr * jkind_lr
+  | Overwrite_of_invalid_term
+  | Unexpected_hole
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

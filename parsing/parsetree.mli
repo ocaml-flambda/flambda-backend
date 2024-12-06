@@ -507,6 +507,8 @@ and expression_desc =
           - [BODY] is an expression.
           - [CLAUSES] is a series of [comprehension_clause].
     *)
+  | Pexp_overwrite of expression * expression (** overwrite_ exp with exp *)
+  | Pexp_hole (** _ *)
 
 and case =
     {

@@ -1201,3 +1201,39 @@ Line 2, characters 18-26:
                       ^^^^^^^^
 Error: Mode annotations on modules are not supported yet.
 |}]
+
+(***************)
+(* Overwriting *)
+
+
+let overwrite_tuple = function
+    (a, b) as t -> overwrite_ t with (b, _)
+
+type record = { a : int; b : int }
+
+let overwrite_record = function
+    { a; b } as t -> overwrite_ t with { b = a; a = _ }
+
+let overwrite_record = function
+    { a; b } as t -> overwrite_ t with { b = a }
+
+let ret_record () = { a = 1; b = 2 }
+
+let overwrite_record () =
+  overwrite_ (ret_record ()) with { b = a }
+
+type constructor = C of { a : int; b : int }
+
+let overwrite_constructor = function
+    C { a; b } as t -> overwrite_ t with C { b = a; a = _ }
+
+let overwrite_constructor = function
+    C { a; b } as t -> overwrite_ t with C { b = a }
+[%%expect{|
+Line 2, characters 19-43:
+2 |     (a, b) as t -> overwrite_ t with (b, _)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^
+Alert Translcore: Overwrite not implemented.
+Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+
+|}]

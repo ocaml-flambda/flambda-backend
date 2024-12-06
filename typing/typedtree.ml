@@ -92,9 +92,25 @@ module Unique_barrier = struct
          not traversing the uniqueness analysis. This ensures that the
          unique barriers will stay sound for future extensions. *)
       Uniqueness.Const.legacy
+
+  let print ppf t =
+    let open Format in
+    let print = function
+      | Enabled u -> fprintf ppf "Enabled(%a)" (Mode.Uniqueness.print ()) u
+      | Resolved uc ->
+        fprintf ppf "Resolved(%a)" Mode.Uniqueness.Const.print uc
+      | Not_computed -> fprintf ppf "Not_computed"
+    in
+    print !t
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
+
+let print_unique_use ppf (u,l) =
+  let open Format in
+  fprintf ppf "@[(%a,@ %a)@]"
+    (Mode.Uniqueness.print ()) u
+    (Mode.Linearity.print ()) l
 
 type alloc_mode = {
   mode : Mode.Alloc.r;
@@ -282,6 +298,8 @@ and expression_desc =
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
   | Texp_src_pos
+  | Texp_overwrite of expression * expression
+  | Texp_hole of unique_use
 
 and ident_kind =
   | Id_value

@@ -647,7 +647,13 @@ and expression i ppf x =
       line i ppf "Texp_exclave";
       expression i ppf e;
   | Texp_src_pos ->
-    line i ppf "Texp_src_pos"
+      line i ppf "Texp_src_pos"
+  | Texp_overwrite (e1, e2) ->
+    line i ppf "Texp_overwrite\n";
+    expression i ppf e1;
+    expression i ppf e2
+  | Texp_hole _ ->
+    line i ppf "Texp_hole"
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_ident x.val_id fmt_location

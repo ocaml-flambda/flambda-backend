@@ -8,7 +8,7 @@
    -extension layouts_beta *)
 
 (* First some helper functions *)
-let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
+let unique_id : unique_ 'a -> unique_ 'a = fun x -> x
 [%%expect{|
 val unique_id : 'a @ unique -> 'a @ unique = <fun>
 |}]
@@ -39,9 +39,8 @@ let branching (unique_ x) = unique_ if true then x else x
 val branching : 'a @ unique -> 'a = <fun>
 |}]
 
-(* whether we constrain uniqueness or linearity is irrelavant
-   for testing uniqueness analysis. Therefore, in the rest we
-   will only constrain uniqueness *)
+(* Uniqueness and linearity have similar restrictions on control-flow.
+   Therefore, in the rest we will only constrain uniqueness *)
 let branching (once_ x) = if true then x else x
 [%%expect{|
 val branching : 'a @ once -> 'a @ once = <fun>
@@ -60,7 +59,7 @@ let sequence (unique_ x) = unique_ let y = x in (x, y)
 Line 1, characters 52-53:
 1 | let sequence (unique_ x) = unique_ let y = x in (x, y)
                                                         ^
-Error: This value is used here, but it has already been used as unique:
+Error: This value is used here, but it is already being used as unique:
 Line 1, characters 49-50:
 1 | let sequence (unique_ x) = unique_ let y = x in (x, y)
                                                      ^
@@ -125,7 +124,7 @@ Line 4, characters 35-37:
 4 |   | x :: xs as gs -> (unique_ gs), xs
                                        ^^
 Error: This value is used here,
-       but it is part of a value that has already been used as unique:
+       but it is part of a value that is already being used as unique:
 Line 4, characters 21-33:
 4 |   | x :: xs as gs -> (unique_ gs), xs
                          ^^^^^^^^^^^^
@@ -141,7 +140,7 @@ Line 4, characters 25-35:
 4 |   | x :: xs as gs -> gs, unique_ xs
                              ^^^^^^^^^^
 Error: This value is used here as unique,
-       but it is part of a value that has already been used:
+       but it is part of a value that is already being used:
 Line 4, characters 21-23:
 4 |   | x :: xs as gs -> gs, unique_ xs
                          ^^
@@ -156,7 +155,7 @@ Line 4, characters 35-37:
 4 |   | x :: xs as gs -> (unique_ xs), gs
                                        ^^
 Error: This value is used here,
-       but part of it has already been used as unique:
+       but part of it is already being used as unique:
 Line 4, characters 21-33:
 4 |   | x :: xs as gs -> (unique_ xs), gs
                          ^^^^^^^^^^^^
@@ -171,7 +170,7 @@ Line 4, characters 25-35:
 4 |   | x :: xs as gs -> xs, unique_ gs
                              ^^^^^^^^^^
 Error: This value is used here as unique,
-       but part of it has already been used:
+       but part of it is already being used:
 Line 4, characters 21-23:
 4 |   | x :: xs as gs -> xs, unique_ gs
                          ^^
@@ -240,8 +239,6 @@ Line 4, characters 50-51:
 
 |}]
 
-(* for some reason the following error message is missing "another use". Don't
-know what's wrong *)
 let mark_top_aliased =
   let unique_ xs = 2 :: 3 :: [] in
   match xs with
@@ -385,7 +382,7 @@ Line 3, characters 31-32:
 3 |   | (a, b) as t -> unique_ (a, t)
                                    ^
 Error: This value is used here,
-       but part of it has already been used as unique:
+       but part of it is already being used as unique:
 Line 3, characters 28-29:
 3 |   | (a, b) as t -> unique_ (a, t)
                                 ^
@@ -400,7 +397,7 @@ Line 3, characters 36-37:
 3 |   | ((_, a), b) as t -> unique_ (a, t)
                                         ^
 Error: This value is used here,
-       but part of it has already been used as unique:
+       but part of it is already being used as unique:
 Line 3, characters 33-34:
 3 |   | ((_, a), b) as t -> unique_ (a, t)
                                      ^
@@ -415,7 +412,7 @@ let or_patterns6 flag f x y =
 Line 3, characters 66-67:
 3 |   | true, a, (_, b) | false, b, (_, a) -> (unique_id a, unique_id b)
                                                                       ^
-Error: This value is used here, but it has already been used as unique:
+Error: This value is used here, but it is already being used as unique:
 Line 3, characters 53-54:
 3 |   | true, a, (_, b) | false, b, (_, a) -> (unique_id a, unique_id b)
                                                          ^
@@ -578,7 +575,7 @@ type r_aliased = { x : Value.t; y : Value.t @@ many aliased; }
 let foo () =
   let r = {x = Value.mk (); y = Value.mk ()} in
   ignore (aliased_id r.y);
-  (* the following is allowed, because using r uniquely implies using r.x
+  (* the following is allowed, because using r uniquely implies using r.y
      aliased *)
   ignore (unique_id r)
 [%%expect{|
@@ -664,7 +661,7 @@ let foo () =
   let r = R_aliased (Value.mk (), Value.mk ()) in
   let R_aliased (_, y) = r in
   ignore (aliased_id y);
-  (* the following is allowed, because using r uniquely implies using r.x
+  (* the following is allowed, because using r uniquely implies using r.y
      aliased *)
   ignore (unique_id r)
 [%%expect{|
@@ -743,7 +740,7 @@ Line 4, characters 20-21:
 type r = {x : float; y : float}
 
 (* CR zqian: The following should pass but doesn't, because the uniqueness
-   analysis doesn't support mode crossing. The following involes sequencing the
+   analysis doesn't support mode crossing. The following involves sequencing the
    maybe_unique usage of [r.x] and the maybe_unique usage of [r] as a whole.
    Sequencing them will force both to be aliased and many. The [unique_use] in
    [r.x] is mode-crossed (being an unboxed float) so is fine. The [unique_use]
