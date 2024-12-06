@@ -427,37 +427,6 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
 
 let arrayblit env ~(src_mutability : L.mutable_flag)
     ~(dst_array_set_kind : L.array_set_kind) args loc =
-  (* ignore src_mutability;
-
-     let name = match dst_array_set_kind with
-
-     | Pgenarray_set _ | Paddrarray_set _ | Pintarray_set |
-     Pgcscannableproductarray_set _ ->
-
-     "caml_array_blit" | Pfloatarray_set | Punboxedfloatarray_set Pfloat64 -> ->
-     "caml_floatarray_blit" | Punboxedfloatarray_set Pfloat32 ->
-     "caml_unboxed_float32_vect_blit" | Punboxedintarray_set Pint32 ->
-     "caml_unboxed_int32_vect_blit" | Punboxedintarray_set Pint64 ->
-     "caml_unboxed_int64_vect_blit" | Punboxedintarray_set Pnativeint ->
-     "caml_unboxed_nativeint_vect_blit" | Punboxedvectorarray_set Pvec128 ->
-     "caml_unboxed_vec128_vect_blit"
-
-     in
-
-     let extcall = Primitive.make ~name ~alloc:true (* the C stub may raise an
-     exception *) ~c_builtin:false ~effects:Arbitrary_effects
-     ~coeffects:Has_coeffects ~native_name:name ~native_repr_args: [
-     Prim_global, L.Same_as_ocaml_repr (Base Value); Prim_global,
-     L.Same_as_ocaml_repr (Base Value); Prim_global, L.Same_as_ocaml_repr (Base
-     Value); Prim_global, L.Same_as_ocaml_repr (Base Value); Prim_global,
-     L.Same_as_ocaml_repr (Base Value)
-
-     ] ~native_repr_res: ( Prim_global, L.Same_as_ocaml_repr (Base Value) )
-     ~is_layout_poly:false in let term = L.Lprim (Pccall extcall, [
-
-     ], loc)
-
-     in env, Transformed term *)
   let src_array_ref_kind =
     L.array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
       dst_array_set_kind ~print_array_set_kind:Printlambda.array_set_kind
