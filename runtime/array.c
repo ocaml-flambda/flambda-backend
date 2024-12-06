@@ -607,9 +607,11 @@ CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
       CAML_EV_COUNTER (EV_C_FORCE_MINOR_MAKE_VECT, 1);
       caml_minor_collection ();
     }
+#ifdef DEBUG
     for (mlsize_t i = 0; i < non_unarized_length; i++) {
       CAMLassert(!(Is_block(Field(v_init, i)) && Is_young(Field(v_init, i))));
     }
+#endif
     res = caml_alloc_shr(size, tag);
     /* We now know that everything in [v_init] is not in the minor heap, so
        there is no need to call [caml_initialize]. */
@@ -740,16 +742,6 @@ CAMLprim value caml_make_local_unboxed_nativeint_vect(value len)
 CAMLprim value caml_make_unboxed_nativeint_vect_bytecode(value len)
 {
   return caml_make_vect(len, caml_copy_nativeint(0));
-}
-
-CAMLprim value caml_make_unboxed_nativeint_vect_and_initialize(value len,
-    value init)
-{
-  value v = caml_make_unboxed_nativeint_vect(len);
-  for (mlsize_t i = 0; i < Long_val(len); i++) {
-    ((intnat*) (Data_custom_val (v)))[i] = Nativeint_val(init);
-  }
-  return v;
 }
 
 /* This primitive is used internally by the compiler to compile
