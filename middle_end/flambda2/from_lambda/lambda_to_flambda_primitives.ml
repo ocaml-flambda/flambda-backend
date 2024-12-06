@@ -801,7 +801,8 @@ let bytes_like_set ~dbg ~unsafe
 (* Array bounds checks *)
 
 let multiple_word_array_access_validity_condition array ~size_int
-    array_length_kind index_kind ~width_in_scalars ~index =
+    array_length_kind (index_kind : L.array_index_kind) ~width_in_scalars ~index
+    =
   let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
   if width_in_scalars < 1
   then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
@@ -832,6 +833,35 @@ let multiple_word_array_access_validity_condition array ~size_int
              reduced_length_untagged ))
     in
     let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
+    let index : H.simple_or_prim =
+      (* [length_tagged] is in units of scalars. Multiply up [index] to
+         match. *)
+      let multiplier =
+        P.Array_kind_for_length.width_in_scalars array_length_kind
+      in
+      let arith_kind, multiplier =
+        match index_kind with
+        | Ptagged_int_index ->
+          ( I.Tagged_immediate,
+            Simple.const_int (Targetint_31_63.of_int multiplier) )
+        | Punboxed_int_index bint -> (
+          match bint with
+          | Pint32 ->
+            ( I.Naked_int32,
+              Simple.const
+                (Reg_width_const.naked_int32 (Int32.of_int multiplier)) )
+          | Pint64 ->
+            ( I.Naked_int64,
+              Simple.const
+                (Reg_width_const.naked_int64 (Int64.of_int multiplier)) )
+          | Pnativeint ->
+            ( I.Naked_nativeint,
+              Simple.const
+                (Reg_width_const.naked_nativeint
+                   (Targetint_32_64.of_int multiplier)) ))
+      in
+      Prim (Binary (Int_arith (arith_kind, Mul), index, Simple multiplier))
+    in
     check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
       ~bound:nativeint_bound
 
