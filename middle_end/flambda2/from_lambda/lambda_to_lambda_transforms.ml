@@ -363,12 +363,23 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
   let[@inline] must_have_initializer () =
     match init with
     | Some init -> init
-    | None ->
-      Misc.fatal_errorf
-        "Cannot compile Pmakearray_dynamic at layout %s without an \
-         initializer:@ %a"
-        (Printlambda.array_kind lambda_array_kind)
-        Debuginfo.print_compact dbg
+    | None -> (
+      match lambda_array_kind with
+      | Pintarray ->
+        Misc.fatal_errorf
+          "Cannot compile Pmakearray_dynamic at layout Pintarray without an \
+           initializer; otherwise it might be possible for values of type \
+           [int] having incorrect representations to be revealed, thus \
+           breaking soundness:@ %a"
+          Debuginfo.print_compact dbg
+      | Pgenarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
+      | Punboxedintarray _ | Punboxedvectorarray _ | Pgcscannableproductarray _
+      | Pgcignorableproductarray _ ->
+        Misc.fatal_errorf
+          "Cannot compile Pmakearray_dynamic at layout %s without an \
+           initializer:@ %a"
+          (Printlambda.array_kind lambda_array_kind)
+          Debuginfo.print_compact dbg)
   in
   match lambda_array_kind with
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray ->
