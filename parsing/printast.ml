@@ -548,9 +548,8 @@ and type_constraint i ppf type_constraint =
       option (i+1) core_type ppf ty1;
       core_type (i+1) ppf ty2
 
-and function_constraint i ppf { ret_type_constraint = c; mode_annotations; ret_mode_annotations } =
-  option i type_constraint ppf c;
-  modes i ppf mode_annotations;
+and function_constraint i ppf { ret_type_constraint; ret_mode_annotations; mode_annotations = _ } =
+  option i type_constraint ppf ret_type_constraint;
   modes i ppf ret_mode_annotations
 
 and value_description i ppf x =

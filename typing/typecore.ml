@@ -7342,8 +7342,8 @@ and type_function
             ret_mode
         | [] ->
             (* otherwise, we do not constrain the body mode, and we use the mode of the whole
-            function to interpret the return type, which is not precise and need to be fixed.
-            *)
+            function to interpret the return type *)
+            (* CR zqian: We should infer from [mode], instead of using directly. *)
             mode
       in
       match body with
