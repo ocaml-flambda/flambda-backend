@@ -5,11 +5,14 @@
    "gen_u_array.ml test_gen_u_array.ml gen_product_array_helpers.ml";
  modules = "${readonly_files}";
  flambda2;
+ arch_amd64;
  {
    flags = "-extension layouts_beta";
    bytecode;
  }
 *)
+
+(* CR mshinwell: enable for arm64 once float32 is available *)
 
 open Gen_product_array_helpers
 open Stdlib_stable
