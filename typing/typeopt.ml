@@ -462,6 +462,10 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     num_nodes_visited, mk_nn Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_char ->
     num_nodes_visited, mk_nn Pintval
+  | Tconstr(p, _, _) when Path.same p Predef.path_int8 ->
+    num_nodes_visited, mk_nn Pintval
+  | Tconstr(p, _, _) when Path.same p Predef.path_int16 ->
+    num_nodes_visited, mk_nn Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
     num_nodes_visited, mk_nn (Pboxedfloatval Pfloat64)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->

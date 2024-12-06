@@ -472,6 +472,10 @@ let add_small_number_extension_types add_type env =
   env
   |> add_type ident_float32 ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_float32 ~jkind:Jkind.Const.Builtin.float32
+
+let add_small_number_beta_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  env
   |> add_type ident_int8 ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
 
