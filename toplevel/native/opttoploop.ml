@@ -400,7 +400,9 @@ let execute_phrase print_outcome ppf phr =
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv names sg in
-      let coercion = Includemod.signatures oldenv ~mark:Mark_positive sg sg' in
+      let coercion =
+        Includemod.signatures oldenv ~mark:Mark_positive ~modes:(Some ()) sg sg'
+      in
       Typecore.force_delayed_checks ();
       let str, sg', rewritten =
         match str.str_items with

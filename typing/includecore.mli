@@ -38,6 +38,7 @@ type value_mismatch =
   | Type of Errortrace.moregen_error
   | Zero_alloc of Zero_alloc.error
   | Modality of Mode.Modality.Value.error
+  | Mode of Mode.Value.error
 
 exception Dont_match of value_mismatch
 
@@ -122,6 +123,9 @@ type type_mismatch =
 
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->
+  mmodes:unit option ->
+  (* [unit] because modules are fixed to legacy. Will be replaced by
+     [Mode.Value.(l * r)] when allow modal modules. *)
   value_description -> value_description -> module_coercion
 
 val type_declarations:

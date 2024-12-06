@@ -113,7 +113,7 @@ Error: Signature mismatch:
          val x : string @@ global many portable contended
        is not included in
          val x : string
-       The second is empty and the first is contended.
+       The second is uncontended and the first is contended.
 |}]
 
 module Module_type_nested = struct
@@ -160,7 +160,7 @@ Error: Signature mismatch:
          val y : string @@ global many portable contended
        is not included in
          val y : string
-       The second is empty and the first is contended.
+       The second is uncontended and the first is contended.
 |}]
 
 (* When defaulting, prioritize modes in arrow types over modalities. *)
@@ -213,7 +213,7 @@ Error: Signature mismatch:
          val x : string @@ global many portable contended
        is not included in
          val x : string
-       The second is empty and the first is contended.
+       The second is uncontended and the first is contended.
 |}]
 
 module Inclusion_weakens_monadic = struct
@@ -342,7 +342,7 @@ Error: Signature mismatch:
          external length : string -> int = "%string_length"
        is not included in
          external length : string -> int @@ portable = "%string_length"
-       The second is portable and the first is not.
+       The second is portable and the first is nonportable.
 |}]
 
 module M : sig
@@ -461,9 +461,321 @@ Error: Signature mismatch:
          val f : int -> int @@ global many
        is not included in
          val f : int -> int @@ portable
-       The second is portable and the first is not.
+       The second is portable and the first is nonportable.
 |}]
 
+
+(* module inclusion check should look at the modes of the modules when comparing
+modalities. Currently modules are always global many, which allows more check to
+pass. *)
+
+(* module declaration is modal *)
+module M : sig
+  module N : sig val foo : 'a -> 'a @@ global many end
+end = struct
+  module N : sig val foo : 'a -> 'a end = struct let foo x = x end
+end
+[%%expect{|
+module M : sig module N : sig val foo : 'a -> 'a @@ global many end end
+|}]
+
+(* module constraint is modal *)
+module F (M : sig val foo : 'a -> 'a end) = struct
+  module M' : sig val foo : 'a -> 'a @@ global many end = M
+end
+[%%expect{|
+module F :
+  functor (M : sig val foo : 'a -> 'a end) ->
+    sig module M' : sig val foo : 'a -> 'a @@ global many end end
+|}]
+
+(* Similiar for recursive modules *)
+module rec M : sig
+  module N : sig val foo : 'a -> 'a @@ global many end
+end = struct
+  module N : sig val foo : 'a -> 'a end = struct let foo x = x end
+end
+[%%expect{|
+module rec M : sig module N : sig val foo : 'a -> 'a @@ global many end end
+|}]
+
+
+(* functor application inclusion check is modal  *)
+module F (M : sig val f : 'a -> 'a @@ global many end) = struct
+end
+[%%expect{|
+module F : functor (M : sig val f : 'a -> 'a @@ global many end) -> sig end
+|}]
+
+module G (M : sig val f : 'a -> 'a end) = F(M)
+[%%expect{|
+module G : functor (M : sig val f : 'a -> 'a end) -> sig end
+|}]
+
+(* Similiar for [include_functor] *)
+module G (M : sig val f : 'a -> 'a end) = struct
+  include M
+  include functor F
+end
+[%%expect{|
+module G : functor (M : sig val f : 'a -> 'a end) -> sig val f : 'a -> 'a end
+|}]
+
+(* functor declaration inclusion check is modal (in both parameter and result). *)
+module F : (sig val foo : 'a -> 'a end) -> (sig val bar : 'a -> 'a @@ global many end) =
+functor (M : sig val foo : 'a -> 'a @@ global many end) -> struct let bar = M.foo end
+[%%expect{|
+module F :
+  sig val foo : 'a -> 'a end -> sig val bar : 'a -> 'a @@ global many end
+|}]
+
+(* CR zqian: package subtyping is not-modal for simplicity
+NB: coercion is the only place of subtype checking packages; all other places
+are equality check. *)
+module type S = sig val foo : 'a -> 'a @@ global many end
+module type S' = sig val foo : 'a -> 'a end
+
+let f (x : (module S)) = (x : (module S) :> (module S'))
+[%%expect{|
+module type S = sig val foo : 'a -> 'a @@ global many end
+module type S' = sig val foo : 'a -> 'a end
+val f : (module S) -> (module S') @@ global many = <fun>
+|}]
+
+let f (x : (module S')) = (x : (module S') :> (module S))
+[%%expect{|
+Line 1, characters 26-57:
+1 | let f (x : (module S')) = (x : (module S') :> (module S))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type "(module S')" is not a subtype of "(module S)"
+|}]
+
+(* module equality/substitution is modal, even inside a module type declaration
+   *)
+module type S = sig
+  module M : sig
+    val foo : 'a -> 'a @@ global many
+  end
+end
+
+module type F = functor (M':sig val foo : 'a -> 'a end) -> sig
+  module Subst : sig
+    module type S' = S with module M := M'
+
+    module M'' : sig val foo : 'a -> 'a end
+    module type S'' = S with module M := M''
+  end
+
+  module Eq : sig
+    module type S' = S with module M = M'
+
+    module M'' : sig val foo : 'a -> 'a end
+    module type S'' = S with module M := M''
+  end
+end
+
+[%%expect{|
+module type S = sig module M : sig val foo : 'a -> 'a @@ global many end end
+module type F =
+  functor (M' : sig val foo : 'a -> 'a end) ->
+    sig
+      module Subst :
+        sig
+          module type S' = sig end
+          module M'' : sig val foo : 'a -> 'a end
+          module type S'' = sig end
+        end
+      module Eq :
+        sig
+          module type S' = sig module M : sig val foo : 'a -> 'a end end
+          module M'' : sig val foo : 'a -> 'a end
+          module type S'' = sig end
+        end
+    end
+|}]
+
+(* strenghtening is modal, even inside a module type declaration. *)
+module type F = functor (M : sig val foo : 'a -> 'a end) -> sig
+  module type S = sig val foo : 'a -> 'a @@ global many end with M
+end
+[%%expect{|
+module type F =
+  functor (M : sig val foo : 'a -> 'a end) ->
+    sig module type S = sig val foo : 'a -> 'a @@ global many end end
+|}]
+
+
+(* module type declaration inclusion check doesn't look at the enclosing
+   structure's mode. *)
+module M : sig
+  module type S = sig val foo : 'a end
+end = struct
+  module type S = sig val foo : 'a @@ global many end
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   module type S = sig val foo : 'a @@ global many end
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module type S = sig val foo : 'a @@ global many end end
+       is not included in
+         sig module type S = sig val foo : 'a end end
+       Module type declarations do not match:
+         module type S = sig val foo : 'a @@ global many end
+       does not match
+         module type S = sig val foo : 'a end
+       The second module type is not included in the first
+       At position "module type S = <here>"
+       Module types do not match:
+         sig val foo : 'a end
+       is not equal to
+         sig val foo : 'a @@ global many end
+       At position "module type S = <here>"
+       Values do not match:
+         val foo : 'a
+       is not included in
+         val foo : 'a @@ global many
+       The second is global_ and the first is not.
+|}]
+
+(* Module declaration inclusion check inside a module type declaration inclusion
+  check. It's still not modal. *)
+module M : sig
+  module type N = sig
+    module M : sig val foo : 'a -> 'a end
+  end
+end = struct
+  module type N = sig
+    module M : sig val foo : 'a -> 'a @@ global many end
+  end
+end
+[%%expect{|
+Lines 5-9, characters 6-3:
+5 | ......struct
+6 |   module type N = sig
+7 |     module M : sig val foo : 'a -> 'a @@ global many end
+8 |   end
+9 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module type N =
+             sig module M : sig val foo : 'a -> 'a @@ global many end end
+         end
+       is not included in
+         sig
+           module type N = sig module M : sig val foo : 'a -> 'a end end
+         end
+       Module type declarations do not match:
+         module type N =
+           sig module M : sig val foo : 'a -> 'a @@ global many end end
+       does not match
+         module type N = sig module M : sig val foo : 'a -> 'a end end
+       The second module type is not included in the first
+       At position "module type N = <here>"
+       Module types do not match:
+         sig module M : sig val foo : 'a -> 'a end end
+       is not equal to
+         sig module M : sig val foo : 'a -> 'a @@ global many end end
+       At position "module type N = sig module M : <here> end"
+       Modules do not match:
+         sig val foo : 'a -> 'a end
+       is not included in
+         sig val foo : 'a -> 'a @@ global many end
+       At position "module type N = sig module M : <here> end"
+       Values do not match:
+         val foo : 'a -> 'a
+       is not included in
+         val foo : 'a -> 'a @@ global many
+       The second is global_ and the first is not.
+|}]
+
+(* Similar for functor type declaration *)
+module M : sig
+  module type F = (sig val foo : 'a @@ global many end) ->
+    (sig end)
+end = struct
+  module type F = (sig val foo : 'a end) ->
+    (sig end)
+end
+[%%expect{|
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   module type F = (sig val foo : 'a end) ->
+6 |     (sig end)
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module type F = sig val foo : 'a end -> sig end end
+       is not included in
+         sig
+           module type F = sig val foo : 'a @@ global many end -> sig end
+         end
+       Module type declarations do not match:
+         module type F = sig val foo : 'a end -> sig end
+       does not match
+         module type F = sig val foo : 'a @@ global many end -> sig end
+       The second module type is not included in the first
+       At position "module type F = <here>"
+       Modules do not match:
+         functor $S1 -> ...
+       is not included in
+         functor $T1 -> ...
+       Module types do not match:
+         $S1 = sig val foo : 'a @@ global many end
+       does not include
+         $T1 = sig val foo : 'a end
+       Values do not match:
+         val foo : 'a
+       is not included in
+         val foo : 'a @@ global many
+       The second is global_ and the first is not.
+|}]
+
+module M : sig
+  module type F =
+    (sig end) -> (sig val foo : 'a end)
+end = struct
+  module type F =
+    (sig end) -> (sig val foo : 'a @@ global many end)
+end
+[%%expect{|
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   module type F =
+6 |     (sig end) -> (sig val foo : 'a @@ global many end)
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module type F = sig end -> sig val foo : 'a @@ global many end
+         end
+       is not included in
+         sig module type F = sig end -> sig val foo : 'a end end
+       Module type declarations do not match:
+         module type F = sig end -> sig val foo : 'a @@ global many end
+       does not match
+         module type F = sig end -> sig val foo : 'a end
+       The second module type is not included in the first
+       At position "module type F = <here>"
+       Module types do not match:
+         sig end -> sig val foo : 'a end
+       is not equal to
+         sig end -> sig val foo : 'a @@ global many end
+       At position "module type F = <here>"
+       Modules do not match:
+         sig val foo : 'a end
+       is not included in
+         sig val foo : 'a @@ global many end
+       At position "module type F = <here>"
+       Values do not match:
+         val foo : 'a
+       is not included in
+         val foo : 'a @@ global many
+       The second is global_ and the first is not.
+|}]
 
 module type T = sig @@ portable
   val foo : 'a -> 'a

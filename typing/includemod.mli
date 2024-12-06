@@ -37,7 +37,6 @@ module Error: sig
     expected:'elt;
     symptom:'explanation
   }
-  type 'elt core_diff =('elt,unit) diff
 
   type functor_arg_descr =
     | Anonymous
@@ -88,8 +87,17 @@ module Error: sig
   and arg_functor_param_symptom =
     (Types.functor_parameter, Ident.t) functor_param_symptom
 
+  and functor_params_symptom =
+    (* The error printer wants to re-do the inclusion check for functor
+    parameters, so we record whether the inclusion check is modal. In the future
+    when we support modes on functor parameters, each [functor_parameter] in
+    [functor_params_diff] will have its own mode, but this bool will continue to
+    exist. *)
+    bool
+
   and functor_params_diff =
-    (Types.functor_parameter list * Types.module_type) core_diff
+    (Types.functor_parameter list * Types.module_type, functor_params_symptom)
+      diff
 
   and signature_symptom = {
     env: Env.t;
@@ -154,15 +162,15 @@ val is_runtime_component: Types.signature_item -> bool
 (* Typechecking *)
 
 val modtypes:
-  loc:Location.t -> Env.t -> mark:mark ->
+  loc:Location.t -> Env.t -> mark:mark -> modes:unit option ->
   module_type -> module_type -> module_coercion
 
 val modtypes_with_shape:
-  shape:Shape.t -> loc:Location.t -> Env.t -> mark:mark ->
+  shape:Shape.t -> loc:Location.t -> Env.t -> mark:mark -> modes:unit option ->
   module_type -> module_type -> module_coercion * Shape.t
 
 val strengthened_module_decl:
-  loc:Location.t -> aliasable:bool -> Env.t -> mark:mark ->
+  loc:Location.t -> aliasable:bool -> Env.t -> mark:mark -> mmodes:unit option ->
   module_declaration -> Path.t -> module_declaration -> module_coercion
 
 val check_modtype_inclusion :
@@ -175,7 +183,7 @@ val check_modtype_inclusion :
 val check_modtype_equiv:
   loc:Location.t -> Env.t -> Ident.t -> module_type -> module_type -> unit
 
-val signatures: Env.t -> mark:mark ->
+val signatures: Env.t -> mark:mark -> modes:unit option ->
   signature -> signature -> module_coercion
 
 val include_functor_signatures : Env.t -> mark:mark ->
@@ -225,7 +233,7 @@ module Functor_inclusion_diff: sig
     type diff = (Types.functor_parameter, unit) Error.functor_param_symptom
     type state
   end
-  val diff: Env.t ->
+  val diff: Env.t -> modes:unit option ->
     Types.functor_parameter list * Types.module_type ->
     Types.functor_parameter list * Types.module_type ->
     Diffing.Define(Defs).patch

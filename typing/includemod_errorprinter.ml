@@ -450,8 +450,8 @@ module Functor_suberror = struct
             Format.dprintf
               "The functor was expected to be generative at this position"
 
-      let patch env got expected =
-        Includemod.Functor_inclusion_diff.diff env got expected
+      let patch env ~modes got expected =
+        Includemod.Functor_inclusion_diff.diff env ~modes got expected
         |> prepare_patch ~drop:false ~ctx:Inclusion
 
     end
@@ -758,8 +758,10 @@ and module_type_symptom ~eqmode ~expansion_token ~env ~before ~ctx = function
       in
       dwith_context ctx printer :: before
 
-and functor_params ~expansion_token ~env ~before ~ctx {got;expected;_} =
-  let d = Functor_suberror.Inclusion.patch env got expected in
+and functor_params ~expansion_token ~env ~before ~ctx
+    {got;expected;symptom = modal} =
+  let modes = if modal then Some () else None in
+  let d = Functor_suberror.Inclusion.patch env ~modes got expected in
   let actual = Functor_suberror.Inclusion.got d in
   let expected = Functor_suberror.expected d in
   let main =
