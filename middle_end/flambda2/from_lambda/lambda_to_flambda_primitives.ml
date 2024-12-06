@@ -1632,11 +1632,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Naked_int64s | Naked_nativeints | Naked_vec128s )
     | Float_array_opt_dynamic ->
       [prim]
-    | Array_kind (Unboxed_product kinds) ->
+    | Array_kind (Unboxed_product _ as array_kind) ->
       (* [Array_length] returns the unarized length (see
          flambda_primitive.mli). *)
       let divisor =
-        List.length kinds |> Targetint_31_63.of_int |> Simple.const_int
+        P.Array_kind.width_in_scalars array_kind
+        |> Targetint_31_63.of_int |> Simple.const_int
       in
       [Binary (Int_arith (Tagged_immediate, Div), Prim prim, Simple divisor)])
   | Pduparray (kind, mutability), [[arg]] -> (

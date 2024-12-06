@@ -65,6 +65,8 @@ module Array_kind : sig
   val must_be_gc_scannable : t -> bool
 
   val has_custom_ops : t -> bool
+
+  val width_in_scalars : t -> int
 end
 
 module Array_kind_for_length : sig
