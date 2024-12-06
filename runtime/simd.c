@@ -105,7 +105,7 @@ CAMLprim value caml_make_local_unboxed_vec128_vect(value len)
 }
 
 CAMLprim value caml_make_unboxed_vec128_vect_bytecode(value len) {
-  caml_failwith("SIMD is not supported in bytecode mode.");
+  caml_failwith("SIMD is not supported on this platform.");
 }
 
 #else

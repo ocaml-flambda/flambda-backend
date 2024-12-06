@@ -877,7 +877,7 @@ CAMLprim value caml_make_unboxed_float32_vect(value len)
   return caml_make_unboxed_float32_vect0(len, 0);
 }
 
-CAMLprim value caml_make_unboxed_float32_vect_local(value len)
+CAMLprim value caml_make_local_unboxed_float32_vect(value len)
 {
   return caml_make_unboxed_float32_vect0(len, 1);
 }
