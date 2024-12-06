@@ -282,6 +282,12 @@ module Data : sig
       @@ portable
     (** [both t1 t2] is a pointer to a pair of the values of [t1] and [t2]. *)
 
+    val split :
+      ('a * 'b, 'k) t
+      -> ('a, 'k) t * ('b, 'k) t
+      @@ portable
+    (** [split t] gives a pair of pointers to the values inside [t] *)
+
     val extract :
       'k Password.t @ local
       -> ('a -> 'b @ portable contended) @ local portable
