@@ -1024,7 +1024,8 @@ let rec comp_expr stack_info env exp sz cont =
                 Lconst (Const_base (Const_nativeint 0n))
               | Pproduct_ignorable ignorables ->
                   let fields = List.map convert_ignorable ignorables in
-                  Lprim (Pmakeblock (0, Mutable, None, alloc_heap), fields, loc)
+                  Lprim (Pmakeblock (0, Immutable, None, alloc_heap), fields,
+                    loc)
             in
             convert_ignorable (Pproduct_ignorable ignorables)
       in
