@@ -74,7 +74,10 @@ typedef uintnat mark_t;
 /* Null pointers vs longs vs blocks. */
 #define Val_null ((value) 0)
 #define Is_long(x)   (((x) & 1) != 0)
-#define Is_block(x)  (((x) & 1) == 0 && (x) != 0)
+
+Caml_inline int Is_block(value x) {
+  return ((x & 1) == 0 && x != 0);
+}
 
 /* Conversion macro names are always of the form  "to_from". */
 /* Example: Val_long as in "Val from long" or "Val of long". */
