@@ -85,6 +85,69 @@ external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
 exception Contended of exn @@ contended
 
+module Data = struct
+  type ('a, 'k) t : value mod portable uncontended
+
+  external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
+
+  external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
+
+  let wrap _ t = unsafe_mk t
+
+  let unwrap _ t = unsafe_get t
+
+  let unwrap_shared _ t = unsafe_get t
+
+  let create f = unsafe_mk (f ())
+
+  let map _ f t =
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise (Contended exn)
+
+  let fst t =
+    let t1, _ = unsafe_get t in
+    unsafe_mk t1
+
+  let snd t =
+    let _, t2 = unsafe_get t in
+    unsafe_mk t2
+
+  let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
+
+  let extract _ f t =
+    let v = unsafe_get t in
+    try f v with
+    |  exn -> reraise (Contended exn)
+
+  let inject = unsafe_mk
+
+  let project = unsafe_get
+
+  let bind _ f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise (Contended exn)
+
+  let iter _ f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise (Contended exn)
+
+  let map_shared _ f t =
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise (Contended exn)
+
+  let extract_shared _ f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise (Contended exn)
+
+end
+
 let access (type k) (_ : k Password.t) f =
   let c : k Access.t = Access.unsafe_mk () in
   match f c with
@@ -217,66 +280,3 @@ let create_with_mutex () =
 
 let create_with_rwlock () =
   Rwlock.P { rwlock = Rw.create (); poisoned = false }
-
-module Data = struct
-  type ('a, 'k) t : value mod portable uncontended
-
-  external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
-
-  external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
-
-  let wrap _ t = unsafe_mk t
-
-  let unwrap _ t = unsafe_get t
-
-  let unwrap_shared _ t = unsafe_get t
-
-  let create f = unsafe_mk (f ())
-
-  let map _ f t =
-    let v = unsafe_get t in
-    match f v with
-    | res -> unsafe_mk res
-    | exception exn -> reraise (Contended exn)
-
-  let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
-
-  let fst t =
-    let t1, _ = unsafe_get t in
-    unsafe_mk t1
-
-  let snd t =
-    let _, t2 = unsafe_get t in
-    unsafe_mk t2
-
-  let extract _ f t =
-    let v = unsafe_get t in
-    try f v with
-    |  exn -> reraise (Contended exn)
-
-  let inject = unsafe_mk
-
-  let project = unsafe_get
-
-  let bind _ f t =
-    let v = unsafe_get t in
-    try f v with
-    | exn -> reraise (Contended exn)
-
-  let iter _ f t =
-    let v = unsafe_get t in
-    try f v with
-    | exn -> reraise (Contended exn)
-
-  let map_shared _ f t =
-    let v = unsafe_get t in
-    match f v with
-    | res -> unsafe_mk res
-    | exception exn -> reraise (Contended exn)
-
-  let extract_shared _ f t =
-    let v = unsafe_get t in
-    try f v with
-    | exn -> reraise (Contended exn)
-
-end
