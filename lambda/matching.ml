@@ -1965,6 +1965,8 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
           cstr.cstr_args
         @ rem
     | Variant_unboxed -> (arg, str, sort, layout) :: rem
+    | Variant_with_null ->
+      Misc.fatal_error "[Variant_with_null] not implemented yet"
     | Variant_extensible ->
         List.mapi
           (fun i { ca_sort } ->
@@ -2379,6 +2381,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
             in
             Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [ arg ], loc),
             lbl.lbl_sort, lbl_layout
+        | Record_inlined (_, _, Variant_with_null) -> assert false
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
       let str = add_barrier_to_let_kind ubr str in
@@ -3197,7 +3200,7 @@ let split_cases tag_lambda_list =
           ((runtime_tag, act) :: consts, nonconsts)
         | Ordinary {runtime_tag}, Variant_boxed _ ->
           (consts, (runtime_tag, act) :: nonconsts)
-        | _, Variant_extensible -> assert false
+        | _, (Variant_extensible | Variant_with_null) -> assert false
         | Extension _, _ -> assert false
       )
   in

@@ -198,6 +198,7 @@ let variant_representation i ppf = let open Types in function
          sort_array (i+1) ppf sorts))
       cstrs
   | Variant_extensible -> line i ppf "Variant_inlined\n"
+  | Variant_with_null -> line i ppf "Variant_with_null\n"
 
 let flat_element i ppf flat_element =
   line i ppf "%s\n" (Types.flat_element_to_string flat_element)

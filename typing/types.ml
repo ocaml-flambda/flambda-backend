@@ -324,6 +324,7 @@ and variant_representation =
   | Variant_boxed of (constructor_representation *
                       Jkind_types.Sort.Const.t array) array
   | Variant_extensible
+  | Variant_with_null
 
 and constructor_representation =
   | Constructor_uniform_value
@@ -669,7 +670,8 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
         cstrs_and_sorts2
   | Variant_extensible, Variant_extensible ->
       true
-  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+  | Variant_with_null, Variant_with_null -> true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible | Variant_with_null), _ ->
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
@@ -745,15 +747,14 @@ let find_unboxed_type decl =
   | Type_record_unboxed_product
                 ([{ld_type = arg; _}], Record_unboxed_product)
   | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
-  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}], Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
                     | Record_mixed _))
   | Type_record_unboxed_product (_, Record_unboxed_product)
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
-                     | Variant_extensible ))
+                     | Variant_extensible | Variant_with_null))
   | Type_abstract _ | Type_open ->
     None
 

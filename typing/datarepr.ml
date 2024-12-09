@@ -129,6 +129,12 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       end
     | Variant_unboxed, ([] | _ :: _) ->
       Misc.fatal_error "Multiple or 0 constructors in [@@unboxed] variant"
+    | Variant_with_null, _ ->
+      (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
+         users to write their own null constructors. *)
+      (* CR layouts v3.3: generalize to [any]. *)
+      [| Constructor_uniform_value, [| |]
+       ; Constructor_uniform_value, [| Jkind.Sort.Const.value |] |]
   in
   let all_void sorts = Array.for_all Jkind.Sort.Const.(equal void) sorts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
