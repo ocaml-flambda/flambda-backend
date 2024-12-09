@@ -453,7 +453,8 @@ static value make_vect_gen(value len, value init, int local)
       for (i = 0; i < size; i++) Field(res, i) = init;
     }
   }
-  /* Give the GC a chance to run, and run memprof callbacks */
+  /* Give the GC a chance to run, and run memprof callbacks.
+     This matches the semantics of allocations directly from OCaml code. */
   if (!local) caml_process_pending_actions ();
   CAMLreturn (res);
 }
@@ -518,9 +519,10 @@ CAMLprim value caml_makearray_dynamic_non_scannable_unboxed_product(
     res = caml_alloc_shr_reserved(size, tag, reserved);
   }
 
-  // XXX mshinwell: should we do this?  Unclear if it happens in the cases
-  // for other layouts, we need to check
-  /* Give the GC a chance to run, and run memprof callbacks */
+  /* Give the GC a chance to run, and run memprof callbacks.
+     This matches the semantics of allocations directly from OCaml code. */
+  // CR mshinwell: the other functions which allocate unboxed number arrays
+  // should also do this
   if (!is_local) caml_process_pending_actions ();
 
   CAMLreturn(res);
@@ -606,7 +608,8 @@ CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
     }
   }
 
-  /* Give the GC a chance to run, and run memprof callbacks */
+  /* Give the GC a chance to run, and run memprof callbacks.
+     This matches the semantics of allocations directly from OCaml code. */
   if (!is_local) caml_process_pending_actions ();
 
   CAMLreturn(res);
