@@ -6,7 +6,7 @@
 type ('a : value) t : value_or_null = 'a or_null [@@or_null_reexport]
 
 [%%expect{|
-type 'a t = 'a or_null = Null | This of 'a
+type 'a t = 'a or_null = Null | This of 'a [@@or_null_reexport]
 |}]
 
 let to_option (x : 'a or_null) =
