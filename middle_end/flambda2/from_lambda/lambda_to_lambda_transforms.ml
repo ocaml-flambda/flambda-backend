@@ -365,16 +365,19 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
     | Some init -> init
     | None -> (
       match lambda_array_kind with
-      | Pintarray ->
+      | Pintarray | Pgcignorableproductarray _ ->
+        (* If we get here for [Pgcignorableproductarray] then a tagged immediate
+           is involved: see main [match] below. *)
         Misc.fatal_errorf
-          "Cannot compile Pmakearray_dynamic at layout Pintarray without an \
+          "Cannot compile Pmakearray_dynamic at layout %s without an \
            initializer; otherwise it might be possible for values of type \
            [int] having incorrect representations to be revealed, thus \
            breaking soundness:@ %a"
+          (Printlambda.array_kind lambda_array_kind)
           Debuginfo.print_compact dbg
       | Pgenarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
       | Punboxedintarray _ | Punboxedvectorarray _ | Pgcscannableproductarray _
-      | Pgcignorableproductarray _ ->
+        ->
         Misc.fatal_errorf
           "Cannot compile Pmakearray_dynamic at layout %s without an \
            initializer:@ %a"
