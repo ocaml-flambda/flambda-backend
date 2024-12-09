@@ -1744,11 +1744,6 @@ let update_decl_jkind env dpath decl =
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
-    (* CR layouts v3.0: remove this once [or_null] is [Variant_with_null].
-
-       No updating required for [or_null_reexport], and we must not
-       incorrectly override the jkind to [non_null].
-    *)
     | Type_record_unboxed_product (lbls, rep) ->
         begin match rep with
         | Record_unboxed_product ->
@@ -1771,9 +1766,6 @@ let update_decl_jkind env dpath decl =
                       type_has_illegal_crossings },
           type_jkind
         end
-    | Type_variant _ when
-      Builtin_attributes.has_or_null_reexport decl.type_attributes ->
-      decl, decl.type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
