@@ -467,8 +467,6 @@ static value make_vect_gen(value len, value init, int local)
   CAMLreturn (res);
 }
 
-// XXX mshinwell: add caml_makearray_dynamic for runtime4
-
 CAMLprim value caml_make_vect(value len, value init)
 {
   return make_vect_gen(len, init, 0);
