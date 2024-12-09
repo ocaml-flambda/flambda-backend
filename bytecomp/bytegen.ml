@@ -688,8 +688,6 @@ let comp_primitive stack_info p sz args =
        blocks that can't be marshalled. We've decided to ignore that problem in
        the short term, as it's unlikely to cause issues - see the internal arrays
        epic for out plan to deal with it. *)
-    (* XXX mshinwell: this needs special handling for the case where the
-       initializer is absent (%makearray_dynamic_uninit) *)
     begin match kind with
     | Punboxedvectorarray _ ->
       fatal_error "SIMD is not supported in bytecode mode."
@@ -986,6 +984,50 @@ let rec comp_expr stack_info env exp sz cont =
           (Kreperformterm(sz + nargs) :: discard_dead_code cont)
       else
         fatal_error "Reperform used in non-tail position"
+  | Lprim (Pmakearray_dynamic (kind, locality), [len], loc) ->
+      (* Use a dummy initializer to implement the "uninitialized" primitive *)
+      let init =
+        match kind with
+        | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+        | Pgcscannableproductarray _ ->
+            Misc.fatal_errorf "Array kind %s should have been ruled out by \
+                the frontend for %%makearray_dynamic_uninit"
+              (Printlambda.array_kind kind)
+        | Punboxedfloatarray Pfloat32 ->
+            Lconst (Const_base (Const_float32 "0.0"))
+        | Punboxedfloatarray Pfloat64 ->
+            Lconst (Const_base (Const_float "0.0"))
+        | Punboxedintarray Pint32 ->
+            Lconst (Const_base (Const_int32 0l))
+        | Punboxedintarray Pint64 ->
+            Lconst (Const_base (Const_int64 0L))
+        | Punboxedintarray Pnativeint ->
+            Lconst (Const_base (Const_nativeint 0n))
+        | Punboxedvectorarray _ ->
+            fatal_error "SIMD is not supported in bytecode mode."
+        | Pgcignorableproductarray ignorables ->
+            let rec convert_ignorable
+                  (ign : Lambda.ignorable_product_element_kind) =
+              match ign with
+              | Pint_ignorable -> Lconst (Const_base (Const_int 0))
+              | Punboxedfloat_ignorable Pfloat32 ->
+                Lconst (Const_base (Const_float32 "0.0"))
+              | Punboxedfloat_ignorable Pfloat64 ->
+                Lconst (Const_base (Const_float "0.0"))
+              | Punboxedint_ignorable Pint32 ->
+                Lconst (Const_base (Const_int32 0l))
+              | Punboxedint_ignorable Pint64 ->
+                Lconst (Const_base (Const_int64 0L))
+              | Punboxedint_ignorable Pnativeint ->
+                Lconst (Const_base (Const_nativeint 0n))
+              | Pproduct_ignorable ignorables ->
+                  let fields = List.map convert_ignorable ignorables in
+                  Lprim (Pmakeblock (0, Mutable, None, alloc_heap), fields, loc)
+            in
+            convert_ignorable (Pproduct_ignorable ignorables)
+      in
+      comp_expr stack_info env
+        (Lprim (Pmakearray_dynamic (kind, locality), [len; init], loc)) sz cont
   | Lprim (Pduparray (kind, mutability),
            [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
       assert (kind = kind');
