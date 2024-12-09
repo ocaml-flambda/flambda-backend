@@ -310,9 +310,9 @@ let indexing_primitives =
   let index_kinds =
     [
       (Ptagged_int_index, "");
-      (Punboxed_int_index Pnativeint, "_indexed_by_nativeint#");
-      (Punboxed_int_index Pint32, "_indexed_by_int32#");
-      (Punboxed_int_index Pint64, "_indexed_by_int64#");
+      (Punboxed_int_index Unboxed_nativeint, "_indexed_by_nativeint#");
+      (Punboxed_int_index Unboxed_int32, "_indexed_by_int32#");
+      (Punboxed_int_index Unboxed_int64, "_indexed_by_int64#");
     ]
   in
   (let ( let* ) x f = List.concat_map f x in
@@ -429,34 +429,34 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%decr" -> Primitive ((Poffsetref(-1)), 1)
     | "%floatoffloat32" -> Primitive (Pfloatoffloat32 mode, 1)
     | "%float32offloat" -> Primitive (Pfloat32offloat mode, 1)
-    | "%intoffloat32" -> Primitive (Pintoffloat Pfloat32, 1)
-    | "%float32ofint" -> Primitive (Pfloatofint (Pfloat32, mode), 1)
-    | "%negfloat32" -> Primitive (Pnegfloat (Pfloat32, mode), 1)
-    | "%absfloat32" -> Primitive (Pabsfloat (Pfloat32, mode), 1)
-    | "%addfloat32" -> Primitive (Paddfloat (Pfloat32, mode), 2)
-    | "%subfloat32" -> Primitive (Psubfloat (Pfloat32, mode), 2)
-    | "%mulfloat32" -> Primitive (Pmulfloat (Pfloat32, mode), 2)
-    | "%divfloat32" -> Primitive (Pdivfloat (Pfloat32, mode), 2)
-    | "%eqfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFeq)), 2)
-    | "%noteqfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFneq)), 2)
-    | "%ltfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFlt)), 2)
-    | "%lefloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFle)), 2)
-    | "%gtfloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFgt)), 2)
-    | "%gefloat32" -> Primitive ((Pfloatcomp (Pfloat32, CFge)), 2)
-    | "%intoffloat" -> Primitive (Pintoffloat Pfloat64, 1)
-    | "%floatofint" -> Primitive (Pfloatofint (Pfloat64, mode), 1)
-    | "%negfloat" -> Primitive (Pnegfloat (Pfloat64, mode), 1)
-    | "%absfloat" -> Primitive (Pabsfloat (Pfloat64, mode), 1)
-    | "%addfloat" -> Primitive (Paddfloat (Pfloat64, mode), 2)
-    | "%subfloat" -> Primitive (Psubfloat (Pfloat64, mode), 2)
-    | "%mulfloat" -> Primitive (Pmulfloat (Pfloat64, mode), 2)
-    | "%divfloat" -> Primitive (Pdivfloat (Pfloat64, mode), 2)
-    | "%eqfloat" -> Primitive ((Pfloatcomp (Pfloat64, CFeq)), 2)
-    | "%noteqfloat" -> Primitive ((Pfloatcomp (Pfloat64, CFneq)), 2)
-    | "%ltfloat" -> Primitive ((Pfloatcomp (Pfloat64, CFlt)), 2)
-    | "%lefloat" -> Primitive ((Pfloatcomp (Pfloat64, CFle)), 2)
-    | "%gtfloat" -> Primitive ((Pfloatcomp (Pfloat64, CFgt)), 2)
-    | "%gefloat" -> Primitive ((Pfloatcomp (Pfloat64, CFge)), 2)
+    | "%intoffloat32" -> Primitive (Pintoffloat Boxed_float32, 1)
+    | "%float32ofint" -> Primitive (Pfloatofint (Boxed_float32, mode), 1)
+    | "%negfloat32" -> Primitive (Pnegfloat (Boxed_float32, mode), 1)
+    | "%absfloat32" -> Primitive (Pabsfloat (Boxed_float32, mode), 1)
+    | "%addfloat32" -> Primitive (Paddfloat (Boxed_float32, mode), 2)
+    | "%subfloat32" -> Primitive (Psubfloat (Boxed_float32, mode), 2)
+    | "%mulfloat32" -> Primitive (Pmulfloat (Boxed_float32, mode), 2)
+    | "%divfloat32" -> Primitive (Pdivfloat (Boxed_float32, mode), 2)
+    | "%eqfloat32" -> Primitive ((Pfloatcomp (Boxed_float32, CFeq)), 2)
+    | "%noteqfloat32" -> Primitive ((Pfloatcomp (Boxed_float32, CFneq)), 2)
+    | "%ltfloat32" -> Primitive ((Pfloatcomp (Boxed_float32, CFlt)), 2)
+    | "%lefloat32" -> Primitive ((Pfloatcomp (Boxed_float32, CFle)), 2)
+    | "%gtfloat32" -> Primitive ((Pfloatcomp (Boxed_float32, CFgt)), 2)
+    | "%gefloat32" -> Primitive ((Pfloatcomp (Boxed_float32, CFge)), 2)
+    | "%intoffloat" -> Primitive (Pintoffloat Boxed_float64, 1)
+    | "%floatofint" -> Primitive (Pfloatofint (Boxed_float64, mode), 1)
+    | "%negfloat" -> Primitive (Pnegfloat (Boxed_float64, mode), 1)
+    | "%absfloat" -> Primitive (Pabsfloat (Boxed_float64, mode), 1)
+    | "%addfloat" -> Primitive (Paddfloat (Boxed_float64, mode), 2)
+    | "%subfloat" -> Primitive (Psubfloat (Boxed_float64, mode), 2)
+    | "%mulfloat" -> Primitive (Pmulfloat (Boxed_float64, mode), 2)
+    | "%divfloat" -> Primitive (Pdivfloat (Boxed_float64, mode), 2)
+    | "%eqfloat" -> Primitive ((Pfloatcomp (Boxed_float64, CFeq)), 2)
+    | "%noteqfloat" -> Primitive ((Pfloatcomp (Boxed_float64, CFneq)), 2)
+    | "%ltfloat" -> Primitive ((Pfloatcomp (Boxed_float64, CFlt)), 2)
+    | "%lefloat" -> Primitive ((Pfloatcomp (Boxed_float64, CFle)), 2)
+    | "%gtfloat" -> Primitive ((Pfloatcomp (Boxed_float64, CFgt)), 2)
+    | "%gefloat" -> Primitive ((Pfloatcomp (Boxed_float64, CFge)), 2)
     | "%string_length" -> Primitive (Pstringlength, 1)
     | "%string_safe_get" -> Primitive (Pstringrefs, 2)
     | "%string_safe_set" -> Primitive (Pbytessets, 3)
@@ -484,51 +484,51 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         3)
     | "%array_safe_get_indexed_by_int64#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint64, Mutable)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int64, Mutable)), 2)
     | "%array_safe_set_indexed_by_int64#" ->
       Primitive
         (Parraysets
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint64),
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int64),
          3)
     | "%array_unsafe_get_indexed_by_int64#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint64, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int64, Mutable), 2)
     | "%array_unsafe_set_indexed_by_int64#" ->
       Primitive
         ((Parraysetu
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint64)),
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int64)),
         3)
     | "%array_safe_get_indexed_by_int32#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pint32, Mutable)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int32, Mutable)), 2)
     | "%array_safe_set_indexed_by_int32#" ->
       Primitive
         (Parraysets
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint32),
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int32),
          3)
     | "%array_unsafe_get_indexed_by_int32#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pint32, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Unboxed_int32, Mutable), 2)
     | "%array_unsafe_set_indexed_by_int32#" ->
       Primitive
         ((Parraysetu
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pint32)),
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_int32)),
         3)
     | "%array_safe_get_indexed_by_nativeint#" ->
       Primitive
-        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Pnativeint, Mutable)), 2)
+        ((Parrayrefs (gen_array_ref_kind mode, Punboxed_int_index Unboxed_nativeint, Mutable)), 2)
     | "%array_safe_set_indexed_by_nativeint#" ->
       Primitive
         (Parraysets
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint),
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_nativeint),
          3)
     | "%array_unsafe_get_indexed_by_nativeint#" ->
       Primitive
-        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Pnativeint, Mutable), 2)
+        (Parrayrefu (gen_array_ref_kind mode, Punboxed_int_index Unboxed_nativeint, Mutable), 2)
     | "%array_unsafe_set_indexed_by_nativeint#" ->
       Primitive
         ((Parraysetu
-          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
+          (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Unboxed_nativeint)),
         3)
     | "%makearray_dynamic" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
@@ -553,60 +553,60 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%obj_is_int" -> Primitive (Pisint { variant_only = false }, 1)
     | "%is_null" -> Primitive (Pisnull, 1)
     | "%lazy_force" -> Lazy_force pos
-    | "%nativeint_of_int" -> Primitive ((Pbintofint (Pnativeint, mode)), 1)
-    | "%nativeint_to_int" -> Primitive ((Pintofbint Pnativeint), 1)
-    | "%nativeint_neg" -> Primitive ((Pnegbint (Pnativeint, mode)), 1)
-    | "%nativeint_add" -> Primitive ((Paddbint (Pnativeint, mode)), 2)
-    | "%nativeint_sub" -> Primitive ((Psubbint (Pnativeint, mode)), 2)
-    | "%nativeint_mul" -> Primitive ((Pmulbint (Pnativeint, mode)), 2)
+    | "%nativeint_of_int" -> Primitive ((Pbintofint (Boxed_nativeint, mode)), 1)
+    | "%nativeint_to_int" -> Primitive ((Pintofbint Boxed_nativeint), 1)
+    | "%nativeint_neg" -> Primitive ((Pnegbint (Boxed_nativeint, mode)), 1)
+    | "%nativeint_add" -> Primitive ((Paddbint (Boxed_nativeint, mode)), 2)
+    | "%nativeint_sub" -> Primitive ((Psubbint (Boxed_nativeint, mode)), 2)
+    | "%nativeint_mul" -> Primitive ((Pmulbint (Boxed_nativeint, mode)), 2)
     | "%nativeint_div" ->
-      Primitive ((Pdivbint { size = Pnativeint; is_safe = Safe; mode }), 2);
+      Primitive ((Pdivbint { size = Boxed_nativeint; is_safe = Safe; mode }), 2);
     | "%nativeint_mod" ->
-      Primitive ((Pmodbint { size = Pnativeint; is_safe = Safe; mode }), 2);
-    | "%nativeint_and" -> Primitive ((Pandbint (Pnativeint, mode)), 2)
-    | "%nativeint_or" -> Primitive ( (Porbint (Pnativeint, mode)), 2)
-    | "%nativeint_xor" -> Primitive ((Pxorbint (Pnativeint, mode)), 2)
-    | "%nativeint_lsl" -> Primitive ((Plslbint (Pnativeint, mode)), 2)
-    | "%nativeint_lsr" -> Primitive ((Plsrbint (Pnativeint, mode)), 2)
-    | "%nativeint_asr" -> Primitive ((Pasrbint (Pnativeint, mode)), 2)
-    | "%int32_of_int" -> Primitive ((Pbintofint (Pint32, mode)), 1)
-    | "%int32_to_int" -> Primitive ((Pintofbint Pint32), 1)
-    | "%int32_neg" -> Primitive ((Pnegbint (Pint32, mode)), 1)
-    | "%int32_add" -> Primitive ((Paddbint (Pint32, mode)), 2)
-    | "%int32_sub" -> Primitive ((Psubbint (Pint32, mode)), 2)
-    | "%int32_mul" -> Primitive ((Pmulbint (Pint32, mode)), 2)
+      Primitive ((Pmodbint { size = Boxed_nativeint; is_safe = Safe; mode }), 2);
+    | "%nativeint_and" -> Primitive ((Pandbint (Boxed_nativeint, mode)), 2)
+    | "%nativeint_or" -> Primitive ( (Porbint (Boxed_nativeint, mode)), 2)
+    | "%nativeint_xor" -> Primitive ((Pxorbint (Boxed_nativeint, mode)), 2)
+    | "%nativeint_lsl" -> Primitive ((Plslbint (Boxed_nativeint, mode)), 2)
+    | "%nativeint_lsr" -> Primitive ((Plsrbint (Boxed_nativeint, mode)), 2)
+    | "%nativeint_asr" -> Primitive ((Pasrbint (Boxed_nativeint, mode)), 2)
+    | "%int32_of_int" -> Primitive ((Pbintofint (Boxed_int32, mode)), 1)
+    | "%int32_to_int" -> Primitive ((Pintofbint Boxed_int32), 1)
+    | "%int32_neg" -> Primitive ((Pnegbint (Boxed_int32, mode)), 1)
+    | "%int32_add" -> Primitive ((Paddbint (Boxed_int32, mode)), 2)
+    | "%int32_sub" -> Primitive ((Psubbint (Boxed_int32, mode)), 2)
+    | "%int32_mul" -> Primitive ((Pmulbint (Boxed_int32, mode)), 2)
     | "%int32_div" ->
-       Primitive ((Pdivbint { size = Pint32; is_safe = Safe; mode }), 2)
+       Primitive ((Pdivbint { size = Boxed_int32; is_safe = Safe; mode }), 2)
     | "%int32_mod" ->
-       Primitive ((Pmodbint { size = Pint32; is_safe = Safe; mode }), 2)
-    | "%int32_and" -> Primitive ((Pandbint (Pint32, mode)), 2)
-    | "%int32_or" -> Primitive ( (Porbint (Pint32, mode)), 2)
-    | "%int32_xor" -> Primitive ((Pxorbint (Pint32, mode)), 2)
-    | "%int32_lsl" -> Primitive ((Plslbint (Pint32, mode)), 2)
-    | "%int32_lsr" -> Primitive ((Plsrbint (Pint32, mode)), 2)
-    | "%int32_asr" -> Primitive ((Pasrbint (Pint32, mode)), 2)
-    | "%int64_of_int" -> Primitive ((Pbintofint (Pint64, mode)), 1)
-    | "%int64_to_int" -> Primitive ((Pintofbint Pint64), 1)
-    | "%int64_neg" -> Primitive ((Pnegbint (Pint64, mode)), 1)
-    | "%int64_add" -> Primitive ((Paddbint (Pint64, mode)), 2)
-    | "%int64_sub" -> Primitive ((Psubbint (Pint64, mode)), 2)
-    | "%int64_mul" -> Primitive ((Pmulbint (Pint64, mode)), 2)
+       Primitive ((Pmodbint { size = Boxed_int32; is_safe = Safe; mode }), 2)
+    | "%int32_and" -> Primitive ((Pandbint (Boxed_int32, mode)), 2)
+    | "%int32_or" -> Primitive ( (Porbint (Boxed_int32, mode)), 2)
+    | "%int32_xor" -> Primitive ((Pxorbint (Boxed_int32, mode)), 2)
+    | "%int32_lsl" -> Primitive ((Plslbint (Boxed_int32, mode)), 2)
+    | "%int32_lsr" -> Primitive ((Plsrbint (Boxed_int32, mode)), 2)
+    | "%int32_asr" -> Primitive ((Pasrbint (Boxed_int32, mode)), 2)
+    | "%int64_of_int" -> Primitive ((Pbintofint (Boxed_int64, mode)), 1)
+    | "%int64_to_int" -> Primitive ((Pintofbint Boxed_int64), 1)
+    | "%int64_neg" -> Primitive ((Pnegbint (Boxed_int64, mode)), 1)
+    | "%int64_add" -> Primitive ((Paddbint (Boxed_int64, mode)), 2)
+    | "%int64_sub" -> Primitive ((Psubbint (Boxed_int64, mode)), 2)
+    | "%int64_mul" -> Primitive ((Pmulbint (Boxed_int64, mode)), 2)
     | "%int64_div" ->
-       Primitive ((Pdivbint { size = Pint64; is_safe = Safe; mode }), 2)
+       Primitive ((Pdivbint { size = Boxed_int64; is_safe = Safe; mode }), 2)
     | "%int64_mod" ->
-       Primitive ((Pmodbint { size = Pint64; is_safe = Safe; mode }), 2)
-    | "%int64_and" -> Primitive ((Pandbint (Pint64, mode)), 2)
-    | "%int64_or" -> Primitive ( (Porbint (Pint64, mode)), 2)
-    | "%int64_xor" -> Primitive ((Pxorbint (Pint64, mode)), 2)
-    | "%int64_lsl" -> Primitive ((Plslbint (Pint64, mode)), 2)
-    | "%int64_lsr" -> Primitive ((Plsrbint (Pint64, mode)), 2)
-    | "%int64_asr" -> Primitive ((Pasrbint (Pint64, mode)), 2)
-    | "%nativeint_of_int32" -> Primitive ((Pcvtbint(Pint32, Pnativeint, mode)), 1)
-    | "%nativeint_to_int32" -> Primitive ((Pcvtbint(Pnativeint, Pint32, mode)), 1)
-    | "%int64_of_int32" -> Primitive ((Pcvtbint(Pint32, Pint64, mode)), 1)
-    | "%int64_to_int32" -> Primitive ((Pcvtbint(Pint64, Pint32, mode)), 1)
-    | "%int64_of_nativeint" -> Primitive ((Pcvtbint(Pnativeint, Pint64, mode)), 1)
-    | "%int64_to_nativeint" -> Primitive ((Pcvtbint(Pint64, Pnativeint, mode)), 1)
+       Primitive ((Pmodbint { size = Boxed_int64; is_safe = Safe; mode }), 2)
+    | "%int64_and" -> Primitive ((Pandbint (Boxed_int64, mode)), 2)
+    | "%int64_or" -> Primitive ( (Porbint (Boxed_int64, mode)), 2)
+    | "%int64_xor" -> Primitive ((Pxorbint (Boxed_int64, mode)), 2)
+    | "%int64_lsl" -> Primitive ((Plslbint (Boxed_int64, mode)), 2)
+    | "%int64_lsr" -> Primitive ((Plsrbint (Boxed_int64, mode)), 2)
+    | "%int64_asr" -> Primitive ((Pasrbint (Boxed_int64, mode)), 2)
+    | "%nativeint_of_int32" -> Primitive ((Pcvtbint(Boxed_int32, Boxed_nativeint, mode)), 1)
+    | "%nativeint_to_int32" -> Primitive ((Pcvtbint(Boxed_nativeint, Boxed_int32, mode)), 1)
+    | "%int64_of_int32" -> Primitive ((Pcvtbint(Boxed_int32, Boxed_int64, mode)), 1)
+    | "%int64_to_int32" -> Primitive ((Pcvtbint(Boxed_int64, Boxed_int32, mode)), 1)
+    | "%int64_of_nativeint" -> Primitive ((Pcvtbint(Boxed_nativeint, Boxed_int64, mode)), 1)
+    | "%int64_to_nativeint" -> Primitive ((Pcvtbint(Boxed_int64, Boxed_nativeint, mode)), 1)
     | "%caml_ba_ref_1" ->
       Primitive
         ((Pbigarrayref(false, 1, Pbigarray_unknown, Pbigarray_unknown_layout)),
@@ -835,9 +835,9 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_unboxed_nativeint_array_set128u#" ->
       Primitive ((Punboxed_nativeint_array_set_128 {unsafe = true; boxed = false}), 3)
     | "%bswap16" -> Primitive (Pbswap16, 1)
-    | "%bswap_int32" -> Primitive ((Pbbswap(Pint32, mode)), 1)
-    | "%bswap_int64" -> Primitive ((Pbbswap(Pint64, mode)), 1)
-    | "%bswap_native" -> Primitive ((Pbbswap(Pnativeint, mode)), 1)
+    | "%bswap_int32" -> Primitive ((Pbbswap(Boxed_int32, mode)), 1)
+    | "%bswap_int64" -> Primitive ((Pbbswap(Boxed_int64, mode)), 1)
+    | "%bswap_native" -> Primitive ((Pbbswap(Boxed_nativeint, mode)), 1)
     | "%int_as_pointer" -> Primitive (Pint_as_pointer mode, 1)
     | "%opaque" -> Primitive (Popaque layout, 1)
     | "%sys_argv" -> Sys_argv
@@ -855,12 +855,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%obj_magic" -> Primitive(Pobj_magic layout, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
     | "%array_of_iarray" -> Primitive (Parray_of_iarray, 1)
-    | "%unbox_float" -> Primitive(Punbox_float Pfloat64, 1)
-    | "%box_float" -> Primitive(Pbox_float (Pfloat64, mode), 1)
-    | "%unbox_float32" -> Primitive(Punbox_float Pfloat32, 1)
-    | "%box_float32" -> Primitive(Pbox_float (Pfloat32, mode), 1)
-    | "%unbox_vec128" -> Primitive(Punbox_vector Pvec128, 1)
-    | "%box_vec128" -> Primitive(Pbox_vector (Pvec128, mode), 1)
+    | "%unbox_float" -> Primitive(Punbox_float Boxed_float64, 1)
+    | "%box_float" -> Primitive(Pbox_float (Boxed_float64, mode), 1)
+    | "%unbox_float32" -> Primitive(Punbox_float Boxed_float32, 1)
+    | "%box_float32" -> Primitive(Pbox_float (Boxed_float32, mode), 1)
+    | "%unbox_vec128" -> Primitive(Punbox_vector Boxed_vec128, 1)
+    | "%box_vec128" -> Primitive(Pbox_vector (Boxed_vec128, mode), 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
     | "%atomic_load" ->
         Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)
@@ -877,12 +877,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       if runtime5 then Primitive (Presume, 4) else Unsupported Presume
     | "%dls_get" -> Primitive (Pdls_get, 1)
     | "%poll" -> Primitive (Ppoll, 1)
-    | "%unbox_nativeint" -> Primitive(Punbox_int Pnativeint, 1)
-    | "%box_nativeint" -> Primitive(Pbox_int (Pnativeint, mode), 1)
-    | "%unbox_int32" -> Primitive(Punbox_int Pint32, 1)
-    | "%box_int32" -> Primitive(Pbox_int (Pint32, mode), 1)
-    | "%unbox_int64" -> Primitive(Punbox_int Pint64, 1)
-    | "%box_int64" -> Primitive(Pbox_int (Pint64, mode), 1)
+    | "%unbox_nativeint" -> Primitive(Punbox_int Boxed_nativeint, 1)
+    | "%box_nativeint" -> Primitive(Pbox_int (Boxed_nativeint, mode), 1)
+    | "%unbox_int32" -> Primitive(Punbox_int Boxed_int32, 1)
+    | "%box_int32" -> Primitive(Pbox_int (Boxed_int32, mode), 1)
+    | "%unbox_int64" -> Primitive(Punbox_int Boxed_int64, 1)
+    | "%box_int64" -> Primitive(Pbox_int (Boxed_int64, mode), 1)
     | "%reinterpret_tagged_int63_as_unboxed_int64" ->
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
@@ -957,22 +957,22 @@ let glb_array_type loc t1 t2 =
   | Pfloatarray, (Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _) ->
     (* Have a nice error message for a case reachable. *)
     raise(Error(loc, Invalid_floatarray_glb))
-  | (Pgenarray | Punboxedfloatarray Pfloat64), Punboxedfloatarray Pfloat64 ->
-    Punboxedfloatarray Pfloat64
-  | (Pgenarray | Punboxedfloatarray Pfloat32), Punboxedfloatarray Pfloat32 ->
-    Punboxedfloatarray Pfloat32
+  | (Pgenarray | Punboxedfloatarray Unboxed_float64), Punboxedfloatarray Unboxed_float64 ->
+    Punboxedfloatarray Unboxed_float64
+  | (Pgenarray | Punboxedfloatarray Unboxed_float32), Punboxedfloatarray Unboxed_float32 ->
+    Punboxedfloatarray Unboxed_float32
   | Punboxedfloatarray _, _ | _, Punboxedfloatarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
-  | (Pgenarray | Punboxedintarray Pint32), Punboxedintarray Pint32 ->
-    Punboxedintarray Pint32
-  | (Pgenarray | Punboxedintarray Pint64), Punboxedintarray Pint64 ->
-    Punboxedintarray Pint64
-  | (Pgenarray | Punboxedintarray Pnativeint), Punboxedintarray Pnativeint ->
-    Punboxedintarray Pnativeint
+  | (Pgenarray | Punboxedintarray Unboxed_int32), Punboxedintarray Unboxed_int32 ->
+    Punboxedintarray Unboxed_int32
+  | (Pgenarray | Punboxedintarray Unboxed_int64), Punboxedintarray Unboxed_int64 ->
+    Punboxedintarray Unboxed_int64
+  | (Pgenarray | Punboxedintarray Unboxed_nativeint), Punboxedintarray Unboxed_nativeint ->
+    Punboxedintarray Unboxed_nativeint
   | Punboxedintarray _, _ | _, Punboxedintarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
-  | (Pgenarray | Punboxedvectorarray Pvec128), Punboxedvectorarray Pvec128 ->
-    Punboxedvectorarray Pvec128
+  | (Pgenarray | Punboxedvectorarray Unboxed_vec128), Punboxedvectorarray Unboxed_vec128 ->
+    Punboxedvectorarray Unboxed_vec128
   | Punboxedvectorarray _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
@@ -1017,23 +1017,23 @@ let glb_array_ref_type loc t1 t2 =
   | Pfloatarray_ref _, (Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _) ->
     (* Have a nice error message for a case reachable. *)
     raise(Error(loc, Invalid_floatarray_glb))
-  | (Pgenarray_ref _ | Punboxedfloatarray_ref Pfloat64), Punboxedfloatarray Pfloat64 ->
-    Punboxedfloatarray_ref Pfloat64
-  | (Pgenarray_ref _ | Punboxedfloatarray_ref Pfloat32), Punboxedfloatarray Pfloat32 ->
-    Punboxedfloatarray_ref Pfloat32
+  | (Pgenarray_ref _ | Punboxedfloatarray_ref Unboxed_float64), Punboxedfloatarray Unboxed_float64 ->
+    Punboxedfloatarray_ref Unboxed_float64
+  | (Pgenarray_ref _ | Punboxedfloatarray_ref Unboxed_float32), Punboxedfloatarray Unboxed_float32 ->
+    Punboxedfloatarray_ref Unboxed_float32
   | Punboxedfloatarray_ref _, _
   | _, Punboxedfloatarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
-  | (Pgenarray_ref _ | Punboxedintarray_ref Pint32), Punboxedintarray Pint32 ->
-    Punboxedintarray_ref Pint32
-  | (Pgenarray_ref _ | Punboxedintarray_ref Pint64), Punboxedintarray Pint64 ->
-    Punboxedintarray_ref Pint64
-  | (Pgenarray_ref _ | Punboxedintarray_ref Pnativeint), Punboxedintarray Pnativeint ->
-    Punboxedintarray_ref Pnativeint
+  | (Pgenarray_ref _ | Punboxedintarray_ref Unboxed_int32), Punboxedintarray Unboxed_int32 ->
+    Punboxedintarray_ref Unboxed_int32
+  | (Pgenarray_ref _ | Punboxedintarray_ref Unboxed_int64), Punboxedintarray Unboxed_int64 ->
+    Punboxedintarray_ref Unboxed_int64
+  | (Pgenarray_ref _ | Punboxedintarray_ref Unboxed_nativeint), Punboxedintarray Unboxed_nativeint ->
+    Punboxedintarray_ref Unboxed_nativeint
   | Punboxedintarray_ref _, _ | _, Punboxedintarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
-  | (Pgenarray_ref _ | Punboxedvectorarray_ref Pvec128), Punboxedvectorarray Pvec128 ->
-    Punboxedvectorarray_ref Pvec128
+  | (Pgenarray_ref _ | Punboxedvectorarray_ref Unboxed_vec128), Punboxedvectorarray Unboxed_vec128 ->
+    Punboxedvectorarray_ref Unboxed_vec128
   | Punboxedvectorarray_ref _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
@@ -1092,23 +1092,23 @@ let glb_array_set_type loc t1 t2 =
   | Pfloatarray_set, (Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _) ->
     (* Have a nice error message for a case reachable. *)
     raise(Error(loc, Invalid_floatarray_glb))
-  | (Pgenarray_set _ | Punboxedfloatarray_set Pfloat64), Punboxedfloatarray Pfloat64 ->
-    Punboxedfloatarray_set Pfloat64
-  | (Pgenarray_set _ | Punboxedfloatarray_set Pfloat32), Punboxedfloatarray Pfloat32 ->
-    Punboxedfloatarray_set Pfloat32
+  | (Pgenarray_set _ | Punboxedfloatarray_set Unboxed_float64), Punboxedfloatarray Unboxed_float64 ->
+    Punboxedfloatarray_set Unboxed_float64
+  | (Pgenarray_set _ | Punboxedfloatarray_set Unboxed_float32), Punboxedfloatarray Unboxed_float32 ->
+    Punboxedfloatarray_set Unboxed_float32
   | Punboxedfloatarray_set _, _
   | _, Punboxedfloatarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
-  | (Pgenarray_set _ | Punboxedintarray_set Pint32), Punboxedintarray Pint32 ->
-    Punboxedintarray_set Pint32
-  | (Pgenarray_set _ | Punboxedintarray_set Pint64), Punboxedintarray Pint64 ->
-    Punboxedintarray_set Pint64
-  | (Pgenarray_set _ | Punboxedintarray_set Pnativeint), Punboxedintarray Pnativeint ->
-    Punboxedintarray_set Pnativeint
+  | (Pgenarray_set _ | Punboxedintarray_set Unboxed_int32), Punboxedintarray Unboxed_int32 ->
+    Punboxedintarray_set Unboxed_int32
+  | (Pgenarray_set _ | Punboxedintarray_set Unboxed_int64), Punboxedintarray Unboxed_int64 ->
+    Punboxedintarray_set Unboxed_int64
+  | (Pgenarray_set _ | Punboxedintarray_set Unboxed_nativeint), Punboxedintarray Unboxed_nativeint ->
+    Punboxedintarray_set Unboxed_nativeint
   | Punboxedintarray_set _, _ | _, Punboxedintarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
-  | (Pgenarray_set _ | Punboxedvectorarray_set Pvec128), Punboxedvectorarray Pvec128 ->
-    Punboxedvectorarray_set Pvec128
+  | (Pgenarray_set _ | Punboxedvectorarray_set Unboxed_vec128), Punboxedvectorarray Unboxed_vec128 ->
+    Punboxedvectorarray_set Unboxed_vec128
   | Punboxedvectorarray_set _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
@@ -1362,67 +1362,67 @@ let comparison_primitive comparison comparison_kind =
   match comparison, comparison_kind with
   | Equal, Compare_generic -> Pccall caml_equal
   | Equal, Compare_ints -> Pintcomp Ceq
-  | Equal, Compare_floats -> Pfloatcomp (Pfloat64, CFeq)
-  | Equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFeq)
+  | Equal, Compare_floats -> Pfloatcomp (Boxed_float64, CFeq)
+  | Equal, Compare_float32s -> Pfloatcomp (Boxed_float32, CFeq)
   | Equal, Compare_strings -> Pccall caml_string_equal
   | Equal, Compare_bytes -> Pccall caml_bytes_equal
-  | Equal, Compare_nativeints -> Pbintcomp(Pnativeint, Ceq)
-  | Equal, Compare_int32s -> Pbintcomp(Pint32, Ceq)
-  | Equal, Compare_int64s -> Pbintcomp(Pint64, Ceq)
+  | Equal, Compare_nativeints -> Pbintcomp(Boxed_nativeint, Ceq)
+  | Equal, Compare_int32s -> Pbintcomp(Boxed_int32, Ceq)
+  | Equal, Compare_int64s -> Pbintcomp(Boxed_int64, Ceq)
   | Not_equal, Compare_generic -> Pccall caml_notequal
   | Not_equal, Compare_ints -> Pintcomp Cne
-  | Not_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFneq)
-  | Not_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFneq)
+  | Not_equal, Compare_floats -> Pfloatcomp (Boxed_float64, CFneq)
+  | Not_equal, Compare_float32s -> Pfloatcomp (Boxed_float32, CFneq)
   | Not_equal, Compare_strings -> Pccall caml_string_notequal
   | Not_equal, Compare_bytes -> Pccall caml_bytes_notequal
-  | Not_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cne)
-  | Not_equal, Compare_int32s -> Pbintcomp(Pint32, Cne)
-  | Not_equal, Compare_int64s -> Pbintcomp(Pint64, Cne)
+  | Not_equal, Compare_nativeints -> Pbintcomp(Boxed_nativeint, Cne)
+  | Not_equal, Compare_int32s -> Pbintcomp(Boxed_int32, Cne)
+  | Not_equal, Compare_int64s -> Pbintcomp(Boxed_int64, Cne)
   | Less_equal, Compare_generic -> Pccall caml_lessequal
   | Less_equal, Compare_ints -> Pintcomp Cle
-  | Less_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFle)
-  | Less_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFle)
+  | Less_equal, Compare_floats -> Pfloatcomp (Boxed_float64, CFle)
+  | Less_equal, Compare_float32s -> Pfloatcomp (Boxed_float32, CFle)
   | Less_equal, Compare_strings -> Pccall caml_string_lessequal
   | Less_equal, Compare_bytes -> Pccall caml_bytes_lessequal
-  | Less_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cle)
-  | Less_equal, Compare_int32s -> Pbintcomp(Pint32, Cle)
-  | Less_equal, Compare_int64s -> Pbintcomp(Pint64, Cle)
+  | Less_equal, Compare_nativeints -> Pbintcomp(Boxed_nativeint, Cle)
+  | Less_equal, Compare_int32s -> Pbintcomp(Boxed_int32, Cle)
+  | Less_equal, Compare_int64s -> Pbintcomp(Boxed_int64, Cle)
   | Less_than, Compare_generic -> Pccall caml_lessthan
   | Less_than, Compare_ints -> Pintcomp Clt
-  | Less_than, Compare_floats -> Pfloatcomp (Pfloat64, CFlt)
-  | Less_than, Compare_float32s -> Pfloatcomp (Pfloat32, CFlt)
+  | Less_than, Compare_floats -> Pfloatcomp (Boxed_float64, CFlt)
+  | Less_than, Compare_float32s -> Pfloatcomp (Boxed_float32, CFlt)
   | Less_than, Compare_strings -> Pccall caml_string_lessthan
   | Less_than, Compare_bytes -> Pccall caml_bytes_lessthan
-  | Less_than, Compare_nativeints -> Pbintcomp(Pnativeint, Clt)
-  | Less_than, Compare_int32s -> Pbintcomp(Pint32, Clt)
-  | Less_than, Compare_int64s -> Pbintcomp(Pint64, Clt)
+  | Less_than, Compare_nativeints -> Pbintcomp(Boxed_nativeint, Clt)
+  | Less_than, Compare_int32s -> Pbintcomp(Boxed_int32, Clt)
+  | Less_than, Compare_int64s -> Pbintcomp(Boxed_int64, Clt)
   | Greater_equal, Compare_generic -> Pccall caml_greaterequal
   | Greater_equal, Compare_ints -> Pintcomp Cge
-  | Greater_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFge)
-  | Greater_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFge)
+  | Greater_equal, Compare_floats -> Pfloatcomp (Boxed_float64, CFge)
+  | Greater_equal, Compare_float32s -> Pfloatcomp (Boxed_float32, CFge)
   | Greater_equal, Compare_strings -> Pccall caml_string_greaterequal
   | Greater_equal, Compare_bytes -> Pccall caml_bytes_greaterequal
-  | Greater_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cge)
-  | Greater_equal, Compare_int32s -> Pbintcomp(Pint32, Cge)
-  | Greater_equal, Compare_int64s -> Pbintcomp(Pint64, Cge)
+  | Greater_equal, Compare_nativeints -> Pbintcomp(Boxed_nativeint, Cge)
+  | Greater_equal, Compare_int32s -> Pbintcomp(Boxed_int32, Cge)
+  | Greater_equal, Compare_int64s -> Pbintcomp(Boxed_int64, Cge)
   | Greater_than, Compare_generic -> Pccall caml_greaterthan
   | Greater_than, Compare_ints -> Pintcomp Cgt
-  | Greater_than, Compare_floats -> Pfloatcomp (Pfloat64, CFgt)
-  | Greater_than, Compare_float32s -> Pfloatcomp (Pfloat32, CFgt)
+  | Greater_than, Compare_floats -> Pfloatcomp (Boxed_float64, CFgt)
+  | Greater_than, Compare_float32s -> Pfloatcomp (Boxed_float32, CFgt)
   | Greater_than, Compare_strings -> Pccall caml_string_greaterthan
   | Greater_than, Compare_bytes -> Pccall caml_bytes_greaterthan
-  | Greater_than, Compare_nativeints -> Pbintcomp(Pnativeint, Cgt)
-  | Greater_than, Compare_int32s -> Pbintcomp(Pint32, Cgt)
-  | Greater_than, Compare_int64s -> Pbintcomp(Pint64, Cgt)
+  | Greater_than, Compare_nativeints -> Pbintcomp(Boxed_nativeint, Cgt)
+  | Greater_than, Compare_int32s -> Pbintcomp(Boxed_int32, Cgt)
+  | Greater_than, Compare_int64s -> Pbintcomp(Boxed_int64, Cgt)
   | Compare, Compare_generic -> Pccall caml_compare
   | Compare, Compare_ints -> Pcompare_ints
-  | Compare, Compare_floats -> Pcompare_floats Pfloat64
-  | Compare, Compare_float32s -> Pcompare_floats Pfloat32
+  | Compare, Compare_floats -> Pcompare_floats Boxed_float64
+  | Compare, Compare_float32s -> Pcompare_floats Boxed_float32
   | Compare, Compare_strings -> Pccall caml_string_compare
   | Compare, Compare_bytes -> Pccall caml_bytes_compare
-  | Compare, Compare_nativeints -> Pcompare_bints Pnativeint
-  | Compare, Compare_int32s -> Pcompare_bints Pint32
-  | Compare, Compare_int64s -> Pcompare_bints Pint64
+  | Compare, Compare_nativeints -> Pcompare_bints Boxed_nativeint
+  | Compare, Compare_int32s -> Pcompare_bints Boxed_int32
+  | Compare, Compare_int64s -> Pcompare_bints Boxed_int64
 
 let lambda_of_loc kind sloc =
   let loc = to_location sloc in

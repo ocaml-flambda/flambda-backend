@@ -84,12 +84,12 @@ let to_lambda (t : t) : Lambda.layout =
   | Value -> Lambda.layout_any_value
   | Naked_number Naked_immediate ->
     Misc.fatal_error "Can't convert kind [Naked_immediate] to lambda layout"
-  | Naked_number Naked_float -> Punboxed_float Pfloat64
-  | Naked_number Naked_float32 -> Punboxed_float Pfloat32
-  | Naked_number Naked_int32 -> Punboxed_int Pint32
-  | Naked_number Naked_int64 -> Punboxed_int Pint64
-  | Naked_number Naked_nativeint -> Punboxed_int Pnativeint
-  | Naked_number Naked_vec128 -> Punboxed_vector Pvec128
+  | Naked_number Naked_float -> Punboxed_float Unboxed_float64
+  | Naked_number Naked_float32 -> Punboxed_float Unboxed_float32
+  | Naked_number Naked_int32 -> Punboxed_int Unboxed_int32
+  | Naked_number Naked_int64 -> Punboxed_int Unboxed_int64
+  | Naked_number Naked_nativeint -> Punboxed_int Unboxed_nativeint
+  | Naked_number Naked_vec128 -> Punboxed_vector Unboxed_vec128
   | Region -> Misc.fatal_error "Can't convert kind [Region] to lambda layout"
   | Rec_info ->
     Misc.fatal_error "Can't convert kind [Rec_info] to lambda layout"
@@ -494,9 +494,9 @@ module Boxable_number = struct
   let primitive_kind t : Primitive.boxed_integer =
     match t with
     | Naked_vec128 | Naked_float | Naked_float32 -> assert false
-    | Naked_int32 -> Pint32
-    | Naked_int64 -> Pint64
-    | Naked_nativeint -> Pnativeint
+    | Naked_int32 -> Boxed_int32
+    | Naked_int64 -> Boxed_int64
+    | Naked_nativeint -> Boxed_nativeint
 
   include Container_types.Make (struct
     type nonrec t = t
@@ -900,12 +900,12 @@ module With_subkind = struct
     let value_subkind : Non_null_value_subkind.t =
       match vk.raw_kind with
       | Pgenval -> Anything
-      | Pboxedfloatval Pfloat64 -> Boxed_float
-      | Pboxedfloatval Pfloat32 -> Boxed_float32
-      | Pboxedintval Pint32 -> Boxed_int32
-      | Pboxedintval Pint64 -> Boxed_int64
-      | Pboxedintval Pnativeint -> Boxed_nativeint
-      | Pboxedvectorval Pvec128 -> Boxed_vec128
+      | Pboxedfloatval Boxed_float64 -> Boxed_float
+      | Pboxedfloatval Boxed_float32 -> Boxed_float32
+      | Pboxedintval Boxed_int32 -> Boxed_int32
+      | Pboxedintval Boxed_int64 -> Boxed_int64
+      | Pboxedintval Boxed_nativeint -> Boxed_nativeint
+      | Pboxedvectorval Boxed_vec128 -> Boxed_vec128
       | Pintval -> Tagged_immediate
       | Pvariant { consts; non_consts } -> (
         match consts, non_consts with
@@ -960,12 +960,12 @@ module With_subkind = struct
       | Parrayval Pintarray -> Immediate_array
       | Parrayval Paddrarray -> Value_array
       | Parrayval Pgenarray -> Generic_array
-      | Parrayval (Punboxedfloatarray Pfloat64) -> Float_array
-      | Parrayval (Punboxedfloatarray Pfloat32) -> Unboxed_float32_array
-      | Parrayval (Punboxedintarray Pint32) -> Unboxed_int32_array
-      | Parrayval (Punboxedintarray Pint64) -> Unboxed_int64_array
-      | Parrayval (Punboxedintarray Pnativeint) -> Unboxed_nativeint_array
-      | Parrayval (Punboxedvectorarray Pvec128) -> Unboxed_vec128_array
+      | Parrayval (Punboxedfloatarray Unboxed_float64) -> Float_array
+      | Parrayval (Punboxedfloatarray Unboxed_float32) -> Unboxed_float32_array
+      | Parrayval (Punboxedintarray Unboxed_int32) -> Unboxed_int32_array
+      | Parrayval (Punboxedintarray Unboxed_int64) -> Unboxed_int64_array
+      | Parrayval (Punboxedintarray Unboxed_nativeint) -> Unboxed_nativeint_array
+      | Parrayval (Punboxedvectorarray Unboxed_vec128) -> Unboxed_vec128_array
       | Parrayval (Pgcscannableproductarray _ | Pgcignorableproductarray _) ->
         Unboxed_product_array
     in
@@ -979,12 +979,12 @@ module With_subkind = struct
   let from_lambda_values_and_unboxed_numbers_only (layout : Lambda.layout) =
     match layout with
     | Pvalue vk -> from_lambda_value_kind vk
-    | Punboxed_float Pfloat64 -> naked_float
-    | Punboxed_float Pfloat32 -> naked_float32
-    | Punboxed_int Pint32 -> naked_int32
-    | Punboxed_int Pint64 -> naked_int64
-    | Punboxed_int Pnativeint -> naked_nativeint
-    | Punboxed_vector Pvec128 -> naked_vec128
+    | Punboxed_float Unboxed_float64 -> naked_float
+    | Punboxed_float Unboxed_float32 -> naked_float32
+    | Punboxed_int Unboxed_int32 -> naked_int32
+    | Punboxed_int Unboxed_int64 -> naked_int64
+    | Punboxed_int Unboxed_nativeint -> naked_nativeint
+    | Punboxed_vector Unboxed_vec128 -> naked_vec128
     | Punboxed_product _ | Ptop | Pbottom ->
       Misc.fatal_errorf
         "Flambda_kind.from_lambda_values_and_unboxed_numbers_only: cannot \
