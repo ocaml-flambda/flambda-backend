@@ -1240,33 +1240,30 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
-  | Primitive (Pmakearray_dynamic (at, mode), 2), _ :: p2 :: [] -> begin
+  | Primitive (Pmakearray_dynamic (array_kind, mode), 2), _ :: p2 :: [] -> begin
       let loc = to_location loc in
-      (* CR mshinwell: rename array_type -> array_kind *)
-      let array_type =
-        glb_array_type loc at
-          (array_kind_of_elt ~elt_sort:None env loc p2)
+      let new_array_kind =
+        array_kind_of_elt ~elt_sort:None env loc p2
+        |> glb_array_type loc array_kind
       in
       let array_mut = array_type_mut env rest_ty in
-      unboxed_product_iarray_check loc array_type array_mut;
-      if at = array_type then None
-      else Some (Primitive (Pmakearray_dynamic (array_type, mode), 2))
+      unboxed_product_iarray_check loc new_array_kind array_mut;
+      if array_kind = new_array_kind then None
+      else Some (Primitive (Pmakearray_dynamic (new_array_kind, mode), 2))
     end
-  | Primitive (Pmakearray_dynamic (at, mode), 1), _ :: [] -> begin
+  | Primitive (Pmakearray_dynamic (array_kind, mode), 1), _ :: [] -> begin
       let loc = to_location loc in
       match is_function_type env ty with
       | None -> None
       | Some (_, array_type) ->
-        match array_kind_of_array_type env loc array_type with
-        | None ->
-          (* XXX mshinwell: should this produce an error? *)
-          None
-        | Some array_type ->
-          let array_type = glb_array_type loc at array_type in
-          let array_mut = array_type_mut env rest_ty in
-          unboxed_product_iarray_check loc array_type array_mut;
-          if at = array_type then None
-          else Some (Primitive (Pmakearray_dynamic (array_type, mode), 1))
+        let new_array_kind =
+          array_type_kind ~elt_sort:None env loc array_type
+          |> glb_array_type loc array_kind
+        in
+        let array_mut = array_type_mut env rest_ty in
+        unboxed_product_iarray_check loc new_array_kind array_mut;
+        if array_kind = new_array_kind then None
+        else Some (Primitive (Pmakearray_dynamic (new_array_kind, mode), 1))
     end
   | Primitive (Pmakearray_dynamic _, arity), args ->
     Misc.fatal_errorf
