@@ -162,7 +162,6 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
   let term =
     L.Llet
       ( Strict,
-        (* XXX should this be nullable? *)
         Pvalue { raw_kind = Pgenval; nullable = Non_nullable },
         array,
         creation_expr,
