@@ -241,6 +241,14 @@ module Data = struct
 
   let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
 
+  let fst t =
+    let t1, _ = unsafe_get t in
+    unsafe_mk t1
+
+  let snd t =
+    let _, t2 = unsafe_get t in
+    unsafe_mk t2
+
   let extract _ f t =
     let v = unsafe_get t in
     try f v with
