@@ -112,8 +112,8 @@ let () =
   let tup = Capsule.Data.create (fun () -> (a, b)) in
   let a_cap = Capsule.Data.fst tup in
   let b_cap = Capsule.Data.snd tup in
-  assert a = Capsule.Data.project a_cap;
-  assert b = Capsule.Data.project b_cap
+  assert (a = Capsule.Data.project a_cap);
+  assert (b = Capsule.Data.project b_cap)
 
 (* [destroy]. *)
 let () =
