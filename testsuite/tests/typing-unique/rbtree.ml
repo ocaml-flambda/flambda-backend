@@ -472,13 +472,13 @@ type ('k, 'v) tree =
   | Leaf
 val fold :
   'a 'b ('c : value_or_null).
-    ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
-  @@ global many = <fun>
+    ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c =
+  <fun>
 val work :
   ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
     insert:(int -> bool -> 'a -> 'a) ->
-    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c
-  @@ global many = <fun>
+    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c =
+  <fun>
 Line 85, characters 16-71:
 85 |                 balance_right (Node { t with right = ins k v t.right }) [@nontail]
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -508,16 +508,11 @@ module Make_Okasaki :
       val fold :
         'a 'b ('c : value_or_null).
           ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
-        @@ global many
-      val balance_left : ('a, 'b) tree -> ('a, 'b) tree @@ global many
-        portable
-      val balance_right : ('a, 'b) tree -> ('a, 'b) tree @@ global many
-        portable
-      val ins : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@ global
-        many
-      val set_black : ('a, 'b) tree -> ('a, 'b) tree @@ global many portable
-      val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@
-        global many
+      val balance_left : ('a, 'b) tree -> ('a, 'b) tree @@ portable
+      val balance_right : ('a, 'b) tree -> ('a, 'b) tree @@ portable
+      val ins : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree
+      val set_black : ('a, 'b) tree -> ('a, 'b) tree @@ portable
+      val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree
     end
 Line 110, characters 16-52:
 110 |     | Node _ -> overwrite_ t with Node { color = c }

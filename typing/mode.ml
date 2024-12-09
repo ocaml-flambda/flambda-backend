@@ -2460,8 +2460,26 @@ module Modality = struct
     let zap_to_floor = function
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
-      | Exactly (_, m) ->
-        let c = Mode.zap_to_floor m in
+      | Exactly (mm, m) ->
+        let m = Mode.zap_to_floor m in
+        (* For soundness, we want some [c] such that [meet_with c mm >= m].
+           For completeness, we want [meet_with c mm <= m].
+
+           We will find the highest [c] that satisfy completeness, and then
+           prove soundness for such [c].
+
+           To find the former, we have [c <= imply_with mm m]. Note that [mm]
+           is a variable but we need a constant, so we take its ceil [mm' >= mm]
+           and have [c <= imply_with mm' m <= imply_with mm m].
+
+           Let [c] be [imply_with mm' m], and we can't satisfy soundness
+           condition.
+
+           To address this, we need to zap [mm]. Either direction suffices to
+           fix soundness, but we will zap to floor to get a higher [c].
+        *)
+        let mm' = Mode.zap_to_floor mm in
+        let c = Mode.Const.imply mm' m in
         Const.Meet_const c
 
     let to_const_exn = function
