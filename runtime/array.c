@@ -585,6 +585,11 @@ CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
       /* We don't want to create so many major-to-minor references,
          so the contents of [v_init] are moved to the major heap by doing
          a minor GC. */
+      /* CR mslater/mshinwell: Why is this better than adding them to the
+         remembered set with caml_initialize?  See discussion in a
+         conversation on:
+         https://github.com/ocaml-flambda/flambda-backend/pull/3317
+      */
       CAML_EV_COUNTER (EV_C_FORCE_MINOR_MAKE_VECT, 1);
       caml_minor_collection ();
     }
