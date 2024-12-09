@@ -2251,23 +2251,6 @@ module Modality = struct
 
       let print ppf = function
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
-
-      (** Given a modality and a guarantee that the modality will only be appled
-      on [x >= mm], we can find some lower modality that is equivalent on the
-      restricted range. This is similar to mode-crossing, where we can push a
-      mode lower given a restricted range of types. *)
-      let modality_cross_left ~mm = function
-        | Join_const c ->
-          (* We want to find the minimal [c'] such that [join c x <= join c' x]
-             for all [x >= mm]. By definition of join, this is equivalent to [c
-             <= join x c'] for all [x >= mm]. This is equivalent to [c <= join
-             mm c']. Equivalently [subtract c mm <= c']. Note that [mm] is a
-             mode variable, but we need a constant. Therefore, we conservatively
-             take its incomplete lower bound [mm.lower]. Also recall that we
-             want the smallest such [c']. So we take [c' = subtract c mm.lower].
-          *)
-          let mm = Mode.Guts.get_floor mm in
-          Join_const (Mode.Const.subtract c mm)
     end
 
     type t =
@@ -2322,10 +2305,13 @@ module Modality = struct
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Diff (mm, m) ->
-        let c = Mode.zap_to_floor m in
-        let m = Const.Join_const c in
-        (* To give the best modality, we try to cross modality. *)
-        Const.modality_cross_left ~mm m
+        let m = Mode.zap_to_floor m in
+        (* For soundness, we want some [c] such that [m <= join c mm], which
+           gives [subtract_mm m <= c]. Note that [mm] is a variable, but we need
+           a constant. Therefore, we take its floor [mm' <= mm], and we have
+           [subtract_mm m <= subtract_mm' m <= c]. *)
+        let mm' = Mode.Guts.get_floor mm in
+        Const.Join_const (Mode.Const.subtract m mm')
 
     let zap_to_id = zap_to_floor
 
