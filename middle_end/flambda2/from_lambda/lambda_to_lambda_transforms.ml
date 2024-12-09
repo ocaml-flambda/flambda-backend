@@ -228,8 +228,8 @@ let makearray_dynamic_unboxed_product_c_stub ~name (mode : L.locality_mode) =
     ~c_builtin:false ~effects:Arbitrary_effects ~coeffects:Has_coeffects
     ~native_name:name
     ~native_repr_args:
-      [ Prim_local, L.Same_as_ocaml_repr (Base Value);
-        Prim_global, L.Same_as_ocaml_repr (Base Value);
+      [ Prim_global, L.Same_as_ocaml_repr (Base Value);
+        Prim_local, L.Same_as_ocaml_repr (Base Value);
         Prim_global, L.Same_as_ocaml_repr (Base Value) ]
     ~native_repr_res:
       ( (match mode with Alloc_heap -> Prim_global | Alloc_local -> Prim_local),
