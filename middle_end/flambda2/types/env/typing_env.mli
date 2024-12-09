@@ -95,8 +95,17 @@ module Join_env : sig
   val already_joining : t -> Simple.t -> Simple.t -> bool
 end
 
+type 'a meet_return_value =
+  | Left_input
+  | Right_input
+  | Both_inputs
+  | New_result of 'a
+
 type meet_type_new =
-  t -> Type_grammar.t -> Type_grammar.t -> (Type_grammar.t * t) Or_bottom.t
+  t ->
+  Type_grammar.t ->
+  Type_grammar.t ->
+  (Type_grammar.t meet_return_value * t) Or_bottom.t
 
 type meet_type_old =
   Meet_env.t ->
