@@ -400,3 +400,8 @@ CAMLprim value caml_succ_scannable_prefix_len (value v) {
   }
 #endif /* NATIVE_CODE */
 }
+
+CAMLprim value caml_is_null(value v)
+{
+  return v == Val_null ? Val_true : Val_false;
+}

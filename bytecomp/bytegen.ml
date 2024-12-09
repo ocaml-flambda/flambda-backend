@@ -592,7 +592,6 @@ let comp_primitive stack_info p sz args =
        | Runtime5 -> "runtime5" in
      Kccall(Printf.sprintf "caml_sys_const_%s" const_name, 1)
   | Pisint _ -> Kisint
-  | Pisnull -> Misc.fatal_error "null not implemented in bytecode" (* CR layouts v3: support null in bytecode *)
   | Pisout -> Kisout
   | Pbintofint (bi,_) -> comp_bint_primitive bi "of_int" args
   | Pintofbint bi -> comp_bint_primitive bi "to_int" args
@@ -662,6 +661,7 @@ let comp_primitive stack_info p sz args =
   | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
   | Pdls_get -> Kccall("caml_domain_dls_get", 1)
   | Ppoll -> Kccall("caml_process_pending_actions_with_root", 1)
+  | Pisnull -> Kccall("caml_is_null", 1)
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
   | Pbigstring_load_128 _ | Pbigstring_set_128 _
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
