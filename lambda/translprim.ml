@@ -30,6 +30,7 @@ type error =
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
   | Product_iarrays_unsupported
+  | Invalid_array_kind_for_uninitialized_makearray_dynamic
 
 exception Error of Location.t * error
 
@@ -45,6 +46,18 @@ let unboxed_product_iarray_check loc kind mut =
     | Punboxedintarray _ | Punboxedvectorarray _), _  ->
     ()
 
+let unboxed_product_uninitialized_array_check loc array_kind =
+  (* See comments in lambda_to_lambda_transforms.ml in Flambda 2 for more
+     details on this restriction. *)
+  match array_kind with
+  | Pgcignorableproductarray igns
+    when not (List.exists
+        Lambda.ignorable_product_element_kind_involves_int igns) -> ()
+  | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _ ->
+    ()
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+    raise (Error (loc, Invalid_array_kind_for_uninitialized_makearray_dynamic))
 
 (* Insertion of debugging events *)
 
@@ -1242,6 +1255,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
   | Primitive (Pmakearray_dynamic (array_kind, mode), 2), _ :: p2 :: [] -> begin
+      (* This is the version of the primitive that takes an initializer *)
       let loc = to_location loc in
       let new_array_kind =
         array_kind_of_elt ~elt_sort:None env loc p2
@@ -1253,6 +1267,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       else Some (Primitive (Pmakearray_dynamic (new_array_kind, mode), 2))
     end
   | Primitive (Pmakearray_dynamic (array_kind, mode), 1), _ :: [] -> begin
+      (* This is the version of the primitive that returns an uninitialized
+         array *)
       let loc = to_location loc in
       match is_function_type env ty with
       | None -> None
@@ -1263,6 +1279,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         in
         let array_mut = array_type_mut env rest_ty in
         unboxed_product_iarray_check loc new_array_kind array_mut;
+        unboxed_product_uninitialized_array_check loc new_array_kind;
         if array_kind = new_array_kind then None
         else Some (Primitive (Pmakearray_dynamic (new_array_kind, mode), 1))
     end
@@ -1888,6 +1905,11 @@ let report_error ppf = function
   | Product_iarrays_unsupported ->
       fprintf ppf
         "Immutable arrays of unboxed products are not yet supported."
+  | Invalid_array_kind_for_uninitialized_makearray_dynamic ->
+      fprintf ppf
+        "%%makearray_dynamic_uninit can only be used for GC-ignorable arrays@ \
+         not involving tagged immediates; and arrays of unboxed numbers.@ Use \
+         %%makearray instead, providing an initializer."
 
 let () =
   Location.register_error_of_exn
