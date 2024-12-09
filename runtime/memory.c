@@ -531,7 +531,6 @@ void caml_local_realloc(void)
   CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }
 
-// XXX mshinwell: dedup code with caml_alloc_local
 CAMLexport value caml_alloc_local_reserved(mlsize_t wosize, tag_t tag,
   reserved_t reserved)
 {
@@ -560,27 +559,7 @@ CAMLexport value caml_alloc_local_reserved(mlsize_t wosize, tag_t tag,
 
 CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
 {
-#if defined(NATIVE_CODE) && defined(STACK_ALLOCATION)
-  intnat sp = Caml_state->local_sp;
-  header_t* hp;
-  sp -= Bhsize_wosize(wosize);
-  Caml_state->local_sp = sp;
-  if (sp < Caml_state->local_limit)
-    caml_local_realloc();
-  hp = (header_t*)((char*)Caml_state->local_top + sp);
-  *hp = Make_header(wosize, tag, NOT_MARKABLE);
-  return Val_hp(hp);
-#else
-  if (wosize <= Max_young_wosize) {
-    return caml_alloc_small(wosize, tag);
-  } else {
-    /* The return value is initialised directly using Field.
-       This is invalid if it may create major -> minor pointers.
-       So, perform a minor GC to prevent this. (See caml_make_vect) */
-    caml_minor_collection();
-    return caml_alloc_shr(wosize, tag);
-  }
-#endif
+  return caml_alloc_local_reserved(wosize, tag, 0);
 }
 
 CAMLprim value caml_local_stack_offset(value blk)
