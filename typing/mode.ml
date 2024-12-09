@@ -1335,9 +1335,9 @@ module Common (Obj : Obj) = struct
 
     let get_ceil m = Solver.get_ceil obj m
 
-    let get_conservative_floor m = Solver.get_conservative_floor obj m
+    let get_loose_floor m = Solver.get_loose_floor obj m
 
-    let get_conservative_ceil m = Solver.get_conservative_ceil obj m
+    let get_loose_ceil m = Solver.get_loose_ceil obj m
   end
 end
 [@@inline]
@@ -1370,8 +1370,8 @@ module Locality = struct
       if Const.le ceil floor then Some ceil else None
 
     let check_const_conservative m =
-      let floor = Guts.get_conservative_floor m in
-      let ceil = Guts.get_conservative_ceil m in
+      let floor = Guts.get_loose_floor m in
+      let ceil = Guts.get_loose_ceil m in
       if Const.le ceil floor then Some ceil else None
   end
 end
