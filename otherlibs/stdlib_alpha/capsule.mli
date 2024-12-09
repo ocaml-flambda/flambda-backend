@@ -104,7 +104,7 @@ module Password : sig
      mutex. This guarantees that uncontended access to the capsule is
      only granted to a single domain at once. *)
 
-  val name : 'k t -> 'k Name.t @@ portable
+  val name : 'k t @ local -> 'k Name.t @@ portable
   (** [name t] identifies the capsule that [t] is associated with. *)
 
   (** Shared passwords represent permission to get shared access to a capsule *)
@@ -119,7 +119,7 @@ module Password : sig
         Obtaining a ['k t] requires read acquire the reader-writer lock
         associate with ['k]. *)
 
-    val name : 'k t -> 'k Name.t @@ portable
+    val name : 'k t @ local -> 'k Name.t @@ portable
     (** [name t] identifies the capsule that [t] is associated with. *)
 
   end
@@ -162,7 +162,7 @@ module Mutex : sig
         Unpacking one provides a ['k Mutex.t] together with a fresh
         existential type brand for ['k]. *)
 
-    val name : 'k t -> 'k Name.t @@ portable
+    val name : 'k t @ local -> 'k Name.t @@ portable
     (** [name m] identifies the capsule that [m] is associated with. *)
 
     exception Poisoned
