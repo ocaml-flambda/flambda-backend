@@ -114,7 +114,7 @@ end = struct
   let mark_multi_use l =
     let force_one ((uni, lin), occ) =
       (* values being multi-used means two things:
-         - the expected mode must be higher than [aliased]
+         - the expected mode must be higher than Aliased
          - the access mode must be lower than [many] *)
       match Linearity.submode lin Linearity.many with
       | Error _ -> Error { occ; axis = Linearity }
@@ -366,56 +366,82 @@ module Usage : sig
 
   val print : Format.formatter -> t -> unit
 end = struct
-  (* We have Unused (top) > Borrowed > Aliased > Unique > Error (bot).
+  (* [Usage.t] describes the extend to which a value is used.
 
-     - Unused means unused
-     - Borrowed means read-only access confined to a region
-     - Aliased means read-only access that may escape a region. For example,
-     storing the value in a cell that can be accessed later.
-     - Unique means accessing the value as if it's the only pointer. Example
-     includes overwriting.
-     - Error means error happens when composing usage.
+      - Unused means unused
+      - Borrowed means read-only usage confined to a region
+      - Aliased means read-only usage that may escape a region. For example,
+      storing the value in a cell that can be used later.
+      - Unique means using the value as if it's the only usage. Example includes
+        overwriting.
+      - Error means error happens when composing usage.
 
-     Some observations:
-     - It is sound to relax mode towards Error. It grants the access more
-     "capability" and usually helps performance.
-       For example, relaxing borrowed to aliased allows code motion of
-       projections. Relaxing aliased to unique allows in-place update.
+     And we have Unused (top) > Borrowed > Aliased > Unique > Error (bot). Lower
+     usage is stronger.
 
-       An example of the relaxing borrowed to aliased:
+     A program can use a value multiple times. We take a hierarchical view of the
+     usages. At the bottom are the usages caused by "use sites" (such as
+     [Pexp_ident]). Those usages are then composed together by [par], [seq],
+     etc., reflecting the lexical structure. Certain composition of certain
+     usages (such as [seq Unique Unique]) is illegal and leads to Error.
 
-       let x = r.a in
-       (a lot of codes)
-       x
+     The uniqueness analysis is to infer the strongest usage that can be granted
+     to each use site. To do that, each use site will be granted a usage that is
+     unconstrained, which gets constrained during composition with other usages.
+     For example, [seq u1 u2] will constrain both [u1] and [u2] to be weaker than
+     Unique.
 
-       In first line, r.memory_address is accessed as borrowed. But if we weaken
-       it to aliased and it still mode checks, that means
-       - there is no "unique" access in the "a lot of codes"
-       - or equivalently, that r.memory_address stays unchanged and safe to read
+     For each use site, the lexically-inferred usage is eagerly compared against
+     the typing-inferred usage (e.g., [unique_use] in [Pexp_ident]). Type errors
+     are raised if that fails.
 
-       and as a result, we can delay the projection at `x`.
+     For example:
+     [
+     let x = .. in
+     use_as_unique x;
+     use_as_unique x
+     ]
 
-       The downside of relaxing is the loss of completeness: if we relax too
-       much the program will fail type check. In the extreme case we relax it to
-       Error which fails type check outright (and extremely sound, hehe).
+     type checking would infer both [Pexp_ident x] use sites to be Unique, but
+     uniqueness analysis would infer both to be strictly weaker than Unique.
+     Type error is raised.
 
-     - The purpose of this uniqueness analysis is to figure out the most relaxed
-     mode for each use, such that we get the best performance, while still
-     type-check. Currently there are really only two choices worth figuring out,
-     Namely
-     - borrowed or aliased?
-     - aliased or unique?
+     It is sound for the analysis to infer a use site to have a weaker usage,
+     which might result in false mode errors. It is useful for the analysis to
+     infer a use site to have a stronger usage, as that usually helps with
+     performance. For example, forcing Borrowed to Aliased allows code motion of
+     projections. Forcing Aliased to Unique allows in-place update.
 
-     As a result, instead of having full-range inference, we only care about the
+        An example of the relaxing Borrowed to Aliased:
+
+        let x = r.a in
+        (a lot of codes)
+        x
+
+        In first line, r.memory_address is accessed as Borrowed. But if we
+        force it to Aliased and it still mode checks, that means
+        - there is no Unique access in the "a lot of codes"
+        - or equivalently, that [r.memory_address] stays unchanged and safe to
+         read
+        As a result, we can delay the projection at [x].
+
+     On the other hand, the analysis shouldn't grant to a use site a too strong
+     usage, as that might be unsound.
+
+     Currently there are only two choices worth figuring out:
+      - Borrowed or Aliased?
+      - Aliased or Unique?
+
+     Therefore, instead of having full-range inference, we only care about the
      following ranges:
-     - unused
-     - borrowed (Currently not useful, because we don't have explicit borrowing)
-     - borrowed or aliased
-     - aliased
-     - aliased or unique
-     - error
+      - Unused
+      - Borrowed (Currently not useful, because we don't have explicit borrowing)
+      - Borrowed or Aliased
+      - Aliased
+      - Aliased or Unique
+      - Error
 
-     error is represented as exception which is just easier.
+     Error is represented as exception for simplicity.
 
      We could additionally include a zero for our semiring that sits above unused.
      However, this would have to suppress errors which prevents us from representing
