@@ -140,7 +140,7 @@ static intnat do_compare_val(struct compare_stack* stk,
     poll_timer = COMPARE_POLL_PERIOD;
     while (--poll_timer > 0) {
       if (v1 == v2 && total) goto next_item;
-      if (Is_long(v1) || v1 == Val_null) {
+      if (Is_long(v1)) {
         if (v1 == v2) goto next_item;
         if (v1 == Val_null) return LESS; /* v1 null < v2 non-null */
         if (v2 == Val_null) return GREATER; /* v1 non-null > v2 null */
@@ -167,7 +167,7 @@ static intnat do_compare_val(struct compare_stack* stk,
 
         return LESS;                /* v1 long < v2 block */
       }
-      if (Is_long(v2) || v2 == Val_null) {
+      if (Is_long(v2)) {
         switch (Tag_val(v1)) {
           case Forward_tag:
             v1 = Forward_val(v1);

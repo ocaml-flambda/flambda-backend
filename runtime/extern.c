@@ -1377,7 +1377,7 @@ intnat reachable_words_once(struct caml_extern_state *s,
   /* In Multicore OCaml, we don't distinguish between major heap blocks and
    * out-of-heap blocks, so we end up counting out-of-heap blocks too. */
   while (1) {
-    if (Is_long(v) || v == Val_null) {
+    if (Is_long(v)) {
       /* Tagged integers or nulls contribute 0 to the size, nothing to do */
     } else {
       header_t hd = Hd_val(v);

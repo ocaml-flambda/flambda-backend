@@ -22,8 +22,7 @@
 
    In "classic mode", naked pointers are allowed, and the
    implementation uses a page table. A valid value is then either:
-   - a null pointer
-   - a tagged integer (Is_long or !Is_block from mlvalues.h)
+   - a tagged integer or a null pointer (Is_long or !Is_block from mlvalues.h)
    - a pointer to the minor heap (Is_young)
    - a pointer to the major heap (Is_in_heap)
    - a pointer to a constant block statically-allocated by OCaml code
@@ -46,8 +45,7 @@
    To support an implementation without a global page table, runtime
    code should not rely on Is_in_heap and Is_in_static_data. This
    corresponds to a simpler model where a valid value is either:
-   - a null pointer
-   - a tagged integer (Is_long)
+   - a tagged integer or a null pointer (Is_long)
    - a pointer to the minor heap (Is_young)
    - a pointer to a well-formed block outside the minor heap
      (it may be in the major heap, or static, or a foreign pointer,

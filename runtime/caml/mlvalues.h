@@ -69,9 +69,13 @@ typedef opcode_t * code_t;
 
 #include "domain_state.h"
 
-/* Null pointers vs longs vs blocks. */
+/* The null pointer value. */
 #define Val_null ((value) 0)
-#define Is_long(x)   (((x) & 1) != 0)
+
+/* Longs vs blocks. */
+Caml_inline int Is_long(value x) {
+  return ((x & 1) != 0 || x == 0);
+}
 
 Caml_inline int Is_block(value x) {
   return ((x & 1) == 0 && x != 0);
