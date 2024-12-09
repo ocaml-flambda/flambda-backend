@@ -655,9 +655,7 @@ let prim_has_valid_reprs ~loc prim =
         is (Same_as_ocaml_repr C.value);
       ]
     | "%makearray_dynamic_uninit" ->
-      (* XXX this primitive is not supported for Pgcscannableproductarray and
-         the upstream array kinds (Pgenarray etc).  See comment in
-         lambda_to_lambda_transforms.ml. *)
+      (* Restrictions on this primitive are checked in [Translprim] *)
       check [
         is (Same_as_ocaml_repr C.value);
         is (Same_as_ocaml_repr C.value);
