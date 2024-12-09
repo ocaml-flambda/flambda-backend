@@ -105,6 +105,15 @@ let ptr2 =
   Mk (m, Capsule.Data.both p p')
 ;;
 
+(* [fst], [snd] *)
+let () =
+  let a = 1 in
+  let b = 2 in
+  let tup = Capsule.Data.create (fun () -> (a, b)) in
+  let a_cap = Capsule.Data.fst tup in
+  let b_cap = Capsule.Data.snd tup in
+  assert a = Capsule.Data.project a_cap;
+  assert b = Capsule.Data.project b_cap
 
 (* [destroy]. *)
 let () =
