@@ -286,6 +286,7 @@ and ('lbl, 'lbl_flat, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
         | Extension of Path.t
+        | Null
 
 and type_origin =
     Definition
@@ -607,15 +608,19 @@ let equal_tag t1 t2 =
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     i2 = i1 (* If i1 = i2, the runtime_tags will also be equal *)
   | Extension path1, Extension path2 -> Path.same path1 path2
-  | (Ordinary _ | Extension _), _ -> false
+  | Null, Null -> true
+  | (Ordinary _ | Extension _ | Null), _ -> false
 
 let compare_tag t1 t2 =
   match (t1, t2) with
   | Ordinary {src_index=i1}, Ordinary {src_index=i2} ->
     Int.compare i1 i2
   | Extension path1, Extension path2 -> Path.compare path1 path2
-  | Ordinary _, Extension _ -> -1
-  | Extension _, Ordinary _ -> 1
+  | Null, Null -> 0
+  | Ordinary _, (Extension _ | Null) -> -1
+  | (Extension _ | Null), Ordinary _ -> 1
+  | Extension _, Null -> -1
+  | Null, Extension _ -> 1
 
 let equal_flat_element e1 e2 =
   match e1, e2 with
