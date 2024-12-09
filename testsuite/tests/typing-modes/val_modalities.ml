@@ -479,6 +479,35 @@ end
 module M : sig module N : sig val foo : 'a -> 'a @@ global many end end
 |}]
 
+(* CR zqian: modal inclusion check should cross modes *)
+module M : sig
+  module N : sig val foo : int @@ portable end
+end = struct
+  module N = struct let foo @ nonportable = 42 end
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   module N = struct let foo @ nonportable = 42 end
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module N : sig val foo : int @@ global many end end
+       is not included in
+         sig module N : sig val foo : int @@ portable end end
+       In module "N":
+       Modules do not match:
+         sig val foo : int @@ global many end
+       is not included in
+         sig val foo : int @@ portable end
+       In module "N":
+       Values do not match:
+         val foo : int @@ global many
+       is not included in
+         val foo : int @@ portable
+       The second is portable and the first is nonportable.
+|}]
+
 (* module constraint is modal *)
 module F (M : sig val foo : 'a -> 'a end) = struct
   module M' : sig val foo : 'a -> 'a @@ global many end = M
