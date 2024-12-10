@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Either type.
 
     Either is the simplest and most generic sum/variant type:
