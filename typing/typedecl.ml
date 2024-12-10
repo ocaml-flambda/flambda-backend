@@ -2297,8 +2297,30 @@ let transl_type_decl env rec_flag sdecl_list =
          abbreviations expand to a generic type variable. After that, we check
          the coherence of the translated declarations in the resulting new
          enviroment. *)
+      let manifests = List.map
+        (fun (id, _) ->
+           let path = Path.Pident id in
+           match
+            let decl = Env.find_type path temp_env in
+            decl.type_manifest
+           with
+           | x -> x
+           | exception Not_found -> None)
+        ids_list
+      in
       let tdecls =
         List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
+      List.iter
+        (fun (id, _) ->
+           let path = Path.Pident id in
+           match
+            let decl = Env.find_type path temp_env in
+            decl.type_manifest
+           with
+           | None -> assert false
+           | Some ty -> ignore ty
+           | exception Not_found -> ())
+        ids_list;
       let decls, shapes =
         List.map (fun (tdecl, shape) ->
           (tdecl.typ_id, tdecl.typ_type), shape) tdecls
@@ -2320,6 +2342,7 @@ let transl_type_decl env rec_flag sdecl_list =
                sdecl.ptype_loc)
             ids_list sdecl_list
       in
+      ignore manifests;
       ((tdecls, decls, shapes, new_env, delayed_jkind_checks), List.map snd decls)
     end
   in
