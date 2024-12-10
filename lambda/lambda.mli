@@ -180,8 +180,7 @@ type primitive =
   | Pmakearray of array_kind * mutable_flag * locality_mode
   | Pmakearray_dynamic of array_kind * locality_mode
   (** For [Pmakearray_dynamic], if the array kind specifies an unboxed
-      product, the float array optimization will never apply -- even if such
-      unboxed product is a singleton. *)
+      product, the float array optimization will never apply. *)
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
