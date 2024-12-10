@@ -8453,8 +8453,10 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
     begin match constr.cstr_repr with
     | Variant_extensible ->
         raise(Error(loc, env, Private_constructor (constr, ty_res)))
-    | Variant_boxed _ | Variant_unboxed | Variant_with_null ->
+    | Variant_boxed _ | Variant_unboxed ->
         raise (Error(loc, env, Private_type ty_res));
+    | Variant_with_null -> assert false
+      (* [Variant_with_null] can't be made private due to [or_null_reexport]. *)
     end;
   (* NOTE: shouldn't we call "re" on this final expression? -- AF *)
   { texp with
