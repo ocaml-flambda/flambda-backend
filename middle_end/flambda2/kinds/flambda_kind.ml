@@ -964,7 +964,8 @@ module With_subkind = struct
       | Parrayval (Punboxedfloatarray Unboxed_float32) -> Unboxed_float32_array
       | Parrayval (Punboxedintarray Unboxed_int32) -> Unboxed_int32_array
       | Parrayval (Punboxedintarray Unboxed_int64) -> Unboxed_int64_array
-      | Parrayval (Punboxedintarray Unboxed_nativeint) -> Unboxed_nativeint_array
+      | Parrayval (Punboxedintarray Unboxed_nativeint) ->
+        Unboxed_nativeint_array
       | Parrayval (Punboxedvectorarray Unboxed_vec128) -> Unboxed_vec128_array
       | Parrayval (Pgcscannableproductarray _ | Pgcignorableproductarray _) ->
         Unboxed_product_array

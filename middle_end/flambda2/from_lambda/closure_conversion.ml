@@ -700,11 +700,15 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     in
     match prim_native_name with
     | "caml_int64_float_of_bits_unboxed" ->
-      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_integer Boxed_int64)
-        ~dst_kind:(Unboxed_float Boxed_float64) ~op:Unboxed_int64_as_unboxed_float64
+      unboxed_int64_to_and_from_unboxed_float
+        ~src_kind:(Unboxed_integer Boxed_int64)
+        ~dst_kind:(Unboxed_float Boxed_float64)
+        ~op:Unboxed_int64_as_unboxed_float64
     | "caml_int64_bits_of_float_unboxed" ->
-      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_float Boxed_float64)
-        ~dst_kind:(Unboxed_integer Boxed_int64) ~op:Unboxed_float64_as_unboxed_int64
+      unboxed_int64_to_and_from_unboxed_float
+        ~src_kind:(Unboxed_float Boxed_float64)
+        ~dst_kind:(Unboxed_integer Boxed_int64)
+        ~op:Unboxed_float64_as_unboxed_int64
     | _ ->
       let callee = Simple.symbol call_symbol in
       let apply =
