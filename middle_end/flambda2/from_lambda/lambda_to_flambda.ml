@@ -1248,28 +1248,28 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
         List.for_all
           (fun (kind : Lambda.value_kind) ->
             match kind.raw_kind with
-            | Pboxedfloatval Pfloat64 -> true
-            | Pboxedfloatval Pfloat32
+            | Pboxedfloatval Boxed_float64 -> true
+            | Pboxedfloatval Boxed_float32
             | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
             | Pboxedvectorval _ ->
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
-    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat64 } ->
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Boxed_float64 } ->
       Some (Unboxed_number Naked_float)
-    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Pfloat32 } ->
+    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Boxed_float32 } ->
       Some (Unboxed_number Naked_float32)
     | Pvalue { nullable = Non_nullable; raw_kind = Pboxedintval bi } ->
       let bn : Flambda_kind.Boxable_number.t =
         match bi with
-        | Pint32 -> Naked_int32
-        | Pint64 -> Naked_int64
-        | Pnativeint -> Naked_nativeint
+        | Boxed_int32 -> Naked_int32
+        | Boxed_int64 -> Naked_int64
+        | Boxed_nativeint -> Naked_nativeint
       in
       Some (Unboxed_number bn)
     | Pvalue { nullable = Non_nullable; raw_kind = Pboxedvectorval bv } ->
       let bn : Flambda_kind.Boxable_number.t =
-        match bv with Pvec128 -> Naked_vec128
+        match bv with Boxed_vec128 -> Naked_vec128
       in
       Some (Unboxed_number bn)
     | Pvalue

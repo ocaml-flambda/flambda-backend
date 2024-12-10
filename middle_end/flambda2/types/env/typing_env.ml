@@ -265,7 +265,14 @@ end = struct
   let already_meeting = already_meeting_or_joining
 end
 
-type meet_type_new = t -> TG.t -> TG.t -> (TG.t * t) Or_bottom.t
+type 'a meet_return_value =
+  | Left_input
+  | Right_input
+  | Both_inputs
+  | New_result of 'a
+
+type meet_type_new =
+  t -> TG.t -> TG.t -> (TG.t meet_return_value * t) Or_bottom.t
 
 type meet_type_old =
   Meet_env.t -> TG.t -> TG.t -> (TG.t * Typing_env_extension.t) Or_bottom.t
@@ -894,37 +901,35 @@ and add_equation1 ~raise_on_bottom t name ty ~(meet_type : meet_type) =
        meet ty".
 
        Note also that [p] and [x] may have different name modes! *)
-    let ty, t =
-      let[@inline always] name eqn_name ~coercion =
-        assert (Coercion.is_id coercion);
-        (* true by definition *)
-        match meet_type with
-        | New meet_type_new -> (
-          let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-          match meet_type_new t ty existing_ty with
-          | Bottom ->
-            if raise_on_bottom
-            then raise Bottom_equation
-            else MTC.bottom (TG.kind ty), t
-          | Ok (meet_ty, env) -> meet_ty, env)
-        | Old meet_type_old -> (
-          if Name.equal name eqn_name
-          then ty, t
-          else
-            let env = Meet_env.create t in
-            let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-            match meet_type_old env ty existing_ty with
-            | Bottom -> MTC.bottom (TG.kind ty), t
-            | Ok (meet_ty, env_extension) ->
-              ( meet_ty,
-                add_env_extension ~raise_on_bottom t env_extension ~meet_type ))
-      in
-      Simple.pattern_match bare_lhs ~name ~const:(fun _ -> ty, t)
-    in
-    let[@inline always] name name ~coercion =
+    let[@inline always] name eqn_name ~coercion =
       assert (Coercion.is_id coercion);
       (* true by definition *)
-      add_equation0 t name ty
+      match meet_type with
+      | New meet_type_new -> (
+        let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+        match meet_type_new t ty existing_ty with
+        | Bottom ->
+          if raise_on_bottom
+          then raise Bottom_equation
+          else add_equation0 t eqn_name (MTC.bottom (TG.kind ty))
+        | Ok (meet_ty, env) -> (
+          match meet_ty with
+          | Left_input -> add_equation0 env eqn_name ty
+          | Right_input | Both_inputs -> env
+          | New_result ty' -> add_equation0 env eqn_name ty'))
+      | Old meet_type_old -> (
+        if Name.equal name eqn_name
+        then add_equation0 t eqn_name ty
+        else
+          let env = Meet_env.create t in
+          let existing_ty = find t eqn_name (Some (TG.kind ty)) in
+          match meet_type_old env ty existing_ty with
+          | Bottom -> add_equation0 t eqn_name (MTC.bottom (TG.kind ty))
+          | Ok (meet_ty, env_extension) ->
+            let t =
+              add_env_extension ~raise_on_bottom t env_extension ~meet_type
+            in
+            add_equation0 t eqn_name meet_ty)
     in
     Simple.pattern_match bare_lhs ~name ~const:(fun _ -> t)
 

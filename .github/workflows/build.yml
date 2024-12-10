@@ -10,7 +10,7 @@ on:
 jobs:
   build:
     name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+    runs-on: "${{ matrix.runs-on }}"
 
     strategy:
       fail-fast: false
@@ -18,104 +18,104 @@ jobs:
         include:
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
-            os: ubuntu-latest
+            runs-on: linux-x64-1
 
           - name: flambda2_dev
             config: --enable-middle-end=flambda2 --enable-dev
-            os: ubuntu-latest
+            runs-on: linux-x64-1
 
           - name: flambda2_dev_runtime5
             config: --enable-middle-end=flambda2 --enable-dev --enable-runtime5
-            os: ubuntu-latest
+            runs-on: linux-x64-1
 
           - name: flambda2_debug_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
-            os: ubuntu-latest
+            runs-on: linux-x64-2
             build_ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
-            os: ubuntu-latest
+            runs-on: linux-x64-2
             build_ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_o3
             config: --enable-middle-end=flambda2
-            os: ubuntu-latest
+            runs-on: linux-x64-2
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
           - name: flambda2_o3_heap
             config: --enable-middle-end=flambda2 --disable-stack-allocation
-            os: ubuntu-latest
+            runs-on: linux-x64-3
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_polling
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5 --enable-poll-insertion --enable-flambda-invariants
-            os: ubuntu-latest
+            runs-on: linux-x64-3
             build_ocamlparam: ''
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_debug
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
-            os: ubuntu-latest
+            runs-on: linux-x64-3
             build_ocamlparam: ''
             use_runtime: d
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
 
           - name: flambda2_frame_pointers_oclassic_polling
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
-            os: ubuntu-latest
+            runs-on: linux-x64-4
             build_ocamlparam: ''
             ocamlparam: '_,Oclassic=1'
             disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
 
           - name: flambda2_macos_arm64
             config: --enable-middle-end=flambda2 --disable-warn-error
-            os: macos-latest
+            runs-on: macos-latest-xlarge
 
           - name: irc
             config: --enable-middle-end=flambda2
-            os: ubuntu-latest
+            runs-on: linux-x64-4
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: irc_polling
             config: --enable-middle-end=flambda2 --enable-poll-insertion
-            os: ubuntu-latest
+            runs-on: linux-x64-4
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: irc_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers
-            os: ubuntu-latest
+            runs-on: linux-x64-5
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
 
           - name: ls
             config: --enable-middle-end=flambda2
-            os: ubuntu-latest
+            runs-on: linux-x64-5
             build_ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             check_arch: true
 
           - name: gi
             config: --enable-middle-end=flambda2
-            os: ubuntu-latest
+            runs-on: linux-x64-5
             build_ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1,cfg-cse-optimize=1'
             ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1,cfg-cse-optimize=1'
             check_arch: true
 
           - name: cfg-selection
             config: --enable-middle-end=flambda2
-            os: ubuntu-latest
+            runs-on: linux-x64-5
             build_ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1'
             ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1'
             check_arch: true
@@ -132,17 +132,17 @@ jobs:
         path: 'flambda_backend'
 
     - name: Install AFL (for Linux workers)
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.runs-on != 'macos-latest-xlarge'
       run: sudo apt-get install afl++
 
     - name: Install AFL (for macOS workers)
       # The "afl-fuzz" package is deprecated (2023-10) and can no longer be installed
-      if: matrix.os == 'macos-latest'
+      if: matrix.runs-on == 'macos-latest-xlarge'
       run: true
       # run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install afl-fuzz
 
     - name: Install autoconf (for macOS workers)
-      if: matrix.os == 'macos-latest'
+      if: matrix.runs-on == 'macos-latest-xlarge'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install autoconf
 
     - name: Cache OCaml 4.14, dune and menhir
@@ -150,7 +150,7 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-414/_install
-        key: ${{ matrix.os }}-cache-ocaml-414-dune-3152-menhir-20231231
+        key: ${{ matrix.runs-on }}-cache-ocaml-414-dune-3152-menhir-20231231
 
     - name: Checkout OCaml 4.14
       uses: actions/checkout@master
@@ -209,7 +209,7 @@ jobs:
         cat $SOURCE_DIR/menhirLib.ml > $TARGET_DIR/menhirLib.ml
 
     - name: Install GNU parallel
-      if: matrix.os == 'macos-latest'
+      if: matrix.runs-on == 'macos-latest-xlarge'
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
 
     - name: Disable any testcases
