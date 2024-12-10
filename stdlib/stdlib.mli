@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** The OCaml Standard library.
 
     This module is automatically opened at the beginning of each
@@ -30,18 +32,18 @@
 
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a = "%reraise"
+external raise : exn -> 'a @ portable = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : exn -> 'a = "%raise_notrace"
+external raise_notrace : exn -> 'a @ portable = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
 
-val invalid_arg : string -> 'a
+val invalid_arg : string -> 'a @ portable
 (** Raise exception [Invalid_argument] with the given string. *)
 
-val failwith : string -> 'a
+val failwith : string -> 'a @ portable
 (** Raise exception [Failure] with the given string. *)
 
 exception Exit
@@ -828,10 +830,10 @@ val ( @ ) : 'a list -> 'a list -> 'a list
     Note: all input/output functions can raise [Sys_error] when the system
     calls they invoke fail. *)
 
-type in_channel
+type in_channel : value mod portable uncontended
 (** The type of input channel. *)
 
-type out_channel
+type out_channel : value mod portable uncontended
 (** The type of output channel. *)
 
 val stdin : in_channel
@@ -1352,7 +1354,7 @@ val ( ^^ ) :
 
 (** {1 Program termination} *)
 
-val exit : int -> 'a
+val exit : int -> 'a @@ nonportable
 (** Terminate the process, returning the given status code to the operating
     system: usually 0 to indicate no errors, and a small positive integer to
     indicate failure. All open output channels are flushed with [flush_all].
@@ -1363,7 +1365,7 @@ val exit : int -> 'a
     An implicit [exit 2] is performed if the program terminates early because
     of an uncaught exception. *)
 
-val at_exit : (unit -> unit) -> unit
+val at_exit : (unit -> unit) -> unit @@ nonportable
 (** Register the given function to be called at program termination
    time. The functions registered with [at_exit] will be called when
    the program does any of the following:
@@ -1374,17 +1376,23 @@ val at_exit : (unit -> unit) -> unit
    The functions are called in 'last in, first out' order: the
    function most recently added with [at_exit] is called first. *)
 
+module Safe : sig
+  val at_exit : (unit -> unit) @ portable -> unit
+  (** Like [at_exit], but accepts a [portable] function, and so can be called
+      from any domain. *)
+end
+
 (**/**)
 
 (* The following is for system use only. Do not call directly. *)
 
-val valid_float_lexem : string -> string
+val valid_float_lexem : string -> string @@ nonportable
 
-val unsafe_really_input : in_channel -> bytes -> int -> int -> unit
+val unsafe_really_input : in_channel -> bytes -> int -> int -> unit @@ nonportable
 
-val do_at_exit : unit -> unit
+val do_at_exit : unit -> unit @@ nonportable
 
-val do_domain_local_at_exit : (unit -> unit) ref
+val do_domain_local_at_exit : (unit -> unit) ref @@ nonportable
 
 (**/**)
 
