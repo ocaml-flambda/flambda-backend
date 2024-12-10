@@ -27,7 +27,7 @@ jobs:
           CFG variant of the pass."
 
            # Check if comment already exists
-          if ! gh pr view $PR_NUMBER --json comments -q '.comments[].body' --repo $REPO | grep -q "Parser Change Checklist"; then
+          if ! gh pr view $PR_NUMBER --json comments -q '.comments[].body' --repo $REPO | grep -q "Selection Change Check"; then
             gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
             echo "Comment added successfully."
           else
