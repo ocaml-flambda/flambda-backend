@@ -1001,23 +1001,26 @@ Error: This type "#(int * string * int)" should be an instance of type
 (********************************************)
 (* Test 17: Subkinding with sorts and [any] *)
 
+(* CR layouts: Change to use [any] instead of [any_non_null] when doing so
+   won't cause trouble with the [alpha] check. *)
+
 (* test intersection *)
-let rec f : ('a : any & value). unit -> 'a -> 'a = fun () -> f ()
+let rec f : ('a : any_non_null & value). unit -> 'a -> 'a = fun () -> f ()
 
 let g (x : 'a) = f () x
 
 [%%expect{|
-val f : ('a : any & value). unit -> 'a -> 'a = <fun>
+val f : ('a : any_non_null & value). unit -> 'a -> 'a = <fun>
 val g : ('a : value & value). 'a -> 'a = <fun>
 |}]
 
 (* test subjkinding *)
-let rec f : ('a : any & value). unit -> 'a -> 'a = fun () -> f ()
+let rec f : ('a : any_non_null & value). unit -> 'a -> 'a = fun () -> f ()
 
 let g (type a) (x : a) = f () x
 
 [%%expect{|
-val f : ('a : any & value). unit -> 'a -> 'a = <fun>
+val f : ('a : any_non_null & value). unit -> 'a -> 'a = <fun>
 Line 3, characters 30-31:
 3 | let g (type a) (x : a) = f () x
                                   ^
