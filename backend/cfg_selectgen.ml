@@ -224,6 +224,7 @@ class virtual selector_generic =
         (* Inversion addr/datum in Istore *))
       | Cdls_get -> basic_op Dls_get, args
       | Calloc mode -> basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
+      | Cpoll -> basic_op Poll, args
       | Caddi -> self#select_arith_comm Simple_operation.Iadd args
       | Csubi -> self#select_arith Simple_operation.Isub args
       | Cmuli -> self#select_arith_comm Simple_operation.Imul args
