@@ -447,6 +447,10 @@ module Sort = struct
       false
     | Product _ -> false
 
+  let decompose_into_product t n =
+    let ts = List.init n (fun _ -> new_var ()) in
+    if equate t (Product ts) then Some ts else None
+
   (*** pretty printing ***)
 
   let format ppf t =
