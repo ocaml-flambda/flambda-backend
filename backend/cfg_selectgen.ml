@@ -169,7 +169,7 @@ class virtual selector_generic =
           (Printcmm.operation dbg op)
       in
       let[@inline] single_arg () =
-        match args with [arg] -> arg | [] | _ :: _ :: _ -> wrong_num_args 1
+        match args with [arg] -> arg | [] | _ :: _ -> wrong_num_args 1
       in
       let[@inline] two_args () =
         match args with
