@@ -181,6 +181,8 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Values
   | Naked_floats
   | Naked_float32s
+  | Naked_int8s
+  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
@@ -190,6 +192,8 @@ type array_kind = Flambda_primitive.Array_kind.t =
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float32
   | Naked_float
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -216,6 +220,8 @@ type block_access_kind =
 type standard_int = Flambda_kind.Standard_int.t =
   | Tagged_immediate
   | Naked_immediate
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -225,6 +231,8 @@ type standard_int_or_float = Flambda_kind.Standard_int_or_float.t =
   | Naked_immediate
   | Naked_float32
   | Naked_float
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -353,6 +361,8 @@ type array_load_kind = Flambda_primitive.Array_load_kind.t =
   | Values
   | Naked_floats
   | Naked_float32s
+  | Naked_int8s
+  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints

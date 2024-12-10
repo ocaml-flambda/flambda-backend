@@ -17,6 +17,8 @@ type t =
   | Values_or_immediates_or_naked_floats
   | Unboxed_products
   | Naked_float32s
+  | Naked_int8s
+  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
@@ -27,6 +29,8 @@ let print ppf t =
   | Values_or_immediates_or_naked_floats -> Format.pp_print_string ppf "regular"
   | Unboxed_products -> Format.pp_print_string ppf "Unboxed_products"
   | Naked_float32s -> Format.pp_print_string ppf "Naked_float32s"
+  | Naked_int8s -> Format.pp_print_string ppf "Naked_int8s"
+  | Naked_int16s -> Format.pp_print_string ppf "Naked_int16s"
   | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
   | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
   | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
@@ -43,6 +47,8 @@ let of_element_kind t =
     Misc.fatal_errorf
       "Arrays cannot yet contain elements of kind naked immediate"
   | Naked_number Naked_float32 -> Naked_float32s
+  | Naked_number Naked_int8 -> Naked_int8s
+  | Naked_number Naked_int16 -> Naked_int16s
   | Naked_number Naked_int32 -> Naked_int32s
   | Naked_number Naked_int64 -> Naked_int64s
   | Naked_number Naked_nativeint -> Naked_nativeints
@@ -57,6 +63,8 @@ let of_lambda array_kind =
   | Punboxedfloatarray Unboxed_float64 ->
     Values_or_immediates_or_naked_floats
   | Punboxedfloatarray Unboxed_float32 -> Naked_float32s
+  | Punboxedintarray Unboxed_int8 -> Naked_int8s
+  | Punboxedintarray Unboxed_int16 -> Naked_int16s
   | Punboxedintarray Unboxed_int32 -> Naked_int32s
   | Punboxedintarray Unboxed_int64 -> Naked_int64s
   | Punboxedintarray Unboxed_nativeint -> Naked_nativeints

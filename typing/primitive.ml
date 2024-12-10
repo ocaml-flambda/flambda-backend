@@ -20,11 +20,17 @@ open Parsetree
 
 module String = Misc.Stdlib.String
 
-type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+type unboxed_integer =
+  | Unboxed_int64
+  | Unboxed_nativeint
+  | Unboxed_int32
+  | Unboxed_int16
+  | Unboxed_int8
+
 type unboxed_float = Unboxed_float64 | Unboxed_float32
 type unboxed_vector = Unboxed_vec128
 
-type boxed_integer =  Boxed_int64 | Boxed_nativeint | Boxed_int32
+type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
 type boxed_float = Boxed_float64 | Boxed_float32
 type boxed_vector = Boxed_vec128
 
@@ -347,7 +353,8 @@ let unbox_vector = function
 (* since these are just constant constructors, we can just use polymorphic
    equality and comparison at no performance loss: *)
 let equal_unboxed_integer
-      ((Unboxed_int32 | Unboxed_nativeint | Unboxed_int64) as i1) i2 = i1 = i2
+      ((Unboxed_int32 | Unboxed_nativeint | Unboxed_int64 | Unboxed_int16
+       | Unboxed_int8) as i1) i2 = i1 = i2
 let equal_unboxed_float
       ((Unboxed_float32 | Unboxed_float64) as f1) f2 = f1 = f2
 let compare_unboxed_float

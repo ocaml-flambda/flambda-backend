@@ -173,6 +173,12 @@ let create_immutable_float_array =
 let create_immutable_float32_array =
   create_immutable_naked_number_array SC.immutable_float32_array
 
+let create_immutable_int8_array =
+  create_immutable_naked_number_array SC.immutable_int8_array
+
+let create_immutable_int16_array =
+  create_immutable_naked_number_array SC.immutable_int16_array
+
 let create_immutable_int32_array =
   create_immutable_naked_number_array SC.immutable_int32_array
 
@@ -225,7 +231,8 @@ let map_set_of_closures t ~f =
       | Block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
       | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _
       | Immutable_float_block _ | Immutable_float_array _
-      | Immutable_float32_array _ | Immutable_int32_array _
+      | Immutable_float32_array _ | Immutable_int8_array _ | Immutable_int16_array _
+      | Immutable_int32_array _
       | Immutable_int64_array _ | Immutable_nativeint_array _
       | Immutable_vec128_array _ | Immutable_value_array _ | Empty_array _
       | Mutable_string _ | Immutable_string _ ->

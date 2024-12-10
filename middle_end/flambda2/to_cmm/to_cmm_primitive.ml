@@ -53,9 +53,10 @@ let unbox_number ~dbg kind arg =
   | Naked_float -> C.unbox_float dbg arg
   | Naked_float32 -> C.unbox_float32 dbg arg
   | Naked_vec128 -> C.unbox_vec128 dbg arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = K.Boxable_number.primitive_kind kind in
-    C.unbox_int dbg primitive_kind arg
+  | Naked_int32 -> C.unbox_int dbg Boxed_int32 arg
+  | Naked_int64 -> C.unbox_int dbg Boxed_int64 arg
+  | Naked_nativeint -> C.unbox_int dbg Boxed_nativeint arg
+  | Naked_int16 | Naked_int8 -> C.untag_int arg dbg
 
 let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
@@ -63,9 +64,11 @@ let box_number ~dbg kind alloc_mode arg =
   | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = K.Boxable_number.primitive_kind kind in
-    C.box_int_gen dbg primitive_kind alloc_mode arg
+  | Naked_int32 -> C.box_int_gen dbg Boxed_int32 alloc_mode arg
+  | Naked_int64 -> C.box_int_gen dbg Boxed_int64 alloc_mode arg
+  | Naked_nativeint -> C.box_int_gen dbg Boxed_nativeint alloc_mode arg
+  | Naked_int8 | Naked_int16 -> C.tag_int arg dbg
+
 
 (* Block creation and access. For these functions, [index] is a tagged
    integer. *)

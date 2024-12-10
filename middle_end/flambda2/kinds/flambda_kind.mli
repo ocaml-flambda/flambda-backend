@@ -21,6 +21,8 @@ module Naked_number_kind : sig
     | Naked_immediate
     | Naked_float32
     | Naked_float
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -56,6 +58,10 @@ val naked_float32 : t
 
 val naked_float : t
 
+val naked_int8 : t
+
+val naked_int16 : t
+
 val naked_int32 : t
 
 val naked_int64 : t
@@ -80,6 +86,8 @@ type flat_suffix_element = private
   | Tagged_immediate
   | Naked_float
   | Naked_float32
+  | Naked_int8
+  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint
@@ -143,6 +151,8 @@ module Standard_int : sig
   type t =
     | Tagged_immediate
     | Naked_immediate
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -161,6 +171,8 @@ module Standard_int_or_float : sig
     | Naked_immediate
     | Naked_float32
     | Naked_float
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -185,10 +197,7 @@ module Boxable_number : sig
     | Naked_int64
     | Naked_nativeint
     | Naked_vec128
-
   val unboxed_kind : t -> kind
-
-  val primitive_kind : t -> Primitive.boxed_integer
 
   val print_lowercase : Format.formatter -> t -> unit
 
@@ -229,6 +238,8 @@ module With_subkind : sig
       | Value_array
       | Generic_array
       | Unboxed_float32_array
+      | Unboxed_int8_array
+      | Unboxed_int16_array
       | Unboxed_int32_array
       | Unboxed_int64_array
       | Unboxed_nativeint_array
@@ -262,6 +273,10 @@ module With_subkind : sig
   val naked_float32 : t
 
   val naked_float : t
+
+  val naked_int8 : t
+
+  val naked_int16 : t
 
   val naked_int32 : t
 

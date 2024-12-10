@@ -727,10 +727,15 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       ( Mutable,
         Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
       )
+    | _, Punboxedintarray (Unboxed_int8 | Unboxed_int16) ->
+      (* The above cases are not actually allowed/tested yet. *)
+      Misc.fatal_error
+        "Comprehensions on arrays of unboxed small integers are not yet \
+         supported."
     | Dynamic_size, Punboxedvectorarray Unboxed_vec128 ->
       (* The above cases are not actually allowed/tested yet. *)
       Misc.fatal_error
-        "Comprehensions on arrays of unboxed types are not yet supported."
+        "Comprehensions on arrays of unboxed vectors are not yet supported."
     | _, (Pgcscannableproductarray _ | Pgcignorableproductarray _) ->
       Misc.fatal_error
         "Transl_array_comprehension.initial_array: unboxed product array"

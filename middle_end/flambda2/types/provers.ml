@@ -20,6 +20,8 @@
 
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
+module Int8 = Numeric_types.Int8
+module Int16 = Numeric_types.Int16
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 module K = Flambda_kind
@@ -67,6 +69,7 @@ let gen_value_to_gen prove_gen env t : _ generic_proof =
   | Value (Ok { is_null = Not_null; non_null = Bottom }) -> Invalid
   | Value (Ok { is_null = Not_null; non_null = Ok head }) -> prove_gen env head
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int8 _ | Naked_int16 _
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
     ->
     wrong_kind "Value" t
@@ -80,6 +83,7 @@ let gen_value_to_proof prove_gen env t : _ proof_of_property =
   | Value (Ok { is_null = Not_null; non_null = Ok head }) ->
     as_property (prove_gen env head)
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
+  | Naked_int8 _ | Naked_int16 _
   | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
     ->
     wrong_kind "Value" t
@@ -295,6 +299,8 @@ let meet_equals_single_tagged_immediate env t : _ meet_shortcut =
 type _ meet_naked_number_kind =
   | Float32 : Float32.Set.t meet_naked_number_kind
   | Float : Float.Set.t meet_naked_number_kind
+  | Int8 : Int8.Set.t meet_naked_number_kind
+  | Int16 : Int16.Set.t meet_naked_number_kind
   | Int32 : Int32.Set.t meet_naked_number_kind
   | Int64 : Int64.Set.t meet_naked_number_kind
   | Nativeint : Targetint_32_64.Set.t meet_naked_number_kind
@@ -316,6 +322,8 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
       match kind with
       | Float32 -> "Naked_float32"
       | Float -> "Naked_float"
+      | Int8 -> "Naked_int8"
+      | Int16 -> "Naked_int16"
       | Int32 -> "Naked_int32"
       | Int64 -> "Naked_int64"
       | Nativeint -> "Naked_nativeint"
@@ -376,6 +384,10 @@ let[@inline] meet_naked_number (type a) (kind : a meet_naked_number_kind) env t
 let meet_naked_float32s = meet_naked_number Float32
 
 let meet_naked_floats = meet_naked_number Float
+
+let meet_naked_int8s = meet_naked_number Int8
+
+let meet_naked_int16s = meet_naked_number Int16
 
 let meet_naked_int32s = meet_naked_number Int32
 

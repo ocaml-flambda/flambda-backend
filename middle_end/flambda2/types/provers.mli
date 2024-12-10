@@ -58,6 +58,12 @@ val meet_naked_floats :
   Type_grammar.t ->
   Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
 
+val meet_naked_int8s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int8.Set.t meet_shortcut
+
+val meet_naked_int16s :
+  Typing_env.t -> Type_grammar.t -> Numeric_types.Int16.Set.t meet_shortcut
+
 val meet_naked_int32s :
   Typing_env.t -> Type_grammar.t -> Numeric_types.Int32.Set.t meet_shortcut
 

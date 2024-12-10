@@ -18,6 +18,8 @@ module K = Flambda_kind
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
 module Vec128 = Vector_types.Vec128.Bit_pattern
+module Int8 = Numeric_types.Int8
+module Int16 = Numeric_types.Int16
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 module RWC = Reg_width_const
@@ -48,6 +50,8 @@ type t =
   | Naked_immediate of head_of_kind_naked_immediate TD.t
   | Naked_float32 of head_of_kind_naked_float32 TD.t
   | Naked_float of head_of_kind_naked_float TD.t
+  | Naked_int8 of head_of_kind_naked_int8 TD.t
+  | Naked_int16 of head_of_kind_naked_int16 TD.t
   | Naked_int32 of head_of_kind_naked_int32 TD.t
   | Naked_int64 of head_of_kind_naked_int64 TD.t
   | Naked_nativeint of head_of_kind_naked_nativeint TD.t
@@ -126,6 +130,10 @@ and head_of_kind_naked_immediate =
 and head_of_kind_naked_float32 = Float32.Set.t
 
 and head_of_kind_naked_float = Float.Set.t
+
+and head_of_kind_naked_int8 = Int8.Set.t
+
+and head_of_kind_naked_int16 = Int16.Set.t
 
 and head_of_kind_naked_int32 = Int32.Set.t
 
@@ -1461,6 +1469,12 @@ and apply_coercion_head_of_kind_naked_float32 head coercion : _ Or_bottom.t =
   if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_naked_float head coercion : _ Or_bottom.t =
+  if Coercion.is_id coercion then Ok head else Bottom
+
+and apply_coercion_head_of_kind_naked_int8 head coercion : _ Or_bottom.t =
+  if Coercion.is_id coercion then Ok head else Bottom
+
+and apply_coercion_head_of_kind_naked_int16 head coercion : _ Or_bottom.t =
   if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_naked_int32 head coercion : _ Or_bottom.t =
@@ -3156,6 +3170,10 @@ let bottom_naked_float32 = Naked_float32 TD.bottom
 
 let bottom_naked_float = Naked_float TD.bottom
 
+let bottom_naked_int8 = Naked_int8 TD.bottom
+
+let bottom_naked_int16 = Naked_int16 TD.bottom
+
 let bottom_naked_int32 = Naked_int32 TD.bottom
 
 let bottom_naked_int64 = Naked_int64 TD.bottom
@@ -3175,6 +3193,10 @@ let any_naked_immediate = Naked_immediate TD.unknown
 let any_naked_float32 = Naked_float32 TD.unknown
 
 let any_naked_float = Naked_float TD.unknown
+
+let any_naked_int8 = Naked_int8 TD.unknown
+
+let any_naked_int16 = Naked_int16 TD.unknown
 
 let any_naked_int32 = Naked_int32 TD.unknown
 
@@ -3196,6 +3218,12 @@ let this_naked_float32 f : t =
 
 let this_naked_float f : t =
   Naked_float (TD.create_equals (Simple.const (RWC.naked_float f)))
+
+let this_naked_int8 i : t =
+  Naked_int8 (TD.create_equals (Simple.const (RWC.naked_int8 i)))
+
+let this_naked_int16 i : t =
+  Naked_int16 (TD.create_equals (Simple.const (RWC.naked_int16 i)))
 
 let this_naked_int32 i : t =
   Naked_int32 (TD.create_equals (Simple.const (RWC.naked_int32 i)))
@@ -3233,6 +3261,22 @@ let these_naked_floats fs =
     then bottom_naked_float
     else Naked_float (TD.create fs)
 
+let these_naked_int8s is =
+  match Int8.Set.get_singleton is with
+  | Some i -> this_naked_int8 i
+  | _ ->
+    if Int8.Set.is_empty is
+    then bottom_naked_int8
+    else Naked_int8 (TD.create is)
+
+let these_naked_int16s is =
+  match Int16.Set.get_singleton is with
+  | Some i -> this_naked_int16 i
+  | _ ->
+    if Int16.Set.is_empty is
+    then bottom_naked_int16
+    else Naked_int16 (TD.create is)
+
 let these_naked_int32s is =
   match Int32.Set.get_singleton is with
   | Some i -> this_naked_int32 i
@@ -3268,47 +3312,61 @@ let these_naked_vec128s vs =
 let box_float32 (t : t) alloc_mode : t =
   match t with
   | Naked_float32 _ -> non_null_value (Boxed_float32 (t, alloc_mode))
-  | Value _ | Naked_immediate _ | Naked_int32 _ | Naked_float _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Misc.fatal_errorf "Type of wrong kind for [box_float32]: %a" print t
+  | t -> Misc.fatal_errorf "Type of wrong kind for [box_float32]: %a" print t
 
 let box_float (t : t) alloc_mode : t =
   match t with
   | Naked_float _ -> non_null_value (Boxed_float (t, alloc_mode))
-  | Value _ | Naked_immediate _ | Naked_int32 _ | Naked_float32 _
-  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
-    ->
-    Misc.fatal_errorf "Type of wrong kind for [box_float]: %a" print t
+  | t -> Misc.fatal_errorf "Type of wrong kind for [box_float]: %a" print t
 
-let box_int32 (t : t) alloc_mode : t =
+let tag_int8 (t : t) : t =
   match t with
-  | Naked_int32 _ -> non_null_value (Boxed_int32 (t, alloc_mode))
-  | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
-    ->
-    Misc.fatal_errorf "Type of wrong kind for [box_int32]: %a" print t
+  | Naked_int8 _ ->
+    non_null_value
+      (Variant
+         { is_unique = false;
+           immediates = Known t;
+           blocks = Known Row_like_for_blocks.bottom;
+           extensions = No_extensions
+         })
+  | t -> Misc.fatal_errorf "Type of wrong kind for [tag_int8]: %a" print t
+
+let tag_int16 (t : t) : t =
+  match t with
+  | Naked_int16 _ ->
+    non_null_value
+      (Variant
+         { is_unique = false;
+           immediates = Known t;
+           blocks = Known Row_like_for_blocks.bottom;
+           extensions = No_extensions
+         })
+  | t -> Misc.fatal_errorf "Type of wrong kind for [tag_int16]: %a" print t
 
 let box_int64 (t : t) alloc_mode : t =
   match t with
   | Naked_int64 _ -> non_null_value (Boxed_int64 (t, alloc_mode))
-  | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int32 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
-    ->
-    Misc.fatal_errorf "Type of wrong kind for [box_int64]: %a" print t
+  | t -> Misc.fatal_errorf "Type of wrong kind for [box_int64]: %a" print t
+
+let box_int32 (t : t) alloc_mode : t =
+  match t with
+  | Naked_int32 _ -> non_null_value (Boxed_int32 (t, alloc_mode))
+  | t -> Misc.fatal_errorf "Type of wrong kind for [box_int32]: %a" print t
+
+let box_int64 (t : t) alloc_mode : t =
+  match t with
+  | Naked_int64 _ -> non_null_value (Boxed_int64 (t, alloc_mode))
+  | t -> Misc.fatal_errorf "Type of wrong kind for [box_int64]: %a" print t
 
 let box_nativeint (t : t) alloc_mode : t =
   match t with
   | Naked_nativeint _ -> non_null_value (Boxed_nativeint (t, alloc_mode))
-  | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Rec_info _ | Region _ ->
-    Misc.fatal_errorf "Type of wrong kind for [box_nativeint]: %a" print t
+  | t -> Misc.fatal_errorf "Type of wrong kind for [box_nativeint]: %a" print t
 
 let box_vec128 (t : t) alloc_mode : t =
   match t with
   | Naked_vec128 _ -> non_null_value (Boxed_vec128 (t, alloc_mode))
-  | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
-    Misc.fatal_errorf "Type of wrong kind for [box_vec128]: %a" print t
+  | t -> Misc.fatal_errorf "Type of wrong kind for [box_vec128]: %a" print t
 
 let null : t = Value (TD.create { non_null = Bottom; is_null = Maybe_null })
 
@@ -3350,6 +3408,12 @@ let boxed_float32_alias_to ~naked_float32 =
 
 let boxed_float_alias_to ~naked_float =
   box_float (Naked_float (TD.create_equals (Simple.var naked_float)))
+
+let tagged_int8_alias_to ~naked_int8 =
+  tag_int8 (Naked_int8 (TD.create_equals (Simple.var naked_int8)))
+
+let tagged_int16_alias_to ~naked_int16 =
+  tag_int16 (Naked_int16 (TD.create_equals (Simple.var naked_int16)))
 
 let boxed_int32_alias_to ~naked_int32 =
   box_int32 (Naked_int32 (TD.create_equals (Simple.var naked_int32)))
@@ -3411,6 +3475,8 @@ module Descr = struct
     | Naked_float32 of
         head_of_kind_naked_float32 TD.Descr.t Or_unknown_or_bottom.t
     | Naked_float of head_of_kind_naked_float TD.Descr.t Or_unknown_or_bottom.t
+    | Naked_int8 of head_of_kind_naked_int8 TD.Descr.t Or_unknown_or_bottom.t
+    | Naked_int16 of head_of_kind_naked_int16 TD.Descr.t Or_unknown_or_bottom.t
     | Naked_int32 of head_of_kind_naked_int32 TD.Descr.t Or_unknown_or_bottom.t
     | Naked_int64 of head_of_kind_naked_int64 TD.Descr.t Or_unknown_or_bottom.t
     | Naked_nativeint of
@@ -3441,6 +3507,10 @@ let create_from_head_naked_immediate head = Naked_immediate (TD.create head)
 let create_from_head_naked_float32 head = Naked_float32 (TD.create head)
 
 let create_from_head_naked_float head = Naked_float (TD.create head)
+
+let create_from_head_naked_int8 head = Naked_int8 (TD.create head)
+
+let create_from_head_naked_int16 head = Naked_int16 (TD.create head)
 
 let create_from_head_naked_int32 head = Naked_int32 (TD.create head)
 
@@ -3609,6 +3679,8 @@ end
 
 module Head_of_kind_naked_float32 = Make_head_of_kind_naked_number (Float32)
 module Head_of_kind_naked_float = Make_head_of_kind_naked_number (Float)
+module Head_of_kind_naked_int8 = Make_head_of_kind_naked_number (Int8)
+module Head_of_kind_naked_int16 = Make_head_of_kind_naked_number (Int16)
 module Head_of_kind_naked_int32 = Make_head_of_kind_naked_number (Int32)
 module Head_of_kind_naked_int64 = Make_head_of_kind_naked_number (Int64)
 module Head_of_kind_naked_nativeint =

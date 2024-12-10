@@ -28,6 +28,10 @@ module Expanded_type : sig
 
   val create_naked_float : Type_grammar.head_of_kind_naked_float -> t
 
+  val create_naked_int8 : Type_grammar.head_of_kind_naked_int8 -> t
+
+  val create_naked_int16 : Type_grammar.head_of_kind_naked_int16 -> t
+
   val create_naked_int32 : Type_grammar.head_of_kind_naked_int32 -> t
 
   val create_naked_int64 : Type_grammar.head_of_kind_naked_int64 -> t
@@ -59,6 +63,8 @@ module Expanded_type : sig
     | Naked_immediate of Type_grammar.head_of_kind_naked_immediate
     | Naked_float32 of Type_grammar.head_of_kind_naked_float32
     | Naked_float of Type_grammar.head_of_kind_naked_float
+    | Naked_int8 of Type_grammar.head_of_kind_naked_int8
+    | Naked_int16 of Type_grammar.head_of_kind_naked_int16
     | Naked_int32 of Type_grammar.head_of_kind_naked_int32
     | Naked_int64 of Type_grammar.head_of_kind_naked_int64
     | Naked_nativeint of Type_grammar.head_of_kind_naked_nativeint
@@ -76,6 +82,10 @@ module Expanded_type : sig
         Type_grammar.head_of_kind_naked_float32 Or_unknown_or_bottom.t
     | Naked_float of
         Type_grammar.head_of_kind_naked_float Or_unknown_or_bottom.t
+    | Naked_int8 of
+        Type_grammar.head_of_kind_naked_int8 Or_unknown_or_bottom.t
+    | Naked_int16 of
+        Type_grammar.head_of_kind_naked_int16 Or_unknown_or_bottom.t
     | Naked_int32 of
         Type_grammar.head_of_kind_naked_int32 Or_unknown_or_bottom.t
     | Naked_int64 of

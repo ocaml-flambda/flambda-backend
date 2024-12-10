@@ -35,6 +35,8 @@ type t =
       Numeric_types.Float_by_bit_pattern.t Or_variable.t list
   | Immutable_float32_array of
       Numeric_types.Float32_by_bit_pattern.t Or_variable.t list
+  | Immutable_int8_array of Numeric_types.Int8.t Or_variable.t list
+  | Immutable_int16_array of Numeric_types.Int16.t Or_variable.t list
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
@@ -82,6 +84,16 @@ let immutable_int32_array fields =
   match fields with
   | [] -> Empty_array Naked_int32s
   | _ :: _ -> Immutable_int32_array fields
+
+let immutable_int16_array fields =
+  match fields with
+  | [] -> Empty_array Naked_int16s
+  | _ :: _ -> Immutable_int16_array fields
+
+let immutable_int8_array fields =
+  match fields with
+  | [] -> Empty_array Naked_int8s
+  | _ :: _ -> Immutable_int8_array fields
 
 let immutable_nativeint_array fields =
   match fields with
@@ -183,13 +195,29 @@ let [@ocamlformat "disable"] print ppf t =
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
     (Or_variable.print Numeric_types.Float32_by_bit_pattern.print))
       fields
+  | Immutable_int8_array fields ->
+    fprintf ppf "@[<hov 1>(%tImmutable_int8_array%t@ @[[| %a |]@])@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
+         (Or_variable.print Numeric_types.Int8.print))
+      fields
+  | Immutable_int16_array fields ->
+    fprintf ppf "@[<hov 1>(%tImmutable_int16_array%t@ @[[| %a |]@])@]"
+      Flambda_colours.static_part
+      Flambda_colours.pop
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
+         (Or_variable.print Numeric_types.Int16.print))
+      fields
   | Immutable_int32_array fields ->
     fprintf ppf "@[<hov 1>(%tImmutable_int32_array%t@ @[[| %a |]@])@]"
       Flambda_colours.static_part
       Flambda_colours.pop
       (Format.pp_print_list
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
-        (Or_variable.print (fun ppf n -> Format.fprintf ppf "%ld" n)))
+        (Or_variable.print Numeric_types.Int32.print))
       fields
   | Immutable_int64_array fields ->
     fprintf ppf "@[<hov 1>(%tImmutable_int64_array%t@ @[[| %a |]@])@]"
@@ -197,7 +225,7 @@ let [@ocamlformat "disable"] print ppf t =
       Flambda_colours.pop
       (Format.pp_print_list
         ~pp_sep:(fun ppf () -> Format.pp_print_string ppf "@; ")
-        (Or_variable.print (fun ppf n -> Format.fprintf ppf "%Ld" n)))
+        (Or_variable.print Numeric_types.Int64.print))
       fields
   | Immutable_nativeint_array fields ->
     fprintf ppf "@[<hov 1>(%tImmutable_nativeint_array%t@ @[[| %a |]@])@]"

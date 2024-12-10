@@ -460,6 +460,8 @@ and flat_element = Types.flat_element =
   | Float_boxed
   | Float64
   | Float32
+  | Bits8
+  | Bits16
   | Bits32
   | Bits64
   | Vec128
@@ -496,6 +498,8 @@ and unboxed_integer = Primitive.unboxed_integer =
   | Unboxed_int64
   | Unboxed_nativeint
   | Unboxed_int32
+  | Unboxed_int16
+  | Unboxed_int8
 
 and unboxed_vector = Primitive.unboxed_vector =
   | Unboxed_vec128

@@ -16,6 +16,8 @@
 
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
+module Int8 = Numeric_types.Int8
+module Int16 = Numeric_types.Int16
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 module TE = Typing_env
@@ -36,6 +38,8 @@ type to_lift =
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
   | Immutable_float32_array of { fields : Float32.t list }
   | Immutable_float_array of { fields : Float.t list }
+  | Immutable_int8_array of { fields : Int8.t list }
+  | Immutable_int16_array of { fields : Int16.t list }
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
@@ -123,6 +127,22 @@ module Lift_array_of_naked_floats = Make_lift_array_of_naked_numbers (struct
 
   let build_to_lift ~fields = Immutable_float_array { fields }
 end)
+
+module Lift_array_of_naked_int8s = Make_lift_array_of_naked_numbers (struct
+    module N = Int8
+
+    let prove = Provers.meet_naked_int8s
+
+    let build_to_lift ~fields = Immutable_int8_array { fields }
+  end)
+
+module Lift_array_of_naked_int16s = Make_lift_array_of_naked_numbers (struct
+    module N = Int16
+
+    let prove = Provers.meet_naked_int16s
+
+    let build_to_lift ~fields = Immutable_int16_array { fields }
+  end)
 
 module Lift_array_of_naked_int32s = Make_lift_array_of_naked_numbers (struct
   module N = Int32
@@ -438,6 +458,14 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       match Float.Set.get_singleton (fs :> Float.Set.t) with
       | None -> try_canonical_simple ()
       | Some f -> Simple (Simple.const (Reg_width_const.naked_float f)))
+    | Naked_int8 (Ok ns) -> (
+        match Int8.Set.get_singleton (ns :> Int8.Set.t) with
+        | None -> try_canonical_simple ()
+        | Some n -> Simple (Simple.const (Reg_width_const.naked_int8 n)))
+    | Naked_int16 (Ok ns) -> (
+        match Int16.Set.get_singleton (ns :> Int16.Set.t) with
+        | None -> try_canonical_simple ()
+        | Some n -> Simple (Simple.const (Reg_width_const.naked_int16 n)))
     | Naked_int32 (Ok ns) -> (
       match Int32.Set.get_singleton (ns :> Int32.Set.t) with
       | None -> try_canonical_simple ()
@@ -612,6 +640,10 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
             Lift_array_of_naked_floats.lift env ~fields ~try_canonical_simple
           | Naked_number Naked_float32 ->
             Lift_array_of_naked_float32s.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_int8 ->
+            Lift_array_of_naked_int8s.lift env ~fields ~try_canonical_simple
+          | Naked_number Naked_int16 ->
+            Lift_array_of_naked_int16s.lift env ~fields ~try_canonical_simple
           | Naked_number Naked_int32 ->
             Lift_array_of_naked_int32s.lift env ~fields ~try_canonical_simple
           | Naked_number Naked_int64 ->
@@ -630,6 +662,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Naked_immediate Bottom
     | Naked_float32 Bottom
     | Naked_float Bottom
+    | Naked_int8 Bottom
+    | Naked_int16 Bottom
     | Naked_int32 Bottom
     | Naked_int64 Bottom
     | Naked_nativeint Bottom
@@ -642,6 +676,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Naked_immediate Unknown
     | Naked_float32 Unknown
     | Naked_float Unknown
+    | Naked_int8 Unknown
+    | Naked_int16 Unknown
     | Naked_int32 Unknown
     | Naked_int64 Unknown
     | Naked_vec128 Unknown

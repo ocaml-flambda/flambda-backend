@@ -397,6 +397,8 @@ let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
     | Ptagged_int_index -> ""
     | Punboxed_int_index Unboxed_int64 -> "_indexed_by_int64"
     | Punboxed_int_index Unboxed_int32 -> "_indexed_by_int32"
+    | Punboxed_int_index Unboxed_int16 -> "_indexed_by_int16"
+    | Punboxed_int_index Unboxed_int8 -> "_indexed_by_int8"
     | Punboxed_int_index Unboxed_nativeint -> "_indexed_by_nativeint"
   in
   prefix ^ suffix
