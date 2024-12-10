@@ -293,7 +293,7 @@ class virtual selector_generic =
       | Cprobe_is_enabled { name } -> basic_op (Probe_is_enabled { name }), []
       | Cbeginregion -> basic_op Begin_region, []
       | Cendregion -> basic_op End_region, args
-      | Cpackf32 | Copaque | Cpoll | Cbswap _ | Cprefetch _ | Craise _
+      | Cpackf32 | Copaque | Cbswap _ | Cprefetch _ | Craise _
       | Ctuple_field (_, _) ->
         Misc.fatal_error "Selection.select_oper"
 
