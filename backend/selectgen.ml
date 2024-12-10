@@ -117,6 +117,7 @@ type environment = unit Select_utils.environment
 
 class virtual selector_generic =
   object (self : 'self)
+    (* CR xclerc: will I be notified I need to update cfg_selectgen.ml? *)
     inherit
       [unit, Mach.operation, Mach.instruction_desc] Select_utils.common_selector
 
