@@ -402,6 +402,10 @@ val this_naked_float32 : Numeric_types.Float32_by_bit_pattern.t -> t
 
 val this_naked_float : Numeric_types.Float_by_bit_pattern.t -> t
 
+val this_naked_int8 : Numeric_types.Int8.t -> t
+
+val this_naked_int16 : Numeric_types.Int16.t -> t
+
 val this_naked_int32 : Numeric_types.Int32.t -> t
 
 val this_naked_int64 : Numeric_types.Int64.t -> t

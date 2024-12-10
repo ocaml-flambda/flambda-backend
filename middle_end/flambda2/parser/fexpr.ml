@@ -192,8 +192,6 @@ type array_kind = Flambda_primitive.Array_kind.t =
 type box_kind = Flambda_kind.Boxable_number.t =
   | Naked_float32
   | Naked_float
-  | Naked_int8
-  | Naked_int16
   | Naked_int32
   | Naked_int64
   | Naked_nativeint

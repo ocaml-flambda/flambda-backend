@@ -234,6 +234,8 @@ let get_alias_exn t =
   | Naked_immediate ty -> TD.get_alias_exn ty
   | Naked_float32 ty -> TD.get_alias_exn ty
   | Naked_float ty -> TD.get_alias_exn ty
+  | Naked_int8 ty -> TD.get_alias_exn ty
+  | Naked_int16 ty -> TD.get_alias_exn ty
   | Naked_int32 ty -> TD.get_alias_exn ty
   | Naked_int64 ty -> TD.get_alias_exn ty
   | Naked_nativeint ty -> TD.get_alias_exn ty
@@ -268,6 +270,12 @@ let rec free_names0 ~follow_value_slots t =
       ty
   | Naked_float ty ->
     type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_float
+      ty
+  | Naked_int8 ty ->
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_int8
+      ty
+  | Naked_int16 ty ->
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_int16
       ty
   | Naked_int32 ty ->
     type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_int32
@@ -340,6 +348,10 @@ and free_names_head_of_kind_naked_immediate0 ~follow_value_slots head =
 and free_names_head_of_kind_naked_float32 _ = Name_occurrences.empty
 
 and free_names_head_of_kind_naked_float _ = Name_occurrences.empty
+
+and free_names_head_of_kind_naked_int8 _ = Name_occurrences.empty
+
+and free_names_head_of_kind_naked_int16 _ = Name_occurrences.empty
 
 and free_names_head_of_kind_naked_int32 _ = Name_occurrences.empty
 
@@ -535,6 +547,20 @@ let rec apply_renaming t renaming =
           ~free_names_head:free_names_head_of_kind_naked_float ty renaming
       in
       if ty == ty' then t else Naked_float ty'
+    | Naked_int8 ty ->
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int8
+          ~free_names_head:free_names_head_of_kind_naked_int8 ty renaming
+      in
+      if ty == ty' then t else Naked_int8 ty'
+    | Naked_int16 ty ->
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_int16
+          ~free_names_head:free_names_head_of_kind_naked_int16 ty renaming
+      in
+      if ty == ty' then t else Naked_int16 ty'
     | Naked_int32 ty ->
       let ty' =
         TD.apply_renaming
@@ -690,6 +716,10 @@ and apply_renaming_head_of_kind_naked_immediate head renaming =
 and apply_renaming_head_of_kind_naked_float32 head _ = head
 
 and apply_renaming_head_of_kind_naked_float head _ = head
+
+and apply_renaming_head_of_kind_naked_int8 head _ = head
+
+and apply_renaming_head_of_kind_naked_int16 head _ = head
 
 and apply_renaming_head_of_kind_naked_int32 head _ = head
 
@@ -868,6 +898,14 @@ let rec print ppf t =
     Format.fprintf ppf "@[<hov 1>(Naked_float@ %a)@]"
       (TD.print ~print_head:print_head_of_kind_naked_float)
       ty
+  | Naked_int8 ty ->
+    Format.fprintf ppf "@[<hov 1>(Naked_int8@ %a)@]"
+      (TD.print ~print_head:print_head_of_kind_naked_int8)
+      ty
+  | Naked_int16 ty ->
+    Format.fprintf ppf "@[<hov 1>(Naked_int16@ %a)@]"
+      (TD.print ~print_head:print_head_of_kind_naked_int16)
+      ty
   | Naked_int32 ty ->
     Format.fprintf ppf "@[<hov 1>(Naked_int32@ %a)@]"
       (TD.print ~print_head:print_head_of_kind_naked_int32)
@@ -975,6 +1013,12 @@ and print_head_of_kind_naked_float32 ppf head =
 
 and print_head_of_kind_naked_float ppf head =
   Format.fprintf ppf "@[(Naked_float@ (%a))@]" Float.Set.print head
+
+and print_head_of_kind_naked_int8 ppf head =
+  Format.fprintf ppf "@[(Naked_int8@ (%a))@]" Int8.Set.print head
+
+and print_head_of_kind_naked_int16 ppf head =
+  Format.fprintf ppf "@[(Naked_int16@ (%a))@]" Int16.Set.print head
 
 and print_head_of_kind_naked_int32 ppf head =
   Format.fprintf ppf "@[(Naked_int32@ (%a))@]" Int32.Set.print head
@@ -1141,6 +1185,12 @@ let rec ids_for_export t =
   | Naked_float ty ->
     TD.ids_for_export
       ~ids_for_export_head:ids_for_export_head_of_kind_naked_float ty
+  | Naked_int8 ty ->
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_int8 ty
+  | Naked_int16 ty ->
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_int16 ty
   | Naked_int32 ty ->
     TD.ids_for_export
       ~ids_for_export_head:ids_for_export_head_of_kind_naked_int32 ty
@@ -1206,6 +1256,10 @@ and ids_for_export_head_of_kind_naked_immediate head =
 and ids_for_export_head_of_kind_naked_float32 _ = Ids_for_export.empty
 
 and ids_for_export_head_of_kind_naked_float _ = Ids_for_export.empty
+
+and ids_for_export_head_of_kind_naked_int8 _ = Ids_for_export.empty
+
+and ids_for_export_head_of_kind_naked_int16 _ = Ids_for_export.empty
 
 and ids_for_export_head_of_kind_naked_int32 _ = Ids_for_export.empty
 
@@ -1370,6 +1424,20 @@ let rec apply_coercion t coercion : t Or_bottom.t =
           ty
       in
       if ty == ty' then t else Naked_float ty'
+    | Naked_int8 ty ->
+      let<+ ty' =
+        TD.apply_coercion
+          ~apply_coercion_head:apply_coercion_head_of_kind_naked_int8 coercion
+          ty
+      in
+      if ty == ty' then t else Naked_int8 ty'
+    | Naked_int16 ty ->
+      let<+ ty' =
+        TD.apply_coercion
+          ~apply_coercion_head:apply_coercion_head_of_kind_naked_int16 coercion
+          ty
+      in
+      if ty == ty' then t else Naked_int16 ty'
     | Naked_int32 ty ->
       let<+ ty' =
         TD.apply_coercion
@@ -1721,6 +1789,22 @@ let rec remove_unused_value_slots_and_shortcut_aliases t ~used_value_slots
           remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_float
     in
     if ty == ty' then t else Naked_float ty'
+  | Naked_int8 ty ->
+    let ty' =
+      TD.remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+        ~remove_unused_value_slots_and_shortcut_aliases_head:
+          remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_int8
+    in
+    if ty == ty' then t else Naked_int8 ty'
+  | Naked_int16 ty ->
+    let ty' =
+      TD.remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+        ~remove_unused_value_slots_and_shortcut_aliases_head:
+          remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_int16
+    in
+    if ty == ty' then t else Naked_int16 ty'
   | Naked_int32 ty ->
     let ty' =
       TD.remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
@@ -1932,6 +2016,14 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_float32
 
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_float head
     ~used_value_slots:_ ~canonicalise:_ =
+  head
+
+and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_int8 head
+      ~used_value_slots:_ ~canonicalise:_ =
+  head
+
+and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_int16 head
+      ~used_value_slots:_ ~canonicalise:_ =
   head
 
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_int32 head

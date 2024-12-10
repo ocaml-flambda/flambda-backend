@@ -135,7 +135,7 @@ let unbox_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
   | Naked_float | Naked_float32 | Naked_vec128 -> 1 (* 1 load *)
   | Naked_int64 when arch32 -> 4 (* 2 Cadda + 2 loads *)
-  | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
+  | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
 (* Cadda + load *)
 
 let box_number kind =
@@ -143,7 +143,6 @@ let box_number kind =
   | Naked_float | Naked_float32 | Naked_vec128 -> alloc_size (* 1 alloc *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size (* alloc *)
-  | Naked_int8 | Naked_int16 -> 1 (* just tag *)
 
 let block_load (kind : Flambda_primitive.Block_access_kind.t) =
   match kind with Values _ | Naked_floats _ | Mixed _ -> 1

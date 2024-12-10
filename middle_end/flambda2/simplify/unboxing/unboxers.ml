@@ -55,6 +55,40 @@ module Immediate = struct
     }
 end
 
+module Int8 = struct
+  let decider =
+    { param_name = "naked_int8";
+      kind = Naked_int8;
+      prove_is_a_boxed_number = T.prove_is_a_tagged_immediate
+    }
+
+  let unboxing_prim simple = P.(Unary (Untag_immediate, simple))
+
+  let unboxer =
+    { var_name = "naked_int8";
+      poison_const = Const.naked_int8 (Numeric_types.Int8.of_int (-0x7d));
+      unboxing_prim;
+      prove_simple = T.meet_tagging_of_simple
+    }
+end
+
+module Int16 = struct
+  let decider =
+    { param_name = "naked_int16";
+      kind = Naked_int16;
+      prove_is_a_boxed_number = T.prove_is_a_tagged_immediate
+    }
+
+  let unboxing_prim simple = P.(Unary (Untag_immediate, simple))
+
+  let unboxer =
+    { var_name = "naked_int16";
+      poison_const = Const.naked_int16 (Numeric_types.Int16.of_int (-0x7d3d));
+      unboxing_prim;
+      prove_simple = T.meet_tagging_of_simple
+    }
+end
+
 module Float32 = struct
   let decider =
     { param_name = "unboxed_float32";

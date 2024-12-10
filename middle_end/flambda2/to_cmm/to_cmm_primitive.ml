@@ -56,7 +56,6 @@ let unbox_number ~dbg kind arg =
   | Naked_int32 -> C.unbox_int dbg Boxed_int32 arg
   | Naked_int64 -> C.unbox_int dbg Boxed_int64 arg
   | Naked_nativeint -> C.unbox_int dbg Boxed_nativeint arg
-  | Naked_int16 | Naked_int8 -> C.untag_int arg dbg
 
 let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
@@ -67,7 +66,6 @@ let box_number ~dbg kind alloc_mode arg =
   | Naked_int32 -> C.box_int_gen dbg Boxed_int32 alloc_mode arg
   | Naked_int64 -> C.box_int_gen dbg Boxed_int64 alloc_mode arg
   | Naked_nativeint -> C.box_int_gen dbg Boxed_nativeint alloc_mode arg
-  | Naked_int8 | Naked_int16 -> C.tag_int arg dbg
 
 
 (* Block creation and access. For these functions, [index] is a tagged
@@ -103,6 +101,8 @@ let mixed_block_kinds shape =
         | Tagged_immediate -> KS.tagged_immediate
         | Naked_float -> KS.naked_float
         | Naked_float32 -> KS.naked_float32
+        | Naked_int8 -> KS.naked_int8
+        | Naked_int16 -> KS.naked_int16
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
         | Naked_vec128 -> KS.naked_vec128
@@ -149,6 +149,8 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
         | Tagged_immediate -> C.get_field_computed Immediate
         | Naked_float -> C.unboxed_float_array_ref
         | Naked_float32 -> C.get_field_unboxed_float32
+        | Naked_int8 -> C.get_field_unboxed_int8
+        | Naked_int16 -> C.get_field_unboxed_int16
         | Naked_int32 -> C.get_field_unboxed_int32
         | Naked_vec128 ->
           fun mut ~block ~index dbg ->
@@ -183,6 +185,8 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
         | Naked_float -> C.float_array_set
         | Naked_float32 -> C.setfield_unboxed_float32
         | Naked_int32 -> C.setfield_unboxed_int32
+        | Naked_int8 -> C.setfield_unboxed_int8
+        | Naked_int16 -> C.setfield_unboxed_int16
         | Naked_vec128 ->
           fun arr index_in_words newval dbg ->
             C.setfield_unboxed_vec128 arr ~index_in_words newval dbg
@@ -236,6 +240,8 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_floats ->
     C.make_float_alloc ~mode dbg ~tag:(Tag.to_int Tag.double_array_tag) args
   | Naked_float32s -> C.allocate_unboxed_float32_array ~elements:args mode dbg
+  | Naked_int8s -> C.allocate_unboxed_int8_array ~elements:args mode dbg
+  | Naked_int16s -> C.allocate_unboxed_int16_array ~elements:args mode dbg
   | Naked_int32s -> C.allocate_unboxed_int32_array ~elements:args mode dbg
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
   | Naked_nativeints ->
@@ -260,6 +266,8 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
     assert (C.wordsize_shift = C.numfloat_shift);
     C.addr_array_length arr dbg
   | Naked_float32s -> C.unboxed_float32_array_length arr dbg
+  | Naked_int8s -> C.unboxed_int8_array_length arr dbg
+  | Naked_int16s -> C.unboxed_int16_array_length arr dbg
   | Naked_int32s -> C.unboxed_int32_array_length arr dbg
   | Naked_int64s | Naked_nativeints ->
     (* These need a special case as they are represented by custom blocks, even

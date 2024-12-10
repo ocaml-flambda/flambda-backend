@@ -66,6 +66,10 @@ module Float32 : Number_S
 
 module Float : Number_S
 
+module Int8 : Number_S
+
+module Int16 : Number_S
+
 module Int32 : Number_S
 
 module Int64 : Number_S

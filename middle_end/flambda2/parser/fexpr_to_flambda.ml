@@ -481,10 +481,9 @@ let array_kind : 'a -> Fexpr.array_kind -> Flambda_primitive.Array_kind.t =
   | Naked_floats -> Naked_floats
   | Values -> Values
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_int8s | Naked_int16s
   | Naked_vec128s | Unboxed_product _ ->
-    Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128/unboxed \
-       product arrays not yet implemented"
+    Misc.fatal_error "fexpr support for new unboxed  arrays not yet implemented"
 
 let array_set_kind :
     'a -> Fexpr.array_set_kind -> Flambda_primitive.Array_set_kind.t =
@@ -494,9 +493,7 @@ let array_set_kind :
   | Values ia -> Values (init_or_assign env ia)
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
   | Naked_vec128s ->
-    Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
-       yet implemented"
+    Misc.fatal_error "fexpr support for new unboxed  arrays not yet implemented"
 
 let ternop env (ternop : Fexpr.ternop) : Flambda_primitive.ternary_primitive =
   match ternop with

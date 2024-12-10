@@ -501,6 +501,7 @@ let prim_has_valid_reprs ~loc prim =
 
   let check =
     let stringlike_indexing_primitives =
+      (* CR jvanburen: add small indexing primitives here. *)
       let widths : (_ * _ * Jkind_types.Sort.Const.t) list =
         [
           ("16", "", C.value);

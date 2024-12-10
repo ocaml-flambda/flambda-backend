@@ -130,6 +130,8 @@ let naked_number_kind ppf (nnk : Flambda_kind.Naked_number_kind.t) =
   | Naked_immediate -> "imm"
   | Naked_float32 -> "float32"
   | Naked_float -> "float"
+  | Naked_int8 -> "int8"
+  | Naked_int16 -> "int16"
   | Naked_int32 -> "int32"
   | Naked_int64 -> "int64"
   | Naked_nativeint -> "nativeint"
@@ -198,6 +200,8 @@ let standard_int ~space ppf (i : standard_int) =
     match i with
     | Tagged_immediate -> None
     | Naked_immediate -> Some "imm"
+    | Naked_int8 -> Some "int8"
+    | Naked_int16 -> Some "int16"
     | Naked_int32 -> Some "int32"
     | Naked_int64 -> Some "int64"
     | Naked_nativeint -> Some "nativeint"
@@ -211,6 +215,8 @@ let convertible_type ppf (t : standard_int_or_float) =
     | Naked_immediate -> "imm"
     | Naked_float32 -> "float32"
     | Naked_float -> "float"
+    | Naked_int8 -> "int8"
+    | Naked_int16 -> "int16"
     | Naked_int32 -> "int32"
     | Naked_int64 -> "int64"
     | Naked_nativeint -> "nativeint"
@@ -290,6 +296,8 @@ let array_kind ~space ppf (ak : array_kind) =
     | Immediates -> Some "imm"
     | Naked_floats -> Some "float"
     | Naked_float32s -> Some "float32"
+    | Naked_int8s -> Some "int8"
+    | Naked_int16s -> Some "int16"
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
@@ -303,6 +311,8 @@ let empty_array_kind ~space ppf (ak : empty_array_kind) =
     match ak with
     | Values_or_immediates_or_naked_floats -> None
     | Naked_float32s -> Some "float32"
+    | Naked_int8s -> Some "int8"
+    | Naked_int16s -> Some "int16"
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"

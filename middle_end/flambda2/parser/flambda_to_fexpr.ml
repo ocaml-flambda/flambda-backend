@@ -375,6 +375,8 @@ let const c : Fexpr.const =
   | Naked_vec128 bits ->
     Naked_vec128 (Vector_types.Vec128.Bit_pattern.to_bits bits)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
+  | Naked_int8 _ | Naked_int16 _ ->
+    Misc.fatal_error "small integers not supported in fexpr"
   | Null -> Misc.fatal_error "null not supported in fexpr"
 
 let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =
@@ -440,9 +442,10 @@ let rec subkind (k : Flambda_kind.With_subkind.Non_null_value_subkind.t) :
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
   | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
+  | Unboxed_int8_array | Unboxed_int16_array
   | Unboxed_nativeint_array | Unboxed_vec128_array | Unboxed_product_array ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128/unboxed \
+      "fexpr support for unboxed float32/intN/nativeint/vec128/unboxed \
        product arrays not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
@@ -599,7 +602,7 @@ let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Phys_equal op -> Phys_equal op
   | Int_arith (Tagged_immediate, o) -> Infix (Int_arith o)
   | Int_arith
-      (((Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) as i), o)
+      (((Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint) as i), o)
     ->
     Int_arith (i, o)
   | Int_comp (i, c) -> Int_comp (i, c)
@@ -620,9 +623,10 @@ let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
   | Naked_floats -> Naked_floats
   | Values -> Values
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_int8s | Naked_int16s
   | Naked_vec128s | Unboxed_product _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/unboxed product \
+      "fexpr support for unboxed float32/int/unboxed product \
        arrays not yet implemented"
 
 let fexpr_of_array_set_kind env
@@ -633,6 +637,7 @@ let fexpr_of_array_set_kind env
   | Naked_floats -> Naked_floats
   | Values ia -> Values (init_or_assign env ia)
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_int8s | Naked_int16s
   | Naked_vec128s ->
     Misc.fatal_error
       "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
@@ -755,9 +760,10 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_value_array (List.map (field_of_block env) elements)
   | Immutable_float32_array _ | Immutable_int32_array _
   | Immutable_int64_array _ | Immutable_nativeint_array _
+  | Immutable_int8_array _ | Immutable_int16_array _
   | Immutable_vec128_array _ ->
     Misc.fatal_error
-      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+      "fexpr support for unboxed float32/int/nativeint/vec128 arrays not \
        yet implemented"
   | Empty_array array_kind -> Empty_array array_kind
   | Mutable_string { initial_value } -> Mutable_string { initial_value }

@@ -507,8 +507,6 @@ module Boxable_number = struct
   type t =
     | Naked_float32
     | Naked_float
-    | Naked_int8
-    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
@@ -518,8 +516,6 @@ module Boxable_number = struct
     match t with
     | Naked_float32 -> Naked_number Naked_float32
     | Naked_float -> Naked_number Naked_float
-    | Naked_int8 -> Naked_number Naked_int8
-    | Naked_int16 -> Naked_number Naked_int16
     | Naked_int32 -> Naked_number Naked_int32
     | Naked_int64 -> Naked_number Naked_int64
     | Naked_nativeint -> Naked_number Naked_nativeint
@@ -532,8 +528,6 @@ module Boxable_number = struct
       match t with
       | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
       | Naked_float -> Format.pp_print_string ppf "Naked_float"
-      | Naked_int8 -> Format.pp_print_string ppf "Naked_int8"
-      | Naked_int16 -> Format.pp_print_string ppf "Naked_int16"
       | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
       | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
       | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
@@ -550,8 +544,6 @@ module Boxable_number = struct
     match t with
     | Naked_float32 -> Format.pp_print_string ppf "naked_float32"
     | Naked_float -> Format.pp_print_string ppf "naked_float"
-    | Naked_int8 -> Format.pp_print_string ppf "naked_int8"
-    | Naked_int16 -> Format.pp_print_string ppf "naked_int16"
     | Naked_int32 -> Format.pp_print_string ppf "naked_int32"
     | Naked_int64 -> Format.pp_print_string ppf "naked_int64"
     | Naked_nativeint -> Format.pp_print_string ppf "naked_nativeint"
@@ -561,8 +553,6 @@ module Boxable_number = struct
     match t with
     | Naked_float32 -> Format.pp_print_string ppf "float32"
     | Naked_float -> Format.pp_print_string ppf "float"
-    | Naked_int8 -> Format.pp_print_string ppf "int8"
-    | Naked_int16 -> Format.pp_print_string ppf "int16"
     | Naked_int32 -> Format.pp_print_string ppf "int32"
     | Naked_int64 -> Format.pp_print_string ppf "int64"
     | Naked_nativeint -> Format.pp_print_string ppf "nativeint"
@@ -925,8 +915,6 @@ module With_subkind = struct
     match boxable_number with
     | Naked_float32 -> naked_float32
     | Naked_float -> naked_float
-    | Naked_int8 -> naked_int8
-    | Naked_int16 -> naked_int16
     | Naked_int32 -> naked_int32
     | Naked_int64 -> naked_int64
     | Naked_nativeint -> naked_nativeint
@@ -936,8 +924,6 @@ module With_subkind = struct
     match boxable_number with
     | Naked_float32 -> boxed_float32
     | Naked_float -> boxed_float
-    | Naked_int8 -> tagged_immediate
-    | Naked_int16 -> tagged_immediate
     | Naked_int32 -> boxed_int32
     | Naked_int64 -> boxed_int64
     | Naked_nativeint -> boxed_nativeint
