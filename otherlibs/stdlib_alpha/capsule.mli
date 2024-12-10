@@ -40,6 +40,18 @@
     this interface we will often use ['k] to refer to the capsule associated
     with that brand. *)
 
+(** A [Name.t] is used to enable runtime identification of capsules. *)
+module Name : sig
+
+  type 'k t : value mod global portable many uncontended unique
+  (** A ['k Name.t] represents the identity of a capsule. *)
+
+  val equality_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) Type.eq option @@ portable
+  (** [equality_witness a b] performs a runtime check that the two given names
+      identify the same capsule, returning a witness of the equality if so. *)
+
+end
+
 (** An [Access.t] allows wraping and unwraping [Data.t] values from the current
     capsule. *)
 module Access : sig
@@ -76,11 +88,6 @@ type initial
 (** An [Access.t] for the initial capsule *)
 val initial : initial Access.t
 
-exception Contended of exn @@ contended
-(** If a function accessing the contents of the capsule raises an
-   exception, it is wrapped in [Contended] to avoid leaking access to
-   the data. *)
-
 (** Passwords represent permission to get access to a capsule. *)
 module Password : sig
 
@@ -97,6 +104,9 @@ module Password : sig
      mutex. This guarantees that uncontended access to the capsule is
      only granted to a single domain at once. *)
 
+  val name : 'k t @ local -> 'k Name.t @@ portable
+  (** [name t] identifies the capsule that [t] is associated with. *)
+
   (** Shared passwords represent permission to get shared access to a capsule *)
   module Shared : sig
 
@@ -108,6 +118,9 @@ module Password : sig
 
         Obtaining a ['k t] requires read acquire the reader-writer lock
         associate with ['k]. *)
+
+    val name : 'k t @ local -> 'k Name.t @@ portable
+    (** [name t] identifies the capsule that [t] is associated with. *)
 
   end
 
@@ -148,6 +161,9 @@ module Mutex : sig
     (** [packed] is the type of a mutex for some unknown capsule.
         Unpacking one provides a ['k Mutex.t] together with a fresh
         existential type brand for ['k]. *)
+
+    val name : 'k t @ local -> 'k Name.t @@ portable
+    (** [name m] identifies the capsule that [m] is associated with. *)
 
     exception Poisoned
     (** Mutexes can get marked as poisoned. Any operations on a poisoned mutex
@@ -359,3 +375,9 @@ module Data : sig
         ['a] must cross [portability] *)
 
 end
+
+exception Encapsulated : 'k Name.t * (exn, 'k) Data.t -> exn
+(** If a function accessing the contents of the capsule raises an
+    exception, it is wrapped in [Encapsulated] to avoid leaking access to
+    the data. The [Name.t] can be used to associate the [Data.t] with a
+    particular [Password.t] or [Mutex.t]. *)
