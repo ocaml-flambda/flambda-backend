@@ -224,6 +224,7 @@ class virtual selector_generic =
         (* Inversion addr/datum in Istore *))
       | Cdls_get -> basic_op Dls_get, args
       | Calloc mode -> basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
+      | Cpoll -> basic_op Poll, args
       | Caddi -> self#select_arith_comm Simple_operation.Iadd args
       | Csubi -> self#select_arith Simple_operation.Isub args
       | Cmuli -> self#select_arith_comm Simple_operation.Imul args
@@ -292,7 +293,7 @@ class virtual selector_generic =
       | Cprobe_is_enabled { name } -> basic_op (Probe_is_enabled { name }), []
       | Cbeginregion -> basic_op Begin_region, []
       | Cendregion -> basic_op End_region, args
-      | Cpackf32 | Copaque | Cpoll | Cbswap _ | Cprefetch _ | Craise _
+      | Cpackf32 | Copaque | Cbswap _ | Cprefetch _ | Craise _
       | Ctuple_field (_, _) ->
         Misc.fatal_error "Selection.select_oper"
 

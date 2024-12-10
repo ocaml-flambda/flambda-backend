@@ -1,0 +1,35 @@
+name: Selection changes reminder
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'backend/selectgen.ml'
+      - 'backend/arm64/selection.ml'
+      - 'backend/amd64/selection.ml'
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Create PR Comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO=${{ github.repository }}
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT="## Selection Change Check
+
+          This PR modifies the original selection pass (targeting Mach).
+          Please check whether the changes should also be applied to the
+          CFG variant of the pass."
+
+           # Check if comment already exists
+          if ! gh pr view $PR_NUMBER --json comments -q '.comments[].body' --repo $REPO | grep -q "Selection Change Check"; then
+            gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
+            echo "Comment added successfully."
+          else
+            echo "Comment already exists. Skipping."
+          fi
