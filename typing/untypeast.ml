@@ -422,7 +422,8 @@ let exp_extra sub (extra, loc, attrs) sexp =
     | Texp_newtype (_, label_loc, jkind, _) ->
         Pexp_newtype (label_loc, jkind, sexp)
     | Texp_stack -> Pexp_stack sexp
-    | Texp_mode _ -> Misc.fatal_error "not supported Texp_mode"
+    | Texp_mode modes ->
+        Pexp_constraint (sexp, None, Typemode.untransl_mode_annots ~loc modes)
   in
   Exp.mk ~loc ~attrs desc
 
@@ -509,7 +510,7 @@ let expression sub exp =
                       (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
                 | Some (Texp_constraint ty) ->
                   Some (Pconstraint (sub.typ sub ty))
-                | Some (Texp_mode _) -> Misc.fatal_error "not supported Texp_mode"
+                | Some (Texp_mode _) (* CR zqian: [Texp_mode] should be possible here *)
                 | Some (Texp_poly _ | Texp_newtype _)
                 | Some Texp_stack
                 | None -> None
