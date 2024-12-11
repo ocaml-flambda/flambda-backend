@@ -1024,6 +1024,11 @@ module Map : sig
   (** Functor building an implementation of the map structure
      given a totally ordered type. *)
 
+  module Make_portable (Ord : sig @@ portable include OrderedType end)
+    : sig @@ portable include S with type key = Ord.t end
+  (** Like [Make], but takes a portable [compare] function to
+      portable [Map] operations. *)
+
 end
 
 module Set : sig
@@ -1334,5 +1339,10 @@ module Set : sig
      and type t = Set.Make(Ord).t
   (** Functor building an implementation of the set structure
      given a totally ordered type. *)
+
+  module Make_portable (Ord : sig @@ portable include OrderedType end)
+    : sig @@ portable include S with type elt = Ord.t end
+  (** Like [Make], but takes a portable [compare] function to
+      portable [Set] operations. *)
 
 end

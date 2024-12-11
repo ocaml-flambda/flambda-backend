@@ -370,3 +370,8 @@ module type S =
 module Make (Ord : OrderedType) : S with type key = Ord.t
 (** Functor building an implementation of the map structure
    given a totally ordered type. *)
+
+module Make_portable (Ord : sig @@ portable include OrderedType end)
+  : sig @@ portable include S with type key = Ord.t end
+(** Like [Make], but takes a portable [compare] function to
+    portable [Map] operations. *)
