@@ -1270,20 +1270,17 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
   | Primitive (Pmakearray_dynamic (array_kind, mode, Uninitialized), 1),
     _ :: [] -> begin
       let loc = to_location loc in
-      match is_function_type env ty with
-      | None -> None
-      | Some (_, array_type) ->
-        let new_array_kind =
-          array_type_kind ~elt_sort:None env loc array_type
-          |> glb_array_type loc array_kind
-        in
-        let array_mut = array_type_mut env rest_ty in
-        unboxed_product_iarray_check loc new_array_kind array_mut;
-        unboxed_product_uninitialized_array_check loc new_array_kind;
-        if array_kind = new_array_kind then None
-        else
-          Some (Primitive (Pmakearray_dynamic (
-            new_array_kind, mode, Uninitialized), 1))
+      let new_array_kind =
+        array_type_kind ~elt_sort:None env loc rest_ty
+        |> glb_array_type loc array_kind
+      in
+      let array_mut = array_type_mut env rest_ty in
+      unboxed_product_iarray_check loc new_array_kind array_mut;
+      unboxed_product_uninitialized_array_check loc new_array_kind;
+      if array_kind = new_array_kind then None
+      else
+        Some (Primitive (Pmakearray_dynamic (
+          new_array_kind, mode, Uninitialized), 1))
     end
   | Primitive (Pmakearray_dynamic _, arity), args ->
     Misc.fatal_errorf
