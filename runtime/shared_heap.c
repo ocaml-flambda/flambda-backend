@@ -75,6 +75,7 @@ static struct {
   /* Mapped but not yet active pools */
   uintnat fresh_pools;
   char* next_fresh_pool;
+  uintnat next_chunk_index;
 
   /* Count of all pools in use across all domains and the global lists below.
 
@@ -92,6 +93,7 @@ static struct {
   NULL,
   0,
   NULL,
+  0,
   0,
   { 0, },
   { NULL, },
@@ -210,8 +212,11 @@ static pool* pool_acquire(struct caml_heap_state* local) {
       uintnat mapping_size =
         caml_mem_round_up_mapping_size(Bsize_wsize(POOL_WSIZE) * new_pools);
       new_pools = mapping_size / Bsize_wsize(POOL_WSIZE);
-
-      void* mem = caml_mem_map(mapping_size, 0, "major heap");
+      uintnat chunk_ix = pool_freelist.next_chunk_index++;
+      char mapping_name[64];
+      snprintf(mapping_name, sizeof mapping_name,
+               "major heap (chunk %lu)", (unsigned long)chunk_ix);
+      void* mem = caml_mem_map(mapping_size, 0, mapping_name);
       if (mem) {
         pool_freelist.fresh_pools = new_pools;
         pool_freelist.next_fresh_pool = mem;
