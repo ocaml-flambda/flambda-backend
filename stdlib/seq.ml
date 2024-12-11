@@ -451,7 +451,7 @@ module Suspension = struct
 
   let once (f : 'a suspension) : 'a suspension =
     (* CR tdelvecchio: This will be safe once [Atomic.t] has "with" kinds. *)
-    let action = (Atomic.make [@alert "-unsafe"]) f in
+    let action = Atomic.Safe.make (Obj.magic_portable f) in
     fun () ->
       (* Get the function currently stored in [action], and write the
          function [failure] in its place, so the next access will result
