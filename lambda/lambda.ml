@@ -198,13 +198,18 @@ type primitive =
   | Pduparray of array_kind * mutable_flag
   | Parrayblit of {
       src_mutability : mutable_flag;
+      array_kind : array_kind;
       dst_array_set_kind : array_set_kind;
     }
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
-  | Parraysetu of array_set_kind * array_index_kind
-  | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
-  | Parraysets of array_set_kind * array_index_kind
+  | Parrayrefu of array_ref_kind * array_kind * array_index_kind * mutable_flag
+                * array_access_reinterp
+  | Parraysetu of array_set_kind * array_kind * array_index_kind
+                * array_access_reinterp
+  | Parrayrefs of array_ref_kind * array_kind * array_index_kind * mutable_flag
+                * array_access_reinterp
+  | Parraysets of array_set_kind * array_kind * array_index_kind
+                * array_access_reinterp
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
   (* Test if the argument is a null pointer *)
@@ -473,6 +478,8 @@ and scannable_product_element_kind =
 and array_index_kind =
   | Ptagged_int_index
   | Punboxed_int_index of unboxed_integer
+
+and array_access_reinterp = Pnormal_access | Preinterp_access
 
 and unboxed_float = Primitive.unboxed_float =
   | Unboxed_float64
@@ -1857,14 +1864,14 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
       | Punboxedvectorarray_ref _
       | Pgcscannableproductarray_ref _
-      | Pgcignorableproductarray_ref _), _, _)
+      | Pgcignorableproductarray_ref _), _, _, _, _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref
       | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
       | Punboxedvectorarray_ref _
       | Pgcscannableproductarray_ref _
-      | Pgcignorableproductarray_ref _), _, _) -> None
-  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _)
-  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _) -> Some m
+      | Pgcignorableproductarray_ref _), _, _, _, _) -> None
+  | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _, _, _, _)
+  | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _, _, _, _) -> Some m
   | Pisint _ | Pisnull | Pisout -> None
   | Pintofbint _ -> None
   | Pbintofint (_,m)
@@ -2275,7 +2282,8 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_16 _ | Pbytes_load_16 _ | Pbigstring_load_16 _
   | Pprobe_is_enabled _ | Pbswap16
     -> layout_int
-  | Parrayrefu (array_ref_kind, _, _) | Parrayrefs (array_ref_kind, _, _) ->
+  | Parrayrefu (array_ref_kind, _, _, _, _)
+  | Parrayrefs (array_ref_kind, _, _, _, _) ->
     array_ref_kind_result_layout array_ref_kind
   | Pbintofint (bi, _) | Pcvtbint (_,bi,_)
   | Pnegbint (bi, _) | Paddbint (bi, _) | Psubbint (bi, _)

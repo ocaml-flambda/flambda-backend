@@ -81,7 +81,7 @@ module Init_or_assign = struct
     | Initialization
     | Assignment of Alloc_mode.For_assignments.t
 
-  let [@ocamlformat "disable"] print ppf t =
+  let print ppf t =
     let fprintf = Format.fprintf in
     match t with
     | Initialization -> fprintf ppf "Init"
