@@ -251,7 +251,7 @@ module Runtime_5 = struct
           let exn = Obj.magic_portable exn in
           Capsule.Data.create (fun () -> Obj.magic_uncontended exn)
         in
-        raise (Capsule.Data.Encapsulated (name, capsule))
+        raise (Capsule.Encapsulated (name, capsule))
 
     (* CR tdelvecchio: Unnecessary annotation. *)
     type 'a key : value mod portable uncontended =
