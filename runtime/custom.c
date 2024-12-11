@@ -116,7 +116,7 @@ static value caml_alloc_custom0(const struct custom_operations * ops,
 {
   mlsize_t max_major = max;
   mlsize_t max_minor = max == 0 ? get_max_minor() : max;
-  return alloc_custom_gen (ops, bsz, mem, max_major, max_minor, local);
+  return alloc_custom_gen (ops, bsz, mem, max_major, max_minor, 1, local);
 }
 
 CAMLexport value caml_alloc_custom(const struct custom_operations * ops,
@@ -124,7 +124,7 @@ CAMLexport value caml_alloc_custom(const struct custom_operations * ops,
                                    mlsize_t mem,
                                    mlsize_t max)
 {
-  return caml_alloc_custom0(ops, bsz, mem, max, 0, 1);
+  return caml_alloc_custom0(ops, bsz, mem, max, 0);
 }
 
 CAMLexport value caml_alloc_custom_local(const struct custom_operations * ops,
