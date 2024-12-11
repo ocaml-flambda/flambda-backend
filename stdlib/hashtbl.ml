@@ -57,10 +57,10 @@ let randomized_default =
     try Sys.getenv "CAMLRUNPARAM" with Not_found -> "" in
   String.contains params 'R'
 
-let randomized = Atomic.make randomized_default
+let randomized = Atomic.Safe.make randomized_default
 
-let randomize () = Atomic.set randomized true
-let is_randomized () = Atomic.get randomized
+let randomize () = Atomic.Safe.set randomized true
+let is_randomized () = Atomic.Safe.get randomized
 
 let prng_key = Domain.DLS.new_key Random.State.make_self_init
 
@@ -75,7 +75,7 @@ let rec power_2_above x n =
   else if x * 2 > Sys.max_array_length then x
   else power_2_above (x * 2) n
 
-let create ?(random = Atomic.get randomized) initial_size =
+let create ?(random = is_randomized ()) initial_size =
   let s = power_2_above 16 initial_size in
   let seed =
     if random then Random.State.bits (Domain.DLS.get prng_key) else 0
@@ -623,7 +623,7 @@ let of_seq i =
   replace_seq tbl i;
   tbl
 
-let rebuild ?(random = Atomic.get randomized) h =
+let rebuild ?(random = is_randomized ()) h =
   let s = power_2_above 16 (Array.length h.data) in
   let seed =
     if random then Random.State.bits (Domain.DLS.get prng_key)

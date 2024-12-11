@@ -22,7 +22,7 @@ open Printf
 
 type t = exn = ..
 
-let printers = Atomic.make []
+let printers = Atomic.Safe.make []
 
 let locfmt = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
 
@@ -55,7 +55,7 @@ let use_printers x =
          | None | exception _ -> conv tl
          | Some s -> Some s)
     | [] -> None in
-  conv (Atomic.get printers)
+  conv (Atomic.Safe.get printers)
 
 let destruct_ext_constructor x =
   if Obj.tag x <> 0 then
@@ -286,9 +286,10 @@ external record_backtrace: bool -> unit = "caml_record_backtrace"
 external backtrace_status: unit -> bool = "caml_backtrace_status"
 
 let rec register_printer fn =
-  let old_printers = Atomic.get printers in
+  (* CR tdelvecchio: Fix unsafe use of [Atomic]. *)
+  let old_printers = (Atomic.get [@alert "-unsafe"]) printers in
   let new_printers = fn :: old_printers in
-  let success = Atomic.compare_and_set printers old_printers new_printers in
+  let success = (Atomic.compare_and_set [@alert "-unsafe"]) printers old_printers new_printers in
   if not success then register_printer fn
 
 external get_callstack: int -> raw_backtrace = "caml_get_current_callstack"

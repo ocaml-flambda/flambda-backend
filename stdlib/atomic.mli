@@ -1,3 +1,4 @@
+@@ portable
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -24,10 +25,11 @@
 *)
 
 (** An atomic (mutable) reference to a value of type ['a]. *)
-type !'a t
+type !'a t : value mod portable uncontended
 
 (** Create an atomic reference. *)
-val make : 'a -> 'a t
+val make : 'a -> 'a t @@ nonportable
+[@@alert unsafe "Use [Atomic.Safe.make]."]
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -43,28 +45,34 @@ val make : 'a -> 'a t
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
 
-val make_contended : 'a -> 'a t
+val make_contended : 'a -> 'a t @@ nonportable
+[@@alert unsafe "Use [Atomic.Safe.make_contended]."]
 
 (** Get the current value of the atomic reference. *)
-val get : 'a t -> 'a
+val get : 'a t -> 'a @@ nonportable
+[@@alert unsafe "Use [Atomic.Safe.get]."]
 
 (** Set a new value for the atomic reference. *)
-external set : 'a t -> 'a -> unit = "%atomic_set"
+external set : 'a t -> 'a -> unit @@ nonportable = "%atomic_set"
+[@@alert unsafe "Use [Atomic.Safe.set]."]
 
 (** Set a new value for the atomic reference, and return the current value. *)
-external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
+external exchange : 'a t -> 'a -> 'a @@ nonportable = "%atomic_exchange"
+[@@alert unsafe "Use [Atomic.Safe.exchange]."]
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-external compare_and_set : 'a t -> 'a -> 'a -> bool = "%atomic_cas"
+external compare_and_set : 'a t -> 'a -> 'a -> bool @@ nonportable = "%atomic_cas"
+[@@alert unsafe "Use [Atomic.Safe.compare_and_set]."]
 
 (** [compare_exchange r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the comparison
     and the set occur atomically. Returns the previous value. *)
-external compare_exchange : 'a t -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
+external compare_exchange : 'a t -> 'a -> 'a -> 'a @@ nonportable = "%atomic_compare_exchange"
+[@@alert unsafe "Use [Atomic.Safe.compare_exchange]."]
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
@@ -90,6 +98,55 @@ val incr : int t -> unit
 
 (** [decr r] atomically decrements the value of [r] by [1]. *)
 val decr : int t -> unit
+
+module Safe : sig @@ portable
+  (** An atomic (mutable) reference to a value of type ['a]. *)
+  type nonrec 'a t = 'a t
+
+  (** Create an atomic reference. *)
+  val make : 'a @ portable contended -> 'a t
+
+  (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
+      the memory of one allocated with [make v].
+
+      The primary purpose is to prevent false-sharing and the resulting
+      performance degradation. When a CPU performs an atomic operation, it
+      temporarily takes ownership of an entire cache line that contains the
+      atomic reference. If multiple atomic references share the same cache line,
+      modifying these disjoint memory regions simultaneously becomes impossible,
+      which can create a bottleneck. Hence, as a general guideline, if an atomic
+      reference is experiencing contention, assigning it its own cache line may
+      enhance performance.
+
+      CR ocaml 5 all-runtime5: does not support runtime4 *)
+
+  val make_contended : 'a @ portable contended -> 'a t
+
+  (** Get the current value of the atomic reference. *)
+  val get : 'a t -> 'a @ portable contended
+
+  (** Set a new value for the atomic reference. *)
+  external set : 'a t -> 'a @ portable contended -> unit = "%atomic_set"
+
+  (** Set a new value for the atomic reference, and return the current value. *)
+  external exchange
+    : 'a t -> 'a @ portable contended -> 'a @ portable contended = "%atomic_exchange"
+
+  (** [compare_and_set r seen v] sets the new value of [r] to [v] only
+      if its current value is physically equal to [seen] -- the
+      comparison and the set occur atomically. Returns [true] if the
+      comparison succeeded (so the set happened) and [false]
+      otherwise. *)
+  external compare_and_set :
+    'a t -> 'a @ portable contended -> 'a @ portable contended -> bool = "%atomic_cas"
+
+  (** [compare_exchange r seen v] sets the new value of [r] to [v] only
+      if its current value is physically equal to [seen] -- the comparison
+      and the set occur atomically. Returns the previous value. *)
+  external compare_exchange :
+    'a t -> 'a @ portable contended -> 'a @ portable contended -> 'a @ portable contended
+    = "%atomic_compare_exchange"
+end
 
 (** {1:examples Examples}
 
