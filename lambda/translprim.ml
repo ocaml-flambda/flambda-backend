@@ -545,10 +545,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         3)
     | "%makearray_dynamic" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
-      Primitive (Pmakearray_dynamic (gen_array_kind, mode), 2)
+      Primitive (Pmakearray_dynamic (gen_array_kind, mode, With_initializer), 2)
     | "%makearray_dynamic_uninit" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
-      Primitive (Pmakearray_dynamic (gen_array_kind, mode), 1)
+      Primitive (Pmakearray_dynamic (gen_array_kind, mode, Uninitialized), 1)
     | "%arrayblit" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Parrayblit {
@@ -1253,8 +1253,8 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
-  | Primitive (Pmakearray_dynamic (array_kind, mode), 2), _ :: p2 :: [] -> begin
-      (* This is the version of the primitive that takes an initializer *)
+  | Primitive (Pmakearray_dynamic (array_kind, mode, With_initializer), 2),
+    _ :: p2 :: [] -> begin
       let loc = to_location loc in
       let new_array_kind =
         array_kind_of_elt ~elt_sort:None env loc p2
@@ -1263,11 +1263,12 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       let array_mut = array_type_mut env rest_ty in
       unboxed_product_iarray_check loc new_array_kind array_mut;
       if array_kind = new_array_kind then None
-      else Some (Primitive (Pmakearray_dynamic (new_array_kind, mode), 2))
+      else
+        Some (Primitive (Pmakearray_dynamic (
+          new_array_kind, mode, With_initializer), 2))
     end
-  | Primitive (Pmakearray_dynamic (array_kind, mode), 1), _ :: [] -> begin
-      (* This is the version of the primitive that returns an uninitialized
-         array *)
+  | Primitive (Pmakearray_dynamic (array_kind, mode, Uninitialized), 1),
+    _ :: [] -> begin
       let loc = to_location loc in
       match is_function_type env ty with
       | None -> None
@@ -1280,7 +1281,9 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         unboxed_product_iarray_check loc new_array_kind array_mut;
         unboxed_product_uninitialized_array_check loc new_array_kind;
         if array_kind = new_array_kind then None
-        else Some (Primitive (Pmakearray_dynamic (new_array_kind, mode), 1))
+        else
+          Some (Primitive (Pmakearray_dynamic (
+            new_array_kind, mode, Uninitialized), 1))
     end
   | Primitive (Pmakearray_dynamic _, arity), args ->
     Misc.fatal_errorf
@@ -1786,7 +1789,7 @@ let lambda_primitive_needs_event_after = function
   | Pmulfloat (_, _) | Pdivfloat (_, _)
   | Pstringrefs | Pbytesrefs
   | Pbytessets | Pmakearray (Pgenarray, _, _) | Pduparray _
-  | Pmakearray_dynamic (Pgenarray, _)
+  | Pmakearray_dynamic (Pgenarray, _, _)
   | Parrayrefu ((Pgenarray_ref _ | Pfloatarray_ref _), _, _)
   | Parrayrefs _ | Parraysets _ | Pbintofint _ | Pcvtbint _ | Pnegbint _
   | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _ | Pandbint _
@@ -1836,7 +1839,7 @@ let lambda_primitive_needs_event_after = function
   | Pmakearray_dynamic
       ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
        | Punboxedintarray _ | Punboxedvectorarray _
-       | Pgcscannableproductarray _ | Pgcignorableproductarray _), _)
+       | Pgcscannableproductarray _ | Pgcignorableproductarray _), _, _)
   | Parrayblit _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisnull | Pisout
   | Pprobe_is_enabled _

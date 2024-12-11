@@ -339,7 +339,8 @@ let makearray_dynamic_scannable_unboxed_product env
       ~length ~init:(Some init) loc
 
 let makearray_dynamic env (lambda_array_kind : L.array_kind)
-    (mode : L.locality_mode) args loc : Env.t * primitive_transform_result =
+    (mode : L.locality_mode) (has_init : L.has_initializer) args loc :
+    Env.t * primitive_transform_result =
   (* %makearray_dynamic is analogous to (from stdlib/array.ml):
    *   external create: int -> 'a -> 'a array = "caml_make_vect"
    * except that it works on any layout, including unboxed products, at both
@@ -351,13 +352,15 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
    *)
   let dbg = Debuginfo.from_location loc in
   let length, init =
-    match args with
-    | [length] -> length, None
-    | [length; init] -> length, Some init
-    | [] | _ :: _ :: _ ->
-      Misc.fatal_error
-        "%makearray_dynamic takes the (non-unarized) length and optionally an \
-         initializer (the latter perhaps of unboxed product layout)"
+    match args, has_init with
+    | [length], Uninitialized -> length, None
+    | [length; init], With_initializer -> length, Some init
+    | _, (Uninitialized | With_initializer) ->
+      Misc.fatal_errorf
+        "Pmakearray_dynamic takes the (non-unarized) length and optionally an \
+         initializer (the latter perhaps of unboxed product layout) according \
+         to the setting of [Uninitialized] or [With_initializer]:@ %a"
+        Debuginfo.print_compact dbg
   in
   let[@inline] must_have_initializer () =
     match init with
@@ -666,8 +669,8 @@ let transform_primitive0 env (prim : L.primitive) args loc =
 
 let transform_primitive env (prim : L.primitive) args loc =
   match prim with
-  | Pmakearray_dynamic (lambda_array_kind, mode) ->
-    makearray_dynamic env lambda_array_kind mode args loc
+  | Pmakearray_dynamic (lambda_array_kind, mode, has_init) ->
+    makearray_dynamic env lambda_array_kind mode has_init args loc
   | Parrayblit { src_mutability; dst_array_set_kind } ->
     arrayblit env ~src_mutability ~dst_array_set_kind args loc
   | _ -> env, transform_primitive0 env prim args loc
