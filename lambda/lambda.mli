@@ -74,6 +74,10 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type has_initializer =
+  | With_initializer
+  | Uninitialized
+
 (* Tail calls can close their enclosing region early *)
 type region_close =
   | Rc_normal         (* do not close region, may TCO if in tail position *)
@@ -178,7 +182,7 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
-  | Pmakearray_dynamic of array_kind * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode * has_initializer
   (** For [Pmakearray_dynamic], if the array kind specifies an unboxed
       product, the float array optimization will never apply. *)
   | Pduparray of array_kind * mutable_flag

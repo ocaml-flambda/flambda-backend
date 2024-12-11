@@ -685,7 +685,10 @@ let comp_primitive stack_info p sz args =
         "Preinterpret_unboxed_int64_as_tagged_int63 can only be used on 64-bit \
          targets";
     Kccall("caml_reinterpret_unboxed_int64_as_tagged_int63", 1)
-  | Pmakearray_dynamic(kind, locality) ->
+  | Pmakearray_dynamic(kind, locality, With_initializer) ->
+    if List.compare_length_with args 2 <> 0 then
+      fatal_error "Bytegen.comp_primitive: Pmakearray_dynamic takes two \
+        arguments for [With_initializer]";
     (* CR layouts v4.0: This is "wrong" for unboxed types. It should construct
        blocks that can't be marshalled. We've decided to ignore that problem in
        the short term, as it's unlikely to cause issues - see the internal arrays
@@ -710,6 +713,9 @@ let comp_primitive stack_info p sz args =
     | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ -> ()
     end;
     Kccall("caml_array_blit", 5)
+  | Pmakearray_dynamic(_, _, Uninitialized) ->
+    Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
+      translated to Pmakearray_dynamic Initialized earlier on"
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
@@ -986,7 +992,7 @@ let rec comp_expr stack_info env exp sz cont =
           (Kreperformterm(sz + nargs) :: discard_dead_code cont)
       else
         fatal_error "Reperform used in non-tail position"
-  | Lprim (Pmakearray_dynamic (kind, locality), [len], loc) ->
+  | Lprim (Pmakearray_dynamic (kind, locality, Uninitialized), [len], loc) ->
       (* Use a dummy initializer to implement the "uninitialized" primitive *)
       let init =
         match kind with
@@ -1030,7 +1036,10 @@ let rec comp_expr stack_info env exp sz cont =
             convert_ignorable (Pproduct_ignorable ignorables)
       in
       comp_expr stack_info env
-        (Lprim (Pmakearray_dynamic (kind, locality), [len; init], loc)) sz cont
+        (Lprim (Pmakearray_dynamic (kind, locality, With_initializer),
+          [len; init], loc)) sz cont
+  | Lprim (Pmakearray_dynamic (_, _, Uninitialized), _, _loc) ->
+      Misc.fatal_error "Pmakearray_dynamic takes one arg when [Uninitialized]"
   | Lprim (Pduparray (kind, mutability),
            [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
       assert (kind = kind');

@@ -43,6 +43,10 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type has_initializer =
+  | With_initializer
+  | Uninitialized
+
 include (struct
 
   type locality_mode =
@@ -189,7 +193,7 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
-  | Pmakearray_dynamic of array_kind * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode * has_initializer
   | Pduparray of array_kind * mutable_flag
   | Parrayblit of {
       src_mutability : mutable_flag;
@@ -1826,7 +1830,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets -> None
   | Pmakearray (_, _, m) -> Some m
-  | Pmakearray_dynamic (_, m) -> Some m
+  | Pmakearray_dynamic (_, m, _) -> Some m
   | Pduparray _ -> Some alloc_heap
   | Parraylength _ -> None
   | Parrayblit _
