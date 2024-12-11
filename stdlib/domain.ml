@@ -77,12 +77,12 @@ module Runtime_4 = struct
   (******** Callbacks **********)
 
   (* first spawn, domain startup and at exit functionality *)
-  let first_domain_spawned = Atomic.make false
+  let first_domain_spawned = Atomic.Safe.make false
 
   let first_spawn_function = ref (fun () -> ())
 
   let before_first_spawn f =
-    if Atomic.get first_domain_spawned then
+    if Atomic.Safe.get first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
       let old_f = !first_spawn_function in
@@ -199,16 +199,16 @@ module Runtime_5 = struct
 
     type 'a key = int * (unit -> 'a)
 
-    let key_counter = Atomic.make 0
+    let key_counter = Atomic.Safe.make 0
 
     type key_initializer =
       KI: 'a key * ('a -> 'a) -> key_initializer
 
-    let parent_keys = Atomic.make ([] : key_initializer list)
+    let parent_keys = Atomic.Safe.make ([] : key_initializer list)
 
     let rec add_parent_key ki =
-      let l = Atomic.get parent_keys in
-      if not (Atomic.compare_and_set parent_keys l (ki :: l))
+      let l = (Atomic.get [@alert "-unsafe"]) parent_keys in
+      if not ((Atomic.compare_and_set [@alert "-unsafe"]) parent_keys l (ki :: l))
       then add_parent_key ki
 
     let new_key ?split_from_parent init_orphan =
@@ -300,7 +300,7 @@ module Runtime_5 = struct
     let get_initial_keys () : key_value list =
       List.map
         (fun (KI (k, split)) -> KV (k, (split (get k))))
-        (Atomic.get parent_keys)
+        ((Atomic.get [@alert "-unsafe"]) parent_keys)
 
     let set_initial_keys (l: key_value list) =
       List.iter (fun (KV (k, v)) -> set k v) l
@@ -317,12 +317,12 @@ module Runtime_5 = struct
   (******** Callbacks **********)
 
   (* first spawn, domain startup and at exit functionality *)
-  let first_domain_spawned = Atomic.make false
+  let first_domain_spawned = Atomic.Safe.make false
 
   let first_spawn_function = ref (fun () -> ())
 
   let before_first_spawn f =
-    if Atomic.get first_domain_spawned then
+    if Atomic.Safe.get first_domain_spawned then
       raise (Invalid_argument "first domain already spawned")
     else begin
       let old_f = !first_spawn_function in
@@ -331,8 +331,8 @@ module Runtime_5 = struct
     end
 
   let do_before_first_spawn () =
-    if not (Atomic.get first_domain_spawned) then begin
-      Atomic.set first_domain_spawned true;
+    if not (Atomic.Safe.get first_domain_spawned) then begin
+      Atomic.Safe.set first_domain_spawned true;
       !first_spawn_function();
       (* Release the old function *)
       first_spawn_function := (fun () -> ())
