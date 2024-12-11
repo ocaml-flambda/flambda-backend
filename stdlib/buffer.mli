@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Extensible buffers.
 
    This module implements buffers that automatically expand
