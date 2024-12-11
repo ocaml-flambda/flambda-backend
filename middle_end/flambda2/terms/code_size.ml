@@ -151,7 +151,7 @@ let array_load (kind : Flambda_primitive.Array_load_kind.t) =
   match kind with
   | Immediates -> 1 (* cadda + load *)
   | Naked_floats | Values -> 1
-  | Naked_float32s | Naked_int8s | Naked_int16s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
   | Naked_vec128s ->
     (* more computation is needed because of the representation using a custom
        block *)
@@ -173,7 +173,7 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   | Values (Assignment Heap) -> does_not_need_caml_c_call_extcall_size
   | Values (Assignment Local | Initialization) -> 1
   | Immediates | Naked_floats -> 1
-  | Naked_float32s | Naked_int8s | Naked_int16s |Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
   | Naked_vec128s ->
     2 (* as above *)
 
@@ -344,7 +344,7 @@ let unary_prim_size prim =
         ( Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints
         | Naked_vec128s | Unboxed_product _ ) ->
       array_length_size
-    | Array_kind (Naked_int8s | Naked_int16s | Naked_int32s | Naked_float32s) ->
+    | Array_kind (Naked_int32s | Naked_float32s) ->
       (* There is a dynamic check here to see the number of elements *)
       array_length_size + 2 (* compare + load *)
     | Float_array_opt_dynamic -> array_length_size + 3 (* a bit approximate *))

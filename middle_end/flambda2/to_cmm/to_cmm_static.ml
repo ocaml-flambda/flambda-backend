@@ -386,16 +386,6 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     env, R.update_data res float_array, e
   | Block_like symbol, Immutable_float32_array elts ->
     immutable_unboxed_float32_array env res updates ~symbol ~elts
-  | Block_like symbol, Immutable_int8_array elts ->
-    assert (Arch.size_int = 8);
-    immutable_unboxed_int_array env res updates Int8 ~symbol ~elts
-      ~to_int64:Int64.of_int8 ~custom_ops_symbol:(fun ~num_elts ->
-        ( "caml_unboxed_int8_array_ops",
-          Some (Config.custom_ops_struct_size * (num_elts mod 2)) ))
-  | Block_like symbol, Immutable_int16_array elts ->
-    immutable_unboxed_int_array env res updates Int16_or_nativeint ~symbol ~elts
-      ~to_int16:Fun.id ~custom_ops_symbol:(fun ~num_elts:_ ->
-        "caml_unboxed_int16_array_ops", None)
   | Block_like symbol, Immutable_int32_array elts ->
     assert (Arch.size_int = 8);
     immutable_unboxed_int_array env res updates Int32 ~symbol ~elts
@@ -441,20 +431,6 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
       C.emit_block (R.symbol res s)
         (C.black_custom_header ~size:1)
         [C.symbol_address (Cmm.global_symbol "caml_unboxed_float32_array_ops")]
-    in
-    env, R.set_data res block, updates
-  | Block_like s, Empty_array Naked_int8s ->
-    let block =
-      C.emit_block (R.symbol res s)
-        (C.black_custom_header ~size:1)
-        [C.symbol_address (Cmm.global_symbol "caml_unboxed_int8_array_ops")]
-    in
-    env, R.set_data res block, updates
-  | Block_like s, Empty_array Naked_int16s ->
-    let block =
-      C.emit_block (R.symbol res s)
-        (C.black_custom_header ~size:1)
-        [C.symbol_address (Cmm.global_symbol "caml_unboxed_int16_array_ops")]
     in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Naked_int32s ->

@@ -481,7 +481,6 @@ let array_kind : 'a -> Fexpr.array_kind -> Flambda_primitive.Array_kind.t =
   | Naked_floats -> Naked_floats
   | Values -> Values
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_int8s | Naked_int16s
   | Naked_vec128s | Unboxed_product _ ->
     Misc.fatal_error "fexpr support for new unboxed  arrays not yet implemented"
 

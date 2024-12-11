@@ -442,7 +442,6 @@ let rec subkind (k : Flambda_kind.With_subkind.Non_null_value_subkind.t) :
   | Generic_array -> Generic_array
   | Float_block { num_fields } -> Float_block { num_fields }
   | Unboxed_float32_array | Unboxed_int32_array | Unboxed_int64_array
-  | Unboxed_int8_array | Unboxed_int16_array
   | Unboxed_nativeint_array | Unboxed_vec128_array | Unboxed_product_array ->
     Misc.fatal_error
       "fexpr support for unboxed float32/intN/nativeint/vec128/unboxed \
@@ -623,7 +622,6 @@ let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
   | Naked_floats -> Naked_floats
   | Values -> Values
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_int8s | Naked_int16s
   | Naked_vec128s | Unboxed_product _ ->
     Misc.fatal_error
       "fexpr support for unboxed float32/int/unboxed product \
@@ -637,7 +635,6 @@ let fexpr_of_array_set_kind env
   | Naked_floats -> Naked_floats
   | Values ia -> Values (init_or_assign env ia)
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_int8s | Naked_int16s
   | Naked_vec128s ->
     Misc.fatal_error
       "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
@@ -760,7 +757,6 @@ let static_const env (sc : Static_const.t) : Fexpr.static_data =
     Immutable_value_array (List.map (field_of_block env) elements)
   | Immutable_float32_array _ | Immutable_int32_array _
   | Immutable_int64_array _ | Immutable_nativeint_array _
-  | Immutable_int8_array _ | Immutable_int16_array _
   | Immutable_vec128_array _ ->
     Misc.fatal_error
       "fexpr support for unboxed float32/int/nativeint/vec128 arrays not \

@@ -265,6 +265,14 @@ module Const : sig
     not mode-cross. *)
     val bits64 : 'd t
 
+    (** This is the jkind of unboxed 16-bit integers. They have sort Bits16. Does
+    not mode-cross. *)
+    val bits16 : 'd t
+
+    (** This is the jkind of unboxed 8-bit integers. They have sort Bits8. Does
+    not mode-cross. *)
+    val bits8 : 'd t
+
     (** This is the jkind of unboxed 128-bit simd vectors. They have sort Vec128. Does
     not mode-cross. *)
     val vec128 : 'd t

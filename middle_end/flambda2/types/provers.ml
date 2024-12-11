@@ -674,7 +674,6 @@ let prove_is_immediates_array_value _env
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
-    | Unboxed_int8_array  | Unboxed_int16_array
     | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
     | Unboxed_vec128_array | Unboxed_product_array ->
       Unknown)

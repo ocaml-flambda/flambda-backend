@@ -53,12 +53,6 @@ let create_static_const dacc dbg (to_lift : T.to_lift) : RSC.t =
   | Immutable_float_array { fields } ->
     let fields = List.map (fun f -> Or_variable.Const f) fields in
     RSC.create_immutable_float_array art fields
-  | Immutable_int8_array { fields } ->
-    let fields = List.map (fun f -> Or_variable.Const f) fields in
-    RSC.create_immutable_int8_array art fields
-  | Immutable_int16_array { fields } ->
-    let fields = List.map (fun f -> Or_variable.Const f) fields in
-    RSC.create_immutable_int16_array art fields
   | Immutable_int32_array { fields } ->
     let fields = List.map (fun f -> Or_variable.Const f) fields in
     RSC.create_immutable_int32_array art fields

@@ -1293,44 +1293,51 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
       | Value head1, Value head2 ->
         let>+ head = join_head_of_kind_value env head1 head2 in
         ET.create_value head
+      | Value _, _ -> assert false
       | Naked_immediate head1, Naked_immediate head2 ->
         let>+ head = join_head_of_kind_naked_immediate env head1 head2 in
         ET.create_naked_immediate head
+      | Naked_immediate _, _ -> assert false
       | Naked_float32 head1, Naked_float32 head2 ->
         let>+ head = join_head_of_kind_naked_float32 env head1 head2 in
         ET.create_naked_float32 head
+      | Naked_float32 _, _ -> assert false
       | Naked_float head1, Naked_float head2 ->
         let>+ head = join_head_of_kind_naked_float env head1 head2 in
         ET.create_naked_float head
+      | Naked_float _, _ -> assert false
       | Naked_int8 head1, Naked_int8 head2 ->
         let>+ head = join_head_of_kind_naked_int8 env head1 head2 in
         ET.create_naked_int8 head
+      | Naked_int8 _, _ -> assert false
       | Naked_int16 head1, Naked_int16 head2 ->
         let>+ head = join_head_of_kind_naked_int16 env head1 head2 in
         ET.create_naked_int16 head
+      | Naked_int16 _, _ -> assert false
       | Naked_int32 head1, Naked_int32 head2 ->
         let>+ head = join_head_of_kind_naked_int32 env head1 head2 in
         ET.create_naked_int32 head
+      | Naked_int32 _, _ -> assert false
       | Naked_int64 head1, Naked_int64 head2 ->
         let>+ head = join_head_of_kind_naked_int64 env head1 head2 in
         ET.create_naked_int64 head
+      | Naked_int64 _, _ -> assert false
       | Naked_nativeint head1, Naked_nativeint head2 ->
         let>+ head = join_head_of_kind_naked_nativeint env head1 head2 in
         ET.create_naked_nativeint head
+      | Naked_nativeint _, _ -> assert false
       | Naked_vec128 head1, Naked_vec128 head2 ->
         let>+ head = join_head_of_kind_naked_vec128 env head1 head2 in
         ET.create_naked_vec128 head
+      | Naked_vec128 _, _ -> assert false
       | Rec_info head1, Rec_info head2 ->
         let>+ head = join_head_of_kind_rec_info env head1 head2 in
         ET.create_rec_info head
+      | Rec_info _, _ -> assert false
       | Region head1, Region head2 ->
         let>+ head = join_head_of_kind_region env head1 head2 in
         ET.create_region head
-      | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-          | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-          | Rec_info _ | Region _ ),
-          _ ) ->
-        assert false
+      | Region _, _ -> assert false
     in
     match expanded_or_unknown with
     | Known expanded -> expanded

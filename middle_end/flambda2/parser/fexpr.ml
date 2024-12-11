@@ -181,8 +181,6 @@ type array_kind = Flambda_primitive.Array_kind.t =
   | Values
   | Naked_floats
   | Naked_float32s
-  | Naked_int8s
-  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints
@@ -359,8 +357,6 @@ type array_load_kind = Flambda_primitive.Array_load_kind.t =
   | Values
   | Naked_floats
   | Naked_float32s
-  | Naked_int8s
-  | Naked_int16s
   | Naked_int32s
   | Naked_int64s
   | Naked_nativeints

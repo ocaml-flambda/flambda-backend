@@ -51,6 +51,8 @@ module Sort : sig
     | Float64
     | Float32
     | Word
+    | Bits8
+    | Bits16
     | Bits32
     | Bits64
     | Vec128

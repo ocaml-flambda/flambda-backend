@@ -39,6 +39,7 @@ module Int8 : sig
   val of_int64_exn : Int64.t -> t
 
   val to_int : t -> int
+  val to_float : t -> float
 
   include Container_types.S with type t := t
 end
@@ -55,6 +56,7 @@ module Int16 : sig
   val of_int64_exn : Int64.t -> t
 
   val to_int : t -> int
+  val to_float : t -> float
 
   include Container_types.S with type t := t
 end

@@ -177,6 +177,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
               match RWC.descr cst with
               | Tagged_immediate _ | Null -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
+              | Naked_int8 _ | Naked_int16 _
               | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
               | Naked_vec128 _ ->
                 Misc.fatal_errorf
@@ -214,7 +215,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           else
             match shape.flat_suffix.(i - shape.value_prefix_len) with
             | Float_boxed -> unbox_float_constant c
-            | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> c)
+            | Imm | Float64 | Float32 | Bits8 | Bits16 |Bits32 | Bits64 | Vec128 | Word -> c)
         consts
     in
     let shape = K.Mixed_block_shape.from_lambda shape in
@@ -491,6 +492,16 @@ let rec unarize_const_sort_for_extern_repr (sort : Jkind.Sort.Const.t) =
         } ]
     | Word ->
       [ { kind = K.naked_nativeint;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Bits8 ->
+      [ { kind = K.naked_int8;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Bits16 ->
+      [ { kind = K.naked_int16;
           arg_transformer = None;
           return_transformer = None
         } ]
@@ -1283,6 +1294,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                           | Naked_float f -> Or_variable.Const f
                           | Tagged_immediate _ | Naked_immediate _
                           | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
+                          | Naked_int8 _ | Naked_int16 _
                           | Naked_nativeint _ | Naked_vec128 _ | Null ->
                             Misc.fatal_errorf
                               "Binding of %a to %a contains the constant %a \

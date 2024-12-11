@@ -64,6 +64,7 @@ module Short_int (M : sig
       (i lsl extra_bits) asr extra_bits
 
     let to_int i = i
+    let to_float = Float.of_int
 
     let compare = Int.compare
     let equal = Int.equal

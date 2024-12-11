@@ -103,18 +103,18 @@ val untag_int : expression -> Debuginfo.t -> expression
 
 (** Specific division operations for boxed integers *)
 val safe_div_bi :
+  ?dividend_cannot_be_min_int:bool ->
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
   Debuginfo.t ->
   expression
 
 val safe_mod_bi :
+  ?dividend_cannot_be_min_int:bool ->
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
   Debuginfo.t ->
   expression
 
@@ -380,6 +380,15 @@ val bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int
 (** Returns the memory chunk corresponding to the kind of elements stored in a
     bigarray. *)
 val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
+
+(** Operations on n-bit integers *)
+
+(** [low_bits _ x] is a value which agrees with x on at least the low 32 bits *)
+val low_bits : bits:int -> Debuginfo.t -> expression -> expression
+
+val sign_extend : bits:int -> Debuginfo.t -> expression -> expression
+
+val zero_extend : bits:int -> Debuginfo.t -> expression -> expression
 
 (** Operations on 32-bit integers *)
 
@@ -1195,6 +1204,20 @@ val unboxed_int64_or_nativeint_array_set :
 
 (** The argument structure for getters is parallel to [get_field_computed]. *)
 
+val get_field_unboxed_int8 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
+val get_field_unboxed_int16 :
+  Asttypes.mutable_flag ->
+  block:expression ->
+  index:expression ->
+  Debuginfo.t ->
+  expression
+
 val get_field_unboxed_int32 :
   Asttypes.mutable_flag ->
   block:expression ->
@@ -1228,6 +1251,10 @@ val get_field_unboxed_int64_or_nativeint :
    and [initialization_or_assignment] is not needed as unboxed ints can always be
    assigned without caml_modify (etc.).
  *)
+
+val setfield_unboxed_int8 : ternary_primitive
+
+val setfield_unboxed_int16 : ternary_primitive
 
 val setfield_unboxed_int32 : ternary_primitive
 

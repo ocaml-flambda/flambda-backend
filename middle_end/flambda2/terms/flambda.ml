@@ -1445,7 +1445,6 @@ module Named = struct
                  | Immutable_float_block _ | Immutable_float_array _
                  | Immutable_float32_array _ | Mutable_string _
                  | Immutable_string _ | Empty_array _ | Immutable_value_array _
-                 | Immutable_int8_array _ | Immutable_int16_array _
                  | Immutable_int32_array _ | Immutable_int64_array _
                  | Immutable_nativeint_array _ | Immutable_vec128_array _ ) ->
                acc)

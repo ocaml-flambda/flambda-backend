@@ -53,6 +53,10 @@ module type Num_common = sig
 
   val to_naked_float : t -> Numeric_types.Float_by_bit_pattern.t
 
+  val to_naked_int8 : t -> Numeric_types.Int8.t
+
+  val to_naked_int16 : t -> Numeric_types.Int16.t
+
   val to_naked_int32 : t -> Numeric_types.Int32.t
 
   val to_naked_int64 : t -> Numeric_types.Int64.t
@@ -144,6 +148,10 @@ module For_naked_immediates : Int_number_kind
 module For_float32s : Boxable_number_kind
 
 module For_floats : Boxable_number_kind
+
+module For_int8s : Int_number_kind
+
+module For_int16s : Int_number_kind
 
 module For_int32s : Boxable_int_number_kind
 

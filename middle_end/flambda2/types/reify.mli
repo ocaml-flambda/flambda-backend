@@ -34,8 +34,6 @@ type to_lift = private
       { fields : Numeric_types.Float32_by_bit_pattern.t list }
   | Immutable_float_array of
       { fields : Numeric_types.Float_by_bit_pattern.t list }
-  | Immutable_int8_array of { fields : Numeric_types.Int8.t list }
-  | Immutable_int16_array of { fields : Numeric_types.Int16.t list }
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }

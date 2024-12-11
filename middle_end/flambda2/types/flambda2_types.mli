@@ -348,6 +348,10 @@ val any_naked_float32 : t
 
 val any_naked_float : t
 
+val any_naked_int8 : t
+
+val any_naked_int16 : t
+
 val any_naked_int32 : t
 
 val any_naked_int64 : t
@@ -421,6 +425,10 @@ val these_naked_immediates : Targetint_31_63.Set.t -> t
 val these_naked_float32s : Numeric_types.Float32_by_bit_pattern.Set.t -> t
 
 val these_naked_floats : Numeric_types.Float_by_bit_pattern.Set.t -> t
+
+val these_naked_int8s : Numeric_types.Int8.Set.t -> t
+
+val these_naked_int16s : Numeric_types.Int16.Set.t -> t
 
 val these_naked_int32s : Numeric_types.Int32.Set.t -> t
 
@@ -595,6 +603,13 @@ val meet_naked_float32s :
 
 val meet_naked_floats :
   Typing_env.t -> t -> Numeric_types.Float_by_bit_pattern.Set.t meet_shortcut
+
+val meet_naked_int8s :
+  Typing_env.t -> t -> Numeric_types.Int8.Set.t meet_shortcut
+
+val meet_naked_int16s :
+  Typing_env.t -> t -> Numeric_types.Int16.Set.t meet_shortcut
+
 
 val meet_naked_int32s :
   Typing_env.t -> t -> Numeric_types.Int32.Set.t meet_shortcut
@@ -788,8 +803,6 @@ type to_lift = private
       { fields : Numeric_types.Float32_by_bit_pattern.t list }
   | Immutable_float_array of
       { fields : Numeric_types.Float_by_bit_pattern.t list }
-  | Immutable_int8_array of { fields : Numeric_types.Int8.t list }
-  | Immutable_int16_array of { fields : Numeric_types.Int16.t list }
   | Immutable_int32_array of { fields : Int32.t list }
   | Immutable_int64_array of { fields : Int64.t list }
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }

@@ -2127,6 +2127,8 @@ let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   | Base Float64 -> layout_unboxed_float Unboxed_float64
   | Base Float32 -> layout_unboxed_float Unboxed_float32
   | Base Word -> layout_unboxed_nativeint
+  | Base Bits8 -> layout_unboxed_int8
+  | Base Bits16 -> layout_unboxed_int16
   | Base Bits32 -> layout_unboxed_int32
   | Base Bits64 -> layout_unboxed_int64
   | Base Vec128 -> layout_unboxed_vector Unboxed_vec128

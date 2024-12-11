@@ -15,8 +15,6 @@
 
 open! Flambda.Import
 open! Rev_expr
-module Int8 = Numeric_types.Int8
-module Int16 = Numeric_types.Int16
 module Float = Numeric_types.Float_by_bit_pattern
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module RE = Rebuilt_expr
@@ -152,12 +150,6 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
   | Immutable_value_array fields ->
     let fields = List.map (rewrite_simple_with_debuginfo kinds env) fields in
     Static_const.immutable_value_array fields
-  | Immutable_int8_array fields ->
-    let fields = List.map (rewrite_or_variable Int8.zero env) fields in
-    Static_const.immutable_int8_array fields
-  | Immutable_int16_array fields ->
-    let fields = List.map (rewrite_or_variable Int16.zero env) fields in
-    Static_const.immutable_int16_array fields
   | Immutable_int32_array fields ->
     let fields = List.map (rewrite_or_variable Int32.zero env) fields in
     Static_const.immutable_int32_array fields
