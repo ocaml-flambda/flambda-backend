@@ -376,30 +376,6 @@ CAMLprim value caml_atomic_exchange (value ref, value v)
   return ret;
 }
 
-CAMLprim value caml_atomic_cas (value ref, value oldv, value newv)
-{
-  if (caml_domain_alone()) {
-    value* p = Op_val(ref);
-    if (*p == oldv) {
-      *p = newv;
-      write_barrier(ref, 0, oldv, newv);
-      return Val_int(1);
-    } else {
-      return Val_int(0);
-    }
-  } else {
-    atomic_value* p = &Op_atomic_val(ref)[0];
-    int cas_ret = atomic_compare_exchange_strong(p, &oldv, newv);
-    atomic_thread_fence(memory_order_release); /* generates `dmb ish` on Arm64*/
-    if (cas_ret) {
-      write_barrier(ref, 0, oldv, newv);
-      return Val_int(1);
-    } else {
-      return Val_int(0);
-    }
-  }
-}
-
 CAMLprim value caml_atomic_compare_exchange (value ref, value oldv, value newv)
 {
   if (caml_domain_alone()) {
@@ -419,6 +395,15 @@ CAMLprim value caml_atomic_compare_exchange (value ref, value oldv, value newv)
       write_barrier(ref, 0, oldv, newv);
     }
     return oldv;
+  }
+}
+
+CAMLprim value caml_atomic_cas (value ref, value oldv, value newv)
+{
+  if (caml_atomic_compare_exchange(ref, oldv, newv) == oldv) {
+    return Val_int(1);
+  } else {
+    return Val_int(0);
   }
 }
 
