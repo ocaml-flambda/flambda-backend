@@ -4300,6 +4300,21 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
       [atomic; old_value; new_value],
       dbg )
 
+let atomic_compare_exchange ~dbg atomic ~old_value ~new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_compare_exchange";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_val;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; old_value; new_value],
+      dbg )
+
 type even_or_odd =
   | Even
   | Odd
@@ -4431,7 +4446,7 @@ let dls_get ~dbg = Cop (Cdls_get, [], dbg)
 let perform ~dbg eff =
   let cont =
     make_alloc dbg ~tag:Runtimetags.cont_tag
-      [int_const dbg 0]
+      [int_const dbg 0; int_const dbg 0]
       ~mode:Cmm.Alloc_mode.Heap
   in
   (* Rc_normal means "allow tailcalls". Preventing them here by using Rc_nontail

@@ -311,7 +311,7 @@ and expression i ppf x =
   | Pexp_function (params, c, body) ->
       line i ppf "Pexp_function\n";
       list i function_param ppf params;
-      option i function_constraint ppf c;
+      function_constraint i ppf c;
       function_body i ppf body
   | Pexp_apply (e, l) ->
       line i ppf "Pexp_apply\n";
@@ -548,9 +548,9 @@ and type_constraint i ppf type_constraint =
       option (i+1) core_type ppf ty1;
       core_type (i+1) ppf ty2
 
-and function_constraint i ppf { type_constraint = c; mode_annotations } =
-  type_constraint i ppf c;
-  modes i ppf mode_annotations
+and function_constraint i ppf { ret_type_constraint; ret_mode_annotations; mode_annotations = _ } =
+  option i type_constraint ppf ret_type_constraint;
+  modes i ppf ret_mode_annotations
 
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_string_loc

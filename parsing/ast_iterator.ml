@@ -432,14 +432,17 @@ module E = struct
   let iter_function_constraint sub : function_constraint -> _ =
     (* Enable warning 9 to ensure that the record pattern doesn't miss any
        field. *)
-    fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
+    fun[@ocaml.warning "+9"] { mode_annotations; ret_type_constraint; ret_mode_annotations } ->
       sub.modes sub mode_annotations;
-      match type_constraint with
-      | Pconstraint ty ->
+      begin match ret_type_constraint with
+      | Some (Pconstraint ty) ->
           sub.typ sub ty
-      | Pcoerce (ty1, ty2) ->
+      | Some (Pcoerce (ty1, ty2)) ->
           Option.iter (sub.typ sub) ty1;
           sub.typ sub ty2
+      | None -> ()
+      end;
+      sub.modes sub ret_mode_annotations
 
   let iter_function_body sub : function_body -> _ = function
     | Pfunction_body expr ->
@@ -462,7 +465,7 @@ module E = struct
         sub.expr sub e
     | Pexp_function (params, constraint_, body) ->
         List.iter (iter_function_param sub) params;
-        iter_opt (iter_function_constraint sub) constraint_;
+        iter_function_constraint sub constraint_;
         iter_function_body sub body
     | Pexp_apply (e, l) ->
         sub.expr sub e; List.iter (iter_snd (sub.expr sub)) l

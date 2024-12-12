@@ -487,9 +487,10 @@ module E = struct
     | Pcoerce (ty1, ty2) ->
         Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2)
 
-  let map_function_constraint sub { mode_annotations; type_constraint } =
+  let map_function_constraint sub { mode_annotations; ret_type_constraint; ret_mode_annotations } =
     { mode_annotations = sub.modes sub mode_annotations;
-      type_constraint = map_type_constraint sub type_constraint;
+      ret_type_constraint = Option.map (map_type_constraint sub) ret_type_constraint;
+      ret_mode_annotations = sub.modes sub ret_mode_annotations
     }
 
   let map_iterator sub = function
@@ -534,7 +535,7 @@ module E = struct
     | Pexp_function (ps, c, b) ->
       function_ ~loc ~attrs
         (List.map (map_function_param sub) ps)
-        (map_opt (map_function_constraint sub) c)
+        (map_function_constraint sub c)
         (map_function_body sub b)
     | Pexp_apply (e, l) ->
         apply ~loc ~attrs (sub.expr sub e) (List.map (map_snd (sub.expr sub)) l)

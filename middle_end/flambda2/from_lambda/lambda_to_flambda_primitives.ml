@@ -845,7 +845,8 @@ let bytes_like_set ~dbg ~unsafe
 (* Array bounds checks *)
 
 let multiple_word_array_access_validity_condition array ~size_int
-    array_length_kind index_kind ~width_in_scalars ~index =
+    array_length_kind (index_kind : L.array_index_kind) ~width_in_scalars ~index
+    =
   let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
   if width_in_scalars < 1
   then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
@@ -876,6 +877,45 @@ let multiple_word_array_access_validity_condition array ~size_int
              reduced_length_untagged ))
     in
     let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
+    let index : H.simple_or_prim =
+      (* [length_tagged] is in units of scalars. Multiply up [index] to
+         match. *)
+      let multiplier =
+        P.Array_kind_for_length.width_in_scalars array_length_kind
+      in
+      let arith_kind, multiplier =
+        match index_kind with
+        | Ptagged_int_index ->
+          ( I.Tagged_immediate,
+            Simple.const_int (Targetint_31_63.of_int multiplier) )
+        | Punboxed_int_index bint -> (
+          match bint with
+          | Unboxed_int8 ->
+            ( I.Naked_int8,
+              Simple.const
+                (Reg_width_const.naked_int8
+                   (Numeric_types.Int8.of_int multiplier)) )
+          | Unboxed_int16 ->
+            ( I.Naked_int16,
+              Simple.const
+                (Reg_width_const.naked_int16
+                   (Numeric_types.Int16.of_int multiplier)) )
+          | Unboxed_int32 ->
+            ( I.Naked_int32,
+              Simple.const
+                (Reg_width_const.naked_int32 (Int32.of_int multiplier)) )
+          | Unboxed_int64 ->
+            ( I.Naked_int64,
+              Simple.const
+                (Reg_width_const.naked_int64 (Int64.of_int multiplier)) )
+          | Unboxed_nativeint ->
+            ( I.Naked_nativeint,
+              Simple.const
+                (Reg_width_const.naked_nativeint
+                   (Targetint_32_64.of_int multiplier)) ))
+      in
+      Prim (Binary (Int_arith (arith_kind, Mul), index, Simple multiplier))
+    in
     check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
       ~bound:nativeint_bound
 
@@ -1116,8 +1156,7 @@ let rec array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) array_kind
     let unarized = List.concat_map unarize_kind array_ref_kinds in
     let index : H.expr_primitive =
       let multiplier =
-        List.length array_ref_kinds
-        |> Targetint_31_63.of_int |> Simple.const_int
+        List.length unarized |> Targetint_31_63.of_int |> Simple.const_int
       in
       Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
     in
@@ -1185,8 +1224,7 @@ let rec array_set_unsafe dbg ~array ~index array_kind
     let unarized = List.concat_map unarize_kind array_set_kinds in
     let index : H.expr_primitive =
       let multiplier =
-        List.length array_set_kinds
-        |> Targetint_31_63.of_int |> Simple.const_int
+        List.length unarized |> Targetint_31_63.of_int |> Simple.const_int
       in
       Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
     in
@@ -1708,11 +1746,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         | Naked_int64s | Naked_nativeints | Naked_vec128s )
     | Float_array_opt_dynamic ->
       [prim]
-    | Array_kind (Unboxed_product kinds) ->
+    | Array_kind (Unboxed_product _ as array_kind) ->
       (* [Array_length] returns the unarized length (see
          flambda_primitive.mli). *)
       let divisor =
-        List.length kinds |> Targetint_31_63.of_int |> Simple.const_int
+        P.Array_kind.width_in_scalars array_kind
+        |> Targetint_31_63.of_int |> Simple.const_int
       in
       [Binary (Int_arith (Tagged_immediate, Div), Prim prim, Simple divisor)])
   | Pduparray (kind, mutability), [[arg]] -> (
@@ -2344,6 +2383,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           atomic ) ]
   | Patomic_exchange, [[atomic]; [new_value]] ->
     [Binary (Atomic_exchange, atomic, new_value)]
+  | Patomic_compare_exchange, [[atomic]; [old_value]; [new_value]] ->
+    [Ternary (Atomic_compare_exchange, atomic, old_value, new_value)]
   | Patomic_cas, [[atomic]; [old_value]; [new_value]] ->
     [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
   | Patomic_fetch_add, [[atomic]; [i]] ->
@@ -2469,7 +2510,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_cas ),
+      | Punboxed_nativeint_array_set_128 _ | Patomic_cas
+      | Patomic_compare_exchange ),
       ( []
       | [_]
       | [_; _]

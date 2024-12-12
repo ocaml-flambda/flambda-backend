@@ -150,7 +150,7 @@ let enter info =
   reloc_info := (info, !out_position) :: !reloc_info
 
 let slot_for_literal sc =
-  enter (Reloc_literal (Symtable.transl_const sc));
+  enter (Reloc_literal sc);
   out_int 0
 and slot_for_getglobal cu =
   let reloc_info = Reloc_getcompunit cu in

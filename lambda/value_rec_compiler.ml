@@ -345,6 +345,7 @@ let compute_static_size lam =
     | Pint_as_pointer _
     | Patomic_load _
     | Patomic_exchange
+    | Patomic_compare_exchange
     | Patomic_cas
     | Patomic_fetch_add
     | Popaque _

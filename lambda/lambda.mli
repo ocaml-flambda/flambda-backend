@@ -299,6 +299,7 @@ type primitive =
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange
+  | Patomic_compare_exchange
   | Patomic_cas
   | Patomic_fetch_add
   (* Inhibition of optimisation *)

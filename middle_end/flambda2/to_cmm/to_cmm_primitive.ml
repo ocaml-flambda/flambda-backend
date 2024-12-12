@@ -1033,6 +1033,8 @@ let ternary_primitive _env dbg f x y z =
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
   | Atomic_compare_and_set ->
     C.atomic_compare_and_set ~dbg x ~old_value:y ~new_value:z
+  | Atomic_compare_exchange ->
+    C.atomic_compare_exchange ~dbg x ~old_value:y ~new_value:z
 
 let variadic_primitive _env dbg f args =
   match (f : P.variadic_primitive) with

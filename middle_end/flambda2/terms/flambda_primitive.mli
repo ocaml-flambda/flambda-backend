@@ -65,6 +65,8 @@ module Array_kind : sig
   val must_be_gc_scannable : t -> bool
 
   val has_custom_ops : t -> bool
+
+  val width_in_scalars : t -> int
 end
 
 module Array_kind_for_length : sig
@@ -508,6 +510,7 @@ type ternary_primitive =
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
+  | Atomic_compare_exchange
 
 (** Primitives taking zero or more arguments. *)
 type variadic_primitive =

@@ -728,10 +728,7 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
         Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
       )
     | _, Punboxedintarray (Unboxed_int8 | Unboxed_int16) ->
-      (* The above cases are not actually allowed/tested yet. *)
-      Misc.fatal_error
-        "Comprehensions on arrays of unboxed small integers are not yet \
-         supported."
+      Misc.unboxed_small_int_arrays_are_not_implemented ()
     | Dynamic_size, Punboxedvectorarray Unboxed_vec128 ->
       (* The above cases are not actually allowed/tested yet. *)
       Misc.fatal_error

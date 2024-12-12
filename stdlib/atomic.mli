@@ -61,6 +61,11 @@ val exchange : 'a t -> 'a -> 'a
     otherwise. *)
 val compare_and_set : 'a t -> 'a -> 'a -> bool
 
+(** [compare_exchange r seen v] sets the new value of [r] to [v] only
+    if its current value is physically equal to [seen] -- the comparison
+    and the set occur atomically. Returns the previous value. *)
+val compare_exchange : 'a t -> 'a -> 'a -> 'a
+
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
 val fetch_and_add : int t -> int -> int

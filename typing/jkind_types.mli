@@ -85,6 +85,10 @@ module Sort : sig
   (** Post-condition (which holds deeply within the sort): If the
       result is a [Var v], then [!v] is [None]. *)
   val get : t -> t
+
+  (** Decompose a sort into a list (of the given length) of fresh sort variables,
+      equating the input sort with the product of the output sorts. *)
+  val decompose_into_product : t -> int -> t list option
 end
 
 module Layout : sig
