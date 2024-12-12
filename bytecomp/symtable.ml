@@ -279,7 +279,7 @@ let rec transl_const = function
   | Const_base(Const_float32 f)
   | Const_base(Const_unboxed_float32 f) ->
       if float32_is_stage1 ()
-      then Misc.fatal_error "Bytecode compilation should not produce float32 constants."
+      then Misc.fatal_error "The stage one bytecode compiler should not produce float32 constants."
       else Obj.repr (float32_of_string f)
   | Const_base(Const_float f)
   | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)

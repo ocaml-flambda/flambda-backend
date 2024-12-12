@@ -336,7 +336,7 @@ CAMLprim value compiler_float32_format(value fmt, value arg)
 }
 
 // These replace the OCaml runtime versions for use in the stage one compiler.
-// They must be weak symbols with the sames name as in runtime/ because the stage
+// They must be weak symbols with the same names as in runtime/ because the stage
 // two compiler will link against runtime/.
 
 CAMLweakdef value caml_float32_is_stage1(value v) {
