@@ -106,9 +106,9 @@ val native_name: 'a description_gen -> string
 val byte_name: 'a description_gen -> string
 
 
-val unbox_float : boxed_float -> unboxed_float
-val unbox_integer : boxed_integer -> unboxed_integer
-val unbox_vector : boxed_vector -> unboxed_vector
+val unboxed_float : boxed_float -> unboxed_float
+val unboxed_integer : boxed_integer -> unboxed_integer
+val unboxed_vector : boxed_vector -> unboxed_vector
 val equal_unboxed_integer : unboxed_integer -> unboxed_integer -> bool
 val equal_unboxed_float : unboxed_float -> unboxed_float -> bool
 val equal_unboxed_vector : unboxed_vector -> unboxed_vector -> bool

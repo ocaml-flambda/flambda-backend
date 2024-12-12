@@ -338,23 +338,26 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
-let unbox_integer = function
-  | Boxed_int64 -> Unboxed_int64
-  | Boxed_nativeint -> Unboxed_nativeint
+let unboxed_integer = function
   | Boxed_int32 -> Unboxed_int32
+  | Boxed_nativeint -> Unboxed_nativeint
+  | Boxed_int64 -> Unboxed_int64
 
-let unbox_float = function
-  | Boxed_float64 -> Unboxed_float64
+let unboxed_float = function
   | Boxed_float32 -> Unboxed_float32
+  | Boxed_float64 -> Unboxed_float64
 
-let unbox_vector = function
+let unboxed_vector = function
   | Boxed_vec128 -> Unboxed_vec128
 
-(* since these are just constant constructors, we can just use polymorphic
-   equality and comparison at no performance loss: *)
+(* Since these are just constant constructors, we can just use polymorphic equality and
+   comparison at no performance loss. We still match on the variants to prove here that
+   they are all constant constructors. *)
 let equal_unboxed_integer
-      ((Unboxed_int32 | Unboxed_nativeint | Unboxed_int64 | Unboxed_int16
-       | Unboxed_int8) as i1) i2 = i1 = i2
+      ((Unboxed_int8 | Unboxed_int16 | Unboxed_int32 | Unboxed_nativeint
+       | Unboxed_int64) as i1) i2
+  =
+  i1 = i2
 let equal_unboxed_float
       ((Unboxed_float32 | Unboxed_float64) as f1) f2 = f1 = f2
 let compare_unboxed_float
@@ -363,15 +366,15 @@ let equal_unboxed_vector ((Unboxed_vec128) as v1) v2 = v1 = v2
 let compare_unboxed_vector ((Unboxed_vec128) as v1) v2 = Stdlib.compare v1 v2
 
 let equal_boxed_integer bi1 bi2 =
-  equal_unboxed_integer (unbox_integer bi1) (unbox_integer bi2)
+  equal_unboxed_integer (unboxed_integer bi1) (unboxed_integer bi2)
 let equal_boxed_float bf1 bf2 =
-  equal_unboxed_float (unbox_float bf1) (unbox_float bf2)
+  equal_unboxed_float (unboxed_float bf1) (unboxed_float bf2)
 let equal_boxed_vector bv1 bv2 =
-  equal_unboxed_vector (unbox_vector bv1) (unbox_vector bv2)
+  equal_unboxed_vector (unboxed_vector bv1) (unboxed_vector bv2)
 let compare_boxed_float bf1 bf2 =
-  compare_unboxed_float (unbox_float bf1) (unbox_float bf2)
+  compare_unboxed_float (unboxed_float bf1) (unboxed_float bf2)
 let compare_boxed_vector bv1 bv2 =
-  compare_unboxed_vector (unbox_vector bv1) (unbox_vector bv2)
+  compare_unboxed_vector (unboxed_vector bv1) (unboxed_vector bv2)
 
 let equal_unboxed_vector_size v1 v2 =
   (* For the purposes of layouts/native representations,
@@ -397,7 +400,7 @@ let equal_native_repr nr1 nr2 =
     (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_immediate |
      Unboxed_vector _) -> false
   | Unboxed_vector vi1, Unboxed_vector vi2 ->
-    equal_unboxed_vector_size (unbox_vector vi1) (unbox_vector vi2)
+    equal_unboxed_vector_size (unboxed_vector vi1) (unboxed_vector vi2)
   | Unboxed_vector _,
     (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_integer _) -> false

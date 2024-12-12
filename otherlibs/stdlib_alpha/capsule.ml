@@ -12,6 +12,40 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* Like [int Stdlib.Atomic.t], but [portable]. *)
+module A = struct
+  type t : value mod portable uncontended
+
+  external make : int -> t @@ portable = "%makemutable"
+  external fetch_and_add : t -> int -> int @@ portable = "%atomic_fetch_add"
+end
+
+(* Like [Stdlib.Magic], but [portable]. *)
+module O = struct
+  external magic : 'a -> 'b @@ portable = "%obj_magic"
+end
+
+(* Like [Stdlib.( = ), but [portable]. *)
+external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
+
+module Name : sig
+  type 'k t : value mod global portable many uncontended unique
+  type packed = P : 'k t -> packed
+
+  val make : unit -> packed @@ portable
+  val equality_witness : 'k1 t -> 'k2 t -> ('k1, 'k2) Type.eq option @@ portable
+end = struct
+  type 'k t = int
+  type packed = P : 'k t -> packed
+
+  let ctr = A.make 0
+  let make () = P (A.fetch_and_add ctr 1)
+
+  let equality_witness t1 t2 =
+    if t1 = t2
+    then Some (O.magic Type.Equal)
+    else None
+end
 
 module Access : sig
   (* CR layouts v5: this should have layout [void], but
@@ -52,7 +86,8 @@ module Password : sig
   type 'k t : value mod portable many unique uncontended
 
   (* Can break the soundness of the API. *)
-  val unsafe_mk : unit -> 'k t @@ portable
+  val unsafe_mk : 'k Name.t -> 'k t @@ portable
+  val name : 'k t @ local -> 'k Name.t @@ portable
 
   module Shared : sig
     (* CR layouts v5: this should have layout [void], but
@@ -60,22 +95,25 @@ module Password : sig
     type 'k t
 
     (* Can break the soundness of the API. *)
-    val unsafe_mk : unit -> 'k t @@ portable
+    val unsafe_mk : 'k Name.t -> 'k t @@ portable
+    val name : 'k t @ local -> 'k Name.t @@ portable
   end
 
   val shared : 'k t @ local -> 'k Shared.t @ local @@ portable
 end = struct
-  type 'k t = unit
+  type 'k t = 'k Name.t
 
-  let unsafe_mk () = ()
+  let unsafe_mk name = name
+  let name t = t
 
   module Shared = struct
-    type 'k t = unit
+    type 'k t = 'k Name.t
 
-    let unsafe_mk () = ()
+    let unsafe_mk name = name
+    let name t = t
   end
 
-  let shared () = ()
+  let shared t = t
 
 end
 
@@ -83,19 +121,90 @@ end
    it never returns is also [portable] *)
 external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
-exception Contended of exn @@ contended
+module Data = struct
+  type ('a, 'k) t : value mod portable uncontended
 
-let access (type k) (_ : k Password.t) f =
+  exception Encapsulated : 'k Name.t * (exn, 'k) t -> exn
+
+  external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
+
+  external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
+
+  let wrap _ t = unsafe_mk t
+
+  let unwrap _ t = unsafe_get t
+
+  let unwrap_shared _ t = unsafe_get t
+
+  let create f = unsafe_mk (f ())
+
+  let reraise_encapsulated password exn =
+    reraise (Encapsulated (Password.name password, unsafe_mk exn))
+
+  let reraise_encapsulated_shared password exn =
+    reraise (Encapsulated (Password.Shared.name password, unsafe_mk exn))
+
+  let map pw f t =
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise_encapsulated pw exn
+
+  let fst t =
+    let t1, _ = unsafe_get t in
+    unsafe_mk t1
+
+  let snd t =
+    let _, t2 = unsafe_get t in
+    unsafe_mk t2
+
+  let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
+
+  let extract pw f t =
+    let v = unsafe_get t in
+    try f v with
+    |  exn -> reraise_encapsulated pw exn
+
+  let inject = unsafe_mk
+
+  let project = unsafe_get
+
+  let bind pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated pw exn
+
+  let iter pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated pw exn
+
+  let map_shared pw f t =
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise_encapsulated_shared pw exn
+
+  let extract_shared pw f t =
+    let v = unsafe_get t in
+    try f v with
+    | exn -> reraise_encapsulated_shared pw exn
+
+end
+
+exception Encapsulated = Data.Encapsulated
+
+let access (type k) (pw : k Password.t) f =
   let c : k Access.t = Access.unsafe_mk () in
   match f c with
   | res -> res
-  | exception exn -> reraise (Contended exn)
+  | exception exn -> Data.reraise_encapsulated pw exn
 
-let access_shared (type k) (_ : k Password.Shared.t) f =
+let access_shared (type k) (pw : k Password.Shared.t) f =
   let c : k Access.t = Access.unsafe_mk () in
   match f c with
   | res -> res
-  | exception exn -> reraise (Contended exn)
+  | exception exn -> Data.reraise_encapsulated_shared pw exn
 
 (* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
@@ -119,17 +228,24 @@ module Mutex = struct
   (* Illegal mode crossing: ['k t] has a mutable field [poisoned]. It's safe,
      since [poisoned] protected by [mutex] and not exposed in the API, but
      is not allowed by the type system. *)
-  type 'k t : value mod portable uncontended = { mutex : M.t; mutable poisoned : bool }
+  type 'k t : value mod portable uncontended =
+    { name : 'k Name.t
+    ; mutex : M.t
+    ; mutable poisoned : bool
+    }
 
   (* CR: illegal mode crossing on the current version of the compiler,
      but should be legal. *)
   type packed : value mod portable uncontended = P : 'k t -> packed
 
+  let name t = t.name
+
   exception Poisoned
 
   let with_lock :
-    'k t
-    -> ('k Password.t @ local -> 'a) @ local
+    type k.
+    k t
+    -> (k Password.t @ local -> 'a) @ local
     -> 'a
     @@ portable
     = fun t f ->
@@ -137,12 +253,20 @@ module Mutex = struct
       match t.poisoned with
       | true -> M.unlock t.mutex; reraise Poisoned
       | false ->
-        match f (Password.unsafe_mk ()) with
+        match f (Password.unsafe_mk t.name) with
         | x -> M.unlock t.mutex; x
         | exception exn ->
           t.poisoned <- true;
           (* NOTE: [unlock] does not poll for asynchronous exceptions *)
           M.unlock t.mutex;
+          let exn =
+            match exn with
+            | Encapsulated (name, data) ->
+              (match Name.equality_witness name t.name with
+               | Some Equal -> Data.unsafe_get data
+               | None -> exn)
+            | _ -> exn
+          in
           reraise exn
 
   let destroy t =
@@ -159,15 +283,20 @@ end
 
 module Rwlock = struct
 
-  type 'k t : value mod portable uncontended = { rwlock : Rw.t; mutable poisoned : bool }
+  type 'k t : value mod portable uncontended =
+    { name : 'k Name.t
+    ; rwlock : Rw.t
+    ; mutable poisoned : bool
+    }
 
   type packed : value mod portable uncontended = P : 'k t -> packed
 
   exception Poisoned
 
   let with_write_lock :
-    'k t
-    -> ('k Password.t @ local -> 'a) @ local
+    type k.
+    k t
+    -> (k Password.t @ local -> 'a) @ local
     -> 'a
     @@ portable
     = fun t f ->
@@ -175,11 +304,19 @@ module Rwlock = struct
       match t.poisoned with
       | true -> Rw.unlock t.rwlock; reraise Poisoned
       | false ->
-        match f (Password.unsafe_mk ()) with
+        match f (Password.unsafe_mk t.name) with
         | x -> Rw.unlock t.rwlock; x
         | exception exn ->
           t.poisoned <- true;
           Rw.unlock t.rwlock;
+          let exn =
+            match exn with
+            | Encapsulated (name, data) ->
+              (match Name.equality_witness name t.name with
+               | Some Equal -> Data.unsafe_get data
+               | None -> exn)
+            | _ -> exn
+          in
           reraise exn
 
   let with_read_lock :
@@ -192,7 +329,7 @@ module Rwlock = struct
       match t.poisoned with
       | true -> Rw.unlock t.rwlock; reraise Poisoned
       | false ->
-        match f (Password.Shared.unsafe_mk()) with
+        match f (Password.Shared.unsafe_mk t.name) with
         | x -> Rw.unlock t.rwlock; x
         | exception exn ->
           (* Here we are not poisoning the RwLock, see [capsule.mli] for explanation *)
@@ -213,62 +350,9 @@ module Rwlock = struct
 end
 
 let create_with_mutex () =
-  Mutex.P { mutex = M.create (); poisoned = false }
+  let (P name) = Name.make () in
+  Mutex.P { name; mutex = M.create (); poisoned = false }
 
 let create_with_rwlock () =
-  Rwlock.P { rwlock = Rw.create (); poisoned = false }
-
-module Data = struct
-  type ('a, 'k) t : value mod portable uncontended
-
-  external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
-
-  external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
-
-  let wrap _ t = unsafe_mk t
-
-  let unwrap _ t = unsafe_get t
-
-  let unwrap_shared _ t = unsafe_get t
-
-  let create f = unsafe_mk (f ())
-
-  let map _ f t =
-    let v = unsafe_get t in
-    match f v with
-    | res -> unsafe_mk res
-    | exception exn -> reraise (Contended exn)
-
-  let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
-
-  let extract _ f t =
-    let v = unsafe_get t in
-    try f v with
-    |  exn -> reraise (Contended exn)
-
-  let inject = unsafe_mk
-
-  let project = unsafe_get
-
-  let bind _ f t =
-    let v = unsafe_get t in
-    try f v with
-    | exn -> reraise (Contended exn)
-
-  let iter _ f t =
-    let v = unsafe_get t in
-    try f v with
-    | exn -> reraise (Contended exn)
-
-  let map_shared _ f t =
-    let v = unsafe_get t in
-    match f v with
-    | res -> unsafe_mk res
-    | exception exn -> reraise (Contended exn)
-
-  let extract_shared _ f t =
-    let v = unsafe_get t in
-    try f v with
-    | exn -> reraise (Contended exn)
-
-end
+  let (P name) = Name.make () in
+  Rwlock.P { name; rwlock = Rw.create (); poisoned = false }

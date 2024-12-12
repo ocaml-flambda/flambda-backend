@@ -114,7 +114,7 @@ let standard_int_or_float_of_unboxed_integer (ubint : L.unboxed_integer) :
   | Unboxed_int64 -> Naked_int64
 
 let standard_int_or_float_of_boxed_integer bint =
-  standard_int_or_float_of_unboxed_integer (Primitive.unbox_integer bint)
+  standard_int_or_float_of_unboxed_integer (Primitive.unboxed_integer bint)
 
 let convert_block_access_field_kind i_or_p : P.Block_access_field_kind.t =
   match i_or_p with L.Immediate -> Immediate | L.Pointer -> Any_value
@@ -1514,7 +1514,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ tag_int
         (Binary
            ( convert_unboxed_integer_comparison_prim
-               (Primitive.unbox_integer kind)
+               (Primitive.unboxed_integer kind)
                comp,
              arg1,
              arg2 )) ]

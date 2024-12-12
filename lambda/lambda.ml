@@ -2224,9 +2224,9 @@ let primitive_result_layout (p : primitive) =
   | Paddfloat (f, _) | Psubfloat (f, _) | Pmulfloat (f, _) | Pdivfloat (f, _)
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Unboxed_float64
-  | Punbox_float f -> layout_unboxed_float (Primitive.unbox_float f)
+  | Punbox_float f -> layout_unboxed_float (Primitive.unboxed_float f)
   | Pbox_vector (v, _) -> layout_boxed_vector v
-  | Punbox_vector v -> layout_unboxed_vector (Primitive.unbox_vector v)
+  | Punbox_vector v -> layout_unboxed_vector (Primitive.unboxed_vector v)
   | Pmixedfield (_, kind, _, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
@@ -2257,7 +2257,7 @@ let primitive_result_layout (p : primitive) =
     layout_boxed_int bi
   | Ptag_int _ -> layout_int
   | Puntag_int i -> layout_unboxed_int i
-  | Punbox_int bi -> Punboxed_int (Primitive.unbox_integer bi)
+  | Punbox_int bi -> Punboxed_int (Primitive.unboxed_integer bi)
   | Pstring_load_32 { boxed = true; _ } | Pbytes_load_32 { boxed = true; _ }
   | Pbigstring_load_32 { boxed = true; _ } ->
     layout_boxed_int Boxed_int32

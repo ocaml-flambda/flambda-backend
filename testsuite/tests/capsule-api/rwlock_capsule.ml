@@ -162,9 +162,16 @@ exception Leak of int myref
 
 (* An exception raised from [iter] is marked as [contended]: *)
 let () =
-  with_write_guarded ptr (fun k p ->
+  with_write_guarded ptr (fun (type k) (k : k Capsule.Password.t) p ->
     match Capsule.Data.iter k (fun r -> reraise (Leak r)) p with
-    | exception Capsule.Contended (Leak r) -> ()
+    | exception Capsule.Encapsulated (name, exn_data) ->
+      (match Capsule.Name.equality_witness name (Capsule.Password.name k) with
+       | Some Equal ->
+         Capsule.Data.iter k (function
+           | Leak r -> ()
+           | _ -> assert false)
+           exn_data
+       | None -> assert false)
     | _ -> assert false)
 ;;
 
