@@ -3743,7 +3743,7 @@ let type_implementation target modulename initial_env ast =
         let shape = Shape_reduce.local_reduce Env.empty shape in
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
-              (Printtyp.printed_signature @@ Unit_info.source_file target)
+              (Printtyp.printed_signature !Location.input_name)
               simple_sg
           );
         gen_annot target (Cmt_format.Implementation str);
@@ -3829,7 +3829,7 @@ let type_implementation target modulename initial_env ast =
           }
         end else begin
           Location.prerr_warning
-            (Location.in_file (Unit_info.source_file target))
+            (Location.in_file !Location.input_name)
             Warnings.Missing_mli;
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
