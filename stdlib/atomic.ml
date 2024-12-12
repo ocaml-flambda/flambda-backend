@@ -24,6 +24,8 @@ external exchange : 'a t -> 'a @ contended -> 'a = "%atomic_exchange"
 external exchange_safe : 'a t -> 'a @ portable contended -> 'a @ portable contended @@ portable = "%atomic_exchange"
 external compare_and_set : 'a t -> 'a @ contended -> 'a @ contended -> bool @@ portable = "%atomic_cas"
 external compare_and_set_safe : 'a t -> 'a @ portable contended -> 'a @ portable contended -> bool @@ portable = "%atomic_cas"
+external compare_exchange : 'a t -> 'a @ contended -> 'a @ contended -> 'a @@ portable = "%atomic_compare_exchange"
+external compare_exchange_safe : 'a t -> 'a @ portable contended -> 'a @ portable contended -> 'a @ portable contended @@ portable = "%atomic_compare_exchange"
 external fetch_and_add : int t -> int -> int @@ portable = "%atomic_fetch_add"
 
 external ignore : 'a @ contended -> unit @@ portable = "%ignore"

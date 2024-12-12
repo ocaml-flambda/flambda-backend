@@ -1008,6 +1008,13 @@ val atomic_compare_and_set :
   new_value:expression ->
   expression
 
+val atomic_compare_exchange :
+  dbg:Debuginfo.t ->
+  expression ->
+  old_value:expression ->
+  new_value:expression ->
+  expression
+
 val emit_gc_roots_table : symbols:symbol list -> phrase list -> phrase list
 
 val perform : dbg:Debuginfo.t -> expression -> expression
