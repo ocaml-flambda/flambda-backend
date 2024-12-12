@@ -360,6 +360,7 @@ let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
 let rec lsl_int c1 c2 dbg =
   match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
   | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
     Cop (Clsl, [c; Cconst_int (n1 + n2, dbg)], dbg)
@@ -431,6 +432,8 @@ let asr_int c1 c2 dbg =
       c
     | c1' -> Cop (Casr, [c1'; c2], dbg))
   | _ -> Cop (Casr, [c1; c2], dbg)
+
+let asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
 
 let tag_int i dbg =
   match i with
@@ -1299,9 +1302,10 @@ let rec low_bits ~bits dbg x =
             ( (Casr | Clsr),
               [Cop (Clsl, [x; Cconst_int (left, _)], _); Cconst_int (right, _)],
               _ )
-          when 0 < left && left = right && right <= unused_bits ->
-          (* Ignore sign extension which does not affect the low bits *)
-          low_bits ~bits dbg x
+          when 0 <= right && right <= left && left <= unused_bits ->
+          if left = right
+          then low_bits ~bits dbg x
+          else lsl_const x (left - right) dbg
         | x -> (
           match get_const_bitmask x with
           | Some (x, bitmask) when does_mask_ignore_low_bits bitmask ->
@@ -1342,21 +1346,20 @@ let sign_extend ~bits dbg e =
   let arch_bits = Arch.size_int * 8 in
   let unused_bits = arch_bits - bits in
   let sign_extend_via_shift e =
-    Cop
-      ( Casr,
-        [ Cop (Clsl, [e; Cconst_int (unused_bits, dbg)], dbg);
-          Cconst_int (unused_bits, dbg) ],
-        dbg )
+    asr_const (lsl_const e unused_bits dbg) unused_bits dbg
   in
   if bits = arch_bits
   then e
   else
     map_tail
       (function
-        | Cop (Casr, [_; Cconst_int (n, _)], _) as e
-          when unused_bits <= n && n < arch_bits ->
-          (* the sign is already in the high bits. *)
-          e
+        | Cop ((Casr | Clsr), [inner; Cconst_int (n, _)], _) as e
+          when 0 <= n && n < arch_bits ->
+          if n > unused_bits
+          then (* already sign-extended *) e
+          else
+            let e = lsl_const inner (unused_bits - n) dbg in
+            asr_const e unused_bits dbg
         | Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg) as e
           -> (
           let load memory_chunk =
