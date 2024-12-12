@@ -3150,46 +3150,46 @@ let combine_constant value_kind loc arg cst partial ctx def
         let hs, sw, fail = share_actions_tree value_kind sw fail in
         hs (Lstringswitch (arg, sw, fail, loc, value_kind))
     | Const_float _ ->
-        make_test_sequence value_kind loc fail (Pfloatcomp (Pfloat64, CFneq))
-          (Pfloatcomp (Pfloat64, CFlt)) arg
+        make_test_sequence value_kind loc fail (Pfloatcomp (Boxed_float64, CFneq))
+          (Pfloatcomp (Boxed_float64, CFlt)) arg
           const_lambda_list
     | Const_float32 _ | Const_unboxed_float32 _ ->
         (* Should be caught in do_compile_matching. *)
         Misc.fatal_error "Found unexpected float32 literal pattern."
     | Const_unboxed_float _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_float_comp (Pfloat64, CFneq))
-          (Punboxed_float_comp (Pfloat64, CFlt))
+          (Punboxed_float_comp (Unboxed_float64, CFneq))
+          (Punboxed_float_comp (Unboxed_float64, CFlt))
           arg const_lambda_list
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
-          (Pbintcomp (Pint32, Cne))
-          (Pbintcomp (Pint32, Clt))
+          (Pbintcomp (Boxed_int32, Cne))
+          (Pbintcomp (Boxed_int32, Clt))
           arg const_lambda_list
     | Const_int64 _ ->
         make_test_sequence value_kind loc fail
-          (Pbintcomp (Pint64, Cne))
-          (Pbintcomp (Pint64, Clt))
+          (Pbintcomp (Boxed_int64, Cne))
+          (Pbintcomp (Boxed_int64, Clt))
           arg const_lambda_list
     | Const_nativeint _ ->
         make_test_sequence value_kind loc fail
-          (Pbintcomp (Pnativeint, Cne))
-          (Pbintcomp (Pnativeint, Clt))
+          (Pbintcomp (Boxed_nativeint, Cne))
+          (Pbintcomp (Boxed_nativeint, Clt))
           arg const_lambda_list
     | Const_unboxed_int32 _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_int_comp (Pint32, Cne))
-          (Punboxed_int_comp (Pint32, Clt))
+          (Punboxed_int_comp (Unboxed_int32, Cne))
+          (Punboxed_int_comp (Unboxed_int32, Clt))
           arg const_lambda_list
     | Const_unboxed_int64 _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_int_comp (Pint64, Cne))
-          (Punboxed_int_comp (Pint64, Clt))
+          (Punboxed_int_comp (Unboxed_int64, Cne))
+          (Punboxed_int_comp (Unboxed_int64, Clt))
           arg const_lambda_list
     | Const_unboxed_nativeint _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_int_comp (Pnativeint, Cne))
-          (Punboxed_int_comp (Pnativeint, Clt))
+          (Punboxed_int_comp (Unboxed_nativeint, Cne))
+          (Punboxed_int_comp (Unboxed_nativeint, Clt))
           arg const_lambda_list
   in
   (lambda1, Jumps.union local_jumps total)

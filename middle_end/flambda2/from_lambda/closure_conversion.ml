@@ -522,32 +522,32 @@ let unarize_extern_repr alloc_mode (extern_repr : Lambda.extern_repr) =
     [{ kind; arg_transformer = None; return_transformer = None }]
   | Same_as_ocaml_repr (Product sorts) ->
     List.concat_map unarize_const_sort_for_extern_repr sorts
-  | Unboxed_float Pfloat64 ->
+  | Unboxed_float Boxed_float64 ->
     [ { kind = K.naked_float;
         arg_transformer = Some (P.Unbox_number Naked_float);
         return_transformer = Some (P.Box_number (Naked_float, alloc_mode))
       } ]
-  | Unboxed_float Pfloat32 ->
+  | Unboxed_float Boxed_float32 ->
     [ { kind = K.naked_float32;
         arg_transformer = Some (P.Unbox_number Naked_float32);
         return_transformer = Some (P.Box_number (Naked_float32, alloc_mode))
       } ]
-  | Unboxed_integer Pnativeint ->
+  | Unboxed_integer Boxed_nativeint ->
     [ { kind = K.naked_nativeint;
         arg_transformer = Some (P.Unbox_number Naked_nativeint);
         return_transformer = Some (P.Box_number (Naked_nativeint, alloc_mode))
       } ]
-  | Unboxed_integer Pint32 ->
+  | Unboxed_integer Boxed_int32 ->
     [ { kind = K.naked_int32;
         arg_transformer = Some (P.Unbox_number Naked_int32);
         return_transformer = Some (P.Box_number (Naked_int32, alloc_mode))
       } ]
-  | Unboxed_integer Pint64 ->
+  | Unboxed_integer Boxed_int64 ->
     [ { kind = K.naked_int64;
         arg_transformer = Some (P.Unbox_number Naked_int64);
         return_transformer = Some (P.Box_number (Naked_int64, alloc_mode))
       } ]
-  | Unboxed_vector Pvec128 ->
+  | Unboxed_vector Boxed_vec128 ->
     [ { kind = K.naked_vec128;
         arg_transformer = Some (P.Unbox_number Naked_vec128);
         return_transformer = Some (P.Box_number (Naked_vec128, alloc_mode))
@@ -700,11 +700,15 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     in
     match prim_native_name with
     | "caml_int64_float_of_bits_unboxed" ->
-      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_integer Pint64)
-        ~dst_kind:(Unboxed_float Pfloat64) ~op:Unboxed_int64_as_unboxed_float64
+      unboxed_int64_to_and_from_unboxed_float
+        ~src_kind:(Unboxed_integer Boxed_int64)
+        ~dst_kind:(Unboxed_float Boxed_float64)
+        ~op:Unboxed_int64_as_unboxed_float64
     | "caml_int64_bits_of_float_unboxed" ->
-      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_float Pfloat64)
-        ~dst_kind:(Unboxed_integer Pint64) ~op:Unboxed_float64_as_unboxed_int64
+      unboxed_int64_to_and_from_unboxed_float
+        ~src_kind:(Unboxed_float Boxed_float64)
+        ~dst_kind:(Unboxed_integer Boxed_int64)
+        ~op:Unboxed_float64_as_unboxed_int64
     | _ ->
       let callee = Simple.symbol call_symbol in
       let apply =

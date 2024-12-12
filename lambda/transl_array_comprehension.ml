@@ -696,38 +696,38 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
     (* Case 2: Fixed size, known array kind *)
     | Fixed_size, (Pintarray | Paddrarray) ->
       Immutable StrictOpt, make_vect ~loc ~length:array_size.var ~init:(int 0)
-    | Fixed_size, (Pfloatarray | Punboxedfloatarray Pfloat64) ->
+    | Fixed_size, (Pfloatarray | Punboxedfloatarray Unboxed_float64) ->
       (* The representations of these two are the same, it's only
          accesses that differ. *)
       Immutable StrictOpt, make_float_vect ~loc array_size.var
-    | Fixed_size, Punboxedfloatarray Pfloat32 ->
+    | Fixed_size, Punboxedfloatarray Unboxed_float32 ->
       Immutable StrictOpt, make_unboxed_float32_vect ~loc array_size.var
-    | Fixed_size, Punboxedintarray Pint32 ->
+    | Fixed_size, Punboxedintarray Unboxed_int32 ->
       Immutable StrictOpt, make_unboxed_int32_vect ~loc array_size.var
-    | Fixed_size, Punboxedintarray Pint64 ->
+    | Fixed_size, Punboxedintarray Unboxed_int64 ->
       Immutable StrictOpt, make_unboxed_int64_vect ~loc array_size.var
-    | Fixed_size, Punboxedintarray Pnativeint ->
+    | Fixed_size, Punboxedintarray Unboxed_nativeint ->
       Immutable StrictOpt, make_unboxed_nativeint_vect ~loc array_size.var
-    | Fixed_size, Punboxedvectorarray Pvec128 ->
+    | Fixed_size, Punboxedvectorarray Unboxed_vec128 ->
       Immutable StrictOpt, make_unboxed_vec128_vect ~loc array_size.var
     (* Case 3: Unknown size, known array kind *)
     | Dynamic_size, (Pintarray | Paddrarray) ->
       Mutable, Resizable_array.make ~loc array_kind (int 0)
     | Dynamic_size, Pfloatarray ->
       Mutable, Resizable_array.make ~loc array_kind (float 0.)
-    | Dynamic_size, Punboxedfloatarray Pfloat64 ->
+    | Dynamic_size, Punboxedfloatarray Unboxed_float64 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_float 0.)
-    | Dynamic_size, Punboxedfloatarray Pfloat32 ->
+    | Dynamic_size, Punboxedfloatarray Unboxed_float32 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_float32 0.)
-    | Dynamic_size, Punboxedintarray Pint32 ->
+    | Dynamic_size, Punboxedintarray Unboxed_int32 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_int32 0l)
-    | Dynamic_size, Punboxedintarray Pint64 ->
+    | Dynamic_size, Punboxedintarray Unboxed_int64 ->
       Mutable, Resizable_array.make ~loc array_kind (unboxed_int64 0L)
-    | Dynamic_size, Punboxedintarray Pnativeint ->
+    | Dynamic_size, Punboxedintarray Unboxed_nativeint ->
       ( Mutable,
         Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
       )
-    | Dynamic_size, Punboxedvectorarray Pvec128 ->
+    | Dynamic_size, Punboxedvectorarray Unboxed_vec128 ->
       (* The above cases are not actually allowed/tested yet. *)
       Misc.fatal_error
         "Comprehensions on arrays of unboxed types are not yet supported."
@@ -819,7 +819,7 @@ let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
              set_element_in_bounds elt.var,
              layout_unit ))
     | Pintarray | Paddrarray | Pfloatarray
-    | Punboxedfloatarray (Pfloat64 | Pfloat32)
+    | Punboxedfloatarray (Unboxed_float64 | Unboxed_float32)
     | Punboxedintarray _ | Punboxedvectorarray _ ->
       set_element_in_bounds body
     | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
