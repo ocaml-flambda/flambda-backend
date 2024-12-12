@@ -179,12 +179,12 @@ let classify ~classify_product env loc ty sort : _ classification =
   | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ | Tunboxed_tuple _ ->
       assert false
   end
-  | Base Float64 -> Unboxed_float Pfloat64
-  | Base Float32 -> Unboxed_float Pfloat32
-  | Base Bits32 -> Unboxed_int Pint32
-  | Base Bits64 -> Unboxed_int Pint64
-  | Base Vec128 -> Unboxed_vector Pvec128
-  | Base Word -> Unboxed_int Pnativeint
+  | Base Float64 -> Unboxed_float Unboxed_float64
+  | Base Float32 -> Unboxed_float Unboxed_float32
+  | Base Bits32 -> Unboxed_int Unboxed_int32
+  | Base Bits64 -> Unboxed_int Unboxed_int64
+  | Base Vec128 -> Unboxed_vector Unboxed_vec128
+  | Base Word -> Unboxed_int Unboxed_nativeint
   | Base Void as c ->
     raise (Error (loc, Unsupported_sort c))
   | Product c -> Product (classify_product ty c)
@@ -210,11 +210,11 @@ let rec ignorable_product_array_kind loc sorts =
 and sort_to_ignorable_product_element_kind loc (s : Jkind.Sort.Const.t) =
   match s with
   | Base Value -> Pint_ignorable
-  | Base Float64 -> Punboxedfloat_ignorable Pfloat64
-  | Base Float32 -> Punboxedfloat_ignorable Pfloat32
-  | Base Bits32 -> Punboxedint_ignorable Pint32
-  | Base Bits64 -> Punboxedint_ignorable Pint64
-  | Base Word -> Punboxedint_ignorable Pnativeint
+  | Base Float64 -> Punboxedfloat_ignorable Unboxed_float64
+  | Base Float32 -> Punboxedfloat_ignorable Unboxed_float32
+  | Base Bits32 -> Punboxedint_ignorable Unboxed_int32
+  | Base Bits64 -> Punboxedint_ignorable Unboxed_int64
+  | Base Word -> Punboxedint_ignorable Unboxed_nativeint
   | Base Vec128 -> raise (Error (loc, Unsupported_vector_in_product_array))
   | Base Void as c -> raise (Error (loc, Unsupported_sort c))
   | Product sorts -> Pproduct_ignorable (ignorable_product_array_kind loc sorts)
@@ -467,27 +467,27 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | Tconstr(p, _, _) when Path.same p Predef.path_int16 ->
     num_nodes_visited, mk_nn Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-    num_nodes_visited, mk_nn (Pboxedfloatval Pfloat64)
+    num_nodes_visited, mk_nn (Pboxedfloatval Boxed_float64)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->
-    num_nodes_visited, mk_nn (Pboxedfloatval Pfloat32)
+    num_nodes_visited, mk_nn (Pboxedfloatval Boxed_float32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
-    num_nodes_visited, mk_nn (Pboxedintval Pint32)
+    num_nodes_visited, mk_nn (Pboxedintval Boxed_int32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
-    num_nodes_visited, mk_nn (Pboxedintval Pint64)
+    num_nodes_visited, mk_nn (Pboxedintval Boxed_int64)
   | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
-    num_nodes_visited, mk_nn (Pboxedintval Pnativeint)
+    num_nodes_visited, mk_nn (Pboxedintval Boxed_nativeint)
   | Tconstr(p, _, _) when Path.same p Predef.path_int8x16 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int16x8 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32x4 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64x2 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32x4 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float64x2 ->
-    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
@@ -732,7 +732,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                         optimization. *)
                       match rep with
                       | Record_float | Record_ufloat ->
-                        num_nodes_visited, mk_nn (Pboxedfloatval Pfloat64)
+                        num_nodes_visited, mk_nn (Pboxedfloatval Boxed_float64)
                       | Record_inlined _ | Record_boxed _ ->
                           value_kind env ~loc ~visited ~depth ~num_nodes_visited
                             label.ld_type
@@ -797,19 +797,19 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   : Jkind.Sort.Const.t -> _ = function
   | Base Value -> Lambda.Pvalue (Lazy.force value_kind)
   | Base Float64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_float Pfloat64
+    Lambda.Punboxed_float Unboxed_float64
   | Base Word when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_int Pnativeint
+    Lambda.Punboxed_int Unboxed_nativeint
   | Base Bits32 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_int Pint32
+    Lambda.Punboxed_int Unboxed_int32
   | Base Bits64 when Language_extension.(is_at_least Layouts Stable) ->
-    Lambda.Punboxed_int Pint64
+    Lambda.Punboxed_int Unboxed_int64
   | Base Float32 when Language_extension.(is_at_least Layouts Stable) &&
                       Language_extension.(is_enabled Small_numbers) ->
-    Lambda.Punboxed_float Pfloat32
+    Lambda.Punboxed_float Unboxed_float32
   | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
                      Language_extension.(is_at_least SIMD Stable) ->
-    Lambda.Punboxed_vector Pvec128
+    Lambda.Punboxed_vector Unboxed_vec128
   | Product consts when Language_extension.(is_at_least Layouts Stable) ->
     (* CR layouts v7.1: assess whether it is important for performance to support
        deep value_kinds here *)
@@ -943,11 +943,11 @@ let rec layout_union l1 l2 =
   | Pvalue layout1, Pvalue layout2 ->
       Pvalue (value_kind_union layout1 layout2)
   | Punboxed_float f1, Punboxed_float f2 ->
-      if equal_boxed_float f1 f2 then l1 else Ptop
+      if Primitive.equal_unboxed_float f1 f2 then l1 else Ptop
   | Punboxed_int bi1, Punboxed_int bi2 ->
-      if equal_boxed_integer bi1 bi2 then l1 else Ptop
+      if Primitive.equal_unboxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
-      if equal_boxed_vector vi1 vi2 then l1 else Ptop
+      if Primitive.equal_unboxed_vector vi1 vi2 then l1 else Ptop
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
       else Punboxed_product (List.map2 layout_union layouts1 layouts2)

@@ -758,7 +758,8 @@ let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
   bind "divisor" c2 (fun c2 ->
       bind "dividend" c1 (fun c1 ->
           let c = mkop c1 c2 is_safe dbg in
-          if Arch.division_crashes_on_overflow && bi <> Primitive.Pint32
+          if Arch.division_crashes_on_overflow
+             && bi <> Primitive.Unboxed_int32
              && not (is_different_from (-1) c2)
           then
             Cifthenelse
@@ -1627,9 +1628,9 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float Pfloat64 -> typ_float
-    | Punboxed_float Pfloat32 -> typ_float32
-    | Punboxed_vector Pvec128 -> typ_vec128
+    | Punboxed_float Unboxed_float64 -> typ_float
+    | Punboxed_float Unboxed_float32 -> typ_float32
+    | Punboxed_vector Unboxed_vec128 -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
@@ -2029,21 +2030,21 @@ let xor_int e1 e2 dbg = Cop (Cxor, [e1; e2], dbg)
 let operations_boxed_int (bi : Primitive.boxed_integer) =
   let sym_name =
     match bi with
-    | Pnativeint -> caml_nativeint_ops
-    | Pint32 -> caml_int32_ops
-    | Pint64 -> caml_int64_ops
+    | Boxed_nativeint -> caml_nativeint_ops
+    | Boxed_int32 -> caml_int32_ops
+    | Boxed_int64 -> caml_int64_ops
   in
   global_symbol sym_name
 
 let alloc_header_boxed_int (bi : Primitive.boxed_integer) mode dbg =
   match bi with
-  | Pnativeint -> alloc_boxedintnat_header mode dbg
-  | Pint32 -> alloc_boxedint32_header mode dbg
-  | Pint64 -> alloc_boxedint64_header mode dbg
+  | Boxed_nativeint -> alloc_boxedintnat_header mode dbg
+  | Boxed_int32 -> alloc_boxedint32_header mode dbg
+  | Boxed_int64 -> alloc_boxedint64_header mode dbg
 
 let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
   let arg' =
-    if bi = Primitive.Pint32
+    if bi = Primitive.Boxed_int32
     then
       if big_endian
       then Cop (Clsl, [arg; Cconst_int (32, dbg)], dbg)
@@ -2059,24 +2060,24 @@ let box_int_gen dbg (bi : Primitive.boxed_integer) mode arg =
 
 let alloc_matches_boxed_int bi ~hdr ~ops =
   match (bi : Primitive.boxed_integer), hdr, ops with
-  | Pnativeint, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
+  | Boxed_nativeint, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
     (Nativeint.equal hdr boxedintnat_header
     || Nativeint.equal hdr boxedintnat_local_header)
     && String.equal sym.sym_name caml_nativeint_ops
-  | Pint32, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
+  | Boxed_int32, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
     (Nativeint.equal hdr boxedint32_header
     || Nativeint.equal hdr boxedint32_local_header)
     && String.equal sym.sym_name caml_int32_ops
-  | Pint64, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
+  | Boxed_int64, Cconst_natint (hdr, _dbg), Cconst_symbol (sym, _) ->
     (Nativeint.equal hdr boxedint64_header
     || Nativeint.equal hdr boxedint64_local_header)
     && String.equal sym.sym_name caml_int64_ops
-  | (Pnativeint | Pint32 | Pint64), _, _ -> false
+  | (Boxed_nativeint | Boxed_int32 | Boxed_int64), _, _ -> false
 
 let unbox_int dbg bi =
   let default arg =
     let memory_chunk =
-      if bi = Primitive.Pint32 then Thirtytwo_signed else Word_int
+      if bi = Primitive.Boxed_int32 then Thirtytwo_signed else Word_int
     in
     Cop
       ( mk_load_immut memory_chunk,
@@ -2088,12 +2089,12 @@ let unbox_int dbg bi =
         ( Calloc _,
           [hdr; ops; Cop (Clsl, [contents; Cconst_int (32, _)], _dbg')],
           _dbg )
-      when bi = Primitive.Pint32 && big_endian
+      when bi = Primitive.Boxed_int32 && big_endian
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
       sign_extend_32 dbg contents
     | Cop (Calloc _, [hdr; ops; contents], _dbg)
-      when bi = Primitive.Pint32 && (not big_endian)
+      when bi = Primitive.Boxed_int32 && (not big_endian)
            && alloc_matches_boxed_int bi ~hdr ~ops ->
       (* Force sign-extension of low 32 bits *)
       sign_extend_32 dbg contents
@@ -2102,17 +2103,17 @@ let unbox_int dbg bi =
       contents
     | Cconst_symbol (s, _dbg) as cmm -> (
       match Cmmgen_state.structured_constant_of_sym s.sym_name, bi with
-      | Some (Const_nativeint n), Primitive.Pnativeint ->
+      | Some (Const_nativeint n), Primitive.Boxed_nativeint ->
         natint_const_untagged dbg n
-      | Some (Const_int32 n), Primitive.Pint32 ->
+      | Some (Const_int32 n), Primitive.Boxed_int32 ->
         natint_const_untagged dbg (Nativeint.of_int32 n)
-      | Some (Const_int64 n), Primitive.Pint64 ->
+      | Some (Const_int64 n), Primitive.Boxed_int64 ->
         natint_const_untagged dbg (Int64.to_nativeint n)
       | _ -> default cmm)
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
-  if bi = Primitive.Pint32 then zero_extend_32 dbg arg else arg
+  if bi = Primitive.Unboxed_int32 then zero_extend_32 dbg arg else arg
 
 let unaligned_load_16 ptr idx dbg =
   if Arch.allow_unaligned_access
@@ -3342,20 +3343,20 @@ let addr_array_length arg dbg =
 
 let bbswap bi arg dbg =
   let bitwidth : Cmm.bswap_bitwidth =
-    match (bi : Primitive.boxed_integer) with
-    | Pnativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
-    | Pint32 -> Thirtytwo
-    | Pint64 -> Sixtyfour
+    match (bi : Primitive.unboxed_integer) with
+    | Unboxed_nativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
+    | Unboxed_int32 -> Thirtytwo
+    | Unboxed_int64 -> Sixtyfour
   in
   let op = Cbswap { bitwidth } in
-  if (bi = Primitive.Pint64 && size_int = 4)
+  if (bi = Primitive.Unboxed_int64 && size_int = 4)
      || not (Proc.operation_supported op)
   then
     let prim, tyarg =
-      match (bi : Primitive.boxed_integer) with
-      | Pnativeint -> "nativeint", XInt
-      | Pint32 -> "int32", XInt32
-      | Pint64 -> "int64", XInt64
+      match (bi : Primitive.unboxed_integer) with
+      | Unboxed_nativeint -> "nativeint", XInt
+      | Unboxed_int32 -> "int32", XInt32
+      | Unboxed_int64 -> "int64", XInt64
     in
     Cop
       ( Cextcall
@@ -4206,6 +4207,21 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
       [atomic; old_value; new_value],
       dbg )
 
+let atomic_compare_exchange ~dbg atomic ~old_value ~new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_compare_exchange";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_val;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; old_value; new_value],
+      dbg )
+
 type even_or_odd =
   | Even
   | Odd
@@ -4337,7 +4353,7 @@ let dls_get ~dbg = Cop (Cdls_get, [], dbg)
 let perform ~dbg eff =
   let cont =
     make_alloc dbg ~tag:Runtimetags.cont_tag
-      [int_const dbg 0]
+      [int_const dbg 0; int_const dbg 0]
       ~mode:Cmm.Alloc_mode.Heap
   in
   (* Rc_normal means "allow tailcalls". Preventing them here by using Rc_nontail

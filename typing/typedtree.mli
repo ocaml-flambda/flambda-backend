@@ -84,20 +84,21 @@ module Unique_barrier : sig
   val print : Format.formatter -> t -> unit
 end
 
-(** A unique use annotates accesses to an allocation.
-    In the type checker we ensure that
-      actual_mode           <= expected_mode
-      unique_use.uniqueness == expected_mode.uniqueness
-      unique_use.linearity  == actual_mode.linearity
-    That is, if the user expects an access to be unique,
-    both the actual_mode and unique_use are also unique.
-    In the uniqueness analysis, we check whether a particular access
-    is the only lexically use in its branch and if not, we set
-      aliased /\ many <= unique_use
-    This means that an allocation's actual_mode can be unique,
-    while a particular access of the allocation is aliased.
-    Furthermore, if there is more than one access to an allocation,
-    its actual_mode will have to be many. *)
+(** The uniqueness/linearity of a usage (such as [Pexp_ident]) inferred by the
+    type checker. It is derived during type checking as follows:
+      [unique_use.uniqueness = expected_mode.uniqueness]
+      [unique_use.linearity  = actual_mode.linearity]
+    for example, [let x = P in f x], [(Pexp_ident x).unique_use] will contain
+    the expected [uniqueness] of [f]'s parameter, and [linearity] of [P].
+    [uniqueness_analysis.ml] will _lexically_ infer the uniqueness/linearity of
+    a usage and compare against [unique_use]. Following the example, if there
+    are two [f x], the uniqueness analysis will perform the following for
+    [unique_use] of both [Pexp_ident x]:
+      [unique_use.uniqueness >= aliased]
+      [unique_use.linearity <= many]
+    That is, the consumers of the values (that is [f]) must not require its
+    parameter to be [unique], and the value itself (that is [P]) must be [many].
+*)
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
 val print_unique_use : Format.formatter -> unique_use -> unit
@@ -263,8 +264,8 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
-        (** E : T @@ M *)
+  | Texp_constraint of core_type
+        (** E : T *)
   | Texp_coerce of core_type option * core_type
         (** E :> T           [Texp_coerce (None, T)]
             E : T0 :> T      [Texp_coerce (Some T0, T)]
@@ -281,6 +282,8 @@ and exp_extra =
         them here, as the cost of tracking this additional information is minimal. *)
   | Texp_stack
         (** stack_ E *)
+  | Texp_mode of Mode.Alloc.Const.Option.t
+        (** E : _ @@ M  *)
 
 and arg_label = Types.arg_label =
   | Nolabel

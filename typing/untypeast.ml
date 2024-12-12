@@ -416,15 +416,14 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Pexp_coerce (sexp,
                      Option.map (sub.typ sub) cty1,
                      sub.typ sub cty2)
-    | Texp_constraint (cty, modes) ->
-      Pexp_constraint
-        (sexp,
-         Option.map (sub.typ sub) cty,
-         Typemode.untransl_mode_annots ~loc modes)
+    | Texp_constraint (cty) ->
+        Pexp_constraint (sexp, Some (sub.typ sub cty), [])
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (_, label_loc, jkind, _) ->
         Pexp_newtype (label_loc, jkind, sexp)
     | Texp_stack -> Pexp_stack sexp
+    | Texp_mode modes ->
+        Pexp_constraint (sexp, None, Typemode.untransl_mode_annots ~loc modes)
   in
   Exp.mk ~loc ~attrs desc
 
@@ -497,30 +496,27 @@ let expression sub exp =
           | Tfunction_body body ->
               (* Unlike function cases, the [exp_extra] is placed on the body
                  itself. *)
-              Pfunction_body (sub.expr sub body), None
+              Pfunction_body (sub.expr sub body),
+              { mode_annotations = []; ret_type_constraint = None; ret_mode_annotations = []}
           | Tfunction_cases
               { fc_cases = cases; fc_loc = loc; fc_exp_extra = exp_extra;
                 fc_attributes = attributes; _ }
             ->
               let cases = List.map (sub.case sub) cases in
-              let constraint_ =
+              let ret_type_constraint =
                 match exp_extra with
                 | Some (Texp_coerce (ty1, ty2)) ->
                     Some
-                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2), [])
-                | Some (Texp_constraint (Some ty, modes)) ->
-                  Some (
-                    Pconstraint (sub.typ sub ty),
-                    Typemode.untransl_mode_annots ~loc modes
-                  )
-                | Some (Texp_poly _ | Texp_newtype _) | Some (Texp_constraint (None, _))
+                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
+                | Some (Texp_constraint ty) ->
+                  Some (Pconstraint (sub.typ sub ty))
+                | Some (Texp_mode _) (* CR zqian: [Texp_mode] should be possible here *)
+                | Some (Texp_poly _ | Texp_newtype _)
                 | Some Texp_stack
                 | None -> None
               in
               let constraint_ =
-                Option.map
-                  (fun (type_constraint, mode_annotations) -> { mode_annotations; type_constraint })
-                  constraint_
+                { ret_type_constraint; mode_annotations=[]; ret_mode_annotations = [] }
               in
               Pfunction_cases (cases, loc, attributes), constraint_
         in

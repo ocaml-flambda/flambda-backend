@@ -172,7 +172,7 @@ type primitive =
   | Pmulfloat of boxed_float * locality_mode
   | Pdivfloat of boxed_float * locality_mode
   | Pfloatcomp of boxed_float * float_comparison
-  | Punboxed_float_comp of boxed_float * float_comparison
+  | Punboxed_float_comp of unboxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -299,6 +299,7 @@ type primitive =
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_exchange
+  | Patomic_compare_exchange
   | Patomic_cas
   | Patomic_fetch_add
   (* Inhibition of optimisation *)
@@ -347,8 +348,8 @@ type primitive =
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
-  | Unboxed_vector of Primitive.boxed_vector
-  | Unboxed_integer of Primitive.boxed_integer
+  | Unboxed_vector of boxed_vector
+  | Unboxed_integer of boxed_integer
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
@@ -446,9 +447,9 @@ and value_kind_non_null =
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float of boxed_float
-  | Punboxed_int of boxed_integer
-  | Punboxed_vector of boxed_vector
+  | Punboxed_float of unboxed_float
+  | Punboxed_int of unboxed_integer
+  | Punboxed_vector of unboxed_vector
   | Punboxed_product of layout list
   | Pbottom
 
@@ -488,21 +489,29 @@ and constructor_shape =
         flat_suffix : flat_element list;
       }
 
+and unboxed_float = Primitive.unboxed_float =
+  | Unboxed_float64
+  | Unboxed_float32
+
+and unboxed_integer = Primitive.unboxed_integer =
+  | Unboxed_int64
+  | Unboxed_nativeint
+  | Unboxed_int32
+
+and unboxed_vector = Primitive.unboxed_vector =
+  | Unboxed_vec128
+
 and boxed_float = Primitive.boxed_float =
-  | Pfloat64
-  | Pfloat32
+  | Boxed_float64
+  | Boxed_float32
 
 and boxed_integer = Primitive.boxed_integer =
-    Pnativeint | Pint32 | Pint64
+  | Boxed_int64
+  | Boxed_nativeint
+  | Boxed_int32
 
 and boxed_vector = Primitive.boxed_vector =
-  | Pvec128
-
-and unboxed_float = boxed_float
-
-and unboxed_integer = boxed_integer
-
-and unboxed_vector = boxed_vector
+  | Boxed_vec128
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -530,14 +539,6 @@ val equal_value_kind : value_kind -> value_kind -> bool
 val equal_layout : layout -> layout -> bool
 
 val compatible_layout : layout -> layout -> bool
-
-val equal_boxed_float : boxed_float -> boxed_float -> bool
-
-val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
-
-val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
-
-val compare_boxed_vector : boxed_vector -> boxed_vector -> int
 
 val print_boxed_vector : Format.formatter -> boxed_vector -> unit
 
@@ -927,8 +928,8 @@ val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
 val layout_boxed_float : boxed_float -> layout
-val layout_unboxed_float : boxed_float -> layout
-val layout_boxedint : boxed_integer -> layout
+val layout_unboxed_float : unboxed_float -> layout
+val layout_boxed_int : boxed_integer -> layout
 val layout_boxed_vector : boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a tuple *)
 val layout_tuple_element : layout

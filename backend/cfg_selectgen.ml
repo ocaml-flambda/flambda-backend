@@ -161,16 +161,36 @@ class virtual selector_generic =
     (* Default instruction selection for operators *)
 
     method select_operation (op : Cmm.operation) (args : Cmm.expression list)
-        (_dbg : Debuginfo.t) ~label_after
+        (dbg : Debuginfo.t) ~label_after
         : basic_or_terminator * Cmm.expression list =
-      match op, args with
-      | Capply _, Cconst_symbol (func, _dbg) :: rem ->
-        Terminator (Call { op = Direct func; label_after }), rem
-      | Capply _, _ -> Terminator (Call { op = Indirect; label_after }), args
-      | Cextcall { func; builtin = true }, _ ->
+      let wrong_num_args n =
+        Misc.fatal_errorf
+          "Selection.select_operation: expected %d argument(s) for@ %s" n
+          (Printcmm.operation dbg op)
+      in
+      let[@inline] single_arg () =
+        match args with [arg] -> arg | [] | _ :: _ -> wrong_num_args 1
+      in
+      let[@inline] two_args () =
+        match args with
+        | [arg1; arg2] -> arg1, arg2
+        | [] | _ :: _ -> wrong_num_args 2
+      in
+      let[@inline] three_args () =
+        match args with
+        | [arg1; arg2; arg3] -> arg1, arg2, arg3
+        | [] | _ :: _ -> wrong_num_args 3
+      in
+      match[@ocaml.warning "+fragile-match"] op with
+      | Capply _ -> (
+        match[@ocaml.warning "-fragile-match"] args with
+        | Cconst_symbol (func, _dbg) :: rem ->
+          Terminator (Call { op = Direct func; label_after }), rem
+        | _ -> Terminator (Call { op = Indirect; label_after }), args)
+      | Cextcall { func; builtin = true } ->
         Misc.fatal_errorf
           "Selection.select_operation: builtin not recognized %s" func ()
-      | Cextcall { func; alloc; ty; ty_args; returns; builtin = false }, _ ->
+      | Cextcall { func; alloc; ty; ty_args; returns; builtin = false } ->
         let external_call =
           { Cfg.func_symbol = func;
             alloc;
@@ -183,91 +203,99 @@ class virtual selector_generic =
         then
           Terminator (Prim { op = External external_call; label_after }), args
         else Terminator (Call_no_return external_call), args
-      | Cload { memory_chunk; mutability; is_atomic }, [arg] ->
+      | Cload { memory_chunk; mutability; is_atomic } ->
+        let arg = single_arg () in
         let addressing_mode, eloc = self#select_addressing memory_chunk arg in
         let mutability = select_mutable_flag mutability in
         ( basic_op
             (Load { memory_chunk; addressing_mode; mutability; is_atomic }),
           [eloc] )
-      | Cstore (chunk, init), [arg1; arg2] -> (
+      | Cstore (chunk, init) -> (
+        let arg1, arg2 = two_args () in
         let addr, eloc = self#select_addressing chunk arg1 in
         let is_assign =
           match init with Initialization -> false | Assignment -> true
         in
-        match chunk with
+        match[@ocaml.warning "-fragile-match"] chunk with
         | Word_int | Word_val ->
           let op, newarg2 = self#select_store is_assign addr arg2 in
           basic_op op, [newarg2; eloc]
         | _ -> basic_op (Store (chunk, addr, is_assign)), [arg2; eloc]
         (* Inversion addr/datum in Istore *))
-      | Cdls_get, _ -> basic_op Dls_get, args
-      | Calloc mode, _ ->
-        basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
-      | Caddi, _ -> self#select_arith_comm Simple_operation.Iadd args
-      | Csubi, _ -> self#select_arith Simple_operation.Isub args
-      | Cmuli, _ -> self#select_arith_comm Simple_operation.Imul args
-      | Cmulhi { signed }, _ ->
+      | Cdls_get -> basic_op Dls_get, args
+      | Calloc mode -> basic_op (Alloc { bytes = 0; dbginfo = []; mode }), args
+      | Cpoll -> basic_op Poll, args
+      | Caddi -> self#select_arith_comm Simple_operation.Iadd args
+      | Csubi -> self#select_arith Simple_operation.Isub args
+      | Cmuli -> self#select_arith_comm Simple_operation.Imul args
+      | Cmulhi { signed } ->
         self#select_arith_comm (Simple_operation.Imulh { signed }) args
-      | Cdivi, _ -> basic_op (Intop Idiv), args
-      | Cmodi, _ -> basic_op (Intop Imod), args
-      | Cand, _ -> self#select_arith_comm Simple_operation.Iand args
-      | Cor, _ -> self#select_arith_comm Simple_operation.Ior args
-      | Cxor, _ -> self#select_arith_comm Simple_operation.Ixor args
-      | Clsl, _ -> self#select_arith Simple_operation.Ilsl args
-      | Clsr, _ -> self#select_arith Simple_operation.Ilsr args
-      | Casr, _ -> self#select_arith Simple_operation.Iasr args
-      | Cclz { arg_is_non_zero }, _ ->
+      | Cdivi -> basic_op (Intop Idiv), args
+      | Cmodi -> basic_op (Intop Imod), args
+      | Cand -> self#select_arith_comm Simple_operation.Iand args
+      | Cor -> self#select_arith_comm Simple_operation.Ior args
+      | Cxor -> self#select_arith_comm Simple_operation.Ixor args
+      | Clsl -> self#select_arith Simple_operation.Ilsl args
+      | Clsr -> self#select_arith Simple_operation.Ilsr args
+      | Casr -> self#select_arith Simple_operation.Iasr args
+      | Cclz { arg_is_non_zero } ->
         basic_op (Intop (Iclz { arg_is_non_zero })), args
-      | Cctz { arg_is_non_zero }, _ ->
+      | Cctz { arg_is_non_zero } ->
         basic_op (Intop (Ictz { arg_is_non_zero })), args
-      | Cpopcnt, _ -> basic_op (Intop Ipopcnt), args
-      | Ccmpi comp, _ ->
+      | Cpopcnt -> basic_op (Intop Ipopcnt), args
+      | Ccmpi comp ->
         self#select_arith_comp (Simple_operation.Isigned comp) args
-      | Caddv, _ -> self#select_arith_comm Simple_operation.Iadd args
-      | Cadda, _ -> self#select_arith_comm Simple_operation.Iadd args
-      | Ccmpa comp, _ ->
+      | Caddv -> self#select_arith_comm Simple_operation.Iadd args
+      | Cadda -> self#select_arith_comm Simple_operation.Iadd args
+      | Ccmpa comp ->
         self#select_arith_comp (Simple_operation.Iunsigned comp) args
-      | Ccmpf (w, comp), _ -> basic_op (Floatop (w, Icompf comp)), args
-      | Ccsel _, [cond; ifso; ifnot] ->
+      | Ccmpf (w, comp) -> basic_op (Floatop (w, Icompf comp)), args
+      | Ccsel _ ->
+        let cond, ifso, ifnot = three_args () in
         let cond, earg = self#select_condition cond in
         basic_op (Csel cond), [earg; ifso; ifnot]
-      | Cnegf w, _ -> basic_op (Floatop (w, Inegf)), args
-      | Cabsf w, _ -> basic_op (Floatop (w, Iabsf)), args
-      | Caddf w, _ -> basic_op (Floatop (w, Iaddf)), args
-      | Csubf w, _ -> basic_op (Floatop (w, Isubf)), args
-      | Cmulf w, _ -> basic_op (Floatop (w, Imulf)), args
-      | Cdivf w, _ -> basic_op (Floatop (w, Idivf)), args
-      | Creinterpret_cast cast, _ -> basic_op (Reinterpret_cast cast), args
-      | Cstatic_cast cast, _ -> basic_op (Static_cast cast), args
-      | Catomic { op = Fetch_and_add; size }, [src; dst] ->
-        let dst_size =
-          match size with
-          | Word | Sixtyfour -> Word_int
-          | Thirtytwo -> Thirtytwo_signed
-        in
-        let addr, eloc = self#select_addressing dst_size dst in
-        basic_op (Intop_atomic { op = Fetch_and_add; size; addr }), [src; eloc]
-      | Catomic { op = Compare_and_swap; size }, [compare_with; set_to; dst] ->
-        let dst_size =
-          match size with
-          | Word | Sixtyfour -> Word_int
-          | Thirtytwo -> Thirtytwo_signed
-        in
-        let addr, eloc = self#select_addressing dst_size dst in
-        ( basic_op (Intop_atomic { op = Compare_and_swap; size; addr }),
-          [compare_with; set_to; eloc] )
-      | Cprobe { name; handler_code_sym; enabled_at_init }, _ ->
+      | Cnegf w -> basic_op (Floatop (w, Inegf)), args
+      | Cabsf w -> basic_op (Floatop (w, Iabsf)), args
+      | Caddf w -> basic_op (Floatop (w, Iaddf)), args
+      | Csubf w -> basic_op (Floatop (w, Isubf)), args
+      | Cmulf w -> basic_op (Floatop (w, Imulf)), args
+      | Cdivf w -> basic_op (Floatop (w, Idivf)), args
+      | Creinterpret_cast cast -> basic_op (Reinterpret_cast cast), args
+      | Cstatic_cast cast -> basic_op (Static_cast cast), args
+      | Catomic { op; size } -> (
+        match op with
+        | Fetch_and_add ->
+          let src, dst = two_args () in
+          let dst_size =
+            match size with
+            | Word | Sixtyfour -> Word_int
+            | Thirtytwo -> Thirtytwo_signed
+          in
+          let addr, eloc = self#select_addressing dst_size dst in
+          basic_op (Intop_atomic { op = Fetch_and_add; size; addr }), [src; eloc]
+        | Compare_and_swap ->
+          let compare_with, set_to, dst = three_args () in
+          let dst_size =
+            match size with
+            | Word | Sixtyfour -> Word_int
+            | Thirtytwo -> Thirtytwo_signed
+          in
+          let addr, eloc = self#select_addressing dst_size dst in
+          ( basic_op (Intop_atomic { op = Compare_and_swap; size; addr }),
+            [compare_with; set_to; eloc] ))
+      | Cprobe { name; handler_code_sym; enabled_at_init } ->
         ( Terminator
             (Prim
                { op = Probe { name; handler_code_sym; enabled_at_init };
                  label_after
                }),
           args )
-      | Cprobe_is_enabled { name }, _ ->
-        basic_op (Probe_is_enabled { name }), []
-      | Cbeginregion, _ -> basic_op Begin_region, []
-      | Cendregion, _ -> basic_op End_region, args
-      | _ -> Misc.fatal_error "Selection.select_oper"
+      | Cprobe_is_enabled { name } -> basic_op (Probe_is_enabled { name }), []
+      | Cbeginregion -> basic_op Begin_region, []
+      | Cendregion -> basic_op End_region, args
+      | Cpackf32 | Copaque | Cbswap _ | Cprefetch _ | Craise _
+      | Ctuple_field (_, _) ->
+        Misc.fatal_error "Selection.select_oper"
 
     method private select_arith_comm (op : Simple_operation.integer_operation)
         (args : Cmm.expression list) : basic_or_terminator * Cmm.expression list

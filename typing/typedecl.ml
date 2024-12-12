@@ -2751,27 +2751,27 @@ let native_repr_of_type env kind ty sort_or_poly =
     ->
     Some Untagged_immediate
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float ->
-    Some (Unboxed_float Pfloat64)
+    Some (Unboxed_float Boxed_float64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32 ->
-    Some (Unboxed_float Pfloat32)
+    Some (Unboxed_float Boxed_float32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32 ->
-    Some (Unboxed_integer Pint32)
+    Some (Unboxed_integer Boxed_int32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64 ->
-    Some (Unboxed_integer Pint64)
+    Some (Unboxed_integer Boxed_int64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
-    Some (Unboxed_integer Pnativeint)
+    Some (Unboxed_integer Boxed_nativeint)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
-    Some (Unboxed_vector Pvec128)
+    Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
-    Some (Unboxed_vector Pvec128)
+    Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x4 ->
-    Some (Unboxed_vector Pvec128)
+    Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x2 ->
-    Some (Unboxed_vector Pvec128)
+    Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x4 ->
-    Some (Unboxed_vector Pvec128)
+    Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
-    Some (Unboxed_vector Pvec128)
+    Some (Unboxed_vector Boxed_vec128)
   | _ ->
     None
 

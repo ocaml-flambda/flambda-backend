@@ -49,4 +49,4 @@ val meet_type :
   Typing_env.t ->
   Type_grammar.t ->
   Type_grammar.t ->
-  (Type_grammar.t * Typing_env.t) Or_bottom.t
+  (Type_grammar.t Typing_env.meet_return_value * Typing_env.t) Or_bottom.t

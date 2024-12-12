@@ -414,7 +414,8 @@ let ternary_prim_size prim =
     5 (* ~ 3 block_load + 2 block_set *)
   | Bigarray_set (_dims, _kind, _layout) -> 2
   (* ~ 1 block_load + 1 block_set *)
-  | Atomic_compare_and_set -> does_not_need_caml_c_call_extcall_size
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
+    does_not_need_caml_c_call_extcall_size
 
 let variadic_prim_size prim args =
   match (prim : Flambda_primitive.variadic_primitive) with

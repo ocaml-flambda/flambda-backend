@@ -597,10 +597,18 @@ let array_pats (arr : int option array) =
   | [| o |] -> let _ = unique_id arr in aliased_id o
   | _ -> None
 [%%expect{|
-val array_pats : int option array @ unique -> int option = <fun>
+Line 3, characters 33-36:
+3 |   | [| o |] -> let _ = unique_id arr in aliased_id o
+                                     ^^^
+Error: This value is used here as unique,
+       but it has already been used in an array pattern:
+Line 3, characters 4-11:
+3 |   | [| o |] -> let _ = unique_id arr in aliased_id o
+        ^^^^^^^
+
 |}]
 
-let array_pats (arr : int option iarray) =
+let iarray_pats (arr : int option iarray) =
   match arr with
   | [: o :] -> let _ = unique_id arr in unique_id o
   | _ -> None
@@ -621,4 +629,68 @@ let shadow x =
   x, (let x = (1, 2) in x)
 [%%expect{|
 val shadow : 'a -> 'a * (int * int) = <fun>
+|}]
+
+let array_pat_barrier (arr : int option array) =
+  match arr with
+  | [| _ |] -> unique_id arr
+  | _ -> [| None |]
+[%%expect{|
+Line 3, characters 25-28:
+3 |   | [| _ |] -> unique_id arr
+                             ^^^
+Error: This value is used here as unique,
+       but it has already been used in an array pattern:
+Line 3, characters 4-11:
+3 |   | [| _ |] -> unique_id arr
+        ^^^^^^^
+
+|}]
+
+let iarray_pat_barrier (arr : int option iarray) =
+  match arr with
+  | [: _ :] -> unique_id arr
+  | _ -> [: None :]
+[%%expect{|
+Line 3, characters 25-28:
+3 |   | [: _ :] -> unique_id arr
+                             ^^^
+Error: This value is used here as unique,
+       but it has already been used in an array pattern:
+Line 3, characters 4-11:
+3 |   | [: _ :] -> unique_id arr
+        ^^^^^^^
+
+|}]
+
+let constant_pat_barrier (opt : int option) =
+  match opt with
+  | Some 1 -> unique_id opt
+  | _ -> None
+[%%expect{|
+Line 3, characters 24-27:
+3 |   | Some 1 -> unique_id opt
+                            ^^^
+Error: This value is used here as unique,
+       but part of it has already been used in a constant pattern:
+Line 3, characters 9-10:
+3 |   | Some 1 -> unique_id opt
+             ^
+
+|}]
+
+let lazy_pat_barrier (l : int Lazy.t) =
+  match l with
+  | lazy 1 -> unique_id l
+  | _ -> lazy 2
+[%%expect{|
+Line 3, characters 24-25:
+3 |   | lazy 1 -> unique_id l
+                            ^
+Error: This value is used here as unique,
+       but it has already been used in a lazy pattern:
+Line 3, characters 4-10:
+3 |   | lazy 1 -> unique_id l
+        ^^^^^^
+
 |}]

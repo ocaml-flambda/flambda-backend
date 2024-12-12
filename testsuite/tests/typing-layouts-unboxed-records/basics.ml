@@ -253,14 +253,8 @@ Error:
 type 'a t = #{ a : 'a ; a' : 'a } constraint 'a = r
 and r = #{ i : int ; f : float# }
 [%%expect{|
-Line 2, characters 0-33:
-2 | and r = #{ i : int ; f : float# }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of r is any & any
-         because it is an unboxed record.
-       But the layout of r must be representable
-         because it instantiates an unannotated type parameter of t.
+type 'a t = #{ a : 'a; a' : 'a; } constraint 'a = r
+and r = #{ i : int; f : float#; }
 |}]
 
 (*******************)
