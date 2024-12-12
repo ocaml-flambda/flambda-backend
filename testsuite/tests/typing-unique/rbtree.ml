@@ -31,6 +31,13 @@ let work ~insert ~fold ~empty =
   let tree = loop 42000 empty in
   fold (fun _ v acc -> if v then acc + 1 else acc) 0 tree
 
+let unique_work ~(insert : int -> bool -> unique_ 'a -> unique_ 'a) ~fold ~empty =
+  let rec loop n (t) =
+    if n <= 0 then t
+    else loop (n - 1) (insert n (n mod 10 = 0) t) in
+  let tree = loop 42000 empty in
+  fold (fun _ v acc -> if v then acc + 1 else acc) 0 tree
+
 (*************************************************************************
   Okasaki-style red-black trees
  *************************************************************************)
@@ -119,8 +126,8 @@ module Make_Unique_Okasaki(Ord : Map.OrderedType) = struct
     | Node _ -> overwrite_ t with Node { color = c }
                                 | Leaf -> assert false
 
-let set_black = set_color Black
-let set_red = set_color Red
+  let set_black t = set_color Black t
+  let set_red t = set_color Red t
 
   (* t is black and its left child is red *)
   let balance_left t =
@@ -179,7 +186,8 @@ let set_red = set_color Red
             | _ -> overwrite_ t with Node { right = ins k v right } end
         | _ (* k == key *) -> overwrite_ t with Node { value = v }
 
-  let insert k v t = set_black (ins k v t)
+  let insert : 'a. Ord.t -> 'a -> unique_ 'a t -> unique_ 'a t =
+    fun k v t -> set_black (ins k v t)
 end
 
 (*************************************************************************
@@ -200,8 +208,8 @@ type ('left, 'right, 'kind) tag =
 type ('k, 'v, 'kind) tagged_tree =
   | Node : { color : ('left, 'right, 'kind) tag;
              left : ('k, 'v, 'left) tagged_tree;
-             key : 'k;
-             value : 'v;
+             key : 'k @@ aliased many;
+             value : 'v @@ aliased many;
              right : ('k, 'v, 'right) tagged_tree }
       -> ('k, 'v, 'kind) tagged_tree
   | Leaf : ('k, 'v, 'kind) tagged_tree
@@ -212,17 +220,10 @@ let rec tagged_fold : 'k 'v 'kind 'a. ('k -> 'v -> 'a -> 'a) -> 'a -> ('k, 'v, '
       tagged_fold f (f key value (tagged_fold f a left)) right
   | Leaf -> a
 
-let unique_work ~insert ~fold ~empty =
-  let rec loop n (t) =
-    if n <= 0 then t
-    else loop (n - 1) (insert n (n mod 10 = 0) t) in
-  let tree = loop 42000 empty in
-  fold (fun _ v acc -> if v then acc + 1 else acc) 0 tree
-
-
 (*************************************************************************
    Okasaki-style red-black trees with uniqueness and explicit tags
  *************************************************************************)
+
 module Make_Tagged_Okasaki(Ord : Map.OrderedType) = struct
   type 'a t = (Ord.t, 'a, tree_tag) tagged_tree
 
@@ -231,85 +232,80 @@ module Make_Tagged_Okasaki(Ord : Map.OrderedType) = struct
   (* t is black and its left child is red *)
   let balance_left t =
     match t with
-    | Node { color = Black } as t ->
+    | Node ({ color = Black } as t) ->
         begin match t.left with
-        | Node { color = Red; left = Node { color = Red } as ll } as l ->
-            overwrite_ l with
-              Node { color = Red;
-                     left  = overwrite_ ll with Node { color = Black };
-                     right = overwrite_ t  with Node { color = Black; left = l.right } }
-        | Node { color = Red; right = Node { color = Red } as lr } as l ->
-            overwrite_ lr with
-              Node { color = Red;
-                     left  = overwrite_ l with Node { color = Black; right = lr.left };
-                     right = overwrite_ t with Node { color = Black; left = lr.right } }
-        | Node { color = Red } as l ->
-            overwrite_ t with
-              Node { color = Black; left = overwrite_ l with Node { color = Red } }
-        | _ -> assert false
+        | Node ({ color = Red; left = Node ({ color = Red } as ll) } as l) ->
+            Node (overwrite_ l with { color = Red;
+                          left = Node (overwrite_ ll with { color = Black });
+                          right = Node (overwrite_ t with { color = Black; left = l.right }) })
+        | Node ({ color = Red; right = Node ({ color = Red } as lr) } as l) ->
+            Node (overwrite_ lr with { color = Red;
+                          left = Node (overwrite_ l with { color = Black; right = lr.left });
+                          right = Node (overwrite_ t with { color = Black; left = lr.right }) })
+        | Node ({ color = Red } as l) ->
+            Node (overwrite_ t with { color = Black; left = Node (overwrite_ l with { color = Red }) })
+        | Node { color = Black } -> assert false
+        | Leaf -> Leaf
         end
-    | _ -> assert false
+    | Node { color = Red } -> assert false
+    | Leaf -> Leaf
 
   (* t is black and its right child is red *)
   let balance_right t =
     match t with
-    | Node { color = Black } as t ->
+    | Node ({ color = Black } as t) ->
         begin match t.right with
-        | Node { color = Red; right = Node { color = Red } as rr } as r ->
-            overwrite_ r with
-              Node { color = Red;
-                     left  = overwrite_ t  with Node { color = Black; right = r.left };
-                     right = overwrite_ rr with Node { color = Black } }
-        | Node { color = Red; left = Node { color = Red } as rl } as r ->
-            overwrite_ rl with
-              Node { color = Red;
-                     left  = overwrite_ t with Node { color = Black; right = rl.left };
-                     right = overwrite_ r with Node { color = Black; left = rl.right } }
-        | Node { color = Red } as r ->
-            overwrite_ t with
-              Node { color = Black; right = overwrite_ r with Node { color = Red } }
-        | _ -> assert false
+        | Node ({ color = Red; right = Node ({ color = Red } as rr) } as r) ->
+            Node (overwrite_ r with { color = Red;
+                          left = Node (overwrite_ t with { color = Black; right = r.left });
+                          right = Node (overwrite_ rr with { color = Black }) })
+        | Node ({ color = Red; left = Node ({ color = Red } as rl) } as r) ->
+            Node (overwrite_ rl with { color = Red;
+                          left = Node (overwrite_ t with { color = Black; right = rl.left });
+                          right = Node (overwrite_ r with { color = Black; left = rl.right }) })
+        | Node ({ color = Red } as r) ->
+            Node (overwrite_ t with { color = Black; right = Node (overwrite_ r with { color = Red }) })
+        | Node { color = Black } -> assert false
+        | Leaf -> Leaf
         end
-    | _ -> assert false
+    | Node { color = Red } -> assert false
+    | Leaf -> Leaf
 
-  let rec ins : 'a. Ord.t -> 'a -> 'a t -> 'a t = fun k v t ->
+  let rec ins : 'a. Ord.t -> 'a -> unique_ 'a t -> unique_ 'a t = fun k v t ->
     match t with
-    | Node { color = Black } as t -> begin
+    | Node ({ color = Black; left; right } as t) -> begin
         match Ord.compare k t.key with
         | c when c < 0 -> begin
           match t.left with
-          | Node { color = Red } ->
-              balance_left (overwrite_ t with Node { left = ins k v t.left })
-          | _ -> overwrite_ t with Node { left = ins k v t.left } end
+          | Node { color = Red } -> balance_left (Node (overwrite_ t with { left = ins k v t.left }))
+          | _ -> Node (overwrite_ t with { left = ins k v t.left }) end
         | c when c > 0 -> begin
           match t.right with
-          | Node { color = Red } ->
-            balance_right (overwrite_ t with Node { right = ins k v t.right })
-          | _ -> overwrite_ t with Node { right = ins k v t.right } end
-        | _ (* k == t.key *) -> overwrite_ t with Node { value = v } end
-    (* next case exactly as above; copied due to GADT inference *)
-    | Node { color = Red } as t -> begin
+          | Node { color = Red } -> balance_right (Node (overwrite_ t with { right = ins k v t.right }))
+          | _ -> Node (overwrite_ t with { right = ins k v t.right }) end
+        | _ -> Node (overwrite_ t with { value = v }) (* k == t.key *) end
+    | Node ({ color = Red } as t) -> begin (* exactly as Black case; copied due to GADT inference *)
         match Ord.compare k t.key with
         | c when c < 0 -> begin
             match t.left with
-            | Node { color = Red } ->
-              balance_left (overwrite_ t with Node { left = ins k v t.left })
-        | _ -> overwrite_ t with Node { left = ins k v t.left } end
+            | Node { color = Red } -> balance_left (Node (overwrite_ t with { left = ins k v t.left }))
+            | _ -> Node (overwrite_ t with { left = ins k v t.left }) end
         | c when c > 0 -> begin
-          match t.right with
-          | Node { color = Red } ->
-            balance_right (overwrite_ t with Node { right = ins k v t.right })
-        | _ -> overwrite_ t with Node { right = ins k v t.right } end
-        | _ (* k == t.key *) -> overwrite_ t with Node { value = v } end
+            match t.right with
+            | Node { color = Red } -> balance_right (Node (overwrite_ t with { right = ins k v t.right }))
+            | _ -> Node (overwrite_ t with { right = ins k v t.right }) end
+        | _ -> Node (overwrite_ t with { value = v }) (* k == t.key *) end
     | Leaf -> Node { color = Red; left = Leaf; key = k; value = v; right = Leaf }
 
   let set_black t =
     match t with
-    | Node { color = Red } as t -> overwrite_ t with Node { color = Black }
-    | t -> t
+    | Node ({ color = Red } as t) -> Node (overwrite_ t with { color = Black })
+    | _ -> t
 
-  let insert k v t = set_black (ins k v t)
+  let insert : 'a. Ord.t -> 'a -> unique_ 'a t -> unique_ 'a t =
+    fun k v t -> set_black (ins k v t)
 end
+
 
 (*************************************************************************
    Bottom-up red-black trees
@@ -321,106 +317,95 @@ module Make_Tagged_Bottom_Up(Ord : Map.OrderedType) = struct
 
   let fold = tagged_fold
 
-  let rec move_up : 'a. 'a z -> 'a t -> 'a t = fun z t ->
+  let rec move_up : 'a. unique_ 'a z -> unique_ 'a t -> unique_ 'a t = fun z t ->
     match z with
-    | Node { color = Left_red; left = z' } as z ->
-        move_up z' (overwrite_ z with Node { color = Red; left = t })
-    | Node { color = Left_black; left = z' } as z ->
-        move_up z' (overwrite_ z with Node { color = Black; left = t })
-    | Node { color = Right_red; right = z' } as z ->
-        move_up z' (overwrite_ z with Node { color = Red; right = t })
-    | Node { color = Right_black; right = z' } as z ->
-        move_up z' (overwrite_ z with Node { color = Black; right = t })
+    | Node ({ color = Left_red; left = z' } as z) ->
+        move_up z' (Node (overwrite_ z with { color = Red; left = t }))
+    | Node ({ color = Left_black; left = z' } as z) ->
+        move_up z' (Node (overwrite_ z with { color = Black; left = t }))
+    | Node ({ color = Right_red; right = z' } as z) ->
+        move_up z' (Node (overwrite_ z with { color = Red; right = t }))
+    | Node ({ color = Right_black; right = z' } as z) ->
+        move_up z' (Node (overwrite_ z with { color = Black; right = t }))
     | Leaf -> t
 
-  let rec fixup : 'a. 'a z -> 'a t -> 'a t = fun z t ->
+  let rec fixup : 'a. unique_ 'a z -> unique_ 'a t -> unique_ 'a t = fun z t ->
     match z with
-    | Node { color = Left_red; left = z'; right = zright } as z -> begin
+    | Node ({ color = Left_red; left = z' } as z) -> begin
         match z' with
-        | Node { color = Left_black; left = z''; right = y } as z' -> begin
+        | Node ({ color = Left_black; left = z''; right = y } as z') -> begin
             match y with
-            | Node { color = Red } as y ->
-                fixup z'' (overwrite_ z' with
-                  Node { color = Red;
-                         left  = overwrite_ z with Node { color = Black; left = t };
-                         right = overwrite_ y with Node { color = Black } })
+            | Node ({ color = Red } as y) ->
+                fixup z'' (Node (overwrite_ z' with { color = Red;
+                                                  left = Node (overwrite_ z with { color = Black; left = t });
+                                                  right = Node (overwrite_ y with { color = Black }) }))
             | Node { color = Black } | Leaf ->
-                move_up z'' (overwrite_ z with
-                  Node { color = Black;
-                         right = overwrite_ z' with Node { color = Red; left = zright };
-                         left  = t }) end
-        | Node { color = Right_black; right = z''; left = y } as z' -> begin
+                move_up z'' (Node (overwrite_ z with { color = Black;
+                                                   right = Node (overwrite_ z' with { color = Red; left = z.right });
+                                                   left = t })) end
+        | Node ({ color = Right_black; right = z''; left = y } as z') -> begin
             match y with
-            | Node { color = Red } as y ->
-                fixup z'' (overwrite_ z' with
-                  Node { color = Red;
-                         right = overwrite_ z with Node { color = Black; left = t };
-                         left  = overwrite_ y with Node { color = Black } })
+            | Node ({ color = Red } as y) ->
+                fixup z'' (Node (overwrite_ z' with { color = Red;
+                                                  right = Node (overwrite_ z with { color = Black; left = t });
+                                                  left = Node (overwrite_ y with { color = Black }) }))
             | Node { color = Black } | Leaf ->
                 match t with
                 | Node ({ color = Red; left = tl; right = tr } as t) ->
-                    move_up z'' (overwrite_ t with
-                      Node { color = Black;
-                             left  = overwrite_ z' with Node { color = Red; right = tl };
-                             right = overwrite_ z  with Node { color = Red; left = tr } })
+                    move_up z'' (Node (overwrite_ t with { color = Black;
+                                                       left = Node (overwrite_ z' with { color = Red; right = tl });
+                                                       right = Node (overwrite_ z with { color = Red; left = tr }) }))
                  | _ -> assert false end
         | _ -> assert false end
-    | Node { color = Right_red; right = z'; left = zleft } as z -> begin
+    | Node ({ color = Right_red; right = z' } as z) -> begin
         match z' with
-        | Node { color = Right_black; right = z''; left = y } as z' -> begin
+        | Node ({ color = Right_black; right = z''; left = y } as z') -> begin
             match y with
-            | Node { color = Red } as y ->
-                fixup z'' (overwrite_ z' with
-                  Node { color = Red;
-                         right = overwrite_ z with Node { color = Black; right = t };
-                         left  = overwrite_ y with Node { color = Black } })
+            | Node ({ color = Red } as y) ->
+                fixup z'' (Node (overwrite_ z' with { color = Red;
+                                                  right = Node (overwrite_ z with { color = Black; right = t });
+                                                  left = Node (overwrite_ y with { color = Black }) }))
             | Node { color = Black } | Leaf ->
-                move_up z'' (overwrite_ z with
-                  Node { color = Black;
-                         left  = overwrite_ z' with Node { color = Red; right = zleft };
-                         right = t }) end
-        | Node { color = Left_black; left = z''; right = y } as z' -> begin
+                move_up z'' (Node (overwrite_ z with { color = Black;
+                                                   left = Node (overwrite_ z' with { color = Red; right = z.left });
+                                                   right = t })) end
+        | Node ({ color = Left_black; left = z''; right = y } as z') -> begin
             match y with
-            | Node { color = Red } as y ->
-                fixup z'' (overwrite_ z' with
-                  Node { color = Red;
-                         left  = overwrite_ z with Node { color = Black; right = t };
-                         right = overwrite_ y with Node { color = Black } })
+            | Node ({ color = Red } as y) ->
+                fixup z'' (Node (overwrite_ z' with { color = Red;
+                                                  left = Node (overwrite_ z with { color = Black; right = t });
+                                                  right = Node (overwrite_ y with { color = Black }) }))
             | Node { color = Black } | Leaf ->
                 match t with
-                | Node { color = Red; left = tl; right = tr } as t ->
-                    move_up z'' (overwrite_ t with
-                      Node { color = Black;
-                             left  = overwrite_ z  with Node { color = Red; right = tl };
-                             right = overwrite_ z' with Node { color = Red; left = tr } })
+                | Node ({ color = Red; left = tl; right = tr } as t) ->
+                    move_up z'' (Node (overwrite_ t with { color = Black;
+                                                       right = Node (overwrite_ z' with { color = Red; left = tl });
+                                                       left = Node (overwrite_ z with { color = Red; right = tr }) }))
                  | _ -> assert false end
         | _ -> assert false end
     | _ -> move_up z t
 
-  let rec ins : 'a. Ord.t -> 'a -> 'a z -> 'a t -> 'a t = fun k v z t ->
+  let rec ins : 'a. Ord.t -> 'a -> unique_ 'a z -> unique_ 'a t -> unique_ 'a t = fun k v z t ->
     match t with
-    | Node { color = Black; left; right } as t -> begin
+    | Node ({ color = Black; left; right } as t) -> begin
         match Ord.compare k t.key with
-        | c when c < 0 ->
-            ins k v (overwrite_ t with Node { color = Left_black; left = z }) left
-        | c when c > 0 ->
-            ins k v (overwrite_ t with Node { color = Right_black; right = z }) right
-        | _ (* k == t.key *) -> move_up z (overwrite_ t with Node { value = v }) end
-    | Node { color = Red; left; right } as t -> begin
+        | c when c < 0 -> ins k v (Node (overwrite_ t with { color = Left_black; left = z })) left
+        | c when c > 0 -> ins k v (Node (overwrite_ t with { color = Right_black; right = z })) right
+        | _ -> move_up z (Node (overwrite_ t with { value = v })) (* k == t.key *) end
+    | Node ({ color = Red; left; right } as t) -> begin
         match Ord.compare k t.key with
-        | c when c < 0 ->
-            ins k v (overwrite_ t with Node { color = Left_red; left = z }) left
-        | c when c > 0 ->
-            ins k v (overwrite_ t with Node { color = Right_red; right = z }) right
-        | _ (* k == t.key *) -> move_up z (overwrite_ t with Node { value = v }) end
+        | c when c < 0 -> ins k v (Node (overwrite_ t with { color = Left_red; left = z })) left
+        | c when c > 0 -> ins k v (Node (overwrite_ t with { color = Right_red; right = z })) right
+        | _ -> move_up z (Node (overwrite_ t with { value = v })) (* k == t.key *) end
     | Leaf -> fixup z (Node { color = Red; left = Leaf; key = k; value = v; right = Leaf })
 
   let set_black t =
     match t with
-    | Node { color = Red } as t -> overwrite_ t with Node { color = Black }
+    | Node ({ color = Red } as t) -> Node (overwrite_ t with { color = Black })
     | _ -> t
 
-  let insert k v t = set_black (ins k v Leaf t)
+  let insert : 'a. Ord.t -> 'a -> unique_ 'a t -> unique_ 'a t =
+    fun k v t -> set_black (ins k v Leaf t)
 end
 
 module IntOrder = struct
@@ -479,8 +464,14 @@ val work :
     insert:(int -> bool -> 'a -> 'a) ->
     fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c
   @@ global many = <fun>
-Line 85, characters 16-71:
-85 |                 balance_right (Node { t with right = ins k v t.right }) [@nontail]
+val unique_work :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    insert:(int -> bool -> 'a @ unique -> 'a @ unique) ->
+    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) ->
+    empty:'a @ unique -> 'c
+  @@ global many = <fun>
+Line 92, characters 16-71:
+92 |                 balance_right (Node { t with right = ins k v t.right }) [@nontail]
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 72 [tmc-breaks-tailcall]: This call
 is in tail-modulo-cons position in a TMC function,
@@ -490,8 +481,8 @@ Please either mark the called function with the [@tail_mod_cons]
 attribute, or mark this call with the [@tailcall false] attribute
 to make its non-tailness explicit.
 
-Line 80, characters 16-68:
-80 |                 balance_left (Node { t with left = ins k v t.left }) [@nontail]
+Line 87, characters 16-68:
+87 |                 balance_left (Node { t with left = ins k v t.left }) [@nontail]
                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 72 [tmc-breaks-tailcall]: This call
 is in tail-modulo-cons position in a TMC function,
@@ -519,10 +510,291 @@ module Make_Okasaki :
       val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@
         global many
     end
-Line 110, characters 16-52:
-110 |     | Node _ -> overwrite_ t with Node { color = c }
-                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
+Line 176, characters 16-80:
+176 |                 balance_right (overwrite_ t with Node { right = ins k v right }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
 
+Line 171, characters 16-77:
+171 |                 balance_left (overwrite_ t with Node { left = ins k v left }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+module Make_Unique_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a) tree
+      val fold :
+        'a 'b ('c : value_or_null).
+          ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+        @@ global many
+      val set_color :
+        color -> ('a, 'b) tree @ unique -> ('c, 'd) tree @ unique @@ global
+        many portable
+      val set_black : ('a, 'b) tree @ unique -> ('c, 'd) tree @ unique @@
+        global many portable
+      val set_red : ('a, 'b) tree @ unique -> ('c, 'd) tree @ unique @@
+        global many portable
+      val balance_left : ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@
+        global many portable
+      val balance_right : ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@
+        global many portable
+      val ins :
+        Ord.t -> 'a -> (Ord.t, 'b) tree @ unique -> (Ord.t, 'a) tree @ unique
+        @@ global many
+      val insert : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global
+        many
+    end
+type tree_tag = private Tree
+type zipper_tag = private Zipper
+type ('left, 'right, 'kind) tag =
+    Red : (tree_tag, tree_tag, tree_tag) tag
+  | Black : (tree_tag, tree_tag, tree_tag) tag
+  | Right_red : (tree_tag, zipper_tag, zipper_tag) tag
+  | Right_black : (tree_tag, zipper_tag, zipper_tag) tag
+  | Left_red : (zipper_tag, tree_tag, zipper_tag) tag
+  | Left_black : (zipper_tag, tree_tag, zipper_tag) tag
+type ('k, 'v, 'kind) tagged_tree =
+    Node : { color : ('left, 'right, 'kind) tag;
+      left : ('k, 'v, 'left) tagged_tree; key : 'k @@ many aliased;
+      value : 'v @@ many aliased; right : ('k, 'v, 'right) tagged_tree;
+    } -> ('k, 'v, 'kind) tagged_tree
+  | Leaf : ('k, 'v, 'kind) tagged_tree
+val tagged_fold :
+  ('k -> 'v -> 'a -> 'a) -> 'a -> ('k, 'v, 'kind) tagged_tree -> 'a @@ global
+  many = <fun>
+module Make_Tagged_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a, tree_tag) tagged_tree
+      val fold :
+        ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b, 'd) tagged_tree -> 'c @@
+        global many
+      val balance_left :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val balance_right :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val ins : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global many
+      val set_black :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val insert : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global
+        many
+    end
+module Make_Tagged_Bottom_Up :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a, tree_tag) tagged_tree
+      type 'a z = (Ord.t, 'a, zipper_tag) tagged_tree
+      val fold :
+        ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b, 'd) tagged_tree -> 'c @@
+        global many
+      val move_up : 'a z @ unique -> 'a t @ unique -> 'a t @ unique @@ global
+        many portable
+      val fixup : 'a z @ unique -> 'a t @ unique -> 'a t @ unique @@ global
+        many portable
+      val ins :
+        Ord.t -> 'a -> 'a z @ unique -> 'a t @ unique -> 'a t @ unique @@
+        global many
+      val set_black :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val insert : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global
+        many
+    end
+module IntOrder :
+  sig type t = int val compare : int -> int -> int @@ global many end
+|}, Principal{|
+type color = Red | Black
+type ('k, 'v) tree =
+    Node of { color : color; left : ('k, 'v) tree; key : 'k @@ many aliased;
+      value : 'v @@ many aliased; right : ('k, 'v) tree;
+    }
+  | Leaf
+val fold :
+  'a 'b ('c : value_or_null).
+    ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+  @@ global many = <fun>
+val work :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    insert:(int -> bool -> 'a -> 'a) ->
+    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) -> empty:'a -> 'c
+  @@ global many = <fun>
+val unique_work :
+  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
+    insert:(int -> bool -> 'a @ unique -> 'a @ unique) ->
+    fold:(('b -> bool -> int -> int) -> int -> 'a -> 'c) ->
+    empty:'a @ unique -> 'c
+  @@ global many = <fun>
+Line 92, characters 16-71:
+92 |                 balance_right (Node { t with right = ins k v t.right }) [@nontail]
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+Line 87, characters 16-68:
+87 |                 balance_left (Node { t with left = ins k v t.left }) [@nontail]
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+module Make_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a) tree
+      val fold :
+        'a 'b ('c : value_or_null).
+          ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+        @@ global many
+      val balance_left : ('a, 'b) tree -> ('a, 'b) tree @@ global many
+        portable
+      val balance_right : ('a, 'b) tree -> ('a, 'b) tree @@ global many
+        portable
+      val ins : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@ global
+        many
+      val set_black : ('a, 'b) tree -> ('a, 'b) tree @@ global many portable
+      val insert : Ord.t -> 'a -> (Ord.t, 'a) tree -> (Ord.t, 'a) tree @@
+        global many
+    end
+Line 176, characters 16-80:
+176 |                 balance_right (overwrite_ t with Node { right = ins k v right }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+Line 171, characters 16-77:
+171 |                 balance_left (overwrite_ t with Node { left = ins k v left }) [@nontail]
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 72 [tmc-breaks-tailcall]: This call
+is in tail-modulo-cons position in a TMC function,
+but the function called is not itself specialized for TMC,
+so the call will not be transformed into a tail call.
+Please either mark the called function with the [@tail_mod_cons]
+attribute, or mark this call with the [@tailcall false] attribute
+to make its non-tailness explicit.
+
+module Make_Unique_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a) tree
+      val fold :
+        'a 'b ('c : value_or_null).
+          ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c
+        @@ global many
+      val set_color :
+        color -> ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@ global
+        many portable
+      val set_black : ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@
+        global many portable
+      val set_red : ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@
+        global many portable
+      val balance_left : ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@
+        global many portable
+      val balance_right : ('a, 'b) tree @ unique -> ('a, 'b) tree @ unique @@
+        global many portable
+      val ins :
+        Ord.t -> 'a -> (Ord.t, 'a) tree @ unique -> (Ord.t, 'a) tree @ unique
+        @@ global many
+      val insert : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global
+        many
+    end
+type tree_tag = private Tree
+type zipper_tag = private Zipper
+type ('left, 'right, 'kind) tag =
+    Red : (tree_tag, tree_tag, tree_tag) tag
+  | Black : (tree_tag, tree_tag, tree_tag) tag
+  | Right_red : (tree_tag, zipper_tag, zipper_tag) tag
+  | Right_black : (tree_tag, zipper_tag, zipper_tag) tag
+  | Left_red : (zipper_tag, tree_tag, zipper_tag) tag
+  | Left_black : (zipper_tag, tree_tag, zipper_tag) tag
+type ('k, 'v, 'kind) tagged_tree =
+    Node : { color : ('left, 'right, 'kind) tag;
+      left : ('k, 'v, 'left) tagged_tree; key : 'k @@ many aliased;
+      value : 'v @@ many aliased; right : ('k, 'v, 'right) tagged_tree;
+    } -> ('k, 'v, 'kind) tagged_tree
+  | Leaf : ('k, 'v, 'kind) tagged_tree
+val tagged_fold :
+  ('k -> 'v -> 'a -> 'a) -> 'a -> ('k, 'v, 'kind) tagged_tree -> 'a @@ global
+  many = <fun>
+module Make_Tagged_Okasaki :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a, tree_tag) tagged_tree
+      val fold :
+        ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b, 'd) tagged_tree -> 'c @@
+        global many
+      val balance_left :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val balance_right :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val ins : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global many
+      val set_black :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val insert : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global
+        many
+    end
+module Make_Tagged_Bottom_Up :
+  functor (Ord : Map.OrderedType) ->
+    sig
+      type 'a t = (Ord.t, 'a, tree_tag) tagged_tree
+      type 'a z = (Ord.t, 'a, zipper_tag) tagged_tree
+      val fold :
+        ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b, 'd) tagged_tree -> 'c @@
+        global many
+      val move_up : 'a z @ unique -> 'a t @ unique -> 'a t @ unique @@ global
+        many portable
+      val fixup : 'a z @ unique -> 'a t @ unique -> 'a t @ unique @@ global
+        many portable
+      val ins :
+        Ord.t -> 'a -> 'a z @ unique -> 'a t @ unique -> 'a t @ unique @@
+        global many
+      val set_black :
+        ('a, 'b, tree_tag) tagged_tree @ unique ->
+        ('a, 'b, tree_tag) tagged_tree @ unique @@ global many portable
+      val insert : Ord.t -> 'a -> 'a t @ unique -> 'a t @ unique @@ global
+        many
+    end
+module IntOrder :
+  sig type t = int val compare : int -> int -> int @@ global many end
+Line 422, characters 47-51:
+422 |   let r1 = work ~insert:M1.insert ~fold ~empty:Leaf in
+                                                     ^^^^
+Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
+
+Line 425, characters 54-58:
+425 |   let r2 = unique_work ~insert:M2.insert ~fold ~empty:Leaf in
+                                                            ^^^^
+Warning 18 [not-principal]: this type-based constructor disambiguation is not principal.
 |}]

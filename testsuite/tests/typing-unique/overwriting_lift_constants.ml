@@ -64,20 +64,28 @@ let test5 () =
   List.hd (constant_list_unique2 1) == List.hd (constant_list_unique2 2),
   List.tl (constant_list_unique2 1) == List.tl (constant_list_unique2 2)
 
+let pp_bool_tuple ppf (x, y) =
+  Printf.fprintf ppf "(%B, %B)" x y
+
 let () =
   Printf.printf "%B\n" (check_overwriting_enabled ());
   Printf.printf "%B\n" (test2 ());
-  Printf.printf "(%B, %B)\n" (test3 ());
-  Printf.printf "(%B, %B)\n" (test4 ());
-  Printf.printf "(%B, %B)\n" (test5 ());
+  Printf.printf "%a\n" pp_bool_tuple (test3 ());
+  Printf.printf "%a\n" pp_bool_tuple (test4 ());
+  Printf.printf "%a\n" pp_bool_tuple (test5 ());
 
 [%%expect{|
 type point = { mutable dim : int; x : float; y : float; z : float; }
 val unsafe_dup : '_a @ unique -> '_a * '_a @ unique @@ global many = <fun>
-Line 9, characters 10-66:
-9 |   let p = overwrite_ p with { dim = 4; x = 1.0; y = 2.0; z = 3.0 } in
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
-
+val check_overwriting_enabled : unit -> bool @@ global many = <fun>
+type fpoint = { x : float; y : float; z : float; }
+val fupdate_with_constant : fpoint @ unique -> fpoint @@ global many = <fun>
+val test2 : unit -> bool @@ global many = <fun>
+val constant_list : int -> int list @@ global many = <fun>
+val test3 : unit -> bool * bool @@ global many = <fun>
+val constant_list_unique : int -> int list @@ global many = <fun>
+val test4 : unit -> bool * bool @@ global many = <fun>
+val constant_list_unique2 : int -> int list @@ global many = <fun>
+val test5 : unit -> bool * bool @@ global many = <fun>
+val pp_bool_tuple : out_channel -> bool * bool -> unit @@ global many = <fun>
 |}]

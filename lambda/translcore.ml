@@ -386,8 +386,46 @@ let zero_alloc_of_application
     end
   | None, _ -> Zero_alloc_utils.Assume_info.none
 
-let rec transl_exp ~scopes sort e =
-  transl_exp1 ~scopes ~in_new_scope:false sort e
+(** This state mirrors the state of the same name in typecore.ml.
+    The state in the typechecker and the translation are related as follows:
+    - If the typechecker passes [No_overwrite], we do the same here.
+    - The typechecker passes [Overwriting] iff we do.
+    - If the typechecker passes [Assigning], we pass [No_overwriting],
+      but call [transl_exp_maybe_hole]. *)
+type overwrite =
+  | No_overwrite
+  | Overwriting of lambda (* the value being overwritten *)
+
+let tryreuse ~overwrite block args loc =
+  match overwrite with
+  | No_overwrite ->
+      Lprim(block, List.map (fun (arg, _) -> Option.get arg) args, loc)
+  | Overwriting lam ->
+      let resets =
+        List.map
+          (fun (arg, layout) ->
+             Option.fold
+               ~none:Reuse_keep_old
+               ~some:(fun _ -> Reuse_set_to layout)
+               arg)
+          args
+      in
+      let args = List.filter_map fst args in
+      let block =
+        match block with
+        | Pmakeblock(tag, mut, shape, mode) ->
+            Preuseblock { tag; mut; shape; resets; mode }
+        | Pmakefloatblock(mut, mode) ->
+          Preusefloatblock { mut; resets; mode }
+        | Pmakeufloatblock(mut, mode) ->
+          Preuseufloatblock { mut; resets; mode }
+        | Pmakemixedblock(tag, mut, shape, mode) ->
+          Preusemixedblock { tag; mut; shape; resets; mode }
+        | _ -> assert false
+      in Lprim(block, lam :: args, loc)
+
+let rec transl_exp ~scopes ?(overwrite=No_overwrite) sort e =
+  transl_exp1 ~scopes ~in_new_scope:false ~overwrite sort e
 
 (* ~in_new_scope tracks whether we just opened a new scope.
 
@@ -396,17 +434,21 @@ let rec transl_exp ~scopes sort e =
    parsed as a let-bound Pexp_function node [let f = fun x -> ...].
    We give it f's scope.
 *)
-and transl_exp1 ~scopes ~in_new_scope sort e =
+and transl_exp1 ~scopes ~in_new_scope ?(overwrite=No_overwrite) sort e =
   let eval_once =
     (* Whether classes for immediate objects must be cached *)
     match e.exp_desc with
       Texp_function _ | Texp_for _ | Texp_while _ -> false
     | _ -> true
   in
-  if eval_once then transl_exp0 ~scopes ~in_new_scope sort e else
-  Translobj.oo_wrap e.exp_env true (transl_exp0 ~scopes ~in_new_scope sort) e
+  if eval_once then transl_exp0 ~scopes ~in_new_scope ~overwrite sort e else
+  match overwrite with
+  | No_overwrite ->
+      Translobj.oo_wrap e.exp_env true
+        (transl_exp0 ~scopes ~in_new_scope ~overwrite:No_overwrite sort) e
+  | Overwriting _ -> assert false
 
-and transl_exp0 ~in_new_scope ~scopes sort e =
+and transl_exp0 ~in_new_scope ~scopes ?(overwrite=No_overwrite) sort e =
   match e.exp_desc with
   | Texp_ident(path, _, desc, kind, _) ->
       transl_ident (of_location ~scopes e.exp_loc)
@@ -502,17 +544,20 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                  (transl_cases_try ~scopes sort pat_expr_list),
                return_layout)
   | Texp_tuple (el, alloc_mode) ->
-      let ll, shape =
+      let lv =
         transl_value_list_with_shape ~scopes
           (List.map (fun (_, a) -> (a, Jkind.Sort.for_tuple_element)) el)
       in
+      let _, shape = List.split lv in
       begin try
+        if overwrite <> No_overwrite then raise Not_constant;
+        let ll = List.map (fun (arg, _) -> Option.get arg) lv in
         Lconst(Const_block(0, List.map extract_constant ll))
       with Not_constant ->
-        Lprim(Pmakeblock(0, Immutable, Some shape,
-                         transl_alloc_mode alloc_mode),
-              ll,
-              (of_location ~scopes e.exp_loc))
+        let lv = List.map (fun (arg, shape) -> (arg, Pvalue shape)) lv in
+        tryreuse ~overwrite
+          (Pmakeblock(0, Immutable, Some shape, transl_alloc_mode alloc_mode))
+          lv (of_location ~scopes e.exp_loc)
       end
   | Texp_unboxed_tuple el ->
       let shape = List.map (fun (_, e, s) -> layout_exp s e) el in
@@ -528,10 +573,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           cstr.cstr_args args
       in
       let ll =
-        List.map (fun (e, sort) -> transl_exp ~scopes sort e) args_with_sorts
+        List.map (fun (e, sort) -> transl_exp_maybe_hole ~scopes ~overwrite sort e)
+          args_with_sorts
       in
       if cstr.cstr_inlined <> None then begin match ll with
-        | [x] -> x
+        | [Some x] -> x
         | _ -> assert false
       end else begin match cstr.cstr_tag, cstr.cstr_repr with
       | Ordinary {runtime_tag}, _ when cstr.cstr_constant ->
@@ -540,12 +586,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              that out by checking that the sort list is empty *)
           Lconst(const_int runtime_tag)
       | Ordinary _, Variant_unboxed ->
-          (match ll with [v] -> v | _ -> assert false)
+          (match ll with [Some v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
           let constant =
-            match List.map extract_constant ll with
+            match List.map (fun arg -> extract_constant (Option.get arg)) ll, overwrite with
             | exception Not_constant -> None
-            | constants -> (
+            | _, Overwriting _ -> None
+            | constants, No_overwrite -> (
               match cstr.cstr_shape with
               | Constructor_mixed shape ->
                   if !Clflags.native_code then
@@ -563,20 +610,18 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           | Some constant -> Lconst constant
           | None ->
               let alloc_mode = transl_alloc_mode (Option.get alloc_mode) in
+              let layouts = List.map (fun (e, sort) -> layout_exp sort e) args_with_sorts in
               let makeblock =
                 match cstr.cstr_shape with
                 | Constructor_uniform_value ->
-                    let shape =
-                      List.map (fun (e, sort) ->
-                          Lambda.must_be_value (layout_exp sort e))
-                        args_with_sorts
-                    in
+                    let shape = List.map Lambda.must_be_value layouts in
                     Pmakeblock(runtime_tag, Immutable, Some shape, alloc_mode)
                 | Constructor_mixed shape ->
                     let shape = Lambda.transl_mixed_product_shape shape in
                     Pmakemixedblock(runtime_tag, Immutable, shape, alloc_mode)
               in
-              Lprim (makeblock, ll, of_location ~scopes e.exp_loc)
+              tryreuse ~overwrite makeblock (List.combine ll layouts)
+                (of_location ~scopes e.exp_loc)
           end
       | Extension path, Variant_extensible ->
           let lam = transl_extension_path
@@ -589,6 +634,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             lam)
           else
             let alloc_mode = transl_alloc_mode (Option.get alloc_mode) in
+            let layouts = List.map (fun (e, sort) -> layout_exp sort e) args_with_sorts in
             let makeblock =
               match cstr.cstr_shape with
               | Constructor_uniform_value ->
@@ -606,7 +652,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   in
                   Pmakemixedblock(0, Immutable, shape, alloc_mode)
             in
-            Lprim (makeblock, lam :: ll, of_location ~scopes e.exp_loc)
+            tryreuse ~overwrite makeblock
+              (List.combine (Some lam :: ll) (Pvalue Lambda.generic_value :: layouts))
+              (of_location ~scopes e.exp_loc)
       | Extension _, (Variant_boxed _ | Variant_unboxed)
       | Ordinary _, Variant_extensible -> assert false
       end
@@ -628,7 +676,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   of_location ~scopes e.exp_loc)
       end
   | Texp_record {fields; representation; extended_expression; alloc_mode} ->
-      transl_record ~scopes e.exp_loc e.exp_env
+      transl_record ~scopes ~overwrite e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
         fields representation extended_expression
   | Texp_record_unboxed_product
@@ -829,7 +877,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension
-        ~transl_exp ~scopes ~loc comp
+        ~transl_exp:(transl_exp ~overwrite:No_overwrite) ~scopes ~loc comp
   | Texp_array_comprehension (_amut, elt_sort, comp) ->
       (* We can ignore mutability here since we've already checked in in the
          type checker; both mutable and immutable arrays are created the same
@@ -845,7 +893,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         raise (Error(e.exp_loc, Unboxed_product_in_array_comprehension))
       end;
       Transl_array_comprehension.comprehension
-        ~transl_exp ~scopes ~loc ~array_kind comp
+        ~transl_exp:(transl_exp ~overwrite:No_overwrite) ~scopes ~loc ~array_kind comp
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
       Lifthenelse(transl_exp ~scopes Jkind.Sort.for_predef_value cond,
                   event_before ~scopes ifso (transl_exp ~scopes sort ifso),
@@ -1226,10 +1274,22 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         ]
       in
       Lconst(Const_block(0, cl))
-  | Texp_overwrite (_, _) ->
-      Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
+  | Texp_overwrite (e1, e2) ->
+      let init_id = Ident.create_local "init" in
+      Llet(Strict, Lambda.layout_block, init_id,
+           transl_exp ~scopes ~overwrite:No_overwrite sort e1,
+           transl_exp ~scopes ~overwrite:(Overwriting (Lvar init_id)) sort e2)
   | Texp_hole _ ->
-      Location.todo_overwrite_not_implemented ~kind:"Translcore" e.exp_loc
+      (* This case should never be reached since all places where a hole
+         may occur should use [transl_exp_maybe_hole]. If you see this error,
+         check either the translation of the node immediately above the hole,
+         or that the typechecker disallows the relevant syntactic form. *)
+      Misc.fatal_error "Translcore encountered unexpected Texp_hole."
+
+and transl_exp_maybe_hole ~scopes ~overwrite sort e =
+  match e.exp_desc with
+  | Texp_hole _ -> None
+  | _ -> Some (transl_exp ~scopes ~overwrite sort e)
 
 and pure_module m =
   match m.mod_desc with
@@ -1250,9 +1310,9 @@ and transl_list_with_layout ~scopes expr_list =
 and transl_value_list_with_shape ~scopes expr_list =
   let transl_with_shape (e, sort) =
     let shape = Lambda.must_be_value (layout_exp sort e) in
-    transl_exp ~scopes sort e, shape
+    transl_exp_maybe_hole ~scopes ~overwrite:No_overwrite sort e, shape
   in
-  List.split (List.map transl_with_shape expr_list)
+  List.map transl_with_shape expr_list
 
 and transl_guard ~scopes guard rhs_sort rhs =
   let layout = layout_exp rhs_sort rhs in
@@ -1846,7 +1906,7 @@ and transl_setinstvar ~scopes loc self var expr =
     [self; var; transl_exp ~scopes Jkind.Sort.for_instance_var expr], loc)
 
 (* CR layouts v5: Invariant - this is only called on values.  Relax that. *)
-and transl_record ~scopes loc env mode fields repres opt_init_expr =
+and transl_record ~scopes ~overwrite loc env mode fields repres opt_init_expr =
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
   let size = Array.length fields in
@@ -1854,8 +1914,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     | None -> false (* unboxed is not on heap *)
     | Some m -> is_heap_mode m
   in
+  let is_overwriting = overwrite <> No_overwrite in
   match opt_init_expr with
-  | Some (init_expr, _) when on_heap && size >= Config.max_young_wosize ->
+  | Some (init_expr, _)
+      when on_heap && not is_overwriting && size >= Config.max_young_wosize ->
     (* Take a shallow copy of the init record, then mutate the fields
        of the copy *)
     let copy_id = Ident.create_local "newrecord" in
@@ -1935,74 +1997,78 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
            match definition with
            | Kept (typ, mut, _) ->
                let field_layout = layout env lbl.lbl_loc lbl_sort typ in
-               let sem =
-                 if Types.is_mutable mut then Reads_vary else Reads_agree
-               in
-               let unique_barrier = match opt_init_expr with
-                 | Some (_, ubr) -> Translmode.transl_unique_barrier ubr
-                 | None -> assert false (* Kept fields only exist on extended records *)
-               in
-               let sem = add_barrier_to_read unique_barrier sem in
-               let access =
-                 match repres with
-                   Record_boxed _
-                 | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
-                   Pfield (i, maybe_pointer_type env typ, sem)
-                 | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
-                   assert false
-                 | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
-                     Pfield (i + 1, maybe_pointer_type env typ, sem)
-                 | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
-                     (* CR layouts v5.9: support this *)
-                     fatal_error
-                       "Mixed inlined records not supported for extensible variants"
-                 | Record_float ->
-                    (* This allocation is always deleted,
-                       so it's simpler to leave it Alloc_heap *)
-                    Pfloatfield (i, sem, alloc_heap)
-                 | Record_ufloat -> Pufloatfield (i, sem)
-                 | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
-                 | Record_mixed shape ->
-                  let { value_prefix_len; flat_suffix } : mixed_product_shape =
-                    shape
-                  in
-                   let read =
-                    if lbl.lbl_num < value_prefix_len then
-                      Mread_value_prefix (maybe_pointer_type env typ)
-                    else
-                      let read =
-                        match flat_suffix.(lbl.lbl_num - value_prefix_len) with
-                        | Float_boxed ->
-                            (* See the handling of [Record_float] above for
-                                why we choose Alloc_heap.
-                            *)
-                            flat_read_float_boxed alloc_heap
-                        | non_float -> flat_read_non_float non_float
-                      in
-                      Mread_flat_suffix read
-                   in
-                   let shape : Lambda.mixed_block_shape =
-                     { value_prefix_len; flat_suffix }
-                   in
-                   Pmixedfield (i, read, shape, sem)
-               in
-               Lprim(access, [Lvar init_id],
-                     of_location ~scopes loc),
-               field_layout
+               let field = match opt_init_expr with
+                 | None -> None
+                 | Some _ ->
+                     let sem =
+                       if Types.is_mutable mut then Reads_vary else Reads_agree
+                     in
+                     let unique_barrier = match opt_init_expr with
+                       | Some (_, ubr) -> Translmode.transl_unique_barrier ubr
+                       | None -> assert false (* Kept fields only exist on extended records *)
+                     in
+                     let sem = add_barrier_to_read unique_barrier sem in
+                     let access =
+                       match repres with
+                         Record_boxed _
+                       | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
+                         Pfield (i, maybe_pointer_type env typ, sem)
+                       | Record_unboxed | Record_inlined (_, _, Variant_unboxed) ->
+                         assert false
+                       | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
+                           Pfield (i + 1, maybe_pointer_type env typ, sem)
+                       | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
+                           (* CR layouts v5.9: support this *)
+                           fatal_error
+                             "Mixed inlined records not supported for extensible variants"
+                       | Record_float ->
+                          (* This allocation is always deleted,
+                             so it's simpler to leave it Alloc_heap *)
+                          Pfloatfield (i, sem, alloc_heap)
+                       | Record_ufloat -> Pufloatfield (i, sem)
+                       | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
+                       | Record_mixed shape ->
+                        let { value_prefix_len; flat_suffix } : mixed_product_shape =
+                          shape
+                        in
+                         let read =
+                          if lbl.lbl_num < value_prefix_len then
+                            Mread_value_prefix (maybe_pointer_type env typ)
+                          else
+                            let read =
+                              match flat_suffix.(lbl.lbl_num - value_prefix_len) with
+                              | Float_boxed ->
+                                  (* See the handling of [Record_float] above for
+                                      why we choose Alloc_heap.
+                                  *)
+                                  flat_read_float_boxed alloc_heap
+                              | non_float -> flat_read_non_float non_float
+                            in
+                            Mread_flat_suffix read
+                         in
+                         let shape : Lambda.mixed_block_shape =
+                           { value_prefix_len; flat_suffix }
+                         in
+                         Pmixedfield (i, read, shape, sem)
+                     in
+                     Some (Lprim(access, [Lvar init_id], of_location ~scopes loc))
+               in field, field_layout
            | Overridden (_lid, expr) ->
                let field_layout = layout_exp lbl_sort expr in
-               transl_exp ~scopes lbl_sort expr, field_layout)
+               transl_exp_maybe_hole ~scopes ~overwrite:No_overwrite lbl_sort expr,
+               field_layout)
         fields
     in
-    let ll, shape = List.split (Array.to_list lv) in
+    let lv = Array.to_list lv in
+    let ll, shape = List.split lv in
     let mut : Lambda.mutable_flag =
       if Array.exists (fun (lbl, _) -> Types.is_mutable lbl.lbl_mut) fields
       then Mutable
       else Immutable in
     let lam =
       try
-        if mut = Mutable then raise Not_constant;
-        let cl = List.map extract_constant ll in
+        if mut = Mutable || is_overwriting then raise Not_constant;
+        let cl = List.map extract_constant (List.map Option.get ll) in
         match repres with
         | Record_boxed _ -> Lconst(Const_block(0, cl))
         | Record_inlined (Ordinary {runtime_tag},
@@ -2035,18 +2101,18 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         match repres with
           Record_boxed _ ->
             let shape = List.map must_be_value shape in
-            Lprim(Pmakeblock(0, mut, Some shape, Option.get mode), ll, loc)
+            tryreuse ~overwrite (Pmakeblock(0, mut, Some shape, Option.get mode)) lv loc
         | Record_inlined (Ordinary {runtime_tag},
                           Constructor_uniform_value, Variant_boxed _) ->
             let shape = List.map must_be_value shape in
-            Lprim(Pmakeblock(runtime_tag, mut, Some shape, Option.get mode),
-                  ll, loc)
+            tryreuse ~overwrite
+              (Pmakeblock(runtime_tag, mut, Some shape, Option.get mode)) lv loc
         | Record_unboxed | Record_inlined (Ordinary _, _, Variant_unboxed) ->
-            (match ll with [v] -> v | _ -> assert false)
+            (match ll with [Some v] -> v | _ -> assert false)
         | Record_float ->
-            Lprim(Pmakefloatblock (mut, Option.get mode), ll, loc)
+            tryreuse ~overwrite (Pmakefloatblock (mut, Option.get mode)) lv loc
         | Record_ufloat ->
-            Lprim(Pmakeufloatblock (mut, Option.get mode), ll, loc)
+            tryreuse ~overwrite (Pmakeufloatblock (mut, Option.get mode)) lv loc
         | Record_inlined (Extension _,
                           Constructor_mixed _, Variant_extensible) ->
             (* CR layouts v5.9: support this *)
@@ -2056,22 +2122,20 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                           Constructor_uniform_value, Variant_extensible) ->
             let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
-            Lprim(Pmakeblock(0,
-                             mut,
-                             Some (Lambda.generic_value :: shape),
-                             Option.get mode),
-                  slot :: ll, loc)
+            tryreuse ~overwrite
+              (Pmakeblock(0, mut, Some (Lambda.generic_value :: shape), Option.get mode))
+              ((Some slot, Pvalue Lambda.generic_value) :: lv) loc
         | Record_inlined (Extension _, _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, _, Variant_extensible) ->
             assert false
         | Record_mixed shape ->
             let shape = transl_mixed_product_shape shape in
-            Lprim (Pmakemixedblock (0, mut, shape, Option.get mode), ll, loc)
+            tryreuse ~overwrite (Pmakemixedblock (0, mut, shape, Option.get mode)) lv loc
         | Record_inlined (Ordinary { runtime_tag },
                           Constructor_mixed shape, Variant_boxed _) ->
             let shape = transl_mixed_product_shape shape in
-            Lprim (Pmakemixedblock (runtime_tag, mut, shape, Option.get mode),
-                   ll, loc)
+            tryreuse ~overwrite
+              (Pmakemixedblock (runtime_tag, mut, shape, Option.get mode)) lv loc
     in
     begin match opt_init_expr with
       None -> lam

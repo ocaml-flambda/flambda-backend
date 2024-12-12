@@ -916,6 +916,42 @@ let primitive ppf = function
       fprintf ppf "reinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       fprintf ppf "reinterpret_unboxed_int64_as_tagged_int63"
+  | Preuseblock { mut = Immutable; shape; mode } ->
+      fprintf ppf "reuse%sblock %a"
+        (locality_mode_if_local mode) block_shape shape
+  | Preuseblock { mut = Immutable_unique; shape; mode } ->
+      fprintf ppf "reuse%sblock_unique %a"
+        (locality_mode_if_local mode) block_shape shape
+  | Preuseblock { mut = Mutable; shape; mode } ->
+      fprintf ppf "reuse%smutable %a"
+        (locality_mode_if_local mode) block_shape shape
+  | Preusefloatblock { mut = Immutable; mode } ->
+      fprintf ppf "reuse%sfloatblock Immutable"
+        (locality_mode_if_local mode)
+  | Preusefloatblock { mut = Immutable_unique; mode } ->
+     fprintf ppf "reuse%sfloatblock Immutable_unique"
+        (locality_mode_if_local mode)
+  | Preusefloatblock { mut = Mutable; mode } ->
+     fprintf ppf "reuse%sfloatblock Mutable"
+        (locality_mode_if_local mode)
+  | Preuseufloatblock { mut = Immutable; mode } ->
+      fprintf ppf "reuse%sufloatblock Immutable"
+        (locality_mode_if_local mode)
+  | Preuseufloatblock { mut = Immutable_unique; mode } ->
+     fprintf ppf "reuse%sufloatblock Immutable_unique"
+        (locality_mode_if_local mode)
+  | Preuseufloatblock { mut = Mutable; mode } ->
+     fprintf ppf "reuse%sufloatblock Mutable"
+        (locality_mode_if_local mode)
+  | Preusemixedblock { mut = Immutable; shape; mode } ->
+      fprintf ppf "reuse%amixedblock Immutable%a"
+        locality_mode mode mixed_block_shape shape
+  | Preusemixedblock { mut = Immutable_unique; shape; mode } ->
+     fprintf ppf "reuse%amixedblock Immutable_unique%a"
+        locality_mode mode mixed_block_shape shape
+  | Preusemixedblock { mut = Mutable; shape; mode } ->
+     fprintf ppf "reuse%amixedblock Mutable%a"
+        locality_mode mode mixed_block_shape shape
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -1091,6 +1127,10 @@ let name_of_primitive = function
       "Preinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       "Preinterpret_unboxed_int64_as_tagged_int63"
+  | Preuseblock _ -> "Preuseblock"
+  | Preusefloatblock _ -> "Preusefloatblock"
+  | Preuseufloatblock _ -> "Preuseufloatblock"
+  | Preusemixedblock _ -> "Preusemixedblock"
 
 let zero_alloc_attribute ppf check =
   match check with

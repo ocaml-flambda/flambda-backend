@@ -154,6 +154,7 @@ let preserve_tailcall_for_prim = function
   | Pignore
   | Pgetglobal _ | Psetglobal _ | Pgetpredef _
   | Pmakeblock _ | Pmakefloatblock _ | Pmakeufloatblock _ | Pmakemixedblock _
+  | Preuseblock _ | Preusefloatblock _ | Preuseufloatblock _ | Preusemixedblock _
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
@@ -722,6 +723,10 @@ let comp_primitive stack_info p sz args =
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
+  | Preuseblock _
+  | Preusefloatblock _
+  | Preuseufloatblock _
+  | Preusemixedblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
     ->
@@ -915,6 +920,10 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
+  | Lprim ((Preusefloatblock { resets } | Preuseufloatblock { resets }), args, loc) ->
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_reuse_args stack_info env args resets (fun n  -> Kgetfloatfield n) sz
+        (Kmakefloatblock (List.length resets) :: cont)
   | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
       (* There is no notion of a mixed block at runtime in bytecode. Further,
          source-level unboxed types are represented as boxed in bytecode, so
@@ -925,6 +934,11 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmake_faux_mixedblock (total_len, tag) :: cont)
+  | Lprim(Preusemixedblock { tag; shape; resets }, args, loc) ->
+      let total_len = shape.value_prefix_len + Array.length shape.flat_suffix in
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_reuse_args stack_info env args resets (fun n -> Kgetfield n) sz
+       (Kmake_faux_mixedblock (total_len, tag) :: cont)
   | Lprim(Pmakearray (kind, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       begin match kind with
@@ -1037,6 +1051,10 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, tag) :: cont)
+  | Lprim(Preuseblock { tag; resets }, args, loc) ->
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_reuse_args stack_info env args resets (fun n -> Kgetfield n) sz
+        (Kmakeblock(List.length resets, tag) :: cont)
   | Lprim(Pmake_unboxed_product _, args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
@@ -1275,6 +1293,41 @@ and comp_expr_list stack_info env exprl sz cont = match exprl with
   | exp :: rem ->
       comp_expr stack_info env exp sz
         (Kpush :: comp_expr_list stack_info env rem (sz+1) cont)
+
+(* Compile a list of reuse arguments [x; e1; ...; eN] and their resets
+   [None; Some _; ...] to a primitive operation. For each None, we push
+   a read on x on the stack and for each Some _, we push an ei on the stack.
+   As with regular arguments, we push in reversed order and
+   leave the first argument in the accumulator. *)
+
+and comp_reuse_args stack_info env argl resets getfield sz cont =
+  let rec zip_resets idx resets argl acc =
+    let next = idx + 1 in
+    match resets, argl with
+    | [], [] -> acc
+    | Reuse_keep_old :: resets,        argl ->
+        zip_resets next resets argl (`ReadOld idx :: acc)
+    | Reuse_set_to _ :: resets, arg :: argl ->
+        zip_resets next resets argl (`PushNew arg :: acc)
+    | _ -> assert false (* There is exactly one arg for each Some. *)
+  in
+  match argl with
+  | [] -> assert false (* The first argument is the reused value. *)
+  | old :: argl ->
+    comp_reuse_expr_list stack_info env (zip_resets 0 resets argl []) old getfield sz cont
+
+and comp_reuse_expr_list stack_info env exprl old getfield sz cont =
+  let comp_reuse_arg exp cont =
+    match exp with
+    | `ReadOld idx -> comp_expr stack_info env old sz (getfield idx :: cont)
+    | `PushNew exp -> comp_expr stack_info env exp sz cont
+  in
+  match exprl with
+  | [] -> cont
+  | [exp] -> comp_reuse_arg exp cont
+  | exp :: rem ->
+      comp_reuse_arg exp
+        (Kpush :: comp_reuse_expr_list stack_info env rem old getfield (sz+1) cont)
 
 and comp_exit_args stack_info env argl sz pos cont =
    comp_expr_list_assign stack_info env (List.rev argl) sz pos cont

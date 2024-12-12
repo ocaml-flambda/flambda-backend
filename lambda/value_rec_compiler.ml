@@ -373,6 +373,12 @@ let compute_static_size lam =
     | Pmake_unboxed_product _ ->
         dynamic_size lam (* Not allowed *)
 
+    | Preuseblock _
+    | Preusefloatblock _
+    | Preuseufloatblock _
+    | Preusemixedblock _ ->
+      dynamic_size lam (* Disallowed for now *)
+
     | Pobj_dup
     | Parray_to_iarray
     | Parray_of_iarray

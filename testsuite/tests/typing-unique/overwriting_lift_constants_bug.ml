@@ -61,10 +61,16 @@ let () =
 
 [%%expect{|
 type point = { dim : int; x : float; y : float; z : float; }
-Line 5, characters 19-48:
-5 |   if b then p else overwrite_ p with { x = 2.0 }
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Alert Translcore: Overwrite not implemented.
-Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Assertion failed
-
+val constant_lift : bool -> point @@ global many = <fun>
+type fpoint = { x : float; y : float; z : float; }
+val fconstant_lift : bool -> fpoint @@ global many = <fun>
+type mpoint = { dim : int option; x : float#; y : float#; z : float#; }
+val mconstant_lift : bool -> mpoint @@ global many = <fun>
+type ufpoint = { x : float#; y : float#; z : float#; }
+val ufconstant_lift : bool -> ufpoint @@ global many = <fun>
+Line 25, characters 0-51:
+25 | type utpoint = { xy : #(float * float); z : float }
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Type "#(float * float)" has layout "value & value".
+       Records may not yet contain types of this layout.
 |}]
