@@ -851,6 +851,14 @@ and directive already_consumed = parse
             directive_error lexbuf "line number out of range"
               ~already_consumed ~directive
         | line_num ->
+           (* If we're at the beginning of the file and claiming to be at the
+              beginning of a different file, then update [Location.input_name]
+              for better errors. *)
+           let update_input_name =
+             lexbuf.lex_curr_p.pos_lnum = 1 && line_num = 1
+           in
+           if update_input_name then
+             Location.input_name := name;
            (* Documentation says that the line number should be
               positive, but we have never guarded against this and it
               might have useful hackish uses. *)

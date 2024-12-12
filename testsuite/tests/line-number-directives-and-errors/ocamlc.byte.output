@@ -1,0 +1,6 @@
+File "bar.ml", line 1:
+Error: The implementation "bar.ml" does not match the interface "bar.cmi": 
+       Values do not match: val x : int is not included in val x : string
+       The type "int" is not compatible with the type "string"
+       File "bar.mli", line 1, characters 0-14: Expected declaration
+       File "bar.ml", line 1, characters 4-5: Actual declaration

@@ -3798,7 +3798,7 @@ let type_implementation target modulename initial_env ast =
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
-                sourcefile sg compiled_intf_file_name dclsig shape)
+                !Location.input_name sg compiled_intf_file_name dclsig shape)
           in
           (* Check the _mli_ against the argument type, since the mli determines
              the visible type of the module and that's what needs to conform to
@@ -3834,7 +3834,7 @@ let type_implementation target modulename initial_env ast =
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
-                sourcefile sg "(inferred signature)" simple_sg shape)
+                !Location.input_name sg "(inferred signature)" simple_sg shape)
           in
           check_nongen_signature finalenv simple_sg;
           let simple_sg =
