@@ -2319,6 +2319,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           atomic ) ]
   | Patomic_exchange, [[atomic]; [new_value]] ->
     [Binary (Atomic_exchange, atomic, new_value)]
+  | Patomic_compare_exchange, [[atomic]; [old_value]; [new_value]] ->
+    [Ternary (Atomic_compare_exchange, atomic, old_value, new_value)]
   | Patomic_cas, [[atomic]; [old_value]; [new_value]] ->
     [Ternary (Atomic_compare_and_set, atomic, old_value, new_value)]
   | Patomic_fetch_add, [[atomic]; [i]] ->
@@ -2443,7 +2445,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-      | Punboxed_nativeint_array_set_128 _ | Patomic_cas ),
+      | Punboxed_nativeint_array_set_128 _ | Patomic_cas
+      | Patomic_compare_exchange ),
       ( []
       | [_]
       | [_; _]

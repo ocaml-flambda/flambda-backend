@@ -263,6 +263,17 @@ CAMLprim value caml_atomic_cas(value ref, value oldv, value newv)
   }
 }
 
+CAMLprim value caml_atomic_compare_exchange(value ref, value oldv, value newv)
+{
+  value* p = Op_val(ref);
+  if (*p == oldv) {
+    caml_modify(p, newv);
+    return oldv;
+  } else {
+    return *p;
+  }
+}
+
 CAMLprim value caml_atomic_exchange(value ref, value v)
 {
   value ret = Field(ref, 0);
