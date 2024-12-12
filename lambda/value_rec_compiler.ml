@@ -396,6 +396,8 @@ let compute_static_size lam =
     | Pobj_magic _
     | Punbox_float _
     | Pbox_float (_, _)
+    | Puntag_int _
+    | Ptag_int _
     | Punbox_int _
     | Pbox_int (_, _)
     | Punbox_vector _

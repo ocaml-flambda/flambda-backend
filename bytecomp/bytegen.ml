@@ -146,6 +146,7 @@ let preserve_tailcall_for_prim = function
   | Prunstack | Pperform | Presume | Preperform
   | Pbox_float (_, _) | Punbox_float _
   | Pbox_vector (_, _) | Punbox_vector _
+  | Ptag_int _ | Puntag_int _
   | Pbox_int _ | Punbox_int _ ->
       true
   | Pbytes_to_string | Pbytes_of_string
@@ -726,6 +727,7 @@ let comp_primitive stack_info p sz args =
   | Pmakemixedblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
+  | Ptag_int _ | Puntag_int _
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -853,7 +855,7 @@ let rec comp_expr stack_info env exp sz cont =
          (comp_expr stack_info
             (add_vars rec_idents (sz+1) env) body (sz + ndecl)
             (add_pop ndecl cont)))
-  | Lprim((Popaque _ | Pobj_magic _), [arg], _) ->
+  | Lprim((Popaque _ | Pobj_magic _ | Ptag_int _ | Puntag_int _), [arg], _) ->
       comp_expr stack_info env arg sz cont
   | Lprim((Pbox_float ((Boxed_float64 | Boxed_float32), _)
   | Punbox_float (Boxed_float64 | Boxed_float32)), [arg], _) ->

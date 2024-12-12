@@ -879,6 +879,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%poll" -> Primitive (Ppoll, 1)
     | "%unbox_nativeint" -> Primitive(Punbox_int Boxed_nativeint, 1)
     | "%box_nativeint" -> Primitive(Pbox_int (Boxed_nativeint, mode), 1)
+    | "%untag_int8" -> Primitive(Puntag_int Unboxed_int8, 1)
+    | "%tag_int8" -> Primitive(Ptag_int Unboxed_int8, 1)
+    | "%untag_int16" -> Primitive(Puntag_int Unboxed_int16, 1)
+    | "%tag_int16" -> Primitive(Ptag_int Unboxed_int16, 1)
     | "%unbox_int32" -> Primitive(Punbox_int Boxed_int32, 1)
     | "%box_int32" -> Primitive(Pbox_int (Boxed_int32, mode), 1)
     | "%unbox_int64" -> Primitive(Punbox_int Boxed_int64, 1)
@@ -1797,6 +1801,7 @@ let lambda_primitive_needs_event_after = function
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _
   | Preinterpret_unboxed_int64_as_tagged_int63
+  | Puntag_int _ | Ptag_int _
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
     -> false

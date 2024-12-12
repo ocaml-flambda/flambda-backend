@@ -4,3 +4,7 @@ int8.ml
 int8.mli
 int16.ml
 int16.mli
+int8_u.ml
+int8_u.mli
+int16_u.ml
+int16_u.mli

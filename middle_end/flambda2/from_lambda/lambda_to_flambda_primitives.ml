@@ -1650,6 +1650,20 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             ( Naked_vec128,
               Alloc_mode.For_allocations.from_lambda mode ~current_region ),
           arg ) ]
+  | Puntag_int dst, [[arg]] ->
+    [ Unary
+        ( Num_conv
+            { src = Tagged_immediate;
+              dst = standard_int_or_float_of_unboxed_integer dst
+            },
+          arg ) ]
+  | Ptag_int src, [[arg]] ->
+    [ Unary
+        ( Num_conv
+            { src = standard_int_or_float_of_unboxed_integer src;
+              dst = Tagged_immediate
+            },
+          arg ) ]
   | Punbox_int bi, [[arg]] ->
     let kind = boxable_number_of_boxed_integer bi in
     [Unary (Unbox_number kind, arg)]
@@ -2379,8 +2393,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbox_float (_, _)
       | Punbox_vector _
       | Pbox_vector (_, _)
-      | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
-      | Pufloatfield _ | Patomic_load _ | Pmixedfield _
+      | Puntag_int _ | Ptag_int _ | Punbox_int _ | Pbox_int _
+      | Punboxed_product_field _ | Pget_header _ | Pufloatfield _
+      | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64 ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->

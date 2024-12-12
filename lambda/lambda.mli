@@ -310,6 +310,8 @@ type primitive =
   | Pobj_magic of layout
   | Punbox_float of boxed_float
   | Pbox_float of boxed_float * locality_mode
+  | Puntag_int of unboxed_integer
+  | Ptag_int of unboxed_integer
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
   | Punbox_vector of boxed_vector

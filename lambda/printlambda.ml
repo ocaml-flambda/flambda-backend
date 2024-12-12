@@ -907,6 +907,8 @@ let primitive ppf = function
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer bi)
   | Pbox_int (bi, m) ->
       fprintf ppf "box_%s%s" (boxed_integer bi) (locality_kind m)
+  | Puntag_int i -> fprintf ppf "untag_%s" (unboxed_integer i)
+  | Ptag_int i -> fprintf ppf "tag_%s" (unboxed_integer i)
   | Punbox_vector bi -> fprintf ppf "unbox_%s" (boxed_vector bi)
   | Pbox_vector (bi, m) ->
       fprintf ppf "box_%s%s" (boxed_vector bi) (locality_kind m)
@@ -1081,6 +1083,8 @@ let name_of_primitive = function
   | Pobj_magic _ -> "Pobj_magic"
   | Punbox_float _ -> "Punbox_float"
   | Pbox_float (_, _) -> "Pbox_float"
+  | Puntag_int _ -> "Puntag_int"
+  | Ptag_int _ -> "Ptag_int"
   | Punbox_int _ -> "Punbox_int"
   | Pbox_int _ -> "Pbox_int"
   | Punbox_vector _ -> "Punbox_vector"

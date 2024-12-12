@@ -315,6 +315,8 @@ type primitive =
   | Pobj_magic of layout
   | Punbox_float of boxed_float
   | Pbox_float of boxed_float * locality_mode
+  | Puntag_int of unboxed_integer
+  | Ptag_int of unboxed_integer
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
   | Punbox_vector of boxed_vector
@@ -1922,6 +1924,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
   | Punbox_float _ | Punbox_int _ | Punbox_vector _ -> None
+  | Ptag_int _ | Puntag_int _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) | Pbox_vector (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform
     (* CR mshinwell: check *)
@@ -2090,6 +2093,8 @@ let primitive_can_raise prim =
   | Pbox_float (_, _)
   | Punbox_float _
   | Pbox_vector (_, _)
+  | Ptag_int _
+  | Puntag_int _
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
@@ -2250,6 +2255,8 @@ let primitive_result_layout (p : primitive) =
   | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _)
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
     layout_boxed_int bi
+  | Ptag_int _ -> layout_int
+  | Puntag_int i -> layout_unboxed_int i
   | Punbox_int bi -> Punboxed_int (Primitive.unbox_integer bi)
   | Pstring_load_32 { boxed = true; _ } | Pbytes_load_32 { boxed = true; _ }
   | Pbigstring_load_32 { boxed = true; _ } ->
