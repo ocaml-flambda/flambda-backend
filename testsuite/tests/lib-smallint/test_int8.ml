@@ -82,6 +82,11 @@ let test_logical1 = test_conv1 ~equal:equal_logical
 
 let test_logical2 = test_conv2 ~equal:equal_logical
 
+let reference_shift_right_logical x i =
+  (* we need to ensure that we shift in zero bytes, which is incompatible with
+     sign-extension *)
+  Int.shift_right_logical (if i > 0 then x land mask else x) i
+
 let () =
   test_round_trip ();
   assert (to_int Int8.zero == Int.zero);
@@ -104,8 +109,8 @@ let () =
     test_logical1 (apply_shift Int8.shift_right) (apply_shift Int.shift_right);
     test_conv1
       (apply_shift Int8.shift_right_logical)
-      (apply_shift Int.shift_right_logical)
-      ~equal:(if shift = 0 then equal_logical else equal_arith);
+      (apply_shift reference_shift_right_logical)
+      ~equal:equal_logical;
     test_conv1
       (apply_shift Int8.shift_left)
       (apply_shift Int.shift_left)

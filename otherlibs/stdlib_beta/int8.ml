@@ -68,7 +68,8 @@ let shift_left x y = of_int (Int.shift_left (to_int x) y)
 
 let shift_right x y = of_int (Int.shift_right (to_int x) y)
 
-let shift_right_logical x y = of_int (Int.shift_right_logical (to_int x) y)
+let shift_right_logical x y =
+  of_int (Int.shift_right_logical (to_int x land mask) y)
 
 let equal x y = Int.equal (to_int x) (to_int y)
 
