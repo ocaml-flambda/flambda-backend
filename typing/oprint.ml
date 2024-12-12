@@ -197,7 +197,7 @@ let print_out_string ppf s =
   else
     fprintf ppf "%S" s
 
-external float32_format : string -> Obj.t -> string = "caml_format_float32"
+external float32_format : string -> int32 -> string = "compiler_float32_format"
 
 let float32_to_string f = Stdlib.valid_float_lexem (float32_format "%.9g" f)
 

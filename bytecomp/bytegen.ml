@@ -747,6 +747,9 @@ module Storer =
    cont = list of instructions to execute afterwards
    Result = list of instructions that evaluate exp, then perform cont. *)
 
+(* We cannot use the [float32] type in the compiler. *)
+external float32_of_string : string -> int32 = "compiler_float32_of_string"
+
 let rec comp_expr stack_info env exp sz cont =
   check_stack stack_info sz;
   match exp with
@@ -768,6 +771,9 @@ let rec comp_expr stack_info env exp sz cont =
           Koffsetclosure(pos - env_pos) :: cont
         | exception Not_found -> not_found ()
       end
+  | Lconst (Const_base (Const_float32 f | Const_unboxed_float32 f)) ->
+      let i = float32_of_string f in
+      Kconst (Const_base (Const_int32 i)) :: Kccall("caml_float32_of_bits_bytecode", 1) :: cont
   | Lconst cst ->
       Kconst cst :: cont
   | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->

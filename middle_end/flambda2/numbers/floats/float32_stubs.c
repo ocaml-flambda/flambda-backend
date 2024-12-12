@@ -334,15 +334,3 @@ CAMLprim value compiler_float32_format(value fmt, value arg)
 
   return res;
 }
-
-// These replace the OCaml runtime versions for use under ocaml/ in the dune build.
-// They must have the same name as in the runtime because building ocaml/ with the
-// upstream build system calls it by name.
-
-CAMLweakdef value caml_float32_of_string(value vs) {
-  return compiler_float32_of_string(vs);
-}
-
-CAMLweakdef value caml_format_float32(value fmt, value arg) {
-  return compiler_float32_format(fmt, arg);
-}
