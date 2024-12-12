@@ -264,8 +264,8 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
-        (** E : T @@ M *)
+  | Texp_constraint of core_type
+        (** E : T *)
   | Texp_coerce of core_type option * core_type
         (** E :> T           [Texp_coerce (None, T)]
             E : T0 :> T      [Texp_coerce (Some T0, T)]
@@ -282,6 +282,8 @@ and exp_extra =
         them here, as the cost of tracking this additional information is minimal. *)
   | Texp_stack
         (** stack_ E *)
+  | Texp_mode of Mode.Alloc.Const.Option.t
+        (** E : _ @@ M  *)
 
 and arg_label = Types.arg_label =
   | Nolabel

@@ -62,7 +62,15 @@ let foo ((x, y) @ modes) = .. (error)
 let x @ modes = ..
 let x : ty @@ modes = ..
 let x : type a b. ty @@ modes = ..
+```
+
+## Functions and their return
+```ocaml
 let (foo @ modes) x y = ..
+let foo x y @ modes = ..
+let foo x y : ty @@ modes = ..
+fun foo x y @ modes -> ..
+fun foo x y : ty @@ modes -> ..
 ```
 
 ## Arrow types

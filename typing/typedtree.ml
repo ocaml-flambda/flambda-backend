@@ -193,12 +193,13 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
+  | Texp_constraint of core_type
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of Ident.t * string loc *
                     Parsetree.jkind_annotation option * Uid.t
   | Texp_stack
+  | Texp_mode of Mode.Alloc.Const.Option.t
 
 and arg_label = Types.arg_label =
   | Nolabel

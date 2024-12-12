@@ -243,7 +243,7 @@ let rec add_expr bv exp =
       let bv = add_bindings rf bv pel in add_expr bv e
   | Pexp_function (params, constraint_, body) ->
       let bv = List.fold_left add_function_param bv params in
-      add_opt add_function_constraint bv constraint_;
+      add_function_constraint bv constraint_;
       add_function_body bv body
   | Pexp_apply(e, el) ->
       add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
@@ -365,13 +365,14 @@ and add_function_body bv body =
   | Pfunction_cases (cases, _, _) ->
       add_cases bv cases
 
-and add_function_constraint bv { mode_annotations = _; type_constraint } =
-  match type_constraint with
-  | Pconstraint ty ->
+and add_function_constraint bv { mode_annotations = _; ret_type_constraint; ret_mode_annotations = _ } =
+  match ret_type_constraint with
+  | Some (Pconstraint ty) ->
       add_type bv ty
-  | Pcoerce (ty1, ty2) ->
+  | Some (Pcoerce (ty1, ty2)) ->
       add_opt add_type bv ty1;
       add_type bv ty2
+  | None -> ()
 
 and add_cases bv cases =
   List.iter (add_case bv) cases

@@ -942,7 +942,7 @@ and expression ctxt f x =
     | Pexp_function (params, constraint_, body) ->
         begin match params, constraint_ with
           (* Omit [fun] if there are no params. *)
-          | [], None ->
+          | [], {ret_type_constraint = None; ret_mode_annotations = []; _} ->
               (* If function cases are a direct body of a function,
                  the function node should be wrapped in parens so
                  it doesn't become part of the enclosing function. *)
@@ -953,8 +953,8 @@ and expression ctxt f x =
               in
               let ctxt' = if should_paren then reset_ctxt else ctxt in
               pp f "@[<2>%a@]" (paren should_paren (function_body ctxt')) body
-          | [], Some constraint_ ->
-            pp f "@[<2>(%a@;%a)@]"
+          | [], constraint_ ->
+            pp f "@[<2>(%a%a)@]"
               (function_body ctxt) body
               (function_constraint ctxt) constraint_
           | _ :: _, _ ->
@@ -2237,21 +2237,21 @@ and function_body ctxt f x =
       (case_list ctxt) cases
 
 and function_constraint ctxt f x =
-  (* We don't currently print [x.alloc_mode]; this would need
-     to go on the enclosing [let] binding.
-  *)
+  (* We don't print [mode_annotations], which describes the whole function and goes on the
+     [let] binding. *)
   (* Enable warning 9 to ensure that the record pattern doesn't miss any field.
   *)
   match[@ocaml.warning "+9"] x with
-  | { type_constraint = Pconstraint ty; mode_annotations } ->
-    let _, modes = split_out_legacy_modes mode_annotations in
-    pp f ":@;%a%a" (core_type ctxt) ty optional_atat_modes modes
-  | { type_constraint = Pcoerce (ty1, ty2); mode_annotations } ->
-    let _, modes = split_out_legacy_modes mode_annotations in
-    pp f "%a:>@;%a%a"
+  | { ret_type_constraint = Some (Pconstraint ty); ret_mode_annotations; _ } ->
+
+    pp f "@;:@;%a%a" (core_type ctxt) ty optional_atat_modes ret_mode_annotations
+  | { ret_type_constraint = Some (Pcoerce (ty1, ty2)); ret_mode_annotations; _ } ->
+    pp f "@;%a:>@;%a%a"
       (option ~first:":@;" (core_type ctxt)) ty1
       (core_type ctxt) ty2
-      optional_atat_modes modes
+      optional_atat_modes ret_mode_annotations
+  | { ret_type_constraint = None; ret_mode_annotations; _} ->
+    pp f "%a" optional_at_modes ret_mode_annotations
 
 and function_params_then_body ctxt f params constraint_ body ~delimiter =
   let pp_params f =
@@ -2261,7 +2261,7 @@ and function_params_then_body ctxt f params constraint_ body ~delimiter =
   in
   pp f "%t%a%s@;%a"
     pp_params
-    (option (function_constraint ctxt) ~first:"@;") constraint_
+    (function_constraint ctxt) constraint_
     delimiter
     (function_body (under_functionrhs ctxt)) body
 

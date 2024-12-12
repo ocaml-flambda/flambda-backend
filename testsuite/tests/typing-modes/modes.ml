@@ -66,9 +66,98 @@ Line 2, characters 18-23:
 Error: The locality axis has already been specified.
 |}]
 
-(* CR zqian: this should be supported *)
-(* let foo a b @ local = "hello"
-let foo a b : _ @@ local = "hello" *)
+let foo a b @ local = local_ "hello"
+[%%expect{|
+Line 1, characters 22-36:
+1 | let foo a b @ local = local_ "hello"
+                          ^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo = fun a b @ local -> local_ "hello"
+[%%expect{|
+Line 1, characters 29-43:
+1 | let foo = fun a b @ local -> local_ "hello"
+                                 ^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo a b @ local = exclave_ "hello"
+[%%expect{|
+val foo : 'a -> 'b -> local_ string = <fun>
+|}]
+
+let foo = fun a b @ local -> exclave_ "hello"
+[%%expect{|
+val foo : 'a -> 'b -> local_ string = <fun>
+|}]
+
+
+let foo a b @ local = local_ 42
+[%%expect{|
+Line 1, characters 22-31:
+1 | let foo a b @ local = local_ 42
+                          ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo = fun a b @ local -> local_ 42
+[%%expect{|
+Line 1, characters 29-38:
+1 | let foo = fun a b @ local -> local_ 42
+                                 ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo a b : int @@ local = local_ 42
+[%%expect{|
+val foo : 'a -> 'b -> local_ int = <fun>
+|}]
+
+let foo = fun a b : int @@ local -> local_ 42
+[%%expect{|
+val foo : 'a -> 'b -> local_ int = <fun>
+|}]
+
+let foo a b : _ @@ local = local_ 42
+[%%expect{|
+Line 1, characters 27-36:
+1 | let foo a b : _ @@ local = local_ 42
+                               ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo = fun a b : _ @@ local -> local_ 42
+[%%expect{|
+Line 1, characters 34-43:
+1 | let foo = fun a b : _ @@ local -> local_ 42
+                                      ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+
+(* the return mode annotation is used to interpret the return type annotation, giving the
+    expected currying behavior *)
+let foo a : string -> string -> unit @@ local = fun b c -> ()
+[%%expect{|
+val foo : 'a -> local_ (string -> string -> unit) = <fun>
+|}]
+
+(* the return mode annotation overrides the whole-function mode annotation, even when they
+    describe different axes. *)
+(* CR zqian: this should probably be improved somehow. *)
+let bar () = exclave_
+  let (foo @ local) a : string -> string -> unit @@ nonportable = fun b c -> () in
+  foo
+[%%expect{|
+val bar : unit -> local_ ('a -> (string -> string -> unit)) = <fun>
+|}]
 
 (* Expressions *)
 let foo = ("hello" : _ @@ local)

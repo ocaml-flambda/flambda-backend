@@ -420,11 +420,10 @@ and function_body i ppf (body : function_body) =
 
 and expression_extra i ppf x attrs =
   match x with
-  | Texp_constraint (ct, m) ->
+  | Texp_constraint (ct) ->
       line i ppf "Texp_constraint\n";
       attributes i ppf attrs;
-      option i core_type ppf ct;
-      alloc_const_option_mode i ppf m;
+      core_type i ppf ct;
   | Texp_coerce (cto1, cto2) ->
       line i ppf "Texp_coerce\n";
       attributes i ppf attrs;
@@ -440,6 +439,10 @@ and expression_extra i ppf x attrs =
   | Texp_stack ->
       line i ppf "Texp_stack\n";
       attributes i ppf attrs
+  | Texp_mode m ->
+      line i ppf "Texp_mode\n";
+      attributes i ppf attrs;
+      alloc_const_option_mode i ppf m
 
 and alloc_mode_raw: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
   = fun i ppf m -> line i ppf "alloc_mode %a\n" (Mode.Alloc.print ()) m
