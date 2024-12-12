@@ -609,6 +609,8 @@ let primitive ppf = function
       fprintf ppf "unboxed_product_field %d #(%a)" n
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
         layouts
+  | Parray_element_size_in_bytes ak ->
+      fprintf ppf "array_element_size_in_bytes (%s)" (array_kind ak)
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -953,6 +955,7 @@ let name_of_primitive = function
   | Pduprecord _ -> "Pduprecord"
   | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
   | Punboxed_product_field _ -> "Punboxed_product_field"
+  | Parray_element_size_in_bytes _ -> "Parray_element_size_in_bytes"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"
   | Psequand -> "Psequand"
