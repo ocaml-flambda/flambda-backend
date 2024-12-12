@@ -106,7 +106,7 @@ val safe_div_bi :
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
+  Primitive.unboxed_integer ->
   Debuginfo.t ->
   expression
 
@@ -114,7 +114,7 @@ val safe_mod_bi :
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
+  Primitive.unboxed_integer ->
   Debuginfo.t ->
   expression
 

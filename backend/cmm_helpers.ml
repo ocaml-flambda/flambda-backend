@@ -759,7 +759,7 @@ let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
       bind "dividend" c1 (fun c1 ->
           let c = mkop c1 c2 is_safe dbg in
           if Arch.division_crashes_on_overflow
-             && bi <> Primitive.Boxed_int32
+             && bi <> Primitive.Unboxed_int32
              && not (is_different_from (-1) c2)
           then
             Cifthenelse

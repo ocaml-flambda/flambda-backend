@@ -672,8 +672,8 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
          if it doesn't support operations on 32-bit physical registers. There
          was a prototype developed of this but it was quite complicated and
          didn't get merged.) *)
-      C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y Boxed_int32 dbg)
-    | Mod -> C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y Boxed_int32 dbg))
+      C.sign_extend_32 dbg (C.safe_div_bi Unsafe x y Unboxed_int32 dbg)
+    | Mod -> C.sign_extend_32 dbg (C.safe_mod_bi Unsafe x y Unboxed_int32 dbg))
   | Naked_immediate -> (
     let sign_extend_63_can_delay_overflow f =
       C.sign_extend_63 dbg (f (C.low_63 dbg x) (C.low_63 dbg y) dbg)
@@ -685,14 +685,14 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     | Xor -> sign_extend_63_can_delay_overflow C.xor_int
     | And -> sign_extend_63_can_delay_overflow C.and_int
     | Or -> sign_extend_63_can_delay_overflow C.or_int
-    | Div -> C.sign_extend_63 dbg (C.safe_div_bi Unsafe x y Boxed_int64 dbg)
-    | Mod -> C.sign_extend_63 dbg (C.safe_mod_bi Unsafe x y Boxed_int64 dbg))
+    | Div -> C.sign_extend_63 dbg (C.safe_div_bi Unsafe x y Unboxed_int64 dbg)
+    | Mod -> C.sign_extend_63 dbg (C.safe_mod_bi Unsafe x y Unboxed_int64 dbg))
   | Naked_int64 | Naked_nativeint -> (
     (* Machine-width integers, no sign extension required. *)
-    let bi : Primitive.boxed_integer =
+    let width : Primitive.unboxed_integer =
       match kind with
-      | Naked_int64 -> Boxed_int64
-      | Naked_nativeint -> Boxed_nativeint
+      | Naked_int64 -> Unboxed_int64
+      | Naked_nativeint -> Unboxed_nativeint
       | Naked_int32 | Naked_immediate | Tagged_immediate -> assert false
     in
     match op with
@@ -702,8 +702,8 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     | And -> C.and_int x y dbg
     | Or -> C.or_int x y dbg
     | Xor -> C.xor_int x y dbg
-    | Div -> C.safe_div_bi Unsafe x y bi dbg
-    | Mod -> C.safe_mod_bi Unsafe x y bi dbg)
+    | Div -> C.safe_div_bi Unsafe x y width dbg
+    | Mod -> C.safe_mod_bi Unsafe x y width dbg)
 
 let binary_int_shift_primitive _env dbg kind op x y =
   match (kind : K.Standard_int.t), (op : P.int_shift_op) with

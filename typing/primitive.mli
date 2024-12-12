@@ -19,7 +19,7 @@ type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
 type unboxed_float = Unboxed_float64 | Unboxed_float32
 type unboxed_vector = Unboxed_vec128
 
-type boxed_integer =  Boxed_int64 | Boxed_nativeint | Boxed_int32
+type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
 type boxed_float = Boxed_float64 | Boxed_float32
 type boxed_vector = Boxed_vec128
 
@@ -100,9 +100,9 @@ val native_name: 'a description_gen -> string
 val byte_name: 'a description_gen -> string
 
 
-val unbox_float : boxed_float -> unboxed_float
-val unbox_integer : boxed_integer -> unboxed_integer
-val unbox_vector : boxed_vector -> unboxed_vector
+val unboxed_float : boxed_float -> unboxed_float
+val unboxed_integer : boxed_integer -> unboxed_integer
+val unboxed_vector : boxed_vector -> unboxed_vector
 val equal_unboxed_integer : unboxed_integer -> unboxed_integer -> bool
 val equal_unboxed_float : unboxed_float -> unboxed_float -> bool
 val equal_unboxed_vector : unboxed_vector -> unboxed_vector -> bool
