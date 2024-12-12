@@ -1856,11 +1856,12 @@ type ternary_primitive =
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
+  | Atomic_compare_exchange
 
 let ternary_primitive_eligible_for_cse p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
     false
 
 let compare_ternary_primitive p1 p2 =
@@ -1870,6 +1871,7 @@ let compare_ternary_primitive p1 p2 =
     | Bytes_or_bigstring_set _ -> 1
     | Bigarray_set _ -> 2
     | Atomic_compare_and_set -> 3
+    | Atomic_compare_exchange -> 4
   in
   match p1, p2 with
   | Array_set (kind1, set_kind1), Array_set (kind2, set_kind2) ->
@@ -1888,7 +1890,7 @@ let compare_ternary_primitive p1 p2 =
       let c = Stdlib.compare kind1 kind2 in
       if c <> 0 then c else Stdlib.compare layout1 layout2
   | ( ( Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-      | Atomic_compare_and_set ),
+      | Atomic_compare_and_set | Atomic_compare_exchange ),
       _ ) ->
     Stdlib.compare
       (ternary_primitive_numbering p1)
@@ -1910,6 +1912,7 @@ let print_ternary_primitive ppf p =
       "@[(Bigarray_set (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
   | Atomic_compare_and_set -> fprintf ppf "Atomic_compare_and_set"
+  | Atomic_compare_exchange -> fprintf ppf "Atomic_compare_exchange"
 
 let args_kind_of_ternary_primitive p =
   match p with
@@ -1939,12 +1942,13 @@ let args_kind_of_ternary_primitive p =
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_vec128
   | Bigarray_set (_, kind, _) ->
     bigarray_kind, bigarray_index_kind, Bigarray_kind.element_kind kind
-  | Atomic_compare_and_set -> K.value, K.value, K.value
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
+    K.value, K.value, K.value
 
 let result_kind_of_ternary_primitive p : result_kind =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ -> Unit
-  | Atomic_compare_and_set -> Singleton K.value
+  | Atomic_compare_and_set | Atomic_compare_exchange -> Singleton K.value
 
 let effects_and_coeffects_of_ternary_primitive p :
     Effects.t * Coeffects.t * Placement.t =
@@ -1952,30 +1956,31 @@ let effects_and_coeffects_of_ternary_primitive p :
   | Array_set _ -> writing_to_an_array
   | Bytes_or_bigstring_set _ -> writing_to_bytes_or_bigstring
   | Bigarray_set (_, kind, _) -> writing_to_a_bigarray kind
-  | Atomic_compare_and_set -> Arbitrary_effects, Has_coeffects, Strict
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
+    Arbitrary_effects, Has_coeffects, Strict
 
 let ternary_classify_for_printing p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
     Neither
 
 let free_names_ternary_primitive p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
     Name_occurrences.empty
 
 let apply_renaming_ternary_primitive p _ =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
     p
 
 let ids_for_export_ternary_primitive p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set | Atomic_compare_exchange ->
     Ids_for_export.empty
 
 type variadic_primitive =

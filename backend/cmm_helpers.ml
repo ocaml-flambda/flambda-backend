@@ -4207,6 +4207,21 @@ let atomic_compare_and_set ~dbg atomic ~old_value ~new_value =
       [atomic; old_value; new_value],
       dbg )
 
+let atomic_compare_exchange ~dbg atomic ~old_value ~new_value =
+  Cop
+    ( Cextcall
+        { func = "caml_atomic_compare_exchange";
+          builtin = false;
+          returns = true;
+          effects = Arbitrary_effects;
+          coeffects = Has_coeffects;
+          ty = typ_val;
+          ty_args = [];
+          alloc = false
+        },
+      [atomic; old_value; new_value],
+      dbg )
+
 type even_or_odd =
   | Even
   | Odd

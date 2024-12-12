@@ -19,6 +19,7 @@ external make_contended : 'a -> 'a t = "caml_atomic_make_contended"
 external get : 'a t -> 'a = "%atomic_load"
 external exchange : 'a t -> 'a -> 'a = "%atomic_exchange"
 external compare_and_set : 'a t -> 'a -> 'a -> bool = "%atomic_cas"
+external compare_exchange : 'a t -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
 external fetch_and_add : int t -> int -> int = "%atomic_fetch_add"
 
 external ignore : 'a -> unit = "%ignore"
