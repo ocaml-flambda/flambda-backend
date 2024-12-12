@@ -188,8 +188,6 @@ module type Map = sig
 
   val mapi : (key -> 'a -> 'b) -> 'a t -> 'b t
 
-  val to_seq : 'a t -> (key * 'a) Seq.t
-
   val print_debug :
     (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
@@ -260,4 +258,32 @@ module type S_plus_stdlib = sig
   module Set : Set_plus_stdlib with type elt = t
 
   module Map : Map_plus_stdlib with type key = t and module Set = Set
+end
+
+module type Map_plus_iterator = sig
+  include Map
+
+  type 'a iterator
+
+  val iterator : 'a t -> 'a iterator
+
+  val current : 'a iterator -> (key * 'a) option
+
+  val advance : 'a iterator -> 'a iterator
+
+  val seek : 'a iterator -> key -> 'a iterator
+
+  val to_seq : 'a t -> (key * 'a) Seq.t
+end
+
+module type S_plus_iterator = sig
+  type t
+
+  module T : Thing with type t = t
+
+  include Thing with type t := T.t
+
+  module Set : Set with type elt = t
+
+  module Map : Map_plus_iterator with type key = t and module Set = Set
 end

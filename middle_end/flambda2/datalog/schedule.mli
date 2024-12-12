@@ -2,10 +2,10 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*           Nathanaëlle Courant, Pierre Chambart, OCamlPro               *)
+(*                        Basile Clément, OCamlPro                        *)
 (*                                                                        *)
-(*   Copyright 2024 OCamlPro SAS                                          *)
-(*   Copyright 2024 Jane Street Group LLC                                 *)
+(*   Copyright 2024--2025 OCamlPro SAS                                    *)
+(*   Copyright 2024--2025 Jane Street Group LLC                           *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -13,16 +13,20 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type result
+type stats
 
-val pp_result : Format.formatter -> result -> unit
+val create_stats : unit -> stats
 
-val fixpoint : Global_flow_graph.graph -> result
+val print_stats : Format.formatter -> stats -> unit
 
-val has_use : result -> Code_id_or_name.t -> bool
+type rule
 
-val field_used :
-  result -> Code_id_or_name.t -> Global_flow_graph.Field.t -> bool
+val create_rule : ('t, 'k, unit) Table.Id.t -> 'k Cursor.t -> rule
 
-(** Color of node when producing the graph as a .dot *)
-val print_color : result -> Code_id_or_name.t -> string
+type t
+
+val saturate : rule list -> t
+
+val fixpoint : t list -> t
+
+val run : ?stats:stats -> t -> Table.Map.t -> Table.Map.t

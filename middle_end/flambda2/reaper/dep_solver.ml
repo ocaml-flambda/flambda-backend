@@ -246,10 +246,11 @@ module Graph = struct
   let fold_nodes graph f init =
     Hashtbl.fold
       (fun n _ acc -> f n acc)
-      graph.Global_flow_graph.name_to_dep init
+      (Global_flow_graph.name_to_dep graph)
+      init
 
   let fold_edges graph n f init =
-    match Hashtbl.find_opt graph.Global_flow_graph.name_to_dep n with
+    match Hashtbl.find_opt (Global_flow_graph.name_to_dep graph) n with
     | None -> init
     | Some deps -> Global_flow_graph.Dep.Set.fold f deps init
 
@@ -396,9 +397,10 @@ end
 
 module Solver = Make_Fixpoint (Graph)
 
-type result = Graph.state
+type result = Graph.state * Datalog.database
 
-let pp_result ppf (res : result) =
+let pp_result ppf (old_res, new_res) =
+  let res = old_res in
   let elts = List.of_seq @@ Hashtbl.to_seq res in
   let pp ppf l =
     let pp_sep ppf () = Format.fprintf ppf ",@ " in
@@ -407,14 +409,439 @@ let pp_result ppf (res : result) =
     in
     Format.pp_print_list ~pp_sep pp ppf l
   in
-  Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts
+  Format.fprintf ppf "@[<hov 2>{@ %a@ }@]" pp elts;
+  Format.fprintf ppf "%a@." Datalog.print new_res
+
+module Usages_rel = Datalog.Schema.Relation2 (Code_id_or_name) (Code_id_or_name)
+
+let usages_rel = Datalog.create_relation ~name:"usages" Usages_rel.columns
+
+let usages_rel v1 v2 = Datalog.atom usages_rel [v1; v2]
+
+let with_usages = true
+
+let datalog_schedule_usages =
+  let open Datalog in
+  let open Global_flow_graph in
+  let not = Datalog.not in
+  let ( let$ ) xs f = compile xs f in
+  let ( ==> ) h c = where h (deduce c) in
+  (* usages *)
+  let usages_accessor_1 =
+    let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
+    [not (used_pred base); usages_rel to_ _var; accessor_rel to_ relation base]
+    ==> usages_rel base base
+  in
+  let usages_accessor_2 =
+    let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
+    [not (used_pred base); used_pred to_; accessor_rel to_ relation base]
+    ==> usages_rel base base
+  in
+  let usages_alias =
+    let$ [to_; from; usage] = ["to_"; "from"; "usage"] in
+    [ not (used_pred from);
+      not (used_pred to_);
+      usages_rel to_ usage;
+      alias_rel to_ from ]
+    ==> usages_rel from usage
+  in
+  (* propagate *)
+  let alias_from_used_propagate =
+    let$ [if_used; to_; from] = ["if_used"; "to_"; "from"] in
+    [used_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
+  in
+  let used_from_alias_used =
+    let$ [to_; from] = ["to_"; "from"] in
+    [alias_rel to_ from; used_pred to_] ==> used_pred from
+  in
+  (* accessor *)
+  let used_fields_from_accessor_used_fields =
+    let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
+    [ not (used_pred base);
+      not (used_pred to_);
+      not (used_fields_top_rel base relation);
+      accessor_rel to_ relation base;
+      usages_rel to_ _var ]
+    ==> used_fields_rel base relation to_
+  in
+  let used_fields_from_accessor_used_fields_top =
+    let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
+    [not (used_pred base); used_pred to_; accessor_rel to_ relation base]
+    ==> used_fields_top_rel base relation
+  in
+  (* constructor *)
+  let alias_from_accessed_constructor =
+    let$ [base; base_use; relation; from; to_] =
+      ["base"; "base_use"; "relation"; "from"; "to_"]
+    in
+    [ not (used_pred from);
+      not (used_fields_top_rel base_use relation);
+      not (used_pred base);
+      constructor_rel base relation from;
+      usages_rel base base_use;
+      used_fields_rel base_use relation to_ ]
+    ==> alias_rel to_ from
+  in
+  let used_from_accessed_constructor =
+    let$ [base; base_use; relation; from] =
+      ["base"; "base_use"; "relation"; "from"]
+    in
+    [ constructor_rel base relation from;
+      not (used_pred base);
+      usages_rel base base_use;
+      used_fields_top_rel base_use relation ]
+    ==> used_pred from
+  in
+  let used_from_constructor_used =
+    let$ [base; relation; from] = ["base"; "relation"; "from"] in
+    [used_pred base; constructor_rel base relation from] ==> used_pred from
+  in
+  (* use *)
+  let used_from_use_1 =
+    let$ [to_; from; _var] = ["to_"; "from"; "_var"] in
+    [usages_rel to_ _var; use_rel to_ from] ==> used_pred from
+  in
+  let used_from_use_2 =
+    let$ [to_; from] = ["to_"; "from"] in
+    [used_pred to_; use_rel to_ from] ==> used_pred from
+  in
+  Datalog.Schedule.(
+    fixpoint
+      [ saturate
+          [ alias_from_used_propagate;
+            used_from_alias_used;
+            used_from_constructor_used;
+            used_from_use_1;
+            used_from_use_2;
+            used_from_accessed_constructor ];
+        saturate
+          [ alias_from_accessed_constructor;
+            used_fields_from_accessor_used_fields;
+            used_fields_from_accessor_used_fields_top;
+            usages_accessor_1;
+            usages_accessor_2;
+            usages_alias ] ])
+
+let query_uses =
+  let open Datalog in
+  let open! Global_flow_graph in
+  compile ["X"] (fun [x] -> where [used_pred x] (yield [x]))
+
+let query_used_field_top =
+  let open Datalog in
+  let open! Global_flow_graph in
+  if with_usages
+  then
+    compile ["X"; "U"; "F"] (fun [x; u; f] ->
+        where [usages_rel x u; used_fields_top_rel u f] (yield [x; f]))
+  else
+    compile ["X"; "F"] (fun [x; f] ->
+        where [used_fields_top_rel x f] (yield [x; f]))
+
+let query_used_field =
+  let open Datalog in
+  let open! Global_flow_graph in
+  if with_usages
+  then
+    compile ["X"; "U"; "F"; "y"] (fun [x; u; f; y] ->
+        where [usages_rel x u; used_fields_rel u f y] (yield [x; f; y]))
+  else
+    compile ["X"; "F"; "Y"] (fun [x; f; y] ->
+        where [used_fields_rel x f y] (yield [x; f; y]))
+
+let db_to_uses db =
+  (* Format.eprintf "%a@." Database.print_database db; *)
+  let open Datalog in
+  let open! Global_flow_graph in
+  let h = Hashtbl.create 17 in
+  Cursor.iter query_uses db ~f:(fun [u] -> Hashtbl.replace h u Top);
+  Cursor.iter query_used_field_top db ~f:(fun [u; f] ->
+      let f = Field.decode f in
+      let[@local] ff fields =
+        Hashtbl.replace h u (Fields (Field.Map.add f Field_top fields))
+      in
+      match Hashtbl.find_opt h u with
+      | Some Bottom -> assert false
+      | Some Top -> ()
+      | None -> ff Field.Map.empty
+      | Some (Fields f) -> ff f);
+  Cursor.iter query_used_field db ~f:(fun [u; f; v] ->
+      let[@local] ff fields =
+        let f = Field.decode f in
+        let v_top = Hashtbl.find_opt h v = Some Top in
+        let fields =
+          if v_top
+          then Field.Map.add f Field_top fields
+          else
+            match Field.Map.find_opt f fields with
+            | None ->
+              Field.Map.add f
+                (Field_vals (Code_id_or_name.Set.singleton v))
+                fields
+            | Some Field_top -> fields
+            | Some (Field_vals w) ->
+              Field.Map.add f (Field_vals (Code_id_or_name.Set.add v w)) fields
+        in
+        Hashtbl.replace h u (Fields fields)
+      in
+      match Hashtbl.find_opt h u with
+      | Some Bottom -> assert false
+      | Some Top -> ()
+      | None -> ff Field.Map.empty
+      | Some (Fields f) -> ff f);
+  h
+
+let datalog_schedule_no_usages =
+  let open Datalog in
+  let open Global_flow_graph in
+  let not = Datalog.not in
+  let ( let$ ) xs f = compile xs f in
+  let ( ==> ) h c = where h (deduce c) in
+  (* propagate *)
+  let alias_from_used_propagate =
+    let$ [if_used; to_; from] = ["if_used"; "to_"; "from"] in
+    [used_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
+  in
+  (* alias *)
+  let used_fields_from_used_fields_alias =
+    let$ [to_; from; relation; used_as] =
+      ["to_"; "from"; "relation"; "used_as"]
+    in
+    [ not (used_pred from);
+      not (used_pred to_);
+      not (used_fields_top_rel from relation);
+      not (used_fields_top_rel to_ relation);
+      alias_rel to_ from;
+      used_fields_rel to_ relation used_as ]
+    ==> used_fields_rel from relation used_as
+  in
+  let used_fields_top_from_used_fields_alias_top =
+    let$ [to_; from; relation] = ["to_"; "from"; "relation"] in
+    [ not (used_pred from);
+      not (used_pred to_);
+      alias_rel to_ from;
+      used_fields_top_rel to_ relation ]
+    ==> used_fields_top_rel from relation
+  in
+  let used_from_alias_used =
+    let$ [to_; from] = ["to_"; "from"] in
+    [alias_rel to_ from; used_pred to_] ==> used_pred from
+  in
+  (* accessor *)
+  let used_fields_from_accessor_used =
+    let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
+    [not (used_pred base); accessor_rel to_ relation base; used_pred to_]
+    ==> used_fields_top_rel base relation
+  in
+  let used_fields_from_accessor_used_fields =
+    let$ [to_; relation; base; _f; _x] =
+      ["to_"; "relation"; "base"; "_f"; "_x"]
+    in
+    [ not (used_pred base);
+      not (used_pred to_);
+      not (used_fields_top_rel base relation);
+      accessor_rel to_ relation base;
+      used_fields_rel to_ _f _x ]
+    ==> used_fields_rel base relation to_
+  in
+  let used_fields_from_accessor_used_fields_top =
+    let$ [to_; relation; base; _f] = ["to_"; "relation"; "base"; "_f"] in
+    [ not (used_pred base);
+      not (used_pred to_);
+      not (used_fields_top_rel base relation);
+      accessor_rel to_ relation base;
+      used_fields_top_rel to_ _f ]
+    ==> used_fields_rel base relation to_
+  in
+  (* constructor *)
+  let alias_from_used_fields_constructor =
+    let$ [base; relation; from; used_as] =
+      ["base"; "relation"; "from"; "used_as"]
+    in
+    [used_fields_rel base relation used_as; constructor_rel base relation from]
+    ==> alias_rel used_as from
+  in
+  let used_from_constructor_field_used =
+    let$ [base; relation; from] = ["base"; "relation"; "from"] in
+    [used_fields_top_rel base relation; constructor_rel base relation from]
+    ==> used_pred from
+  in
+  let used_from_constructor_used =
+    let$ [base; relation; from] = ["base"; "relation"; "from"] in
+    [used_pred base; constructor_rel base relation from] ==> used_pred from
+  in
+  (* use *)
+  let used_from_used_use =
+    let$ [to_; from] = ["to_"; "from"] in
+    [used_pred to_; use_rel to_ from] ==> used_pred from
+  in
+  let used_from_used_fields_top_use =
+    let$ [to_; from; _f] = ["to_"; "from"; "_f"] in
+    [used_fields_top_rel to_ _f; use_rel to_ from] ==> used_pred from
+  in
+  let used_from_used_fields_use =
+    let$ [to_; from; _f; _x] = ["to_"; "from"; "_f"; "_x"] in
+    [used_fields_rel to_ _f _x; use_rel to_ from] ==> used_pred from
+  in
+  Datalog.Schedule.(
+    fixpoint
+      [ saturate
+          [ alias_from_used_propagate;
+            alias_from_used_fields_constructor;
+            used_from_used_fields_use;
+            used_from_used_fields_top_use;
+            used_from_alias_used;
+            used_from_constructor_used;
+            used_from_constructor_field_used;
+            used_from_used_use ];
+        saturate
+          [ used_fields_top_from_used_fields_alias_top;
+            used_fields_from_accessor_used ];
+        saturate
+          [ used_fields_from_used_fields_alias;
+            used_fields_from_accessor_used_fields_top;
+            used_fields_from_accessor_used_fields ] ])
+
+let datalog_schedule =
+  if with_usages then datalog_schedule_usages else datalog_schedule_no_usages
+
+let exists_with_parameters cursor params db =
+  Datalog.Cursor.fold_with_parameters cursor params db ~init:false
+    ~f:(fun [] _ -> true)
+
+let mk_exists_query params existentials f =
+  Datalog.(
+    compile [] (fun [] ->
+        with_parameters params (fun params ->
+            foreach existentials (fun existentials ->
+                where (f params existentials) (yield [])))))
+
+let used_pred_query =
+  let open! Global_flow_graph in
+  mk_exists_query ["X"] [] (fun [x] [] -> [used_pred x])
+
+let has_use_with_usages, field_used_with_usages =
+  let open! Global_flow_graph in
+  let usages_query =
+    mk_exists_query ["X"] ["Y"] (fun [x] [y] -> [usages_rel x y])
+  in
+  let used_field_top_query =
+    mk_exists_query ["X"; "F"] ["U"] (fun [x; f] [u] ->
+        [usages_rel x u; used_fields_top_rel u f])
+  in
+  let used_field_query =
+    mk_exists_query ["X"; "F"] ["U"; "V"] (fun [x; f] [u; v] ->
+        [usages_rel x u; used_fields_rel u f v])
+  in
+  ( (fun db x ->
+      exists_with_parameters used_pred_query [x] db
+      || exists_with_parameters usages_query [x] db),
+    fun db x field ->
+      let field = Field.encode field in
+      exists_with_parameters used_pred_query [x] db
+      || exists_with_parameters used_field_top_query [x; field] db
+      || exists_with_parameters used_field_query [x; field] db )
+
+let has_use_without_usages, field_used_without_usages =
+  let open! Global_flow_graph in
+  let used_fields_top_any_query =
+    mk_exists_query ["X"] ["F"] (fun [x] [f] -> [used_fields_top_rel x f])
+  in
+  let used_fields_any_query =
+    mk_exists_query ["X"] ["F"; "Y"] (fun [x] [f; y] -> [used_fields_rel x f y])
+  in
+  let used_fields_top_query =
+    mk_exists_query ["X"; "F"] [] (fun [x; f] [] -> [used_fields_top_rel x f])
+  in
+  let used_fields_query =
+    mk_exists_query ["X"; "F"] ["Y"] (fun [x; f] [y] -> [used_fields_rel x f y])
+  in
+  ( (fun db x ->
+      exists_with_parameters used_pred_query [x] db
+      || exists_with_parameters used_fields_top_any_query [x] db
+      || exists_with_parameters used_fields_any_query [x] db),
+    fun db x field ->
+      let field = Field.encode field in
+      exists_with_parameters used_pred_query [x] db
+      || exists_with_parameters used_fields_top_query [x; field] db
+      || exists_with_parameters used_fields_query [x; field] db )
+
+let has_use =
+  if with_usages then has_use_with_usages else has_use_without_usages
+
+let field_used =
+  if with_usages then field_used_with_usages else field_used_without_usages
+
+let print_color (_, db) v =
+  if exists_with_parameters used_pred_query [v] db
+  then "#a7a7a7"
+  else if has_use db v
+  then "#f1c40f"
+  else "white"
+
+let has_use (old_result, db) v =
+  let old_is_used = Hashtbl.mem old_result v in
+  let new_is_used = has_use db v in
+  if old_is_used <> new_is_used
+  then
+    Misc.fatal_errorf "Different is_used on %a (old %b, new %b)@."
+      Code_id_or_name.print v old_is_used new_is_used;
+  new_is_used
+
+let field_used (old_result, db) v f =
+  let new_is_used = field_used db v f in
+  let old_is_used =
+    match Hashtbl.find_opt old_result v with
+    | None -> false
+    | Some Bottom -> false
+    | Some Top -> true
+    | Some (Fields fields) -> Field.Map.mem f fields
+  in
+  if old_is_used <> new_is_used
+  then
+    Misc.fatal_errorf "Different field_used on %a %a (old %b, new %b)@."
+      Code_id_or_name.print v Field.print f old_is_used new_is_used;
+  new_is_used
 
 let fixpoint (graph_new : Global_flow_graph.graph) =
   let result = Hashtbl.create 17 in
   let uses =
-    graph_new.Global_flow_graph.used |> Hashtbl.to_seq_keys |> List.of_seq
-    |> Code_id_or_name.Set.of_list
+    Global_flow_graph.used graph_new
+    |> Hashtbl.to_seq_keys |> List.of_seq |> Code_id_or_name.Set.of_list
   in
+  Gc.full_major ();
+  let t0 = Sys.time () in
   Solver.fixpoint_topo graph_new uses result;
+  let t1 = Sys.time () in
+  Gc.full_major ();
+  let t1' = Sys.time () in
+  let datalog = Global_flow_graph.to_datalog graph_new in
+  let stats = Datalog.Schedule.create_stats () in
+  let db = Datalog.Schedule.run ~stats datalog_schedule datalog in
+  let t2 = Sys.time () in
+  Format.eprintf "EXISTING: %f, DATALOG: %f, SPEEDUP: %f@." (t1 -. t0)
+    (t2 -. t1')
+    ((t1 -. t0) /. (t2 -. t1'));
+  Format.eprintf "%a@." Datalog.Schedule.print_stats stats;
+  let result2 = db_to_uses db in
+  (* Format.eprintf "OLD:@.%a@.@.NEW:@.%a@.@." pp_result result pp_result
+     result2; Format.eprintf "DB:@.%a@." Database.print_database db; *)
+  (* Format.eprintf "OLD RESULT:@.%a@." pp_result result; Format.eprintf
+     "NEW_RESULT:@.%a@." Database.print_database (Database.filter_database (fun
+     relation -> List.mem (Database.relation_name relation) ["used";
+     "used_fields"]) _db); *)
   Solver.check_fixpoint graph_new uses result;
-  result
+  Hashtbl.iter
+    (fun k v ->
+      let v2 = Hashtbl.find result2 k in
+      if not (Graph.less_equal_elt v v2 && Graph.less_equal_elt v2 v)
+      then
+        Misc.fatal_errorf "KEY %a OLD %a NEW %a@." Code_id_or_name.print k
+          pp_elt v pp_elt v2)
+    result;
+  Hashtbl.iter
+    (fun k _v ->
+      let _v2 = Hashtbl.find result k in
+      ())
+    result2;
+  result, db

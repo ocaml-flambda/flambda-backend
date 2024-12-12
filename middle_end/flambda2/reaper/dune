@@ -14,6 +14,8 @@
    -open
    Flambda2_cmx
    -open
+   Flambda2_datalog
+   -open
    Flambda2_identifiers
    -open
    Flambda2_kinds
@@ -40,6 +42,7 @@
   flambda2_algorithms
   flambda2_bound_identifiers
   flambda2_cmx
+  flambda2_datalog
   flambda2_identifiers
   flambda2_kinds
   flambda2_lattices
