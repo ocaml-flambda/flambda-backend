@@ -250,6 +250,20 @@ let makearray_dynamic_non_scannable_unboxed_product env
   (* Note that we don't check the number of unarized arguments against the
      layout; we trust the front end. If we wanted to do this, it would have to
      be done slightly later, after unarization. *)
+  (* CR mshinwell: two things were tried here, but one is dirty and the other
+     needed too much work:
+
+     - CPS convert the primitive arguments before getting here. They may then
+     have to be converted a second time, in the event that the primitive is
+     transformed by this file.
+
+     - For this primitive only, have a function passed in here which when
+     called, does the CPS conversion of the arguments and then escapes using an
+     exception, returning the number of arguments. This seems dirty.
+
+     Both of these cases introduce complexity as it is necessary to go back to
+     using an older accumulator during CPS conversion. This is probably fine but
+     is a real change. *)
   let term =
     L.(
       Lprim
