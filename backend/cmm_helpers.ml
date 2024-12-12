@@ -1303,9 +1303,7 @@ let rec low_bits ~bits dbg x =
               [Cop (Clsl, [x; Cconst_int (left, _)], _); Cconst_int (right, _)],
               _ )
           when 0 <= right && right <= left && left <= unused_bits ->
-          if left = right
-          then low_bits ~bits dbg x
-          else lsl_const x (left - right) dbg
+          low_bits ~bits dbg (lsl_const x (left - right) dbg)
         | x -> (
           match get_const_bitmask x with
           | Some (x, bitmask) when does_mask_ignore_low_bits bitmask ->
