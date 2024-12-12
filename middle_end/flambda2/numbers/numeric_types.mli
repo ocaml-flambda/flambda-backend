@@ -32,13 +32,17 @@ module Int8 : sig
   type t = private int
 
   val zero : t
+
   val one : t
 
   val of_int : int -> t
+
   val of_int_exn : int -> t
+
   val of_int64_exn : Int64.t -> t
 
   val to_int : t -> int
+
   val to_float : t -> float
 
   include Container_types.S with type t := t
@@ -48,14 +52,17 @@ module Int16 : sig
   type t = private int
 
   val zero : t
+
   val one : t
 
   val of_int : int -> t
+
   val of_int_exn : int -> t
 
   val of_int64_exn : Int64.t -> t
 
   val to_int : t -> int
+
   val to_float : t -> float
 
   include Container_types.S with type t := t

@@ -74,9 +74,9 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_float32 -> Cmm.typ_float32
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
-                 | Naked_nativeint)
-    ->
+  | Naked_number
+      ( Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+      | Naked_nativeint ) ->
     Cmm.typ_int
   | Region -> Cmm.typ_int
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
@@ -95,9 +95,9 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_float32 -> Extended_machtype.typ_float32
   | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
-                 | Naked_nativeint)
-    ->
+  | Naked_number
+      ( Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+      | Naked_nativeint ) ->
     Extended_machtype.typ_any_int
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
@@ -233,9 +233,9 @@ let const_static cst : Cmm.data_item list =
        explicitly in two halves. *)
     [cint32 i; cint32 0l]
   | Naked_int16 i ->
-    (* In keeping with Naked_float32, this is padded to 8 bytes, but it's not obvious to
-       me why we are doing this instead of requiring alignment on other values that need
-       it. *)
+    (* In keeping with Naked_float32, this is padded to 8 bytes, but it's not
+       obvious to me why we are doing this instead of requiring alignment on
+       other values that need it. *)
     [Cint16 (Numeric_types.Int16.to_int i); Cskip 6]
   | Naked_int8 i -> [Cint8 (Numeric_types.Int8.to_int i); Cskip 7]
   | Naked_int64 i ->
@@ -345,8 +345,8 @@ module Update_kind = struct
 
   let field_size_in_words t =
     match t.kind with
-    | Pointer | Immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_float
-    | Naked_float32 ->
+    | Pointer | Immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+    | Naked_float | Naked_float32 ->
       1
     | Naked_vec128 -> 2
 
@@ -393,8 +393,7 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
           (* See [caml_initialize]; we can avoid this function in this case. *)
           None
         | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_float
-        | Naked_float32 | Naked_vec128
-          ->
+        | Naked_float32 | Naked_vec128 ->
           (* The GC never sees these fields, so we can avoid using
              [caml_initialize]. This is important as it significantly reduces
              the complexity of the statically-allocated inconstant unboxed int32

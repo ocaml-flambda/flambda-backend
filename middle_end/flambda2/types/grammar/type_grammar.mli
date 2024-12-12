@@ -831,15 +831,15 @@ module Head_of_kind_naked_float :
 
 module Head_of_kind_naked_int8 :
   Head_of_kind_naked_number_intf
-  with type t = head_of_kind_naked_int8
-  with type n = Numeric_types.Int8.t
-  with type n_set = Numeric_types.Int8.Set.t
+    with type t = head_of_kind_naked_int8
+    with type n = Numeric_types.Int8.t
+    with type n_set = Numeric_types.Int8.Set.t
 
 module Head_of_kind_naked_int16 :
   Head_of_kind_naked_number_intf
-  with type t = head_of_kind_naked_int16
-  with type n = Numeric_types.Int16.t
-  with type n_set = Numeric_types.Int16.Set.t
+    with type t = head_of_kind_naked_int16
+    with type n = Numeric_types.Int16.t
+    with type n_set = Numeric_types.Int16.Set.t
 
 module Head_of_kind_naked_int32 :
   Head_of_kind_naked_number_intf

@@ -87,8 +87,7 @@ module Expanded_type : sig
         Type_grammar.head_of_kind_naked_float32 Or_unknown_or_bottom.t
     | Naked_float of
         Type_grammar.head_of_kind_naked_float Or_unknown_or_bottom.t
-    | Naked_int8 of
-        Type_grammar.head_of_kind_naked_int8 Or_unknown_or_bottom.t
+    | Naked_int8 of Type_grammar.head_of_kind_naked_int8 Or_unknown_or_bottom.t
     | Naked_int16 of
         Type_grammar.head_of_kind_naked_int16 Or_unknown_or_bottom.t
     | Naked_int32 of
@@ -222,21 +221,21 @@ end = struct
     | Naked_int8 Unknown -> create_unknown K.naked_int8
     | Naked_int8 Bottom -> create_bottom K.naked_int8
     | Naked_int8 (Ok (No_alias head)) -> (
-        match coercion with
-        | None -> create_naked_int8 head
-        | Some coercion -> (
-            match TG.apply_coercion_head_of_kind_naked_int8 head coercion with
-            | Bottom -> create_bottom K.naked_int8
-            | Ok head -> create_naked_int8 head))
+      match coercion with
+      | None -> create_naked_int8 head
+      | Some coercion -> (
+        match TG.apply_coercion_head_of_kind_naked_int8 head coercion with
+        | Bottom -> create_bottom K.naked_int8
+        | Ok head -> create_naked_int8 head))
     | Naked_int16 Unknown -> create_unknown K.naked_int16
     | Naked_int16 Bottom -> create_bottom K.naked_int16
     | Naked_int16 (Ok (No_alias head)) -> (
-        match coercion with
-        | None -> create_naked_int16 head
-        | Some coercion -> (
-            match TG.apply_coercion_head_of_kind_naked_int16 head coercion with
-            | Bottom -> create_bottom K.naked_int16
-            | Ok head -> create_naked_int16 head))
+      match coercion with
+      | None -> create_naked_int16 head
+      | Some coercion -> (
+        match TG.apply_coercion_head_of_kind_naked_int16 head coercion with
+        | Bottom -> create_bottom K.naked_int16
+        | Ok head -> create_naked_int16 head))
     | Naked_int32 Unknown -> create_unknown K.naked_int32
     | Naked_int32 Bottom -> create_bottom K.naked_int32
     | Naked_int32 (Ok (No_alias head)) -> (
@@ -323,8 +322,7 @@ end = struct
         Type_grammar.head_of_kind_naked_float32 Or_unknown_or_bottom.t
     | Naked_float of
         Type_grammar.head_of_kind_naked_float Or_unknown_or_bottom.t
-    | Naked_int8 of
-        Type_grammar.head_of_kind_naked_int8 Or_unknown_or_bottom.t
+    | Naked_int8 of Type_grammar.head_of_kind_naked_int8 Or_unknown_or_bottom.t
     | Naked_int16 of
         Type_grammar.head_of_kind_naked_int16 Or_unknown_or_bottom.t
     | Naked_int32 of

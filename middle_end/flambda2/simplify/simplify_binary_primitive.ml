@@ -408,8 +408,7 @@ module Binary_int_arith_tagged_immediate =
   Binary_arith_like (Int_ops_for_binary_arith_tagged_immediate)
 module Binary_int_arith_naked_immediate =
   Binary_arith_like (Int_ops_for_binary_arith_naked_immediate)
-module Binary_int_arith_int8 =
-  Binary_arith_like (Int_ops_for_binary_arith_int8)
+module Binary_int_arith_int8 = Binary_arith_like (Int_ops_for_binary_arith_int8)
 module Binary_int_arith_int16 =
   Binary_arith_like (Int_ops_for_binary_arith_int16)
 module Binary_int_arith_int32 =
@@ -533,8 +532,7 @@ module Binary_int_shift_tagged_immediate =
   Binary_arith_like (Int_ops_for_binary_shift_tagged_immediate)
 module Binary_int_shift_naked_immediate =
   Binary_arith_like (Int_ops_for_binary_shift_naked_immediate)
-module Binary_int_shift_int8 =
-  Binary_arith_like (Int_ops_for_binary_shift_int8)
+module Binary_int_shift_int8 = Binary_arith_like (Int_ops_for_binary_shift_int8)
 module Binary_int_shift_int16 =
   Binary_arith_like (Int_ops_for_binary_shift_int16)
 module Binary_int_shift_int32 =
@@ -1116,8 +1114,9 @@ let recover_comparison_primitive dacc (prim : P.binary_primitive) ~arg1 ~arg2 =
     None
   | Int_comp (kind, Yielding_bool op) -> (
     match kind with
-      | Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
-      | Naked_nativeint -> None
+    | Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+    | Naked_nativeint ->
+      None
     | Tagged_immediate -> (
       let try_one_direction left right op =
         Simple.pattern_match right

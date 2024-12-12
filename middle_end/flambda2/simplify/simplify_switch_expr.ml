@@ -178,8 +178,8 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
               maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
             else maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
           | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-          | Naked_int8 _ | Naked_int16 _
-          | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Null ->
+          | Naked_int8 _ | Naked_int16 _ | Naked_int64 _ | Naked_vec128 _
+          | Naked_nativeint _ | Null ->
             maybe_mergeable ~mergeable_arms ~identity_arms ~not_arms
         in
         Simple.pattern_match arg ~const ~name:(fun _ ~coercion:_ ->
@@ -268,8 +268,8 @@ let recognize_switch_with_single_arg_to_same_destination0 ~arms =
          a normal untagged [TI.t]. *)
       check_args Reg_width_const.is_tagged_immediate Leave_as_tagged_immediate
     | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-    | Naked_int8 _ | Naked_int16 _
-    | Naked_nativeint _ | Naked_vec128 _ | Null ->
+    | Naked_int8 _ | Naked_int16 _ | Naked_nativeint _ | Naked_vec128 _ | Null
+      ->
       None)
 
 let recognize_switch_with_single_arg_to_same_destination ~arms =

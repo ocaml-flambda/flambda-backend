@@ -610,7 +610,6 @@ val meet_naked_int8s :
 val meet_naked_int16s :
   Typing_env.t -> t -> Numeric_types.Int16.Set.t meet_shortcut
 
-
 val meet_naked_int32s :
   Typing_env.t -> t -> Numeric_types.Int32.Set.t meet_shortcut
 

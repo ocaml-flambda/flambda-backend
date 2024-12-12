@@ -38,18 +38,22 @@ module Int = struct
 end
 
 module Short_int (M : sig
-    val num_bits : int
-  end) = struct
+  val num_bits : int
+end) =
+struct
   let num_bits = M.num_bits
+
   let () = assert (0 < num_bits && num_bits < 31)
 
   module T0 = struct
     type t = int
 
     let zero = 0
+
     let one = 1
 
-    let min_int64 = (Int64.shift_left Int64.minus_one (num_bits - 1))
+    let min_int64 = Int64.shift_left Int64.minus_one (num_bits - 1)
+
     let max_int64 = Int64.lognot min_int64
 
     let of_int64_exn i =
@@ -64,11 +68,15 @@ module Short_int (M : sig
       (i lsl extra_bits) asr extra_bits
 
     let to_int i = i
+
     let to_float = Float.of_int
 
     let compare = Int.compare
+
     let equal = Int.equal
+
     let hash = (Hashtbl.hash : t -> int)
+
     let print = Format.pp_print_int
   end
 
@@ -76,13 +84,13 @@ module Short_int (M : sig
   include Container_types.Make (T0)
 end
 
-module Int8 = Short_int(struct
-    let num_bits = 8
+module Int8 = Short_int (struct
+  let num_bits = 8
 end)
 
-module Int16 = Short_int(struct
-    let num_bits = 16
-  end)
+module Int16 = Short_int (struct
+  let num_bits = 16
+end)
 
 module Int32 = struct
   include Int32

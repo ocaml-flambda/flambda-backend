@@ -346,8 +346,7 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
     ET.create_region head, env_extension
   | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
       | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-      | Naked_int8 _ | Naked_int16 _
-      | Rec_info _ | Region _ ),
+      | Naked_int8 _ | Naked_int16 _ | Rec_info _ | Region _ ),
       _ ) ->
     assert false
 

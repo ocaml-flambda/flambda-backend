@@ -647,8 +647,7 @@ and meet_expanded_head0 env (descr1 : ET.descr) (descr2 : ET.descr) :
     map_result ~f:ET.create_region (meet_head_of_kind_region env head1 head2)
   | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
       | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-      | Naked_int8 _ | Naked_int16 _
-      | Rec_info _ | Region _ ),
+      | Naked_int8 _ | Naked_int16 _ | Rec_info _ | Region _ ),
       _ ) ->
     assert false
 
@@ -1703,9 +1702,8 @@ and join_expanded_head env kind (expanded1 : ET.t) (expanded2 : ET.t) : ET.t =
         let>+ head = join_head_of_kind_region env head1 head2 in
         ET.create_region head
       | ( ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-          | Naked_int8 _ | Naked_int16 _
-          | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-          | Rec_info _ | Region _ ),
+          | Naked_int8 _ | Naked_int16 _ | Naked_int32 _ | Naked_vec128 _
+          | Naked_int64 _ | Naked_nativeint _ | Rec_info _ | Region _ ),
           _ ) ->
         assert false
     in

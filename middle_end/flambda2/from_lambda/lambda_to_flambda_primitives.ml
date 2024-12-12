@@ -60,10 +60,14 @@ let convert_unboxed_integer_comparison_prim (kind : L.unboxed_integer)
   | Unboxed_int64, Cge -> Int_comp (Naked_int64, Yielding_bool (Ge Signed))
   | Unboxed_nativeint, Ceq -> Int_comp (Naked_nativeint, Yielding_bool Eq)
   | Unboxed_nativeint, Cne -> Int_comp (Naked_nativeint, Yielding_bool Neq)
-  | Unboxed_nativeint, Clt -> Int_comp (Naked_nativeint, Yielding_bool (Lt Signed))
-  | Unboxed_nativeint, Cgt -> Int_comp (Naked_nativeint, Yielding_bool (Gt Signed))
-  | Unboxed_nativeint, Cle -> Int_comp (Naked_nativeint, Yielding_bool (Le Signed))
-  | Unboxed_nativeint, Cge -> Int_comp (Naked_nativeint, Yielding_bool (Ge Signed))
+  | Unboxed_nativeint, Clt ->
+    Int_comp (Naked_nativeint, Yielding_bool (Lt Signed))
+  | Unboxed_nativeint, Cgt ->
+    Int_comp (Naked_nativeint, Yielding_bool (Gt Signed))
+  | Unboxed_nativeint, Cle ->
+    Int_comp (Naked_nativeint, Yielding_bool (Le Signed))
+  | Unboxed_nativeint, Cge ->
+    Int_comp (Naked_nativeint, Yielding_bool (Ge Signed))
 
 let convert_float_comparison (comp : L.float_comparison) : unit P.comparison =
   match comp with
@@ -85,13 +89,15 @@ let boxable_number_of_boxed_integer (bint : L.boxed_integer) :
   | Boxed_int32 -> Naked_int32
   | Boxed_int64 -> Naked_int64
 
-let standard_int_of_boxed_integer (bint : Primitive.boxed_integer) : K.Standard_int.t =
+let standard_int_of_boxed_integer (bint : Primitive.boxed_integer) :
+    K.Standard_int.t =
   match bint with
   | Boxed_nativeint -> Naked_nativeint
   | Boxed_int32 -> Naked_int32
   | Boxed_int64 -> Naked_int64
 
-let standard_int_of_unboxed_integer : L.unboxed_integer -> K.Standard_int.t = function
+let standard_int_of_unboxed_integer : L.unboxed_integer -> K.Standard_int.t =
+  function
   | Unboxed_int8 -> Naked_int8
   | Unboxed_int16 -> Naked_int16
   | Unboxed_int32 -> Naked_int32
@@ -941,8 +947,8 @@ let bigarray_box_or_tag_raw_value_to_read kind alloc_mode =
     fun arg -> H.Unary (Box_number (Naked_float32, alloc_mode), Prim arg)
   | Naked_number Naked_float ->
     fun arg -> H.Unary (Box_number (Naked_float, alloc_mode), Prim arg)
-  (* The following tagging operations for small integers are valid because they are always
-     loaded sign-extended into a machine register *)
+  (* The following tagging operations for small integers are valid because they
+     are always loaded sign-extended into a machine register *)
   | Naked_number (Naked_int8 | Naked_int16) ->
     fun arg -> H.Unary (Tag_immediate, Prim arg)
   | Naked_number Naked_int32 ->
@@ -1387,8 +1393,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           match Lambda.get_mixed_block_element shape i with
           | Value_prefix
           | Flat_suffix
-              (Float64 | Float32 | Imm | Bits8 | Bits16 | Bits32 | Bits64 |
-               Vec128 | Word) ->
+              ( Float64 | Float32 | Imm | Bits8 | Bits16 | Bits32 | Bits64
+              | Vec128 | Word ) ->
             arg
           | Flat_suffix Float_boxed -> unbox_float arg)
         args
@@ -1506,8 +1512,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let arg1 = unbox_bint kind arg1 in
     let arg2 = unbox_bint kind arg2 in
     [ tag_int
-        (Binary (convert_unboxed_integer_comparison_prim (Primitive.unbox_integer kind) comp, arg1, arg2))
-    ]
+        (Binary
+           ( convert_unboxed_integer_comparison_prim
+               (Primitive.unbox_integer kind)
+               comp,
+             arg1,
+             arg2 )) ]
   | Punboxed_int_comp (kind, comp), [[arg1]; [arg2]] ->
     [ tag_int
         (Binary (convert_unboxed_integer_comparison_prim kind comp, arg1, arg2))
@@ -1568,7 +1578,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ( Float_comp (Float64, Yielding_bool (convert_float_comparison comp)),
              arg1,
              arg2 )) ]
-  | Punbox_float Boxed_float64, [[arg]] -> [Unary (Unbox_number Naked_float, arg)]
+  | Punbox_float Boxed_float64, [[arg]] ->
+    [Unary (Unbox_number Naked_float, arg)]
   | Pbox_float (Boxed_float64, mode), [[arg]] ->
     [ Unary
         ( Box_number
@@ -1623,14 +1634,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ( Float_comp (Float32, Yielding_bool (convert_float_comparison comp)),
              arg1,
              arg2 )) ]
-  | Punbox_float Boxed_float32, [[arg]] -> [Unary (Unbox_number Naked_float32, arg)]
+  | Punbox_float Boxed_float32, [[arg]] ->
+    [Unary (Unbox_number Naked_float32, arg)]
   | Pbox_float (Boxed_float32, mode), [[arg]] ->
     [ Unary
         ( Box_number
             ( Naked_float32,
               Alloc_mode.For_allocations.from_lambda mode ~current_region ),
           arg ) ]
-  | Punbox_vector Boxed_vec128, [[arg]] -> [Unary (Unbox_number Naked_vec128, arg)]
+  | Punbox_vector Boxed_vec128, [[arg]] ->
+    [Unary (Unbox_number Naked_vec128, arg)]
   | Pbox_vector (Boxed_vec128, mode), [[arg]] ->
     [ Unary
         ( Box_number
@@ -1957,7 +1970,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       match write with
       | Mwrite_value_prefix _
       | Mwrite_flat_suffix
-          (Imm | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Vec128 | Word) ->
+          ( Imm | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Vec128
+          | Word ) ->
         value
       | Mwrite_flat_suffix Float_boxed -> unbox_float value
     in
@@ -1983,10 +1997,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pmodbint { size = Boxed_int64; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
     [ checked_arith_op ~dbg (Some Boxed_int64) Mod (Some mode) arg1 arg2
         ~current_region ]
-  | Pdivbint { size = Boxed_nativeint; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
+  | Pdivbint { size = Boxed_nativeint; is_safe = Safe; mode }, [[arg1]; [arg2]]
+    ->
     [ checked_arith_op ~dbg (Some Boxed_nativeint) Div (Some mode) arg1 arg2
         ~current_region ]
-  | Pmodbint { size = Boxed_nativeint; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
+  | Pmodbint { size = Boxed_nativeint; is_safe = Safe; mode }, [[arg1]; [arg2]]
+    ->
     [ checked_arith_op ~dbg (Some Boxed_nativeint) Mod (Some mode) arg1 arg2
         ~current_region ]
   | Parrayrefu (array_ref_kind, index_kind, mut), [[array]; [index]] ->

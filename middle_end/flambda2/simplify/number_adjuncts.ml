@@ -588,7 +588,8 @@ module For_int16s : Int_number_kind = struct
 
     let shift_right x y = of_int (Int.shift_right (to_int x) y)
 
-    let shift_right_logical x y = of_int (Int.shift_right_logical (to_int x land 0xffff) y)
+    let shift_right_logical x y =
+      of_int (Int.shift_right_logical (to_int x land 0xffff) y)
 
     let xor = logxor
 
@@ -646,7 +647,6 @@ module For_int16s : Int_number_kind = struct
       let lo = i land 0xff in
       let hi = (i lsr 8) land 0xff in
       of_int (hi lor (lo lsl 8))
-
   end
 
   let standard_int_or_float_kind : K.Standard_int_or_float.t = Naked_int16
@@ -661,7 +661,6 @@ module For_int16s : Int_number_kind = struct
 
   let term_unboxed i =
     Named.create_simple (Simple.const (Reg_width_const.naked_int16 i))
-
 end
 
 module For_int32s : Boxable_int_number_kind = struct

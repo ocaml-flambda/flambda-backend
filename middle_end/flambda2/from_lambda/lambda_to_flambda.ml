@@ -1255,9 +1255,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
-    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Boxed_float64 } ->
+    | Pvalue
+        { nullable = Non_nullable; raw_kind = Pboxedfloatval Boxed_float64 } ->
       Some (Unboxed_number Naked_float)
-    | Pvalue { nullable = Non_nullable; raw_kind = Pboxedfloatval Boxed_float32 } ->
+    | Pvalue
+        { nullable = Non_nullable; raw_kind = Pboxedfloatval Boxed_float32 } ->
       Some (Unboxed_number Naked_float32)
     | Pvalue { nullable = Non_nullable; raw_kind = Pboxedintval bi } ->
       let bn : Flambda_kind.Boxable_number.t =

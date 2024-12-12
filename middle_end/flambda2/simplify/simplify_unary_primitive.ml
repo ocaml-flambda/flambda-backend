@@ -361,21 +361,21 @@ module Make_simplify_int_conv (N : A.Number_kind) = struct
           M.result
         | Naked_int8 ->
           let module M = For_kind [@inlined hint] (struct
-                           module Result_num = Numeric_types.Int8
+            module Result_num = Numeric_types.Int8
 
-                           let num_to_result_num = Num.to_naked_int8
+            let num_to_result_num = Num.to_naked_int8
 
-                           let these = T.these_naked_int8s
-                         end) in
+            let these = T.these_naked_int8s
+          end) in
           M.result
         | Naked_int16 ->
           let module M = For_kind [@inlined hint] (struct
-                           module Result_num = Numeric_types.Int16
+            module Result_num = Numeric_types.Int16
 
-                           let num_to_result_num = Num.to_naked_int16
+            let num_to_result_num = Num.to_naked_int16
 
-                           let these = T.these_naked_int16s
-                         end) in
+            let these = T.these_naked_int16s
+          end) in
           M.result
         | Naked_int32 ->
           let module M = For_kind [@inlined hint] (struct

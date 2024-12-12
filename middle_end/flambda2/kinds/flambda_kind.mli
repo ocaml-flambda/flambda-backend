@@ -197,6 +197,7 @@ module Boxable_number : sig
     | Naked_int64
     | Naked_nativeint
     | Naked_vec128
+
   val unboxed_kind : t -> kind
 
   val print_lowercase : Format.formatter -> t -> unit

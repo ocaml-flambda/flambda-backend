@@ -441,13 +441,13 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | None -> try_canonical_simple ()
       | Some f -> Simple (Simple.const (Reg_width_const.naked_float f)))
     | Naked_int8 (Ok ns) -> (
-        match Int8.Set.get_singleton (ns :> Int8.Set.t) with
-        | None -> try_canonical_simple ()
-        | Some n -> Simple (Simple.const (Reg_width_const.naked_int8 n)))
+      match Int8.Set.get_singleton (ns :> Int8.Set.t) with
+      | None -> try_canonical_simple ()
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_int8 n)))
     | Naked_int16 (Ok ns) -> (
-        match Int16.Set.get_singleton (ns :> Int16.Set.t) with
-        | None -> try_canonical_simple ()
-        | Some n -> Simple (Simple.const (Reg_width_const.naked_int16 n)))
+      match Int16.Set.get_singleton (ns :> Int16.Set.t) with
+      | None -> try_canonical_simple ()
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_int16 n)))
     | Naked_int32 (Ok ns) -> (
       match Int32.Set.get_singleton (ns :> Int32.Set.t) with
       | None -> try_canonical_simple ()
@@ -631,7 +631,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               ~try_canonical_simple
           | Naked_number Naked_vec128 ->
             Lift_array_of_naked_vec128s.lift env ~fields ~try_canonical_simple
-          | Naked_number (Naked_immediate | Naked_int8 | Naked_int16) | Region | Rec_info ->
+          | Naked_number (Naked_immediate | Naked_int8 | Naked_int16)
+          | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
                %a@ in env:@ %a"

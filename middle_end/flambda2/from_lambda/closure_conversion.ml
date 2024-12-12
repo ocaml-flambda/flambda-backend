@@ -177,9 +177,8 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
               match RWC.descr cst with
               | Tagged_immediate _ | Null -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
-              | Naked_int8 _ | Naked_int16 _
-              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-              | Naked_vec128 _ ->
+              | Naked_int8 _ | Naked_int16 _ | Naked_int32 _ | Naked_int64 _
+              | Naked_nativeint _ | Naked_vec128 _ ->
                 Misc.fatal_errorf
                   "Unboxed constants are not allowed inside of Const_block: %a"
                   Printlambda.structured_constant const);
@@ -215,7 +214,9 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           else
             match shape.flat_suffix.(i - shape.value_prefix_len) with
             | Float_boxed -> unbox_float_constant c
-            | Imm | Float64 | Float32 | Bits8 | Bits16 |Bits32 | Bits64 | Vec128 | Word -> c)
+            | Imm | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64
+            | Vec128 | Word ->
+              c)
         consts
     in
     let shape = K.Mixed_block_shape.from_lambda shape in
@@ -711,11 +712,15 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     in
     match prim_native_name with
     | "caml_int64_float_of_bits_unboxed" ->
-      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_integer Boxed_int64)
-        ~dst_kind:(Unboxed_float Boxed_float64) ~op:Unboxed_int64_as_unboxed_float64
+      unboxed_int64_to_and_from_unboxed_float
+        ~src_kind:(Unboxed_integer Boxed_int64)
+        ~dst_kind:(Unboxed_float Boxed_float64)
+        ~op:Unboxed_int64_as_unboxed_float64
     | "caml_int64_bits_of_float_unboxed" ->
-      unboxed_int64_to_and_from_unboxed_float ~src_kind:(Unboxed_float Boxed_float64)
-        ~dst_kind:(Unboxed_integer Boxed_int64) ~op:Unboxed_float64_as_unboxed_int64
+      unboxed_int64_to_and_from_unboxed_float
+        ~src_kind:(Unboxed_float Boxed_float64)
+        ~dst_kind:(Unboxed_integer Boxed_int64)
+        ~op:Unboxed_float64_as_unboxed_int64
     | _ ->
       let callee = Simple.symbol call_symbol in
       let apply =
@@ -1294,8 +1299,8 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                           | Naked_float f -> Or_variable.Const f
                           | Tagged_immediate _ | Naked_immediate _
                           | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-                          | Naked_int8 _ | Naked_int16 _
-                          | Naked_nativeint _ | Naked_vec128 _ | Null ->
+                          | Naked_int8 _ | Naked_int16 _ | Naked_nativeint _
+                          | Naked_vec128 _ | Null ->
                             Misc.fatal_errorf
                               "Binding of %a to %a contains the constant %a \
                                inside a float record, whereas only naked \

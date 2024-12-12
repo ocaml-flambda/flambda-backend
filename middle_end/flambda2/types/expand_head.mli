@@ -82,8 +82,7 @@ module Expanded_type : sig
         Type_grammar.head_of_kind_naked_float32 Or_unknown_or_bottom.t
     | Naked_float of
         Type_grammar.head_of_kind_naked_float Or_unknown_or_bottom.t
-    | Naked_int8 of
-        Type_grammar.head_of_kind_naked_int8 Or_unknown_or_bottom.t
+    | Naked_int8 of Type_grammar.head_of_kind_naked_int8 Or_unknown_or_bottom.t
     | Naked_int16 of
         Type_grammar.head_of_kind_naked_int16 Or_unknown_or_bottom.t
     | Naked_int32 of
