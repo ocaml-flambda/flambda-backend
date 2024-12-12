@@ -406,6 +406,18 @@ CAMLprim value caml_floatarray_create_local(value len)
   return caml_alloc_local (wosize, Double_array_tag);
 }
 
+// Stubs with consistent naming:
+
+CAMLprim value caml_make_unboxed_float64_vect(value len)
+{
+  return caml_floatarray_create(len);
+}
+
+CAMLprim value caml_make_local_unboxed_float64_vect(value len)
+{
+  return caml_floatarray_create_local(len);
+}
+
 /* [len] is a [value] representing number of words or floats */
 static value make_vect_gen(value len, value init, int local)
 {
