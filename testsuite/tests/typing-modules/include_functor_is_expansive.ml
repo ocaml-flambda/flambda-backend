@@ -50,6 +50,7 @@ Error: This expression has type "a" but an expression was expected of type "'a"
        The type constructor "a" would escape its scope
 |}]
 
+(* Include functor version *)
 let r (type a) =
   let module R = struct
     type t = a
