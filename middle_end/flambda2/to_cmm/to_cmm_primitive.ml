@@ -734,8 +734,8 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
             complicated and didn't get merged.) *)
          let requires_sign_extended_input =
            match op with
-           | Add | Sub | Mul | Xor | And | Or -> true
-           | Div | Mod -> false
+           | Add | Sub | Mul | Xor | And | Or -> false
+           | Div | Mod -> true
          in
          if requires_sign_extended_input
          then fun x -> x
