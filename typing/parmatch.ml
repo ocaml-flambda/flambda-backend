@@ -177,9 +177,11 @@ let all_coherent column =
           | Const_unboxed_float32 _
           | Const_string _), _ -> false
       end
-    | Tuple l1, Tuple l2 -> l1 = l2
+    | Tuple l1, Tuple l2 ->
+      List.equal (Option.equal String.equal) l1 l2
     | Unboxed_tuple l1, Unboxed_tuple l2 ->
-      List.equal (fun (lbl1, _) (lbl2, _) -> lbl1 = lbl2) l1 l2
+      List.equal
+        (fun (lbl1, _) (lbl2, _) -> Option.equal String.equal lbl1 lbl2) l1 l2
     | Record (lbl1 :: _), Record (lbl2 :: _) ->
       Array.length lbl1.lbl_all = Array.length lbl2.lbl_all
     | Record_unboxed_product (lbl1 :: _), Record_unboxed_product (lbl2 :: _) ->
@@ -432,7 +434,8 @@ let simple_match d h =
   | Lazy, Lazy -> true
   | Record _, Record _ -> true
   | Record_unboxed_product _, Record_unboxed_product _ -> true
-  | Tuple len1, Tuple len2 -> len1 = len2
+  | Tuple lbls1, Tuple lbls2 ->
+    List.equal (Option.equal String.equal) lbls1 lbls2
   | Unboxed_tuple lbls1, Unboxed_tuple lbls2 ->
     List.equal (fun (l1, _) (l2, _) -> Option.equal String.equal l1 l2)
       lbls1 lbls2
