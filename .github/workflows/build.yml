@@ -76,7 +76,7 @@ jobs:
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200,regalloc=cfg'
 
           - name: flambda2_frame_pointers_oclassic_polling
-            config: --enable-middle-end=flambda2 --enable-poll-insertion --enable-flambda-invariants
+            config: --enable-middle-end=flambda2 --enable-flambda-invariants
             os: ubuntu-latest
             build_ocamlparam: '_,regalloc=cfg'
             ocamlparam: '_,Oclassic=1,regalloc=cfg'

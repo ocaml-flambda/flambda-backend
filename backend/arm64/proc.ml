@@ -398,11 +398,11 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
   | Specific_can_raise _ ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
-  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
+  | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
     if more_destruction_points then
       true
     else
-    if alloc then true else false
+    if alloc || stack_ofs > 0 then true else false
 
 (* Maximal register pressure *)
 
