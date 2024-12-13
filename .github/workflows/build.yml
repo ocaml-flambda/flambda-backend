@@ -105,6 +105,7 @@ jobs:
             os: macos-latest
             build_ocamlparam: '_,regalloc=gi'
             ocamlparam: '_,regalloc=gi'
+            ocamlrunparam: "b=1"
 
           - name: irc
             config: --enable-middle-end=flambda2
