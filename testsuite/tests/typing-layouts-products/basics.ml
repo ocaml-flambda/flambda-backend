@@ -952,11 +952,12 @@ Line 1, characters 19-27:
                        ^^^^^^^^
 Error: This type "string t" = "#(string u * string u)"
        should be an instance of type "('a : any mod global)"
-       The kind of string t is value & value
+       The kind of string t is immediate & immediate
          because it is an unboxed tuple.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
 |}]
+(* CR layouts v7.1: The appearance of [immediate] above is regrettable. *)
 
 type ('a : any mod external_) t
 
@@ -968,14 +969,13 @@ Line 3, characters 9-30:
              ^^^^^^^^^^^^^^^^^^^^^
 Error: This type "#(int * string * int)" should be an instance of type
          "('a : any mod external_)"
-       The kind of #(int * string * int) is
-         immutable_data & immutable_data & immutable_data
+       The kind of #(int * string * int) is immediate & immediate & immediate
          because it is an unboxed tuple.
        But the kind of #(int * string * int) must be a subkind of
          any mod external_
          because of the definition of t at line 1, characters 0-31.
 |}]
-(* CR layouts v7.1: The appearance of [immutable_data] above is regrettable. *)
+(* CR layouts v7.1: The appearance of [immediate] above is regrettable. *)
 
 (********************************************)
 (* Test 17: Subkinding with sorts and [any] *)

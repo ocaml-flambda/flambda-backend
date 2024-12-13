@@ -976,10 +976,10 @@ let transl_declaration env sdecl (id, uid) =
           (* The jkinds below, and the ones in [lbls], are dummy jkinds which
              are replaced and made to correspond to each other in
              [update_decl_jkind]. *)
-          let jkind_ls =
-            List.map (fun _ -> Jkind.Builtin.any ~why:Initial_typedecl_env) lbls
+          let jkind =
+            Jkind.Builtin.product_of_sorts ~why:Unboxed_record
+              (List.length lbls)
           in
-          let jkind = Jkind.Builtin.product ~why:Unboxed_record jkind_ls in
           Ttype_record_unboxed_product lbls,
           Type_record_unboxed_product(lbls', Record_unboxed_product), jkind
       | Ptype_open ->
@@ -1824,18 +1824,21 @@ let update_decl_jkind env dpath decl =
     | Type_record_unboxed_product (lbls, rep) ->
         begin match rep with
         | Record_unboxed_product ->
-          let lbls, jkinds =
+          let lbls =
             List.map (fun (Types.{ld_type} as lbl) ->
               let jkind = Ctype.type_jkind env ld_type in
               (* This next line is guaranteed to be OK because of a call to
                  [check_representable] *)
               let sort = Jkind.sort_of_jkind jkind in
               let ld_sort = Jkind.Sort.default_to_value_and_get sort in
-              {lbl with ld_sort}, jkind
+              {lbl with ld_sort}
             ) lbls
-            |> List.split
           in
-          let type_jkind = Jkind.Builtin.product ~why:Unboxed_record jkinds in
+          let type_jkind =
+            Jkind.for_unboxed_record
+              ~jkind_of_type:(Ctype.estimate_type_jkind env)
+              lbls
+          in
           let type_jkind, type_has_illegal_crossings =
             add_crossings type_jkind in
           { decl with type_kind = Type_record_unboxed_product (lbls, rep);

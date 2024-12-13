@@ -161,6 +161,11 @@ module Layout = struct
     | Base b -> Sort (Sort.of_base b)
     | Product cs -> Product (List.map of_const cs)
 
+  let product = function
+    | [] -> Misc.fatal_error "Layout.product: empty product"
+    | [lay] -> lay
+    | lays -> Product lays
+
   let rec to_sort = function
     | Any -> None
     | Sort s -> Some s
@@ -1148,6 +1153,8 @@ end
 module Jkind_desc = struct
   open Jkind_types.Layout_and_axes
 
+  type nonrec 'd t = (Types.type_expr, Sort.t Layout.t, 'd) t
+
   let of_const t = Layout_and_axes.map Layout.of_const t
 
   let add_nullability_crossing t =
@@ -1236,35 +1243,23 @@ module Jkind_desc = struct
     let immediate = of_const Const.Builtin.immediate.jkind
   end
 
-  let product jkinds =
-    (* CR layouts v7.1: Here we throw away the history of the component
-       jkinds. This is not great. We should, as part of a broader pass on error
-       messages around product kinds, zip them up into some kind of product
-       history. *)
-    let folder (layouts, annotations, upper_bounds_acc)
-        { jkind = { layout; upper_bounds };
-          annotation;
-          history = _;
-          has_warned = _
-        } =
-      ( layout :: layouts,
-        annotation :: annotations,
-        Bounds.join upper_bounds upper_bounds_acc )
-    in
-    let layouts, annotations, upper_bounds =
-      List.fold_left folder ([], [], Bounds.(min |> disallow_right)) jkinds
-    in
-    let layouts = List.rev layouts in
-    let annotations = List.rev annotations in
-    let annotations = Misc.Stdlib.Monad.Option.all annotations in
-    let annotation =
-      Option.map
-        (fun annotations ->
-          Parsetree.
-            { pjkind_loc = Location.none; pjkind_desc = Product annotations })
-        annotations
-    in
-    { layout : _ Layout.t = Product layouts; upper_bounds }, annotation
+  let product ~jkind_of_first_type tys layouts =
+    (* CR layouts v2.8: We can probably drop this special case once we
+       have proper subsumption. The general algorithm gets the right
+       jkind, but the subsumption check fails because it can't recognize
+       that the one it comes up with is right. *)
+    match layouts with
+    | [_] -> (jkind_of_first_type ()).jkind
+    | _ ->
+      let layout = Layout.product layouts in
+      let upper_bounds =
+        List.fold_right
+          (fun ty bounds ->
+            Bounds.add_baggage ~deep_only:false ~baggage:ty bounds)
+          tys
+          (Bounds.min |> Bounds.disallow_right)
+      in
+      { layout; upper_bounds }
 
   let get t = Layout_and_axes.map Layout.get t
 
@@ -1339,13 +1334,19 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
 
-  let product ~why ts =
-    match ts with
-    | [] -> Misc.fatal_error "Jkind.Builtin.product: empty product"
-    | [t] -> t
-    | ts ->
-      let desc, annotation = Jkind_desc.product ts in
-      fresh_jkind_poly desc ~annotation ~why:(Product_creation why)
+  let product ~jkind_of_first_type ~why tys layouts =
+    let desc = Jkind_desc.product ~jkind_of_first_type tys layouts in
+    fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
+
+  let product_of_sorts ~why arity =
+    let layout =
+      Layout.product
+        (List.init arity (fun _ -> fst (Layout.of_new_sort_var ())))
+    in
+    let desc : _ Jkind_desc.t =
+      { layout; upper_bounds = Bounds.max |> Bounds.disallow_right }
+    in
+    fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
 end
 
 let add_nullability_crossing t =
@@ -1469,6 +1470,25 @@ let for_boxed_record lbls =
     add_labels_as_baggage lbls base
 
 (* CR layouts v2.8: This should take modalities into account. *)
+let for_unboxed_record ~jkind_of_type lbls =
+  let open Types in
+  let tys = List.map (fun lbl -> lbl.ld_type) lbls in
+  let layouts =
+    List.map
+      (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
+      lbls
+  in
+  Builtin.product
+    ~jkind_of_first_type:(fun () ->
+      match lbls with
+      | [lbl] -> jkind_of_type lbl.ld_type
+      | _ ->
+        Misc.fatal_error
+          "Jkind.for_unboxed_record: jkind_of_first_type used with more than 1 \
+           type")
+    ~why:Unboxed_record tys layouts
+
+(* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =
   let open Types in
   if List.for_all
@@ -1567,6 +1587,8 @@ let sort_of_jkind (t : jkind_l) : sort =
   sort_of_layout t.jkind.layout
 
 let get_layout jk : Layout.Const.t option = Layout.get_const jk.jkind.layout
+
+let extract_layout jk = jk.jkind.layout
 
 let get_modal_upper_bounds ~type_equal ~jkind_of_type jk : Alloc.Const.t =
   let bounds = jk.jkind.upper_bounds in

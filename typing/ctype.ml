@@ -2182,10 +2182,18 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tarrow _ -> Jkind.for_arrow
   | Ttuple _ -> Jkind.Builtin.value ~why:Tuple
   | Tunboxed_tuple ltys ->
-     Jkind.Builtin.product
-       (List.map (fun (_, ty) ->
-          estimate_type_jkind ~expand_component env (expand_component ty)) ltys)
-       ~why:Unboxed_tuple
+     let tys = List.map (fun (_, ty) -> expand_component ty) ltys in
+     (* CR layouts v2.8: This pretty ridiculous use of [estimate_type_jkind]
+        just to throw most of it away will go away once we get [layout_of]. *)
+     let jkinds = List.map (estimate_type_jkind ~expand_component env) tys in
+     let layouts = List.map Jkind.extract_layout jkinds in
+     Jkind.Builtin.product ~jkind_of_first_type:(fun () ->
+       match jkinds with
+         | first_jkind :: _ -> first_jkind
+         | _ -> Misc.fatal_error
+                  "Ctype.estimate_type_jkind: use of jkind_of_first_type \
+                   with more than 1 type")
+       ~why:Unboxed_tuple tys layouts
   | Tconstr (p, args, _) -> begin try
       let type_decl = Env.find_type p env in
       let jkind = type_decl.type_jkind in
@@ -2216,79 +2224,9 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tpoly (ty, _) -> estimate_type_jkind ~expand_component env ty
   | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
-(* CR layouts v7.2: Remove this function once we have have kind-polymorphic type
-   declarations, and replace its uses with
-   [estimate_type_jkind ~expand_component:(get_unboxed_type_approximation env)].
-
-   [type_jkind_deep] calulates a jkind from a type expression, deeply
-   unfolding unboxed types.
-
-   This deep unfolding is necessary (for now) for declarations like the
-   following:
-
-     type 'a t = #{ i : 'a ; j : 'a }
-     type int_t : immediate & immediate = int t
-
-   Otherwise, [int_t] will be given kind [value & value].
-
-   This function duplicates functionality from [find_unboxed_type] and
-   [constrain_type_jkind]. We're not to factoring out the shared logic because
-   this function will no longer be necessary once we have kind-polymorphic type
-   declarations.
-
-   Returns (ran_out_of_fuel, best_effort_jkind).
-*)
-let rec type_jkind_deep env ty_prev ty fuel =
-  let fuel = fuel - 1 in
-  if fuel < 0 then
-    let _, jkind = type_unboxed_jkind_deep env ty fuel in
-    true, jkind
-  else
-  let ty = expand_head_opt env ty in
-  match unbox_once env ty with
-  | Stepped ty' -> type_jkind_deep env ty ty' fuel
-  | Stepped_record_unboxed_product component_tys ->
-    let out_of_fuel, component_jkinds =
-      types_jkinds_deep env component_tys fuel in
-    out_of_fuel, Jkind.Builtin.product ~why:Unboxed_record component_jkinds
-  | Final_result -> type_unboxed_jkind_deep env ty fuel
-  | Missing _ -> type_unboxed_jkind_deep env ty_prev fuel
-and types_jkinds_deep env tys fuel =
-  List.fold_left_map (fun any_out_of_fuel ty ->
-    let out_of_fuel, jkind = type_jkind_deep env ty ty fuel in
-    (any_out_of_fuel || out_of_fuel), jkind
-  ) false tys
-and type_unboxed_jkind_deep env ty fuel =
-  (* We've scraped off [@@unboxed] and unboxed records as much as we can. *)
-  match get_desc ty with
-  | Tvar { jkind } -> false, Jkind.disallow_right jkind
-  | Tarrow _ -> false, Jkind.for_arrow
-  | Ttuple _ -> false, Jkind.Builtin.value ~why:Tuple
-  | Tunboxed_tuple ltys ->
-    let out_of_fuel, component_jkinds =
-      types_jkinds_deep env (List.map snd ltys) fuel in
-    out_of_fuel, Jkind.Builtin.product ~why:Unboxed_tuple component_jkinds
-  | Tconstr (p, _, _) -> begin
-      try
-        false, (Env.find_type p env).type_jkind
-      with
-        Not_found -> false, Jkind.Builtin.any ~why:(Missing_cmi p)
-    end
-  | Tobject _ -> false, Jkind.for_object
-  | Tfield _ -> false, Jkind.Builtin.value ~why:Tfield
-  | Tnil -> false, Jkind.Builtin.value ~why:Tnil
-  | Tlink _ | Tsubst _ -> assert false
-  | Tvariant row ->
-     if tvariant_not_immediate row
-     then false, Jkind.Builtin.value ~why:Polymorphic_variant
-     else false, Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
-  | Tunivar { jkind } -> false, Jkind.disallow_right jkind
-  | Tpoly (ty, _) -> type_unboxed_jkind_deep env ty fuel
-  | Tpackage _ -> false, Jkind.Builtin.value ~why:First_class_module
-
 let type_jkind env ty =
-  let _, jkind = type_jkind_deep env ty ty 100 in
-  jkind
+  estimate_type_jkind ~expand_component:(get_unboxed_type_approximation env) env
+    (get_unboxed_type_approximation env ty)
 
 (* CR layouts v2.8: This function is quite suspect. See Jane Street internal
    gdoc titled "Let's kill type_jkind_purely". *)

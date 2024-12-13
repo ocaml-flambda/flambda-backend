@@ -300,16 +300,25 @@ module Builtin : sig
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:History.immediate_creation_reason -> 'd t
 
-  (** Attempt to build a jkind of unboxed products.
-      - If zero input kinds are given, it errors.
-      - If a single input kind is given, then it returns that kind.
-      - If two or more input kinds are given, then the layout will be the
-        product of the layouts of the input kinds, and the other components of
-        the kind will be the join relevant component of the inputs.
+  (** Build a jkind of unboxed products, from a list of types with
+      their layouts. Errors if zero inputs are given. If only one input
+      is given, returns the result of calling [jkind_of_first_type].
 
-      This is defined to work only on [jkind_l] simply as a matter of
-      convenience; it can be generalized if need be.  *)
-  val product : why:History.product_creation_reason -> jkind_l list -> jkind_l
+      Precondition: both input lists are the same length.
+
+      This returns an [jkind_l] simply as a matter of convenience; it can be
+      generalized if need be.  *)
+  val product :
+    jkind_of_first_type:(unit -> jkind_l) ->
+    why:History.product_creation_reason ->
+    Types.type_expr list ->
+    Sort.t Layout.t list ->
+    jkind_l
+
+  (** Build a jkind of unboxed products, given only an arity. This jkind
+      will not mode-cross, even though unboxed products generally should.
+      This is useful when creating an initial jkind in Typedecl. *)
+  val product_of_sorts : why:History.product_creation_reason -> int -> jkind_l
 end
 
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
@@ -402,6 +411,14 @@ val of_type_decl_default :
 (** Choose an appropriate jkind for a boxed record type *)
 val for_boxed_record : Types.label_declaration list -> jkind_l
 
+(** Choose an appropriate jkind for an unboxed record type. Uses [jkind_of_type]
+    only in the singleton case, where the jkind of the unboxed record must match
+    that of the single field. *)
+val for_unboxed_record :
+  jkind_of_type:(Types.type_expr -> jkind_l) ->
+  Types.label_declaration list ->
+  jkind_l
+
 (** Choose an appropriate jkind for a boxed variant type. *)
 val for_boxed_variant : Types.constructor_declaration list -> jkind_l
 
@@ -454,6 +471,11 @@ val sort_of_jkind : jkind_l -> sort
 (** Gets the layout of a jkind; returns [None] if the layout is still unknown.
     Never does mutation. *)
 val get_layout : 'd t -> Layout.Const.t option
+
+(* CR reisenberg: do we need [extract_layout]? *)
+
+(** Gets the layout of a jkind, without looking through sort variables. *)
+val extract_layout : 'd t -> Sort.t Layout.t
 
 (** Gets the maximum modes for types of this jkind. *)
 val get_modal_upper_bounds :

@@ -82,7 +82,7 @@ Line 2, characters 0-35:
 2 | and 'a r = #{ a : 'a ; v : t_void }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of 'a r is any & any
+       The layout of 'a r is '_representable_layout_1 & '_representable_layout_2
          because it is an unboxed record.
        But the layout of 'a r must be a sublayout of value
          because it's the type of a constructor field.
@@ -96,7 +96,7 @@ Line 2, characters 0-35:
 2 | and 'a r = #{ a : 'a ; v : t_void }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of 'a r is any & any
+       The layout of 'a r is '_representable_layout_3 & '_representable_layout_4
          because it is an unboxed record.
        But the layout of 'a r must be a sublayout of value
          because it is the type of record field x.

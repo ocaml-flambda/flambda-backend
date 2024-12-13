@@ -1,5 +1,5 @@
 (* TEST
- flags = " -w +A -strict-sequence -extension layouts_beta";
+ flags = " -w +A -strict-sequence -extension layouts_alpha";
  expect;
 *)
 
