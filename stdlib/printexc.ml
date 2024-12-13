@@ -24,7 +24,7 @@ type t = exn = ..
 
 let printers = Atomic.Safe.make []
 
-let locfmt = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
+let locfmt () = format_of_string "File \"%s\", line %d, characters %d-%d: %s"
 
 let field x i =
   let f = Obj.field x i in
@@ -75,11 +75,11 @@ let to_string_default = function
   | Out_of_memory -> "Out of memory"
   | Stack_overflow -> "Stack overflow"
   | Match_failure(file, line, char) ->
-      sprintf locfmt file line char (char+5) "Pattern matching failed"
+      sprintf (locfmt ()) file line char (char+5) "Pattern matching failed"
   | Assert_failure(file, line, char) ->
-      sprintf locfmt file line char (char+6) "Assertion failed"
+      sprintf (locfmt ()) file line char (char+6) "Assertion failed"
   | Undefined_recursive_module(file, line, char) ->
-      sprintf locfmt file line char (char+6) "Undefined recursive module"
+      sprintf (locfmt ()) file line char (char+6) "Undefined recursive module"
   | x ->
       string_of_extension_constructor (Obj.repr x)
 
@@ -111,9 +111,9 @@ type raw_backtrace = raw_backtrace_entry array
 let raw_backtrace_entries bt = bt
 
 external get_raw_backtrace:
-  unit -> raw_backtrace = "caml_get_exception_raw_backtrace"
+  unit -> raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a
+external raise_with_backtrace: exn -> raw_backtrace -> 'a @ portable @@ portable
   = "%raise_with_backtrace"
 
 (* Disable warning 37: values are constructed in the runtime *)
@@ -134,10 +134,10 @@ type[@warning "-37"] backtrace_slot =
     }
 
 external convert_raw_backtrace_slot:
-  raw_backtrace_slot -> backtrace_slot = "caml_convert_raw_backtrace_slot"
+  raw_backtrace_slot -> backtrace_slot @@ portable = "caml_convert_raw_backtrace_slot"
 
 external convert_raw_backtrace:
-  raw_backtrace -> backtrace_slot array = "caml_convert_raw_backtrace"
+  raw_backtrace -> backtrace_slot array @@ portable = "caml_convert_raw_backtrace"
 
 let convert_raw_backtrace bt =
   try Some (convert_raw_backtrace bt)
@@ -272,27 +272,28 @@ end
 let raw_backtrace_length bt = Array.length bt
 
 external get_raw_backtrace_slot :
-  raw_backtrace -> int -> raw_backtrace_slot = "caml_raw_backtrace_slot"
+  raw_backtrace -> int -> raw_backtrace_slot @@ portable = "caml_raw_backtrace_slot"
 
 external get_raw_backtrace_next_slot :
-  raw_backtrace_slot -> raw_backtrace_slot option
+  raw_backtrace_slot -> raw_backtrace_slot option @@ portable
   = "caml_raw_backtrace_next_slot"
 
 (* confusingly named:
    returns the *string* corresponding to the global current backtrace *)
 let get_backtrace () = raw_backtrace_to_string (get_raw_backtrace ())
 
-external record_backtrace: bool -> unit = "caml_record_backtrace"
-external backtrace_status: unit -> bool = "caml_backtrace_status"
+external record_backtrace: bool -> unit @@ portable = "caml_record_backtrace"
+external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 
-let rec register_printer fn =
-  (* CR tdelvecchio: Fix unsafe use of [Atomic]. *)
-  let old_printers = (Atomic.get [@alert "-unsafe"]) printers in
+let rec register_printer_safe fn =
+  let old_printers = Atomic.Safe.get printers in
   let new_printers = fn :: old_printers in
-  let success = (Atomic.compare_and_set [@alert "-unsafe"]) printers old_printers new_printers in
-  if not success then register_printer fn
+  let success = Atomic.Safe.compare_and_set printers old_printers new_printers in
+  if not success then register_printer_safe fn
 
-external get_callstack: int -> raw_backtrace = "caml_get_current_callstack"
+let register_printer_unsafe fn = register_printer_safe (Obj.magic_portable fn)
+
+external get_callstack: int -> raw_backtrace @@ portable = "caml_get_current_callstack"
 
 let exn_slot x =
   let x = Obj.repr x in
@@ -306,7 +307,7 @@ let exn_slot_name x =
   let slot = exn_slot x in
   (Obj.obj (Obj.field slot 0) : string)
 
-external get_debug_info_status : unit -> int = "caml_ml_debug_info_status"
+external get_debug_info_status : unit -> int @@ portable = "caml_ml_debug_info_status"
 
 (* Descriptions for errors in startup.h. See also backtrace.c *)
 let errors = [| "";
@@ -324,18 +325,27 @@ let errors = [| "";
       bytecode executable program file cannot be opened;\n \
       -- too many open files. Try running with OCAMLRUNPARAM=b=2)"
 |]
+|> Obj.magic_portable (* CR tdelvecchio: remove once we have with-kinds *)
 
 let default_uncaught_exception_handler exn raw_backtrace =
   eprintf "Fatal error: exception %s\n" (to_string exn);
   print_raw_backtrace stderr raw_backtrace;
   let status = get_debug_info_status () in
+  let errors =
+    (* This magic is safe, since [errors] is never mutated. *)
+    Obj.magic_uncontended errors
+  in
   if status < 0 then
     prerr_endline errors.(abs status);
   flush stderr
 
-let uncaught_exception_handler = ref default_uncaught_exception_handler
+let uncaught_exception_handler = Atomic.Safe.make default_uncaught_exception_handler
 
-let set_uncaught_exception_handler fn = uncaught_exception_handler := fn
+let set_uncaught_exception_handler_safe fn = Atomic.Safe.set uncaught_exception_handler fn
+
+
+let set_uncaught_exception_handler_unsafe fn =
+  set_uncaught_exception_handler_safe (Obj.magic_portable fn)
 
 let empty_backtrace : raw_backtrace = [| |]
 
@@ -357,7 +367,7 @@ let handle_uncaught_exception' exn debugger_in_use =
     in
     (try Stdlib.do_at_exit () with _ -> ());
     try
-      !uncaught_exception_handler exn raw_backtrace
+      (Atomic.Safe.get uncaught_exception_handler) exn raw_backtrace
     with exn' ->
       let raw_backtrace' = try_get_raw_backtrace () in
       eprintf "Fatal error: exception %s\n" (to_string exn);
@@ -386,3 +396,11 @@ external register_named_value : string -> 'a -> unit
 let () =
   register_named_value "Printexc.handle_uncaught_exception"
     handle_uncaught_exception
+
+module Safe = struct
+  let set_uncaught_exception_handler = set_uncaught_exception_handler_safe
+  let register_printer = register_printer_safe
+end
+
+let set_uncaught_exception_handler = set_uncaught_exception_handler_unsafe
+let register_printer = register_printer_unsafe

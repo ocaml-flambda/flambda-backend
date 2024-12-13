@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Facilities for printing exceptions and inspecting current call stack. *)
@@ -39,7 +41,7 @@ val print: ('a -> 'b) -> 'a -> 'b
    The typical use is to catch and report exceptions that
    escape a function application. *)
 
-val catch: ('a -> 'b) -> 'a -> 'b
+val catch: ('a -> 'b) -> 'a -> 'b @@ nonportable
 [@@ocaml.deprecated "This function is no longer needed."]
 (** [Printexc.catch fn x] is similar to {!Printexc.print}, but
    aborts the program with exit code 2 after printing the
@@ -86,7 +88,8 @@ val backtrace_status: unit -> bool
     @since 3.11
 *)
 
-val register_printer: (exn -> string option) -> unit
+val register_printer: (exn -> string option) -> unit @@ nonportable
+[@@alert unsafe "Use [Printexc.Safe.register_printer]."]
 (** [Printexc.register_printer fn] registers [fn] as an exception
     printer.  The printer should return [None] or raise an exception
     if it does not know how to convert the passed exception, and [Some
@@ -203,7 +206,8 @@ val default_uncaught_exception_handler: exn -> raw_backtrace -> unit
     @since 4.11
 *)
 
-val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
+val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit @@ nonportable
+[@@alert unsafe "Use [Printexc.Safe.set_uncaught_exception_handler]."]
 (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
     for uncaught exceptions. The default handler is
     {!Printexc.default_uncaught_exception_handler}.
@@ -414,6 +418,45 @@ val exn_slot_name: exn -> string
 
     @since 4.02
 *)
+
+module Safe : sig
+  val register_printer: (exn -> string option) @ portable -> unit
+  (** [Printexc.register_printer fn] registers [fn] as an exception
+      printer.  The printer should return [None] or raise an exception
+      if it does not know how to convert the passed exception, and [Some
+      s] with [s] the resulting string if it can convert the passed
+      exception. Exceptions raised by the printer are ignored.
+
+      When converting an exception into a string, the printers will be invoked
+      in the reverse order of their registrations, until a printer returns
+      a [Some s] value (if no such printer exists, the runtime will use a
+      generic printer).
+
+      When using this mechanism, one should be aware that an exception backtrace
+      is attached to the thread that saw it raised, rather than to the exception
+      itself. Practically, it means that the code related to [fn] should not use
+      the backtrace if it has itself raised an exception before.
+      @since 3.11.2
+  *)
+
+  val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) @ portable -> unit
+  (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
+      for uncaught exceptions. The default handler is
+      {!Printexc.default_uncaught_exception_handler}.
+
+      Note that when [fn] is called all the functions registered with
+      {!Stdlib.at_exit} have already been called. Because of this you must
+      make sure any output channel [fn] writes on is flushed.
+
+      Also note that exceptions raised by user code in the interactive toplevel
+      are not passed to this function as they are caught by the toplevel itself.
+
+      If [fn] raises an exception, both the exceptions passed to [fn] and raised
+      by [fn] will be printed with their respective backtrace.
+
+      @since 4.02
+  *)
+end
 
 (**/**)
 
