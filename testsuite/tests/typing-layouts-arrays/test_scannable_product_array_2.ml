@@ -10,6 +10,10 @@
    flags = "-extension layouts_beta";
    bytecode;
  }
+ {
+   flags = "-extension layouts_beta";
+   native;
+ }
 *)
 
 (* CR mshinwell: enable for arm64 once float32 is available *)
