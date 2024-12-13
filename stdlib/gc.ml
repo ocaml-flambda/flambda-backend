@@ -53,27 +53,27 @@ type control = {
   custom_minor_max_size : int;
 }
 
-external stat : unit -> stat = "caml_gc_stat"
-external quick_stat : unit -> stat = "caml_gc_quick_stat"
-external counters : unit -> (float * float * float) = "caml_gc_counters"
-external minor_words : unit -> (float [@unboxed])
+external stat : unit -> stat @@ portable = "caml_gc_stat"
+external quick_stat : unit -> stat @@ portable = "caml_gc_quick_stat"
+external counters : unit -> (float * float * float) @@ portable = "caml_gc_counters"
+external minor_words : unit -> (float [@unboxed]) @@ portable
   = "caml_gc_minor_words" "caml_gc_minor_words_unboxed"
-external get : unit -> control = "caml_gc_get"
-external set : control -> unit = "caml_gc_set"
-external minor : unit -> unit = "caml_gc_minor"
-external major_slice : int -> int = "caml_gc_major_slice"
-external major : unit -> unit = "caml_gc_major"
-external full_major : unit -> unit = "caml_gc_full_major"
-external compact : unit -> unit = "caml_gc_compaction"
-external get_minor_free : unit -> int = "caml_get_minor_free"
+external get : unit -> control @@ portable = "caml_gc_get"
+external set : control -> unit @@ portable = "caml_gc_set"
+external minor : unit -> unit @@ portable = "caml_gc_minor"
+external major_slice : int -> int @@ portable = "caml_gc_major_slice"
+external major : unit -> unit @@ portable = "caml_gc_major"
+external full_major : unit -> unit @@ portable = "caml_gc_full_major"
+external compact : unit -> unit @@ portable = "caml_gc_compaction"
+external get_minor_free : unit -> int @@ portable = "caml_get_minor_free"
 
 (* CR ocaml 5 all-runtime5: These functions are no-ops upstream. We should
    make them no-ops internally when we delete the corresponding C functions
    from the runtime -- they're already marked as deprecated in the mli.
 *)
 
-external eventlog_pause : unit -> unit = "caml_eventlog_pause"
-external eventlog_resume : unit -> unit = "caml_eventlog_resume"
+external eventlog_pause : unit -> unit @@ portable = "caml_eventlog_pause"
+external eventlog_resume : unit -> unit @@ portable = "caml_eventlog_resume"
 
 open Printf
 
@@ -110,11 +110,11 @@ let allocated_bytes () =
 external finalise : ('a -> unit) -> 'a -> unit = "caml_final_register"
 external finalise_last : (unit -> unit) -> 'a -> unit =
   "caml_final_register_called_without_value"
-external finalise_release : unit -> unit = "caml_final_release"
+external finalise_release : unit -> unit @@ portable = "caml_final_release"
 
 
 type alarm = bool Atomic.Safe.t
-type alarm_rec = {active : alarm; f : unit -> unit}
+type alarm_rec : value mod uncontended = {active : alarm; f : unit -> unit}
 
 let rec call_alarm arec =
   if Atomic.Safe.get arec.active then begin
@@ -133,6 +133,33 @@ let [@inline never] create_alarm f =
   finalise call_alarm arec;
   alarm
 
+module Safe = struct
+  external finalise
+    : ('a @ portable contended -> unit) @ portable -> 'a @ portable contended -> unit
+    @@ portable
+    = "caml_final_register"
+
+  external finalise_last : (unit -> unit) @ portable -> 'a -> unit @@ portable =
+    "caml_final_register_called_without_value"
+
+  let rec call_alarm (arec : alarm_rec) =
+    if Atomic.Safe.get arec.active then begin
+      let finally () = finalise call_alarm arec in
+      Fun.protect ~finally arec.f
+    end
+
+  (* CR tdelvecchio: Switch to [Domain.Safe.at_exit]. *)
+  let domain_at_exit = Obj.magic_portable Domain.at_exit
+
+  (* We use [@inline never] to ensure [arec] is never statically allocated
+     (which would prevent installation of the finaliser). *)
+  let [@inline never] create_alarm f =
+    let alarm = Atomic.Safe.make true in
+    domain_at_exit (fun () -> delete_alarm alarm);
+    let arec = { active = alarm; f = f } in
+    finalise call_alarm arec;
+    alarm
+end
 
 module Memprof =
   struct
@@ -170,9 +197,21 @@ module Memprof =
       tracker =
       c_start sampling_rate callstack_size tracker
 
-    external stop : unit -> unit = "caml_memprof_stop"
+    module Safe = struct
+      external c_start :
+        float -> int -> ('minor, 'major) tracker @ portable -> t @@ portable
+        = "caml_memprof_start"
 
-    external discard : t -> unit = "caml_memprof_discard"
+      let start
+        ~sampling_rate
+        ?(callstack_size = max_int)
+        tracker =
+        c_start sampling_rate callstack_size tracker
+    end
+
+    external stop : unit -> unit @@ portable = "caml_memprof_stop"
+
+    external discard : t -> unit @@ portable = "caml_memprof_discard"
   end
 
 module Tweak = struct
