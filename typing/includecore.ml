@@ -47,6 +47,10 @@ type value_mismatch =
 
 exception Dont_match of value_mismatch
 
+type mmodes =
+  | All
+  | Legacy
+
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
     match nra1, nra2 with
@@ -105,19 +109,19 @@ let value_descriptions ~loc env name
   | Error e -> raise (Dont_match (Zero_alloc e))
   end;
   begin match mmodes with
-  | None -> begin
+  | All -> begin
       match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
       | Ok () -> ()
       | Error e -> raise (Dont_match (Modality e))
       end;
-  | Some _
+  | Legacy
       (* [wrap_constraint_with_shape] invokes inclusion check with idential
         inferred modalities, which we need to workaround. *)
       when (vd1.val_modalities == vd2.val_modalities) ->
       (* The caller ensures [mmode1 <= mmode2] beforing calling us, so nothing
           to check here *)
       ()
-  | Some () ->
+  | Legacy ->
       let mmode1, mmode2 = Mode.Value.legacy, Mode.Value.legacy in
       let mode1 = Mode.Modality.Value.apply vd1.val_modalities mmode1 in
       let mode2 =

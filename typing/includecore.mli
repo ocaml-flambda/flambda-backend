@@ -121,11 +121,16 @@ type type_mismatch =
   | Extensible_representation of position
   | Jkind of Jkind.Violation.t
 
+type mmodes =
+  | All
+  (** Check module inclusion [M1 : MT1 @ m1 <= M2 : MT2 @ m2]
+      for all [m1 <= m2]. *)
+  | Legacy
+  (** Check module inclusion [M1 : MT1 @ legacy <= M2 : MT2 @ legacy]. *)
+
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->
-  mmodes:unit option ->
-  (* [unit] because modules are fixed to legacy. Will be replaced by
-     [Mode.Value.(l * r)] when allow modal modules. *)
+  mmodes:mmodes ->
   value_description -> value_description -> module_coercion
 
 val type_declarations:

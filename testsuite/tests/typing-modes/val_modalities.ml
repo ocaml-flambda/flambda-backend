@@ -721,7 +721,10 @@ Error: Signature mismatch:
        The second is global_ and the first is not.
 |}]
 
-(* Similar for functor type declaration *)
+(* functor type inclusion: the following two functor types are equivalent,
+  because a functor of the first type at any mode, can be zero-runtime casted
+  to the second type at the same mode. Essentially, the parameter and return
+  mode is in the functor type, and doesn't depend on the mode of the functor. *)
 module M : sig
   module type F = (sig val foo : 'a @@ global many end) ->
     (sig end)
@@ -730,37 +733,8 @@ end = struct
     (sig end)
 end
 [%%expect{|
-Lines 4-7, characters 6-3:
-4 | ......struct
-5 |   module type F = (sig val foo : 'a end) ->
-6 |     (sig end)
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig module type F = sig val foo : 'a end -> sig end end
-       is not included in
-         sig
-           module type F = sig val foo : 'a @@ global many end -> sig end
-         end
-       Module type declarations do not match:
-         module type F = sig val foo : 'a end -> sig end
-       does not match
-         module type F = sig val foo : 'a @@ global many end -> sig end
-       The second module type is not included in the first
-       At position "module type F = <here>"
-       Modules do not match:
-         functor $S1 -> ...
-       is not included in
-         functor $T1 -> ...
-       Module types do not match:
-         $S1 = sig val foo : 'a @@ global many end
-       does not include
-         $T1 = sig val foo : 'a end
-       Values do not match:
-         val foo : 'a
-       is not included in
-         val foo : 'a @@ global many
-       The second is global_ and the first is not.
+module M :
+  sig module type F = sig val foo : 'a @@ global many end -> sig end end
 |}]
 
 module M : sig
@@ -771,39 +745,7 @@ end = struct
     (sig end) -> (sig val foo : 'a @@ global many end)
 end
 [%%expect{|
-Lines 4-7, characters 6-3:
-4 | ......struct
-5 |   module type F =
-6 |     (sig end) -> (sig val foo : 'a @@ global many end)
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           module type F = sig end -> sig val foo : 'a @@ global many end
-         end
-       is not included in
-         sig module type F = sig end -> sig val foo : 'a end end
-       Module type declarations do not match:
-         module type F = sig end -> sig val foo : 'a @@ global many end
-       does not match
-         module type F = sig end -> sig val foo : 'a end
-       The second module type is not included in the first
-       At position "module type F = <here>"
-       Module types do not match:
-         sig end -> sig val foo : 'a end
-       is not equal to
-         sig end -> sig val foo : 'a @@ global many end
-       At position "module type F = <here>"
-       Modules do not match:
-         sig val foo : 'a end
-       is not included in
-         sig val foo : 'a @@ global many end
-       At position "module type F = <here>"
-       Values do not match:
-         val foo : 'a
-       is not included in
-         val foo : 'a @@ global many
-       The second is global_ and the first is not.
+module M : sig module type F = sig end -> sig val foo : 'a end end
 |}]
 
 module type T = sig @@ portable

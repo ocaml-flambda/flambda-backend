@@ -25,6 +25,9 @@ type pos =
   | Arg of functor_parameter
   | Body of functor_parameter
 
+type modes = Includecore.mmodes =
+  | All
+  | Legacy
 
 module Error = struct
 
@@ -37,7 +40,9 @@ module Error = struct
          converted to an unit module  *)
 
   type ('a,'b) diff = {got:'a; expected:'a; symptom:'b}
+  type 'a core_diff =('a,unit) diff
   let diff x y s = {got=x;expected=y; symptom=s}
+  let sdiff x y = {got=x; expected=y; symptom=()}
 
   type core_sigitem_symptom =
     | Value_descriptions of (value_description, Includecore.value_mismatch) diff
@@ -77,10 +82,7 @@ module Error = struct
   and arg_functor_param_symptom =
     (functor_parameter, Ident.t) functor_param_symptom
 
-  and functor_params_symptom = bool
-
-  and functor_params_diff =
-    (functor_parameter list * module_type, functor_params_symptom) diff
+  and functor_params_diff = (functor_parameter list * module_type) core_diff
 
   and signature_symptom = {
     env: Env.t;
@@ -558,20 +560,9 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
       end
 
   | Mty_functor (param1, res1), Mty_functor (param2, res2) ->
-      let modes_param, modes_res =
-        match modes with
-        | None ->
-            (* comparing two modules type decls, in which case we compare functor
-            parameter and return as module type decls. *)
-            None, None
-        | Some () ->
-            (* comparing two modules, in which case we compare functor parameter
-            and return as modules. *)
-            Some (), Some ()
-      in
       let cc_arg, env, subst =
         functor_param ~in_eq ~loc env ~mark:(negate_mark mark)
-          subst ~modes:modes_param param1 param2
+          subst param1 param2
       in
       let var, res_shape =
         match Shape.decompose_abs orig_shape with
@@ -588,7 +579,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
             var, Shape.app orig_shape ~arg:shape_var
       in
       let cc_res =
-        modtypes ~in_eq ~loc env ~mark subst ~modes:modes_res res1 res2 res_shape
+        modtypes ~in_eq ~loc env ~mark subst res1 res2 res_shape ~modes:Legacy
       in
       begin match cc_arg, cc_res with
       | Ok Tcoerce_none, Ok (Tcoerce_none, final_res_shape) ->
@@ -608,10 +599,9 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
       | _, Error {Error.symptom = Error.Functor Error.Params res; _} ->
           let got_params, got_res = res.got in
           let expected_params, expected_res = res.expected in
-          let d = Error.diff
+          let d = Error.sdiff
               (force_functor_parameter param1::got_params, got_res)
               (force_functor_parameter param2::expected_params, expected_res)
-              (Option.is_some modes)
           in
           Error Error.(Functor (Params d))
       | Error _, _ ->
@@ -621,10 +611,9 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
           let params2, res2 =
             retrieve_functor_params env (Subst.Lazy.force_modtype res2)
           in
-          let d = Error.diff
+          let d = Error.sdiff
             (force_functor_parameter param1::params1, res1)
             (force_functor_parameter param2::params2, res2)
-            (Option.is_some modes)
           in
           Error Error.(Functor (Params d))
       | Ok _, Error res ->
@@ -668,7 +657,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
             let params2 =
               retrieve_functor_params env (Subst.Lazy.force_modtype mty2)
             in
-            let d = Error.diff params1 params2 (Option.is_some modes) in
+            let d = Error.sdiff params1 params2 in
             Error Error.(Functor (Params d))
         | _, (Mty_ident _ | Mty_strengthen _) ->
             Error Error.(Mt_core Not_an_identifier)
@@ -679,7 +668,7 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
 
 (* Functor parameters *)
 
-and functor_param ~in_eq ~loc env ~mark subst ~modes param1 param2 =
+and functor_param ~in_eq ~loc env ~mark subst param1 param2 =
   let open Subst.Lazy in
   match param1, param2 with
   | Unit, Unit ->
@@ -688,7 +677,7 @@ and functor_param ~in_eq ~loc env ~mark subst ~modes param1 param2 =
       let arg2' = Subst.Lazy.modtype Keep subst arg2 in
       let cc_arg =
         match
-          modtypes ~in_eq ~loc env ~mark Subst.identity ~modes arg2' arg1
+          modtypes ~in_eq ~loc env ~mark Subst.identity ~modes:Legacy arg2' arg1
                 Shape.dummy_mod
         with
         | Ok (cc, _) -> Ok cc
@@ -724,14 +713,14 @@ and strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
   modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 shape
 
 and strengthened_module_decl ~loc ~aliasable env ~mark
-    subst ~mmodes md1 path1 md2 shape =
+    subst ~mmodes  md1 path1 md2 shape =
   let md1 = Subst.Lazy.of_module_decl md1 in
   let md1 = Mtype.strengthen_lazy_decl ~aliasable md1 path1 in
   let mty2 = Subst.Lazy.of_modtype md2.md_type in
   let modes =
     match mmodes with
-    | None -> None
-    | Some () -> Some ()
+    | All -> All
+    | Legacy -> Legacy
   in
   modtypes ~in_eq:false ~loc env ~mark subst ~modes md1.md_type mty2 shape
 
@@ -937,10 +926,8 @@ and module_declarations  ~in_eq ~loc env ~mark  subst id1 ~mmodes md1 md2 orig_s
     Env.mark_module_used md1.md_uid;
   let modes =
     match mmodes with
-    | None -> None
-    | Some () ->
-      (* comparing modules. Parent module is fixed to be legacy, so are we. *)
-      Some ()
+    | All -> All
+    | Legacy -> Legacy
   in
   strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst ~modes
     md1.md_type p1 md2.md_type orig_shape
@@ -974,7 +961,8 @@ and modtype_infos ~in_eq ~loc env ~mark subst id info1 info2 =
 
 and check_modtype_equiv ~in_eq ~loc env ~mark mty1 mty2 =
   let c1 =
-    modtypes ~in_eq:true ~loc env ~mark Subst.identity ~modes:None mty1 mty2 Shape.dummy_mod
+    modtypes ~in_eq:true ~loc env ~mark Subst.identity mty1 mty2 Shape.dummy_mod
+      ~modes:All
   in
   let c2 =
     (* For nested module type paths, we check only one side of the equivalence:
@@ -985,7 +973,7 @@ and check_modtype_equiv ~in_eq ~loc env ~mark mty1 mty2 =
     else
       let mark = negate_mark mark in
       Some (
-        modtypes ~in_eq:true ~loc env ~mark Subst.identity ~modes:None
+        modtypes ~in_eq:true ~loc env ~mark Subst.identity ~modes:All
           mty2 mty1 Shape.dummy_mod
       )
   in
@@ -1004,7 +992,7 @@ let include_functor_signatures ~loc env ~mark subst sig1 sig2 mod_shape =
   let _, _, comps1 = build_component_table (fun _pos name -> name) sig1 in
   let paired, unpaired, subst = pair_components subst comps1 sig2 in
   let d = signature_components ~in_eq:false ~loc ~mark env subst mod_shape
-            Shape.Map.empty ~mmodes:(Some ())
+            Shape.Map.empty ~mmodes:Legacy
             (List.rev paired)
   in
   let open Sign_diff in
@@ -1059,7 +1047,7 @@ exception Apply_error of {
 let check_modtype_inclusion_raw ~loc env mty1 path1 mty2 =
   let aliasable = can_alias env path1 in
   strengthened_modtypes ~in_eq:false ~loc ~aliasable env ~mark:Mark_both
-    Subst.identity ~modes:(Some ()) mty1 path1 mty2 Shape.dummy_mod
+    Subst.identity ~modes:Legacy mty1 path1 mty2 Shape.dummy_mod
   |> Result.map fst
 
 let check_modtype_inclusion ~loc env mty1 path1 mty2 =
@@ -1098,7 +1086,7 @@ let compunit0
     ~comparison env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
   match
     signatures ~in_eq:false ~loc:(Location.in_file impl_name) env ~mark
-      Subst.identity ~modes:(Some ()) impl_sig intf_sig unit_shape
+      Subst.identity ~modes:Legacy impl_sig intf_sig unit_shape
   with Result.Error reasons ->
     let diff = Error.diff impl_name intf_name reasons in
     let cdiff =
@@ -1211,12 +1199,7 @@ module Functor_inclusion_diff = struct
         in
         expand_params { st with env; subst }
 
-  let diff env ~modes (l1,res1) (l2,_) =
-    let modes_param =
-      match modes with
-      | None -> None
-      | Some _ -> Some ()
-    in
+  let diff env (l1,res1) (l2,_) =
     let module Compute = Diff.Left_variadic(struct
         let test st mty1 mty2 =
           let loc = Location.none in
@@ -1224,7 +1207,7 @@ module Functor_inclusion_diff = struct
             let mty1 = Subst.Lazy.of_functor_parameter mty1 in
             let mty2 = Subst.Lazy.of_functor_parameter mty2 in
             functor_param ~in_eq:false ~loc st.env ~mark:Mark_neither
-              st.subst ~modes:modes_param mty1 mty2
+              st.subst mty1 mty2
           in
           res
         let update = update
@@ -1319,7 +1302,7 @@ module Functor_app_diff = struct
             | ( Anonymous | Named _ | Empty_struct ), Named (_, param) ->
                 match
                   modtypes ~in_eq:false ~loc state.env ~mark:Mark_neither
-                    state.subst ~modes:(Some ()) arg_mty param Shape.dummy_mod
+                    state.subst ~modes:Legacy arg_mty param Shape.dummy_mod
                 with
                 | Error mty -> Result.Error (Error.Mismatch mty)
                 | Ok (cc, _) -> Ok cc
