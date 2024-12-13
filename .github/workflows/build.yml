@@ -19,64 +19,74 @@ jobs:
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,regalloc=cfg'
 
           - name: flambda2_dev
             config: --enable-middle-end=flambda2 --enable-dev
             os: ubuntu-latest
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,regalloc=cfg'
 
           - name: flambda2_dev_runtime5
             config: --enable-middle-end=flambda2 --enable-dev --enable-runtime5
             os: ubuntu-latest
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,regalloc=cfg'
 
           - name: flambda2_debug_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
-            build_ocamlparam: ''
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,regalloc=cfg'
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: ''
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,regalloc=cfg'
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
 
           - name: flambda2_o3
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: ''
-            ocamlparam: '_,O3=1'
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,O3=1,regalloc=cfg'
 
           - name: flambda2_o3_heap
             config: --enable-middle-end=flambda2 --disable-stack-allocation
             os: ubuntu-latest
-            build_ocamlparam: ''
-            ocamlparam: '_,O3=1'
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,O3=1,regalloc=cfg'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_polling
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5 --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
-            build_ocamlparam: ''
-            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200,regalloc=cfg'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_debug
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
-            build_ocamlparam: ''
+            build_ocamlparam: '_,regalloc=cfg'
             use_runtime: d
-            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200'
+            ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200,regalloc=cfg'
 
           - name: flambda2_frame_pointers_oclassic_polling
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
-            build_ocamlparam: ''
-            ocamlparam: '_,Oclassic=1'
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,Oclassic=1,regalloc=cfg'
             disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
 
           - name: flambda2_macos_arm64
             config: --enable-middle-end=flambda2 --disable-warn-error
             os: macos-latest
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,regalloc=cfg'
 
           - name: irc
             config: --enable-middle-end=flambda2
