@@ -532,7 +532,7 @@ let discr_pat q pss =
     | ((head, _), _) :: rows ->
       match head.pat_desc with
       | Any -> refine_pat acc rows
-      | Tuple _ | Lazy -> head
+      | Tuple _ | Unboxed_tuple _ | Lazy -> head
       | Record lbls ->
         (* N.B. we could make this case "simpler" by refining the record case
            using [all_record_args].
@@ -550,7 +550,12 @@ let discr_pat q pss =
         in
         let d = { head with pat_desc = Record fields } in
         refine_pat d rows
-      | _ -> acc
+      | Construct _ | Constant _ | Record_unboxed_product _ | Variant _
+      | Array _ -> acc
+      (* CR layouts v7.2: the Record_unboxed_product case should get behavior
+         similar to the [Record] case above, but it's not completely trivial
+         due. See [typing-layouts-unboxed-records/exhaustiveness.ml] for an
+         example where this causes us to give a marginally worse warning. *)
   in
   let q, _ = deconstruct q in
   match q.pat_desc with
