@@ -600,6 +600,11 @@ module Hardware_registers = struct
     match reg.loc with
     | Reg reg_index ->
       let reg_class : int = Proc.register_class reg in
+      if reg_class < 0
+         || reg_class >= Array.length Proc.first_available_register
+      then
+        fatal "XXX invalid register class %d (len=%d)" reg_class
+          (Array.length Proc.first_available_register);
       let reg_index_in_class : int =
         reg_index - Proc.first_available_register.(reg_class)
       in
