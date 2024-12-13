@@ -1270,7 +1270,7 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       let shape =
         List.map (fun typ ->
           Lambda.must_be_value (Typeopt.layout env (to_location loc)
-                                  Jkind.Sort.for_block_element typ))
+                                  Jkind.Sort.Const.for_block_element typ))
           fields
       in
       let useful = List.exists (fun knd -> knd <> Lambda.generic_value) shape in
@@ -1630,10 +1630,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
   let rec make_params ty repr_args repr_res =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
-      let res_sort =
-        Jkind.Sort.of_const
-          (sort_of_native_repr res_repr ~poly_sort)
-      in
+      let res_sort = sort_of_native_repr res_repr ~poly_sort in
       [], Typeopt.layout env error_loc res_sort ty
     | (((_, arg_repr) as arg) :: repr_args), _ ->
       match Typeopt.is_function_type env ty with
@@ -1641,10 +1638,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
           Misc.fatal_errorf "Primitive %s type does not correspond to arity"
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
-          let arg_sort =
-            Jkind.Sort.of_const
-              (sort_of_native_repr arg_repr ~poly_sort)
-          in
+          let arg_sort = sort_of_native_repr arg_repr ~poly_sort in
           let arg_layout =
             Typeopt.layout env error_loc arg_sort arg_ty
           in

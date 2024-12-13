@@ -1082,18 +1082,31 @@ let rec iter_bound_idents
        { f = fun p -> iter_bound_idents f p }
        d
 
-type full_bound_ident_action =
-  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.l -> Jkind.sort -> unit
+type 'sort full_bound_ident_action =
+  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.l -> 'sort -> unit
+
+let for_transl f =
+  f ~of_sort:Jkind.Sort.default_for_transl_and_get ~of_const_sort:Fun.id
+
+let for_typing f =
+  f ~of_sort:Fun.id ~of_const_sort:Jkind.Sort.of_const
 
 (* The intent is that the sort should be the sort of the type of the pattern.
    It's used to avoid computing jkinds from types.  `f` then gets passed
    the sorts of the variables.
 
    This is occasionally used in places where we don't actually know
-   about the sort of the pattern but `f` doesn't care about the sorts. *)
-let iter_pattern_full ~both_sides_of_or f sort pat =
+   about the sort of the pattern but `f` doesn't care about the sorts.
+
+   Because this should work both over [Jkind.Sort.t] and [Jkind.Sort.Const.t],
+   this takes conversion functions [of_sort : Jkind.Sort.t -> 'sort] and
+   [of_const_sort : Jkind.Sort.Const.t -> 'sort]. The need for these is somewhat
+   unfortunate, but it's worth it to allow [Jkind.Sort.Const.t] to be used
+   throughout the transl process. *)
+let iter_pattern_full ~of_sort ~of_const_sort ~both_sides_of_or f sort pat =
+  let value = of_const_sort Jkind.Sort.Const.value in
   let rec loop :
-    type k . full_bound_ident_action -> Jkind.sort -> k general_pattern -> _ =
+    type k . 'sort full_bound_ident_action -> 'sort -> k general_pattern -> _ =
     fun f sort pat ->
       match pat.pat_desc with
       (* Cases where we push the sort inwards: *)
@@ -1112,56 +1125,56 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
             | Variant_boxed _ | Variant_extensible ->
-              (List.map (fun { ca_jkind } -> Jkind.sort_of_jkind ca_jkind )
+              (List.map (fun { ca_jkind } ->
+                 of_sort (Jkind.sort_of_jkind ca_jkind) )
                  cstr.cstr_args)
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->
           List.iter (fun (_, lbl, pat) ->
-            (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
+            (loop f) (of_sort (Jkind.sort_of_jkind lbl.lbl_jkind)) pat)
             lbl_pat_list
       | Tpat_record_unboxed_product (lbl_pat_list, _) ->
           List.iter (fun (_, lbl, pat) ->
-            (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
+            (loop f) (of_sort (Jkind.sort_of_jkind lbl.lbl_jkind)) pat)
             lbl_pat_list
       (* Cases where the inner things must be value: *)
-      | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
+      | Tpat_variant (_, pat, _) -> Option.iter (loop f value) pat
       | Tpat_tuple patl ->
-        List.iter (fun (_, pat) -> loop f Jkind.Sort.value pat) patl
+        List.iter (fun (_, pat) -> loop f value pat) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
       | Tpat_unboxed_tuple patl ->
-        List.iter (fun (_, pat, sort) -> loop f sort pat) patl
-      | Tpat_array (_, arg_sort, patl) -> List.iter (loop f arg_sort) patl
-      | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
+        List.iter (fun (_, pat, sort) -> loop f (of_sort sort) pat) patl
+      | Tpat_array (_, arg_sort, patl) ->
+        List.iter (loop f (of_sort arg_sort)) patl
+      | Tpat_lazy p | Tpat_exception p -> loop f value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()
   in
   loop f sort pat
 
-let rev_pat_bound_idents_full sort pat =
+let rev_pat_bound_idents_full ~of_sort ~of_const_sort sort pat =
   let idents_full = ref [] in
   let add id sloc typ uid _ sort =
     idents_full := (id, sloc, typ, uid, sort) :: !idents_full
   in
-  iter_pattern_full ~both_sides_of_or:false add sort pat;
+  iter_pattern_full
+    ~both_sides_of_or:false ~of_sort ~of_const_sort
+    add sort pat;
   !idents_full
 
 let rev_only_idents idents_full =
   List.rev_map (fun (id,_,_,_,_) -> id) idents_full
 
-let rev_only_idents_and_types idents_full =
-  List.rev_map (fun (id,_,ty,_,_) -> (id,ty)) idents_full
-
 let pat_bound_idents_full sort pat =
-  List.rev (rev_pat_bound_idents_full sort pat)
+  List.rev (for_transl rev_pat_bound_idents_full sort pat)
 
 (* In these two, we don't know the sort, but the sort information isn't used so
    it's fine to lie. *)
-let pat_bound_idents_with_types pat =
-  rev_only_idents_and_types (rev_pat_bound_idents_full Jkind.Sort.value pat)
 let pat_bound_idents pat =
-  rev_only_idents (rev_pat_bound_idents_full Jkind.Sort.value pat)
+  rev_only_idents
+    (for_typing rev_pat_bound_idents_full Jkind.Sort.value pat)
 
 let rev_let_bound_idents_full bindings =
   let idents_full = ref [] in
@@ -1176,7 +1189,9 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
   in
   let checks =
     List.fold_left (fun checks vb ->
-      iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
+      for_typing iter_pattern_full
+        ~both_sides_of_or:true
+        f vb.vb_sort vb.vb_pat;
        match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
        | Tpat_var (id, _, _, _), Texp_function fn ->
          let zero_alloc =
