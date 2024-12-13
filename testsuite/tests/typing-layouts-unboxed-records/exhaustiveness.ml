@@ -16,13 +16,5 @@ let f t t' =
 [%%expect{|
 type t = A | B
 type r = #{ x : t; y : t; }
-Lines 5-7, characters 2-30:
-5 | ..match #{ x = t; y = t' } with
-6 |   | #{ x = A; y = _ } -> true
-7 |   | #{ x = B; y = _ } -> false
-Warning 8 [partial-match]: this pattern-matching is not exhaustive.
-Here is an example of a case that is not matched:
-#{x=B; _ }
-
 val f : t -> t -> bool = <fun>
 |}]

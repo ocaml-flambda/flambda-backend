@@ -431,10 +431,16 @@ let simple_match d h =
   | Constant c1, Constant c2 -> const_compare c1 c2 = 0
   | Lazy, Lazy -> true
   | Record _, Record _ -> true
+  | Record_unboxed_product _, Record_unboxed_product _ -> true
   | Tuple len1, Tuple len2 -> len1 = len2
+  | Unboxed_tuple lbls1, Unboxed_tuple lbls2 ->
+    List.equal (fun (l1, _) (l2, _) -> Option.equal String.equal l1 l2)
+      lbls1 lbls2
   | Array (am1, _, len1), Array (am2, _, len2) -> am1 = am2 && len1 = len2
   | _, Any -> true
-  | _, _ -> false
+  | ( Construct _ | Variant _ | Constant _ | Lazy | Record _
+    | Record_unboxed_product _ | Tuple _ | Unboxed_tuple _ | Array _ | Any),
+    _ -> false
 
 
 
