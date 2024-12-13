@@ -465,11 +465,27 @@ Error: Signature mismatch:
 |}]
 
 
-(* module inclusion check should look at the modes of the modules when comparing
-modalities. Currently modules are always global many, which allows more check to
-pass. *)
+(* module inclusion check should look at the modes of the modules, since some
+module type inclusion is only true for certain modes. Currently modules are
+always global many, which allows more module inclusion. *)
 
-(* module declaration is modal *)
+(* value description inclusion check look at the modes of the enclosing
+   structure. *)
+module M : sig
+  val foo : 'a -> 'a @@ global many
+end = struct
+  include (struct let foo x = x end : sig val foo : 'a -> 'a end)
+end
+[%%expect{|
+module M : sig val foo : 'a -> 'a @@ global many end
+|}]
+
+(* CR zqian: with non-legacy modules, we will extend the tests to modalities on
+module declarations, instead of relying on modalities on value descriptions to
+tell if the extra modes are considered. *)
+
+(* module declaration inclusion check looks at the mode of the enclosing
+   structure, which in turn affects value description inclusion check. *)
 module M : sig
   module N : sig val foo : 'a -> 'a @@ global many end
 end = struct
@@ -479,7 +495,7 @@ end
 module M : sig module N : sig val foo : 'a -> 'a @@ global many end end
 |}]
 
-(* CR zqian: modal inclusion check should cross modes *)
+(* CR zqian: inclusion check should cross modes, if we are comparing modes. *)
 module M : sig
   module N : sig val foo : int @@ portable end
 end = struct
@@ -508,7 +524,7 @@ Error: Signature mismatch:
        The second is portable and the first is nonportable.
 |}]
 
-(* module constraint is modal *)
+(* module constraint inclusion check looks at the modes of modules *)
 module F (M : sig val foo : 'a -> 'a end) = struct
   module M' : sig val foo : 'a -> 'a @@ global many end = M
 end
@@ -529,7 +545,8 @@ module rec M : sig module N : sig val foo : 'a -> 'a @@ global many end end
 |}]
 
 
-(* functor application inclusion check is modal  *)
+(* functor application inclusion check looks at the modes of parameter and
+   argument *)
 module F (M : sig val f : 'a -> 'a @@ global many end) = struct
 end
 [%%expect{|
@@ -550,7 +567,8 @@ end
 module G : functor (M : sig val f : 'a -> 'a end) -> sig val f : 'a -> 'a end
 |}]
 
-(* functor declaration inclusion check is modal (in both parameter and result). *)
+(* functor declaration inclusion check  looks at the modes of parameter and
+  return*)
 module F : (sig val foo : 'a -> 'a end) -> (sig val bar : 'a -> 'a @@ global many end) =
 functor (M : sig val foo : 'a -> 'a @@ global many end) -> struct let bar = M.foo end
 [%%expect{|
@@ -558,7 +576,7 @@ module F :
   sig val foo : 'a -> 'a end -> sig val bar : 'a -> 'a @@ global many end
 |}]
 
-(* CR zqian: package subtyping is not-modal for simplicity
+(* CR zqian: package subtyping doesn't look at the package mode for simplicity.
 NB: coercion is the only place of subtype checking packages; all other places
 are equality check. *)
 module type S = sig val foo : 'a -> 'a @@ global many end
@@ -579,8 +597,8 @@ Line 1, characters 26-57:
 Error: Type "(module S')" is not a subtype of "(module S)"
 |}]
 
-(* module equality/substitution is modal, even inside a module type declaration
-   *)
+(* module equality/substitution inclusion check looks at modes of modules, even
+   when inside a module type declaration *)
 module type S = sig
   module M : sig
     val foo : 'a -> 'a @@ global many
@@ -623,7 +641,8 @@ module type F =
     end
 |}]
 
-(* strenghtening is modal, even inside a module type declaration. *)
+(* strenghtening inclusion check looks at module modes, even inside a module
+  type declaration. *)
 module type F = functor (M : sig val foo : 'a -> 'a end) -> sig
   module type S = sig val foo : 'a -> 'a @@ global many end with M
 end
@@ -635,7 +654,7 @@ module type F =
 
 
 (* module type declaration inclusion check doesn't look at the enclosing
-   structure's mode. *)
+   structure's mode, because that mode is irrelevant. *)
 module M : sig
   module type S = sig val foo : 'a end
 end = struct
@@ -670,7 +689,7 @@ Error: Signature mismatch:
 |}]
 
 (* Module declaration inclusion check inside a module type declaration inclusion
-  check. It's still not modal. *)
+  check. There is no "enclosing module mode" to look at. *)
 module M : sig
   module type N = sig
     module M : sig val foo : 'a -> 'a end
