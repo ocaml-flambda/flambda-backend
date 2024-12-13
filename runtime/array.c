@@ -590,7 +590,7 @@ CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
     }
   } else {
     int move_init_to_major = 0;
-    for (mlsize_t i = 0; i < non_unarized_length; i++) {
+    for (mlsize_t i = 0; i < num_initializers; i++) {
       if (Is_block(Field(v_init, i)) && Is_young(Field(v_init, i))) {
         move_init_to_major = 1;
       }
@@ -608,7 +608,7 @@ CAMLprim value caml_makearray_dynamic_scannable_unboxed_product(
       caml_minor_collection ();
     }
 #ifdef DEBUG
-    for (mlsize_t i = 0; i < non_unarized_length; i++) {
+    for (mlsize_t i = 0; i < num_initializers; i++) {
       CAMLassert(!(Is_block(Field(v_init, i)) && Is_young(Field(v_init, i))));
     }
 #endif
