@@ -608,6 +608,13 @@ module Hardware_registers = struct
       let reg_index_in_class : int =
         reg_index - Proc.first_available_register.(reg_class)
       in
+      if reg_index_in_class < 0
+         || reg_index_in_class >= Array.length t.(reg_class)
+      then
+        fatal "XXX invalid register index %d (len=%d) (class=%d) (index=%d)"
+          reg_index_in_class
+          (Array.length t.(reg_class))
+          reg_class reg_index;
       t.(reg_class).(reg_index_in_class)
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
