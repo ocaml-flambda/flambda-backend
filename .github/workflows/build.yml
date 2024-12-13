@@ -93,6 +93,7 @@ jobs:
             os: macos-latest
             build_ocamlparam: '_,regalloc=irc'
             ocamlparam: '_,regalloc=irc'
+            ocamlrunparam: "b=1"
 
           - name: flambda2_macos_arm64_ls
             config: --enable-middle-end=flambda2 --disable-warn-error

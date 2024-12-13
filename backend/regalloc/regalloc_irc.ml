@@ -313,12 +313,8 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
   State.iter_and_clear_select_stack state ~f:(fun n ->
       if irc_debug then log ~indent:2 "%a" Printreg.reg n;
       let reg_class = Proc.register_class n in
-      let reg_num_avail =
-        Array.unsafe_get Proc.num_available_registers reg_class
-      in
-      let reg_first_avail =
-        Array.unsafe_get Proc.first_available_register reg_class
-      in
+      let reg_num_avail = Array.get Proc.num_available_registers reg_class in
+      let reg_first_avail = Array.get Proc.first_available_register reg_class in
       let ok_colors = Array.make reg_num_avail true in
       let counter = ref reg_num_avail in
       let rec mark_adjacent_colors_and_get_first_available (adj : Reg.t list) :
@@ -328,7 +324,7 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
           let first_avail = ref 0 in
           while
             !first_avail < reg_num_avail
-            && not (Array.unsafe_get ok_colors !first_avail)
+            && not (Array.get ok_colors !first_avail)
           do
             incr first_avail
           done;
@@ -341,9 +337,9 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
             | None -> assert false
             | Some color ->
               if irc_debug then log ~indent:3 "color %d is not available" color;
-              if Array.unsafe_get ok_colors (color - reg_first_avail)
+              if Array.get ok_colors (color - reg_first_avail)
               then (
-                Array.unsafe_set ok_colors (color - reg_first_avail) false;
+                Array.set ok_colors (color - reg_first_avail) false;
                 decr counter;
                 if !counter > 0
                 then mark_adjacent_colors_and_get_first_available tl
