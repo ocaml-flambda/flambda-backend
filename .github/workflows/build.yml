@@ -63,7 +63,7 @@ jobs:
             ocamlparam: '_,O3=1,regalloc=cfg'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_polling
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5 --enable-poll-insertion --enable-flambda-invariants
+            config: --enable-middle-end=flambda2 --enable-runtime5 --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
             build_ocamlparam: '_,regalloc=cfg'
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200,regalloc=cfg'
@@ -76,7 +76,7 @@ jobs:
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200,regalloc=cfg'
 
           - name: flambda2_frame_pointers_oclassic_polling
-            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
+            config: --enable-middle-end=flambda2 --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
             build_ocamlparam: '_,regalloc=cfg'
             ocamlparam: '_,Oclassic=1,regalloc=cfg'
@@ -87,6 +87,24 @@ jobs:
             os: macos-latest
             build_ocamlparam: '_,regalloc=cfg'
             ocamlparam: '_,regalloc=cfg'
+
+          - name: flambda2_macos_arm64_irc
+            config: --enable-middle-end=flambda2 --disable-warn-error
+            os: macos-latest
+            build_ocamlparam: '_,regalloc=irc'
+            ocamlparam: '_,regalloc=irc'
+
+          - name: flambda2_macos_arm64_ls
+            config: --enable-middle-end=flambda2 --disable-warn-error
+            os: macos-latest
+            build_ocamlparam: '_,regalloc=ls'
+            ocamlparam: '_,regalloc=ls'
+
+          - name: flambda2_macos_arm64_gi
+            config: --enable-middle-end=flambda2 --disable-warn-error
+            os: macos-latest
+            build_ocamlparam: '_,regalloc=gi'
+            ocamlparam: '_,regalloc=gi'
 
           - name: irc
             config: --enable-middle-end=flambda2
