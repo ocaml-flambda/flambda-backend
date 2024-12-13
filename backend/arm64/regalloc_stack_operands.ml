@@ -2,9 +2,9 @@
 
 open! Regalloc_utils
 
-let debug = false
+let _debug = false
 
-let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
+let basic (_map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   match instr.desc with
   | Op (Specific Imove32) -> May_still_have_spilled_registers
     (* XXX

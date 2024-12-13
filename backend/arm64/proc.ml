@@ -397,7 +397,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
   | Tailcall_func _ | Prim {op = Probe _; _}
   | Specific_can_raise _ ->
     false
-  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
+  | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
     if more_destruction_points then
       true
