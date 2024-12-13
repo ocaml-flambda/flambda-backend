@@ -38,6 +38,7 @@ type value_mismatch =
   | Type of Errortrace.moregen_error
   | Zero_alloc of Zero_alloc.error
   | Modality of Mode.Modality.Value.error
+  | Mode of Mode.Value.error
 
 exception Dont_match of value_mismatch
 
@@ -120,8 +121,16 @@ type type_mismatch =
   | Extensible_representation of position
   | Jkind of Jkind.Violation.t
 
+type mmodes =
+  | All
+  (** Check module inclusion [M1 : MT1 @ m1 <= M2 : MT2 @ m2]
+      for all [m1 <= m2]. *)
+  | Legacy
+  (** Check module inclusion [M1 : MT1 @ legacy <= M2 : MT2 @ legacy]. *)
+
 val value_descriptions:
   loc:Location.t -> Env.t -> string ->
+  mmodes:mmodes ->
   value_description -> value_description -> module_coercion
 
 val type_declarations:

@@ -150,19 +150,20 @@ module FieldMap: Map.S with type key = field_desc
 val item_ident_name: Types.signature_item -> Ident.t * Location.t * field_desc
 val is_runtime_component: Types.signature_item -> bool
 
+type modes = Includecore.mmodes
 
 (* Typechecking *)
 
 val modtypes:
-  loc:Location.t -> Env.t -> mark:mark ->
+  loc:Location.t -> Env.t -> mark:mark -> modes:modes ->
   module_type -> module_type -> module_coercion
 
 val modtypes_with_shape:
-  shape:Shape.t -> loc:Location.t -> Env.t -> mark:mark ->
+  shape:Shape.t -> loc:Location.t -> Env.t -> mark:mark -> modes:modes ->
   module_type -> module_type -> module_coercion * Shape.t
 
 val strengthened_module_decl:
-  loc:Location.t -> aliasable:bool -> Env.t -> mark:mark ->
+  loc:Location.t -> aliasable:bool -> Env.t -> mark:mark -> mmodes:modes ->
   module_declaration -> Path.t -> module_declaration -> module_coercion
 
 val check_modtype_inclusion :
@@ -175,7 +176,7 @@ val check_modtype_inclusion :
 val check_modtype_equiv:
   loc:Location.t -> Env.t -> Ident.t -> module_type -> module_type -> unit
 
-val signatures: Env.t -> mark:mark ->
+val signatures: Env.t -> mark:mark -> modes:modes ->
   signature -> signature -> module_coercion
 
 val include_functor_signatures : Env.t -> mark:mark ->
