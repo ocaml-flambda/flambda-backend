@@ -116,6 +116,13 @@ jobs:
             ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             check_arch: true
 
+          - name: ls_frame_pointers
+            config: --enable-middle-end=flambda2 --enable-frame-pointers
+            os: ubuntu-latest
+            build_ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
+            ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
+            check_arch: true
+
           - name: gi
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
