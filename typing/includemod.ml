@@ -717,11 +717,7 @@ and strengthened_module_decl ~loc ~aliasable env ~mark
   let md1 = Subst.Lazy.of_module_decl md1 in
   let md1 = Mtype.strengthen_lazy_decl ~aliasable md1 path1 in
   let mty2 = Subst.Lazy.of_modtype md2.md_type in
-  let modes =
-    match mmodes with
-    | All -> All
-    | Legacy -> Legacy
-  in
+  let modes = mmodes in
   modtypes ~in_eq:false ~loc env ~mark subst ~modes md1.md_type mty2 shape
 
 (* Inclusion between signatures *)
@@ -924,11 +920,7 @@ and module_declarations  ~in_eq ~loc env ~mark  subst id1 ~mmodes md1 md2 orig_s
   let p1 = Path.Pident id1 in
   if mark_positive mark then
     Env.mark_module_used md1.md_uid;
-  let modes =
-    match mmodes with
-    | All -> All
-    | Legacy -> Legacy
-  in
+  let modes = mmodes in
   strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst ~modes
     md1.md_type p1 md2.md_type orig_shape
 
