@@ -62,6 +62,54 @@ module type Sort = sig
     module Debug_printers : sig
       val t : Format.formatter -> t -> unit
     end
+
+    (* CR layouts: These are sorts for the types of ocaml expressions that are
+       currently required to be values, but for which we expect to relax that
+       restriction in versions 2 and beyond.  Naming them makes it easy to find
+       where in the translation to lambda they are assume to be value. *)
+    (* CR layouts: add similarly named jkinds and use those names everywhere (not
+       just the translation to lambda) rather than writing specific jkinds and
+       sorts in the code. *)
+    val for_class_arg : t
+
+    val for_instance_var : t
+
+    val for_lazy_body : t
+
+    val for_tuple_element : t
+
+    val for_variant_arg : t
+
+    val for_record : t
+
+    val for_block_element : t
+
+    val for_array_get_result : t
+
+    val for_array_comprehension_element : t
+
+    val for_list_element : t
+
+    (** These are sorts for the types of ocaml expressions that we expect will
+        always be "value".  These names are used in the translation to lambda to
+        make the code clearer. *)
+    val for_function : t
+
+    val for_probe_body : t
+
+    val for_poly_variant : t
+
+    val for_object : t
+
+    val for_initializer : t
+
+    val for_method : t
+
+    val for_module : t
+
+    val for_predef_value : t (* Predefined value types, e.g. int and string *)
+
+    val for_tuple : t
   end
 
   module Var : sig
@@ -119,6 +167,13 @@ module type Sort = sig
       it is set to [value] first. *)
   val default_to_value_and_get : t -> Const.t
 
+  (* CR layouts v12: Default this to void. *)
+
+  (** [default_for_transl_and_get] extracts the sort as a `const`.  If it's a variable,
+      it is set to [value] first. After we have support for [void], this will default to
+      [void] instead. *)
+  val default_for_transl_and_get : t -> Const.t
+
   (** To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change
 
@@ -131,54 +186,6 @@ module type Sort = sig
 
     val var : Format.formatter -> var -> unit
   end
-
-  (* CR layouts: These are sorts for the types of ocaml expressions that are
-     currently required to be values, but for which we expect to relax that
-     restriction in versions 2 and beyond.  Naming them makes it easy to find
-     where in the translation to lambda they are assume to be value. *)
-  (* CR layouts: add similarly named jkinds and use those names everywhere (not
-     just the translation to lambda) rather than writing specific jkinds and
-     sorts in the code. *)
-  val for_class_arg : t
-
-  val for_instance_var : t
-
-  val for_lazy_body : t
-
-  val for_tuple_element : t
-
-  val for_variant_arg : t
-
-  val for_record : t
-
-  val for_block_element : t
-
-  val for_array_get_result : t
-
-  val for_array_comprehension_element : t
-
-  val for_list_element : t
-
-  (** These are sorts for the types of ocaml expressions that we expect will
-      always be "value".  These names are used in the translation to lambda to
-      make the code clearer. *)
-  val for_function : t
-
-  val for_probe_body : t
-
-  val for_poly_variant : t
-
-  val for_object : t
-
-  val for_initializer : t
-
-  val for_method : t
-
-  val for_module : t
-
-  val for_predef_value : t (* Predefined value types, e.g. int and string *)
-
-  val for_tuple : t
 end
 
 module History = struct

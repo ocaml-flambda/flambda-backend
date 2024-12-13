@@ -180,9 +180,9 @@ let tuple_component_label i ppf = function
 let typevars ppf vs =
   List.iter (typevar_jkind ~print_quote:true ppf) vs
 
-let jkind_array i ppf jkinds =
-  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.format l)
-    ppf jkinds
+let sort_array i ppf sorts =
+  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.Sort.Const.format l)
+    ppf sorts
 
 let tag ppf = let open Types in function
   | Ordinary {src_index;runtime_tag} ->
@@ -194,8 +194,8 @@ let variant_representation i ppf = let open Types in function
     line i ppf "Variant_unboxed\n"
   | Variant_boxed cstrs ->
     line i ppf "Variant_boxed %a\n"
-      (array (i+1) (fun _ ppf (_cstr, jkinds) ->
-         jkind_array (i+1) ppf jkinds))
+      (array (i+1) (fun _ ppf (_cstr, sorts) ->
+         sort_array (i+1) ppf sorts))
       cstrs
   | Variant_extensible -> line i ppf "Variant_inlined\n"
 
@@ -205,8 +205,8 @@ let flat_element i ppf flat_element =
 let record_representation i ppf = let open Types in function
   | Record_unboxed ->
     line i ppf "Record_unboxed\n"
-  | Record_boxed jkinds ->
-    line i ppf "Record_boxed %a\n" (jkind_array i) jkinds
+  | Record_boxed sorts ->
+    line i ppf "Record_boxed %a\n" (sort_array i) sorts
   | Record_inlined (t, _c, v) ->
     line i ppf "Record_inlined (%a, %a)\n" tag t (variant_representation i) v
   | Record_float -> line i ppf "Record_float\n"

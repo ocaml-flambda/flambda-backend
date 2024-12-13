@@ -136,7 +136,7 @@ type 'a classification =
    See comment on [classification] above to understand [classify_product]. *)
 let classify ~classify_product env loc ty sort : _ classification =
   let ty = scrape_ty env ty in
-  match Jkind.(Sort.default_to_value_and_get sort) with
+  match (sort : Jkind.Sort.Const.t) with
   | Base Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
@@ -224,7 +224,8 @@ let array_kind_of_elt ~elt_sort env loc ty =
     match elt_sort with
     | Some s -> s
     | None ->
-      type_legacy_sort ~why:Array_element env loc ty
+      Jkind.Sort.default_for_transl_and_get
+        (type_legacy_sort ~why:Array_element env loc ty)
   in
   let classify_product ty sorts =
     if Language_extension.(is_at_least Layouts Alpha) then
@@ -565,7 +566,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
     end
-  | Variant_boxed cstrs_and_jkinds ->
+  | Variant_boxed cstrs_and_sorts ->
     let depth = depth + 1 in
     let for_constructor_fields fields ~depth ~num_nodes_visited ~field_to_type =
       List.fold_left_map
@@ -653,7 +654,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
           | None -> None
           | Some (num_nodes_visited,
                   next_const, consts, next_tag, non_consts) ->
-            let cstr_shape, _ = cstrs_and_jkinds.(idx) in
+            let cstr_shape, _ = cstrs_and_sorts.(idx) in
             let (is_mutable, num_nodes_visited), fields =
               for_one_constructor constructor ~depth ~num_nodes_visited
                 ~cstr_shape
@@ -818,8 +819,7 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
     error const
 
 let layout env loc sort ty =
-  layout_of_const_sort_generic
-    (Jkind.Sort.default_to_value_and_get sort)
+  layout_of_const_sort_generic sort
     ~value_kind:(lazy (value_kind env loc ty))
     ~error:(function
       | Base Value -> assert false
@@ -838,9 +838,7 @@ let layout env loc sort ty =
     )
 
 let layout_of_sort loc sort =
-  layout_of_const_sort_generic
-    (Jkind.Sort.default_to_value_and_get sort)
-    ~value_kind:(lazy Lambda.generic_value)
+  layout_of_const_sort_generic sort ~value_kind:(lazy Lambda.generic_value)
     ~error:(function
     | Base Value -> assert false
     | Base Void ->
@@ -856,7 +854,7 @@ let layout_of_sort loc sort =
                            (Jkind.Sort.of_const const, Stable, None)))
     )
 
-let layout_of_const_sort c =
+let layout_of_non_void_sort c =
   layout_of_const_sort_generic
     c
     ~value_kind:(lazy Lambda.generic_value)
@@ -882,7 +880,7 @@ let function_arg_layout env loc sort ty =
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
 let lazy_val_requires_forward env loc ty =
-  let sort = Jkind.Sort.for_lazy_body in
+  let sort = Jkind.Sort.Const.for_lazy_body in
   let classify_product _ sorts =
     let kind = Jkind.Sort.Const.Product sorts in
     raise (Error (loc, Unsupported_product_in_lazy kind))
