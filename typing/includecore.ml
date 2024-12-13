@@ -114,12 +114,9 @@ let value_descriptions ~loc env name
       | Ok () -> ()
       | Error e -> raise (Dont_match (Modality e))
       end;
-  | Legacy
-      (* [wrap_constraint_with_shape] invokes inclusion check with idential
+  | Legacy when (vd1.val_modalities == vd2.val_modalities) ->
+      (* [wrap_constraint_with_shape] invokes inclusion check with identical
         inferred modalities, which we need to workaround. *)
-      when (vd1.val_modalities == vd2.val_modalities) ->
-      (* The caller ensures [mmode1 <= mmode2] beforing calling us, so nothing
-          to check here *)
       ()
   | Legacy ->
       let mmode1, mmode2 = Mode.Value.legacy, Mode.Value.legacy in
