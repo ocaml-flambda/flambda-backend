@@ -815,7 +815,7 @@ let merge_constraint initial_env loc sg lid constr =
         in
         let md'' = { md' with md_type = mty } in
         let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
-        ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env
+        ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env ~modes:Legacy
                  newmd.md_type md.md_type);
         return
           ~replace_by:(Some(Sig_module(id, pres, newmd, rs, priv)))
@@ -826,7 +826,7 @@ let merge_constraint initial_env loc sg lid constr =
         let aliasable = not (Env.is_functor_arg path sig_env) in
         ignore
           (Includemod.strengthened_module_decl ~loc ~mark:Mark_both
-             ~aliasable sig_env md' path md);
+             ~aliasable sig_env ~mmodes:Legacy md' path md);
         real_ids := [Pident id];
         return ~replace_by:None
           (Pident id, lid, Some (Twith_modsubst (path, lid')))
@@ -1711,7 +1711,7 @@ and transl_modtype_aux env smty =
       let aliasable = not (Env.is_functor_arg path env) in
       try
         ignore
-          (Includemod.modtypes ~loc env
+          (Includemod.modtypes ~loc env ~modes:Legacy
             ~mark:Includemod.Mark_both md.md_type tmty.mty_type);
         mkmty
           (Tmty_strengthen (tmty, path, mod_id))
@@ -2408,7 +2408,7 @@ let check_recmodule_inclusion env bindings =
           try
             Includemod.modtypes_with_shape ~shape
               ~loc:modl.mod_loc ~mark:Mark_both
-              env mty_actual' mty_decl'
+              env ~modes:Legacy mty_actual' mty_decl'
           with Includemod.Error msg ->
             raise(Error(modl.mod_loc, env, Not_included msg)) in
         let modl' =
@@ -2486,6 +2486,8 @@ let modtype_of_package env loc p fl =
   in
   Subst.modtype Keep Subst.identity mty
 
+(* CR zqian: [package_subtype] should take [modes], but piping this through
+  [ctype] is too much. Instead, we take the conservative approach. *)
 let package_subtype env p1 fl1 p2 fl2 =
   let mkmty p fl =
     let fl =
@@ -2496,7 +2498,7 @@ let package_subtype env p1 fl1 p2 fl2 =
   | exception Error(_, _, Cannot_scrape_package_type _) -> false
   | mty1, mty2 ->
     let loc = Location.none in
-    match Includemod.modtypes ~loc ~mark:Mark_both env mty1 mty2 with
+    match Includemod.modtypes ~loc ~mark:Mark_both env ~modes:All mty1 mty2 with
     | Tcoerce_none -> true
     | _ | exception Includemod.Error _ -> false
 
@@ -2508,7 +2510,7 @@ let wrap_constraint_package env mark arg mty explicit =
   let mty2 = Subst.modtype Keep Subst.identity mty in
   let coercion =
     try
-      Includemod.modtypes ~loc:arg.mod_loc env ~mark mty1 mty2
+      Includemod.modtypes ~loc:arg.mod_loc env ~mark ~modes:Legacy mty1 mty2
     with Includemod.Error msg ->
       raise(Error(arg.mod_loc, env, Not_included msg)) in
   { mod_desc = Tmod_constraint(arg, mty, explicit, coercion);
@@ -2523,7 +2525,7 @@ let wrap_constraint_with_shape env mark arg mty
   let coercion, shape =
     try
       Includemod.modtypes_with_shape ~shape ~loc:arg.mod_loc env ~mark
-        arg.mod_type mty
+        ~modes:Legacy arg.mod_type mty
     with Includemod.Error msg ->
       raise(Error(arg.mod_loc, env, Not_included msg)) in
   { mod_desc = Tmod_constraint(arg, mty, explicit, coercion);
@@ -2836,6 +2838,7 @@ and type_one_application ~ctx:(apply_loc,sfunct,md_f,args)
       let coercion =
         try Includemod.modtypes
               ~loc:arg.mod_loc ~mark:Mark_both env arg.mod_type mty_param
+              ~modes:Legacy
         with Includemod.Error _ -> apply_error ()
       in
       let mty_appl =
@@ -2867,6 +2870,7 @@ and type_one_application ~ctx:(apply_loc,sfunct,md_f,args)
             begin match
               Includemod.modtypes
                 ~loc:app_loc ~mark:Mark_neither env mty_res nondep_mty
+                ~modes:Legacy
             with
             | Tcoerce_none -> ()
             | _ ->
