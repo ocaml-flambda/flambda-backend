@@ -142,5 +142,5 @@ Error: Signature mismatch:
          val foo : 'a -> 'a
        is not included in
          val foo : 'a -> 'a @@ portable
-       The second is portable and the first is not.
+       The second is portable and the first is nonportable.
 |}]

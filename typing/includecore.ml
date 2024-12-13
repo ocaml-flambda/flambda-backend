@@ -43,8 +43,13 @@ type value_mismatch =
   | Type of Errortrace.moregen_error
   | Zero_alloc of Zero_alloc.error
   | Modality of Mode.Modality.Value.error
+  | Mode of Mode.Value.error
 
 exception Dont_match of value_mismatch
+
+type mmodes =
+  | All
+  | Legacy
 
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
@@ -90,6 +95,7 @@ let primitive_descriptions pd1 pd2 =
     native_repr_args pd1.prim_native_repr_args pd2.prim_native_repr_args
 
 let value_descriptions ~loc env name
+    ~mmodes
     (vd1 : Types.value_description)
     (vd2 : Types.value_description) =
   Builtin_attributes.check_alerts_inclusion
@@ -102,9 +108,26 @@ let value_descriptions ~loc env name
   | Ok () -> ()
   | Error e -> raise (Dont_match (Zero_alloc e))
   end;
-  begin match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
-  | Ok () -> ()
-  | Error e -> raise (Dont_match (Modality e))
+  begin match mmodes with
+  | All -> begin
+      match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
+      | Ok () -> ()
+      | Error e -> raise (Dont_match (Modality e))
+      end;
+  | Legacy when (vd1.val_modalities == vd2.val_modalities) ->
+      (* [wrap_constraint_with_shape] invokes inclusion check with identical
+        inferred modalities, which we need to workaround. *)
+      ()
+  | Legacy ->
+      let mmode1, mmode2 = Mode.Value.legacy, Mode.Value.legacy in
+      let mode1 = Mode.Modality.Value.apply vd1.val_modalities mmode1 in
+      let mode2 =
+        Mode.Modality.Value.(Const.apply (to_const_exn vd2.val_modalities) mmode2)
+      in
+      begin match Mode.Value.submode mode1 mode2 with
+      | Ok () -> ()
+      | Error e -> raise (Dont_match (Mode e))
+      end
   end;
   match vd1.val_kind with
   | Val_prim p1 -> begin
@@ -280,6 +303,14 @@ let report_modality_sub_error first second ppf e =
     first
     (print_modality "not") (Atom (ax, left) : Modality.t)
 
+let report_mode_sub_error first second ppf e =
+  let Mode.Value.Error(ax, {left; right}) = e in
+  Format.fprintf ppf "%s is %a and %s is %a."
+    (String.capitalize_ascii second)
+    (Value.Const.print_axis ax) right
+    first
+    (Value.Const.print_axis ax) left
+
 let report_modality_equate_error first second ppf ((equate_step, sub_error) : Modality.Value.equate_error) =
   match equate_step with
   | Left_le_right -> report_modality_sub_error first second ppf sub_error
@@ -330,6 +361,7 @@ let report_value_mismatch first second env ppf err =
         (fun ppf -> Format.fprintf ppf "is not compatible with the type")
   | Zero_alloc e -> Zero_alloc.print_error ppf e
   | Modality e -> report_modality_sub_error first second ppf e
+  | Mode e -> report_mode_sub_error first second ppf e
 
 let report_type_inequality env ppf err =
   Printtyp.report_equality_error ppf Type_scheme env err
