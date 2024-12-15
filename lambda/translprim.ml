@@ -547,7 +547,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode, With_initializer), 2)
     | "%makearray_dynamic_uninit" ->
-      Language_extension.assert_enabled ~loc Layouts Language_extension.Alpha;
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
       Primitive (Pmakearray_dynamic (gen_array_kind, mode, Uninitialized), 1)
     | "%arrayblit" ->
       Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;

@@ -740,5 +740,5 @@ external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a 
 Lines 1-2, characters 0-29:
 1 | external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
 2 |   "%makearray_dynamic_uninit"
-Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
+Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
 |}]
