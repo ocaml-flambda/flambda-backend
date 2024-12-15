@@ -2128,3 +2128,122 @@ Error: Unboxed product array elements must be external or contain all gc
        scannable types. The product type this function is applied at is
        not external but contains an element of sort float64.
 |}]
+
+(***************************************************)
+(* Test 27: Typing of %array_element_size_in_bytes *)
+
+(* We check you get an error if using a non-value on either side, to guard
+   against people thinking you use it with the element type rather than the
+   array. *)
+
+external[@layout_poly] bytes_bad1 : ('a : any_non_null). 'a -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 36-66:
+1 | external[@layout_poly] bytes_bad1 : ('a : any_non_null). 'a -> int
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%array_element_size_in_bytes] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external bytes_bad2 : ('a : any_non_null). 'a -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 43-45:
+1 | external bytes_bad2 : ('a : any_non_null). 'a -> int
+                                               ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable
+         because it's the type of an argument in an external declaration.
+|}]
+
+external bytes_bad3 : float# -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 22-35:
+1 | external bytes_bad3 : float# -> int
+                          ^^^^^^^^^^^^^
+Error: The primitive [%array_element_size_in_bytes] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external bytes_bad4 : #(int * int) -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 22-41:
+1 | external bytes_bad4 : #(int * int) -> int
+                          ^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%array_element_size_in_bytes] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external[@layout_poly] bytes_bad5 : ('a : any_non_null). int -> 'a
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 36-66:
+1 | external[@layout_poly] bytes_bad5 : ('a : any_non_null). int -> 'a
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%array_element_size_in_bytes] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external bytes_bad6 : ('a : any_non_null). int -> 'a
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 50-52:
+1 | external bytes_bad6 : ('a : any_non_null). int -> 'a
+                                                      ^^
+Error: Types in an external must have a representable layout.
+       The layout of 'a is any
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable
+         because it's the type of the result of an external declaration.
+|}]
+
+external bytes_bad7 : int -> float#
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 22-35:
+1 | external bytes_bad7 : int -> float#
+                          ^^^^^^^^^^^^^
+Error: The primitive [%array_element_size_in_bytes] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external bytes_bad8 : int -> #(float# * float#)
+  = "%array_element_size_in_bytes"
+[%%expect{|
+Line 1, characters 22-47:
+1 | external bytes_bad8 : int -> #(float# * float#)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [%array_element_size_in_bytes] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external[@layout_poly] bytes_good1 : ('a : any_non_null). 'a array -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+external bytes_good1 : ('a : any_non_null). 'a array -> int
+  = "%array_element_size_in_bytes" [@@layout_poly]
+|}]
+
+external bytes_good2 : int array -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+external bytes_good2 : int array -> int = "%array_element_size_in_bytes"
+|}]
+
+external bytes_good3 : float# array -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+external bytes_good3 : float# array -> int = "%array_element_size_in_bytes"
+|}]
+
+external bytes_good4 : #(float# * int) array -> int
+  = "%array_element_size_in_bytes"
+[%%expect{|
+external bytes_good4 : #(float# * int) array -> int
+  = "%array_element_size_in_bytes"
+|}]
