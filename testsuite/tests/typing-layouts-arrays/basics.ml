@@ -365,3 +365,14 @@ Error: This expression has type "float32#"
          because it's the type of an array element,
          chosen to have layout value.
 |}]
+
+(* Test 8: makearraydynamic_uninit *)
+
+external[@layout_poly] makearray_dynamic_uninit
+  : ('a : any_non_null) . int -> 'a array = "%makearray_dynamic_uninit"
+[%%expect{|
+Lines 1-2, characters 0-71:
+1 | external[@layout_poly] makearray_dynamic_uninit
+2 |   : ('a : any_non_null) . int -> 'a array = "%makearray_dynamic_uninit"
+Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+|}]
