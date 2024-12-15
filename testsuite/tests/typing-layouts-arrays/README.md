@@ -27,3 +27,8 @@ The file `gen_product_array_helpers.ml` has additional infrastructure for
 testing arrays of unboxed products. To add a new test, copy one of the existing
 ones (e.g., `test_ignorable_product_array_1.ml`) and follow the instructions
 in its comments about which parts you need to edit.
+
+Note that tests whose filename contains `with_uninit` use
+`%makearray_dynamic_uninit` to create arrays, while other tests using this
+infrastructure use `%makearray_dynamic`.
+
