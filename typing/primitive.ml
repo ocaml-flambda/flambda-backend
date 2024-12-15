@@ -683,7 +683,7 @@ let prim_has_valid_reprs ~loc prim =
 
     | "%array_element_size_in_bytes" ->
       check [
-        any;
+        is (Same_as_ocaml_repr C.value);
         is (Same_as_ocaml_repr C.value);
       ]
 
