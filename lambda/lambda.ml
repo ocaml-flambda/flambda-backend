@@ -2510,6 +2510,11 @@ let rec try_to_find_location lam =
 let try_to_find_debuginfo lam =
   Debuginfo.from_location (try_to_find_location lam)
 
+(* The "count_initializers_*" functions count the number of individual
+   components in an initializer for the corresponding array kind _after_
+   unarization.  These are used to implement the "%array_element_size_in_bytes"
+   primitives for products, as each such component takes a full word in product
+   arrays. *)
 let rec count_initializers_scannable
       (scannable : scannable_product_element_kind) =
   match scannable with
