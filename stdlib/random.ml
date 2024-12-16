@@ -341,6 +341,9 @@ let mk_default () =
            (-8591268803865043407L)
            6388613595849772044L
 
+(* CR tdelvecchio: Make these safe. *)
+[@@@alert "-unsafe"]
+
 let random_key =
   Domain.DLS.new_key ~split_from_parent:State.split mk_default
 

@@ -62,6 +62,9 @@ let randomized = Atomic.Safe.make randomized_default
 let randomize () = Atomic.Safe.set randomized true
 let is_randomized () = Atomic.Safe.get randomized
 
+(* CR tdelvecchio: Make this safe. *)
+[@@@alert "-unsafe"]
+
 let prng_key = Domain.DLS.new_key Random.State.make_self_init
 
 (* Functions which appear before the functorial interface must either be
