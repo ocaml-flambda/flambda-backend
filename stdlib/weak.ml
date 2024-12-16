@@ -22,7 +22,7 @@ open! Stdlib
 
 type !'a t
 
-external create : int -> 'a t = "caml_weak_create"
+external create : int -> 'a t @@ portable = "caml_weak_create"
 
 (** number of additional values in a weak pointer
  *    - Link
@@ -41,30 +41,30 @@ let raise_if_invalid_offset e o msg =
   if not (0 <= o && o < length e) then
     invalid_arg(msg)
 
-external set' : 'a t -> int -> 'a -> unit = "caml_ephe_set_key"
-external unset : 'a t -> int -> unit = "caml_ephe_unset_key"
+external set' : 'a t -> int -> 'a -> unit @@ portable = "caml_ephe_set_key"
+external unset : 'a t -> int -> unit @@ portable = "caml_ephe_unset_key"
 let set e o x =
   raise_if_invalid_offset e o "Weak.set";
   match x with
   | None -> unset e o
   | Some x -> set' e o x
 
-external get : 'a t -> int -> 'a option = "caml_weak_get"
+external get : 'a t -> int -> 'a option @@ portable = "caml_weak_get"
 let get e o =
   raise_if_invalid_offset e o "Weak.get";
   get e o
 
-external get_copy : 'a t -> int -> 'a option = "caml_weak_get_copy"
+external get_copy : 'a t -> int -> 'a option @@ portable = "caml_weak_get_copy"
 let get_copy e o =
   raise_if_invalid_offset e o "Weak.get_copy";
   get_copy e o
 
-external check : 'a t -> int -> bool = "caml_weak_check"
+external check : 'a t -> int -> bool @@ portable = "caml_weak_check"
 let check e o =
   raise_if_invalid_offset e o "Weak.check";
   check e o
 
-external blit : 'a t -> int -> 'a t -> int -> int -> unit = "caml_weak_blit"
+external blit : 'a t -> int -> 'a t -> int -> int -> unit @@ portable = "caml_weak_blit"
 
 (* blit: src srcoff dst dstoff len *)
 let blit e1 o1 e2 o2 l =
