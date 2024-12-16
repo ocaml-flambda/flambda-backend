@@ -8,18 +8,44 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let ( << ) f g x = f (g x)
 
-module State = struct
+module State : sig
+  type t
+
   type live_regs = Reg.Set.t
 
+  val create : Format.formatter -> Cfg_with_layout.t -> t
+
+  val next_available_instruction : t -> int
+
+  val liveness : t -> int -> live_regs
+
+  val dump_debug : t -> ('a, Format.formatter, unit) format -> 'a
+
+  val dump : t -> ('a, Format.formatter, unit) format -> 'a
+
+  val max_block_size_to_vectorize : int
+
+  val extra_debug : bool
+
+  val fun_name : t -> string
+
+  val fun_dbg : t -> Debuginfo.t
+end = struct
   type t =
     { ppf_dump : Format.formatter;
       mutable max_instruction_id : int;
-      reg_map : Reg.t Numbers.Int.Tbl.t;
-      cfg_with_infos : Cfg_with_infos.t Lazy.t
+      cfg_with_infos : Cfg_with_infos.t Lazy.t;
+      cfg_with_layout : Cfg_with_layout.t
     }
+
+  type live_regs = Reg.Set.t
 
   (* CR gyorsh: add a compiler flag to control this constant? *)
   let max_block_size_to_vectorize = 1000
+
+  let fun_name t = Cfg.fun_name (Cfg_with_layout.cfg t.cfg_with_layout)
+
+  let fun_dbg t = (Cfg_with_layout.cfg t.cfg_with_layout).fun_dbg
 
   let next_available_instruction t =
     let id = t.max_instruction_id + 1 in
@@ -42,17 +68,9 @@ module State = struct
        creating a new one *)
     { ppf_dump;
       max_instruction_id = init_instructon_max_id cl;
-      reg_map = Numbers.Int.Tbl.create 100;
+      cfg_with_layout = cl;
       cfg_with_infos = lazy (Cfg_with_infos.make cl)
     }
-
-  let get_reg t (reg : Reg.t) =
-    match Numbers.Int.Tbl.find_opt t.reg_map reg.stamp with
-    | Some reg -> reg
-    | None ->
-      let new_reg = Reg.create Vec128 in
-      Numbers.Int.Tbl.add t.reg_map reg.stamp new_reg;
-      new_reg
 
   let liveness t id =
     Cfg_with_infos.(liveness_find (Lazy.force t.cfg_with_infos) id).before
@@ -67,6 +85,71 @@ module State = struct
   let dump_debug t = dump_if extra_debug t
 
   let dump t = dump_if true t
+end
+
+module Substitution : sig
+  (* CR-someday gyorsh: should be factored out with
+     [Regalloc_utils.Substitution]. *)
+  type t
+
+  val create : int -> t
+
+  val get_reg_exn : t -> Reg.t -> Reg.t
+
+  val get_reg_opt : t -> Reg.t -> Reg.t option
+
+  (* CR gyorsh: for SSA *)
+  (* (** [fresh_reg t r typ] assumes that [r] is not mapped, creates a fresh register [r'] of
+   *     type [typ] and maps [r] to [r']. *)
+   * val fresh_reg : t -> Reg.t -> Cmm.machtype_component -> Reg.t *)
+
+  (** [fresh_reg_for_pack t pack typ] assumes that none of the registers in [pack] are
+      mapped, creates a fresh register [r'] of type [typ] and maps all registers in [pack]
+      to [r]. *)
+  val fresh_reg_for_pack : t -> Reg.t list -> Cmm.machtype_component -> unit
+end = struct
+  type t = Reg.t Reg.Tbl.t
+
+  let create n = Reg.Tbl.create n
+
+  let get_reg_exn t (reg : Reg.t) = Reg.Tbl.find t reg
+
+  let get_reg_opt t (reg : Reg.t) = Reg.Tbl.find_opt t reg
+
+  let fresh_reg t reg machtype_component =
+    match get_reg_opt t reg with
+    | None ->
+      let new_reg = Reg.create machtype_component in
+      Reg.Tbl.add t reg new_reg;
+      new_reg
+    | Some old_reg ->
+      Misc.fatal_errorf "register %a is already mapped to %a" Printmach.reg reg
+        Printmach.reg old_reg
+
+  let fresh_reg_for_pack t regs machtype_component =
+    match regs with
+    | [] ->
+      Misc.fatal_error "State.fresh_reg_for_group: expects a non-empty group."
+    | hd :: tl ->
+      let new_reg = fresh_reg t hd machtype_component in
+      let add reg =
+        match get_reg_opt t reg with
+        | None -> Reg.Tbl.add t reg new_reg
+        | Some old_reg ->
+          if Reg.same new_reg old_reg
+          then
+            (* same register may appear multiple times in the group, this is
+               fine here but may not be desirable in the client code and should
+               be checked for there. *)
+            Misc.fatal_errorf
+              "fresh_reg_for_group: duplicate register %a in the group"
+              Printmach.reg reg
+          else
+            Misc.fatal_errorf
+              "fresh_reg_for_group: register %a is already mapped to %a"
+              Printmach.reg reg Printmach.reg old_reg
+      in
+      List.iter add tl
 end
 
 module Instruction : sig
@@ -277,6 +360,8 @@ module Block : sig
 
   val state : t -> State.t
 
+  val reg_map : t -> Substitution.t
+
   val start : t -> Label.t
 
   (** [pos t id] returns the original position of [id] instruction within the body of [t].
@@ -288,7 +373,8 @@ end = struct
       id_to_instructions : Instruction.t Instruction.Id.Tbl.t;
       id_to_body_pos : int Instruction.Id.Tbl.t;
       size : int;
-      state : State.t
+      state : State.t;
+      reg_map : Substitution.t
     }
 
   let state t = t.state
@@ -300,6 +386,8 @@ end = struct
   let size t = t.size
 
   let start (t : t) = t.block.start
+
+  let reg_map t = t.reg_map
 
   let find t id = Instruction.Id.Tbl.find t.id_to_instructions id
 
@@ -318,7 +406,8 @@ end = struct
         Instruction.Id.Tbl.add id_to_body_pos
           (Instruction.id (Instruction.basic i))
           pos);
-    { block; size; id_to_instructions; id_to_body_pos; state }
+    let reg_map = Substitution.create 3 in
+    { block; size; id_to_instructions; id_to_body_pos; state; reg_map }
 
   let get_live_regs_before_terminator t =
     State.liveness t.state t.block.terminator.id
@@ -558,12 +647,12 @@ end = struct
 
     val from_block : Block.t -> t
 
-    (** For register [r], return [id] of instruction that defines [r] and there is no
-        other instruction that defines [r] or destroys/clobbers [r] on any path from [id]
-        to the current program point. An instruction defines [r] means that [r] is a
-        "result" register that the instruction writes to, not clobbers it.
-        Returns [None] if there is no definition of [r] in the block.
-    *)
+    (** [get t cur_id reg] For register [r], return [id] of instruction that defines [r]
+        and there is no other instruction that defines [r] or destroys/clobbers [r] on any
+        path from [id] to the current program point, i.e., the program point immediately
+        before [cur_id]. An instruction defines [r] means that [r] is a "result" register
+        that the instruction writes to, not clobbers it.  Returns [None] if there is no
+        definition of [r] in the block.  *)
     val get : t -> Instruction.Id.t -> Reg.t -> Instruction.Id.t option
 
     val dump : Format.formatter -> block:Block.t -> t -> unit
@@ -625,6 +714,12 @@ end = struct
             (Instruction.Id.Tbl.find t id))
   end
 
+  (* [Reaching_definitions] wouldn't be needed here if we had SSA
+     representation. Coverting to SSA even at a basic block level would require
+     some change in emit because instruction selection (a) relies on sharing of
+     registers between arguments and results to emit shorter encodings of
+     instructions such as Add and Shift, (b) forces the use of certain hardware
+     registers, for example Div and Bswap. *)
   module Reg_defined_at_instruction : sig
     type t
 
@@ -635,11 +730,21 @@ end = struct
     val is_val : t -> bool
 
     val get_offset : t -> t -> Block.t -> Reaching_definitions.t -> int option
+
+    val print : Format.formatter -> t -> unit
   end = struct
     type t =
       { reg : Reg.t;
         def : Instruction.Id.t option
       }
+
+    let print ppf t =
+      let pp ppf def =
+        match def with
+        | None -> Format.fprintf ppf "(unknown)"
+        | Some id -> Instruction.Id.print ppf id
+      in
+      Format.fprintf ppf "%a at %a" Printmach.reg t.reg pp t.def
 
     let init reg id reaching_definitions =
       let def = Reaching_definitions.get reaching_definitions id reg in
@@ -704,25 +809,6 @@ end = struct
   (* CR-someday gyorsh: [Memory] can be merged with [Reaching_definitions] but
      let's do it separately first for simplicity. *)
   module Memory : sig
-    (* module D : sig
-     *   type t
-     *
-     *   (** [direct_dependencies id] returns the set of instruction ids
-     *       that may access the same memory partition as [id]. Overapproximates
-     *       the memory partitions that. *)
-     *   val direct_dependencies : t -> Instruction.t -> Instruction.Id.Set.t
-     * end
-     *
-     * type t
-     *
-     * (** Given instruction [i], return points-to at the program point immediately
-     *     before [i], ignoring definitions outside the block. *)
-     * val get : t -> Instruction.Id.t -> D.t
-     *
-     * val dump : Format.formatter -> block:Block.t -> t -> unit
-     *
-     * val from_block : Block.t -> Reaching_definitions.t -> t *)
-
     type t
 
     module Operation : sig
@@ -814,7 +900,7 @@ end = struct
     module Operation : sig
       type t
 
-      (* Reaching_definitions is used here to disambiguate reigster names. It
+      (* Reaching_definitions is used here to disambiguate register names. It
          wouldn't be needed here if we had SSA representation. *)
       val create : Instruction.t -> Reaching_definitions.t -> t option
 
@@ -1001,17 +1087,31 @@ end = struct
 
       (** [is_before t1 t2] returns true if we can prove that t1 and t2 are disjoint
           intervals within the same block, and t1 is before t2. *)
-      let is_before ~arg_offset_in_bytes t1 t2 =
-        match offset_in_bytes ~arg_offset_in_bytes t1 t2 with
-        | None -> false
-        | Some offset_in_bytes ->
-          to_bits offset_in_bytes >= (get_width_in_bits t1 |> Option.get)
+      let is_before ~arg_offset_in_bytes t1 t2 block =
+        let res =
+          match offset_in_bytes ~arg_offset_in_bytes t1 t2 with
+          | None -> false
+          | Some offset_in_bytes ->
+            State.dump_debug (Block.state block)
+              "offset_in_bytes = %d, get_width_in_bits t1 = %d \n"
+              (to_bits offset_in_bytes)
+              (get_width_in_bits t1 |> Option.get);
+            to_bits offset_in_bytes >= (get_width_in_bits t1 |> Option.get)
+        in
+        State.dump_debug (Block.state block) "is_before (%a) (%a) = %b \n"
+          Instruction.print t1.instruction Instruction.print t2.instruction res;
+        res
 
       (* [is_adjacent] implies [is_disjoint
          ~arg_offset_in_bytes:actual_arg_offset_in_bytes] *)
-      let is_disjoint ~arg_offset_in_bytes t1 t2 =
-        is_before ~arg_offset_in_bytes t1 t2
-        || is_before ~arg_offset_in_bytes t2 t1
+      let is_disjoint ~arg_offset_in_bytes t1 t2 block =
+        let res =
+          is_before ~arg_offset_in_bytes t1 t2 block
+          || is_before ~arg_offset_in_bytes t2 t1 block
+        in
+        State.dump_debug (Block.state block) "is_disjoint (%a) (%a) = %b \n"
+          Instruction.print t1.instruction Instruction.print t2.instruction res;
+        res
 
       let maybe_closure_block t =
         (* Closure blocks are not mutated after initialization. *)
@@ -1028,47 +1128,70 @@ end = struct
         | Arbitrary -> true
         | Alloc -> true
 
-      let points_to_ocaml_block t =
+      let points_to_ocaml_block t block =
         let val_args =
           t.address_args_defined_at |> Array.to_seq
           |> Seq.filter Reg_defined_at_instruction.is_val
           |> List.of_seq
         in
+        State.dump_debug (Block.state block)
+          "points_to_ocaml_block: %a val_args = %a\n" Instruction.print
+          t.instruction
+          (Format.pp_print_list Reg_defined_at_instruction.print)
+          val_args;
         match val_args with [base] -> Some base | [] | _ -> None
 
-      let points_to_ocaml_block_not_closure_block t =
-        if maybe_closure_block t then None else points_to_ocaml_block t
+      let points_to_ocaml_block_not_closure_block t block =
+        if maybe_closure_block t then None else points_to_ocaml_block t block
 
       let is_disjoint t1 t2 block reaching_definitions =
-        let equiv =
+        let equiv () =
           (* heuristic to detect that either (a) r1 and r2 point to the same
              ocaml block, or (b) r1 and r2 point to disjoint ocaml blocks, but
              not to partially overlapping. *)
           match
-            ( points_to_ocaml_block_not_closure_block t1,
-              points_to_ocaml_block_not_closure_block t2 )
+            ( points_to_ocaml_block_not_closure_block t1 block,
+              points_to_ocaml_block_not_closure_block t2 block )
           with
-          | Some base1, Some base2 -> Some (base1, base2)
-          | (Some _ | None), _ -> None
+          | Some base1, Some base2 ->
+            State.dump_debug (Block.state block)
+              "Found equiv: base 1 = %a, base2 = %a\n"
+              Reg_defined_at_instruction.print base1
+              Reg_defined_at_instruction.print base2;
+            Some (base1, base2)
+          | (Some _ | None), _ ->
+            State.dump_debug (Block.state block)
+              "Not found equiv for (%a) and (%a)\n" Instruction.print_id
+              t1.instruction Instruction.print_id t2.instruction;
+            None
         in
         let actual_arg_offset_in_bytes r1 r2 =
           actual_arg_offset_in_bytes block reaching_definitions r1 r2
         in
         let arg_offset_in_bytes r1 r2 =
+          State.dump_debug (Block.state block) "arg_offset_in_bytes (%a) (%a)\n"
+            Reg_defined_at_instruction.print r1 Reg_defined_at_instruction.print
+            r2;
           match actual_arg_offset_in_bytes r1 r2 with
           | Some _ as res -> res
           | None -> (
-            match equiv with
+            match equiv () with
             | None -> None
             | Some (base1, base2) ->
               if Reg_defined_at_instruction.equal base1 r1
                  && Reg_defined_at_instruction.equal base2 r2
-              then
+                 || Reg_defined_at_instruction.equal base1 r2
+                    && Reg_defined_at_instruction.equal base2 r1
+              then (
                 (* pretend that the registers r1 and r2 are the same. *)
-                Some 0
+                State.dump_debug (Block.state block)
+                  "arg_offset_in_bytes (%a) (%a) = Some 0\n"
+                  Reg_defined_at_instruction.print r1
+                  Reg_defined_at_instruction.print r2;
+                Some 0)
               else None)
         in
-        is_disjoint ~arg_offset_in_bytes t1 t2
+        is_disjoint ~arg_offset_in_bytes t1 t2 block
 
       let dump_desc ppf (t : t) =
         let open Format in
@@ -1383,13 +1506,26 @@ end = struct
         | Data_dependency
         | Order_constraint
 
+      let dep_kind_to_string d =
+        match d with
+        | No_direct_dependency -> "No direct dependency"
+        | Data_dependency -> "Data dependency"
+        | Order_constraint -> "Order constraint"
+
       let get_dependency_kind ~src ~dst block reaching_definitions =
         (* [get_dependency_kind ~src ~dst] conservatively answers the question:
            does [src] directly depend on [dst]? *)
         let if_not_disjoint m1 m2 dep_kind =
           if Operation.is_disjoint m1 m2 block reaching_definitions
           then No_direct_dependency
-          else dep_kind
+          else (
+            State.dump_debug (Block.state block) "%s: %a->%a\n"
+              (dep_kind_to_string dep_kind)
+              Instruction.Id.print
+              (Operation.get_instruction_id m1)
+              Instruction.Id.print
+              (Operation.get_instruction_id m2);
+            dep_kind)
         in
         (* CR-someday gyorsh: this big match can be simplified/split by checking
            the following simple conditions: (a) if one of the operations is
@@ -1707,9 +1843,8 @@ end = struct
         let b = List.for_all (independent t hd) tl in
         if b
         then (
-          State.dump_debug (state t)
-            "Group.all_independent: can_cross_lists %a\n" Instruction.print_id
-            hd;
+          State.dump_debug (state t) "Group.all_independent: %a\n"
+            Instruction.print_id hd;
           check t tl)
         else false
     in
@@ -1783,6 +1918,8 @@ module Computation : sig
     val scalar_instructions : t -> Instruction.t list
 
     val vector_instructions : t -> Simd_selection.vectorized_instruction list
+
+    val iter_vectorizable_args : t -> f:(arg_i:int -> unit) -> unit
   end
 
   module Seed : sig
@@ -1815,11 +1952,13 @@ module Computation : sig
 end = struct
   module Group : sig
     (** Represents scalar instructions and the corresponding
-        and vector instructions. *)
+        vector instructions. *)
     type t
 
+    (** guaranteed to return a list with at least 2 instructions. *)
     val scalar_instructions : t -> Instruction.t list
 
+    (** guaranteed to return a non-empty list.  *)
     val vector_instructions : t -> Simd_selection.vectorized_instruction list
 
     (** maps over the indexes of arguments that need to be considered when vectorizing
@@ -1827,6 +1966,10 @@ end = struct
         calculation. [init] ensures that the memory address arguments have the same values
         for all instructions in the group. The result list is in reverse order. *)
     val map_vectorizable_args : t -> f:(arg_i:int -> 'a) -> 'a list
+
+    val iter_vectorizable_args : t -> f:(arg_i:int -> unit) -> unit
+
+    val for_all_non_vectorizable_args : t -> f:(arg_i:int -> bool) -> bool
 
     (** [init width_in_bits instructions] checks that [instructions]
         are supported isomorphic scalar instructions that are
@@ -1842,7 +1985,8 @@ end = struct
     type t =
       { vector_instructions : Simd_selection.vectorized_instruction list;
         instructions : Instruction.t list;
-        non_address_arg_count : int
+        non_address_arg_count : int;
+        arg_count : int
       }
 
     let scalar_instructions t = t.instructions
@@ -1863,6 +2007,23 @@ end = struct
          need to know if there are any address args or not, so we don't need to
          know if it's a memory operation or not. *)
       List.init t.non_address_arg_count (fun arg_i -> f ~arg_i)
+
+    let iter_vectorizable_args t ~f =
+      (* see [map_vectorizable_args] *)
+      for arg_i = 0 to t.non_address_arg_count - 1 do
+        f ~arg_i
+      done
+
+    let for_all_non_vectorizable_args t ~f =
+      (* see [map_vectorizable_args] *)
+      let rec loop arg_i =
+        if arg_i = t.arg_count
+        then true
+        else if f ~arg_i
+        then loop (arg_i + 1)
+        else false
+      in
+      loop t.non_address_arg_count
 
     let same_stack_offset instructions =
       match instructions with
@@ -1903,6 +2064,7 @@ end = struct
         res
 
     let init ~width_in_bits instructions deps =
+      assert (List.length instructions > 1);
       assert (
         width_in_bits * List.length instructions
         = Simd_selection.vector_width_in_bits);
@@ -1937,7 +2099,13 @@ end = struct
               | Some mem_op ->
                 Dependencies.Memory.Operation.first_memory_arg_index mem_op
             in
-            Some { vector_instructions; instructions; non_address_arg_count })
+            assert (List.length vector_instructions > 0);
+            Some
+              { vector_instructions;
+                instructions;
+                non_address_arg_count;
+                arg_count
+              })
 
     (* Load: At the moment, we do not vectorize dependencies of load
        instructions, and don't support vectorizing load instructons that have
@@ -2103,17 +2271,43 @@ end = struct
   end
 
   type t =
-    { groups : Group.t Instruction.Id.Tbl.t;
-      all_instructions : Instruction.Id.Set.t
+    { groups : Group.t Instruction.Id.Map.t;
+      (* [all_instructions] is all the scalar instructions in the computations.
+         It is an optimization to cache this value here. It is used for ruling
+         out computuations that are invalid or not implementable, and to
+         estimate cost/benefit of vectorized computations. *)
+      all_scalar_instructions : Instruction.Id.Set.t
     }
 
-  let num_groups t = Instruction.Id.Tbl.length t.groups
+  let num_groups t = Instruction.Id.Map.cardinal t.groups
 
-  let num_instructions t = Instruction.Id.Set.cardinal t.all_instructions
+  let num_vector_instructions t =
+    Instruction.Id.Map.fold
+      (fun _k g acc -> acc + List.length (Group.vector_instructions g))
+      t.groups 0
+
+  let num_scalar_instructions t =
+    Instruction.Id.Set.cardinal t.all_scalar_instructions
+
+  (** [cost t] returns an integer [n] describing the cost of
+      vectorized computation [t] instead of the original code:
+      negative [n] means vectorized computation is better than
+      the original code. The goal is to find [t] that minimizes cost(t).
+
+      Currently, [cost] uses a naive measure of number of instructions,
+      i.e., the difference between the number of vector instructions instructions
+      and the number of scalar instructions. *)
+  let cost t = num_vector_instructions t - num_scalar_instructions t
+
+  let is_cost_effective t = cost t < 0
 
   let dump_one_line_stat ppf t =
-    Format.fprintf ppf "%d groups and %d instructions" (num_groups t)
-      (num_instructions t)
+    Format.fprintf ppf
+      "%d groups, %d scalar instructions, %d vector instructions, cost = %d"
+      (num_groups t)
+      (num_scalar_instructions t)
+      (num_vector_instructions t)
+      (cost t)
 
   let dump ppf ~(block : Block.t) t =
     let open Format in
@@ -2128,7 +2322,7 @@ end = struct
     DLL.iter (Block.body block) ~f:(fun instruction ->
         let instruction = Instruction.basic instruction in
         let id = Instruction.id instruction in
-        Instruction.Id.Tbl.find_opt t.groups id |> print_group id)
+        Instruction.Id.Map.find_opt id t.groups |> print_group id)
 
   let dump_all ppf ~(block : Block.t) (trees : t list) =
     let open Format in
@@ -2141,9 +2335,10 @@ end = struct
      later *)
 
   let find_group t ~key =
-    Instruction.id key |> Instruction.Id.Tbl.find_opt t.groups
+    let key_id = Instruction.id key in
+    Instruction.Id.Map.find_opt key_id t.groups
 
-  let contains_id t id = Instruction.Id.Set.mem id t.all_instructions
+  let contains_id t id = Instruction.Id.Set.mem id t.all_scalar_instructions
 
   let contains t instruction =
     let id = Instruction.id instruction in
@@ -2161,7 +2356,9 @@ end = struct
             let id = Instruction.id instruction in
             let direct_deps = Dependencies.get_direct_dependencies deps id in
             let res =
-              not (Instruction.Id.Set.disjoint direct_deps t.all_instructions)
+              not
+                (Instruction.Id.Set.disjoint direct_deps
+                   t.all_scalar_instructions)
             in
             State.dump_debug (Block.state block)
               "Computation.is_dependency_of_the_rest_of_body = %b %a\n" res
@@ -2178,7 +2375,7 @@ end = struct
     match Dependencies.get_direct_dependency_of_reg deps id reg with
     | None -> false
     | Some reaching_definition_id ->
-      Instruction.Id.Set.mem reaching_definition_id t.all_instructions
+      Instruction.Id.Set.mem reaching_definition_id t.all_scalar_instructions
 
   let is_dependency_of_outside_body t block deps =
     (* live registers before terminator represent dependencies outside of
@@ -2209,11 +2406,11 @@ end = struct
   let respects_memory_dependencies t block deps =
     (* conservative: for each memory dependency (data or order), check that the
        new order of instructions satisfies the dependency. This is needed to
-       ensure that memory deps between different groups is respected, and memory
-       deps between instructions in and out of the vectorized computation is
-       respected. The construction of the groups themselves guarantees that
-       there are no any deps (reg, mem, or order) between instructions in the
-       same group. *)
+       ensure that memory deps between different groups are respected, and
+       memory deps between instructions in and out of the vectorized computation
+       are respected. The construction of the groups themselves guarantees that
+       there are no deps of any kind (reg, mem, or order) between instructions
+       in the same group. *)
 
     (* CR-someday gyorsh: improve instruction scheduling for vectorized
        instructions to allow more code to be vectorized. Order constraints can
@@ -2221,7 +2418,7 @@ end = struct
        instead of the predefined position used now for [Group.key]. *)
     let old_pos id = Block.pos block id in
     let new_positions =
-      Instruction.Id.Tbl.fold
+      Instruction.Id.Map.fold
         (fun key group acc ->
           let key_pos = old_pos key in
           List.fold_left
@@ -2261,13 +2458,58 @@ end = struct
       "Computation.respects_memory_dependencies result = %b\n" res;
     res
 
+  let respects_register_order_constraints t deps =
+    (* Check that read or write of register [r] is not reordered past another
+       write to [r] (similarly to respecting order constraints between memory
+       operations in [respects_memory_dependencies]). This check would not be
+       needed if we had basic-block-level SSA. *)
+    let is_valid_definition instruction ~arg_i ~new_pos =
+      let id = Instruction.id instruction in
+      let args = Instruction.arguments instruction in
+      let reg = args.(arg_i) in
+      let old_def = Dependencies.get_direct_dependency_of_reg deps id reg in
+      let new_def =
+        Dependencies.get_direct_dependency_of_reg deps new_pos reg
+      in
+      match old_def, new_def with
+      | None, None ->
+        (* The register is defined before the block, and not redefined within
+           the block. *)
+        true
+      | None, Some _ ->
+        (* The instruction uses register defined before the block, but the
+           register is redefined before the new position. *)
+        false
+      | Some _, None ->
+        Misc.fatal_errorf
+          "Use of clobbered register %a at %a, previously defined at %a"
+          Printmach.reg reg Instruction.Id.print new_pos Instruction.print
+          instruction
+      | Some old_def, Some new_def ->
+        if Instruction.Id.equal old_def new_def
+        then true
+        else (* cannot move past another definition point *)
+          false
+    in
+    Instruction.Id.Map.for_all
+      (fun key group ->
+        let scalar_instructions = Group.scalar_instructions group in
+        Group.for_all_non_vectorizable_args group ~f:(fun ~arg_i ->
+            List.for_all
+              (is_valid_definition ~arg_i ~new_pos:key)
+              scalar_instructions))
+      t.groups
+
+  (* CR gyorsh: [is_dependency_of_outside_body] condition can be weakened if we
+     propagate register substitution to instructions that depend on them outside
+     the tree (in the same block and other blocks), but may require additional
+     instructions to extract scalar values from vector registers. Same weakening
+     can be applied to [is_dependency_of_the_rest_of_body]. We check
+     [is_dependency_of_the_rest_of_body] later, after [select_and_merge],
+     because it allows us to vectorize computations that share some nodes. *)
   let is_valid t block deps =
     respects_memory_dependencies t block deps
-    (* CR gyorsh: this condition can be weakened if we propagate register
-       substitution to instructions that depend on them outside the tree (in the
-       same block and other blocks), but may require additional instructions to
-       extract scalar values from vector registers. *)
-    && (not (is_dependency_of_the_rest_of_body t block deps))
+    && respects_register_order_constraints t deps
     && not (is_dependency_of_outside_body t block deps)
 
   (** The key is the last instruction id, for now. This is the place
@@ -2285,158 +2527,271 @@ end = struct
       instruction_ids
 
   let all_instructions map =
-    Instruction.Id.Tbl.fold
+    Instruction.Id.Map.fold
       (fun _key (group : Group.t) acc ->
         let instructions = Group.scalar_instructions group in
         let seq = List.to_seq instructions |> Seq.map Instruction.id in
         Instruction.Id.Set.add_seq seq acc)
       map Instruction.Id.Set.empty
 
-  let from_seed (block : Block.t) deps seed =
-    let map = Block.size block |> Instruction.Id.Tbl.create in
-    let width_in_bits = Seed.lane_width_in_bits seed in
-    let rec build group =
-      (* Recursively builds the vectorized computation and returns the key of
-         the root, otherwise None. It consists of groups do not depend on
-         instructions outside the tree except for loads. We don't realy need to
-         return anything from [build] at the moment, but may need in the future,
-         e.g., for support of out of tree dependencies. *)
-      match group with
-      | None -> None
-      | Some (group : Group.t) -> (
-        let instruction_ids =
-          Group.scalar_instructions group |> List.map Instruction.id
-        in
-        let key = get_key block instruction_ids in
-        (* Is there another group with the same key already in the tree? If the
-           key instruction of the group is already in another group, and the
-           other group is different from this group, we won't vectorize this for
-           simplicity's sake. *)
-        match Instruction.Id.Tbl.find_opt map key with
-        | Some (old_group : Group.t) ->
-          if Group.equal group old_group then Some key else None
-        | None -> (
-          (* add to the map *)
-          Instruction.Id.Tbl.add map key group;
-          (* try to create groups for all dependencies *)
-          let dep_groups =
-            Group.map_vectorizable_args group ~f:(fun ~arg_i ->
-                (* [arg_i] ranges over indexes of arguments that need to be
-                   considered when vectorizing dependencies. Currently skips
-                   over arguments that are used for memory address calculation.
-                   [Group.init] ensures that the memory address arguments have
-                   the same values for all instructions in the group. *)
-                (* CR-someday gyorsh: refer directly to [Reg.t] instead of
-                   positional [arg_i]. Currently, the code assumes that address
-                   args are always at the end. *)
-                match get_deps deps ~arg_i instruction_ids with
-                | None ->
-                  (* At least one of the arguments has a dependency outside the
-                     block. Currently, not supported. *)
-                  None
-                | Some dep_ids ->
-                  State.dump_debug (Block.state block)
-                    "Computation.from_seed build deps arg_i=%d\n" arg_i;
-                  let instructions = List.map (Block.find block) dep_ids in
-                  Group.init ~width_in_bits instructions deps)
-          in
-          let missing_deps = List.exists Option.is_none dep_groups in
-          if missing_deps
-          then None
-          else
-            (* recurse to vectorize dependencies. *)
-            match Misc.Stdlib.List.map_option build dep_groups with
-            | None -> None
-            | Some _keys -> Some key))
-    in
-    let root = Seed.group seed in
-    match build (Some root) with
+  let empty =
+    { groups = Instruction.Id.Map.empty;
+      all_scalar_instructions = Instruction.Id.Set.empty
+    }
+
+  (* CR gyorsh: if same instruction belongs to two groups, is it handled
+     correctly? no, only same key is handled correctly. *)
+  (* CR gyorsh: handle same instruction multiple times in the same group
+     correctly, don't allow duplicating. Currently, this can only lead to a
+     valid tree if the duplicated instruction is [Const_*] *)
+  let rec build group map ~block ~deps ~width_in_bits =
+    (* Recursively builds the vectorized computation and returns the key of the
+       root, otherwise None. It consists of groups do not depend on instructions
+       outside the computation except for loads. *)
+    match group with
     | None -> None
-    | Some key ->
-      let t = { groups = map; all_instructions = all_instructions map } in
+    | Some (group : Group.t) -> (
+      let instruction_ids =
+        Group.scalar_instructions group |> List.map Instruction.id
+      in
+      let key = get_key block instruction_ids in
+      (* Is there another group with the same key already in the tree? If the
+         key instruction of the group is already in another group, and the other
+         group is different from this group, we won't vectorize this for
+         simplicity's sake. *)
+      match Instruction.Id.Map.find_opt key map with
+      | Some (old_group : Group.t) ->
+        if Group.equal group old_group then Some map else None
+      | None ->
+        (* add to the map *)
+        let map = Instruction.Id.Map.add key group map in
+        (* try to create groups for all dependencies *)
+        let dep_groups =
+          Group.map_vectorizable_args group ~f:(fun ~arg_i ->
+              (* [arg_i] ranges over indexes of arguments that need to be
+                 considered when vectorizing dependencies. Currently skips over
+                 arguments that are used for memory address calculation.
+                 [Group.init] ensures that the memory address arguments have the
+                 same values for all instructions in the group. *)
+              (* CR-someday gyorsh: refer directly to [Reg.t] instead of
+                 positional [arg_i]. Currently, the code assumes that address
+                 args are always at the end. *)
+              match get_deps deps ~arg_i instruction_ids with
+              | None ->
+                (* At least one of the arguments has a dependency outside the
+                   block. Currently, not supported. *)
+                None
+              | Some dep_ids ->
+                State.dump_debug (Block.state block)
+                  "Computation.from_seed build deps arg_i=%d\n" arg_i;
+                let instructions = List.map (Block.find block) dep_ids in
+                Group.init ~width_in_bits instructions deps)
+        in
+        let missing_deps = List.exists Option.is_none dep_groups in
+        if missing_deps
+        then None
+        else
+          (* recurse to vectorize dependencies. *)
+          List.fold_left
+            (fun acc g -> Option.bind acc (build g ~block ~deps ~width_in_bits))
+            (Some map) dep_groups)
+
+  let from_seed (block : Block.t) deps seed =
+    let width_in_bits = Seed.lane_width_in_bits seed in
+    let root = Seed.group seed in
+    State.dump_debug (Block.state block) "Computation.from_seed root=\n%a\n"
+      Group.dump root;
+    let map = Instruction.Id.Map.empty in
+    match build (Some root) map ~block ~deps ~width_in_bits with
+    | None -> None
+    | Some map ->
+      let t =
+        { groups = map; all_scalar_instructions = all_instructions map }
+      in
       State.dump_debug (Block.state block)
         "Computation.from_seed build finished\n%a\n" (dump ~block) t;
-      assert (Group.equal (Instruction.Id.Tbl.find map key) root);
       assert (seed_address_does_not_depend_on_tree t block deps seed);
       if is_valid t block deps then Some t else None
 
+  let join t1 t2 =
+    { groups =
+        Instruction.Id.Map.union
+          (fun _k g1 g2 ->
+            assert (Group.equal g1 g2);
+            Some g1)
+          t1.groups t2.groups;
+      all_scalar_instructions =
+        Instruction.Id.Set.union t1.all_scalar_instructions
+          t2.all_scalar_instructions
+    }
+
+  (** [compatible t t'] returns true if for every group [g] in [t],
+      and [g'] in [t'],  [g] and [g'] are equal or have disjoint sets
+      of scalar instructions. *)
+  let compatible t t' =
+    if Instruction.Id.Set.disjoint t.all_scalar_instructions
+         t'.all_scalar_instructions
+    then true
+    else
+      let sub t1 t2 =
+        Instruction.Id.Map.for_all
+          (fun key g1 ->
+            match Instruction.Id.Map.find_opt key t2.groups with
+            | Some g2 ->
+              (* equal groups: if the key is in t2, then the corresponding
+                 groups are equal. *)
+              (* CR gyorsh: don't need to repeat this check in the symmetric
+                 case, but it's easier to understand the code this way. *)
+              Group.equal g1 g2
+            | None ->
+              (* disjoint groups: if the key is not in t2, then all insts are
+                 not in t2. *)
+              List.for_all
+                (fun i ->
+                  not
+                    (Instruction.Id.Set.mem (Instruction.id i)
+                       t2.all_scalar_instructions))
+                (Group.scalar_instructions g1))
+          t1.groups
+      in
+      sub t t' && sub t' t
+
   let select_and_join trees block deps =
-    (* CR-someday tip: This is fine for now because trees are independent with
-       anything outside the tree except loads, so trees with no instructions in
-       common are independent with each other. Will have to re-implement if
-       trees have other external dependencies *)
-    (* CR-someday gyorsh: currently trees may share load instructions, and we
-       will choose the first tree we encounter, discarding all the others. we
-       can merge them if we are careful about load groups and registers used in
-       the new vector instructions that may appear in more than one tree. *)
     match trees with
     | [] -> None
     | trees ->
-      let map = Instruction.Id.Tbl.create (Block.size block) in
-      let add_all map ~from =
-        from |> Instruction.Id.Tbl.to_seq |> Instruction.Id.Tbl.add_seq map
-      in
+      (* sort by cost, ascending *)
+      let compare_cost t1 t2 = Int.compare (cost t1) (cost t2) in
+      let trees = List.sort compare_cost trees in
       let rec loop trees acc =
         match trees with
         | [] -> acc
         | hd :: tl ->
-          if Instruction.Id.Set.disjoint hd.all_instructions acc
-          then (
-            add_all map ~from:hd.groups;
-            let acc = Instruction.Id.Set.union hd.all_instructions acc in
-            loop tl acc)
+          if compatible hd acc
+          then
+            let new_acc = join hd acc in
+            if compare_cost new_acc acc < 0
+            then loop tl new_acc
+            else
+              (* CR gyorsh: this case is not reachable with the current cost function. *)
+              (* skip [hd], try to add the rest of the tail *)
+              loop tl acc
           else (* skip [hd], add the rest of the tail *)
             loop tl acc
       in
-      let all_instructions = loop trees Instruction.Id.Set.empty in
-      let res = { groups = map; all_instructions } in
+      let res = loop trees empty in
       (* CR gyorsh: does join respect memory order? *)
       assert (is_valid res block deps);
-      Some res
+      State.dump_debug (Block.state block) "Computation.select_and_join %a\n"
+        (dump ~block) res;
+      if is_dependency_of_the_rest_of_body res block deps
+         || not (is_cost_effective res)
+      then None
+      else Some res
 end
 
-let vectorize state (block : Block.t) tree =
-  (* Add vector instructions. *)
-  let add_vector_instructions_for_group ~before:cell old_instruction
-      vector_instructions =
-    let instruction = Instruction.basic old_instruction in
-    let new_regs : Reg.t Numbers.Int.Tbl.t = Numbers.Int.Tbl.create 2 in
-    let get_new_reg n =
-      match Numbers.Int.Tbl.find_opt new_regs n with
-      | Some reg -> reg
-      | None ->
-        let new_reg = Reg.create Vec128 in
-        Numbers.Int.Tbl.add new_regs n new_reg;
-        new_reg
-    in
-    let create_instruction
-        (simd_instruction : Simd_selection.vectorized_instruction) =
-      let get_register (simd_reg : Simd_selection.register) =
-        match simd_reg with
-        | New n -> get_new_reg n
-        | Argument n ->
-          let original_reg = (Instruction.arguments instruction).(n) in
-          State.get_reg state original_reg
-        | Result n ->
-          let original_reg = (Instruction.results instruction).(n) in
-          State.get_reg state original_reg
-        | Original n ->
-          let original_reg = (Instruction.arguments instruction).(n) in
-          original_reg
-      in
-      let desc = Cfg.Op simd_instruction.operation in
-      let arg = Array.map get_register simd_instruction.arguments in
-      let res = Array.map get_register simd_instruction.results in
-      let id = State.next_available_instruction state in
-      Instruction.copy old_instruction ~desc ~arg ~res ~id
-    in
-    (* CR gyorsh: if same instruction belongs to two groups, is it handled
-       correctly? *)
-    List.iter
-      (fun simd_instruction ->
-        create_instruction simd_instruction |> DLL.insert_before cell)
-      vector_instructions
+let augment_reg_map reg_map group =
+  (* Make sure that [reg_map] contains all scalar registers of the [group] that
+     will be replaced by vector registers. It is not enough to map only scalar
+     registers that appear in [key_instruction] because another group's key
+     instruction may refer to different scalar registers in the same packed
+     register (i.e., the order of scalar instructions need not be the same as
+     block order, and the key is currently the last instruction in the block
+     order.
+
+     For example, group [10;7] and group [13;14]: *)
+
+  (* (id:5) V/63 := val [b:V/62 + 8]
+   * (id:6) V/64 := val [a:V/61 + 8]
+   * (id:7) Paddint:I/65 := V/64 + V/63 + -1
+   * (id:8) V/66 := val [b:V/62]
+   * (id:9) V/67 := val [a:V/61]
+   * (id:10) Paddint:I/68 := V/67 + V/66 + -1
+   * (id:13) val[V/69] := Paddint:I/68 (init)
+   * (id:14) val[V/69 + 8] := Paddint:I/65 (init) *)
+
+  (* The key of [10;7] has result register [I/68] but the corresponding argument
+     register in the key of [13;14] is [I/65]. *)
+  let scalar_instructions = Computation.Group.scalar_instructions group in
+  let arg = List.map Instruction.arguments scalar_instructions in
+  let res = List.map Instruction.results scalar_instructions in
+  let augment index reg_arrays =
+    let pack = List.map (fun reg_array -> reg_array.(index)) reg_arrays in
+    match pack with
+    | [] -> ()
+    | hd :: tl -> (
+      match Substitution.get_reg_opt reg_map hd with
+      | None -> Substitution.fresh_reg_for_pack reg_map pack Vec128
+      | Some old_reg_for_hd ->
+        (* other registers in the pack must be mapped in the same way as
+           [hd]. *)
+        List.iter
+          (fun reg ->
+            match Substitution.get_reg_opt reg_map reg with
+            | None ->
+              Misc.fatal_errorf
+                "augment_reg_map: %a is mapped to %a but %a is not mapped"
+                Printmach.reg hd Printmach.reg old_reg_for_hd Printmach.reg reg
+            | Some old_reg ->
+              if not (Reg.same old_reg_for_hd old_reg)
+              then
+                Misc.fatal_errorf
+                  "augment_reg_map: %a is mapped to %a but %a is mapped to %a"
+                  Printmach.reg hd Printmach.reg old_reg_for_hd Printmach.reg
+                  reg Printmach.reg old_reg)
+          tl)
   in
+  (* only some of the args are vectorizable, but all results are vectorizable. *)
+  (* CR gyorsh: get rid of positional interface, use registers directly. *)
+  Computation.Group.iter_vectorizable_args group ~f:(fun ~arg_i ->
+      augment arg_i arg);
+  Array.iteri (fun i _r -> augment i res) (List.hd res)
+
+let add_vector_instructions_for_group reg_map state group ~before:cell
+    old_instruction =
+  let vector_instructions = Computation.Group.vector_instructions group in
+  let key_instruction = Instruction.basic old_instruction in
+  let new_regs : Reg.t Numbers.Int.Tbl.t = Numbers.Int.Tbl.create 2 in
+  let get_new_reg n =
+    match Numbers.Int.Tbl.find_opt new_regs n with
+    | Some reg -> reg
+    | None ->
+      let new_reg = Reg.create Vec128 in
+      Numbers.Int.Tbl.add new_regs n new_reg;
+      new_reg
+  in
+  let create_instruction
+      (simd_instruction : Simd_selection.vectorized_instruction) =
+    let get_register (simd_reg : Simd_selection.register) =
+      match simd_reg with
+      | New n -> get_new_reg n
+      | Argument n ->
+        let original_reg = (Instruction.arguments key_instruction).(n) in
+        Substitution.get_reg_exn reg_map original_reg
+      | Result n ->
+        let original_reg = (Instruction.results key_instruction).(n) in
+        Substitution.get_reg_exn reg_map original_reg
+      | Original n ->
+        let original_reg = (Instruction.arguments key_instruction).(n) in
+        original_reg
+    in
+    let desc = Cfg.Op simd_instruction.operation in
+    let arg = Array.map get_register simd_instruction.arguments in
+    let res = Array.map get_register simd_instruction.results in
+    let id = State.next_available_instruction state in
+    Instruction.copy old_instruction ~desc ~arg ~res ~id
+  in
+  augment_reg_map reg_map group;
+  (* actually insert the vector instructions into the body of the block *)
+  List.iter
+    (fun simd_instruction ->
+      create_instruction simd_instruction |> DLL.insert_before cell)
+    vector_instructions
+
+let vectorize (block : Block.t) tree =
+  let reg_map = Block.reg_map block in
+  let state = Block.state block in
+  (* Add vector instructions. *)
   let rec add_vector_instructions cell_option =
     match cell_option with
     | None -> ()
@@ -2446,11 +2801,8 @@ let vectorize state (block : Block.t) tree =
        match Computation.find_group tree ~key:instruction with
        | None -> ()
        | Some group ->
-         let vector_instructions =
-           Computation.Group.vector_instructions group
-         in
-         add_vector_instructions_for_group ~before:cell old_instruction
-           vector_instructions);
+         add_vector_instructions_for_group reg_map state group ~before:cell
+           old_instruction);
       DLL.next cell |> add_vector_instructions
   in
   let body = Block.body block in
@@ -2546,13 +2898,14 @@ let can_reorder tree block deps =
   DLL.iter body ~f:(fun i -> State.dump_debug state "%a\n" Instruction.print i);
   res
 
-let maybe_vectorize state block =
+let maybe_vectorize block =
+  let state = Block.state block in
   let instruction_count = Block.size block in
   let label = Block.start block in
-  State.dump (Block.state block) "\nBlock %d:\n" label;
+  State.dump state "\nBlock %d:\n" label;
   if instruction_count > State.max_block_size_to_vectorize
   then
-    State.dump (Block.state block)
+    State.dump state
       "Skipping block %d with %d instructions (> %d = \
        max_block_size_to_vectorize).\n"
       label instruction_count State.max_block_size_to_vectorize
@@ -2567,24 +2920,30 @@ let maybe_vectorize state block =
     match Computation.select_and_join computations block deps with
     | None -> ()
     | Some computation ->
-      let debug_header = "**** Vectorizer: Selected computation" in
-      State.dump state "%s: %a\n%a" debug_header Computation.dump_one_line_stat
-        computation (Computation.dump ~block) computation;
+      let scoped_name =
+        State.fun_dbg state |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
+        |> List.map (fun dbg ->
+               Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+        |> String.concat ","
+      in
+      State.dump state "**** Vectorize selected computation: %a (%s)\n"
+        Computation.dump_one_line_stat computation scoped_name;
+      State.dump_debug state "%a\n" (Computation.dump ~block) computation;
       if State.extra_debug && not (can_reorder computation block deps)
       then
         Misc.fatal_errorf "Vectorized computation is not valid:\n%a\n"
           (Computation.dump ~block) computation ();
       let dump_block msg block =
         let size = DLL.length (Block.body block) in
-        State.dump state "%s: %s: body instruction count=%d\n" debug_header msg
-          size;
+        State.dump state "Block %a in %s: %s body instruction count=%d\n"
+          Label.print (Block.start block) (State.fun_name state) msg size;
         DLL.iter (Block.body block) ~f:(fun i ->
             State.dump_debug state "%a\n" Instruction.print
               (Instruction.basic i))
       in
       dump_block "before vectorize" block;
       (* This is the only function that changes the [block]. *)
-      vectorize state block computation;
+      vectorize block computation;
       dump_block "after vectorize" block;
       ()
 
@@ -2597,5 +2956,5 @@ let cfg ppf_dump cl =
   let layout = Cfg_with_layout.layout cl in
   DLL.iter layout ~f:(fun label ->
       let block = Block.create (Cfg.get_block_exn cfg label) state in
-      maybe_vectorize state block);
+      maybe_vectorize block);
   cl
