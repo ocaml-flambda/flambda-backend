@@ -23,7 +23,7 @@ module Unsafe = struct
   external compare_exchange : 'a t -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
   external fetch_and_add : int t -> int -> int @@ portable = "%atomic_fetch_add"
 
-  external ignore : 'a -> unit = "%ignore"
+  external ignore : 'a -> unit @@ portable = "%ignore"
 
   let set r x = ignore (exchange r x)
   let incr r = ignore (fetch_and_add r 1)

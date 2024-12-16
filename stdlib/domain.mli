@@ -31,17 +31,18 @@ type !'a t
 (** A domain of type ['a t] runs independently, eventually producing a
     result of type 'a, or an exception *)
 
-val spawn : (unit -> 'a) -> 'a t
+val spawn : (unit -> 'a) -> 'a t @@ nonportable
 [@@alert unsafe_parallelism
            "This function is unsafe and should not be used in production \
             code.\nA safe interface for parallelism is forthcoming."]
+[@@alert unsafe "Use [Domain.Safe.spawn]."]
 (** [spawn f] creates a new domain that runs in parallel with the
     current domain.
 
     @raise Failure if the program has insufficient resources to create another
     domain. *)
 
-val join : 'a t -> 'a
+val join : 'a t -> 'a @@ portable
 (** [join d] blocks until domain [d] runs to completion. If [d] results in a
     value, then that is returned by [join d]. If [d] raises an uncaught
     exception, then that is re-raised by [join d]. *)
@@ -49,26 +50,26 @@ val join : 'a t -> 'a
 type id = private int
 (** Domains have unique integer identifiers *)
 
-val get_id : 'a t -> id
+val get_id : 'a t -> id @@ portable
 (** [get_id d] returns the identifier of the domain [d] *)
 
-val self : unit -> id
+val self : unit -> id @@ portable
 (** [self ()] is the identifier of the currently running domain *)
 
-val cpu_relax : unit -> unit
+val cpu_relax : unit -> unit @@ portable
 (** If busy-waiting, calling cpu_relax () between iterations
     will improve performance on some CPU architectures *)
 
-val is_main_domain : unit -> bool
+val is_main_domain : unit -> bool @@ portable
 (** [is_main_domain ()] returns true if called from the initial domain. *)
 
-val recommended_domain_count : unit -> int
+val recommended_domain_count : unit -> int @@ portable
 (** The recommended maximum number of domains which should be running
     simultaneously (including domains already running).
 
     The value returned is at least [1]. *)
 
-val before_first_spawn : (unit -> unit) -> unit
+val before_first_spawn : (unit -> unit) -> unit @@ nonportable
 (** [before_first_spawn f] registers [f] to be called before the first domain
     is spawned by the program. The functions registered with
     [before_first_spawn] are called on the main (initial) domain. The functions
@@ -77,7 +78,7 @@ val before_first_spawn : (unit -> unit) -> unit
 
     @raise Invalid_argument if the program has already spawned a domain. *)
 
-val at_exit : (unit -> unit) -> unit
+val at_exit : (unit -> unit) -> unit @@ nonportable
 (** [at_exit f] registers [f] to be called when the current domain exits. Note
     that [at_exit] callbacks are domain-local and only apply to the calling
     domain. The registered functions are called in 'last in, first out' order:
@@ -98,10 +99,10 @@ let temp_file_key = Domain.DLS.new_key (fun _ ->
 module DLS : sig
 (** Domain-local Storage *)
 
-    type 'a key
+    type 'a key : value mod portable uncontended
     (** Type of a DLS key *)
 
-    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key @@ nonportable
     (** [new_key f] returns a new key bound to initialiser [f] for accessing
 ,        domain-local variables.
 
@@ -144,14 +145,55 @@ module DLS : sig
         explicit synchronization to avoid data races.
     *)
 
-    val get : 'a key -> 'a
+    val get : 'a key -> 'a @@ nonportable
     (** [get k] returns [v] if a value [v] is associated to the key [k] on
         the calling domain's domain-local state. Sets [k]'s value with its
         initialiser and returns it otherwise. *)
 
-    val set : 'a key -> 'a -> unit
+    val set : 'a key -> 'a -> unit @@ nonportable
     (** [set k v] updates the calling domain's domain-local state to associate
         the key [k] with value [v]. It overwrites any previous values associated
         to [k], which cannot be restored later. *)
 
+end
+[@@alert unsafe "Use [Domain.Safe.DLS]."]
+
+module Safe : sig
+  module DLS : sig
+    module Access : sig
+      type t : value mod global portable many unique
+
+      val for_initial_domain : t @@ nonportable
+    end
+
+    type 'a key : value mod portable uncontended = 'a DLS.key [@alert "-unsafe"]
+
+    val access
+      :  (Access.t -> 'a @ portable contended) @ local portable
+      -> 'a @ portable contended
+      @@ portable
+
+    val new_key
+      :  ?split_from_parent:('a -> (Access.t -> 'a) @ portable) @ portable
+      -> (Access.t -> 'a) @ portable
+      -> 'a key
+      @@ portable
+
+    val get : Access.t -> 'a key -> 'a @@ portable
+    val set : Access.t -> 'a key -> 'a -> unit @@ portable
+  end
+
+  val spawn : (unit -> 'a) @ portable -> 'a t @@ portable
+  [@@alert unsafe_parallelism
+             "This function is unsafe and should not be used in production \
+              code.\nA safe interface for parallelism is forthcoming."]
+
+  val spawn' : (DLS.Access.t -> 'a) @ portable -> 'a t @@ portable
+  [@@alert unsafe_parallelism
+             "This function is unsafe and should not be used in production \
+              code.\nA safe interface for parallelism is forthcoming."]
+
+  val at_exit : (unit -> unit) @ portable -> unit @@ portable
+
+  val at_exit' : DLS.Access.t -> (unit -> unit) -> unit @@ portable
 end

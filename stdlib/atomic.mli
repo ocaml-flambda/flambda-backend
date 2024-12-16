@@ -78,10 +78,10 @@ val compare_exchange : 'a t -> 'a -> 'a -> 'a
 val fetch_and_add : int t -> int -> int @@ portable
 
 (** [incr r] atomically increments the value of [r] by [1]. *)
-val incr : int t -> unit
+val incr : int t -> unit @@ portable
 
 (** [decr r] atomically decrements the value of [r] by [1]. *)
-val decr : int t -> unit
+val decr : int t -> unit @@ portable
 
 module Safe : sig @@ portable
   (** An atomic (mutable) reference to a value of type ['a]. *)
