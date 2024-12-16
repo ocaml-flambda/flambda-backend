@@ -211,12 +211,12 @@ let access_shared (type k) (pw : k Password.Shared.t) f =
   | res -> res
   | exception exn -> Data.reraise_encapsulated_shared pw exn
 
-(* Like [Stdlib.Mutex], but [portable]. *)
+(* Like [Stdlib.Mutex], but [portable] and is a no-op in runtime4. *)
 module M = struct
   type t : value mod portable uncontended
-  external create: unit -> t @@ portable = "caml_ml_mutex_new"
-  external lock: t -> unit @@ portable = "caml_ml_mutex_lock"
-  external unlock: t -> unit @@ portable = "caml_ml_mutex_unlock"
+  external create: unit -> t @@ portable = "caml_ml_capsule_mutex_new"
+  external lock: t -> unit @@ portable = "caml_ml_capsule_mutex_lock"
+  external unlock: t -> unit @@ portable = "caml_ml_capsule_mutex_unlock"
 end
 
 module Mutex = struct
@@ -296,10 +296,10 @@ let protect f =
 module Condition = struct
   type 'k t : value mod portable uncontended
 
-  external create : unit -> 'k t @@ portable = "caml_ml_condition_new"
-  external wait : 'k t -> M.t -> unit @@ portable = "caml_ml_condition_wait"
-  external signal : 'k t -> unit @@ portable = "caml_ml_condition_signal"
-  external broadcast : 'k t -> unit @@ portable = "caml_ml_condition_broadcast"
+  external create : unit -> 'k t @@ portable = "caml_ml_capsule_condition_new"
+  external wait : 'k t -> M.t -> unit @@ portable = "caml_ml_capsule_condition_wait"
+  external signal : 'k t -> unit @@ portable = "caml_ml_capsule_condition_signal"
+  external broadcast : 'k t -> unit @@ portable = "caml_ml_capsule_condition_broadcast"
 
   let wait t (mut : 'k Mutex.t) _password =
     (* mut is locked, so it must not be poisoned *)

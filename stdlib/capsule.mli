@@ -151,9 +151,10 @@ val access_shared :
     with a shared {!Access.t} for ['k]. The result is within ['k] so it
     must be [portable] and it is marked [contended]. *)
 
-(** Mutual exclusion primtives for controlling uncontended access to a capsule.
+(** Mutual exclusion primitives for controlling uncontended access to a capsule.
 
-    Requires OCaml 5 runtime. *)
+    In the OCaml 4 runtime, does nothing, so does not provide mutual exclusion
+    across systhreads. *)
 module Mutex : sig
 
     type 'k t : value mod portable uncontended

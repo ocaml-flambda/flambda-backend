@@ -212,3 +212,40 @@ CAMLprim value caml_domain_dls_get(void)
 {
   caml_failwith("Domains not supported on runtime4");
 }
+
+/* Dummy implementations to allow creating capsule mutexes without systhreads. */
+
+CAMLprim value caml_ml_capsule_mutex_new(value unit)
+{
+  return Val_unit;
+}
+
+CAMLprim value caml_ml_capsule_mutex_lock(value wrapper)
+{
+  return Val_unit;
+}
+
+CAMLprim value caml_ml_capsule_mutex_unlock(value wrapper)
+{
+  return Val_unit;
+}
+
+CAMLprim value caml_ml_capsule_condition_new(value unit)
+{
+  caml_failwith("Capsule.Condition not supported on runtime4");
+}
+
+CAMLprim value caml_ml_capsule_condition_wait(value wcond, value wmut)
+{
+  caml_failwith("Capsule.Condition not supported on runtime4");
+}
+
+CAMLprim value caml_ml_capsule_condition_signal(value wrapper)
+{
+  caml_failwith("Capsule.Condition not supported on runtime4");
+}
+
+CAMLprim value caml_ml_capsule_condition_broadcast(value wrapper)
+{
+  caml_failwith("Capsule.Condition not supported on runtime4");
+}

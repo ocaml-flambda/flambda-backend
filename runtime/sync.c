@@ -118,6 +118,21 @@ CAMLprim value caml_ml_mutex_try_lock(value wrapper)
   return Val_true;
 }
 
+CAMLprim value caml_ml_capsule_mutex_new(value unit)
+{
+  return caml_ml_mutex_new(unit);
+}
+
+CAMLprim value caml_ml_capsule_mutex_lock(value wrapper)
+{
+  return caml_ml_mutex_lock(wrapper);
+}
+
+CAMLprim value caml_ml_capsule_mutex_unlock(value wrapper)
+{
+  return caml_ml_mutex_unlock(wrapper);
+}
+
 /* Condition variables operations */
 
 static void caml_condition_finalize(value wrapper)
@@ -189,4 +204,24 @@ CAMLprim value caml_ml_condition_broadcast(value wrapper)
   sync_check_error(sync_condvar_broadcast(Condition_val(wrapper)),
                  "Condition.broadcast");
   return Val_unit;
+}
+
+CAMLprim value caml_ml_capsule_condition_new(value unit)
+{
+  return caml_ml_condition_new(unit);
+}
+
+CAMLprim value caml_ml_capsule_condition_wait(value wcond, value wmut)
+{
+  return caml_ml_capsule_condition_wait(wcond, wmut);
+}
+
+CAMLprim value caml_ml_capsule_condition_signal(value wrapper)
+{
+  return caml_ml_capsule_condition_signal(wrapper);
+}
+
+CAMLprim value caml_ml_capsule_condition_broadcast(value wrapper)
+{
+  return caml_ml_capsule_condition_broadcast(wrapper);
 }
