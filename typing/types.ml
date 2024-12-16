@@ -108,9 +108,9 @@ and jkind_lr = (allowed * allowed) jkind
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
    function. *)
 (** Corresponds to [Jkind.equal] *)
-let jkind_equal = ref (fun _ _ ->
-    failwith "jkind_equal should be set by jkind.ml")
-let set_jkind_equal f = jkind_equal := f
+let sort_equal = ref (fun _ _ ->
+  failwith "sort_equal should be set by jkind.ml")
+let set_sort_equal f = sort_equal := f
 
 module TransientTypeOps = struct
   type t = type_expr
@@ -649,7 +649,7 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
       Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
           equal_constructor_representation cstr1 cstr2
-          && Misc.Stdlib.Array.equal !jkind_equal jkinds1 jkinds2)
+          && Misc.Stdlib.Array.equal !sort_equal jkinds1 jkinds2)
         cstrs_and_jkinds1
         cstrs_and_jkinds2
   | Variant_extensible, Variant_extensible ->
@@ -667,7 +667,7 @@ let equal_record_representation r1 r2 = match r1, r2 with
       ignore (cr2 : constructor_representation);
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
   | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
+      Misc.Stdlib.Array.equal !sort_equal lays1 lays2
   | Record_float, Record_float ->
       true
   | Record_ufloat, Record_ufloat ->

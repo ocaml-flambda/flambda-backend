@@ -75,15 +75,10 @@ val get_id : delayed_free @ once -> int @@ global many = <fun>
 
 type delayed_free = { ids : int list; callback : unit -> unit }
 
-(* This does not work yet, but we expect it to work soon.
-   If you make it work, please update the uniqueness documentation. *)
 let get_ids : delayed_free @ once -> int list @ many = fun d -> d.ids
 [%%expect{|
 type delayed_free = { ids : int list; callback : unit -> unit; }
-Line 5, characters 64-69:
-5 | let get_ids : delayed_free @ once -> int list @ many = fun d -> d.ids
-                                                                    ^^^^^
-Error: This value is "once" but expected to be "many".
+val get_ids : delayed_free @ once -> int list = <fun>
 |}]
 
 let okay t =

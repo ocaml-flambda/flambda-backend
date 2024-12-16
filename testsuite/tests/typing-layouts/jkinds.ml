@@ -3,23 +3,19 @@
  expect;
 *)
 
-(********************************)
-(* Test 1: Unimplemented syntax *)
+(******************)
+(* Test 1: Syntax *)
 
 type 'a list : immutable_data with 'a
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+type 'a list : immutable_data
 |}]
 
 type ('a, 'b) either : immutable_data with 'a * 'b
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+type ('a, 'b) either : immutable_data
 |}]
 
 type 'a gel : kind_of_ 'a mod global
@@ -721,7 +717,7 @@ type t : any mod global = { x : string }
 Line 1, characters 0-40:
 1 | type t : any mod global = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod global
          because of the annotation on the declaration of the type t.
@@ -732,7 +728,7 @@ type t : any mod unique = { x : string }
 Line 1, characters 0-40:
 1 | type t : any mod unique = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod unique
          because of the annotation on the declaration of the type t.
@@ -743,7 +739,7 @@ type t : any mod external_ = { x : string }
 Line 1, characters 0-43:
 1 | type t : any mod external_ = { x : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod external_
          because of the annotation on the declaration of the type t.
@@ -753,22 +749,17 @@ type t : any mod many = { x : string }
 type t : any mod portable = { x : string }
 type t : any mod uncontended = { x : string }
 [%%expect {|
-Line 1, characters 0-38:
-1 | type t : any mod many = { x : string }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of any mod many
-         because of the annotation on the declaration of the type t.
+type t = { x : string; }
+type t = { x : string; }
+type t = { x : string; }
 |}]
-(* CR layouts v2.8: This should be accepted *)
 
 type t : any mod many = { x : t_value }
 [%%expect{|
 Line 1, characters 0-39:
 1 | type t : any mod many = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod many
          because of the annotation on the declaration of the type t.
@@ -779,7 +770,7 @@ type t : any mod uncontended = { x : t_value }
 Line 1, characters 0-46:
 1 | type t : any mod uncontended = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod uncontended
          because of the annotation on the declaration of the type t.
@@ -790,7 +781,7 @@ type t : any mod portable = { x : t_value }
 Line 1, characters 0-43:
 1 | type t : any mod portable = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
@@ -801,7 +792,7 @@ type t : any mod many uncontended portable global = { x : t_value }
 Line 1, characters 0-67:
 1 | type t : any mod many uncontended portable global = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of
          any mod global many uncontended portable
@@ -812,15 +803,8 @@ type u : immediate
 type t : value mod portable many uncontended = { x : string; y : int; z : u }
 [%%expect {|
 type u : immediate
-Line 2, characters 0-77:
-2 | type t : value mod portable many uncontended = { x : string; y : int; z : u }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of immutable_data
-         because of the annotation on the declaration of the type t.
+type t = { x : string; y : int; z : u; }
 |}]
-(* CR layouts v2.8: This should be accepted *)
 
 type t = { x : string }
 let foo : _ as (_ : value mod external_) = { x = "string" }
@@ -831,7 +815,7 @@ Line 2, characters 43-59:
                                                ^^^^^^^^^^^^^^^^
 Error: This expression has type "t" but an expression was expected of type
          "('a : value mod external_)"
-       The kind of t is value
+       The kind of t is immutable_data
          because of the definition of t at line 1, characters 0-23.
        But the kind of t must be a subkind of value mod external_
          because of the annotation on the wildcard _ at line 2, characters 20-39.
@@ -841,22 +825,17 @@ type t : any mod uncontended = { x : int }
 type t : any mod portable = { x : int }
 type t : any mod many = { x : int }
 [%%expect{|
-Line 1, characters 0-42:
-1 | type t : any mod uncontended = { x : int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of any mod uncontended
-         because of the annotation on the declaration of the type t.
+type t = { x : int; }
+type t = { x : int; }
+type t = { x : int; }
 |}]
-(* CR layouts v2.8: this should be accepted *)
 
 type t : any mod global = { x : int }
 [%%expect {|
 Line 1, characters 0-37:
 1 | type t : any mod global = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod global
          because of the annotation on the declaration of the type t.
@@ -867,7 +846,7 @@ type t : any mod external_ = { x : int }
 Line 1, characters 0-40:
 1 | type t : any mod external_ = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod external_
          because of the annotation on the declaration of the type t.
@@ -878,7 +857,7 @@ type t : any mod unique = { x : int }
 Line 1, characters 0-37:
 1 | type t : any mod unique = { x : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of any mod unique
          because of the annotation on the declaration of the type t.
@@ -1000,22 +979,15 @@ val v : int @@ global many portable = 5
 
 type ('a : immediate) t : value mod many portable = { mutable x : 'a }
 [%%expect {|
-Line 1, characters 0-70:
-1 | type ('a : immediate) t : value mod many portable = { mutable x : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of mutable_data
-         because of the annotation on the declaration of the type t.
+type ('a : immediate) t = { mutable x : 'a; }
 |}]
-(* CR layouts v2.8: this should be accepted *)
 
 type ('a : immediate) t : value mod global = { mutable x : 'a }
 [%%expect {|
 Line 1, characters 0-63:
 1 | type ('a : immediate) t : value mod global = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
@@ -1026,7 +998,7 @@ type ('a : immediate) t : value mod unique = { mutable x : 'a }
 Line 1, characters 0-63:
 1 | type ('a : immediate) t : value mod unique = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
@@ -1037,7 +1009,7 @@ type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
 Line 1, characters 0-68:
 1 | type ('a : immediate) t : value mod uncontended = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod uncontended
          because of the annotation on the declaration of the type t.
@@ -1048,7 +1020,7 @@ type ('a : immediate) t : value mod external_ = { mutable x : 'a }
 Line 1, characters 0-66:
 1 | type ('a : immediate) t : value mod external_ = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod external_
          because of the annotation on the declaration of the type t.
@@ -1059,7 +1031,7 @@ type ('a : immediate) t : value mod external64 = { mutable x : 'a }
 Line 1, characters 0-67:
 1 | type ('a : immediate) t : value mod external64 = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is mutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod external64
          because of the annotation on the declaration of the type t.
@@ -1082,28 +1054,22 @@ type t = Foo | Bar
 type t = Foo | Bar
 type t = Foo | Bar
 |}]
-(* CR layouts v2.8: These outputs should include kinds *)
 
 type t : any mod uncontended = Foo of int | Bar
 type t : any mod portable = Foo of int | Bar
 type t : any mod many = Foo of int | Bar
 [%%expect {|
-Line 1, characters 0-47:
-1 | type t : any mod uncontended = Foo of int | Bar
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
-         because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of any mod uncontended
-         because of the annotation on the declaration of the type t.
+type t = Foo of int | Bar
+type t = Foo of int | Bar
+type t = Foo of int | Bar
 |}]
-(* CR layouts v2.8: this should be accepted *)
 
 type t : any mod unique = Foo of int | Bar
 [%%expect {|
 Line 1, characters 0-42:
 1 | type t : any mod unique = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of any mod unique
          because of the annotation on the declaration of the type t.
@@ -1114,7 +1080,7 @@ type t : any mod global = Foo of int | Bar
 Line 1, characters 0-42:
 1 | type t : any mod global = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of any mod global
          because of the annotation on the declaration of the type t.
@@ -1126,7 +1092,7 @@ type t : any mod external_ = Foo of int | Bar
 Line 1, characters 0-45:
 1 | type t : any mod external_ = Foo of int | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of any mod external_
          because of the annotation on the declaration of the type t.
@@ -1249,7 +1215,7 @@ type 'a t : value mod portable = { x : 'a @@ portable }
 Line 1, characters 0-47:
 1 | type 'a t : value mod many = { x : 'a @@ many }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod many
          because of the annotation on the declaration of the type t.
@@ -1261,7 +1227,7 @@ type 'a t : value mod unique = { x : 'a @@ unique }
 Line 1, characters 0-51:
 1 | type 'a t : value mod unique = { x : 'a @@ unique }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
@@ -1272,7 +1238,7 @@ type 'a t : value mod global = { x : 'a @@ global }
 Line 1, characters 0-51:
 1 | type 'a t : value mod global = { x : 'a @@ global }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
@@ -1575,7 +1541,7 @@ type 'a t : value mod global = { x : 'a }
 Line 1, characters 0-41:
 1 | type 'a t : value mod global = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
@@ -1586,8 +1552,22 @@ type 'a t : value mod many = { x : 'a }
 Line 1, characters 0-39:
 1 | type 'a t : value mod many = { x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
+Error: The kind of type "t" is immutable_data
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod many
          because of the annotation on the declaration of the type t.
+|}]
+
+(*************************************)
+(* Test 12: Bug in check_constraints *)
+
+(* This requires the [Ctype.instance] call in [check_constraints_rec]. *)
+type 'a u
+type 'a t =
+  | None
+  | Some of ('a * 'a) t u
+
+[%%expect{|
+type 'a u
+type 'a t = None | Some of ('a * 'a) t u
 |}]

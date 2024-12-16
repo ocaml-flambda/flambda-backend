@@ -515,79 +515,251 @@ module Layout = struct
   end
 end
 
-module Modes = Jkind_axis.Of_lattice (Mode.Alloc.Const)
+module Baggage = struct
+  type (+'type_expr, 'd) t =
+    | No_baggage : ('type_expr, 'l * 'r) t
+    | Baggage :
+        'type_expr * 'type_expr list
+        -> ('type_expr, 'l * Allowance.disallowed) t
 
-module Layout_and_axes = struct
-  open Jkind_axis
+  let as_list : type l r. (_, l * r) t -> _ = function
+    | No_baggage -> []
+    | Baggage (ty, tys) -> ty :: tys
 
-  type ('layout, +'d) t =
-    { layout : 'layout;
-      modes_upper_bounds : Mode.Alloc.Const.t;
-      externality_upper_bound : Externality.t;
-      nullability_upper_bound : Nullability.t
+  let has_baggage : type l r. (_, l * r) t -> _ = function
+    | No_baggage -> false
+    | Baggage _ -> true
+
+  open Allowance
+
+  include Magic_allow_disallow (struct
+    type ('type_expr, _, 'd) sided = ('type_expr, 'd) t constraint 'd = 'l * 'r
+
+    let disallow_left :
+        type l r. ('type_expr, l * r) t -> ('type_expr, disallowed * r) t =
+      function
+      | No_baggage -> No_baggage
+      | Baggage _ as b -> b
+
+    let disallow_right :
+        type l r. ('type_expr, l * r) t -> ('type_expr, l * disallowed) t =
+      function
+      | No_baggage -> No_baggage
+      | Baggage _ as b -> b
+
+    let allow_left :
+        type l r. ('type_expr, allowed * r) t -> ('type_expr, l * r) t =
+      function
+      | No_baggage -> No_baggage
+      | Baggage _ as b -> b
+
+    let allow_right :
+        type l r. ('type_expr, l * allowed) t -> ('type_expr, l * r) t =
+      function
+      | No_baggage -> No_baggage
+  end)
+
+  let try_allow_l :
+      type l r. ('type_expr, l * r) t -> ('type_expr, allowed * r) t option =
+    function
+    | No_baggage -> Some No_baggage
+    | Baggage _ as b -> Some b
+
+  let try_allow_r :
+      type l r. ('type_expr, l * r) t -> ('type_expr, l * allowed) t option =
+    function
+    | No_baggage -> Some No_baggage
+    | Baggage _ -> None
+
+  let map_type_expr (type l r) f :
+      ('type_expr, l * r) t -> ('type_expr, l * r) t = function
+    | No_baggage -> No_baggage
+    | Baggage (ty, tys) -> Baggage (f ty, List.map f tys)
+
+  let debug_print (type l r) ~print_type_expr ppf : (_, l * r) t -> _ =
+    let open Format in
+    function
+    | No_baggage -> fprintf ppf "No_baggage"
+    | Baggage (ty, tys) ->
+      fprintf ppf "Baggage @[[%a]@]"
+        (pp_print_list
+           ~pp_sep:(fun ppf () -> fprintf ppf ";@ ")
+           print_type_expr)
+        (ty :: tys)
+end
+
+module Bound = struct
+  open Allowance
+
+  type (+'type_expr, 'd, 'a) t =
+    { modifier : 'a;
+      baggage : ('type_expr, 'd) Baggage.t
     }
     constraint 'd = 'l * 'r
+
+  include Magic_allow_disallow (struct
+    type ('type_expr, 'a, 'd) sided = ('type_expr, 'd, 'a) t
+
+    let disallow_left t = { t with baggage = Baggage.disallow_left t.baggage }
+
+    let disallow_right t = { t with baggage = Baggage.disallow_right t.baggage }
+
+    let allow_left t = { t with baggage = Baggage.allow_left t.baggage }
+
+    let allow_right t = { t with baggage = Baggage.allow_right t.baggage }
+  end)
+
+  let try_allow_l { modifier; baggage } =
+    match Baggage.try_allow_l baggage with
+    | Some baggage -> Some { modifier; baggage }
+    | None -> None
+
+  let try_allow_r { modifier; baggage } =
+    match Baggage.try_allow_r baggage with
+    | Some baggage -> Some { modifier; baggage }
+    | None -> None
+
+  let map_type_expr f t = { t with baggage = Baggage.map_type_expr f t.baggage }
+
+  let equal :
+      _ -> (_, allowed * allowed, _) t -> (_, allowed * allowed, _) t -> bool =
+   fun eq_axis { modifier = m1; baggage = b1 } { modifier = m2; baggage = b2 } ->
+    match b1, b2 with No_baggage, No_baggage -> eq_axis m1 m2
+
+  let debug_print ~print_type_expr print_modifier ppf { modifier; baggage } =
+    Format.fprintf ppf "@[{ modifier = %a;@ baggage = %a }@]" print_modifier
+      modifier
+      (Baggage.debug_print ~print_type_expr)
+      baggage
+end
+
+module Bounds = struct
+  open Jkind_axis
+  include Axis_collection (Bound)
+
+  include Allowance.Magic_allow_disallow (struct
+    type ('type_expr, _, 'd) sided = ('type_expr, 'd) t
+
+    let disallow_left bounds =
+      Map.f { f = (fun ~axis:_ bound -> Bound.disallow_left bound) } bounds
+
+    let disallow_right bounds =
+      Map.f { f = (fun ~axis:_ bound -> Bound.disallow_right bound) } bounds
+
+    let allow_left bounds =
+      Map.f { f = (fun ~axis:_ bound -> Bound.allow_left bound) } bounds
+
+    let allow_right bounds =
+      Map.f { f = (fun ~axis:_ bound -> Bound.allow_right bound) } bounds
+  end)
+
+  let map_type_expr f t =
+    Map.f { f = (fun ~axis:_ bound -> Bound.map_type_expr f bound) } t
+
+  let equal bounds1 bounds2 =
+    Fold2.f
+      { f =
+          (fun (type axis) ~(axis : axis Axis.t) bound1 bound2 ->
+            let (module Bound_ops) = Axis.get axis in
+            Bound.equal Bound_ops.equal bound1 bound2)
+      }
+      ~combine:( && ) bounds1 bounds2
+
+  let debug_print ~print_type_expr ppf
+      { locality;
+        linearity;
+        uniqueness;
+        portability;
+        contention;
+        externality;
+        nullability
+      } =
+    let print_bound print_mod = Bound.debug_print ~print_type_expr print_mod in
+    Format.fprintf ppf
+      "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ portability = \
+       %a;@ contention = %a;@ externality = %a;@ nullability = %a }@]"
+      (print_bound Mode.Locality.Const.print)
+      locality
+      (print_bound Mode.Linearity.Const.print)
+      linearity
+      (print_bound Mode.Uniqueness.Const.print)
+      uniqueness
+      (print_bound Mode.Portability.Const.print)
+      portability
+      (print_bound Mode.Contention.Const.print)
+      contention
+      (print_bound Externality.print)
+      externality
+      (print_bound Nullability.print)
+      nullability
+end
+
+module Layout_and_axes = struct
+  type ('type_expr, 'layout, 'd) t =
+    { layout : 'layout;
+      upper_bounds : ('type_expr, 'd) Bounds.t
+    }
+    constraint 'd = 'l * 'r
+
+  module Allow_disallow = Allowance.Magic_allow_disallow (struct
+    type ('type_expr, 'layout, 'd) sided = ('type_expr, 'layout, 'd) t
+
+    let disallow_left t =
+      { t with upper_bounds = Bounds.disallow_left t.upper_bounds }
+
+    let disallow_right t =
+      { t with upper_bounds = Bounds.disallow_right t.upper_bounds }
+
+    let allow_left t =
+      { t with upper_bounds = Bounds.allow_left t.upper_bounds }
+
+    let allow_right t =
+      { t with upper_bounds = Bounds.allow_right t.upper_bounds }
+  end)
+
+  include Allow_disallow
 
   let map f t = { t with layout = f t.layout }
 
   let map_option f t =
     match f t.layout with None -> None | Some layout -> Some { t with layout }
 
-  let equal_after_all_inference_is_done eq_layout
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    eq_layout lay1 lay2 && Modes.equal modes1 modes2
-    && Externality.equal ext1 ext2
-    && Nullability.equal null1 null2
+  let map_type_expr f t =
+    { t with upper_bounds = Bounds.map_type_expr f t.upper_bounds }
 
-  (* Once we have more interesting mode stuff, this won't be trivial. *)
-  let try_allow_l ({ layout = _; _ } as t) = Some t
+  let equal eq_layout { layout = lay1; upper_bounds = bounds1 }
+      { layout = lay2; upper_bounds = bounds2 } =
+    eq_layout lay1 lay2 && Bounds.equal bounds1 bounds2
 
-  (* Once we have more interesting mode stuff, this won't be trivial. *)
-  let try_allow_r ({ layout = _; _ } as t) = Some t
+  let try_allow_l { layout; upper_bounds } =
+    let module Bounds_map_option = Bounds.Map.Monadic (Misc.Stdlib.Monad.Option) in
+    match
+      Bounds_map_option.f
+        { f = (fun ~axis:_ bound -> Bound.try_allow_l bound) }
+        upper_bounds
+    with
+    | Some upper_bounds -> Some { layout; upper_bounds }
+    | None -> None
 
-  let sub sub_layout
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Misc.Le_result.combine_list
-      [ sub_layout lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2;
-        Nullability.less_or_equal null1 null2 ]
-    [@@inline]
+  let try_allow_r { layout; upper_bounds } =
+    let module Bounds_map_option = Bounds.Map.Monadic (Misc.Stdlib.Monad.Option) in
+    match
+      Bounds_map_option.f
+        { f = (fun ~axis:_ bound -> Bound.try_allow_r bound) }
+        upper_bounds
+    with
+    | Some upper_bounds -> Some { layout; upper_bounds }
+    | None -> None
 
-  let format format_layout ppf
-      { layout;
-        modes_upper_bounds;
-        externality_upper_bound;
-        nullability_upper_bound
-      } =
-    Format.fprintf ppf
-      "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
-       %a;@ nullability_upper_bound = %a }"
-      format_layout layout Mode.Alloc.Const.print modes_upper_bounds
-      Externality.print externality_upper_bound Nullability.print
-      nullability_upper_bound
+  let debug_print ~print_type_expr format_layout ppf { layout; upper_bounds } =
+    Format.fprintf ppf "{ layout = %a;@ upper_bounds = %a }" format_layout
+      layout
+      (Bounds.debug_print ~print_type_expr)
+      upper_bounds
 end
 
 module Jkind_desc = struct
-  type ('type_expr, 'd) t = (Sort.t Layout.t, 'd) Layout_and_axes.t
+  type ('type_expr, 'd) t = ('type_expr, Sort.t Layout.t, 'd) Layout_and_axes.t
 
   type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
   [@@unboxed]
@@ -617,5 +789,5 @@ type ('type_expr, 'd) t =
   }
 
 module Const = struct
-  type ('type_expr, +'d) t = (Layout.Const.t, 'd) Layout_and_axes.t
+  type ('type_expr, 'd) t = ('type_expr, Layout.Const.t, 'd) Layout_and_axes.t
 end

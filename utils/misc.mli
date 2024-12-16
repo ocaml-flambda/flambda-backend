@@ -355,23 +355,40 @@ module Stdlib : sig
           a unit value, all of which are discarded rather than being collected
           into a list. *)
       val all_unit : unit t list -> unit t
+
+      (** As described at https://ocaml.org/manual/latest/bindingops.html *)
+      module Syntax : sig
+        val (let+) : 'a t -> ('a -> 'b) -> 'b t
+        val (and+) : 'a t -> 'b t -> ('a * 'b) t
+        val (let*) : 'a t -> ('a -> 'b t) -> 'b t
+        val (and*) : 'a t -> 'b t -> ('a * 'b) t
+      end
     end
 
     module type S2 = sig
       type ('a, 'e) t
 
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+      val (>>=) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
       val return : 'a -> ('a, _) t
       val map : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
       val join : (('a, 'e) t, 'e) t -> ('a, 'e) t
       val ignore_m : (_, 'e) t -> (unit, 'e) t
       val all : ('a, 'e) t list -> ('a list, 'e) t
       val all_unit : (unit, 'e) t list -> (unit, 'e) t
+
+      module Syntax : sig
+        val (let+) : ('a, 'e) t -> ('a -> 'b) -> ('b, 'e) t
+        val (and+) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+        val (let*) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+        val (and*) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+      end
     end
 
     module Make (X : Basic) : S with type 'a t = 'a X.t
     module Make2 (X : Basic2) : S2 with type ('a, 'e) t = ('a, 'e) X.t
 
+    module Identity : S with type 'a t = 'a
     module Option : S with type 'a t = 'a option
     module Result : S2 with type ('a, 'e) t = ('a, 'e) result
   end

@@ -241,7 +241,7 @@ and jkind_lr = (allowed * allowed) jkind    (* the jkind of a variable *)
    function. *)
 (** INTERNAL USE ONLY
     jkind.ml should call this with the definition of Jkind.equal *)
-val set_jkind_equal : (jkind_l -> jkind_l -> bool) -> unit
+val set_sort_equal : (jkind_l -> jkind_l -> bool) -> unit
 
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable

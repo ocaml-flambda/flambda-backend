@@ -223,10 +223,7 @@ Error: This value is "once" but expected to be "many".
 let int_list_duplicate : once_ _ -> int list = fun x -> x
 
 [%%expect{|
-Line 1, characters 56-57:
-1 | let int_list_duplicate : once_ _ -> int list = fun x -> x
-                                                            ^
-Error: This value is "once" but expected to be "many".
+val int_list_duplicate : int list @ once -> int list = <fun>
 |}]
 
 let hidden_string_duplicate : once_ _ -> Hidden_string.t =
@@ -270,10 +267,8 @@ let float_u_record_duplicate : once_ _ -> float_u_record =
   fun x -> x
 
 [%%expect{|
-Line 2, characters 11-12:
-2 |   fun x -> x
-               ^
-Error: This value is "once" but expected to be "many".
+val float_u_record_duplicate : float_u_record @ once -> float_u_record =
+  <fun>
 |}]
 
 let float_u_record_list_duplicate :
@@ -281,10 +276,8 @@ let float_u_record_list_duplicate :
   fun x -> x
 
 [%%expect{|
-Line 3, characters 11-12:
-3 |   fun x -> x
-               ^
-Error: This value is "once" but expected to be "many".
+val float_u_record_list_duplicate :
+  float_u_record list @ once -> float_u_record list = <fun>
 |}]
 
 let function_duplicate : once_ _ -> (int -> int) = fun x -> x
