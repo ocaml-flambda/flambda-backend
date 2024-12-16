@@ -213,15 +213,15 @@ CAMLprim value caml_ml_capsule_condition_new(value unit)
 
 CAMLprim value caml_ml_capsule_condition_wait(value wcond, value wmut)
 {
-  return caml_ml_capsule_condition_wait(wcond, wmut);
+  return caml_ml_condition_wait(wcond, wmut);
 }
 
 CAMLprim value caml_ml_capsule_condition_signal(value wrapper)
 {
-  return caml_ml_capsule_condition_signal(wrapper);
+  return caml_ml_condition_signal(wrapper);
 }
 
 CAMLprim value caml_ml_capsule_condition_broadcast(value wrapper)
 {
-  return caml_ml_capsule_condition_broadcast(wrapper);
+  return caml_ml_condition_broadcast(wrapper);
 }
