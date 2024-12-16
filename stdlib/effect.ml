@@ -31,9 +31,9 @@ let () =
 
 (* Register the exceptions so that the runtime can access it *)
 type _ t += Should_not_see_this__ : unit t
-let _ = Callback.register_exception "Effect.Unhandled"
+let _ = Callback.Safe.register_exception "Effect.Unhandled"
           (Unhandled Should_not_see_this__)
-let _ = Callback.register_exception "Effect.Continuation_already_resumed"
+let _ = Callback.Safe.register_exception "Effect.Continuation_already_resumed"
           Continuation_already_resumed
 
 type ('a, 'b) stack [@@immediate]
