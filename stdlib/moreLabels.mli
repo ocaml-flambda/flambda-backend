@@ -452,6 +452,14 @@ module Hashtbl : sig
       the [create] operation of the result structure always returns
       non-randomized hash tables. *)
 
+    module Make_portable (H : sig @@ portable include HashedType end) :
+      sig @@ portable
+        include S with type key = H.t
+                   and type 'a t = 'a Hashtbl.Make_portable(H).t
+      end
+    (** Like [Make], but takes a portable [hash] function to
+        portable [Hashtbl] operations. *)
+
   module type SeededHashedType =
     sig
       type t
@@ -534,6 +542,13 @@ module Hashtbl : sig
       or if randomization is globally on (see {!Hashtbl.randomize}).
       @since 4.00 *)
 
+    module MakeSeeded_portable (H : sig @@ portable include SeededHashedType end) :
+    sig @@ portable
+      include SeededS with type key = H.t
+                       and type 'a t = 'a Hashtbl.MakeSeeded_portable(H).t
+    end
+    (** Like [MakeSeeded], but takes a portable [seeded_hash] function to
+        portable [Hashtbl] operations. *)
 
   (** {1 The polymorphic hash functions} *)
 
