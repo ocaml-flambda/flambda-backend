@@ -574,10 +574,9 @@ static void caml_thread_reinitialize(void)
   Active_thread->next = Active_thread;
   Active_thread->prev = Active_thread;
 
-  // CR ocaml 5 domains: systhreads doesn't maintain domain lock
   /* Within the child, the domain_lock needs to be reset and acquired. */
-  // caml_reset_domain_lock();
-  // caml_acquire_domain_lock();
+  caml_reset_domain_lock();
+  caml_acquire_domain_lock();
 
   /* The lock needs to be initialized again. This process will also be
      the effective owner of the lock. So there is no need to run
