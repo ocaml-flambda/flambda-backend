@@ -76,9 +76,8 @@ type delayed_free = { id : int; callback : unit -> unit }
 let get_id : delayed_free @ once -> int @ many = fun t -> t.id
 ```
 
-We are working on a feature which will make it possible to use a value as `many`
-if its type prevents it from containing a function. For example, you will then
-be able to use an `int list @ once aliased` as `many` (but not as `unique`).
+This mode-crossing works through container types. For example, you can use an
+`int list @ once aliased` as `many` (but not as `unique`).
 
 ## Checking for Uniqueness
 

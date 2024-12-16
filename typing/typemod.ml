@@ -754,6 +754,7 @@ let merge_constraint initial_env loc sg lid constr =
            check is repeated later -- and with better handling for errors -- we
            just drop any error here. *)
         ignore
+          (* CR layouts v2.8: Does this type_jkind need to be instantiated? *)
           (Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind);
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
         let tdecl = { tdecl with type_manifest = None } in

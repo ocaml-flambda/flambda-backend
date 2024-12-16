@@ -5,5 +5,5 @@ let path = Path.print
 let ctype_global_state = Ctype.print_global_state
 let sort = Jkind.Sort.Debug_printers.t
 let sort_var = Jkind.Sort.Debug_printers.var
-let jkind = Jkind.Debug_printers.t
+let jkind ppf k = Jkind.Debug_printers.t ~print_type_expr:type_expr ppf k
 let zero_alloc_var = Zero_alloc.debug_printer

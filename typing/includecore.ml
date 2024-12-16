@@ -1259,14 +1259,21 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   if err <> None then err else
   let err = match (decl1.type_kind, decl2.type_kind) with
       (_, Type_abstract _) ->
-       (* Note that [decl2.type_jkind] is an upper bound.
-          If it isn't tight, [decl2] must
-          have a manifest, which we're already checking for equality
-          above. Similarly, [decl1]'s kind may conservatively approximate its
-          jkind, but [check_decl_jkind] will expand its manifest.  *)
-        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
-         | Ok _ -> None
-         | Error v -> Some (Jkind v))
+        (* No need to check jkinds if decl2 has a manifest; we've already
+           checked for type equality, above. Oddly, this is not just an
+           optimization; unconditionally checking jkinds causes a failure
+           around recursive modules (test case: shapes/recmodules.ml).
+           Richard spent several hours trying to understand what was going
+           on there (after the substitution in [Typemod.check_recmodule_inclusion],
+           there was a type_declaration whose [type_jkind] didn't match its
+           [type_manifest]), but just skipping this check when there is a
+           manifest fixes the problem. *)
+        if Option.is_none decl2.type_manifest then
+          (* Note that [decl2.type_jkind] is an upper bound *)
+          match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
+           | Ok _ -> None
+           | Error v -> Some (Jkind v)
+        else None
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
         if mark then begin
           let mark usage cstrs =
