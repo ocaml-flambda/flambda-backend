@@ -1445,6 +1445,7 @@ module List           = List
 module ListLabels     = ListLabels
 module Map            = Map
 module Marshal        = Marshal
+module Modes          = Modes
 module MoreLabels     = MoreLabels
 module Mutex          = Mutex
 module Nativeint      = Nativeint
