@@ -596,26 +596,16 @@ module Hardware_registers = struct
               assigned = []
             }))
 
-  let of_reg (t : t) (reg : Reg.t) : Hardware_register.t =
+  let of_reg (t : t) (reg : Reg.t) : Hardware_register.t option =
     match reg.loc with
     | Reg reg_index ->
-      let reg_class : int = Proc.register_class reg in
-      if reg_class < 0
-         || reg_class >= Array.length Proc.first_available_register
-      then
-        fatal "XXX invalid register class %d (len=%d)" reg_class
-          (Array.length Proc.first_available_register);
-      let reg_index_in_class : int =
+      let reg_class = Proc.register_class reg in
+      let reg_index_in_class =
         reg_index - Proc.first_available_register.(reg_class)
       in
-      if reg_index_in_class < 0
-         || reg_index_in_class >= Array.length t.(reg_class)
-      then
-        fatal "XXX invalid register index %d (len=%d) (class=%d) (index=%d)"
-          reg_index_in_class
-          (Array.length t.(reg_class))
-          reg_class reg_index;
-      t.(reg_class).(reg_index_in_class)
+      if reg_index_in_class < Array.length t.(reg_class)
+      then Some t.(reg_class).(reg_index_in_class)
+      else None
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 

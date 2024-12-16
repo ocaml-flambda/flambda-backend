@@ -4,36 +4,32 @@ open! Regalloc_utils
 open! Regalloc_irc_utils
 module State = Regalloc_irc_state
 
-(* Remove the frame pointer from the passed array if present, returning the
-   passed array otherwise *)
-let filter_fp : Reg.t array -> Reg.t array =
+let filter_unavailable : Reg.t array -> Reg.t array =
  fun regs ->
-  let is_fp (reg : Reg.t) : bool =
+  let is_available (reg : Reg.t) : bool =
     match reg.loc with
-    | Unknown -> false
+    | Unknown -> true
     | Reg r ->
       let reg_class = Proc.register_class reg in
       r - Proc.first_available_register.(reg_class)
-      >= Proc.num_available_registers.(reg_class)
-    | Stack _ -> false
+      < Proc.num_available_registers.(reg_class)
+    | Stack _ -> true
   in
-  let len = Array.length regs in
-  let idx = ref 0 in
-  while !idx < len && not (is_fp regs.(!idx)) do
-    incr idx
-  done;
-  if !idx >= len
+  let available : int =
+    Array.fold_left regs ~init:0 ~f:(fun acc reg ->
+        if is_available reg then succ acc else acc)
+  in
+  if available = Array.length regs
   then regs
-  else if len = 1
-  then [||]
   else
-    let new_regs = Array.make (pred len) regs.(0) in
-    Array.blit ~src:regs ~src_pos:0 ~dst:new_regs ~dst_pos:0 ~len:!idx;
-    Array.blit ~src:regs ~src_pos:(succ !idx) ~dst:new_regs ~dst_pos:!idx
-      ~len:(len - !idx - 1);
-    new_regs
-
-let filter_fp regs = if Config.with_frame_pointers then filter_fp regs else regs
+    let res = Array.make available Reg.dummy in
+    let idx = ref 0 in
+    Array.iter regs ~f:(fun reg ->
+        if is_available reg
+        then (
+          res.(!idx) <- reg;
+          incr idx));
+    res
 
 let build : State.t -> Cfg_with_infos.t -> unit =
  fun state cfg_with_infos ->
@@ -41,7 +37,7 @@ let build : State.t -> Cfg_with_infos.t -> unit =
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let add_edges_live (id : Instruction.id) ~(def : Reg.t array)
       ~(move_src : Reg.t) ~(destroyed : Reg.t array) : unit =
-    let destroyed = filter_fp destroyed in
+    let destroyed = filter_unavailable destroyed in
     let live = Cfg_dataflow.Instr.Tbl.find liveness id in
     if irc_debug && Reg.set_has_collisions live.across
     then fatal "live set has physical register collisions";
@@ -91,8 +87,8 @@ let build : State.t -> Cfg_with_infos.t -> unit =
         let live = Cfg_dataflow.Instr.Tbl.find liveness first_id in
         Reg.Set.iter
           (fun reg1 ->
-            Array.iter (filter_fp Proc.destroyed_at_raise) ~f:(fun reg2 ->
-                State.add_edge state reg1 reg2))
+            Array.iter (filter_unavailable Proc.destroyed_at_raise)
+              ~f:(fun reg2 -> State.add_edge state reg1 reg2))
           (Reg.Set.remove Proc.loc_exn_bucket live.before))
 
 let make_work_list : State.t -> unit =
