@@ -96,11 +96,25 @@ jobs:
             use_runtime: d
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200,regalloc=gi'
 
-          - name: flambda2_frame_pointers_oclassic_polling
+          - name: flambda2_frame_pointers_oclassic_polling_irc
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
-            build_ocamlparam: '_,regalloc=cfg'
-            ocamlparam: '_,Oclassic=1,regalloc=cfg'
+            build_ocamlparam: '_,regalloc=irc'
+            ocamlparam: '_,Oclassic=1,regalloc=irc'
+            disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
+
+          - name: flambda2_frame_pointers_oclassic_polling_ls
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
+            os: ubuntu-latest
+            build_ocamlparam: '_,regalloc=ls'
+            ocamlparam: '_,Oclassic=1,regalloc=ls'
+            disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
+
+          - name: flambda2_frame_pointers_oclassic_polling_gi
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
+            os: ubuntu-latest
+            build_ocamlparam: '_,regalloc=gi'
+            ocamlparam: '_,Oclassic=1,regalloc=gi'
             disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
 
           - name: flambda2_macos_arm64
