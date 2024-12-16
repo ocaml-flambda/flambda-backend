@@ -90,75 +90,72 @@ Error: This value is "nonportable" but expected to be "portable".
 
 module Module_type_of_monadic = struct
     module M = struct
-        let x @ uncontended = "hello"
+        let x @ uncontended = ref "hello"
     end
     module M' : module type of M = M
     (* for monadic axes, we try to push to the id = join_with_min. The original
     modality is pushed to floor. *)
     module M' : module type of M = struct
-        let x @ contended = "hello"
+        let x @ contended = ref "hello"
     end
 end
 [%%expect{|
 Lines 8-10, characters 35-7:
  8 | ...................................struct
- 9 |         let x @ contended = "hello"
+ 9 |         let x @ contended = ref "hello"
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ portable contended end
+         sig val x : string ref @@ contended end
        is not included in
-         sig val x : string end
+         sig val x : string ref end
        Values do not match:
-         val x : string @@ portable contended
+         val x : string ref @@ contended
        is not included in
-         val x : string
+         val x : string ref
        The second is uncontended and the first is contended.
 |}]
 
 module Module_type_nested = struct
     module M = struct
-        let x @ contended portable = "hello"
+        let x @ portable = fun t -> t
         module N = struct
-            let y @ uncontended portable = "world"
+            let y @ uncontended = ref "hello"
         end
     end
     module M' : module type of M = struct
-        let x = "hello"
+        let x @ nonportable = fun t -> t
         module N = struct
-            let y @ contended = "hello"
+            let y @ contended = ref "hello"
         end
     end
 end
 [%%expect{|
 Lines 8-13, characters 35-7:
  8 | ...................................struct
- 9 |         let x = "hello"
+ 9 |         let x @ nonportable = fun t -> t
 10 |         module N = struct
-11 |             let y @ contended = "hello"
+11 |             let y @ contended = ref "hello"
 12 |         end
 13 |     end
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val x : string @@ portable
-           module N : sig val y : string @@ portable contended end
+           val x : 'a -> 'a
+           module N : sig val y : string ref @@ contended end
          end
        is not included in
-         sig
-           val x : string @@ contended
-           module N : sig val y : string end
-         end
+         sig val x : 'a -> 'a module N : sig val y : string ref end end
        In module "N":
        Modules do not match:
-         sig val y : string @@ portable contended end
+         sig val y : string ref @@ contended end
        is not included in
-         sig val y : string end
+         sig val y : string ref end
        In module "N":
        Values do not match:
-         val y : string @@ portable contended
+         val y : string ref @@ contended
        is not included in
-         val y : string
+         val y : string ref
        The second is uncontended and the first is contended.
 |}]
 
@@ -193,25 +190,25 @@ Error: This value is "nonportable" but expected to be "portable".
 
 module Inclusion_fail = struct
     module M : sig
-        val x : string @@ uncontended
+        val x : string ref @@ uncontended
     end = struct
-        let x @ contended = "hello"
+        let x @ contended = ref "hello"
     end
 end
 [%%expect{|
 Lines 4-6, characters 10-7:
 4 | ..........struct
-5 |         let x @ contended = "hello"
+5 |         let x @ contended = ref "hello"
 6 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ portable contended end
+         sig val x : string ref @@ contended end
        is not included in
-         sig val x : string end
+         sig val x : string ref end
        Values do not match:
-         val x : string @@ portable contended
+         val x : string ref @@ contended
        is not included in
-         val x : string
+         val x : string ref
        The second is uncontended and the first is contended.
 |}]
 
@@ -494,32 +491,65 @@ end
 module M : sig module N : sig val foo : 'a -> 'a @@ global many end end
 |}]
 
-(* CR zqian: inclusion check should cross modes, if we are comparing modes. *)
+(* inclusion check should cross modes, if we are comparing modes (instead of
+  modalities) *)
 module M : sig
-  module N : sig val foo : int @@ portable end
+  val foo : int @@ portable uncontended
 end = struct
-  module N = struct let foo @ nonportable = 42 end
+  let foo @ nonportable contended = 42
+end
+[%%expect{|
+module M : sig val foo : int @@ portable end
+|}]
+
+(* The RHS type (expected type) is used for mode crossing. The following still
+passes because types are substituted. *)
+module M : sig
+  type t
+  val t : t @@ portable uncontended
+end = struct
+  type t = int
+  let t @ nonportable contended = 42
+end
+[%%expect{|
+module M : sig type t val t : t @@ portable end
+|}]
+
+(* LHS type is a subtype of RHS type, which means more type-level information.
+That doesn't matter for mode crossing for most cases, except for poly variants.
+The following examples seem to suggest that we should use LHS type for mode
+crossing, but I couldn't find examples to really demonstrate that. *)
+module M : sig
+  val t : [`Foo | `Bar] @@ portable uncontended
+end = struct
+  let t @ nonportable contended = `Foo
+end
+[%%expect{|
+module M : sig val t : [ `Bar | `Foo ] @@ portable end
+|}]
+
+module M : sig
+  val t : [`Foo | `Bar of 'a -> 'a | `Baz of string ref] @@ portable uncontended
+end = struct
+  let t @ nonportable contended = `Foo
 end
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   module N = struct let foo @ nonportable = 42 end
+4 |   let t @ nonportable contended = `Foo
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig module N : sig val foo : int end end
+         sig val t : [> `Foo ] @@ contended end
        is not included in
-         sig module N : sig val foo : int @@ portable end end
-       In module "N":
-       Modules do not match:
-         sig val foo : int end
-       is not included in
-         sig val foo : int @@ portable end
-       In module "N":
+         sig
+           val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@
+             portable
+         end
        Values do not match:
-         val foo : int
+         val t : [> `Foo ] @@ contended
        is not included in
-         val foo : int @@ portable
+         val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@ portable
        The second is portable and the first is nonportable.
 |}]
 

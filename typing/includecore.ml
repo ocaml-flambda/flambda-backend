@@ -51,6 +51,19 @@ type mmodes =
   | All
   | Legacy
 
+(** Mode cross a right mode *)
+(* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
+   there, too. *)
+let right_mode_cross_jkind jkind mode =
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  let upper_bounds = Const.alloc_as_value upper_bounds in
+  Value.imply upper_bounds mode
+
+let right_mode_cross env ty mode=
+  if not (Ctype.is_principal ty) then mode else
+  let jkind = Ctype.type_jkind_purely env ty in
+  right_mode_cross_jkind jkind mode
+
 let native_repr_args nra1 nra2 =
   let rec loop i nra1 nra2 =
     match nra1, nra2 with
@@ -119,11 +132,14 @@ let value_descriptions ~loc env name
         inferred modalities, which we need to workaround. *)
       ()
   | Legacy ->
-      let mmode1, mmode2 = Mode.Value.legacy, Mode.Value.legacy in
+      let mmode1, mmode2 =
+        Mode.Value.(disallow_right legacy), Mode.Value.(disallow_left legacy)
+      in
       let mode1 = Mode.Modality.Value.apply vd1.val_modalities mmode1 in
       let mode2 =
         Mode.Modality.Value.(Const.apply (to_const_exn vd2.val_modalities) mmode2)
       in
+      let mode2 = right_mode_cross env vd2.val_type mode2 in
       begin match Mode.Value.submode mode1 mode2 with
       | Ok () -> ()
       | Error e -> raise (Dont_match (Mode e))
