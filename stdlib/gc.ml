@@ -148,14 +148,11 @@ module Safe = struct
       Fun.protect ~finally arec.f
     end
 
-  (* CR tdelvecchio: Switch to [Domain.Safe.at_exit]. *)
-  let domain_at_exit = Obj.magic_portable Domain.at_exit
-
   (* We use [@inline never] to ensure [arec] is never statically allocated
      (which would prevent installation of the finaliser). *)
   let [@inline never] create_alarm f =
     let alarm = Atomic.Safe.make true in
-    domain_at_exit (fun () -> delete_alarm alarm);
+    Domain.Safe.at_exit (fun () -> delete_alarm alarm);
     let arec = { active = alarm; f = f } in
     finalise call_alarm arec;
     alarm
@@ -199,10 +196,17 @@ module Memprof =
 
     module Safe = struct
       external c_start :
-        float -> int -> ('minor, 'major) tracker @ portable -> t @@ portable
+        float -> int -> ('minor, 'major) tracker -> t @@ portable
         = "caml_memprof_start"
 
       let start
+        ~sampling_rate
+        ?(callstack_size = max_int)
+        tracker =
+        c_start sampling_rate callstack_size tracker
+
+      let start'
+        (_ : Domain.Safe.DLS.Access.t)
         ~sampling_rate
         ?(callstack_size = max_int)
         tracker =
