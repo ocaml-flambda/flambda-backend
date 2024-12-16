@@ -20,6 +20,8 @@
   (modules_before_stdlib camlinternalFormatBasics camlinternalAtomic))
  (flags
   (:standard
+   -extension-universe
+   alpha
    -strict-sequence
    -g
    -absname

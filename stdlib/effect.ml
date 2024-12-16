@@ -12,6 +12,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
+external raise : exn -> 'a @ portable @@ portable = "%reraise"
+external raise_notrace : exn -> 'a @ portable @@ portable = "%raise_notrace"
+external raise_with_backtrace: exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
+
 type 'a t = ..
 external perform : 'a t -> 'a @@ portable = "%perform"
 
@@ -77,7 +81,7 @@ module Deep = struct
     resume (take_cont_noexc k) (fun e -> raise e) e (cont_last_fiber k)
 
   let[@inline never] discontinue_with_backtrace k e bt =
-    resume (take_cont_noexc k) (fun e -> Printexc.raise_with_backtrace e bt)
+    resume (take_cont_noexc k) (fun e -> raise_with_backtrace e bt)
       e (cont_last_fiber k)
 
   external reperform :
@@ -176,8 +180,6 @@ module Shallow = struct
   external cont_set_last_fiber_contended :
     ('a, 'b) continuation @ contended -> last_fiber -> unit @@ portable = "%setfield1"
 
-  external raise : exn -> 'a @ portable @@ portable = "%reraise"
-
   let failwith msg = raise (Failure msg)
 
   let[@inline never] fiber : type a b. (a -> b) -> (a, b) continuation @@ portable = fun f ->
@@ -231,7 +233,7 @@ module Shallow = struct
     continue_gen k (fun e -> raise e) v handler
 
   let discontinue_with_backtrace k v bt handler =
-    continue_gen k (fun e -> Printexc.raise_with_backtrace e bt) v handler
+    continue_gen k (fun e -> raise_with_backtrace e bt) v handler
 
   let[@inline never] fiber_portable : type a b. (a -> b) @ portable -> (a, b) continuation @ portable @@ portable = fun f ->
     let module M = struct type _ t += Initial_setup__ : a t end in
@@ -284,7 +286,7 @@ module Shallow = struct
     continue_gen_portable k (fun e -> raise e) v handler
 
   let discontinue_with_backtrace_portable k v bt handler =
-    continue_gen_portable k (fun e -> Printexc.raise_with_backtrace e bt) v handler
+    continue_gen_portable k (fun e -> raise_with_backtrace e bt) v handler
 
   external get_callstack :
     ('a,'b) continuation -> int -> Printexc.raw_backtrace @@ portable =
