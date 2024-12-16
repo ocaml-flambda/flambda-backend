@@ -1494,6 +1494,10 @@ let kasprintf k (Format (fmt, _)) =
 let asprintf fmt = kasprintf id fmt
 
 module Safe = struct
+  let get_std_formatter = get_std_formatter'
+  let get_err_formatter = get_err_formatter'
+  let get_str_formatter = get_str_formatter'
+  let get_stdbuf = get_stdbuf'
   let make_synchronized_formatter = make_synchronized_formatter_safe
 end
 
