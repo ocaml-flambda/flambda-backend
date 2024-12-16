@@ -404,7 +404,6 @@ module Data : sig
         so it must be [portable] and it is marked [contended]. Since [nonportable]
         functions may enclose [uncontended] (and thus write) access to data,
         ['a] must cross [portability] *)
-
 end
 
 exception Encapsulated : 'k Name.t * (exn, 'k) Data.t -> exn
@@ -412,3 +411,16 @@ exception Encapsulated : 'k Name.t * (exn, 'k) Data.t -> exn
     exception, it is wrapped in [Encapsulated] to avoid leaking access to
     the data. The [Name.t] can be used to associate the [Data.t] with a
     particular [Password.t] or [Mutex.t]. *)
+
+exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
+(** If a function passed to [protect] raises an exception, it is wrapped
+    in [Protected] to provide access to the capsule in which the function ran. *)
+(* CR-soon mslater: this should return a key, not a mutex. *)
+
+val protect
+  :  (unit -> 'a @ portable contended) @ local portable
+  -> 'a @ portable contended
+  @@ portable
+(** [protect f] runs [f] in a fresh capsule. If [f] returns normally, [protect]
+    merges this capsule into the caller's capsule. If [f] raises, [protect]
+    raises [Protected], giving the caller access to the encapsulated exception. *)
