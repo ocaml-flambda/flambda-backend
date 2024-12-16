@@ -358,19 +358,409 @@ let rec sub_int c1 c2 dbg =
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
-let rec lsl_int c1 c2 dbg =
-  match c1, c2 with
-  | Cop (Clsl, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsl, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | Cop (Caddi, [c1; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when Misc.no_overflow_lsl n1 n2 ->
-    add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
-  | _, _ -> Cop (Clsl, [c1; c2], dbg)
+let to_small_int ~min ~max n =
+  if (Nativeint.of_int min) <= n && n <= (Nativeint.of_int max)
+  then Some (Nativeint.to_int n) else None
+
+let to_constant c =
+  match c with
+  | Cconst_int (const, _) -> Some (Nativeint.of_int const)
+  | Cconst_natint (const, _) -> Some const
+  | _ -> None
+
+
+let to_constant_int ~min ~max c = Option.bind (to_constant c) (to_small_int ~min ~max)
+
+module Shift = struct
+  type t =
+    | Lsl
+    | Lsr
+    | Asr
+
+  let max_shift = (size_int * 8) - 1
+
+  module Bits = struct
+    let num_bits = (8 * size_int) in
+
+    let ctz =
+      let rec go n ~bit =
+        if bit = num_bits || (Nativeint.logand n (Nativeint.shift_left 1n bit)) <> 0n
+        then bit
+        else go n ~bit:(bit + 1)
+      in
+      fun n -> go n ~bit:0
+
+    let clz  =
+      let rec go n ~bit =
+        if bit < 0 || (Nativeint.logand n (Nativeint.shift_left 1n bit)) <> 0n
+        then num_bits - bit - 1
+        else go n ~bit:(bit - 1)
+      in
+      fun n -> go n ~bit:(num_bits - 1)
+
+    type abstract =
+      { sign_bits : int
+      ; sign : bool option (** sign, if known *)
+      ; trailing_zeros : int
+      }
+    (** all fields are lower bounds *)
+
+    type t =
+      | Constant of Nativeint.t
+      | Abstract of abstract
+
+    let to_abstract t =
+      match t with | Abstract a -> a | Constant n ->
+      let sign = const < 0n in
+      let sign_bits =
+        if sign then
+          clz (Nativeint.lognot const)
+        else
+          clz const
+      in
+      { sign_bits; sign = Some sign; trailing_zeros = ctz const }
+
+    let leading_zeros t =
+      match t.sign with
+      | Some false -> t.sign_bits
+      | _ -> 0
+
+    let leading_ones t =
+      match t.sign with
+      | Some true -> t.sign_bits
+      | _ -> 0
+
+    let meet t1 t2 =
+      let sign =
+        match t1.sign, t2.sign with
+        | Some s1, Some s2 when s1 = s2 -> Some s1
+        | _, _ -> None
+      in
+      {sign_bits = Int.min t1.sign_bits t2.sign_bits; sign ; trailing_zeros = Int.min t1.trailing_zeros t2.trailing_zeros}
+
+    let top = {sign_bits = 1; sign = None; trailing_zeros = 0}
+    let zero = Constant 0n
+
+    let create ~sign_bits ~sign ~trailing_zeros =
+      let sign_bits = Int.max 1 (Int.min sign_bits num_bits) in
+      let trailing_zeros = Int.max 0 (Int.min trailing_zeros num_bits) in
+      match sign with
+      | Some false ->
+        if sign_bits + trailing_zeros >= num_bits then zero
+        else Abstract {sign_bits; sign; trailing_zeros}
+      | Some true ->
+        assert (sign_bits + trailing_zeros <= num_bits);
+        Abstract  {sign_bits; sign; trailing_zeros}
+      | None ->
+        if trailing_zeros = num_bits then zero
+        else Abstract {sign_bits; sign; trailing_zeros}
+    ;;
+
+    let trailing_mask ~bits =
+      assert (0 <= bits && bits <= num_bits);
+      Nativeint.pred (Nativeint.shift_left 1n bits)
+
+    let leading_mask ~bits =
+      Nativeint.shift_left
+        (trailing_mask ~bits)
+        (num_bits - bits)
+
+    let rec compute c =
+      match to_constant c with
+      | Some const -> Constant const
+      | None ->
+        match c with
+        | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+          (* integer/float comparisons return either [1] or [0]. *)
+          Abstract { sign_bits = num_bits - 1; sign = Some 0; trailing_zeros = 0 }
+        | Cop (Clsr, [c1; c2], _) ->
+          (match compute c2 with
+            | Abstract _ -> top
+            | Constant shift ->
+              match to_small_int shift ~min ~max:max_shift with
+              | None -> top
+              | Some 0 -> compute c1
+              | Some shift -> (match compute c1 with
+                | Constant const -> Constant (Nativeint.shift_right_logical const shift)
+                | Abstract c1 ->
+                  create ~sign:(Some false) ~sign_bits:(leading_zeros c1 + shift) ~trailing_zeros:(c1.trailing_zeros - shift))
+          )
+        | Cop (Clsl, [c1; c2], _) ->
+          (match compute c2 with
+           | Abstract _ -> top
+           | Constant shift ->
+             match to_small_int shift ~min ~max:max_shift with
+             | None -> top
+             | Some 0 -> compute c1
+             | Some shift -> (match compute c1 with
+               | Constant const -> Constant (Nativeint.shift_left const shift)
+               | Abstract c1 ->
+                 create ~sign:None ~sign_bits:(c1.sign_bits - shift) ~trailing_zeros:(c1.trailing_zeros + shift)))
+        | Cop (Casr, [c1; c2], _) ->
+          (match compute c2  with
+           | Abstract _ -> top
+           | Constant shift ->
+             match to_small_int shift ~min ~max:max_shift with
+             | None -> top
+             | Some shift ->
+               (match compute c1 with
+                | Constant const -> Constant (Nativeint.shift_right const shift)
+                | Abstract c1 ->
+                  create ~sign:c1.sign ~sign_bits:(c1.sign_bits + shift) ~trailing_zeros:(c1.trailing_zeros - shift)))
+        | Cop (Cadd, [c1; c2], _) ->
+          (match compute c1, compute c2 with
+           | Constant c1, Constant c2 -> Constant (Nativeint.add c1 c2)
+           | _, _ -> top)
+        | Cop (Cor, [c1; c2], _) ->
+          (match compute c1, compute c2 with
+           | Constant c1, Constant c2 -> Constant (Nativeint.logor c1 c2)
+           | c1, c2 ->
+             let c1 = to_abstract c1 in
+             let c2 = to_abstract c2 in
+             let sign =
+               match c1.sign, c2.sign with
+               | Some true, _
+               | _ , Some true -> Some true
+               | Some false, Some false -> Some false
+               | _, _ -> None
+             in
+             let sign_bits =
+               Int.max (leading_ones c1) (leading_ones c2)
+               |> Int.max (Int.min c1.sign_bits c2.sign_bits)
+             in
+             let trailing_zeros =
+               Int.min c1.trailing_zeros c2.trailing_zeros
+             in
+             create ~sign ~sign_bits ~trailing_zeros)
+        | Cand (Cor, [c1; c2], _) ->
+          (match compute c1, compute c2 with
+           | Constant c1, Constant c2 -> Constant (Nativeint.logand c1 c2)
+           | c1, c2 ->
+             let c1 = to_abstract c1 in
+             let c2 = to_abstract c2 in
+             let sign =
+               match c1.sign, c2.sign with
+               | Some false, _
+               | _ , Some false -> Some false
+               | Some true, Some true -> Some true
+               | _, _ -> None
+             in
+             let sign_bits =
+               Int.max (leading_zeros c1) (leading_zeros c2)
+               |> Int.max (Int.min c1.sign_bits c2.sign_bits)
+             in
+             let trailing_zeros =
+               Int.max c1.trailing_zeros c2.trailing_zeros
+             in
+             create ~sign ~sign_bits ~trailing_zeros)
+        | _ -> top
+    ;;
+  end
+
+
+  (** Identify cmm operations whose result is guaranteed to be small integers
+     (i.e. the first [bits] bits are guaranteed to be zero) *)
+  let is_definitely_zero_extended c ~bits =
+    assert (0 <= bits && bits <= size_int * 8);
+    match c with
+    | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+      (* integer/float comparisons return either [1] or [0]. *)
+      bits <= (size_int * 8) - 1
+    | Cop (Clsr, [_; c2], _) -> (
+      match to_constant_int c2 ~min:0 ~max:max_shift with
+      | None -> false
+      | Some shift -> bits <= shift)
+    | c ->
+      match to_constant c with
+      | None -> false
+      | Some const ->
+        (* are at least the first [b] bits of [const] 0? *)
+        let hi_bits = Nativeint.shift_right_logical const (size_int * 8 - bits) in
+        Nativeint.equal hi_bits Nativeint.zero
+  ;;
+
+  let rec definitely_has_trailing_zeroes c ~bits =
+    assert (0 <= bits && bits <= size_int * 8);
+    match c with
+    | Cop ((Clsr | Casr), [c1; c2], _) ->
+      (match to_constant_int c2 ~min:0 ~max:max_shift with
+        | None -> false
+        | Some shift ->
+          definitely_has_trailing_zeroes c1 ~bits:(bits + shift)
+      )
+    | c ->
+      match to_constant c with
+      | None -> false
+      | Some const ->
+        (* are at least the first [b] bits of [const] 0? *)
+        let hi_bits = Nativeint.shift_right_logical const (size_int * 8 - bits) in
+        Nativeint.equal hi_bits Nativeint.zero
+  ;;
+
+  let rec weaken_mul_to_shift c dbg =
+    let rec log2_unchecked = function
+      | 1n -> 0
+      | n -> 1 + log2 (Nativeint.shift_right_logical n 1)
+    in
+    let of_mul c1 c2 ->
+      match c2 with
+      | 0n -> Cconst_int (0, dbg)
+      | const ->
+        let is_power_of_2 =
+          Nativeint.equal (Nativeint.logand const (Nativeint.pred const)) 0n
+        in
+        if is_power_of_2 then apply Lsl c1 (Cconst_int(log2_unchecked const, dbg))
+        else c
+    in
+    match c with
+    | Cop (Cmuli, [c1; c2], _) ->
+      (match to_constant c2 with
+        | Some const -> of_mul c1 const
+        | None ->
+          match to_constant c1 with
+          | Some const -> of_mul c2 const
+          | None -> c)
+    | c -> c
+
+  and weaken_add_to_or c dbg =
+    match c with
+    | Cop (Caddi, [c1, c2], _) as c ->
+      let go c1 c2 =
+        match weaken_mul_to_shift c1 with
+        | Cop (Clsl)
+
+      in
+      (
+        match
+      )
+    | c -> c
+    | Cop (Caddi, [x; Cop(Clsl, [_; shift], _)], _) ->
+      match to_constant_int shift ~min:0 ~max:max_shift with
+      | Some shift when is_definitely_zero_extended x ~bits:shift ->
+        Cop (Cor, [Cop(Clsl, [_; shift], _ ); x], dbg)
+      | None -> c
+
+
+
+    if is_definitely_zero_extended c ~bits:1
+    then Cop (Cor, [c; Cconst_int (1, dbg)], dbg)
+    else c
+
+  let rec ignore_low_bits c dbg ~bits =
+    assert (0 <= bits && bits < size_int * 8);
+    if bits = 0
+    then c
+    else
+      let can_ignore_constant op c1 c2 =
+        let mask = Nativeint.pred (Nativeint.shift_left Nativeint.one bits) in
+        match op with
+        | Cor -> Nativeint.equal c2 (Nativeint.logand c2 mask)
+        | Cand ->
+          Nativeint.equal c2 (Nativeint.logor c2 (Nativeint.lognot mask))
+        | Caddi -> (
+          match c1 with
+          | Cop( Clsl, [_; shift], _ ) -> (
+              (* a "small" add after a shift weakens to an or *)
+            match to_constant_int shift ~min:bits ~max:max_shift with
+            | None -> false
+            | Some _ -> Nativeint.equal c2 (Nativeint.logand c2 mask))
+          | _ -> false)
+        | _ -> false
+      in
+      match c with
+      | Cop (((Cor | Cand | Caddi) as op), [c1; c2], _) -> (
+        match to_constant c2 with
+        | Some c2 when can_ignore_constant op c1 c2 -> ignore_low_bits c1 ~bits
+        | _ -> (
+          match to_constant c1 with
+          | Some c1 when can_ignore_constant op c2 c1 -> ignore_low_bits c2 ~bits
+            let c =  in
+            { c with simplified = c.simplified + 1 }
+          | _ -> { expression = c; simplified = 0 }))
+      | _ -> { expression = c; simplified = 0 }
+
+  exception Cannot_simplify
+
+  let weaken ?(argument_is_definitely_non_negative = false) t =
+    match t with
+    | Lsl -> Clsl
+    | Lsr -> Clsr
+    | Asr ->
+      (* if we know the argument has a sign bit of zero, then we can weaken
+         arithmetic shifts to logical shifts *)
+      if argument_is_definitely_non_negative then Clsr else Casr
+
+  let rec simplify_shift_by_constant_exn t c shift dbg =
+    if shift = 0
+    then c
+    else
+      map_tail
+        (fun c ->
+          match to_constant c with
+          | Some const ->
+            natint_const_untagged dbg
+              (match t with
+              | Lsl -> Nativeint.shift_left const shift
+              | Lsr -> Nativeint.shift_right_logical const shift
+              | Asr -> Nativeint.shift_right const shift)
+          | None -> (
+            match t, c with
+            | ( (Lsr | Asr),
+                Cop (((Cand | Cor | Cxor) as inner_operation), [c1; c2], _) )
+            | ( Lsl,
+                Cop
+                  ( ((Caddi | Csubi | Cand | Cor | Cxor) as inner_operation),
+                    [c1; c2],
+                    _ ) ) ->
+              (* It's always valid to distribute over these combinations of
+                 operations. The idea here is it's generally only worthwhile to
+                 push the shift further down if we get simplifications in both
+                 subtrees. If either raises [Cannot_simplify] then we assume
+                 it's not a meaningful simplification. *)
+              let c1 = simplify_shift_by_constant_exn t c1 shift dbg in
+              let c2 = simplify_shift_by_constant_exn t c2 shift dbg in
+              Cop (inner_operation, [c1; c2], dbg)
+            | t, Cop (((Clsl | Clsr | Casr) as inner_operation), [c1; c2], _)
+              -> (
+              let default () =
+                Cop (weaken t, [c; Cconst_int (shift, dbg)], dbg)
+              in
+              match to_constant_int c2 ~min:0 ~max:max_shift with
+              | None -> default ()
+              | Some const -> (
+                let operation =
+                  weaken t
+                    ~argument_is_definitely_non_negative:
+                      (match inner_operation with
+                      | Clsr -> const > 0
+                      | _ -> false)
+                in
+                match operation, inner_operation with
+                | Clsl, Clsl | Clsr, Clsr ->
+                  let shift = const + shift in
+                  if shift > max_shift
+                  then Cconst_int (0, dbg)
+                  else Cop (operation, [c1; Cconst_int (shift, dbg)], dbg)
+                | Casr, Casr ->
+                  let shift = Int.min shift max_shift in
+                  Cop (operation, [c1; Cconst_int (shift, dbg)], dbg)
+                | _, _ -> default ()))
+            | _ -> raise Cannot_simplify))
+        c
+
+  let apply t c1 c2 dbg =
+    try
+      match to_constant_int c2 ~min:0 ~max:max_shift with
+      | None -> raise Cannot_simplify
+      | Some const -> simplify_shift_by_constant_exn t c1 const dbg
+    with Cannot_simplify -> Cop (Clsl, [c1; c2], dbg)
+end
+
+let lsl_int c1 c2 dbg = Shift.apply Lsl c1 c2 dbg
 
 let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
 
-let is_power2 n = n = 1 lsl Misc.log2 n
+let is_power2 n = n <> 0 && n land (n - 1) = 0
 
 and mult_power2 c n dbg = lsl_int c (Cconst_int (Misc.log2 n, dbg)) dbg
 
@@ -396,16 +786,6 @@ let guaranteed_to_be_small_int = function
     (* integer/float comparisons return either [1] or [0]. *)
     true
   | _ -> false
-
-let ignore_low_bit_int = function
-  | Cop
-      ( Caddi,
-        [(Cop (Clsl, [_; Cconst_int (n, _)], _) as c); Cconst_int (1, _)],
-        _ )
-    when n > 0 ->
-    c
-  | Cop (Cor, [c; Cconst_int (1, _)], _) -> c
-  | c -> c
 
 let lsr_int c1 c2 dbg =
   match c1, c2 with
@@ -3874,7 +4254,7 @@ let float32_of_float = unary (Cstatic_cast Float32_of_float)
 let float_of_float32 = unary (Cstatic_cast Float_of_float32)
 
 let lsl_int_caml_raw ~dbg arg1 arg2 =
-  incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
+  Cop (Cor, [lsl_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)
 
 let lsr_int_caml_raw ~dbg arg1 arg2 =
   Cop (Cor, [lsr_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)

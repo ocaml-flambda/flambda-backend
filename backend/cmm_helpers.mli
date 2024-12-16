@@ -719,13 +719,14 @@ val create_ccatch :
   body:Cmm.expression ->
   Cmm.expression
 
+(** Shift operations. take as first argument a tagged caml integer, and as
+    second argument an untagged machine intger which is the amount to shift the
+    first argument by. *)
+
 val lsl_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
-(** Shift operations. take as first argument a tagged caml integer, and as
-    second argument an untagged machine intger which is the amount to shift the
-    first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Reinterpret cast functions *)
