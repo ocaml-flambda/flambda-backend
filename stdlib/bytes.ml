@@ -57,11 +57,6 @@ let init n f =
 
 let empty = create 0
 
-let empty_cocontended () =
-  (* CR tdelvecchio: [empty] will be at mode [cocontended] when that is supported.
-     For now, we mimic this with [mk_empty]. *)
-  Obj.magic_uncontended empty
-
 let copy s =
   let len = length s in
   let r = create len in
@@ -140,7 +135,7 @@ let rec unsafe_blits dst pos sep seplen = function
     unsafe_blits dst (pos + length hd + seplen) sep seplen tl
 
 let concat sep = function
-    [] -> empty_cocontended ()
+    [] -> Obj.magic_uncontended empty
   | l -> let seplen = length sep in
           unsafe_blits
             (create (sum_lengths 0 seplen l))
@@ -175,7 +170,7 @@ let trim s =
   if !j >= !i then
     sub s !i (!j - !i + 1)
   else
-    empty_cocontended ()
+    Obj.magic_uncontended empty
 
 let unsafe_escape s =
   (* We perform two passes on the input sequence, one to compute the

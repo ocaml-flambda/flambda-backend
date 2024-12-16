@@ -15,17 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* CR tdelvecchio: Default modality is a bit broken for submodules; switch back
-   when it is fixed. In particular:
-   {[
-     module type Outer = sig @@ portable
-       module Inner : sig
-         (* [f] is still required to be portable here. *)
-         val f : unit -> unit @@ nonportable
-       end
-     end
-   ]}
-*)
+@@ portable
 
 open! Stdlib
 
@@ -309,12 +299,12 @@ type control =
     OCAMLRUNPARAM environment variable.  See the documentation of
     [ocamlrun]. *)
 
-external stat : unit -> stat @@ portable = "caml_gc_stat"
+external stat : unit -> stat = "caml_gc_stat"
 (** Return the current values of the memory management counters in a
    [stat] record that represent the program's total memory stats.
    This function causes a full major collection. *)
 
-external quick_stat : unit -> stat @@ portable = "caml_gc_quick_stat"
+external quick_stat : unit -> stat = "caml_gc_quick_stat"
 (** Same as [stat] except that [live_words], [live_blocks], [free_words],
     [free_blocks], [largest_free], and [fragments] are set to 0. Due to
     per-domain buffers it may only represent the state of the program's
@@ -322,12 +312,12 @@ external quick_stat : unit -> stat @@ portable = "caml_gc_quick_stat"
     This function is much faster than [stat] because it does not need to
     trigger a full major collection. *)
 
-external counters : unit -> float * float * float @@ portable = "caml_gc_counters"
+external counters : unit -> float * float * float = "caml_gc_counters"
 (** Return [(minor_words, promoted_words, major_words)] for the current
     domain or potentially previous domains.  This function is as fast as
     [quick_stat]. *)
 
-external minor_words : unit -> (float [@unboxed]) @@ portable
+external minor_words : unit -> (float [@unboxed])
   = "caml_gc_minor_words" "caml_gc_minor_words_unboxed"
 (** Number of words allocated in the minor heap by this domain or potentially
     previous domains. This number is accurate in byte-code programs, but
@@ -350,10 +340,10 @@ external set : control -> unit @@ nonportable = "caml_gc_set"
  (** [set r] changes the GC parameters according to the [control] record [r].
    The normal usage is: [Gc.set { (Gc.get()) with Gc.verbose = 0x00d }] *)
 
-external minor : unit -> unit @@ portable = "caml_gc_minor"
+external minor : unit -> unit = "caml_gc_minor"
 (** Trigger a minor collection. *)
 
-external major_slice : int -> int @@ portable = "caml_gc_major_slice"
+external major_slice : int -> int = "caml_gc_major_slice"
 (** [major_slice n]
     Do a minor collection and a slice of major collection. [n] is the
     size of the slice: the GC will do enough work to free (on average)
@@ -361,28 +351,28 @@ external major_slice : int -> int @@ portable = "caml_gc_major_slice"
     to ensure that the next automatic slice has no work to do.
     This function returns an unspecified integer (currently: 0). *)
 
-external major : unit -> unit @@ portable = "caml_gc_major"
+external major : unit -> unit = "caml_gc_major"
 (** Do a minor collection and finish the current major collection cycle. *)
 
-external full_major : unit -> unit @@ portable = "caml_gc_full_major"
+external full_major : unit -> unit = "caml_gc_full_major"
 (** Do a minor collection, finish the current major collection cycle,
    and perform a complete new cycle.  This will collect all currently
    unreachable blocks. *)
 
-external compact : unit -> unit @@ portable = "caml_gc_compaction"
+external compact : unit -> unit = "caml_gc_compaction"
 (** Perform a full major collection and compact the heap.  Note that heap
    compaction is a lengthy operation. *)
 
-val print_stat : out_channel -> unit @@ portable
+val print_stat : out_channel -> unit
 (** Print the current values of the memory management counters (in
    human-readable form) of the total program into the channel argument. *)
 
-val allocated_bytes : unit -> float @@ portable
+val allocated_bytes : unit -> float
 (** Return the number of bytes allocated by this domain and potentially
    a previous domain. It is returned as a [float] to avoid overflow problems
    with [int] on 32-bit machines. *)
 
-external get_minor_free : unit -> int @@ portable = "caml_get_minor_free"
+external get_minor_free : unit -> int = "caml_get_minor_free"
 (** Return the current size of the free space inside the minor heap of this
    domain.
 
@@ -471,7 +461,7 @@ val finalise_last : (unit -> unit) -> 'a -> unit @@ nonportable
     @since 4.04
 *)
 
-val finalise_release : unit -> unit @@ portable
+val finalise_release : unit -> unit
 (** A finalisation function may call [finalise_release] to tell the
     GC that it can launch the next finalisation function without waiting
     for the current one to return. *)
@@ -509,24 +499,23 @@ let run_with_memory_limit (limit : int) (f : unit -> 'a) : 'a =
 
 *)
 
-val delete_alarm : alarm -> unit @@ portable
+val delete_alarm : alarm -> unit
 (** [delete_alarm a] will stop the calls to the function associated
    to [a]. Calling [delete_alarm a] again has no effect. *)
 
-val eventlog_pause : unit -> unit @@ portable
+val eventlog_pause : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.pause instead."]
 
-val eventlog_resume : unit -> unit @@ portable
+val eventlog_resume : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
 module Safe : sig
   val finalise :
     ('a @ portable contended -> unit) @ portable -> 'a @ portable contended -> unit
-    @@ portable
 
-  val finalise_last : (unit -> unit) @ portable -> 'a -> unit @@ portable
+  val finalise_last : (unit -> unit) @ portable -> 'a -> unit
 
-  val create_alarm : (unit -> unit) @ portable -> alarm @@ portable
+  val create_alarm : (unit -> unit) @ portable -> alarm
 end
 
 (** [Memprof] is a profiling engine which randomly samples allocated
@@ -553,7 +542,7 @@ end
 
    *)
 module Memprof :
-  sig
+  sig @@ portable
     type t
     (** the type of a profile *)
 
@@ -596,7 +585,7 @@ module Memprof :
        returns [None], memprof stops tracking the corresponding block.
        *)
 
-    val null_tracker: ('minor, 'major) tracker @@ portable
+    val null_tracker: ('minor, 'major) tracker
     (** Default callbacks simply return [None] or [()] *)
 
     val start :
@@ -650,7 +639,7 @@ module Memprof :
        Different domains may run different profiles simultaneously.
        *)
 
-    val stop : unit -> unit @@ portable
+    val stop : unit -> unit
     (** Stop sampling for the current profile. Fails if no profile is
        sampling in the current domain. Stops sampling in all threads
        and domains sharing the profile.
@@ -662,7 +651,7 @@ module Memprof :
        domains and threads sampling for it are terminated.
        *)
 
-    val discard : t -> unit @@ portable
+    val discard : t -> unit
     (** Discards all profiling state for a stopped profile, which
        prevents any more callbacks for it. Raises an exception if
        called on a profile which has not been stopped.
@@ -674,12 +663,17 @@ module Memprof :
         ?callstack_size:int ->
         ('minor, 'major) tracker @ portable ->
         t
-      @@ portable
       (** Like [Memprof.start], but is safe in non-primary domains. *)
 
-      (* CR tdelvecchio: Add [start'] once DLS.Password is defined. *)
+      val start' :
+        Domain.Safe.DLS.Access.t ->
+        sampling_rate:float ->
+        ?callstack_size:int ->
+        ('minor, 'major) tracker ->
+        t
+      (** Like [start], but allows nonportable [tracker]s. *)
     end
-end
+end @@ nonportable
 
 
 (** GC Tweaks are unstable and undocumented configurable GC parameters,
@@ -693,13 +687,13 @@ end
 module Tweak : sig
   (** Change a parameter.
       Raises Invalid_argument if no such parameter exists *)
-  val set : string -> int -> unit @@ nonportable
+  val set : string -> int -> unit
 
   (** Retrieve a parameter value.
       Raises Invalid_argument if no such parameter exists *)
-  val get : string -> int @@ nonportable
+  val get : string -> int
 
   (** Returns the list of parameters and their values that currently
       have non-default values *)
-  val list_active : unit -> (string * int) list @@ nonportable
-end
+  val list_active : unit -> (string * int) list
+end @@ nonportable
