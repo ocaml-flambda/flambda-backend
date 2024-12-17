@@ -166,7 +166,7 @@ module Safe : sig
       val for_initial_domain : t @@ nonportable
     end
 
-    type 'a key : value mod portable uncontended = 'a DLS.key [@alert "-unsafe"]
+    type 'a key : value mod portable uncontended = 'a DLS.key [@alert "-unsafe_multidomain"]
 
     val access
       :  (Access.t -> 'a @ portable contended) @ local portable

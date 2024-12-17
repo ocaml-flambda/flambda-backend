@@ -415,7 +415,7 @@ module N : sig
   module type S_plain = S with module M = Plain
 end = struct
   module Plain = struct
-    let f x = x+1
+    let (f @ nonportable) x = x+1
   end
 
   module type S_plain = S with module M = Plain
@@ -425,7 +425,7 @@ module type S = sig module M : sig val f : int -> int end end
 Lines 13-19, characters 6-3:
 13 | ......struct
 14 |   module Plain = struct
-15 |     let f x = x+1
+15 |     let (f @ nonportable) x = x+1
 16 |   end
 17 |
 18 |   module type S_plain = S with module M = Plain

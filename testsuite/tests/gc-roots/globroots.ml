@@ -1,5 +1,6 @@
 (* TEST
  modules = "globrootsprim.c";
+ flags = "-alert -unsafe_multidomain";
 *)
 
 module type GLOBREF = sig

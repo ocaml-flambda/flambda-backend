@@ -21,7 +21,7 @@
 type t
 
 external thread_initialize : unit -> unit = "caml_thread_initialize"
-external thread_cleanup : unit -> unit = "caml_thread_cleanup"
+external thread_cleanup : unit -> unit @@ portable = "caml_thread_cleanup"
 external thread_new : (unit -> unit) -> t = "caml_thread_new"
 external thread_uncaught_exception : exn -> unit =
             "caml_thread_uncaught_exception"
@@ -95,7 +95,7 @@ let preempt_signal =
 let () =
   Sys.set_signal preempt_signal (Sys.Signal_handle preempt);
   thread_initialize ();
-  Callback.register "Thread.at_shutdown" (fun () ->
+  Callback.Safe.register "Thread.at_shutdown" (fun () ->
     thread_cleanup();
     (* In case of DLL-embedded OCaml the preempt_signal handler
        will point to nowhere after DLL unloading and an accidental

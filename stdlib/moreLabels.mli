@@ -1042,7 +1042,10 @@ module Map : sig
      given a totally ordered type. *)
 
   module Make_portable (Ord : sig @@ portable include OrderedType end)
-    : sig @@ portable include S with type key = Ord.t end
+    : sig @@ portable
+      include S with type key = Ord.t
+                 and type 'a t = 'a Map.Make_portable(Ord).t
+    end
   (** Like [Make], but takes a portable [compare] function to
       portable [Map] operations. *)
 
@@ -1358,7 +1361,10 @@ module Set : sig
      given a totally ordered type. *)
 
   module Make_portable (Ord : sig @@ portable include OrderedType end)
-    : sig @@ portable include S with type elt = Ord.t end
+    : sig @@ portable
+      include S with type elt = Ord.t
+                 and type t = Set.Make_portable(Ord).t
+    end
   (** Like [Make], but takes a portable [compare] function to
       portable [Set] operations. *)
 
