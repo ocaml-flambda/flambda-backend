@@ -15,6 +15,7 @@ let[@inline never] allocate_lists len cnt =
   done
 
 let check_distrib len cnt rate =
+  Gc.full_major ();
   Printf.printf "check_distrib %d %d %f\n%!" len cnt rate;
   let tracked = ref 0 in
   let smp = ref 0 in
