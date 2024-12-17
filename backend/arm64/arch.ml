@@ -345,20 +345,6 @@ let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
 let addressing_offset_in_bytes _ _  ~arg_offset_in_bytes:_  _ _ =
   None   (* conservative *)
 
-(* CR gyorsh: remove *)
-let can_cross_loads_or_stores (specific_operation : specific_operation) =
-  match specific_operation with
-  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
-  | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
-    false   (* conservative *)
-
-(* CR gyorsh: remove *)
-let preserves_alloc_freshness (op : specific_operation) =
-  match op with
-  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
-  | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
-    false   (* conservative *)
-
 module Memory_access = struct
   module Init_or_assign = struct
     type t =

@@ -144,8 +144,6 @@ val float_cond_and_need_swap
 
 val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
 
-(* val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option *)
-
 val addressing_offset_in_bytes
   : addressing_mode
   -> addressing_mode
@@ -153,14 +151,6 @@ val addressing_offset_in_bytes
   -> 'a array
   -> 'a array
   -> int option
-
-(** returns true only if this specific operation commutes with load instructions and
-    store instructions *)
-val can_cross_loads_or_stores : specific_operation -> bool
-
-(** returns true only if this specific operation will not store the address of a previous
-    allocation and will not load a previously stored address *)
-val preserves_alloc_freshness : specific_operation -> bool
 
 (* CR gyorsh: split out into [vectorize_utils.ml] and [arch/vectorize_specific.ml]
    to avoid duplicating this type in each target. *)
