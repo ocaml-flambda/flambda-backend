@@ -1456,7 +1456,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
         else Value.newvar ()
       in
       let keep =
-        priv || cstr.cstr_existentials <> [] ||
+        priv ||
         vto <> None (* be lazy and keep the type for node constraints *) in
       let ty =
         if keep then p.pat_type else
