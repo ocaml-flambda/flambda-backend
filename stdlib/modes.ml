@@ -25,5 +25,6 @@ module Contended = struct
 end
 
 module Portended = struct
-  type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended } [@@unboxed]
+  type 'a t : value mod portable uncontended = { portended : 'a @@ portable contended }
+  [@@unboxed]
 end
