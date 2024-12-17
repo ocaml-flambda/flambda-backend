@@ -359,8 +359,9 @@ let rec sub_int c1 c2 dbg =
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
 let to_small_int ~min ~max n =
-  if (Nativeint.of_int min) <= n && n <= (Nativeint.of_int max)
-  then Some (Nativeint.to_int n) else None
+  if Nativeint.of_int min <= n && n <= Nativeint.of_int max
+  then Some (Nativeint.to_int n)
+  else None
 
 let to_constant c =
   match c with
@@ -368,8 +369,8 @@ let to_constant c =
   | Cconst_natint (const, _) -> Some const
   | _ -> None
 
-
-let to_constant_int ~min ~max c = Option.bind (to_constant c) (to_small_int ~min ~max)
+let to_constant_int ~min ~max c =
+  Option.bind (to_constant c) (to_small_int ~min ~max)
 
 module Shift = struct
   type t =
@@ -380,306 +381,314 @@ module Shift = struct
   let max_shift = (size_int * 8) - 1
 
   module Bits = struct
-    let num_bits = (8 * size_int) in
+    let ( land ) = Nativeint.logand
 
-    let ctz =
-      let rec go n ~bit =
-        if bit = num_bits || (Nativeint.logand n (Nativeint.shift_left 1n bit)) <> 0n
-        then bit
-        else go n ~bit:(bit + 1)
-      in
-      fun n -> go n ~bit:0
+    let ( lor ) = Nativeint.logor
 
-    let clz  =
-      let rec go n ~bit =
-        if bit < 0 || (Nativeint.logand n (Nativeint.shift_left 1n bit)) <> 0n
-        then num_bits - bit - 1
-        else go n ~bit:(bit - 1)
-      in
-      fun n -> go n ~bit:(num_bits - 1)
+    let ( lxor ) = Nativeint.logxor
 
-    type abstract =
-      { sign_bits : int
-      ; sign : bool option (** sign, if known *)
-      ; trailing_zeros : int
-      }
-    (** all fields are lower bounds *)
+    let lnot = Nativeint.lognot
 
-    type t =
-      | Constant of Nativeint.t
-      | Abstract of abstract
+    let num_bits = 8 * size_int
 
-    let to_abstract t =
-      match t with | Abstract a -> a | Constant n ->
-      let sign = const < 0n in
-      let sign_bits =
-        if sign then
-          clz (Nativeint.lognot const)
-        else
-          clz const
-      in
-      { sign_bits; sign = Some sign; trailing_zeros = ctz const }
-
-    let leading_zeros t =
-      match t.sign with
-      | Some false -> t.sign_bits
-      | _ -> 0
-
-    let leading_ones t =
-      match t.sign with
-      | Some true -> t.sign_bits
-      | _ -> 0
-
-    let meet t1 t2 =
-      let sign =
-        match t1.sign, t2.sign with
-        | Some s1, Some s2 when s1 = s2 -> Some s1
-        | _, _ -> None
-      in
-      {sign_bits = Int.min t1.sign_bits t2.sign_bits; sign ; trailing_zeros = Int.min t1.trailing_zeros t2.trailing_zeros}
-
-    let top = {sign_bits = 1; sign = None; trailing_zeros = 0}
-    let zero = Constant 0n
-
-    let create ~sign_bits ~sign ~trailing_zeros =
-      let sign_bits = Int.max 1 (Int.min sign_bits num_bits) in
-      let trailing_zeros = Int.max 0 (Int.min trailing_zeros num_bits) in
-      match sign with
-      | Some false ->
-        if sign_bits + trailing_zeros >= num_bits then zero
-        else Abstract {sign_bits; sign; trailing_zeros}
-      | Some true ->
-        assert (sign_bits + trailing_zeros <= num_bits);
-        Abstract  {sign_bits; sign; trailing_zeros}
-      | None ->
-        if trailing_zeros = num_bits then zero
-        else Abstract {sign_bits; sign; trailing_zeros}
-    ;;
+    let bit n =
+      assert (0 <= n && n < num_bits);
+      Nativeint.shift_left 1n n
 
     let trailing_mask ~bits =
       assert (0 <= bits && bits <= num_bits);
-      Nativeint.pred (Nativeint.shift_left 1n bits)
+      if bits = Sys.word_size
+      then -1n
+      else Nativeint.pred (Nativeint.shift_left 1n bits)
 
     let leading_mask ~bits =
-      Nativeint.shift_left
-        (trailing_mask ~bits)
-        (num_bits - bits)
+      if bits = 0
+      then 0n
+      else Nativeint.shift_left (trailing_mask ~bits) (num_bits - bits)
+
+    let count_leading_zeros =
+      let rec go n ~acc ~num_bits =
+        if num_bits = 1
+        then acc + (1 - Nativeint.to_int n)
+        else
+          let right = num_bits / 2 in
+          let left = num_bits - right in
+          let left_mask = Nativeint.shift_left (-1n) right in
+          if n land left_mask = 0n
+          then go n ~acc:(acc + left) ~num_bits:right
+          else
+            let n = Nativeint.shift_right_logical n right in
+            go n ~acc ~num_bits:left
+      in
+      fun n -> go (n land trailing_mask ~bits:num_bits) ~acc:0 ~num_bits
+
+    let count_trailing_zeros =
+      let rec go n ~acc ~num_bits =
+        if n = 0n
+        then acc + num_bits
+        else if num_bits = 1
+        then acc
+        else
+          let right = num_bits / 2 in
+          let left = num_bits - right in
+          let right_mask = Nativeint.pred (Nativeint.shift_left 1n right) in
+          if n land right_mask <> 0n
+          then go n ~acc ~num_bits:right
+          else
+            let n = Nativeint.shift_right_logical n right in
+            go n ~acc:(acc + right) ~num_bits:left
+      in
+      fun n -> go n ~acc:0 ~num_bits
+
+    let count_leading_ones x = count_leading_zeros (lnot x)
+
+    let sign_bit bits ~known =
+      let sign_bit = bit (num_bits - 1) in
+      if known land sign_bit = 0n then None else Some (bits land sign_bit <> 0n)
+
+    type t =
+      { bits : Nativeint.t;  (** known bits of the number (see [mask]) *)
+        known : Nativeint.t;  (** a mask of which bits are known *)
+        sign_bits : int
+            (** how many leading bits are known to be the same, even if it's not known what they
+          are. *)
+      }
+
+    let invariant { bits; known; sign_bits } =
+      let unknown_bits_unset = bits land known in
+      let unknown_bits_set = bits lor lnot known in
+      let min_possible_sign_bits =
+        match sign_bit bits ~known with
+        | None -> 1
+        | Some true -> count_leading_ones unknown_bits_unset
+        | Some false -> count_leading_zeros unknown_bits_set
+      in
+      let max_possible_sign_bits =
+        let max_sign_bits_if_sign_is_unset () =
+          count_leading_zeros unknown_bits_unset
+        in
+        let max_sign_bits_if_sign_is_set () =
+          count_leading_ones unknown_bits_set
+        in
+        match sign_bit bits ~known with
+        | Some true -> max_sign_bits_if_sign_is_set ()
+        | Some false -> max_sign_bits_if_sign_is_unset ()
+        | None ->
+          Int.max
+            (max_sign_bits_if_sign_is_set ())
+            (max_sign_bits_if_sign_is_unset ())
+      in
+      assert (bits = unknown_bits_unset);
+      if min_possible_sign_bits > sign_bits
+      then
+        Misc.fatal_errorf
+          "sign_bits = %d, min_possible_sign_bits = %d, bits = %nx, known = %nx"
+          sign_bits min_possible_sign_bits bits known;
+      if max_possible_sign_bits < sign_bits
+      then
+        Misc.fatal_errorf
+          "sign_bits = %d, max_possible_sign_bits = %d, bits = %nx, known = %nx"
+          sign_bits max_possible_sign_bits bits known;
+      assert (
+        min_possible_sign_bits <= sign_bits
+        && sign_bits <= max_possible_sign_bits)
+
+    let create ?(sign_bits = 1) bits ~known =
+      let min_sign_bits =
+        match sign_bit bits ~known with
+        | None -> 1
+        | Some false -> count_leading_zeros (bits lor lnot known)
+        | Some true -> count_leading_ones (bits land known)
+      in
+      let sign_bits = Int.max sign_bits min_sign_bits in
+      let t = { sign_bits; bits; known } in
+      invariant t;
+      t
+
+    let unknown_bits_set t = t.bits lor lnot t.known
+
+    let is_power_of_2 const = const land Nativeint.pred const = 0n
+
+    let leading_zeros t = count_leading_zeros (unknown_bits_set t)
+
+    let leading_ones t = count_leading_zeros (lnot (unknown_bits_set t))
+
+    let _join t1 t2 =
+      let known = t1.known land t2.known land lnot (t1.bits lxor t2.bits) in
+      let t =
+        { bits = t1.bits lor t2.bits land known;
+          known;
+          sign_bits = Int.min t1.sign_bits t2.sign_bits
+        }
+      in
+      invariant t;
+      t
+
+    let top = { sign_bits = 1; bits = 0n; known = 0n }
+
+    let constant n = create n ~known:(-1n)
+
+    let to_constant t = if t.known = -1n then Some t.bits else None
+
+    let to_small_int t ~min ~max =
+      Option.bind (to_constant t) (to_small_int ~min ~max)
+
+    let logor t1 t2 =
+      let bits = t1.bits lor t2.bits in
+      let sign_bits = Int.min t1.sign_bits t2.sign_bits in
+      create ~sign_bits bits ~known:(bits lor (t1.known land t2.known))
+
+    let can_weaken_add_to_or t1 t2 =
+      (* we can weaken an [add] to an [or] if we know there's no overflow from
+         unknown bits *)
+      Nativeint.add (unknown_bits_set t1) (unknown_bits_set t2)
+      = unknown_bits_set t1 lor unknown_bits_set t2
+
+    let can_weaken_mul t1 t2 =
+      match to_constant t1, to_constant t2 with
+      | Some t1, Some t2 -> `Constant (Nativeint.mul t1 t2)
+      | None, None -> `Unknown
+      | Some 0n, None | None, Some 0n -> `Constant 0n
+      | None, Some t2 ->
+        if is_power_of_2 t2
+        then `Shift_LHS_left_by (count_trailing_zeros t2)
+        else `Unknown
+      | Some t1, None ->
+        if is_power_of_2 t1
+        then `Shift_RHS_left_by (count_trailing_zeros t1)
+        else `Unknown
+
+    let logand t1 t2 =
+      let bits = t1.bits land t2.bits in
+      let known_to_be_zero =
+        lnot t1.bits land t1.known lor (lnot t2.bits land t2.known)
+      in
+      let sign_bits = Int.min t1.sign_bits t2.sign_bits in
+      create ~sign_bits bits
+        ~known:(known_to_be_zero lor (t1.known land t2.known))
+
+    let shift_right_logical t1 t2 =
+      match to_small_int t2 ~min:0 ~max:max_shift with
+      | None -> top
+      | Some 0 -> t1
+      | Some shift ->
+        create
+          (Nativeint.shift_right_logical t1.bits shift)
+          ~known:
+            (leading_mask ~bits:shift
+            lor Nativeint.shift_right_logical t1.known shift)
+
+    let shift_left t1 t2 =
+      match to_small_int t2 ~min:0 ~max:max_shift with
+      | None -> top
+      | Some 0 -> t1
+      | Some shift ->
+        create
+          (Nativeint.shift_left t1.bits shift)
+          ~known:
+            (Nativeint.shift_left t1.known shift lor trailing_mask ~bits:shift)
+
+    let shift_right t1 t2 =
+      match to_small_int t2 ~min:0 ~max:max_shift with
+      | None -> top
+      | Some 0 -> t1
+      | Some shift ->
+        let ( asr ) x y =
+          let unused_bits = Sys.word_size - num_bits in
+          let x = Nativeint.shift_left x unused_bits in
+          let x = Nativeint.shift_right x y in
+          let x = Nativeint.shift_right_logical x unused_bits in
+          x
+        in
+        create (t1.bits asr shift) ~known:(t1.known asr shift)
+
+    let add t1 t2 =
+      match to_constant t1, to_constant t2 with
+      | Some t1, Some t2 -> constant (Nativeint.add t1 t2)
+      | Some 0n, None -> t2
+      | None, Some 0n -> t1
+      | _, _ ->
+        if can_weaken_add_to_or t1 t2
+        then logor t1 t2
+        else
+          { top with
+            sign_bits = Int.max 1 (Int.min t1.sign_bits t2.sign_bits - 1)
+          }
 
     let rec compute c =
-      match to_constant c with
-      | Some const -> Constant const
-      | None ->
-        match c with
-        | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
-          (* integer/float comparisons return either [1] or [0]. *)
-          Abstract { sign_bits = num_bits - 1; sign = Some 0; trailing_zeros = 0 }
-        | Cop (Clsr, [c1; c2], _) ->
-          (match compute c2 with
-            | Abstract _ -> top
-            | Constant shift ->
-              match to_small_int shift ~min ~max:max_shift with
-              | None -> top
-              | Some 0 -> compute c1
-              | Some shift -> (match compute c1 with
-                | Constant const -> Constant (Nativeint.shift_right_logical const shift)
-                | Abstract c1 ->
-                  create ~sign:(Some false) ~sign_bits:(leading_zeros c1 + shift) ~trailing_zeros:(c1.trailing_zeros - shift))
-          )
-        | Cop (Clsl, [c1; c2], _) ->
-          (match compute c2 with
-           | Abstract _ -> top
-           | Constant shift ->
-             match to_small_int shift ~min ~max:max_shift with
-             | None -> top
-             | Some 0 -> compute c1
-             | Some shift -> (match compute c1 with
-               | Constant const -> Constant (Nativeint.shift_left const shift)
-               | Abstract c1 ->
-                 create ~sign:None ~sign_bits:(c1.sign_bits - shift) ~trailing_zeros:(c1.trailing_zeros + shift)))
-        | Cop (Casr, [c1; c2], _) ->
-          (match compute c2  with
-           | Abstract _ -> top
-           | Constant shift ->
-             match to_small_int shift ~min ~max:max_shift with
-             | None -> top
-             | Some shift ->
-               (match compute c1 with
-                | Constant const -> Constant (Nativeint.shift_right const shift)
-                | Abstract c1 ->
-                  create ~sign:c1.sign ~sign_bits:(c1.sign_bits + shift) ~trailing_zeros:(c1.trailing_zeros - shift)))
-        | Cop (Cadd, [c1; c2], _) ->
-          (match compute c1, compute c2 with
-           | Constant c1, Constant c2 -> Constant (Nativeint.add c1 c2)
-           | _, _ -> top)
-        | Cop (Cor, [c1; c2], _) ->
-          (match compute c1, compute c2 with
-           | Constant c1, Constant c2 -> Constant (Nativeint.logor c1 c2)
-           | c1, c2 ->
-             let c1 = to_abstract c1 in
-             let c2 = to_abstract c2 in
-             let sign =
-               match c1.sign, c2.sign with
-               | Some true, _
-               | _ , Some true -> Some true
-               | Some false, Some false -> Some false
-               | _, _ -> None
-             in
-             let sign_bits =
-               Int.max (leading_ones c1) (leading_ones c2)
-               |> Int.max (Int.min c1.sign_bits c2.sign_bits)
-             in
-             let trailing_zeros =
-               Int.min c1.trailing_zeros c2.trailing_zeros
-             in
-             create ~sign ~sign_bits ~trailing_zeros)
-        | Cand (Cor, [c1; c2], _) ->
-          (match compute c1, compute c2 with
-           | Constant c1, Constant c2 -> Constant (Nativeint.logand c1 c2)
-           | c1, c2 ->
-             let c1 = to_abstract c1 in
-             let c2 = to_abstract c2 in
-             let sign =
-               match c1.sign, c2.sign with
-               | Some false, _
-               | _ , Some false -> Some false
-               | Some true, Some true -> Some true
-               | _, _ -> None
-             in
-             let sign_bits =
-               Int.max (leading_zeros c1) (leading_zeros c2)
-               |> Int.max (Int.min c1.sign_bits c2.sign_bits)
-             in
-             let trailing_zeros =
-               Int.max c1.trailing_zeros c2.trailing_zeros
-             in
-             create ~sign ~sign_bits ~trailing_zeros)
-        | _ -> top
-    ;;
+      match c with
+      | Cconst_int (x, _) -> constant (Nativeint.of_int x)
+      | Cconst_natint (x, _) -> constant x
+      | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
+        (* integer/float comparisons return either [1] or [0]. *)
+        { sign_bits = num_bits - 1;
+          bits = 0n;
+          known = leading_mask ~bits:(num_bits - 1)
+        }
+      | Cop (Clsr, [c1; c2], _) -> shift_right_logical (compute c1) (compute c2)
+      | Cop (Clsl, [c1; c2], _) -> shift_left (compute c1) (compute c2)
+      | Cop (Casr, [c1; c2], _) -> shift_right (compute c1) (compute c2)
+      | Cop (Caddi, [c1; c2], _) -> add (compute c1) (compute c2)
+      | Cop (Cor, [c1; c2], _) -> logor (compute c1) (compute c2)
+      | Cop (Cand, [c1; c2], _) -> logand (compute c1) (compute c2)
+      | Cop (Cmuli, [c1; c2], _) -> (
+        let c1 = compute c1 in
+        let c2 = compute c2 in
+        match can_weaken_mul c1 c2 with
+        | `Unknown -> top
+        | `Constant x -> constant x
+        | `Shift_LHS_left_by shift ->
+          shift_left c1 (constant (Nativeint.of_int shift))
+        | `Shift_RHS_left_by shift ->
+          shift_left c2 (constant (Nativeint.of_int shift)))
+      | _ -> top
   end
 
-
-  (** Identify cmm operations whose result is guaranteed to be small integers
-     (i.e. the first [bits] bits are guaranteed to be zero) *)
-  let is_definitely_zero_extended c ~bits =
-    assert (0 <= bits && bits <= size_int * 8);
+  let weaken_mul c dbg =
     match c with
-    | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
-      (* integer/float comparisons return either [1] or [0]. *)
-      bits <= (size_int * 8) - 1
-    | Cop (Clsr, [_; c2], _) -> (
-      match to_constant_int c2 ~min:0 ~max:max_shift with
-      | None -> false
-      | Some shift -> bits <= shift)
-    | c ->
-      match to_constant c with
-      | None -> false
-      | Some const ->
-        (* are at least the first [b] bits of [const] 0? *)
-        let hi_bits = Nativeint.shift_right_logical const (size_int * 8 - bits) in
-        Nativeint.equal hi_bits Nativeint.zero
-  ;;
-
-  let rec definitely_has_trailing_zeroes c ~bits =
-    assert (0 <= bits && bits <= size_int * 8);
-    match c with
-    | Cop ((Clsr | Casr), [c1; c2], _) ->
-      (match to_constant_int c2 ~min:0 ~max:max_shift with
-        | None -> false
-        | Some shift ->
-          definitely_has_trailing_zeroes c1 ~bits:(bits + shift)
-      )
-    | c ->
-      match to_constant c with
-      | None -> false
-      | Some const ->
-        (* are at least the first [b] bits of [const] 0? *)
-        let hi_bits = Nativeint.shift_right_logical const (size_int * 8 - bits) in
-        Nativeint.equal hi_bits Nativeint.zero
-  ;;
-
-  let rec weaken_mul_to_shift c dbg =
-    let rec log2_unchecked = function
-      | 1n -> 0
-      | n -> 1 + log2 (Nativeint.shift_right_logical n 1)
-    in
-    let of_mul c1 c2 ->
-      match c2 with
-      | 0n -> Cconst_int (0, dbg)
-      | const ->
-        let is_power_of_2 =
-          Nativeint.equal (Nativeint.logand const (Nativeint.pred const)) 0n
-        in
-        if is_power_of_2 then apply Lsl c1 (Cconst_int(log2_unchecked const, dbg))
-        else c
-    in
-    match c with
-    | Cop (Cmuli, [c1; c2], _) ->
-      (match to_constant c2 with
-        | Some const -> of_mul c1 const
-        | None ->
-          match to_constant c1 with
-          | Some const -> of_mul c2 const
-          | None -> c)
+    | Cop (Cmuli, [c1; c2], _) -> (
+      match Bits.can_weaken_mul (Bits.compute c1) (Bits.compute c2) with
+      | `Unknown -> c
+      | `Constant const -> Cconst_natint (const, dbg)
+      | `Shift_LHS_left_by shift ->
+        Cop (Clsl, [c1; Cconst_int (shift, dbg)], dbg)
+      | `Shift_RHS_left_by shift ->
+        Cop (Clsl, [c2; Cconst_int (shift, dbg)], dbg))
     | c -> c
 
-  and weaken_add_to_or c dbg =
+  let weaken_add_to_or c dbg =
     match c with
-    | Cop (Caddi, [c1, c2], _) as c ->
-      let go c1 c2 =
-        match weaken_mul_to_shift c1 with
-        | Cop (Clsl)
-
-      in
-      (
-        match
-      )
+    | Cop (Caddi, [c1; c2], _)
+      when Bits.can_weaken_add_to_or (Bits.compute c1) (Bits.compute c2) ->
+      Cop (Cor, [c1; c2], dbg)
     | c -> c
-    | Cop (Caddi, [x; Cop(Clsl, [_; shift], _)], _) ->
-      match to_constant_int shift ~min:0 ~max:max_shift with
-      | Some shift when is_definitely_zero_extended x ~bits:shift ->
-        Cop (Cor, [Cop(Clsl, [_; shift], _ ); x], dbg)
-      | None -> c
 
-
-
-    if is_definitely_zero_extended c ~bits:1
-    then Cop (Cor, [c; Cconst_int (1, dbg)], dbg)
-    else c
-
-  let rec ignore_low_bits c dbg ~bits =
+  let rec ignore_low_bits c ~bits =
     assert (0 <= bits && bits < size_int * 8);
+    let keep_leading_bits = Bits.num_bits - bits in
     if bits = 0
     then c
     else
-      let can_ignore_constant op c1 c2 =
-        let mask = Nativeint.pred (Nativeint.shift_left Nativeint.one bits) in
-        match op with
-        | Cor -> Nativeint.equal c2 (Nativeint.logand c2 mask)
-        | Cand ->
-          Nativeint.equal c2 (Nativeint.logor c2 (Nativeint.lognot mask))
-        | Caddi -> (
-          match c1 with
-          | Cop( Clsl, [_; shift], _ ) -> (
-              (* a "small" add after a shift weakens to an or *)
-            match to_constant_int shift ~min:bits ~max:max_shift with
-            | None -> false
-            | Some _ -> Nativeint.equal c2 (Nativeint.logand c2 mask))
-          | _ -> false)
-        | _ -> false
+      let simplify_or_or_xor op c1 c2 dbg =
+        if Bits.leading_zeros (Bits.compute c1) >= keep_leading_bits
+        then ignore_low_bits c2 ~bits
+        else if Bits.leading_zeros (Bits.compute c2) >= keep_leading_bits
+        then ignore_low_bits c1 ~bits
+        else Cop (op, [ignore_low_bits c1 ~bits; ignore_low_bits c2 ~bits], dbg)
       in
       match c with
-      | Cop (((Cor | Cand | Caddi) as op), [c1; c2], _) -> (
-        match to_constant c2 with
-        | Some c2 when can_ignore_constant op c1 c2 -> ignore_low_bits c1 ~bits
-        | _ -> (
-          match to_constant c1 with
-          | Some c1 when can_ignore_constant op c2 c1 -> ignore_low_bits c2 ~bits
-            let c =  in
-            { c with simplified = c.simplified + 1 }
-          | _ -> { expression = c; simplified = 0 }))
-      | _ -> { expression = c; simplified = 0 }
-
-  exception Cannot_simplify
+      | Cop (((Cor | Cxor) as op), [c1; c2], dbg) ->
+        simplify_or_or_xor op c1 c2 dbg
+      | Cop ((Cand as op), [c1; c2], dbg) ->
+        if Bits.leading_ones (Bits.compute c1) >= keep_leading_bits
+        then ignore_low_bits c2 ~bits
+        else if Bits.leading_ones (Bits.compute c2) >= keep_leading_bits
+        then ignore_low_bits c1 ~bits
+        else Cop (op, [ignore_low_bits c1 ~bits; ignore_low_bits c2 ~bits], dbg)
+      | Cop (Caddi, [c1; c2], dbg)
+        when Bits.can_weaken_add_to_or (Bits.compute c1) (Bits.compute c2) ->
+        simplify_or_or_xor Cor c1 c2 dbg
+      | c -> c
 
   let weaken ?(argument_is_definitely_non_negative = false) t =
     match t with
@@ -689,6 +698,8 @@ module Shift = struct
       (* if we know the argument has a sign bit of zero, then we can weaken
          arithmetic shifts to logical shifts *)
       if argument_is_definitely_non_negative then Clsr else Casr
+
+  exception Cannot_simplify
 
   let rec simplify_shift_by_constant_exn t c shift dbg =
     if shift = 0
@@ -704,6 +715,13 @@ module Shift = struct
               | Lsr -> Nativeint.shift_right_logical const shift
               | Asr -> Nativeint.shift_right const shift)
           | None -> (
+            let c =
+              match t with
+              | Lsl -> c
+              | Lsr | Asr -> ignore_low_bits c ~bits:shift
+            in
+            let c = weaken_add_to_or c dbg in
+            let c = weaken_mul c dbg in
             match t, c with
             | ( (Lsr | Asr),
                 Cop (((Cand | Cor | Cxor) as inner_operation), [c1; c2], _) )
@@ -756,9 +774,17 @@ module Shift = struct
     with Cannot_simplify -> Cop (Clsl, [c1; c2], dbg)
 end
 
+let ignore_low_bit_int x = Shift.ignore_low_bits x ~bits:1
+
 let lsl_int c1 c2 dbg = Shift.apply Lsl c1 c2 dbg
 
+let lsr_int c1 c2 dbg = Shift.apply Lsr c1 c2 dbg
+
+let asr_int c1 c2 dbg = Shift.apply Asr c1 c2 dbg
+
 let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+
+let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
 let is_power2 n = n <> 0 && n land (n - 1) = 0
 
@@ -778,39 +804,6 @@ let rec mul_int c1 c2 dbg =
     when Misc.no_overflow_mul n k ->
     add_const (mul_int c (Cconst_int (k, dbg)) dbg) (n * k) dbg
   | c1, c2 -> Cop (Cmuli, [c1; c2], dbg)
-
-(* identify cmm operations whose result is guaranteed to be small integers (e.g.
-   in the range [min_int / 4; max_int / 4]) *)
-let guaranteed_to_be_small_int = function
-  | Cop ((Ccmpi _ | Ccmpf _), _, _) ->
-    (* integer/float comparisons return either [1] or [0]. *)
-    true
-  | _ -> false
-
-let lsr_int c1 c2 dbg =
-  match c1, c2 with
-  | c1, Cconst_int (0, _) -> c1
-  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
-    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
-    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
-  | c1, Cconst_int (n, _) when n > 0 ->
-    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
-  | _ -> Cop (Clsr, [c1; c2], dbg)
-
-let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
-
-let asr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> (
-    match ignore_low_bit_int c1 with
-    (* some operations always return small enough integers that it is safe and
-       correct to optimise [asr (lsl x 1) 1] into [x]. *)
-    | Cop (Clsl, [c; Cconst_int (1, _)], _)
-      when n = 1 && guaranteed_to_be_small_int c ->
-      c
-    | c1' -> Cop (Casr, [c1'; c2], dbg))
-  | _ -> Cop (Casr, [c1; c2], dbg)
 
 let tag_int i dbg =
   match i with
