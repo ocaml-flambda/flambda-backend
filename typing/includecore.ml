@@ -1338,15 +1338,20 @@ let type_declarations ?(equality = false) ~loc env ~mark name
       rep1 rep2
   in
   let err = match (decl1.type_kind, decl2.type_kind) with
-      (_, Type_abstract _) ->
-       (* Note that [decl2.type_jkind] is an upper bound.
-          If it isn't tight, [decl2] must
-          have a manifest, which we're already checking for equality
-          above. Similarly, [decl1]'s kind may conservatively approximate its
-          jkind, but [check_decl_jkind] will expand its manifest.  *)
-        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
-         | Ok _ -> None
-         | Error v -> Some (Jkind v))
+      (_, Type_abstract _) -> begin
+        if Builtin_attributes.has_unsafe_allow_any_kind_in_impl decl2.type_attributes
+             && Builtin_attributes.has_unsafe_allow_any_kind_in_intf decl1.type_attributes
+        then None
+        else
+          (* Note that [decl2.type_jkind] is an upper bound.
+             If it isn't tight, [decl2] must
+             have a manifest, which we're already checking for equality
+             above. Similarly, [decl1]'s kind may conservatively approximate its
+             jkind, but [check_decl_jkind] will expand its manifest.  *)
+          (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
+           | Ok _ -> None
+           | Error v -> Some (Jkind v))
+      end
     | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
         if mark then begin
           let mark usage cstrs =
