@@ -313,3 +313,22 @@ let () = (* Literals *)
   check 0x8p+124s 0x8p+124;
   ()
 ;;
+
+type v =
+  | A of float32 * float * int
+  | B of int * (float32 * float32)
+
+let () = (* Static constants *)
+  let x = Sys.opaque_identity 1.0s in
+  assert (x = 1.0s);
+  let block = Sys.opaque_identity ((0.0, 123), 2.0s, "hello", (3.0s, 4.0)) in
+  let (_, x, _, (y, _)) = block in
+  assert (x = 2.0s);
+  assert (y = 3.0s);
+  let block = Sys.opaque_identity (B (0, (5.0s, 6.0s))) in
+  match block with
+  | A _ -> assert false
+  | B (_, (x, y)) ->
+    assert (x = 5.0s);
+    assert (y = 6.0s)
+;;

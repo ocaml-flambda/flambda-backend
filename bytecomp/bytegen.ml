@@ -751,7 +751,26 @@ module Storer =
 external float32_is_stage1 : unit -> bool = "caml_float32_is_stage1"
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 
-let rec comp_expr stack_info env exp sz cont =
+let rec contains_float32s = function
+  | Const_base (Const_float32 _ | Const_unboxed_float32 _) -> true
+  | Const_block (_, fields) -> List.exists contains_float32s fields
+  | Const_mixed_block _ ->  Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
+  | _ -> false
+
+let rec translate_float32s stack_info env cst sz cont =
+  match cst with
+  | Const_base (Const_float32 f | Const_unboxed_float32 f) ->
+    let i = float32_of_string f in
+    Kconst (Const_base (Const_int32 (Obj.obj i))) ::
+    Kccall("caml_float32_of_bits_bytecode", 1) :: cont
+  | Const_block (tag, fields) as cst when contains_float32s cst ->
+    let fields = List.map (fun field -> Lconst field) fields in
+    let cont = Kmakeblock (List.length fields, tag) :: cont in
+    comp_args stack_info env fields sz cont
+  | Const_mixed_block _ -> Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
+  | _ as cst -> Kconst cst :: cont
+
+and comp_expr stack_info env exp sz cont =
   check_stack stack_info sz;
   match exp with
     Lvar id | Lmutvar id ->
@@ -772,11 +791,8 @@ let rec comp_expr stack_info env exp sz cont =
           Koffsetclosure(pos - env_pos) :: cont
         | exception Not_found -> not_found ()
       end
-  | Lconst (Const_base (Const_float32 f |
-                        Const_unboxed_float32 f)) when float32_is_stage1 () ->
-      let i = float32_of_string f in
-      Kconst (Const_base (Const_int32 (Obj.obj i))) ::
-      Kccall("caml_float32_of_bits_bytecode", 1) :: cont
+  | Lconst cst when float32_is_stage1 () ->
+      translate_float32s stack_info env cst sz cont
   | Lconst cst ->
       Kconst cst :: cont
   | Lapply{ap_func = func; ap_args = args; ap_region_close = rc} ->
