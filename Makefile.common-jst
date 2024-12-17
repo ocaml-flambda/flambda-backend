@@ -78,6 +78,11 @@ runtime-stdlib: boot-compiler
 # Dune does not believe the compiler can make .cmxs unless the following file exists.
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
+# This target is a polling version of "make runtime-stdlib"
+.PHONY: runtime-stdlib-hacking
+runtime-stdlib-hacking: boot-compiler
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build -w $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) SYSTEM=$(SYSTEM) MODEL=$(MODEL) \
           ASPP="$(ASPP)" ASPPFLAGS="$(ASPPFLAGS)" \
