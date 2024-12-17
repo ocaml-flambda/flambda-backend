@@ -29,7 +29,7 @@ type !'a t : value mod portable uncontended
 
 (** Create an atomic reference. *)
 val make : 'a -> 'a t @@ nonportable
-[@@alert unsafe "Use [Atomic.Safe.make]."]
+[@@alert unsafe_multidomain "Use [Atomic.Safe.make]."]
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -46,19 +46,19 @@ val make : 'a -> 'a t @@ nonportable
     CR ocaml 5 all-runtime5: does not support runtime4 *)
 
 val make_contended : 'a -> 'a t @@ nonportable
-[@@alert unsafe "Use [Atomic.Safe.make_contended]."]
+[@@alert unsafe_multidomain "Use [Atomic.Safe.make_contended]."]
 
 (** Get the current value of the atomic reference. *)
 val get : 'a t -> 'a @@ nonportable
-[@@alert unsafe "Use [Atomic.Safe.get]."]
+[@@alert unsafe_multidomain "Use [Atomic.Safe.get]."]
 
 (** Set a new value for the atomic reference. *)
 external set : 'a t -> 'a -> unit @@ nonportable = "%atomic_set"
-[@@alert unsafe "Use [Atomic.Safe.set]."]
+[@@alert unsafe_multidomain "Use [Atomic.Safe.set]."]
 
 (** Set a new value for the atomic reference, and return the current value. *)
 external exchange : 'a t -> 'a -> 'a @@ nonportable = "%atomic_exchange"
-[@@alert unsafe "Use [Atomic.Safe.exchange]."]
+[@@alert unsafe_multidomain "Use [Atomic.Safe.exchange]."]
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
@@ -66,13 +66,13 @@ external exchange : 'a t -> 'a -> 'a @@ nonportable = "%atomic_exchange"
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
 external compare_and_set : 'a t -> 'a -> 'a -> bool @@ nonportable = "%atomic_cas"
-[@@alert unsafe "Use [Atomic.Safe.compare_and_set]."]
+[@@alert unsafe_multidomain "Use [Atomic.Safe.compare_and_set]."]
 
 (** [compare_exchange r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the comparison
     and the set occur atomically. Returns the previous value. *)
 external compare_exchange : 'a t -> 'a -> 'a -> 'a @@ nonportable = "%atomic_compare_exchange"
-[@@alert unsafe "Use [Atomic.Safe.compare_exchange]."]
+[@@alert unsafe_multidomain "Use [Atomic.Safe.compare_exchange]."]
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
