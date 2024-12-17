@@ -175,3 +175,31 @@ let ptr' : (int, lost_capsule) Capsule.Data.t =
 let () =
   assert (Capsule.Data.project ptr' = 111)
 ;;
+
+
+(* [protect]. *)
+exception Exn of string
+
+let () =
+  match Capsule.protect (fun () -> "ok") with
+  | s -> assert (s = "ok")
+  | exception _ -> assert false
+;;
+
+let () =
+  match Capsule.protect (fun () -> Exn "ok") with
+  | Exn s -> assert (s = "ok")
+  | _ -> assert false
+;;
+
+let () =
+  match Capsule.protect (fun () -> reraise (Exn "fail")) with
+  | exception (Capsule.Protected (mut, exn)) ->
+    let s = Capsule.Mutex.with_lock mut (fun password ->
+      Capsule.Data.extract password (fun exn ->
+        match exn with
+        | Exn s -> s
+        | _ -> assert false) exn) in
+    assert (s = "fail")
+  | _ -> assert false
+;;
