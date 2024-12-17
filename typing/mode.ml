@@ -2253,9 +2253,20 @@ module Modality = struct
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
     end
 
+    (* Similar to constant modalities, an inferred modality maps the mode of a
+       record/structure to the mode of a value therein. An inferred modality [f] is
+       inferred from the structure/record mode [mm] and the value mode [m].
+
+       Soundness: You should not get a value from a record/structure at a mode strictly
+       stronger than how it was put in. That is, [f mm >= m].
+
+       Completeness: You should be able to get a value from a record/structure at a mode
+       not strictly weaker than how it was put in. That is, [f mm <= m]. *)
+
     type t =
       | Const of Const.t
       | Diff of Mode.lr * Mode.l
+          (** inferred modality. See [apply] for its behavior. *)
       | Undefined
 
     let sub_log left right ~log : (unit, error) Result.t =
@@ -2388,6 +2399,7 @@ module Modality = struct
       | Const of Const.t
       | Undefined
       | Exactly of Mode.lr * Mode.l
+          (** inferred modality. See [apply] for its behavior. *)
 
     let sub_log left right ~log : (unit, error) Result.t =
       match left, right with
