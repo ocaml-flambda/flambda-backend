@@ -109,7 +109,7 @@ end
 module Shallow : sig
   (* Shallow handlers *)
 
-  type ('a,'b) continuation
+  type ('a,'b) continuation : value mod uncontended
   (** [('a,'b) continuation] is a delimited continuation that expects a ['a]
       value and returns a ['b] value. *)
 
@@ -162,7 +162,7 @@ module Shallow : sig
       is the value handler, [exnc] handles exceptions, and [effc] handles the
       effects performed by the computation enclosed by the handler. *)
 
-  val continue_with_portable : ('c,'a) continuation @ portable contended -> 'c -> ('a,'b) handler_portable @ portable -> 'b @@ portable
+  val continue_with_portable : ('c,'a) continuation @ portable -> 'c -> ('a,'b) handler_portable @ portable -> 'b @@ portable
   (** [continue_with_portable k v h] resumes the continuation [k] with value [v] with
       the handler [h].
 
@@ -170,7 +170,7 @@ module Shallow : sig
       resumed.
    *)
 
-  val discontinue_with_portable : ('c,'a) continuation @ portable contended -> exn -> ('a,'b) handler_portable @ portable -> 'b @@ portable
+  val discontinue_with_portable : ('c,'a) continuation @ portable -> exn -> ('a,'b) handler_portable @ portable -> 'b @@ portable
   (** [discontinue_with_portable k e h] resumes the continuation [k] by raising the
       exception [e] with the handler [h].
 
@@ -179,7 +179,7 @@ module Shallow : sig
    *)
 
   val discontinue_with_backtrace_portable :
-    ('a,'b) continuation @ portable contended -> exn -> Printexc.raw_backtrace ->
+    ('a,'b) continuation @ portable -> exn -> Printexc.raw_backtrace ->
     ('b,'c) handler_portable @ portable -> 'c @@ portable
   (** [discontinue_with_portable k e bt h] resumes the continuation [k] by raising the
       exception [e] with the handler [h] using the raw backtrace [bt] as the

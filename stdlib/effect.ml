@@ -155,7 +155,7 @@ end
 
 module Shallow = struct
 
-  type ('a,'b) continuation
+  type ('a,'b) continuation : value mod uncontended
 
   external alloc_stack :
     ('a -> 'b) ->
@@ -172,10 +172,6 @@ module Shallow = struct
   external cont_last_fiber : ('a, 'b) continuation -> last_fiber @@ portable = "%field1"
   external cont_set_last_fiber :
     ('a, 'b) continuation -> last_fiber -> unit @@ portable = "%setfield1"
-
-  external cont_last_fiber_contended : ('a, 'b) continuation @ contended -> last_fiber @@ portable = "%field1"
-  external cont_set_last_fiber_contended :
-    ('a, 'b) continuation @ contended -> last_fiber -> unit @@ portable = "%setfield1"
 
   let failwith msg = raise (Failure msg)
 
@@ -255,7 +251,7 @@ module Shallow = struct
       effc: 'c.'c t @ contended -> (('c,'a) continuation @ portable -> 'b) option }
 
   external update_handler_portable :
-    ('a,'b) continuation @ portable contended ->
+    ('a,'b) continuation @ portable ->
     ('b -> 'c) @ portable ->
     (exn -> 'c) @ portable ->
     ('d t @ contended -> ('d,'b) continuation @ portable -> last_fiber -> 'c) @ portable ->
@@ -264,15 +260,15 @@ module Shallow = struct
   external reperform_portable :
     'a t @ contended -> ('a, 'b) continuation @ portable -> last_fiber -> 'c @@ portable = "%reperform"
 
-  let[@inline never] continue_gen_portable (k @ contended) resume_fun v handler =
+  let[@inline never] continue_gen_portable k resume_fun v handler =
     let effc eff k last_fiber =
       match handler.effc eff with
       | Some f ->
-          cont_set_last_fiber_contended k last_fiber;
+          cont_set_last_fiber k last_fiber;
           f k
       | None -> reperform_portable eff k last_fiber
     in
-    let last_fiber = cont_last_fiber_contended k in
+    let last_fiber = cont_last_fiber k in
     let stack = update_handler_portable k handler.retc handler.exnc effc in
     resume stack resume_fun v last_fiber
 
