@@ -2286,7 +2286,8 @@ end = struct
          It is an optimization to cache this value here. It is used for ruling
          out computuations that are invalid or not implementable, and to
          estimate cost/benefit of vectorized computations. *)
-      all_scalar_instructions : Instruction.Id.Set.t
+      all_scalar_instructions : Instruction.Id.Set.t;
+      new_positions : int Instruction.Id.Map.t
     }
 
   let num_groups t = Instruction.Id.Map.cardinal t.groups
@@ -2413,6 +2414,31 @@ end = struct
       "Computation.is_valid seed_address_does_not_depend_on_tree = %b\n" res;
     res
 
+  let is_respected t block src dst =
+    let old_pos id = Block.pos block id in
+    let new_pos id =
+      match Instruction.Id.Map.find_opt id t.new_positions with
+      | None -> old_pos id
+      | Some pos -> pos
+    in
+    let appears get_pos src ~after:dst = get_pos src > get_pos dst in
+    (* [src] depends on [dst] implies that [src] appears after [dst] in the
+       block, i.e., [old_pos_src] > [old_pos_dst]. Check that [new_pos_src] >
+       [new_pos_dst]. *)
+    if not (appears old_pos src ~after:dst)
+    then
+      Misc.fatal_errorf
+        "Unexpected old position: %a (old pos %d) depends on %a (old pos %d)"
+        Instruction.Id.print src (old_pos src) Instruction.Id.print dst
+        (old_pos dst);
+    let res = appears new_pos src ~after:dst in
+    State.dump_debug (Block.state block)
+      "Computation.respects_memory_dependencies = %b: %a (old pos %d, new pos \
+       %d) depends on %a (old pos %d, new pos %d)\n"
+      res Instruction.Id.print src (old_pos src) (new_pos src)
+      Instruction.Id.print dst (old_pos dst) (new_pos dst);
+    res
+
   let respects_memory_dependencies t block deps =
     (* conservative: for each memory dependency (data or order), check that the
        new order of instructions satisfies the dependency. This is needed to
@@ -2421,49 +2447,9 @@ end = struct
        are respected. The construction of the groups themselves guarantees that
        there are no deps of any kind (reg, mem, or order) between instructions
        in the same group. *)
-
-    (* CR-someday gyorsh: improve instruction scheduling for vectorized
-       instructions to allow more code to be vectorized. Order constraints can
-       be used to choose the position of vectorized instructions within a block,
-       instead of the predefined position used now for [Group.key]. *)
-    let old_pos id = Block.pos block id in
-    let new_positions =
-      Instruction.Id.Map.fold
-        (fun key group acc ->
-          let key_pos = old_pos key in
-          List.fold_left
-            (fun acc i ->
-              let id = Instruction.id i in
-              Instruction.Id.Map.add id key_pos acc)
-            acc
-            (Group.scalar_instructions group))
-        t.groups Instruction.Id.Map.empty
+    let res =
+      Dependencies.for_all_memory_dependencies ~f:(is_respected t block) deps
     in
-    let new_pos id =
-      match Instruction.Id.Map.find_opt id new_positions with
-      | None -> old_pos id
-      | Some pos -> pos
-    in
-    let appears get_pos src ~after:dst = get_pos src > get_pos dst in
-    let is_respected src dst =
-      (* [src] depends on [dst] implies that [src] appears after [dst] in the
-         block, i.e., [old_pos_src] > [old_pos_dst]. Check that [new_pos_src] >
-         [new_pos_dst]. *)
-      if not (appears old_pos src ~after:dst)
-      then
-        Misc.fatal_errorf
-          "Unexpected old position: %a (old pos %d) depends on %a (old pos %d)"
-          Instruction.Id.print src (old_pos src) Instruction.Id.print dst
-          (old_pos dst);
-      let res = appears new_pos src ~after:dst in
-      State.dump_debug (Block.state block)
-        "Computation.respects_memory_dependencies = %b: %a (old pos %d, new \
-         pos %d) depends on %a (old pos %d, new pos %d)\n"
-        res Instruction.Id.print src (old_pos src) (new_pos src)
-        Instruction.Id.print dst (old_pos dst) (new_pos dst);
-      res
-    in
-    let res = Dependencies.for_all_memory_dependencies ~f:is_respected deps in
     State.dump_debug (Block.state block)
       "Computation.respects_memory_dependencies result = %b\n" res;
     res
@@ -2510,6 +2496,29 @@ end = struct
               scalar_instructions))
       t.groups
 
+  let respects_register_dependencies t block deps =
+    (* Each computation is guaranteed by construction to respect register
+       dependencies, but after merging two computation, they may be violated if
+       one of the computations depends on another and the placement of vector
+       instructions does not respect the dependency. Conservatively reject such
+       a computation for now. This check should run at the same time as
+       [is_dependency_of_the_rest_of_body]. Better placement of vectorized
+       instructions can help in some cases, but not all and not yet
+       implemented. *)
+    let is_valid_dep i =
+      let id = Instruction.id i in
+      let set = Dependencies.get_direct_dependencies deps id in
+      Instruction.Id.Set.for_all
+        (fun dep_id ->
+          if contains_id t dep_id then is_respected t block id dep_id else true)
+        set
+    in
+    Instruction.Id.Map.for_all
+      (fun _key group ->
+        let scalar_instructions = Group.scalar_instructions group in
+        List.for_all is_valid_dep scalar_instructions)
+      t.groups
+
   (* CR gyorsh: [is_dependency_of_outside_body] condition can be weakened if we
      propagate register substitution to instructions that depend on them outside
      the tree (in the same block and other blocks), but may require additional
@@ -2544,9 +2553,27 @@ end = struct
         Instruction.Id.Set.add_seq seq acc)
       map Instruction.Id.Set.empty
 
+  let new_positions map block =
+    (* CR-someday gyorsh: improve instruction scheduling for vectorized
+       instructions to allow more code to be vectorized. Order constraints can
+       be used to choose the position of vectorized instructions within a block,
+       instead of the predefined position used now for [Group.key]. *)
+    let old_pos id = Block.pos block id in
+    Instruction.Id.Map.fold
+      (fun key group acc ->
+        let key_pos = old_pos key in
+        List.fold_left
+          (fun acc i ->
+            let id = Instruction.id i in
+            Instruction.Id.Map.add id key_pos acc)
+          acc
+          (Group.scalar_instructions group))
+      map Instruction.Id.Map.empty
+
   let empty =
     { groups = Instruction.Id.Map.empty;
-      all_scalar_instructions = Instruction.Id.Set.empty
+      all_scalar_instructions = Instruction.Id.Set.empty;
+      new_positions = Instruction.Id.Map.empty
     }
 
   (* CR gyorsh: if same instruction belongs to two groups, is it handled
@@ -2616,7 +2643,10 @@ end = struct
     | None -> None
     | Some map ->
       let t =
-        { groups = map; all_scalar_instructions = all_instructions map }
+        { groups = map;
+          all_scalar_instructions = all_instructions map;
+          new_positions = new_positions map block
+        }
       in
       State.dump_debug (Block.state block)
         "Computation.from_seed build finished\n%a\n" (dump ~block) t;
@@ -2626,13 +2656,29 @@ end = struct
   let join t1 t2 =
     { groups =
         Instruction.Id.Map.union
-          (fun _k g1 g2 ->
-            assert (Group.equal g1 g2);
+          (fun key g1 g2 ->
+            if not (Group.equal g1 g2)
+            then
+              Misc.fatal_errorf
+                "Computation.join: illegal groups for key=%a group1=%a \
+                 group2=%a"
+                Instruction.Id.print key Group.dump g1 Group.dump g2;
             Some g1)
           t1.groups t2.groups;
       all_scalar_instructions =
         Instruction.Id.Set.union t1.all_scalar_instructions
-          t2.all_scalar_instructions
+          t2.all_scalar_instructions;
+      new_positions =
+        Instruction.Id.Map.union
+          (fun key pos1 pos2 ->
+            if not (Int.equal pos1 pos2)
+            then
+              Misc.fatal_errorf
+                "Computation.join: illegal new_positions for key=%a pos1=%d \
+                 pos2=%d"
+                Instruction.Id.print key pos1 pos2;
+            Some pos1)
+          t1.new_positions t2.new_positions
     }
 
   (** [compatible t t'] returns true if for every group [g] in [t],
@@ -2695,6 +2741,7 @@ end = struct
       State.dump_debug (Block.state block) "Computation.select_and_join %a\n"
         (dump ~block) res;
       if is_dependency_of_the_rest_of_body res block deps
+         || (not (respects_register_dependencies res block deps))
          || not (is_cost_effective res)
       then None
       else Some res
@@ -2886,27 +2933,27 @@ let can_reorder tree body deps =
   in
   let rec reorder cell_option =
     match cell_option with
-    | None -> true
+    | None -> ()
     | Some cell -> reorder_group cell |> reorder
   in
   (* traverse the block backwards *)
   DLL.last_cell body |> reorder
 
-let can_reorder tree block deps =
+let validate tree block deps =
+  (* CR-soon gyorsh: if placement changes, the check will be too strict. *)
   let state = Block.state block in
   let body = Block.body block in
   (* copy body *)
   let body = DLL.map ~f:Instruction.basic body in
-  let res =
-    try can_reorder tree body deps
-    with Cannot_reorder (i1, i2) ->
-      State.dump_debug state "Cannot reorder %a %a\n\n" Instruction.print_id i1
-        Instruction.print_id i2;
-      false
-  in
-  State.dump_debug state "State.can_reorder res=%b\nReordered block:\n" res;
-  DLL.iter body ~f:(fun i -> State.dump_debug state "%a\n" Instruction.print i);
-  res
+  (try can_reorder tree body deps
+   with Cannot_reorder (i1, i2) ->
+     let pp ppf body =
+       DLL.iter body ~f:(fun i -> Format.fprintf ppf "%a\n" Instruction.print i)
+     in
+     Misc.fatal_errorf "Cannot reorder %a %a in Block:\n%a\n"
+       Instruction.print_id i1 Instruction.print_id i2 pp body);
+  State.dump_debug state "Validated. Reordered block:\n";
+  DLL.iter body ~f:(fun i -> State.dump_debug state "%a\n" Instruction.print i)
 
 let maybe_vectorize block =
   let state = Block.state block in
@@ -2941,10 +2988,7 @@ let maybe_vectorize block =
       State.dump state "**** Vectorize selected computation: %a (%s)\n"
         Computation.dump_one_line_stat computation scoped_name;
       State.dump_debug state "%a\n" (Computation.dump ~block) computation;
-      if State.extra_debug && not (can_reorder computation block deps)
-      then
-        Misc.fatal_errorf "Vectorized computation is not valid:\n%a\n"
-          (Computation.dump ~block) computation ();
+      if State.extra_debug then validate computation block deps;
       let dump_block msg block =
         let size = DLL.length (Block.body block) in
         State.dump state "Block %a in %s: %s body instruction count=%d\n"
