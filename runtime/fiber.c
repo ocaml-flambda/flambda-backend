@@ -20,6 +20,7 @@
 
 #include "caml/config.h"
 #include <string.h>
+#include <stdio.h>
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
@@ -43,6 +44,11 @@
 #endif
 #if defined(USE_MMAP_MAP_STACK) || !defined(STACK_CHECKS_ENABLED)
 #include <sys/mman.h>
+#endif
+#ifdef __linux__
+/* for gettid */
+#include <sys/types.h>
+#include <sys/syscall.h>
 #endif
 
 #ifdef DEBUG
@@ -183,7 +189,15 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   // 2Mb (= extra_size)
   // -------------------- <- [stack], returned from [mmap], page-aligned
   char* stack;
-  stack = caml_mem_map(len + stack_extra_size_for_mmap, 0);
+#ifdef __linux__
+  /* On Linux, record the current TID in the mapping name */
+  char mapping_name[64];
+  snprintf(mapping_name, sizeof mapping_name,
+           "stack (tid %ld)", (long)syscall(SYS_gettid));
+#else
+  const char* mapping_name = "stack";
+#endif
+  stack = caml_mem_map(len + stack_extra_size_for_mmap, 0, mapping_name);
   if (stack == MAP_FAILED) {
     return NULL;
   }
