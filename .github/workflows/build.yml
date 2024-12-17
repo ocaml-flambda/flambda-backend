@@ -96,6 +96,13 @@ jobs:
             use_runtime: d
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced,flambda2-expert-cont-lifting-budget=200,regalloc=gi'
 
+          - name: flambda2_frame_pointers_oclassic_polling_cfg
+            config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
+            os: ubuntu-latest
+            build_ocamlparam: '_,no-mach-ir=1'
+            ocamlparam: '_,Oclassic=1,no-mach-ir=1'
+            disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
+
           - name: flambda2_frame_pointers_oclassic_polling_irc
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
