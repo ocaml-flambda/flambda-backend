@@ -155,9 +155,10 @@ CAMLprim value caml_capsule_rwlock_unlock(value wrapper)
 
 CAMLprim value caml_capsule_mutex_new(value unit)
 {
+  CAMLparam1(unit);
   value res = caml_alloc_small(1, 0);
   Field(res, 0) = Val_false;
-  return res;
+  CAMLreturn(res);
 }
 
 CAMLprim value caml_capsule_mutex_lock(value wrapper)
@@ -167,7 +168,7 @@ CAMLprim value caml_capsule_mutex_lock(value wrapper)
     caml_raise_sys_error(caml_copy_string("Attempted to recursively lock mutex."));
   }
   Field(wrapper, 0) = Val_true;
-  return Val_unit;
+  CAMLreturn(Val_unit);
 }
 
 CAMLprim value caml_capsule_mutex_unlock(value wrapper)
@@ -177,7 +178,7 @@ CAMLprim value caml_capsule_mutex_unlock(value wrapper)
     caml_raise_sys_error(caml_copy_string("Attempted to recursively unlock mutex."));
   }
   Field(wrapper, 0) = Val_false;
-  return Val_unit;
+  CAMLreturn(Val_unit);
 }
 
 CAMLprim value caml_capsule_condition_new(value unit)
