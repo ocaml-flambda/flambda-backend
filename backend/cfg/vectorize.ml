@@ -1397,7 +1397,8 @@ end = struct
         in
         { t with aliases }
 
-      let update t may_access_partitions ~is_atomic instruction op =
+      let update t ~may_access_partitions ~may_point_to_partitions ~is_atomic
+          instruction op =
         let may_access_partitions =
           if is_atomic
           then
@@ -1408,7 +1409,8 @@ end = struct
         in
         let accesses = Accesses.add_all t.accesses may_access_partitions op in
         let result_may_point_to_partitions =
-          Partitions.get_successors t.partitions may_access_partitions
+          Partition.Set.union may_point_to_partitions
+            (Partitions.get_successors t.partitions may_access_partitions)
         in
         let t = { t with accesses } in
         update_aliases t instruction result_may_point_to_partitions
@@ -1422,13 +1424,16 @@ end = struct
           else Aliases.get_regs addr_args t.aliases
         in
         let value_to_store = Operation.non_address_args op in
-        let may_point_to = Aliases.get_regs value_to_store t.aliases in
+        let may_point_to_partitions =
+          Aliases.get_regs value_to_store t.aliases
+        in
         let partitions =
           Partitions.add_edges t.partitions ~src:may_access_partitions
-            ~dst:may_point_to
+            ~dst:may_point_to_partitions
         in
         let t = { t with partitions } in
-        update t may_access_partitions ~is_atomic instruction op
+        update t ~may_access_partitions ~may_point_to_partitions ~is_atomic
+          instruction op
 
       let transform t instruction ~reaching_definitions =
         match Operation.create instruction reaching_definitions with
@@ -1455,10 +1460,14 @@ end = struct
             update_aliases t instruction
               (Partition.Set.singleton fresh_partition)
           | Read { is_atomic; _ } ->
-            assert (Array.length (Operation.non_address_args op) = 0);
+            let non_address_args = Operation.non_address_args op in
+            let may_point_to_partitions =
+              Aliases.get_regs non_address_args t.aliases
+            in
             let addr_args = Operation.address_args op in
             let may_access_partitions = Aliases.get_regs addr_args t.aliases in
-            update t may_access_partitions ~is_atomic instruction op
+            update t ~may_access_partitions ~may_point_to_partitions ~is_atomic
+              instruction op
           | Write _ ->
             assert (Array.length (Instruction.results instruction) = 0);
             transform_write t ~is_atomic:false ~may_access_any_partition:false
