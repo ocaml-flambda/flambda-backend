@@ -37,8 +37,9 @@ module Runtime_4 = struct
 
     let init () = ()
 
-    (* CR tdelvecchio: Genuine illegal crossing, but okay because runtime 4 only. *)
-    type 'a key : value mod portable uncontended = Key of (int * (Access.t -> 'a)) [@@unboxed]
+    (* Illegal crossing; safe because runtime 4 only. *)
+    type 'a key : value mod portable uncontended = Key of (int * (Access.t -> 'a))
+    [@@unboxed]
 
     let key_counter = Obj.magic_portable (ref 0)
 
@@ -214,7 +215,7 @@ module Runtime_5 = struct
 
     let init () = create_dls ()
 
-    (* CR tdelvecchio: Remove [Key] wrapper once we have with kinds. *)
+    (* CR with-kinds: Remove [Key] wrapper. *)
     type 'a key : value mod portable uncontended =
         Key of (int * (Access.t -> 'a) Modes.Portable.t) [@@unboxed]
 
@@ -320,7 +321,7 @@ module Runtime_5 = struct
     let get_initial_keys access : key_value list =
       List.map
         (fun (KI (k, split)) -> KV (k, (split (get access k))))
-        (* CR tdelvecchio: Unnecessary magic once we have with kinds. *)
+        (* CR with-kinds: Unnecessary magic. *)
         (Obj.magic_uncontended (Atomic.Safe.get parent_keys))
 
     let set_initial_keys access (l: key_value list) =
@@ -380,7 +381,7 @@ module Runtime_5 = struct
   let spawn' f =
     do_before_first_spawn ();
     let pk = DLS.access (fun access -> DLS.get_initial_keys access
-      |> Obj.magic_portable (* CR tdelvecchio: Unnecessary magic. *))
+      |> Obj.magic_portable (* CR with-kinds: Unnecessary magic. *))
     in
 
     (* [term_sync] is used to synchronize with the joining domains *)
@@ -391,7 +392,7 @@ module Runtime_5 = struct
     in
 
     let body () =
-      let pk = Obj.magic_uncontended pk (* CR tdelvecchio: Unneccessary magic. *) in
+      let pk = Obj.magic_uncontended pk (* CR with-kinds: Unneccessary magic. *) in
       match
         DLS.create_dls ();
         let access = DLS.Access.Access in

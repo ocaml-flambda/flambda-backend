@@ -376,7 +376,7 @@ let bits64 = apply0 State.bits64
 let nativebits = apply0 State.nativebits
 
 let full_init seed =
-  (* CR tdelvecchio: Unnecessary magic. *)
+  (* CR with-kinds: Unnecessary magic. *)
   let seed = Obj.magic_portable seed in
   DLS.access (fun access ->
     State.reinit

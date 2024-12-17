@@ -450,7 +450,7 @@ module Suspension = struct
      raised. *)
 
   let once (f : 'a suspension) : 'a suspension =
-    (* CR tdelvecchio: This will be safe once [Atomic.t] has "with" kinds. *)
+    (* CR with-kinds: Unnecessary magic. *)
     let action = Atomic.Safe.make (Obj.magic_portable f) in
     fun () ->
       (* Get the function currently stored in [action], and write the
