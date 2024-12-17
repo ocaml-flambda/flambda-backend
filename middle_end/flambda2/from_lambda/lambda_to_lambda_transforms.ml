@@ -307,21 +307,25 @@ let makearray_dynamic_scannable_unboxed_product0
   (* Note that we don't check the number of unarized arguments against the
      layout; we trust the front end. If we wanted to do this, it would have to
      be done slightly later, after unarization. *)
+  let body =
+    L.Llet
+      ( Strict,
+        array_layout,
+        args_array,
+        Lprim
+          ( Pmakearray (lambda_array_kind, Immutable, L.alloc_local),
+            [init] (* will be unarized when this term is CPS converted *),
+            loc ),
+        Lprim
+          (Pccall external_call_desc, [Lvar args_array; is_local; length], loc)
+      )
+  in
+  (* We must not add a region if the C stub is going to return a local value,
+     otherwise we will incorrectly close the region on such live value. *)
   Transformed
-    (Lregion
-       ( Llet
-           ( Strict,
-             array_layout,
-             args_array,
-             Lprim
-               ( Pmakearray (lambda_array_kind, Immutable, L.alloc_local),
-                 [init] (* will be unarized when this term is CPS converted *),
-                 loc ),
-             Lprim
-               ( Pccall external_call_desc,
-                 [Lvar args_array; is_local; length],
-                 loc ) ),
-         array_layout ))
+    (match mode with
+    | Alloc_local -> body
+    | Alloc_heap -> L.Lregion (body, array_layout))
 
 let makearray_dynamic_scannable_unboxed_product env
     (lambda_array_kind : L.array_kind) (mode : L.locality_mode) ~length
