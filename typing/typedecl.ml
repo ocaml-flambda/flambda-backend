@@ -1164,9 +1164,8 @@ let check_constraints env sdecl (_, decl) =
    immediate, we should check the manifest is immediate). Also, update the
    resulting jkind to match the manifest. *)
 let narrow_to_manifest_jkind env loc decl =
-  match decl.type_manifest with
-  | None -> decl
-  | Some ty ->
+  match decl.type_manifest, decl.type_kind with
+  | Some ty, Type_abstract _ ->
     (* CR layouts v2.8: Remove this horrible hack. In practice, this
        [try_allow_r] fails in the case of a record re-export, because the jkind
        from the record has been calculated and put in decl.type_jkind at this
@@ -1197,6 +1196,7 @@ let narrow_to_manifest_jkind env loc decl =
        expansion (bad) and [type_jkind_purely] is broken; see comments
        on that function. *)
     { decl with type_jkind = Ctype.estimate_type_jkind env ty }
+  | _ -> decl
 
 (* Check that the type expression (if present) is compatible with the kind.
    If both a variant/record definition and a type equation are given,
