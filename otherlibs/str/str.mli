@@ -23,7 +23,7 @@
   It is, in general, unsuitable to match Unicode characters.
 *)
 
-type regexp
+type regexp : value mod portable uncontended
 (** The type of compiled regular expressions. *)
 
 

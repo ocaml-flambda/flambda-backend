@@ -31,11 +31,11 @@ let example_1 () =
       Result.Error 3
   | { a = true; b = Either.Left y } -> Result.Ok y;;
 (let
-  (example_1/297 =
-     (function {nlocal = 0} param/321[int]
+  (example_1/299 =
+     (function {nlocal = 0} param/323[int]
        [(consts ()) (non_consts ([1: *] [0: *]))](region
                                                    (let
-                                                     (input/299 =
+                                                     (input/301 =
                                                         (makelocalmutable 0 (int,
                                                           [(consts ())
                                                            (non_consts (
@@ -43,30 +43,30 @@ let example_1 () =
                                                           1 [0: 1]))
                                                      (if
                                                        (field_int 0
-                                                         input/299)
+                                                         input/301)
                                                        (let
-                                                         (*match*/324 =o
+                                                         (*match*/326 =o
                                                             (field_mut 1
-                                                              input/299))
-                                                         (switch* *match*/324
+                                                              input/301))
+                                                         (switch* *match*/326
                                                           case tag 0:
                                                            (if
                                                              (seq
                                                                (setfield_ptr(maybe-stack) 1
-                                                                 input/299
+                                                                 input/301
                                                                  [1: 3])
                                                                0)
                                                              [1: 3]
                                                              (let
-                                                               (*match*/326 =o
+                                                               (*match*/328 =o
                                                                   (field_mut 1
-                                                                    input/299))
+                                                                    input/301))
                                                                (makeblock 0 (int)
                                                                  (field_imm 0
-                                                                   *match*/326))))
+                                                                   *match*/328))))
                                                           case tag 1: [1: 2]))
                                                        [1: 1])))))
-  (apply (field_imm 1 (global Toploop!)) "example_1" example_1/297))
+  (apply (field_imm 1 (global Toploop!)) "example_1" example_1/299))
 val example_1 : unit -> (bool, int) Result.t = <fun>
 |}]
 
@@ -95,11 +95,11 @@ let example_2 () =
       Result.Error 3
   | { a = true; b = { mut = Either.Left y } } -> Result.Ok y;;
 (let
-  (example_2/333 =
-     (function {nlocal = 0} param/337[int]
+  (example_2/335 =
+     (function {nlocal = 0} param/339[int]
        [(consts ()) (non_consts ([1: *] [0: *]))](region
                                                    (let
-                                                     (input/335 =[(consts ())
+                                                     (input/337 =[(consts ())
                                                                   (non_consts (
                                                                   [0: [int],
                                                                    *]))]
@@ -112,33 +112,33 @@ let example_2 () =
                                                             [0: 1])))
                                                      (if
                                                        (field_int 0
-                                                         input/335)
+                                                         input/337)
                                                        (let
-                                                         (*match*/341 =o
+                                                         (*match*/343 =o
                                                             (field_mut 0
                                                               (field_imm 1
-                                                                input/335)))
-                                                         (switch* *match*/341
+                                                                input/337)))
+                                                         (switch* *match*/343
                                                           case tag 0:
                                                            (if
                                                              (seq
                                                                (setfield_ptr(maybe-stack) 0
                                                                  (field_imm 1
-                                                                   input/335)
+                                                                   input/337)
                                                                  [1: 3])
                                                                0)
                                                              [1: 3]
                                                              (let
-                                                               (*match*/344 =o
+                                                               (*match*/346 =o
                                                                   (field_mut 0
                                                                     (field_imm 1
-                                                                    input/335)))
+                                                                    input/337)))
                                                                (makeblock 0 (int)
                                                                  (field_imm 0
-                                                                   *match*/344))))
+                                                                   *match*/346))))
                                                           case tag 1: [1: 2]))
                                                        [1: 1])))))
-  (apply (field_imm 1 (global Toploop!)) "example_2" example_2/333))
+  (apply (field_imm 1 (global Toploop!)) "example_2" example_2/335))
 val example_2 : unit -> (bool, int) Result.t = <fun>
 |}]
 
@@ -165,11 +165,11 @@ let example_3 () =
       Result.Error 3
   | { mut = (true, Either.Left y) } -> Result.Ok y;;
 (let
-  (example_3/350 =
-     (function {nlocal = 0} param/354[int]
+  (example_3/352 =
+     (function {nlocal = 0} param/356[int]
        [(consts ()) (non_consts ([1: *] [0: *]))](region
                                                    (let
-                                                     (input/352 =mut[(consts ())
+                                                     (input/354 =mut[(consts ())
                                                                     (non_consts (
                                                                     [0:
                                                                     [int],
@@ -178,27 +178,27 @@ let example_3 () =
                                                                     [1: *]
                                                                     [0: *]))]]))]
                                                         [0: 1 [0: 1]]
-                                                      *match*/355 =o
-                                                        *input/352)
+                                                      *match*/357 =o
+                                                        *input/354)
                                                      (if
                                                        (field_imm 0
-                                                         *match*/355)
+                                                         *match*/357)
                                                        (switch* (field_imm 1
-                                                                  *match*/355)
+                                                                  *match*/357)
                                                         case tag 0:
                                                          (if
                                                            (seq
                                                              (assign
-                                                               input/352
+                                                               input/354
                                                                [0: 1 [1: 3]])
                                                              0)
                                                            [1: 3]
                                                            (makeblock 0 (int)
                                                              (field_imm 0
                                                                (field_imm 1
-                                                                 *match*/355))))
+                                                                 *match*/357))))
                                                         case tag 1: [1: 2])
                                                        [1: 1])))))
-  (apply (field_imm 1 (global Toploop!)) "example_3" example_3/350))
+  (apply (field_imm 1 (global Toploop!)) "example_3" example_3/352))
 val example_3 : unit -> (bool, int) Result.t = <fun>
 |}]

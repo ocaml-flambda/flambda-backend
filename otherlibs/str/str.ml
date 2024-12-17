@@ -133,13 +133,13 @@ type re_syntax =
 
 (** Representation of compiled regular expressions *)
 
-type regexp = {
-  prog: int array;         (* bytecode instructions *)
-  cpool: string array;     (* constant pool (string literals) *)
-  normtable: string;       (* case folding table (if any) *)
-  numgroups: int;          (* number of \(...\) groups *)
-  numregisters: int;       (* number of nullable Star or Plus *)
-  startchars: int          (* index of set of starting chars, or -1 if none *)
+type regexp : value mod portable uncontended = {
+  prog: int array @@ contended;        (* bytecode instructions *)
+  cpool: string array @@ contended;    (* constant pool (string literals) *)
+  normtable: string;                   (* case folding table (if any) *)
+  numgroups: int;                      (* number of \(...\) groups *)
+  numregisters: int;                   (* number of nullable Star or Plus *)
+  startchars: int                      (* index of set of starting chars, or -1 if none *)
 }
 [@@warning "-unused-field"]
 
@@ -598,64 +598,73 @@ let regexp_string_case_fold s = compile true (String s)
 
 (** Matching functions **)
 
-external re_string_match: regexp -> string -> int -> int array
+external re_string_match: regexp -> string -> int -> int array @@ portable
      = "re_string_match"
-external re_partial_match: regexp -> string -> int -> int array
+external re_partial_match: regexp -> string -> int -> int array @@ portable
      = "re_partial_match"
-external re_search_forward: regexp -> string -> int -> int array
+external re_search_forward: regexp -> string -> int -> int array @@ portable
      = "re_search_forward"
-external re_search_backward: regexp -> string -> int -> int array
+external re_search_backward: regexp -> string -> int -> int array @@ portable
      = "re_search_backward"
 
-let last_search_result_key = Domain.DLS.new_key (fun () -> [||])
+module DLS = Domain.Safe.DLS
+
+let last_search_result_key = DLS.new_key (fun (_ : DLS.Access.t) -> [||])
 
 let string_match re s pos =
-  let res = re_string_match re s pos in
-  Domain.DLS.set last_search_result_key res;
-  Array.length res > 0
+  DLS.access (fun access ->
+    let res = re_string_match re s pos in
+    DLS.set access last_search_result_key res;
+    Array.length res > 0)
 
 let string_partial_match re s pos =
-  let res = re_partial_match re s pos in
-  Domain.DLS.set last_search_result_key res;
-  Array.length res > 0
+  DLS.access (fun access ->
+    let res = re_partial_match re s pos in
+    DLS.set access last_search_result_key res;
+    Array.length res > 0)
 
 let search_forward re s pos =
-  let res = re_search_forward re s pos in
-  Domain.DLS.set last_search_result_key res;
-  if Array.length res = 0 then raise Not_found else res.(0)
+  DLS.access (fun access : int ->
+    let res = re_search_forward re s pos in
+    DLS.set access last_search_result_key res;
+    if Array.length res = 0 then raise Not_found else res.(0))
 
 let search_backward re s pos =
-  let res = re_search_backward re s pos in
-  Domain.DLS.set last_search_result_key res;
-  if Array.length res = 0 then raise Not_found else res.(0)
+  DLS.access (fun access : int ->
+    let res = re_search_backward re s pos in
+    DLS.set access last_search_result_key res;
+    if Array.length res = 0 then raise Not_found else res.(0))
 
-let group_beginning n =
-  let last_search_result = Domain.DLS.get last_search_result_key in
-  let n2 = n + n in
-  if n < 0 || n2 >= Array.length last_search_result then
-    invalid_arg "Str.group_beginning"
-  else
-    let pos = last_search_result.(n2) in
-    if pos = -1 then raise Not_found else pos
+let group_beginning (n : int) =
+  DLS.access (fun access : int ->
+    let last_search_result = DLS.get access last_search_result_key in
+    let n2 = n + n in
+    if n < 0 || n2 >= Array.length last_search_result then
+      invalid_arg "Str.group_beginning"
+    else
+      let pos = last_search_result.(n2) in
+      if pos = -1 then raise Not_found else pos)
 
-let group_end n =
-  let last_search_result = Domain.DLS.get last_search_result_key in
-  let n2 = n + n in
-  if n < 0 || n2 >= Array.length last_search_result then
-    invalid_arg "Str.group_end"
-  else
-    let pos = last_search_result.(n2 + 1) in
-    if pos = -1 then raise Not_found else pos
+let group_end (n : int) =
+  DLS.access (fun access : int ->
+    let last_search_result = DLS.get access last_search_result_key in
+    let n2 = n + n in
+    if n < 0 || n2 >= Array.length last_search_result then
+      invalid_arg "Str.group_end"
+    else
+      let pos = last_search_result.(n2 + 1) in
+      if pos = -1 then raise Not_found else pos)
 
-let matched_group n txt =
-  let last_search_result = Domain.DLS.get last_search_result_key in
-  let n2 = n + n in
-  if n < 0 || n2 >= Array.length last_search_result then
-    invalid_arg "Str.matched_group"
-  else
-    let b = last_search_result.(n2)
-    and e = last_search_result.(n2 + 1) in
-    if b = -1 then raise Not_found else String.sub txt b (e - b)
+let matched_group (n : int) (txt : string) =
+  DLS.access (fun access ->
+    let last_search_result = DLS.get access last_search_result_key in
+    let n2 = n + n in
+    if n < 0 || n2 >= Array.length last_search_result then
+      invalid_arg "Str.matched_group"
+    else
+      let b = last_search_result.(n2)
+      and e = last_search_result.(n2 + 1) in
+      if b = -1 then raise Not_found else String.sub txt b (e - b))
 
 let match_beginning () = group_beginning 0
 and match_end () = group_end 0
@@ -663,12 +672,13 @@ and matched_string txt = matched_group 0 txt
 
 (** Replacement **)
 
-external re_replacement_text: string -> int array -> string -> string
+external re_replacement_text: string -> int array -> string -> string @@ portable
     = "re_replacement_text"
 
 let replace_matched repl matched =
-  let last_search_result = Domain.DLS.get last_search_result_key in
-  re_replacement_text repl last_search_result matched
+  DLS.access (fun access ->
+    let last_search_result = DLS.get access last_search_result_key in
+    re_replacement_text repl last_search_result matched)
 
 let substitute_first expr repl_fun text =
   try
@@ -700,9 +710,9 @@ let global_substitute expr repl_fun text =
     String.concat "" (List.rev (replace [] 0 false))
 
 let global_replace expr repl text =
-  global_substitute expr (replace_matched repl) text
+  global_substitute expr (fun m -> replace_matched repl m) text
 and replace_first expr repl text =
-  substitute_first expr (replace_matched repl) text
+  substitute_first expr (fun m -> replace_matched repl m) text
 
 (** Splitting *)
 

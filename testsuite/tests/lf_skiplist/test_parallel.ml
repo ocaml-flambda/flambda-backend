@@ -1,5 +1,5 @@
 (* TEST
- flags = "-alert -unsafe_parallelism";
+ flags = "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  modules = "stubs.c";
  no-tsan;
  runtime5;
