@@ -30,7 +30,7 @@ type register =
   | Original of int
 
 type vectorized_instruction =
-  { operation : Cfg.operation;
+  { operation : Operation.t;
     arguments : register array;
     results : register array
   }
@@ -38,5 +38,5 @@ type vectorized_instruction =
 let vector_width_in_bits = 128
 
 let vectorize_operation ~width_in_bits:_ ~arg_count:_ ~res_count:_
-    (_ : Cfg.operation list) : vectorized_instruction list option =
+    (_ : Operation.t list) : vectorized_instruction list option =
   None

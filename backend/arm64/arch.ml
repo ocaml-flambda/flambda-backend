@@ -342,7 +342,7 @@ let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
   | _, Iindexed _ -> 1
   | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
 
-let addressing_offset_in_bytes _ _  _  _ _ =
+let addressing_offset_in_bytes _ _  ~arg_offset_in_bytes:_  _ _ =
   None   (* conservative *)
 
 (* CR gyorsh: remove *)
@@ -360,7 +360,6 @@ let preserves_alloc_freshness (op : specific_operation) =
     false   (* conservative *)
 
 module Memory_access = struct
-
   module Init_or_assign = struct
     type t =
       | Initialization
@@ -388,19 +387,13 @@ module Memory_access = struct
           is_atomic: bool;
         }
 
-  type t
-
-  val create : ?first_memory_arg_index:int -> desc -> t option
-
-  val desc : t -> desc
-
-  val first_memory_arg_index : t -> int
-
-  val of_specific_operation : specific_operation -> t option
   type t =
     { desc : desc;
       first_memory_arg_index : int
     }
+
+  let create ?(first_memory_arg_index=0) desc =
+    Some { desc; first_memory_arg_index; }
 
   let desc t = t.desc
 
@@ -408,7 +401,7 @@ module Memory_access = struct
 
   (* Keep in sync with [operation_is_pure], [operation_can_raise],
      [operation_allocates]. *)
-  let of_specific_operation : Arch.specific_operation -> Vectorize_utils.Memory_access.t =
+  let of_specific_operation : specific_operation -> t option =
     fun op ->
     let create ?(first_memory_arg_index=0) desc =
       Some { desc; first_memory_arg_index; }
@@ -420,9 +413,21 @@ module Memory_access = struct
          because poll insertion pass currently happens after vectorize. *)
       create Arbitrary
     | Ifar_alloc _ -> create Alloc
+    | Ishiftarith _
+    | Imuladd
+    | Imulsub
+    | Inegmulf
+    | Imuladdf
+    | Inegmuladdf
+    | Imulsubf
+    | Inegmulsubf
+    | Isqrtf
+    | Ibswap _
+    | Imove32
+    | Isignext _ ->
       (* Conservative. we don't have any specific operations with memory
          operations at the moment. *)
-      if Simd.is_pure op
+      if operation_is_pure op
       then None
-      else create Aribtrary
+      else create Arbitrary
 end
