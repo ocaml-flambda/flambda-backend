@@ -35,7 +35,7 @@ val spawn : (unit -> 'a) -> 'a t @@ nonportable
 [@@alert unsafe_parallelism
            "This function is unsafe and should not be used in production \
             code.\nA safe interface for parallelism is forthcoming."]
-[@@alert unsafe "Use [Domain.Safe.spawn]."]
+[@@alert unsafe_multidomain "Use [Domain.Safe.spawn]."]
 (** [spawn f] creates a new domain that runs in parallel with the
     current domain.
 
@@ -156,7 +156,7 @@ module DLS : sig
         to [k], which cannot be restored later. *)
 
 end
-[@@alert unsafe "Use [Domain.Safe.DLS]."]
+[@@alert unsafe_multidomain "Use [Domain.Safe.DLS]."]
 
 module Safe : sig
   module DLS : sig
