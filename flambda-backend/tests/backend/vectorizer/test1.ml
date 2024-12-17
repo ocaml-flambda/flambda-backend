@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-40-41-42"]
+[@@@ocaml.warnerror "+a-40-41-42"]
 
 (* Record with immutable int fields *)
 
@@ -126,7 +126,8 @@ let () =
     (same_value_in_both_fields_immutable_record { d0 = 8; d1 = 96 });
   Format.printf "copy_pairs_mutable_record %a\n" print_s2
     (let s2 = { f0 = 42; f1 = 27 } in
-     copy_pairs_mutable_record s2;
+     let s2' = { f0 = 1; f1 = -1 } in
+     copy_pairs_mutable_record s2 s2';
      s2);
   Format.printf "copy_pairs_mutable_record_return %a\n" print_s2
     (copy_pairs_mutable_record_return { f0 = 42; f1 = 27 } { f0 = 0; f1 = -100 });
