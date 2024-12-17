@@ -43,7 +43,6 @@ module Mismatched_with_both_attrs : sig type t : float64 end
 |}]
 
 (* If we set the attributes but *don't* get a kind mismatch, we ought to be fine *)
-(* CR-soon aspsmith: this should be a warning *)
 module Matching : sig
   type t : value
   [@@unsafe_allow_any_kind_in_impl "I love segfaults"]
@@ -52,6 +51,12 @@ end = struct
   [@@unsafe_allow_any_kind_in_intf "I love segfaults"]
 end
 [%%expect{|
+Lines 2-3, characters 2-54:
+2 | ..type t : value
+3 |   [@@unsafe_allow_any_kind_in_impl "I love segfaults"]
+Warning 212 [unnecessary-allow-any-kind]: [@@allow_any_kind_in_intf] and [@@allow_any_kind_in_impl] set on a
+type, but the kind matches. The attributes can be removed.
+
 module Matching : sig type t end
 |}]
 
@@ -163,4 +168,23 @@ module M2 : S2 = M1
 [%%expect{|
 module M1 : sig type t = string end
 module M2 : S2
+|}]
+
+module type S3 = sig
+  type t : value
+  [@@unsafe_allow_any_kind_in_impl]
+end
+
+module M3 : S3 = M1
+(* CR aspsmith: This is somewhat unfortunate, if S3 and M1 are defined far away, but it's
+   unclear how to squash the warning *)
+[%%expect{|
+module type S3 = sig type t end
+Lines 2-3, characters 2-35:
+2 | ..type t : value
+3 |   [@@unsafe_allow_any_kind_in_impl]
+Warning 212 [unnecessary-allow-any-kind]: [@@allow_any_kind_in_intf] and [@@allow_any_kind_in_impl] set on a
+type, but the kind matches. The attributes can be removed.
+
+module M3 : S3
 |}]
