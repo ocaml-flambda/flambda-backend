@@ -378,7 +378,7 @@ external get_minor_free : unit -> int = "caml_get_minor_free"
 
     @since 4.03 *)
 
-(* CR tdelvecchio: We need finalisers registered on the primary domain to only ever
+(* CR runtime5: We need finalisers registered on the primary domain to only ever
    run on the primary domain. *)
 val finalise : ('a -> unit) -> 'a -> unit @@ nonportable
 (** [finalise f v] registers [f] as a finalisation function for [v].
