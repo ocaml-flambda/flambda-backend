@@ -314,7 +314,7 @@ type expression =
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
-  | Cvar of Backend_var.t
+  | Cvar of Backend_var.t * Cmm_lattice.t
   | Clet of Backend_var.With_provenance.t * expression * expression
   | Clet_mut of Backend_var.With_provenance.t * machtype
                 * expression * expression
@@ -323,7 +323,7 @@ type expression =
   (* Cassign must refer to a variable bound by Clet_mut *)
   | Cassign of Backend_var.t * expression
   | Ctuple of expression list
-  | Cop of operation * expression list * Debuginfo.t
+  | Cop of operation * expression list * Debuginfo.t * Cmm_lattice.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
       * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing

@@ -330,7 +330,7 @@ type expression =
       * phantom_defining_expr option * expression
   | Cassign of Backend_var.t * expression
   | Ctuple of expression list
-  | Cop of operation * expression list * Debuginfo.t
+  | Cop of operation * expression list * Debuginfo.t * Cmm_lattice.t
   | Csequence of expression * expression
   | Cifthenelse of expression * Debuginfo.t * expression
       * Debuginfo.t * expression * Debuginfo.t * kind_for_unboxing

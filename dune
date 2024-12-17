@@ -429,6 +429,7 @@
   ;; backend/
   afl_instrument
   arch
+  cmm_lattice
   branch_relaxation
   branch_relaxation_intf
   cfg_selectgen
