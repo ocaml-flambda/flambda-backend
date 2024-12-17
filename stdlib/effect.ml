@@ -48,9 +48,6 @@ external resume :
 
 external runstack : ('a, 'b) stack -> ('c -> 'a) -> 'c -> 'b @@ portable = "%runstack"
 
-external runstack_contended :
-  ('a, 'b) stack -> ('c @ contended -> 'a) -> 'c @ contended -> 'b @@ portable = "%runstack"
-
 module Deep = struct
 
   type ('a,'b) continuation : value mod uncontended
@@ -120,7 +117,7 @@ module Deep = struct
       | None -> reperform_portable eff k last_fiber
     in
     let s = alloc_stack_portable handler.retc handler.exnc effc in
-    runstack_contended s comp arg
+    runstack s comp arg
 
   type 'a effect_handler =
     { effc: 'b. 'b t -> (('b,'a) continuation -> 'a) option }
@@ -149,7 +146,7 @@ module Deep = struct
       | None -> reperform_portable eff k last_fiber
     in
     let s = alloc_stack_portable (fun x -> x) (fun e -> raise e) effc' in
-    runstack_contended s comp arg
+    runstack s comp arg
 
   external get_callstack :
     ('a,'b) continuation -> int -> Printexc.raw_backtrace @@ portable =
@@ -248,7 +245,7 @@ module Shallow = struct
       | _ -> error ()
     in
     let s = alloc_stack_portable error error effc in
-    match runstack_contended s f' () with
+    match runstack s f' () with
     | exception E k -> k
     | _ -> error ()
 
