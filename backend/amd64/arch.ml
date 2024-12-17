@@ -509,6 +509,7 @@ let can_cross_loads_or_stores (specific_operation : specific_operation) =
   match specific_operation with
   | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ | Irdtsc
   | Irdpmc | Ilfence | Isfence | Imfence | Ipause -> false
+  | Icldemote _ -> false
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> true
 
 (* CR gyorsh: remove *)
@@ -517,6 +518,7 @@ let preserves_alloc_freshness (op : specific_operation) =
   | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ibswap _ | Isextend32
   | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
     true
+  | Icldemote _ -> false
   | Ifloatarithmem _ | Isimd _ -> false
 
 module Memory_access = struct
@@ -602,6 +604,7 @@ module Memory_access = struct
          Using [addressing_mode] is tricky because it need not be the start of the
          prefetch cache line and the interval would depend on cache line size. *)
       create Arbitrary
+    | Icldemote _
     | Irdtsc
     | Irdpmc
     | Ilfence | Isfence | Imfence | Ipause ->

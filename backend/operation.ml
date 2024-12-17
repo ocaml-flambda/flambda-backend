@@ -26,6 +26,20 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
+type memory_access =
+  | No_memory_access
+  | Arbitrary
+  | Read of
+      { memory_chunk : Cmm.memory_chunk;
+        addressing_mode : Arch.addressing_mode;
+        mutability : Simple_operation.mutable_flag
+      }
+  | Write of
+      { memory_chunk : Cmm.memory_chunk;
+        addressing_mode : Arch.addressing_mode;
+        is_assignment : bool (* false means initialization *)
+      }
+
 type t =
   | Move
   | Spill

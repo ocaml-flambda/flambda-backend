@@ -123,8 +123,8 @@ end = struct
       Reg.Tbl.add t reg new_reg;
       new_reg
     | Some old_reg ->
-      Misc.fatal_errorf "register %a is already mapped to %a" Printmach.reg reg
-        Printmach.reg old_reg
+      Misc.fatal_errorf "register %a is already mapped to %a" Printreg.reg reg
+        Printreg.reg old_reg
 
   let fresh_reg_for_pack t regs machtype_component =
     match regs with
@@ -143,11 +143,11 @@ end = struct
                be checked for there. *)
             Misc.fatal_errorf
               "fresh_reg_for_group: duplicate register %a in the group"
-              Printmach.reg reg
+              Printreg.reg reg
           else
             Misc.fatal_errorf
               "fresh_reg_for_group: register %a is already mapped to %a"
-              Printmach.reg reg Printmach.reg old_reg
+              Printreg.reg reg Printreg.reg old_reg
       in
       List.iter add tl
 end
@@ -177,7 +177,7 @@ module Instruction : sig
 
   val destroyed : t -> Reg.t Array.t
 
-  val op : t -> Cfg.operation option
+  val op : t -> Operation.t option
 
   val have_isomorphic_op : t -> t -> bool
 
@@ -236,7 +236,7 @@ end = struct
     | Basic instruction -> instruction.stack_offset
     | Terminator instruction -> instruction.stack_offset
 
-  let op (instruction : t) : Cfg.operation option =
+  let op (instruction : t) : Operation.t option =
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
@@ -248,7 +248,7 @@ end = struct
   let copy (i : Cfg.basic Cfg.instruction) ~arg ~res ~id ~desc =
     { i with desc; arg; res; id }
 
-  let op_isomorphic (op1 : Cfg.operation) (op2 : Cfg.operation) =
+  let op_isomorphic (op1 : Operation.t) (op2 : Operation.t) =
     match op1, op2 with
     | Move, Move | Spill, Spill | Reload, Reload -> true
     | Const_int _, Const_int _
@@ -281,12 +281,13 @@ end = struct
            addressing_mode2
          = 0
       && is_assignment1 = is_assignment2
-    | Intop intop1, Intop intop2 -> Mach.equal_integer_operation intop1 intop2
+    | Intop intop1, Intop intop2 ->
+      Simple_operation.equal_integer_operation intop1 intop2
     | Intop_imm (intop1, _), Intop_imm (intop2, _) ->
-      Mach.equal_integer_operation intop1 intop2
+      Simple_operation.equal_integer_operation intop1 intop2
     | Floatop (width1, floatop1), Floatop (width2, floatop2) ->
-      Mach.equal_float_width width1 width2
-      && Mach.equal_float_operation floatop1 floatop2
+      Simple_operation.equal_float_width width1 width2
+      && Simple_operation.equal_float_operation floatop1 floatop2
     | Specific specific_operation1, Specific specific_operation2 ->
       Arch.equal_specific_operation specific_operation1 specific_operation2
       (* CR-soon tip: [Arch.equal_specific_operation] may return false even if
@@ -422,8 +423,8 @@ end = struct
       let rec find_last cell_option =
         match cell_option with
         | None ->
-          Misc.fatal_errorf "Vectorizer.find_last_instruction in block %d"
-            t.block.start ()
+          Misc.fatal_errorf "Vectorizer.find_last_instruction in block %a"
+            Label.print t.block.start ()
         | Some cell ->
           let current_instruction = Instruction.basic (DLL.value cell) in
           let current_instruction_id = Instruction.id current_instruction in
@@ -666,7 +667,7 @@ end = struct
         let open Format in
         Reg.Map.iter
           (fun reg id ->
-            fprintf ppf "%a defined by instruction %a@." Printmach.reg reg
+            fprintf ppf "%a defined by instruction %a@." Printreg.reg reg
               Instruction.Id.print id)
           t
     end
@@ -744,7 +745,7 @@ end = struct
         | None -> Format.fprintf ppf "(unknown)"
         | Some id -> Instruction.Id.print ppf id
       in
-      Format.fprintf ppf "%a at %a" Printmach.reg t.reg pp t.def
+      Format.fprintf ppf "%a at %a" Printreg.reg t.reg pp t.def
 
     let init reg id reaching_definitions =
       let def = Reaching_definitions.get reaching_definitions id reg in
@@ -1199,7 +1200,7 @@ end = struct
           if b then fprintf ppf " (%s=true)" msg else ()
         in
         let print_addr ppf addr =
-          Arch.print_addressing Printmach.reg addr ppf t.address_args
+          Arch.print_addressing Printreg.reg addr ppf t.address_args
         in
         let pr (init_or_assign : Memory_access.Init_or_assign.t) =
           match init_or_assign with
@@ -1788,7 +1789,7 @@ end = struct
             | Some id -> fprintf ppf "instruction %a" Instruction.Id.print id
           in
           let reg = args.(arg_i) in
-          fprintf ppf "argument %d, %a depends on %a\n" arg_i Printmach.reg reg
+          fprintf ppf "argument %d, %a depends on %a\n" arg_i Printreg.reg reg
             pp dep
         in
         let id = Instruction.id instruction in
@@ -2483,7 +2484,7 @@ end = struct
       | Some _, None ->
         Misc.fatal_errorf
           "Use of clobbered register %a at %a, previously defined at %a"
-          Printmach.reg reg Instruction.Id.print new_pos Instruction.print
+          Printreg.reg reg Instruction.Id.print new_pos Instruction.print
           instruction
       | Some old_def, Some new_def ->
         if Instruction.Id.equal old_def new_def
@@ -2731,14 +2732,14 @@ let augment_reg_map reg_map group =
             | None ->
               Misc.fatal_errorf
                 "augment_reg_map: %a is mapped to %a but %a is not mapped"
-                Printmach.reg hd Printmach.reg old_reg_for_hd Printmach.reg reg
+                Printreg.reg hd Printreg.reg old_reg_for_hd Printreg.reg reg
             | Some old_reg ->
               if not (Reg.same old_reg_for_hd old_reg)
               then
                 Misc.fatal_errorf
                   "augment_reg_map: %a is mapped to %a but %a is mapped to %a"
-                  Printmach.reg hd Printmach.reg old_reg_for_hd Printmach.reg
-                  reg Printmach.reg old_reg)
+                  Printreg.reg hd Printreg.reg old_reg_for_hd Printreg.reg reg
+                  Printreg.reg old_reg)
           tl)
   in
   (* only some of the args are vectorizable, but all results are vectorizable. *)
@@ -2902,13 +2903,13 @@ let maybe_vectorize block =
   let state = Block.state block in
   let instruction_count = Block.size block in
   let label = Block.start block in
-  State.dump state "\nBlock %d:\n" label;
+  State.dump state "\nBlock %a:\n" Label.print label;
   if instruction_count > State.max_block_size_to_vectorize
   then
     State.dump state
-      "Skipping block %d with %d instructions (> %d = \
+      "Skipping block %a with %d instructions (> %d = \
        max_block_size_to_vectorize).\n"
-      label instruction_count State.max_block_size_to_vectorize
+      Label.print label instruction_count State.max_block_size_to_vectorize
   else
     let deps = Dependencies.from_block block in
     let seeds = Computation.Seed.from_block block deps in
@@ -2923,7 +2924,9 @@ let maybe_vectorize block =
       let scoped_name =
         State.fun_dbg state |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
         |> List.map (fun dbg ->
-               Debuginfo.(Scoped_location.string_of_scopes dbg.dinfo_scopes))
+               Debuginfo.(
+                 Scoped_location.string_of_scopes ~include_zero_alloc:false
+                   dbg.dinfo_scopes))
         |> String.concat ","
       in
       State.dump state "**** Vectorize selected computation: %a (%s)\n"

@@ -30,6 +30,19 @@
 
 (* CR-soon xclerc for xclerc: consider whether `Simple_operation` and
    `Operation` should be merged into a single module. *)
+type memory_access =
+  | No_memory_access
+  | Arbitrary
+  | Read of
+      { memory_chunk : Cmm.memory_chunk;
+        addressing_mode : Arch.addressing_mode;
+        mutability : Simple_operation.mutable_flag
+      }
+  | Write of
+      { memory_chunk : Cmm.memory_chunk;
+        addressing_mode : Arch.addressing_mode;
+        is_assignment : bool (* false means initialization *)
+      }
 
 type t =
   | Move
