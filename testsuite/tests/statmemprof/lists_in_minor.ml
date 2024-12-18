@@ -11,11 +11,11 @@ let rec allocate_list accu = function
 
 let[@inline never] allocate_lists len cnt =
   for j = 0 to cnt-1 do
+    Gc.full_major ();
     ignore (Sys.opaque_identity (allocate_list [] len))
   done
 
 let check_distrib len cnt rate =
-  Gc.full_major ();
   Printf.printf "check_distrib %d %d %f\n%!" len cnt rate;
   let tracked = ref 0 in
   let smp = ref 0 in
