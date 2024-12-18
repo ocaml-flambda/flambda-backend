@@ -123,12 +123,17 @@ type 'a myrec1 = { x : 'a }
 type 'a myrec1 = { x : 'a; }
 |}]
 
+(* CR ageorges: the principal type is quite ugly, and could perhaps be fixed with a more
+clever generalize_structure: a mode is here generalized, when it might not have needed to
+(e.g. its precise bounds are fully open) *)
 let foo =
   let r = { x = fun x -> x } in
   let _ = { x = local_ (fun x -> x) } in
   r.x
 [%%expect{|
 val foo : 'a @ [< 'm] -> 'a @ [> 'm] = <fun>
+|}, Principal{|
+val foo : 'a @ [< 'n & 'o > 'o] -> 'a @ [< 'm > 'm | 'n] = <fun>
 |}]
 
 type ('a, 'b) myrec2 = { i : 'a; p : 'b @@ portable }
