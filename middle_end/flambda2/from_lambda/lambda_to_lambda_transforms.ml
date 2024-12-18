@@ -412,34 +412,34 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
         (makearray_dynamic_singleton "" mode ~length
            ~init:(Some (Same_as_ocaml_repr (Base Value), init))
            loc) )
-  | Punboxedfloatarray Pfloat32 ->
+  | Punboxedfloatarray Unboxed_float32 ->
     makearray_dynamic_singleton_uninitialized "unboxed_float32" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedfloatarray_set Pfloat32)
+    |> initialize_array env loc ~length (Punboxedfloatarray_set Unboxed_float32)
          (Thirty_two
             { zero_init = Lconst (Const_base (Const_unboxed_float32 "0")) })
          ~init
-  | Punboxedfloatarray Pfloat64 ->
+  | Punboxedfloatarray Unboxed_float64 ->
     makearray_dynamic_singleton_uninitialized "unboxed_float64" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedfloatarray_set Pfloat64)
+    |> initialize_array env loc ~length (Punboxedfloatarray_set Unboxed_float64)
          Sixty_four_or_more ~init
-  | Punboxedintarray Pint32 ->
+  | Punboxedintarray Unboxed_int32 ->
     makearray_dynamic_singleton_uninitialized "unboxed_int32" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedintarray_set Pint32)
+    |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_int32)
          (Thirty_two
             { zero_init = Lconst (Const_base (Const_unboxed_int32 0l)) })
          ~init
-  | Punboxedintarray Pint64 ->
+  | Punboxedintarray Unboxed_int64 ->
     makearray_dynamic_singleton_uninitialized "unboxed_int64" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedintarray_set Pint64)
+    |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_int64)
          Sixty_four_or_more ~init
-  | Punboxedintarray Pnativeint ->
+  | Punboxedintarray Unboxed_nativeint ->
     makearray_dynamic_singleton_uninitialized "unboxed_nativeint" ~length mode
       loc
-    |> initialize_array env loc ~length (Punboxedintarray_set Pnativeint)
+    |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_nativeint)
          Sixty_four_or_more ~init
-  | Punboxedvectorarray Pvec128 ->
+  | Punboxedvectorarray Unboxed_vec128 ->
     makearray_dynamic_singleton_uninitialized "unboxed_vec128" ~length mode loc
-    |> initialize_array env loc ~length (Punboxedvectorarray_set Pvec128)
+    |> initialize_array env loc ~length (Punboxedvectorarray_set Unboxed_vec128)
          Sixty_four_or_more ~init
   | Pgcscannableproductarray _ ->
     let init = must_have_initializer () in

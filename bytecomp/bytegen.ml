@@ -1001,15 +1001,15 @@ let rec comp_expr stack_info env exp sz cont =
             Misc.fatal_errorf "Array kind %s should have been ruled out by \
                 the frontend for %%makearray_dynamic_uninit"
               (Printlambda.array_kind kind)
-        | Punboxedfloatarray Pfloat32 ->
+        | Punboxedfloatarray Unboxed_float32 ->
             Lconst (Const_base (Const_float32 "0.0"))
-        | Punboxedfloatarray Pfloat64 ->
+        | Punboxedfloatarray Unboxed_float64 ->
             Lconst (Const_base (Const_float "0.0"))
-        | Punboxedintarray Pint32 ->
+        | Punboxedintarray Unboxed_int32 ->
             Lconst (Const_base (Const_int32 0l))
-        | Punboxedintarray Pint64 ->
+        | Punboxedintarray Unboxed_int64 ->
             Lconst (Const_base (Const_int64 0L))
-        | Punboxedintarray Pnativeint ->
+        | Punboxedintarray Unboxed_nativeint ->
             Lconst (Const_base (Const_nativeint 0n))
         | Punboxedvectorarray _ ->
             fatal_error "SIMD is not supported in bytecode mode."
@@ -1018,15 +1018,15 @@ let rec comp_expr stack_info env exp sz cont =
                   (ign : Lambda.ignorable_product_element_kind) =
               match ign with
               | Pint_ignorable -> Lconst (Const_base (Const_int 0))
-              | Punboxedfloat_ignorable Pfloat32 ->
+              | Punboxedfloat_ignorable Unboxed_float32 ->
                 Lconst (Const_base (Const_float32 "0.0"))
-              | Punboxedfloat_ignorable Pfloat64 ->
+              | Punboxedfloat_ignorable Unboxed_float64 ->
                 Lconst (Const_base (Const_float "0.0"))
-              | Punboxedint_ignorable Pint32 ->
+              | Punboxedint_ignorable Unboxed_int32 ->
                 Lconst (Const_base (Const_int32 0l))
-              | Punboxedint_ignorable Pint64 ->
+              | Punboxedint_ignorable Unboxed_int64 ->
                 Lconst (Const_base (Const_int64 0L))
-              | Punboxedint_ignorable Pnativeint ->
+              | Punboxedint_ignorable Unboxed_nativeint ->
                 Lconst (Const_base (Const_nativeint 0n))
               | Pproduct_ignorable ignorables ->
                   let fields = List.map convert_ignorable ignorables in
