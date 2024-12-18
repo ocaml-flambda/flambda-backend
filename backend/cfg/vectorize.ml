@@ -461,7 +461,7 @@ end
    Approach:
    =========
 
-   Record a direct dependency from instruction [i] to [j] if one of the following two
+   Record a direct dependency from instruction [i] to [j] if one of the following
    conditions holds:
 
    (a) Dependency via registers: [i] may read from a register [r] a value that was
@@ -480,7 +480,7 @@ end
 
    The method for constructing vectorizable computations.
    - Group: a sequence of scalar instructions that are independent of each other, and have
-   an equivalent vector instructions. Most groups correspond to one vector instruction,
+   an equivalent vector instruction. Most groups correspond to one vector instruction,
    but sometimes a sequence of vector instructions is needed, for example scalar addition
    of a register and a constant.
    - Current heuristic for identifying vectorizable instructions requires that memory
@@ -497,14 +497,14 @@ end
    - Use both (a) and (b) dependencies to determine whether scalar instructions can run in
    parallel and therefore can form a group.
    - Use (c) to determine the placement of vector instructions for each group in the
-   block, relative to other instructions. Order constrains detemine when scalar
+   block, relative to other instructions. Order constraints detemine when scalar
    instructions can be executed.
    - Key: conservatively choose the position to the last scalar instruction of the group
    to place the vector instructions for the group.
    - Conservatively require that all ordering constraints from a scalar instruction in a
    vectorizable computation is to instructions that appear earlier in the block,
    before the first scalar instruction of the computation.
-   - Conservatively require that nothing dependes (via a,b,c)
+   - Conservatively require that nothing depends (via a,b,c)
    on scalar instructions in the computation.
 
    Heuristics
@@ -664,7 +664,8 @@ end = struct
         path from [id] to the current program point, i.e., the program point immediately
         before [cur_id]. An instruction defines [r] means that [r] is a "result" register
         that the instruction writes to, not clobbers it.  Returns [None] if there is no
-        definition of [r] in the block.  *)
+        definition of [r] in the block, or the definition of [r] is clobbered
+        prior to the current program point.  *)
     val get : t -> Instruction.Id.t -> Reg.t -> Instruction.Id.t option
 
     val dump : Format.formatter -> block:Block.t -> t -> unit
@@ -727,7 +728,7 @@ end = struct
   end
 
   (* [Reaching_definitions] wouldn't be needed here if we had SSA
-     representation. Coverting to SSA even at a basic block level would require
+     representation. Converting to SSA even at a basic block level would require
      some change in emit because instruction selection (a) relies on sharing of
      registers between arguments and results to emit shorter encodings of
      instructions such as Add and Shift, (b) forces the use of certain hardware
@@ -1022,6 +1023,9 @@ end = struct
                (also in arm64 backend). Note that some poll instructions can
                also be inserted before the vectorizer by the user or during
                selection. *)
+            (* CR-soon gyorsh: Update [Name_for_debugger.regs] if relevant
+               instructions are vectorized. Currently, the debug info would be
+               out of sync. *)
             Memory_access.create Arbitrary
           | Spill | Reload ->
             Misc.fatal_error
@@ -1132,6 +1136,10 @@ end = struct
           Instruction.print t1.instruction Instruction.print t2.instruction res;
         res
 
+      (* CR gyorsh: The middle end has more accurate information about
+         expressions that evaluate to closures. We can propagate it to the
+         backend in the future and have more precise Reg.typ for example,
+         instead of the current heuristic. *)
       let maybe_closure_block t =
         (* Closure blocks are not mutated after initialization. *)
         match Memory_access.desc t.memory_access with
@@ -1337,7 +1345,8 @@ end = struct
 
       val get_regs : Reg.t array -> t -> Partition.Set.t
     end = struct
-      (** for each p, a set partions that p may point to, including p itself explicitly. *)
+      (** for each p, a set of partitions that p may point to, including p itself
+          explicitly. *)
       type t = Partition.Set.t Reg.Map.t
 
       let empty = Reg.Map.empty
@@ -1863,7 +1872,7 @@ end = struct
     Dependency_graph.independent t.dependency_graph id1 id2
 
   let all_independent t instructions =
-    (* All pairs of instruction in the group are independent. *)
+    (* All pairs of instructions in the group are independent. *)
     let rec check t instructions =
       match instructions with
       | [] -> true
@@ -2030,7 +2039,7 @@ end = struct
 
     let map_vectorizable_args t ~f =
       (* Currently, the code assumes that the (variable number of) address args
-         ares always at the end of the array of arguments of an instruction. The
+         are always at the end of the array of arguments of an instruction. The
          non-address args therefore start from 0, conveniently, and we don't
          need to know if there are any address args or not, so we don't need to
          know if it's a memory operation or not. *)
@@ -2136,7 +2145,7 @@ end = struct
               })
 
     (* Load: At the moment, we do not vectorize dependencies of load
-       instructions, and don't support vectorizing load instructons that have
+       instructions, and don't support vectorizing load instructions that have
        interesting vectorizable address dependencies, such as scatter-gather. *)
     (* Store: It must be the seed group, because store instruction has no
        "result", so it can't be a dependency of another group in the tree. We
@@ -2279,7 +2288,7 @@ end = struct
       loop all_stores [] |> List.rev
 
     let exists_address_dependency (t : t) ~f =
-      (* Seed construction guarantees that all instruction in the [seed] have
+      (* Seed construction guarantees that all instructions in the [seed] have
          the same address arguments and isomorphic operations. *)
       let instruction = Group.scalar_instructions t.group |> List.hd in
       let args = Instruction.arguments instruction in
@@ -2302,8 +2311,8 @@ end = struct
     { groups : Group.t Instruction.Id.Map.t;
       (* [all_instructions] is all the scalar instructions in the computations.
          It is an optimization to cache this value here. It is used for ruling
-         out computuations that are invalid or not implementable, and to
-         estimate cost/benefit of vectorized computations. *)
+         out computations that are invalid or not implementable, and to estimate
+         cost/benefit of vectorized computations. *)
       all_scalar_instructions : Instruction.Id.Set.t;
       new_positions : int Instruction.Id.Map.t
     }
@@ -2324,7 +2333,7 @@ end = struct
       the original code. The goal is to find [t] that minimizes cost(t).
 
       Currently, [cost] uses a naive measure of number of instructions,
-      i.e., the difference between the number of vector instructions instructions
+      i.e., the difference between the number of vector instructions
       and the number of scalar instructions. *)
   let cost t = num_vector_instructions t - num_scalar_instructions t
 
@@ -2500,10 +2509,8 @@ end = struct
           Printreg.reg reg Instruction.Id.print new_pos Instruction.print
           instruction
       | Some old_def, Some new_def ->
-        if Instruction.Id.equal old_def new_def
-        then true
-        else (* cannot move past another definition point *)
-          false
+        (* cannot move past another definition point *)
+        Instruction.Id.equal old_def new_def
     in
     Instruction.Id.Map.for_all
       (fun key group ->
@@ -2892,7 +2899,7 @@ let can_reorder tree body deps =
   (* Checks nodes can be grouped together. Modifies a copy of the block's body
      to move the scalar instructions together to where they would be replaced by
      the corresponding vector instructions. Does not actually emit vectorized
-     instructions. There is a faster/simpler/safer way to emit vectorizerd code.
+     instructions. There is a faster/simpler/safer way to emit vectorized code.
 
      Used for validation only. Intended to work even after the vectorization
      heuristics evolve. Can be expensive. *)
