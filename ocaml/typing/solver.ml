@@ -92,7 +92,7 @@ module Solver_mono (C : Lattices_mono) = struct
            but not necessarily [v.upper <= f u.upper].
          - for all [f u \in v.vlower] and [g w \in v.vupper] we
            have either [g'f \in w.vlower] or [f'g \in u.vupper]. *)
-      id : int  (** For identification/printing *)
+      id : int;  (** For identification/printing *)
     }
 
   and 'b lmorphvar = ('b, left_only) morphvar
@@ -658,16 +658,138 @@ module Solver_mono (C : Lattices_mono) = struct
 
   let cnt_id = ref 0
 
-  let fresh ?upper ?lower ?vlower ?vupper obj =
+  let fresh ?upper ?lower ?vlower ?vupper ?level obj =
     let id = !cnt_id in
     cnt_id := id + 1;
-    (* For now, pick the levels at random *)
-    let level = if !Clflags.debug_ocaml then id mod 5 else 0 in
+    let level = Option.value level ~default:0 in
     let upper = Option.value upper ~default:(C.max obj) in
     let lower = Option.value lower ~default:(C.min obj) in
     let vlower = Option.value vlower ~default:[] in
     let vupper = Option.value vupper ~default:[] in
     { level; upper; lower; vlower; vupper; id }
+
+
+  (* Moves every reachable variable from [u] such that
+  [current_level] < [u.level] < [generic_level] to
+  [generic_level + (u.level - current_level)], preserving the exact topology *)
+  let rec generalize_topology
+      : type a. log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~log dst ~current_level ~generic_level u ->
+      if u.level <= current_level || u.level >= generic_level then ()
+      else begin
+        let new_level = generic_level + (u.level - current_level) in
+        set_level ~log u new_level;
+        let do_gen (Amorphvar (v, f)) =
+          let src = C.src dst f in
+          generalize_topology ~log src ~current_level ~generic_level v
+        in
+        List.iter do_gen u.vupper;
+        List.iter do_gen u.vlower
+      end
+
+  (* Behaves like [generalize_topology], and additionally creates a copy of each reachable
+  variable [u] such that [u] < [copy] and [copy] < [u] via submode, and lowers the [copy]
+  to [current_level]. *)
+  let rec generalize_topology_struct
+      : type a. log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~log dst ~current_level ~generic_level u ->
+      if u.level <= current_level || u.level >= generic_level then ()
+      else begin
+        let new_level = generic_level + (u.level - current_level) in
+        set_level ~log u new_level;
+        let do_gen (Amorphvar (v, f)) =
+          let src = C.src dst f in
+          generalize_topology_struct ~log src ~current_level ~generic_level v
+        in
+        List.iter do_gen u.vupper;
+        List.iter do_gen u.vlower;
+        (* If bounds are already tight, there is no need to create a copy *)
+        if not (C.le dst u.upper u.lower) then begin
+          let copy = fresh ~upper:u.upper ~lower:u.lower ~level:u.level dst in
+          let ok1 = submode_mvmv ~log dst (Amorphvar (copy, C.id)) (Amorphvar (u, C.id)) in
+          let ok2 = submode_mvmv ~log dst (Amorphvar (u, C.id)) (Amorphvar (copy, C.id)) in
+          assert (Result.is_ok ok1 && Result.is_ok ok2);
+          update_level_v ~log dst current_level copy
+        end
+      end
+
+  let generalize_v
+      : type a. log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~log dst ~current_level ~generic_level u ->
+      generalize_topology ~log dst ~current_level ~generic_level u;
+      update_level_v ~log dst generic_level u
+
+  (* generalize_structure has three cases:
+    (1) if bounds are tight, the var is moved to generic_level
+    (2) if bounds are fully open, do nothing --- we consider only the case where bounds
+        are precise by virtue of having no vupper/vlower
+    (3) if bounds are non-trivial (neither tight nor fully open) we make a copy, move the
+        original var to generic_level, and mark the two variables as equivalent by adding
+        constraint arrows via [add_vlower] and [add_vupper]
+  *)
+  let generalize_structure_v
+      : type a. log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~log dst ~current_level ~generic_level u ->
+      if C.le dst u.upper u.lower then begin
+        (* the bounds are tight *)
+        generalize_topology ~log dst ~current_level ~generic_level u;
+        update_level_v ~log dst generic_level u
+      end else if
+        C.le dst (C.max dst) u.upper &&
+        C.le dst u.lower (C.min dst) &&
+        u.vlower = [] && u.vupper = [] then
+        (* the bounds are fully open *)
+        update_level_v ~log dst current_level u
+      else begin
+        (* the bounds are non-trivial *)
+        generalize_topology_struct ~log dst ~current_level ~generic_level u;
+        update_level_v ~log dst generic_level u
+      end
+
+  let generalize (type a l r) ~current_level ~generic_level (obj : a C.obj)
+      (a : (a, l * r) mode) ~log =
+    match a with
+    | Amodevar (Amorphvar (v, f)) ->
+      let obj = C.src obj f in
+      generalize_v ~log obj ~current_level ~generic_level v
+    | Amode _ -> ()
+    | Amodejoin (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_v ~log obj ~current_level ~generic_level v)
+        mvs
+    | Amodemeet (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_v ~log obj ~current_level ~generic_level v)
+        mvs
+
+  let generalize_structure (type a l r) ~current_level ~generic_level (obj : a C.obj)
+      (a : (a, l * r) mode) ~log =
+    match a with
+    | Amodevar (Amorphvar (v, f)) ->
+      let obj = C.src obj f in
+      generalize_structure_v ~log obj ~current_level ~generic_level v
+    | Amode _ -> ()
+    | Amodejoin (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_structure_v ~log obj ~current_level ~generic_level v)
+        mvs
+    | Amodemeet (_, mvs) ->
+      List.iter
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          generalize_structure_v ~log obj ~current_level ~generic_level v)
+        mvs
+
 
   let update_level (type a l r) (level : int) (obj : a C.obj) (a : (a, l * r) mode) ~log =
     match a with
@@ -1047,6 +1169,10 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let update_level = S.update_level
 
+    let generalize = S.generalize
+
+    let generalize_structure = S.generalize_structure
+
     let join = S.join
 
     let meet = S.meet
@@ -1110,6 +1236,10 @@ module Solvers_polarized (C : Lattices_mono) = struct
         (S.submode obj m1 m0 ~log)
 
     let update_level = S.update_level
+
+    let generalize = S.generalize
+
+    let generalize_structure = S.generalize_structure
 
     let join = S.meet
 

@@ -1876,6 +1876,12 @@ module Common (Obj : Obj) = struct
 
   let update_level i a = with_log (Solver.update_level i obj a)
 
+  let generalize ~current_level ~generic_level a =
+    with_log (Solver.generalize ~current_level ~generic_level obj a)
+
+  let generalize_structure ~current_level ~generic_level a =
+    with_log (Solver.generalize_structure ~current_level ~generic_level obj a)
+
   let join l = Solver.join obj l
 
   let meet l = Solver.meet obj l
@@ -2528,6 +2534,16 @@ module Value_with (Areality : Areality) = struct
   let update_level i { monadic = monadic0; comonadic = comonadic0 } =
     Monadic.update_level i monadic0;
     Comonadic.update_level i comonadic0
+
+  let generalize ~current_level ~generic_level
+      { monadic = monadic0; comonadic = comonadic0} =
+    Monadic.generalize ~current_level ~generic_level monadic0;
+    Comonadic.generalize ~current_level ~generic_level comonadic0
+
+  let generalize_structure ~current_level ~generic_level
+      { monadic = monadic0; comonadic = comonadic0} =
+    Monadic.generalize_structure ~current_level ~generic_level monadic0;
+    Comonadic.generalize_structure ~current_level ~generic_level comonadic0
 
   let equate a b = try_with_log (equate_from_submode submode_log a b)
 
