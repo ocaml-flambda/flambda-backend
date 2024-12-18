@@ -724,7 +724,8 @@ module Solver_mono (C : Lattices_mono) = struct
 
   (* generalize_structure has three cases:
     (1) if bounds are tight, the var is moved to generic_level
-    (2) if bounds are fully open, do nothing
+    (2) if bounds are fully open, do nothing --- we consider only the case where bounds
+        are precise by virtue of having no vupper/vlower
     (3) if bounds are non-trivial (neither tight nor fully open) we make a copy, move the
         original var to generic_level, and mark the two variables as equivalent by adding
         constraint arrows via [add_vlower] and [add_vupper]
@@ -739,7 +740,8 @@ module Solver_mono (C : Lattices_mono) = struct
         update_level_v ~log dst generic_level u
       end else if
         C.le dst (C.max dst) u.upper &&
-        C.le dst u.lower (C.min dst) then
+        C.le dst u.lower (C.min dst) &&
+        u.vlower = [] && u.vupper = [] then
         (* the bounds are fully open *)
         update_level_v ~log dst current_level u
       else begin
