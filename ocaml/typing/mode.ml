@@ -1844,6 +1844,8 @@ let equate_from_submode' submode m0 m1 =
     | Ok () -> Ok ())
   [@@inline]
 
+exception Cannot_zap_generic
+
 module Common (Obj : Obj) = struct
   open Obj
 
@@ -1869,15 +1871,26 @@ module Common (Obj : Obj) = struct
 
   let allow_right m = Solver.allow_right m
 
-  let newvar () = Solver.newvar obj
+  let choose_level level =
+    if Language_extension.is_enabled Mode_polymorphism then level else 0
+
+  let newvar level =
+    let level = choose_level level in
+    Solver.newvar obj level
 
   let min = Solver.min obj
 
   let max = Solver.max obj
 
-  let newvar_above m = Solver.newvar_above obj m
+  let generic_level = Solver.generic_level
 
-  let newvar_below m = Solver.newvar_below obj m
+  let newvar_above level m =
+    let level = choose_level level in
+    Solver.newvar_above obj level m
+
+  let newvar_below level m =
+    let level = choose_level level in
+    Solver.newvar_below obj level m
 
   let submode_log a b ~log = Solver.submode obj a b ~log
 
@@ -1885,18 +1898,21 @@ module Common (Obj : Obj) = struct
 
   let update_level i a = with_log (Solver.update_level i obj a)
 
-  let generalize ~current_level ~generic_level a =
-    with_log (Solver.generalize ~current_level ~generic_level obj a)
+  let generalize ~current_level a =
+    if Language_extension.(is_at_least Mode_polymorphism Alpha) then
+      with_log (Solver.generalize ~current_level obj a)
+    else
+      with_log (Solver.generalize_structure ~current_level obj a)
 
-  let generalize_structure ~current_level ~generic_level a =
-    with_log (Solver.generalize_structure ~current_level ~generic_level obj a)
+  let generalize_structure ~current_level a =
+    with_log (Solver.generalize_structure ~current_level obj a)
 
-  let instantiate ~copy_scope ~current_level ~generic_level a =
+  let instantiate ~copy_scope ~current_level a =
     let copy_from_level = generic_level in
     let copy_to_level = current_level in
     Solver.copy ~copy_scope ~copy_from_level ~copy_to_level obj a
 
-  let copy_generic ~copy_scope ~generic_level a =
+  let copy_generic ~copy_scope a =
     let copy_from_level = generic_level in
     let copy_to_level = Stdlib.max_int in
     Solver.copy ~copy_scope ~copy_from_level ~copy_to_level obj a
@@ -1918,11 +1934,47 @@ module Common (Obj : Obj) = struct
 
   let print ?verbose () ppf m = Solver.print ?verbose obj ppf m
 
-  let zap_to_ceil m = with_log (Solver.zap_to_ceil obj m)
-
-  let zap_to_floor m = with_log (Solver.zap_to_floor obj m)
-
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
+
+  let is_const a = Solver.is_const obj a
+
+  let check_level a i = Solver.check_level a i
+
+  let check_level_var a i = Solver.check_level_var a i
+
+  let iter_covariant a iter = Solver.iter_covariant obj a iter
+
+  let iter_contravariant a iter = Solver.iter_contravariant obj a iter
+
+  let zap_to_ceil_force m = with_log (Solver.zap_to_ceil obj m)
+
+  let zap_to_floor_force m = with_log (Solver.zap_to_floor obj m)
+
+  let zap_to_ceil_exn m =
+    if check_level_var m generic_level then
+      raise Cannot_zap_generic;
+    zap_to_ceil_force m
+
+  let zap_to_floor_exn m =
+    if check_level_var m generic_level then
+      raise Cannot_zap_generic;
+    zap_to_floor_force m
+
+  let zap_to_floor m =
+    if check_level_var m generic_level then None else
+      Some (zap_to_floor_force m)
+
+  let zap_to_ceil m =
+    if check_level_var m generic_level then None else
+      Some (zap_to_ceil_force m)
+
+  let newvar_above_if_nonzero m =
+    if check_level_var m 0 then m else
+      fst (newvar_above 0 m)
+
+  let create_key_exn m = Solver.create_key_exn obj m
+
+  let desc a = Solver.desc obj a
 
   module Guts = struct
     let get_floor m = Solver.get_floor obj m
@@ -1932,6 +1984,16 @@ module Common (Obj : Obj) = struct
     let get_conservative_floor m = Solver.get_conservative_floor obj m
 
     let get_conservative_ceil m = Solver.get_conservative_ceil obj m
+
+    let check_const m =
+      let floor = get_floor m in
+      let ceil = get_ceil m in
+      if C.le obj ceil floor then Some ceil else None
+
+    let in_bounds c m =
+      let floor = get_floor m in
+      let ceil = get_ceil m in
+      C.le obj floor c && C.le obj c ceil
   end
 end
 [@@inline]
@@ -1955,7 +2017,7 @@ module Locality = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_floor
+  let zap_to_legacy_force = zap_to_floor_force
 
   module Guts = struct
     let check_const m =
@@ -1967,6 +2029,12 @@ module Locality = struct
       let floor = Guts.get_conservative_floor m in
       let ceil = Guts.get_conservative_ceil m in
       if Const.le ceil floor then Some ceil else None
+
+    let get_legacy m = Guts.get_ceil m
+
+    let get_ceil m = Guts.get_ceil m
+
+    let in_bounds = Guts.in_bounds
   end
 end
 
@@ -1991,7 +2059,17 @@ module Regionality = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_floor
+  let zap_to_legacy_force = zap_to_floor_force
+
+  module Guts = struct
+    let get_legacy m = Guts.get_floor m
+
+    let get_ceil m = Guts.get_ceil m
+
+    let check_const = Guts.check_const
+
+    let in_bounds = Guts.in_bounds
+  end
 end
 
 module Linearity = struct
@@ -2013,7 +2091,17 @@ module Linearity = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_floor
+  let zap_to_legacy_force = zap_to_floor_force
+
+  module Guts = struct
+    let get_legacy = Guts.get_floor
+
+    let get_ceil m = Guts.get_ceil m
+
+    let check_const = Guts.check_const
+
+    let in_bounds = Guts.in_bounds
+  end
 end
 
 module Portability = struct
@@ -2031,7 +2119,17 @@ module Portability = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_ceil
+  let zap_to_legacy_force = zap_to_ceil_force
+
+  module Guts = struct
+    let get_legacy = Guts.get_ceil
+
+    let get_ceil m = Guts.get_ceil m
+
+    let check_const = Guts.check_const
+
+    let in_bounds = Guts.in_bounds
+  end
 end
 
 module Uniqueness = struct
@@ -2056,7 +2154,17 @@ module Uniqueness = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_ceil
+  let zap_to_legacy_force = zap_to_ceil_force
+
+  module Guts = struct
+    let get_legacy = Guts.get_ceil
+
+    let get_ceil m = Guts.get_ceil m
+
+    let check_const = Guts.check_const
+
+    let in_bounds = Guts.in_bounds
+  end
 end
 
 module Contention = struct
@@ -2077,7 +2185,17 @@ module Contention = struct
 
   let legacy = of_const Const.legacy
 
-  let zap_to_legacy = zap_to_floor
+  let zap_to_legacy_force = zap_to_floor_force
+
+  module Guts = struct
+    let get_legacy = Guts.get_floor
+
+    let get_ceil m = Guts.get_ceil m
+
+    let check_const = Guts.check_const
+
+    let in_bounds = Guts.in_bounds
+  end
 end
 
 let locality_as_regionality m =
@@ -2093,7 +2211,17 @@ module type Areality = sig
 
   module Obj : Obj with type const = Const.t and module Solver = S.Positive
 
-  val zap_to_legacy : (Const.t, allowed * 'r) Obj.Solver.mode -> Const.t
+  val zap_to_legacy_force : (Const.t, allowed * 'r) Obj.Solver.mode -> Const.t
+
+  module Guts : sig
+    val get_legacy : (Const.t, allowed * allowed) Obj.Solver.mode -> Const.t
+
+    val get_ceil : (Const.t, ('l * allowed)) Obj.Solver.mode -> Const.t
+
+    val check_const : (Const.t, allowed * allowed) Obj.Solver.mode -> Const.t option
+
+    val in_bounds : Const.t -> (Const.t, allowed * allowed) Obj.Solver.mode -> bool
+  end
 end
 
 module Comonadic_with (Areality : Areality) = struct
@@ -2157,10 +2285,10 @@ module Comonadic_with (Areality : Areality) = struct
 
   let imply_with ax c m = imply (C.max_with Obj.obj ax c) m
 
-  let zap_to_legacy m : Const.t =
-    let areality = proj Areality m |> Areality.zap_to_legacy in
-    let linearity = proj Linearity m |> Linearity.zap_to_legacy in
-    let portability = proj Portability m |> Portability.zap_to_legacy in
+  let zap_to_legacy_force m : Const.t =
+    let areality = proj Areality m |> Areality.zap_to_legacy_force in
+    let linearity = proj Linearity m |> Linearity.zap_to_legacy_force in
+    let portability = proj Portability m |> Portability.zap_to_legacy_force in
     { areality; linearity; portability }
 
   let legacy = of_const Const.legacy
@@ -2187,6 +2315,36 @@ module Comonadic_with (Areality : Areality) = struct
 
   (* override to report the offending axis *)
   let equate a b = try_with_log (equate_from_submode submode_log a b)
+
+  module Guts = struct
+    let get_legacy m =
+      let areality = proj Areality m |> Areality.Guts.get_legacy in
+      let linearity = proj Linearity m |> Linearity.Guts.get_legacy in
+      let portability = proj Portability m |> Portability.Guts.get_legacy in
+      { areality; linearity; portability }
+
+    let get_ceil m =
+      let areality = proj Areality m |> Areality.Guts.get_ceil in
+      let linearity = proj Linearity m |> Linearity.Guts.get_ceil in
+      let portability = proj Portability m |> Portability.Guts.get_ceil in
+      { areality; linearity; portability }
+
+    let check_const m =
+      let areality = proj Areality m |> Areality.Guts.check_const in
+      let linearity = proj Linearity m |> Linearity.Guts.check_const in
+      let portability = proj Portability m |> Portability.Guts.check_const in
+      Option.bind areality
+        (fun areality -> Option.bind linearity
+          (fun linearity -> Option.map
+            (fun portability -> { areality; linearity; portability })
+            portability))
+
+    let in_bounds { areality; linearity; portability } m =
+      let areality = proj Areality m |> Areality.Guts.in_bounds areality in
+      let linearity = proj Linearity m |> Linearity.Guts.in_bounds linearity in
+      let portability = proj Portability m |> Portability.Guts.in_bounds portability in
+      areality && linearity && portability
+  end
 end
 [@@inline]
 
@@ -2254,9 +2412,9 @@ module Monadic = struct
 
   let subtract_with ax c m = subtract (C.min_with Obj.obj ax c) m
 
-  let zap_to_legacy m : Const.t =
-    let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
-    let contention = proj Contention m |> Contention.zap_to_legacy in
+  let zap_to_legacy_force m : Const.t =
+    let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy_force in
+    let contention = proj Contention m |> Contention.zap_to_legacy_force in
     { uniqueness; contention }
 
   let legacy = of_const Const.legacy
@@ -2279,6 +2437,33 @@ module Monadic = struct
 
   (* override to report the offending axis *)
   let equate a b = try_with_log (equate_from_submode submode_log a b)
+
+  module Guts = struct
+    let get_floor = Guts.get_floor
+
+    let get_legacy m =
+      let uniqueness = proj Uniqueness m |> Uniqueness.Guts.get_legacy in
+      let contention = proj Contention m |> Contention.Guts.get_legacy in
+      { uniqueness; contention }
+
+    let get_ceil m =
+      let uniqueness = proj Uniqueness m |> Uniqueness.Guts.get_ceil in
+      let contention = proj Contention m |> Contention.Guts.get_ceil in
+      { uniqueness; contention }
+
+    let check_const m =
+      let uniqueness = proj Uniqueness m |> Uniqueness.Guts.check_const in
+      let contention = proj Contention m |> Contention.Guts.check_const in
+      Option.bind uniqueness
+        (fun uniqueness -> Option.map
+          (fun contention -> { uniqueness; contention }) contention)
+
+    let in_bounds { uniqueness; contention } m =
+      let uniqueness = proj Uniqueness m |> Uniqueness.Guts.in_bounds uniqueness in
+      let contention = proj Contention m |> Contention.Guts.in_bounds contention in
+      uniqueness && contention
+
+  end
 end
 
 type ('mo, 'como) monadic_comonadic =
@@ -2286,9 +2471,73 @@ type ('mo, 'como) monadic_comonadic =
     comonadic : 'como
   }
 
+module Zap_scope (Areality : Areality) = struct
+  module Comonadic = Comonadic_with (Areality)
+  module Monadic = Monadic
+
+  type zap_scope =
+      { zap_to_floor_map : (unit -> unit) S.ModeTbl.t;
+      zap_to_ceil_map : (unit -> unit) S.ModeTbl.t;
+      zap_to_legacy_map : (unit -> unit) S.ModeTbl.t }
+
+  let create () =
+    { zap_to_floor_map = S.ModeTbl.create 17;
+      zap_to_ceil_map = S.ModeTbl.create 17;
+      zap_to_legacy_map = S.ModeTbl.create 17 }
+
+  (* CR ageorges: the following is a fast and bad solution. A proper solution
+  should be investigated. Might need addition to Obj *)
+  let zap_to_legacy_force : type a. a C.obj -> (a, allowed * allowed) S.Positive.mode -> unit =
+  fun obj m ->
+    match C.eq_obj obj Comonadic.Obj.obj with
+    | Some Refl -> Comonadic.zap_to_legacy_force m |> ignore
+    | None ->
+      match C.eq_obj obj Monadic.Obj.obj with
+      | Some Refl ->
+          let m = S.Negative.via_antitone Monadic.Obj.obj C.id m in
+          Monadic.zap_to_legacy_force m |> ignore
+      | None -> ()
+
+  let add_zap_to_floor_to_zap_scope k { zap_to_floor_map; zap_to_ceil_map; zap_to_legacy_map } =
+    S.Positive.key_iter k
+      { iter = fun obj m ->
+        if S.ModeTbl.mem zap_to_legacy_map k then () else begin
+          if S.ModeTbl.mem zap_to_ceil_map k then begin
+            S.ModeTbl.remove zap_to_ceil_map k;
+            let zap = fun () -> zap_to_legacy_force obj m |> ignore in
+            S.ModeTbl.replace zap_to_legacy_map k zap
+          end else begin
+            let zap = fun () -> with_log (S.Positive.zap_to_floor obj m) |> ignore in
+            S.ModeTbl.replace zap_to_floor_map k zap
+          end
+        end
+      }
+
+  let add_zap_to_ceil_to_zap_scope k { zap_to_floor_map; zap_to_ceil_map; zap_to_legacy_map } =
+    S.Positive.key_iter k
+      { iter = fun obj m ->
+        if S.ModeTbl.mem zap_to_legacy_map k then () else begin
+          if S.ModeTbl.mem zap_to_floor_map k then begin
+            S.ModeTbl.remove zap_to_floor_map k;
+            let zap = fun () -> zap_to_legacy_force obj m |> ignore in
+            S.ModeTbl.replace zap_to_legacy_map k zap
+          end else begin
+            let zap = fun () -> with_log (S.Positive.zap_to_ceil obj m) |> ignore in
+            S.ModeTbl.replace zap_to_ceil_map k zap
+          end
+        end
+      }
+
+  let resolve_zap_scope { zap_to_floor_map; zap_to_ceil_map; zap_to_legacy_map } =
+    S.ModeTbl.iter (fun _ f -> f ()) zap_to_legacy_map;
+    S.ModeTbl.iter (fun _ f -> f ()) zap_to_floor_map;
+    S.ModeTbl.iter (fun _ f -> f ()) zap_to_ceil_map
+end
+
 module Value_with (Areality : Areality) = struct
   module Comonadic = Comonadic_with (Areality)
   module Monadic = Monadic
+  module Z = Zap_scope (Areality)
 
   type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -2440,6 +2689,24 @@ module Value_with (Areality : Areality) = struct
           portability
           (option_print Contention.Const.print)
           contention
+
+      let partial_print ppf { areality; uniqueness; linearity; portability; contention }
+          =
+        let option_to_string print a =
+          Option.map (fun a -> Format.asprintf "%a" print a) a
+        in
+        let l = [
+          option_to_string Areality.Const.print areality;
+          option_to_string Linearity.Const.print linearity;
+          option_to_string Uniqueness.Const.print uniqueness;
+          option_to_string Portability.Const.print portability;
+          option_to_string Contention.Const.print contention
+        ] in
+        let l = List.filter_map Fun.id l in
+        Format.fprintf ppf "%a"
+          (Format.pp_print_list
+            ~pp_sep:(fun ppf () -> Format.fprintf ppf " ")
+            (fun ppf s -> Format.fprintf ppf "%s" s)) l
     end
 
     let diff m0 m1 =
@@ -2495,9 +2762,57 @@ module Value_with (Areality : Areality) = struct
     let merge = merge
   end
 
+  module C = C
+  module Desc = S.Desc
+
+  let obj_monadic = Monadic.Obj.obj
+
+  let obj_comonadic = Comonadic.Obj.obj
+
+  let get_monadic_desc m = Monadic.desc m
+
+  let get_comonadic_desc m = Comonadic.desc m
+
+  let meet_const_morph a = C.Meet_const a
+
+  let pretty_print_monadic_morph : type a d f.
+      (Format.formatter -> a -> unit) -> a
+      -> Format.formatter -> (d, Monadic.Const.t, f) C.morph -> unit =
+    fun printm m ppf f ->
+      match f with
+      | C.Id -> Format.fprintf ppf "%a" printm m
+      | C.Meet_const c ->
+        (* only print the interesting parts of the monadic meet; omit max (min due to
+        flipping of Monadic axis) modes *)
+        let c = merge { monadic = c; comonadic = Comonadic.Const.min } in
+        let diff = Const.diff c Const.min in
+        if diff = Const.Option.none then
+          Format.fprintf ppf "%a" printm m
+        else
+          Format.fprintf ppf "%a mod %a" printm m Const.Option.partial_print diff
+      | _ -> Format.fprintf ppf "%a(%a)" (C.print_morph obj_monadic) f printm m
+
+  let pretty_print_comonadic_morph : type a d f.
+      (Format.formatter -> a -> unit) -> a
+      -> Format.formatter -> (d, Comonadic.Const.t, f) C.morph -> unit =
+    fun printm m ppf f ->
+      match f with
+      | C.Id -> Format.fprintf ppf "%a" printm m
+      | C.Meet_const c ->
+        (* only print the interesting parts of the meet; omit max modes *)
+        let c = merge { monadic = Monadic.Const.max; comonadic = c } in
+        let diff = Const.diff c Const.max in
+        if diff = Const.Option.none then
+          Format.fprintf ppf "%a" printm m
+        else
+          Format.fprintf ppf "%a mod %a" printm m Const.Option.partial_print diff
+      | _ -> Format.fprintf ppf "%a(%a)" (C.print_morph obj_comonadic) f printm m
+
   let min = { comonadic = Comonadic.min; monadic = Monadic.min }
 
   let max = { comonadic = Comonadic.max; monadic = Monadic.max }
+
+  let generic_level = Comonadic.generic_level
 
   include Magic_allow_disallow (struct
     type (_, _, 'd) sided = 'd t constraint 'd = 'l * 'r
@@ -2523,20 +2838,25 @@ module Value_with (Areality : Areality) = struct
       { monadic; comonadic }
   end)
 
-  let newvar () =
-    let comonadic = Comonadic.newvar () in
-    let monadic = Monadic.newvar () in
+  let newvar level =
+    let comonadic = Comonadic.newvar level in
+    let monadic = Monadic.newvar level in
     { comonadic; monadic }
 
-  let newvar_above { comonadic; monadic } =
-    let comonadic, b0 = Comonadic.newvar_above comonadic in
-    let monadic, b1 = Monadic.newvar_above monadic in
+  let newvar_above level { comonadic; monadic } =
+    let comonadic, b0 = Comonadic.newvar_above level comonadic in
+    let monadic, b1 = Monadic.newvar_above level monadic in
     { monadic; comonadic }, b0 || b1
 
-  let newvar_below { comonadic; monadic } =
-    let comonadic, b0 = Comonadic.newvar_below comonadic in
-    let monadic, b1 = Monadic.newvar_below monadic in
+  let newvar_below level { comonadic; monadic } =
+    let comonadic, b0 = Comonadic.newvar_below level comonadic in
+    let monadic, b1 = Monadic.newvar_below level monadic in
     { monadic; comonadic }, b0 || b1
+
+  let newvar_above_if_nonzero { comonadic; monadic } =
+    let comonadic = Comonadic.newvar_above_if_nonzero comonadic in
+    let monadic = Monadic.newvar_above_if_nonzero monadic in
+    { monadic; comonadic }
 
   type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
 
@@ -2559,26 +2879,26 @@ module Value_with (Areality : Areality) = struct
     Monadic.update_level i monadic0;
     Comonadic.update_level i comonadic0
 
-  let generalize ~current_level ~generic_level
+  let generalize ~current_level
       { monadic = monadic0; comonadic = comonadic0} =
-    Monadic.generalize ~current_level ~generic_level monadic0;
-    Comonadic.generalize ~current_level ~generic_level comonadic0
+    Monadic.generalize ~current_level monadic0;
+    Comonadic.generalize ~current_level comonadic0
 
-  let generalize_structure ~current_level ~generic_level
+  let generalize_structure ~current_level
       { monadic = monadic0; comonadic = comonadic0} =
-    Monadic.generalize_structure ~current_level ~generic_level monadic0;
-    Comonadic.generalize_structure ~current_level ~generic_level comonadic0
+    Monadic.generalize_structure ~current_level monadic0;
+    Comonadic.generalize_structure ~current_level comonadic0
 
-  let instantiate ~copy_scope ~current_level ~generic_level
+  let instantiate ~copy_scope ~current_level
       { monadic = monadic0; comonadic = comonadic0} =
-    let monadic1 = Monadic.instantiate ~copy_scope ~current_level ~generic_level monadic0 in
-    let comonadic1 = Comonadic.instantiate ~copy_scope ~current_level ~generic_level comonadic0 in
+    let monadic1 = Monadic.instantiate ~copy_scope ~current_level monadic0 in
+    let comonadic1 = Comonadic.instantiate ~copy_scope ~current_level comonadic0 in
     { monadic = monadic1; comonadic = comonadic1 }
 
-  let copy_generic ~copy_scope ~generic_level
+  let copy_generic ~copy_scope
       { monadic = monadic0; comonadic = comonadic0} =
-    let monadic1 = Monadic.copy_generic ~copy_scope ~generic_level monadic0 in
-    let comonadic1 = Comonadic.copy_generic ~copy_scope ~generic_level comonadic0 in
+    let monadic1 = Monadic.copy_generic ~copy_scope monadic0 in
+    let comonadic1 = Comonadic.copy_generic ~copy_scope comonadic0 in
     { monadic = monadic1; comonadic = comonadic1 }
 
   let duplicate ~copy_scope
@@ -2586,6 +2906,17 @@ module Value_with (Areality : Areality) = struct
     let monadic1 = Monadic.duplicate ~copy_scope monadic0 in
     let comonadic1 = Comonadic.duplicate ~copy_scope comonadic0 in
     { monadic = monadic1; comonadic = comonadic1 }
+
+  let is_const { monadic = monadic0; comonadic = comonadic0 } =
+    Monadic.is_const monadic0 && Comonadic.is_const comonadic0
+
+  let check_level { monadic = monadic0; comonadic = comonadic0 } i =
+    Monadic.check_level monadic0 i &&
+    Comonadic.check_level comonadic0 i
+
+  let check_level_var { monadic = monadic0; comonadic = comonadic0 } i =
+    Monadic.check_level_var monadic0 i ||
+    Comonadic.check_level_var comonadic0 i
 
   let equate a b = try_with_log (equate_from_submode submode_log a b)
 
@@ -2726,15 +3057,82 @@ module Value_with (Areality : Areality) = struct
     S.Positive.via_antitone Comonadic.Obj.obj (Core Monadic_to_comonadic_min)
       (Monadic.disallow_left m)
 
-  let zap_to_ceil { comonadic; monadic } =
-    let monadic = Monadic.zap_to_ceil monadic in
-    let comonadic = Comonadic.zap_to_ceil comonadic in
+  let zap_to_ceil_exn { comonadic; monadic } =
+    let monadic = Monadic.zap_to_ceil_exn monadic in
+    let comonadic = Comonadic.zap_to_ceil_exn comonadic in
     merge { monadic; comonadic }
 
-  let zap_to_legacy { comonadic; monadic } =
-    let monadic = Monadic.zap_to_legacy monadic in
-    let comonadic = Comonadic.zap_to_legacy comonadic in
+  let zap_to_floor_exn { comonadic; monadic } =
+    let monadic = Monadic.zap_to_floor_exn monadic in
+    let comonadic = Comonadic.zap_to_floor_exn comonadic in
     merge { monadic; comonadic }
+
+  let zap_to_ceil_force { comonadic; monadic } =
+    let monadic = Monadic.zap_to_ceil_force monadic in
+    let comonadic = Comonadic.zap_to_ceil_force comonadic in
+    merge { monadic; comonadic }
+
+  let zap_to_floor_force { comonadic; monadic } =
+    let monadic = Monadic.zap_to_floor_force monadic in
+    let comonadic = Comonadic.zap_to_floor_force comonadic in
+    merge { monadic; comonadic }
+
+  let zap_to_legacy_force { comonadic; monadic } =
+    let monadic = Monadic.zap_to_legacy_force monadic in
+    let comonadic = Comonadic.zap_to_legacy_force comonadic in
+    merge { monadic; comonadic }
+
+  let zap_to_legacy_exn m =
+    if check_level_var m generic_level then
+      raise Cannot_zap_generic;
+    zap_to_legacy_force m
+
+  let zap_to_legacy m =
+    if check_level_var m generic_level then None else
+      Some (zap_to_legacy_force m)
+
+  type zap_scope =
+    { variables : Z.zap_scope;
+      visible : (((allowed * allowed) t) list) ref }
+
+  let add_covariant_to_zap_scope { monadic; comonadic } scope =
+    Monadic.iter_covariant monadic
+      (fun m ->
+        let k = Monadic.create_key_exn m in
+        Z.add_zap_to_ceil_to_zap_scope k scope);
+    Comonadic.iter_covariant comonadic
+      (fun m ->
+        let k = Comonadic.create_key_exn m in
+        Z.add_zap_to_floor_to_zap_scope k scope)
+
+  let add_contravariant_to_zap_scope { monadic; comonadic } scope =
+    Monadic.iter_contravariant monadic
+      (fun m ->
+        let k = Monadic.create_key_exn m in
+        Z.add_zap_to_floor_to_zap_scope k scope);
+    Comonadic.iter_contravariant comonadic
+      (fun m ->
+        let k = Comonadic.create_key_exn m in
+        Z.add_zap_to_ceil_to_zap_scope k scope)
+
+  let add_mode_to_zap_scope m { variables; visible } =
+    add_covariant_to_zap_scope m variables;
+    add_contravariant_to_zap_scope m variables;
+    visible := m :: !visible
+
+  let resolve_zap_scope { variables; visible } =
+    Z.resolve_zap_scope variables;
+    (* We zap the visible modes to legacy (Note that they might have already been
+    zapped if they satisfy one of the above conditions) *)
+    List.iter (fun m -> zap_to_legacy m |> ignore) !visible
+
+  let with_zap_scope f =
+    let zap_scope =
+      { variables = Z.create ();
+        visible = ref [] } in
+    let res = f ~zap_scope in
+    resolve_zap_scope zap_scope;
+    res
 
   (** This is about partially applying [A -> B -> C] to [A] and getting [B ->
     C]. [comonadic] and [monadic] constutute the mode of [A], and we need to
@@ -2772,6 +3170,30 @@ module Value_with (Areality : Areality) = struct
 
       let disallow_right l = List.map disallow_right l
     end)
+  end
+
+  module Guts = struct
+    let get_legacy { comonadic; monadic } =
+      let monadic = Monadic.Guts.get_legacy monadic in
+      let comonadic = Comonadic.Guts.get_legacy comonadic in
+      merge { comonadic; monadic }
+
+    let get_ceil { comonadic; monadic } =
+      let monadic = Monadic.Guts.get_ceil monadic in
+      let comonadic = Comonadic.Guts.get_ceil comonadic in
+      merge { comonadic; monadic }
+
+    let check_const { comonadic; monadic } =
+      Option.bind (Comonadic.Guts.check_const comonadic)
+        (fun comonadic -> Option.map
+          (fun monadic -> merge { comonadic; monadic })
+          (Monadic.Guts.check_const monadic))
+
+    let in_bounds c { comonadic; monadic} =
+      let c = split c in
+      let monadic = Monadic.Guts.in_bounds c.monadic monadic in
+      let comonadic = Comonadic.Guts.in_bounds c.comonadic comonadic in
+      monadic && comonadic
   end
 end
 [@@inline]
@@ -2957,6 +3379,13 @@ module Modality = struct
       | Undefined, _ | _, Undefined ->
         Misc.fatal_error "modality Undefined should not be in sub."
 
+    let update_level : int -> t -> unit =
+      fun n m ->
+        match m with
+        | Const _c -> ()
+        | Diff (mm, m) -> Mode.update_level n mm; Mode.update_level n m
+        | Undefined -> ()
+
     let id = Const Const.id
 
     let apply : type r. t -> (allowed * r) Mode.t -> Mode.l =
@@ -2976,7 +3405,7 @@ module Modality = struct
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Diff (mm, m) ->
-        let c = Mode.zap_to_floor m in
+        let c = Mode.zap_to_floor_exn m in
         let m = Const.Join_const c in
         (* To give the best modality, we try to cross modality. *)
         Const.modality_cross_left ~mm m
@@ -3090,6 +3519,13 @@ module Modality = struct
       | Undefined, _ | _, Undefined ->
         Misc.fatal_error "modality Undefined should not be in sub."
 
+    let update_level : int -> t -> unit =
+      fun n m ->
+        match m with
+        | Const _c -> ()
+        | Undefined -> ()
+        | Exactly (mm, m) -> Mode.update_level n mm; Mode.update_level n m
+
     let id = Const Const.id
 
     let apply : type r. t -> (allowed * r) Mode.t -> Mode.l =
@@ -3120,7 +3556,7 @@ module Modality = struct
       | Const c -> c
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (_, m) ->
-        let c = Mode.zap_to_floor m in
+        let c = Mode.zap_to_floor_exn m in
         Const.Meet_const c
 
     let to_const_exn = function
@@ -3205,6 +3641,10 @@ module Modality = struct
         | Error (Error (ax, e)) -> Error (Error (Comonadic ax, e)))
 
     let sub l r = try_with_log (sub_log l r)
+
+    let update_level n ({ monadic; comonadic } : t) =
+      Monadic.update_level n monadic;
+      Comonadic.update_level n comonadic
 
     let equate m0 m1 = try_with_log (equate_from_submode sub_log m0 m1)
 

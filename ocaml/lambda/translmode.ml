@@ -20,12 +20,12 @@ let transl_locality_mode = function
   | Locality.Const.Local -> alloc_local
 
 let transl_locality_mode_l locality =
-  Locality.zap_to_floor locality |> transl_locality_mode
+  Locality.zap_to_floor_exn locality |> transl_locality_mode
 
 let transl_locality_mode_r locality =
   (* r mode are for allocations; [optimise_allocations] should have pushed it
      to ceil and determined; here we push it again just to get the constant. *)
-  Locality.zap_to_ceil locality |> transl_locality_mode
+  Locality.zap_to_ceil_exn locality |> transl_locality_mode
 
 let transl_alloc_mode_l mode =
   (* we only take the locality axis *)
@@ -39,6 +39,6 @@ let transl_alloc_mode (mode : Typedtree.alloc_mode) =
   transl_alloc_mode_r mode.mode
 
 let transl_modify_mode locality =
-  match Locality.zap_to_floor locality with
+  match Locality.zap_to_floor_exn locality with
   | Global -> modify_heap
   | Local -> modify_maybe_stack

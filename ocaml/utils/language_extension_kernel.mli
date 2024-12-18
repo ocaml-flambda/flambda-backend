@@ -14,6 +14,7 @@ type _ t =
   | Comprehensions : unit t
   | Mode : maturity t
   | Unique : unit t
+  | Mode_polymorphism : maturity t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t

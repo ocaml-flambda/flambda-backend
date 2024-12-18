@@ -236,6 +236,8 @@ module type Solver_polarized = sig
 
   type 'a error
 
+  type ('a, 'd) desc
+
   type copy_scope
 
   (** For a negative lattice, we reverse the direction of adjoints. We thus use
@@ -252,6 +254,19 @@ module type Solver_polarized = sig
   (** The mode type for the opposite polarity. *)
   type ('a, 'd) mode_op constraint 'd = 'l * 'r
 
+  (** The key type used for a Hashtbl indexed by mode variables *)
+  type key
+
+  type mode_iterator = { iter : 'a. 'a obj -> ('a, (allowed * allowed)) mode -> unit } [@@unboxed]
+
+  val key_iter : key -> mode_iterator -> unit
+
+  val create_key_exn : 'a obj -> ('a, 'l * 'r) mode -> key
+
+  val create_key_opt : 'a obj -> ('a, 'l * 'r) mode -> key option
+
+  val desc : 'a obj -> ('a, 'd) mode -> ('a, 'd polarized) desc
+
   include Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) mode
 
   (** Returns the mode representing the given constant. *)
@@ -263,6 +278,12 @@ module type Solver_polarized = sig
   (** The maximum mode in the lattice *)
   val max : 'a obj -> ('a, 'l * 'r) mode
 
+  (** The level of generic variables *)
+  val generic_level : int
+
+  (** Returns true iff the mode contains no mode variables *)
+  val is_const : 'a obj -> ('a, 'l * 'r) mode -> bool
+
   (** Pushes the mode variable to the lowest constant possible.
       Expensive.
       WARNING: the lattice must be finite for this to terminate.*)
@@ -273,8 +294,9 @@ module type Solver_polarized = sig
   val zap_to_ceil :
     'a obj -> ('a, 'l * allowed) mode -> log:changes ref option -> 'a
 
-  (** Create a new mode variable of the full range. *)
-  val newvar : 'a obj -> ('a, 'l * 'r) mode
+  (** Create a new mode variable of the full range at given level,
+      and return the id of the new mode. *)
+  val newvar : 'a obj -> int -> ('a, 'l * 'r) mode
 
   (** Try to constrain the first mode below the second mode. *)
   val submode :
@@ -296,7 +318,6 @@ module type Solver_polarized = sig
       by putting their level to [generic_level]. *)
   val generalize :
     current_level:int ->
-    generic_level:int ->
     'a obj ->
     ('a, 'l * 'r) mode ->
     log:changes ref option ->
@@ -306,7 +327,6 @@ module type Solver_polarized = sig
       whose value is fully determined, by putting their level to [generic_level].*)
   val generalize_structure :
     current_level:int ->
-    generic_level:int ->
     'a obj ->
     ('a, 'l * 'r) mode ->
     log:changes ref option ->
@@ -327,13 +347,13 @@ module type Solver_polarized = sig
         the speical case where the given mode is top, returns the constant top
         and [false]. *)
   val newvar_above :
-    'a obj -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
+    'a obj -> int -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
 
-  (** Creates a new mode variable below the given mode and returns [true]. In
-        the speical case where the given mode is bottom, returns the constant
-        bottom and [false]. *)
+  (** Creates a new mode variable at given level below the given mode and returns
+        [Some id]. In the speical case where the given mode is bottom, returns the
+        constant bottom and [None]. *)
   val newvar_below :
-    'a obj -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
+    'a obj -> int -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
 
   (** Returns the join of the list of modes. *)
   val join : 'a obj -> ('a, allowed * 'r) mode list -> ('a, left_only) mode
@@ -364,6 +384,28 @@ module type Solver_polarized = sig
   (** Printing a mode for debugging. *)
   val print :
     ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
+
+  (** Returns true iff the mode has the given level or is a constant *)
+  val check_level :
+    ('a, 'l * 'r) mode -> int -> bool
+
+  (** Returns true iff the mode is a variable at generic level *)
+  val check_level_var :
+    ('a, 'l * 'r) mode -> int -> bool
+
+  (** Applies an iterator over every reachable covariant (left-) constraint variable.
+      The iterator is only applied to constraint variables at level 0.
+      WARNING: the iterator is only applied once per constraint, even when it appears as
+      a constraint multiple times via different morphisms *)
+  val iter_covariant :
+    'a obj -> ('a, allowed * 'r) mode -> (('a, allowed * disallowed) mode -> unit) -> unit
+
+  (** Applies an iterator over every reachable contravariant (right-) constraint variable.
+      The iterator is only applied to constraint variables at level 0.
+      WARNING: the iterator is only applied once per constraint, even when it appears as
+      a constraint multiple times via different morphisms *)
+  val iter_contravariant :
+    'a obj -> ('a, 'l * allowed) mode -> (('a, disallowed * allowed) mode -> unit) -> unit
 
   (** Apply a monotone morphism whose source and target modes are of the
       polarity of this enclosing module. That is, [Positive.apply_monotone]
@@ -414,6 +456,11 @@ module type S = sig
       changes to the global log in [types.ml]. *)
     type changes
 
+    (** A key type for a Hashtbl indexed by mode variables *)
+    type key
+
+    module ModeTbl : Hashtbl.S with type key = key
+
     (** An empty sequence of changes. *)
     val empty_changes : changes
 
@@ -429,6 +476,49 @@ module type S = sig
       finished  *)
     val with_copy_scope : (copy_scope -> 'a) -> 'a
 
+    (** Description types used for printing *)
+    module Desc : sig
+
+      module Var : sig
+        type 'a t
+
+        type ('b, 'd) t_with_morph =
+        | Amorphvar : 'a t * ('a, 'b, 'd) C.morph -> ('b, 'd) t_with_morph
+
+        module Head : sig
+          type 'a t = {
+            desc_id : int;
+            desc_upper : 'a;
+            desc_lower : 'a;
+            desc_vlower : (('a,left_only) t_with_morph) list;
+            desc_level : int;
+          }
+
+          val equal : 'a t -> 'b t -> bool
+
+          val hash : 'a t -> int
+        end
+
+        val force : 'a C.obj -> 'a t -> 'a Head.t
+
+      end
+
+      type ('b, 'd) morphvar =
+      | Amorphvar : 'a Var.Head.t * ('a, 'b, 'd) C.morph -> ('b, 'd) morphvar
+
+      type ('a, 'd) t =
+      | Amode : 'a -> ('a, 'l * 'r) t
+      | Amodevar : ('a, 'd) morphvar -> ('a, 'd) t
+      | Amodejoin :
+          'a * ('a, 'l * disallowed) morphvar list
+          -> ('a, 'l * disallowed) t
+      | Amodemeet :
+         'a * ('a, disallowed * 'r) morphvar list
+         -> ('a, disallowed * 'r) t
+
+      val print : 'a C.obj -> Format.formatter -> ('a, ('l * 'r)) t -> unit
+    end
+
     (* Construct a new category based on the original category [C]. Objects are
        two copies of the objects in [C] of opposite polarity. The positive copy
        is identical to the original lattice. The negative copy has its lattice
@@ -442,6 +532,8 @@ module type S = sig
          and type 'a error := 'a error
          and type changes := changes
          and type copy_scope := copy_scope
+         and type ('a, 'd) desc := ('a, 'd) Desc.t
+         and type key := key
 
     module rec Positive :
       (Solver_polarized

@@ -130,15 +130,16 @@ val set_static_row_name: type_declaration -> Path.t -> unit
 
 (**** Utilities for type traversal ****)
 
-val iter_type_expr: (type_expr -> unit) -> type_expr -> unit
+val iter_type_expr: (type_expr -> unit) -> (Mode.Alloc.lr -> unit) -> type_expr -> unit
         (* Iteration on types *)
-val fold_type_expr: ('a -> type_expr -> 'a) -> 'a -> type_expr -> 'a
+val fold_type_expr: ('a -> type_expr -> 'a) -> ('a -> Mode.Alloc.lr -> 'a) -> 'a -> type_expr -> 'a
 val iter_row: (type_expr -> unit) -> row_desc -> unit
         (* Iteration on types in a row *)
 val fold_row: ('a -> type_expr -> 'a) -> 'a -> row_desc -> 'a
 val iter_abbrev: (type_expr -> unit) -> abbrev_memo -> unit
         (* Iteration on types in an abbreviation list *)
-val iter_type_expr_kind: (type_expr -> unit) -> (type_decl_kind -> unit)
+val iter_type_expr_kind: (type_expr -> unit) ->
+  (type_decl_kind -> unit)
 
 val iter_type_expr_cstr_args: (type_expr -> unit) ->
   (constructor_arguments -> unit)
@@ -162,6 +163,8 @@ type type_iterators =
     it_type_kind: type_iterators -> type_decl_kind -> unit;
     it_do_type_expr: type_iterators -> type_expr -> unit;
     it_type_expr: type_iterators -> type_expr -> unit;
+    it_mode_expr: Mode.Alloc.lr -> unit;
+    it_modality: Mode.Modality.Value.t -> unit;
     it_path: Path.t -> unit; }
 val type_iterators: type_iterators
         (* Iteration on arbitrary type information.
@@ -170,7 +173,7 @@ val unmark_iterators: type_iterators
         (* Unmark any structure containing types. See [unmark_type] below. *)
 
 val copy_type_desc:
-    ?keep_names:bool -> (type_expr -> type_expr) -> type_desc -> type_desc
+    ?keep_names:bool -> (type_expr -> type_expr) -> (Mode.Alloc.lr -> Mode.Alloc.lr) -> type_desc -> type_desc
         (* Copy on types *)
 val copy_row:
     (type_expr -> type_expr) ->
@@ -187,6 +190,15 @@ module For_copy : sig
 
   val redirect_desc: copy_scope -> type_expr -> type_desc -> unit
         (* Temporarily change a type description *)
+
+  val mode_instantiate: copy_scope -> current_level:int -> Mode.Alloc.lr -> Mode.Alloc.lr
+        (* Instantiates a generic mode variable to level [current_level] *)
+
+  val mode_copy_generic: copy_scope -> Mode.Alloc.lr -> Mode.Alloc.lr
+        (* Copies the generic parts of a mode variable without changing its level *)
+
+  val mode_duplicate: copy_scope -> Mode.Alloc.lr -> Mode.Alloc.lr
+        (* Fupply duplicates a mode without changing its level *)
 
   val with_scope: (copy_scope -> 'a) -> 'a
         (* [with_scope f] calls [f] and restores saved type descriptions

@@ -567,7 +567,7 @@ tail-call. Returns [expected_mode] and [Value.lr] which are backed by the same
 mode variable. We encode extra position information in the former. We need the
 latter to the both left and right mode because of how it will be used. *)
 let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
-  let vmode , _ = Value.newvar_below (alloc_as_value marg) in
+  let vmode , _ = Value.newvar_below 0 (alloc_as_value marg) in
   if partial_app then mode_default vmode, vmode
   else match funct.exp_desc, index, position_and_mode.apply_position with
   | Texp_ident (_, _, {val_kind =
@@ -644,10 +644,10 @@ let register_allocation_mode alloc_mode =
   allocations := alloc_mode :: !allocations
 
 let register_allocation_value_mode (mode : Value.r) : Alloc.r * Value.r =
-  let alloc_mode = value_to_alloc_r2g mode in
+  let alloc_mode, _ = Alloc.newvar_below 0 (value_to_alloc_r2g mode) in
   register_allocation_mode alloc_mode;
   let mode = alloc_as_value alloc_mode in
-  alloc_mode, mode
+  alloc_mode, mode (*make new var below mode and return that, new var at level 0*)
 
 (* Unlike most allocations which can be the highest mode allowed by
    [expected_mode] and their [alloc_mode] identical to [expected_mode] ,
@@ -656,7 +656,7 @@ let register_allocation_value_mode (mode : Value.r) : Alloc.r * Value.r =
    function gets an [Alloc.lr] allocation mode that can be further
    constrained. *)
 let register_closure_allocation (mode : Value.r) : Alloc.lr * Value.r =
-  let alloc_mode, _ = Alloc.newvar_below (value_to_alloc_r2g mode) in
+  let alloc_mode, _ = Alloc.newvar_below 0 (value_to_alloc_r2g mode) in
   register_allocation_mode (Alloc.disallow_left alloc_mode);
   let closed_over_mode = Value.disallow_left (alloc_as_value alloc_mode) in
   alloc_mode, closed_over_mode
@@ -1360,7 +1360,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
       let priv = (cstr.cstr_private = Private) in
       let mode =
         if priv || pl <> [] then mode
-        else Value.newvar ()
+        else Value.newvar (get_current_level ())
       in
       let keep =
         priv || cstr.cstr_existentials <> [] ||
@@ -1381,7 +1381,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
   | Tpat_variant(l, p', _) ->
       let ty = Option.map (build_as_type env) p' in
       let mode =
-        if p' = None then Value.newvar ()
+        if p' = None then Value.newvar (get_current_level ())
         else mode
       in
       let ty =
@@ -1436,7 +1436,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
               fields
           in
           let mode =
-            if all_constant then Value.newvar ()
+            if all_constant then Value.newvar (get_current_level ())
             else mode
           in
           let ty =
@@ -3643,7 +3643,7 @@ let remaining_function_type ty_ret mode_ret rev_args =
                  (Tarrow (arrow_desc, ty_arg, ty_ret, commu_ok))
              in
              let mode_ret, _ =
-               Alloc.newvar_above (Alloc.join (mode_fun :: closed_args))
+               Alloc.newvar_above 0 (Alloc.join (mode_fun :: closed_args))
              in
              (ty_ret, mode_ret, closed_args))
       (ty_ret, mode_ret, []) rev_args
@@ -3730,8 +3730,8 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               then
                 Location.prerr_warning sarg.pexp_loc
                   Warnings.Ignored_extra_argument;
-              let mode_arg = Alloc.newvar () in
-              let mode_ret = Alloc.newvar () in
+              let mode_arg = Alloc.newvar (get_current_level ()) in
+              let mode_ret = Alloc.newvar (get_current_level ()) in
               let kind = (lbl, mode_arg, mode_ret) in
               unify env ty_fun
                 (newty (Tarrow(kind,ty_arg,ty_res,commu_var ())));
@@ -3891,6 +3891,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
                      it. *)
                   may_warn funct.exp_loc
                     (Warnings.Non_principal_labels "commuted an argument");
+                  let mode_arg = Mode.Alloc.newvar_above_if_nonzero mode_arg in
                   Omitted { mode_fun; ty_arg; mode_arg; level = lv; sort_arg }
                 end
         in
@@ -3901,6 +3902,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   loop ty_fun ty_fun0 mode_fun [] sargs
 
 let type_omitted_parameters expected_mode env ty_ret mode_ret args =
+  let mode_ret = Alloc.newvar_above_if_nonzero mode_ret in
   let ty_ret, mode_ret, _, _, args =
     List.fold_left
       (fun (ty_ret, mode_ret, open_args, closed_args, args) (lbl, arg) ->
@@ -3928,7 +3930,7 @@ let type_omitted_parameters expected_mode env ty_ret mode_ret args =
              let mode_closed_args = List.map Alloc.close_over closed_args in
              let mode_partial_fun = Alloc.partial_apply mode_fun in
              let mode_closure, _ =
-               Alloc.newvar_above (Alloc.join
+               Alloc.newvar_above 0 (Alloc.join
                 (mode_partial_fun:: mode_closed_args))
              in
              register_allocation_mode mode_closure;
@@ -4159,7 +4161,7 @@ let rec approx_type env sty =
         in
         let ret = approx_type env sty in
         let marg = Alloc.of_const arg_mode in
-        let mret = Alloc.newvar () in
+        let mret = Alloc.newvar (get_current_level ()) in
         newty (Tarrow ((p,marg,mret), arg_ty.ctyp_type, ret, commu_ok))
       end
   | Ptyp_arrow (p, arg_sty, sty, arg_mode, _) ->
@@ -4172,7 +4174,7 @@ let rec approx_type env sty =
       in
       let ret = approx_type env sty in
       let marg = Alloc.of_const arg_mode in
-      let mret = Alloc.newvar () in
+      let mret = Alloc.newvar (get_current_level ()) in
       newty (Tarrow ((p,marg,mret), newmono arg, ret, commu_ok))
   | Ptyp_tuple args ->
       newty (Ttuple (List.map (fun (label, t) -> label, approx_type env t) args))
@@ -4552,10 +4554,16 @@ let pattern_needs_partial_application_check p =
 
 (* Check that a type is generalizable at some level *)
 let generalizable level ty =
+  let check_const_mode m =
+    if Mode.Alloc.check_level_var m generic_level then
+      Option.is_some (Mode.Alloc.Guts.check_const m)
+    else true
+  in
   let rec check ty =
     if not_marked_node ty then
       if get_level ty <= level then raise Exit else
-      (flip_mark_node ty; iter_type_expr check ty)
+      let checkmode m = if not (check_const_mode m) then raise Exit in
+      (flip_mark_node ty; iter_type_expr check checkmode ty)
   in
   try check ty; unmark_type ty; true
   with Exit -> unmark_type ty; false
@@ -4577,7 +4585,7 @@ let contains_variant_either ty =
               (row_fields row);
           iter_row loop row
       | _ ->
-          iter_type_expr loop ty
+          iter_type_expr loop (Fun.const ()) ty
       end
   in
   try loop ty; unmark_type ty; false
@@ -4969,14 +4977,16 @@ let split_function_ty
   in
   let ret_value_mode = alloc_as_value ret_mode in
   let expected_inner_mode =
-    if not is_final_val_param then
+    if not is_final_val_param then begin
       (* no need to check mode crossing in this case because ty_res always a
       function *)
+      Value.update_level 0 ret_value_mode;
       mode_default ret_value_mode
-    else
+    end else begin
       let ret_value_mode = mode_return ret_value_mode in
       let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
       ret_value_mode
+    end
   in
   let ty_arg_mono =
     if has_poly then ty_arg
@@ -5114,11 +5124,11 @@ let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
     | None -> begin
         match pat_tuple_arity spat with
         | Not_local_tuple | Maybe_local_tuple ->
-            let mode = Value.newvar () in
+            let mode = Value.newvar (get_current_level ()) in
             simple_pat_mode mode, mode_default mode
         | Local_tuple arity ->
-            let modes = List.init arity (fun _ -> Value.newvar ()) in
-            let mode = Value.newvar () in
+            let modes = List.init arity (fun _ -> Value.newvar (get_current_level ())) in
+            let mode = Value.newvar (get_current_level ()) in
             tuple_pat_mode mode modes, mode_tuple mode modes
       end
     | Some mode ->
@@ -5420,12 +5430,12 @@ and type_expect_
         match pm.apply_position with
         | Tail ->
           let mode, _ =
-            Value.newvar_below
+            Value.newvar_below (get_current_level ())
               (Value.max_with (Comonadic Areality) Regionality.regional)
           in
           mode, mode_tailcall_function mode
         | Nontail | Default ->
-          let mode = Value.newvar () in
+          let mode = Value.newvar (get_current_level ()) in
           mode, mode_default mode
       in
       (* does the function return a tvar which is too generic? *)
@@ -5496,7 +5506,7 @@ and type_expect_
           ~default_arity:(List.length args) sfunct.pexp_attributes
         |> Builtin_attributes.zero_alloc_attribute_only_assume_allowed
       in
-
+      let ap_mode = Mode.Locality.newvar_above_if_nonzero ap_mode in
       rue {
         exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode,
                               zero_alloc);
@@ -5508,11 +5518,11 @@ and type_expect_
       let arg_pat_mode, arg_expected_mode =
         match cases_tuple_arity caselist with
         | Not_local_tuple | Maybe_local_tuple ->
-          let mode = Value.newvar () in
+          let mode = Value.newvar (get_current_level ()) in
           simple_pat_mode mode, mode_default mode
         | Local_tuple arity ->
-          let modes = List.init arity (fun _ -> Value.newvar ()) in
-          let mode = Value.newvar () in
+          let modes = List.init arity (fun _ -> Value.newvar (get_current_level ())) in
+          let mode = Value.newvar (get_current_level ()) in
           tuple_pat_mode mode modes, mode_tuple mode modes
       in
       let arg, sort =
@@ -5625,7 +5635,7 @@ and type_expect_
         | Some sexp ->
             let exp, mode =
               with_local_level_if_principal begin fun () ->
-                let mode = Value.newvar () in
+                let mode = Value.newvar (get_current_level ()) in
                 let exp = type_exp ~recarg env (mode_default mode) sexp in
                 exp, mode
               end ~post:(fun (exp, _) -> generalize_structure_exp exp)
@@ -5841,6 +5851,7 @@ and type_expect_
   | Pexp_setfield(srecord, lid, snewval) ->
       let (record, rmode, label, expected_type) =
         type_label_access env srecord Env.Mutation lid in
+      let rmode = Mode.Value.newvar_above_if_nonzero rmode in
       let ty_record =
         if expected_type = None
         then newvar (Jkind.of_new_sort ~why:Record_assignment)
@@ -6704,6 +6715,7 @@ and type_ident env ?(recarg=Rejected) lid =
            register_allocation_mode (Alloc.max_with (Comonadic Areality) mode)
        | _ -> ()
        end;
+       let mode = Option.map Locality.newvar_above_if_nonzero mode in
        ty, Id_prim (Option.map Locality.disallow_right mode, sort)
     | _ ->
        instance desc.val_type, Id_value in
@@ -6910,6 +6922,7 @@ and type_function
                     | Error e ->
                       raise (Error(loc_fun, env, Uncurried_function_escapes e))
                   end;
+                  (* let fun_alloc_mode = Alloc.newvar_above_if_nonzero fun_alloc_mode in *)
                   More_args {partial_mode = Alloc.disallow_right fun_alloc_mode}
               in
               pat, params_suffix, body, ret_info, newtypes, contains_gadt, curry
@@ -6957,6 +6970,7 @@ and type_function
             let param = Ident.create_local ("*opt*" ^ arg_label) in
             Tparam_optional_default (pat, default_arg, default_arg_sort), param
       in
+      let arg_mode = Alloc.newvar_above_if_nonzero arg_mode in
       let param =
         { has_poly;
           param =
@@ -7060,7 +7074,7 @@ and type_function
      }
 
 and type_label_access env srecord usage lid =
-  let mode = Value.newvar () in
+  let mode = Value.newvar (get_current_level ()) in
   let record =
     with_local_level_if_principal ~post:generalize_structure_exp
       (fun () -> type_exp ~recarg:Allowed env (mode_default mode) srecord)
@@ -7435,8 +7449,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       Tarrow(_, ty_arg,  ty_res,  _)
       when lv' = generic_level || not !Clflags.principal ->
       let ty_res', ty_res, changed = loosen_arrow_modes ty_res' ty_res in
-      let mret, changed' = Alloc.newvar_below mret in
-      let marg, changed'' = Alloc.newvar_above marg in
+      let mret, changed' = Alloc.newvar_below (get_current_level ()) mret in
+      let marg, changed'' = Alloc.newvar_above (get_current_level ()) marg in
       if changed || changed' || changed'' then
         newty2 ~level:lv' (Tarrow((l, marg, mret), ty_arg', ty_res', commu_ok)),
         newty2 ~level:lv  (Tarrow((l, marg, mret), ty_arg,  ty_res,  commu_ok)),
@@ -7479,7 +7493,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     Some (safe_expect, lv) ->
       (* apply omittable arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
-      let exp_mode, _ = Value.newvar_below (as_single_mode mode) in
+      let exp_mode, _ = Value.newvar_below (get_current_level ()) (as_single_mode mode) in
       let texp =
         with_local_level_if_principal ~post:generalize_structure_exp
           (fun () ->
@@ -7554,7 +7568,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
          Texp_ident(Path.Pident id, mknoloc (Longident.Lident name),
                     desc, Id_value, uu)}
       in
-      let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
+      let eta_mode, _ = Value.newvar_below (get_current_level ()) (alloc_as_value marg) in
       Regionality.submode_exn
         (Value.proj (Comonadic Areality) eta_mode) Regionality.regional;
       let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
@@ -7570,6 +7584,8 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       in
       let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ret_sort = type_sort ~why:Function_result ty_res in
+      let mret = Mode.Alloc.newvar_above_if_nonzero mret in
+      let marg = Mode.Alloc.newvar_above_if_nonzero marg in
       let func texp =
         let e =
           {texp with exp_type = ty_res; exp_desc =
@@ -8389,7 +8405,7 @@ and type_newtype
         Hashtbl.add seen (get_id t) ();
         match get_desc t with
         | Tconstr (Path.Pident id', _, _) when id == id' -> link_type t ty
-        | _ -> Btype.iter_type_expr replace t
+        | _ -> Btype.iter_type_expr replace (Fun.const ()) t
       end
     in
     let ety = Subst.type_expr Subst.identity exp_type in
@@ -8488,6 +8504,7 @@ and type_function_cases_expect
     in
     unify_exp_types loc env ty_fun (instance ty_expected);
     let param = name_cases "param" cases in
+    let arg_mode = Alloc.newvar_above_if_nonzero arg_mode in
     let cases =
       { fc_cases = cases;
         fc_partial = partial;
@@ -8528,14 +8545,14 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
   let rec_mode_var =
     match rec_flag with
-    | Recursive when entirely_functions -> Some (Value.newvar ())
+    | Recursive when entirely_functions -> Some (Value.newvar (get_current_level ()))
     | Recursive ->
         (* If the definitions are not purely functions, this involves multiple
            allocations pointing to each other. For this to be safe, they are all
            heap-allocated. *)
         (* CR zqian: the multiple allocations should enjoy their own modes. *)
         let m, _ =
-          Value.newvar_below (Value.max_with (Comonadic Areality)
+          Value.newvar_below (get_current_level ()) (Value.max_with (Comonadic Areality)
             Regionality.global)
         in
         Some m
@@ -9041,7 +9058,7 @@ and type_n_ary_function
                 | Not_a_function ->
                     let tarrow =
                       let new_ty_var why = newvar (Jkind.of_new_sort ~why) in
-                      let new_mode_var () = Mode.Alloc.newvar () in
+                      let new_mode_var () = Mode.Alloc.newvar (get_current_level ()) in
                       (newty
                          (Tarrow
                             ( (arg_label, new_mode_var (), new_mode_var ())
@@ -9102,6 +9119,7 @@ and type_n_ary_function
       { mode = Mode.Alloc.disallow_left fun_alloc_mode;
         locality_context = expected_mode.locality_context }
     in
+    let ret_mode = Mode.Alloc.newvar_above_if_nonzero ret_mode in
     re
       { exp_desc =
           Texp_function

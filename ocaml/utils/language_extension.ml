@@ -56,6 +56,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
   | Comprehensions -> (module Unit)
   | Mode -> (module Maturity)
   | Unique -> (module Unit)
+  | Mode_polymorphism -> (module Maturity)
   | Include_functor -> (module Unit)
   | Polymorphic_parameters -> (module Unit)
   | Immutable_arrays -> (module Unit)
@@ -72,6 +73,7 @@ module Exist_pair = struct
     | Pair (Comprehensions, ()) -> Beta
     | Pair (Mode, m) -> m
     | Pair (Unique, ()) -> Alpha
+    | Pair (Mode_polymorphism, m) -> m
     | Pair (Include_functor, ()) -> Stable
     | Pair (Polymorphic_parameters, ()) -> Stable
     | Pair (Immutable_arrays, ()) -> Stable
@@ -88,6 +90,8 @@ module Exist_pair = struct
     | Pair (Mode, m) -> to_string Mode ^ "_" ^ maturity_to_string m
     | Pair (Small_numbers, m) ->
       to_string Small_numbers ^ "_" ^ maturity_to_string m
+    | Pair (Mode_polymorphism, m) ->
+      to_string Mode_polymorphism ^ "_" ^ maturity_to_string m
     | Pair
         ( (( Comprehensions | Unique | Include_functor | Polymorphic_parameters
            | Immutable_arrays | Module_strengthening | SIMD | Labeled_tuples )
@@ -122,6 +126,7 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   | Comprehensions, Comprehensions -> Some Refl
   | Mode, Mode -> Some Refl
   | Unique, Unique -> Some Refl
+  | Mode_polymorphism, Mode_polymorphism -> Some Refl
   | Include_functor, Include_functor -> Some Refl
   | Polymorphic_parameters, Polymorphic_parameters -> Some Refl
   | Immutable_arrays, Immutable_arrays -> Some Refl
@@ -130,7 +135,7 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   | SIMD, SIMD -> Some Refl
   | Labeled_tuples, Labeled_tuples -> Some Refl
   | Small_numbers, Small_numbers -> Some Refl
-  | ( ( Comprehensions | Mode | Unique | Include_functor
+  | ( ( Comprehensions | Mode | Unique | Mode_polymorphism | Include_functor
       | Polymorphic_parameters | Immutable_arrays | Module_strengthening
       | Layouts | SIMD | Labeled_tuples | Small_numbers ),
       _ ) ->
@@ -248,6 +253,8 @@ end = struct
         (compiler_options !universe)
         ()
 
+  (* CR ageorges: Mode_polymorphism is omitted from universe to ensure
+  it is not enabled by -extension-universe alpha/beta. TODO: add when ready *)
   let allowed_extensions_in t =
     let maximal_in_universe (Pack extn) =
       let (module Ops) = get_level_ops extn in
@@ -260,7 +267,8 @@ end = struct
         let max_allowed_lvl = List.fold_left Ops.max lvl lvls in
         Some (Pair (extn, max_allowed_lvl))
     in
-    List.filter_map maximal_in_universe Exist.all
+    let all = List.filter (fun (Pack extn) -> not (equal extn Mode_polymorphism)) Exist.all in
+    List.filter_map maximal_in_universe all
 end
 
 (*****************************************)

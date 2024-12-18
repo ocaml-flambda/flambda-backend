@@ -559,7 +559,7 @@ let rec filter_row_fields erase = function
       | _ -> p :: fi
 
 (* Ensure all mode variables are fully determined *)
-let remove_mode_and_jkind_variables ty =
+let remove_mode_and_jkind_variables ~zap_scope ty =
   let visited = ref TypeSet.empty in
   let rec go ty =
     if TypeSet.mem ty !visited then () else begin
@@ -568,10 +568,15 @@ let remove_mode_and_jkind_variables ty =
       | Tvar { jkind } -> Jkind.default_to_value jkind
       | Tunivar { jkind } -> Jkind.default_to_value jkind
       | Tarrow ((_,marg,mret),targ,tret,_) ->
-         let _ = Alloc.zap_to_legacy marg in
-         let _ = Alloc.zap_to_legacy mret in
+         if Language_extension.(is_at_least Mode_polymorphism Alpha) then begin
+          Alloc.add_mode_to_zap_scope marg zap_scope;
+          Alloc.add_mode_to_zap_scope mret zap_scope
+         end else begin
+          Alloc.zap_to_legacy_force marg |> ignore;
+          Alloc.zap_to_legacy_force mret |> ignore
+         end;
          go targ; go tret
-      | _ -> iter_type_expr go ty
+      | _ -> iter_type_expr go (Fun.const ()) ty
     end
   in go ty
 
@@ -625,7 +630,7 @@ let free_vars ?env tys =
           if static_row row then acc
           else fv ~kind:Row_variable acc (row_more row)
       | _    ->
-          fold_type_expr (fv ~kind) acc ty
+          fold_type_expr (fv ~kind) (fun acc _ -> acc) acc ty
   in
   List.fold_left (fv ~kind:Type_variable) [] tys
 
@@ -643,8 +648,7 @@ let free_non_row_variables_of_list tyl =
   List.iter unmark_type tyl;
   tl
 
-let closed_type ty =
-  remove_mode_and_jkind_variables ty;
+let closed_type_pure ty =
   match free_vars [ty] with
       []           -> ()
   | (v, real) :: _ -> raise (Non_closed (v, real))
@@ -652,15 +656,21 @@ let closed_type ty =
 let closed_parameterized_type params ty =
   List.iter mark_type params;
   let ok =
-    try closed_type ty; true with Non_closed _ -> false in
+    try (closed_type_pure ty); true with Non_closed _ -> false in
   List.iter unmark_type params;
   unmark_type ty;
   ok
 
-let closed_type_decl decl =
+let closed_type ~zap_scope ty =
+  remove_mode_and_jkind_variables ~zap_scope ty;
+  match free_vars [ty] with
+      []           -> ()
+  | (v, real) :: _ -> raise (Non_closed (v, real))
+
+let closed_type_decl ~zap_scope decl =
   try
     List.iter mark_type decl.type_params;
-    List.iter remove_mode_and_jkind_variables decl.type_params;
+    List.iter (remove_mode_and_jkind_variables ~zap_scope) decl.type_params;
     begin match decl.type_kind with
       Type_abstract _ ->
         ()
@@ -674,21 +684,21 @@ let closed_type_decl decl =
                    them. Test case: typing-layouts-gadt-sort-var/test.ml *)
                 begin match cd_args with
                 | Cstr_tuple l -> List.iter (fun ca ->
-                    remove_mode_and_jkind_variables ca.ca_type) l
+                    remove_mode_and_jkind_variables ~zap_scope ca.ca_type) l
                 | Cstr_record l -> List.iter (fun l ->
-                    remove_mode_and_jkind_variables l.ld_type) l
+                    remove_mode_and_jkind_variables ~zap_scope l.ld_type) l
                 end;
-                remove_mode_and_jkind_variables res_ty
-            | None -> List.iter closed_type (tys_of_constr_args cd_args)
+                remove_mode_and_jkind_variables ~zap_scope res_ty
+            | None -> List.iter (closed_type ~zap_scope) (tys_of_constr_args cd_args)
           )
           v
     | Type_record(r, _rep) ->
-        List.iter (fun l -> closed_type l.ld_type) r
+        List.iter (fun l -> (closed_type ~zap_scope) l.ld_type) r
     | Type_open -> ()
     end;
     begin match decl.type_manifest with
       None    -> ()
-    | Some ty -> closed_type ty
+    | Some ty -> (closed_type ~zap_scope) ty
     end;
     unmark_type_decl decl;
     None
@@ -696,7 +706,7 @@ let closed_type_decl decl =
     unmark_type_decl decl;
     Some ty
 
-let closed_extension_constructor ext =
+let closed_extension_constructor ~zap_scope ext =
   try
     List.iter mark_type ext.ext_type_params;
     begin match ext.ext_ret_type with
@@ -704,10 +714,10 @@ let closed_extension_constructor ext =
         (* gadts cannot have free type variables, but they might
            have undefaulted sort variables; these lines default
            them. Test case: typing-layouts-gadt-sort-var/test_extensible.ml *)
-        iter_type_expr_cstr_args remove_mode_and_jkind_variables ext.ext_args;
-        remove_mode_and_jkind_variables res_ty
+        iter_type_expr_cstr_args (remove_mode_and_jkind_variables ~zap_scope) ext.ext_args;
+        remove_mode_and_jkind_variables ~zap_scope res_ty
     | None ->
-        iter_type_expr_cstr_args closed_type ext.ext_args
+        iter_type_expr_cstr_args (closed_type ~zap_scope) ext.ext_args
     end;
     unmark_extension_constructor ext;
     None
@@ -722,14 +732,14 @@ type closed_class_failure = {
 }
 exception CCFailure of closed_class_failure
 
-let closed_class params sign =
+let closed_class ~zap_scope params sign =
   List.iter mark_type params;
   ignore (try_mark_node sign.csig_self_row);
   try
     Meths.iter
       (fun lab (priv, _, ty) ->
         if priv = Mpublic then begin
-          try closed_type ty with Non_closed (ty0, variable_kind) ->
+          try closed_type ~zap_scope ty with Non_closed (ty0, variable_kind) ->
             raise (CCFailure {
               free_variable = (ty0, variable_kind);
               meth = lab;
@@ -773,7 +783,8 @@ let duplicate_class_type ty =
 *)
 let rec generalize ty =
   let level = get_level ty in
-  if (level > !current_level) && (level <> generic_level) then begin
+  let current_level = !current_level in
+  if (level > current_level) && (level <> generic_level) then begin
     set_level ty generic_level;
     (* recur into abbrev for the speed *)
     begin match get_desc ty with
@@ -781,7 +792,8 @@ let rec generalize ty =
         iter_abbrev generalize !abbrev
     | _ -> ()
     end;
-    iter_type_expr generalize ty
+    let mgen m = Mode.Alloc.generalize ~current_level m in
+    iter_type_expr generalize mgen ty
   end
 
 let generalize ty =
@@ -792,17 +804,19 @@ let generalize ty =
 
 let rec generalize_structure ty =
   let level = get_level ty in
+  let current_level = !current_level in
   if level <> generic_level then begin
-    if is_Tvar ty && level > !current_level then
-      set_level ty !current_level
-    else if level > !current_level then begin
+    if is_Tvar ty && level > current_level then
+      set_level ty current_level
+    else if level > current_level then begin
       begin match get_desc ty with
         Tconstr (_, _, abbrev) ->
           abbrev := Mnil
       | _ -> ()
       end;
       set_level ty generic_level;
-      iter_type_expr generalize_structure ty
+      let mgen m = Mode.Alloc.generalize_structure ~current_level m in
+      iter_type_expr generalize_structure mgen ty
     end
   end
 
@@ -814,10 +828,13 @@ let generalize_structure ty =
 
 let rec generalize_spine ty =
   let level = get_level ty in
-  if level < !current_level || level = generic_level then () else
+  let current_level = !current_level in
+  if level < current_level || level = generic_level then () else
   match get_desc ty with
-    Tarrow (_, ty1, ty2, _) ->
+    Tarrow ((_, m1, m2), ty1, ty2, _) ->
       set_level ty generic_level;
+      Mode.Alloc.generalize ~current_level m1;
+      Mode.Alloc.generalize ~current_level m2;
       generalize_spine ty1;
       generalize_spine ty2;
   | Tpoly (ty', _) ->
@@ -837,6 +854,9 @@ let rec generalize_spine ty =
       memo := Mnil;
       List.iter generalize_spine tyl
   | _ -> ()
+
+let generalize_spine ty =
+  generalize_spine ty
 
 let forward_try_expand_safe = (* Forward declaration *)
   ref (fun _env _ty -> assert false)
@@ -881,7 +901,7 @@ let rec check_scope_escape env level ty =
         check_scope_escape env level
           (newty2 ~level:orig_level (Tpackage (p', fl)))
     | _ ->
-        iter_type_expr (check_scope_escape env level) ty
+        iter_type_expr (check_scope_escape env level) (Fun.const ()) ty
     end;
   end
 
@@ -897,7 +917,7 @@ let rec update_scope scope ty =
     if get_level ty < scope then raise_scope_escape_exn ty;
     set_scope ty scope;
     (* Only recurse in principal mode as this is not necessary for soundness *)
-    if !Clflags.principal then iter_type_expr (update_scope scope) ty
+    if !Clflags.principal then iter_type_expr (update_scope scope) (Fun.const ()) ty
   end
 
 let update_scope_for tr_exn scope ty =
@@ -943,7 +963,8 @@ let rec update_level env level expand ty =
           update_level env level expand ty'
         with Cannot_expand ->
           set_level ty level;
-          iter_type_expr (update_level env level expand) ty
+          iter_type_expr (update_level env level expand)
+            (Mode.Alloc.update_level level) ty
         end
     | Tpackage (p, fl) when level < Path.scope p ->
         let p' = normalize_package_path env p in
@@ -961,14 +982,16 @@ let rec update_level env level expand ty =
         | _ -> ()
         end;
         set_level ty level;
-        iter_type_expr (update_level env level expand) ty
+        iter_type_expr (update_level env level expand)
+          (Mode.Alloc.update_level level) ty
     | Tfield(lab, _, ty1, _)
       when lab = dummy_method && level < get_scope ty1 ->
         raise_escape_exn Self
     | _ ->
         set_level ty level;
         (* XXX what about abbreviations in Tconstr ? *)
-        iter_type_expr (update_level env level expand) ty
+        iter_type_expr (update_level env level expand)
+          (Mode.Alloc.update_level level) ty
   end
 
 (* First try without expanding, then expand everything,
@@ -1030,11 +1053,13 @@ let rec lower_contravariant env var_level visited contra ty =
           else not_expanded ()
     | Tpackage (_, fl) ->
         List.iter (fun (_n, ty) -> lower_rec true ty) fl
-    | Tarrow (_, t1, t2, _) ->
+    | Tarrow ((_, m1, m2), t1, t2, _) ->
+        Mode.Alloc.update_level var_level m1;
+        if contra then Mode.Alloc.update_level var_level m2;
         lower_rec true t1;
         lower_rec contra t2
     | _ ->
-        iter_type_expr (lower_rec contra) ty
+        iter_type_expr (lower_rec contra) (Fun.const ()) ty
   end
 
 let lower_variables_only env level ty =
@@ -1084,7 +1109,7 @@ let limited_generalize ty0 ty =
           (* XXX: why generic_level needs to be a root *)
           if (level = generic_level) || eq_type ty ty0 then
             roots := ty :: !roots;
-          iter_type_expr (inverse [ty]) ty
+          iter_type_expr (inverse [ty]) (Fun.const ()) ty
         end
   in
 
@@ -1127,7 +1152,7 @@ let rec inv_type hash pty ty =
   with Not_found ->
     let inv = { inv_type = ty; inv_parents = pty } in
     TypeHash.add hash ty inv;
-    iter_type_expr (inv_type hash [inv]) ty
+    iter_type_expr (inv_type hash [inv]) (Fun.const ()) ty
 
 let compute_univars ty =
   let inverted = TypeHash.create 17 in
@@ -1157,7 +1182,7 @@ let fully_generic ty =
   let rec aux ty =
     if not_marked_node ty then
       if get_level ty = generic_level then
-        (flip_mark_node ty; iter_type_expr aux ty)
+        (flip_mark_node ty; iter_type_expr aux (Fun.const ()) ty)
       else raise Exit
   in
   let res = try aux ty; true with Exit -> false in
@@ -1307,7 +1332,11 @@ let rec copy ?partial ?keep_names copy_scope ty =
           end
       | Tobject (ty1, _) when partial <> None ->
           Tobject (copy ty1, ref None)
-      | _ -> copy_type_desc ?keep_names copy desc
+      | _ ->
+        let copy_mode =
+          For_copy.mode_instantiate copy_scope ~current_level:!current_level
+        in
+        copy_type_desc ?keep_names copy copy_mode desc
     in
     Transient_expr.set_stub_desc t desc';
     t
@@ -1568,7 +1597,11 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
             Tfield (p, field_kind_internal_repr k,
                     copy_rec ~may_share:true ty1,
                     copy_rec ~may_share:false ty2)
-        | desc -> copy_type_desc (copy_rec ~may_share:true) desc
+        | desc ->
+          let copy_mode =
+            For_copy.mode_instantiate copy_scope ~current_level:!current_level
+          in
+          copy_type_desc (copy_rec ~may_share:true) copy_mode desc
       in
       Transient_expr.set_stub_desc t desc';
       t
@@ -1619,17 +1652,26 @@ let prim_mode mvar = function
     | Some mvar -> mvar
     | None -> assert false
 
-(** Returns a new mode variable whose locality is the given locality, while
-    all other axes are from the given [m]. This function is too specific to be
-    put in [mode.ml] *)
-let with_locality locality m =
-  let m' = Alloc.newvar () in
+(** Returns a new mode variable at level [level] whose locality is the given
+    locality, while all other axes are from the given [m]. This function is too
+    specific to be put in [mode.ml] *)
+let with_locality level locality m =
+  let m' = Alloc.newvar level in
   Locality.equate_exn (Alloc.proj (Comonadic Areality) m') locality;
   Alloc.submode_exn m' (Alloc.imply_with Areality Locality.Const.min m);
   Alloc.submode_exn (Alloc.meet_const_with Areality Locality.Const.min m) m';
   m'
 
-let curry_mode alloc arg : Alloc.Const.t =
+let curry_mode (type r) (alloc : (allowed * r) Alloc.Comonadic.t) (arg : Alloc.lr) : Alloc.Comonadic.l =
+  Alloc.Comonadic.join
+    [(Alloc.close_over arg).comonadic; (Alloc.Comonadic.disallow_right alloc)]
+
+(* let curry_mode_const alloc arg : Alloc.Comonadic.Const.t =
+  let arg = Alloc.Const.close_over arg in
+  let comonadic = (Alloc.Const.split arg).comonadic in
+    Alloc.Comonadic.Const.join comonadic alloc *)
+
+let curry_mode_const alloc arg : Alloc.Const.t =
   let acc =
     Alloc.Const.join
       (Alloc.Const.close_over arg)
@@ -1650,10 +1692,11 @@ let curry_mode alloc arg : Alloc.Const.t =
     of the return of a function). *)
   {acc with uniqueness=Uniqueness.Const.Aliased}
 
+
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
   | l :: locals, Tarrow ((lbl,marg,mret),arg,ret,commu) ->
-     let marg = with_locality  (prim_mode (Some mvar) l) marg in
+     let marg = with_locality (get_level ty) (prim_mode (Some mvar) l) marg in
      let macc =
        Alloc.join [
         Alloc.disallow_right mret;
@@ -1663,9 +1706,9 @@ let rec instance_prim_locals locals mvar macc finalret ty =
      in
      let mret =
        match locals with
-       | [] -> with_locality finalret mret
+       | [] -> with_locality (get_level ty) finalret mret
        | _ :: _ ->
-          let mret', _ = Alloc.newvar_above macc in (* curried arrow *)
+          let mret', _ = Alloc.newvar_above (get_level ty) macc in (* curried arrow *)
           mret'
      in
      let ret = instance_prim_locals locals mvar macc finalret ret in
@@ -1727,7 +1770,7 @@ let instance_prim_layout (desc : Primitive.description) ty =
             (Tunivar {r with jkind = get_jkind ()})
         | _ -> ()
         end;
-        iter_type_expr inner ty
+        iter_type_expr inner (Fun.const ()) ty
       end
     in
     inner ty;
@@ -1745,7 +1788,7 @@ let instance_prim_mode (desc : Primitive.description) ty =
   let is_poly = function Primitive.Prim_poly, _ -> true | _ -> false in
   if is_poly desc.prim_native_repr_res ||
        List.exists is_poly desc.prim_native_repr_args then
-    let mode = Locality.newvar () in
+    let mode = Locality.newvar 0 in
     let finalret = prim_mode (Some mode) desc.prim_native_repr_res in
     instance_prim_locals desc.prim_native_repr_args
       mode (Alloc.disallow_right Alloc.legacy) finalret ty,
@@ -2396,7 +2439,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
         set_type_desc ty (Tunivar {r with jkind = new_jkind})
       | _ -> ()
       end;
-      iter_type_expr inner ty
+      iter_type_expr inner (Fun.const ()) ty
     end
   in
   inner ty;
@@ -2474,7 +2517,7 @@ let rec occur_rec env allow_recursive visited ty0 ty =
       begin try
         if TypeSet.mem ty visited then raise Occur;
         let visited = TypeSet.add ty visited in
-        iter_type_expr (occur_rec env allow_recursive visited ty0) ty
+        iter_type_expr (occur_rec env allow_recursive visited ty0) (Fun.const ()) ty
       with Occur -> try
         let ty' = try_expand_head try_expand_safe env ty in
         (* This call used to be inlined, but there seems no reason for it.
@@ -2488,7 +2531,7 @@ let rec occur_rec env allow_recursive visited ty0 ty =
   | _ ->
       if allow_recursive ||  TypeSet.mem ty visited then () else begin
         let visited = TypeSet.add ty visited in
-        iter_type_expr (occur_rec env allow_recursive visited ty0) ty
+        iter_type_expr (occur_rec env allow_recursive visited ty0) (Fun.const ()) ty
       end
 
 let type_changed = ref false (* trace possible changes to the studied type *)
@@ -2553,7 +2596,7 @@ let rec local_non_recursive_abbrev ~allow_rec strict visited env p ty =
         if strict || not allow_rec then (* PR#7374 *)
           let visited = get_id ty :: visited in
           iter_type_expr
-            (local_non_recursive_abbrev ~allow_rec true visited env p) ty
+            (local_non_recursive_abbrev ~allow_rec true visited env p) (Fun.const ()) ty
   end
 
 let local_non_recursive_abbrev uenv p ty =
@@ -2651,7 +2694,7 @@ let occur_univar ?(inj_only=false) env ty =
           with Not_found ->
             if not inj_only then List.iter (occur_rec bound) tl
           end
-      | _ -> iter_type_expr (occur_rec bound) ty
+      | _ -> iter_type_expr (occur_rec bound) (Fun.const ()) ty
   in
   Misc.try_finally (fun () ->
       occur_rec TypeSet.empty ty
@@ -2708,7 +2751,7 @@ let univars_escape env univar_pairs vl ty =
             List.iter occur tl
           end
       | _ ->
-          iter_type_expr occur t
+          iter_type_expr occur (Fun.const ()) t
     end
   in
   occur ty
@@ -2824,7 +2867,7 @@ let unexpanded_diff ~got ~expected =
 let rec deep_occur_rec t0 ty =
   if get_level ty >= get_level t0 && try_mark_node ty then begin
     if eq_type ty t0 then raise Occur;
-    iter_type_expr (deep_occur_rec t0) ty
+    iter_type_expr (deep_occur_rec t0) (Fun.const ()) ty
   end
 
 (* Return whether [t0] occurs in any type in [tyl]. Objects are also traversed. *)
@@ -2898,7 +2941,7 @@ let reify uenv t =
           end;
           iter_row iterator r
       | _ ->
-          iter_type_expr iterator ty
+          iter_type_expr iterator (Fun.const ()) ty
     end
   in
   iterator t
@@ -3225,7 +3268,7 @@ let find_lowest_level ty =
       let level = get_level ty in
       if level < !lowest then lowest := level;
       flip_mark_node ty;
-      iter_type_expr find ty
+      iter_type_expr find (Fun.const ()) ty
     end
   in find ty; unmark_type ty; !lowest
 
@@ -4179,8 +4222,8 @@ let filter_arrow env t l ~force_tpoly =
       end
     in
     let ty_ret = newvar2 level k_res in
-    let arg_mode = Alloc.newvar () in
-    let ret_mode = Alloc.newvar () in
+    let arg_mode = Alloc.newvar level in
+    let ret_mode = Alloc.newvar level in
     let t' =
       newty2 ~level (Tarrow ((l, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok))
     in
@@ -4623,7 +4666,7 @@ let moregen_occur env level ty =
     let lv = get_level ty in
     if lv <= level then () else
     if is_Tvar ty && lv >= generic_level - 1 then raise Occur else
-    if try_mark_node ty then iter_type_expr occur ty
+    if try_mark_node ty then iter_type_expr occur (Fun.const ()) ty
   in
   begin try
     occur ty; unmark_type ty
@@ -5082,7 +5125,7 @@ let rec rigidify_rec vars ty =
         if not (static_row row) then
           rigidify_rec vars (row_more row)
     | _ ->
-        iter_type_expr (rigidify_rec vars) ty
+        iter_type_expr (rigidify_rec vars) (Fun.const ()) ty
     end
 
 (* remember free variables in a type so we can make sure they aren't unified;
@@ -5738,19 +5781,19 @@ let find_cltype_for_path env p =
 let has_constr_row' env t =
   has_constr_row (expand_abbrev env t)
 
-let build_submode_pos m =
-  let m', changed = Alloc.newvar_below m in
+let build_submode_pos level m =
+  let m', changed = Alloc.newvar_below level m in
   let c = if changed then Changed else Unchanged in
   m', c
 
-let build_submode_neg m =
-  let m', changed = Alloc.newvar_above m in
+let build_submode_neg level m =
+  let m', changed = Alloc.newvar_above level m in
   let c = if changed then Changed else Unchanged in
   m', c
 
-let build_submode posi m =
-  if posi then build_submode_pos (Alloc.allow_left m)
-  else build_submode_neg (Alloc.allow_right m)
+let build_submode posi level m =
+  if posi then build_submode_pos level (Alloc.allow_left m)
+  else build_submode_neg level (Alloc.allow_right m)
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
@@ -5781,15 +5824,15 @@ let rec build_subtype env (visited : transient_expr list)
           let posi_arg = not posi in
           if posi_arg then begin
             let a = mode_cross_right env t1 (Alloc.disallow_left a) in
-            build_submode_pos a
+            build_submode_pos level a
           end else begin
             let a = mode_cross_left env t1 (Alloc.disallow_right a) in
-            build_submode_neg a
+            build_submode_neg level a
           end
         end else a, Unchanged
       in
       let (r', c4) =
-        if level > 2 then build_submode posi r else r, Unchanged
+        if level > 2 then build_submode posi level r else r, Unchanged
       in
       let c = max_change c1 (max_change c2 (max_change c3 c4)) in
       if c > Unchanged
@@ -6307,6 +6350,7 @@ let add_nongen_vars_in_schema =
           let (_, unexpanded_candidate) as unexpanded_candidate' =
             fold_type_expr
               (loop env)
+              (fun a _ -> a)
               (visited, weak_set)
               ty
           in
@@ -6338,11 +6382,11 @@ let add_nongen_vars_in_schema =
           then loop env (visited, weak_set) (row_more row)
           else (visited, weak_set)
       | _ ->
-          fold_type_expr (loop env) (visited, weak_set) ty
+          fold_type_expr (loop env) (fun a _ -> a) (visited, weak_set) ty
     end
   in
   fun env acc ty ->
-    remove_mode_and_jkind_variables ty;
+    Alloc.with_zap_scope (remove_mode_and_jkind_variables ty);
     let _, result = loop env (TypeSet.empty, acc) ty in
     result
 
@@ -6461,7 +6505,7 @@ let rec normalize_type_rec visited ty =
         set_type_desc fi (get_desc fi')
     | _ -> ()
     end;
-    iter_type_expr (normalize_type_rec visited) ty;
+    iter_type_expr (normalize_type_rec visited) (Fun.const ()) ty;
   end
 
 let normalize_type ty =
@@ -6557,7 +6601,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
                 Tvariant (set_row_name row None)
             | _ -> Tvariant row
           end
-      | desc -> copy_type_desc (nondep_type_rec env ids) desc
+      | desc -> copy_type_desc (nondep_type_rec env ids) Fun.id desc
     with
     | desc ->
       Transient_expr.set_stub_desc ty' desc;
@@ -6740,7 +6784,7 @@ let rec collapse_conj env visited ty =
         (row_fields row);
       iter_row (collapse_conj env visited) row
   | _ ->
-      iter_type_expr (collapse_conj env visited) ty
+      iter_type_expr (collapse_conj env visited) (Fun.const ()) ty
 
 let collapse_conj_params env params =
   List.iter (collapse_conj env []) params

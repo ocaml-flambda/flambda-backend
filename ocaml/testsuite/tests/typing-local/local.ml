@@ -344,7 +344,7 @@ Line 1, characters 61-65:
 Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Adding 1 more argument may make the value non-local
 |}]
 
 (* Optional argument elimination eta-expands and therefore allocates *)
