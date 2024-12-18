@@ -3198,7 +3198,7 @@ let transl_value_decl env loc ~sig_modalities valdecl =
   let modalities =
     match valdecl.pval_modalities with
     | [] -> sig_modalities
-    | l -> Typemode.transl_modalities ~maturity:Alpha Immutable
+    | l -> Typemode.transl_modalities ~maturity:Stable Immutable
         valdecl.pval_attributes l
   in
   let modalities = Mode.Modality.Value.of_const modalities in
