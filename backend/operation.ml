@@ -192,29 +192,3 @@ let dump ppf op =
     Format.fprintf ppf "alloc %i" bytes
   | Alloc { bytes; dbginfo = _; mode = Local } ->
     Format.fprintf ppf "alloc_local %i" bytes
-
-type memory_access =
-  | No_memory_access
-  | Arbitrary
-  | Read of
-      { memory_chunk : Cmm.memory_chunk;
-        addressing_mode : Arch.addressing_mode;
-        mutability : Simple_operation.mutable_flag
-      }
-  | Write of
-      { memory_chunk : Cmm.memory_chunk;
-        addressing_mode : Arch.addressing_mode;
-        is_assignment : bool (* false means initialization *)
-      }
-
-type vectorized_instruction_register =
-  | New of int
-  | Argument of int
-  | Result of int
-  | Original of int
-
-type vectorized_instruction =
-  { operation : t;
-    arguments : vectorized_instruction_register array;
-    results : vectorized_instruction_register array
-  }

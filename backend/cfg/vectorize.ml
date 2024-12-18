@@ -908,7 +908,7 @@ end = struct
       end
     end
 
-    module Memory_access = Arch.Memory_access
+    module Memory_access = Vectorize_utils.Memory_access
 
     module Operation : sig
       type t
@@ -966,13 +966,14 @@ end = struct
       let get_instruction_id t = Instruction.id t.instruction
 
       let memory_access (instruction : Instruction.t) : Memory_access.t option =
-        let width_in_bits c =
-          Arch.Memory_access.width_in_bits_of_memory_chunk c
+        let width_in_bits c = Vectorize_utils.Width_in_bits.of_memory_chunk c in
+        let create ?first_memory_arg_index desc =
+          Some (Memory_access.create ?first_memory_arg_index desc)
         in
         match Instruction.op instruction with
         | None ->
           (* conservative *)
-          Memory_access.create Arbitrary
+          create Arbitrary
         | Some op -> (
           match op with
           | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
@@ -987,7 +988,7 @@ end = struct
                   is_atomic
                 }
             in
-            Memory_access.create ~first_memory_arg_index:0 desc
+            create ~first_memory_arg_index:0 desc
           | Store (memory_chunk, addressing_mode, is_assign) ->
             let desc =
               Memory_access.Write
@@ -999,12 +1000,12 @@ end = struct
                     else Memory_access.Init_or_assign.Initialization)
                 }
             in
-            Memory_access.create desc ~first_memory_arg_index:1
+            create desc ~first_memory_arg_index:1
           | Intop_atomic { op; size; addr } ->
             let desc =
               Memory_access.Read_and_write
                 { width_in_bits =
-                    Arch.Memory_access.width_in_bits_of_atomic_bitwidth size;
+                    Vectorize_utils.Width_in_bits.of_atomic_bitwidth size;
                   addressing_mode = addr;
                   is_atomic = true
                 }
@@ -1012,11 +1013,11 @@ end = struct
             let first_memory_arg_index =
               match op with Compare_and_swap -> 2 | Fetch_and_add -> 1
             in
-            Memory_access.create ~first_memory_arg_index desc
-          | Specific s -> Memory_access.of_specific_operation s
+            create ~first_memory_arg_index desc
+          | Specific s -> Vectorize_specific.memory_access s
           | Begin_region | End_region ->
             (* conservative, don't reorder around region begin/end. *)
-            Memory_access.create Arbitrary
+            create Arbitrary
           | Name_for_debugger _ | Dls_get | Poll | Opaque | Probe_is_enabled _
             ->
             (* conservative, don't reorder around this instruction. *)
@@ -1030,7 +1031,7 @@ end = struct
             (* CR-soon gyorsh: Update [Name_for_debugger.regs] if relevant
                instructions are vectorized. Currently, the debug info would be
                out of sync. *)
-            Memory_access.create Arbitrary
+            create Arbitrary
           | Spill | Reload ->
             Misc.fatal_error
               "Unexpected instruction Spill or Reload during vectorize"
@@ -1088,7 +1089,8 @@ end = struct
         | Arbitrary | Alloc -> None
 
       let get_width_in_bits_exn t =
-        t |> get_width_in_bits |> Option.get |> Arch.Memory_access.width_in_bits
+        t |> get_width_in_bits |> Option.get
+        |> Vectorize_utils.Width_in_bits.to_int
 
       let offset_in_bytes ~arg_offset_in_bytes (t1 : t) (t2 : t) =
         match get_addressing_mode t1, get_addressing_mode t2 with
@@ -1243,18 +1245,16 @@ end = struct
         | Alloc -> fprintf ppf "Alloc"
         | Arbitrary -> fprintf ppf "Arbitrary"
         | Read { width_in_bits; addressing_mode; is_mutable; is_atomic } ->
-          fprintf ppf "Read%d [%a]%a%a"
-            (Arch.Memory_access.width_in_bits width_in_bits)
-            print_addr addressing_mode (print_bool "is_mutable") is_mutable
-            (print_bool "is_atomic") is_atomic
+          fprintf ppf "Read%a [%a]%a%a" Vectorize_utils.Width_in_bits.print
+            width_in_bits print_addr addressing_mode (print_bool "is_mutable")
+            is_mutable (print_bool "is_atomic") is_atomic
         | Write { width_in_bits; addressing_mode; init_or_assign } ->
-          fprintf ppf "Write%d [%a] %s"
-            (Arch.Memory_access.width_in_bits width_in_bits)
-            print_addr addressing_mode (pr init_or_assign)
+          fprintf ppf "Write%a [%a] %s" Vectorize_utils.Width_in_bits.print
+            width_in_bits print_addr addressing_mode (pr init_or_assign)
         | Read_and_write { width_in_bits; addressing_mode; is_atomic } ->
-          fprintf ppf "Read_and_write%d [%a]%a"
-            (Arch.Memory_access.width_in_bits width_in_bits)
-            print_addr addressing_mode (print_bool "is_atomic") is_atomic
+          fprintf ppf "Read_and_write%a [%a]%a"
+            Vectorize_utils.Width_in_bits.print width_in_bits print_addr
+            addressing_mode (print_bool "is_atomic") is_atomic
 
       let dump ppf t =
         let dump_index =
@@ -1963,7 +1963,7 @@ module Computation : sig
 
     val scalar_instructions : t -> Instruction.t list
 
-    val vector_instructions : t -> Operation.vectorized_instruction list
+    val vector_instructions : t -> Vectorize_utils.Vectorized_instruction.t list
 
     val iter_vectorizable_args : t -> f:(arg_i:int -> unit) -> unit
   end
@@ -2005,7 +2005,7 @@ end = struct
     val scalar_instructions : t -> Instruction.t list
 
     (** guaranteed to return a non-empty list.  *)
-    val vector_instructions : t -> Operation.vectorized_instruction list
+    val vector_instructions : t -> Vectorize_utils.Vectorized_instruction.t list
 
     (** maps over the indexes of arguments that need to be considered when vectorizing
         dependencies. Currently skips over arguments that are used for memory address
@@ -2022,7 +2022,7 @@ end = struct
         inter-independent and if they have memory accesses,
         the accesses must be adjacent. *)
     val init :
-      width_in_bits:Arch.Memory_access.width_in_bits ->
+      width_in_bits:Vectorize_utils.Width_in_bits.t ->
       Instruction.t list ->
       Dependencies.t ->
       t option
@@ -2032,7 +2032,7 @@ end = struct
     val dump : Format.formatter -> t -> unit
   end = struct
     type t =
-      { vector_instructions : Operation.vectorized_instruction list;
+      { vector_instructions : Vectorize_utils.Vectorized_instruction.t list;
         instructions : Instruction.t list;
         non_address_arg_count : int;
         arg_count : int
@@ -2115,7 +2115,7 @@ end = struct
     let init ~width_in_bits instructions deps =
       assert (List.length instructions > 1);
       assert (
-        Arch.Memory_access.width_in_bits width_in_bits
+        Vectorize_utils.Width_in_bits.to_int width_in_bits
         * List.length instructions
         = Simd_selection.vector_width_in_bits);
       Format.(
@@ -2172,10 +2172,8 @@ end = struct
         pp_print_list ~pp_sep:pp_print_newline Instruction.print ppf l
       in
       let vpp ppf l =
-        let pp ppf (simd_instruction : Operation.vectorized_instruction) =
-          fprintf ppf "%a " Cfg.dump_basic (Cfg.Op simd_instruction.operation)
-        in
-        pp_print_list ~pp_sep:pp_print_newline pp ppf l
+        pp_print_list ~pp_sep:pp_print_newline
+          Vectorize_utils.Vectorized_instruction.print ppf l
       in
       fprintf ppf "Group:\nScalar:\n%a\nVector:\n%a\n" spp t.instructions vpp
         t.vector_instructions
@@ -2186,7 +2184,7 @@ end = struct
         memory addresses. *)
     type t
 
-    val lane_width_in_bits : t -> Arch.Memory_access.width_in_bits
+    val lane_width_in_bits : t -> Vectorize_utils.Width_in_bits.t
 
     val group : t -> Group.t
 
@@ -2199,7 +2197,7 @@ end = struct
   end = struct
     type t =
       { group : Group.t;
-        width_in_bits : Arch.Memory_access.width_in_bits
+        width_in_bits : Vectorize_utils.Width_in_bits.t
       }
 
     let init ~width_in_bits instructions deps =
@@ -2217,7 +2215,7 @@ end = struct
           match l with
           | [] -> None
           | (w, hd) :: tl ->
-            if Int.equal (Arch.Memory_access.width_in_bits w) width_in_bits
+            if Vectorize_utils.Width_in_bits.equal w width_in_bits
             then loop (n - 1) tl (hd :: acc)
             else None
       in
@@ -2264,13 +2262,12 @@ end = struct
             let i = Instruction.basic i in
             match is_store i with
             | Some chunk ->
-              (Arch.Memory_access.width_in_bits_of_memory_chunk chunk, i) :: acc
+              (Vectorize_utils.Width_in_bits.of_memory_chunk chunk, i) :: acc
             | None -> acc)
       in
       Format.(
         let pp_pair ppf (x, y) =
-          fprintf ppf "(%d, %a)"
-            (Arch.Memory_access.width_in_bits x)
+          fprintf ppf "(%a, %a)" Vectorize_utils.Width_in_bits.print x
             Instruction.print y
         in
         State.dump_debug (Block.state block)
@@ -2280,9 +2277,11 @@ end = struct
       let rec loop stores acc =
         match stores with
         | [] -> List.rev acc
-        | (w, _store) :: tl -> (
-          let width_in_bits = Arch.Memory_access.width_in_bits w in
-          let n = Simd_selection.vector_width_in_bits / width_in_bits in
+        | (width_in_bits, _store) :: tl -> (
+          let n =
+            Simd_selection.vector_width_in_bits
+            / Vectorize_utils.Width_in_bits.to_int width_in_bits
+          in
           if n <= 1
           then
             (* nothing to vectorize, the store's access is at least
@@ -2300,7 +2299,7 @@ end = struct
                   "Seeds.from_block: instructions=\n(%a)\n"
                   (pp_print_list Instruction.print_id)
                   instructions);
-              match init ~width_in_bits:w instructions deps with
+              match init ~width_in_bits instructions deps with
               | None -> loop tl acc
               | Some t -> loop tl (t :: acc)))
       in
@@ -2861,8 +2860,10 @@ let add_vector_instructions_for_group reg_map state group ~before:cell
       Numbers.Int.Tbl.add new_regs n new_reg;
       new_reg
   in
-  let create_instruction (simd_instruction : Operation.vectorized_instruction) =
-    let get_register (simd_reg : Operation.vectorized_instruction_register) =
+  let create_instruction
+      (simd_instruction : Vectorize_utils.Vectorized_instruction.t) =
+    let get_register
+        (simd_reg : Vectorize_utils.Vectorized_instruction.register) =
       match simd_reg with
       | New n -> get_new_reg n
       | Argument n ->
