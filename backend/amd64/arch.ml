@@ -518,6 +518,14 @@ let isomorphic_specific_operation op1 op2 =
     false
 
 module Memory_access = struct
+
+  type width_in_bits =
+    | W8
+    | W16
+    | W32
+    | W64
+    | W128
+
   module Init_or_assign = struct
     type t =
       | Initialization
@@ -528,19 +536,19 @@ module Memory_access = struct
     | Alloc
     | Arbitrary
     | Read of
-        { width_in_bits : int;
+        { width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           is_mutable: bool;
           is_atomic: bool;
         }
     | Write of
-        { width_in_bits : int;
+        { width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           init_or_assign : Init_or_assign.t
         }
     | Read_and_write of
         {
-          width_in_bits : int;
+          width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           is_atomic: bool;
         }
@@ -557,6 +565,28 @@ module Memory_access = struct
 
   let first_memory_arg_index t = t.first_memory_arg_index
 
+  let width_in_bits_of_memory_chunk (c : Cmm.memory_chunk) =
+    match c with
+    | Byte_unsigned | Byte_signed -> W8
+    | Sixteen_unsigned | Sixteen_signed -> W16
+    | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> W32
+    | Word_int | Word_val | Double -> W64
+    | Onetwentyeight_unaligned | Onetwentyeight_aligned -> W128
+
+  let width_in_bits_of_atomic_bitwidth (b : Cmm.atomic_bitwidth) =
+    match b with
+    | Thirtytwo -> W32
+    | Sixtyfour -> W64
+    | Word -> W64
+
+  let width_in_bits width_in_bits =
+    match width_in_bits with
+    | W128 -> 128
+    | W64 -> 64
+    | W32 -> 32
+    | W16 -> 16
+    | W8 -> 8
+
   (* Keep in sync with [operation_is_pure], [operation_can_raise],
      [operation_allocates]. *)
   let of_specific_operation : specific_operation -> t option =
@@ -564,7 +594,7 @@ module Memory_access = struct
     match op with
     | Istore_int (_n, addressing_mode, is_assignment) ->
       let desc =
-        Write { width_in_bits = 64;
+        Write { width_in_bits = W64;
                 addressing_mode;
                 init_or_assign = if is_assignment then Assignment else Initialization
               }
@@ -573,8 +603,8 @@ module Memory_access = struct
     | Ifloatarithmem (float_width, _float_op, addressing_mode) ->
       let width_in_bits =
         match float_width with
-        | Float64 -> 64
-        | Float32 -> 32
+        | Float64 -> W64
+        | Float32 -> W32
       in
       let is_mutable =
         (* CR-someday gyorsh: conservative, propagate mutability of Ifloatarithmem from
@@ -589,7 +619,7 @@ module Memory_access = struct
       create ~first_memory_arg_index:1 desc
     | Ioffset_loc (_n, addressing_mode) ->
       let desc =
-        Read_and_write { width_in_bits = 64;
+        Read_and_write { width_in_bits = W64;
                          addressing_mode;
                          is_atomic = false;
                        }

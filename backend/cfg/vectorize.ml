@@ -966,6 +966,9 @@ end = struct
       let get_instruction_id t = Instruction.id t.instruction
 
       let memory_access (instruction : Instruction.t) : Memory_access.t option =
+        let width_in_bits c =
+          Arch.Memory_access.width_in_bits_of_memory_chunk c
+        in
         match Instruction.op instruction with
         | None ->
           (* conservative *)
@@ -975,7 +978,7 @@ end = struct
           | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
             let desc =
               Memory_access.Read
-                { width_in_bits = Cmm.width_in_bits memory_chunk;
+                { width_in_bits = width_in_bits memory_chunk;
                   addressing_mode;
                   is_mutable =
                     (match mutability with
@@ -988,7 +991,7 @@ end = struct
           | Store (memory_chunk, addressing_mode, is_assign) ->
             let desc =
               Memory_access.Write
-                { width_in_bits = Cmm.width_in_bits memory_chunk;
+                { width_in_bits = width_in_bits memory_chunk;
                   addressing_mode;
                   init_or_assign =
                     (if is_assign
@@ -1000,7 +1003,8 @@ end = struct
           | Intop_atomic { op; size; addr } ->
             let desc =
               Memory_access.Read_and_write
-                { width_in_bits = Cmm.atomic_bitwidth_to_bits size;
+                { width_in_bits =
+                    Arch.Memory_access.width_in_bits_of_atomic_bitwidth size;
                   addressing_mode = addr;
                   is_atomic = true
                 }
@@ -1083,6 +1087,9 @@ end = struct
           Some width_in_bits
         | Arbitrary | Alloc -> None
 
+      let get_width_in_bits_exn t =
+        t |> get_width_in_bits |> Option.get |> Arch.Memory_access.width_in_bits
+
       let offset_in_bytes ~arg_offset_in_bytes (t1 : t) (t2 : t) =
         match get_addressing_mode t1, get_addressing_mode t2 with
         | Some addressing_mode_1, Some addressing_mode_2 ->
@@ -1106,7 +1113,7 @@ end = struct
         match offset_in_bytes t1 t2 ~arg_offset_in_bytes with
         | None -> false
         | Some offset_in_bytes ->
-          to_bits offset_in_bytes = (get_width_in_bits t1 |> Option.get)
+          to_bits offset_in_bytes = get_width_in_bits_exn t1
 
       (** [is_before t1 t2] returns true if we can prove that t1 and t2 are disjoint
           intervals within the same block, and t1 is before t2. *)
@@ -1116,10 +1123,9 @@ end = struct
           | None -> false
           | Some offset_in_bytes ->
             State.dump_debug (Block.state block)
-              "offset_in_bytes = %d, get_width_in_bits t1 = %d \n"
-              (to_bits offset_in_bytes)
-              (get_width_in_bits t1 |> Option.get);
-            to_bits offset_in_bytes >= (get_width_in_bits t1 |> Option.get)
+              "offset_in_bytes = %d, get_width_in_bits_exn t1 = %d \n"
+              (to_bits offset_in_bytes) (get_width_in_bits_exn t1);
+            to_bits offset_in_bytes >= get_width_in_bits_exn t1
         in
         State.dump_debug (Block.state block) "is_before (%a) (%a) = %b \n"
           Instruction.print t1.instruction Instruction.print t2.instruction res;
@@ -1237,15 +1243,18 @@ end = struct
         | Alloc -> fprintf ppf "Alloc"
         | Arbitrary -> fprintf ppf "Arbitrary"
         | Read { width_in_bits; addressing_mode; is_mutable; is_atomic } ->
-          fprintf ppf "Read%d [%a]%a%a" width_in_bits print_addr addressing_mode
-            (print_bool "is_mutable") is_mutable (print_bool "is_atomic")
-            is_atomic
+          fprintf ppf "Read%d [%a]%a%a"
+            (Arch.Memory_access.width_in_bits width_in_bits)
+            print_addr addressing_mode (print_bool "is_mutable") is_mutable
+            (print_bool "is_atomic") is_atomic
         | Write { width_in_bits; addressing_mode; init_or_assign } ->
-          fprintf ppf "Write%d [%a] %s" width_in_bits print_addr addressing_mode
-            (pr init_or_assign)
+          fprintf ppf "Write%d [%a] %s"
+            (Arch.Memory_access.width_in_bits width_in_bits)
+            print_addr addressing_mode (pr init_or_assign)
         | Read_and_write { width_in_bits; addressing_mode; is_atomic } ->
-          fprintf ppf "Read_and_write%d [%a]%a" width_in_bits print_addr
-            addressing_mode (print_bool "is_atomic") is_atomic
+          fprintf ppf "Read_and_write%d [%a]%a"
+            (Arch.Memory_access.width_in_bits width_in_bits)
+            print_addr addressing_mode (print_bool "is_atomic") is_atomic
 
       let dump ppf t =
         let dump_index =
@@ -2013,7 +2022,10 @@ end = struct
         inter-independent and if they have memory accesses,
         the accesses must be adjacent. *)
     val init :
-      width_in_bits:int -> Instruction.t list -> Dependencies.t -> t option
+      width_in_bits:Arch.Memory_access.width_in_bits ->
+      Instruction.t list ->
+      Dependencies.t ->
+      t option
 
     val equal : t -> t -> bool
 
@@ -2103,7 +2115,8 @@ end = struct
     let init ~width_in_bits instructions deps =
       assert (List.length instructions > 1);
       assert (
-        width_in_bits * List.length instructions
+        Arch.Memory_access.width_in_bits width_in_bits
+        * List.length instructions
         = Simd_selection.vector_width_in_bits);
       Format.(
         State.dump_debug (Dependencies.state deps) "Group.init\n%a\n"
@@ -2124,7 +2137,7 @@ end = struct
         else
           let cfg_ops = List.map (Option.get << Instruction.op) instructions in
           let vector_instructions =
-            Simd_selection.vectorize_operation ~width_in_bits ~arg_count
+            Simd_selection.vectorize_operation width_in_bits ~arg_count
               ~res_count cfg_ops
           in
           match vector_instructions with
@@ -2173,7 +2186,7 @@ end = struct
         memory addresses. *)
     type t
 
-    val lane_width_in_bits : t -> int
+    val lane_width_in_bits : t -> Arch.Memory_access.width_in_bits
 
     val group : t -> Group.t
 
@@ -2186,7 +2199,7 @@ end = struct
   end = struct
     type t =
       { group : Group.t;
-        width_in_bits : int
+        width_in_bits : Arch.Memory_access.width_in_bits
       }
 
     let init ~width_in_bits instructions deps =
@@ -2204,7 +2217,7 @@ end = struct
           match l with
           | [] -> None
           | (w, hd) :: tl ->
-            if Int.equal w width_in_bits
+            if Int.equal (Arch.Memory_access.width_in_bits w) width_in_bits
             then loop (n - 1) tl (hd :: acc)
             else None
       in
@@ -2221,7 +2234,7 @@ end = struct
       | None -> None
       | Some op -> (
         match op with
-        | Store (chunk, _, _) -> Some (Cmm.width_in_bits chunk)
+        | Store (chunk, _, _) -> Some chunk
         | Alloc _ | Load _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
         | Reload | Const_int _ | Const_float32 _ | Const_float _
         | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
@@ -2250,11 +2263,16 @@ end = struct
         DLL.fold_right body ~init:[] ~f:(fun i acc ->
             let i = Instruction.basic i in
             match is_store i with
-            | Some width_in_bits -> (width_in_bits, i) :: acc
+            | Some chunk ->
+              (Arch.Memory_access.width_in_bits_of_memory_chunk chunk, i) :: acc
             | None -> acc)
       in
       Format.(
-        let pp_pair ppf (x, y) = fprintf ppf "(%d, %a)" x Instruction.print y in
+        let pp_pair ppf (x, y) =
+          fprintf ppf "(%d, %a)"
+            (Arch.Memory_access.width_in_bits x)
+            Instruction.print y
+        in
         State.dump_debug (Block.state block)
           "Seeds.from_block: all_stores=\n(%a)\n"
           (pp_print_list ~pp_sep:pp_print_newline pp_pair)
@@ -2262,7 +2280,8 @@ end = struct
       let rec loop stores acc =
         match stores with
         | [] -> List.rev acc
-        | (width_in_bits, _store) :: tl -> (
+        | (w, _store) :: tl -> (
+          let width_in_bits = Arch.Memory_access.width_in_bits w in
           let n = Simd_selection.vector_width_in_bits / width_in_bits in
           if n <= 1
           then
@@ -2281,7 +2300,7 @@ end = struct
                   "Seeds.from_block: instructions=\n(%a)\n"
                   (pp_print_list Instruction.print_id)
                   instructions);
-              match init ~width_in_bits instructions deps with
+              match init ~width_in_bits:w instructions deps with
               | None -> loop tl acc
               | Some t -> loop tl (t :: acc)))
       in

@@ -348,6 +348,13 @@ let addressing_offset_in_bytes _ _  ~arg_offset_in_bytes:_  _ _ =
   None   (* conservative *)
 
 module Memory_access = struct
+
+  type width_in_bits =
+    | W8
+    | W16
+    | W32
+    | W64
+
   module Init_or_assign = struct
     type t =
       | Initialization
@@ -358,19 +365,19 @@ module Memory_access = struct
     | Alloc
     | Arbitrary
     | Read of
-        { width_in_bits : int;
+        { width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           is_mutable: bool;
           is_atomic: bool;
         }
     | Write of
-        { width_in_bits : int;
+        { width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           init_or_assign : Init_or_assign.t
         }
     | Read_and_write of
         {
-          width_in_bits : int;
+          width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           is_atomic: bool;
         }

@@ -471,29 +471,16 @@ let () =
 
 (* Vectorize operations *)
 
-type width =
-  | W8
-  | W16
-  | W32
-  | W64
-
 let vector_width_in_bits = 128
 
-let vectorize_operation ~width_in_bits ~arg_count ~res_count
+let vectorize_operation (width_type : Arch.Memory_access.width_in_bits) ~arg_count ~res_count
       (cfg_ops : Operation.t list) : Operation.vectorized_instruction list option =
   (* Assumes cfg_ops are isomorphic *)
+  let width_in_bits = Arch.Memory_access.width_in_bits width_type in
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
   let same_width memory_chunk =
     Int.equal width_in_bits (Cmm.width_in_bits memory_chunk)
-  in
-  let width_type =
-    match width_in_bits with
-    | 64 -> W64
-    | 32 -> W32
-    | 16 -> W16
-    | 8 -> W8
-    | _ -> assert false
   in
   let make_default ~arg_count ~res_count operation : Operation.vectorized_instruction list option =
     Some
@@ -521,6 +508,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
   let add_op =
     let sse_op =
       match width_type with
+      | W128 -> assert false
       | W64 -> Add_i64
       | W32 -> Add_i32
       | W16 -> Add_i16
@@ -530,6 +518,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
   in
   let mul_op =
     match width_type with
+    | W128 -> None
     | W64 -> None
     | W32 -> Some (Operation.Specific (Isimd (SSE41 Mullo_i32)))
     | W16 -> Some (Operation.Specific (Isimd (SSE2 Mullo_i16)))
@@ -541,6 +530,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
     | Isub ->
       let sse_op =
         match width_type with
+        | W128 -> assert false
         | W64 -> Sub_i64
         | W32 -> Sub_i32
         | W16 -> Sub_i16
@@ -550,6 +540,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
     | Imul -> Option.bind mul_op (make_default ~arg_count ~res_count)
     | Imulh { signed } -> (
       match width_type with
+      | W128 -> None
       | W64 -> None
       | W32 -> None
       | W16 ->
@@ -570,6 +561,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
     | Ilsl ->
       let sse_op =
         match width_type with
+        | W128 -> assert false
         | W64 -> SLL_i64
         | W32 -> SLL_i32
         | W16 -> SLL_i16
@@ -579,6 +571,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
     | Ilsr ->
       let sse_op =
         match width_type with
+        | W128 -> assert false
         | W64 -> SRL_i64
         | W32 -> SRL_i32
         | W16 -> SRL_i16
@@ -588,6 +581,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
     | Iasr ->
       let sse_op =
         match width_type with
+        | W128 -> assert false
         | W64 -> assert false
         | W32 -> SRA_i32
         | W16 -> SRA_i16
@@ -599,6 +593,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
       | Ceq ->
         let sse_op =
           match width_type with
+          | W128 -> assert false
           | W64 -> SSE41 Cmpeq_i64
           | W32 -> SSE2 Cmpeq_i32
           | W16 -> SSE2 Cmpeq_i16
@@ -608,6 +603,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
       | Cgt ->
         let sse_op =
           match width_type with
+          | W128 -> assert false
           | W64 -> SSE42 Cmpgt_i64
           | W32 -> SSE2 Cmpgt_i32
           | W16 -> SSE2 Cmpgt_i16
@@ -805,6 +801,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
       | Ibased _ -> None)
     | Isextend32 -> (
       match width_type with
+      | W128 -> None
       | W64 ->
         Operation.Specific (Isimd (SSE41 I32_sx_i64))
         |> make_default ~arg_count ~res_count
@@ -817,6 +814,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
       | W8 -> None)
     | Izextend32 -> (
       match width_type with
+      | W128 -> None
       | W64 ->
         Operation.Specific (Isimd (SSE41 I32_zx_i64))
         |> make_default ~arg_count ~res_count

@@ -156,29 +156,37 @@ val addressing_offset_in_bytes
 (* CR gyorsh: split out into [vectorize_utils.ml] and [arch/vectorize_specific.ml]
    to avoid duplicating this type in each target. *)
 module Memory_access : sig
+
+  type width_in_bits =
+    | W8
+    | W16
+    | W32
+    | W64
+    | W128
+
   module Init_or_assign : sig
     type t =
       | Initialization
       | Assignment
   end
 
-  type desc =
+   type desc =
     | Alloc
     | Arbitrary
     | Read of
-        { width_in_bits : int;
+        { width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           is_mutable: bool;
           is_atomic: bool;
         }
     | Write of
-        { width_in_bits : int;
+        { width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           init_or_assign : Init_or_assign.t
         }
     | Read_and_write of
         {
-          width_in_bits : int;
+          width_in_bits : width_in_bits;
           addressing_mode : addressing_mode;
           is_atomic: bool;
         }
@@ -192,4 +200,10 @@ module Memory_access : sig
   val first_memory_arg_index : t -> int
 
   val of_specific_operation : specific_operation -> t option
+
+  val width_in_bits_of_memory_chunk : Cmm.memory_chunk -> width_in_bits
+
+  val width_in_bits_of_atomic_bitwidth : Cmm.atomic_bitwidth -> width_in_bits
+
+  val width_in_bits : width_in_bits -> int
 end
