@@ -24,6 +24,6 @@ let pseudoregs_for_operation _ arg res = arg, res
 
 let vector_width_in_bits = 128
 
-let vectorize_operation _ ~arg_count:_ ~res_count:_
-      (_ : Operation.t list) : Vectorize_utils.Vectorized_instruction.t list option =
+let vectorize_operation _ ~arg_count:_ ~res_count:_ (_ : Operation.t list) :
+    Vectorize_utils.Vectorized_instruction.t list option =
   None

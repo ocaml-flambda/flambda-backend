@@ -472,8 +472,9 @@ let () =
 
 let vector_width_in_bits = 128
 
-let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_count ~res_count
-      (cfg_ops : Operation.t list) : Vectorize_utils.Vectorized_instruction.t list option =
+let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
+    ~arg_count ~res_count (cfg_ops : Operation.t list) :
+    Vectorize_utils.Vectorized_instruction.t list option =
   (* Assumes cfg_ops are isomorphic *)
   let width_in_bits = Vectorize_utils.Width_in_bits.to_int width_type in
   let length = List.length cfg_ops in
@@ -481,10 +482,11 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
   let same_width memory_chunk =
     Int.equal width_in_bits (Cmm.width_in_bits memory_chunk)
   in
-  let make_default ~arg_count ~res_count operation
-    : Vectorize_utils.Vectorized_instruction.t list option =
+  let make_default ~arg_count ~res_count operation :
+      Vectorize_utils.Vectorized_instruction.t list option =
     Some
-      [ Vectorize_utils.Vectorized_instruction.make_default ~arg_count ~res_count operation  ]
+      [ Vectorize_utils.Vectorized_instruction.make_default ~arg_count
+          ~res_count operation ]
   in
   let create_const_vec consts =
     let highs, lows = Misc.Stdlib.List.split_at (length / 2) consts in
@@ -533,7 +535,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
         | W16 -> Sub_i16
         | W8 -> Sub_i8
       in
-      Operation.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
+      Operation.Specific (Isimd (SSE2 sse_op))
+      |> make_default ~arg_count ~res_count
     | Imul -> Option.bind mul_op (make_default ~arg_count ~res_count)
     | Imulh { signed } -> (
       match width_type with
@@ -550,11 +553,14 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
           |> make_default ~arg_count ~res_count
       | W8 -> None)
     | Iand ->
-      Operation.Specific (Isimd (SSE2 And_bits)) |> make_default ~arg_count ~res_count
+      Operation.Specific (Isimd (SSE2 And_bits))
+      |> make_default ~arg_count ~res_count
     | Ior ->
-      Operation.Specific (Isimd (SSE2 Or_bits)) |> make_default ~arg_count ~res_count
+      Operation.Specific (Isimd (SSE2 Or_bits))
+      |> make_default ~arg_count ~res_count
     | Ixor ->
-      Operation.Specific (Isimd (SSE2 Xor_bits)) |> make_default ~arg_count ~res_count
+      Operation.Specific (Isimd (SSE2 Xor_bits))
+      |> make_default ~arg_count ~res_count
     | Ilsl ->
       let sse_op =
         match width_type with
@@ -564,7 +570,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
         | W16 -> SLL_i16
         | W8 -> assert false
       in
-      Operation.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
+      Operation.Specific (Isimd (SSE2 sse_op))
+      |> make_default ~arg_count ~res_count
     | Ilsr ->
       let sse_op =
         match width_type with
@@ -574,7 +581,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
         | W16 -> SRL_i16
         | W8 -> assert false
       in
-      Operation.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
+      Operation.Specific (Isimd (SSE2 sse_op))
+      |> make_default ~arg_count ~res_count
     | Iasr ->
       let sse_op =
         match width_type with
@@ -584,7 +592,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
         | W16 -> SRA_i16
         | W8 -> assert false
       in
-      Operation.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
+      Operation.Specific (Isimd (SSE2 sse_op))
+      |> make_default ~arg_count ~res_count
     | Icomp (Isigned intcomp) -> (
       match intcomp with
       | Ceq ->
@@ -646,7 +655,9 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
       in
       Some
         [ { operation;
-            arguments = Array.init num_args_addressing (fun i -> Vectorize_utils.Vectorized_instruction.Original i);
+            arguments =
+              Array.init num_args_addressing (fun i ->
+                  Vectorize_utils.Vectorized_instruction.Original i);
             results = [| Result 0 |]
           } ]
   | Store (memory_chunk, addressing_mode, is_assignment) ->
@@ -656,13 +667,16 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
       let num_args_addressing = Arch.num_args_addressing addressing_mode in
       assert (arg_count = num_args_addressing + 1 && res_count = 0);
       let operation =
-        Operation.Store (Onetwentyeight_unaligned, addressing_mode, is_assignment)
+        Operation.Store
+          (Onetwentyeight_unaligned, addressing_mode, is_assignment)
       in
       Some
         [ { operation;
             arguments =
-              Array.append [| Vectorize_utils.Vectorized_instruction.Argument 0 |]
-                (Array.init num_args_addressing (fun i -> Vectorize_utils.Vectorized_instruction.Original (i + 1)));
+              Array.append
+                [| Vectorize_utils.Vectorized_instruction.Argument 0 |]
+                (Array.init num_args_addressing (fun i ->
+                     Vectorize_utils.Vectorized_instruction.Original (i + 1)));
             results = [||]
           } ]
   | Intop intop -> vectorize_intop intop
@@ -685,8 +699,10 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
          && Array.length intop_instruction.arguments = 2
       then (
         assert (arg_count = 1 && res_count = 1);
-        const_instruction.results.(0) <- Vectorize_utils.Vectorized_instruction.New 0;
-        intop_instruction.arguments.(1) <- Vectorize_utils.Vectorized_instruction.New 0;
+        const_instruction.results.(0)
+          <- Vectorize_utils.Vectorized_instruction.New 0;
+        intop_instruction.arguments.(1)
+          <- Vectorize_utils.Vectorized_instruction.New 0;
         Some [const_instruction; intop_instruction])
       else None
     | _ -> None)
@@ -727,10 +743,16 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t) ~arg_coun
         | _ -> assert false
       in
       let make_move arg res =
-        { Vectorize_utils.Vectorized_instruction.operation = Move; arguments = [| arg |]; results = [| res |] }
+        { Vectorize_utils.Vectorized_instruction.operation = Move;
+          arguments = [| arg |];
+          results = [| res |]
+        }
       in
       let make_binary_operation arg_0 arg_1 res operation =
-        { Vectorize_utils.Vectorized_instruction.operation; arguments = [| arg_0; arg_1 |]; results = [| res |] }
+        { Vectorize_utils.Vectorized_instruction.operation;
+          arguments = [| arg_0; arg_1 |];
+          results = [| res |]
+        }
       in
       let make_const res consts =
         match create_const_vec consts with
