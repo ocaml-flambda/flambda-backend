@@ -155,6 +155,9 @@ end
 module Instruction : sig
   (* CR-someday tip: consider moving this to cfg or at least have something
      similar there *)
+  (* CR gyorsh: We don't really need the terminator when vectorizing basic
+     blocks only, and removing it would simplify the code and reduce
+     allocation. *)
   module Id : sig
     type t
 
@@ -390,7 +393,7 @@ end = struct
 
   let body t = t.block.body
 
-  let[@inline] terminator t = Instruction.terminator t.block.terminator
+  let terminator t = Instruction.terminator t.block.terminator
 
   let size t = t.size
 
