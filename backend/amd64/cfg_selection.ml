@@ -125,7 +125,7 @@ class selector =
 
     method! is_simple_expr e =
       match e with
-      | Cop (Cextcall { func = fn }, args, _) when List.mem fn inline_ops ->
+      | Cop (Cextcall { func = fn }, args, _, _) when List.mem fn inline_ops ->
         (* inlined ops are simple if their arguments are *)
         List.for_all self#is_simple_expr args
       | _ -> super#is_simple_expr e

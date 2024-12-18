@@ -131,7 +131,7 @@ type prefetch_info = {
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
-type float_width = Cmm.float_width
+type float_width = Float_width.t
 
 type specific_operation =
     Ilea of addressing_mode            (* "lea" gives scaled adds *)
@@ -375,7 +375,7 @@ let equal_specific_operation left right =
   | Ioffset_loc (x, x'), Ioffset_loc (y, y') ->
     Int.equal x y && equal_addressing_mode x' y'
   | Ifloatarithmem (xw, x, x'), Ifloatarithmem (yw, y, y') ->
-    Cmm.equal_float_width xw yw &&
+    Float_width.equal xw yw &&
     equal_float_operation x y &&
     equal_addressing_mode x' y'
   | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->

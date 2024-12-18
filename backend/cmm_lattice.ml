@@ -10,6 +10,8 @@ let lnot = Nativeint.lognot
 
 let num_bits = 8 * Arch.size_int
 
+let max_shift = num_bits - 1
+
 let trailing_mask ~bits =
   assert (0 <= bits && bits <= num_bits);
   if bits = Sys.word_size
@@ -58,10 +60,8 @@ let count_trailing_zeros =
 let count_leading_ones x = count_leading_zeros (lnot x)
 
 let sign_bit bits ~known =
-  let sign_bit = bit (Nativeint.shift_left 1n num_bits) in
+  let sign_bit = Nativeint.shift_left 1n num_bits in
   if known land sign_bit = 0n then None else Some (bits land sign_bit <> 0n)
-
-let sign_bit t = sign_bit t.bits ~known:t.known
 
 type t =
   { bits : Nativeint.t;  (** known bits of the number (see [mask]) *)
@@ -142,7 +142,13 @@ let join t1 t2 =
 
 let top = { sign_bits = 1; bits = 0n; known = 0n }
 
+let is_top t = t.known = 0n
+
 let constant n = create n ~known:(-1n)
+
+let range ~min ~max =
+  assert (min <= max);
+  join (constant (Nativeint.of_int min)) (constant (Nativeint.of_int max))
 
 let to_constant t = if t.known = -1n then Some t.bits else None
 
@@ -186,6 +192,11 @@ let logand t1 t2 =
   in
   let sign_bits = Int.min t1.sign_bits t2.sign_bits in
   create ~sign_bits bits ~known:(known_to_be_zero lor (t1.known land t2.known))
+
+let logxor t1 t2 =
+  let bits = t1.bits lxor t2.bits in
+  let sign_bits = Int.min t1.sign_bits t2.sign_bits in
+  create ~sign_bits bits ~known:(t1.known land t2.known)
 
 let shift_right_logical t1 t2 =
   match to_small_int t2 ~min:0 ~max:max_shift with
@@ -231,3 +242,5 @@ let add t1 t2 =
     then logor t1 t2
     else
       { top with sign_bits = Int.max 1 (Int.min t1.sign_bits t2.sign_bits - 1) }
+
+let sign_bit t = sign_bit t.bits ~known:t.known

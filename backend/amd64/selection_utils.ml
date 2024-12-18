@@ -35,14 +35,14 @@ let rec select_addr exp =
   let default = Alinear exp, 0 in
   match exp with
   | Cmm.Cconst_symbol (s, _) when not !Clflags.dlcode -> Asymbol s, 0
-  | Cmm.Cop ((Caddi | Caddv | Cadda), [arg; Cconst_int (m, _)], _)
-  | Cmm.Cop ((Caddi | Caddv | Cadda), [Cconst_int (m, _); arg], _) ->
+  | Cmm.Cop ((Caddi | Caddv | Cadda), [arg; Cconst_int (m, _)], _, _)
+  | Cmm.Cop ((Caddi | Caddv | Cadda), [Cconst_int (m, _); arg], _, _) ->
     let a, n = select_addr arg in
     if Misc.no_overflow_add n m then a, n + m else default
-  | Cmm.Cop (Csubi, [arg; Cconst_int (m, _)], _) ->
+  | Cmm.Cop (Csubi, [arg; Cconst_int (m, _)], _, _) ->
     let a, n = select_addr arg in
     if Misc.no_overflow_sub n m then a, n - m else default
-  | Cmm.Cop (Clsl, [arg; Cconst_int (((1 | 2 | 3) as shift), _)], _) -> (
+  | Cmm.Cop (Clsl, [arg; Cconst_int (((1 | 2 | 3) as shift), _)], _, _) -> (
     let default = Ascale (arg, 1 lsl shift), 0 in
     match select_addr arg with
     | Alinear e, n ->
@@ -51,8 +51,8 @@ let rec select_addr exp =
       else default
     | (Asymbol _ | Aadd (_, _) | Ascale (_, _) | Ascaledadd (_, _, _)), _ ->
       default)
-  | Cmm.Cop (Cmuli, [arg; Cconst_int (((2 | 4 | 8) as mult), _)], _)
-  | Cmm.Cop (Cmuli, [Cconst_int (((2 | 4 | 8) as mult), _); arg], _) -> (
+  | Cmm.Cop (Cmuli, [arg; Cconst_int (((2 | 4 | 8) as mult), _)], _, _)
+  | Cmm.Cop (Cmuli, [Cconst_int (((2 | 4 | 8) as mult), _); arg], _, _) -> (
     let default = Ascale (arg, mult), 0 in
     match select_addr arg with
     | Alinear e, n ->
@@ -61,7 +61,7 @@ let rec select_addr exp =
       else default
     | (Asymbol _ | Aadd (_, _) | Ascale (_, _) | Ascaledadd (_, _, _)), _ ->
       default)
-  | Cmm.Cop ((Caddi | Caddv | Cadda), [arg1; arg2], _) -> (
+  | Cmm.Cop ((Caddi | Caddv | Cadda), [arg1; arg2], _, _) -> (
     match select_addr arg1, select_addr arg2 with
     | (Alinear e1, n1), (Alinear e2, n2) when Misc.no_overflow_add n1 n2 ->
       Aadd (e1, e2), n1 + n2

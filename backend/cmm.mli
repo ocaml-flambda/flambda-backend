@@ -158,7 +158,7 @@ type initialization_or_assignment =
   | Initialization
   | Assignment
 
-type float_width =
+type float_width = Float_width.t =
   | Float64
   | Float32
 
@@ -344,6 +344,8 @@ type expression =
         going through an explicit Push-annotated Cexit will this handler become
         active.  This allows for sharing a single handler in several places, or
         having multiple entry and exit points to a single trywith block. *)
+
+val lattice : expression -> Cmm_lattice.t
 
 type codegen_option =
   | Reduce_code_size

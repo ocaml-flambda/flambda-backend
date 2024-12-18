@@ -3,9 +3,11 @@ type t
 
 val top : t
 
+val is_top : t -> bool
+
 val join : t -> t -> t
 
-(** properties *)
+(** Properties *)
 
 val leading_zeros : t -> int
 
@@ -29,9 +31,11 @@ val can_weaken_mul :
   | `Shift_RHS_left_by of int
   | `Unknown ]
 
-(** constructors *)
+(** Constructors *)
 
 val constant : Nativeint.t -> t
+
+val range : min:int -> max:int -> t
 
 val logor : t -> t -> t
 

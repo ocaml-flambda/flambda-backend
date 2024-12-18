@@ -428,6 +428,7 @@
   asmpackager
   ;; backend/
   afl_instrument
+  float_width
   arch
   cmm_lattice
   branch_relaxation

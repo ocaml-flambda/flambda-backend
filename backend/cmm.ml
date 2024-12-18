@@ -186,7 +186,7 @@ type vec128_type =
   | Float32x4
   | Float64x2
 
-type float_width =
+type float_width = Float_width.t =
   | Float64
   | Float32
 
@@ -322,7 +322,7 @@ type expression =
   | Cconst_float of float * Debuginfo.t
   | Cconst_vec128 of vec128_bits * Debuginfo.t
   | Cconst_symbol of symbol * Debuginfo.t
-  | Cvar of Backend_var.t
+  | Cvar of Backend_var.t * Cmm_lattice.t
   | Clet of Backend_var.With_provenance.t * expression * expression
   | Clet_mut of Backend_var.With_provenance.t * machtype
                 * expression * expression
@@ -345,6 +345,14 @@ type expression =
   | Ctrywith of expression * trywith_shared_label
       * Backend_var.With_provenance.t * expression * Debuginfo.t
       * kind_for_unboxing
+
+let lattice = function
+  | Cconst_int (i, _) -> Cmm_lattice.constant (Nativeint.of_int i)
+  | Cconst_natint (i, _) -> Cmm_lattice.constant i
+  | Cvar (_, l) -> l
+  | Cop (_, _, _, l) -> l
+  | _ -> Cmm_lattice.top
+
 
 type codegen_option =
   | Reduce_code_size
@@ -419,7 +427,7 @@ let iter_shallow_tail f = function
       f e1;
       f e2;
       true
-  | Cexit _ | Cop (Craise _, _, _) ->
+  | Cexit _ | Cop (Craise _, _, _, _) ->
       true
   | Cconst_int _
   | Cconst_natint _
@@ -463,7 +471,7 @@ let map_shallow_tail ?kind f = function
   | Ctrywith(e1, kind', id, e2, dbg, kind_before) ->
       Ctrywith(f e1, kind', id, f e2, dbg,
               Option.value kind ~default:kind_before)
-  | Cexit _ | Cop (Craise _, _, _) as cmm ->
+  | Cexit _ | Cop (Craise _, _, _, _) as cmm ->
       cmm
   | Cconst_int _
   | Cconst_natint _
@@ -503,7 +511,7 @@ let iter_shallow f = function
       f e
   | Ctuple el ->
       List.iter f el
-  | Cop (_op, el, _dbg) ->
+  | Cop (_op, el, _dbg, _lat) ->
       List.iter f el
   | Csequence (e1, e2) ->
       f e1; f e2
@@ -538,8 +546,8 @@ let map_shallow f = function
       Cassign (id, f e)
   | Ctuple el ->
       Ctuple (List.map f el)
-  | Cop (op, el, dbg) ->
-      Cop (op, List.map f el, dbg)
+  | Cop (op, el, dbg, v) ->
+      Cop (op, List.map f el, dbg, v)
   | Csequence (e1, e2) ->
       Csequence (f e1, f e2)
   | Cifthenelse(cond, ifso_dbg, ifso, ifnot_dbg, ifnot, dbg, kind) ->
@@ -607,11 +615,7 @@ let equal_vec128_type v1 v2 =
   | Float64x2, Float64x2 -> true
   | (Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2), _ -> false
 
-let equal_float_width left right =
-  match left, right with
-  | Float64, Float64 -> true
-  | Float32, Float32 -> true
-  | (Float32 | Float64), _ -> false
+let equal_float_width = Float_width.equal
 
 let equal_reinterpret_cast (left : reinterpret_cast) (right : reinterpret_cast) =
   match left, right with

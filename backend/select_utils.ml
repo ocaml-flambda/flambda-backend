@@ -235,7 +235,7 @@ let size_expr (env : _ environment) exp =
          Note that packed float32# arrays are handled via a separate path. *)
       Arch.size_float
     | Cconst_vec128 _ -> Arch.size_vec128
-    | Cvar id -> (
+    | Cvar (id, _) -> (
       try V.Map.find id localenv
       with Not_found -> (
         try
@@ -245,7 +245,7 @@ let size_expr (env : _ environment) exp =
           Misc.fatal_error
             ("Selection.size_expr: unbound var " ^ V.unique_name id)))
     | Ctuple el -> List.fold_right (fun e sz -> size localenv e + sz) el 0
-    | Cop (op, _, _) -> size_machtype (oper_result_type op)
+    | Cop (op, _, _, _) -> size_machtype (oper_result_type op)
     | Clet (id, arg, body) ->
       size (V.Map.add (VP.var id) (size localenv arg) localenv) body
     | Csequence (_e1, e2) -> size localenv e2

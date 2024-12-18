@@ -31,9 +31,9 @@ type arity =
 let bind name arg fn =
   match arg with
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_symbol _ -> fn arg
-  | _ ->
+  | arg ->
     let id = V.create_local name in
-    Clet (VP.create id, arg, fn (Cvar id))
+    Clet (VP.create id, arg, fn (Cvar (id, lattice arg)))
 
 let bind_list name args fn =
   let rec aux bound_args = function
@@ -314,9 +314,13 @@ let natint_const_untagged dbg n =
 let cint_const n =
   Cint (Nativeint.add (Nativeint.shift_left (Nativeint.of_int n) 1) 1n)
 
+let add_int c1 c2 dbg =
+  let v = Cmm_lattice.add (lattice c1) (lattice c2) in
+  Cop (Caddi, [c; Cconst_int (d, dbg)], dbg, v)
+
 let add_no_overflow n x c dbg =
   let d = n + x in
-  if d = 0 then c else Cop (Caddi, [c; Cconst_int (d, dbg)], dbg)
+  if d = 0 then c else add_int c (Cconst_int (d, dbg)) dbg
 
 let rec add_const c n dbg =
   if n = 0
@@ -324,13 +328,13 @@ let rec add_const c n dbg =
   else
     match c with
     | Cconst_int (x, _) when Misc.no_overflow_add x n -> Cconst_int (x + n, dbg)
-    | Cop (Caddi, [Cconst_int (x, _); c], _) when Misc.no_overflow_add n x ->
+    | Cop (Caddi, [Cconst_int (x, _); c], _, _) when Misc.no_overflow_add n x ->
       add_no_overflow n x c dbg
-    | Cop (Caddi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_add n x ->
+    | Cop (Caddi, [c; Cconst_int (x, _)], _, _) when Misc.no_overflow_add n x ->
       add_no_overflow n x c dbg
-    | Cop (Csubi, [Cconst_int (x, _); c], _) when Misc.no_overflow_add n x ->
+    | Cop (Csubi, [Cconst_int (x, _); c], _, _) when Misc.no_overflow_add n x ->
       Cop (Csubi, [Cconst_int (n + x, dbg); c], dbg)
-    | Cop (Csubi, [c; Cconst_int (x, _)], _) when Misc.no_overflow_sub n x ->
+    | Cop (Csubi, [c; Cconst_int (x, _)], _, _) when Misc.no_overflow_sub n x ->
       add_const c (n - x) dbg
     | c -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg)
 

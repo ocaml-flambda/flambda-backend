@@ -56,9 +56,11 @@ let if_operation_supported_bi bi op ~f =
   then None
   else if_operation_supported op ~f
 
-let int_of_value arg dbg = Cop (Creinterpret_cast Int_of_value, [arg], dbg)
+let int_of_value arg dbg =
+  Cop (Creinterpret_cast Int_of_value, [arg], dbg, lattice arg)
 
-let value_of_int arg dbg = Cop (Creinterpret_cast Value_of_int, [arg], dbg)
+let value_of_int arg dbg =
+  Cop (Creinterpret_cast Value_of_int, [arg], dbg, lattice arg)
 
 (* Untagging of a negative value shifts in an extra bit. The following code
    clears the shifted sign bit of an untagged int. This straightline code is
@@ -66,14 +68,16 @@ let value_of_int arg dbg = Cop (Creinterpret_cast Value_of_int, [arg], dbg)
    argument is negative. *)
 let clear_sign_bit arg dbg =
   let mask = Nativeint.lognot (Nativeint.shift_left 1n ((size_int * 8) - 1)) in
-  Cop (Cand, [arg; Cconst_natint (mask, dbg)], dbg)
+  and_int arg (Cconst_natint (mask, dbg)) dbg
 
 let clz ~arg_is_non_zero bi arg dbg =
   let op = Cclz { arg_is_non_zero } in
   if_operation_supported_bi bi op ~f:(fun () ->
-      let res = Cop (op, [make_unsigned_int bi arg dbg], dbg) in
+      let res =
+        Cop (op, [make_unsigned_int bi arg dbg], dbg, Cmm_lattice.top)
+      in
       if bi = Primitive.Unboxed_int32 && size_int = 8
-      then Cop (Caddi, [res; Cconst_int (-32, dbg)], dbg)
+      then add_int res (Cconst_int (-32, dbg)) dbg
       else res)
 
 let ctz ~arg_is_non_zero bi arg dbg =
@@ -87,27 +91,35 @@ let ctz ~arg_is_non_zero bi arg dbg =
     if_operation_supported_bi bi op ~f:(fun () ->
         (* Set bit 32 *)
         let mask = Nativeint.shift_left 1n 32 in
-        Cop (op, [Cop (Cor, [arg; Cconst_natint (mask, dbg)], dbg)], dbg))
+        Cop
+          ( op,
+            [or_int arg (Cconst_natint (mask, dbg)) dbg],
+            dbg,
+            Cmm_lattice.top ))
   else
     let op = Cctz { arg_is_non_zero } in
-    if_operation_supported_bi bi op ~f:(fun () -> Cop (op, [arg], dbg))
+    if_operation_supported_bi bi op ~f:(fun () ->
+        Cop (op, [arg], dbg, Cmm_lattice.top))
 
 let popcnt bi arg dbg =
   if_operation_supported_bi bi Cpopcnt ~f:(fun () ->
-      Cop (Cpopcnt, [make_unsigned_int bi arg dbg], dbg))
+      Cop (Cpopcnt, [make_unsigned_int bi arg dbg], dbg, Cmm_lattice.top))
 
 let mulhi bi ~signed args dbg =
   let op = Cmulhi { signed } in
-  if_operation_supported_bi bi op ~f:(fun () -> Cop (op, args, dbg))
+  if_operation_supported_bi bi op ~f:(fun () ->
+      Cop (op, args, dbg, Cmm_lattice.top))
 
 let ext_pointer_load chunk name args dbg =
   let p = int_as_pointer (one_arg name args) dbg in
-  Some (Cop (mk_load_mut chunk, [p], dbg))
+  Some (Cop (mk_load_mut chunk, [p], dbg, Cmm_lattice.top))
 
 let ext_pointer_store chunk name args dbg =
   let arg1, arg2 = two_args name args in
   let p = int_as_pointer arg1 dbg in
-  Some (return_unit dbg (Cop (Cstore (chunk, Assignment), [p; arg2], dbg)))
+  Some
+    (return_unit dbg
+       (Cop (Cstore (chunk, Assignment), [p; arg2], dbg, Cmm_lattice.top)))
 
 let bigstring_prefetch ~is_write locality args dbg =
   let op = Cprefetch { is_write; locality } in

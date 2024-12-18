@@ -65,7 +65,7 @@ type prefetch_info = {
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
-type float_width = Cmm.float_width
+type float_width = Float_width.t
 
 type specific_operation =
     Ilea of addressing_mode             (* "lea" gives scaled adds *)
