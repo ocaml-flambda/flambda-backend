@@ -2399,8 +2399,8 @@ let array_set_kind mode = function
   | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
   | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
 
-let array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
-      (kind : array_set_kind) ~print_array_set_kind : array_ref_kind =
+let array_ref_kind_of_array_set_kind (kind : array_set_kind) mode
+      : array_ref_kind =
   match kind with
   | Pintarray_set -> Pintarray_ref
   | Punboxedfloatarray_set uf -> Punboxedfloatarray_ref uf
@@ -2410,12 +2410,9 @@ let array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
     Pgcscannableproductarray_ref scannables
   | Pgcignorableproductarray_set ignorables ->
     Pgcignorableproductarray_ref ignorables
-  | Pgenarray_set _
-  | Paddrarray_set _
-  | Pfloatarray_set ->
-    Misc.fatal_errorf "Array set kind %a cannot be converted via \
-        array_ref_kind_of_array_set_kind_for_unboxed_types_and_int"
-      print_array_set_kind kind
+  | Pgenarray_set _ -> Pgenarray_ref mode
+  | Paddrarray_set _ -> Paddrarray_ref
+  | Pfloatarray_set -> Pfloatarray_ref mode
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)

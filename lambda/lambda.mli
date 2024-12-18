@@ -1170,11 +1170,10 @@ val array_ref_kind : locality_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 
-(** Note that this fails on [Pfloatarray_set] *)
-val array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
-  : array_set_kind
-  -> print_array_set_kind:(Format.formatter -> array_set_kind -> unit)
-  -> array_ref_kind
+(** Any mode information in the given [array_set_kind] is ignored.  Any mode
+    in the return value always comes from the [locality_mode] parameter. *)
+val array_ref_kind_of_array_set_kind
+  : array_set_kind -> locality_mode -> array_ref_kind
 
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool

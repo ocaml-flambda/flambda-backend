@@ -462,8 +462,11 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
 let arrayblit env ~(src_mutability : L.mutable_flag)
     ~(dst_array_set_kind : L.array_set_kind) args loc =
   let src_array_ref_kind =
-    L.array_ref_kind_of_array_set_kind_for_unboxed_types_and_int
-      dst_array_set_kind ~print_array_set_kind:Printlambda.array_set_kind
+    (* We don't expect any allocation (e.g. occurring from the reading of a
+       [float array]) to persist after simplification. We use [alloc_local] just
+       in case that simplification doesn't happen for some reason (this seems
+       unlikely). *)
+    L.array_ref_kind_of_array_set_kind dst_array_set_kind L.alloc_local
   in
   match args with
   | [src_expr; src_start_pos_expr; dst_expr; dst_start_pos_expr; length_expr] ->
@@ -521,8 +524,12 @@ let arrayblit env ~(src_mutability : L.mutable_flag)
     let env, copy_backwards = make_loop env Downto in
     let env, copy_forwards = make_loop env Upto in
     let body =
-      L.Lifthenelse
-        (must_copy_backwards, copy_backwards, copy_forwards, L.layout_unit)
+      (* The region is expected to be redundant (see comment above about
+         modes). *)
+      L.Lregion
+        ( L.Lifthenelse
+            (must_copy_backwards, copy_backwards, copy_forwards, L.layout_unit),
+          L.layout_unit )
     in
     let expr =
       (* Preserve right-to-left evaluation order. *)
