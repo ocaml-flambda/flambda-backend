@@ -290,7 +290,7 @@ let win64 =
 
 
 (* Specific operations that are pure *)
-(* Keep in sync with [of_specific_operation] *)
+(* Keep in sync with [Vectorize_specific] *)
 let operation_is_pure = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _  -> true
@@ -301,7 +301,7 @@ let operation_is_pure = function
   | Isimd op -> Simd.is_pure op
 
 (* Specific operations that can raise *)
-(* Keep in sync with [of_specific_operation] *)
+(* Keep in sync with [Vectorize_specific] *)
 let operation_can_raise = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _
@@ -310,7 +310,7 @@ let operation_can_raise = function
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Icldemote _ | Iprefetch _ -> false
 
-(* Keep in sync with [of_specific_operation] *)
+(* Keep in sync with [Vectorize_specific] *)
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _
