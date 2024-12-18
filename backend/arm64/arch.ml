@@ -341,7 +341,7 @@ let equal_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
       (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed _, Iindexed _ -> true
-  | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
+  | Ibased (var1, _), Ibased (var2, _) -> String.equal var1 var2
   | (Iindexed _ | Ibased _), _ -> false
 
 let addressing_offset_in_bytes _ _  ~arg_offset_in_bytes:_  _ _ =
