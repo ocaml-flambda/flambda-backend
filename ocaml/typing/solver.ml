@@ -661,7 +661,6 @@ module Solver_mono (C : Lattices_mono) = struct
   let fresh ?upper ?lower ?vlower ?vupper ?level obj =
     let id = !cnt_id in
     cnt_id := id + 1;
-    (* For now, pick the levels at random *)
     let level = Option.value level ~default:0 in
     let upper = Option.value upper ~default:(C.max obj) in
     let lower = Option.value lower ~default:(C.min obj) in
@@ -711,9 +710,9 @@ module Solver_mono (C : Lattices_mono) = struct
           let copy = fresh ~upper:u.upper ~lower:u.lower ~level:u.level dst in
           let ok1 = submode_mvmv ~log dst (Amorphvar (copy, C.id)) (Amorphvar (u, C.id)) in
           let ok2 = submode_mvmv ~log dst (Amorphvar (u, C.id)) (Amorphvar (copy, C.id)) in
-          assert (Result.is_ok ok1 && Result.is_ok ok2)
-        end;
-        update_level_v ~log dst current_level u
+          assert (Result.is_ok ok1 && Result.is_ok ok2);
+          update_level_v ~log dst current_level copy
+        end
       end
 
   let generalize_v
