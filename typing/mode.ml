@@ -2472,20 +2472,20 @@ module Modality = struct
             To prove soundness [meet_with (imply_with mm m) mm >= m], we need to prove:
             - [imply_with mm m >= m], or equivalently [meet mm m <= m] which is trivial.
             - [mm >= m], which is guaranteed by the caller of [infer].
-            Note that the soundness condition holds if we take [c] to be [imply_with _ m]
-            where the underscore can be anything.
+            In fact, the soundness condition holds for any [c]  taken to be
+            [imply_with _ m] where the underscore can be anything.
 
-            Note that [imply_with] requires its first argument to be constant, so we need
-            to get a constant out of [mm]. We have several choices:
-            - Take its floor [mm' <= mm]. This gives us a higher [c] and might be
-              incomplete.
-            - Take its ceil [mm' >= mm]. This gives us a lower [c] that is complete,but
-            - not
-               simple.
-            - Zap to floor. This gives us a [c] that is complete and simple. But we are
-               imposing extra constraint to [mm] not requested by the caller.
-            - Zap to ceil. This gives us a [c] that is complete and not simple. And we are
-               imposing extra constraint.
+            Note that [imply_with] requires its first argument to be a constant, so we
+            need to get a constant out of [mm]. First recall that [imply_with] is antitone
+            in its first argument. Now, we have several choices:
+            - Take its floor [mm' <= mm], and then [c' = imply_with mm' m]. [c'] is higher
+              than [c] and thus might be incomplete.
+            - Take its ceil [mm' >= mm]. Then, [c'] is lower than [c] and thus complete,
+              but might be less simple than [c].
+            - Zap to floor. This gives us a [c' = c] that is complete and simple, but we
+               are imposing extra constraint to [mm] not requested by the caller.
+            - Zap to ceil. This gives us a [c' = c] that is complete, but less simple than
+              zapping it to floor. Also, we are imposing extra constraint.
 
             We prioritize completeness and "not imposing extra constarint" over
             simplicity. So we take its ceil [mm' >= mm].
