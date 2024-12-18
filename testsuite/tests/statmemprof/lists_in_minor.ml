@@ -8,12 +8,10 @@ module MP = Gc.Memprof
 let rec allocate_list accu = function
   | 0 -> accu
   | n ->
-    Gc.full_major ();
     allocate_list (n::accu) (n-1)
 
 let[@inline never] allocate_lists len cnt =
   for j = 0 to cnt-1 do
-    Gc.full_major ();
     ignore (Sys.opaque_identity (allocate_list [] len))
   done
 
