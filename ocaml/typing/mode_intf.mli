@@ -114,6 +114,10 @@ module type S = sig
 
   val set_append_changes : (changes ref -> unit) -> unit
 
+  type copy_scope
+
+  val with_copy_scope : (copy_scope -> 'a) -> 'a
+
   type nonrec allowed = allowed
 
   type nonrec disallowed = disallowed
@@ -477,6 +481,24 @@ module type S = sig
 
     (** Returns the lower bound needed for [B -> C] in relation to [A -> B -> C] *)
     val partial_apply : (allowed * 'r) t -> l
+
+    val instantiate :
+      copy_scope:copy_scope ->
+      current_level:int ->
+      generic_level:int ->
+      ('l * 'r) t ->
+      ('l * 'r) t
+
+    val copy_generic :
+      copy_scope:copy_scope ->
+      generic_level:int ->
+      ('l * 'r) t ->
+      ('l * 'r) t
+
+    val duplicate :
+      copy_scope:copy_scope ->
+      ('l * 'r) t ->
+      ('l * 'r) t
   end
 
   (** The most general mode. Used in most type checking,
