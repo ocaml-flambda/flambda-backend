@@ -2460,23 +2460,37 @@ module Modality = struct
       | Undefined -> Misc.fatal_error "modality Undefined should not be zapped."
       | Exactly (mm, m) ->
         let m = Mode.zap_to_floor m in
-        (* For soundness, we want some [c] such that [meet_with c mm >= m].
-           For completeness, we want [meet_with c mm <= m].
+        (* We want some [c] such that:
+           - Soundness: [meet_with c mm >= m].
+           - Completeness: [meet_with c mm <= m].
+           - Simplicity: Optionally, we want [c] to be as high as possible to make
+            [meet_with c] a simpler modality.
 
-           We will find the highest [c] that satisfy completeness, and then
-           prove soundness for such [c].
+            We first rewrite completeness condition to [c <= imply_with mm m].
+            We will take [c] to be [imply_with mm m] and prove soundness for it.
 
-           To find the former, we have [c <= imply_with mm m]. Note that [mm]
-           is a variable but we need a constant, so we take its ceil [mm' >= mm]
-           and have [c <= imply_with mm' m <= imply_with mm m].
+            To prove soundness [meet_with (imply_with mm m) mm >= m], we need to prove:
+            - [imply_with mm m >= m], or equivalently [meet mm m <= m] which is trivial.
+            - [mm >= m], which is guaranteed by the caller of [infer].
+            Note that the soundness condition holds if we take [c] to be [imply_with _ m]
+            where the underscore can be anything.
 
-           Let [c] be [imply_with mm' m], and we can't satisfy soundness
-           condition.
+            Note that [imply_with] requires its first argument to be constant, so we need
+            to get a constant out of [mm]. We have several choices:
+            - Take its floor [mm' <= mm]. This gives us a higher [c] and might be
+              incomplete.
+            - Take its ceil [mm' >= mm]. This gives us a lower [c] that is complete,but
+            - not
+               simple.
+            - Zap to floor. This gives us a [c] that is complete and simple. But we are
+               imposing extra constraint to [mm] not requested by the caller.
+            - Zap to ceil. This gives us a [c] that is complete and not simple. And we are
+               imposing extra constraint.
 
-           To address this, we need to zap [mm]. Either direction suffices to
-           fix soundness, but we will zap to floor to get a higher [c].
+            We prioritize completeness and "not imposing extra constarint" over
+            simplicity. So we take its ceil [mm' >= mm].
         *)
-        let mm' = Mode.zap_to_floor mm in
+        let mm' = Mode.Guts.get_ceil mm in
         let c = Mode.Const.imply mm' m in
         Const.Meet_const c
 
