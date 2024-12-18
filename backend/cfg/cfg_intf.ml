@@ -89,14 +89,14 @@ module S = struct
     | Active
 
   type 'a instruction =
-    { id : int;
-      desc : 'a;
+    { desc : 'a;
       mutable arg : Reg.t array;
       mutable res : Reg.t array;
       mutable dbg : Debuginfo.t;
       mutable fdo : Fdo_info.t;
       mutable live : Reg.Set.t;
       mutable stack_offset : int;
+      id : int;
       mutable irc_work_list : irc_work_list;
       mutable ls_order : int;
       mutable available_before : Reg_availability_set.t option;
