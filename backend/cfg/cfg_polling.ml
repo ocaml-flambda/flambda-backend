@@ -192,6 +192,17 @@ let instr_cfg_with_layout :
     bool =
  fun cfg_with_layout ~safe_map ~back_edges ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  let next_instruction_id =
+    lazy
+      (let cfg_infos = Regalloc_utils.collect_cfg_infos cfg_with_layout in
+       ref (succ cfg_infos.max_instruction_id))
+  in
+  let next_instruction_id () =
+    let next_ref = Lazy.force next_instruction_id in
+    let res = !next_ref in
+    incr next_ref;
+    res
+  in
   Cfg_loop_infos.EdgeSet.fold
     (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
       let needs_poll =
@@ -201,13 +212,6 @@ let instr_cfg_with_layout :
       if needs_poll
       then (
         let after = Cfg.get_block_exn cfg src in
-        let cfg_infos = Regalloc_utils.collect_cfg_infos cfg_with_layout in
-        let next_instruction_id = ref (succ cfg_infos.max_instruction_id) in
-        let next_instruction_id () =
-          let res = !next_instruction_id in
-          incr next_instruction_id;
-          res
-        in
         let poll =
           { after.terminator with
             Cfg.id = next_instruction_id ();
