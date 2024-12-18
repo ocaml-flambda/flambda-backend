@@ -248,6 +248,19 @@ end = struct
   let copy (i : Cfg.basic Cfg.instruction) ~arg ~res ~id ~desc =
     { i with desc; arg; res; id }
 
+  (* [op_isomorphic] is used to identify candidate operations that may be
+     grouped into a vector operation. It returns true if two operations have the
+     same opcode but allows different constant arguments or different constant
+     displacement in the address calculation. Subsequent checks ensure that the
+     corresponding vector instruction is supported by the target architecture,
+     where additional constraints on the constants may be needed (see
+     [Operation.is_adjacent] and [Simd_selection.vectorize_operation]. It is
+     safe to return [false] conservatively, but will prevent vectorization.
+     [Arch.isomorphic_specific_operation] may also conservatively return false
+     even if some operations are isomorphic. [Arch.equal_specific_operation] can
+     be used as a conservative approximation of [Arch.isomorphic_specific
+     operation], for example for SIMD operations with different constants, such
+     as [Simd.Clmul_64] in amd64. *)
   let op_isomorphic (op1 : Operation.t) (op2 : Operation.t) =
     match op1, op2 with
     | Move, Move | Spill, Spill | Reload, Reload -> true
@@ -270,16 +283,14 @@ end = struct
             is_atomic = is_atomic2
           } ) ->
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
-      && Arch.compare_addressing_mode_without_displ addressing_mode1
+      && Arch.equal_addressing_mode_without_displ addressing_mode1
            addressing_mode2
-         = 0
       && mutability1 = mutability2 && is_atomic1 = is_atomic2
     | ( Store (memory_chunk1, addressing_mode1, is_assignment1),
         Store (memory_chunk2, addressing_mode2, is_assignment2) ) ->
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
-      && Arch.compare_addressing_mode_without_displ addressing_mode1
+      && Arch.equal_addressing_mode_without_displ addressing_mode1
            addressing_mode2
-         = 0
       && is_assignment1 = is_assignment2
     | Intop intop1, Intop intop2 ->
       Simple_operation.equal_integer_operation intop1 intop2
@@ -289,10 +300,7 @@ end = struct
       Simple_operation.equal_float_width width1 width2
       && Simple_operation.equal_float_operation floatop1 floatop2
     | Specific specific_operation1, Specific specific_operation2 ->
-      Arch.equal_specific_operation specific_operation1 specific_operation2
-      (* CR-soon tip: [Arch.equal_specific_operation] may return false even if
-         some operations are isomorphic (ie. when they have different
-         constants) *)
+      Arch.isomorphic_specific_operation specific_operation1 specific_operation2
     | Move, _
     | Spill, _
     | Reload, _

@@ -412,28 +412,21 @@ let equal_specific_operation left right =
 
 (* addressing mode functions *)
 
-let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
-  (* Ignores displ when comparing to show that it is possible to calculate the offset *)
+let equal_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  (* Ignores [displ] when comparing to show that it is possible to calculate the offset,
+     see [addressing_offset_in_bytes]. *)
   match addressing_mode_1, addressing_mode_2 with
   | Ibased (symbol1, global1, _), Ibased (symbol2, global2, _) -> (
     match global1, global2 with
     | Global, Global | Local, Local ->
-      String.compare symbol1 symbol2
-    | Global, Local -> -1
-    | Local, Global -> 1)
-  | Ibased _, _ -> -1
-  | _, Ibased _ -> 1
-  | Iindexed _, Iindexed _ -> 0
-  | Iindexed _, _ -> -1
-  | _, Iindexed _ -> 1
-  | Iindexed2 _, Iindexed2 _ -> 0
-  | Iindexed2 _, _ -> -1
-  | _, Iindexed2 _ -> 1
-  | Iscaled (scale1, _), Iscaled (scale2, _) -> Int.compare scale1 scale2
-  | Iscaled _, _ -> -1
-  | _, Iscaled _ -> 1
+      String.equal symbol1 symbol2
+    | (Global | Local), _ -> false)
+  | Iindexed _, Iindexed _ -> true
+  | Iindexed2 _, Iindexed2 _ -> true
+  | Iscaled (scale1, _), Iscaled (scale2, _) -> Int.equal scale1 scale2
   | Iindexed2scaled (scale1, _), Iindexed2scaled (scale2, _) ->
-    Int.compare scale1 scale2
+    Int.equal scale1 scale2
+  | (Ibased _ | Iindexed _ | Iindexed2 _ | Iscaled _ | Iindexed2scaled _), _ -> false
 
 let addressing_offset_in_bytes
       (addressing_mode_1: addressing_mode)
@@ -482,6 +475,47 @@ let addressing_offset_in_bytes
   | Iindexed2 _, _ -> None
   | Iscaled _, _ -> None
   | Iindexed2scaled _, _ -> None
+
+let isomorphic_specific_operation op1 op2 =
+  match op1, op2 with
+  | Ilea a1, Ilea a2 -> equal_addressing_mode_without_displ a1 a2
+  | Istore_int (_n1, a1, is_assign1), Istore_int (_n2, a2, is_assign2) ->
+    equal_addressing_mode_without_displ a1 a2 && Bool.equal is_assign1 is_assign2
+  | Ioffset_loc (_n1, a1), Ioffset_loc (_n2, a2) ->
+    equal_addressing_mode_without_displ a1 a2
+  | Ifloatarithmem (w1, o1, a1), Ifloatarithmem (w2, o2, a2) ->
+    Cmm.equal_float_width w1 w2 &&
+    equal_float_operation o1 o2 &&
+    equal_addressing_mode_without_displ a1 a2
+  | Ibswap { bitwidth = left }, Ibswap { bitwidth = right } ->
+    Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
+  | Isextend32, Isextend32 ->
+    true
+  | Izextend32, Izextend32 ->
+    true
+  | Irdtsc, Irdtsc ->
+    true
+  | Irdpmc, Irdpmc ->
+    true
+  | Ilfence, Ilfence ->
+    true
+  | Isfence, Isfence ->
+    true
+  | Imfence, Imfence ->
+    true
+  | Ipause, Ipause -> true
+  | Icldemote x, Icldemote x' -> equal_addressing_mode_without_displ x x'
+  | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
+    Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
+    Bool.equal left_is_write right_is_write
+    && equal_prefetch_temporal_locality_hint left_locality right_locality
+    && equal_addressing_mode_without_displ left_addr right_addr
+  | Isimd l, Isimd r ->
+    Simd.equal_operation l r
+  | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
+     Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
+     Ipause | Isimd _ | Icldemote _ | Iprefetch _), _ ->
+    false
 
 module Memory_access = struct
   module Init_or_assign = struct

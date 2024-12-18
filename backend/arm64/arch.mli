@@ -116,8 +116,10 @@ val operation_allocates : specific_operation -> bool
 
 val operation_can_raise : specific_operation -> bool
 
+val isomorphic_specific_operation : specific_operation -> specific_operation -> bool
+
 (* See `amd64/arch.mli`. *)
-val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
+val equal_addressing_mode_without_displ : addressing_mode -> addressing_mode -> bool
 
 val addressing_offset_in_bytes
   : addressing_mode

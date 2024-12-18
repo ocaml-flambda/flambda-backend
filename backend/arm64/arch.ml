@@ -214,6 +214,9 @@ let equal_specific_operation left right =
     | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
     | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _), _ -> false
 
+let isomorphic_specific_operation op1 op2 =
+  equal_specific_operation op1 op2
+
 (* Recognition of logical immediate arguments *)
 
 (* An automaton to recognize ( 0+1+0* | 1+0+1* )
@@ -334,13 +337,12 @@ let operation_allocates = function
   | Ibswap _ -> false
 
 (* See `amd64/arch.ml`. *)
-let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
+let equal_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
       (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
-  | Iindexed _, Iindexed _ -> 0
-  | Iindexed _ , _ -> -1
-  | _, Iindexed _ -> 1
+  | Iindexed _, Iindexed _ -> true
   | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
+  | (Iindexed _ | Ibased _), _ -> false
 
 let addressing_offset_in_bytes _ _  ~arg_offset_in_bytes:_  _ _ =
   None   (* conservative *)
