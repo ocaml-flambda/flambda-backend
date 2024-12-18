@@ -1004,6 +1004,13 @@ end = struct
           | Name_for_debugger _ | Dls_get | Poll | Opaque | Probe_is_enabled _
             ->
             (* conservative, don't reorder around this instruction. *)
+            (* CR-someday gyorsh: Poll insertion pass is after the vectorizer.
+               Currently, it inserts instruction at the end of a block, so it
+               would not have affected vectorizer decisions. Consider soundness
+               of it carefully if the vectorizer is extended beyond basic blocks
+               (also in arm64 backend). Note that some poll instructions can
+               also be inserted before the vectorizer by the user or during
+               selection. *)
             Memory_access.create Arbitrary
           | Spill | Reload ->
             Misc.fatal_error
