@@ -21,8 +21,6 @@ module State : sig
 
   val dump : t -> ('a, Format.formatter, unit) format -> 'a
 
-  val max_block_size_to_vectorize : int
-
   val extra_debug : bool
 
   val fun_name : t -> string
@@ -37,9 +35,6 @@ end = struct
     }
 
   type live_regs = Reg.Set.t
-
-  (* CR gyorsh: add a compiler flag to control this constant? *)
-  let max_block_size_to_vectorize = 1000
 
   let fun_name t = Cfg.fun_name (Cfg_with_layout.cfg t.cfg_with_layout)
 
@@ -3006,12 +3001,13 @@ let maybe_vectorize block =
   let instruction_count = Block.size block in
   let label = Block.start block in
   State.dump state "\nBlock %a:\n" Label.print label;
-  if instruction_count > State.max_block_size_to_vectorize
-  then
+  if instruction_count > !Flambda_backend_flags.vectorize_max_block_size
+  then (
     State.dump state
       "Skipping block %a with %d instructions (> %d = \
        max_block_size_to_vectorize).\n"
-      Label.print label instruction_count State.max_block_size_to_vectorize
+      Label.print label instruction_count
+      !Flambda_backend_flags.vectorize_max_block_size;
   else
     let deps = Dependencies.from_block block in
     let seeds = Computation.Seed.from_block block deps in
