@@ -480,7 +480,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
   let same_width memory_chunk =
-    Int.equal width_in_bits (Cmm.width_in_bits memory_chunk)
+    Vectorize_utils.Width_in_bits.equal width_type
+      (Vectorize_utils.Width_in_bits.of_memory_chunk memory_chunk)
   in
   let make_default ~arg_count ~res_count operation :
       Vectorize_utils.Vectorized_instruction.t list option =

@@ -389,9 +389,6 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-val width_in_bits : memory_chunk -> int
-val atomic_bitwidth_to_bits : atomic_bitwidth -> int
-
 val ccatch :
      Lambda.static_label * (Backend_var.With_provenance.t * machtype) list
        * expression * expression * Debuginfo.t * kind_for_unboxing
