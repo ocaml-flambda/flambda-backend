@@ -1988,6 +1988,10 @@ module Computation : sig
   (** Selects disjoint computations from the input list of computations
       and returns their union. *)
   val select_and_join : t list -> Block.t -> Dependencies.t -> t option
+
+  val cost : t -> int
+
+  val num_groups : t -> int
 end = struct
   module Group : sig
     (** Represents scalar instructions and the corresponding
@@ -2996,6 +3000,23 @@ let validate tree block deps =
   State.dump_debug state "Validated. Reordered block:\n";
   DLL.iter body ~f:(fun i -> State.dump_debug state "%a\n" Instruction.print i)
 
+let count block computation =
+  let counter =
+    Profile.Counters.create ()
+    |> Profile.Counters.set "tried_to_vectorize_blocks" 1
+    |> Profile.Counters.set "block_size" (Block.size block)
+  in
+  if Block.size block > !Flambda_backend_flags.vectorize_max_block_size
+  then counter |> Profile.Counters.set "block_too_big" 1
+  else
+    match computation with
+    | None -> counter
+    | Some c ->
+      counter
+      |> Profile.Counters.set "vectorized_block" 1
+      |> Profile.Counters.set "cost" (Computation.cost c)
+      |> Profile.Counters.set "num_groups" (Computation.num_groups c)
+
 let maybe_vectorize block =
   let state = Block.state block in
   let instruction_count = Block.size block in
@@ -3008,6 +3029,7 @@ let maybe_vectorize block =
        max_block_size_to_vectorize).\n"
       Label.print label instruction_count
       !Flambda_backend_flags.vectorize_max_block_size;
+    None)
   else
     let deps = Dependencies.from_block block in
     let seeds = Computation.Seed.from_block block deps in
@@ -3017,7 +3039,7 @@ let maybe_vectorize block =
     in
     State.dump_debug state "%a@." (Computation.dump_all ~block) computations;
     match Computation.select_and_join computations block deps with
-    | None -> ()
+    | None -> None
     | Some computation ->
       let scoped_name =
         State.fun_dbg state |> Debuginfo.get_dbg |> Debuginfo.Dbg.to_list
@@ -3043,7 +3065,7 @@ let maybe_vectorize block =
       (* This is the only function that changes the [block]. *)
       vectorize block computation;
       dump_block "after vectorize" block;
-      ()
+      Some computation
 
 let cfg ppf_dump cl =
   let state = State.create ppf_dump cl in
@@ -3054,5 +3076,8 @@ let cfg ppf_dump cl =
   let layout = Cfg_with_layout.layout cl in
   DLL.iter layout ~f:(fun label ->
       let block = Block.create (Cfg.get_block_exn cfg label) state in
-      maybe_vectorize block);
+      (Profile.record_with_counters ~counter_f:(count block) ~accumulate:true
+         "vectorize_block" maybe_vectorize block
+        : Computation.t option)
+      |> ignore);
   cl
