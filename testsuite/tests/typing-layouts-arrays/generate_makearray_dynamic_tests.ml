@@ -531,57 +531,51 @@ let test_makearray_dynamic ~uninit ~local ty =
   );
   (* Blits currently only work for GC ignorable values *)
   line "(* 7. Overlapping blits *)";
-  (if ty.Ty.is_gc_ignorable then
-     iter "blit_offsets size" "ofs1" ~debug_exprs (fun ~debug_exprs ->
-       iter "blit_offsets size" "ofs2" ~debug_exprs (fun ~debug_exprs ->
-         let lens = "blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size" in
-         iter lens "len" ~debug_exprs (fun ~debug_exprs ->
-           line "unsafe_blit a ofs1 a ofs2 len;";
-           for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-             line "let expected_src_i =";
-             with_indent (fun () ->
-               line "if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i"
-             );
-             line "in";
-             seq_assert ~debug_exprs "eq (get a i) (mk_value expected_src_i)"
-           );
-           line "(* Reset array *)";
-           for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-             line "set a i (mk_value i);"
-           )
-         );
-       );
-     )
-   else
-     line "(* Test omitted because type is not GC-ignorable *)");
+  iter "blit_offsets size" "ofs1" ~debug_exprs (fun ~debug_exprs ->
+    iter "blit_offsets size" "ofs2" ~debug_exprs (fun ~debug_exprs ->
+      let lens = "blit_lens ~ofs1 ~ofs2 ~size1:size ~size2:size" in
+      iter lens "len" ~debug_exprs (fun ~debug_exprs ->
+        line "unsafe_blit a ofs1 a ofs2 len;";
+        for_i_below_size ~debug_exprs (fun ~debug_exprs ->
+          line "let expected_src_i =";
+          with_indent (fun () ->
+            line "if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else i"
+          );
+          line "in";
+          seq_assert ~debug_exprs "eq (get a i) (mk_value expected_src_i)"
+        );
+        line "(* Reset array *)";
+        for_i_below_size ~debug_exprs (fun ~debug_exprs ->
+          line "set a i (mk_value i);"
+        )
+      );
+    );
+  );
   line "Gc.compact ();";
   let test_blit_to ~to_local =
-    if ty.Ty.is_gc_ignorable then (
-      iter "sizes" "size2" ~debug_exprs (fun ~debug_exprs ->
-        iter "blit_offsets size" "ofs1" ~debug_exprs (fun ~debug_exprs ->
-          iter "blit_offsets size2" "ofs2" ~debug_exprs (fun ~debug_exprs ->
-            let lens = "blit_lens ~ofs1 ~ofs2 ~size1:size ~size2" in
-            iter lens "len" ~debug_exprs (fun ~debug_exprs ->
-              (if to_local then
-                line "let local_ a2 = makearray_dynamic_local size2 %s in" (ty.Ty.value_code 0)
-              else
-                line "let a2 = makearray_dynamic size2 %s in" (ty.Ty.value_code 0));
-              line "unsafe_blit a ofs1 a2 ofs2 len;";
-              for_ "i" ~from:"0" ~to_:"size2 - 1" ~debug_exprs (fun ~debug_exprs ->
-                line "let expected_src_i =";
-                with_indent (fun () ->
-                  line "if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0"
-                );
-                line "in";
-                seq_assert ~debug_exprs "eq (get a2 i) (mk_value expected_src_i)"
-              )
+    iter "sizes" "size2" ~debug_exprs (fun ~debug_exprs ->
+      iter "blit_offsets size" "ofs1" ~debug_exprs (fun ~debug_exprs ->
+        iter "blit_offsets size2" "ofs2" ~debug_exprs (fun ~debug_exprs ->
+          let lens = "blit_lens ~ofs1 ~ofs2 ~size1:size ~size2" in
+          iter lens "len" ~debug_exprs (fun ~debug_exprs ->
+            (if to_local then
+              line "let local_ a2 = makearray_dynamic_local size2 %s in" (ty.Ty.value_code 0)
+            else
+              line "let a2 = makearray_dynamic size2 %s in" (ty.Ty.value_code 0));
+            line "unsafe_blit a ofs1 a2 ofs2 len;";
+            for_ "i" ~from:"0" ~to_:"size2 - 1" ~debug_exprs (fun ~debug_exprs ->
+              line "let expected_src_i =";
+              with_indent (fun () ->
+                line "if i >= ofs2 && i < ofs2 + len then i - ofs2 + ofs1 else 0"
+              );
+              line "in";
+              seq_assert ~debug_exprs "eq (get a2 i) (mk_value expected_src_i)"
             )
           )
         )
-      );
-      line "Gc.compact ();"
-    ) else
-      line "(* Test omitted because type is not GC-ignorable *)"
+      )
+    );
+    line "Gc.compact ();"
   in
   line "(* 8. Blits to heap arrays *)";
   test_blit_to ~to_local:false;
