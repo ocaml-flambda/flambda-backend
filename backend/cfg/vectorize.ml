@@ -6,8 +6,6 @@
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let ( << ) f g x = f (g x)
-
 module State : sig
   type t
 
@@ -1818,7 +1816,7 @@ end = struct
         let node = { node with all_dependencies } in
         Instruction.Id.Tbl.add t id node
       in
-      DLL.iter body ~f:(add_dependencies << Instruction.basic);
+      DLL.iter body ~f:(fun i -> add_dependencies (Instruction.basic i));
       (* CR gyorsh: not sure we need dependencies before terminator. *)
       add_dependencies terminator;
       t
@@ -2079,7 +2077,9 @@ end = struct
       | [] -> true
       | hd :: tl ->
         let stack_offset = Instruction.stack_offset hd in
-        List.for_all (Int.equal stack_offset << Instruction.stack_offset) tl
+        List.for_all
+          (fun i -> Int.equal stack_offset (Instruction.stack_offset i))
+          tl
 
     let have_isomorphic_op instructions =
       match instructions with
@@ -2135,7 +2135,9 @@ end = struct
              && can_vectorize_memory_accesses mem_op instructions deps)
         then None
         else
-          let cfg_ops = List.map (Option.get << Instruction.op) instructions in
+          let cfg_ops =
+            List.map (fun i -> i |> Instruction.op |> Option.get) instructions
+          in
           let vector_instructions =
             Simd_selection.vectorize_operation width_in_bits ~arg_count
               ~res_count cfg_ops
