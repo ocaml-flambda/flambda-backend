@@ -1,5 +1,3 @@
-# 2 "backend/arm64/vectorize_specific.ml"
-
 (* Keep in sync with [Arch.operation_is_pure], [Arch.operation_can_raise],
    [Arch.operation_allocates]. *)
 module Memory_access = Vectorize_utils.Memory_access
