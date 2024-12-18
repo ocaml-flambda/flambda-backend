@@ -93,9 +93,6 @@ module Solver_mono (C : Lattices_mono) = struct
          - for all [f u \in v.vlower] and [g w \in v.vupper] we
            have either [g'f \in w.vlower] or [f'g \in u.vupper]. *)
       id : int;  (** For identification/printing *)
-      mutable optcopy : 'a var option
-      (** Similar to Tsubst in a type, the [optcopy] field holds an optional copy used
-          during instantiation *)
     }
 
   and 'b lmorphvar = ('b, left_only) morphvar
@@ -130,15 +127,6 @@ module Solver_mono (C : Lattices_mono) = struct
   (** [append_changes l0 l1] returns a log that's equivalent to [l0] followed by
   [l1]. *)
   let append_changes l0 l1 = l1 @ l0
-
-  type copy_change =
-    | Coptcopy : 'a C.obj * 'a var * 'a var option -> copy_change
-
-  type mode_copy_scope = {
-    mutable saved_copies : copy_change list;
-  }
-
-  let fresh_mode_copy_scope () = { saved_copies = [] }
 
   type ('a, 'd) mode =
     | Amode : 'a -> ('a, 'l * 'r) mode
@@ -332,12 +320,6 @@ module Solver_mono (C : Lattices_mono) = struct
     | None -> ()
     | Some log -> log := Cvupper (v, v.vupper) :: !log);
     v.vupper <- vupper
-
-  (** Function used internally by copy, where [changes] maintains the cleanup once
-      the copy is done. Unlike other setters, the [changes] is here mandatory *)
-  let set_optcopy ~changes obj v copy =
-    changes.saved_copies <- Coptcopy (obj, v, v.optcopy) :: changes.saved_copies;
-    v.optcopy <- copy
 
   (** Returns [Ok ()] if success; [Error x] if failed, and [x] is the next best
     (read: strictly lower) guess to replace the constant argument that MIGHT
@@ -680,14 +662,12 @@ module Solver_mono (C : Lattices_mono) = struct
     let id = !cnt_id in
     cnt_id := id + 1;
     (* For now, pick the levels at random *)
-    let default_level = if !Clflags.debug_ocaml then id mod 5 else 0 in
-    let level = Option.value level ~default:default_level in
+    let level = Option.value level ~default:0 in
     let upper = Option.value upper ~default:(C.max obj) in
     let lower = Option.value lower ~default:(C.min obj) in
     let vlower = Option.value vlower ~default:[] in
     let vupper = Option.value vupper ~default:[] in
-    let optcopy = None in
-    { level; upper; lower; vlower; vupper; id; optcopy }
+    { level; upper; lower; vlower; vupper; id }
 
 
   (* Moves every reachable variable from [u] such that
@@ -709,45 +689,39 @@ module Solver_mono (C : Lattices_mono) = struct
         List.iter do_gen u.vlower
       end
 
+  (* Behaves like [generalize_topology], and additionally creates a copy of each reachable
+  variable [u] such that [u] < [copy] and [copy] < [u] via submode, and lowers the [copy]
+  to [current_level]. *)
+  let rec generalize_topology_struct
+      : type a. log:_ -> a C.obj -> current_level:int ->
+        generic_level:int -> a var -> unit =
+    fun ~log dst ~current_level ~generic_level u ->
+      if u.level <= current_level || u.level >= generic_level then ()
+      else begin
+        let new_level = generic_level + (u.level - current_level) in
+        set_level ~log u new_level;
+        let do_gen (Amorphvar (v, f)) =
+          let src = C.src dst f in
+          generalize_topology_struct ~log src ~current_level ~generic_level v
+        in
+        List.iter do_gen u.vupper;
+        List.iter do_gen u.vlower;
+        (* If bounds are already tight, there is no need to create a copy *)
+        if not (C.le dst u.upper u.lower) then begin
+          let copy = fresh ~upper:u.upper ~lower:u.lower ~level:u.level dst in
+          let ok1 = submode_mvmv ~log dst (Amorphvar (copy, C.id)) (Amorphvar (u, C.id)) in
+          let ok2 = submode_mvmv ~log dst (Amorphvar (u, C.id)) (Amorphvar (copy, C.id)) in
+          assert (Result.is_ok ok1 && Result.is_ok ok2)
+        end;
+        update_level_v ~log dst current_level u
+      end
+
   let generalize_v
       : type a. log:_ -> a C.obj -> current_level:int ->
         generic_level:int -> a var -> unit =
     fun ~log dst ~current_level ~generic_level u ->
       generalize_topology ~log dst ~current_level ~generic_level u;
       update_level_v ~log dst generic_level u
-
-  type varcond = { b : 'a. 'a var -> bool; } [@@unboxed]
-
-  let rec copy_under_condition_v
-      : type a. copylog:_ -> varcond -> ?current_level:int ->
-        a C.obj -> a var -> a var =
-    fun ~copylog cond ?current_level obj v ->
-      if not (cond.b v) then v
-      else begin
-        match v.optcopy with
-        | Some v' -> v'
-        | None ->
-          let copy = fresh ~upper:v.upper ~lower:v.lower ~level:v.level obj in
-          set_optcopy ~changes:copylog obj v (Some copy);
-          let vupper = List.map
-            (fun (Amorphvar (u, f)) ->
-              let src = C.src obj f in
-              let ucopy = copy_under_condition_v ~copylog cond ?current_level src u in
-              (Amorphvar (ucopy, f)))
-            v.vupper;
-          in
-          let vlower = List.map
-            (fun (Amorphvar (u, f)) ->
-              let src = C.src obj f in
-              let ucopy = copy_under_condition_v ~copylog cond ?current_level src u in
-              (Amorphvar (ucopy, f)))
-            v.vlower
-          in
-          copy.vupper <- vupper;
-          copy.vlower <- vlower;
-          Option.iter (fun level -> update_level_v ~log:None obj level copy) current_level;
-          copy
-      end
 
   (* generalize_structure has three cases:
     (1) if bounds are tight, the var is moved to generic_level
@@ -771,20 +745,8 @@ module Solver_mono (C : Lattices_mono) = struct
         update_level_v ~log dst current_level u
       else begin
         (* the bounds are non-trivial *)
-        let cond = { b = fun v -> v.level > current_level } in
-        let copylog = fresh_mode_copy_scope () in
-        let _ = copy_under_condition_v ~copylog cond ~current_level dst u in
-        generalize_topology ~log dst ~current_level ~generic_level u;
-        update_level_v ~log dst generic_level u;
-        let connect_copy = function
-          | Coptcopy (obj, v, vcopy) ->
-              let copy = Option.get v.optcopy in
-              let ok1 = submode_mvmv ~log obj (Amorphvar (copy, C.id)) (Amorphvar (v, C.id)) in
-              let ok2 = submode_mvmv ~log obj (Amorphvar (v, C.id)) (Amorphvar (copy, C.id)) in
-              assert (Result.is_ok ok1 && Result.is_ok ok2);
-              v.optcopy <- vcopy
-        in
-        List.iter connect_copy copylog.saved_copies
+        generalize_topology_struct ~log dst ~current_level ~generic_level u;
+        update_level_v ~log dst generic_level u
       end
 
   let generalize (type a l r) ~current_level ~generic_level (obj : a C.obj)
