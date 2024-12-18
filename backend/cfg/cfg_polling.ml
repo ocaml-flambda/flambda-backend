@@ -194,7 +194,10 @@ let instr_cfg_with_layout :
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   Cfg_loop_infos.EdgeSet.fold
     (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
-      let needs_poll = exists_unsafe_path cfg ~safe_map ~from:dst ~to_:src in
+      let needs_poll =
+        (not (Label.Tbl.find safe_map src))
+        && exists_unsafe_path cfg ~safe_map ~from:dst ~to_:src
+      in
       if needs_poll
       then (
         let after = Cfg.get_block_exn cfg src in
