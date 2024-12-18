@@ -603,7 +603,7 @@ module Hardware_registers = struct
       let reg_index_in_class : int =
         reg_index - Proc.first_available_register.(reg_class)
       in
-      if reg_index < Array.length t.(reg_class)
+      if reg_index_in_class < Array.length t.(reg_class)
       then Some t.(reg_class).(reg_index_in_class)
       else None
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
