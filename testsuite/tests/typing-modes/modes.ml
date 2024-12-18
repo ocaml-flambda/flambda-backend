@@ -455,18 +455,6 @@ let foo () =
 val foo : unit -> unit = <fun>
 |}]
 
-(* modalities on normal values requires [-extension mode_alpha] *)
-module type S = sig
-  val x : string -> string @ local @@ foo bar
-end
-[%%expect{|
-Line 2, characters 38-41:
-2 |   val x : string -> string @ local @@ foo bar
-                                          ^^^
-Error: The extension "mode" is disabled and cannot be used
-|}]
-
-
 (*
  * Modification of return modes in argument position
  *)
