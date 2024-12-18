@@ -1927,7 +1927,7 @@ module Computation : sig
 
     val scalar_instructions : t -> Instruction.t list
 
-    val vector_instructions : t -> Simd_selection.vectorized_instruction list
+    val vector_instructions : t -> Operation.vectorized_instruction list
 
     val iter_vectorizable_args : t -> f:(arg_i:int -> unit) -> unit
   end
@@ -1969,7 +1969,7 @@ end = struct
     val scalar_instructions : t -> Instruction.t list
 
     (** guaranteed to return a non-empty list.  *)
-    val vector_instructions : t -> Simd_selection.vectorized_instruction list
+    val vector_instructions : t -> Operation.vectorized_instruction list
 
     (** maps over the indexes of arguments that need to be considered when vectorizing
         dependencies. Currently skips over arguments that are used for memory address
@@ -1993,7 +1993,7 @@ end = struct
     val dump : Format.formatter -> t -> unit
   end = struct
     type t =
-      { vector_instructions : Simd_selection.vectorized_instruction list;
+      { vector_instructions : Operation.vectorized_instruction list;
         instructions : Instruction.t list;
         non_address_arg_count : int;
         arg_count : int
@@ -2132,7 +2132,7 @@ end = struct
         pp_print_list ~pp_sep:pp_print_newline Instruction.print ppf l
       in
       let vpp ppf l =
-        let pp ppf (simd_instruction : Simd_selection.vectorized_instruction) =
+        let pp ppf (simd_instruction : Operation.vectorized_instruction) =
           fprintf ppf "%a " Cfg.dump_basic (Cfg.Op simd_instruction.operation)
         in
         pp_print_list ~pp_sep:pp_print_newline pp ppf l
@@ -2817,9 +2817,8 @@ let add_vector_instructions_for_group reg_map state group ~before:cell
       Numbers.Int.Tbl.add new_regs n new_reg;
       new_reg
   in
-  let create_instruction
-      (simd_instruction : Simd_selection.vectorized_instruction) =
-    let get_register (simd_reg : Simd_selection.register) =
+  let create_instruction (simd_instruction : Operation.vectorized_instruction) =
+    let get_register (simd_reg : Operation.vectorized_instruction_register) =
       match simd_reg with
       | New n -> get_new_reg n
       | Argument n ->

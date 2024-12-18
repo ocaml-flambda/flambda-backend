@@ -477,31 +477,10 @@ type width =
   | W32
   | W64
 
-type register =
-  (* Registers used in vectorized instruction(s) of one scalar instruction
-     group. *)
-  | New of int
-    (* The n-th new temporary register used in the vectorized instructions *)
-  | Argument of int
-    (* Vector version of the n-th argument's register of the scalar
-       instruction *)
-  | Result of int
-    (* Vector version of the n-th result's register of the scalar instruction *)
-  | Original of int
-(* Keep the original instruction in the n-th argument/result (depending on
-   whether it is used in the argument or result of the vectorized instructions)
-   of the scalar instruction*)
-
-type vectorized_instruction =
-  { operation : Operation.t;
-    arguments : register array;
-    results : register array
-  }
-
 let vector_width_in_bits = 128
 
 let vectorize_operation ~width_in_bits ~arg_count ~res_count
-    (cfg_ops : Operation.t list) : vectorized_instruction list option =
+      (cfg_ops : Operation.t list) : Operation.vectorized_instruction list option =
   (* Assumes cfg_ops are isomorphic *)
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
@@ -516,11 +495,11 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
     | 8 -> W8
     | _ -> assert false
   in
-  let make_default ~arg_count ~res_count operation =
+  let make_default ~arg_count ~res_count operation : Operation.vectorized_instruction list option =
     Some
       [ { operation;
-          arguments = Array.init arg_count (fun i -> Argument i);
-          results = Array.init res_count (fun i -> Result i)
+          arguments = Array.init arg_count (fun i -> Operation.Argument i);
+          results = Array.init res_count (fun i -> Operation.Result i)
         } ]
   in
   let create_const_vec consts =
@@ -674,7 +653,7 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
       in
       Some
         [ { operation;
-            arguments = Array.init num_args_addressing (fun i -> Original i);
+            arguments = Array.init num_args_addressing (fun i -> Operation.Original i);
             results = [| Result 0 |]
           } ]
   | Store (memory_chunk, addressing_mode, is_assignment) ->
@@ -689,8 +668,8 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
       Some
         [ { operation;
             arguments =
-              Array.append [| Argument 0 |]
-                (Array.init num_args_addressing (fun i -> Original (i + 1)));
+              Array.append [| Operation.Argument 0 |]
+                (Array.init num_args_addressing (fun i -> Operation.Original (i + 1)));
             results = [||]
           } ]
   | Intop intop -> vectorize_intop intop
@@ -713,8 +692,8 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
          && Array.length intop_instruction.arguments = 2
       then (
         assert (arg_count = 1 && res_count = 1);
-        const_instruction.results.(0) <- New 0;
-        intop_instruction.arguments.(1) <- New 0;
+        const_instruction.results.(0) <- Operation.New 0;
+        intop_instruction.arguments.(1) <- Operation.New 0;
         Some [const_instruction; intop_instruction])
       else None
     | _ -> None)
@@ -755,10 +734,10 @@ let vectorize_operation ~width_in_bits ~arg_count ~res_count
         | _ -> assert false
       in
       let make_move arg res =
-        { operation = Move; arguments = [| arg |]; results = [| res |] }
+        { Operation.operation = Move; arguments = [| arg |]; results = [| res |] }
       in
       let make_binary_operation arg_0 arg_1 res operation =
-        { operation; arguments = [| arg_0; arg_1 |]; results = [| res |] }
+        { Operation.operation; arguments = [| arg_0; arg_1 |]; results = [| res |] }
       in
       let make_const res consts =
         match create_const_vec consts with

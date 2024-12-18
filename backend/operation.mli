@@ -30,20 +30,6 @@
 
 (* CR-soon xclerc for xclerc: consider whether `Simple_operation` and
    `Operation` should be merged into a single module. *)
-type memory_access =
-  | No_memory_access
-  | Arbitrary
-  | Read of
-      { memory_chunk : Cmm.memory_chunk;
-        addressing_mode : Arch.addressing_mode;
-        mutability : Simple_operation.mutable_flag
-      }
-  | Write of
-      { memory_chunk : Cmm.memory_chunk;
-        addressing_mode : Arch.addressing_mode;
-        is_assignment : bool (* false means initialization *)
-      }
-
 type t =
   | Move
   | Spill
@@ -95,3 +81,39 @@ type t =
 val is_pure : t -> bool
 
 val dump : Format.formatter -> t -> unit
+
+(* CR gyorsh: consider moving to a separate `vectorize_utils`. *)
+type memory_access =
+  | No_memory_access
+  | Arbitrary
+  | Read of
+      { memory_chunk : Cmm.memory_chunk;
+        addressing_mode : Arch.addressing_mode;
+        mutability : Simple_operation.mutable_flag
+      }
+  | Write of
+      { memory_chunk : Cmm.memory_chunk;
+        addressing_mode : Arch.addressing_mode;
+        is_assignment : bool (* false means initialization *)
+      }
+
+(** Registers used in vectorized instructions of one scalar instruction
+     group. *)
+type vectorized_instruction_register =
+  | New of int
+      (** The n-th new temporary register used in the vectorized instructions *)
+  | Argument of int
+      (** Vector version of the n-th argument's register of the scalar
+       instruction *)
+  | Result of int
+      (** Vector version of the n-th result's register of the scalar instruction *)
+  | Original of int
+      (** Keep the original instruction in the n-th argument/result (depending on whether
+          it is used in the argument or result of the vectorized instructions) of the
+          scalar instruction*)
+
+type vectorized_instruction =
+  { operation : t;
+    arguments : vectorized_instruction_register array;
+    results : vectorized_instruction_register array
+  }
