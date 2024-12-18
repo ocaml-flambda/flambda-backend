@@ -40,7 +40,7 @@
  (action (run %{bin:ocamlopt.opt} %{deps} -S -O3 -g -dump-into-file -dcfg -dvectorize -dsel -dlinear -dlive -regalloc cfg -extension simd -vectorize -o test1_vectorized_runner.exe)))
 
 (rule
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (target test1_vectorized.cmx.dump.output)
  (deps ./filter.sh test1_vectorized.cmx.dump)
  (action
@@ -50,7 +50,7 @@
 
 (rule
  (alias runtest)
- (enabled_if (= %{context_name} "main"))
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (action
    (diff test1_vectorized.cmx.dump.expected test1_vectorized.cmx.dump.output)))
 
