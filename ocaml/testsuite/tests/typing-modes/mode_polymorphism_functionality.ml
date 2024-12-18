@@ -19,12 +19,12 @@ let foo =
   let _ = foo y in
   foo
 [%%expect{|
-val foo : unique_ '_weak1 @ portable -> '_weak1 = <fun>
+val foo : unique_ '_weak1 @ portable -> '_weak1 @ 'm = <fun>
 |}]
 
 let id x = x
 [%%expect{|
-val id : 'a -> 'a = <fun>
+val id : 'a @ [< 'm] -> 'a @ [> 'm] = <fun>
 |}]
 
 let () =
@@ -39,14 +39,18 @@ let () =
 let bar (unique_ c) (f : _ @ unique -> unit) =
   f (id c)
 [%%expect{|
-val bar : unique_ 'a -> (unique_ 'a -> unit) -> unit = <fun>
+val bar :
+  'a @ [< global many unique uncontended] ->
+  (unique_ 'a -> unit) @ 'n -> unit @ 'm = <fun>
 |}]
 
 let bar (local_ c) (f : _ @ local -> unit) =
   let _ = f (id c) in
   ()
 [%%expect{|
-val bar : local_ 'a -> (local_ 'a -> unit) -> unit = <fun>
+val bar :
+  'a @ [< many uncontended > local aliased] ->
+  (local_ 'a -> unit) @ 'n -> unit @ 'm = <fun>
 |}]
 
 let bar (x @ aliased) (f : _ @ unique -> unit) =
@@ -64,15 +68,15 @@ Error: This value is "aliased" but expected to be "unique".
 let use_portable (_ @ portable) = ()
 let foo x = use_portable x
 [%%expect{|
-val use_portable : 'a @ portable -> unit = <fun>
-val foo : 'a @ portable -> unit = <fun>
+val use_portable : 'a @ [< portable] -> unit @ 'm = <fun>
+val foo : 'a @ [< portable] -> unit @ 'm = <fun>
 |}]
 
 let foo x =
   let bar = fun () -> x in
   use_portable bar
 [%%expect{|
-val foo : 'a @ portable -> unit = <fun>
+val foo : 'a @ [< global portable] -> unit @ 'm = <fun>
 |}]
 
 (* REFERENCES *)
@@ -80,7 +84,9 @@ val foo : 'a @ portable -> unit = <fun>
 (* references are not mode polymorphic *)
 let alloc x = ref x
 [%%expect{|
-val alloc : 'a -> 'a ref = <fun>
+val alloc :
+  'a @ [< global many uncontended] -> 'a ref @ [> aliased nonportable] =
+  <fun>
 |}]
 
 let foo (f : _ @ unique -> unit) =
@@ -95,7 +101,7 @@ Error: This value is "aliased" but expected to be "unique".
 let foo (f : _ @ uncontended -> unit) =
   f (alloc 42)
 [%%expect{|
-val foo : (int ref -> unit) -> unit = <fun>
+val foo : (int ref -> unit) @ 'n -> unit @ 'm = <fun>
 |}]
 
 let foo x (f : _ @ unique -> unit) =
@@ -122,7 +128,7 @@ let foo =
   let _ = { x = local_ (fun x -> x) } in
   r.x
 [%%expect{|
-val foo : 'a -> 'a = <fun>
+val foo : 'a @ [< 'm] -> 'a @ [> 'm] = <fun>
 |}]
 
 type ('a, 'b) myrec2 = { i : 'a; p : 'b @@ portable }
@@ -167,17 +173,22 @@ Error: This value escapes its region.
 (* currying has an effect on the following signature -- see [CURRYING] below *)
 let prod x y = (x, y)
 [%%expect{|
-val prod : 'a -> 'b -> 'a * 'b = <fun>
+val prod :
+  'a @ [< global many uncontended > aliased] ->
+  'b @ [< global many uncontended] -> 'a * 'b @ [> aliased nonportable] =
+  <fun>
 |}]
 
 let dupl x = (x, x)
 [%%expect{|
-val dupl : 'a -> 'a * 'a = <fun>
+val dupl :
+  'a @ [< global many uncontended] -> 'a * 'a @ [> aliased nonportable] =
+  <fun>
 |}]
 
 let use_portable (_x @ portable contended) = ()
 [%%expect{|
-val use_portable : 'a @ portable contended -> unit = <fun>
+val use_portable : 'a @ [< portable > contended] -> unit @ 'm = <fun>
 |}]
 
 (* CR ageorges: even without currying, products appear to enforce bounds on input/output *)
@@ -197,7 +208,9 @@ Error: This value is "nonportable" but expected to be "portable".
 
 let curry x y = x
 [%%expect{|
-val curry : 'a -> 'b -> 'a = <fun>
+val curry :
+  'a @ [< 'm & global many > aliased] -> 'b @ 'n -> 'a @ [> 'm | aliased] =
+  <fun>
 |}]
 
 (* currying imposes bounds on the first polymorphic mode variable to be
@@ -254,7 +267,9 @@ Error: The value "bar1" is nonportable, so cannot be used inside a function that
 
 let curry x = fun y -> x
 [%%expect{|
-val curry : 'a -> 'b -> 'a = <fun>
+val curry :
+  'a @ [< 'm & global many] ->
+  ('b @ 'n -> 'a @ [> 'm | aliased]) @ [> nonportable] = <fun>
 |}]
 
 (* x is < global *)
@@ -294,12 +309,16 @@ let var (x @ portable) (f : _ @ portable -> unit) =
   let x = curry x () in
   f x
 [%%expect{|
-val var : 'a @ portable -> ('a @ portable -> unit) -> unit = <fun>
+val var :
+  'a @ [< global many portable uncontended > aliased] ->
+  ('a @ portable -> unit) @ 'n -> unit @ 'm = <fun>
 |}]
 let var (x @ nonportable) =
   curry x ()
 [%%expect{|
-val var : 'a -> 'a = <fun>
+val var :
+  'a @ [< global many uncontended > nonportable] ->
+  'a @ [> aliased nonportable] = <fun>
 |}]
 
 (* returned value matches input contention *)
@@ -307,12 +326,16 @@ let var (x @ uncontended) (f : _ @ uncontended -> unit) =
   let x = curry x () in
   f x
 [%%expect{|
-val var : 'a -> ('a -> unit) -> unit = <fun>
+val var :
+  'a @ [< global many uncontended > aliased] ->
+  ('a -> unit) @ 'n -> unit @ 'm = <fun>
 |}]
 let var (x @ contended) =
   curry x ()
 [%%expect{|
-val var : 'a @ portable contended -> 'a @ contended = <fun>
+val var :
+  'a @ [< global many portable > contended] -> 'a @ [> aliased contended] =
+  <fun>
 |}]
 
 (* The returned closure is nonportable *)
