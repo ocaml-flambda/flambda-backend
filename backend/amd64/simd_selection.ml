@@ -472,6 +472,7 @@ let () =
 
 let vector_width_in_bits = 128
 
+(* CR-soon gyorsh: [vectorize_operation] is too long, refactor / split up. *)
 let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
     ~arg_count ~res_count (cfg_ops : Operation.t list) :
     Vectorize_utils.Vectorized_instruction.t list option =
