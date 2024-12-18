@@ -78,6 +78,24 @@ jobs:
             config: --enable-middle-end=flambda2 --disable-warn-error
             os: macos-latest
 
+          - name: flambda2_macos_arm64_irc
+            config: --enable-middle-end=flambda2 --disable-warn-error
+            os: macos-latest
+            build_ocamlparam: '_,w=-46,regalloc=irc'
+            ocamlparam: '_,w=-46,regalloc=irc'
+
+          - name: flambda2_macos_arm64_ls
+            config: --enable-middle-end=flambda2 --disable-warn-error
+            os: macos-latest
+            build_ocamlparam: '_,w=-46,regalloc=ls'
+            ocamlparam: '_,w=-46,regalloc=ls'
+
+          - name: flambda2_macos_arm64_gi
+            config: --enable-middle-end=flambda2 --disable-warn-error
+            os: macos-latest
+            build_ocamlparam: '_,w=-46,regalloc=gi'
+            ocamlparam: '_,w=-46,regalloc=gi'
+
           - name: irc
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
