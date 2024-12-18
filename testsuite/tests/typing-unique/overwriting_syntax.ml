@@ -42,7 +42,7 @@ Uncaught exception: File "parsing/location.ml", line 1107, characters 2-8: Asser
 let with_record = function
     { a; b } as t -> { t with b = a }
 [%%expect{|
-val with_record : record -> record @@ global many = <fun>
+val with_record : record -> record = <fun>
 |}]
 
 let overwrite_record = function

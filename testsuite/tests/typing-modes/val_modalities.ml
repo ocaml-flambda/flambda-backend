@@ -14,17 +14,17 @@ type r = {
 let uncontended_use (_ @ uncontended) = ()
 [%%expect{|
 type r = { mutable x : string; }
-val uncontended_use : 'a -> unit @@ global many = <fun>
+val uncontended_use : 'a -> unit = <fun>
 |}]
 
 let share_use : 'a -> unit @@ portable = fun _ -> ()
 [%%expect{|
-val share_use : 'a -> unit @@ global many = <fun>
+val share_use : 'a -> unit = <fun>
 |}]
 
 let (portable_use @ portable) (_ @ portable) = ()
 [%%expect{|
-val portable_use : 'a @ portable -> unit @@ global many = <fun>
+val portable_use : 'a @ portable -> unit = <fun>
 |}]
 
 (* The compiler building itself is a comprehensive test of legacy modules/values.
@@ -34,7 +34,7 @@ module M = struct
   let foo = {x = "hello"}
 end
 [%%expect{|
-module M : sig val foo : r @@ global many end
+module M : sig val foo : r end
 |}]
 
 module type S = sig
@@ -62,7 +62,7 @@ module M = struct
     let x @ contended = "hello"
 end
 [%%expect{|
-module M : sig val x : string @@ global many portable contended end
+module M : sig val x : string @@ portable contended end
 |}]
 
 (* Testing the defaulting behaviour.
@@ -106,11 +106,11 @@ Lines 8-10, characters 35-7:
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ global many portable contended end
+         sig val x : string @@ portable contended end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : string @@ global many portable contended
+         val x : string @@ portable contended
        is not included in
          val x : string
        The second is uncontended and the first is contended.
@@ -141,9 +141,8 @@ Lines 8-13, characters 35-7:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val x : string @@ global many portable
-           module N :
-             sig val y : string @@ global many portable contended end
+           val x : string @@ portable
+           module N : sig val y : string @@ portable contended end
          end
        is not included in
          sig
@@ -152,12 +151,12 @@ Error: Signature mismatch:
          end
        In module "N":
        Modules do not match:
-         sig val y : string @@ global many portable contended end
+         sig val y : string @@ portable contended end
        is not included in
          sig val y : string end
        In module "N":
        Values do not match:
-         val y : string @@ global many portable contended
+         val y : string @@ portable contended
        is not included in
          val y : string
        The second is uncontended and the first is contended.
@@ -176,7 +175,7 @@ module Without_inclusion = struct
 end
 [%%expect{|
 module Without_inclusion :
-  sig module M : sig val x : 'a -> 'a @@ global many portable end end
+  sig module M : sig val x : 'a -> 'a @@ portable end end
 |}]
 
 module Without_inclusion = struct
@@ -206,11 +205,11 @@ Lines 4-6, characters 10-7:
 6 |     end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string @@ global many portable contended end
+         sig val x : string @@ portable contended end
        is not included in
          sig val x : string end
        Values do not match:
-         val x : string @@ global many portable contended
+         val x : string @@ portable contended
        is not included in
          val x : string
        The second is uncontended and the first is contended.
@@ -270,8 +269,8 @@ end
 [%%expect{|
 module Close_over_value :
   sig
-    module M : sig val x : string @@ global many portable end
-    val foo : unit -> unit @@ global many portable
+    module M : sig val x : string @@ portable end
+    val foo : unit -> unit @@ portable
   end
 |}]
 
@@ -441,7 +440,7 @@ Lines 13-19, characters 6-3:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           module Plain : sig val f : int -> int @@ global many end
+           module Plain : sig val f : int -> int end
            module type S_plain =
              sig module M : sig val f : int -> int end end
          end
@@ -453,12 +452,12 @@ Error: Signature mismatch:
          end
        In module "Plain":
        Modules do not match:
-         sig val f : int -> int @@ global many end
+         sig val f : int -> int end
        is not included in
          sig val f : int -> int @@ portable end
        In module "Plain":
        Values do not match:
-         val f : int -> int @@ global many
+         val f : int -> int
        is not included in
          val f : int -> int @@ portable
        The second is portable and the first is nonportable.
@@ -508,17 +507,17 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig module N : sig val foo : int @@ global many end end
+         sig module N : sig val foo : int end end
        is not included in
          sig module N : sig val foo : int @@ portable end end
        In module "N":
        Modules do not match:
-         sig val foo : int @@ global many end
+         sig val foo : int end
        is not included in
          sig val foo : int @@ portable end
        In module "N":
        Values do not match:
-         val foo : int @@ global many
+         val foo : int
        is not included in
          val foo : int @@ portable
        The second is portable and the first is nonportable.
@@ -586,7 +585,7 @@ let f (x : (module S)) = (x : (module S) :> (module S'))
 [%%expect{|
 module type S = sig val foo : 'a -> 'a @@ global many end
 module type S' = sig val foo : 'a -> 'a end
-val f : (module S) -> (module S') @@ global many = <fun>
+val f : (module S) -> (module S') = <fun>
 |}]
 
 let f (x : (module S')) = (x : (module S') :> (module S))
@@ -825,8 +824,8 @@ module M_portable = struct
     let f @ portable = fun () -> ()
     end
 [%%expect{|
-module M_nonportable : sig val f : unit -> unit @@ global many end
-module M_portable : sig val f : unit -> unit @@ global many portable end
+module M_nonportable : sig val f : unit -> unit end
+module M_portable : sig val f : unit -> unit @@ portable end
 |}]
 
 let (foo @ portable) () =
@@ -846,7 +845,7 @@ let (_foo @ portable) () =
     ()
 
 [%%expect{|
-val _foo : unit -> unit @@ global many = <fun>
+val _foo : unit -> unit = <fun>
 |}]
 
 let () =
