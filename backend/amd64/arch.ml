@@ -544,7 +544,7 @@ module Memory_access = struct
       in
       let is_mutable =
         (* CR-someday gyorsh: conservative, propagate mutability of Ifloatarithmem from
-           selecton to make it precise. *)
+           selection to make it precise. *)
         true
       in
       let desc =
