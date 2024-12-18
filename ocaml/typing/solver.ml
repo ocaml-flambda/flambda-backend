@@ -93,6 +93,9 @@ module Solver_mono (C : Lattices_mono) = struct
          - for all [f u \in v.vlower] and [g w \in v.vupper] we
            have either [g'f \in w.vlower] or [f'g \in u.vupper]. *)
       id : int;  (** For identification/printing *)
+      mutable subst : 'a var option
+      (** Similar to Tsubst in a type, the [subst] field holds an optional copy used
+          during instantiation *)
     }
 
   and 'b lmorphvar = ('b, left_only) morphvar
@@ -127,6 +130,26 @@ module Solver_mono (C : Lattices_mono) = struct
   (** [append_changes l0 l1] returns a log that's equivalent to [l0] followed by
   [l1]. *)
   let append_changes l0 l1 = l1 @ l0
+
+  type copy_change =
+    | Coptcopy : 'a C.obj * 'a var * 'a var option -> copy_change
+
+  type copy_scope = {
+    mutable saved_copies : copy_change list;
+  }
+
+  let fresh_mode_copy_scope () = { saved_copies = [] }
+
+  let undo_copy_change = function
+    | Coptcopy (_, v, copy) -> v.subst <- copy
+
+  let cleanup_mode_copy_scope l = List.iter undo_copy_change l.saved_copies
+
+  let with_copy_scope f =
+    let scope = fresh_mode_copy_scope () in
+    let res = f scope in
+    cleanup_mode_copy_scope scope;
+    res
 
   type ('a, 'd) mode =
     | Amode : 'a -> ('a, 'l * 'r) mode
@@ -320,6 +343,12 @@ module Solver_mono (C : Lattices_mono) = struct
     | None -> ()
     | Some log -> log := Cvupper (v, v.vupper) :: !log);
     v.vupper <- vupper
+
+  (** Function used internally by copy, where [changes] maintains the cleanup once
+      the copy is done. Unlike other setters, the [changes] is here mandatory *)
+  let set_optcopy ~changes obj v copy =
+    changes.saved_copies <- Coptcopy (obj, v, v.subst) :: changes.saved_copies;
+    v.subst <- copy
 
   (** Returns [Ok ()] if success; [Error x] if failed, and [x] is the next best
     (read: strictly lower) guess to replace the constant argument that MIGHT
@@ -666,7 +695,8 @@ module Solver_mono (C : Lattices_mono) = struct
     let lower = Option.value lower ~default:(C.min obj) in
     let vlower = Option.value vlower ~default:[] in
     let vupper = Option.value vupper ~default:[] in
-    { level; upper; lower; vlower; vupper; id }
+    let subst = None in
+    { level; upper; lower; vlower; vupper; id; subst }
 
 
   (* Moves every reachable variable from [u] such that
@@ -790,6 +820,82 @@ module Solver_mono (C : Lattices_mono) = struct
           generalize_structure_v ~log obj ~current_level ~generic_level v)
         mvs
 
+  let copy_exists : type a. copy_to_level: int -> a C.obj -> a var -> (a var) option =
+    fun ~copy_to_level obj v ->
+      match v.vlower, v.vupper with
+      | Amorphvar (u1, f) :: _, Amorphvar (u2, _) :: _ ->
+        begin
+          match C.is_identity_morph obj f with
+          | Some Refl ->
+            let valid_candidate =
+              u1.level = copy_to_level &&
+              u1.id = u2.id
+            in
+            if valid_candidate then Some (u1 : a var) else None
+          | None -> None
+        end
+      | _, _ -> None
+
+  let rec copy_v
+      : type a. copy_scope:_ -> copy_from_level:int -> copy_to_level:int ->
+        a C.obj -> a var -> a var =
+    fun ~copy_scope ~copy_from_level ~copy_to_level obj v ->
+      if v.level < copy_from_level then v
+      else begin
+        (* Optimization: generalize_structure might have already created a copy. *)
+        match copy_exists ~copy_to_level obj v with
+        | Some v' -> v'
+        | None -> begin
+          match v.subst with
+          | Some v' -> v'
+          | None ->
+            let copy = fresh ~upper:v.upper ~lower:v.lower ~level:v.level obj in
+            set_optcopy ~changes:copy_scope obj v (Some copy);
+            let vupper = List.map
+              (fun (Amorphvar (u, f)) ->
+                let src = C.src obj f in
+                let ucopy = copy_v ~copy_scope ~copy_from_level ~copy_to_level src u in
+                (Amorphvar (ucopy, f)))
+              v.vupper;
+            in
+            let vlower = List.map
+              (fun (Amorphvar (u, f)) ->
+                let src = C.src obj f in
+                let ucopy = copy_v ~copy_scope ~copy_from_level ~copy_to_level src u in
+                (Amorphvar (ucopy, f)))
+              v.vlower
+            in
+            copy.vupper <- vupper;
+            copy.vlower <- vlower;
+            update_level_v ~log:None obj copy_to_level copy;
+            copy
+        end
+      end
+
+  let copy (type a l r) ~copy_scope ~copy_from_level ~copy_to_level (obj : a C.obj)
+      (a : (a, l * r) mode) : (a, l * r) mode =
+    match a with
+    | Amodevar (Amorphvar (v, f)) ->
+      let obj = C.src obj f in
+      let vcopy = copy_v ~copy_scope ~copy_from_level ~copy_to_level obj v in
+      Amodevar (Amorphvar (vcopy, f))
+    | Amode a -> Amode a
+    | Amodejoin (a, mvs) ->
+      let mvscopy = List.map
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          let vcopy = copy_v ~copy_scope ~copy_from_level ~copy_to_level obj v in
+          (Amorphvar (vcopy, f))) mvs
+      in
+      Amodejoin (a, mvscopy)
+    | Amodemeet (a, mvs) ->
+      let mvscopy = List.map
+        (fun (Amorphvar (v, f)) ->
+          let obj = C.src obj f in
+          let vcopy = copy_v ~copy_scope ~copy_from_level ~copy_to_level obj v in
+          (Amorphvar (vcopy, f))) mvs
+      in
+      Amodemeet (a, mvscopy)
 
   let update_level (type a l r) (level : int) (obj : a C.obj) (a : (a, l * r) mode) ~log =
     match a with
@@ -1144,12 +1250,17 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
   let undo_changes = S.undo_changes
 
+  type copy_scope = S.copy_scope
+
+  let with_copy_scope = S.with_copy_scope
+
   module type Solver_polarized =
     Solver_polarized
       with type ('a, 'b, 'd) morph := ('a, 'b, 'd) C.morph
        and type 'a obj := 'a C.obj
        and type 'a error := 'a error
        and type changes := changes
+       and type copy_scope := copy_scope
 
   module rec Positive :
     (Solver_polarized
@@ -1172,6 +1283,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
     let generalize = S.generalize
 
     let generalize_structure = S.generalize_structure
+
+    let copy = S.copy
 
     let join = S.join
 
@@ -1240,6 +1353,8 @@ module Solvers_polarized (C : Lattices_mono) = struct
     let generalize = S.generalize
 
     let generalize_structure = S.generalize_structure
+
+    let copy = S.copy
 
     let join = S.meet
 
