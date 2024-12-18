@@ -60,6 +60,11 @@ let mk_vectorize f =
 let mk_no_vectorize f =
   "-no-vectorize", Arg.Unit f, " Disable vectorizer (EXPERIMENTAL)"
 
+let mk_vectorize_max_block_size f =
+  "-vectorize-max-block-size", Arg.Int f,
+  Printf.sprintf "<n>  Only CFG block with at most n IR instructions will be vectorized \
+                  (default %d)" Flambda_backend_flags.default_vectorize_max_block_size
+
 let mk_dvectorize f =
   "-dvectorize", Arg.Unit f, " (undocumented)"
 ;;
@@ -710,6 +715,7 @@ module type Flambda_backend_options = sig
 
   val vectorize : unit -> unit
   val no_vectorize : unit -> unit
+  val vectorize_max_block_size : int -> unit
   val dvectorize : unit -> unit
 
   val cfg_selection : unit -> unit
@@ -847,6 +853,7 @@ struct
 
     mk_vectorize F.vectorize;
     mk_no_vectorize F.no_vectorize;
+    mk_vectorize_max_block_size F.vectorize_max_block_size;
     mk_dvectorize F.dvectorize;
 
     mk_cfg_selection F.cfg_selection;
@@ -1015,6 +1022,8 @@ module Flambda_backend_options_impl = struct
 
   let vectorize = set' Flambda_backend_flags.vectorize
   let no_vectorize = clear' Flambda_backend_flags.vectorize
+  let vectorize_max_block_size n =
+    Flambda_backend_flags.vectorize_max_block_size := n
   let dvectorize = set' Flambda_backend_flags.dump_vectorize
 
   let cfg_selection = set' Flambda_backend_flags.cfg_selection
@@ -1356,6 +1365,7 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
+    | "vectorize_max_block_size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
     | "cfg-selection" -> set' Flambda_backend_flags.cfg_selection
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
