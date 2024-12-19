@@ -249,7 +249,8 @@ type 'a t : immutable_data with 'a = Foo | Bar of { x : int }
 type 'a t : value mod uncontended with 'a = Foo of int
 type 'a t : value mod immutable_data with 'a = Foo of 'a option
 type 'a t : value mod immutable_data with 'a -> 'a = Foo of { x : 'a -> 'a } | Bar of ('a -> 'a)
-(* CR layouts v2.8: the above should be accepted *)
+(* CR layouts v2.8: the above will be accepted once we have proper subsumption
+   *)
 [%%expect {|
 Line 1, characters 0-40:
 1 | type 'a t : immutable_data with 'a = Foo
@@ -315,7 +316,7 @@ Error: The kind of type "t" is immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 
-(**** Test 3: Record values cross when appropriate ****)
+(**** Test 3: Variant values cross when appropriate ****)
 
 type t = Foo of int
 let foo (t : t @@ nonportable contended once) =
@@ -526,7 +527,7 @@ Line 1, characters 61-62:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-(**** Test 4: Record types satisfy type constraints when appropriate ****)
+(**** Test 4: Variant types satisfy type constraints when appropriate ****)
 type t = Foo of int | Bar of string
 let t = Foo 10
 let () =
@@ -534,6 +535,7 @@ let () =
   cross_portable t;
   cross_uncontended t
 
+(* CR layouts v2.8: Fix this in the principal case. I think. *)
 [%%expect{|
 type t = Foo of int | Bar of string
 val t : t = Foo 10
@@ -730,47 +732,52 @@ Error: This type "'a t" should be an instance of type
 
 (**** Test 5: Module inclusion check ****)
 
-module _ : sig
+module M : sig
   type t : immutable_data
 end = struct
   type t = Foo of int
 end
 [%%expect {|
+module M : sig type t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type t : mutable_data
 end = struct
   type t = Foo of { mutable x : int; y : int }
 end
 [%%expect {|
+module M : sig type t : mutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type t : immutable_data
 end = struct
   type t : mutable_data = Foo of { x : int }
 end
 [%%expect {|
+module M : sig type t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type ('a : immutable_data) t : immutable_data
 end = struct
   type ('a : immutable_data) t = Foo | Bar | Bax of { x : 'a }
 end
 [%%expect {|
+module M : sig type ('a : immutable_data) t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type 'a t : immutable_data with 'a
 end = struct
   type 'a t = Foo of 'a
 end
 [%%expect {|
+module M : sig type 'a t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type 'a t : immutable_data with 'a
 end = struct
   type 'a t = Foo of 'a * int
@@ -796,10 +803,109 @@ Error: Signature mismatch:
          because of the definition of t at line 2, characters 2-36.
 |}]
 
-module _ : sig
+module M : sig
   type 'a t : immutable_data with int with 'a with string
 end = struct
   type 'a t = Foo of 'a * int | Bar of string
 end
 [%%expect {|
+module M : sig type 'a t : immutable_data end
+|}]
+
+module M : sig
+  type t : mutable_data
+end = struct
+  type t = Foo of int | Bar of string
+end
+
+[%%expect{|
+module M : sig type t : mutable_data end
+|}]
+
+module M : sig
+  type t : immutable_data
+end = struct
+  type t = Foo of { mutable x : int } | Bar of string
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Foo of { mutable x : int } | Bar of string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Foo of { mutable x : int; } | Bar of string end
+       is not included in
+         sig type t : immutable_data end
+       Type declarations do not match:
+         type t = Foo of { mutable x : int; } | Bar of string
+       is not included in
+         type t : immutable_data
+       The kind of the first is mutable_data
+         because of the definition of t at line 4, characters 2-53.
+       But the kind of the first must be a subkind of immutable_data
+         because of the definition of t at line 2, characters 2-25.
+|}]
+
+module M : sig
+  type t : immutable_data
+end = struct
+  type t = Foo of int ref | Bar of string
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Foo of int ref | Bar of string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Foo of int ref | Bar of string end
+       is not included in
+         sig type t : immutable_data end
+       Type declarations do not match:
+         type t = Foo of int ref | Bar of string
+       is not included in
+         type t : immutable_data
+       The kind of the first is immutable_data
+         because of the definition of t at line 4, characters 2-41.
+       But the kind of the first must be a subkind of immutable_data
+         because of the definition of t at line 2, characters 2-25.
+|}]
+
+module M : sig
+  type 'a t : immutable_data
+end = struct
+  type 'a t = Foo of 'a | Bar of string
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t = Foo of 'a | Bar of string
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = Foo of 'a | Bar of string end
+       is not included in
+         sig type 'a t : immutable_data end
+       Type declarations do not match:
+         type 'a t = Foo of 'a | Bar of string
+       is not included in
+         type 'a t : immutable_data
+       The kind of the first is immutable_data
+         because of the definition of t at line 4, characters 2-39.
+       But the kind of the first must be a subkind of immutable_data
+         because of the definition of t at line 2, characters 2-28.
+|}]
+
+module M : sig
+  type 'a t : immutable_data
+end = struct
+  type 'a t = Foo of int | Bar of string
+end
+
+[%%expect{|
+module M : sig type 'a t : immutable_data end
 |}]

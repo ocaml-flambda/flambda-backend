@@ -347,6 +347,7 @@ Error: This value is "aliased" but expected to be "unique".
 
 (***********************************************************************)
 type 'a t : immutable_data with 'a = { head : 'a; tail : 'a t option }
+(* CR layouts v2.8: This should work once we get proper subsumption. *)
 [%%expect {|
 Line 1, characters 0-70:
 1 | type 'a t : immutable_data with 'a = { head : 'a; tail : 'a t option }
@@ -413,6 +414,8 @@ and 'a u = None | Some of 'a t
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
+(* CR reisenberg: This looks unsound, unless it's inferring a kind
+   of [immutable_data] for the argument but failing to print this.*)
 [%%expect {|
 val foo : 'a t @ contended -> unit = <fun>
 |}]
@@ -657,7 +660,7 @@ type 'a t = None | Some of ('a * 'a) t u
 |}]
 
 let foo (t : int t @@ contended) = use_uncontended t
-(* CR layouts v2.8: fix this *)
+(* CR layouts v2.8: this should work when we get tuples working *)
 [%%expect {|
 Line 1, characters 51-52:
 1 | let foo (t : int t @@ contended) = use_uncontended t
@@ -690,11 +693,19 @@ type 'a t = None | Some of ('a * 'a) t
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
-(* CR layouts v2.8: fix this *)
 [%%expect {|
 Line 1, characters 49-50:
 1 | let foo (t : _ t @@ contended) = use_uncontended t
                                                      ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let foo (t : int t @@ contended) = use_uncontended t
+(* CR layouts v2.8: this should work when we get tuples working *)
+[%%expect {|
+Line 1, characters 51-52:
+1 | let foo (t : int t @@ contended) = use_uncontended t
+                                                       ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -740,7 +751,7 @@ type 'a t = None | Some of 'a t * 'a t
 |}]
 
 let foo (t : _ t @@ contended) = use_uncontended t
-(* CR layouts v2.8: fix this *)
+(* CR reisenberg: This looks unsound *)
 [%%expect {|
 val foo : 'a t @ contended -> unit = <fun>
 |}]

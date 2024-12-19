@@ -567,6 +567,7 @@ Error: The kind of type "t" is immutable_data
 type 'a t : immutable_data with 'a = Foo of 'a
 
 (* CR layouts v2.8: This should be accepted *)
+(* CR reisenberg: fix! *)
 [%%expect{|
 Line 1, characters 0-46:
 1 | type 'a t : immutable_data with 'a = Foo of 'a
@@ -637,6 +638,17 @@ type _ t =
 type 'a uncontended_with : value mod uncontended
 type _ t = Foo : ('a : value mod uncontended). 'a t
 |}]
+
+let f (type a) (t : a t) (x : a uncontended_with @@ contended) : _ @@ uncontended =
+  match t with
+  | _ -> x
+[%%expect {|
+Line 3, characters 9-10:
+3 |   | _ -> x
+             ^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
 
 let f (type a) (t : a t) (x : a uncontended_with @@ contended) : _ @@ uncontended =
   match t with
@@ -826,7 +838,6 @@ type ('a, 'b) t : value mod uncontended
 |}]
 
 type t_test = (int, int) t require_uncontended
-(* CR lstevenson: should this block release? *)
 (* CR layouts v2.8: fix principal case *)
 [%%expect {|
 type t_test = (int, int) t require_uncontended
@@ -1087,7 +1098,6 @@ type 'a t = { x : 'a; }
 module type S' = S with type 'a t := 'a t
 
 module M : S' = struct
-  type nonrec 'a t = 'a t
   let get_contended () = { x = 10 }
 end
 
@@ -1116,6 +1126,7 @@ module M : S'
 (* TEST: private type *)
 
 (* a private type does not hide the kind *)
+(* CR layouts v2.8: but it should be able to *)
 
 type 'a u = { x : 'a }
 type 'a t : value = private 'a u

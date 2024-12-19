@@ -323,14 +323,12 @@ type t = { x : int; }
 val foo : t @ once contended -> unit = <fun>
 |}]
 
-let foo (t : t @@ local) = use_global t [@nontial]
+let foo (t : t @@ local) = use_global t [@nontail]
 [%%expect {|
 Line 1, characters 38-39:
-1 | let foo (t : t @@ local) = use_global t [@nontial]
+1 | let foo (t : t @@ local) = use_global t [@nontail]
                                           ^
 Error: This value escapes its region.
-  Hint: This argument cannot be local,
-  because it is an argument in a tail call.
 |}]
 
 let foo (t : t @@ aliased) = use_unique t
@@ -350,14 +348,12 @@ type t = { mutable x : int; }
 val foo : t @ once -> unit = <fun>
 |}]
 
-let foo (t : t @@ local) = use_global t [@nontial]
+let foo (t : t @@ local) = use_global t [@nontail]
 [%%expect {|
 Line 1, characters 38-39:
-1 | let foo (t : t @@ local) = use_global t [@nontial]
+1 | let foo (t : t @@ local) = use_global t [@nontail]
                                           ^
 Error: This value escapes its region.
-  Hint: This argument cannot be local,
-  because it is an argument in a tail call.
 |}]
 
 let foo (t : t @@ aliased) = use_unique t
@@ -386,14 +382,12 @@ type 'a t = { x : 'a; }
 val foo : int t @ once contended -> unit = <fun>
 |}]
 
-let foo (t : int t @@ local) = use_global t [@nontial]
+let foo (t : int t @@ local) = use_global t [@nontail]
 [%%expect {|
 Line 1, characters 42-43:
-1 | let foo (t : int t @@ local) = use_global t [@nontial]
+1 | let foo (t : int t @@ local) = use_global t [@nontail]
                                               ^
 Error: This value escapes its region.
-  Hint: This argument cannot be local,
-  because it is an argument in a tail call.
 |}]
 
 let foo (t : int t @@ aliased) = use_unique t
@@ -431,14 +425,12 @@ Line 1, characters 37-38:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : _ t @@ local) = use_global t [@nontial]
+let foo (t : _ t @@ local) = use_global t [@nontail]
 [%%expect {|
 Line 1, characters 40-41:
-1 | let foo (t : _ t @@ local) = use_global t [@nontial]
+1 | let foo (t : _ t @@ local) = use_global t [@nontail]
                                             ^
 Error: This value escapes its region.
-  Hint: This argument cannot be local,
-  because it is an argument in a tail call.
 |}]
 
 let foo (t : _ t @@ aliased) = use_unique t
@@ -466,14 +458,12 @@ Line 3, characters 15-16:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontial]
+let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontail]
 [%%expect {|
 Line 1, characters 60-61:
-1 | let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontial]
+1 | let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontail]
                                                                 ^
 Error: This value escapes its region.
-  Hint: This argument cannot be local,
-  because it is an argument in a tail call.
 |}]
 
 let foo (t : ('a : immutable_data) t @@ aliased) = use_unique t
@@ -501,14 +491,12 @@ Line 3, characters 15-16:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : _ t @@ local) = use_global t [@nontial]
+let foo (t : _ t @@ local) = use_global t [@nontail]
 [%%expect {|
 Line 1, characters 40-41:
-1 | let foo (t : _ t @@ local) = use_global t [@nontial]
+1 | let foo (t : _ t @@ local) = use_global t [@nontail]
                                             ^
 Error: This value escapes its region.
-  Hint: This argument cannot be local,
-  because it is an argument in a tail call.
 |}]
 
 let foo (t : _ t @@ aliased) = use_unique t
@@ -739,52 +727,57 @@ Error: This type "'a t" should be an instance of type
 
 (**** Test 5: Module inclusion check ****)
 
-module _ : sig
+module M : sig
   type t : immutable_data
 end = struct
   type t = { x : int }
 end
 [%%expect {|
+module M : sig type t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type t : mutable_data
 end = struct
   type t = { mutable x : int; y : int }
 end
 [%%expect {|
+module M : sig type t : mutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type t : immutable_data
 end = struct
   type t : mutable_data = { x : int }
 end
 [%%expect {|
+module M : sig type t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type ('a : immutable_data) t : immutable_data
 end = struct
   type ('a : immutable_data) t = { x : 'a }
 end
 [%%expect {|
+module M : sig type ('a : immutable_data) t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type 'a t : immutable_data with 'a
 end = struct
   type 'a t = { x : 'a }
 end
 [%%expect {|
+module M : sig type 'a t : immutable_data end
 |}]
 
-module _ : sig
+module M : sig
   type 'a t : immutable_data with 'a
 end = struct
   type 'a t = { x : 'a; y : int }
 end
-(* CR layouts v2.8: fix this *)
+(* CR layouts v2.8: This should work when we have proper subsumption *)
 [%%expect {|
 Lines 3-5, characters 6-3:
 3 | ......struct
@@ -805,10 +798,131 @@ Error: Signature mismatch:
          because of the definition of t at line 2, characters 2-36.
 |}]
 
-module _ : sig
+module M : sig
   type 'a t : immutable_data with int with 'a
 end = struct
   type 'a t = { x : 'a; y : int }
 end
 [%%expect {|
+module M : sig type 'a t : immutable_data end
+|}]
+
+module M : sig
+  type t : mutable_data
+end = struct
+  type t = { x : int; y : string }
+end
+
+[%%expect{|
+module M : sig type t : mutable_data end
+|}]
+
+module M : sig
+  type t : immutable_data
+end = struct
+  type t = { mutable x : int; y : string }
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { mutable x : int; y : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { mutable x : int; y : string; } end
+       is not included in
+         sig type t : immutable_data end
+       Type declarations do not match:
+         type t = { mutable x : int; y : string; }
+       is not included in
+         type t : immutable_data
+       The kind of the first is mutable_data
+         because of the definition of t at line 4, characters 2-42.
+       But the kind of the first must be a subkind of immutable_data
+         because of the definition of t at line 2, characters 2-25.
+|}]
+
+module M : sig
+  type t : immutable_data
+end = struct
+  type t = { x : int ref; y : string }
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { x : int ref; y : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { x : int ref; y : string; } end
+       is not included in
+         sig type t : immutable_data end
+       Type declarations do not match:
+         type t = { x : int ref; y : string; }
+       is not included in
+         type t : immutable_data
+       The kind of the first is immutable_data
+         because of the definition of t at line 4, characters 2-38.
+       But the kind of the first must be a subkind of immutable_data
+         because of the definition of t at line 2, characters 2-25.
+|}]
+
+module M : sig
+  type 'a t : immutable_data
+end = struct
+  type 'a t = { x : 'a; y : string }
+end
+
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type 'a t = { x : 'a; y : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type 'a t = { x : 'a; y : string; } end
+       is not included in
+         sig type 'a t : immutable_data end
+       Type declarations do not match:
+         type 'a t = { x : 'a; y : string; }
+       is not included in
+         type 'a t : immutable_data
+       The kind of the first is immutable_data
+         because of the definition of t at line 4, characters 2-36.
+       But the kind of the first must be a subkind of immutable_data
+         because of the definition of t at line 2, characters 2-28.
+|}]
+
+module M : sig
+  type 'a t : immutable_data
+end = struct
+  type 'a t = { x : int; y : string }
+end
+
+[%%expect{|
+module M : sig type 'a t : immutable_data end
+|}]
+
+(****************************************)
+
+type ('a : immutable_data) t : immutable_data = { x : 'a list }
+[%%expect {|
+Line 1, characters 0-63:
+1 | type ('a : immutable_data) t : immutable_data = { x : 'a list }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is immutable_data
+         because it's a boxed record type.
+       But the kind of type "t" must be a subkind of immutable_data
+         because of the annotation on the declaration of the type t.
+|}]
+
+type ('a : immutable_data) t : immutable_data = { x : 'a option }
+type ('a : immutable_data) t : immutable_data = { x : 'a }
+type ('a : immutable_data) t : immutable_data = 'a list
+[%%expect {|
+type ('a : immutable_data) t = { x : 'a option; }
+type ('a : immutable_data) t = { x : 'a; }
+type ('a : immutable_data) t = 'a list
 |}]

@@ -217,7 +217,7 @@ type ('a : immutable_data) t = 'a list
 |}]
 
 type 'a t : immutable_data with 'a = 'a list
-(* CR layouts v2.8: fix this *)
+(* CR layouts v2.8: this should work once we get proper subsumption working *)
 [%%expect {|
 Line 1, characters 0-44:
 1 | type 'a t : immutable_data with 'a = 'a list

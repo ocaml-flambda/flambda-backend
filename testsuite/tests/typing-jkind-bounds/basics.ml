@@ -1573,3 +1573,17 @@ type 'a t =
 type 'a u
 type 'a t = None | Some of ('a * 'a) t u
 |}]
+
+(*********************************)
+(* Test 13: Bug in class methods *)
+
+type t =
+  | Atom of string
+  | List of t list
+
+class sexp_of :
+  object
+    method array : ('a -> t) -> ('a array -> t)
+  end
+
+[%%expect]
