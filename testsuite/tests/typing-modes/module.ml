@@ -1,4 +1,5 @@
 (* TEST
+    flags+="-extension mode_alpha";
    expect;
 *)
 
@@ -24,7 +25,7 @@ end
 val portable_use : 'a @ portable -> unit = <fun>
 module type S = sig val x : 'a -> unit end
 module type SL = sig type 'a t end
-module M : sig type 'a t = int val x : 'a -> unit end
+module M : sig type 'a t = int val x : 'a -> unit @@ portable end
 module F : functor (X : S) -> sig type t = int val x : 'a -> unit end
 |}]
 
@@ -180,3 +181,63 @@ val foo : unit -> unit = <fun>
 |}]
 
 (* Pmty_alias is not testable *)
+
+(* module alias *)
+module type S = sig
+    val foo : 'a -> 'a
+    val baz : 'a -> 'a @@ portable
+end
+
+module M : S = struct
+    let foo = fun x -> x
+    let baz = fun x -> x
+end
+[%%expect{|
+module type S = sig val foo : 'a -> 'a val baz : 'a -> 'a @@ portable end
+module M : S
+|}]
+
+(* CR zqian: fix the following. *)
+let (bar @ portable) () =
+    let module N = M in
+    M.baz ();
+    N.baz ()
+[%%expect{|
+Line 2, characters 19-20:
+2 |     let module N = M in
+                       ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    N.foo ()
+[%%expect{|
+Line 2, characters 19-20:
+2 |     let module N = M in
+                       ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    M.foo ()
+[%%expect{|
+Line 2, characters 19-20:
+2 |     let module N = M in
+                       ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* module aliases in structures still walk locks. *)
+let (bar @ portable) () =
+    let module N = struct
+        module L = M
+    end in
+    N.L.foo ()
+[%%expect{|
+Line 3, characters 19-20:
+3 |         module L = M
+                       ^
+Error: Modules are nonportable, so cannot be used inside a function that is portable.
+|}]
