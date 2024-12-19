@@ -842,9 +842,10 @@ let default_iterator =
          | Mod (t, mode_list) ->
              this.jkind_annotation this t;
              this.modes this mode_list
-         | With (t, ty) ->
+         | With (t, ty, modalities) ->
              this.jkind_annotation this t;
-             this.typ this ty
+             this.typ this ty;
+             this.modalities this modalities
          | Kind_of ty -> this.typ this ty
          | Product ts -> List.iter (this.jkind_annotation this) ts);
 

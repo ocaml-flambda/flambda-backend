@@ -506,10 +506,11 @@ and jkind_annotation i ppf (jkind : jkind_annotation) =
       line i ppf "Mod\n";
       jkind_annotation (i+1) ppf jkind;
       modes (i+1) ppf m
-  | With (jkind, type_) ->
+  | With (jkind, type_, modalities_) ->
       line i ppf "With\n";
       jkind_annotation (i+1) ppf jkind;
-      core_type (i+1) ppf type_
+      core_type (i+1) ppf type_;
+      modalities (i+1) ppf modalities_
   | Kind_of type_ ->
       line i ppf "Kind_of\n";
       core_type (i+1) ppf type_
