@@ -794,7 +794,8 @@ let build_specialized_submatrices ~extend_row discr rows =
     let initial_constr_group =
       let open Patterns.Head in
       match discr.pat_desc with
-      | Record _ | Record_unboxed_product _ | Tuple _ | Lazy ->
+      | Record _ | Record_unboxed_product _ | Tuple _ | Unboxed_tuple _
+      | Lazy ->
         (* [discr] comes from [discr_pat], and in this case subsumes any of the
            patterns we could find on the first column of [rows]. So it is better
            to use it for our initial environment than any of the normalized
