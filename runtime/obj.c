@@ -36,7 +36,9 @@ static int obj_tag (value arg)
 {
   header_t hd;
 
-  if (Is_long (arg)) {
+  if (arg == Val_null) {
+    return 1010;   /* null_tag */
+  } else if (Is_long (arg)) {
     return 1000;   /* int_tag */
   } else if ((long) arg & (sizeof (value) - 1)) {
     return 1002;   /* unaligned_tag */

@@ -84,6 +84,10 @@ let int_tag = 1000
 let out_of_heap_tag = 1001
 let unaligned_tag = 1002
 
+(* [null_tag] is not exposed in the interface of [Stdlib.Obj]
+   since [Stdlib.Obj.tag] accepts only non-null values. *)
+let[@warning "-32"] null_tag = 1010
+
 module Extension_constructor =
 struct
   type t = extension_constructor

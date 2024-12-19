@@ -30,3 +30,4 @@ val custom_tag : int
 val int_tag : int
 val out_of_heap_tag : int
 val unaligned_tag : int
+val null_tag : int
