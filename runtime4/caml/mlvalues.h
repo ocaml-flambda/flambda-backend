@@ -95,7 +95,7 @@ typedef uintnat mark_t;
 //
 // On platforms prior to Haswell, TZCNT is not available and is silently
 // interpreted as BSF, producing undefined results when x == 0.
-// For now, we just ignore that.
+// We don't have any CPUs with those architectures, so this seems fine.
 Caml_inline int Is_block(value x) {
     int result;
     value never_used;
