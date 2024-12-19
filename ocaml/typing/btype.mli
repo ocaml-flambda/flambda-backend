@@ -198,7 +198,7 @@ module For_copy : sig
         (* Copies the generic parts of a mode variable without changing its level *)
 
   val mode_duplicate: copy_scope -> Mode.Alloc.lr -> Mode.Alloc.lr
-        (* Fupply duplicates a mode without changing its level *)
+        (* Copies a mode variable without changing its level *)
 
   val with_scope: (copy_scope -> 'a) -> 'a
         (* [with_scope f] calls [f] and restores saved type descriptions

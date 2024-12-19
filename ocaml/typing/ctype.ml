@@ -1666,11 +1666,6 @@ let curry_mode (type r) (alloc : (allowed * r) Alloc.Comonadic.t) (arg : Alloc.l
   Alloc.Comonadic.join
     [(Alloc.close_over arg).comonadic; (Alloc.Comonadic.disallow_right alloc)]
 
-(* let curry_mode_const alloc arg : Alloc.Comonadic.Const.t =
-  let arg = Alloc.Const.close_over arg in
-  let comonadic = (Alloc.Const.split arg).comonadic in
-    Alloc.Comonadic.Const.join comonadic alloc *)
-
 let curry_mode_const alloc arg : Alloc.Const.t =
   let acc =
     Alloc.Const.join

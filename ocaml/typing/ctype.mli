@@ -232,11 +232,11 @@ val instance_prim:
 (** Given (a @ m1 -> b -> c) @ m0, where [m0] and [m1] are modes expressed by
     user-syntax, [curry_mode m0 m1] gives the mode we implicitly interpret b->c
     to have. *)
-val curry_mode : (allowed * 'r) Alloc.Comonadic.t -> Alloc.lr -> Alloc.Comonadic.l
-
-(* val curry_mode_const : Alloc.Comonadic.Const.t -> Alloc.Const.t -> Alloc.Comonadic.Const.t *)
 val curry_mode_const : Alloc.Const.t -> Alloc.Const.t -> Alloc.Const.t
 
+(** Applies the same logic as [curry_mode_const] over the comonadic mode for [m0] and the
+    lr mode [m1] *)
+val curry_mode : (allowed * 'r) Alloc.Comonadic.t -> Alloc.lr -> Alloc.Comonadic.l
 
 val apply:
         ?use_current_level:bool ->

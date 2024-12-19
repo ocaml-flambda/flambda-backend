@@ -111,8 +111,6 @@ module type Common = sig
   val check_level : ('l * 'r) t -> int -> bool
 
   val check_level_var : ('l * 'r) t -> int -> bool
-
-  val is_const : ('l * 'r) t -> bool
 end
 
 module type S = sig
@@ -162,16 +160,24 @@ module type S = sig
 
     val local : lr
 
+    (** zaps non-generic variables to floor, returns [None] if variable is generic. *)
     val zap_to_floor : (allowed * 'r) t -> Const.t option
 
+    (** zaps non-generic variables to ceil, returns [None] if variable is generic. *)
     val zap_to_ceil : ('l * allowed) t -> Const.t option
 
+    (** zaps all variables to floor (including generic variables): use with caution *)
     val zap_to_floor_force : (allowed * 'r) t -> Const.t
 
+    (** zaps all variables to ceil (including generic variables): use with caution *)
     val zap_to_ceil_force : ('l * allowed) t -> Const.t
 
+    (** zaps non-generic variables to floor, raises a [Cannot_zap_generic] excetion if
+        variable is generic *)
     val zap_to_floor_exn : (allowed * 'r) t -> Const.t
 
+    (** zaps non-generic variables to ceil, raises a [Cannot_zap_generic] excetion if
+        variable is generic *)
     val zap_to_ceil_exn : ('l * allowed) t -> Const.t
 
     module Guts : sig
@@ -423,11 +429,12 @@ module type S = sig
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
+    (** Scope containing pending zap jobs *)
     type zap_scope
 
     val with_zap_scope : (zap_scope:zap_scope -> 'a) -> 'a
 
-    (** Description types used for printing *)
+    (** Exposed subset of the monotone Lattices interface *)
     module C : sig
       type ('a, 'b, 'd) morph
       type 'a obj
@@ -460,6 +467,7 @@ module type S = sig
 
     end
 
+    (** The exposed description of modes *)
     module Desc : sig
 
       module Var : sig
@@ -579,16 +587,6 @@ module type S = sig
       -> ('l * 'r) t
       -> ('l * disallowed) t
 
-    (* val add_covariant_to_zap_scope :
-      (allowed * 'r) t
-      -> zap_scope
-      -> unit
-
-    val add_contravariant_to_zap_scope :
-      ('l * allowed) t
-      -> zap_scope
-      -> unit *)
-
     val add_mode_to_zap_scope :
       (allowed * allowed) t
       -> zap_scope
@@ -639,12 +637,20 @@ module type S = sig
       ('l * 'r) t
 
     module Guts : sig
+      (** Returns the precise bounds of a mode, as close to legacy as possible.
+          see notes on [get_floor] in [solver_intf.mli] for cautions. *)
       val get_legacy : (allowed * allowed) t -> Const.t
 
+      (** Returns the precise ceiling of a mode. see notes on [get_ceil] in
+          [solver_intf.mli] for cautions. *)
       val get_ceil : ('l * allowed) t -> Const.t
 
+      (** Returns [Some c] if the given mode has been constrained to constant
+          [c]. see notes on [get_floor] in [solver_intf.mli] for cautions. *)
       val check_const : (allowed * allowed) t -> Const.t option
 
+      (** Checks that a constant is within the precise bounds of a mode. see notes on
+          [get_floor] in [solver_intf.mli] for cautions. *)
       val in_bounds : Const.t -> (allowed * allowed) t -> bool
     end
   end

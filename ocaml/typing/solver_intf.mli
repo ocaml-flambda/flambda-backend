@@ -236,6 +236,7 @@ module type Solver_polarized = sig
 
   type 'a error
 
+  (** The exposed description of a mode *)
   type ('a, 'd) desc
 
   type copy_scope
@@ -257,14 +258,18 @@ module type Solver_polarized = sig
   (** The key type used for a Hashtbl indexed by mode variables *)
   type key
 
+  (** An iterator for keys. The mode is a mode variable, paired with the identity morphism *)
   type mode_iterator = { iter : 'a. 'a obj -> ('a, (allowed * allowed)) mode -> unit } [@@unboxed]
-
   val key_iter : key -> mode_iterator -> unit
 
+  (** Inspects a mode and returns a key if the mode is a mode variable. Raises an
+      Invalid_key exception if it is not *)
   val create_key_exn : 'a obj -> ('a, 'l * 'r) mode -> key
 
+  (** Inspects a mode and returns a key if the mode is a mode variable, None if not *)
   val create_key_opt : 'a obj -> ('a, 'l * 'r) mode -> key option
 
+  (** Returns the description of a mode. *)
   val desc : 'a obj -> ('a, 'd) mode -> ('a, 'd polarized) desc
 
   include Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) mode
@@ -281,9 +286,6 @@ module type Solver_polarized = sig
   (** The level of generic variables *)
   val generic_level : int
 
-  (** Returns true iff the mode contains no mode variables *)
-  val is_const : 'a obj -> ('a, 'l * 'r) mode -> bool
-
   (** Pushes the mode variable to the lowest constant possible.
       Expensive.
       WARNING: the lattice must be finite for this to terminate.*)
@@ -294,8 +296,7 @@ module type Solver_polarized = sig
   val zap_to_ceil :
     'a obj -> ('a, 'l * allowed) mode -> log:changes ref option -> 'a
 
-  (** Create a new mode variable of the full range at given level,
-      and return the id of the new mode. *)
+  (** Create a new mode variable of the full range at given level. *)
   val newvar : 'a obj -> int -> ('a, 'l * 'r) mode
 
   (** Try to constrain the first mode below the second mode. *)
@@ -349,9 +350,9 @@ module type Solver_polarized = sig
   val newvar_above :
     'a obj -> int -> ('a, allowed * 'r_) mode -> ('a, 'l * 'r) mode * bool
 
-  (** Creates a new mode variable at given level below the given mode and returns
-        [Some id]. In the speical case where the given mode is bottom, returns the
-        constant bottom and [None]. *)
+  (** Creates a new mode variable below the given mode and returns [true]. In
+        the speical case where the given mode is bottom, returns the constant
+        bottom and [false]. *)
   val newvar_below :
     'a obj -> int -> ('a, 'l_ * allowed) mode -> ('a, 'l * 'r) mode * bool
 
@@ -389,7 +390,7 @@ module type Solver_polarized = sig
   val check_level :
     ('a, 'l * 'r) mode -> int -> bool
 
-  (** Returns true iff the mode is a variable at generic level *)
+  (** Returns true iff the mode is a variable at the given level *)
   val check_level_var :
     ('a, 'l * 'r) mode -> int -> bool
 
@@ -459,6 +460,7 @@ module type S = sig
     (** A key type for a Hashtbl indexed by mode variables *)
     type key
 
+    (** Hashtbl indexed by mode variable keys *)
     module ModeTbl : Hashtbl.S with type key = key
 
     (** An empty sequence of changes. *)
@@ -476,7 +478,7 @@ module type S = sig
       finished  *)
     val with_copy_scope : (copy_scope -> 'a) -> 'a
 
-    (** Description types used for printing *)
+    (** The exposed description of modes *)
     module Desc : sig
 
       module Var : sig

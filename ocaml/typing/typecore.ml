@@ -647,7 +647,7 @@ let register_allocation_value_mode (mode : Value.r) : Alloc.r * Value.r =
   let alloc_mode, _ = Alloc.newvar_below 0 (value_to_alloc_r2g mode) in
   register_allocation_mode alloc_mode;
   let mode = alloc_as_value alloc_mode in
-  alloc_mode, mode (*make new var below mode and return that, new var at level 0*)
+  alloc_mode, mode
 
 (* Unlike most allocations which can be the highest mode allowed by
    [expected_mode] and their [alloc_mode] identical to [expected_mode] ,

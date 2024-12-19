@@ -351,22 +351,6 @@ module Solver_mono (C : Lattices_mono) = struct
       | Amodejoin (_, mvs) ->
         List.fold_left (fun acc mv -> acc && check_level_morphvar mv i) (mvs <> []) mvs
 
-  let is_const : type a l r. a C.obj -> (a, l * r) mode -> bool =
-    fun obj m ->
-      match m with
-      | Amode _ -> true
-      | Amodevar mv ->
-          check_level_morphvar mv generic_level &&
-          C.le obj (mupper obj mv) (mlower obj mv)
-      | Amodejoin (_, vs) ->
-        List.fold_left (fun acc mv ->
-          acc && check_level_morphvar mv generic_level &&
-          C.le obj (mupper obj mv) (mlower obj mv)) true vs
-      | Amodemeet (_, vs) ->
-        List.fold_left (fun acc mv ->
-          acc && check_level_morphvar mv generic_level &&
-          C.le obj (mupper obj mv) (mlower obj mv)) true vs
-
   let rec iter_covariant_morphvar :
       type a r. visited:(int, unit) Hashtbl.t -> a C.obj
       -> ((a, (allowed * disallowed)) mode -> unit) -> (a, allowed * r) morphvar -> unit =
@@ -1551,8 +1535,6 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let of_const _ = S.of_const
 
-    let is_const = S.is_const
-
     let min = S.min
 
     let max = S.max
@@ -1643,8 +1625,6 @@ module Solvers_polarized (C : Lattices_mono) = struct
     let meet = S.join
 
     let of_const _ = S.of_const
-
-    let is_const = S.is_const
 
     let min = S.max
 

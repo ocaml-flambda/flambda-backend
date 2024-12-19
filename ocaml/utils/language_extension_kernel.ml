@@ -59,7 +59,6 @@ let to_string : type a. a t -> string = function
    an extension and its maturity. For extensions that don't take an
    argument, the conversion is just [Language_extension_kernel.of_string].
 *)
-(* CR ageorges: mode_polymorphism (stable) is currently not represented *)
 let pair_of_string extn_name : Exist_pair.t option =
   match String.lowercase_ascii extn_name with
   | "comprehensions" -> Some (Pair (Comprehensions, ()))

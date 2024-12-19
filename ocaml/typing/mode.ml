@@ -1936,8 +1936,6 @@ module Common (Obj : Obj) = struct
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
-  let is_const a = Solver.is_const obj a
-
   let check_level a i = Solver.check_level a i
 
   let check_level_var a i = Solver.check_level_var a i
@@ -2906,9 +2904,6 @@ module Value_with (Areality : Areality) = struct
     let monadic1 = Monadic.duplicate ~copy_scope monadic0 in
     let comonadic1 = Comonadic.duplicate ~copy_scope comonadic0 in
     { monadic = monadic1; comonadic = comonadic1 }
-
-  let is_const { monadic = monadic0; comonadic = comonadic0 } =
-    Monadic.is_const monadic0 && Comonadic.is_const comonadic0
 
   let check_level { monadic = monadic0; comonadic = comonadic0 } i =
     Monadic.check_level monadic0 i &&
