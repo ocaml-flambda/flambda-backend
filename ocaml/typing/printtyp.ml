@@ -1176,11 +1176,6 @@ end = struct
   of [visible_monadic_paths_tbl] for a definition of a path *)
   let visible_comonadic_paths_tbl = VarPairTbl.create 17
 
-  (** Tracks diagonal paths from visible comonadic mode variables to monadic mode
-  variables, and vice-versa*)
-  (* let visible_monadic_to_comonadic_paths_tbl = VarPairTbl.create 17
-  let visible_comonadic_to_monadic_paths_tbl = VarPairTbl.create 17 *)
-
   (** counter used to generate names for polymorphic mode variables *)
   let modename_counter = ref 0
   let modenames = ref ([] : (boxedname * string) list)
@@ -1201,8 +1196,6 @@ end = struct
     modenames := [];
     VarPairTbl.reset visible_monadic_paths_tbl;
     VarPairTbl.reset visible_comonadic_paths_tbl;
-    (* VarPairTbl.reset visible_monadic_to_comonadic_paths_tbl;
-    VarPairTbl.reset visible_comonadic_to_monadic_paths_tbl; *)
     VarTbl.reset visible_vars;
     modename_counter := 0
 
@@ -1368,8 +1361,8 @@ end = struct
       VarTbl.mem visible_vars (K (obj, v))
 
   (* Find all direct paths (via vlowers) from some variable [v] to all other reachable
-    visible variables at generic level.
-    WARNING: cycles are *not* registered as a separate morphism:
+    visible variables at generic level. *)
+  (* CR ageorges: WARNING: cycles are *not* registered as a separate morphism:
       e.g.: let [w] be a visible generic variable with the following (vlower) edges:
             v -f> u1 -g> u2 -g'> u1 -h> w
             [find_paths v] will return only the direct path [(f ∘ h)]
@@ -1468,12 +1461,6 @@ end = struct
         find_path_from_description ~memoized Alloc.obj_comonadic Alloc.obj_comonadic comonadic
           { f = find_comonadic_morph_opt }
           (VarPairTbl.add visible_comonadic_paths_tbl)
-        (* find_path_from_description ~memoized Alloc.obj_monadic Alloc.obj_comonadic monadic
-          { f = find_comonadic_morph_opt }
-          (VarPairTbl.add visible_monadic_to_comonadic_paths_tbl);
-        find_path_from_description ~memoized Alloc.obj_comonadic Alloc.obj_monadic comonadic
-          { f = find_monadic_morph_opt }
-          (VarPairTbl.add visible_comonadic_to_monadic_paths_tbl) *)
       ) !visible_pairs
 
   type ('a,'b) morphl = ('a, 'b, (allowed * disallowed)) C.morph
@@ -2041,7 +2028,6 @@ let tree_of_modes : Alloc.lr -> zapped:Alloc.Const.t -> out_mode list =
   fun modes ~zapped ->
     if Alloc.check_level_var modes generic_level &&
       Language_extension.(is_at_least Mode_polymorphism Alpha) then
-      (* [Omd_new (Format.asprintf "%s\ndebug:%a" (Names.name_of_mode modes) (Alloc.print ~verbose:true ()) modes)] *)
       [Omd_new (Format.asprintf "%s" (Names.name_of_mode modes))]
     else
       tree_of_modes_const zapped
