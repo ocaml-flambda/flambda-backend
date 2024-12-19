@@ -1212,7 +1212,7 @@ Error: The kind of type "t" is value mod external_
 (* CR layouts v2.8: this should be accepted *)
 
 type 'a t : value mod many = { x : 'a @@ many }
-type 'a t : value mod uncontended = { x : 'a @@ uncontended }
+type 'a t : value mod uncontended = { x : 'a @@ contended }
 type 'a t : value mod portable = { x : 'a @@ portable }
 [%%expect {|
 Line 1, characters 0-47:

@@ -1090,7 +1090,8 @@ module Const = struct
         List.map (of_user_written_annotation_unchecked_level context) ts
       in
       jkind_of_product_annotations jkinds
-    | With (base, type_) -> (
+    | With (base, type_, modalities) -> (
+      ignore modalities;  (* CR aspsmith: TODO *)
       let base = of_user_written_annotation_unchecked_level context base in
       match context with
       | Right_jkind _ -> raise ~loc:type_.ptyp_loc With_on_right
