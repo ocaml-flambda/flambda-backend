@@ -75,6 +75,51 @@ typedef uintnat mark_t;
 #define Val_null ((value) 0)
 
 /* Longs vs blocks. */
+
+#ifdef __x86_64__
+// Specialize the implementation of Is_block and Is_long on x86-64.
+//
+// Is_block(x) returns 1 if the least significant bit of x is 0, and x != 0.
+// Normally, that is translated into 4 assembly instructions.
+//
+// However, we can use TZCNT to compute Is_block(x) in just one instruction.
+// TZCNT counts the number of trailing zeros in x, setting the carry flag
+// to 1 if x == 0 and setting the zero flag to 1 if the LSB of x is 1.
+// Therefore, Is_block(x) == 1 iff CF == 0 && ZF == 0.
+// We discard the output register as unnecessary.
+//
+// Similarly, after TZCNT, Is_long(x) == 1 iff CF == 1 || ZF == 1.
+//
+// Unfortunately, we can't port this optimization to ARM, since CTZ
+// there does not set any flags.
+//
+// On platforms prior to Haswell, TZCNT is not available and is silently
+// interpreted as BSF, producing undefined results when x == 0.
+// For now, we just ignore that.
+Caml_inline int Is_block(intnat value) {
+    int result;
+    intnat never_used;
+    __asm__ inline (
+        "tzcnt %2, %1"
+        : "=@cca" (result), "=r" (never_used)
+        : "r" (value)
+        : "cc"
+    );
+    return result;
+}
+
+Caml_inline int Is_long(intnat value) {
+    int result;
+    intnat never_used;
+    __asm__ inline (
+        "tzcnt %2, %1"
+        : "=@ccbe" (result), "=r" (never_used)
+        : "r" (value)
+        : "cc"
+    );
+    return result;
+}
+#else
 Caml_inline int Is_long(value x) {
   return ((x & 1) != 0 || x == 0);
 }
@@ -82,6 +127,7 @@ Caml_inline int Is_long(value x) {
 Caml_inline int Is_block(value x) {
   return ((x & 1) == 0 && x != 0);
 }
+#endif
 
 /* Conversion macro names are always of the form  "to_from". */
 /* Example: Val_long as in "Val from long" or "Val of long". */
