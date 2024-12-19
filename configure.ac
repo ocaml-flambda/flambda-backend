@@ -1583,9 +1583,13 @@ AS_CASE([$arch],
     [arch_specific_SOURCES='$(intel_SOURCES)'],
   [arch_specific_SOURCES=''])
 
-# Stack checks hardcoded on for testing with effects
-AC_DEFINE([STACK_CHECKS_ENABLED])
-enable_stack_checks=yes
+# Disabling of stack checks is only supported on amd64.
+AS_IF([test x"$enable_stack_checks" = xyes],
+  [AC_DEFINE([STACK_CHECKS_ENABLED])],
+  [AS_IF([test x"$arch" != xamd64],
+    [enable_stack_checks=yes
+     AC_DEFINE([STACK_CHECKS_ENABLED])],
+    [])])
 
 native_cflags=''
 native_cppflags="-DTARGET_${arch} -DMODEL_${model} -DSYS_${system}"
