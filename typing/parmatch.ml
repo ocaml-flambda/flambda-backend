@@ -177,9 +177,11 @@ let all_coherent column =
           | Const_unboxed_float32 _
           | Const_string _), _ -> false
       end
-    | Tuple l1, Tuple l2 -> l1 = l2
+    | Tuple l1, Tuple l2 ->
+      List.equal (Option.equal String.equal) l1 l2
     | Unboxed_tuple l1, Unboxed_tuple l2 ->
-      List.equal (fun (lbl1, _) (lbl2, _) -> lbl1 = lbl2) l1 l2
+      List.equal
+        (fun (lbl1, _) (lbl2, _) -> Option.equal String.equal lbl1 lbl2) l1 l2
     | Record (lbl1 :: _), Record (lbl2 :: _) ->
       Array.length lbl1.lbl_all = Array.length lbl2.lbl_all
     | Record_unboxed_product (lbl1 :: _), Record_unboxed_product (lbl2 :: _) ->
@@ -431,10 +433,17 @@ let simple_match d h =
   | Constant c1, Constant c2 -> const_compare c1 c2 = 0
   | Lazy, Lazy -> true
   | Record _, Record _ -> true
-  | Tuple len1, Tuple len2 -> len1 = len2
+  | Record_unboxed_product _, Record_unboxed_product _ -> true
+  | Tuple lbls1, Tuple lbls2 ->
+    List.equal (Option.equal String.equal) lbls1 lbls2
+  | Unboxed_tuple lbls1, Unboxed_tuple lbls2 ->
+    List.equal (fun (l1, _) (l2, _) -> Option.equal String.equal l1 l2)
+      lbls1 lbls2
   | Array (am1, _, len1), Array (am2, _, len2) -> am1 = am2 && len1 = len2
   | _, Any -> true
-  | _, _ -> false
+  | ( Construct _ | Variant _ | Constant _ | Lazy | Record _
+    | Record_unboxed_product _ | Tuple _ | Unboxed_tuple _ | Array _ | Any),
+    _ -> false
 
 
 
@@ -526,7 +535,7 @@ let discr_pat q pss =
     | ((head, _), _) :: rows ->
       match head.pat_desc with
       | Any -> refine_pat acc rows
-      | Tuple _ | Lazy -> head
+      | Tuple _ | Unboxed_tuple _ | Lazy -> head
       | Record lbls ->
         (* N.B. we could make this case "simpler" by refining the record case
            using [all_record_args].
@@ -544,7 +553,12 @@ let discr_pat q pss =
         in
         let d = { head with pat_desc = Record fields } in
         refine_pat d rows
-      | _ -> acc
+      | Construct _ | Constant _ | Record_unboxed_product _ | Variant _
+      | Array _ -> acc
+      (* CR layouts v7.2: the Record_unboxed_product case should get behavior
+         similar to the [Record] case above, but it's not completely trivial
+         due. See [typing-layouts-unboxed-records/exhaustiveness.ml] for an
+         example where this causes us to give a marginally worse warning. *)
   in
   let q, _ = deconstruct q in
   match q.pat_desc with
