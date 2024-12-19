@@ -112,7 +112,7 @@ let make_hardware_registers_and_prio_queue (cfg_with_infos : Cfg_with_infos.t) :
 (* CR xclerc for xclerc: try to find a reasonable threshold. *)
 let max_rounds = 32
 
-let max_temp_multiplier = 10
+let _XXXmax_temp_multiplier = 10
 
 (* CR xclerc for xclerc: the `round` parameter is temporary; this is an hybrid
    version of "greedy" using the `rewrite` function from IRC when it needs to
