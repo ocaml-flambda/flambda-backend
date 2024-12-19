@@ -99,8 +99,8 @@ jobs:
           - name: flambda2_frame_pointers_oclassic_polling_cfg
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
-            build_ocamlparam: '_,no-mach-ir=1'
-            ocamlparam: '_,Oclassic=1,no-mach-ir=1'
+            build_ocamlparam: '_,regalloc=cfg'
+            ocamlparam: '_,Oclassic=1,regalloc=cfg'
             disable_testcases: 'testsuite/tests/typing-local/regression_cmm_unboxing.ml testsuite/tests/int64-unboxing/test.ml'
 
           - name: flambda2_frame_pointers_oclassic_polling_irc

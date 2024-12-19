@@ -123,14 +123,10 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
-  (*
-  if State.introduced_temporary_count state
-     > State.initial_temporary_count state * max_temp_multiplier
-  then
-    fatal "register allocation introduced %d temporaries after starting with %d"
-      (State.introduced_temporary_count state)
-     (State.initial_temporary_count state);
-  *)
+  (* if State.introduced_temporary_count state > State.initial_temporary_count
+     state * max_temp_multiplier then fatal "register allocation introduced %d
+     temporaries after starting with %d" (State.introduced_temporary_count
+     state) (State.initial_temporary_count state); *)
   if gi_debug
   then (
     log ~indent:0 "main, round #%d" round;
