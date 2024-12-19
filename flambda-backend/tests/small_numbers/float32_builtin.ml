@@ -319,16 +319,17 @@ type v =
   | B of int * (float32 * float32)
 
 let () = (* Static constants *)
+  let open Stdlib_stable in
   let x = Sys.opaque_identity 1.0s in
-  assert (x = 1.0s);
+  assert (x = Float32.of_float 1.0);
   let block = Sys.opaque_identity ((0.0, 123), 2.0s, "hello", (3.0s, 4.0)) in
   let (_, x, _, (y, _)) = block in
-  assert (x = 2.0s);
-  assert (y = 3.0s);
+  assert (x = Float32.of_float 2.0);
+  assert (y = Float32.of_float 3.0);
   let block = Sys.opaque_identity (B (0, (5.0s, 6.0s))) in
   match block with
   | A _ -> assert false
   | B (_, (x, y)) ->
-    assert (x = 5.0s);
-    assert (y = 6.0s)
+    assert (x = Float32.of_float 5.0);
+    assert (y = Float32.of_float 6.0)
 ;;
