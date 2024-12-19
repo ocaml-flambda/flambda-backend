@@ -712,3 +712,11 @@ Error: The universal type variable 'a was declared to have kind any.
        But it was inferred to have kind value_or_null
          because of the definition of t at line 1, characters 0-40.
 |}]
+
+type a = B of b
+and b : any = #{ i : int ; j : int }
+[%%expect{|
+>> Fatal error: unboxed product jkinds don't line up
+Uncaught exception: Misc.Fatal_error
+
+|}]
