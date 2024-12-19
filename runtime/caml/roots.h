@@ -42,7 +42,8 @@ CAMLextern void caml_do_local_roots(
   void* data,
   struct caml__roots_block* local_roots,
   struct stack_info *current_stack,
-  value * v_gc_regs);
+  value * v_gc_regs,
+  struct caml_local_arenas* locals);
 
 #endif /* CAML_INTERNALS */
 
