@@ -355,6 +355,7 @@ module Error = struct
         { from_annotation : Parsetree.jkind_annotation;
           from_attribute : Builtin_attributes.jkind_attribute Location.loc
         }
+    | Unimplemented_syntax
 
   exception User_error of Location.t * t
 end
@@ -792,7 +793,8 @@ module Const = struct
         List.map (of_user_written_annotation_unchecked_level context) ts
       in
       jkind_of_product_annotations jkinds
-    | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+    | Default | With _ | Kind_of _ ->
+      raise ~loc:jkind.pjkind_loc Unimplemented_syntax
 
   (* The [annotation_context] parameter can be used to allow annotations / kinds
      in different contexts to be enabled with different extension settings.
@@ -2097,6 +2099,8 @@ let report_error ~loc : Error.t -> _ = function
          layouts extension.@;\
          %t@]"
         Pprintast.jkind_annotation jkind hint)
+  | Unimplemented_syntax ->
+    Location.errorf ~loc "@[<v>Unimplemented kind syntax@]"
 
 let () =
   Location.register_error_of_exn (function

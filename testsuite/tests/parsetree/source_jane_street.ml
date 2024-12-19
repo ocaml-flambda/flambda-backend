@@ -1083,9 +1083,10 @@ end
    supported. *)
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 11, characters 17-39:
+11 |   type 'a list : immutable_data with 'a
+                      ^^^^^^^^^^^^^^^^^^^^^^
+Error: Unimplemented kind syntax
 |}]
 
 (**************************)
