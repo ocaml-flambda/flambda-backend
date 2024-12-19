@@ -39,6 +39,8 @@ module Runtime_4 = struct
 
     let with_password f = f Password.for_initial_domain
 
+    let with_password_local f = exclave_ f Password.for_initial_domain
+
     let get_password () = Password.for_initial_domain
 
     type 'a key = int * (Password.t -> 'a)
@@ -243,6 +245,19 @@ module Runtime_5 = struct
     let with_password f =
       let password = get_password () in
       try f password with
+      | exn ->
+        let P password = password in
+        let name = Capsule.Password.name password in
+        let capsule =
+          (* CR tdelvecchio: Document. *)
+          let exn = Obj.magic_portable exn in
+          Capsule.Data.create (fun () -> Obj.magic_uncontended exn)
+        in
+        raise (Capsule.Encapsulated (name, capsule))
+
+    let with_password_local f =
+      let password = get_password () in
+      exclave_ try f password with
       | exn ->
         let P password = password in
         let name = Capsule.Password.name password in
@@ -503,7 +518,9 @@ module type S4 = sig
       val for_initial_domain : t
     end
 
-    val with_password : (Password.t -> 'a) -> 'a
+    val with_password : (Password.t -> 'a) @ local -> 'a
+    val with_password_local : (Password.t -> 'a @ local) @ local -> 'a @ local
+
     type 'a key
     val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
     val new_key_safe
@@ -544,8 +561,12 @@ module type S5 = sig
     end
 
     val with_password
-      :  (Password.t -> 'a @ portable contended) @ portable
+      :  (Password.t -> 'a @ portable contended) @ local portable
       -> 'a @ portable contended
+      @@ portable
+    val with_password_local
+      :  (Password.t -> 'a @ local portable contended) @ local portable
+      -> 'a @ local portable contended
       @@ portable
     type 'a key : value mod portable uncontended
     val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key

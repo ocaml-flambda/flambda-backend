@@ -40,8 +40,13 @@ module DLS : sig
 
     (* CR tdelvecchio: Document; in particular, exns. *)
     val with_password
-      :  (Password.t -> 'a @ portable contended) @ portable
+      :  (Password.t -> 'a @ portable contended) @ local portable
       -> 'a @ portable contended
+      @@ portable
+
+    val with_password_local
+      :  (Password.t -> 'a @ local portable contended) @ local portable
+      -> 'a @ local portable contended
       @@ portable
 
     type 'a key : value mod portable uncontended
