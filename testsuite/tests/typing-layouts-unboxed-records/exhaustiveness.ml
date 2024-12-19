@@ -19,10 +19,8 @@ type r = #{ x : t; y : t; }
 val f : t -> t -> bool = <fun>
 |}]
 
-(* CR layouts v7.2: The below error is not as good as it could be. The example
-   case is #{y=A; _ }, but should be #{y=A; x=B}. Normal boxed records get the
-   nicer pattern. See the corresponding CR in [Parmatch.discr_pat].
-*)
+(* This is a regression test. The example below used to give
+   #{y=A; _ } as a counterexample instead of #{y=A; x=B}. *)
 let g t t' =
   match #{ x = t; y = t' } with
   | #{ x = A; _ } -> true
@@ -34,7 +32,7 @@ Lines 2-4, characters 2-26:
 4 |   | #{ y = B; _ } -> false
 Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
-#{y=A; _ }
+#{y=A; x=B}
 
 val g : t -> t -> bool = <fun>
 |}]

@@ -533,6 +533,14 @@ let discr_pat q pss =
   let rec refine_pat acc = function
     | [] -> acc
     | ((head, _), _) :: rows ->
+      let append_unique lbls lbls_unique =
+        List.fold_right (fun lbl lbls_unique ->
+          if List.exists (fun l -> l.lbl_num = lbl.lbl_num) lbls_unique then
+            lbls_unique
+          else
+            lbl :: lbls_unique
+        ) lbls lbls_unique
+      in
       match head.pat_desc with
       | Any -> refine_pat acc rows
       | Tuple _ | Unboxed_tuple _ | Lazy -> head
@@ -543,29 +551,22 @@ let discr_pat q pss =
            records.
            However it makes the witness we generate for the exhaustivity warning
            less pretty. *)
-        let fields =
-          List.fold_right (fun lbl r ->
-            if List.exists (fun l -> l.lbl_num = lbl.lbl_num) r then
-              r
-            else
-              lbl :: r
-          ) lbls (record_arg acc)
-        in
+        let fields = append_unique lbls (record_arg acc) in
         let d = { head with pat_desc = Record fields } in
         refine_pat d rows
-      | Construct _ | Constant _ | Record_unboxed_product _ | Variant _
+      | Record_unboxed_product lbls ->
+        let fields = append_unique lbls (record_unboxed_product_arg acc) in
+        let d = { head with pat_desc = Record_unboxed_product fields } in
+        refine_pat d rows
+      | Construct _ | Constant _ | Variant _
       | Array _ -> acc
-      (* CR layouts v7.2: the Record_unboxed_product case should get behavior
-         similar to the [Record] case above, but it's not completely trivial
-         due. See [typing-layouts-unboxed-records/exhaustiveness.ml] for an
-         example where this causes us to give a marginally worse warning. *)
   in
   let q, _ = deconstruct q in
   match q.pat_desc with
   (* short-circuiting: clearly if we have anything other than [Record] or
      [Any] to start with, we're not going to be able refine at all. So
      there's no point going over the matrix. *)
-  | Any | Record _ -> refine_pat q pss
+  | Any | Record _ | Record_unboxed_product _ -> refine_pat q pss
   | _ -> q
 
 (*
@@ -793,7 +794,8 @@ let build_specialized_submatrices ~extend_row discr rows =
     let initial_constr_group =
       let open Patterns.Head in
       match discr.pat_desc with
-      | Record _ | Tuple _ | Lazy ->
+      | Record _ | Record_unboxed_product _ | Tuple _ | Unboxed_tuple _
+      | Lazy ->
         (* [discr] comes from [discr_pat], and in this case subsumes any of the
            patterns we could find on the first column of [rows]. So it is better
            to use it for our initial environment than any of the normalized
