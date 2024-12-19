@@ -147,9 +147,6 @@ val access_shared :
     with a shared {!Access.t} for ['k]. The result is within ['k] so it
     must be [portable] and it is marked [contended]. *)
 
-(** Mutual exclusion primtives for controlling uncontended access to a capsule.
-
-    Requires OCaml 5 runtime. *)
 module Mutex : sig
 
     type 'k t : value mod portable uncontended
@@ -234,6 +231,40 @@ module Rwlock : sig
     (** [destroy rw] write acquires the rwlock [rw] and merges the capsule ['k]
         with the current capsule by leaking access to it. It marks the
         lock as poisoned. *)
+end
+
+module Condition : sig
+
+    type 'k t : value mod portable uncontended
+    (** ['k t] is the type of a condition variable associated with the capsule ['k].
+        This condition may only be used with the matching ['k Mutex.t]. *)
+
+  val create : unit -> 'k t @@ portable
+  (** [create ()] creates and returns a new condition variable.
+      This condition variable is associated with the matching ['k Mutex.t]
+      and with a certain property {i P} that is protected by the mutex. *)
+
+  val wait : 'k t -> 'k Mutex.t -> 'k Password.t @ local -> unit @@ portable
+  (** [wait c m] atomically unlocks the mutex [m] and suspends the
+      current thread on the condition variable [c]. This thread can
+      later be woken up after the condition variable [c] has been signaled
+      via {!signal} or {!broadcast}; however, it can also be woken up for
+      no reason. The mutex [m] is locked again before [wait] returns. One
+      cannot assume that the property {i P} associated with the condition
+      variable [c] holds when [wait] returns; one must explicitly test
+      whether {i P} holds after calling [wait]. *)
+
+  val signal : 'k t -> unit @@ portable
+  (** [signal c] wakes up one of the threads waiting on the condition
+      variable [c], if there is one. If there is none, this call has no effect.
+      It is recommended to call [signal c] inside a critical section, that is,
+      while the mutex [m] associated with [c] is locked. *)
+
+  val broadcast : 'k t -> unit @@ portable
+  (** [broadcast c] wakes up all threads waiting on the condition
+      variable [c]. If there are none, this call has no effect.
+      It is recommended to call [broadcast c] inside a critical section,
+      that is, while the mutex [m] associated with [c] is locked. *)
 end
 
 val create_with_mutex : unit -> Mutex.packed @@ portable
