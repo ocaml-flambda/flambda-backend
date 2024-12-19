@@ -94,25 +94,25 @@ typedef opcode_t * code_t;
 // On platforms prior to Haswell, TZCNT is not available and is silently
 // interpreted as BSF, producing undefined results when x == 0.
 // For now, we just ignore that.
-Caml_inline int Is_block(intnat value) {
+Caml_inline int Is_block(value x) {
     int result;
-    intnat never_used;
+    value never_used;
     __asm__ inline (
         "tzcnt %2, %1"
         : "=@cca" (result), "=r" (never_used)
-        : "r" (value)
+        : "r" (x)
         : "cc"
     );
     return result;
 }
 
-Caml_inline int Is_long(intnat value) {
+Caml_inline int Is_long(value x) {
     int result;
-    intnat never_used;
+    value never_used;
     __asm__ inline (
         "tzcnt %2, %1"
         : "=@ccbe" (result), "=r" (never_used)
-        : "r" (value)
+        : "r" (x)
         : "cc"
     );
     return result;
