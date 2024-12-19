@@ -463,11 +463,13 @@ and jkind_annotation ?(nested = false) ctxt f k = match k.pjkind_desc with
           (pp_print_list ~pp_sep:pp_print_space mode) modes
       ) f (t, modes)
     end
-  | With (t, ty) ->
-    Misc.pp_parens_if nested (fun f (t, ty) ->
-      pp f "%a with %a" (jkind_annotation ~nested:true ctxt) t (core_type ctxt)
-        ty
-    ) f (t, ty)
+  | With (t, ty, modalities) ->
+    Misc.pp_parens_if nested (fun f (t, ty, modalities) ->
+      pp f "%a with %a%a"
+        (jkind_annotation ~nested:true ctxt) t
+        (core_type ctxt) ty
+        optional_space_atat_modalities modalities;
+    ) f (t, ty, modalities)
   | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
   | Product ts ->
     Misc.pp_parens_if nested (fun f ts ->

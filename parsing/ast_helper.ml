@@ -142,7 +142,7 @@ module Typ = struct
         | Default as x -> x
         | Abbreviation _ as x -> x
         | Mod (jkind, modes) -> Mod (loop_jkind jkind, modes)
-        | With (jkind, typ) -> With (loop_jkind jkind, loop typ)
+        | With (jkind, typ, modalities) -> With (loop_jkind jkind, loop typ, modalities)
         | Kind_of typ -> Kind_of (loop typ)
         | Product jkinds -> Product (List.map loop_jkind jkinds)
       in
