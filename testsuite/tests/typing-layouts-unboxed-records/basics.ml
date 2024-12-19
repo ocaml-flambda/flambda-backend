@@ -713,10 +713,21 @@ Error: The universal type variable 'a was declared to have kind any.
          because of the definition of t at line 1, characters 0-40.
 |}]
 
+
+(************************************************************)
+
+(* This is a regression test. Previously, we hit a fatal error because the [any]
+   annotation obscured the fact that the unboxed record is a product, breaking
+   an invariant assumed by [Ctype.constrain_type_jkind].
+
+   [a] was necessary to trigger the error because it called
+   [check_representable] on [b], constraining its kind to be a sort variable. *)
 type a = B of b
 and b : any = #{ i : int ; j : int }
 [%%expect{|
->> Fatal error: unboxed product jkinds don't line up
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 9-15:
+1 | type a = B of b
+             ^^^^^^
+Error: Type "b" has layout "value & value".
+       Variants may not yet contain types of this layout.
 |}]

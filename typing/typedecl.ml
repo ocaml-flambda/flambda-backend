@@ -966,6 +966,21 @@ let transl_declaration env sdecl (id, uid) =
       | None, Some _ -> Jkind.Builtin.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
+    let jkind =
+      (* Unboxed records are given a product-of-[any]s jkind
+         when they would otherwise be given [any].
+
+         This allows [estimate_type_jkind] to give an estimate that's
+         just barely good enough, such that [constain_type_jkind] can always
+         decompose the product of [any]s and recurse on the labels. *)
+      match sdecl.ptype_kind with
+      | Ptype_record_unboxed_product lbls
+        when Jkind.is_max (Jkind.terrible_relax_l jkind) ->
+        Jkind.Builtin.product ~why:Unboxed_record
+          (List.map (fun _ -> jkind) lbls)
+      | Ptype_abstract | Ptype_variant _ | Ptype_record _
+      | Ptype_record_unboxed_product _ | Ptype_open -> jkind
+    in
     let arity = List.length params in
     let decl =
       { type_params = params;
