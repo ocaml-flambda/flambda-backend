@@ -81,8 +81,8 @@
 #define CODE_CUSTOM_LEN 0x18
 #define CODE_CUSTOM_FIXED 0x19
 
-#define CODE_UNBOXED_INT64 0x1f // Jane Street extensions
-#define CODE_NULL 0x1e
+#define CODE_UNBOXED_INT64 0x1a // Jane Street extensions
+#define CODE_NULL 0x1f
 
 #if ARCH_FLOAT_ENDIANNESS == 0x76543210
 #define CODE_DOUBLE_NATIVE CODE_DOUBLE_BIG
