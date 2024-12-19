@@ -121,6 +121,9 @@ end
    it never returns is also [portable] *)
 external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
+external raise_with_backtrace :
+  exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
+
 module Data = struct
   type ('a, 'k) t : value mod portable uncontended
 
@@ -371,3 +374,17 @@ let create_with_mutex () =
 let create_with_rwlock () =
   let (P name) = Name.make () in
   Rwlock.P { name; rwlock = Rw.create (); poisoned = false }
+
+exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
+
+(* CR-soon mslater: replace with portable stdlib *)
+let get_raw_backtrace : unit -> Printexc.raw_backtrace @@ portable =
+  O.magic O.magic Printexc.get_raw_backtrace
+
+let protect f =
+  try f () with
+  | exn ->
+    let (P mut) = create_with_mutex () in
+    raise_with_backtrace (Protected (mut, Data.unsafe_mk exn)) (get_raw_backtrace ())
+  ;;
+
