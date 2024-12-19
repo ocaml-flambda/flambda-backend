@@ -973,7 +973,7 @@ let nameable_row row =
 (* This specialized version of [Btype.iter_type_expr] normalizes and
    short-circuits the traversal of the [type_expr], so that it covers only the
    subterms that would be printed by the type printer. *)
-let printer_iter_type_expr f ty =
+let printer_iter_type_expr f fm  ty =
   match get_desc ty with
   | Tconstr(p, tyl, _) ->
       let (_p', s) = best_type_path p in
@@ -1002,7 +1002,7 @@ let printer_iter_type_expr f ty =
         f ty1;
       f ty2
   | _ ->
-      Btype.iter_type_expr f ty
+      Btype.iter_type_expr f fm ty
 
 module Internal_names : sig
 
@@ -1125,7 +1125,7 @@ end = struct
       | Tvar _ | Tunivar _ ->
           add_named_var tty
       | _ ->
-          printer_iter_type_expr add_named_vars ty
+          printer_iter_type_expr add_named_vars (Fun.const ()) ty
     end
 
   let rec substitute ty =
@@ -1279,13 +1279,13 @@ let rec mark_loops_rec visited ty =
         if List.memq px !visited_objects then add_alias_proxy px else begin
           if should_visit_object ty then
             visited_objects := px :: !visited_objects;
-          printer_iter_type_expr (mark_loops_rec visited) ty
+          printer_iter_type_expr (mark_loops_rec visited) (Fun.const ()) ty
         end
     | Tpoly(ty, tyl) ->
         List.iter add_alias tyl;
         mark_loops_rec visited ty
     | _ ->
-        printer_iter_type_expr (mark_loops_rec visited) ty
+        printer_iter_type_expr (mark_loops_rec visited) (Fun.const ()) ty
 
 let mark_loops ty =
   mark_loops_rec [] ty
@@ -1432,7 +1432,7 @@ let rec tree_of_typexp mode alloc_mode ty =
            don't print anything for those axes, since user would interpret that
            as legacy. The best we can do is to zap to legacy and if they do land
            at legacy, we will be able to omit printing them. *)
-        let arg_mode = Alloc.zap_to_legacy marg in
+        let arg_mode = Alloc.zap_to_legacy_force marg in
         let t1 =
           if is_optional l then
             match get_desc (tpoly_get_mono ty1) with
@@ -1443,7 +1443,7 @@ let rec tree_of_typexp mode alloc_mode ty =
           else
             tree_of_typexp mode arg_mode ty1
         in
-        let acc_mode = curry_mode alloc_mode arg_mode in
+        let acc_mode = curry_mode_const alloc_mode arg_mode in
         let (rm, t2) = tree_of_ret_typ_mutating mode acc_mode (mret, ty2) in
         Btype.backtrack snap;
         Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
@@ -1596,12 +1596,12 @@ and tree_of_ret_typ_mutating mode acc_mode (m, ty) =
       | Error _ ->
         (* In this branch we need to print parens. [m] might have undetermined
         axes and we adopt a similar logic to the [marg] above. *)
-        let m = Alloc.zap_to_legacy m in
+        let m = Alloc.zap_to_legacy_force m in
         let ty = tree_of_typexp mode m ty in
         (Orm_parens (tree_of_modes m), ty)
       end
   | _ ->
-    let m = Alloc.zap_to_legacy m in
+    let m = Alloc.zap_to_legacy_force m in
     let ty = tree_of_typexp mode m ty in
     (Orm_not_arrow (tree_of_modes m), ty)
 

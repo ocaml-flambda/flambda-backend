@@ -685,7 +685,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
               ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
             else transl_type env ~policy ~row_context arg_mode arg
           in
-          let acc_mode = curry_mode acc_mode arg_mode in
+          let acc_mode = curry_mode_const acc_mode arg_mode in
           let ret_mode =
             match rest with
             | [] -> ret_mode
@@ -1288,7 +1288,7 @@ let rec make_fixed_univars ty =
                   ~fixed:(Some (Univar more))));
         Btype.iter_row make_fixed_univars row
     | _ ->
-        Btype.iter_type_expr make_fixed_univars ty
+        Btype.iter_type_expr make_fixed_univars (Fun.const ()) ty
     end
 
 let transl_type env policy mode styp =
@@ -1355,7 +1355,7 @@ let transl_type_scheme_mono env styp =
      declarations from having undefaulted jkind variables. Without
      this line, we might accidentally export a jkind-flexible definition
      from a compilation unit, which would lead to miscompilation. *)
-  remove_mode_and_jkind_variables typ.ctyp_type;
+  Alloc.with_zap_scope (remove_mode_and_jkind_variables typ.ctyp_type);
   typ
 
 let transl_type_scheme_poly env attrs loc vars inner_type =

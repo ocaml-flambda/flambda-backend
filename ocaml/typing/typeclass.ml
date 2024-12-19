@@ -1906,7 +1906,7 @@ let final_decl env define_class
     );
 
   begin match
-    Ctype.closed_class clty.cty_params
+    Alloc.with_zap_scope Ctype.closed_class clty.cty_params
       (Btype.signature_of_class_type clty.cty_type)
   with
     None        -> ()

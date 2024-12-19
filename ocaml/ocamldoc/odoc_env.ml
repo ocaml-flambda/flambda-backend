@@ -167,7 +167,7 @@ let subst_type env t =
   let rec iter t =
     if List.memq t !deja_vu then () else begin
       deja_vu := t :: !deja_vu;
-      Btype.iter_type_expr iter t;
+      Btype.iter_type_expr iter (Fun.const ()) t;
       let open Types in
       match get_desc t with
       | Tconstr (p, [_], _) when Path.same p Predef.path_option ->

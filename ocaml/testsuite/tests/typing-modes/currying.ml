@@ -333,7 +333,7 @@ Line 2, characters 11-25:
                ^^^^^^^^^^^^^^
 Error: This value escapes its region.
   Hint: This is a partial application
-        Adding 1 more argument will make the value non-local
+        Adding 1 more argument may make the value non-local
 |}]
 
 (* The fixed version. Note that in the printed type, local returning is implicit
