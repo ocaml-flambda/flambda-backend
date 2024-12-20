@@ -4188,7 +4188,7 @@ let unify uenv ty1 ty2 =
       raise (Unify (expand_to_unification_error (get_env uenv) trace))
 
 let unify_gadt (penv : Pattern_env.t) ty1 ty2 =
-  univar_pairs := [];
+  Misc.protect_refs [R (univar_pairs, [])] begin fun () ->
   let equated_types = TypePairs.create 0 in
   let equations_generation = Allowed { equated_types } in
   let uenv = Pattern
@@ -4199,6 +4199,7 @@ let unify_gadt (penv : Pattern_env.t) ty1 ty2 =
   in
   unify uenv ty1 ty2;
   equated_types
+  end
 
 let unify_var uenv t1 t2 =
   if eq_type t1 t2 then () else
@@ -4231,8 +4232,10 @@ let unify_var env ty1 ty2 =
   unify_var (Expression {env; in_subst = false}) ty1 ty2
 
 let unify_pairs env ty1 ty2 pairs =
+  Misc.protect_refs [R (univar_pairs, pairs)] begin fun () ->
   univar_pairs := pairs;
   unify (Expression {env; in_subst = false}) ty1 ty2
+  end
 
 let unify env ty1 ty2 =
   unify_pairs env ty1 ty2 []
@@ -5149,9 +5152,10 @@ let moregeneral env inst_nongen pat_sch subj_sch =
   Misc.try_finally
     (fun () ->
        try
-         univar_pairs := [];
+         Misc.protect_refs [R (univar_pairs, [])] begin fun () ->
          let type_pairs = fresh_moregen_pairs () in
          moregen inst_nongen Covariant type_pairs env patt subj
+         end
        with Moregen_trace trace ->
          (* Moregen splits the generic level into two finer levels:
             [generic_level] and [generic_level - 1].  In order to properly
@@ -5552,12 +5556,13 @@ and eqtype_alloc_mode m1 m2 =
 (* Must empty univar_pairs first *)
 let eqtype_list_same_length
       rename type_pairs subst env tl1 tl2 ~do_jkind_check =
-  univar_pairs := [];
+  Misc.protect_refs [R (univar_pairs, [])] begin fun () ->
   let snap = Btype.snapshot () in
   Misc.try_finally
     ~always:(fun () -> backtrack snap)
     (fun () -> eqtype_list_same_length rename type_pairs subst env
          tl1 tl2 ~do_jkind_check)
+  end
 
 let eqtype rename type_pairs subst env t1 t2 =
   eqtype_list ~do_jkind_check:true rename type_pairs subst env [t1] [t2]
@@ -6411,7 +6416,7 @@ and subtype_row env trace row1 row2 cstrs =
 
 let subtype env ty1 ty2 =
   TypePairs.clear subtypes;
-  univar_pairs := [];
+  Misc.protect_refs [R (univar_pairs, [])] begin fun () ->
   (* Build constraint set. *)
   let cstrs =
     subtype_rec env [Subtype.Diff {got = ty1; expected = ty2}] ty1 ty2 []
@@ -6424,6 +6429,7 @@ let subtype env ty1 ty2 =
          try unify_pairs env t1 t2 pairs with Unify {trace} ->
            subtype_error ~env ~trace:trace0 ~unification_trace:(List.tl trace))
       (List.rev cstrs)
+  end
 
                               (*******************)
                               (*  Miscellaneous  *)
