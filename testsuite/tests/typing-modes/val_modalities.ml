@@ -536,14 +536,14 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val t : [> `Foo ] @@ deterministic contended end
+         sig val t : [> `Foo ] @@ contended end
        is not included in
          sig
            val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@
              portable
          end
        Values do not match:
-         val t : [> `Foo ] @@ deterministic contended
+         val t : [> `Foo ] @@ contended
        is not included in
          val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@ portable
        The second is portable and the first is nonportable.

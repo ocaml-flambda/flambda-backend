@@ -89,7 +89,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
       <def_rec>
         pattern (test_locations.ml[17,534+8]..test_locations.ml[17,534+11])
           Tpat_var "fib"
-          value_mode global,many,nonportable,nondeterministic;join(aliased,contended,immutable)(modevar#1[aliased,uncontended,read_write .. unique,uncontended,read_write])
+          value_mode global,many,nonportable,nondeterministic;unique,uncontended,read_write
         expression (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
           Texp_function
           alloc_mode global,many,nonportable,nondeterministic;id(modevar#7[aliased,contended,immutable .. unique,uncontended,read_write])
