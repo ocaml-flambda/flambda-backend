@@ -21,4 +21,4 @@
 type t = int16 [@@immediate]
 
 (** @inline *)
-include Int.S with type t := int16
+include Int_wrapper.S with type t := int16

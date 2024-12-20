@@ -17,8 +17,8 @@
 type t = int8
 
 include
-  Int.Narrow
-    (Int)
+  Int_wrapper.Make
+    (Int_wrapper)
     (struct
       type nonrec t = t
 

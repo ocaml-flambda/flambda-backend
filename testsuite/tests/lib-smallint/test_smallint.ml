@@ -1,4 +1,4 @@
-module Int = Stdlib_beta.Int
+module Int = Stdlib_beta.Int_wrapper
 
 let same_float x y = Int64.equal (Int64.bits_of_float x) (Int64.bits_of_float y)
 
@@ -26,7 +26,7 @@ let nudge rng f =
         (Int64.float_of_bits (Random.State.int64_in_range rng ~min:lo ~max:hi))
         f
 
-let run (module Smallint : Stdlib_beta.Int.S) ~min_int ~max_int =
+let run (module Smallint : Int.S) ~min_int ~max_int =
   let int_size = Smallint.int_size in
   assert (0 < int_size && int_size <= Sys.int_size);
   assert (max_int = (1 lsl (int_size - 1)) - 1);

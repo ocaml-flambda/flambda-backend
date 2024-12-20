@@ -190,7 +190,7 @@ module type S = sig
   val hash : t -> int
 end
 
-module Narrow
+module Make
     (Container : S) (Spec : sig
       type t
 

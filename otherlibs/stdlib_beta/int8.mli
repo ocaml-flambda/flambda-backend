@@ -21,4 +21,4 @@
 type t = int8 [@@immediate]
 
 (** @inline *)
-include Int.S with type t := int8
+include Int_wrapper.S with type t := int8
