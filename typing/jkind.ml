@@ -407,6 +407,17 @@ module Bound = struct
     let (module Ops) = Axis.get axis in
     { modifier = Ops.meet mod1 mod2; baggage = Baggage.meet bag1 bag2 }
 
+  let add_baggage (type axis) ({ modifier; baggage } as bound)
+      ~(axis : axis Axis.t) new_baggage =
+    (* No need to add baggage to top. While the subsumption check is still not
+       great, this is not just an optimization; see test
+       typing-layouts/illegal-across-modules/test.ml *)
+    (* CR layouts v2.8: Fix the comment above after we fix subsumption. *)
+    let (module Ops) = Axis.get axis in
+    if Ops.le Ops.max modifier
+    then bound
+    else { bound with baggage = Baggage.add_baggage baggage new_baggage }
+
   let reduce_baggage (type a) ~type_equal ~jkind_of_type ~(axis : a Axis.t)
       modifier baggage =
     (* Sadly, it seems hard (impossible?) to be sure to expand all types
@@ -604,10 +615,9 @@ module Bounds = struct
     Map.f
       { f =
           (fun ~axis (bound : _ Bound.t) : _ Bound.t ->
-            match deep_only, Axis.is_deep axis with
-            | false, _ | _, true ->
-              { bound with baggage = Baggage.add_baggage bound.baggage baggage }
-            | true, false -> bound)
+            if Axis.is_deep axis || not deep_only
+            then Bound.add_baggage bound ~axis baggage
+            else bound)
       }
       bounds
 
