@@ -62,7 +62,7 @@ module M = struct
     let x @ contended = "hello"
 end
 [%%expect{|
-module M : sig val x : string @@ portable contended end
+module M : sig val x : string @@ contended end
 |}]
 
 (* Testing the defaulting behaviour.
@@ -162,7 +162,7 @@ Error: Signature mismatch:
 (* CR zqian: add tests when this becomes testable. *)
 
 (* When module doesn't have signature, the values' modes/modalities are still
-   flexible. *)
+   flexible. However, using the values will constrain the modes/modalities. *)
 module Without_inclusion = struct
     module M = struct
         let x @ portable = fun x -> x
@@ -266,7 +266,7 @@ end
 module Close_over_value :
   sig
     module M : sig val x : string @@ portable end
-    val foo : unit -> unit @@ portable
+    val foo : unit -> unit
   end
 |}]
 
@@ -854,7 +854,7 @@ module M_portable = struct
     end
 [%%expect{|
 module M_nonportable : sig val f : unit -> unit end
-module M_portable : sig val f : unit -> unit @@ portable end
+module M_portable : sig val f : unit -> unit end
 |}]
 
 let (foo @ portable) () =
