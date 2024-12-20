@@ -1,9 +1,8 @@
 (* TEST
- flags = "-extension small_numbers";
+ include stdlib_beta;
+ flags = "-extension small_numbers_beta";
  expect;
 *)
-
-(* Operations are tested in tests/small_numbers *)
 
 (* Boxed float32 *)
 
@@ -192,18 +191,21 @@ Error: float32 literal patterns are not supported.
 
 type t = int8;;
 [%%expect{|
-Line 1, characters 9-13:
-1 | type t = int8;;
-             ^^^^
-Error: Unbound type constructor "int8"
-Hint: Did you mean "int"?
+type t = int8
 |}];;
 
 type t = int16;;
 [%%expect{|
-Line 1, characters 9-14:
-1 | type t = int16;;
-             ^^^^^
-Error: Unbound type constructor "int16"
-Hint: Did you mean "int", "int16x8", "int32", "int64" or "int8x16"?
+type t = int16
 |}];;
+
+let i8 = Stdlib_beta.Int8.minus_one;;
+[%%expect{|
+val i8 : int8 = -1
+|}];;
+
+let i16 = Stdlib_beta.Int16.minus_one;;
+[%%expect{|
+val i16 : int16 = -1
+|}];;
+
