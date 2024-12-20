@@ -356,6 +356,7 @@ external[@layout_poly] unsafe_blit :
   "%arrayblit"
 
 let failwithf fmt = Printf.ksprintf failwith fmt
+let printf = Printf.printf
 
 external globalize : local_ 'a -> 'a = "%obj_dup";;
 
@@ -365,6 +366,8 @@ let rec iter ~f = function
   | a::l -> f a; iter ~f l
 
 let tests_run = ref []
+
+let test_failed = ref false
 
 let mark_test_run test_id =
   if not (List.mem ~set:!tests_run test_id) then
@@ -402,7 +405,7 @@ let line fmt =
     fmt
 
 let print_in_test s =
-  line {|let () = Printf.printf "%s%%!\n";;|} (String.escaped s)
+  line {|let () = printf "%s%%!\n";;|} (String.escaped s)
 
 let seq_print_in_test s =
   line {|print_endline "%s%!";|} (String.escaped s)
@@ -427,7 +430,7 @@ let combine_debug_exprs (l : debug_expr list) : debug_expr =
 
 let seq_print_debug_exprs ~debug_exprs =
   let { expr ; format_s } = combine_debug_exprs debug_exprs in
-  line {|Printf.printf "%s: %s\n%%!"%s;|} expr format_s expr
+  line {|printf "%s: %s\n%%!"%s;|} expr format_s expr
 
 let test_id = ref 0
 
@@ -436,7 +439,7 @@ let seq_assert ~debug_exprs s =
   let { expr ; format_s } = combine_debug_exprs debug_exprs in
   line "mark_test_run %d;" !test_id;
   line "let test = %s in" s;
-  line {|if not test then failwithf "test %d failed%s"%s;|}
+  line {|if not test then (printf "test %d failed%s\n"%s; test_failed := true);|}
     !test_id format_s expr
 
 let for_ var ~from ~to_ ~debug_exprs f =
@@ -477,7 +480,10 @@ let section s =
 *)
 let test_makearray_dynamic ~uninit ~local ty =
   let makearray_dynamic = makearray_dynamic_fn ~uninit ~local in
-  let debug_exprs = [{ expr = "size"; format_s = "%d"}] in
+  let debug_exprs = [
+    { expr = "size"; format_s = "%d"};
+    { expr = sprintf "%S" ty.Ty.ty_code; format_s = "%s" }
+  ] in
   let ty_array_s = ty.Ty.ty_code ^ " array" in
   (* seq_print_in_test ty.Ty.ty_code; *)
   section ("  " ^ ty.Ty.ty_code ^ "  ");
@@ -670,7 +676,7 @@ let main ~bytecode =
     {|if not (List.mem ~set:!tests_run i) then failwithf "test %%d not run" i|}
   );
   line "done;;";
-  print_in_test "All tests passed."
+  line {|if !test_failed then printf "Not all tests passed.\n" else printf "All tests passed.\n"|}
 
 let () =
   let bytecode =

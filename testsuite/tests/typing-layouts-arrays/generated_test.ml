@@ -45,6 +45,7 @@ external[@layout_poly] unsafe_blit :
   "%arrayblit"
 
 let failwithf fmt = Printf.ksprintf failwith fmt
+let printf = Printf.printf
 
 external globalize : local_ 'a -> 'a = "%obj_dup";;
 
@@ -54,6 +55,8 @@ let rec iter ~f = function
   | a::l -> f a; iter ~f l
 
 let tests_run = ref []
+
+let test_failed = ref false
 
 let mark_test_run test_id =
   if not (List.mem ~set:!tests_run test_id) then
@@ -117,288 +120,288 @@ let () =
   let mk_value i = Float32_u.of_int i in
   mark_test_run 1;
   let test = eq (mk_value 1) #1.s in
-  if not test then failwithf "test 1 failed";
+  if not test then (printf "test 1 failed\n"; test_failed := true);
   mark_test_run 2;
   let test = eq #1.s #1.s in
-  if not test then failwithf "test 2 failed";
+  if not test then (printf "test 2 failed\n"; test_failed := true);
   mark_test_run 3;
   let test = not (eq #1.s #2.s) in
-  if not test then failwithf "test 3 failed";
+  if not test then (printf "test 3 failed\n"; test_failed := true);
   let eq : float# @ local -> float# @ local -> bool = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
   let mk_value i = Float_u.of_int i in
   mark_test_run 4;
   let test = eq (mk_value 1) #1. in
-  if not test then failwithf "test 4 failed";
+  if not test then (printf "test 4 failed\n"; test_failed := true);
   mark_test_run 5;
   let test = eq #1. #1. in
-  if not test then failwithf "test 5 failed";
+  if not test then (printf "test 5 failed\n"; test_failed := true);
   mark_test_run 6;
   let test = not (eq #1. #2.) in
-  if not test then failwithf "test 6 failed";
+  if not test then (printf "test 6 failed\n"; test_failed := true);
   let eq : int32# @ local -> int32# @ local -> bool = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let mk_value i = Int32_u.of_int i in
   mark_test_run 7;
   let test = eq (mk_value 1) #1l in
-  if not test then failwithf "test 7 failed";
+  if not test then (printf "test 7 failed\n"; test_failed := true);
   mark_test_run 8;
   let test = eq #1l #1l in
-  if not test then failwithf "test 8 failed";
+  if not test then (printf "test 8 failed\n"; test_failed := true);
   mark_test_run 9;
   let test = not (eq #1l #2l) in
-  if not test then failwithf "test 9 failed";
+  if not test then (printf "test 9 failed\n"; test_failed := true);
   let eq : int64# @ local -> int64# @ local -> bool = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let mk_value i = Int64_u.of_int i in
   mark_test_run 10;
   let test = eq (mk_value 1) #1L in
-  if not test then failwithf "test 10 failed";
+  if not test then (printf "test 10 failed\n"; test_failed := true);
   mark_test_run 11;
   let test = eq #1L #1L in
-  if not test then failwithf "test 11 failed";
+  if not test then (printf "test 11 failed\n"; test_failed := true);
   mark_test_run 12;
   let test = not (eq #1L #2L) in
-  if not test then failwithf "test 12 failed";
+  if not test then (printf "test 12 failed\n"; test_failed := true);
   let eq : nativeint# @ local -> nativeint# @ local -> bool = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let mk_value i = Nativeint_u.of_int i in
   mark_test_run 13;
   let test = eq (mk_value 1) #1n in
-  if not test then failwithf "test 13 failed";
+  if not test then (printf "test 13 failed\n"; test_failed := true);
   mark_test_run 14;
   let test = eq #1n #1n in
-  if not test then failwithf "test 14 failed";
+  if not test then (printf "test 14 failed\n"; test_failed := true);
   mark_test_run 15;
   let test = not (eq #1n #2n) in
-  if not test then failwithf "test 15 failed";
+  if not test then (printf "test 15 failed\n"; test_failed := true);
   let eq : ur1 @ local -> ur1 @ local -> bool = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
   let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
   mark_test_run 16;
   let test = eq (mk_value 1) (#{ a = #1L; b = #1. } : ur1) in
-  if not test then failwithf "test 16 failed";
+  if not test then (printf "test 16 failed\n"; test_failed := true);
   mark_test_run 17;
   let test = eq (#{ a = #1L; b = #1. } : ur1) (#{ a = #1L; b = #1. } : ur1) in
-  if not test then failwithf "test 17 failed";
+  if not test then (printf "test 17 failed\n"; test_failed := true);
   mark_test_run 18;
   let test = not (eq (#{ a = #1L; b = #1. } : ur1) (#{ a = #2L; b = #2. } : ur1)) in
-  if not test then failwithf "test 18 failed";
+  if not test then (printf "test 18 failed\n"; test_failed := true);
   let eq : ur3 @ local -> ur3 @ local -> bool = (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) in
   let mk_value i = (#{ a = Int64_u.of_int i } : ur3) in
   mark_test_run 19;
   let test = eq (mk_value 1) (#{ a = #1L } : ur3) in
-  if not test then failwithf "test 19 failed";
+  if not test then (printf "test 19 failed\n"; test_failed := true);
   mark_test_run 20;
   let test = eq (#{ a = #1L } : ur3) (#{ a = #1L } : ur3) in
-  if not test then failwithf "test 20 failed";
+  if not test then (printf "test 20 failed\n"; test_failed := true);
   mark_test_run 21;
   let test = not (eq (#{ a = #1L } : ur3) (#{ a = #2L } : ur3)) in
-  if not test then failwithf "test 21 failed";
+  if not test then (printf "test 21 failed\n"; test_failed := true);
   let eq : ur4 @ local -> ur4 @ local -> bool = (fun (#{ a = a1; b = b1 } : ur4) (#{ a = a2; b = b2 } : ur4) -> (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 a2 && (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) b1 b2) in
   let mk_value i = (#{ a = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1); b = (#{ a = Int64_u.of_int i } : ur3) } : ur4) in
   mark_test_run 22;
   let test = eq (mk_value 1) (#{ a = (#{ a = #1L; b = #1. } : ur1); b = (#{ a = #1L } : ur3) } : ur4) in
-  if not test then failwithf "test 22 failed";
+  if not test then (printf "test 22 failed\n"; test_failed := true);
   mark_test_run 23;
   let test = eq (#{ a = (#{ a = #1L; b = #1. } : ur1); b = (#{ a = #1L } : ur3) } : ur4) (#{ a = (#{ a = #1L; b = #1. } : ur1); b = (#{ a = #1L } : ur3) } : ur4) in
-  if not test then failwithf "test 23 failed";
+  if not test then (printf "test 23 failed\n"; test_failed := true);
   mark_test_run 24;
   let test = not (eq (#{ a = (#{ a = #1L; b = #1. } : ur1); b = (#{ a = #1L } : ur3) } : ur4) (#{ a = (#{ a = #2L; b = #2. } : ur1); b = (#{ a = #2L } : ur3) } : ur4)) in
-  if not test then failwithf "test 24 failed";
+  if not test then (printf "test 24 failed\n"; test_failed := true);
   let eq : #(float# * int32# * int64#) @ local -> #(float# * int32# * int64#) @ local -> bool = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a1 b1 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a2 b2) in
   let mk_value i = #(Float_u.of_int i, Int32_u.of_int i, Int64_u.of_int i) in
   mark_test_run 25;
   let test = eq (mk_value 1) #(#1., #1l, #1L) in
-  if not test then failwithf "test 25 failed";
+  if not test then (printf "test 25 failed\n"; test_failed := true);
   mark_test_run 26;
   let test = eq #(#1., #1l, #1L) #(#1., #1l, #1L) in
-  if not test then failwithf "test 26 failed";
+  if not test then (printf "test 26 failed\n"; test_failed := true);
   mark_test_run 27;
   let test = not (eq #(#1., #1l, #1L) #(#2., #2l, #2L)) in
-  if not test then failwithf "test 27 failed";
+  if not test then (printf "test 27 failed\n"; test_failed := true);
   let eq : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) @ local -> #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) @ local -> bool = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
   let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
   mark_test_run 28;
   let test = eq (mk_value 1) #(#1., #(#1L, #1L), #1.s, #(#1l, #(#1.s, #1.)), #1L) in
-  if not test then failwithf "test 28 failed";
+  if not test then (printf "test 28 failed\n"; test_failed := true);
   mark_test_run 29;
   let test = eq #(#1., #(#1L, #1L), #1.s, #(#1l, #(#1.s, #1.)), #1L) #(#1., #(#1L, #1L), #1.s, #(#1l, #(#1.s, #1.)), #1L) in
-  if not test then failwithf "test 29 failed";
+  if not test then (printf "test 29 failed\n"; test_failed := true);
   mark_test_run 30;
   let test = not (eq #(#1., #(#1L, #1L), #1.s, #(#1l, #(#1.s, #1.)), #1L) #(#2., #(#2L, #2L), #2.s, #(#2l, #(#2.s, #2.)), #2L)) in
-  if not test then failwithf "test 30 failed";
+  if not test then (printf "test 30 failed\n"; test_failed := true);
   let eq : #(int64# * ur1) @ local -> #(int64# * ur1) @ local -> bool = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
   let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
   mark_test_run 31;
   let test = eq (mk_value 1) #(#1L, (#{ a = #1L; b = #1. } : ur1)) in
-  if not test then failwithf "test 31 failed";
+  if not test then (printf "test 31 failed\n"; test_failed := true);
   mark_test_run 32;
   let test = eq #(#1L, (#{ a = #1L; b = #1. } : ur1)) #(#1L, (#{ a = #1L; b = #1. } : ur1)) in
-  if not test then failwithf "test 32 failed";
+  if not test then (printf "test 32 failed\n"; test_failed := true);
   mark_test_run 33;
   let test = not (eq #(#1L, (#{ a = #1L; b = #1. } : ur1)) #(#2L, (#{ a = #2L; b = #2. } : ur1))) in
-  if not test then failwithf "test 33 failed";
+  if not test then (printf "test 33 failed\n"; test_failed := true);
   let eq : float32 @ local -> float32 @ local -> bool = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
   let mk_value i = Float32.of_int i in
   mark_test_run 34;
   let test = eq (mk_value 1) 1.s in
-  if not test then failwithf "test 34 failed";
+  if not test then (printf "test 34 failed\n"; test_failed := true);
   mark_test_run 35;
   let test = eq 1.s 1.s in
-  if not test then failwithf "test 35 failed";
+  if not test then (printf "test 35 failed\n"; test_failed := true);
   mark_test_run 36;
   let test = not (eq 1.s 2.s) in
-  if not test then failwithf "test 36 failed";
+  if not test then (printf "test 36 failed\n"; test_failed := true);
   let eq : float @ local -> float @ local -> bool = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let mk_value i = Float.of_int i in
   mark_test_run 37;
   let test = eq (mk_value 1) 1. in
-  if not test then failwithf "test 37 failed";
+  if not test then (printf "test 37 failed\n"; test_failed := true);
   mark_test_run 38;
   let test = eq 1. 1. in
-  if not test then failwithf "test 38 failed";
+  if not test then (printf "test 38 failed\n"; test_failed := true);
   mark_test_run 39;
   let test = not (eq 1. 2.) in
-  if not test then failwithf "test 39 failed";
+  if not test then (printf "test 39 failed\n"; test_failed := true);
   let eq : int32 @ local -> int32 @ local -> bool = (fun a b -> Int32.equal (globalize a) (globalize b)) in
   let mk_value i = Int32.of_int i in
   mark_test_run 40;
   let test = eq (mk_value 1) 1l in
-  if not test then failwithf "test 40 failed";
+  if not test then (printf "test 40 failed\n"; test_failed := true);
   mark_test_run 41;
   let test = eq 1l 1l in
-  if not test then failwithf "test 41 failed";
+  if not test then (printf "test 41 failed\n"; test_failed := true);
   mark_test_run 42;
   let test = not (eq 1l 2l) in
-  if not test then failwithf "test 42 failed";
+  if not test then (printf "test 42 failed\n"; test_failed := true);
   let eq : int64 @ local -> int64 @ local -> bool = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let mk_value i = Int64.of_int i in
   mark_test_run 43;
   let test = eq (mk_value 1) 1L in
-  if not test then failwithf "test 43 failed";
+  if not test then (printf "test 43 failed\n"; test_failed := true);
   mark_test_run 44;
   let test = eq 1L 1L in
-  if not test then failwithf "test 44 failed";
+  if not test then (printf "test 44 failed\n"; test_failed := true);
   mark_test_run 45;
   let test = not (eq 1L 2L) in
-  if not test then failwithf "test 45 failed";
+  if not test then (printf "test 45 failed\n"; test_failed := true);
   let eq : nativeint @ local -> nativeint @ local -> bool = (fun a b -> Nativeint.equal (globalize a) (globalize b)) in
   let mk_value i = Nativeint.of_int i in
   mark_test_run 46;
   let test = eq (mk_value 1) 1n in
-  if not test then failwithf "test 46 failed";
+  if not test then (printf "test 46 failed\n"; test_failed := true);
   mark_test_run 47;
   let test = eq 1n 1n in
-  if not test then failwithf "test 47 failed";
+  if not test then (printf "test 47 failed\n"; test_failed := true);
   mark_test_run 48;
   let test = not (eq 1n 2n) in
-  if not test then failwithf "test 48 failed";
+  if not test then (printf "test 48 failed\n"; test_failed := true);
   let eq : int @ local -> int @ local -> bool = (fun a b -> Int.equal a b) in
   let mk_value i = i in
   mark_test_run 49;
   let test = eq (mk_value 1) 1 in
-  if not test then failwithf "test 49 failed";
+  if not test then (printf "test 49 failed\n"; test_failed := true);
   mark_test_run 50;
   let test = eq 1 1 in
-  if not test then failwithf "test 50 failed";
+  if not test then (printf "test 50 failed\n"; test_failed := true);
   mark_test_run 51;
   let test = not (eq 1 2) in
-  if not test then failwithf "test 51 failed";
+  if not test then (printf "test 51 failed\n"; test_failed := true);
   let eq : enum3 @ local -> enum3 @ local -> bool = (fun a b -> match a, b with A3_0, A3_0 | A3_1, A3_1 | A3_2, A3_2 -> true | _ -> false) in
   let mk_value i = (match Int.rem i 3 with 0 -> A3_0 | 1 -> A3_1 | 2 -> A3_2 | _ -> assert false) in
   mark_test_run 52;
   let test = eq (mk_value 1) A3_1 in
-  if not test then failwithf "test 52 failed";
+  if not test then (printf "test 52 failed\n"; test_failed := true);
   mark_test_run 53;
   let test = eq A3_1 A3_1 in
-  if not test then failwithf "test 53 failed";
+  if not test then (printf "test 53 failed\n"; test_failed := true);
   mark_test_run 54;
   let test = not (eq A3_1 A3_2) in
-  if not test then failwithf "test 54 failed";
+  if not test then (printf "test 54 failed\n"; test_failed := true);
   let eq : ur2 @ local -> ur2 @ local -> bool = (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Int.equal a b) b1 b2) in
   let mk_value i = (#{ a = Int64_u.of_int i; b = i } : ur2) in
   mark_test_run 55;
   let test = eq (mk_value 1) (#{ a = #1L; b = 1 } : ur2) in
-  if not test then failwithf "test 55 failed";
+  if not test then (printf "test 55 failed\n"; test_failed := true);
   mark_test_run 56;
   let test = eq (#{ a = #1L; b = 1 } : ur2) (#{ a = #1L; b = 1 } : ur2) in
-  if not test then failwithf "test 56 failed";
+  if not test then (printf "test 56 failed\n"; test_failed := true);
   mark_test_run 57;
   let test = not (eq (#{ a = #1L; b = 1 } : ur2) (#{ a = #2L; b = 2 } : ur2)) in
-  if not test then failwithf "test 57 failed";
+  if not test then (printf "test 57 failed\n"; test_failed := true);
   let eq : #(int * int64) @ local -> #(int * int64) @ local -> bool = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int64.equal (globalize a) (globalize b)) a1 b1) in
   let mk_value i = #(i, Int64.of_int i) in
   mark_test_run 58;
   let test = eq (mk_value 1) #(1, 1L) in
-  if not test then failwithf "test 58 failed";
+  if not test then (printf "test 58 failed\n"; test_failed := true);
   mark_test_run 59;
   let test = eq #(1, 1L) #(1, 1L) in
-  if not test then failwithf "test 59 failed";
+  if not test then (printf "test 59 failed\n"; test_failed := true);
   mark_test_run 60;
   let test = not (eq #(1, 1L) #(2, 2L)) in
-  if not test then failwithf "test 60 failed";
+  if not test then (printf "test 60 failed\n"; test_failed := true);
   let eq : #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) @ local -> #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) @ local -> bool = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun a b -> Int64.equal (globalize a) (globalize b)) a b|_->false) a0 b0 && (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int32.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) a0 b0 && (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun (a0, a1) (b0, b1) -> (fun a b -> Nativeint.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Nativeint.equal (globalize a) (globalize b)) a1 b1) a b|_->false) a1 b1) a3 b3 && (fun a b -> Int32.equal (globalize a) (globalize b)) a4 b4) in
   let mk_value i = #((if i == 0 then None else Some (Int64.of_int i)), #(i, Int32.of_int i, Float.of_int i), Float.of_int i, #(Float32.of_int i, (if i == 0 then None else Some ((Nativeint.of_int i, Nativeint.of_int i)))), Int32.of_int i) in
   mark_test_run 61;
   let test = eq (mk_value 1) #(Some 1L, #(1, 1l, 1.), 1., #(1.s, Some (1n, 1n)), 1l) in
-  if not test then failwithf "test 61 failed";
+  if not test then (printf "test 61 failed\n"; test_failed := true);
   mark_test_run 62;
   let test = eq #(Some 1L, #(1, 1l, 1.), 1., #(1.s, Some (1n, 1n)), 1l) #(Some 1L, #(1, 1l, 1.), 1., #(1.s, Some (1n, 1n)), 1l) in
-  if not test then failwithf "test 62 failed";
+  if not test then (printf "test 62 failed\n"; test_failed := true);
   mark_test_run 63;
   let test = not (eq #(Some 1L, #(1, 1l, 1.), 1., #(1.s, Some (1n, 1n)), 1l) #(Some 2L, #(2, 2l, 2.), 2., #(2.s, Some (2n, 2n)), 2l)) in
-  if not test then failwithf "test 63 failed";
+  if not test then (printf "test 63 failed\n"; test_failed := true);
   let eq : #(float * float * float) @ local -> #(float * float * float) @ local -> bool = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
   let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
   mark_test_run 64;
   let test = eq (mk_value 1) #(1., 1., 1.) in
-  if not test then failwithf "test 64 failed";
+  if not test then (printf "test 64 failed\n"; test_failed := true);
   mark_test_run 65;
   let test = eq #(1., 1., 1.) #(1., 1., 1.) in
-  if not test then failwithf "test 65 failed";
+  if not test then (printf "test 65 failed\n"; test_failed := true);
   mark_test_run 66;
   let test = not (eq #(1., 1., 1.) #(2., 2., 2.)) in
-  if not test then failwithf "test 66 failed";
+  if not test then (printf "test 66 failed\n"; test_failed := true);
   let eq : #(float * #(float * float) * #(float * #(float * float * float))) @ local -> #(float * #(float * float) * #(float * #(float * float * float))) @ local -> bool = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1) a1 b1 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) a1 b1) a2 b2) in
   let mk_value i = #(Float.of_int i, #(Float.of_int i, Float.of_int i), #(Float.of_int i, #(Float.of_int i, Float.of_int i, Float.of_int i))) in
   mark_test_run 67;
   let test = eq (mk_value 1) #(1., #(1., 1.), #(1., #(1., 1., 1.))) in
-  if not test then failwithf "test 67 failed";
+  if not test then (printf "test 67 failed\n"; test_failed := true);
   mark_test_run 68;
   let test = eq #(1., #(1., 1.), #(1., #(1., 1., 1.))) #(1., #(1., 1.), #(1., #(1., 1., 1.))) in
-  if not test then failwithf "test 68 failed";
+  if not test then (printf "test 68 failed\n"; test_failed := true);
   mark_test_run 69;
   let test = not (eq #(1., #(1., 1.), #(1., #(1., 1., 1.))) #(2., #(2., 2.), #(2., #(2., 2., 2.)))) in
-  if not test then failwithf "test 69 failed";
+  if not test then (printf "test 69 failed\n"; test_failed := true);
   let eq : #(float# * int * int64#) @ local -> #(float# * int * int64#) @ local -> bool = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun a b -> Int.equal a b) a1 b1 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a2 b2) in
   let mk_value i = #(Float_u.of_int i, i, Int64_u.of_int i) in
   mark_test_run 70;
   let test = eq (mk_value 1) #(#1., 1, #1L) in
-  if not test then failwithf "test 70 failed";
+  if not test then (printf "test 70 failed\n"; test_failed := true);
   mark_test_run 71;
   let test = eq #(#1., 1, #1L) #(#1., 1, #1L) in
-  if not test then failwithf "test 71 failed";
+  if not test then (printf "test 71 failed\n"; test_failed := true);
   mark_test_run 72;
   let test = not (eq #(#1., 1, #1L) #(#2., 2, #2L)) in
-  if not test then failwithf "test 72 failed";
+  if not test then (printf "test 72 failed\n"; test_failed := true);
   let eq : #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) @ local -> #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) @ local -> bool = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int.equal a b) a4 b4) in
   let mk_value i = #(Float_u.of_int i, #(i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), i) in
   mark_test_run 73;
   let test = eq (mk_value 1) #(#1., #(1, #1L), #1.s, #(#1l, #(#1.s, #1.)), 1) in
-  if not test then failwithf "test 73 failed";
+  if not test then (printf "test 73 failed\n"; test_failed := true);
   mark_test_run 74;
   let test = eq #(#1., #(1, #1L), #1.s, #(#1l, #(#1.s, #1.)), 1) #(#1., #(1, #1L), #1.s, #(#1l, #(#1.s, #1.)), 1) in
-  if not test then failwithf "test 74 failed";
+  if not test then (printf "test 74 failed\n"; test_failed := true);
   mark_test_run 75;
   let test = not (eq #(#1., #(1, #1L), #1.s, #(#1l, #(#1.s, #1.)), 1) #(#2., #(2, #2L), #2.s, #(#2l, #(#2.s, #2.)), 2)) in
-  if not test then failwithf "test 75 failed";
+  if not test then (printf "test 75 failed\n"; test_failed := true);
   let eq : #(ur2 * ur1) @ local -> #(ur2 * ur1) @ local -> bool = (fun #(a0, a1) #(b0, b1) -> (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Int.equal a b) b1 b2) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
   let mk_value i = #((#{ a = Int64_u.of_int i; b = i } : ur2), (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
   mark_test_run 76;
   let test = eq (mk_value 1) #((#{ a = #1L; b = 1 } : ur2), (#{ a = #1L; b = #1. } : ur1)) in
-  if not test then failwithf "test 76 failed";
+  if not test then (printf "test 76 failed\n"; test_failed := true);
   mark_test_run 77;
   let test = eq #((#{ a = #1L; b = 1 } : ur2), (#{ a = #1L; b = #1. } : ur1)) #((#{ a = #1L; b = 1 } : ur2), (#{ a = #1L; b = #1. } : ur1)) in
-  if not test then failwithf "test 77 failed";
+  if not test then (printf "test 77 failed\n"; test_failed := true);
   mark_test_run 78;
   let test = not (eq #((#{ a = #1L; b = 1 } : ur2), (#{ a = #1L; b = #1. } : ur1)) #((#{ a = #2L; b = 2 } : ur2), (#{ a = #2L; b = #2. } : ur1))) in
-  if not test then failwithf "test 78 failed";
+  if not test then (printf "test 78 failed\n"; test_failed := true);
   (* Check always-GC-ignored types *)
   let _ = (makearray_dynamic_uninit 1 : float32# array) in
   let _ = (makearray_dynamic_uninit 1 : float# array) in
@@ -427,7 +430,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 79;
     let test = eq el #0.s in
-    if not test then failwithf "test 79 failed %d %d" size i;
+    if not test then (printf "test 79 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -437,7 +440,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 80;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 80 failed %d %d" size i;
+    if not test then (printf "test 80 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -448,7 +451,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 81;
     let test = raises in
-    if not test then failwithf "test 81 failed %d %d" size i;
+    if not test then (printf "test 81 failed %s %d %d\n" "float32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0.s with
@@ -457,14 +460,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 82;
     let test = raises in
-    if not test then failwithf "test 82 failed %d %d" size i;
+    if not test then (printf "test 82 failed %s %d %d\n" "float32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 83;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 83 failed %d %d" size i;
+    if not test then (printf "test 83 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -477,7 +480,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 84;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 84 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 84 failed %s %d %d %d %d %d\n" "float32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -500,7 +503,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 85;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 85 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 85 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -520,7 +523,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 86;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 86 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 86 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -540,7 +543,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 87;
     let test = eq el #0. in
-    if not test then failwithf "test 87 failed %d %d" size i;
+    if not test then (printf "test 87 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -550,7 +553,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 88;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 88 failed %d %d" size i;
+    if not test then (printf "test 88 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -561,7 +564,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 89;
     let test = raises in
-    if not test then failwithf "test 89 failed %d %d" size i;
+    if not test then (printf "test 89 failed %s %d %d\n" "float#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0. with
@@ -570,14 +573,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 90;
     let test = raises in
-    if not test then failwithf "test 90 failed %d %d" size i;
+    if not test then (printf "test 90 failed %s %d %d\n" "float#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 91;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 91 failed %d %d" size i;
+    if not test then (printf "test 91 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -590,7 +593,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 92;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 92 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 92 failed %s %d %d %d %d %d\n" "float#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -613,7 +616,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 93;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 93 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 93 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -633,7 +636,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 94;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 94 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 94 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -653,7 +656,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 95;
     let test = eq el #0l in
-    if not test then failwithf "test 95 failed %d %d" size i;
+    if not test then (printf "test 95 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -663,7 +666,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 96;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 96 failed %d %d" size i;
+    if not test then (printf "test 96 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -674,7 +677,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 97;
     let test = raises in
-    if not test then failwithf "test 97 failed %d %d" size i;
+    if not test then (printf "test 97 failed %s %d %d\n" "int32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0l with
@@ -683,14 +686,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 98;
     let test = raises in
-    if not test then failwithf "test 98 failed %d %d" size i;
+    if not test then (printf "test 98 failed %s %d %d\n" "int32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 99;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 99 failed %d %d" size i;
+    if not test then (printf "test 99 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -703,7 +706,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 100;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 100 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 100 failed %s %d %d %d %d %d\n" "int32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -726,7 +729,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 101;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 101 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 101 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -746,7 +749,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 102;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 102 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 102 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -766,7 +769,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 103;
     let test = eq el #0L in
-    if not test then failwithf "test 103 failed %d %d" size i;
+    if not test then (printf "test 103 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -776,7 +779,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 104;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 104 failed %d %d" size i;
+    if not test then (printf "test 104 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -787,7 +790,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 105;
     let test = raises in
-    if not test then failwithf "test 105 failed %d %d" size i;
+    if not test then (printf "test 105 failed %s %d %d\n" "int64#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0L with
@@ -796,14 +799,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 106;
     let test = raises in
-    if not test then failwithf "test 106 failed %d %d" size i;
+    if not test then (printf "test 106 failed %s %d %d\n" "int64#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 107;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 107 failed %d %d" size i;
+    if not test then (printf "test 107 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -816,7 +819,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 108;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 108 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 108 failed %s %d %d %d %d %d\n" "int64#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -839,7 +842,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 109;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 109 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 109 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -859,7 +862,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 110;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 110 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 110 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -879,7 +882,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 111;
     let test = eq el #0n in
-    if not test then failwithf "test 111 failed %d %d" size i;
+    if not test then (printf "test 111 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -889,7 +892,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 112;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 112 failed %d %d" size i;
+    if not test then (printf "test 112 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -900,7 +903,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 113;
     let test = raises in
-    if not test then failwithf "test 113 failed %d %d" size i;
+    if not test then (printf "test 113 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0n with
@@ -909,14 +912,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 114;
     let test = raises in
-    if not test then failwithf "test 114 failed %d %d" size i;
+    if not test then (printf "test 114 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 115;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 115 failed %d %d" size i;
+    if not test then (printf "test 115 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -929,7 +932,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 116;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 116 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 116 failed %s %d %d %d %d %d\n" "nativeint#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -952,7 +955,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 117;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 117 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 117 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -972,7 +975,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 118;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 118 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 118 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -992,7 +995,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 119;
     let test = eq el (#{ a = #0L; b = #0. } : ur1) in
-    if not test then failwithf "test 119 failed %d %d" size i;
+    if not test then (printf "test 119 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1002,7 +1005,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 120;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 120 failed %d %d" size i;
+    if not test then (printf "test 120 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1013,7 +1016,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 121;
     let test = raises in
-    if not test then failwithf "test 121 failed %d %d" size i;
+    if not test then (printf "test 121 failed %s %d %d\n" "ur1" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L; b = #0. } : ur1) with
@@ -1022,14 +1025,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 122;
     let test = raises in
-    if not test then failwithf "test 122 failed %d %d" size i;
+    if not test then (printf "test 122 failed %s %d %d\n" "ur1" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 123;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 123 failed %d %d" size i;
+    if not test then (printf "test 123 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1042,7 +1045,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 124;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 124 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 124 failed %s %d %d %d %d %d\n" "ur1" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1065,7 +1068,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 125;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 125 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 125 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1085,7 +1088,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 126;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 126 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 126 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1105,7 +1108,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 127;
     let test = eq el (#{ a = #0L } : ur3) in
-    if not test then failwithf "test 127 failed %d %d" size i;
+    if not test then (printf "test 127 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1115,7 +1118,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 128;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 128 failed %d %d" size i;
+    if not test then (printf "test 128 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1126,7 +1129,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 129;
     let test = raises in
-    if not test then failwithf "test 129 failed %d %d" size i;
+    if not test then (printf "test 129 failed %s %d %d\n" "ur3" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L } : ur3) with
@@ -1135,14 +1138,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 130;
     let test = raises in
-    if not test then failwithf "test 130 failed %d %d" size i;
+    if not test then (printf "test 130 failed %s %d %d\n" "ur3" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 131;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 131 failed %d %d" size i;
+    if not test then (printf "test 131 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1155,7 +1158,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 132;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 132 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 132 failed %s %d %d %d %d %d\n" "ur3" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1178,7 +1181,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 133;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 133 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 133 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1198,7 +1201,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 134;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 134 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 134 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1218,7 +1221,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 135;
     let test = eq el (#{ a = (#{ a = #0L; b = #0. } : ur1); b = (#{ a = #0L } : ur3) } : ur4) in
-    if not test then failwithf "test 135 failed %d %d" size i;
+    if not test then (printf "test 135 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1228,7 +1231,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 136;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 136 failed %d %d" size i;
+    if not test then (printf "test 136 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1239,7 +1242,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 137;
     let test = raises in
-    if not test then failwithf "test 137 failed %d %d" size i;
+    if not test then (printf "test 137 failed %s %d %d\n" "ur4" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = (#{ a = #0L; b = #0. } : ur1); b = (#{ a = #0L } : ur3) } : ur4) with
@@ -1248,14 +1251,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 138;
     let test = raises in
-    if not test then failwithf "test 138 failed %d %d" size i;
+    if not test then (printf "test 138 failed %s %d %d\n" "ur4" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 139;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 139 failed %d %d" size i;
+    if not test then (printf "test 139 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1268,7 +1271,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 140;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 140 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 140 failed %s %d %d %d %d %d\n" "ur4" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1291,7 +1294,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 141;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 141 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 141 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1311,7 +1314,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 142;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 142 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 142 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1331,7 +1334,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 143;
     let test = eq el #(#0., #0l, #0L) in
-    if not test then failwithf "test 143 failed %d %d" size i;
+    if not test then (printf "test 143 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1341,7 +1344,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 144;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 144 failed %d %d" size i;
+    if not test then (printf "test 144 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1352,7 +1355,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 145;
     let test = raises in
-    if not test then failwithf "test 145 failed %d %d" size i;
+    if not test then (printf "test 145 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #0l, #0L) with
@@ -1361,14 +1364,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 146;
     let test = raises in
-    if not test then failwithf "test 146 failed %d %d" size i;
+    if not test then (printf "test 146 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 147;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 147 failed %d %d" size i;
+    if not test then (printf "test 147 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1381,7 +1384,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 148;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 148 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 148 failed %s %d %d %d %d %d\n" "#(float# * int32# * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1404,7 +1407,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 149;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 149 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 149 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1424,7 +1427,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 150;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 150 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 150 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1444,7 +1447,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 151;
     let test = eq el #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
-    if not test then failwithf "test 151 failed %d %d" size i;
+    if not test then (printf "test 151 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1454,7 +1457,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 152;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 152 failed %d %d" size i;
+    if not test then (printf "test 152 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1465,7 +1468,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 153;
     let test = raises in
-    if not test then failwithf "test 153 failed %d %d" size i;
+    if not test then (printf "test 153 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
@@ -1474,14 +1477,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 154;
     let test = raises in
-    if not test then failwithf "test 154 failed %d %d" size i;
+    if not test then (printf "test 154 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 155;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 155 failed %d %d" size i;
+    if not test then (printf "test 155 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1494,7 +1497,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 156;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 156 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 156 failed %s %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1517,7 +1520,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 157;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 157 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 157 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1537,7 +1540,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 158;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 158 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 158 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1557,7 +1560,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 159;
     let test = eq el #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-    if not test then failwithf "test 159 failed %d %d" size i;
+    if not test then (printf "test 159 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1567,7 +1570,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 160;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 160 failed %d %d" size i;
+    if not test then (printf "test 160 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1578,7 +1581,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 161;
     let test = raises in
-    if not test then failwithf "test 161 failed %d %d" size i;
+    if not test then (printf "test 161 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
@@ -1587,14 +1590,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 162;
     let test = raises in
-    if not test then failwithf "test 162 failed %d %d" size i;
+    if not test then (printf "test 162 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 163;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 163 failed %d %d" size i;
+    if not test then (printf "test 163 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1607,7 +1610,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 164;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 164 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 164 failed %s %d %d %d %d %d\n" "#(int64# * ur1)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1630,7 +1633,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 165;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 165 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 165 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1650,7 +1653,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 166;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 166 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 166 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1670,7 +1673,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 167;
     let test = eq el 0.s in
-    if not test then failwithf "test 167 failed %d %d" size i;
+    if not test then (printf "test 167 failed %s %d %d\n" "float32" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1680,7 +1683,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 168;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 168 failed %d %d" size i;
+    if not test then (printf "test 168 failed %s %d %d\n" "float32" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1691,7 +1694,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 169;
     let test = raises in
-    if not test then failwithf "test 169 failed %d %d" size i;
+    if not test then (printf "test 169 failed %s %d %d\n" "float32" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0.s with
@@ -1700,14 +1703,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 170;
     let test = raises in
-    if not test then failwithf "test 170 failed %d %d" size i;
+    if not test then (printf "test 170 failed %s %d %d\n" "float32" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 171;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 171 failed %d %d" size i;
+    if not test then (printf "test 171 failed %s %d %d\n" "float32" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1720,7 +1723,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 172;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 172 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 172 failed %s %d %d %d %d %d\n" "float32" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1743,7 +1746,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 173;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 173 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 173 failed %s %d %d %d %d %d %d\n" "float32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1763,7 +1766,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 174;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 174 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 174 failed %s %d %d %d %d %d %d\n" "float32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1783,7 +1786,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 175;
     let test = eq el 0. in
-    if not test then failwithf "test 175 failed %d %d" size i;
+    if not test then (printf "test 175 failed %s %d %d\n" "float" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1793,7 +1796,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 176;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 176 failed %d %d" size i;
+    if not test then (printf "test 176 failed %s %d %d\n" "float" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1804,7 +1807,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 177;
     let test = raises in
-    if not test then failwithf "test 177 failed %d %d" size i;
+    if not test then (printf "test 177 failed %s %d %d\n" "float" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0. with
@@ -1813,14 +1816,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 178;
     let test = raises in
-    if not test then failwithf "test 178 failed %d %d" size i;
+    if not test then (printf "test 178 failed %s %d %d\n" "float" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 179;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 179 failed %d %d" size i;
+    if not test then (printf "test 179 failed %s %d %d\n" "float" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1833,7 +1836,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 180;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 180 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 180 failed %s %d %d %d %d %d\n" "float" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1856,7 +1859,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 181;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 181 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 181 failed %s %d %d %d %d %d %d\n" "float" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1876,7 +1879,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 182;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 182 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 182 failed %s %d %d %d %d %d %d\n" "float" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1896,7 +1899,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 183;
     let test = eq el 0l in
-    if not test then failwithf "test 183 failed %d %d" size i;
+    if not test then (printf "test 183 failed %s %d %d\n" "int32" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -1906,7 +1909,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 184;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 184 failed %d %d" size i;
+    if not test then (printf "test 184 failed %s %d %d\n" "int32" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -1917,7 +1920,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 185;
     let test = raises in
-    if not test then failwithf "test 185 failed %d %d" size i;
+    if not test then (printf "test 185 failed %s %d %d\n" "int32" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0l with
@@ -1926,14 +1929,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 186;
     let test = raises in
-    if not test then failwithf "test 186 failed %d %d" size i;
+    if not test then (printf "test 186 failed %s %d %d\n" "int32" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 187;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 187 failed %d %d" size i;
+    if not test then (printf "test 187 failed %s %d %d\n" "int32" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -1946,7 +1949,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 188;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 188 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 188 failed %s %d %d %d %d %d\n" "int32" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -1969,7 +1972,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 189;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 189 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 189 failed %s %d %d %d %d %d %d\n" "int32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -1989,7 +1992,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 190;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 190 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 190 failed %s %d %d %d %d %d %d\n" "int32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2009,7 +2012,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 191;
     let test = eq el 0L in
-    if not test then failwithf "test 191 failed %d %d" size i;
+    if not test then (printf "test 191 failed %s %d %d\n" "int64" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2019,7 +2022,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 192;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 192 failed %d %d" size i;
+    if not test then (printf "test 192 failed %s %d %d\n" "int64" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2030,7 +2033,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 193;
     let test = raises in
-    if not test then failwithf "test 193 failed %d %d" size i;
+    if not test then (printf "test 193 failed %s %d %d\n" "int64" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0L with
@@ -2039,14 +2042,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 194;
     let test = raises in
-    if not test then failwithf "test 194 failed %d %d" size i;
+    if not test then (printf "test 194 failed %s %d %d\n" "int64" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 195;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 195 failed %d %d" size i;
+    if not test then (printf "test 195 failed %s %d %d\n" "int64" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2059,7 +2062,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 196;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 196 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 196 failed %s %d %d %d %d %d\n" "int64" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2082,7 +2085,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 197;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 197 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 197 failed %s %d %d %d %d %d %d\n" "int64" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2102,7 +2105,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 198;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 198 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 198 failed %s %d %d %d %d %d %d\n" "int64" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2122,7 +2125,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 199;
     let test = eq el 0n in
-    if not test then failwithf "test 199 failed %d %d" size i;
+    if not test then (printf "test 199 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2132,7 +2135,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 200;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 200 failed %d %d" size i;
+    if not test then (printf "test 200 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2143,7 +2146,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 201;
     let test = raises in
-    if not test then failwithf "test 201 failed %d %d" size i;
+    if not test then (printf "test 201 failed %s %d %d\n" "nativeint" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0n with
@@ -2152,14 +2155,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 202;
     let test = raises in
-    if not test then failwithf "test 202 failed %d %d" size i;
+    if not test then (printf "test 202 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 203;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 203 failed %d %d" size i;
+    if not test then (printf "test 203 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2172,7 +2175,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 204;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 204 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 204 failed %s %d %d %d %d %d\n" "nativeint" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2195,7 +2198,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 205;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 205 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 205 failed %s %d %d %d %d %d %d\n" "nativeint" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2215,7 +2218,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 206;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 206 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 206 failed %s %d %d %d %d %d %d\n" "nativeint" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2235,7 +2238,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 207;
     let test = eq el 0 in
-    if not test then failwithf "test 207 failed %d %d" size i;
+    if not test then (printf "test 207 failed %s %d %d\n" "int" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2245,7 +2248,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 208;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 208 failed %d %d" size i;
+    if not test then (printf "test 208 failed %s %d %d\n" "int" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2256,7 +2259,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 209;
     let test = raises in
-    if not test then failwithf "test 209 failed %d %d" size i;
+    if not test then (printf "test 209 failed %s %d %d\n" "int" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0 with
@@ -2265,14 +2268,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 210;
     let test = raises in
-    if not test then failwithf "test 210 failed %d %d" size i;
+    if not test then (printf "test 210 failed %s %d %d\n" "int" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 211;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 211 failed %d %d" size i;
+    if not test then (printf "test 211 failed %s %d %d\n" "int" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2285,7 +2288,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 212;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 212 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 212 failed %s %d %d %d %d %d\n" "int" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2308,7 +2311,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 213;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 213 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 213 failed %s %d %d %d %d %d %d\n" "int" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2328,7 +2331,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 214;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 214 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 214 failed %s %d %d %d %d %d %d\n" "int" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2348,7 +2351,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 215;
     let test = eq el A3_0 in
-    if not test then failwithf "test 215 failed %d %d" size i;
+    if not test then (printf "test 215 failed %s %d %d\n" "enum3" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2358,7 +2361,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 216;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 216 failed %d %d" size i;
+    if not test then (printf "test 216 failed %s %d %d\n" "enum3" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2369,7 +2372,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 217;
     let test = raises in
-    if not test then failwithf "test 217 failed %d %d" size i;
+    if not test then (printf "test 217 failed %s %d %d\n" "enum3" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i A3_0 with
@@ -2378,14 +2381,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 218;
     let test = raises in
-    if not test then failwithf "test 218 failed %d %d" size i;
+    if not test then (printf "test 218 failed %s %d %d\n" "enum3" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 219;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 219 failed %d %d" size i;
+    if not test then (printf "test 219 failed %s %d %d\n" "enum3" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2398,7 +2401,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 220;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 220 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 220 failed %s %d %d %d %d %d\n" "enum3" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2421,7 +2424,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 221;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 221 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 221 failed %s %d %d %d %d %d %d\n" "enum3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2441,7 +2444,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 222;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 222 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 222 failed %s %d %d %d %d %d %d\n" "enum3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2461,7 +2464,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 223;
     let test = eq el (#{ a = #0L; b = 0 } : ur2) in
-    if not test then failwithf "test 223 failed %d %d" size i;
+    if not test then (printf "test 223 failed %s %d %d\n" "ur2" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2471,7 +2474,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 224;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 224 failed %d %d" size i;
+    if not test then (printf "test 224 failed %s %d %d\n" "ur2" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2482,7 +2485,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 225;
     let test = raises in
-    if not test then failwithf "test 225 failed %d %d" size i;
+    if not test then (printf "test 225 failed %s %d %d\n" "ur2" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L; b = 0 } : ur2) with
@@ -2491,14 +2494,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 226;
     let test = raises in
-    if not test then failwithf "test 226 failed %d %d" size i;
+    if not test then (printf "test 226 failed %s %d %d\n" "ur2" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 227;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 227 failed %d %d" size i;
+    if not test then (printf "test 227 failed %s %d %d\n" "ur2" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2511,7 +2514,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 228;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 228 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 228 failed %s %d %d %d %d %d\n" "ur2" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2534,7 +2537,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 229;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 229 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 229 failed %s %d %d %d %d %d %d\n" "ur2" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2554,7 +2557,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 230;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 230 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 230 failed %s %d %d %d %d %d %d\n" "ur2" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2574,7 +2577,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 231;
     let test = eq el #(0, 0L) in
-    if not test then failwithf "test 231 failed %d %d" size i;
+    if not test then (printf "test 231 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2584,7 +2587,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 232;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 232 failed %d %d" size i;
+    if not test then (printf "test 232 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2595,7 +2598,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 233;
     let test = raises in
-    if not test then failwithf "test 233 failed %d %d" size i;
+    if not test then (printf "test 233 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(0, 0L) with
@@ -2604,14 +2607,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 234;
     let test = raises in
-    if not test then failwithf "test 234 failed %d %d" size i;
+    if not test then (printf "test 234 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 235;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 235 failed %d %d" size i;
+    if not test then (printf "test 235 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2624,7 +2627,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 236;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 236 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 236 failed %s %d %d %d %d %d\n" "#(int * int64)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2647,7 +2650,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 237;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 237 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 237 failed %s %d %d %d %d %d %d\n" "#(int * int64)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2667,7 +2670,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 238;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 238 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 238 failed %s %d %d %d %d %d %d\n" "#(int * int64)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2687,7 +2690,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 239;
     let test = eq el #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
-    if not test then failwithf "test 239 failed %d %d" size i;
+    if not test then (printf "test 239 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2697,7 +2700,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 240;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 240 failed %d %d" size i;
+    if not test then (printf "test 240 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2708,7 +2711,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 241;
     let test = raises in
-    if not test then failwithf "test 241 failed %d %d" size i;
+    if not test then (printf "test 241 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) with
@@ -2717,14 +2720,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 242;
     let test = raises in
-    if not test then failwithf "test 242 failed %d %d" size i;
+    if not test then (printf "test 242 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 243;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 243 failed %d %d" size i;
+    if not test then (printf "test 243 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2737,7 +2740,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 244;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 244 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 244 failed %s %d %d %d %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2760,7 +2763,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 245;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 245 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 245 failed %s %d %d %d %d %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2780,7 +2783,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 246;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 246 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 246 failed %s %d %d %d %d %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2800,7 +2803,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 247;
     let test = eq el #(0., 0., 0.) in
-    if not test then failwithf "test 247 failed %d %d" size i;
+    if not test then (printf "test 247 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2810,7 +2813,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 248;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 248 failed %d %d" size i;
+    if not test then (printf "test 248 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2821,7 +2824,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 249;
     let test = raises in
-    if not test then failwithf "test 249 failed %d %d" size i;
+    if not test then (printf "test 249 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(0., 0., 0.) with
@@ -2830,14 +2833,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 250;
     let test = raises in
-    if not test then failwithf "test 250 failed %d %d" size i;
+    if not test then (printf "test 250 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 251;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 251 failed %d %d" size i;
+    if not test then (printf "test 251 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2850,7 +2853,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 252;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 252 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 252 failed %s %d %d %d %d %d\n" "#(float * float * float)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2873,7 +2876,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 253;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 253 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 253 failed %s %d %d %d %d %d %d\n" "#(float * float * float)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2893,7 +2896,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 254;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 254 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 254 failed %s %d %d %d %d %d %d\n" "#(float * float * float)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -2913,7 +2916,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 255;
     let test = eq el #(0., #(0., 0.), #(0., #(0., 0., 0.))) in
-    if not test then failwithf "test 255 failed %d %d" size i;
+    if not test then (printf "test 255 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -2923,7 +2926,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 256;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 256 failed %d %d" size i;
+    if not test then (printf "test 256 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -2934,7 +2937,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 257;
     let test = raises in
-    if not test then failwithf "test 257 failed %d %d" size i;
+    if not test then (printf "test 257 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(0., #(0., 0.), #(0., #(0., 0., 0.))) with
@@ -2943,14 +2946,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 258;
     let test = raises in
-    if not test then failwithf "test 258 failed %d %d" size i;
+    if not test then (printf "test 258 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 259;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 259 failed %d %d" size i;
+    if not test then (printf "test 259 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -2963,7 +2966,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 260;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 260 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 260 failed %s %d %d %d %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -2986,7 +2989,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 261;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 261 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 261 failed %s %d %d %d %d %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3006,7 +3009,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 262;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 262 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 262 failed %s %d %d %d %d %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3026,7 +3029,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 263;
     let test = eq el #(#0., 0, #0L) in
-    if not test then failwithf "test 263 failed %d %d" size i;
+    if not test then (printf "test 263 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3036,7 +3039,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 264;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 264 failed %d %d" size i;
+    if not test then (printf "test 264 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3047,7 +3050,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 265;
     let test = raises in
-    if not test then failwithf "test 265 failed %d %d" size i;
+    if not test then (printf "test 265 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., 0, #0L) with
@@ -3056,14 +3059,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 266;
     let test = raises in
-    if not test then failwithf "test 266 failed %d %d" size i;
+    if not test then (printf "test 266 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 267;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 267 failed %d %d" size i;
+    if not test then (printf "test 267 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3076,7 +3079,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 268;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 268 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 268 failed %s %d %d %d %d %d\n" "#(float# * int * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3099,7 +3102,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 269;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 269 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 269 failed %s %d %d %d %d %d %d\n" "#(float# * int * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3119,7 +3122,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 270;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 270 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 270 failed %s %d %d %d %d %d %d\n" "#(float# * int * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3139,7 +3142,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 271;
     let test = eq el #(#0., #(0, #0L), #0.s, #(#0l, #(#0.s, #0.)), 0) in
-    if not test then failwithf "test 271 failed %d %d" size i;
+    if not test then (printf "test 271 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3149,7 +3152,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 272;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 272 failed %d %d" size i;
+    if not test then (printf "test 272 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3160,7 +3163,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 273;
     let test = raises in
-    if not test then failwithf "test 273 failed %d %d" size i;
+    if not test then (printf "test 273 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #(0, #0L), #0.s, #(#0l, #(#0.s, #0.)), 0) with
@@ -3169,14 +3172,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 274;
     let test = raises in
-    if not test then failwithf "test 274 failed %d %d" size i;
+    if not test then (printf "test 274 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 275;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 275 failed %d %d" size i;
+    if not test then (printf "test 275 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3189,7 +3192,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 276;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 276 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 276 failed %s %d %d %d %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3212,7 +3215,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 277;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 277 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 277 failed %s %d %d %d %d %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3232,7 +3235,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 278;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 278 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 278 failed %s %d %d %d %d %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3252,7 +3255,7 @@ let test_makearray_dynamic size =
     let el = get a i in
     mark_test_run 279;
     let test = eq el #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
-    if not test then failwithf "test 279 failed %d %d" size i;
+    if not test then (printf "test 279 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3262,7 +3265,7 @@ let test_makearray_dynamic size =
   for i = 0 to size - 1 do
     mark_test_run 280;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 280 failed %d %d" size i;
+    if not test then (printf "test 280 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3273,7 +3276,7 @@ let test_makearray_dynamic size =
     in
     mark_test_run 281;
     let test = raises in
-    if not test then failwithf "test 281 failed %d %d" size i;
+    if not test then (printf "test 281 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) with
@@ -3282,14 +3285,14 @@ let test_makearray_dynamic size =
     in
     mark_test_run 282;
     let test = raises in
-    if not test then failwithf "test 282 failed %d %d" size i;
+    if not test then (printf "test 282 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 283;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 283 failed %d %d" size i;
+    if not test then (printf "test 283 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3302,7 +3305,7 @@ let test_makearray_dynamic size =
           in
           mark_test_run 284;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 284 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 284 failed %s %d %d %d %d %d\n" "#(ur2 * ur1)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3325,7 +3328,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 285;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 285 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 285 failed %s %d %d %d %d %d %d\n" "#(ur2 * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3345,7 +3348,7 @@ let test_makearray_dynamic size =
             in
             mark_test_run 286;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 286 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 286 failed %s %d %d %d %d %d %d\n" "#(ur2 * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3368,7 +3371,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 287;
     let test = eq el #0.s in
-    if not test then failwithf "test 287 failed %d %d" size i;
+    if not test then (printf "test 287 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3378,7 +3381,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 288;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 288 failed %d %d" size i;
+    if not test then (printf "test 288 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3389,7 +3392,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 289;
     let test = raises in
-    if not test then failwithf "test 289 failed %d %d" size i;
+    if not test then (printf "test 289 failed %s %d %d\n" "float32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0.s with
@@ -3398,14 +3401,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 290;
     let test = raises in
-    if not test then failwithf "test 290 failed %d %d" size i;
+    if not test then (printf "test 290 failed %s %d %d\n" "float32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 291;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 291 failed %d %d" size i;
+    if not test then (printf "test 291 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3418,7 +3421,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 292;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 292 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 292 failed %s %d %d %d %d %d\n" "float32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3441,7 +3444,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 293;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 293 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 293 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3461,7 +3464,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 294;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 294 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 294 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3481,7 +3484,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 295;
     let test = eq el #0. in
-    if not test then failwithf "test 295 failed %d %d" size i;
+    if not test then (printf "test 295 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3491,7 +3494,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 296;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 296 failed %d %d" size i;
+    if not test then (printf "test 296 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3502,7 +3505,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 297;
     let test = raises in
-    if not test then failwithf "test 297 failed %d %d" size i;
+    if not test then (printf "test 297 failed %s %d %d\n" "float#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0. with
@@ -3511,14 +3514,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 298;
     let test = raises in
-    if not test then failwithf "test 298 failed %d %d" size i;
+    if not test then (printf "test 298 failed %s %d %d\n" "float#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 299;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 299 failed %d %d" size i;
+    if not test then (printf "test 299 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3531,7 +3534,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 300;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 300 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 300 failed %s %d %d %d %d %d\n" "float#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3554,7 +3557,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 301;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 301 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 301 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3574,7 +3577,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 302;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 302 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 302 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3594,7 +3597,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 303;
     let test = eq el #0l in
-    if not test then failwithf "test 303 failed %d %d" size i;
+    if not test then (printf "test 303 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3604,7 +3607,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 304;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 304 failed %d %d" size i;
+    if not test then (printf "test 304 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3615,7 +3618,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 305;
     let test = raises in
-    if not test then failwithf "test 305 failed %d %d" size i;
+    if not test then (printf "test 305 failed %s %d %d\n" "int32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0l with
@@ -3624,14 +3627,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 306;
     let test = raises in
-    if not test then failwithf "test 306 failed %d %d" size i;
+    if not test then (printf "test 306 failed %s %d %d\n" "int32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 307;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 307 failed %d %d" size i;
+    if not test then (printf "test 307 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3644,7 +3647,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 308;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 308 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 308 failed %s %d %d %d %d %d\n" "int32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3667,7 +3670,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 309;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 309 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 309 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3687,7 +3690,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 310;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 310 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 310 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3707,7 +3710,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 311;
     let test = eq el #0L in
-    if not test then failwithf "test 311 failed %d %d" size i;
+    if not test then (printf "test 311 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3717,7 +3720,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 312;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 312 failed %d %d" size i;
+    if not test then (printf "test 312 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3728,7 +3731,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 313;
     let test = raises in
-    if not test then failwithf "test 313 failed %d %d" size i;
+    if not test then (printf "test 313 failed %s %d %d\n" "int64#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0L with
@@ -3737,14 +3740,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 314;
     let test = raises in
-    if not test then failwithf "test 314 failed %d %d" size i;
+    if not test then (printf "test 314 failed %s %d %d\n" "int64#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 315;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 315 failed %d %d" size i;
+    if not test then (printf "test 315 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3757,7 +3760,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 316;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 316 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 316 failed %s %d %d %d %d %d\n" "int64#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3780,7 +3783,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 317;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 317 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 317 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3800,7 +3803,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 318;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 318 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 318 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3820,7 +3823,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 319;
     let test = eq el #0n in
-    if not test then failwithf "test 319 failed %d %d" size i;
+    if not test then (printf "test 319 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3830,7 +3833,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 320;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 320 failed %d %d" size i;
+    if not test then (printf "test 320 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3841,7 +3844,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 321;
     let test = raises in
-    if not test then failwithf "test 321 failed %d %d" size i;
+    if not test then (printf "test 321 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0n with
@@ -3850,14 +3853,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 322;
     let test = raises in
-    if not test then failwithf "test 322 failed %d %d" size i;
+    if not test then (printf "test 322 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 323;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 323 failed %d %d" size i;
+    if not test then (printf "test 323 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3870,7 +3873,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 324;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 324 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 324 failed %s %d %d %d %d %d\n" "nativeint#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -3893,7 +3896,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 325;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 325 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 325 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3913,7 +3916,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 326;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 326 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 326 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -3933,7 +3936,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 327;
     let test = eq el (#{ a = #0L; b = #0. } : ur1) in
-    if not test then failwithf "test 327 failed %d %d" size i;
+    if not test then (printf "test 327 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -3943,7 +3946,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 328;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 328 failed %d %d" size i;
+    if not test then (printf "test 328 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -3954,7 +3957,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 329;
     let test = raises in
-    if not test then failwithf "test 329 failed %d %d" size i;
+    if not test then (printf "test 329 failed %s %d %d\n" "ur1" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L; b = #0. } : ur1) with
@@ -3963,14 +3966,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 330;
     let test = raises in
-    if not test then failwithf "test 330 failed %d %d" size i;
+    if not test then (printf "test 330 failed %s %d %d\n" "ur1" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 331;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 331 failed %d %d" size i;
+    if not test then (printf "test 331 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -3983,7 +3986,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 332;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 332 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 332 failed %s %d %d %d %d %d\n" "ur1" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4006,7 +4009,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 333;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 333 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 333 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4026,7 +4029,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 334;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 334 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 334 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4046,7 +4049,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 335;
     let test = eq el (#{ a = #0L } : ur3) in
-    if not test then failwithf "test 335 failed %d %d" size i;
+    if not test then (printf "test 335 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4056,7 +4059,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 336;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 336 failed %d %d" size i;
+    if not test then (printf "test 336 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4067,7 +4070,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 337;
     let test = raises in
-    if not test then failwithf "test 337 failed %d %d" size i;
+    if not test then (printf "test 337 failed %s %d %d\n" "ur3" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L } : ur3) with
@@ -4076,14 +4079,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 338;
     let test = raises in
-    if not test then failwithf "test 338 failed %d %d" size i;
+    if not test then (printf "test 338 failed %s %d %d\n" "ur3" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 339;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 339 failed %d %d" size i;
+    if not test then (printf "test 339 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4096,7 +4099,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 340;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 340 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 340 failed %s %d %d %d %d %d\n" "ur3" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4119,7 +4122,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 341;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 341 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 341 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4139,7 +4142,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 342;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 342 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 342 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4159,7 +4162,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 343;
     let test = eq el (#{ a = (#{ a = #0L; b = #0. } : ur1); b = (#{ a = #0L } : ur3) } : ur4) in
-    if not test then failwithf "test 343 failed %d %d" size i;
+    if not test then (printf "test 343 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4169,7 +4172,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 344;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 344 failed %d %d" size i;
+    if not test then (printf "test 344 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4180,7 +4183,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 345;
     let test = raises in
-    if not test then failwithf "test 345 failed %d %d" size i;
+    if not test then (printf "test 345 failed %s %d %d\n" "ur4" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = (#{ a = #0L; b = #0. } : ur1); b = (#{ a = #0L } : ur3) } : ur4) with
@@ -4189,14 +4192,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 346;
     let test = raises in
-    if not test then failwithf "test 346 failed %d %d" size i;
+    if not test then (printf "test 346 failed %s %d %d\n" "ur4" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 347;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 347 failed %d %d" size i;
+    if not test then (printf "test 347 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4209,7 +4212,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 348;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 348 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 348 failed %s %d %d %d %d %d\n" "ur4" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4232,7 +4235,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 349;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 349 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 349 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4252,7 +4255,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 350;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 350 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 350 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4272,7 +4275,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 351;
     let test = eq el #(#0., #0l, #0L) in
-    if not test then failwithf "test 351 failed %d %d" size i;
+    if not test then (printf "test 351 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4282,7 +4285,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 352;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 352 failed %d %d" size i;
+    if not test then (printf "test 352 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4293,7 +4296,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 353;
     let test = raises in
-    if not test then failwithf "test 353 failed %d %d" size i;
+    if not test then (printf "test 353 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #0l, #0L) with
@@ -4302,14 +4305,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 354;
     let test = raises in
-    if not test then failwithf "test 354 failed %d %d" size i;
+    if not test then (printf "test 354 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 355;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 355 failed %d %d" size i;
+    if not test then (printf "test 355 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4322,7 +4325,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 356;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 356 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 356 failed %s %d %d %d %d %d\n" "#(float# * int32# * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4345,7 +4348,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 357;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 357 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 357 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4365,7 +4368,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 358;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 358 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 358 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4385,7 +4388,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 359;
     let test = eq el #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
-    if not test then failwithf "test 359 failed %d %d" size i;
+    if not test then (printf "test 359 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4395,7 +4398,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 360;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 360 failed %d %d" size i;
+    if not test then (printf "test 360 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4406,7 +4409,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 361;
     let test = raises in
-    if not test then failwithf "test 361 failed %d %d" size i;
+    if not test then (printf "test 361 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
@@ -4415,14 +4418,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 362;
     let test = raises in
-    if not test then failwithf "test 362 failed %d %d" size i;
+    if not test then (printf "test 362 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 363;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 363 failed %d %d" size i;
+    if not test then (printf "test 363 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4435,7 +4438,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 364;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 364 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 364 failed %s %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4458,7 +4461,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 365;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 365 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 365 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4478,7 +4481,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 366;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 366 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 366 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4498,7 +4501,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 367;
     let test = eq el #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-    if not test then failwithf "test 367 failed %d %d" size i;
+    if not test then (printf "test 367 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4508,7 +4511,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 368;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 368 failed %d %d" size i;
+    if not test then (printf "test 368 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4519,7 +4522,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 369;
     let test = raises in
-    if not test then failwithf "test 369 failed %d %d" size i;
+    if not test then (printf "test 369 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
@@ -4528,14 +4531,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 370;
     let test = raises in
-    if not test then failwithf "test 370 failed %d %d" size i;
+    if not test then (printf "test 370 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 371;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 371 failed %d %d" size i;
+    if not test then (printf "test 371 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4548,7 +4551,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 372;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 372 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 372 failed %s %d %d %d %d %d\n" "#(int64# * ur1)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4571,7 +4574,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 373;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 373 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 373 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4591,7 +4594,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 374;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 374 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 374 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4611,7 +4614,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 375;
     let test = eq el 0.s in
-    if not test then failwithf "test 375 failed %d %d" size i;
+    if not test then (printf "test 375 failed %s %d %d\n" "float32" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4621,7 +4624,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 376;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 376 failed %d %d" size i;
+    if not test then (printf "test 376 failed %s %d %d\n" "float32" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4632,7 +4635,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 377;
     let test = raises in
-    if not test then failwithf "test 377 failed %d %d" size i;
+    if not test then (printf "test 377 failed %s %d %d\n" "float32" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0.s with
@@ -4641,14 +4644,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 378;
     let test = raises in
-    if not test then failwithf "test 378 failed %d %d" size i;
+    if not test then (printf "test 378 failed %s %d %d\n" "float32" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 379;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 379 failed %d %d" size i;
+    if not test then (printf "test 379 failed %s %d %d\n" "float32" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4661,7 +4664,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 380;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 380 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 380 failed %s %d %d %d %d %d\n" "float32" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4684,7 +4687,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 381;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 381 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 381 failed %s %d %d %d %d %d %d\n" "float32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4704,7 +4707,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 382;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 382 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 382 failed %s %d %d %d %d %d %d\n" "float32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4724,7 +4727,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 383;
     let test = eq el 0. in
-    if not test then failwithf "test 383 failed %d %d" size i;
+    if not test then (printf "test 383 failed %s %d %d\n" "float" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4734,7 +4737,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 384;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 384 failed %d %d" size i;
+    if not test then (printf "test 384 failed %s %d %d\n" "float" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4745,7 +4748,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 385;
     let test = raises in
-    if not test then failwithf "test 385 failed %d %d" size i;
+    if not test then (printf "test 385 failed %s %d %d\n" "float" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0. with
@@ -4754,14 +4757,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 386;
     let test = raises in
-    if not test then failwithf "test 386 failed %d %d" size i;
+    if not test then (printf "test 386 failed %s %d %d\n" "float" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 387;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 387 failed %d %d" size i;
+    if not test then (printf "test 387 failed %s %d %d\n" "float" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4774,7 +4777,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 388;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 388 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 388 failed %s %d %d %d %d %d\n" "float" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4797,7 +4800,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 389;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 389 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 389 failed %s %d %d %d %d %d %d\n" "float" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4817,7 +4820,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 390;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 390 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 390 failed %s %d %d %d %d %d %d\n" "float" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4837,7 +4840,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 391;
     let test = eq el 0l in
-    if not test then failwithf "test 391 failed %d %d" size i;
+    if not test then (printf "test 391 failed %s %d %d\n" "int32" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4847,7 +4850,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 392;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 392 failed %d %d" size i;
+    if not test then (printf "test 392 failed %s %d %d\n" "int32" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4858,7 +4861,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 393;
     let test = raises in
-    if not test then failwithf "test 393 failed %d %d" size i;
+    if not test then (printf "test 393 failed %s %d %d\n" "int32" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0l with
@@ -4867,14 +4870,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 394;
     let test = raises in
-    if not test then failwithf "test 394 failed %d %d" size i;
+    if not test then (printf "test 394 failed %s %d %d\n" "int32" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 395;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 395 failed %d %d" size i;
+    if not test then (printf "test 395 failed %s %d %d\n" "int32" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -4887,7 +4890,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 396;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 396 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 396 failed %s %d %d %d %d %d\n" "int32" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -4910,7 +4913,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 397;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 397 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 397 failed %s %d %d %d %d %d %d\n" "int32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4930,7 +4933,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 398;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 398 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 398 failed %s %d %d %d %d %d %d\n" "int32" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -4950,7 +4953,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 399;
     let test = eq el 0L in
-    if not test then failwithf "test 399 failed %d %d" size i;
+    if not test then (printf "test 399 failed %s %d %d\n" "int64" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -4960,7 +4963,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 400;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 400 failed %d %d" size i;
+    if not test then (printf "test 400 failed %s %d %d\n" "int64" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -4971,7 +4974,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 401;
     let test = raises in
-    if not test then failwithf "test 401 failed %d %d" size i;
+    if not test then (printf "test 401 failed %s %d %d\n" "int64" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0L with
@@ -4980,14 +4983,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 402;
     let test = raises in
-    if not test then failwithf "test 402 failed %d %d" size i;
+    if not test then (printf "test 402 failed %s %d %d\n" "int64" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 403;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 403 failed %d %d" size i;
+    if not test then (printf "test 403 failed %s %d %d\n" "int64" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5000,7 +5003,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 404;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 404 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 404 failed %s %d %d %d %d %d\n" "int64" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5023,7 +5026,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 405;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 405 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 405 failed %s %d %d %d %d %d %d\n" "int64" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5043,7 +5046,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 406;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 406 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 406 failed %s %d %d %d %d %d %d\n" "int64" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5063,7 +5066,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 407;
     let test = eq el 0n in
-    if not test then failwithf "test 407 failed %d %d" size i;
+    if not test then (printf "test 407 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5073,7 +5076,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 408;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 408 failed %d %d" size i;
+    if not test then (printf "test 408 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5084,7 +5087,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 409;
     let test = raises in
-    if not test then failwithf "test 409 failed %d %d" size i;
+    if not test then (printf "test 409 failed %s %d %d\n" "nativeint" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0n with
@@ -5093,14 +5096,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 410;
     let test = raises in
-    if not test then failwithf "test 410 failed %d %d" size i;
+    if not test then (printf "test 410 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 411;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 411 failed %d %d" size i;
+    if not test then (printf "test 411 failed %s %d %d\n" "nativeint" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5113,7 +5116,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 412;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 412 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 412 failed %s %d %d %d %d %d\n" "nativeint" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5136,7 +5139,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 413;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 413 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 413 failed %s %d %d %d %d %d %d\n" "nativeint" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5156,7 +5159,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 414;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 414 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 414 failed %s %d %d %d %d %d %d\n" "nativeint" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5176,7 +5179,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 415;
     let test = eq el 0 in
-    if not test then failwithf "test 415 failed %d %d" size i;
+    if not test then (printf "test 415 failed %s %d %d\n" "int" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5186,7 +5189,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 416;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 416 failed %d %d" size i;
+    if not test then (printf "test 416 failed %s %d %d\n" "int" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5197,7 +5200,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 417;
     let test = raises in
-    if not test then failwithf "test 417 failed %d %d" size i;
+    if not test then (printf "test 417 failed %s %d %d\n" "int" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i 0 with
@@ -5206,14 +5209,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 418;
     let test = raises in
-    if not test then failwithf "test 418 failed %d %d" size i;
+    if not test then (printf "test 418 failed %s %d %d\n" "int" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 419;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 419 failed %d %d" size i;
+    if not test then (printf "test 419 failed %s %d %d\n" "int" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5226,7 +5229,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 420;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 420 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 420 failed %s %d %d %d %d %d\n" "int" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5249,7 +5252,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 421;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 421 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 421 failed %s %d %d %d %d %d %d\n" "int" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5269,7 +5272,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 422;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 422 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 422 failed %s %d %d %d %d %d %d\n" "int" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5289,7 +5292,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 423;
     let test = eq el A3_0 in
-    if not test then failwithf "test 423 failed %d %d" size i;
+    if not test then (printf "test 423 failed %s %d %d\n" "enum3" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5299,7 +5302,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 424;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 424 failed %d %d" size i;
+    if not test then (printf "test 424 failed %s %d %d\n" "enum3" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5310,7 +5313,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 425;
     let test = raises in
-    if not test then failwithf "test 425 failed %d %d" size i;
+    if not test then (printf "test 425 failed %s %d %d\n" "enum3" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i A3_0 with
@@ -5319,14 +5322,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 426;
     let test = raises in
-    if not test then failwithf "test 426 failed %d %d" size i;
+    if not test then (printf "test 426 failed %s %d %d\n" "enum3" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 427;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 427 failed %d %d" size i;
+    if not test then (printf "test 427 failed %s %d %d\n" "enum3" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5339,7 +5342,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 428;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 428 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 428 failed %s %d %d %d %d %d\n" "enum3" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5362,7 +5365,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 429;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 429 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 429 failed %s %d %d %d %d %d %d\n" "enum3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5382,7 +5385,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 430;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 430 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 430 failed %s %d %d %d %d %d %d\n" "enum3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5402,7 +5405,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 431;
     let test = eq el (#{ a = #0L; b = 0 } : ur2) in
-    if not test then failwithf "test 431 failed %d %d" size i;
+    if not test then (printf "test 431 failed %s %d %d\n" "ur2" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5412,7 +5415,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 432;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 432 failed %d %d" size i;
+    if not test then (printf "test 432 failed %s %d %d\n" "ur2" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5423,7 +5426,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 433;
     let test = raises in
-    if not test then failwithf "test 433 failed %d %d" size i;
+    if not test then (printf "test 433 failed %s %d %d\n" "ur2" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L; b = 0 } : ur2) with
@@ -5432,14 +5435,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 434;
     let test = raises in
-    if not test then failwithf "test 434 failed %d %d" size i;
+    if not test then (printf "test 434 failed %s %d %d\n" "ur2" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 435;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 435 failed %d %d" size i;
+    if not test then (printf "test 435 failed %s %d %d\n" "ur2" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5452,7 +5455,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 436;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 436 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 436 failed %s %d %d %d %d %d\n" "ur2" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5475,7 +5478,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 437;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 437 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 437 failed %s %d %d %d %d %d %d\n" "ur2" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5495,7 +5498,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 438;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 438 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 438 failed %s %d %d %d %d %d %d\n" "ur2" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5515,7 +5518,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 439;
     let test = eq el #(0, 0L) in
-    if not test then failwithf "test 439 failed %d %d" size i;
+    if not test then (printf "test 439 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5525,7 +5528,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 440;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 440 failed %d %d" size i;
+    if not test then (printf "test 440 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5536,7 +5539,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 441;
     let test = raises in
-    if not test then failwithf "test 441 failed %d %d" size i;
+    if not test then (printf "test 441 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(0, 0L) with
@@ -5545,14 +5548,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 442;
     let test = raises in
-    if not test then failwithf "test 442 failed %d %d" size i;
+    if not test then (printf "test 442 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 443;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 443 failed %d %d" size i;
+    if not test then (printf "test 443 failed %s %d %d\n" "#(int * int64)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5565,7 +5568,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 444;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 444 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 444 failed %s %d %d %d %d %d\n" "#(int * int64)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5588,7 +5591,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 445;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 445 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 445 failed %s %d %d %d %d %d %d\n" "#(int * int64)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5608,7 +5611,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 446;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 446 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 446 failed %s %d %d %d %d %d %d\n" "#(int * int64)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5628,7 +5631,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 447;
     let test = eq el #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) in
-    if not test then failwithf "test 447 failed %d %d" size i;
+    if not test then (printf "test 447 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5638,7 +5641,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 448;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 448 failed %d %d" size i;
+    if not test then (printf "test 448 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5649,7 +5652,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 449;
     let test = raises in
-    if not test then failwithf "test 449 failed %d %d" size i;
+    if not test then (printf "test 449 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(None, #(0, 0l, 0.), 0., #(0.s, None), 0l) with
@@ -5658,14 +5661,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 450;
     let test = raises in
-    if not test then failwithf "test 450 failed %d %d" size i;
+    if not test then (printf "test 450 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 451;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 451 failed %d %d" size i;
+    if not test then (printf "test 451 failed %s %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5678,7 +5681,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 452;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 452 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 452 failed %s %d %d %d %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5701,7 +5704,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 453;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 453 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 453 failed %s %d %d %d %d %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5721,7 +5724,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 454;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 454 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 454 failed %s %d %d %d %d %d %d\n" "#(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5741,7 +5744,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 455;
     let test = eq el #(0., 0., 0.) in
-    if not test then failwithf "test 455 failed %d %d" size i;
+    if not test then (printf "test 455 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5751,7 +5754,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 456;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 456 failed %d %d" size i;
+    if not test then (printf "test 456 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5762,7 +5765,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 457;
     let test = raises in
-    if not test then failwithf "test 457 failed %d %d" size i;
+    if not test then (printf "test 457 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(0., 0., 0.) with
@@ -5771,14 +5774,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 458;
     let test = raises in
-    if not test then failwithf "test 458 failed %d %d" size i;
+    if not test then (printf "test 458 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 459;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 459 failed %d %d" size i;
+    if not test then (printf "test 459 failed %s %d %d\n" "#(float * float * float)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5791,7 +5794,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 460;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 460 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 460 failed %s %d %d %d %d %d\n" "#(float * float * float)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5814,7 +5817,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 461;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 461 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 461 failed %s %d %d %d %d %d %d\n" "#(float * float * float)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5834,7 +5837,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 462;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 462 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 462 failed %s %d %d %d %d %d %d\n" "#(float * float * float)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5854,7 +5857,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 463;
     let test = eq el #(0., #(0., 0.), #(0., #(0., 0., 0.))) in
-    if not test then failwithf "test 463 failed %d %d" size i;
+    if not test then (printf "test 463 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5864,7 +5867,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 464;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 464 failed %d %d" size i;
+    if not test then (printf "test 464 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5875,7 +5878,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 465;
     let test = raises in
-    if not test then failwithf "test 465 failed %d %d" size i;
+    if not test then (printf "test 465 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(0., #(0., 0.), #(0., #(0., 0., 0.))) with
@@ -5884,14 +5887,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 466;
     let test = raises in
-    if not test then failwithf "test 466 failed %d %d" size i;
+    if not test then (printf "test 466 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 467;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 467 failed %d %d" size i;
+    if not test then (printf "test 467 failed %s %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -5904,7 +5907,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 468;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 468 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 468 failed %s %d %d %d %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -5927,7 +5930,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 469;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 469 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 469 failed %s %d %d %d %d %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5947,7 +5950,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 470;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 470 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 470 failed %s %d %d %d %d %d %d\n" "#(float * #(float * float) * #(float * #(float * float * float)))" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -5967,7 +5970,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 471;
     let test = eq el #(#0., 0, #0L) in
-    if not test then failwithf "test 471 failed %d %d" size i;
+    if not test then (printf "test 471 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -5977,7 +5980,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 472;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 472 failed %d %d" size i;
+    if not test then (printf "test 472 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -5988,7 +5991,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 473;
     let test = raises in
-    if not test then failwithf "test 473 failed %d %d" size i;
+    if not test then (printf "test 473 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., 0, #0L) with
@@ -5997,14 +6000,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 474;
     let test = raises in
-    if not test then failwithf "test 474 failed %d %d" size i;
+    if not test then (printf "test 474 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 475;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 475 failed %d %d" size i;
+    if not test then (printf "test 475 failed %s %d %d\n" "#(float# * int * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6017,7 +6020,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 476;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 476 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 476 failed %s %d %d %d %d %d\n" "#(float# * int * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6040,7 +6043,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 477;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 477 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 477 failed %s %d %d %d %d %d %d\n" "#(float# * int * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6060,7 +6063,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 478;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 478 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 478 failed %s %d %d %d %d %d %d\n" "#(float# * int * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6080,7 +6083,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 479;
     let test = eq el #(#0., #(0, #0L), #0.s, #(#0l, #(#0.s, #0.)), 0) in
-    if not test then failwithf "test 479 failed %d %d" size i;
+    if not test then (printf "test 479 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -6090,7 +6093,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 480;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 480 failed %d %d" size i;
+    if not test then (printf "test 480 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6101,7 +6104,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 481;
     let test = raises in
-    if not test then failwithf "test 481 failed %d %d" size i;
+    if not test then (printf "test 481 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #(0, #0L), #0.s, #(#0l, #(#0.s, #0.)), 0) with
@@ -6110,14 +6113,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 482;
     let test = raises in
-    if not test then failwithf "test 482 failed %d %d" size i;
+    if not test then (printf "test 482 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 483;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 483 failed %d %d" size i;
+    if not test then (printf "test 483 failed %s %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6130,7 +6133,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 484;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 484 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 484 failed %s %d %d %d %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6153,7 +6156,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 485;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 485 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 485 failed %s %d %d %d %d %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6173,7 +6176,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 486;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 486 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 486 failed %s %d %d %d %d %d %d\n" "#(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6193,7 +6196,7 @@ let test_makearray_dynamic_local size =
     let el = get a i in
     mark_test_run 487;
     let test = eq el #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) in
-    if not test then failwithf "test 487 failed %d %d" size i;
+    if not test then (printf "test 487 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   done;
   (* 3. Fill [a] with distinct values and read back those values *)
   for i = 0 to size - 1 do
@@ -6203,7 +6206,7 @@ let test_makearray_dynamic_local size =
   for i = 0 to size - 1 do
     mark_test_run 488;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 488 failed %d %d" size i;
+    if not test then (printf "test 488 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6214,7 +6217,7 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 489;
     let test = raises in
-    if not test then failwithf "test 489 failed %d %d" size i;
+    if not test then (printf "test 489 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #((#{ a = #0L; b = 0 } : ur2), (#{ a = #0L; b = #0. } : ur1)) with
@@ -6223,14 +6226,14 @@ let test_makearray_dynamic_local size =
     in
     mark_test_run 490;
     let test = raises in
-    if not test then failwithf "test 490 failed %d %d" size i;
+    if not test then (printf "test 490 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 491;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 491 failed %d %d" size i;
+    if not test then (printf "test 491 failed %s %d %d\n" "#(ur2 * ur1)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6243,7 +6246,7 @@ let test_makearray_dynamic_local size =
           in
           mark_test_run 492;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 492 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 492 failed %s %d %d %d %d %d\n" "#(ur2 * ur1)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6266,7 +6269,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 493;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 493 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 493 failed %s %d %d %d %d %d %d\n" "#(ur2 * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6286,7 +6289,7 @@ let test_makearray_dynamic_local size =
             in
             mark_test_run 494;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 494 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 494 failed %s %d %d %d %d %d %d\n" "#(ur2 * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6318,7 +6321,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 495;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 495 failed %d %d" size i;
+    if not test then (printf "test 495 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6329,7 +6332,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 496;
     let test = raises in
-    if not test then failwithf "test 496 failed %d %d" size i;
+    if not test then (printf "test 496 failed %s %d %d\n" "float32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0.s with
@@ -6338,14 +6341,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 497;
     let test = raises in
-    if not test then failwithf "test 497 failed %d %d" size i;
+    if not test then (printf "test 497 failed %s %d %d\n" "float32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 498;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 498 failed %d %d" size i;
+    if not test then (printf "test 498 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6358,7 +6361,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 499;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 499 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 499 failed %s %d %d %d %d %d\n" "float32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6381,7 +6384,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 500;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 500 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 500 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6401,7 +6404,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 501;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 501 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 501 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6430,7 +6433,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 502;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 502 failed %d %d" size i;
+    if not test then (printf "test 502 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6441,7 +6444,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 503;
     let test = raises in
-    if not test then failwithf "test 503 failed %d %d" size i;
+    if not test then (printf "test 503 failed %s %d %d\n" "float#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0. with
@@ -6450,14 +6453,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 504;
     let test = raises in
-    if not test then failwithf "test 504 failed %d %d" size i;
+    if not test then (printf "test 504 failed %s %d %d\n" "float#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 505;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 505 failed %d %d" size i;
+    if not test then (printf "test 505 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6470,7 +6473,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 506;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 506 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 506 failed %s %d %d %d %d %d\n" "float#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6493,7 +6496,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 507;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 507 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 507 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6513,7 +6516,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 508;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 508 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 508 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6542,7 +6545,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 509;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 509 failed %d %d" size i;
+    if not test then (printf "test 509 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6553,7 +6556,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 510;
     let test = raises in
-    if not test then failwithf "test 510 failed %d %d" size i;
+    if not test then (printf "test 510 failed %s %d %d\n" "int32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0l with
@@ -6562,14 +6565,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 511;
     let test = raises in
-    if not test then failwithf "test 511 failed %d %d" size i;
+    if not test then (printf "test 511 failed %s %d %d\n" "int32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 512;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 512 failed %d %d" size i;
+    if not test then (printf "test 512 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6582,7 +6585,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 513;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 513 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 513 failed %s %d %d %d %d %d\n" "int32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6605,7 +6608,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 514;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 514 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 514 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6625,7 +6628,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 515;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 515 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 515 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6654,7 +6657,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 516;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 516 failed %d %d" size i;
+    if not test then (printf "test 516 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6665,7 +6668,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 517;
     let test = raises in
-    if not test then failwithf "test 517 failed %d %d" size i;
+    if not test then (printf "test 517 failed %s %d %d\n" "int64#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0L with
@@ -6674,14 +6677,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 518;
     let test = raises in
-    if not test then failwithf "test 518 failed %d %d" size i;
+    if not test then (printf "test 518 failed %s %d %d\n" "int64#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 519;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 519 failed %d %d" size i;
+    if not test then (printf "test 519 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6694,7 +6697,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 520;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 520 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 520 failed %s %d %d %d %d %d\n" "int64#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6717,7 +6720,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 521;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 521 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 521 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6737,7 +6740,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 522;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 522 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 522 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6766,7 +6769,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 523;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 523 failed %d %d" size i;
+    if not test then (printf "test 523 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6777,7 +6780,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 524;
     let test = raises in
-    if not test then failwithf "test 524 failed %d %d" size i;
+    if not test then (printf "test 524 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0n with
@@ -6786,14 +6789,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 525;
     let test = raises in
-    if not test then failwithf "test 525 failed %d %d" size i;
+    if not test then (printf "test 525 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 526;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 526 failed %d %d" size i;
+    if not test then (printf "test 526 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6806,7 +6809,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 527;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 527 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 527 failed %s %d %d %d %d %d\n" "nativeint#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6829,7 +6832,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 528;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 528 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 528 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6849,7 +6852,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 529;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 529 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 529 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6878,7 +6881,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 530;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 530 failed %d %d" size i;
+    if not test then (printf "test 530 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -6889,7 +6892,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 531;
     let test = raises in
-    if not test then failwithf "test 531 failed %d %d" size i;
+    if not test then (printf "test 531 failed %s %d %d\n" "ur1" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L; b = #0. } : ur1) with
@@ -6898,14 +6901,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 532;
     let test = raises in
-    if not test then failwithf "test 532 failed %d %d" size i;
+    if not test then (printf "test 532 failed %s %d %d\n" "ur1" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 533;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 533 failed %d %d" size i;
+    if not test then (printf "test 533 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -6918,7 +6921,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 534;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 534 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 534 failed %s %d %d %d %d %d\n" "ur1" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -6941,7 +6944,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 535;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 535 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 535 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6961,7 +6964,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 536;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 536 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 536 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -6990,7 +6993,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 537;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 537 failed %d %d" size i;
+    if not test then (printf "test 537 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7001,7 +7004,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 538;
     let test = raises in
-    if not test then failwithf "test 538 failed %d %d" size i;
+    if not test then (printf "test 538 failed %s %d %d\n" "ur3" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L } : ur3) with
@@ -7010,14 +7013,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 539;
     let test = raises in
-    if not test then failwithf "test 539 failed %d %d" size i;
+    if not test then (printf "test 539 failed %s %d %d\n" "ur3" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 540;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 540 failed %d %d" size i;
+    if not test then (printf "test 540 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7030,7 +7033,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 541;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 541 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 541 failed %s %d %d %d %d %d\n" "ur3" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7053,7 +7056,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 542;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 542 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 542 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7073,7 +7076,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 543;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 543 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 543 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7102,7 +7105,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 544;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 544 failed %d %d" size i;
+    if not test then (printf "test 544 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7113,7 +7116,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 545;
     let test = raises in
-    if not test then failwithf "test 545 failed %d %d" size i;
+    if not test then (printf "test 545 failed %s %d %d\n" "ur4" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = (#{ a = #0L; b = #0. } : ur1); b = (#{ a = #0L } : ur3) } : ur4) with
@@ -7122,14 +7125,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 546;
     let test = raises in
-    if not test then failwithf "test 546 failed %d %d" size i;
+    if not test then (printf "test 546 failed %s %d %d\n" "ur4" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 547;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 547 failed %d %d" size i;
+    if not test then (printf "test 547 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7142,7 +7145,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 548;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 548 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 548 failed %s %d %d %d %d %d\n" "ur4" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7165,7 +7168,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 549;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 549 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 549 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7185,7 +7188,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 550;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 550 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 550 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7214,7 +7217,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 551;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 551 failed %d %d" size i;
+    if not test then (printf "test 551 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7225,7 +7228,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 552;
     let test = raises in
-    if not test then failwithf "test 552 failed %d %d" size i;
+    if not test then (printf "test 552 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #0l, #0L) with
@@ -7234,14 +7237,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 553;
     let test = raises in
-    if not test then failwithf "test 553 failed %d %d" size i;
+    if not test then (printf "test 553 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 554;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 554 failed %d %d" size i;
+    if not test then (printf "test 554 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7254,7 +7257,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 555;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 555 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 555 failed %s %d %d %d %d %d\n" "#(float# * int32# * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7277,7 +7280,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 556;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 556 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 556 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7297,7 +7300,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 557;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 557 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 557 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7326,7 +7329,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 558;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 558 failed %d %d" size i;
+    if not test then (printf "test 558 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7337,7 +7340,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 559;
     let test = raises in
-    if not test then failwithf "test 559 failed %d %d" size i;
+    if not test then (printf "test 559 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
@@ -7346,14 +7349,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 560;
     let test = raises in
-    if not test then failwithf "test 560 failed %d %d" size i;
+    if not test then (printf "test 560 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 561;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 561 failed %d %d" size i;
+    if not test then (printf "test 561 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7366,7 +7369,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 562;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 562 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 562 failed %s %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7389,7 +7392,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 563;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 563 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 563 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7409,7 +7412,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 564;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 564 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 564 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7438,7 +7441,7 @@ let test_makearray_dynamic_uninit size =
   for i = 0 to size - 1 do
     mark_test_run 565;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 565 failed %d %d" size i;
+    if not test then (printf "test 565 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7449,7 +7452,7 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 566;
     let test = raises in
-    if not test then failwithf "test 566 failed %d %d" size i;
+    if not test then (printf "test 566 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
@@ -7458,14 +7461,14 @@ let test_makearray_dynamic_uninit size =
     in
     mark_test_run 567;
     let test = raises in
-    if not test then failwithf "test 567 failed %d %d" size i;
+    if not test then (printf "test 567 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 568;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 568 failed %d %d" size i;
+    if not test then (printf "test 568 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7478,7 +7481,7 @@ let test_makearray_dynamic_uninit size =
           in
           mark_test_run 569;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 569 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 569 failed %s %d %d %d %d %d\n" "#(int64# * ur1)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7501,7 +7504,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 570;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 570 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 570 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7521,7 +7524,7 @@ let test_makearray_dynamic_uninit size =
             in
             mark_test_run 571;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 571 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 571 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7553,7 +7556,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 572;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 572 failed %d %d" size i;
+    if not test then (printf "test 572 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7564,7 +7567,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 573;
     let test = raises in
-    if not test then failwithf "test 573 failed %d %d" size i;
+    if not test then (printf "test 573 failed %s %d %d\n" "float32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0.s with
@@ -7573,14 +7576,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 574;
     let test = raises in
-    if not test then failwithf "test 574 failed %d %d" size i;
+    if not test then (printf "test 574 failed %s %d %d\n" "float32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 575;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 575 failed %d %d" size i;
+    if not test then (printf "test 575 failed %s %d %d\n" "float32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7593,7 +7596,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 576;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 576 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 576 failed %s %d %d %d %d %d\n" "float32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7616,7 +7619,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 577;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 577 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 577 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7636,7 +7639,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 578;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 578 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 578 failed %s %d %d %d %d %d %d\n" "float32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7665,7 +7668,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 579;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 579 failed %d %d" size i;
+    if not test then (printf "test 579 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7676,7 +7679,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 580;
     let test = raises in
-    if not test then failwithf "test 580 failed %d %d" size i;
+    if not test then (printf "test 580 failed %s %d %d\n" "float#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0. with
@@ -7685,14 +7688,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 581;
     let test = raises in
-    if not test then failwithf "test 581 failed %d %d" size i;
+    if not test then (printf "test 581 failed %s %d %d\n" "float#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 582;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 582 failed %d %d" size i;
+    if not test then (printf "test 582 failed %s %d %d\n" "float#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7705,7 +7708,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 583;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 583 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 583 failed %s %d %d %d %d %d\n" "float#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7728,7 +7731,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 584;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 584 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 584 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7748,7 +7751,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 585;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 585 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 585 failed %s %d %d %d %d %d %d\n" "float#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7777,7 +7780,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 586;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 586 failed %d %d" size i;
+    if not test then (printf "test 586 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7788,7 +7791,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 587;
     let test = raises in
-    if not test then failwithf "test 587 failed %d %d" size i;
+    if not test then (printf "test 587 failed %s %d %d\n" "int32#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0l with
@@ -7797,14 +7800,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 588;
     let test = raises in
-    if not test then failwithf "test 588 failed %d %d" size i;
+    if not test then (printf "test 588 failed %s %d %d\n" "int32#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 589;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 589 failed %d %d" size i;
+    if not test then (printf "test 589 failed %s %d %d\n" "int32#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7817,7 +7820,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 590;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 590 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 590 failed %s %d %d %d %d %d\n" "int32#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7840,7 +7843,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 591;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 591 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 591 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7860,7 +7863,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 592;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 592 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 592 failed %s %d %d %d %d %d %d\n" "int32#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7889,7 +7892,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 593;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 593 failed %d %d" size i;
+    if not test then (printf "test 593 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -7900,7 +7903,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 594;
     let test = raises in
-    if not test then failwithf "test 594 failed %d %d" size i;
+    if not test then (printf "test 594 failed %s %d %d\n" "int64#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0L with
@@ -7909,14 +7912,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 595;
     let test = raises in
-    if not test then failwithf "test 595 failed %d %d" size i;
+    if not test then (printf "test 595 failed %s %d %d\n" "int64#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 596;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 596 failed %d %d" size i;
+    if not test then (printf "test 596 failed %s %d %d\n" "int64#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -7929,7 +7932,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 597;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 597 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 597 failed %s %d %d %d %d %d\n" "int64#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -7952,7 +7955,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 598;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 598 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 598 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -7972,7 +7975,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 599;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 599 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 599 failed %s %d %d %d %d %d %d\n" "int64#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8001,7 +8004,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 600;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 600 failed %d %d" size i;
+    if not test then (printf "test 600 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -8012,7 +8015,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 601;
     let test = raises in
-    if not test then failwithf "test 601 failed %d %d" size i;
+    if not test then (printf "test 601 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #0n with
@@ -8021,14 +8024,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 602;
     let test = raises in
-    if not test then failwithf "test 602 failed %d %d" size i;
+    if not test then (printf "test 602 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 603;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 603 failed %d %d" size i;
+    if not test then (printf "test 603 failed %s %d %d\n" "nativeint#" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -8041,7 +8044,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 604;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 604 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 604 failed %s %d %d %d %d %d\n" "nativeint#" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -8064,7 +8067,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 605;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 605 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 605 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8084,7 +8087,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 606;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 606 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 606 failed %s %d %d %d %d %d %d\n" "nativeint#" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8113,7 +8116,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 607;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 607 failed %d %d" size i;
+    if not test then (printf "test 607 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -8124,7 +8127,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 608;
     let test = raises in
-    if not test then failwithf "test 608 failed %d %d" size i;
+    if not test then (printf "test 608 failed %s %d %d\n" "ur1" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L; b = #0. } : ur1) with
@@ -8133,14 +8136,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 609;
     let test = raises in
-    if not test then failwithf "test 609 failed %d %d" size i;
+    if not test then (printf "test 609 failed %s %d %d\n" "ur1" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 610;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 610 failed %d %d" size i;
+    if not test then (printf "test 610 failed %s %d %d\n" "ur1" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -8153,7 +8156,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 611;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 611 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 611 failed %s %d %d %d %d %d\n" "ur1" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -8176,7 +8179,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 612;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 612 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 612 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8196,7 +8199,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 613;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 613 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 613 failed %s %d %d %d %d %d %d\n" "ur1" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8225,7 +8228,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 614;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 614 failed %d %d" size i;
+    if not test then (printf "test 614 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -8236,7 +8239,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 615;
     let test = raises in
-    if not test then failwithf "test 615 failed %d %d" size i;
+    if not test then (printf "test 615 failed %s %d %d\n" "ur3" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = #0L } : ur3) with
@@ -8245,14 +8248,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 616;
     let test = raises in
-    if not test then failwithf "test 616 failed %d %d" size i;
+    if not test then (printf "test 616 failed %s %d %d\n" "ur3" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 617;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 617 failed %d %d" size i;
+    if not test then (printf "test 617 failed %s %d %d\n" "ur3" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -8265,7 +8268,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 618;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 618 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 618 failed %s %d %d %d %d %d\n" "ur3" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -8288,7 +8291,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 619;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 619 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 619 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8308,7 +8311,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 620;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 620 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 620 failed %s %d %d %d %d %d %d\n" "ur3" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8337,7 +8340,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 621;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 621 failed %d %d" size i;
+    if not test then (printf "test 621 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -8348,7 +8351,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 622;
     let test = raises in
-    if not test then failwithf "test 622 failed %d %d" size i;
+    if not test then (printf "test 622 failed %s %d %d\n" "ur4" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i (#{ a = (#{ a = #0L; b = #0. } : ur1); b = (#{ a = #0L } : ur3) } : ur4) with
@@ -8357,14 +8360,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 623;
     let test = raises in
-    if not test then failwithf "test 623 failed %d %d" size i;
+    if not test then (printf "test 623 failed %s %d %d\n" "ur4" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 624;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 624 failed %d %d" size i;
+    if not test then (printf "test 624 failed %s %d %d\n" "ur4" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -8377,7 +8380,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 625;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 625 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 625 failed %s %d %d %d %d %d\n" "ur4" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -8400,7 +8403,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 626;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 626 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 626 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8420,7 +8423,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 627;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 627 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 627 failed %s %d %d %d %d %d %d\n" "ur4" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8449,7 +8452,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 628;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 628 failed %d %d" size i;
+    if not test then (printf "test 628 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -8460,7 +8463,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 629;
     let test = raises in
-    if not test then failwithf "test 629 failed %d %d" size i;
+    if not test then (printf "test 629 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #0l, #0L) with
@@ -8469,14 +8472,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 630;
     let test = raises in
-    if not test then failwithf "test 630 failed %d %d" size i;
+    if not test then (printf "test 630 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 631;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 631 failed %d %d" size i;
+    if not test then (printf "test 631 failed %s %d %d\n" "#(float# * int32# * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -8489,7 +8492,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 632;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 632 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 632 failed %s %d %d %d %d %d\n" "#(float# * int32# * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -8512,7 +8515,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 633;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 633 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 633 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8532,7 +8535,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 634;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 634 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 634 failed %s %d %d %d %d %d %d\n" "#(float# * int32# * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8561,7 +8564,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 635;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 635 failed %d %d" size i;
+    if not test then (printf "test 635 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -8572,7 +8575,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 636;
     let test = raises in
-    if not test then failwithf "test 636 failed %d %d" size i;
+    if not test then (printf "test 636 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) with
@@ -8581,14 +8584,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 637;
     let test = raises in
-    if not test then failwithf "test 637 failed %d %d" size i;
+    if not test then (printf "test 637 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 638;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 638 failed %d %d" size i;
+    if not test then (printf "test 638 failed %s %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -8601,7 +8604,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 639;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 639 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 639 failed %s %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -8624,7 +8627,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 640;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 640 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 640 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8644,7 +8647,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 641;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 641 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 641 failed %s %d %d %d %d %d %d\n" "#(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8673,7 +8676,7 @@ let test_makearray_dynamic_uninit_local size =
   for i = 0 to size - 1 do
     mark_test_run 642;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 642 failed %d %d" size i;
+    if not test then (printf "test 642 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   iter (bad_indices size) ~f:(fun i ->
     (* 4. Getting bad indices errors *)
@@ -8684,7 +8687,7 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 643;
     let test = raises in
-    if not test then failwithf "test 643 failed %d %d" size i;
+    if not test then (printf "test 643 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
     (* 5. Setting bad indices errors *)
     let raises =
       match set a i #(#0L, (#{ a = #0L; b = #0. } : ur1)) with
@@ -8693,14 +8696,14 @@ let test_makearray_dynamic_uninit_local size =
     in
     mark_test_run 644;
     let test = raises in
-    if not test then failwithf "test 644 failed %d %d" size i;
+    if not test then (printf "test 644 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   ) [@nontail];
   Gc.compact ();
   (* 6. Array contents were unaffacted by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 645;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 645 failed %d %d" size i;
+    if not test then (printf "test 645 failed %s %d %d\n" "#(int64# * ur1)" size i; test_failed := true);
   done;
   (* 7. Overlapping blits *)
   iter (blit_offsets size) ~f:(fun ofs1 ->
@@ -8713,7 +8716,7 @@ let test_makearray_dynamic_uninit_local size =
           in
           mark_test_run 646;
           let test = eq (get a i) (mk_value expected_src_i) in
-          if not test then failwithf "test 646 failed %d %d %d %d %d" size ofs1 ofs2 len i;
+          if not test then (printf "test 646 failed %s %d %d %d %d %d\n" "#(int64# * ur1)" size ofs1 ofs2 len i; test_failed := true);
         done;
         (* Reset array *)
         for i = 0 to size - 1 do
@@ -8736,7 +8739,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 647;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 647 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 647 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8756,7 +8759,7 @@ let test_makearray_dynamic_uninit_local size =
             in
             mark_test_run 648;
             let test = eq (get a2 i) (mk_value expected_src_i) in
-            if not test then failwithf "test 648 failed %d %d %d %d %d %d" size size2 ofs1 ofs2 len i;
+            if not test then (printf "test 648 failed %s %d %d %d %d %d %d\n" "#(int64# * ur1)" size size2 ofs1 ofs2 len i; test_failed := true);
           done;
         ) [@nontail];
       ) [@nontail];
@@ -8782,4 +8785,4 @@ let () =
 for i = 1 to 648 do
   if not (List.mem ~set:!tests_run i) then failwithf "test %d not run" i
 done;;
-let () = Printf.printf "All tests passed.%!\n";;
+if !test_failed then printf "Not all tests passed.\n" else printf "All tests passed.\n"
