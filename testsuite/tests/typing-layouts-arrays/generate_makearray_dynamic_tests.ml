@@ -606,6 +606,7 @@ let main ~bytecode =
     line {| modules = "stubs.c";|};
     line {| flags = "-extension layouts_beta -extension simd_beta";|};
     line {| flambda2;|};
+    line {| stack-allocation;|};
     line {| arch_amd64;|};
     line {| native;|};
   );

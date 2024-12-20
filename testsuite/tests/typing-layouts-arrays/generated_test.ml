@@ -4,6 +4,7 @@
  modules = "stubs.c";
  flags = "-extension layouts_beta -extension simd_beta";
  flambda2;
+ stack-allocation;
  arch_amd64;
  native;
 *)
