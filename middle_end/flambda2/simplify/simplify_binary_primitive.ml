@@ -958,10 +958,10 @@ let simplify_array_load (array_kind : Array_kind.t)
        to immutable loads only and use [T.meet_is_immutable_array] instead. *)
     match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
     | Unknown -> contents_unknown ()
-    | Proved (elt_kinds, fields, _mode) -> (
-      match elt_kinds with
+    | Proved (array_kind, fields, _mode) -> (
+      match array_kind with
       | Unknown | Bottom -> contents_unknown ()
-      | Ok elt_kinds -> (
+      | Ok array_kind -> (
         match
           T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty
         with
@@ -975,6 +975,7 @@ let simplify_array_load (array_kind : Array_kind.t)
                     (Array.length fields |> Targetint_31_63.of_int)
             then SPR.create_invalid dacc
             else
+              let elt_kinds = Array_kind.element_kinds array_kind in
               let index = Targetint_31_63.to_int imm in
               let num_elt_kinds = List.length elt_kinds in
               let elt_kind = List.nth elt_kinds (index mod num_elt_kinds) in

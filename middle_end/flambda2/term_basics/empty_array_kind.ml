@@ -64,3 +64,13 @@ let of_lambda array_kind =
   | Punboxedintarray Unboxed_nativeint -> Naked_nativeints
   | Punboxedvectorarray Unboxed_vec128 -> Naked_vec128s
   | Pgcscannableproductarray _ | Pgcignorableproductarray _ -> Unboxed_products
+
+let of_array_kind (array_kind : Array_kind.t) =
+  match array_kind with
+  | Immediates | Values | Naked_floats -> Values_or_immediates_or_naked_floats
+  | Naked_float32s -> Naked_float32s
+  | Naked_int32s -> Naked_int32s
+  | Naked_int64s -> Naked_int64s
+  | Naked_nativeints -> Naked_nativeints
+  | Naked_vec128s -> Naked_vec128s
+  | Unboxed_product _ -> Unboxed_products

@@ -31,3 +31,5 @@ val compare : t -> t -> int
 val of_element_kinds : Flambda_kind.t list -> t
 
 val of_lambda : Lambda.array_kind -> t
+
+val of_array_kind : Array_kind.t -> t

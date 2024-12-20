@@ -185,14 +185,15 @@ let create_immutable_nativeint_array =
 let create_immutable_vec128_array =
   create_immutable_naked_number_array SC.immutable_vec128_array
 
-let create_immutable_non_scannable_unboxed_product_array are_rebuilding fields =
+let create_immutable_non_scannable_unboxed_product_array are_rebuilding fields
+    array_kind =
   if ART.do_not_rebuild_terms are_rebuilding
   then
-    let free_names = free_names_of_fields (List.map fst fields) in
+    let free_names = free_names_of_fields fields in
     Block_not_rebuilt { free_names }
   else
     create_normal_non_code
-      (SC.immutable_non_scannable_unboxed_product_array fields)
+      (SC.immutable_non_scannable_unboxed_product_array fields array_kind)
 
 let create_immutable_value_array are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding

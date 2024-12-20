@@ -293,7 +293,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
         consts
     in
     let block_type =
-      T.immutable_array ~element_kinds:(Ok [KS.tagged_immediate])
+      T.immutable_array ~array_kind:(Ok Immediates)
         ~fields:
           (List.map
              (fun const ->

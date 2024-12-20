@@ -149,7 +149,7 @@ val meet_is_non_empty_naked_number_array :
 val meet_is_immutable_array :
   Typing_env.t ->
   Type_grammar.t ->
-  (Flambda_kind.With_subkind.t list Or_unknown_or_bottom.t
+  (Array_kind.t Or_unknown_or_bottom.t
   * Type_grammar.t array
   * Alloc_mode.For_types.t)
   meet_shortcut
@@ -157,7 +157,7 @@ val meet_is_immutable_array :
 val prove_is_immutable_array :
   Typing_env.t ->
   Type_grammar.t ->
-  (Flambda_kind.With_subkind.t list Or_unknown_or_bottom.t
+  (Array_kind.t Or_unknown_or_bottom.t
   * Type_grammar.t array
   * Alloc_mode.For_types.t)
   proof_of_property
