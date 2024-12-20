@@ -403,7 +403,7 @@ val add_module: ?arg:bool -> ?shape:Shape.t ->
 val add_module_lazy: update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_type -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
-  Ident.t -> module_presence -> module_declaration -> t -> t
+  Ident.t -> module_presence -> module_declaration -> ?locks:lock list -> t -> t
 val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_declaration -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
@@ -467,7 +467,7 @@ val enter_module:
   module_type -> t -> Ident.t * t
 val enter_module_declaration:
   scope:int -> ?arg:bool -> ?shape:Shape.t -> string -> module_presence ->
-  module_declaration -> t -> Ident.t * t
+  module_declaration -> ?locks:lock list -> t -> Ident.t * t
 val enter_modtype:
   scope:int -> string -> modtype_declaration -> t -> Ident.t * t
 val enter_class: scope:int -> string -> class_declaration -> t -> Ident.t * t

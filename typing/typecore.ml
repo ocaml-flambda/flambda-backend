@@ -300,7 +300,8 @@ let error_of_filter_arrow_failure ~explanation ~first ty_fun
 
 let type_module =
   ref ((fun _env _md -> assert false) :
-       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t)
+       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t *
+        Env.lock list)
 
 (* Forward declaration, to be filled in by Typemod.type_open *)
 
@@ -1273,7 +1274,7 @@ let add_module_variables env module_variables =
          Here, on the other hand, we're calling [type_module] outside the
          raised level, so there's no extra step to take.
       *)
-      let modl, md_shape =
+      let modl, md_shape, locks =
         !type_module env
           Ast_helper.(
             Mod.unpack ~loc:mv_loc
@@ -1291,7 +1292,9 @@ let add_module_variables env module_variables =
           md_loc = mv_name.loc;
           md_uid = mv_uid; }
       in
-      Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md env
+      Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md
+        (* the [locks] is always empty, but typecore doesn't need to know *)
+        ~locks env
     end
   ) env module_variables_as_list
 
@@ -6401,7 +6404,7 @@ and type_expect_
         with_local_level begin fun () ->
           let modl, pres, id, new_env =
             Typetexp.TyVarEnv.with_local_scope begin fun () ->
-              let modl, md_shape = !type_module env smodl in
+              let modl, md_shape, locks = !type_module env smodl in
               Mtype.lower_nongen lv modl.mod_type;
               let pres =
                 match modl.mod_type with
@@ -6422,7 +6425,7 @@ and type_expect_
                 | Some name ->
                     let id, env =
                       Env.enter_module_declaration
-                        ~scope ~shape:md_shape name pres md env
+                        ~scope ~shape:md_shape name pres md ~locks env
                     in
                     Some id, env
               in

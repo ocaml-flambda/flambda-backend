@@ -197,36 +197,55 @@ module type S = sig val foo : 'a -> 'a val baz : 'a -> 'a @@ portable end
 module M : S
 |}]
 
-(* CR zqian: fix the following. *)
 let (bar @ portable) () =
     let module N = M in
     M.baz ();
     N.baz ()
 [%%expect{|
-Line 2, characters 19-20:
-2 |     let module N = M in
-                       ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+val bar : unit -> unit = <fun>
 |}]
 
 let (bar @ portable) () =
     let module N = M in
     N.foo ()
 [%%expect{|
-Line 2, characters 19-20:
-2 |     let module N = M in
-                       ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Line 3, characters 4-9:
+3 |     N.foo ()
+        ^^^^^
+Error: The value "N.foo" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 let (bar @ portable) () =
     let module N = M in
     M.foo ()
 [%%expect{|
-Line 2, characters 19-20:
-2 |     let module N = M in
-                       ^
-Error: Modules are nonportable, so cannot be used inside a function that is portable.
+Line 3, characters 4-9:
+3 |     M.foo ()
+        ^^^^^
+Error: The value "M.foo" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* chained aliases. Creating alias of alias is fine. *)
+let (bar @ portable) () =
+    let module N = M in
+    let module N' = N in
+    M.baz ();
+    N.baz ();
+    N'.baz ()
+[%%expect{|
+val bar : unit -> unit = <fun>
+|}]
+
+(* locks are accumulated and not lost *)
+let (bar @ portable) () =
+    let module N = M in
+    let module N' = N in
+    N'.foo ()
+[%%expect{|
+Line 4, characters 4-10:
+4 |     N'.foo ()
+        ^^^^^^
+Error: The value "N'.foo" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* module aliases in structures still walk locks. *)
