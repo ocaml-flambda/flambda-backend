@@ -3567,37 +3567,27 @@ let open_signature
 
 (* General forms of the lookup functions *)
 
-let walk_locks_for_module_lookup ~errors ~lock ~loc ~env ~lid locks =
-  if lock then
-    walk_locks ~errors ~loc ~env ~item:Module ~lid mda_mode None locks
-  else
-    mode_default mda_mode
-
-let lookup_module_path ~errors ~use ~lock ~loc ~load lid env : Path.t * _ =
-  let path, locks =
-    match lid with
-    | Lident s ->
-        if !Clflags.transparent_modules && not load then
-          let path, locks, _ =
-            lookup_ident_module Don't_load ~errors ~use ~loc s env
-          in
-          path, locks
-        else
-          let path, locks, _ =
-            lookup_ident_module Load ~errors ~use ~loc s env
-          in
-          path, locks
-    | Ldot(l, s) ->
-        let path, locks, _ = lookup_dot_module ~errors ~use ~loc l s env in
+let lookup_module_path ~errors ~use ~loc ~load lid env =
+  match lid with
+  | Lident s ->
+      if !Clflags.transparent_modules && not load then
+        let path, locks, _ =
+          lookup_ident_module Don't_load ~errors ~use ~loc s env
+        in
         path, locks
-    | Lapply _ as lid ->
-        let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
-        Papply(path_f, path_arg), []
-  in
-  let vmode = walk_locks_for_module_lookup ~errors ~lock ~loc ~lid ~env locks in
-  path, vmode
+      else
+        let path, locks, _ =
+          lookup_ident_module Load ~errors ~use ~loc s env
+        in
+        path, locks
+  | Ldot(l, s) ->
+      let path, locks, _ = lookup_dot_module ~errors ~use ~loc l s env in
+      path, locks
+  | Lapply _ as lid ->
+      let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
+      Papply(path_f, path_arg), []
 
-let lookup_module_instance_path ~errors ~use ~lock ~loc ~load name env =
+let lookup_module_instance_path ~errors ~use ~loc ~load name env =
   (* The locks are whatever locks we would find if we went through
      [lookup_module_path] on a module not found in the environment *)
   let locks = IdTbl.get_all_locks env.modules in
@@ -3613,15 +3603,7 @@ let lookup_module_instance_path ~errors ~use ~lock ~loc ~load name env =
       in
       path
   in
-  let vmode =
-    let lid : Longident.t =
-      (* This is only used for error reporting. Probably in the long term we
-         want [Longident.t] to include instance names *)
-      Lident (name |> Global_module.Name.to_string)
-    in
-    walk_locks_for_module_lookup ~errors ~lock ~loc ~lid ~env locks
-  in
-  path, vmode
+  path, locks
 
 let lookup_value_lazy ~errors ~use ~loc lid env =
   match lid with
@@ -3816,17 +3798,14 @@ let find_cltype_index id env = find_index_tbl id env.cltypes
 
 (* Ordinary lookup functions *)
 
-let lookup_module_path ?(use=true) ?(lock=use) ~loc ~load lid env =
-  let path, vmode =
-    lookup_module_path ~errors:true ~use ~lock ~loc ~load lid env
-  in
-  path, vmode.mode
+let walk_locks ~loc ~env ~item ~lid mode ty locks =
+  walk_locks ~errors:true ~loc ~env ~item ~lid mode ty locks
 
-let lookup_module_instance_path ?(use=true) ?(lock=use) ~loc ~load lid env =
-  let path, vmode =
-    lookup_module_instance_path ~errors:true ~use ~lock ~loc ~load lid env
-  in
-  path, vmode.mode
+let lookup_module_path ?(use=true) ~loc ~load lid env =
+  lookup_module_path ~errors:true ~use ~loc ~load lid env
+
+let lookup_module_instance_path ?(use=true) ~loc ~load lid env =
+  lookup_module_instance_path ~errors:true ~use ~loc ~load lid env
 
 let lookup_module ?(use=true) ?(lock=use) ~loc lid env =
   let path, desc, vmode = lookup_module ~errors:true ~use ~lock ~loc lid env in

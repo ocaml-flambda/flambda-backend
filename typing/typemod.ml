@@ -1608,7 +1608,7 @@ let transl_modtype_longident loc env lid =
   Env.lookup_modtype_path ~loc lid env
 
 let transl_module_alias loc env lid =
-  let path, _ = Env.lookup_module_path ~lock:false ~load:false ~loc lid env in
+  let path, _ = Env.lookup_module_path ~load:false ~loc lid env in
   path
 
 let mkmty desc typ env loc attrs =
@@ -2594,11 +2594,10 @@ let rec type_module ?(alias=false) sttn funct_body anchor env smod =
 and type_module_aux ~alias sttn funct_body anchor env smod =
   match smod.pmod_desc with
     Pmod_ident lid ->
-      let path, mode =
+      let path, locks =
         Env.lookup_module_path ~load:(not alias) ~loc:smod.pmod_loc lid.txt env
       in
-      Mode.Value.submode_exn mode Mode.Value.legacy;
-      type_module_path_aux ~alias sttn env path lid smod
+      type_module_path_aux ~alias sttn env path locks lid smod
   | Pmod_structure sstr ->
       let (str, sg, names, shape, _finalenv) =
         type_structure funct_body anchor env sstr in
@@ -2707,21 +2706,25 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
   | Pmod_instance glob ->
       Language_extension.assert_enabled ~loc:smod.pmod_loc Instances ();
       let glob = instance_name ~loc:smod.pmod_loc env glob in
-      let path, mode =
+      let path, locks =
         Env.lookup_module_instance_path ~load:(not alias) ~loc:smod.pmod_loc
           glob env
       in
-      Mode.Value.submode_exn mode Mode.Value.legacy;
       let lid =
         (* Only used by [untypeast] *)
         let name =
           Format.asprintf "*instance %a*" Global_module.Name.print glob
         in
-        Lident name |> Location.mknoloc
+        Location.(mkloc (Lident name) (ghostify smod.pmod_loc))
       in
-      type_module_path_aux ~alias sttn env path lid smod
+      type_module_path_aux ~alias sttn env path locks lid smod
 
-and type_module_path_aux ~alias sttn env path lid smod =
+and type_module_path_aux ~alias sttn env path locks (lid : _ loc) smod =
+  let vmode =
+    Env.walk_locks ~loc:lid.loc ~env ~item:Module ~lid:lid.txt
+      Mode.Value.(legacy |> disallow_right) None locks
+  in
+  Mode.Value.submode_exn vmode.mode Mode.Value.legacy;
   let md = { mod_desc = Tmod_ident (path, lid);
              mod_type = Mty_alias path;
              mod_env = env;
