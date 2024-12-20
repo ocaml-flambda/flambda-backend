@@ -1,5 +1,185 @@
 test_makearray_dynamic
+test 121 failed ur1 1 -4611686018427387904
+test 122 failed ur1 1 -4611686018427387904
+test 153 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 154 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 225 failed ur2 1 -4611686018427387904
+test 226 failed ur2 1 -4611686018427387904
+test 233 failed #(int * int64) 1 -4611686018427387904
+test 234 failed #(int * int64) 1 -4611686018427387904
+test 241 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 1 -4611686018427387904
+test 242 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 1 -4611686018427387904
+test 273 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 1 -4611686018427387904
+test 274 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 1 -4611686018427387904
+test 281 failed #(ur2 * ur1) 1 -4611686018427387904
+test 282 failed #(ur2 * ur1) 1 -4611686018427387904
+test 121 failed ur1 2 -4611686018427387904
+test 122 failed ur1 2 -4611686018427387904
+test 153 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 154 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 225 failed ur2 2 -4611686018427387904
+test 226 failed ur2 2 -4611686018427387904
+test 233 failed #(int * int64) 2 -4611686018427387904
+test 234 failed #(int * int64) 2 -4611686018427387904
+test 241 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 2 -4611686018427387904
+test 242 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 2 -4611686018427387904
+test 273 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 2 -4611686018427387904
+test 274 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 2 -4611686018427387904
+test 281 failed #(ur2 * ur1) 2 -4611686018427387904
+test 282 failed #(ur2 * ur1) 2 -4611686018427387904
+test 121 failed ur1 30 -4611686018427387904
+test 122 failed ur1 30 -4611686018427387904
+test 153 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 154 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 225 failed ur2 30 -4611686018427387904
+test 226 failed ur2 30 -4611686018427387904
+test 233 failed #(int * int64) 30 -4611686018427387904
+test 234 failed #(int * int64) 30 -4611686018427387904
+test 241 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 30 -4611686018427387904
+test 242 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 30 -4611686018427387904
+test 273 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 30 -4611686018427387904
+test 274 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 30 -4611686018427387904
+test 281 failed #(ur2 * ur1) 30 -4611686018427387904
+test 282 failed #(ur2 * ur1) 30 -4611686018427387904
+test 121 failed ur1 31 -4611686018427387904
+test 122 failed ur1 31 -4611686018427387904
+test 153 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 154 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 225 failed ur2 31 -4611686018427387904
+test 226 failed ur2 31 -4611686018427387904
+test 233 failed #(int * int64) 31 -4611686018427387904
+test 234 failed #(int * int64) 31 -4611686018427387904
+test 241 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 31 -4611686018427387904
+test 242 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 31 -4611686018427387904
+test 273 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 31 -4611686018427387904
+test 274 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 31 -4611686018427387904
+test 281 failed #(ur2 * ur1) 31 -4611686018427387904
+test 282 failed #(ur2 * ur1) 31 -4611686018427387904
+test 121 failed ur1 32 -4611686018427387904
+test 122 failed ur1 32 -4611686018427387904
+test 153 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
+test 154 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
+test 225 failed ur2 32 -4611686018427387904
+test 226 failed ur2 32 -4611686018427387904
+test 233 failed #(int * int64) 32 -4611686018427387904
+test 234 failed #(int * int64) 32 -4611686018427387904
+test 241 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 32 -4611686018427387904
+test 242 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 32 -4611686018427387904
+test 273 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 32 -4611686018427387904
+test 274 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 32 -4611686018427387904
+test 281 failed #(ur2 * ur1) 32 -4611686018427387904
+test 282 failed #(ur2 * ur1) 32 -4611686018427387904
 test_makearray_dynamic_local
+test 329 failed ur1 1 -4611686018427387904
+test 330 failed ur1 1 -4611686018427387904
+test 361 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 362 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 433 failed ur2 1 -4611686018427387904
+test 434 failed ur2 1 -4611686018427387904
+test 441 failed #(int * int64) 1 -4611686018427387904
+test 442 failed #(int * int64) 1 -4611686018427387904
+test 449 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 1 -4611686018427387904
+test 450 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 1 -4611686018427387904
+test 481 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 1 -4611686018427387904
+test 482 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 1 -4611686018427387904
+test 489 failed #(ur2 * ur1) 1 -4611686018427387904
+test 490 failed #(ur2 * ur1) 1 -4611686018427387904
+test 329 failed ur1 2 -4611686018427387904
+test 330 failed ur1 2 -4611686018427387904
+test 361 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 362 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 433 failed ur2 2 -4611686018427387904
+test 434 failed ur2 2 -4611686018427387904
+test 441 failed #(int * int64) 2 -4611686018427387904
+test 442 failed #(int * int64) 2 -4611686018427387904
+test 449 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 2 -4611686018427387904
+test 450 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 2 -4611686018427387904
+test 481 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 2 -4611686018427387904
+test 482 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 2 -4611686018427387904
+test 489 failed #(ur2 * ur1) 2 -4611686018427387904
+test 490 failed #(ur2 * ur1) 2 -4611686018427387904
+test 329 failed ur1 30 -4611686018427387904
+test 330 failed ur1 30 -4611686018427387904
+test 361 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 362 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 433 failed ur2 30 -4611686018427387904
+test 434 failed ur2 30 -4611686018427387904
+test 441 failed #(int * int64) 30 -4611686018427387904
+test 442 failed #(int * int64) 30 -4611686018427387904
+test 449 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 30 -4611686018427387904
+test 450 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 30 -4611686018427387904
+test 481 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 30 -4611686018427387904
+test 482 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 30 -4611686018427387904
+test 489 failed #(ur2 * ur1) 30 -4611686018427387904
+test 490 failed #(ur2 * ur1) 30 -4611686018427387904
+test 329 failed ur1 31 -4611686018427387904
+test 330 failed ur1 31 -4611686018427387904
+test 361 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 362 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 433 failed ur2 31 -4611686018427387904
+test 434 failed ur2 31 -4611686018427387904
+test 441 failed #(int * int64) 31 -4611686018427387904
+test 442 failed #(int * int64) 31 -4611686018427387904
+test 449 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 31 -4611686018427387904
+test 450 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 31 -4611686018427387904
+test 481 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 31 -4611686018427387904
+test 482 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 31 -4611686018427387904
+test 489 failed #(ur2 * ur1) 31 -4611686018427387904
+test 490 failed #(ur2 * ur1) 31 -4611686018427387904
+test 329 failed ur1 32 -4611686018427387904
+test 330 failed ur1 32 -4611686018427387904
+test 361 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
+test 362 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
+test 433 failed ur2 32 -4611686018427387904
+test 434 failed ur2 32 -4611686018427387904
+test 441 failed #(int * int64) 32 -4611686018427387904
+test 442 failed #(int * int64) 32 -4611686018427387904
+test 449 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 32 -4611686018427387904
+test 450 failed #(int64 option * #(int * int32 * float) * float * #(float32 * (nativeint * nativeint) option) * int32) 32 -4611686018427387904
+test 481 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 32 -4611686018427387904
+test 482 failed #(float# * #(int * int64#) * float32# * #(int32# * #(float32# * float#)) * int) 32 -4611686018427387904
+test 489 failed #(ur2 * ur1) 32 -4611686018427387904
+test 490 failed #(ur2 * ur1) 32 -4611686018427387904
 test_makearray_dynamic_uninit
+test 531 failed ur1 1 -4611686018427387904
+test 532 failed ur1 1 -4611686018427387904
+test 559 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 560 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 531 failed ur1 2 -4611686018427387904
+test 532 failed ur1 2 -4611686018427387904
+test 559 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 560 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 531 failed ur1 30 -4611686018427387904
+test 532 failed ur1 30 -4611686018427387904
+test 559 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 560 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 531 failed ur1 31 -4611686018427387904
+test 532 failed ur1 31 -4611686018427387904
+test 559 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 560 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 531 failed ur1 32 -4611686018427387904
+test 532 failed ur1 32 -4611686018427387904
+test 559 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
+test 560 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
 test_makearray_dynamic_uninit_local
-All tests passed.
+test 608 failed ur1 1 -4611686018427387904
+test 609 failed ur1 1 -4611686018427387904
+test 636 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 637 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 1 -4611686018427387904
+test 608 failed ur1 2 -4611686018427387904
+test 609 failed ur1 2 -4611686018427387904
+test 636 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 637 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 2 -4611686018427387904
+test 608 failed ur1 30 -4611686018427387904
+test 609 failed ur1 30 -4611686018427387904
+test 636 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 637 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 30 -4611686018427387904
+test 608 failed ur1 31 -4611686018427387904
+test 609 failed ur1 31 -4611686018427387904
+test 636 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 637 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 31 -4611686018427387904
+test 608 failed ur1 32 -4611686018427387904
+test 609 failed ur1 32 -4611686018427387904
+test 636 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
+test 637 failed #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) 32 -4611686018427387904
+Not all tests passed.
