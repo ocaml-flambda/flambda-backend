@@ -212,18 +212,18 @@ let access_shared (type k) (pw : k Password.Shared.t) f =
 (* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
   type t : value mod portable uncontended
-  external create: unit -> t @@ portable = "caml_ml_mutex_new"
-  external lock: t -> unit @@ portable = "caml_ml_mutex_lock"
-  external unlock: t -> unit @@ portable = "caml_ml_mutex_unlock"
+  external create: unit -> t @@ portable = "caml_capsule_mutex_new"
+  external lock: t -> unit @@ portable = "caml_capsule_mutex_lock"
+  external unlock: t -> unit @@ portable = "caml_capsule_mutex_unlock"
 end
 
 (* Reader writer lock *)
 module Rw = struct
   type t : value mod portable uncontended
-  external create: unit -> t @@ portable = "caml_ml_rwlock_new"
-  external lock_read: t -> unit @@ portable = "caml_ml_rwlock_rdlock"
-  external lock_write: t -> unit @@ portable = "caml_ml_rwlock_wrlock"
-  external unlock: t -> unit @@ portable = "caml_ml_rwlock_unlock"
+  external create: unit -> t @@ portable = "caml_capsule_rwlock_new"
+  external lock_read: t -> unit @@ portable = "caml_capsule_rwlock_rdlock"
+  external lock_write: t -> unit @@ portable = "caml_capsule_rwlock_wrlock"
+  external unlock: t -> unit @@ portable = "caml_capsule_rwlock_unlock"
 end
 
 module Mutex = struct
@@ -356,10 +356,10 @@ module Condition = struct
 
   type 'k t : value mod portable uncontended
 
-  external create : unit -> 'k t @@ portable = "caml_ml_condition_new"
-  external wait : 'k t -> M.t -> unit @@ portable = "caml_ml_condition_wait"
-  external signal : 'k t -> unit @@ portable = "caml_ml_condition_signal"
-  external broadcast : 'k t -> unit @@ portable = "caml_ml_condition_broadcast"
+  external create : unit -> 'k t @@ portable = "caml_capsule_condition_new"
+  external wait : 'k t -> M.t -> unit @@ portable = "caml_capsule_condition_wait"
+  external signal : 'k t -> unit @@ portable = "caml_capsule_condition_signal"
+  external broadcast : 'k t -> unit @@ portable = "caml_capsule_condition_broadcast"
 
   let wait t (mut : 'k Mutex.t) _password =
     (* [mut] is locked, so we know it is not poisoned. *)

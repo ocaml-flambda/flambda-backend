@@ -147,6 +147,8 @@ val access_shared :
     with a shared {!Access.t} for ['k]. The result is within ['k] so it
     must be [portable] and it is marked [contended]. *)
 
+(** Does *not* require runtime5. In runtime4, implemented as a no-op, hence
+    does not provide mutual exclusion between systhreads.  *)
 module Mutex : sig
 
     type 'k t : value mod portable uncontended
@@ -185,6 +187,7 @@ module Mutex : sig
         lock as poisoned. *)
 end
 
+(** Requires runtime5. *)
 module Rwlock : sig
 
     type 'k t : value mod portable uncontended
@@ -233,6 +236,7 @@ module Rwlock : sig
         lock as poisoned. *)
 end
 
+(** Requires runtime5. *)
 module Condition : sig
 
     type 'k t : value mod portable uncontended
