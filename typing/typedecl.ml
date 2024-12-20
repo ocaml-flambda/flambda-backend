@@ -975,7 +975,7 @@ let transl_declaration env sdecl (id, uid) =
          decompose the product of [any]s and recurse on the labels. *)
       match sdecl.ptype_kind with
       | Ptype_record_unboxed_product lbls
-        when Jkind.is_max (Jkind.terrible_relax_l jkind) ->
+        when Jkind.has_layout_any (Jkind.terrible_relax_l jkind) ->
         Jkind.Builtin.product ~why:Unboxed_record
           (List.map (fun _ -> jkind) lbls)
       | Ptype_abstract | Ptype_variant _ | Ptype_record _
