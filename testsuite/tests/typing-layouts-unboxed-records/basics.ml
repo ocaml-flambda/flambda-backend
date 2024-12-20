@@ -731,3 +731,15 @@ Line 1, characters 9-15:
 Error: Type "b" has layout "value & value".
        Variants may not yet contain types of this layout.
 |}]
+type a = B of b
+and b : any & any & any = #{ i : int ; j : int }
+[%%expect{|
+Line 2, characters 0-48:
+2 | and b : any & any & any = #{ i : int ; j : int }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The layout of b is any & any & any
+         because of the annotation on the declaration of the type b.
+       But the layout of b must be representable
+         because it's the type of a constructor field.
+|}]
