@@ -2367,11 +2367,7 @@ let constrain_type_jkind ~fixed env ty jkind =
                   mode-crossing restrictions, so we recur, just duplicating
                   the jkind. *)
                recur ty's_jkinds (List.init num_components (fun _ -> jkind))
-             | _ ->
-               (* Products don't line up. This is only possible if [ty] was
-                  given a jkind annotation of the wrong product arity.
-               *)
-               Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
+             | _ -> Misc.fatal_error "unboxed product jkinds don't line up"
              end
           in
           match get_desc ty with
