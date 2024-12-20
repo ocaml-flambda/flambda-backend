@@ -37,38 +37,6 @@ module Block_kind : sig
   val compare : t -> t -> int
 end
 
-module Array_kind : sig
-  type t =
-    | Immediates  (** An array consisting only of immediate values. *)
-    | Values
-        (** An array consisting of elements of kind [value]. With the float
-            array optimisation enabled, such elements must never be [float]s. *)
-    | Naked_floats
-        (** An array consisting of naked floats, represented using
-            [Double_array_tag]. *)
-    | Naked_float32s
-    | Naked_int32s
-    | Naked_int64s
-    | Naked_nativeints
-    | Naked_vec128s
-    | Unboxed_product of t list
-        (** Accesses to arrays of unboxed products are unarized on the way into
-            Flambda 2.  The float array optimization never applies for these
-            arrays.  Vectors are not yet supported inside these arrays. *)
-
-  val print : Format.formatter -> t -> unit
-
-  val compare : t -> t -> int
-
-  val element_kinds : t -> Flambda_kind.With_subkind.t list
-
-  val must_be_gc_scannable : t -> bool
-
-  val has_custom_ops : t -> bool
-
-  val width_in_scalars : t -> int
-end
-
 module Array_kind_for_length : sig
   type t =
     | Array_kind of Array_kind.t

@@ -614,8 +614,7 @@ let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
-let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
-  function
+let fexpr_of_array_kind : Array_kind.t -> Fexpr.array_kind = function
   | Immediates -> Immediates
   | Naked_floats -> Naked_floats
   | Values -> Values

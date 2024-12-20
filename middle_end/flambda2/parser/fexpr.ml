@@ -176,7 +176,7 @@ type simple =
   | Const of const
   | Coerce of simple * coercion
 
-type array_kind = Flambda_primitive.Array_kind.t =
+type array_kind = Array_kind.t =
   | Immediates
   | Values
   | Naked_floats

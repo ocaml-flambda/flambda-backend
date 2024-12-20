@@ -16,7 +16,7 @@
 
 open! Simplify_import
 
-let simplify_array_set (array_kind : P.Array_kind.t)
+let simplify_array_set (array_kind : Array_kind.t)
     (array_set_kind : P.Array_set_kind.t) dacc ~original_term dbg ~arg1:array
     ~arg1_ty:array_ty ~arg2:index ~arg2_ty:_ ~arg3:new_value ~arg3_ty:_
     ~result_var =
@@ -41,8 +41,8 @@ let simplify_array_set (array_kind : P.Array_kind.t)
           Misc.fatal_errorf
             "Didn't expect array specialisation to yield array kind %a from \
              array set kind %a (original array kind %a):@ %a"
-            P.Array_kind.print array_kind P.Array_set_kind.print array_set_kind
-            P.Array_kind.print orig_array_kind Named.print original_term)
+            Array_kind.print array_kind P.Array_set_kind.print array_set_kind
+            Array_kind.print orig_array_kind Named.print original_term)
       | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
       | Naked_nativeints | Naked_vec128s | Unboxed_product _ ->
         ()

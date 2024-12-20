@@ -926,7 +926,7 @@ let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     in
     SPR.create original_term ~try_reify:false dacc
 
-let simplify_array_load (array_kind : P.Array_kind.t)
+let simplify_array_load (array_kind : Array_kind.t)
     (array_load_kind : P.Array_load_kind.t) mutability dacc ~original_prim
     ~original_term:_ dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index
     ~arg2_ty:index_ty ~result_var =

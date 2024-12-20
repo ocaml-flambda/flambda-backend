@@ -96,80 +96,6 @@ module Init_or_assign = struct
     | Assignment mode -> Assignment (Alloc_mode.For_assignments.to_lambda mode)
 end
 
-module Array_kind = struct
-  type t =
-    | Immediates
-    | Values
-    | Naked_floats
-    | Naked_float32s
-    | Naked_int32s
-    | Naked_int64s
-    | Naked_nativeints
-    | Naked_vec128s
-    | Unboxed_product of t list
-
-  let rec print ppf t =
-    match t with
-    | Immediates -> Format.pp_print_string ppf "Immediates"
-    | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
-    | Naked_float32s -> Format.pp_print_string ppf "Naked_float32s"
-    | Values -> Format.pp_print_string ppf "Values"
-    | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
-    | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
-    | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
-    | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
-    | Unboxed_product fields ->
-      Format.fprintf ppf "@[<hov 1>(Unboxed_product@ @[<hov 1>(%a)@])@]"
-        (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
-        fields
-
-  let compare = Stdlib.compare
-
-  let rec element_kinds t =
-    match t with
-    | Immediates -> [K.With_subkind.tagged_immediate]
-    | Values -> [K.With_subkind.any_value]
-    | Naked_floats -> [K.With_subkind.naked_float]
-    | Naked_float32s -> [K.With_subkind.naked_float32]
-    | Naked_int32s -> [K.With_subkind.naked_int32]
-    | Naked_int64s -> [K.With_subkind.naked_int64]
-    | Naked_nativeints -> [K.With_subkind.naked_nativeint]
-    | Naked_vec128s -> [K.With_subkind.naked_vec128]
-    | Unboxed_product kinds -> List.concat_map element_kinds kinds
-
-  let element_kinds_for_primitive t =
-    element_kinds t |> List.map K.With_subkind.kind
-
-  let must_be_gc_scannable t =
-    let kinds = element_kinds t in
-    if not (List.exists K.With_subkind.must_be_gc_scannable kinds)
-    then false
-    else if List.for_all K.With_subkind.may_be_gc_scannable kinds
-    then true
-    else
-      Misc.fatal_errorf
-        "Unboxed product array kind contains both elements that must be \
-         scannable and that cannot be scanned:@ %a"
-        print t
-
-  let has_custom_ops t =
-    match t with
-    | Immediates | Values | Naked_floats | Unboxed_product _ -> false
-    | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-    | Naked_vec128s ->
-      true
-
-  let rec width_in_scalars t =
-    match t with
-    | Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
-    | Naked_int64s | Naked_nativeints | Naked_vec128s ->
-      1
-    | Unboxed_product kinds ->
-      List.fold_left
-        (fun width array_kind -> width + width_in_scalars array_kind)
-        0 kinds
-end
-
 module Array_load_kind = struct
   type t =
     | Immediates
@@ -2041,7 +1967,7 @@ let args_kind_of_variadic_primitive p : arg_kinds =
   | Make_block (Naked_floats, _, _) -> Variadic_all_of_kind K.naked_float
   | Make_block (Mixed (_tag, shape), _, _) -> Variadic_mixed shape
   | Make_array (kind, _, _) ->
-    Variadic_unboxed_product (Array_kind.element_kinds_for_primitive kind)
+    Variadic_unboxed_product (Array_kind.element_kinds_without_subkinds kind)
 
 let result_kind_of_variadic_primitive p : result_kind =
   match p with Make_block _ | Make_array _ -> Singleton K.value

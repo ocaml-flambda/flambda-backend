@@ -84,7 +84,7 @@ let simplify_make_block ~original_prim ~(block_kind : P.Block_kind.t)
     in
     SPR.create original_term ~try_reify:true dacc
 
-let simplify_make_array (array_kind : P.Array_kind.t)
+let simplify_make_array (array_kind : Array_kind.t)
     ~(mutable_or_immutable : Mutability.t) alloc_mode dacc ~original_term dbg
     ~args_with_tys ~result_var =
   let args, tys = List.split args_with_tys in
@@ -93,7 +93,7 @@ let simplify_make_array (array_kind : P.Array_kind.t)
     | Some ti -> T.this_tagged_immediate ti
     | None -> T.unknown K.value
   in
-  let element_kinds = P.Array_kind.element_kinds array_kind in
+  let element_kinds = Array_kind.element_kinds array_kind in
   (* Remember that the element subkinds cannot in general be deduced from the
      types of the array members, it must be obtained from the array kind
      annotations that came via [Lambda]. *)
@@ -102,14 +102,14 @@ let simplify_make_array (array_kind : P.Array_kind.t)
   | [] ->
     Misc.fatal_errorf
       "Empty list of element kinds given for array kind:@ %a@ %a"
-      P.Array_kind.print array_kind Debuginfo.print_compact dbg);
+      Array_kind.print array_kind Debuginfo.print_compact dbg);
   let num_element_kinds = List.length element_kinds in
   if List.length args mod num_element_kinds <> 0
   then
     Misc.fatal_errorf
       "Array length not a multiple of the length of the unboxed product kind \
        list:@ array_kind=%a@ num args=%d@ %a"
-      P.Array_kind.print array_kind (List.length args) Named.print original_term;
+      Array_kind.print array_kind (List.length args) Named.print original_term;
   let env_extension =
     let element_kinds = Array.of_list element_kinds in
     let typing_env = DA.typing_env dacc in
