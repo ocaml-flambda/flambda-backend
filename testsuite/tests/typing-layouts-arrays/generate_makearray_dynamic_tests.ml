@@ -27,7 +27,9 @@ module Ty : sig
        We should be able generate this code:
        "let eq : $ty_code @ local -> $ty_code @ local -> bool = $eq" *)
     is_gc_ignorable : bool;
-    (* Whether type only contains non-values/immediates (gates blit tests) *)
+    (* Whether type only contains non-values/immediates (this used to gate
+       blit tests, but now that blits work for all types, this field is
+       unused). *)
   }
 
   (* Generate typedecls for user-defined nominal types that have been created *)
