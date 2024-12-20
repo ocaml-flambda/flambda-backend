@@ -328,8 +328,12 @@ end
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : 'd t -> 'd t
 
-(** Take an existing [t] and add some baggage. *)
-val add_baggage : baggage:Types.type_expr -> jkind_l -> jkind_l
+(** Take an existing [jkind_l] and add some baggage. *)
+val add_baggage :
+  ?modality:Mode.Modality.Value.Const.t ->
+  baggage:Types.type_expr ->
+  jkind_l ->
+  jkind_l
 
 (** Does this jkind have baggage? *)
 val has_baggage : jkind_l -> bool
