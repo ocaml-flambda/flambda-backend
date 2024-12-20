@@ -89,8 +89,12 @@ module Layout : sig
 
     val get_sort : t -> Sort.Const.t option
 
+    val of_sort_const : Sort.Const.t -> t
+
     val to_string : t -> string
   end
+
+  val of_const : Const.t -> Sort.t t
 end
 
 (** A Jkind.t is a full description of the runtime representation of values
@@ -494,6 +498,9 @@ val get_externality_upper_bound :
 (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
 val set_externality_upper_bound : jkind_r -> Externality.t -> jkind_r
+
+(** Sets the layout in a jkind. *)
+val set_layout : 'd t -> Sort.t Layout.t -> 'd t
 
 (** Extract out component jkinds from the product. Because there are no product
     jkinds, this is a bit of a lie: instead, this decomposes the layout but just

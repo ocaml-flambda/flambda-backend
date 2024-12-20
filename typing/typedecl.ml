@@ -1009,15 +1009,16 @@ let transl_declaration env sdecl (id, uid) =
          just barely good enough, such that [constain_type_jkind] can always
          decompose the product of [any]s and recurse on the labels.
          See https://github.com/ocaml-flambda/flambda-backend/pull/3399. *)
-      match sdecl.ptype_kind with
-      | Ptype_record_unboxed_product lbls ->
+      match kind with
+      | Type_record_unboxed_product _ ->
         begin match Jkind.get_layout jkind with
-        | Some Any -> Jkind.Builtin.product ~why:Unboxed_record
-                        (List.map (fun _ -> jkind) lbls)
+        | Some Any ->
+          (* [jkind_default] has just what we need here *)
+          Jkind.set_layout jkind (Jkind.extract_layout jkind_default)
         | _ -> jkind
         end
-      | Ptype_abstract | Ptype_variant _ | Ptype_record _
-      | Ptype_open -> jkind
+      | Type_abstract _ | Type_variant _ | Type_record _
+      | Type_open -> jkind
     in
     let arity = List.length params in
     let decl =
@@ -1232,6 +1233,45 @@ let narrow_to_manifest_jkind env loc decl =
   match decl.type_manifest with
   | None -> decl
   | Some ty ->
+    (* CR layouts v2.8: Remove this use of [type_jkind_purely], which is slow
+       and effectful. But we cannot do so easily, sadly. I tried using
+       [estimate_type_jkind] here instead, but this runs aground with mutually
+       recursive declarations with manifests. Example:
+
+       {[
+         type s1 = float#
+         and s2 = s1
+       ]}
+
+       We assign jkind [any] to both [s1] and [s2] in [transl_declaration],
+       because we really can't do better at that point. But then when we get
+       here, [estimate_type_jkind] on [s1] returns [any] -- it won't expand
+       the manifest to get [float64]. That's not unsound, because a jkind is
+       always just an approximation. But it does mean that we need to load more
+       cmi files in practice to get the "real" jkind. This was observed when
+       compiling Jane Street's codebase, requiring lots more dependencies to be
+       added. Boo. [type_jkind_purely] avoids this problem, by looking deeply
+       to find the [float#] and thus the [float64] jkind.
+
+       The solution I have in mind here is to change the jkind assigned in
+       [transl_declaration] to be [kind_of 'a], where ['a] is the type variable
+       invented in [enter_type]; that variable can be thought of an empty vessel
+       that accumulates information about jkinds from usages. It also,
+       critically, gets unified with the actual type being defined, in
+       [update_type], which happens before [narrow_to_manifest_jkind]. If we use
+       [kind_of 'a] in [transl_declaration], then [decl.type_jkind] will be
+       [kind_of 'a] here, and that will force the [constrain_type_jkind] below
+       to work just hard enough to find a jkind less than [kind_of 'a] --
+       exactly what we want to record in the final [type_jkind] of the decl.
+       (This will require changing [constrain_type_jkind] to return its best
+       jkind, but that is easy to do, and indeed used to be the case until the
+       result was never used anywhere.)
+
+       Do not try this (that is, removing the use of [type_jkind_purely]) before
+       removing the "horrible hack" just below, as that horrible hack sometimes
+       avoids calling [constrain_type_jkind], which is necessary for the plan
+       above to work.  *)
+    let manifest_jkind = Ctype.type_jkind_purely env ty in
     (* CR layouts v2.8: Remove this horrible hack. In practice, this
        [try_allow_r] fails in the case of a record re-export, because the jkind
        from the record has been calculated and put in decl.type_jkind at this
@@ -1244,7 +1284,6 @@ let narrow_to_manifest_jkind env loc decl =
     | None -> begin
         let type_equal = Ctype.type_equal env in
         let jkind_of_type ty = Some (Ctype.type_jkind_purely env ty) in
-        let manifest_jkind = Ctype.type_jkind_purely env ty in
         match
           Jkind.sub_jkind_l ~type_equal ~jkind_of_type
             manifest_jkind decl.type_jkind
@@ -1258,10 +1297,7 @@ let narrow_to_manifest_jkind env loc decl =
         | Error v -> raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
       end
     end;
-    (* Just use [estimate_type_jkind], as [type_jkind] does effectful
-       expansion (bad) and [type_jkind_purely] is broken; see comments
-       on that function. *)
-    { decl with type_jkind = Ctype.estimate_type_jkind env ty }
+    { decl with type_jkind = manifest_jkind }
 
 (* Check that the type expression (if present) is compatible with the kind.
    If both a variant/record definition and a type equation are given,

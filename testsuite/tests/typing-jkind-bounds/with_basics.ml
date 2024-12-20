@@ -919,52 +919,29 @@ module T : sig
 end = struct
   type 'a t = { x : 'a }
 end
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type 'a t = { x : 'a }
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type 'a t = { x : 'a; } end
-       is not included in
-         sig type 'a t : value mod uncontended end
-       Type declarations do not match:
-         type 'a t = { x : 'a; }
-       is not included in
-         type 'a t : value mod uncontended
-       The kind of the first is immutable_data
-         because of the definition of t at line 4, characters 2-24.
-       But the kind of the first must be a subkind of value mod uncontended
-         because of the definition of t at line 2, characters 2-43.
+module T : sig type 'a t : value mod uncontended end
 |}]
 
 let foo (t : int T.t @@ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 13-20:
-1 | let foo (t : int T.t @@ contended) = use_uncontended t
-                 ^^^^^^^
-Error: The type constructor "T.t" expects 0 argument(s),
-       but is here applied to 1 argument(s)
+val foo : int T.t @ contended -> unit = <fun>
 |}]
 
 let foo (t : _ T.t @@ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 13-18:
+Line 1, characters 51-52:
 1 | let foo (t : _ T.t @@ contended) = use_uncontended t
-                 ^^^^^
-Error: The type constructor "T.t" expects 0 argument(s),
-       but is here applied to 1 argument(s)
+                                                       ^
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 let foo (t : int T.t @@ nonportable) = use_portable t
 [%%expect {|
-Line 1, characters 13-20:
+Line 1, characters 52-53:
 1 | let foo (t : int T.t @@ nonportable) = use_portable t
-                 ^^^^^^^
-Error: The type constructor "T.t" expects 0 argument(s),
-       but is here applied to 1 argument(s)
+                                                        ^
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (*************************)

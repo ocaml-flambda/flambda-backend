@@ -80,9 +80,9 @@ module type S = sig
 end
 
 [%%expect{|
-Line 2, characters 17-39:
-2 |   type 'a list : immutable_data with 'a
-                     ^^^^^^^^^^^^^^^^^^^^^^
+Line 4, characters 16-27:
+4 |   type 'a gel : kind_of_ 'a mod global
+                    ^^^^^^^^^^^
 Error: Unimplemented kind syntax
 |}]
 

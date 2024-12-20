@@ -2210,6 +2210,8 @@ let rec estimate_type_jkind ~expand_component env ty =
       else
         jkind
     with
+    (* CR layouts v2.8: It will be confusing when a [Cannot_subst] leads to
+       a [Missing_cmi]. *)
     | Cannot_subst | Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
     end
   | Tobject _ -> Jkind.for_object

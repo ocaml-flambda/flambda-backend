@@ -1634,6 +1634,8 @@ let set_externality_upper_bound jk externality_upper_bound =
       }
   }
 
+let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
+
 let get_annotation jk = jk.annotation
 
 let decompose_product ({ jkind; _ } as jk) =

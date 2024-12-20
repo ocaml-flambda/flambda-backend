@@ -22,8 +22,7 @@ Lines 2-4, characters 2-16:
 Error: The kind of type "'a or_null" is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of type "'a or_null" must be a subkind of
-         value mod local with 'a aliased with 'a many with 'a
-                   uncontended with 'a portable with 'a internal with 'a
+         value mod many with 'a uncontended with 'a portable with 'a
          because of the definition of t at lines 2-4, characters 2-16.
 |}]
 

@@ -62,16 +62,10 @@ type a_bad = #{ b_bad : b_bad; }
 and b_bad = #{ a_bad : a_bad; }
 |}]
 
+(* It might be nice to reject, but it seems harmless to accept. *)
 type bad : any = #{ bad : bad }
 [%%expect{|
-Line 1, characters 0-31:
-1 | type bad : any = #{ bad : bad }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of bad is any
-         because of the annotation on the declaration of the type bad.
-       But the layout of bad must be representable
-         because it is the type of record field bad.
+type bad = #{ bad : bad; }
 |}]
 
 type 'a id = #{ a : 'a }
