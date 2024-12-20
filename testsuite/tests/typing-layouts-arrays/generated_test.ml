@@ -63,7 +63,8 @@ let mark_test_run test_id =
 
 let sizes = [ 0; 1; 2; 30; 31; 32 ]
 
-let bad_indices size = [ -100; -2; -1; size; size + 1; size + 100 ]
+let bad_indices size =
+  [ -100; -2; -1; size; size + 1; size + 100; Int.min_int; Int.max_int ]
 
 let blit_offsets size =
   let candidates = [ 0; 1; size / 3; size / 2; size - 1; size ] in
