@@ -1014,21 +1014,33 @@ let check_construct_mutability ~loc ~env mutability argument_mode =
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
-  let mode =
+  let max_with_shared =
     Contention.Const.Shared
     |> Contention.of_const
     |> Value.max_with (Monadic Contention)
   in
+  let max_with_read_only =
+    Access.Const.Read_only
+    |> Access.of_const
+    |> Value.max_with (Monadic Access)
+  in
+  let mode = Value.meet [max_with_shared; max_with_read_only] in
   { (mode_default mode) with
     contention_context = Some Read_mutable }
 
 (** The [expected_mode] of the record when mutating a mutable field. *)
 let mode_mutate_mutable =
-  let mode =
+  let max_with_uncontended =
     Contention.Const.Uncontended
     |> Contention.of_const
     |> Value.max_with (Monadic Contention)
   in
+  let max_with_read_write =
+    Access.Const.Read_write
+    |> Access.of_const
+    |> Value.max_with (Monadic Access)
+  in
+  let mode = Value.meet [max_with_uncontended; max_with_read_write] in
   { (mode_default mode) with
     contention_context = Some Write_mutable }
 
@@ -10811,8 +10823,8 @@ let report_error ~loc env = function
         | Error (Monadic Contention, _ ) ->
           contention_hint fail_reason submode_reason contention_context
         | Error (Comonadic Portability, _ ) -> []
-        | Error (Comonadic Coordinate, _) -> []
-        | Error (Monadic Coordinated, _) -> []
+        | Error (Comonadic Determinism, _) -> []
+        | Error (Monadic Access, _) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with

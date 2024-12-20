@@ -142,8 +142,8 @@ module Axis = struct
       | Uniqueness : Mode.Uniqueness.Const.t t
       | Portability : Mode.Portability.Const.t t
       | Contention : Mode.Contention.Const.t t
-      | Coordinated : Mode.Coordinated.Const.t t
-      | Coordinate : Mode.Coordinate.Const.t t
+      | Access : Mode.Access.Const.t t
+      | Determinism : Mode.Determinism.Const.t t
   end
 
   module Nonmodal = struct
@@ -182,10 +182,10 @@ module Axis = struct
       (module Accent_lattice (Mode.Portability.Const) : Axis_s with type t = a)
     | Modal Contention ->
       (module Accent_lattice (Mode.Contention.Const) : Axis_s with type t = a)
-    | Modal Coordinate ->
-      (module Accent_lattice (Mode.Coordinate.Const) : Axis_s with type t = a)
-    | Modal Coordinated ->
-      (module Accent_lattice (Mode.Coordinated.Const) : Axis_s with type t = a)
+    | Modal Determinism ->
+      (module Accent_lattice (Mode.Determinism.Const) : Axis_s with type t = a)
+    | Modal Access ->
+      (module Accent_lattice (Mode.Access.Const) : Axis_s with type t = a)
     | Nonmodal Externality -> (module Externality : Axis_s with type t = a)
     | Nonmodal Nullability -> (module Nullability : Axis_s with type t = a)
 
@@ -204,8 +204,8 @@ module Axis = struct
     | Modal Uniqueness -> "uniqueness"
     | Modal Portability -> "portability"
     | Modal Contention -> "contention"
-    | Modal Coordinate -> "coordinate"
-    | Modal Coordinated -> "coordinated"
+    | Modal Determinism -> "determinism"
+    | Modal Access -> "constancy"
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
 end
@@ -218,8 +218,8 @@ module Axis_collection (T : Misc.T1) = struct
       uniqueness : Mode.Uniqueness.Const.t T.t;
       portability : Mode.Portability.Const.t T.t;
       contention : Mode.Contention.Const.t T.t;
-      coordinate : Mode.Coordinate.Const.t T.t;
-      coordinated : Mode.Coordinated.Const.t T.t;
+      determinism : Mode.Determinism.Const.t T.t;
+      constancy : Mode.Access.Const.t T.t;
       externality : Externality.t T.t;
       nullability : Nullability.t T.t
     }
@@ -231,8 +231,8 @@ module Axis_collection (T : Misc.T1) = struct
     | Modal Uniqueness -> values.uniqueness
     | Modal Portability -> values.portability
     | Modal Contention -> values.contention
-    | Modal Coordinated -> values.coordinated
-    | Modal Coordinate -> values.coordinate
+    | Modal Access -> values.constancy
+    | Modal Determinism -> values.determinism
     | Nonmodal Externality -> values.externality
     | Nonmodal Nullability -> values.nullability
 
@@ -243,8 +243,8 @@ module Axis_collection (T : Misc.T1) = struct
     | Modal Uniqueness -> { values with uniqueness = value }
     | Modal Portability -> { values with portability = value }
     | Modal Contention -> { values with contention = value }
-    | Modal Coordinate -> { values with coordinate = value }
-    | Modal Coordinated -> { values with coordinated = value }
+    | Modal Determinism -> { values with determinism = value }
+    | Modal Access -> { values with constancy = value }
     | Nonmodal Externality -> { values with externality = value }
     | Nonmodal Nullability -> { values with nullability = value }
 
@@ -260,8 +260,8 @@ module Axis_collection (T : Misc.T1) = struct
       uniqueness = f ~axis:Axis.(Modal Uniqueness);
       portability = f ~axis:Axis.(Modal Portability);
       contention = f ~axis:Axis.(Modal Contention);
-      coordinated = f ~axis:Axis.(Modal Coordinated);
-      coordinate = f ~axis:Axis.(Modal Coordinate);
+      constancy = f ~axis:Axis.(Modal Access);
+      determinism = f ~axis:Axis.(Modal Determinism);
       externality = f ~axis:Axis.(Nonmodal Externality);
       nullability = f ~axis:Axis.(Nonmodal Nullability)
     }

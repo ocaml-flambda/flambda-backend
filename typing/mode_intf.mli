@@ -263,12 +263,12 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_monadic
   end
 
-  module Coordinated : sig
+  module Access : sig
     module Const : sig
       type t =
-        | Coordinated_none
-        | Coordinated_read
-        | Coordinated_write
+        | Immutable
+        | Read_only
+        | Read_write
 
       include Lattice with type t := t
     end
@@ -282,12 +282,12 @@ module type S = sig
          and type 'd t = (Const.t, 'd) mode_monadic
   end
 
-  module Coordinate : sig
+  module Determinism : sig
     module Const : sig
       type t =
-        | Coordinate_writing
-        | Coordinate_reading
-        | Coordinate_nothing
+        | Nondeterministic
+        | Observing
+        | Deterministic
 
       include Lattice with type t := t
     end
@@ -302,10 +302,10 @@ module type S = sig
   end
 
   type 'a comonadic_with = private
-    'a * Linearity.Const.t * Portability.Const.t * Coordinate.Const.t
+    'a * Linearity.Const.t * Portability.Const.t * Determinism.Const.t
 
   type monadic = private
-    Uniqueness.Const.t * Contention.Const.t * Coordinated.Const.t
+    Uniqueness.Const.t * Contention.Const.t * Access.Const.t
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
@@ -316,8 +316,8 @@ module type S = sig
       | Portability : ('areality comonadic_with, Portability.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
       | Contention : (monadic, Contention.Const.t) t
-      | Coordinate : ('areality comonadic_with, Coordinate.Const.t) t
-      | Coordinated : (monadic, Coordinated.Const.t) t
+      | Determinism : ('areality comonadic_with, Determinism.Const.t) t
+      | Access : (monadic, Access.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
   end
@@ -365,8 +365,8 @@ module type S = sig
         uniqueness : 'c;
         portability : 'd;
         contention : 'e;
-        coordinate : 'f;
-        coordinated : 'g
+        determinism : 'f;
+        constancy : 'g
       }
 
     module Const : sig
@@ -378,8 +378,8 @@ module type S = sig
               Uniqueness.Const.t,
               Portability.Const.t,
               Contention.Const.t,
-              Coordinate.Const.t,
-              Coordinated.Const.t )
+              Determinism.Const.t,
+              Access.Const.t )
             modes
 
       module Option : sig
@@ -391,8 +391,8 @@ module type S = sig
             Uniqueness.Const.t option,
             Portability.Const.t option,
             Contention.Const.t option,
-            Coordinate.Const.t option,
-            Coordinated.Const.t option )
+            Determinism.Const.t option,
+            Access.Const.t option )
           modes
 
         val none : t

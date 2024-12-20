@@ -13,22 +13,22 @@ module Capsule = Stdlib_alpha.Capsule
 type 't myref = { mutable v : 't }
 
 module Atomic : sig
-  type !'a t : atomically_mutable_data
+  type !'a t : uncontended_data
 
-  val make : 'a -> 'a t @@ portable coordinate_nothing
-  val get : 'a t @ coordinated_read -> 'a @@ portable coordinate_nothing
-  val set : 'a t -> 'a -> unit @@ portable coordinate_nothing
+  val make : 'a -> 'a t @@ portable deterministic
+  val get : 'a t @ read_only -> 'a @@ portable deterministic
+  val set : 'a t -> 'a -> unit @@ portable deterministic
 end = struct
-  type !'a t : atomically_mutable_data
+  type !'a t : uncontended_data
 
-  external make : 'a -> 'a t @@ portable coordinate_nothing = "%makemutable"
-  external get : 'a t @ coordinated_read -> 'a @@ portable coordinate_nothing = "%atomic_load"
-  external ignore : 'a -> unit @@ portable coordinate_nothing = "%ignore"
-  external exchange : 'a t -> 'a -> 'a @@ portable coordinate_nothing = "%atomic_exchange"
+  external make : 'a -> 'a t @@ portable deterministic = "%makemutable"
+  external get : 'a t @ read_only -> 'a @@ portable deterministic = "%atomic_load"
+  external ignore : 'a -> unit @@ portable deterministic = "%ignore"
+  external exchange : 'a t -> 'a -> 'a @@ portable deterministic = "%atomic_exchange"
   let set r x = ignore (exchange r x)
 end
 
-let a @ portable coordinated_write = Atomic.make 42
+let a = Atomic.make 42
 
 type 'a guarded =
   | Mk : 'k Capsule.Mutex.t * ('a, 'k) Capsule.Data.t -> 'a guarded
@@ -49,7 +49,7 @@ let map_with_guarded x
   Mk (m, Capsule.Mutex.with_lock m (fun k -> f k p))
 ;;
 
-let atomic_then_id @ portable coordinate_writing =
+let atomic_then_id @ portable nondeterministic =
   fun i w ->
     Atomic.set a i; w
 
@@ -73,7 +73,7 @@ let () =
   assert (Atomic.get a = 42)
 ;;
 
-(* values at kind [atomically_mutable_data] can be [Data.inject] into capsules,
+(* values at kind [uncontended_data] can be [Data.inject] into capsules,
   and can be used when [Data.project] out of a capsule *)
 let ptr' =
   let (Mk (m, _)) = ptr in

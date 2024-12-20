@@ -279,8 +279,8 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 |}]
 
 type a : immediate
-type b : value mod global unique many uncontended portable coordinated_write coordinate_nothing external_ = a
-type c : value mod global unique many uncontended portable coordinated_write coordinate_nothing external_
+type b : value mod global unique many uncontended portable read_write deterministic external_ = a
+type c : value mod global unique many uncontended portable read_write deterministic external_
 type d : immediate = c
 [%%expect{|
 type a : immediate
@@ -290,8 +290,8 @@ type d = c
 |}]
 
 type a : immediate64
-type b : value mod global unique many uncontended portable coordinated_write coordinate_nothing external64 = a
-type c : value mod global unique many uncontended portable coordinated_write coordinate_nothing external64
+type b : value mod global unique many uncontended portable read_write deterministic external64 = a
+type c : value mod global unique many uncontended portable read_write deterministic external64
 type d : immediate64 = c
 [%%expect{|
 type a : immediate64
@@ -301,8 +301,8 @@ type d = c
 |}]
 
 type a : float64
-type b : float64 mod global unique many uncontended portable coordinated_write coordinate_nothing external_ = a
-type c : float64 mod global unique many uncontended portable coordinated_write coordinate_nothing external_
+type b : float64 mod global unique many uncontended portable read_write deterministic external_ = a
+type c : float64 mod global unique many uncontended portable read_write deterministic external_
 type d : float64 = c
 [%%expect{|
 type a : float64
@@ -312,8 +312,8 @@ type d = c
 |}]
 
 type a : float32
-type b : float32 mod global unique many uncontended portable coordinated_write coordinate_nothing external_ = a
-type c : float32 mod global unique many uncontended portable coordinated_write coordinate_nothing external_
+type b : float32 mod global unique many uncontended portable read_write deterministic external_ = a
+type c : float32 mod global unique many uncontended portable read_write deterministic external_
 type d : float32 = c
 [%%expect{|
 type a : float32
@@ -323,8 +323,8 @@ type d = c
 |}]
 
 type a : word
-type b : word mod local aliased once contended nonportable coordinated_none coordinate_writing internal = a
-type c : word mod local aliased once contended nonportable coordinated_none coordinate_writing internal
+type b : word mod local aliased once contended nonportable immutable nondeterministic internal = a
+type c : word mod local aliased once contended nonportable immutable nondeterministic internal
 type d : word = c
 [%%expect{|
 type a : word
@@ -334,8 +334,8 @@ type d = c
 |}]
 
 type a : bits32
-type b : bits32 mod local aliased once contended nonportable coordinated_none coordinate_writing internal = a
-type c : bits32 mod local aliased once contended nonportable coordinated_none coordinate_writing internal
+type b : bits32 mod local aliased once contended nonportable immutable nondeterministic internal = a
+type c : bits32 mod local aliased once contended nonportable immutable nondeterministic internal
 type d : bits32 = c
 [%%expect{|
 type a : bits32
@@ -345,8 +345,8 @@ type d = c
 |}]
 
 type a : bits64
-type b : bits64 mod local aliased once contended nonportable coordinated_none coordinate_writing internal = a
-type c : bits64 mod local aliased once contended nonportable coordinated_none coordinate_writing internal
+type b : bits64 mod local aliased once contended nonportable immutable nondeterministic internal = a
+type c : bits64 mod local aliased once contended nonportable immutable nondeterministic internal
 type d : bits64 = c
 [%%expect{|
 type a : bits64
@@ -814,12 +814,12 @@ Error: The kind of type "t" is value
 |}]
 
 type u : immediate
-type t : value mod portable many uncontended coordinated_write coordinate_nothing = { x : string; y : int; z : u }
+type t : value mod portable many uncontended read_write deterministic = { x : string; y : int; z : u }
 [%%expect {|
 type u : immediate
-Line 2, characters 0-114:
-2 | type t : value mod portable many uncontended coordinated_write coordinate_nothing = { x : string; y : int; z : u }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-102:
+2 | type t : value mod portable many uncontended read_write deterministic = { x : string; y : int; z : u }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
@@ -1003,14 +1003,15 @@ val f : t -> int = <fun>
 val v : int = 5
 |}]
 
-type ('a : immediate) t : value mod many portable coordinated_write coordinate_nothing = { mutable x : 'a }
+type ('a : immediate) t : value mod many portable read_write deterministic = { mutable x : 'a }
 [%%expect {|
-Line 1, characters 0-107:
-1 | type ('a : immediate) t : value mod many portable coordinated_write coordinate_nothing = { mutable x : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-95:
+1 | type ('a : immediate) t : value mod many portable read_write deterministic = { mutable x : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type "t" must be a subkind of mutable_data
+       But the kind of type "t" must be a subkind of
+         mutable_data mod read_write
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1175,12 +1176,12 @@ Error: The kind of type "t" is value
 (***********************************************)
 (* Test 7: Inference with modality annotations *)
 
-type 'a t : value mod global portable uncontended many unique coordinated_write coordinate_nothing =
-  { x : 'a @@ global portable uncontended many unique coordinated_write coordinate_nothing } [@@unboxed]
+type 'a t : value mod global portable uncontended many unique read_write deterministic =
+  { x : 'a @@ global portable uncontended many unique read_write deterministic } [@@unboxed]
 [%%expect {|
-Lines 1-2, characters 0-104:
-1 | type 'a t : value mod global portable uncontended many unique coordinated_write coordinate_nothing =
-2 |   { x : 'a @@ global portable uncontended many unique coordinated_write coordinate_nothing } [@@unboxed]
+Lines 1-2, characters 0-92:
+1 | type 'a t : value mod global portable uncontended many unique read_write deterministic =
+2 |   { x : 'a @@ global portable uncontended many unique read_write deterministic } [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
          chosen to have kind value.
@@ -1289,7 +1290,7 @@ Error: The kind of type "t" is value
 type ('a : value mod unique) t = ('a : value mod global)
 type ('a : immediate) t = ('a : value)
 type ('a : value) t = ('a : immediate)
-type ('a : value mod external_ portable many coordinate_nothing) t = ('a : value mod uncontended global unique coordinated_write)
+type ('a : value mod external_ portable many deterministic) t = ('a : value mod uncontended global unique read_write)
 type ('a : value) t = ('a : any)
 type ('a : value) t = ('a : value)
 type ('a : bits32 mod unique) t = ('a : any mod global)

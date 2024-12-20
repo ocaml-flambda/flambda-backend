@@ -1420,12 +1420,12 @@ let tree_of_modes modes =
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
     tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
                                   Mode.Contention.Const.Shared, Omd_new "shared"];
-    tree_of_mode diff.coordinate
-      [Mode.Coordinate.Const.Coordinate_reading, Omd_new "coordinate_reading";
-       Mode.Coordinate.Const.Coordinate_nothing, Omd_new "coordinate_nothing"];
-    tree_of_mode diff.coordinated
-      [Mode.Coordinated.Const.Coordinated_read, Omd_new "coordinated_read";
-       Mode.Coordinated.Const.Coordinated_none, Omd_new "coordinated_none"]]
+    tree_of_mode diff.determinism
+      [Mode.Determinism.Const.Observing, Omd_new "observing";
+       Mode.Determinism.Const.Deterministic, Omd_new "deterministic"];
+    tree_of_mode diff.constancy
+      [Mode.Access.Const.Read_only, Omd_new "read_only";
+       Mode.Access.Const.Immutable, Omd_new "immutable"]]
   in
   List.filter_map Fun.id l
 
