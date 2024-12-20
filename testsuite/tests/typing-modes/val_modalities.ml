@@ -62,7 +62,7 @@ module M = struct
     let x @ contended = "hello"
 end
 [%%expect{|
-module M : sig val x : string @@ portable contended end
+module M : sig val x : string @@ contended end
 |}]
 
 (* Testing the defaulting behaviour.
@@ -171,8 +171,7 @@ module Without_inclusion = struct
     let () = portable_use M.x
 end
 [%%expect{|
-module Without_inclusion :
-  sig module M : sig val x : 'a -> 'a @@ portable end end
+module Without_inclusion : sig module M : sig val x : 'a -> 'a end end
 |}]
 
 module Without_inclusion = struct
@@ -265,10 +264,7 @@ module Close_over_value = struct
 end
 [%%expect{|
 module Close_over_value :
-  sig
-    module M : sig val x : string @@ portable end
-    val foo : unit -> unit @@ portable
-  end
+  sig module M : sig val x : string end val foo : unit -> unit end
 |}]
 
 (* CR mode-crossing: This is used for the below test in place of a mutable record. *)
@@ -855,7 +851,7 @@ module M_portable = struct
     end
 [%%expect{|
 module M_nonportable : sig val f : unit -> unit end
-module M_portable : sig val f : unit -> unit @@ portable end
+module M_portable : sig val f : unit -> unit end
 |}]
 
 let (foo @ portable) () =
