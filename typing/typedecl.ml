@@ -967,12 +967,13 @@ let transl_declaration env sdecl (id, uid) =
       | None, None -> jkind_default
     in
     let jkind =
-      (* Unboxed records are given a product-of-[any]s jkind
+      (* Hack: unboxed records are given a product-of-[any]s jkind
          when they would otherwise be given [any].
 
          This allows [estimate_type_jkind] to give an estimate that's
          just barely good enough, such that [constain_type_jkind] can always
-         decompose the product of [any]s and recurse on the labels. *)
+         decompose the product of [any]s and recurse on the labels.
+         See https://github.com/ocaml-flambda/flambda-backend/pull/3399. *)
       match sdecl.ptype_kind with
       | Ptype_record_unboxed_product lbls
         when Jkind.has_layout_any (Jkind.terrible_relax_l jkind) ->
