@@ -256,14 +256,14 @@ module type Solver_polarized = sig
   val get_ceil : 'a obj -> ('a, 'l * allowed) mode -> 'a
 
   (** Similar to [get_floor] but does not run the further constraining needed
-      for a precise bound. As a result, the returned bound is conservative;
+      for a precise bound. As a result, the returned bound is loose;
       i.e., it might be lower than the real floor. *)
-  val get_conservative_floor : 'a obj -> ('a, 'l * 'r) mode -> 'a
+  val get_loose_floor : 'a obj -> ('a, 'l * 'r) mode -> 'a
 
   (** Similar to [get_ceil] but does not run the further constraining needed
-      for a precise bound. As a result, the returned bound is conservative;
+      for a precise bound. As a result, the returned bound is loose;
       i.e., it might be higher than the real ceil. *)
-  val get_conservative_ceil : 'a obj -> ('a, 'l * 'r) mode -> 'a
+  val get_loose_ceil : 'a obj -> ('a, 'l * 'r) mode -> 'a
 
   (** Printing a mode for debugging. *)
   val print :

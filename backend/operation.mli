@@ -30,7 +30,6 @@
 
 (* CR-soon xclerc for xclerc: consider whether `Simple_operation` and
    `Operation` should be merged into a single module. *)
-
 type t =
   | Move
   | Spill

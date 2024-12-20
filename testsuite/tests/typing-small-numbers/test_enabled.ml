@@ -189,3 +189,21 @@ let () =
 Line 1:
 Error: float32 literal patterns are not supported.
 |}];;
+
+type t = int8;;
+[%%expect{|
+Line 1, characters 9-13:
+1 | type t = int8;;
+             ^^^^
+Error: Unbound type constructor "int8"
+Hint: Did you mean "int"?
+|}];;
+
+type t = int16;;
+[%%expect{|
+Line 1, characters 9-14:
+1 | type t = int16;;
+             ^^^^^
+Error: Unbound type constructor "int16"
+Hint: Did you mean "int", "int16x8", "int32", "int64" or "int8x16"?
+|}];;

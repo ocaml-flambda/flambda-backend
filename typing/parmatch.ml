@@ -177,9 +177,11 @@ let all_coherent column =
           | Const_unboxed_float32 _
           | Const_string _), _ -> false
       end
-    | Tuple l1, Tuple l2 -> l1 = l2
+    | Tuple l1, Tuple l2 ->
+      List.equal (Option.equal String.equal) l1 l2
     | Unboxed_tuple l1, Unboxed_tuple l2 ->
-      List.equal (fun (lbl1, _) (lbl2, _) -> lbl1 = lbl2) l1 l2
+      List.equal
+        (fun (lbl1, _) (lbl2, _) -> Option.equal String.equal lbl1 lbl2) l1 l2
     | Record (lbl1 :: _), Record (lbl2 :: _) ->
       Array.length lbl1.lbl_all = Array.length lbl2.lbl_all
     | Record_unboxed_product (lbl1 :: _), Record_unboxed_product (lbl2 :: _) ->
@@ -431,10 +433,17 @@ let simple_match d h =
   | Constant c1, Constant c2 -> const_compare c1 c2 = 0
   | Lazy, Lazy -> true
   | Record _, Record _ -> true
-  | Tuple len1, Tuple len2 -> len1 = len2
+  | Record_unboxed_product _, Record_unboxed_product _ -> true
+  | Tuple lbls1, Tuple lbls2 ->
+    List.equal (Option.equal String.equal) lbls1 lbls2
+  | Unboxed_tuple lbls1, Unboxed_tuple lbls2 ->
+    List.equal (fun (l1, _) (l2, _) -> Option.equal String.equal l1 l2)
+      lbls1 lbls2
   | Array (am1, _, len1), Array (am2, _, len2) -> am1 = am2 && len1 = len2
   | _, Any -> true
-  | _, _ -> false
+  | ( Construct _ | Variant _ | Constant _ | Lazy | Record _
+    | Record_unboxed_product _ | Tuple _ | Unboxed_tuple _ | Array _ | Any),
+    _ -> false
 
 
 
@@ -524,9 +533,17 @@ let discr_pat q pss =
   let rec refine_pat acc = function
     | [] -> acc
     | ((head, _), _) :: rows ->
+      let append_unique lbls lbls_unique =
+        List.fold_right (fun lbl lbls_unique ->
+          if List.exists (fun l -> l.lbl_num = lbl.lbl_num) lbls_unique then
+            lbls_unique
+          else
+            lbl :: lbls_unique
+        ) lbls lbls_unique
+      in
       match head.pat_desc with
       | Any -> refine_pat acc rows
-      | Tuple _ | Lazy -> head
+      | Tuple _ | Unboxed_tuple _ | Lazy -> head
       | Record lbls ->
         (* N.B. we could make this case "simpler" by refining the record case
            using [all_record_args].
@@ -534,24 +551,22 @@ let discr_pat q pss =
            records.
            However it makes the witness we generate for the exhaustivity warning
            less pretty. *)
-        let fields =
-          List.fold_right (fun lbl r ->
-            if List.exists (fun l -> l.lbl_num = lbl.lbl_num) r then
-              r
-            else
-              lbl :: r
-          ) lbls (record_arg acc)
-        in
+        let fields = append_unique lbls (record_arg acc) in
         let d = { head with pat_desc = Record fields } in
         refine_pat d rows
-      | _ -> acc
+      | Record_unboxed_product lbls ->
+        let fields = append_unique lbls (record_unboxed_product_arg acc) in
+        let d = { head with pat_desc = Record_unboxed_product fields } in
+        refine_pat d rows
+      | Construct _ | Constant _ | Variant _
+      | Array _ -> acc
   in
   let q, _ = deconstruct q in
   match q.pat_desc with
   (* short-circuiting: clearly if we have anything other than [Record] or
      [Any] to start with, we're not going to be able refine at all. So
      there's no point going over the matrix. *)
-  | Any | Record _ -> refine_pat q pss
+  | Any | Record _ | Record_unboxed_product _ -> refine_pat q pss
   | _ -> q
 
 (*
@@ -779,7 +794,8 @@ let build_specialized_submatrices ~extend_row discr rows =
     let initial_constr_group =
       let open Patterns.Head in
       match discr.pat_desc with
-      | Record _ | Tuple _ | Lazy ->
+      | Record _ | Record_unboxed_product _ | Tuple _ | Unboxed_tuple _
+      | Lazy ->
         (* [discr] comes from [discr_pat], and in this case subsumes any of the
            patterns we could find on the first column of [rows]. So it is better
            to use it for our initial environment than any of the normalized

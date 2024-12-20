@@ -206,3 +206,21 @@ Line 2, characters 8-13:
             ^^^^^
 Error: Found 32-bit float literal #0.0s, but float32 is not enabled. You must enable -extension small_numbers to use this feature.
 |}];;
+
+type t = int8;;
+[%%expect{|
+Line 1, characters 9-13:
+1 | type t = int8;;
+             ^^^^
+Error: Unbound type constructor "int8"
+Hint: Did you mean "int"?
+|}];;
+
+type t = int16;;
+[%%expect{|
+Line 1, characters 9-14:
+1 | type t = int16;;
+             ^^^^^
+Error: Unbound type constructor "int16"
+Hint: Did you mean "int", "int16x8", "int32", "int64" or "int8x16"?
+|}];;

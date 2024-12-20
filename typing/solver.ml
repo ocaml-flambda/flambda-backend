@@ -542,7 +542,7 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     loop (C.max obj) VarMap.empty l
 
-  let get_conservative_ceil : type a l r. a C.obj -> (a, l * r) mode -> a =
+  let get_loose_ceil : type a l r. a C.obj -> (a, l * r) mode -> a =
    fun obj m ->
     match m with
     | Amode a -> a
@@ -552,7 +552,7 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amodejoin (a, mvs) ->
       VarMap.fold (fun _ mv acc -> C.join obj acc (mupper obj mv)) mvs a
 
-  let get_conservative_floor : type a l r. a C.obj -> (a, l * r) mode -> a =
+  let get_loose_floor : type a l r. a C.obj -> (a, l * r) mode -> a =
    fun obj m ->
     match m with
     | Amode a -> a
@@ -563,7 +563,7 @@ module Solver_mono (C : Lattices_mono) = struct
       VarMap.fold (fun _ mv acc -> C.meet obj acc (mlower obj mv)) mvs a
 
   (* Due to our biased implementation, the ceil is precise. *)
-  let get_ceil = get_conservative_ceil
+  let get_ceil = get_loose_ceil
 
   let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> log:_ -> a =
    fun obj m ~log ->
@@ -641,8 +641,8 @@ module Solver_mono (C : Lattices_mono) = struct
       type a l r.
       ?verbose:bool -> a C.obj -> Format.formatter -> (a, l * r) mode -> unit =
    fun ?verbose (obj : a C.obj) ppf m ->
-    let ceil = get_conservative_ceil obj m in
-    let floor = get_conservative_floor obj m in
+    let ceil = get_loose_ceil obj m in
+    let floor = get_loose_floor obj m in
     if C.le obj ceil floor
     then C.print obj ppf ceil
     else print_raw ?verbose obj ppf m
@@ -745,9 +745,9 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let get_floor = S.get_floor
 
-    let get_conservative_ceil = S.get_conservative_ceil
+    let get_loose_ceil = S.get_loose_ceil
 
-    let get_conservative_floor = S.get_conservative_floor
+    let get_loose_floor = S.get_loose_floor
 
     let print ?(verbose = false) = S.print ~verbose
 
@@ -807,9 +807,9 @@ module Solvers_polarized (C : Lattices_mono) = struct
 
     let get_floor = S.get_ceil
 
-    let get_conservative_ceil = S.get_conservative_floor
+    let get_loose_ceil = S.get_loose_floor
 
-    let get_conservative_floor = S.get_conservative_ceil
+    let get_loose_floor = S.get_loose_ceil
 
     let print ?(verbose = false) = S.print ~verbose
 

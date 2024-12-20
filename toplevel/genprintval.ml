@@ -147,6 +147,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       ( Pident(Ident.create_local "print_char"),
         Simple (Predef.type_char,
                 (fun x -> Oval_char (O.obj x : char))) );
+      ( Pident(Ident.create_local "print_int8"),
+        Simple (Predef.type_int8,
+                (fun x -> Oval_int (O.obj x : int))) );
+      ( Pident(Ident.create_local "print_int16"),
+        Simple (Predef.type_int16,
+                (fun x -> Oval_int (O.obj x : int))) );
       ( Pident(Ident.create_local "print_int32"),
         Simple (Predef.type_int32,
                 (fun x -> Oval_int32 (O.obj x : int32))) );
