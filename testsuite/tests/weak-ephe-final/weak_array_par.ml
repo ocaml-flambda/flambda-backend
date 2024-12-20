@@ -1,5 +1,7 @@
 (* TEST *)
 
+[@@@ocaml.alert "-unsafe_parallelism"]
+
 let () = Random.self_init ()
 
 let num_domains = 4
