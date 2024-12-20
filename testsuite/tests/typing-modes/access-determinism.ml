@@ -17,7 +17,7 @@ type 'a myref = { mutable a : 'a; b : 'a; }
 
 let foo x a = x.a <- a
 [%%expect{|
-val foo : 'a myref -> 'a -> unit @@ global many = <fun>
+val foo : 'a myref -> 'a -> unit = <fun>
 |}]
 
 let foo (x @ read_only) a = x.a <- a
@@ -38,7 +38,7 @@ Error: This value is "immutable" but expected to be "read_write".
 
 let foo (x @ read_only) = x.a
 [%%expect{|
-val foo : 'a myref @ read_only -> 'a @ read_only @@ global many = <fun>
+val foo : 'a myref @ read_only -> 'a @ read_only = <fun>
 |}]
 
 let foo (x @ immutable) = x.a
@@ -51,14 +51,12 @@ Error: This value is "immutable" but expected to be "read_only".
 
 let foo (x @ read_only) upd = { x with a = upd }
 [%%expect{|
-val foo : 'a myref @ read_only -> 'a -> 'a myref @ read_only @@ global many =
-  <fun>
+val foo : 'a myref @ read_only -> 'a -> 'a myref @ read_only = <fun>
 |}]
 
 let foo (x @ immutable) upd = { x with a = upd }
 [%%expect{|
-val foo : 'a myref @ immutable -> 'a -> 'a myref @ immutable @@ global many =
-  <fun>
+val foo : 'a myref @ immutable -> 'a -> 'a myref @ immutable = <fun>
 |}]
 
 let foo (x @ immutable) upd = { x with b = upd }
@@ -123,12 +121,12 @@ Error: This value is "immutable" but expected to be "read_only".
 
 let foo (x @ read_only) = x.contents
 [%%expect{|
-val foo : 'a ref @ read_only -> 'a @ read_only @@ global many = <fun>
+val foo : 'a ref @ read_only -> 'a @ read_only = <fun>
 |}]
 
 let foo (x @ read_write) = x.contents
 [%%expect{|
-val foo : 'a ref -> 'a @@ global many = <fun>
+val foo : 'a ref -> 'a = <fun>
 |}]
 
 let foo (x @ immutable) a = x := a
@@ -149,7 +147,7 @@ Error: This value is "read_only" but expected to be "read_write".
 
 let foo (x @ read_write) a = x := a
 [%%expect{|
-val foo : 'a ref -> 'a -> unit @@ global many = <fun>
+val foo : 'a ref -> 'a -> unit = <fun>
 |}]
 
 (* API that uses the [uncontended_data] layout kind *)
@@ -191,7 +189,7 @@ Error: This value is "read_only" but expected to be "read_write".
 
 let foo (a @ read_write) = Atomic.set a 0
 [%%expect{|
-val foo : int Atomic.t -> unit @@ global many = <fun>
+val foo : int Atomic.t -> unit = <fun>
 |}]
 
 let foo (a @ constant) = Atomic.set a 9
@@ -204,12 +202,12 @@ Error: Unrecognized mode constant.
 
 let foo (a @ read_only) = Atomic.get a
 [%%expect{|
-val foo : 'a Atomic.t @ read_only -> 'a @@ global many = <fun>
+val foo : 'a Atomic.t @ read_only -> 'a = <fun>
 |}]
 
 let foo (a @ read_write) = Atomic.get a
 [%%expect{|
-val foo : 'a Atomic.t -> 'a @@ global many = <fun>
+val foo : 'a Atomic.t -> 'a = <fun>
 |}]
 
 let foo (a @ constant) = Atomic.get a
@@ -245,7 +243,7 @@ Error: This function when partially applied returns a value which is "nondetermi
 
 let a @ read_write = Atomic.make 42
 [%%expect{|
-val a : int Atomic.t @@ global many = <abstr>
+val a : int Atomic.t = <abstr>
 |}]
 
 let foo @ deterministic =

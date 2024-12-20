@@ -219,8 +219,8 @@ Error: The layout of type "a" is value
          because of the definition of b at line 2, characters 0-30.
 |}]
 
-type a : value mod global unique many uncontended portable external_
-type b : value mod local aliased once contended nonportable internal = a
+type a : value mod global unique many uncontended read_write portable deterministic external_
+type b : value mod local aliased once contended immutable nonportable nondeterministic internal = a
 [%%expect{|
 type a : immediate
 type b = a

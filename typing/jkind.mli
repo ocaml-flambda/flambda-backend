@@ -236,7 +236,7 @@ module Const : sig
     val immutable_data : 'd t
 
     (** Atomically mutable values that don't contain functions. *)
-    val uncontended_data : t
+    val uncontended_data : 'd t
 
     (** Mutable values that don't contain functions. *)
     val mutable_data : 'd t

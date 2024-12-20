@@ -118,42 +118,42 @@ Error: Signature mismatch:
 
 module Module_type_nested = struct
     module M = struct
-        let x @ portable = fun t -> t
+        let x @ portable deterministic = fun t -> t
         module N = struct
-            let y @ uncontended = ref "hello"
+            let y @ uncontended read_write = ref "hello"
         end
     end
     module M' : module type of M = struct
-        let x @ nonportable = fun t -> t
+        let x @ nonportable nondeterministic = fun t -> t
         module N = struct
-            let y @ contended = ref "hello"
+            let y @ contended immutable = ref "hello"
         end
     end
 end
 [%%expect{|
 Lines 8-13, characters 35-7:
  8 | ...................................struct
- 9 |         let x @ nonportable = fun t -> t
+ 9 |         let x @ nonportable nondeterministic = fun t -> t
 10 |         module N = struct
-11 |             let y @ contended = ref "hello"
+11 |             let y @ contended immutable = ref "hello"
 12 |         end
 13 |     end
 Error: Signature mismatch:
        Modules do not match:
          sig
            val x : 'a -> 'a
-           module N : sig val y : string ref @@ contended end
+           module N : sig val y : string ref @@ contended immutable end
          end
        is not included in
          sig val x : 'a -> 'a module N : sig val y : string ref end end
        In module "N":
        Modules do not match:
-         sig val y : string ref @@ contended end
+         sig val y : string ref @@ contended immutable end
        is not included in
          sig val y : string ref end
        In module "N":
        Values do not match:
-         val y : string ref @@ contended
+         val y : string ref @@ contended immutable
        is not included in
          val y : string ref
        The second is uncontended and the first is contended.
@@ -536,14 +536,14 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val t : [> `Foo ] @@ contended end
+         sig val t : [> `Foo ] @@ deterministic contended end
        is not included in
          sig
            val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@
              portable
          end
        Values do not match:
-         val t : [> `Foo ] @@ contended
+         val t : [> `Foo ] @@ deterministic contended
        is not included in
          val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@ portable
        The second is portable and the first is nonportable.

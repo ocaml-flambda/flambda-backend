@@ -2870,7 +2870,7 @@ Line 1, characters 28-29:
                                 ^
 Error: This expression is used as a function, but its type "'a"
        has kind "bits64", which cannot be the kind of a function.
-       (Functions always have kind "value mod unique uncontended".)
+       (Functions always have kind "value mod unique uncontended read_write".)
 |}]
 
 let f (x : ('a : value mod portable)) = x ()
@@ -2881,7 +2881,7 @@ Line 1, characters 40-41:
                                             ^
 Error: This expression is used as a function, but its type "'a"
        has kind "value mod portable", which cannot be the kind of a function.
-       (Functions always have kind "value mod unique uncontended".)
+       (Functions always have kind "value mod unique uncontended read_write".)
 |}]
 
 let f (x : ('a : value)) = x ()

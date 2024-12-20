@@ -587,25 +587,6 @@ module Const = struct
     let of_attribute : Builtin_attributes.jkind_attribute -> _ t = function
       | Immediate -> immediate
       | Immediate64 -> immediate64
-        bits64 ]
-
-    (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-    let all_non_null =
-      [ any;
-        { any_non_null with name = "any" };
-        { value_or_null with name = "value" };
-        value;
-        immutable_data;
-        uncontended_data;
-        mutable_data;
-        void;
-        immediate;
-        immediate64;
-        float64;
-        float32;
-        word;
-        bits32;
-        bits64 ]
   end
 
   module To_out_jkind_const : sig
