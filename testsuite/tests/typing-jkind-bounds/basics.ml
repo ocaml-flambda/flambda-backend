@@ -1581,9 +1581,22 @@ type t =
   | Atom of string
   | List of t list
 
-class sexp_of :
-  object
-    method array : ('a -> t) -> ('a array -> t)
-  end
+class type sexp_of =
+    object
+      method array : ('a -> t) -> ('a array -> t)
+    end
 
-[%%expect]
+
+[%%expect{|
+type t = Atom of string | List of t list
+Line 1:
+Error: Class type declarations do not match:
+         class type sexp_of =
+           object method array : ('a -> t) -> 'a array -> t end
+       does not match
+         class type sexp_of =
+           object method array : ('a -> t) -> 'a array -> t end
+       The method array has type "'a. ('a -> t) -> 'a array -> t"
+       but is expected to have type "'a. ('a -> t) -> 'a array -> t"
+       Type "'a" is not compatible with type "'a0"
+|}]
