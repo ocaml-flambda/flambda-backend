@@ -155,7 +155,7 @@ Line 2, characters 15-16:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-let foo (t : ('a -> 'a) ref option @@ once) =
+let foo (t : ('a -> 'a ref) option @@ once) =
   use_many t
 
 [%%expect{|
@@ -427,7 +427,7 @@ Line 2, characters 15-16:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-let foo (t : ('a -> 'a) ref list @@ once) =
+let foo (t : ('a -> 'a ref) list @@ once) =
   use_many t
 
 [%%expect{|

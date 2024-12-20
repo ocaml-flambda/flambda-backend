@@ -630,12 +630,13 @@ module Bounds = struct
       }
       ~combine:Misc.Le_result.combine bounds1 bounds2
 
-  let add_baggage ~deep_only ~baggage bounds =
+  let add_baggage ~modality ~deep_only ~baggage bounds =
     (* Add the type as a baggage type along all deep axes *)
     Map.f
       { f =
           (fun ~axis (bound : _ Bound.t) : _ Bound.t ->
-            if Axis.is_modal axis || not deep_only
+            if (not (Jkind_axis.Axis.modality_is_const_for_axis axis modality))
+               && (Axis.is_modal axis || not deep_only)
             then Bound.add_baggage bound ~axis baggage
             else bound)
       }
@@ -1095,15 +1096,18 @@ module Const = struct
       in
       jkind_of_product_annotations jkinds
     | With (base, type_, modalities) -> (
-      ignore modalities;  (* CR aspsmith: TODO *)
       let base = of_user_written_annotation_unchecked_level context base in
       match context with
       | Right_jkind _ -> raise ~loc:type_.ptyp_loc With_on_right
       | Left_jkind (transl_type, _) ->
         let type_ = transl_type type_ in
+        let modality =
+          Typemode.transl_modalities ~maturity:Stable Immutable [] modalities
+        in
         { layout = base.layout;
           upper_bounds =
-            Bounds.add_baggage ~deep_only:true ~baggage:type_ base.upper_bounds
+            Bounds.add_baggage ~modality ~deep_only:true ~baggage:type_
+              base.upper_bounds
         })
     | Default | Kind_of _ -> raise ~loc:jkind.pjkind_loc Unimplemented_syntax
 
@@ -1181,9 +1185,10 @@ module Jkind_desc = struct
   let unsafely_set_upper_bounds t ~from =
     { t with upper_bounds = from.upper_bounds }
 
-  let add_baggage ~deep_only ~baggage t =
+  let add_baggage ~deep_only ~baggage ~modality t =
     { t with
-      upper_bounds = Bounds.add_baggage ~deep_only ~baggage t.upper_bounds
+      upper_bounds =
+        Bounds.add_baggage ~deep_only ~baggage ~modality t.upper_bounds
     }
 
   let max = of_const Const.max
@@ -1242,7 +1247,8 @@ module Jkind_desc = struct
         let upper_bounds =
           List.fold_right
             (fun ty bounds ->
-              Bounds.add_baggage ~deep_only:false ~baggage:ty bounds)
+              Bounds.add_baggage ~deep_only:false ~baggage:ty bounds
+                ~modality:Modality.Value.Const.id)
             tys
             (Bounds.min |> Bounds.disallow_right)
         in
@@ -1364,8 +1370,10 @@ let unsafely_set_upper_bounds ~from t =
     jkind = Jkind_desc.unsafely_set_upper_bounds t.jkind ~from:from.jkind
   }
 
-let add_baggage ~baggage t =
-  { t with jkind = Jkind_desc.add_baggage ~deep_only:true ~baggage t.jkind }
+let add_baggage ?(modality = Mode.Modality.Value.Const.id) ~baggage t =
+  { t with
+    jkind = Jkind_desc.add_baggage ~deep_only:true ~baggage ~modality t.jkind
+  }
 
 let has_baggage t = Bounds.has_baggage t.jkind.upper_bounds
 
@@ -1456,10 +1464,10 @@ let all_void_labels lbls =
 
 let add_labels_as_baggage lbls jkind =
   List.fold_right
-    (fun (lbl : Types.label_declaration) -> add_baggage ~baggage:lbl.ld_type)
+    (fun (lbl : Types.label_declaration) ->
+      add_baggage ~baggage:lbl.ld_type ~modality:lbl.ld_modalities)
     lbls jkind
 
-(* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_record lbls =
   if all_void_labels lbls
   then Builtin.immediate ~why:Empty_record
@@ -1473,7 +1481,6 @@ let for_boxed_record lbls =
     add_labels_as_baggage lbls base
   else Builtin.value ~why:Boxed_record
 
-(* CR layouts v2.8: This should take modalities into account. *)
 let for_unboxed_record ~jkind_of_first_type ~jkind_of_type lbls =
   let open Types in
   let tys = List.map (fun lbl -> lbl.ld_type) lbls in
@@ -1525,7 +1532,8 @@ let for_boxed_variant cstrs =
         match cstr.cd_args with
         | Cstr_tuple args ->
           List.fold_right
-            (fun arg -> add_baggage ~baggage:arg.ca_type)
+            (fun arg ->
+              add_baggage ~modality:arg.ca_modalities ~baggage:arg.ca_type)
             args jkind
         | Cstr_record lbls -> add_labels_as_baggage lbls jkind
       in
