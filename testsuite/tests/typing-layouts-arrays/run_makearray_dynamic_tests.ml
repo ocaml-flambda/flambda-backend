@@ -8,6 +8,7 @@
 
  {
    setup-ocamlopt.opt-build-env;
+   stack-allocation;
    program = "${test_source_directory}/generate.out";
    all_modules = "generate_makearray_dynamic_tests.ml";
    include stdlib_stable;
