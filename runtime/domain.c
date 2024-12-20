@@ -464,7 +464,8 @@ static void free_minor_heap(void) {
      no race whereby other code could attempt to reuse the memory. */
   caml_mem_decommit(
       (void*)domain_self->minor_heap_area_start,
-      Bsize_wsize(domain_state->minor_heap_wsz));
+      Bsize_wsize(domain_state->minor_heap_wsz),
+      "minor reservation");
 
   domain_state->young_start   = NULL;
   domain_state->young_end     = NULL;
@@ -487,8 +488,10 @@ static int allocate_minor_heap(asize_t wsize) {
   caml_gc_log ("trying to allocate minor heap: %"
                ARCH_SIZET_PRINTF_FORMAT "uk words", wsize / 1024);
 
+  char name[32];
+  snprintf(name, sizeof name, "minor heap %d", domain_self->id);
   if (!caml_mem_commit(
-          (void*)domain_self->minor_heap_area_start, Bsize_wsize(wsize))) {
+          (void*)domain_self->minor_heap_area_start, Bsize_wsize(wsize), name)) {
     return -1;
   }
 
@@ -827,7 +830,7 @@ static void reserve_minor_heaps_from_stw_single(void) {
   minor_heap_reservation_bsize = minor_heap_max_bsz * Max_domains;
 
   /* reserve memory space for minor heaps */
-  heaps_base = caml_mem_map(minor_heap_reservation_bsize, 1 /* reserve_only */);
+  heaps_base = caml_mem_map(minor_heap_reservation_bsize, 1 /* reserve_only */, "minor reservation");
   if (heaps_base == NULL)
     caml_fatal_error("Not enough heap memory to reserve minor heaps");
 

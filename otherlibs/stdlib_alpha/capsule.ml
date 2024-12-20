@@ -121,6 +121,9 @@ end
    it never returns is also [portable] *)
 external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
+external raise_with_backtrace :
+  exn -> Printexc.raw_backtrace -> 'a @ portable @@ portable = "%raise_with_backtrace"
+
 module Data = struct
   type ('a, 'k) t : value mod portable uncontended
 
@@ -349,6 +352,21 @@ module Rwlock = struct
 
 end
 
+module Condition = struct
+
+  type 'k t : value mod portable uncontended
+
+  external create : unit -> 'k t @@ portable = "caml_ml_condition_new"
+  external wait : 'k t -> M.t -> unit @@ portable = "caml_ml_condition_wait"
+  external signal : 'k t -> unit @@ portable = "caml_ml_condition_signal"
+  external broadcast : 'k t -> unit @@ portable = "caml_ml_condition_broadcast"
+
+  let wait t (mut : 'k Mutex.t) _password =
+    (* [mut] is locked, so we know it is not poisoned. *)
+    wait t mut.mutex
+
+end
+
 let create_with_mutex () =
   let (P name) = Name.make () in
   Mutex.P { name; mutex = M.create (); poisoned = false }
@@ -356,3 +374,17 @@ let create_with_mutex () =
 let create_with_rwlock () =
   let (P name) = Name.make () in
   Rwlock.P { name; rwlock = Rw.create (); poisoned = false }
+
+exception Protected : 'k Mutex.t * (exn, 'k) Data.t -> exn
+
+(* CR-soon mslater: replace with portable stdlib *)
+let get_raw_backtrace : unit -> Printexc.raw_backtrace @@ portable =
+  O.magic O.magic Printexc.get_raw_backtrace
+
+let protect f =
+  try f () with
+  | exn ->
+    let (P mut) = create_with_mutex () in
+    raise_with_backtrace (Protected (mut, Data.unsafe_mk exn)) (get_raw_backtrace ())
+  ;;
+

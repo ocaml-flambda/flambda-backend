@@ -9,33 +9,37 @@
 type 'a list : immutable_data with 'a
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 15-37:
+1 | type 'a list : immutable_data with 'a
+                   ^^^^^^^^^^^^^^^^^^^^^^
+Error: Unimplemented kind syntax
 |}]
 
 type ('a, 'b) either : immutable_data with 'a * 'b
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 23-50:
+1 | type ('a, 'b) either : immutable_data with 'a * 'b
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Unimplemented kind syntax
 |}]
 
 type 'a gel : kind_of_ 'a mod global
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 14-25:
+1 | type 'a gel : kind_of_ 'a mod global
+                  ^^^^^^^^^^^
+Error: Unimplemented kind syntax
 |}]
 
 type 'a t : _
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 1, characters 12-13:
+1 | type 'a t : _
+                ^
+Error: Unimplemented kind syntax
 |}]
 
 kind_abbrev_ immediate = value mod global unique many sync uncontended
@@ -82,9 +86,10 @@ module type S = sig
 end
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 2, characters 17-39:
+2 |   type 'a list : immutable_data with 'a
+                     ^^^^^^^^^^^^^^^^^^^^^^
+Error: Unimplemented kind syntax
 |}]
 
 (**************************************)

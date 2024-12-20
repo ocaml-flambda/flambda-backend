@@ -70,7 +70,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
+      let is_void_label lbl = Jkind.Sort.Const.(equal void lbl.ld_sort) in
       let jkind =
         Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
       in
@@ -97,7 +97,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       [
         {
           ca_type = newgenconstr path type_params;
-          ca_jkind = jkind;
+          ca_sort = Jkind.Sort.Const.value;
           ca_modalities = Mode.Modality.Value.Const.id;
           ca_loc = Location.none
         }
@@ -121,21 +121,21 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
          written here should be irrelevant, and so would like to understand
          this interaction better. *)
       begin match cd_args with
-      | Cstr_tuple [{ ca_jkind = jkind }]
-      | Cstr_record [{ ld_jkind = jkind }] ->
-        [| Constructor_uniform_value, [| jkind |] |]
+      | Cstr_tuple [{ ca_sort = sort }]
+      | Cstr_record [{ ld_sort = sort }] ->
+        [| Constructor_uniform_value, [| sort |] |]
       | Cstr_tuple ([] | _ :: _) | Cstr_record ([] | _ :: _) ->
-        Misc.fatal_error "Multiple or 0 arguments in [@@unboxed] variant"
+        Misc.fatal_error "Multiple arguments in [@@unboxed] variant"
       end
     | Variant_unboxed, ([] | _ :: _) ->
       Misc.fatal_error "Multiple or 0 constructors in [@@unboxed] variant"
   in
-  let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
+  let all_void sorts = Array.for_all Jkind.Sort.Const.(equal void) sorts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
-      (fun (_, jkinds) ->
-         let all_void = all_void jkinds in
+      (fun (_, sorts) ->
+         let all_void = all_void sorts in
          if all_void then incr num_consts else incr num_nonconsts;
          all_void)
       cstr_shapes_and_arg_jkinds
@@ -229,7 +229,7 @@ let dummy_label (type rep) (record_form : rep record_form)
   in
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
     lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.Const.id;
-    lbl_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+    lbl_sort = Jkind.Sort.Const.void;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = repres;
     lbl_private = Public;
@@ -243,14 +243,14 @@ let label_descrs record_form ty_res lbls repres priv =
   let rec describe_labels num pos = function
       [] -> []
     | l :: rest ->
-        let is_void = Jkind.is_void_defaulting l.ld_jkind  in
+        let is_void = Jkind.Sort.Const.(equal void l.ld_sort) in
         let lbl =
           { lbl_name = Ident.name l.ld_id;
             lbl_res = ty_res;
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
             lbl_modalities = l.ld_modalities;
-            lbl_jkind = l.ld_jkind;
+            lbl_sort = l.ld_sort;
             lbl_pos = if is_void then lbl_pos_void else pos;
             lbl_num = num;
             lbl_all = all_labels;

@@ -36,6 +36,7 @@ module type Flambda_backend_options = sig
 
   val vectorize : unit -> unit
   val no_vectorize : unit -> unit
+  val vectorize_max_block_size : int -> unit
   val dvectorize : unit -> unit
 
   val cfg_selection : unit -> unit

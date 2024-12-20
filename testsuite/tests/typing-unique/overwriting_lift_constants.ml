@@ -73,7 +73,7 @@ let () =
 
 [%%expect{|
 type point = { mutable dim : int; x : float; y : float; z : float; }
-val unsafe_dup : '_a @ unique -> '_a * '_a @ unique @@ global many = <fun>
+val unsafe_dup : '_a @ unique -> '_a * '_a @ unique = <fun>
 Line 9, characters 10-66:
 9 |   let p = overwrite_ p with { dim = 4; x = 1.0; y = 2.0; z = 3.0 } in
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
