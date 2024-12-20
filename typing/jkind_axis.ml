@@ -181,6 +181,64 @@ module Axis = struct
     | Modal Contention -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
+
+  (* CR aspsmith: This can get a lot simpler once we unify jkind axes with the axes in
+     Mode *)
+  let modality_is_const_for_axis (type a) (t : a t) modality =
+    match t with
+    | Nonmodal Nullability | Nonmodal Externality -> false
+    | Modal axis ->
+      let atoms = Mode.Modality.Value.Const.to_list modality in
+      List.exists
+        (fun (modality : Mode.Modality.t) ->
+          match axis, modality with
+          (* Constant modalities *)
+          | Locality, Atom (Comonadic Areality, Meet_with Global) -> true
+          | Linearity, Atom (Comonadic Linearity, Meet_with Many) -> true
+          | Uniqueness, Atom (Monadic Uniqueness, Join_with Aliased) -> true
+          | Portability, Atom (Comonadic Portability, Meet_with Portable) ->
+            true
+          | Contention, Atom (Monadic Contention, Join_with Contended) -> true
+          (* Modalities which are actually identity *)
+          | Locality, Atom (Comonadic Areality, Meet_with Local)
+          | Linearity, Atom (Comonadic Linearity, Meet_with Once)
+          | Uniqueness, Atom (Monadic Uniqueness, Join_with Unique)
+          | Portability, Atom (Comonadic Portability, Meet_with Nonportable)
+          | Contention, Atom (Monadic Contention, Join_with Uncontended) ->
+            false
+          (* Modalities which are neither constant nor identiy *)
+          | Locality, Atom (Comonadic Areality, Meet_with Regional)
+          | Contention, Atom (Monadic Contention, Join_with Shared) ->
+            Misc.fatal_error
+              "Don't yet know how to interpret non-constant, non-identity \
+               modalities"
+          (* Modalities which join or meet on an illegal axis *)
+          | _, Atom (Comonadic _, Join_with _) | _, Atom (Monadic _, Meet_with _)
+            ->
+            Misc.fatal_error "Illegal modality"
+          (* Mismatched axes *)
+          | Locality, Atom (Monadic Uniqueness, _)
+          | Locality, Atom (Monadic Contention, _)
+          | Locality, Atom (Comonadic Linearity, _)
+          | Locality, Atom (Comonadic Portability, _)
+          | Linearity, Atom (Comonadic Areality, _)
+          | Linearity, Atom (Monadic Uniqueness, _)
+          | Portability, Atom (Monadic Uniqueness, _)
+          | Contention, Atom (Monadic Uniqueness, _)
+          | Linearity, Atom (Comonadic Portability, _)
+          | Linearity, Atom (Monadic Contention, _)
+          | Uniqueness, Atom (Comonadic Areality, _)
+          | Uniqueness, Atom (Comonadic Linearity, _)
+          | Uniqueness, Atom (Comonadic Portability, _)
+          | Contention, Atom (Comonadic Areality, _)
+          | Contention, Atom (Comonadic Linearity, _)
+          | Contention, Atom (Comonadic Portability, _)
+          | Uniqueness, Atom (Monadic Contention, _)
+          | Portability, Atom (Comonadic Areality, _)
+          | Portability, Atom (Comonadic Linearity, _)
+          | Portability, Atom (Monadic Contention, _) ->
+            false)
+        atoms
 end
 
 module type Axed = sig

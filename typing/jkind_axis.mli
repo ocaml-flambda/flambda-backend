@@ -74,6 +74,8 @@ module Axis : sig
   val name : _ t -> string
 
   val is_deep : _ t -> bool
+
+  val modality_is_const_for_axis : _ t -> Mode.Modality.Value.Const.t -> bool
 end
 
 (** [Axed] describes a type that is parameterized by axis. *)
