@@ -1,4 +1,11 @@
-(* TEST *)
+(* TEST
+   runtime5;
+   { bytecode; }
+   { native; }
+*)
+
+[@@@ocaml.alert "-unsafe_parallelism"]
+[@@@ocaml.alert "-unsafe_multidomain"]
 
 let () = Random.self_init ()
 
