@@ -20,31 +20,33 @@
 include Stdlib.Int
 
 let int_size = Sys.int_size
+
 let[@inline available] of_int t = t
+
 let[@inline available] to_int t = t
+
 let[@inline available] unsigned_to_int t = t
 
 let[@inline available] unsigned_compare n m =
   compare (sub n min_int) (sub m min_int)
 
-let[@inline] unsigned_lt n m =
-  sub n min_int < sub m min_int
+let[@inline] unsigned_lt n m = sub n min_int < sub m min_int
 
-(* Unsigned division from signed division of the same bitness.
-   See Warren Jr., Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3.
-*)
+(* Unsigned division from signed division of the same bitness. See Warren Jr.,
+   Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3. *)
 let[@inline available] unsigned_div n d =
-  if d < zero then
-    if unsigned_lt n d then zero else one
+  if d < zero
+  then if unsigned_lt n d then zero else one
   else
     let q = shift_left (div (shift_right_logical n 1) d) 1 in
     let r = sub n (mul q d) in
     if unsigned_lt r d then q else succ q
 
 let[@inline available] unsigned_rem n d =
-  sub n (mul ((unsigned_div[@inlined]) n d) d)
+  sub n (mul ((unsigned_div [@inlined]) n d) d)
 
 let seeded_hash seed x = Stdlib.Hashtbl.seeded_hash seed (x : int)
+
 let hash x = Stdlib.Hashtbl.hash (x : int)
 
 module type S = sig
