@@ -365,8 +365,6 @@ val foo : int @ shared -> unit = <fun>
 module Iarray = Stdlib_stable.Iarray
 
 let foo (r @ contended) = Iarray.get r 42
-(* CR zqian: The following should pass; the modal kind system should mode cross
-iarray depending on the type of its element. *)
 [%%expect{|
 module Iarray = Stdlib_stable.Iarray
 Line 3, characters 37-38:

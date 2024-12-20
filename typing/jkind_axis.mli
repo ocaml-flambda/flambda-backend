@@ -76,6 +76,8 @@ module Axis : sig
   (** Is this a modal axis? Includes externality, because that will one
       day be modal (it is a deep property). *)
   val is_modal : _ t -> bool
+
+  val modality_is_const_for_axis : _ t -> Mode.Modality.Value.Const.t -> bool
 end
 
 (** [Axed] describes a type that is parameterized by axis. *)
