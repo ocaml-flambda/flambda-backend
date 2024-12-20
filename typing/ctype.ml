@@ -2344,7 +2344,7 @@ let constrain_type_jkind ~fixed env ty jkind =
              message. *)
           Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
        | Has_intersection ->
-           let product ~fuel tys =
+           let product ~fuel tys ty's_jkind =
              let num_components = List.length tys in
              let recur ty's_jkinds jkinds =
                let results =
@@ -2387,14 +2387,26 @@ let constrain_type_jkind ~fixed env ty jkind =
                  loop ~fuel:(fuel - 1) ~expanded:false ty
                    (estimate_type_jkind env ty) jkind
                | Stepped_record_unboxed_product tys ->
-                 product ~fuel:(fuel - 1) tys
+                 (* The [product] helper above requires that ty's_jkind
+                    be a product of the correct arity, so we make a slightly
+                    more precise estimate here by making estimates for each of
+                    the labels.
+
+                    (Otherwise, our estimate might be [any], or even an
+                    incorrect arity, during [transl_declaration], which
+                    uses the annotated jkind if it exists.) *)
+                 let ty's_jkind =
+                   Jkind.Builtin.product ~why:Unboxed_record
+                     (List.map (estimate_type_jkind env) tys)
+                 in
+                 product ~fuel:(fuel - 1) tys ty's_jkind
                end
           | Tunboxed_tuple ltys ->
             (* Note: here we "duplicate" the fuel, which may seem like cheating.
                Fuel counts expansions, and its purpose is to guard against
                infinitely expanding a recursive type. In a wide tuple, we many
                need to expand many types shallowly, and that's fine. *)
-            product ~fuel (List.map snd ltys)
+            product ~fuel (List.map snd ltys) ty's_jkind
           | _ ->
             Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
   in

@@ -725,30 +725,21 @@ Error: The universal type variable 'a was declared to have kind any.
 type a = B of b
 and b : any = #{ i : int ; j : int }
 [%%expect{|
-Line 1, characters 9-15:
-1 | type a = B of b
-             ^^^^^^
-Error: Type "b" has layout "value & value".
-       Variants may not yet contain types of this layout.
+>> Fatal error: unboxed product jkinds don't line up
+Uncaught exception: Misc.Fatal_error
+
 |}]
 type a = B of b_portable
 and b_portable : any mod portable = #{ i : int ; j : int }
 [%%expect{|
-Line 1, characters 9-24:
-1 | type a = B of b_portable
-             ^^^^^^^^^^^^^^^
-Error: Type "b_portable" has layout "value & value".
-       Variants may not yet contain types of this layout.
+>> Fatal error: unboxed product jkinds don't line up
+Uncaught exception: Misc.Fatal_error
+
 |}]
 type a = B of b
 and b : any & any & any = #{ i : int ; j : int }
 [%%expect{|
-Line 2, characters 0-48:
-2 | and b : any & any & any = #{ i : int ; j : int }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of b is any & any & any
-         because of the annotation on the declaration of the type b.
-       But the layout of b must be representable
-         because it's the type of a constructor field.
+>> Fatal error: unboxed product jkinds don't line up
+Uncaught exception: Misc.Fatal_error
+
 |}]

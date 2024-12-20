@@ -43,7 +43,7 @@ Line 1, characters 0-34:
 1 | type bad = #{ bad : bad ; i : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of bad is any & any
+       The layout of bad is (any & any) & value
          because it is an unboxed record.
        But the layout of bad must be representable
          because it is the type of record field bad.
@@ -107,7 +107,7 @@ Line 1, characters 0-39:
 1 | type 'a bad = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of 'a bad is any & any
+       The layout of 'a bad is (any & any) & '_representable_layout_1
          because it is an unboxed record.
        But the layout of 'a bad must be representable
          because it is the type of record field bad.

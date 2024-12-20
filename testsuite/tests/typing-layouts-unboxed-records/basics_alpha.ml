@@ -34,7 +34,7 @@ Line 1, characters 0-49:
 1 | type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of 'a bad is any & any
+       The layout of 'a bad is (any & any) & void
          because it is an unboxed record.
        But the layout of 'a bad must be representable
          because it is the type of record field bad.

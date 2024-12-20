@@ -128,7 +128,7 @@ Line 1, characters 0-54:
 1 | type t6_wrong_inner_record = #{ i : int; i64 : int64 }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error:
-       The layout of t6_wrong_inner_record is any & any
+       The layout of t6_wrong_inner_record is value & value
          because it is an unboxed record.
        But the layout of t6_wrong_inner_record must be a sublayout of
          value & bits64
@@ -991,7 +991,7 @@ Line 1, characters 19-27:
                        ^^^^^^^^
 Error: This type "string t" should be an instance of type "('a : any mod global)"
        The kind of string t is value & value
-         because of the definition of t at line 2, characters 0-47.
+         because it is an unboxed record.
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
 |}]
@@ -1010,7 +1010,7 @@ Error: This type "s_record" should be an instance of type
          "('a : any mod external_)"
        The kind of s_record is
          immutable_data & immutable_data & immutable_data
-         because of the definition of s_record at line 3, characters 0-51.
+         because it is an unboxed record.
        But the kind of s_record must be a subkind of any mod external_
          because of the definition of t at line 1, characters 0-31.
 |}]
