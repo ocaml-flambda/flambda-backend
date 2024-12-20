@@ -255,16 +255,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Print_as_value (* can interpret as a value and print *)
       | Print_as of string (* can't print *)
 
-    let get_and_default_jkind_for_printing jkind =
-      let layout = Jkind.get_layout_defaulting_to_value jkind in
-      match layout with
-      (* CR layouts v3.0: [Value_or_null] should probably require special
-         printing to avoid descending into NULL. (This module uses
-         lots of unsafe Obj features.)
-      *)
+    let print_sort : Jkind.Sort.Const.t -> _ = function
       | Base Value -> Print_as_value
       | Base Void -> Print_as "<void>"
-      | Any -> Print_as "<any>"
       | Base (Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Vec128 | Word)
         -> Print_as "<abstr>"
       | Product _ -> Print_as "<unboxed product>"
@@ -464,9 +457,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             instantiate_types env type_params ty_list l in
                           let ty_args =
                             List.map2
-                              (fun { ca_jkind } ty_arg ->
-                                 (ty_arg,
-                                 get_and_default_jkind_for_printing ca_jkind)
+                              (fun { ca_sort } ty_arg ->
+                                 (ty_arg, print_sort ca_sort)
                               ) l ty_args
                           in
                           tree_of_constr_with_args (tree_of_constr env path)
@@ -581,12 +573,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           lbl_list pos obj rep =
         let rec tree_of_fields first pos = function
           | [] -> []
-          | {ld_id; ld_type; ld_jkind} :: remainder ->
+          | {ld_id; ld_type; ld_sort} :: remainder ->
               let ty_arg = instantiate_type env type_params ty_list ld_type in
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Jkind.is_void_defaulting ld_jkind in
+              let is_void = Jkind.Sort.Const.(equal void ld_sort) in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
@@ -627,17 +619,17 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
             ty_list lbl_list pos obj =
         let rec tree_of_fields first pos = function
           | [] -> []
-          | {ld_id; ld_type; ld_jkind} :: remainder ->
+          | {ld_id; ld_type; ld_sort} :: remainder ->
               let ty_arg = instantiate_type env type_params ty_list ld_type in
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Jkind.is_void_defaulting ld_jkind in
+              let is_void = Jkind.Sort.Const.(equal void ld_sort) in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
               and v =
-                match get_and_default_jkind_for_printing ld_jkind with
+                match print_sort ld_sort with
                 | Print_as msg -> Oval_stuff msg
                 | Print_as_value ->
                   match lbl_list with
@@ -745,8 +737,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           | _ -> assert false
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
-        let args = List.map2 (fun { ca_jkind } arg ->
-            (arg, get_and_default_jkind_for_printing ca_jkind))
+        let args = List.map2 (fun { ca_sort } arg ->
+            (arg, print_sort ca_sort))
             cstr.cstr_args args
         in
         tree_of_constr_with_args

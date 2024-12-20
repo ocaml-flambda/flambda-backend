@@ -527,6 +527,8 @@
   linear_utils
   simplify_terminator
   vectorize
+  vectorize_utils
+  vectorize_specific
   ;; backend/regalloc
   regalloc_gi
   regalloc_gi_state

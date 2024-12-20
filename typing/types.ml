@@ -313,7 +313,7 @@ and mixed_product_shape =
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * constructor_representation * variant_representation
-  | Record_boxed of (allowed * disallowed) jkind array
+  | Record_boxed of Jkind_types.Sort.Const.t array
   | Record_float
   | Record_ufloat
   | Record_mixed of mixed_product_shape
@@ -324,7 +324,7 @@ and record_unboxed_product_representation =
 and variant_representation =
   | Variant_unboxed
   | Variant_boxed of (constructor_representation *
-                      (allowed * disallowed) jkind array) array
+                      Jkind_types.Sort.Const.t array) array
   | Variant_extensible
 
 and constructor_representation =
@@ -337,7 +337,7 @@ and label_declaration =
     ld_mutable: mutability;
     ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
-    ld_jkind : jkind_l;
+    ld_sort: Jkind_types.Sort.Const.t;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -357,7 +357,7 @@ and constructor_argument =
   {
     ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
-    ca_jkind: jkind_l;
+    ca_sort: Jkind_types.Sort.Const.t;
     ca_loc: Location.t;
   }
 
@@ -637,12 +637,13 @@ let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
 let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->
       true
-  | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
-      Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
+  | Variant_boxed cstrs_and_sorts1, Variant_boxed cstrs_and_sorts2 ->
+      Misc.Stdlib.Array.equal (fun (cstr1, sorts1) (cstr2, sorts2) ->
           equal_constructor_representation cstr1 cstr2
-          && Misc.Stdlib.Array.equal !jkind_equal jkinds1 jkinds2)
-        cstrs_and_jkinds1
-        cstrs_and_jkinds2
+          && Misc.Stdlib.Array.equal Jkind_types.Sort.Const.equal
+               sorts1 sorts2)
+        cstrs_and_sorts1
+        cstrs_and_sorts2
   | Variant_extensible, Variant_extensible ->
       true
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
@@ -657,8 +658,8 @@ let equal_record_representation r1 r2 = match r1, r2 with
       ignore (cr1 : constructor_representation);
       ignore (cr2 : constructor_representation);
       equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
-  | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
+  | Record_boxed sorts1, Record_boxed sorts2 ->
+      Misc.Stdlib.Array.equal Jkind_types.Sort.Const.equal sorts1 sorts2
   | Record_float, Record_float ->
       true
   | Record_ufloat, Record_ufloat ->
@@ -686,7 +687,7 @@ type 'a gen_label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;(* Modalities on the field *)
-    lbl_jkind : jkind_l;                (* Jkind of the argument *)
+    lbl_sort: Jkind_types.Sort.Const.t; (* Sort of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
     lbl_all: 'a gen_label_description array;   (* All the labels in this type *)

@@ -605,7 +605,7 @@ and record_representation =
   (* For an inlined record, we record the representation of the variant that
      contains it and the tag/representation of the relevant constructor of that
      variant. *)
-  | Record_boxed of jkind_l array
+  | Record_boxed of Jkind_types.Sort.Const.t array
   | Record_float (* All fields are floats *)
   | Record_ufloat
   (* All fields are [float#]s.  Same runtime representation as [Record_float],
@@ -625,7 +625,7 @@ and record_unboxed_product_representation =
 and variant_representation =
   | Variant_unboxed
   | Variant_boxed of (constructor_representation *
-                      jkind_l array) array
+                      Jkind_types.Sort.Const.t array) array
   (* The outer array has an element for each constructor. Each inner array
      has a jkind for each argument of the corresponding constructor.
 
@@ -652,7 +652,7 @@ and label_declaration =
     ld_mutable: mutability;
     ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
-    ld_jkind : jkind_l;
+    ld_sort: Jkind_types.Sort.Const.t;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -672,7 +672,7 @@ and constructor_argument =
   {
     ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
-    ca_jkind: jkind_l;
+    ca_sort: Jkind_types.Sort.Const.t;
     ca_loc: Location.t;
   }
 
@@ -898,7 +898,7 @@ type 'a gen_label_description =
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;
                                         (* Modalities on the field *)
-    lbl_jkind : jkind_l;                (* Jkind of the argument *)
+    lbl_sort: Jkind_types.Sort.Const.t; (* Sort of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: 'a gen_label_description array;   (* All the labels in this type *)
@@ -908,9 +908,6 @@ type 'a gen_label_description =
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
   }
-(* CR layouts v5: once we allow [any] in record fields, change [lbl_jkind] to
-   be a [sort option].  This will allow a fast path for representability checks
-   at record construction, and currently only the sort is used anyway. *)
 
 type label_description = record_representation gen_label_description
 

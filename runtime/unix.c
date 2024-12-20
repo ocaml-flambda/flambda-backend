@@ -61,6 +61,9 @@
 #ifdef HAS_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 #include "caml/fail.h"
 #include "caml/memory.h"
 #include "caml/misc.h"
@@ -508,7 +511,31 @@ void caml_init_os_params(void)
 
 #ifndef __CYGWIN__
 
-void *caml_plat_mem_map(uintnat size, int reserve_only)
+static void* mmap_named(void* addr, size_t length, int prot, int flags,
+                        int fd, off_t offset, const char* name)
+{
+  void* p = mmap(addr, length, prot, flags, fd, offset);
+#ifdef __linux__
+  if (p != MAP_FAILED) {
+    /* On Linux, use PR_SET_VMA_ANON_NAME to name the allocation */
+    char buf[80];
+    snprintf(buf, sizeof buf, "OCaml: %s", name);
+    /* The constants PR_SET_VMA and PR_SET_VMA_ANON_NAME are stable
+       (part of the Linux kernel ABI), but may not be provided by the
+       libc headers (e.g. a newer kernel with an older userspace).
+       So, it's more portable to hardcode these numbers */
+    enum { PR_SET_VMA_ = 0x53564d41, PR_SET_VMA_ANON_NAME_ = 0 };
+    prctl(PR_SET_VMA_, PR_SET_VMA_ANON_NAME_,
+          (unsigned long)p, length, (unsigned long)buf);
+    /* No error checking or reporting here: it's a best-effort tool
+       for debugging, and may fail if e.g. this prctl is not supported
+       on this kernel version. */
+  }
+#endif
+  return p;
+}
+
+void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
 {
   void* mem;
   int prot = reserve_only ? PROT_NONE : (PROT_READ | PROT_WRITE);
@@ -518,7 +545,7 @@ void *caml_plat_mem_map(uintnat size, int reserve_only)
   if (size < alignment || alignment < caml_plat_pagesize) {
     /* Short mapping or unknown/bad hugepagesize.
        Either way, not worth bothering with alignment. */
-    mem = mmap(0, size, prot, flags, -1, 0);
+    mem = mmap_named(0, size, prot, flags, -1, 0, name);
     if (mem == MAP_FAILED) mem = NULL;
     return mem;
   }
@@ -526,7 +553,7 @@ void *caml_plat_mem_map(uintnat size, int reserve_only)
   /* Sensible kernels (on Linux, that means >= 6.7) will always provide aligned
      mappings. To avoid penalising such kernels, try mapping the exact desired
      size first and see if it happens to be aligned. */
-  mem = mmap(0, size, prot, flags, -1, 0);
+  mem = mmap_named(0, size, prot, flags, -1, 0, name);
   if (mem == MAP_FAILED) return NULL;
   if ((((uintnat)mem) & (alignment - 1)) == 0) return mem;
 
@@ -536,7 +563,7 @@ void *caml_plat_mem_map(uintnat size, int reserve_only)
   munmap(mem, size);
 
   /* Allocate a longer region than needed and trim it afterwards */
-  mem = mmap(0, size + alignment, prot, flags, -1, 0);
+  mem = mmap_named(0, size + alignment, prot, flags, -1, 0, name);
   if (mem == MAP_FAILED) return NULL;
 
   uintnat aligned = ((uintnat)mem + alignment) & ~(alignment - 1);
@@ -546,10 +573,10 @@ void *caml_plat_mem_map(uintnat size, int reserve_only)
   return (void*)aligned;
 }
 
-static void* map_fixed(void* mem, uintnat size, int prot)
+static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
 {
-  if (mmap(mem, size, prot, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-           -1, 0) == MAP_FAILED) {
+  if (mmap_named(mem, size, prot, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+                 -1, 0, name) == MAP_FAILED) {
     return 0;
   } else {
     return mem;
@@ -564,7 +591,7 @@ static void* map_fixed(void* mem, uintnat size, int prot)
    done using mprotect, since Cygwin's mmap doesn't implement the required
    functions for committing using mmap. */
 
-void *caml_plat_mem_map(uintnat size, int reserve_only)
+void *caml_plat_mem_map(uintnat size, int reserve_only, const char* name)
 {
   void* mem;
 
@@ -576,7 +603,7 @@ void *caml_plat_mem_map(uintnat size, int reserve_only)
   return mem;
 }
 
-static void* map_fixed(void* mem, uintnat size, int prot)
+static void* map_fixed(void* mem, uintnat size, int prot, const char* name)
 {
   if (mprotect(mem, size, prot) != 0) {
     return 0;
@@ -587,9 +614,9 @@ static void* map_fixed(void* mem, uintnat size, int prot)
 
 #endif /* !__CYGWIN__ */
 
-void* caml_plat_mem_commit(void* mem, uintnat size)
+void* caml_plat_mem_commit(void* mem, uintnat size, const char* name)
 {
-  void* p = map_fixed(mem, size, PROT_READ | PROT_WRITE);
+  void* p = map_fixed(mem, size, PROT_READ | PROT_WRITE, name);
   /*
     FIXME: On Linux, it might be useful to populate page tables with
     MAP_POPULATE to reduce the time spent blocking on page faults at
@@ -598,9 +625,9 @@ void* caml_plat_mem_commit(void* mem, uintnat size)
   return p;
 }
 
-void caml_plat_mem_decommit(void* mem, uintnat size)
+void caml_plat_mem_decommit(void* mem, uintnat size, const char* name)
 {
-  map_fixed(mem, size, PROT_NONE);
+  map_fixed(mem, size, PROT_NONE, name);
 }
 
 void caml_plat_mem_unmap(void* mem, uintnat size)

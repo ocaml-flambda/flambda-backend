@@ -45,7 +45,7 @@ type stat =
 
     heap_chunks : int;
     (** Number of contiguous pieces of memory that make up the major heap.
-        This metrics is currently not available in OCaml 5: the field value is
+        This metric is currently not available in OCaml 5: the field value is
         always [0]. *)
 
     live_words : int;
@@ -74,12 +74,12 @@ type stat =
 
     free_blocks : int;
     (** Number of blocks in the free list.
-        This metrics is currently not available in OCaml 5: the field value is
+        This metric is currently not available in OCaml 5: the field value is
         always [0]. *)
 
     largest_free : int;
     (** Size (in words) of the largest block in the free list.
-        This metrics is currently not available in OCaml 5: the field value
+        This metric is currently not available in OCaml 5: the field value
         is always [0]. *)
 
     fragments : int;
@@ -95,7 +95,7 @@ type stat =
 
     stack_size: int;
     (** Current size of the stack, in words.
-        This metrics is currently not available in OCaml 5: the field value is
+        This metric is currently not available in OCaml 5: the field value is
         always [0].
         @since 3.12 *)
 
@@ -127,7 +127,9 @@ type control =
         number is less than or equal to 1000, it is a percentage of
         the current heap size (i.e. setting it to 100 will double the heap
         size at each increase). If it is more than 1000, it is a fixed
-        number of words that will be added to the heap. Default: 15. *)
+        number of words that will be added to the heap. Default: 15.
+        This metric is currently not available in OCaml 5: the field value is
+        always [0]. *)
 
     space_overhead : int;
     (** The major GC speed is computed from this parameter.
@@ -164,7 +166,9 @@ type control =
        If [max_overhead >= 1000000], compaction is never triggered.
        On runtime4, if compaction is permanently disabled, it is strongly
        suggested to set [allocation_policy] to 2.
-       Default: 500. *)
+       Default: 500.
+       This metric is currently not available in OCaml 5: the field value is
+       always [0]. *)
 
     stack_limit : int;
     (** The maximum size of the fiber stacks (in words).
@@ -217,6 +221,9 @@ type control =
 
         Default: 2.
 
+        This metric is currently not available in OCaml 5: the field value is
+        always [0].
+
         ----------------------------------------------------------------
 
         @since 3.11 *)
@@ -226,6 +233,8 @@ type control =
         out variations in its workload. This is an integer between
         1 and 50.
         Default: 1.
+        This metric is currently not available in OCaml 5: the field value is
+        always [0].
         @since 4.03 *)
 
     custom_major_ratio : int;

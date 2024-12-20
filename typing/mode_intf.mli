@@ -545,7 +545,9 @@ module type S = sig
 
       (** Given [md_mode] the mode of a module, and [mode] the mode of a value
       to be put in that module, return the inferred modality to be put on the
-      value description in the inferred module type. *)
+      value description in the inferred module type.
+
+      The caller should ensure that for comonadic axes, [md_mode >= mode]. *)
       val infer : md_mode:Value.lr -> mode:Value.l -> t
 
       (* The following zapping functions possibly mutate a potentially inferred
