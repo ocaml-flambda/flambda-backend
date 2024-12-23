@@ -25,7 +25,11 @@ type t = { x : t_void; } [@@unboxed]
 
 type bad : void = #{ bad : bad }
 [%%expect{|
-type bad = #{ bad : bad; }
+Line 1, characters 0-32:
+1 | type bad : void = #{ bad : bad }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "bad" is recursive without boxing:
+         "bad" contains "bad"
 |}]
 
 type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
@@ -33,11 +37,8 @@ type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
 Line 1, characters 0-49:
 1 | type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error:
-       The layout of 'a bad is any & any
-         because it is an unboxed record.
-       But the layout of 'a bad must be representable
-         because it is the type of record field bad.
+Error: The definition of "bad" is recursive without boxing:
+         "'a bad" contains "'a bad"
 |}]
 
 (******************************************************************************)
