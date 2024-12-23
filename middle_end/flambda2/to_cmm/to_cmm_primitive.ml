@@ -145,7 +145,7 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
         match field_kind with
         | Tagged_immediate -> Word_int
         | Naked_float -> Double
-        | Naked_float32 -> Single { reg = Float32}
+        | Naked_float32 -> Single { reg = Float32 }
         | Naked_int32 -> Thirtytwo_signed
         | Naked_vec128 -> Onetwentyeight_unaligned
         | Naked_int64 | Naked_nativeint -> Word_int
@@ -161,8 +161,8 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
   let field = Targetint_31_63.to_int field in
   let setfield_computed is_ptr =
     let index = C.int_const dbg field in
-    C.return_unit dbg (
-      C.setfield_computed is_ptr init_or_assign block index new_value dbg)
+    C.return_unit dbg
+      (C.setfield_computed is_ptr init_or_assign block index new_value dbg)
   in
   match kind with
   | Mixed { field_kind = Value_prefix Any_value; _ }
@@ -523,38 +523,38 @@ let dead_slots_msg dbg function_slots value_slots =
 (* Arithmetic primitives *)
 
 let static_cast_of_standard_int : K.Standard_int.t -> C.Static_cast.standard_int
-  = function
-    | Naked_int32 -> `Bits 32
-    | Naked_immediate -> `Bits (C.arch_bits - 1)
-    | Tagged_immediate -> `Tagged `Word
-    | Naked_nativeint -> `Bits C.arch_bits
-    | Naked_int64 -> `Bits 64
+    = function
+  | Naked_int32 -> `Bits 32
+  | Naked_immediate -> `Bits (C.arch_bits - 1)
+  | Tagged_immediate -> `Tagged `Word
+  | Naked_nativeint -> `Bits C.arch_bits
+  | Naked_int64 -> `Bits 64
 
-let static_cast_of_standard_int_or_float : K.Standard_int_or_float.t -> C.Static_cast.t
-  = function
-    | Naked_float32 -> `Float32
-    | Naked_float -> `Float
-    | Naked_int32 -> `Bits 32
-    | Naked_immediate -> `Bits (C.arch_bits - 1)
-    | Tagged_immediate -> `Tagged `Word
-    | Naked_nativeint -> `Bits C.arch_bits
-    | Naked_int64 -> `Bits 64
+let static_cast_of_standard_int_or_float :
+    K.Standard_int_or_float.t -> C.Static_cast.t = function
+  | Naked_float32 -> `Float32
+  | Naked_float -> `Float
+  | Naked_int32 -> `Bits 32
+  | Naked_immediate -> `Bits (C.arch_bits - 1)
+  | Tagged_immediate -> `Tagged `Word
+  | Naked_nativeint -> `Bits C.arch_bits
+  | Naked_int64 -> `Bits 64
 
 let unary_int_arith_primitive _env dbg kind op arg =
   match (op : P.unary_int_arith_op) with
-  | Neg ->
-    (match static_cast_of_standard_int kind with
-      | `Tagged `Word -> C.negint arg dbg
-      | `Bits bits ->
-        C.sign_extend ~bits
-          (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg)
-          dbg)
-  | Swap_byte_endianness ->
-    match (kind : K.Standard_int.t)  with
-    | Tagged_immediate  ->
-    (* This isn't currently needed since [Lambda_to_flambda_primitives] always
-       untags the integer first. *)
-    Misc.fatal_error "Not yet implemented"
+  | Neg -> (
+    match static_cast_of_standard_int kind with
+    | `Tagged `Word -> C.negint arg dbg
+    | `Bits bits ->
+      C.sign_extend ~bits
+        (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg)
+        dbg)
+  | Swap_byte_endianness -> (
+    match (kind : K.Standard_int.t) with
+    | Tagged_immediate ->
+      (* This isn't currently needed since [Lambda_to_flambda_primitives] always
+         untags the integer first. *)
+      Misc.fatal_error "Not yet implemented"
     | Naked_immediate ->
       (* This case should not have a sign extension, confusingly, because it
          arises from the [Pbswap16] Lambda primitive. That operation does not
@@ -562,7 +562,7 @@ let unary_int_arith_primitive _env dbg kind op arg =
       C.bswap16 arg dbg
     | Naked_int32 -> C.sign_extend ~bits:32 (C.bbswap Unboxed_int32 arg dbg) dbg
     | Naked_int64 -> C.sign_extend ~bits:64 (C.bbswap Unboxed_int64 arg dbg) dbg
-    | Naked_nativeint -> C.bbswap Unboxed_nativeint arg dbg
+    | Naked_nativeint -> C.bbswap Unboxed_nativeint arg dbg)
 
 let unary_float_arith_primitive _env dbg width op arg =
   match (width : P.float_bitwidth), (op : P.unary_float_arith_op) with
@@ -579,8 +579,7 @@ let arithmetic_conversion dbg src dst arg =
     let dst = static_cast_of_standard_int_or_float dst in
     let extra =
       match src, dst with
-      | `Tagged `Word, `Bits n when n = C.arch_bits ->
-        Some (Env.Untag arg)
+      | `Tagged `Word, `Bits n when n = C.arch_bits -> Some (Env.Untag arg)
       | _, _ -> None
     in
     extra, C.static_cast ~src ~dst arg dbg
@@ -665,8 +664,7 @@ let binary_int_shift_primitive _env dbg kind op x y =
        and use of [C.low_bits]. *)
     match op with
     | Asr -> C.asr_int x y dbg
-    | Lsl ->
-      C.sign_extend ~bits (C.lsl_int (C.low_bits ~bits x dbg) y dbg) dbg
+    | Lsl -> C.sign_extend ~bits (C.lsl_int (C.low_bits ~bits x dbg) y dbg) dbg
     | Lsr ->
       (* Ensure that the top half of the register is cleared, as some of those
          bits are likely to get shifted into the result. *)

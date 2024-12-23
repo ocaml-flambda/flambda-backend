@@ -157,9 +157,7 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
           | Naked_number
               (Naked_immediate | Naked_int64 | Naked_nativeint | Naked_float) ->
             ()
-          | Naked_number
-              ( Naked_int32 | Naked_vec128
-              | Naked_float32 )
+          | Naked_number (Naked_int32 | Naked_vec128 | Naked_float32)
           | Value | Region | Rec_info ->
             Misc.fatal_errorf
               "Cannot compile unboxed product return from external C call with \
@@ -844,8 +842,7 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           | Naked_number Naked_float -> C.float ~dbg 0.
           | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number
-              ( Naked_immediate | Naked_int32
-              | Naked_int64 | Naked_nativeint ) ->
+              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
             C.int ~dbg 0
           | Naked_number Naked_vec128 -> C.vec128 ~dbg { high = 0L; low = 0L }
           | Region | Rec_info ->

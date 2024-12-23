@@ -31,8 +31,8 @@ let static_field res field field_kind =
       match (field_kind : Flambda_kind.t) with
       | Naked_number Naked_vec128 -> [C.cvec128 { low = 1L; high = 1L }]
       | Naked_number
-          ( Naked_immediate | Naked_float32 | Naked_float
-          | Naked_int32 | Naked_int64 | Naked_nativeint )
+          ( Naked_immediate | Naked_float32 | Naked_float | Naked_int32
+          | Naked_int64 | Naked_nativeint )
       | Value ->
         [C.cint 1n]
       | Region | Rec_info ->

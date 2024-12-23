@@ -72,9 +72,8 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_float32 -> Cmm.typ_float32
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
-  | Naked_number
-      ( Naked_immediate | Naked_int32 | Naked_int64
-      | Naked_nativeint ) ->
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+    ->
     Cmm.typ_int
   | Region -> Cmm.typ_int
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
@@ -93,9 +92,8 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_float32 -> Extended_machtype.typ_float32
   | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
-  | Naked_number
-      ( Naked_immediate | Naked_int32 | Naked_int64
-      | Naked_nativeint ) ->
+  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
+    ->
     Extended_machtype.typ_any_int
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
@@ -397,10 +395,9 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         match kind with
         | Pointer -> Word_val
         | Immediate -> Word_int
-        | Naked_int8
-        | Naked_int16 ->
-          (* CR layouts v5.1: we only support small integers in being sign-extended in
-             word fields *)
+        | Naked_int8 | Naked_int16 ->
+          (* CR layouts v5.1: we only support small integers in being
+             sign-extended in word fields *)
           assert (stride = Arch.size_addr);
           Word_int
         | Naked_int32 ->
