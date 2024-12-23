@@ -33,7 +33,7 @@ let check_value ~init ~element_size =
   (* It is unfortunately necessary to duplicate this function many times because
      we don't have layout polymorphism. *)
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
     assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
   in
   List.iter check_one array_sizes_to_check
@@ -56,7 +56,7 @@ let _ = check_value ~init:42l ~element_size:int_array_element_size
 (* unboxed floats *)
 let check_floatu ~init ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
     assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
   in
   List.iter check_one array_sizes_to_check
@@ -68,7 +68,7 @@ let _ = check_floatu ~init:#42.0 ~element_size:floatu_array_element_size
 (* unboxed int64s *)
 let check_int64u ~(init : int64#) ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
     assert ((custom_block_padding + (element_size * n / bytes_per_word))
             = (Obj.size (Obj.repr x)))
   in
@@ -81,7 +81,14 @@ let _ = check_int64u ~init:#42L ~element_size:int64u_array_element_size
 (* unboxed float32s *)
 let check_float32u ~(init : float32#) ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
+    (* These arrays are packed in native code *)
+    let n =
+      match Sys.backend_type with
+      | Native -> if n mod 2 = 0 then n else n + 1
+      | Bytecode -> n
+      | Other _ -> failwith "Don't know what to do"
+    in
     assert ((custom_block_padding + (element_size * n / bytes_per_word))
             = (Obj.size (Obj.repr x)))
   in
@@ -94,7 +101,14 @@ let _ = check_float32u ~init:#42.0s ~element_size:float32u_array_element_size
 (* unboxed int32s *)
 let check_int32u ~(init : int32#) ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
+    (* These arrays are packed in native code *)
+    let n =
+      match Sys.backend_type with
+      | Native -> if n mod 2 = 0 then n else n + 1
+      | Bytecode -> n
+      | Other _ -> failwith "Don't know what to do"
+    in
     assert ((custom_block_padding + (element_size * n / bytes_per_word))
             = (Obj.size (Obj.repr x)))
   in
@@ -108,7 +122,7 @@ let _ = check_int32u ~init:#42l ~element_size:int32u_array_element_size
 let check_scannable_product1 ~(init : #(int * string * int * float array))
       ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
     assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
   in
   List.iter check_one array_sizes_to_check
@@ -125,7 +139,7 @@ type t_scan = #{ x : int; y : #(float * string); z: int option }
 let check_scannable_product2 ~(init : #(int * t_scan * string * t_scan))
       ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
     assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
   in
   List.iter check_one array_sizes_to_check
@@ -146,7 +160,7 @@ let _ = check_scannable_product2 ~init:(mk_el ())
 let check_ignorable_product1 ~(init : #(int * float32# * int * int64#))
       ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
     assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
   in
   List.iter check_one array_sizes_to_check
@@ -163,7 +177,7 @@ type t_ignore = #{ x : int; y : #(float# * int32#); z: int32# }
 let check_ignorable_product2 ~(init : #(int * t_ignore * bool * t_ignore))
       ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
+    let x = makearray_dynamic n init in
     assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
   in
   List.iter check_one array_sizes_to_check
@@ -180,11 +194,14 @@ let ignorable_product2_array_element_size =
 let _ = check_ignorable_product2 ~init:(mk_el ())
           ~element_size:ignorable_product2_array_element_size
 
-(* check float32# packing *)
+(* check lack of float32# packing in unboxed product arrays *)
 let check_float32u_pair ~(init : #(float32# * float32#)) ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
-    assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
+    let x = makearray_dynamic n init in
+    (* 2 because there are two components in the unboxed product *)
+    match Sys.backend_type with
+    | Native -> assert (n * 2 = (Obj.size (Obj.repr x)))
+    | Bytecode | Other _ -> assert (n = Obj.size (Obj.repr x))
   in
   List.iter check_one array_sizes_to_check
 
@@ -194,11 +211,14 @@ let float32u_pair_array_element_size =
 let _ = check_float32u_pair ~init:#(#1.0s, #42.1s)
           ~element_size:float32u_pair_array_element_size
 
-(* check int32# packing *)
+(* check lack of int32# packing in unboxed product arrays *)
 let check_int32u_pair ~(init : #(int32# * int32#)) ~element_size =
   let check_one n =
-    let x = makearray_dynamic n (fun _ -> init) in
-    assert ((element_size * n / bytes_per_word) = (Obj.size (Obj.repr x)))
+    let x = makearray_dynamic n init in
+    (* 2 because there are two components in the unboxed product *)
+    match Sys.backend_type with
+    | Native -> assert (n * 2 = (Obj.size (Obj.repr x)))
+    | Bytecode | Other _ -> assert (n = Obj.size (Obj.repr x))
   in
   List.iter check_one array_sizes_to_check
 
