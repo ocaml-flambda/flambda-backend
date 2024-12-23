@@ -409,10 +409,9 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         match kind with
         | Pointer -> Word_val
         | Immediate -> Word_int
-        | Naked_int8
-        | Naked_int16 ->
-          (* CR layouts v5.1: we only support small integers in being sign-extended in
-             word fields *)
+        | Naked_int8 | Naked_int16 ->
+          (* CR layouts v5.1: we only support small integers in being
+             sign-extended in word fields *)
           assert (stride = Arch.size_addr);
           Word_int
         | Naked_int32 ->
