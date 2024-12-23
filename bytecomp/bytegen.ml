@@ -1009,6 +1009,8 @@ let rec comp_expr stack_info env exp sz cont =
             Lconst (Const_base (Const_float32 "0.0"))
         | Punboxedfloatarray Unboxed_float64 ->
             Lconst (Const_base (Const_float "0.0"))
+        | Punboxedintarray (Unboxed_int8| Unboxed_int16) ->
+          Misc.unboxed_small_int_arrays_are_not_implemented ()
         | Punboxedintarray Unboxed_int32 ->
             Lconst (Const_base (Const_int32 0l))
         | Punboxedintarray Unboxed_int64 ->
@@ -1026,6 +1028,8 @@ let rec comp_expr stack_info env exp sz cont =
                 Lconst (Const_base (Const_float32 "0.0"))
               | Punboxedfloat_ignorable Unboxed_float64 ->
                 Lconst (Const_base (Const_float "0.0"))
+              | Punboxedint_ignorable (Unboxed_int8| Unboxed_int16) ->
+                Misc.unboxed_small_int_arrays_are_not_implemented ()
               | Punboxedint_ignorable Unboxed_int32 ->
                 Lconst (Const_base (Const_int32 0l))
               | Punboxedint_ignorable Unboxed_int64 ->
