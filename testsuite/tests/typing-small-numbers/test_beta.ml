@@ -199,17 +199,13 @@ type t = int16;;
 type t = int16
 |}];;
 
+let i8 = Stdlib_beta.Int8.minus_one;;
+[%%expect{|
+val i8 : int8 = -1
+|}];;
+
 let i16 = Stdlib_beta.Int16.minus_one;;
 [%%expect{|
 val i16 : int16 = -1
 |}];;
 
-let () =
-  match #0.0s with
-| #0.0s -> ()
-| _ -> ()
-;;
-[%%expect{|
-Line 1:
-Error: float32 literal patterns are not supported.
-|}];;

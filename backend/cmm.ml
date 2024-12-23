@@ -388,14 +388,6 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-let width_in_bytes (memory_chunk : memory_chunk) : int =
-  match memory_chunk with
-  | Byte_unsigned | Byte_signed -> 1
-  | Sixteen_unsigned | Sixteen_signed -> 2
-  | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
-  | Word_int | Word_val | Double -> 8
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
-
 let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)
 
@@ -746,3 +738,8 @@ let equal_integer_comparison left right =
     false
 
 let caml_flambda2_invalid = "caml_flambda2_invalid"
+
+let is_val (m: machtype_component) =
+  match m with
+  | Val -> true
+  | Addr | Int | Float | Vec128 | Float32 -> false

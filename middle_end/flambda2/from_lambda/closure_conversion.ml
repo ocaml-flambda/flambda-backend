@@ -527,7 +527,7 @@ let unarize_extern_repr alloc_mode (extern_repr : Lambda.extern_repr) =
   match extern_repr with
   | Same_as_ocaml_repr (Base _ as sort) ->
     let kind =
-      Typeopt.layout_of_const_sort sort
+      Typeopt.layout_of_non_void_sort sort
       |> K.With_subkind.from_lambda_values_and_unboxed_numbers_only
       |> K.With_subkind.kind
     in

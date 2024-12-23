@@ -434,9 +434,9 @@ uintnat caml_mem_round_up_mapping_size(uintnat size);
    caml_plat_pagesize. The size given to caml_mem_unmap and caml_mem_decommit
    must match the size given to caml_mem_map/caml_mem_commit for mem.
 */
-void* caml_mem_map(uintnat size, int reserve_only);
-void* caml_mem_commit(void* mem, uintnat size);
-void caml_mem_decommit(void* mem, uintnat size);
+void* caml_mem_map(uintnat size, int reserve_only, const char* name);
+void* caml_mem_commit(void* mem, uintnat size, const char* name);
+void caml_mem_decommit(void* mem, uintnat size, const char* name);
 void caml_mem_unmap(void* mem, uintnat size);
 
 

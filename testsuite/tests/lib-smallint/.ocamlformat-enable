@@ -1,3 +1,2 @@
-test_int8.ml
-test_int16.ml
+test_smallint.ml
 

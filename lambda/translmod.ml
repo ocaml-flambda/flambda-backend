@@ -39,7 +39,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_jkind of type_expr * Jkind.sort
+| Non_value_jkind of type_expr * Jkind.Sort.Const.t
 | Instantiating_packed of Compilation_unit.t
 
 exception Error of Location.t * error
@@ -56,7 +56,7 @@ exception Error of Location.t * error
    When this sanity check is removed, consider whether it must be replaced with
    some defaulting. *)
 let sort_must_not_be_void loc ty sort =
-  if Jkind.Sort.is_void_defaulting sort then
+  if Jkind.Sort.Const.(equal void sort) then
     raise (Error (loc, Non_value_jkind (ty, sort)))
 
 let cons_opt x_opt xs =
@@ -607,7 +607,7 @@ and transl_module ~scopes cc rootpath mexp =
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
       apply_coercion loc Strict cc
-        (Translcore.transl_exp ~scopes Jkind.Sort.for_module arg)
+        (Translcore.transl_exp ~scopes Jkind.Sort.Const.for_module arg)
 
 and transl_apply ~scopes ~loc ~cc mod_env funct translated_arg =
   let inlined_attribute =
@@ -694,6 +694,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
           let body, size =
             transl_structure ~scopes loc fields cc rootpath final_env rem
           in
+          let sort = Jkind.Sort.default_for_transl_and_get sort in
           sort_must_not_be_void expr.exp_loc expr.exp_type sort;
           Lsequence(transl_exp ~scopes sort expr, body), size
       | Tstr_value(rec_flag, pat_expr_list) ->
@@ -1225,6 +1226,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
     | item :: rem ->
         match item.str_desc with
         | Tstr_eval (expr, sort, _attrs) ->
+            let sort = Jkind.Sort.default_for_transl_and_get sort in
             sort_must_not_be_void expr.exp_loc expr.exp_type sort;
             Lsequence(Lambda.subst no_env_update subst
                         (transl_exp ~scopes sort expr),
@@ -1652,6 +1654,7 @@ let transl_store_structure_gen
       match str with
       | [ { str_desc = Tstr_eval (expr, sort, _attrs) } ] when topl ->
         assert (size = 0);
+        let sort = Jkind.Sort.default_for_transl_and_get sort in
         sort_must_not_be_void expr.exp_loc expr.exp_type sort;
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes sort expr)
@@ -1779,11 +1782,13 @@ let transl_toplevel_item ~scopes item =
        Otherwise, the normal compilation would result in a Lsequence returning
        unit. *)
     Tstr_eval (expr, sort, _) ->
+      let sort = Jkind.Sort.default_for_transl_and_get sort in
       sort_must_not_be_void expr.exp_loc expr.exp_type sort;
       transl_exp ~scopes sort expr
   | Tstr_value(Nonrecursive,
                [{vb_pat = {pat_desc=Tpat_any}; vb_expr = expr;
                  vb_sort = sort}]) ->
+      let sort = Jkind.Sort.default_for_transl_and_get sort in
       transl_exp ~scopes sort expr
   | Tstr_value(rec_flag, pat_expr_list) ->
       let idents = let_bound_idents pat_expr_list in
@@ -2142,7 +2147,7 @@ let report_error loc = function
       Location.errorf
         "Non-value sort %a detected in [translmod] in type %a:@ \
          Please report this error to the Jane Street compilers team."
-        Jkind.Sort.format sort
+        Jkind.Sort.Const.format sort
         Printtyp.type_expr ty
   | Instantiating_packed comp_unit ->
       Location.errorf ~loc

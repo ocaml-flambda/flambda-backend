@@ -24,10 +24,10 @@ let f (type (a : immediate) (b : immediate)) (x : a) = x;;
 let f (type (a : immediate) (b : immediate) c) (x : a) = x;;
 
 [%%expect{|
-val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
-val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
-val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
-val f : ('a : immediate). 'a -> 'a @@ global many = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
+val f : ('a : immediate). 'a -> 'a = <fun>
 |}]
 
 let f y (type a : immediate) (x : a) = x;;
@@ -35,12 +35,9 @@ let f y (type (a : immediate)) (x : a) = x;;
 let f y (type (a : immediate) (b : immediate)) (x : a) = x;;
 
 [%%expect{|
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a @@ global many =
-  <fun>
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a @@ global many =
-  <fun>
-val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a @@ global many =
-  <fun>
+val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
+val f : ('b : value_or_null) ('a : immediate). 'b -> 'a -> 'a = <fun>
 |}]
 
 let f y (type a : immediate) = y;;
@@ -49,10 +46,10 @@ let f y (type (a : immediate) (b : immediate)) = y;;
 let f y (type (a : immediate) (b : immediate) c) = y;;
 
 [%%expect{|
-val f : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
-val f : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
-val f : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
-val f : ('a : value_or_null). 'a -> 'a @@ global many = <fun>
+val f : ('a : value_or_null). 'a -> 'a = <fun>
+val f : ('a : value_or_null). 'a -> 'a = <fun>
+val f : ('a : value_or_null). 'a -> 'a = <fun>
+val f : ('a : value_or_null). 'a -> 'a = <fun>
 |}]
 
 (* Just newtypes, no value parameters *)
@@ -61,7 +58,7 @@ let f (type a : immediate) (type b : immediate)
   = ();;
 
 [%%expect{|
-val f : unit @@ global many = ()
+val f : unit = ()
 |}]
 
 module type S_for_layouts = sig
@@ -94,10 +91,10 @@ let f : (unit as (_ : immediate)) -> unit = fun () -> ()
 
 [%%expect{|
 type ('a : immediate) for_layouts = 'a
-val f : ('a : float64) ('b : bits64). 'a -> 'b -> 'a @@ global many = <fun>
-val f : ('a : float64). 'a -> 'a @@ global many = <fun>
-val f : (('a : float64). 'a -> 'a) -> int @@ global many = <fun>
-val f : unit -> unit @@ global many = <fun>
+val f : ('a : float64) ('b : bits64). 'a -> 'b -> 'a = <fun>
+val f : ('a : float64). 'a -> 'a = <fun>
+val f : (('a : float64). 'a -> 'a) -> int = <fun>
+val f : unit -> unit = <fun>
 |}]
 
 type (_ : any) ignore = K1
@@ -160,8 +157,7 @@ let f xs = match xs with
 
 [%%expect{|
 type t = #(int * float#)
-val f : ('a : value_or_null). #('a * float#) -> #('a * float#) @@ global many =
-  <fun>
+val f : ('a : value_or_null). #('a * float#) -> #('a * float#) = <fun>
 |}]
 
 module M = struct
@@ -171,7 +167,7 @@ let x () = #( M.Null, M.This "hi" )
 
 [%%expect{|
 module M : sig type 'a t = 'a or_null = Null | This of 'a end
-val x : unit -> #('a M.t * string M.t) @@ global many = <fun>
+val x : unit -> #('a M.t * string M.t) = <fun>
 |}]
 
 external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
@@ -189,21 +185,21 @@ let nums = [| x for x = 0 to 100 |];;
 let nums = [  x for x = 0 to 100   ];;
 
 [%%expect{|
-val nums : int iarray @@ global many =
+val nums : int iarray =
   [:0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19; 20;
     21; 22; 23; 24; 25; 26; 27; 28; 29; 30; 31; 32; 33; 34; 35; 36; 37; 38;
     39; 40; 41; 42; 43; 44; 45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56;
     57; 58; 59; 60; 61; 62; 63; 64; 65; 66; 67; 68; 69; 70; 71; 72; 73; 74;
     75; 76; 77; 78; 79; 80; 81; 82; 83; 84; 85; 86; 87; 88; 89; 90; 91; 92;
     93; 94; 95; 96; 97; 98; 99; 100:]
-val nums : int array @@ global many =
+val nums : int array =
   [|0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19; 20;
     21; 22; 23; 24; 25; 26; 27; 28; 29; 30; 31; 32; 33; 34; 35; 36; 37; 38;
     39; 40; 41; 42; 43; 44; 45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56;
     57; 58; 59; 60; 61; 62; 63; 64; 65; 66; 67; 68; 69; 70; 71; 72; 73; 74;
     75; 76; 77; 78; 79; 80; 81; 82; 83; 84; 85; 86; 87; 88; 89; 90; 91; 92;
     93; 94; 95; 96; 97; 98; 99; 100|]
-val nums : int list @@ global many =
+val nums : int list =
   [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 10; 11; 12; 13; 14; 15; 16; 17; 18; 19; 20;
    21; 22; 23; 24; 25; 26; 27; 28; 29; 30; 31; 32; 33; 34; 35; 36; 37; 38;
    39; 40; 41; 42; 43; 44; 45; 46; 47; 48; 49; 50; 51; 52; 53; 54; 55; 56;
@@ -218,9 +214,9 @@ let nums = [| x for x in [| 1; 2; 3 |] |];;
 let nums = [  x for x in [  1; 2; 3  ]  ];;
 
 [%%expect{|
-val nums : int iarray @@ global many = [:1; 2; 3:]
-val nums : int array @@ global many = [|1; 2; 3|]
-val nums : int list @@ global many = [1; 2; 3]
+val nums : int iarray = [:1; 2; 3:]
+val nums : int array = [|1; 2; 3|]
+val nums : int list = [1; 2; 3]
 |}]
 
 (* complex comprehension *)
@@ -251,10 +247,10 @@ let nums = [| n, m, x
   |];;
 
 [%%expect{|
-val nums : int iarray @@ global many = [:7; 7; 8; 7; 8; 9:]
-val nums : int array @@ global many = [|7; 7; 8; 7; 8; 9|]
-val nums : int list @@ global many = [7; 7; 8; 7; 8; 9]
-val nums : (int * int * int) array @@ global many =
+val nums : int iarray = [:7; 7; 8; 7; 8; 9:]
+val nums : int array = [|7; 7; 8; 7; 8; 9|]
+val nums : int list = [7; 7; 8; 7; 8; 9]
+val nums : (int * int * int) array =
   [|(1, 5, 6); (1, 5, 2); (1, 2, 3); (1, 2, 3); (2, 4, 2); (2, 1, 3);
     (3, 3, 4); (3, 3, 2); (3, 0, 1); (3, 0, 3); (4, 5, 3); (4, 2, 2);
     (5, 4, 5); (5, 4, 3); (5, 1, 2); (5, 1, 2); (6, 3, 3); (6, 0, 2);
@@ -279,7 +275,7 @@ let nums =
   ([(x[@test.attr1]) for (x[@test.attr2]) in ([][@test.attr3])] [@test.attr4]);;
 
 [%%expect{|
-val nums : 'a list @@ global many = []
+val nums : 'a list = []
 |}]
 
 (*********)
@@ -296,8 +292,8 @@ val f :
     local_ 'a @ unique ->
     y:local_ 'b @ once ->
     z:'c @ once unique ->
-    ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit
-  @@ global many = <fun>
+    ?foo:local_ int @ once unique -> ?bar:local_ int -> unit -> unit =
+  <fun>
 |}]
 
 (* bindings *)
@@ -366,7 +362,7 @@ Line 12, characters 6-9:
            ^^^
 Warning 26 [unused-var]: unused variable foo.
 
-val g : unit -> unit @@ global many = <fun>
+val g : unit -> unit = <fun>
 |}]
 
 (* expressions *)
@@ -386,7 +382,7 @@ Line 3, characters 6-7:
           ^
 Warning 26 [unused-var]: unused variable f.
 
-val g : unit -> local_ unit @ once @@ global many = <fun>
+val g : unit -> local_ unit @ once = <fun>
 |}]
 
 (* types *)
@@ -463,16 +459,16 @@ val f :
     local_ 'd -> local_
     'b * string * (string -> string) * ('e -> 'e) * 'c * string * string *
     int array * string * (int -> local_ (int -> int)) *
-    (int -> local_ (int -> int)) @ contended
-  @@ global many = <fun>
+    (int -> local_ (int -> int)) @ contended =
+  <fun>
 |}]
 
 let f1 (_ @ local) = ()
 let f2 () = let x @ local = [1; 2; 3] in f1 x [@nontail]
 
 [%%expect{|
-val f1 : ('a : value_or_null). local_ 'a -> unit @@ global many = <fun>
-val f2 : unit -> unit @@ global many = <fun>
+val f1 : ('a : value_or_null). local_ 'a -> unit = <fun>
+val f2 : unit -> unit = <fun>
 |}]
 
 module type S = sig @@ portable contended
@@ -544,8 +540,7 @@ Error: This value escapes its region.
 let f2 (x @ local) (f @ once) : t2 = exclave_ { x; f }
 
 [%%expect{|
-val f2 : local_ float -> (float -> float) @ once -> local_ t2 @ once @@
-  global many = <fun>
+val f2 : local_ float -> (float -> float) @ once -> local_ t2 @ once = <fun>
 |}]
 
 
@@ -766,7 +761,7 @@ let f x =
   | _ -> assert false;;
 
 [%%expect{|
-val f : 'a iarray -> 'a iarray @@ global many = <fun>
+val f : 'a iarray -> 'a iarray = <fun>
 |}]
 
 (******************)
@@ -782,25 +777,25 @@ let (x : (x:int * y:int)) = (~x:1, ~y:2)
 let (x : ((x:int * y:int) [@test.attr])) = (~x:1, ~y:2)
 
 [%%expect{|
-val z : int @@ global many = 4
-val punned : int @@ global many = 5
-val x_must_be_even : ('a : value_or_null) ('b : value_or_null). 'a -> 'b @@
-  global many = <fun>
+val z : int = 4
+val punned : int = 5
+val x_must_be_even : ('a : value_or_null) ('b : value_or_null). 'a -> 'b =
+  <fun>
 exception Odd
-val x : x:int * y:int @@ global many = (~x:1, ~y:2)
-val x : x:int * y:int @@ global many = (~x:1, ~y:2)
+val x : x:int * y:int = (~x:1, ~y:2)
+val x : x:int * y:int = (~x:1, ~y:2)
 - : x:int * int * z:int * punned:int = (~x:5, 2, ~z:4, ~punned:5)
-val x : x:int * y:int @@ global many = (~x:1, ~y:2)
-val x : x:int * y:int @@ global many = (~x:1, ~y:2)
+val x : x:int * y:int = (~x:1, ~y:2)
+val x : x:int * y:int = (~x:1, ~y:2)
 |}]
 
 let (~x:x0, ~s, ~(y:int), ..) : (x:int * s:string * y:int * string) =
    (~x: 1, ~s: "a", ~y: 2, "ignore me")
 
 [%%expect{|
-val x0 : int @@ global many portable = 1
-val s : string @@ global many portable = "a"
-val y : int @@ global many portable = 2
+val x0 : int @@ portable = 1
+val s : string @@ portable = "a"
+val y : int @@ portable = 2
 |}]
 
 module M : sig
@@ -837,14 +832,14 @@ let f ((~(x:int),y) : (x:int * int)) : int = x + y
 [%%expect{|
 val foo :
   ('a : value_or_null) ('b : value_or_null).
-    'a -> (unit -> 'b) -> (unit -> 'b) -> 'b
-  @@ global many = <fun>
-val x : int @@ global many portable = 1
-val y : int @@ global many = 2
-val x : int @@ global many portable = 1
-val y : int @@ global many = 2
-val f : (foo:int * bar:int) -> int @@ global many = <fun>
-val f : (x:int * int) -> int @@ global many = <fun>
+    'a -> (unit -> 'b) -> (unit -> 'b) -> 'b =
+  <fun>
+val x : int @@ portable = 1
+val y : int = 2
+val x : int @@ portable = 1
+val y : int = 2
+val f : (foo:int * bar:int) -> int = <fun>
+val f : (x:int * int) -> int = <fun>
 |}]
 
 type xy = (x:int * y:int)
@@ -862,9 +857,9 @@ let matches =
 
 [%%expect{|
 type xy = x:int * y:int
-val lt : x:int * y:int * x:int * int @@ global many = (~x:1, ~y:2, ~x:3, 4)
-val matches : int @@ global many = 1
-val matches : int * int @@ global many = (1, 2)
+val lt : x:int * y:int * x:int * int = (~x:1, ~y:2, ~x:3, 4)
+val matches : int = 1
+val matches : int * int = (1, 2)
 |}]
 
 (********************)
@@ -892,10 +887,10 @@ let test_nativeint s f =
   Format.printf "%s: %s\n" s (Nativeint_u.to_string f); Format.print_flush ()
 
 [%%expect{|
-val test_float : string -> Float_u.t -> unit @@ global many = <fun>
-val test_int32 : string -> Int32_u.t -> unit @@ global many = <fun>
-val test_int64 : string -> Int64_u.t -> unit @@ global many = <fun>
-val test_nativeint : string -> Nativeint_u.t -> unit @@ global many = <fun>
+val test_float : string -> Float_u.t -> unit = <fun>
+val test_int32 : string -> Int32_u.t -> unit = <fun>
+val test_int64 : string -> Int64_u.t -> unit = <fun>
+val test_nativeint : string -> Nativeint_u.t -> unit = <fun>
 |}]
 
 (* Expressions *)
@@ -924,45 +919,45 @@ let x = test_int64 "forty_two_in_binary" (#0b101010L)
 
 [%%expect{|
 e: 2.718282
-val x : unit @@ global many = ()
+val x : unit = ()
 negative_one_half: -0.500000
-val x : unit @@ global many = ()
+val x : unit = ()
 negative_one_half: -0.500000
-val x : unit @@ global many = ()
+val x : unit = ()
 negative_one_half: -0.500000
-val x : unit @@ global many = ()
+val x : unit = ()
 negative_one_half: -0.500000
-val x : unit @@ global many = ()
+val x : unit = ()
 positive_one_dot: 1.000000
-val x : unit @@ global many = ()
+val x : unit = ()
 positive_one_dot: 1.000000
-val x : unit @@ global many = ()
+val x : unit = ()
 positive_one_dot: 1.000000
-val x : unit @@ global many = ()
+val x : unit = ()
 positive_one_dot: 1.000000
-val x : unit @@ global many = ()
+val x : unit = ()
 one_billion: 1000000000.000000
-val x : unit @@ global many = ()
+val x : unit = ()
 one_twenty_seven_point_two_five_in_floating_hex: 127.250000
-val x : unit @@ global many = ()
+val x : unit = ()
 five_point_three_seven_five_in_floating_hexponent: 5.375000
-val x : unit @@ global many = ()
+val x : unit = ()
 zero: 0
-val x : unit @@ global many = ()
+val x : unit = ()
 positive_one: 1
-val x : unit @@ global many = ()
+val x : unit = ()
 positive_one: 1
-val x : unit @@ global many = ()
+val x : unit = ()
 negative_one: -1
-val x : unit @@ global many = ()
+val x : unit = ()
 negative_one: -1
-val x : unit @@ global many = ()
+val x : unit = ()
 two_fifty_five_in_hex: 255
-val x : unit @@ global many = ()
+val x : unit = ()
 twenty_five_in_octal: 25
-val x : unit @@ global many = ()
+val x : unit = ()
 forty_two_in_binary: 42
-val x : unit @@ global many = ()
+val x : unit = ()
 |}]
 
 (* Patterns *)
@@ -987,9 +982,9 @@ let f x =
 ;;
 
 [%%expect{|
-val f : float# -> [> `Five | `Four | `Other ] @@ global many = <fun>
-val x : unit @@ global many = ()
-val f : float# -> float# @@ global many = <fun>
+val f : float# -> [> `Five | `Four | `Other ] = <fun>
+val x : unit = ()
+val f : float# -> float# = <fun>
 |}]
 ;;
 test_float "result" (f #7.);;
@@ -1020,10 +1015,10 @@ let f x =
 [%%expect{|
 result: 7.000000
 - : unit = ()
-val f : float# -> float# @@ global many = <fun>
+val f : float# -> float# = <fun>
 larger match result: 3.000000
 - : unit = ()
-val f : int64# -> [> `Five | `Four | `Other ] @@ global many = <fun>
+val f : int64# -> [> `Five | `Four | `Other ] = <fun>
 |}]
 
 let x =
@@ -1041,8 +1036,8 @@ let f x =
 test_int64 "result" (f #7L);;
 
 [%%expect{|
-val x : unit @@ global many = ()
-val f : int64# -> int64# @@ global many = <fun>
+val x : unit = ()
+val f : int64# -> int64# = <fun>
 result: 7
 - : unit = ()
 |}]
@@ -1056,9 +1051,9 @@ let #{ data = payload; _ } = #{ data = "payload" ; i = 0 }
 let inc r = #{ r with i = r.#i + 1 }
 [%%expect{|
 type 'a with_idx = #{ data : 'a; i : int; }
-val idx : 'a with_idx -> int @@ global many = <fun>
-val payload : string @@ global many = "payload"
-val inc : 'a with_idx -> 'a with_idx @@ global many = <fun>
+val idx : 'a with_idx -> int = <fun>
+val payload : string = "payload"
+val inc : 'a with_idx -> 'a with_idx = <fun>
 |}]
 
 (***************)
@@ -1088,9 +1083,10 @@ end
    supported. *)
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 11, characters 17-39:
+11 |   type 'a list : immutable_data with 'a
+                      ^^^^^^^^^^^^^^^^^^^^^^
+Error: Unimplemented kind syntax
 |}]
 
 (**************************)
@@ -1102,7 +1098,7 @@ let f (_ : 'a. 'a -> 'a) = ()
 
 [%%expect{|
 type t = ('a. 'a -> 'a) -> int
-val f : ('a. 'a -> 'a) -> unit @@ global many = <fun>
+val f : ('a. 'a -> 'a) -> unit = <fun>
 |}]
 
 (************************)
@@ -1140,8 +1136,8 @@ let x () = #3.14s
 [%%expect{|
 type t1 = float32
 type t2 = float32#
-val x : float32 @@ global many = 3.1400001s
-val x : unit -> float32# @@ global many = <fun>
+val x : float32 = 3.1400001s
+val x : unit -> float32# = <fun>
 |}]
 
 (********)

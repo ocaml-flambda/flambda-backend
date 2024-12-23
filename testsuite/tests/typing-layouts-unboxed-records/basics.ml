@@ -712,3 +712,43 @@ Error: The universal type variable 'a was declared to have kind any.
        But it was inferred to have kind value_or_null
          because of the definition of t at line 1, characters 0-40.
 |}]
+
+
+(************************************************************)
+
+(* This is a regression test. Previously, we hit a fatal error because the [any]
+   annotation obscured the fact that the unboxed record is a product, breaking
+   an invariant assumed by [Ctype.constrain_type_jkind].
+
+   [a] was necessary to trigger the error because it called
+   [check_representable] on [b], constraining its kind to be a sort variable. *)
+type a = B of b
+and b : any = #{ i : int ; j : int }
+[%%expect{|
+Line 1, characters 9-15:
+1 | type a = B of b
+             ^^^^^^
+Error: Type "b" has layout "value & value".
+       Variants may not yet contain types of this layout.
+|}]
+type a = B of b_portable
+and b_portable : any mod portable = #{ i : int ; j : int }
+[%%expect{|
+Line 1, characters 9-24:
+1 | type a = B of b_portable
+             ^^^^^^^^^^^^^^^
+Error: Type "b_portable" has layout "value & value".
+       Variants may not yet contain types of this layout.
+|}]
+type a = B of b
+and b : any & any & any = #{ i : int ; j : int }
+[%%expect{|
+Line 2, characters 0-48:
+2 | and b : any & any & any = #{ i : int ; j : int }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The layout of b is any & any & any
+         because of the annotation on the declaration of the type b.
+       But the layout of b must be representable
+         because it's the type of a constructor field.
+|}]
