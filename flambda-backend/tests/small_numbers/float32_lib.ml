@@ -9,6 +9,8 @@ module F32 = Stdlib_stable.Float32
 module CF32 = struct
   type t = float32
 
+  external is_boxed_float32 : t -> bool = "float32_is_boxed_float32" [@@noalloc]
+
   external to_bits : (t [@unboxed]) -> (int32 [@unboxed]) = "float32_bits_to_int_boxed" "float32_bits_to_int" [@@noalloc]
 
   external of_int : (int [@untagged]) -> (t [@unboxed]) = "float32_of_int_boxed" "float32_of_int" [@@noalloc]
@@ -165,7 +167,17 @@ let () =
   bit_eq F32.pi CF32.pi;
   bit_eq F32.min_float CF32.minv;
   bit_eq F32.max_float CF32.maxv;
-  bit_eq F32.epsilon CF32.epsilon
+  bit_eq F32.epsilon CF32.epsilon;
+  assert (CF32.is_boxed_float32 F32.zero);
+  assert (CF32.is_boxed_float32 F32.one);
+  assert (CF32.is_boxed_float32 F32.minus_one);
+  assert (CF32.is_boxed_float32 F32.infinity);
+  assert (CF32.is_boxed_float32 F32.neg_infinity);
+  assert (CF32.is_boxed_float32 F32.nan);
+  assert (CF32.is_boxed_float32 F32.pi);
+  assert (CF32.is_boxed_float32 F32.min_float);
+  assert (CF32.is_boxed_float32 F32.max_float);
+  assert (CF32.is_boxed_float32 F32.epsilon);
 ;;
 
 let () =
