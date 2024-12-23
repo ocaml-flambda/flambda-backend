@@ -814,6 +814,28 @@ let bytes_like_set ~dbg ~unsafe
 
 (* Array bounds checks *)
 
+(* The following function constructs bounds checks based on two things:
+
+   1. The array length kind, which specifies the representation of the array,
+   including any unboxed product types. This kind is used to establish the
+   starting field index in the runtime value where the access(es) is/are going
+   to occur, in addition to how many fields are going to be accessed at a
+   minimum. "How many fields" is always one except in the case where unboxed
+   products are involved: in such cases, more than one field may be accessed.
+   "At a minimum" only applies for vector reinterpret operations as described
+   next; in all other cases this number is exact.
+
+   2. The [num_consecutive_elements_being_accessed]. "Elements" here refers to
+   the non-unarized elements as the user sees via the array get/set primitives.
+   This value is always 1 except in the case where the array operation is in
+   fact really a reinterpret operation with a vector input or output (for
+   example an array of naked floats being read as a 128-bit vector of such
+   floats). In these latter cases the value of
+   [num_consecutive_elements_being_accessed] may be greater than 1. This value
+   may not be greater than 1 if unboxed products are involved, at present. *)
+
+(* CR mshinwell: When considering vectors and unboxed products, we should think
+   again about whether the abstractions/concepts here can be improved. *)
 let multiple_word_array_access_validity_condition array ~size_int
     array_length_kind (index_kind : L.array_index_kind)
     ~num_consecutive_elements_being_accessed ~index =
