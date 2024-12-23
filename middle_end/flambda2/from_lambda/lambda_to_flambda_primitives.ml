@@ -815,12 +815,25 @@ let bytes_like_set ~dbg ~unsafe
 (* Array bounds checks *)
 
 let multiple_word_array_access_validity_condition array ~size_int
-    array_length_kind (index_kind : L.array_index_kind) ~width_in_scalars ~index
-    =
+    array_length_kind (index_kind : L.array_index_kind)
+    ~num_consecutive_elements_being_accessed ~index =
+  let width_in_scalars_per_access =
+    P.Array_kind_for_length.width_in_scalars array_length_kind
+  in
+  assert (width_in_scalars_per_access >= 1);
   let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
-  if width_in_scalars < 1
-  then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
-  else if width_in_scalars = 1
+  if num_consecutive_elements_being_accessed < 1
+  then
+    Misc.fatal_errorf
+      "Invalid num_consecutive_elements_being_accessed value: %d"
+      num_consecutive_elements_being_accessed
+  else if width_in_scalars_per_access > 1
+          && num_consecutive_elements_being_accessed > 1
+  then
+    Misc.fatal_error
+      "Unboxed product arrays cannot involve vector accesses at present"
+  else if width_in_scalars_per_access = 1
+          && num_consecutive_elements_being_accessed = 1
   then
     (* Ensure good code generation in the common case. *)
     check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
@@ -828,13 +841,19 @@ let multiple_word_array_access_validity_condition array ~size_int
   else
     let length_untagged = untag_int length_tagged in
     let reduced_length_untagged =
-      H.Prim
-        (Binary
-           ( Int_arith (Naked_immediate, Sub),
-             length_untagged,
-             Simple
-               (Simple.untagged_const_int
-                  (Targetint_31_63.of_int (width_in_scalars - 1))) ))
+      if num_consecutive_elements_being_accessed = 1
+      then length_untagged
+      else
+        (* This is used for vector accesses, where no unarization is
+           involved. *)
+        H.Prim
+          (Binary
+             ( Int_arith (Naked_immediate, Sub),
+               length_untagged,
+               Simple
+                 (Simple.untagged_const_int
+                    (Targetint_31_63.of_int
+                       (num_consecutive_elements_being_accessed - 1))) ))
     in
     (* We need to convert the length into a naked_nativeint because the
        optimised version of the max_with_zero function needs to be on
@@ -847,34 +866,21 @@ let multiple_word_array_access_validity_condition array ~size_int
              reduced_length_untagged ))
     in
     let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
-    let index : H.simple_or_prim =
-      (* [length_tagged] is in units of scalars. Multiply up [index] to
-         match. *)
-      let multiplier =
-        P.Array_kind_for_length.width_in_scalars array_length_kind
-      in
-      let arith_kind, multiplier =
-        match index_kind with
-        | Ptagged_int_index ->
-          ( I.Tagged_immediate,
-            Simple.const_int (Targetint_31_63.of_int multiplier) )
-        | Punboxed_int_index bint -> (
-          match bint with
-          | Unboxed_int32 ->
-            ( I.Naked_int32,
-              Simple.const
-                (Reg_width_const.naked_int32 (Int32.of_int multiplier)) )
-          | Unboxed_int64 ->
-            ( I.Naked_int64,
-              Simple.const
-                (Reg_width_const.naked_int64 (Int64.of_int multiplier)) )
-          | Unboxed_nativeint ->
-            ( I.Naked_nativeint,
-              Simple.const
-                (Reg_width_const.naked_nativeint
-                   (Targetint_32_64.of_int multiplier)) ))
-      in
-      Prim (Binary (Int_arith (arith_kind, Mul), index, Simple multiplier))
+    let nativeint_bound : H.simple_or_prim =
+      if width_in_scalars_per_access = 1
+      then nativeint_bound
+      else
+        (* This is used for unboxed product accesses. [index] is in non-unarized
+           terms and we don't touch it, to avoid risks of overflow. Instead we
+           compute the non-unarized bound, then compare against that. *)
+        Prim
+          (Binary
+             ( Int_arith (Naked_nativeint, Div),
+               nativeint_bound,
+               Simple
+                 (Simple.const
+                    (Reg_width_const.naked_nativeint
+                       (Targetint_32_64.of_int width_in_scalars_per_access))) ))
     in
     check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
       ~bound:nativeint_bound
@@ -883,25 +889,25 @@ let multiple_word_array_access_validity_condition array ~size_int
 (* CR mshinwell: it seems like these could be folded into the normal array
    load/store functions below *)
 
-let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
-  match array_kind with
-  | Naked_vec128s -> 1
-  | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
-  | Naked_int32s | Naked_float32s -> 4
-  | Values ->
-    Misc.fatal_error
-      "Attempted to load/store a SIMD vector from/to a value array."
-  | Unboxed_product _ ->
-    (* CR mshinwell: support unboxed products involving vectors? *)
-    Misc.fatal_error
-      "Attempted to load/store a SIMD vector from/to an unboxed product array, \
-       which is not yet supported."
-
 let array_vector_access_validity_condition array ~size_int
     (array_kind : P.Array_kind.t) index =
-  let width_in_scalars = array_vector_access_width_in_scalars array_kind in
+  let num_consecutive_elements_being_accessed =
+    match array_kind with
+    | Naked_vec128s -> 1
+    | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
+    | Naked_int32s | Naked_float32s -> 4
+    | Values ->
+      Misc.fatal_error
+        "Attempted to load/store a SIMD vector from/to a value array."
+    | Unboxed_product _ ->
+      (* CR mshinwell: support unboxed products involving vectors? *)
+      Misc.fatal_error
+        "Attempted to load/store a SIMD vector from/to an unboxed product \
+         array, which is not yet supported."
+  in
   multiple_word_array_access_validity_condition array ~size_int
-    (Array_kind array_kind) Ptagged_int_index ~width_in_scalars ~index
+    (Array_kind array_kind) Ptagged_int_index
+    ~num_consecutive_elements_being_accessed ~index
 
 let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
     : H.expr_primitive =
@@ -1053,17 +1059,16 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 
 (* Array accesses *)
 let array_access_validity_condition array array_kind index
-    ~(index_kind : L.array_index_kind) ~width_in_scalars ~size_int =
+    ~(index_kind : L.array_index_kind) ~size_int =
   [ multiple_word_array_access_validity_condition array ~size_int array_kind
-      index_kind ~width_in_scalars ~index ]
+      index_kind ~num_consecutive_elements_being_accessed:1 ~index ]
 
 let check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
     primitive : H.expr_primitive =
-  let width_in_scalars = P.Array_kind_for_length.width_in_scalars array_kind in
   checked_access ~primitive
     ~conditions:
       (array_access_validity_condition array array_kind index ~index_kind
-         ~width_in_scalars ~size_int)
+         ~size_int)
     ~dbg
 
 let compute_array_indexes ~index ~num_elts =
