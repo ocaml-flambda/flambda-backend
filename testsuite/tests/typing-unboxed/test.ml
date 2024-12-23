@@ -756,7 +756,11 @@ Error: The native code version of the primitive is mandatory
 (* PR#7424 *)
 type 'a b = B of 'a b b [@@unboxed];;
 [%%expect{|
-type 'a b = B of 'a b b [@@unboxed]
+Line 1, characters 0-35:
+1 | type 'a b = B of 'a b b [@@unboxed];;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "b" is recursive without boxing:
+         "'a b" contains "'a b b"
 |}]
 
 

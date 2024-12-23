@@ -246,6 +246,9 @@ val apply:
 val try_expand_once_opt: Env.t -> type_expr -> type_expr
 val try_expand_safe_opt: Env.t -> type_expr -> type_expr
 
+val path_and_expansion: Env.t -> type_expr -> (Path.t * type_expr) option
+(** Return an option instead of raising, and gives the path of the input type *)
+
 val expand_head_once: Env.t -> type_expr -> type_expr
 val expand_head: Env.t -> type_expr -> type_expr
 val expand_head_opt: Env.t -> type_expr -> type_expr
@@ -580,6 +583,10 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
     (* [get_unboxed_type_approximation] does the same thing as
        [get_unboxed_type_representation], but doesn't indicate whether the type
        was fully expanded or not. *)
+
+val contained_without_boxing : Env.t -> type_expr -> type_expr list
+    (* Return all types that are contained without boxing
+      (or "without indirection" or "flatly") *)
 
 (* Given the row from a variant type, determine if it is immediate.  Currently
    just checks that all constructors have no arguments, doesn't consider
