@@ -110,12 +110,12 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
        2. All of the [machtype_component]s are singleton arrays. *)
     Array.map (fun machtype -> [| machtype |]) return_ty
   in
-  (* Returned int32 values need to be sign_extended because it's not clear
-     whether C code that returns an int32 returns one that is sign extended or
-     not. There is no need to wrap other return arities. *)
+  (* Returned small integer values need to be sign-extended because it's not
+     clear whether C code that returns a small integer returns one that is sign
+     extended or not. There is no need to wrap other return arities. *)
   let maybe_sign_extend kind dbg cmm =
     match Flambda_kind.With_subkind.kind kind with
-    | Naked_number Naked_int32 -> C.sign_extend_32 dbg cmm
+    | Naked_number Naked_int32 -> C.sign_extend ~bits:32 cmm dbg
     | Naked_number
         ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
         | Naked_vec128 | Naked_float32 )
@@ -157,7 +157,9 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
           | Naked_number
               (Naked_immediate | Naked_int64 | Naked_nativeint | Naked_float) ->
             ()
-          | Naked_number (Naked_int32 | Naked_vec128 | Naked_float32)
+          | Naked_number
+              ( Naked_int32 | Naked_vec128
+              | Naked_float32 )
           | Value | Region | Rec_info ->
             Misc.fatal_errorf
               "Cannot compile unboxed product return from external C call with \
@@ -842,7 +844,8 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
           | Naked_number Naked_float -> C.float ~dbg 0.
           | Naked_number Naked_float32 -> C.float32 ~dbg 0.
           | Naked_number
-              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
+              ( Naked_immediate | Naked_int32
+              | Naked_int64 | Naked_nativeint ) ->
             C.int ~dbg 0
           | Naked_number Naked_vec128 -> C.vec128 ~dbg { high = 0L; low = 0L }
           | Region | Rec_info ->
