@@ -664,14 +664,20 @@ let primitive ppf = function
   | Pmakearray (k, Immutable_unique, mode) ->
       fprintf ppf "make%sarray_unique[%s]" (locality_mode_if_local mode)
         (array_kind k)
-  | Pmakearray_dynamic (k, mode) ->
-      fprintf ppf "make%sarray_any[%s]" (locality_mode_if_local mode)
+  | Pmakearray_dynamic (k, mode, has_init) ->
+      fprintf ppf "make%sarray_any[%s]%s" (locality_mode_if_local mode)
         (array_kind k)
+        (match has_init with
+         | With_initializer -> ""
+         | Uninitialized -> "[uninit]")
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
       fprintf ppf "duparray_unique[%s]" (array_kind k)
-  | Parrayblit sk -> fprintf ppf "arrayblit[%a]" array_set_kind sk
+  | Parrayblit { src_mutability; dst_array_set_kind } ->
+      fprintf ppf "arrayblit[%s -> %a]"
+        (array_mut src_mutability)
+        array_set_kind dst_array_set_kind
   | Parrayrefu (rk, idx, mut) -> fprintf ppf "%s.unsafe_get[%a indexed by %a]"
                                  (array_mut mut)
                                  array_ref_kind rk

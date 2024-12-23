@@ -235,7 +235,7 @@ let array_kind_of_elt ~elt_sort env loc ty =
         (type_legacy_sort ~why:Array_element env loc ty)
   in
   let classify_product ty sorts =
-    if Language_extension.(is_at_least Layouts Alpha) then
+    if Language_extension.(is_at_least Layouts Beta) then
       if is_always_gc_ignorable env ty then
         Pgcignorableproductarray (ignorable_product_array_kind loc sorts)
       else

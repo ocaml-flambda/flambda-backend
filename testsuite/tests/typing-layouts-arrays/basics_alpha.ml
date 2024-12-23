@@ -362,3 +362,302 @@ Error: This expression has type "float32#"
          because it's the type of an array element,
          chosen to have layout value.
 |}]
+
+(* Test 8: makearraydynamic_uninit *)
+
+external[@layout_poly] makearray_dynamic_uninit_local
+  : ('a : any_non_null) . int -> 'a array @ local = "%makearray_dynamic_uninit"
+
+external[@layout_poly] makearray_dynamic_uninit
+  : ('a : any_non_null) . int -> 'a array = "%makearray_dynamic_uninit"
+[%%expect{|
+external makearray_dynamic_uninit_local :
+  ('a : any_non_null). int -> local_ 'a array = "%makearray_dynamic_uninit"
+  [@@layout_poly]
+external makearray_dynamic_uninit : ('a : any_non_null). int -> 'a array
+  = "%makearray_dynamic_uninit" [@@layout_poly]
+|}]
+
+type ('a : any) with_i64s = #( int64# * 'a * int64# )
+
+type ok_1 = #(int64# * int32#)
+type ok_2 = float# with_i64s
+
+type bad_1 = #(int * int32#)
+type bad_2 = int
+type bad_3 = A | B | C
+type bad_4 = #{ a: int64# ; enum : bad_3 }
+type bad_5 = bad_3 with_i64s
+type bad_6 = #(float * #(float * float) * #(float * #(float * float * float)))
+type bad_7 = #{ i : int64# ; bad_4 : bad_4 ; j : int64# }
+[%%expect{|
+type ('a : any) with_i64s = #(int64# * 'a * int64#)
+type ok_1 = #(int64# * int32#)
+type ok_2 = float# with_i64s
+type bad_1 = #(int * int32#)
+type bad_2 = int
+type bad_3 = A | B | C
+type bad_4 = #{ a : int64#; enum : bad_3; }
+type bad_5 = bad_3 with_i64s
+type bad_6 =
+    #(float * #(float * float) * #(float * #(float * float * float)))
+type bad_7 = #{ i : int64#; bad_4 : bad_4; j : int64#; }
+|}]
+
+(* Allowed usages *)
+
+let _ =
+ (makearray_dynamic_uninit 0 : float# array)
+[%%expect{|
+- : float# array = [||]
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : ok_1 array)
+[%%expect{|
+- : ok_1 array = [||]
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : ok_2 array)
+[%%expect{|
+- : ok_2 array = [||]
+|}]
+
+(* Disallowed usages *)
+
+let _ =
+ (makearray_dynamic_uninit 0 : int array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : int array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : float array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : float array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : #(int64# * int) array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : #(int64# * int) array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : bad_1 array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : bad_1 array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : bad_2 array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : bad_2 array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : bad_3 array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : bad_3 array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : bad_4 array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : bad_4 array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : bad_5 array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : bad_5 array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ (makearray_dynamic_uninit 0 : bad_6 array)
+[%%expect{|
+Line 2, characters 2-28:
+2 |  (makearray_dynamic_uninit 0 : bad_6 array)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+  (makearray_dynamic_uninit 0 : bad_7 array)
+[%%expect{|
+Line 2, characters 3-29:
+2 |   (makearray_dynamic_uninit 0 : bad_7 array)
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+(* Allowed usages (local) *)
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : ok_1 array) in
+ ()
+[%%expect{|
+- : unit = ()
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : ok_2 array) in
+ ()
+[%%expect{|
+- : unit = ()
+|}]
+
+(* Disallowed usages (local) *)
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : int array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : int array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : #(int64# * int) array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : #(int64# * int) array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : bad_1 array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : bad_1 array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : bad_2 array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : bad_2 array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : bad_3 array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : bad_3 array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : bad_4 array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : bad_4 array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : bad_5 array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : bad_5 array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+ let _ = (makearray_dynamic_uninit_local 0 : bad_6 array) in
+ ()
+[%%expect{|
+Line 2, characters 10-42:
+2 |  let _ = (makearray_dynamic_uninit_local 0 : bad_6 array) in
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
+
+let _ =
+  let _ = (makearray_dynamic_uninit_local 0 : bad_7 array) in
+  ()
+[%%expect{|
+Line 2, characters 11-43:
+2 |   let _ = (makearray_dynamic_uninit_local 0 : bad_7 array) in
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: %makearray_dynamic_uninit can only be used for GC-ignorable arrays
+       not involving tagged immediates; and arrays of unboxed numbers.
+       Use %makearray instead, providing an initializer.
+|}]
