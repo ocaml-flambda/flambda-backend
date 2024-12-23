@@ -1190,7 +1190,7 @@ let rec array_set_unsafe dbg ~array ~index array_kind
     then
       Misc.fatal_errorf "Wrong arity for unboxed product array_set_unsafe:@ %a"
         Debuginfo.print_compact dbg;
-    (* XXX mshinwell: should these be set in reverse order, to match the
+    (* CR mshinwell: should these be set in reverse order, to match the
        evaluation order? *)
     [ H.Sequence
         (List.concat_map
