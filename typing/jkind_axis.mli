@@ -35,16 +35,6 @@ module Nullability : sig
 end
 
 module Axis : sig
-  (* CR zqian: remove this and use [Mode.Alloc.axis] instead *)
-  module Modal : sig
-    type 'a t =
-      | Locality : Mode.Locality.Const.t t
-      | Linearity : Mode.Linearity.Const.t t
-      | Uniqueness : Mode.Uniqueness.Const.t t
-      | Portability : Mode.Portability.Const.t t
-      | Contention : Mode.Contention.Const.t t
-  end
-
   module Nonmodal : sig
     type 'a t =
       | Externality : Externality.t t
@@ -53,8 +43,8 @@ module Axis : sig
 
   (** Represents an axis of a jkind *)
   type 'a t =
-    | Modal of 'a Modal.t
-    | Nonmodal of 'a Nonmodal.t
+    | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
+    | Nonmodal : 'a Nonmodal.t -> 'a t
 
   type packed = Pack : 'a t -> packed
 

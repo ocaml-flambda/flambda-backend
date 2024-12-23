@@ -109,15 +109,6 @@ module Nullability = struct
 end
 
 module Axis = struct
-  module Modal = struct
-    type 'a t =
-      | Locality : Mode.Locality.Const.t t
-      | Linearity : Mode.Linearity.Const.t t
-      | Uniqueness : Mode.Uniqueness.Const.t t
-      | Portability : Mode.Portability.Const.t t
-      | Contention : Mode.Contention.Const.t t
-  end
-
   module Nonmodal = struct
     type 'a t =
       | Externality : Externality.t t
@@ -125,8 +116,8 @@ module Axis = struct
   end
 
   type 'a t =
-    | Modal of 'a Modal.t
-    | Nonmodal of 'a Nonmodal.t
+    | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
+    | Nonmodal : 'a Nonmodal.t -> 'a t
 
   type packed = Pack : 'a t -> packed
 
@@ -144,43 +135,43 @@ module Axis = struct
   end
 
   let get (type a) : a t -> (module Lattice with type t = a) = function
-    | Modal Locality ->
+    | Modal (Comonadic Areality) ->
       (module Accent_lattice (Mode.Locality.Const) : Lattice with type t = a)
-    | Modal Linearity ->
+    | Modal (Comonadic Linearity) ->
       (module Accent_lattice (Mode.Linearity.Const) : Lattice with type t = a)
-    | Modal Uniqueness ->
+    | Modal (Monadic Uniqueness) ->
       (module Accent_lattice (Mode.Uniqueness.Const) : Lattice with type t = a)
-    | Modal Portability ->
+    | Modal (Comonadic Portability) ->
       (module Accent_lattice (Mode.Portability.Const) : Lattice with type t = a)
-    | Modal Contention ->
+    | Modal (Monadic Contention) ->
       (module Accent_lattice (Mode.Contention.Const) : Lattice with type t = a)
     | Nonmodal Externality -> (module Externality : Lattice with type t = a)
     | Nonmodal Nullability -> (module Nullability : Lattice with type t = a)
 
   let all =
-    [ Pack (Modal Locality);
-      Pack (Modal Uniqueness);
-      Pack (Modal Linearity);
-      Pack (Modal Contention);
-      Pack (Modal Portability);
+    [ Pack (Modal (Comonadic Areality));
+      Pack (Modal (Monadic Uniqueness));
+      Pack (Modal (Comonadic Linearity));
+      Pack (Modal (Monadic Contention));
+      Pack (Modal (Comonadic Portability));
       Pack (Nonmodal Externality);
       Pack (Nonmodal Nullability) ]
 
   let name (type a) : a t -> string = function
-    | Modal Locality -> "locality"
-    | Modal Linearity -> "linearity"
-    | Modal Uniqueness -> "uniqueness"
-    | Modal Portability -> "portability"
-    | Modal Contention -> "contention"
+    | Modal (Comonadic Areality) -> "locality"
+    | Modal (Comonadic Linearity) -> "linearity"
+    | Modal (Monadic Uniqueness) -> "uniqueness"
+    | Modal (Comonadic Portability) -> "portability"
+    | Modal (Monadic Contention) -> "contention"
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
 
   let is_deep (type a) : a t -> bool = function
-    | Modal Locality -> true
-    | Modal Linearity -> true
-    | Modal Uniqueness -> true
-    | Modal Portability -> true
-    | Modal Contention -> true
+    | Modal (Comonadic Areality) -> true
+    | Modal (Comonadic Linearity) -> true
+    | Modal (Monadic Uniqueness) -> true
+    | Modal (Comonadic Portability) -> true
+    | Modal (Monadic Contention) -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
 
@@ -195,22 +186,30 @@ module Axis = struct
         (fun (modality : Mode.Modality.t) ->
           match axis, modality with
           (* Constant modalities *)
-          | Locality, Atom (Comonadic Areality, Meet_with Global) -> true
-          | Linearity, Atom (Comonadic Linearity, Meet_with Many) -> true
-          | Uniqueness, Atom (Monadic Uniqueness, Join_with Aliased) -> true
-          | Portability, Atom (Comonadic Portability, Meet_with Portable) ->
+          | Comonadic Areality, Atom (Comonadic Areality, Meet_with Global) ->
             true
-          | Contention, Atom (Monadic Contention, Join_with Contended) -> true
+          | Comonadic Linearity, Atom (Comonadic Linearity, Meet_with Many) ->
+            true
+          | Monadic Uniqueness, Atom (Monadic Uniqueness, Join_with Aliased) ->
+            true
+          | ( Comonadic Portability,
+              Atom (Comonadic Portability, Meet_with Portable) ) ->
+            true
+          | Monadic Contention, Atom (Monadic Contention, Join_with Contended)
+            ->
+            true
           (* Modalities which are actually identity *)
-          | Locality, Atom (Comonadic Areality, Meet_with Local)
-          | Linearity, Atom (Comonadic Linearity, Meet_with Once)
-          | Uniqueness, Atom (Monadic Uniqueness, Join_with Unique)
-          | Portability, Atom (Comonadic Portability, Meet_with Nonportable)
-          | Contention, Atom (Monadic Contention, Join_with Uncontended) ->
+          | Comonadic Areality, Atom (Comonadic Areality, Meet_with Local)
+          | Comonadic Linearity, Atom (Comonadic Linearity, Meet_with Once)
+          | Monadic Uniqueness, Atom (Monadic Uniqueness, Join_with Unique)
+          | ( Comonadic Portability,
+              Atom (Comonadic Portability, Meet_with Nonportable) )
+          | Monadic Contention, Atom (Monadic Contention, Join_with Uncontended)
+            ->
             false
           (* Modalities which are neither constant nor identiy *)
-          | Locality, Atom (Comonadic Areality, Meet_with Regional)
-          | Contention, Atom (Monadic Contention, Join_with Shared) ->
+          | Comonadic Areality, Atom (Comonadic Areality, Meet_with Regional)
+          | Monadic Contention, Atom (Monadic Contention, Join_with Shared) ->
             Misc.fatal_error
               "Don't yet know how to interpret non-constant, non-identity \
                modalities"
@@ -219,26 +218,26 @@ module Axis = struct
             ->
             Misc.fatal_error "Illegal modality"
           (* Mismatched axes *)
-          | Locality, Atom (Monadic Uniqueness, _)
-          | Locality, Atom (Monadic Contention, _)
-          | Locality, Atom (Comonadic Linearity, _)
-          | Locality, Atom (Comonadic Portability, _)
-          | Linearity, Atom (Comonadic Areality, _)
-          | Linearity, Atom (Monadic Uniqueness, _)
-          | Portability, Atom (Monadic Uniqueness, _)
-          | Contention, Atom (Monadic Uniqueness, _)
-          | Linearity, Atom (Comonadic Portability, _)
-          | Linearity, Atom (Monadic Contention, _)
-          | Uniqueness, Atom (Comonadic Areality, _)
-          | Uniqueness, Atom (Comonadic Linearity, _)
-          | Uniqueness, Atom (Comonadic Portability, _)
-          | Contention, Atom (Comonadic Areality, _)
-          | Contention, Atom (Comonadic Linearity, _)
-          | Contention, Atom (Comonadic Portability, _)
-          | Uniqueness, Atom (Monadic Contention, _)
-          | Portability, Atom (Comonadic Areality, _)
-          | Portability, Atom (Comonadic Linearity, _)
-          | Portability, Atom (Monadic Contention, _) ->
+          | Comonadic Areality, Atom (Monadic Uniqueness, _)
+          | Comonadic Areality, Atom (Monadic Contention, _)
+          | Comonadic Areality, Atom (Comonadic Linearity, _)
+          | Comonadic Areality, Atom (Comonadic Portability, _)
+          | Comonadic Linearity, Atom (Comonadic Areality, _)
+          | Comonadic Linearity, Atom (Monadic Uniqueness, _)
+          | Comonadic Portability, Atom (Monadic Uniqueness, _)
+          | Monadic Contention, Atom (Monadic Uniqueness, _)
+          | Comonadic Linearity, Atom (Comonadic Portability, _)
+          | Comonadic Linearity, Atom (Monadic Contention, _)
+          | Monadic Uniqueness, Atom (Comonadic Areality, _)
+          | Monadic Uniqueness, Atom (Comonadic Linearity, _)
+          | Monadic Uniqueness, Atom (Comonadic Portability, _)
+          | Monadic Contention, Atom (Comonadic Areality, _)
+          | Monadic Contention, Atom (Comonadic Linearity, _)
+          | Monadic Contention, Atom (Comonadic Portability, _)
+          | Monadic Uniqueness, Atom (Monadic Contention, _)
+          | Comonadic Portability, Atom (Comonadic Areality, _)
+          | Comonadic Portability, Atom (Comonadic Linearity, _)
+          | Comonadic Portability, Atom (Monadic Contention, _) ->
             false)
         atoms
 end
@@ -261,21 +260,21 @@ module Axis_collection (T : Axed) = struct
 
   let get (type a) ~(axis : a Axis.t) values : (_, _, a) T.t =
     match axis with
-    | Modal Locality -> values.locality
-    | Modal Linearity -> values.linearity
-    | Modal Uniqueness -> values.uniqueness
-    | Modal Portability -> values.portability
-    | Modal Contention -> values.contention
+    | Modal (Comonadic Areality) -> values.locality
+    | Modal (Comonadic Linearity) -> values.linearity
+    | Modal (Monadic Uniqueness) -> values.uniqueness
+    | Modal (Comonadic Portability) -> values.portability
+    | Modal (Monadic Contention) -> values.contention
     | Nonmodal Externality -> values.externality
     | Nonmodal Nullability -> values.nullability
 
   let set (type a) ~(axis : a Axis.t) values (value : (_, _, a) T.t) =
     match axis with
-    | Modal Locality -> { values with locality = value }
-    | Modal Linearity -> { values with linearity = value }
-    | Modal Uniqueness -> { values with uniqueness = value }
-    | Modal Portability -> { values with portability = value }
-    | Modal Contention -> { values with contention = value }
+    | Modal (Comonadic Areality) -> { values with locality = value }
+    | Modal (Comonadic Linearity) -> { values with linearity = value }
+    | Modal (Monadic Uniqueness) -> { values with uniqueness = value }
+    | Modal (Comonadic Portability) -> { values with portability = value }
+    | Modal (Monadic Contention) -> { values with contention = value }
     | Nonmodal Externality -> { values with externality = value }
     | Nonmodal Nullability -> { values with nullability = value }
 
@@ -289,11 +288,11 @@ module Axis_collection (T : Axed) = struct
 
       let[@inline] f { f } =
         let open M.Syntax in
-        let* locality = f ~axis:Axis.(Modal Locality) in
-        let* uniqueness = f ~axis:Axis.(Modal Uniqueness) in
-        let* linearity = f ~axis:Axis.(Modal Linearity) in
-        let* contention = f ~axis:Axis.(Modal Contention) in
-        let* portability = f ~axis:Axis.(Modal Portability) in
+        let* locality = f ~axis:Axis.(Modal (Comonadic Areality)) in
+        let* uniqueness = f ~axis:Axis.(Modal (Monadic Uniqueness)) in
+        let* linearity = f ~axis:Axis.(Modal (Comonadic Linearity)) in
+        let* contention = f ~axis:Axis.(Modal (Monadic Contention)) in
+        let* portability = f ~axis:Axis.(Modal (Comonadic Portability)) in
         let* externality = f ~axis:Axis.(Nonmodal Externality) in
         let* nullability = f ~axis:Axis.(Nonmodal Nullability) in
         M.return
@@ -382,11 +381,11 @@ module Axis_collection (T : Axed) = struct
           externality;
           nullability
         } ~combine =
-      combine (f ~axis:Axis.(Modal Locality) locality)
-      @@ combine (f ~axis:Axis.(Modal Uniqueness) uniqueness)
-      @@ combine (f ~axis:Axis.(Modal Linearity) linearity)
-      @@ combine (f ~axis:Axis.(Modal Contention) contention)
-      @@ combine (f ~axis:Axis.(Modal Portability) portability)
+      combine (f ~axis:Axis.(Modal (Comonadic Areality)) locality)
+      @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uniqueness)
+      @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) linearity)
+      @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) contention)
+      @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) portability)
       @@ combine (f ~axis:Axis.(Nonmodal Externality) externality)
       @@ f ~axis:Axis.(Nonmodal Nullability) nullability
   end
@@ -419,11 +418,11 @@ module Axis_collection (T : Axed) = struct
           externality = ext2;
           nullability = nul2
         } ~combine =
-      combine (f ~axis:Axis.(Modal Locality) loc1 loc2)
-      @@ combine (f ~axis:Axis.(Modal Uniqueness) uni1 uni2)
-      @@ combine (f ~axis:Axis.(Modal Linearity) lin1 lin2)
-      @@ combine (f ~axis:Axis.(Modal Contention) con1 con2)
-      @@ combine (f ~axis:Axis.(Modal Portability) por1 por2)
+      combine (f ~axis:Axis.(Modal (Comonadic Areality)) loc1 loc2)
+      @@ combine (f ~axis:Axis.(Modal (Monadic Uniqueness)) uni1 uni2)
+      @@ combine (f ~axis:Axis.(Modal (Comonadic Linearity)) lin1 lin2)
+      @@ combine (f ~axis:Axis.(Modal (Monadic Contention)) con1 con2)
+      @@ combine (f ~axis:Axis.(Modal (Comonadic Portability)) por1 por2)
       @@ combine (f ~axis:Axis.(Nonmodal Externality) ext1 ext2)
       @@ f ~axis:Axis.(Nonmodal Nullability) nul1 nul2
   end
