@@ -26,11 +26,11 @@ Error: This kind of expression is not allowed as right-hand side of "let rec"
 type r = A of r [@@unboxed]
 let rec y = A y;;
 [%%expect{|
-type r = A of r [@@unboxed]
-Line 2, characters 12-15:
-2 | let rec y = A y;;
-                ^^^
-Error: This kind of expression is not allowed as right-hand side of "let rec"
+Line 1, characters 0-27:
+1 | type r = A of r [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "r" is recursive without indirection (boxing):
+         "r" contains "r"
 |}];;
 
 (* This test is not allowed if 'a' is unboxed, but should be accepted

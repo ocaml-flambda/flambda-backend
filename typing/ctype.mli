@@ -569,6 +569,18 @@ val package_subtype :
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit
 
+type unbox_result =
+  (* unboxing process made a step: either an unboxing or removal of a [Tpoly] *)
+  | Stepped of type_expr
+  (* unboxing process unboxed a product. Invariant: length >= 2 *)
+  | Stepped_record_unboxed_product of type_expr list
+  (* no step to make; we're all done here *)
+  | Final_result
+  (* definition not in environment: missing cmi *)
+  | Missing of Path.t
+
+val unbox_once : Env.t -> type_expr -> unbox_result
+
 val get_unboxed_type_representation :
   Env.t -> type_expr -> (type_expr, type_expr) result
     (* [get_unboxed_type_representation] attempts to fully expand the input

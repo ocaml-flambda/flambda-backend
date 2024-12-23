@@ -89,6 +89,7 @@ type error =
   | Unboxed_mutable_label
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
+  | Recursive_type_without_indirection of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
@@ -1947,7 +1948,48 @@ let update_decls_jkind env decls =
    - if -rectypes is not used, we only allow cycles in the type graph
      if they go through an object or polymorphic variant type *)
 
-let check_well_founded ~abs_env env loc path to_check visited ty0 =
+type subtypes_to_find = Mentioned | Physically_contained
+
+let iter_physically_contained_types f ~env ~to_check ty =
+  match get_desc ty with
+    Tvar _ -> ()
+  | Tarrow _ -> ()
+  | Ttuple _ -> ()
+  | Tunboxed_tuple labeled_tys -> List.iter (fun (_, ty) -> f ty) labeled_tys
+  | Tconstr (path, _, _) ->
+    if not (to_check path) then () else
+    let tys =
+      match get_desc ty with
+      | Tconstr (p, _, _) ->
+        begin match Env.find_type p env with
+        | exception Not_found -> assert false
+        | decl ->
+          begin match find_unboxed_type decl with
+          | Some ty2 ->
+            let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
+            [ty2]
+          | None -> begin match decl.type_kind with
+            | Type_record_unboxed_product (lbls, Record_unboxed_product) ->
+              List.map (fun (ld : Types.label_declaration) -> ld.ld_type) lbls
+            | Type_abstract _ | Type_record _ | Type_variant _ | Type_open -> []
+            end
+          end
+        end
+      | Tpoly (ty, _) -> [ty]
+      | _ -> []
+    in
+    List.iter f tys
+  | Tobject _ -> ()
+  | Tvariant _ -> ()
+  | Tfield _ -> ()
+  | Tnil -> ()
+  | Tlink _
+  | Tsubst _ -> assert false
+  | Tunivar _ -> ()
+  | Tpoly (ty, _) -> f ty
+  | Tpackage _  -> ()
+
+let check_well_founded ~abs_env subtypes_to_find env loc path to_check visited ty0 =
   let rec check parents trace ty =
     if TypeSet.mem ty parents then begin
       (*Format.eprintf "@[%a@]@." Printtyp.raw_type_expr ty;*)
@@ -1962,9 +2004,13 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
                 List.rev trace, true
           | trace -> List.rev trace, false
         in
-        if rec_abbrev
-        then Recursive_abbrev (Path.name path, abs_env, reaching_path)
-        else Cycle_in_def (Path.name path, abs_env, reaching_path)
+        match subtypes_to_find with
+        | Mentioned ->
+          if rec_abbrev
+          then Recursive_abbrev (Path.name path, abs_env, reaching_path)
+          else Cycle_in_def (Path.name path, abs_env, reaching_path)
+        | Physically_contained ->
+          Recursive_type_without_indirection (Path.name path, abs_env, reaching_path)
       in raise (Error (loc, err))
     end;
     let (fini, parents) =
@@ -1991,15 +2037,25 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
     let parents = TypeSet.add ty parents in
     match get_desc ty with
     | Tconstr(p, tyl, _) ->
-        let to_check = to_check p in
-        if to_check then List.iter (check_subtype parents trace ty) tyl;
+        let to_check_p = to_check p in
+        if to_check_p then begin match subtypes_to_find with
+          | Mentioned -> List.iter (check_subtype parents trace ty) tyl
+          | Physically_contained -> iter_physically_contained_types (check_subtype parents trace ty) ~env ~to_check ty
+        end;
         begin match Ctype.try_expand_once_opt env ty with
         | ty' -> check parents (Expands_to (ty, ty') :: trace) ty'
         | exception Ctype.Cannot_expand ->
-            if not to_check then List.iter (check_subtype parents trace ty) tyl
+            match subtypes_to_find with
+            | Mentioned ->
+              if not to_check_p then List.iter (check_subtype parents trace ty) tyl
+            | Physically_contained -> ()
         end
     | _ ->
-        Btype.iter_type_expr (check_subtype parents trace ty) ty
+      let iter_subtypes = match subtypes_to_find with
+        | Mentioned -> Btype.iter_type_expr
+        | Physically_contained -> iter_physically_contained_types ~env ~to_check
+      in
+      iter_subtypes (check_subtype parents trace ty) ty
   and check_subtype parents trace outer_ty inner_ty =
       check parents (Contains (outer_ty, inner_ty) :: trace) inner_ty
   in
@@ -2018,7 +2074,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
       decl.type_params
   in
   let visited = ref TypeMap.empty in
-  check_well_founded ~abs_env env loc path (Path.same path) visited
+  check_well_founded ~abs_env Mentioned env loc path (Path.same path) visited
     (Ctype.newconstr path args)
 
 (* Given a new type declaration [type t = ...] (potentially mutually-recursive),
@@ -2036,7 +2092,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
    (we don't have an example at hand where it is necessary), but we
    are doing it anyway out of caution.
 *)
-let check_well_founded_decl  ~abs_env env loc path decl to_check =
+let check_well_founded_decl  ~abs_env subtypes_to_find env loc path decl to_check =
   let open Btype in
   (* We iterate on all subexpressions of the declaration to check
      "in depth" that no ill-founded type exists. *)
@@ -2055,7 +2111,7 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
     {type_iterators with it_type_expr =
      (fun self ty ->
        if TypeSet.mem ty !checked then () else begin
-         check_well_founded  ~abs_env env loc path to_check visited ty;
+         check_well_founded  ~abs_env subtypes_to_find env loc path to_check visited ty;
          checked := TypeSet.add ty !checked;
          self.it_do_type_expr self ty
        end)} in
@@ -2343,7 +2399,12 @@ let transl_type_decl env rec_flag sdecl_list =
   let to_check =
     function Path.Pident id -> List.mem_assoc id id_loc_list | _ -> false in
   List.iter (fun (id, decl) ->
-    check_well_founded_decl ~abs_env new_env (List.assoc id id_loc_list)
+    check_well_founded_decl ~abs_env Mentioned new_env (List.assoc id id_loc_list)
+      (Path.Pident id)
+      decl to_check)
+    decls;
+  List.iter (fun (id, decl) ->
+    check_well_founded_decl ~abs_env Physically_contained new_env (List.assoc id id_loc_list)
       (Path.Pident id)
       decl to_check)
     decls;
@@ -3433,7 +3494,8 @@ let check_recmod_typedecl env loc recmod_ids path decl =
   (* recmod_ids is the list of recursively-defined module idents.
      (path, decl) is the type declaration to be checked. *)
   let to_check path = Path.exists_free recmod_ids path in
-  check_well_founded_decl ~abs_env:env env loc path decl to_check;
+  check_well_founded_decl ~abs_env:env Mentioned env loc path decl to_check;
+  check_well_founded_decl ~abs_env:env Physically_contained env loc path decl to_check;
   check_regularity ~abs_env:env env loc path decl to_check;
   (* additional coherence check, as one might build an incoherent signature,
      and use it to build an incoherent module, cf. #7851 *)
@@ -3575,6 +3637,14 @@ let report_error ppf = function
       Printtyp.reset ();
       Reaching_path.add_to_preparation reaching_path;
       fprintf ppf "@[<v>The definition of %a contains a cycle%a@]"
+        Style.inline_code s
+        Reaching_path.pp_colon reaching_path
+  | Recursive_type_without_indirection (s, env, reaching_path) ->
+      let reaching_path = Reaching_path.simplify reaching_path in
+      Printtyp.wrap_printing_env ~error:true env @@ fun () ->
+      Printtyp.reset ();
+      Reaching_path.add_to_preparation reaching_path;
+      fprintf ppf "@[<v>The definition of %a is recursive without indirection (boxing)%a@]"
         Style.inline_code s
         Reaching_path.pp_colon reaching_path
   | Definition_mismatch (ty, _env, None) ->
