@@ -15,6 +15,8 @@
 
 open Cmm
 
+val arch_bits : int
+
 type arity =
   { function_kind : Lambda.function_kind;
     params_layout : Lambda.layout list;
@@ -384,34 +386,11 @@ val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 (** Operations on n-bit integers *)
 
 (** [low_bits _ x] is a value which agrees with x on at least the low 32 bits *)
-val low_bits : bits:int -> Debuginfo.t -> expression -> expression
+val low_bits : bits:int -> expression -> Debuginfo.t -> expression
 
-val sign_extend : bits:int -> Debuginfo.t -> expression -> expression
+val sign_extend : bits:int -> expression -> Debuginfo.t -> expression
 
-val zero_extend : bits:int -> Debuginfo.t -> expression -> expression
-
-(** Operations on 32-bit integers *)
-
-(** [low_32 _ x] is a value which agrees with x on at least the low 32 bits *)
-val low_32 : Debuginfo.t -> expression -> expression
-
-(** Sign extend from 32 bits to the word size *)
-val sign_extend_32 : Debuginfo.t -> expression -> expression
-
-(** Zero extend from 32 bits to the word size *)
-val zero_extend_32 : Debuginfo.t -> expression -> expression
-
-(** Operations on 63-bit integers. These may only be used for compilation to
-    64-bit targets. *)
-
-(** [low_63 _ x] is a value which agrees with x on at least the low 63 bits *)
-val low_63 : Debuginfo.t -> expression -> expression
-
-(** Sign extend from 63 bits to the word size *)
-val sign_extend_63 : Debuginfo.t -> expression -> expression
-
-(** Zero extend from 63 bits to the word size *)
-val zero_extend_63 : Debuginfo.t -> expression -> expression
+val zero_extend : bits:int -> expression -> Debuginfo.t -> expression
 
 (** Box a given integer, without sharing of constants *)
 val box_int_gen :
@@ -1279,3 +1258,47 @@ val setfield_unboxed_int64_or_nativeint : ternary_primitive
 val dls_get : dbg:Debuginfo.t -> expression
 
 val poll : dbg:Debuginfo.t -> expression
+
+module Static_cast : sig
+  (** A signed integer of machine width *)
+  type word = [`Word]
+
+  type float =
+    [ `Float
+    | `Float32 ]
+
+  type machine =
+    [ word
+    | float ]
+
+  (** A signed integer of [n] bits, always stored sign-extended *)
+  type bits = [`Bits of int]
+
+  (** A tagged immediate *)
+  type tagged = [`Tagged of word]
+
+  type untagged_int =
+    [ word
+    | bits ]
+
+  type standard_int =
+    [ bits
+    | tagged ]
+
+  type untagged =
+    [ untagged_int
+    | float ]
+
+  type t =
+    [ tagged
+    | untagged ]
+
+  val equal : [< t] -> [< t] -> bool
+end
+
+val static_cast :
+  src:[< Static_cast.t] ->
+  dst:[< Static_cast.t] ->
+  expression ->
+  Debuginfo.t ->
+  expression

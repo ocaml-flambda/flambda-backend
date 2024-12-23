@@ -409,10 +409,12 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         match kind with
         | Pointer -> Word_val
         | Immediate -> Word_int
-        | Naked_int8 ->
-          if stride = Arch.size_addr then Word_int else Byte_signed
+        | Naked_int8
         | Naked_int16 ->
-          if stride = Arch.size_addr then Word_int else Sixteen_signed
+          (* CR layouts v5.1: we only support small integers in being sign-extended in
+             word fields *)
+          assert (stride = Arch.size_addr);
+          Word_int
         | Naked_int32 ->
           (* Cmm expressions representing int32 values are always sign extended.
              By using [Word_int] in the "fields" cases (see [Update_kind],

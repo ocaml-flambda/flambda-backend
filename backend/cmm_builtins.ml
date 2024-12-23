@@ -512,7 +512,7 @@ let transl_builtin name args dbg typ_res =
   | "caml_unsigned_int64_mulh_unboxed" ->
     mulhi ~signed:false Unboxed_int64 args dbg
   | "caml_int32_unsigned_to_int_trunc_unboxed_to_untagged" ->
-    Some (zero_extend_32 dbg (one_arg name args))
+    Some (zero_extend ~bits:32 (one_arg name args) dbg)
   | "caml_csel_value" | "caml_csel_int_untagged" | "caml_csel_int64_unboxed"
   | "caml_csel_int32_unboxed" | "caml_csel_nativeint_unboxed" ->
     (* Unboxed float variant of csel intrinsic is not currently supported. It
