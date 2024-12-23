@@ -74,6 +74,10 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type has_initializer =
+  | With_initializer
+  | Uninitialized
+
 (* Tail calls can close their enclosing region early *)
 type region_close =
   | Rc_normal         (* do not close region, may TCO if in tail position *)
@@ -178,15 +182,21 @@ type primitive =
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
-  | Pmakearray_dynamic of array_kind * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode * has_initializer
+  (** For [Pmakearray_dynamic], if the array kind specifies an unboxed
+      product, the float array optimization will never apply. *)
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
-  | Parrayblit of array_set_kind
+  | Parrayblit of {
+      src_mutability : mutable_flag;
+      dst_array_set_kind : array_set_kind;
+    }
   (** For [Parrayblit], we record the [array_set_kind] of the destination
       array. We check that the source array has the same shape, but do not
-      need to know anything about its locality. *)
+      need to know anything about its locality. We do however request the
+      mutability of the source array. *)
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -914,6 +924,8 @@ val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
 
+val of_bool : bool -> lambda
+
 val layout_unit : layout
 val layout_int : layout
 val layout_array : array_kind -> layout
@@ -1158,6 +1170,11 @@ val array_ref_kind : locality_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 
+(** Any mode information in the given [array_set_kind] is ignored.  Any mode
+    in the return value always comes from the [locality_mode] parameter. *)
+val array_ref_kind_of_array_set_kind
+  : array_set_kind -> locality_mode -> array_ref_kind
+
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool
 
@@ -1173,3 +1190,7 @@ val try_to_find_location : lambda -> scoped_location
 val try_to_find_debuginfo : lambda -> Debuginfo.t
 
 val primitive_can_raise : primitive -> bool
+
+val count_initializers_array_kind : array_kind -> int
+val ignorable_product_element_kind_involves_int :
+  ignorable_product_element_kind -> bool

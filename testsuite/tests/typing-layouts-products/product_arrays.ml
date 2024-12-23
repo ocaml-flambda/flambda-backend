@@ -1,7 +1,7 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
- flags = "-extension layouts_alpha";
+ flags = "-extension layouts_beta";
  {
    expect;
  }
@@ -13,7 +13,7 @@
 (* CR layouts v7.1: The PR with middle-end support for product arrays can move
    this test to beta. *)
 
-(* CR layouts v7.1: Everywhere this file says "any_non_null" it should instead
+(* CR layouts v7.1: Everywhere this file says "any" it should instead
    say any. This is caused by [any] meaning different things alpha and beta - we
    can fix it when we move this test to beta. *)
 
@@ -1864,10 +1864,8 @@ external blit_scannable :
   #(int * float * string) array ->
   int -> #(int * float * string) array -> int -> int -> unit = "%arrayblit"
 val blit_scannable_app :
-  ('a : value_or_null).
-    #(int * float * string) array ->
-    'a -> #(int * float * string) array -> int -> int -> unit =
-  <fun>
+  #(int * float * string) array ->
+  'a -> #(int * float * string) array -> int -> int -> unit = <fun>
 external blit_ignorable :
   #(float# * int * int64# * bool) array ->
   int -> #(float# * int * int64# * bool) array -> int -> int -> unit
