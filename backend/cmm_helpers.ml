@@ -1337,6 +1337,7 @@ let zero_extend ~bits e dbg =
           | (Sixteen_signed | Sixteen_unsigned), 16 -> load Sixteen_unsigned
           | (Thirtytwo_signed | Thirtytwo_unsigned), 32 ->
             load Thirtytwo_unsigned
+          | Sixtyfour, 64 -> e
           | _ -> zero_extend_via_mask e)
         | e -> (
           match get_const_bitmask e with
@@ -1370,6 +1371,7 @@ let sign_extend ~bits e dbg =
           | (Byte_signed | Byte_unsigned), 8 -> load Byte_signed
           | (Sixteen_signed | Sixteen_unsigned), 16 -> load Sixteen_signed
           | (Thirtytwo_signed | Thirtytwo_unsigned), 32 -> load Thirtytwo_signed
+          | Sixtyfour, 64 -> e
           | _ -> sign_extend_via_shift e)
         | e -> sign_extend_via_shift e)
       (low_bits ~bits e dbg)
