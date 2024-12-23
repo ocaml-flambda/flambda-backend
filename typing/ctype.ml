@@ -2064,6 +2064,15 @@ let try_expand_safe_opt env ty =
   with Escape _ ->
     Btype.backtrack snap; raise Cannot_expand
 
+let path_and_expansion env ty =
+  match try_expand_safe_opt env ty with
+  | ty' ->
+    begin match get_desc ty with
+    | Tconstr (path, _, _) -> Some (path, ty')
+    | _ -> Misc.fatal_error "Ctype.path_and_expansion"
+    end
+  | exception Cannot_expand -> None
+
 let expand_head_opt env ty =
   try try_expand_head try_expand_safe_opt env ty with Cannot_expand -> ty
 
@@ -2091,6 +2100,20 @@ let unbox_once env ty =
     end
   | Tpoly (ty, _) -> Stepped ty
   | _ -> Final_result
+
+let contained_without_boxing env ty =
+  match get_desc ty with
+  | Tconstr _ ->
+    begin match unbox_once env ty with
+    | Stepped ty -> [ty]
+    | Stepped_record_unboxed_product tys -> tys
+    | Final_result | Missing _ -> []
+    end
+  | Tunboxed_tuple labeled_tys ->
+    List.map snd labeled_tys
+  | Tpoly (ty, _) -> [ty]
+  | Tvar _ | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil | Tlink _
+  | Tsubst _ | Tvariant _ | Tunivar _ | Tpackage _ -> []
 
 (* We use ty_prev to track the last type for which we found a definition,
    allowing us to return a type for which a definition was found even if

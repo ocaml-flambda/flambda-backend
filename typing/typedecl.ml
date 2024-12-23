@@ -87,6 +87,7 @@ type error =
   | Duplicate_label of string
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
+  | Unboxed_recursion of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
@@ -1955,6 +1956,65 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
        end)} in
   it.it_type_declaration it (Ctype.generic_instance_declaration decl)
 
+(* We only allow recursion in unboxed product types to occur through boxes,
+   otherwise the type is uninhabitable and usually also infinite-size.
+   See [typing-layouts-unboxed-records/recursive.ml].
+
+   Because `check_well_founded` already ruled out recursion through structural
+   types (for this check, we care about unboxed tuples and aliases), we just
+   look for a cycle in nominal unboxed types ([@@unboxed] types and unboxed
+   records), tracking the set of seen paths.
+
+   An alternative implementation could have introduced layout variables (for
+   this check only), finding infinite-size types via the occurs check. Such an
+   implementation might be more principled, accepting finite-size recursive
+   types like [type t = #{ t : t }]. The current implementation gives more
+   informative error traces, and leaves the flexiblity to switch to a less
+   restrictive check in the future.
+*)
+let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
+  let check_visited parents trace ty =
+    match get_desc ty with
+    | Tconstr (path, _, _) ->
+      if Path.Set.mem path parents then
+        let err = Unboxed_recursion(Path.name path0, abs_env, List.rev trace) in
+        raise (Error(loc, err))
+    | _ -> ()
+  in
+  let rec expand parents trace ty =
+    match Ctype.path_and_expansion env ty with
+    | Some (path, ty') ->
+      expand (Path.Set.add path parents) (Expands_to (ty, ty') :: trace) ty'
+    | None ->
+      parents, trace, ty
+  in
+  let rec visit parents trace ty =
+    (* Expand even if this type isn't part of the recursive group, because it
+       could be instantiated back into the group by a type parameter. *)
+    let parents, trace, ty = expand parents trace ty in
+    match get_desc ty with
+    | Tconstr (path, _, _) ->
+      (* If we get a Tconstr, we only need to visit if it's part of this group
+         of mutually recursive typedecls. *)
+      if not (to_check path) then () else
+      check_visited parents trace ty;
+      visit_subtypes (Path.Set.add path parents) trace ty
+    | _ ->
+      visit_subtypes parents trace ty
+  and visit_subtypes parents trace ty =
+    List.iter (fun ty' ->
+        let trace = Contains (ty, ty') :: trace in
+        check_visited parents trace ty';
+        visit parents trace ty')
+      (Ctype.contained_without_boxing env ty)
+  in
+  Ctype.wrap_trace_gadt_instances env (visit Path.Set.empty []) ty0
+
+let check_unboxed_recursion_decl ~abs_env env loc path decl to_check =
+  let decl = Ctype.generic_instance_declaration decl in
+  let ty = Btype.newgenty (Tconstr (path, decl.type_params, ref Mnil)) in
+  check_unboxed_recursion ~abs_env env loc path ty to_check
+
 (* Check for non-regular abbreviations; an abbreviation
    [type 'a t = ...] is non-regular if the expansion of [...]
    contains instances [ty t] where [ty] is not equal to ['a].
@@ -2224,6 +2284,11 @@ let transl_type_decl env rec_flag sdecl_list =
     function Path.Pident id -> List.mem_assoc id id_loc_list | _ -> false in
   List.iter (fun (id, decl) ->
     check_well_founded_decl ~abs_env new_env (List.assoc id id_loc_list)
+      (Path.Pident id)
+      decl to_check)
+    decls;
+  List.iter (fun (id, decl) ->
+    check_unboxed_recursion_decl ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id)
       decl to_check)
     decls;
@@ -3314,6 +3379,7 @@ let check_recmod_typedecl env loc recmod_ids path decl =
      (path, decl) is the type declaration to be checked. *)
   let to_check path = Path.exists_free recmod_ids path in
   check_well_founded_decl ~abs_env:env env loc path decl to_check;
+  check_unboxed_recursion_decl ~abs_env:env env loc path decl to_check;
   check_regularity ~abs_env:env env loc path decl to_check;
   (* additional coherence check, as one might build an incoherent signature,
      and use it to build an incoherent module, cf. #7851 *)
@@ -3453,6 +3519,14 @@ let report_error ppf = function
       Printtyp.reset ();
       Reaching_path.add_to_preparation reaching_path;
       fprintf ppf "@[<v>The definition of %a contains a cycle%a@]"
+        Style.inline_code s
+        Reaching_path.pp_colon reaching_path
+  | Unboxed_recursion (s, env, reaching_path) ->
+      let reaching_path = Reaching_path.simplify reaching_path in
+      Printtyp.wrap_printing_env ~error:true env @@ fun () ->
+      Printtyp.reset ();
+      Reaching_path.add_to_preparation reaching_path;
+      fprintf ppf "@[<v>The definition of %a is recursive without boxing%a@]"
         Style.inline_code s
         Reaching_path.pp_colon reaching_path
   | Definition_mismatch (ty, _env, None) ->
