@@ -1,5 +1,4 @@
 (* TEST
- modules = "custom_block_padding.c";
  flags = "-extension layouts_beta";
  flambda2;
  {
@@ -9,13 +8,16 @@
  }
 *)
 
-(* CR layouts v4: The below C stub is just to give this test slightly different
-   behavior on native code and bytecode, because some arrays of unboxed things
-   are represented as custom blocks on only native code, and therefore the size
-   calculations differ slightly. Delete this and the corresponding C file when
-   we change the representation to not use custom blocks. *)
-external custom_block_padding : unit -> int = "custom_block_padding_byte" "custom_block_padding_native"
-let custom_block_padding = custom_block_padding ()
+(* CR layouts v4: The below definition is just to give this test slightly
+   different behavior on native code and bytecode, because some arrays of
+   unboxed things are represented as custom blocks on only native code, and
+   therefore the size calculations differ slightly. Delete this when we change
+   the representation to not use custom blocks. *)
+let custom_block_padding =
+  match Sys.backend_type with
+  | Native -> 1
+  | Bytecode -> 0
+  | Other _ -> failwith "Don't know what to do"
 
 (* We only compile for 64 bits. *)
 let bytes_per_word = 8
