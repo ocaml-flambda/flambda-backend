@@ -1190,45 +1190,11 @@ val unboxed_int64_or_nativeint_array_set :
 
 (** The argument structure for getters is parallel to [get_field_computed]. *)
 
-val get_field_unboxed_int8 :
+val get_field_unboxed :
+  memory_chunk ->
   Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_int16 :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_int32 :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_float32 :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_vec128 :
-  Asttypes.mutable_flag ->
-  block:expression ->
+  expression ->
   index_in_words:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_int64_or_nativeint :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
   Debuginfo.t ->
   expression
 
@@ -1237,23 +1203,13 @@ val get_field_unboxed_int64_or_nativeint :
    and [initialization_or_assignment] is not needed as unboxed ints can always be
    assigned without caml_modify (etc.).
  *)
-
-val setfield_unboxed_int8 : ternary_primitive
-
-val setfield_unboxed_int16 : ternary_primitive
-
-val setfield_unboxed_int32 : ternary_primitive
-
-val setfield_unboxed_float32 : ternary_primitive
-
-val setfield_unboxed_vec128 :
+val setfield_unboxed :
+  memory_chunk ->
   expression ->
   index_in_words:expression ->
   expression ->
   Debuginfo.t ->
   expression
-
-val setfield_unboxed_int64_or_nativeint : ternary_primitive
 
 val dls_get : dbg:Debuginfo.t -> expression
 

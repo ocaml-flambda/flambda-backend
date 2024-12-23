@@ -915,31 +915,31 @@ let complex_im c dbg =
 
 (* Unit *)
 
-let return_unit dbg c = Csequence (c, Cconst_int (1, dbg))
+let return_unit dbg c =
+  match c with
+  | Csequence (_, Cconst_int (1, _)) as c -> c
+  | c -> Csequence (c, Cconst_int (1, dbg))
 
 let strided_field_address ptr ~index ~stride dbg =
   if index * stride = 0
   then ptr
   else Cop (Cadda, [ptr; Cconst_int (index * stride, dbg)], dbg)
 
+let memory_chunk_width_in_bytes : memory_chunk -> int = function
+  | Byte_unsigned | Byte_signed -> 1
+  | Sixteen_unsigned | Sixteen_signed -> 2
+  | Thirtytwo_unsigned | Thirtytwo_signed -> 4
+  | Single { reg = Float64 | Float32 } -> 4
+  | Word_int -> size_int
+  | Word_val -> size_addr
+  | Double -> size_float
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
+
 let field_address ?(memory_chunk = Word_val) ptr n dbg =
   if n = 0
   then ptr
   else
-    let field_size_in_bytes =
-      match memory_chunk with
-      | Byte_unsigned | Byte_signed -> 1
-      | Sixteen_unsigned | Sixteen_signed -> 2
-      | Thirtytwo_unsigned | Thirtytwo_signed -> 4
-      | Single { reg = Float64 | Float32 } ->
-        assert (size_float = 8);
-        (* unclear what to do if this is false *)
-        size_float / 2
-      | Word_int -> size_int
-      | Word_val -> size_addr
-      | Double -> size_float
-      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> size_vec128
-    in
+    let field_size_in_bytes = memory_chunk_width_in_bytes memory_chunk in
     Cop (Cadda, [ptr; Cconst_int (n * field_size_in_bytes, dbg)], dbg)
 
 let get_field_gen_given_memory_chunk memory_chunk mutability ptr n dbg =
@@ -1287,17 +1287,17 @@ let get_const_bitmask = function
     the low [bits] bits. E.g., [low_bits ~bits x & mask = x & mask], where [mask] is a
     bitmask of the low [bits] bits . *)
 let rec low_bits ~bits x dbg =
-  assert (0 < bits && bits <= arch_bits);
-  let unused_bits = arch_bits - bits in
-  let does_mask_ignore_low_bits test_mask =
-    (* If the mask has all the low bits set, then the low bits are unchanged.
-       This could happen from zero-extension. *)
-    let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
-    Nativeint.equal mask (Nativeint.logand test_mask mask)
-  in
-  if bits = arch_bits
+  assert (bits > 0);
+  if bits >= arch_bits
   then x
   else
+    let unused_bits = arch_bits - bits in
+    let does_mask_ignore_low_bits test_mask =
+      (* If the mask has all the low bits set, then the low bits are unchanged.
+         This could happen from zero-extension. *)
+      let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
+      Nativeint.equal mask (Nativeint.logand test_mask mask)
+    in
     (* Ignore sign and zero extensions, which do not affect the low bits *)
     map_tail
       (function
@@ -1317,11 +1317,11 @@ let rec low_bits ~bits x dbg =
 (** [zero_extend ~bits dbg e] returns [e] with the most significant [arch_bits - bits]
     bits set to 0 *)
 let zero_extend ~bits e dbg =
+  assert (0 < bits && bits <= arch_bits);
   let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
   let zero_extend_via_mask e =
     Cop (Cand, [e; natint_const_untagged dbg mask], dbg)
   in
-  let is_zero_extension_mask n = Nativeint.equal (Nativeint.logand mask n) n in
   if bits = arch_bits
   then e
   else
@@ -1337,15 +1337,12 @@ let zero_extend ~bits e dbg =
           | (Sixteen_signed | Sixteen_unsigned), 16 -> load Sixteen_unsigned
           | (Thirtytwo_signed | Thirtytwo_unsigned), 32 ->
             load Thirtytwo_unsigned
-          | Sixtyfour, 64 -> e
           | _ -> zero_extend_via_mask e)
-        | e -> (
-          match get_const_bitmask e with
-          | Some (_, bitmask) when is_zero_extension_mask bitmask -> e
-          | _ -> zero_extend_via_mask e))
+        | e -> zero_extend_via_mask e)
       (low_bits ~bits e dbg)
 
 let sign_extend ~bits e dbg =
+  assert (0 < bits && bits <= arch_bits);
   let unused_bits = arch_bits - bits in
   let sign_extend_via_shift e =
     asr_const (lsl_const e unused_bits dbg) unused_bits dbg
@@ -1357,6 +1354,7 @@ let sign_extend ~bits e dbg =
       (function
         | Cop ((Casr | Clsr), [inner; Cconst_int (n, _)], _) as e
           when 0 <= n && n < arch_bits ->
+          (* see middle_end/flambda2/z3/sign_extension.py for proof *)
           if n > unused_bits
           then (* already sign-extended *) e
           else
@@ -1371,7 +1369,6 @@ let sign_extend ~bits e dbg =
           | (Byte_signed | Byte_unsigned), 8 -> load Byte_signed
           | (Sixteen_signed | Sixteen_unsigned), 16 -> load Sixteen_signed
           | (Thirtytwo_signed | Thirtytwo_unsigned), 32 -> load Thirtytwo_signed
-          | Sixtyfour, 64 -> e
           | _ -> sign_extend_via_shift e)
         | e -> sign_extend_via_shift e)
       (low_bits ~bits e dbg)
@@ -1475,6 +1472,20 @@ let unboxed_int64_or_nativeint_array_set ~has_custom_ops arr ~index ~new_value
               int_array_set arr index new_value dbg)))
 
 (* Get the field of a block given a possibly inconstant index *)
+let get_field_unboxed memory_chunk mutability block ~index_in_words dbg =
+  if Arch.big_endian && memory_chunk_width_in_bytes memory_chunk <> size_addr
+  then
+    Misc.fatal_error
+      "Unboxed non-word size integer fields are only supported on \
+       little-endian architectures";
+  (* CR layouts v5.1: We'll need to vary log2_size_addr among other things to
+     efficiently pack small integers *)
+  let field_address =
+    assert (size_float = size_addr);
+    array_indexing log2_size_addr block index_in_words dbg
+  in
+  Cop
+    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
 let get_field_computed imm_or_ptr mutability ~block ~index dbg =
   let memory_chunk =
@@ -1482,159 +1493,34 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
     | Lambda.Immediate -> Word_int
     | Lambda.Pointer -> Word_val
   in
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let get_field_unboxed_int8 mutability ~block ~index dbg =
-  let memory_chunk = Byte_signed in
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int8 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We'll need to vary log2_size_addr among other things to
-     efficiently pack int8s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let get_field_unboxed_int16 mutability ~block ~index dbg =
-  let memory_chunk = Sixteen_signed in
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int16 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We'll need to vary log2_size_addr among other things to
-     efficiently pack int8s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let get_field_unboxed_int32 mutability ~block ~index dbg =
-  let memory_chunk = Thirtytwo_signed in
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int32 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
-   * int32s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg =
-  let memory_chunk = Word_int in
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
+  get_field_unboxed memory_chunk mutability block ~index_in_words:index dbg
 
 (* Setters for unboxed int fields *)
 
-let setfield_unboxed_int8 arr ofs newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int8 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We will need to vary log2_size_addr when int32 fields are
-     efficiently packed. *)
-  return_unit dbg
-    (Cop
-       ( Cstore (Byte_signed, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-let setfield_unboxed_int16 arr ofs newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int16 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We will need to vary log2_size_addr when int32 fields are
-     efficiently packed. *)
-  return_unit dbg
-    (Cop
-       ( Cstore (Sixteen_signed, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-let setfield_unboxed_int32 arr ofs newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed int32 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We will need to vary log2_size_addr when int32 fields are
-     efficiently packed. *)
-  return_unit dbg
-    (Cop
-       ( Cstore (Thirtytwo_signed, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
-  return_unit dbg
-    (Cop
-       ( Cstore (Word_int, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-(* Getters and setters for unboxed float32 fields *)
-
-let get_field_unboxed_float32 mutability ~block ~index dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed float32 fields only supported on little-endian architectures";
-  let memory_chunk = Single { reg = Float32 } in
-  (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
-   * float32s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let setfield_unboxed_float32 arr ofs newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed float32 fields only supported on little-endian architectures";
-  (* CR layouts v5.1: We will need to vary log2_size_addr when float32 fields
-     are efficiently packed. *)
-  return_unit dbg
-    (Cop
-       ( Cstore (Single { reg = Float32 }, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
-(* Getters and setters for unboxed vec128 fields *)
-
-let get_field_unboxed_vec128 mutability ~block ~index_in_words dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed vec128 fields only supported on little-endian architectures";
-  let memory_chunk = Onetwentyeight_unaligned in
-  let field_address = array_indexing log2_size_addr block index_in_words dbg in
-  Cop
-    (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
-
-let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed vec128 fields only supported on little-endian architectures";
-  let field_address = array_indexing log2_size_addr arr index_in_words dbg in
-  return_unit dbg
-    (Cop
-       ( Cstore (Onetwentyeight_unaligned, Assignment),
-         [field_address; newval],
-         dbg ))
+let setfield_unboxed memory_chunk arr ~index_in_words newval dbg =
+  match memory_chunk with
+  | Word_val ->
+    Misc.fatal_error "Attempted to set a value via [setfield_unboxed]"
+  | memory_chunk ->
+    if Arch.big_endian && memory_chunk_width_in_bytes memory_chunk <> size_addr
+    then
+      Misc.fatal_error
+        "Unboxed non-word-size fields are only supported on little-endian \
+         architectures";
+    (* CR layouts v5.1: Properly support big-endian. *)
+    if Arch.big_endian && memory_chunk_width_in_bytes memory_chunk <> size_addr
+    then
+      Misc.fatal_error
+        "Unboxed non-word-size fields are only supported on little-endian \
+         architectures";
+    (* CR layouts v5.1: We will need to vary log2_size_addr, among other things,
+       when small fields are efficiently packed. *)
+    let field_address = array_indexing log2_size_addr arr index_in_words dbg in
+    let newval =
+      low_bits ~bits:(8 * memory_chunk_width_in_bytes memory_chunk) newval dbg
+    in
+    return_unit dbg
+      (Cop (Cstore (memory_chunk, Assignment), [field_address; newval], dbg))
 
 (* String length *)
 
@@ -1829,16 +1715,12 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-(* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code will
-   need to change. *)
+(* CR layouts 5.1: When we pack int8/16/32s/float32s more efficiently, this code
+   will need to change. *)
 let memory_chunk_size_in_words_for_mixed_block = function
-  | (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed) as
-    memory_chunk ->
-    Misc.fatal_errorf
-      "Fields with memory chunk %s are not allowed in mixed blocks"
-      (Printcmm.chunk memory_chunk)
+  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
   | Thirtytwo_unsigned | Thirtytwo_signed ->
-    (* Int32s are currently stored using a whole word *)
+    (* small integers are currently stored using a whole word *)
     1
   | Single _ | Double ->
     (* Float32s are currently stored using a whole word *)
@@ -1862,8 +1744,9 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
     addr_array_initialize block ofs newval dbg
   | Word_int -> generic_case ()
   (* Generic cases that may differ under big endian archs *)
-  | Single _ | Double | Thirtytwo_unsigned | Thirtytwo_signed
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed | Single _
+  | Double | Thirtytwo_unsigned | Thirtytwo_signed | Onetwentyeight_unaligned
+  | Onetwentyeight_aligned ->
     if Arch.big_endian
     then
       Misc.fatal_errorf
@@ -1871,11 +1754,6 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
          architectures"
         (Printcmm.chunk memory_chunk);
     generic_case ()
-  (* Forbidden cases *)
-  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
-    Misc.fatal_errorf
-      "Fields with memory_chunk %s are not supported in generic allocations"
-      (Printcmm.chunk memory_chunk)
 
 let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
     args_memory_chunks =
@@ -1978,8 +1856,7 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
           (* regular scanned part of a block *)
           match memory_chunk with
           | Word_int | Word_val -> ok ()
-          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
-            error "mixed blocks"
+          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed
           | Thirtytwo_unsigned | Thirtytwo_signed | Single _ | Double
           | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
             error "the value prefix of a mixed block"
@@ -1987,10 +1864,9 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
           (* flat suffix part of the block *)
           match memory_chunk with
           | Word_int | Thirtytwo_unsigned | Thirtytwo_signed | Double
-          | Onetwentyeight_unaligned | Onetwentyeight_aligned | Single _ ->
-            ok ()
+          | Onetwentyeight_unaligned | Onetwentyeight_aligned | Single _
           | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
-            error "mixed blocks"
+            ok ()
           | Word_val -> error "the flat suffix of a mixed block")
       0 args_memory_chunks
   in
