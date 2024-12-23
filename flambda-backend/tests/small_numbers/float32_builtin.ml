@@ -54,6 +54,8 @@ end
 module CFloat32 = struct
   type t = float32
 
+  external is_boxed_float32 : t -> bool = "float32_is_boxed_float32" [@@noalloc]
+
   external bits_to_int : (t [@unboxed]) -> (int32 [@unboxed]) = "float32_bits_to_int_boxed" "float32_bits_to_int" [@@noalloc]
 
   external zero : unit -> (t [@unboxed]) = "float32_zero_boxed" "float32_zero" [@@noalloc]
@@ -318,18 +320,19 @@ type v =
   | A of float32 * float * int
   | B of int * (float32 * float32)
 
+let check f32 f64 = assert (CFloat32.is_boxed_float32 f32 && f32 = Float32.of_float f64)
+
 let () = (* Static constants *)
-  let open Stdlib_stable in
   let x = Sys.opaque_identity 1.0s in
-  assert (x = Float32.of_float 1.0);
+  check x 1.0;
   let block = Sys.opaque_identity ((0.0, 123), 2.0s, "hello", (3.0s, 4.0)) in
   let (_, x, _, (y, _)) = block in
-  assert (x = Float32.of_float 2.0);
-  assert (y = Float32.of_float 3.0);
+  check x 2.0;
+  check y 3.0;
   let block = Sys.opaque_identity (B (0, (5.0s, 6.0s))) in
   match block with
   | A _ -> assert false
   | B (_, (x, y)) ->
-    assert (x = Float32.of_float 5.0);
-    assert (y = Float32.of_float 6.0)
+    check x 5.0;
+    check y 6.0
 ;;
