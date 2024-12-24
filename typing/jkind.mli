@@ -335,7 +335,7 @@ val unsafely_set_upper_bounds : from:'d t -> 'd t -> 'd t
 
 (** Take an existing [jkind_l] and add some baggage. *)
 val add_baggage :
-  ?modality:Mode.Modality.Value.Const.t ->
+  modality:Mode.Modality.Value.Const.t ->
   baggage:Types.type_expr ->
   jkind_l ->
   jkind_l

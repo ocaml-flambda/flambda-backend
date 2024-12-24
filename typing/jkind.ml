@@ -1372,7 +1372,7 @@ let unsafely_set_upper_bounds ~from t =
     jkind = Jkind_desc.unsafely_set_upper_bounds t.jkind ~from:from.jkind
   }
 
-let add_baggage ?(modality = Mode.Modality.Value.Const.id) ~baggage t =
+let add_baggage ~modality ~baggage t =
   { t with
     jkind = Jkind_desc.add_baggage ~deep_only:true ~baggage ~modality t.jkind
   }
