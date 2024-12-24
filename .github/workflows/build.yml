@@ -247,9 +247,10 @@ jobs:
           --with-dune=$GITHUB_WORKSPACE/ocaml-414/_install/bin/dune \
           ${{ matrix.config }}
 
-    - name: Set cores to get stored in /cores
+    - name: Setup for saving core files (not for macOS at the moment)
+      if: matrix.os != 'macos-latest'
       run: |
-        sudo mkdir -p /cores
+        sudo mkdir /cores
         sudo chmod 777 /cores
         # Core filenames will be of the form executable.pid.timestamp:
         sudo bash -c 'echo "/cores/%e.%p.%t" > /proc/sys/kernel/core_pattern'
@@ -275,19 +276,19 @@ jobs:
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
 
     - uses: actions/upload-artifact@v3
-      if: ${{ failure() }}
+      if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
         name: cores
         path: /cores
 
     - uses: actions/upload-artifact@v3
-      if: ${{ failure() }}
+      if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
         name: _build
         path: _build
 
     - uses: actions/upload-artifact@v3
-      if: ${{ failure() }}
+      if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
         name: _runtest
         path: _runtest
