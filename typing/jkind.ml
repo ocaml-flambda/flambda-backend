@@ -1259,7 +1259,7 @@ module Jkind_desc = struct
     let immediate = of_const Const.Builtin.immediate.jkind
   end
 
-  let product ~jkind_of_first_type tys layouts =
+  let product ~jkind_of_first_type tys_modalities layouts =
     (* CR layouts v2.8: We can probably drop this special case once we
        have proper subsumption. The general algorithm gets the right
        jkind, but the subsumption check fails because it can't recognize
@@ -1270,10 +1270,9 @@ module Jkind_desc = struct
       let layout = Layout.product layouts in
       let upper_bounds =
         List.fold_right
-          (fun ty bounds ->
-            Bounds.add_baggage ~deep_only:false ~baggage:ty bounds
-              ~modality:Modality.Value.Const.id)
-          tys
+          (fun (ty, modality) bounds ->
+            Bounds.add_baggage ~deep_only:false ~baggage:ty bounds ~modality)
+          tys_modalities
           (Bounds.min |> Bounds.disallow_right)
       in
       { layout; upper_bounds }
@@ -1351,8 +1350,8 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
 
-  let product ~jkind_of_first_type ~why tys layouts =
-    let desc = Jkind_desc.product ~jkind_of_first_type tys layouts in
+  let product ~jkind_of_first_type ~why tys_modalities layouts =
+    let desc = Jkind_desc.product ~jkind_of_first_type tys_modalities layouts in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
 
   let product_of_sorts ~why arity =
@@ -1490,13 +1489,15 @@ let for_boxed_record lbls =
 
 let for_unboxed_record ~jkind_of_first_type lbls =
   let open Types in
-  let tys = List.map (fun lbl -> lbl.ld_type) lbls in
+  let tys_modalities =
+    List.map (fun lbl -> lbl.ld_type, lbl.ld_modalities) lbls
+  in
   let layouts =
     List.map
       (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
       lbls
   in
-  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys layouts
+  Builtin.product ~jkind_of_first_type ~why:Unboxed_record tys_modalities layouts
 
 (* CR layouts v2.8: This should take modalities into account. *)
 let for_boxed_variant cstrs =
