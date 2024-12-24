@@ -1368,7 +1368,7 @@ end
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
-let add_baggage ?(modality = Mode.Modality.Value.Const.id) ~baggage t =
+let add_baggage ~modality ~baggage t =
   { t with
     jkind = Jkind_desc.add_baggage ~deep_only:true ~baggage ~modality t.jkind
   }

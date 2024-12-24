@@ -220,8 +220,12 @@ let option_argument_jkind = Jkind.Builtin.value ~why:(
 
 (* CR layouts v2.8: Simplify this once we have a real subsumption check. *)
 let list_jkind param =
-  Jkind.add_baggage ~baggage:param
-    (Jkind.add_baggage ~baggage:(type_list param)
+  Jkind.add_baggage
+    ~modality:Mode.Modality.Value.Const.id
+    ~baggage:param
+    (Jkind.add_baggage
+       ~modality:Mode.Modality.Value.Const.id
+       ~baggage:(type_list param)
        (Jkind.Builtin.immutable_data ~why:Boxed_variant))
 
 let list_sort = Jkind.Sort.Const.value
@@ -362,7 +366,9 @@ let build_initial_env add_type add_extension empty_env =
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
        ~jkind:(fun param ->
-         Jkind.add_baggage ~baggage:param
+         Jkind.add_baggage
+           ~modality:Mode.Modality.Value.Const.id
+           ~baggage:param
            (Jkind.Builtin.mutable_data ~why:(Primitive ident_array)))
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
@@ -370,7 +376,9 @@ let build_initial_env add_type add_extension empty_env =
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
        ~jkind:(fun param ->
-         Jkind.add_baggage ~baggage:param
+         Jkind.add_baggage
+           ~modality:Mode.Modality.Value.Const.id
+           ~baggage:param
            (Jkind.Builtin.immutable_data ~why:(Primitive ident_iarray)))
   |> add_type ident_bool
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
@@ -405,7 +413,9 @@ let build_initial_env add_type add_extension empty_env =
          variant [cstr ident_none [];
                   cstr ident_some [unrestricted tvar option_argument_sort]])
        ~jkind:(fun param ->
-         Jkind.add_baggage ~baggage:param
+         Jkind.add_baggage
+           ~modality:Mode.Modality.Value.Const.id
+           ~baggage:param
            (Jkind.Builtin.immutable_data ~why:Boxed_variant))
   |> add_type_with_jkind ident_lexing_position
        ~kind:(
@@ -438,10 +448,10 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:Jkind.(
          of_builtin Const.Builtin.immutable_data
            ~why:(Primitive ident_lexing_position) |>
-         add_baggage ~baggage:type_int |>
-         add_baggage ~baggage:type_int |>
-         add_baggage ~baggage:type_int |>
-         add_baggage ~baggage:type_string)
+         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_int |>
+         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_int |>
+         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_int |>
+         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_string)
   |> add_type ident_string ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_float ~jkind:Jkind.Const.Builtin.float64
   |> add_type ident_unboxed_nativeint ~jkind:Jkind.Const.Builtin.word
