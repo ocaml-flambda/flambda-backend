@@ -286,19 +286,19 @@ jobs:
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
         name: _build
-        path: $GITHUB_WORKSPACE/flambda_backend/_build
+        path: ${{ github.workspace }}/flambda_backend/_build
 
     - uses: actions/upload-artifact@v3
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
         name: _runtest
-        path: $GITHUB_WORKSPACE/flambda_backend/_runtest
+        path: ${{ github.workspace }}/flambda_backend/_runtest
 
     - uses: actions/upload-artifact@v3
       if: matrix.os != 'macos-latest'
       with:
         name: test_ignorable_product_array_with_uninit_2
-        path: $GITHUB_WORKSPACE/flambda_backend/_runtest/testsuite/tests/typing-layouts-arrays/_ocamltest/tests/typing-layouts-arrays/test_ignorable_product_array_with_uninit_2/ocamlopt.opt/test_ignorable_product_array_with_uninit_2.opt
+        path: ${{ github.workspace }}/flambda_backend/_runtest/testsuite/tests/typing-layouts-arrays/_ocamltest/tests/typing-layouts-arrays/test_ignorable_product_array_with_uninit_2/ocamlopt.opt/test_ignorable_product_array_with_uninit_2.opt
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
