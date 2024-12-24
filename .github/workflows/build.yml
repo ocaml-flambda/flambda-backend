@@ -285,13 +285,13 @@ jobs:
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
         name: _build
-        path: _build
+        path: $GITHUB_WORKSPACE/_build
 
     - uses: actions/upload-artifact@v3
       if: ${{ failure() }} && matrix.os != 'macos-latest'
       with:
         name: _runtest
-        path: _runtest
+        path: $GITHUB_WORKSPACE/_runtest
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
