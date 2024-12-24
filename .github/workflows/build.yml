@@ -261,8 +261,9 @@ jobs:
         if [ $run_testsuite = true ]; then target=ci; else target=compiler; fi
         export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
         ulimit -c unlimited
-        make $target \
-          || (if [ $expected_fail = true ]; then exit 0; else exit 1; fi);
+        echo "GITHUB_WORKSPACE is: $GITHUB_WORKSPACE"
+        make $target
+        ls -lR $GITHUB_WORKSPACE
       env:
         BUILD_OCAMLPARAM: ${{ matrix.build_ocamlparam }}
         OCAMLPARAM: ${{ matrix.ocamlparam }}
