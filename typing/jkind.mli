@@ -315,7 +315,7 @@ module Builtin : sig
   val product :
     jkind_of_first_type:(unit -> jkind_l) ->
     why:History.product_creation_reason ->
-    Types.type_expr list ->
+    (Types.type_expr * Mode.Modality.Value.Const.t) list ->
     Sort.t Layout.t list ->
     jkind_l
 

@@ -2182,10 +2182,17 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tarrow _ -> Jkind.for_arrow
   | Ttuple _ -> Jkind.Builtin.value ~why:Tuple
   | Tunboxed_tuple ltys ->
-     let tys = List.map (fun (_, ty) -> expand_component ty) ltys in
+     let tys_modalities =
+       List.map (fun (_, ty) -> expand_component ty,
+                                Mode.Modality.Value.Const.id) ltys
+     in
      (* CR layouts v2.8: This pretty ridiculous use of [estimate_type_jkind]
         just to throw most of it away will go away once we get [layout_of]. *)
-     let jkinds = List.map (estimate_type_jkind ~expand_component env) tys in
+     let jkinds =
+       List.map
+         (fun (ty, _) -> estimate_type_jkind ~expand_component env ty)
+         tys_modalities
+     in
      let layouts = List.map Jkind.extract_layout jkinds in
      Jkind.Builtin.product ~jkind_of_first_type:(fun () ->
        match jkinds with
@@ -2193,7 +2200,7 @@ let rec estimate_type_jkind ~expand_component env ty =
          | _ -> Misc.fatal_error
                   "Ctype.estimate_type_jkind: use of jkind_of_first_type \
                    with more than 1 type")
-       ~why:Unboxed_tuple tys layouts
+       ~why:Unboxed_tuple tys_modalities layouts
   | Tconstr (p, args, _) -> begin try
       let type_decl = Env.find_type p env in
       let jkind = type_decl.type_jkind in
