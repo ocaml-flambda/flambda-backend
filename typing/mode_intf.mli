@@ -506,7 +506,8 @@ module type S = sig
         val singleton : atom -> t
 
         (** Returns the list of [atom] in the given modality. The list is
-            commutative. *)
+            commutative. Post-condition: each axis is represented in the
+            output list exactly once. *)
         val to_list : t -> atom list
 
         (** [equate t0 t1] checks that [t0 = t1].
