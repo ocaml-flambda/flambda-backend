@@ -64,7 +64,6 @@ type 'a t = { x : 'a @@ many; }
 type 'a t = { x : 'a @@ contended; }
 type 'a t = { x : 'a @@ portable; }
 |}]
-(* CR layouts v2.8: this should be accepted *)
 
 let use_global : ('a : value & value). 'a @ global -> unit = fun _ -> ()
 let cross_global : ('a : value & value mod global). 'a -> unit = fun _ -> ()
