@@ -247,6 +247,19 @@ Error: Unboxed record element types must have a representable layout.
 (***************************************)
 (* Singleton recursive unboxed records *)
 
+(* CR layouts v7.2: allow the below. *)
+type 'a safe = #{ a : 'a }
+type x = int safe safe
+[%%expect{|
+type 'a safe = #{ a : 'a; }
+Line 2, characters 0-22:
+2 | type x = int safe safe
+    ^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "x" is recursive without boxing:
+         "x" = "int safe safe",
+         "int safe safe" contains "int safe"
+|}]
+
 (* We could allow these, as although they have unguarded recursion,
    they are finite size (thanks to the fact that we represent single-field
    records as the layout of the field rather than as a singleton product).
