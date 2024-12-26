@@ -477,6 +477,8 @@ let add_small_number_beta_extension_types add_type env =
   |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
 
 let or_null_kind tvar =
+  (* CR layouts v3: use [Variant_with_null] when it's supported
+     in the backend. *)
   variant [cstr ident_null [];
            cstr ident_this [unrestricted tvar or_null_argument_sort]]
 
