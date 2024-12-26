@@ -99,7 +99,7 @@ typedef uintnat mark_t;
 Caml_inline int Is_block(value x) {
     int result;
     value never_used;
-    __asm__ inline (
+    __asm__ (
         "tzcnt %2, %1"
         : "=@cca" (result), "=r" (never_used)
         : "r" (x)
@@ -111,7 +111,7 @@ Caml_inline int Is_block(value x) {
 Caml_inline int Is_long(value x) {
     int result;
     value never_used;
-    __asm__ inline (
+    __asm__ (
         "tzcnt %2, %1"
         : "=@ccbe" (result), "=r" (never_used)
         : "r" (x)
