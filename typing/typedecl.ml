@@ -1987,10 +1987,16 @@ let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
     | _ -> ()
   in
   let rec expand parents trace ty =
-    match Ctype.path_and_expansion env ty with
-    | Some (path, ty') ->
-      expand (Path.Set.add path parents) (Expands_to (ty, ty') :: trace) ty'
-    | None ->
+    match Ctype.try_expand_safe_opt env ty with
+    | ty' ->
+      begin match get_desc ty with
+      | Tconstr (path, _, _) ->
+        expand (Path.Set.add path parents) (Expands_to (ty, ty') :: trace) ty'
+      | _ ->
+        (* Only [Tconstr]s can be expanded *)
+        Misc.fatal_error "Typedecl.check_unboxed_recursion"
+      end
+    | exception Ctype.Cannot_expand ->
       parents, trace, ty
   in
   let rec visit parents trace ty =

@@ -2064,15 +2064,6 @@ let try_expand_safe_opt env ty =
   with Escape _ ->
     Btype.backtrack snap; raise Cannot_expand
 
-let path_and_expansion env ty =
-  match try_expand_safe_opt env ty with
-  | ty' ->
-    begin match get_desc ty with
-    | Tconstr (path, _, _) -> Some (path, ty')
-    | _ -> Misc.fatal_error "Ctype.path_and_expansion"
-    end
-  | exception Cannot_expand -> None
-
 let expand_head_opt env ty =
   try try_expand_head try_expand_safe_opt env ty with Cannot_expand -> ty
 
