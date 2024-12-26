@@ -75,11 +75,17 @@ module UTuple_array0 :
   let get t i = let a = get t i in fun () -> a
   external set: element_t array -> int -> element_t -> unit = "%array_safe_set"
   let set t i e = set t i (e ())
+
+  (*
   external unsafe_get: element_t array -> int -> element_t = "%array_unsafe_get"
   let unsafe_get t i = let a = unsafe_get t i in fun () -> a
   external unsafe_set: element_t array -> int -> element_t -> unit =
     "%array_unsafe_set"
   let unsafe_set t i e = unsafe_set t i (e ())
+  *)
+
+  let unsafe_get = get
+  let unsafe_set = set
 
   external makearray_dynamic_uninit : int -> element_t array =
     "%makearray_dynamic_uninit"
