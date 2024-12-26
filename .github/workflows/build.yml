@@ -293,8 +293,9 @@ jobs:
     - uses: actions/upload-artifact@v3
       if: matrix.os != 'macos-latest'
       with:
-        name: test_ignorable_product_array_with_uninit_2
+        name: typing-layouts-arrays_${{ matrix.name }}
         path: ${{ github.workspace }}/flambda_backend/_runtest/testsuite/tests/typing-layouts-arrays/
+
 #        path: ${{ github.workspace }}/flambda_backend/_runtest/testsuite/tests/typing-layouts-arrays/_ocamltest/tests/typing-layouts-arrays/test_ignorable_product_array_with_uninit_2/ocamlopt.opt/test_ignorable_product_array_with_uninit_2.opt
 
 concurrency:
