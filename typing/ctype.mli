@@ -246,9 +246,6 @@ val apply:
 val try_expand_once_opt: Env.t -> type_expr -> type_expr
 val try_expand_safe_opt: Env.t -> type_expr -> type_expr
 
-val path_and_expansion: Env.t -> type_expr -> (Path.t * type_expr) option
-(** Return an option instead of raising, and gives the path of the input type *)
-
 val expand_head_once: Env.t -> type_expr -> type_expr
 val expand_head: Env.t -> type_expr -> type_expr
 val expand_head_opt: Env.t -> type_expr -> type_expr
