@@ -175,71 +175,13 @@ module Axis = struct
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
 
-  (* CR aspsmith: This can get a lot simpler once we unify jkind axes with the axes in
-     Mode *)
-  let modality_is_const_for_axis (type a) (t : a t) modality =
+  let modality_is_const_for_axis (type a) (t : a t)
+      (modality : Mode.Modality.Value.Const.t) =
     match t with
     | Nonmodal Nullability | Nonmodal Externality -> false
     | Modal axis ->
-      let atoms = Mode.Modality.Value.Const.to_list modality in
-      List.exists
-        (fun (modality : Mode.Modality.t) ->
-          match axis, modality with
-          (* Constant modalities *)
-          | Comonadic Areality, Atom (Comonadic Areality, Meet_with Global) ->
-            true
-          | Comonadic Linearity, Atom (Comonadic Linearity, Meet_with Many) ->
-            true
-          | Monadic Uniqueness, Atom (Monadic Uniqueness, Join_with Aliased) ->
-            true
-          | ( Comonadic Portability,
-              Atom (Comonadic Portability, Meet_with Portable) ) ->
-            true
-          | Monadic Contention, Atom (Monadic Contention, Join_with Contended)
-            ->
-            true
-          (* Modalities which are actually identity *)
-          | Comonadic Areality, Atom (Comonadic Areality, Meet_with Local)
-          | Comonadic Linearity, Atom (Comonadic Linearity, Meet_with Once)
-          | Monadic Uniqueness, Atom (Monadic Uniqueness, Join_with Unique)
-          | ( Comonadic Portability,
-              Atom (Comonadic Portability, Meet_with Nonportable) )
-          | Monadic Contention, Atom (Monadic Contention, Join_with Uncontended)
-            ->
-            false
-          (* Modalities which are neither constant nor identiy *)
-          | Comonadic Areality, Atom (Comonadic Areality, Meet_with Regional)
-          | Monadic Contention, Atom (Monadic Contention, Join_with Shared) ->
-            Misc.fatal_error
-              "Don't yet know how to interpret non-constant, non-identity \
-               modalities"
-          (* Modalities which join or meet on an illegal axis *)
-          | _, Atom (Comonadic _, Join_with _) | _, Atom (Monadic _, Meet_with _)
-            ->
-            Misc.fatal_error "Illegal modality"
-          (* Mismatched axes *)
-          | Comonadic Areality, Atom (Monadic Uniqueness, _)
-          | Comonadic Areality, Atom (Monadic Contention, _)
-          | Comonadic Areality, Atom (Comonadic Linearity, _)
-          | Comonadic Areality, Atom (Comonadic Portability, _)
-          | Comonadic Linearity, Atom (Comonadic Areality, _)
-          | Comonadic Linearity, Atom (Monadic Uniqueness, _)
-          | Comonadic Portability, Atom (Monadic Uniqueness, _)
-          | Monadic Contention, Atom (Monadic Uniqueness, _)
-          | Comonadic Linearity, Atom (Comonadic Portability, _)
-          | Comonadic Linearity, Atom (Monadic Contention, _)
-          | Monadic Uniqueness, Atom (Comonadic Areality, _)
-          | Monadic Uniqueness, Atom (Comonadic Linearity, _)
-          | Monadic Uniqueness, Atom (Comonadic Portability, _)
-          | Monadic Contention, Atom (Comonadic Areality, _)
-          | Monadic Contention, Atom (Comonadic Linearity, _)
-          | Monadic Contention, Atom (Comonadic Portability, _)
-          | Monadic Uniqueness, Atom (Monadic Contention, _)
-          | Comonadic Portability, Atom (Comonadic Areality, _)
-          | Comonadic Portability, Atom (Comonadic Linearity, _)
-          | Comonadic Portability, Atom (Monadic Contention, _) ->
-            false)
-        atoms
+      let (P axis) = Mode.Const.Axis.alloc_as_value axis in
+      Mode.Modality.Value.Const.is_constant_for axis modality
 end
 
 module type Axed = sig

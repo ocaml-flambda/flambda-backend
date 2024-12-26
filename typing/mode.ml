@@ -1910,6 +1910,12 @@ module Value_with (Areality : Areality) = struct
       | Comonadic ax -> Comonadic.max_axis ax
       | Monadic ax -> Monadic.max_axis ax
 
+    let is_max : type m a d. (m, a, d) axis -> a -> bool =
+     fun ax m -> le_axis ax (max_axis ax) m
+
+    let is_min : type m a d. (m, a, d) axis -> a -> bool =
+     fun ax m -> le_axis ax m (min_axis ax)
+
     let split = split
 
     let merge = merge
@@ -2168,6 +2174,19 @@ module Const = struct
     let areality = C.locality_as_regionality areality in
     { areality; linearity; portability; uniqueness; contention }
 
+  module Axis = struct
+    type 'd packed_value_axis =
+      | P : ('m, 'a, 'd) Value.axis -> 'd packed_value_axis
+
+    let alloc_as_value : type m a d. (m, a, d) Alloc.axis -> d packed_value_axis
+        = function
+      | Comonadic Areality -> P (Comonadic Areality)
+      | Comonadic Linearity -> P (Comonadic Linearity)
+      | Comonadic Portability -> P (Comonadic Portability)
+      | Monadic Uniqueness -> P (Monadic Uniqueness)
+      | Monadic Contention -> P (Monadic Contention)
+  end
+
   let locality_as_regionality = C.locality_as_regionality
 end
 
@@ -2213,8 +2232,13 @@ module Modality = struct
 
   let is_id (Atom (ax, a)) =
     match a with
-    | Join_with c -> Value.Const.le_axis ax c (Value.Const.min_axis ax)
-    | Meet_with c -> Value.Const.le_axis ax (Value.Const.max_axis ax) c
+    | Join_with c -> Value.Const.is_min ax c
+    | Meet_with c -> Value.Const.is_max ax c
+
+  let is_constant (Atom (ax, a)) =
+    match a with
+    | Join_with c -> Value.Const.is_max ax c
+    | Meet_with c -> Value.Const.is_min ax c
 
   let print ppf = function
     | Atom (ax, Join_with c) ->
@@ -2272,6 +2296,9 @@ module Modality = struct
              Atom (Monadic ax, Join_with (Axis.proj ax c)));
             (let ax : _ Axis.t = Contention in
              Atom (Monadic ax, Join_with (Axis.proj ax c))) ]
+
+      let proj ax = function
+        | Join_const c -> Atom (Monadic ax, Join_with (Axis.proj ax c))
 
       let print ppf = function
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
@@ -2415,6 +2442,9 @@ module Modality = struct
             (let ax : _ Axis.t = Portability in
              Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
 
+      let proj ax = function
+        | Meet_const c -> Atom (Comonadic ax, Meet_with (Axis.proj ax c))
+
       let print ppf = function
         | Meet_const c -> Format.fprintf ppf "meet_const(%a)" Mode.Const.print c
     end
@@ -2540,6 +2570,8 @@ module Modality = struct
 
       let id = { monadic = Monadic.id; comonadic = Comonadic.id }
 
+      let modality_is_id = is_id
+
       let is_id { monadic; comonadic } =
         Monadic.is_id monadic && Comonadic.is_id comonadic
 
@@ -2576,6 +2608,26 @@ module Modality = struct
 
       let to_list { monadic; comonadic } =
         Comonadic.to_list comonadic @ Monadic.to_list monadic
+
+      let proj_monadic ax { monadic; _ } = Monadic.proj ax monadic
+
+      let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
+
+      let proj (type m a d) (ax : (m, a, d) Value.axis) t =
+        match ax with
+        | Monadic ax -> proj_monadic ax t
+        | Comonadic ax -> proj_comonadic ax t
+
+      let is_constant_for (type m a d) (axis : (m, a, d) Value.axis) t =
+        let modality = proj axis t in
+        if is_constant modality
+        then true
+        else if modality_is_id modality
+        then false
+        else
+          Misc.fatal_error
+            "Don't yet know how to interpret non-constant, non-identity \
+             modalities"
     end
 
     type t = (Monadic.t, Comonadic.t) monadic_comonadic

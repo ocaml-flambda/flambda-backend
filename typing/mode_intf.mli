@@ -286,6 +286,8 @@ module type S = sig
       | Contention : (monadic, Contention.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
+
+    val eq : ('p, 'r0) t -> ('p, 'r1) t -> ('r0, 'r1) Misc.eq option
   end
 
   module type Mode := sig
@@ -440,6 +442,13 @@ module type S = sig
   module Const : sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
 
+    module Axis : sig
+      type 'd packed_value_axis =
+        | P : ('m, 'a, 'd) Value.axis -> 'd packed_value_axis
+
+      val alloc_as_value : ('m, 'a, 'd) Alloc.axis -> 'd packed_value_axis
+    end
+
     val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
   end
 
@@ -517,6 +526,10 @@ module type S = sig
             commutative. Post-condition: each axis is represented in the
             output list exactly once. *)
         val to_list : t -> atom list
+
+        (** Test if the given modality is a constant modality along the given
+            axis. *)
+        val is_constant_for : ('m, 'a, 'd) Value.axis -> t -> bool
 
         (** [equate t0 t1] checks that [t0 = t1].
             Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
