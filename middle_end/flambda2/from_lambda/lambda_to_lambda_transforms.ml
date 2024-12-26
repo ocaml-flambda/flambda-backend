@@ -504,14 +504,14 @@ let arrayblit env ~(src_mutability : L.mutable_flag)
       in
       rec_catch_for_for_loop env loc src_index start_pos end_pos direction
         (Lprim
-           ( Parraysetu (dst_array_set_kind, Ptagged_int_index),
+           ( Parraysets (dst_array_set_kind, Ptagged_int_index),
              [ Lvar dst;
                Lprim
                  ( Paddint,
                    [Lvar src_index; dst_start_pos_minus_src_start_pos],
                    loc );
                Lprim
-                 ( Parrayrefu
+                 ( Parrayrefs
                      ( src_array_ref_kind,
                        Ptagged_int_index,
                        match src_mutability with
