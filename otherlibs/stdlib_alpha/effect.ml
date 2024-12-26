@@ -143,7 +143,7 @@ module Handler : sig
       (** [es t] is the length of effect list [es]. It has slightly unusual
           constructors so that lengths can be written as [[X;X;X]] rather
           than e.g. [(S (S (S Z)))]. This looks nicer on calls to [fiber_with]:
-    
+
           {[
             fiber_with [X; X; X] (fun [a; b; c] -> ...)
           ]}
@@ -151,7 +151,7 @@ module Handler : sig
 
     end
 
-    val length : (*local_*) 'es t -> 'es Length.t
+    val length : local_ 'es t -> 'es Length.t
     (** [length t] is the length of [t]. *)
 
   end
@@ -169,11 +169,11 @@ module Handler : sig
 
     type 'e t += C : ('e, e * es) Raw_handler.t -> 'e t
 
-    val initial : length:(*local_*) es List.Length.t -> es List.t
+    val initial : length:local_ es List.Length.t -> es List.t
     (** [initial ~length] is a list of handlers for effects [es], where [length]
         is the length of [es]. *)
 
-    val initial_from : (*local_*) es List.t -> es List.t
+    val initial_from : local_ es List.t -> es List.t
     (** [initial_from hs] is a list of handlers for effect [es], where [hs] is
         another list of handlers for effects [es]. These handlers are selected
         from the effect list [e * es] for some effect [e]. Note that [hs] is
@@ -211,7 +211,7 @@ end = struct
       (** [es t] is the length of effect list [es]. It has slightly unusual
           constructors so that lengths can be written as [[X;X;X]] rather
           than e.g. [(S (S (S Z)))]. This looks nicer on calls to [fiber_with]:
-    
+
           {[
             fiber_with [X; X; X] (fun [a; b; c] -> ...)
           ]}
@@ -219,8 +219,8 @@ end = struct
 
     end
 
-    let length ((*local_*) t) =
-      let rec loop : type es . (*local_*) es t -> es Length.t = function
+    let length (local_ t) =
+      let rec loop : type es . local_ es t -> es Length.t = function
         | [] -> []
         | _ :: rest -> X :: (loop rest)
       in
@@ -241,11 +241,11 @@ end = struct
 
     type 'e t += C : ('e, e * es) Raw_handler.t -> 'e t
 
-    val initial : length:(*local_*) es List.Length.t -> es List.t
+    val initial : length:local_ es List.Length.t -> es List.t
     (** [initial ~length] is a list of handlers for effects [es], where [length]
         is the length of [es]. *)
 
-    val initial_from : (*local_*) es List.t -> es List.t
+    val initial_from : local_ es List.t -> es List.t
     (** [initial_from hs] is a list of handlers for effect [es], where [hs] is
         another list of handlers for effects [es]. These handlers are selected
         from the effect list [e * es] for some effect [e]. Note that [hs] is
@@ -263,10 +263,10 @@ end = struct
     type 'e t += C : ('e, e * es) Raw_handler.t -> 'e t
 
     let initial
-          ~((*local_*) length : es List.Length.t) : es List.t =
+          ~(local_ length : es List.Length.t) : es List.t =
       let rec loop
         : type esr. (esr, e * es) Handler_index.t
-               -> (*local_*) esr List.Length.t -> esr List.t =
+               -> local_ esr List.Length.t -> esr List.t =
         fun i l ->
           match l with
           | [] -> []
@@ -276,9 +276,9 @@ end = struct
       in
       loop Handler_index.one length [@nontail]
 
-    let initial_from ((*local_*) t : es List.t) : es List.t =
+    let initial_from (local_ t : es List.t) : es List.t =
       let rec loop
-        : type esr. (esr, e * es) Handler_index.t -> (*local_*) esr List.t
+        : type esr. (esr, e * es) Handler_index.t -> local_ esr List.t
                -> esr List.t =
         fun i l ->
           match l with
@@ -300,7 +300,7 @@ module Mapping : sig
       list [es]. *)
 
   val lookup :
-    (*local_*) ('e, 'es) Raw_handler.t
+    local_ ('e, 'es) Raw_handler.t
     -> 'es t
     -> 'e Handler.t
   (** [lookup h t] looks up handler [h] in mapping [t] and returns the
@@ -309,16 +309,16 @@ module Mapping : sig
   val empty : unit t
   (** [empty] is the mapping out of the empty list. *)
 
-  val create : (*local_*) 'es Handler.List.t -> 'es t
+  val create : local_ 'es Handler.List.t -> 'es t
   (** [create hs] creates a new mapping from [es], where [hs] is a list
       of handlers for effects [es]. Its initial value is to map each
       handler from [es] to the corresponding handler in [hs]. *)
 
-  val set : (*local_*) 'es Handler.List.t -> 'es t -> unit
+  val set : local_ 'es Handler.List.t -> 'es t -> unit
   (** [set hs t] updates the mapping [t] to map each handler to the
       corresponding handler in [hs]. *)
 
-  val create_unset : (*local_*) 'es Handler.List.Length.t -> 'es t
+  val create_unset : local_ 'es Handler.List.Length.t -> 'es t
   (** [create len] creates a new uninitialized mapping from [es], where
       [len] is the length of [es]. The mapping must be initialized with
       [set] before it is used. *)
@@ -345,9 +345,9 @@ end = struct
     let elt : element = Obj.magic h in
     Array.unsafe_set t (Handler_index.to_int idx) elt
 
-  let create (type es) ((*local_*) l : es Handler.List.t) =
+  let create (type es) (local_ l : es Handler.List.t) =
     let rec loop : type esr.
-      (esr, es) Handler_index.t -> (*local_*) esr Handler.List.t -> es t =
+      (esr, es) Handler_index.t -> local_ esr Handler.List.t -> es t =
       fun idx l ->
         match l with
         | [] -> make idx
@@ -358,9 +358,9 @@ end = struct
     in
     loop Handler_index.zero l [@nontail]
 
-  let set (type es) ((*local_*) hs : es Handler.List.t) (t : es t) =
+  let set (type es) (local_ hs : es Handler.List.t) (t : es t) =
     let rec loop : type esr.
-      (esr, es) Handler_index.t -> (*local_*) esr Handler.List.t -> es t -> unit =
+      (esr, es) Handler_index.t -> local_ esr Handler.List.t -> es t -> unit =
       fun idx hs t ->
         match hs with
         | [] -> ()
@@ -370,10 +370,10 @@ end = struct
     in
     loop Handler_index.zero hs t [@nontail]
 
-  let create_unset (type es) ((*local_*) l : es Handler.List.Length.t) =
+  let create_unset (type es) (local_ l : es Handler.List.Length.t) =
     let rec loop
       : type esr. (esr, es) Handler_index.t ->
-             (*local_*) esr Handler.List.Length.t -> es t =
+             local_ esr Handler.List.Length.t -> es t =
       fun idx l ->
         match l with
         | [] -> make idx
@@ -437,13 +437,13 @@ external reperform :
 let alloc_cont
     (type a b h e es)
     (module H : Handler.Create with type e = e and type es = es)
-    (f : (*local_*) h -> a -> b)
+    (f : local_ h -> a -> b)
     (h : h) : (a, (b, e * es) r) cont =
   let exception Ready__ of (a, (b, e * es) r) cont in
   let effc (type o eh) ((op, h) as perf : (o, eh) perform)
       (k : (o, (b, e * es) r) cont) last_fiber =
     match h with
-    | H.C h -> 
+    | H.C h ->
       cont_set_last_fiber k last_fiber;
       Op(op, h, k, last_fiber)
     | Handler.Dummy ->
@@ -462,10 +462,10 @@ let alloc_cont
 let run_stack
     (type a h e es)
     (module H : Handler.Create with type e = e and type es = es)
-     (f : (*local_*) h -> a) (h : h) : (a, e * es) r =
+     (f : local_ h -> a) (h : h) : (a, e * es) r =
   let effc ((op, h) as perf) k last_fiber =
     match h with
-    | H.C h -> 
+    | H.C h ->
       cont_set_last_fiber k last_fiber;
       Op(op, h, k, last_fiber)
     | _ -> reperform perf k last_fiber
@@ -496,7 +496,7 @@ let rec handle :
     | Exn e -> Exception e
     | Op(op, handler, k, last_fiber) -> begin
         match Raw_handler.is_zero handler with
-        | Some Refl -> 
+        | Some Refl ->
           cont_set_last_fiber k last_fiber;
           Operation(op, Cont { cont = k; mapping })
         | None ->
@@ -506,19 +506,19 @@ let rec handle :
             handle mapping result
       end
 
-let resume (Cont { cont; mapping }) f x ((*local_*) handlers) =
+let resume (Cont { cont; mapping }) f x (local_ handlers) =
   Mapping.set handlers mapping;
   handle mapping (resume (take_cont_noexc cont) f x (cont_last_fiber cont))
 
-let continue k v ((*local_*) hs) = resume k (fun x -> x) v hs
+let continue k v (local_ hs) = resume k (fun x -> x) v hs
 
-let discontinue k e ((*local_*) hs) = resume k (fun e -> raise e) e hs
+let discontinue k e (local_ hs) = resume k (fun e -> raise e) e hs
 
-let discontinue_with_backtrace k e bt ((*local_*) hs) =
+let discontinue_with_backtrace k e bt (local_ hs) =
   resume k (fun e -> Printexc.raise_with_backtrace e bt) e hs
 
 let fiber (type a b e)
-    (f : (*local_*) e Handler.t -> a -> b) =
+    (f : local_ e Handler.t -> a -> b) =
   let module Effs = struct
       type nonrec e = e
       type nonrec es = unit
@@ -531,8 +531,8 @@ let fiber (type a b e)
   let cont = alloc_cont (module H) f handler in
   Cont { cont; mapping }
 
-let fiber_with (type a b e es) ((*local_*) l : es Handler.List.Length.t)
-    (f : (*local_*) (e * es) Handler.List.t -> a -> b) =
+let fiber_with (type a b e es) (local_ l : es Handler.List.Length.t)
+    (f : local_ (e * es) Handler.List.t -> a -> b) =
   let module Effs = struct
       type nonrec e = e
       type nonrec es = es
@@ -547,7 +547,7 @@ let fiber_with (type a b e es) ((*local_*) l : es Handler.List.Length.t)
   let cont = alloc_cont (module H) f handlers in
   Cont { cont; mapping }
 
-let run (type a e) (f : (*local_*) e Handler.t -> a) =
+let run (type a e) (f : local_ e Handler.t -> a) =
   let module Effs = struct
       type nonrec e = e
       type nonrec es = unit
@@ -559,8 +559,8 @@ let run (type a e) (f : (*local_*) e Handler.t -> a) =
   let res = run_stack (module H) f handler in
   handle Mapping.empty res
 
-let run_with (type a e es) ((*local_*) hs : es Handler.List.t)
-    (f : (*local_*) (e * es) Handler.List.t -> a) =
+let run_with (type a e es) (local_ hs : es Handler.List.t)
+    (f : local_ (e * es) Handler.List.t -> a) =
   let module Effs = struct
       type nonrec e = e
       type nonrec es = es
@@ -588,7 +588,7 @@ module Continuation = struct
 end
 
 let continue (type a b es)
-    (k : (a, b, es) Continuation.t) v ((*local_*) hs) =
+    (k : (a, b, es) Continuation.t) v (local_ hs) =
   let Continuation (type e c) (cont : (a, c, e, es) continuation) = k in
   let res : (c, e, es) res = continue cont v hs in
   (Obj.magic res : b)
@@ -596,7 +596,7 @@ let continue (type a b es)
 let continue_local = continue
 
 let discontinue (type a b es)
-    (k : (a, b, es) Continuation.t) e ((*local_*) hs) =
+    (k : (a, b, es) Continuation.t) e (local_ hs) =
   let Continuation (type e c) (cont : (a, c, e, es) continuation) = k in
   let res : (c, e, es) res = discontinue cont e hs in
   (Obj.magic res : b)
@@ -604,7 +604,7 @@ let discontinue (type a b es)
 let discontinue_local = discontinue
 
 let discontinue_with_backtrace (type a b es)
-    (k : (a, b, es) Continuation.t) e bt ((*local_*) hs) =
+    (k : (a, b, es) Continuation.t) e bt (local_ hs) =
   let Continuation (type e c) (cont : (a, c, e, es) continuation) = k in
   let res : (c, e, es) res = discontinue_with_backtrace cont e bt hs in
   (Obj.magic res : b)
@@ -647,30 +647,30 @@ module type S = sig
         -> ('a, 'es) result
 
   val fiber :
-    ((*local_*) t Handler.t -> 'a -> 'b)
+    (local_ t Handler.t -> 'a -> 'b)
     -> ('a, ('b, unit) Result.t, unit) Continuation.t
 
   val fiber_local :
-    (*local_*) ((*local_*) t Handler.t -> 'a -> 'b)
-    -> (*local_*) ('a, ('b, unit) Result.t, unit) Continuation.t
+    local_ (local_ t Handler.t -> 'a -> 'b)
+    -> local_ ('a, ('b, unit) Result.t, unit) Continuation.t
 
   val fiber_with :
-    (*local_*) 'es Handler.List.Length.t
-    -> ((*local_*) (t * 'es) Handler.List.t -> 'a -> 'b)
+    local_ 'es Handler.List.Length.t
+    -> (local_ (t * 'es) Handler.List.t -> 'a -> 'b)
     -> ('a, ('b, 'es) Result.t, 'es) Continuation.t
 
-  val run : ((*local_*) t Handler.t -> 'a) -> ('a, unit) Result.t
+  val run : (local_ t Handler.t -> 'a) -> ('a, unit) Result.t
 
   val run_local :
-    (*local_*) ((*local_*) t Handler.t -> 'a)
-    -> (*local_*) ('a, unit) Result.t
+    local_ (local_ t Handler.t -> 'a)
+    -> local_ ('a, unit) Result.t
 
   val run_with :
-    (*local_*) 'es Handler.List.t
-    -> ((*local_*) (t * 'es) Handler.List.t -> 'a)
+    local_ 'es Handler.List.t
+    -> (local_ (t * 'es) Handler.List.t -> 'a)
     -> ('a, 'es) Result.t
 
-  val perform : (*local_*) t Handler.t -> ('a, t) ops -> 'a
+  val perform : local_ t Handler.t -> ('a, t) ops -> 'a
 
   module Handler : sig
 
@@ -723,30 +723,30 @@ module type S1 = sig
         -> ('a, 'p, 'es) result
 
   val fiber :
-    ((*local_*) 'p t Handler.t -> 'a -> 'b)
+    (local_ 'p t Handler.t -> 'a -> 'b)
     -> ('a, ('b, 'p, unit) Result.t, unit) Continuation.t
 
   val fiber_local :
-    (*local_*) ((*local_*) 'p t Handler.t -> 'a -> 'b)
-    -> (*local_*) ('a, ('b, 'p, unit) Result.t, unit) Continuation.t
+    local_ (local_ 'p t Handler.t -> 'a -> 'b)
+    -> local_ ('a, ('b, 'p, unit) Result.t, unit) Continuation.t
 
   val fiber_with :
-    (*local_*) 'es Handler.List.Length.t
-    -> ((*local_*) ('p t * 'es) Handler.List.t -> 'a -> 'b)
+    local_ 'es Handler.List.Length.t
+    -> (local_ ('p t * 'es) Handler.List.t -> 'a -> 'b)
     -> ('a, ('b, 'p, 'es) Result.t, 'es) Continuation.t
 
-  val run : ((*local_*) 'p t Handler.t -> 'a) -> ('a, 'p, unit) Result.t
+  val run : (local_ 'p t Handler.t -> 'a) -> ('a, 'p, unit) Result.t
 
   val run_local :
-    (*local_*) ((*local_*) 'p t Handler.t -> 'a)
-    -> (*local_*) ('a, 'p, unit) Result.t
+    local_ (local_ 'p t Handler.t -> 'a)
+    -> local_ ('a, 'p, unit) Result.t
 
   val run_with :
-    (*local_*) 'es Handler.List.t
-    -> ((*local_*) ('p t * 'es) Handler.List.t -> 'a)
+    local_ 'es Handler.List.t
+    -> (local_ ('p t * 'es) Handler.List.t -> 'a)
     -> ('a, 'p, 'es) Result.t
 
-  val perform : (*local_*) 'p t Handler.t -> ('a, 'p, 'p t) ops -> 'a
+  val perform : local_ 'p t Handler.t -> ('a, 'p, 'p t) ops -> 'a
 
   module Handler : sig
 
@@ -801,33 +801,33 @@ module type S2 = sig
         -> ('a, 'p, 'q, 'es) result
 
   val fiber :
-    ((*local_*) ('p, 'q) t Handler.t -> 'a -> 'b)
+    (local_ ('p, 'q) t Handler.t -> 'a -> 'b)
     -> ('a, ('b, 'p, 'q, unit) result, unit) Continuation.t
 
   val fiber_local :
-    (*local_*) ((*local_*) ('p, 'q) t Handler.t -> 'a -> 'b)
-    -> (*local_*) ('a, ('b, 'p, 'q, unit) result, unit) Continuation.t
+    local_ (local_ ('p, 'q) t Handler.t -> 'a -> 'b)
+    -> local_ ('a, ('b, 'p, 'q, unit) result, unit) Continuation.t
 
   val fiber_with :
-    (*local_*) 'es Handler.List.Length.t
-    -> ((*local_*) (('p, 'q) t * 'es) Handler.List.t -> 'a -> 'b)
+    local_ 'es Handler.List.Length.t
+    -> (local_ (('p, 'q) t * 'es) Handler.List.t -> 'a -> 'b)
     -> ('a, ('b, 'p, 'q, 'es) result, 'es) Continuation.t
 
   val run :
-    ((*local_*) ('p, 'q) t Handler.t -> 'a)
+    (local_ ('p, 'q) t Handler.t -> 'a)
     -> ('a, 'p, 'q, unit) result
 
   val run_local :
-    (*local_*) ((*local_*) ('p, 'q) t Handler.t -> 'a)
-    -> (*local_*) ('a, 'p, 'q, unit) result
+    local_ (local_ ('p, 'q) t Handler.t -> 'a)
+    -> local_ ('a, 'p, 'q, unit) result
 
   val run_with :
-    (*local_*) 'es Handler.List.t
-    -> ((*local_*) (('p, 'q) t * 'es) Handler.List.t -> 'a)
+    local_ 'es Handler.List.t
+    -> (local_ (('p, 'q) t * 'es) Handler.List.t -> 'a)
     -> ('a, 'p, 'q, 'es) result
 
   val perform :
-    (*local_*) ('p, 'q) t Handler.t
+    local_ ('p, 'q) t Handler.t
     -> ('a, 'p, 'q, ('p, 'q) t) ops
     -> 'a
 
@@ -924,7 +924,7 @@ module Make_rec (Ops : Operations_rec)
 
   let fiber_local = fiber
 
-  let fiber_with (type a b es) ((*local_*) hs) f =
+  let fiber_with (type a b es) (local_ hs) f =
     let k : (a, b, t, es) continuation = fiber_with hs f in
     (Continuation k : (a, (b, es) Result.t, es) Continuation.t)
 
@@ -934,7 +934,7 @@ module Make_rec (Ops : Operations_rec)
 
   let run_local = run
 
-  let run_with (type a es) ((*local_*) hs) f =
+  let run_with (type a es) (local_ hs) f =
     let res : (a, t, es) res = run_with hs f in
     (Obj.magic res : (a, es) Result.t)
 
@@ -1006,7 +1006,7 @@ module Make1_rec (Ops : Operations1_rec)
 
   let fiber_local = fiber
 
-  let fiber_with (type a b p es) ((*local_*) hs) f =
+  let fiber_with (type a b p es) (local_ hs) f =
     let k : (a, b, p t, es) continuation = fiber_with hs f in
     (Continuation k : (a, (b, p, es) Result.t, es) Continuation.t)
 
@@ -1016,7 +1016,7 @@ module Make1_rec (Ops : Operations1_rec)
 
   let run_local = run
 
-  let run_with (type a p es) ((*local_*) hs) f =
+  let run_with (type a p es) (local_ hs) f =
     let res : (a, p t, es) res = run_with hs f in
     (Obj.magic res : (a, p, es) Result.t)
 
@@ -1090,7 +1090,7 @@ module Make2_rec (Ops : Operations2_rec)
 
   let fiber_local = fiber
 
-  let fiber_with (type a p q b es) ((*local_*) hs) f =
+  let fiber_with (type a p q b es) (local_ hs) f =
     let k : (a, b, (p, q) t, es) continuation = fiber_with hs f in
     (Continuation k : (a, (b, p, q, es) result, es) Continuation.t)
 
@@ -1100,7 +1100,7 @@ module Make2_rec (Ops : Operations2_rec)
 
   let run_local = run
 
-  let run_with (type a p q es) ((*local_*) hs) f =
+  let run_with (type a p q es) (local_ hs) f =
     let res : (a, (p, q) t, es) res = run_with hs f in
     (Obj.magic res : (a, p, q, es) result)
 
