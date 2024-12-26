@@ -68,7 +68,8 @@ Line 3, characters 0-39:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "#(t1 * t2)" is
          any mod global with t1
-t2 unique many with t1
+t2 unique with t1
+t2 many with t1
 t2
                  uncontended with t1
 t2 portable with t1
@@ -77,7 +78,8 @@ t2
 t2 non_null with t1
 t2
          & any mod global with t1
-t2 unique many with t1
+t2 unique with t1
+t2 many with t1
 t2
                    uncontended with t1
 t2 portable with t1
@@ -101,7 +103,8 @@ Line 3, characters 0-45:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "#(t1 * t2)" is
          any mod global with t1
-t2 unique many with t1
+t2 unique with t1
+t2 many with t1
 t2
                  uncontended with t1
 t2 portable with t1
@@ -110,7 +113,8 @@ t2
 t2 non_null with t1
 t2
          & any mod global with t1
-t2 unique many with t1
+t2 unique with t1
+t2 many with t1
 t2
                    uncontended with t1
 t2 portable with t1
@@ -135,7 +139,8 @@ Line 3, characters 0-62:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "#(t1 * t2)" is
          any mod global with t1
-t2 unique many with t1
+t2 unique with t1
+t2 many with t1
 t2
                  uncontended with t1
 t2 portable with t1
@@ -144,7 +149,8 @@ t2
 t2 non_null with t1
 t2
          & any mod global with t1
-t2 unique many with t1
+t2 unique with t1
+t2 many with t1
 t2
                    uncontended with t1
 t2 portable with t1
