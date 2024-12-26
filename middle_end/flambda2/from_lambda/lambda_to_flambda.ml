@@ -535,10 +535,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         id,
         Lprim (prim, args, loc),
         body ) -> (
-    let env, result =
-      Lambda_to_lambda_transforms.transform_primitive env prim args loc
-    in
-    match result with
+    match Lambda_to_lambda_transforms.transform_primitive env prim args loc with
     | Primitive (prim, args, loc) ->
       (* This case avoids extraneous continuations. *)
       let exn_continuation : IR.exn_continuation option =

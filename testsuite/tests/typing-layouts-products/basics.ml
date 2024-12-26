@@ -2,6 +2,9 @@
  flambda2;
  include stdlib_upstream_compatible;
  {
+   expect;
+ }
+ {
    flags = "-extension layouts_beta";
    expect;
  }
@@ -783,7 +786,13 @@ type t4 = #(string * #(float# * bool option)) array
    arrays to beta. *)
 let _ = [| #(1,2) |]
 [%%expect{|
-- : #(int * int) array = [|#(1, 2)|]
+Line 1, characters 8-20:
+1 | let _ = [| #(1,2) |]
+            ^^^^^^^^^^^^
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -827,7 +836,13 @@ let f x : #(int * int) = array_get x 3
 [%%expect{|
 external array_get : ('a : any_non_null). 'a array -> int -> 'a
   = "%array_safe_get" [@@layout_poly]
-val f : #(int * int) array -> #(int * int) = <fun>
+Line 3, characters 25-38:
+3 | let f x : #(int * int) = array_get x 3
+                             ^^^^^^^^^^^^^
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 external[@layout_poly] array_set : ('a : any_non_null) . 'a array -> int -> 'a -> unit =
@@ -836,7 +851,13 @@ let f x = array_set x 3 #(1,2)
 [%%expect{|
 external array_set : ('a : any_non_null). 'a array -> int -> 'a -> unit
   = "%array_safe_set" [@@layout_poly]
-val f : #(int * int) array -> unit = <fun>
+Line 3, characters 10-30:
+3 | let f x = array_set x 3 #(1,2)
+              ^^^^^^^^^^^^^^^^^^^^
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 
