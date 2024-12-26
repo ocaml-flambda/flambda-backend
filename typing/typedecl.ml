@@ -1960,7 +1960,7 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    otherwise the type is uninhabitable and usually also infinite-size.
    See [typing-layouts-unboxed-records/recursive.ml].
 
-   Because `check_well_founded` already ruled out recursion through structural
+   Because [check_well_founded] already ruled out recursion through structural
    types (for this check, we care about unboxed tuples and aliases), we just
    look for a cycle in nominal unboxed types ([@@unboxed] types and unboxed
    records), tracking the set of seen paths.
