@@ -90,11 +90,11 @@ Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
 
-type ('a : any) record_id = #{ a : 'a }
-type ('a : any) alias_id = 'a
+type 'a record_id = #{ a : 'a }
+type 'a alias_id = 'a
 [%%expect{|
 type 'a record_id = #{ a : 'a; }
-type ('a : any) alias_id = 'a
+type 'a alias_id = 'a
 |}]
 
 type bad = bad record_id
