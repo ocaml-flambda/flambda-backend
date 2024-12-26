@@ -528,37 +528,47 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
-let static_cast_of_standard_int : K.Standard_int.t -> C.Static_cast.standard_int
+let integral_of_standard_int : K.Standard_int.t -> C.Numeric.Integral.t
     = function
-  | Naked_int8 -> `Bits 8
-  | Naked_int16 -> `Bits 16
-  | Naked_int32 -> `Bits 32
-  | Naked_immediate -> `Bits (C.arch_bits - 1)
-  | Tagged_immediate -> `Tagged `Word
-  | Naked_nativeint -> `Bits C.arch_bits
-  | Naked_int64 -> `Bits 64
+    | Naked_int8 -> Untagged (C.Numeric.Integer.create_exn ~bits:8 ~signed:true)
+    | Naked_int16 -> Untagged (C.Numeric.Integer.create_exn ~bits:16 ~signed:true)
+    | Naked_int32 -> Untagged (C.Numeric.Integer.create_exn ~bits:32 ~signed:true)
+    | Naked_int64 -> Untagged (C.Numeric.Integer.create_exn ~bits:64 ~signed:true)
+    | Naked_nativeint -> Untagged C.Numeric.Integer.nativeint
+    | Naked_immediate -> Untagged (C.Numeric.Tagged_integer.(untagged immediate))
+    | Tagged_immediate -> Tagged C.Numeric.Tagged_integer.immediate
 
-let static_cast_of_standard_int_or_float :
-    K.Standard_int_or_float.t -> C.Static_cast.t = function
-  | Naked_float32 -> `Float32
-  | Naked_float -> `Float
-  | Naked_int8 -> `Bits 8
-  | Naked_int16 -> `Bits 16
-  | Naked_int32 -> `Bits 32
-  | Naked_immediate -> `Bits (C.arch_bits - 1)
-  | Tagged_immediate -> `Tagged `Word
-  | Naked_nativeint -> `Bits C.arch_bits
-  | Naked_int64 -> `Bits 64
+let numeric_of_standard_int_or_float :
+    K.Standard_int_or_float.t -> C.Numeric.t = function
+  | Naked_int8 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:8 ~signed:true))
+  | Naked_int16 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:16 ~signed:true))
+  | Naked_int32 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:32 ~signed:true))
+  | Naked_int64 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:64 ~signed:true))
+  | Naked_nativeint -> Integral (Untagged C.Numeric.Integer.nativeint)
+  | Naked_immediate -> Integral (Untagged (C.Numeric.Tagged_integer.(untagged immediate)))
+  | Tagged_immediate -> Integral (Tagged C.Numeric.Tagged_integer.immediate)
+  | Naked_float32 -> Float Float32
+  | Naked_float -> Float Float64
+
 
 let unary_int_arith_primitive _env dbg kind op arg =
   match (op : P.unary_int_arith_op) with
   | Neg -> (
-    match static_cast_of_standard_int kind with
-    | `Tagged `Word -> C.negint arg dbg
-    | `Bits bits ->
-      C.sign_extend ~bits
-        (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg)
-        dbg)
+      match integral_of_standard_int kind with
+      | Tagged src ->
+        C.Numeric.Tagged_integer.static_cast  arg
+          ~src ~dst:C.Numeric.Tagged_integer.immediate ~dbg
+        |> (fun arg -> (C.negint arg dbg))
+        |>  C.Numeric.Tagged_integer.static_cast
+              ~src:C.Numeric.Tagged_integer.immediate ~dst:src ~dbg
+      | Untagged src ->
+        C.Numeric.Integer.static_cast arg
+          ~src ~dst:C.Numeric.Integer.nativeint ~dbg
+        |> (fun arg ->
+          let bits = C.Numeric.Integer.bits src in
+          (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg))
+        |>  C.Numeric.Integer.static_cast
+              ~src:C.Numeric.Integer.nativeint ~dst:src ~dbg)
   | Swap_byte_endianness -> (
     match (kind : K.Standard_int.t) with
     | Tagged_immediate ->
@@ -590,14 +600,18 @@ let arithmetic_conversion dbg src dst arg =
   if src == dst
   then None, arg
   else
-    let src = static_cast_of_standard_int_or_float src in
-    let dst = static_cast_of_standard_int_or_float dst in
+    let src = numeric_of_standard_int_or_float src in
+    let dst = numeric_of_standard_int_or_float dst in
     let extra =
       match src, dst with
-      | `Tagged `Word, `Bits n when n = C.arch_bits -> Some (Env.Untag arg)
-      | _, _ -> None
+      | Integral (Tagged src), Integral (Untagged dst)
+        when C.Numeric.Tagged_integer.bits_excluding_tag_bit src
+             = C.Numeric.Integer.bits dst
+        -> Some (Env.Untag arg)
+      | (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)),
+        (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)) -> None
     in
-    extra, C.static_cast ~src ~dst arg dbg
+    extra, C.Numeric.static_cast ~dbg ~src ~dst arg
 
 let phys_equal _env dbg op x y =
   match (op : P.equality_comparison) with
@@ -607,83 +621,99 @@ let phys_equal _env dbg op x y =
 
 let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
     (op : P.binary_int_arith_op) x y =
-  match static_cast_of_standard_int kind with
-  | `Tagged `Word -> (
-    match op with
-    | Add -> C.add_int_caml x y dbg
-    | Sub -> C.sub_int_caml x y dbg
-    | Mul -> C.mul_int_caml x y dbg
-    | Div -> C.div_int_caml Unsafe x y dbg
-    | Mod -> C.mod_int_caml Unsafe x y dbg
-    | And -> C.and_int_caml x y dbg
-    | Or -> C.or_int_caml x y dbg
-    | Xor -> C.xor_int_caml x y dbg)
-  | `Bits bits ->
-    C.sign_extend ~bits
-      ((* Operations on small integer arguments must return something in the
-          range of their values, hence the sign_extensions here. The
-          [C.low_bits] operations (see above in
-          [sign_extend_can_delay_overflow]) are used to avoid unnecessary sign
-          extensions, e.g. when chaining additions together. Also see comment
-          below about [C.low_bits] in the [Div] and [Mod] cases. *)
-       let simplify_input =
-         (* Note that it would be wrong to apply [C.low_bits] to [x] and/or [y]
-            for div and mod. [C.safe_div_bi] and [C.safe_mod_bi] require
-            sign-extended input for both the numerator and denominator.
+  let kind = integral_of_standard_int kind in
+  let[@inline] wrap ~can_simplify_operands f  =
+    (* We cast the operands to the width that the operator expects, apply the operator,
+       and cast the result back. *)
+    let native : C.Numeric.Integral.t =
+      match kind with
+      | Untagged _ -> Untagged (C.Numeric.Integer.nativeint)
+      | Tagged _ -> Tagged (C.Numeric.Tagged_integer.immediate)
+    in
+    let[@inline] prepare_operand operand =
+      let operand = C.Numeric.Integral.static_cast ~dbg ~src:kind ~dst:native operand in
+      if not can_simplify_operands then operand else
+        let bits =
+          match kind with
+          | Untagged untagged -> C.Numeric.Integer.bits untagged
+          | Tagged tagged -> C.Numeric.Tagged_integer.bits_including_tag_bit tagged
+        in
+        C.low_bits ~bits operand dbg
+    in
+    let x = prepare_operand x in
+    let y = prepare_operand y in
+    let result = f x y dbg in
+    C.Numeric.Integral.static_cast ~dbg ~src:native ~dst:kind result
+    (* Operations on integer arguments must return something in the range of
+       their values, hence the [static_cast] here. The [C.low_bits] operations
+       (see above in [prepare_operand]) are used to avoid unnecessary
+       sign-extensions, e.g. when chaining additions together. Also see comment
+       below about [C.low_bits] in the [Div] and [Mod] cases. *)
+  in
+  (* Note that it would be wrong to apply [C.low_bits] to [x] and/or [y]
+     for div and mod. [C.safe_div_bi] and [C.safe_mod_bi] require
+     sign-extended input for both the numerator and denominator.
 
-            Some background: The problem arises in cases like: (num1 * num2) /
-            num3. If an overflow occurs in the multiplication, then we must deal
-            with it by sign-extending before the division. Whereas (num1 * num2)
-            * num3 can delay the sign-extension until the very end, even in the
-            case of overflow in the middle. So in a way, div and mod are regular
-            functions, while all the others are special as they can delay
-            overflow handling.
+     Some background: The problem arises in cases like: [(num1 * num2) / num3].
+     If an overflow occurs in the multiplication, then we must deal with it by
+     sign-extending before the division. Whereas [ (num1 * num2) * num3 ] can
+     delay the sign-extension until the very end, even in the case of overflow
+     in the middle. So in a way, div and mod are regular functions, while all
+     the others are special as they can delay overflow handling.
 
-            We don't have 32-bit registers in Cmm, so sign extension really
-            means modulo 2^31. (If we had 32-bit virtual registers, we could use
-            them in Cmm without sign extension and let the backend insert sign
-            extensions if it doesn't support operations on 32-bit physical
-            registers. There was a prototype developed of this but it was quite
-            complicated and didn't get merged.) *)
-         let requires_sign_extended_input =
-           match op with
-           | Add | Sub | Mul | Xor | And | Or -> false
-           | Div | Mod -> true
-         in
-         if requires_sign_extended_input
-         then fun x -> x
-         else fun x -> C.low_bits ~bits x dbg
-       in
-       let x = simplify_input x in
-       let y = simplify_input y in
-       let dividend_cannot_be_min_int = bits < C.arch_bits in
-       match op with
-       | Add -> C.add_int x y dbg
-       | Sub -> C.sub_int x y dbg
-       | Mul -> C.mul_int x y dbg
-       | Xor -> C.xor_int x y dbg
-       | And -> C.and_int x y dbg
-       | Or -> C.or_int x y dbg
-       | Div -> C.safe_div_bi Unsafe x y dbg ~dividend_cannot_be_min_int
-       | Mod -> C.safe_mod_bi Unsafe x y dbg ~dividend_cannot_be_min_int)
-      dbg
+     Cmm only has [Arch.size_int]-width virtual registers, so we must always
+     do operations on values of that size. (If we had smaller virtual registers,
+     we could use them in Cmm without sign-extension and let the backend insert
+     sign-extensions if it doesn't support operations on n-bit physical
+     registers. There was a prototype developed of this but it was quite
+     complicated and didn't get merged.) *)
+  match kind with
+  | Tagged _ -> (match op with
+      | Add -> wrap C.add_int_caml ~can_simplify_operands:true
+      | Sub -> wrap C.sub_int_caml ~can_simplify_operands:true
+      | Mul -> wrap C.mul_int_caml ~can_simplify_operands:true
+      | Div -> wrap (C.div_int_caml Unsafe) ~can_simplify_operands:false
+      | Mod -> wrap (C.mod_int_caml Unsafe)~can_simplify_operands:false
+      | And -> wrap C.and_int_caml ~can_simplify_operands:true
+      | Or ->  wrap C.or_int_caml ~can_simplify_operands:true
+      | Xor -> wrap C.xor_int_caml ~can_simplify_operands:true)
+  | Untagged untagged ->
+    let dividend_cannot_be_min_int = C.Numeric.Integer.bits untagged < C.arch_bits in
+    (match op with
+     | Add -> wrap C.add_int ~can_simplify_operands:true
+     | Sub -> wrap C.sub_int ~can_simplify_operands:true
+     | Mul -> wrap C.mul_int ~can_simplify_operands:true
+     | Div ->
+       wrap (C.safe_div_bi Unsafe ~dividend_cannot_be_min_int)
+         ~can_simplify_operands:false
+     | Mod ->
+       wrap (C.safe_mod_bi Unsafe ~dividend_cannot_be_min_int)
+         ~can_simplify_operands:false
+     | And -> wrap C.and_int ~can_simplify_operands:true
+     | Or ->  wrap C.or_int ~can_simplify_operands:true
+     | Xor -> wrap C.xor_int ~can_simplify_operands:true)
 
 let binary_int_shift_primitive _env dbg kind op x y =
-  match static_cast_of_standard_int kind, (op : P.int_shift_op) with
-  (* caml primitives for these have no native/unboxed version *)
-  | `Tagged `Word, Lsl -> C.lsl_int_caml_raw ~dbg x y
-  | `Tagged `Word, Lsr -> C.lsr_int_caml_raw ~dbg x y
-  | `Tagged `Word, Asr -> C.asr_int_caml_raw ~dbg x y
-  | `Bits bits, op -> (
-    (* See comments on [binary_int_arity_primitive], above, about sign extension
-       and use of [C.low_bits]. *)
-    match op with
+  (* [kind] only applies to [x], the [y] argument is always a bare
+     register-sized integer *)
+  (* See comments on [binary_int_arity_primitive], above, about sign extension
+     and use of [C.low_bits]. *)
+  let kind = integral_of_standard_int kind in
+  let input, output =
+    match (op : P.int_shift_op) with
+    | Lsl -> kind, C.Numeric.Integral.nativeint
+    | Asr -> C.Numeric.Integral.signed kind, C.Numeric.Integral.signed kind
+    | Lsr -> C.Numeric.Integral.unsigned kind, C.Numeric.Integral.unsigned kind
+  in
+  let x = C.Numeric.Integral.static_cast x ~src:kind ~dst:input ~dbg in
+  let shifted =
+    match (op : P.int_shift_op) with
+    | Lsl -> C.lsl_int x y dbg
     | Asr -> C.asr_int x y dbg
-    | Lsl -> C.sign_extend ~bits (C.lsl_int (C.low_bits ~bits x dbg) y dbg) dbg
-    | Lsr ->
-      (* Ensure that the top half of the register is cleared, as some of those
-         bits are likely to get shifted into the result. *)
-      C.sign_extend ~bits (C.lsr_int (C.zero_extend ~bits x dbg) y dbg) dbg)
+    | Lsr -> C.lsr_int x y dbg
+  in
+  C.Numeric.Integral.static_cast shifted ~src:output ~dst:kind ~dbg
+
 
 let binary_int_comp_primitive _env dbg kind cmp x y =
   match

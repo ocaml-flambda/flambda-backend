@@ -3455,15 +3455,6 @@ let xor_int_caml arg1 arg2 dbg =
         Cconst_int (1, dbg) ],
       dbg )
 
-let lsl_int_caml arg1 arg2 dbg =
-  incr_int (lsl_int (decr_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
-
-let lsr_int_caml arg1 arg2 dbg =
-  Cop (Cor, [lsr_int arg1 (untag_int arg2 dbg) dbg; Cconst_int (1, dbg)], dbg)
-
-let asr_int_caml arg1 arg2 dbg =
-  Cop (Cor, [asr_int arg1 (untag_int arg2 dbg) dbg; Cconst_int (1, dbg)], dbg)
-
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
 
@@ -3823,15 +3814,6 @@ let float32_of_int = unary (Cstatic_cast (Float_of_int Float32))
 let float32_of_float = unary (Cstatic_cast Float32_of_float)
 
 let float_of_float32 = unary (Cstatic_cast Float_of_float32)
-
-let lsl_int_caml_raw ~dbg arg1 arg2 =
-  incr_int (lsl_int (decr_int arg1 dbg) arg2 dbg) dbg
-
-let lsr_int_caml_raw ~dbg arg1 arg2 =
-  Cop (Cor, [lsr_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)
-
-let asr_int_caml_raw ~dbg arg1 arg2 =
-  Cop (Cor, [asr_int arg1 arg2 dbg; Cconst_int (1, dbg)], dbg)
 
 let eq ~dbg x y =
   match x, y with
@@ -4349,79 +4331,146 @@ let reperform ~dbg ~eff ~cont ~last_fiber =
 
 let poll ~dbg = return_unit dbg (Cop (Cpoll, [], dbg))
 
-module Static_cast = struct
-  (** A signed integer of machine width *)
-  type word = [`Word]
+module Numeric = struct
+  module Float_width = struct
+    type t = Cmm.float_width =
+      | Float64
+      | Float32
 
-  type float =
-    [ `Float
-    | `Float32 ]
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Float64, Float64 -> exp
+      | Float32, Float32 -> exp
+      | Float32, Float64 -> float_of_float32 ~dbg exp
+      | Float64, Float32 -> float32_of_float ~dbg exp
+  end
 
-  type machine =
-    [ word
-    | float ]
+  module Make_integer (I : sig
+    val max_bits : int
+  end) =
+  struct
+    (** An integer that fits into a general-purpose register. It is canonically stored in
+        twos-complement representation, in the lower [bits] bits of its container (whether
+        that be memory or a register), and is sign- or zero-extended as needed, according
+        to [signed]. *)
+    type t =
+      { bits : int;
+        signed : bool
+      }
 
-  (** A signed integer of [n] bits, always stored sign-extended *)
-  type bits = [`Bits of int]
+    let[@inline] create_exn ~bits ~signed =
+      assert (0 < bits && bits <= I.max_bits);
+      { bits; signed }
 
-  (** A tagged immediate *)
-  type tagged = [`Tagged of word]
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      let is_promotable =
+        if src.signed
+        then dst.signed && src.bits <= dst.bits
+        else src.bits < dst.bits
+      in
+      if is_promotable
+      then exp
+      else if dst.signed
+      then sign_extend ~bits:dst.bits exp dbg
+      else zero_extend ~bits:dst.bits exp dbg
 
-  type untagged_int =
-    [ word
-    | bits ]
+    let[@inline] bits t = t.bits
 
-  type standard_int =
-    [ bits
-    | tagged ]
+    let[@inline] is_signed t = t.signed
 
-  type untagged =
-    [ untagged_int
-    | float ]
+    let[@inline] signed t = { t with signed = true }
+
+    let[@inline] unsigned t = { t with signed = false }
+
+    let[@inline] with_signedness t ~signed = { t with signed }
+  end
+  [@@inline]
+
+  module Integer = struct
+    include Make_integer (struct
+      let max_bits = arch_bits
+    end)
+
+    let nativeint = create_exn ~bits:arch_bits ~signed:true
+  end
+
+  (** An {!Integer.t} but with the additional stipulation that its container must
+      reserve its lowest bit to be 1. The [bits] field does not include this bit. *)
+  module Tagged_integer = struct
+    include Make_integer (struct
+      let max_bits = arch_bits - 1
+    end)
+
+    let[@inline] create_exn ~bits_excluding_tag_bit:bits ~signed =
+      create_exn ~bits ~signed
+
+    let immediate =
+      create_exn ~bits_excluding_tag_bit:(arch_bits - 1) ~signed:true
+
+    let[@inline] untagged { bits; signed } : Integer.t = { bits; signed }
+
+    let[@inline] bits_excluding_tag_bit t = bits t
+
+    let[@inline] bits_including_tag_bit t = bits t + 1
+  end
+
+  module Integral = struct
+    type t =
+      | Untagged of Integer.t
+      | Tagged of Tagged_integer.t
+
+    let nativeint = Untagged Integer.nativeint
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      match src, dst with
+      | Untagged src, Untagged dst -> Integer.static_cast ~dbg ~src ~dst exp
+      | Tagged src, Tagged dst -> Tagged_integer.static_cast ~dbg ~src ~dst exp
+      | Untagged src, Tagged dst ->
+        tag_int
+          (Integer.static_cast ~dbg ~src ~dst:(Tagged_integer.untagged dst) exp)
+          dbg
+      | Tagged src, Untagged dst ->
+        Integer.static_cast ~dbg
+          ~src:(Tagged_integer.untagged src)
+          ~dst
+          (if src.signed then asr_const exp 1 dbg else lsr_const exp 1 dbg)
+
+    let signed = function
+      | Untagged untagged -> Untagged (Integer.signed untagged)
+      | Tagged tagged -> Tagged (Tagged_integer.signed tagged)
+
+    let unsigned = function
+      | Untagged untagged -> Untagged (Integer.unsigned untagged)
+      | Tagged tagged -> Tagged (Tagged_integer.unsigned tagged)
+  end
 
   type t =
-    [ tagged
-    | untagged ]
+    | Integral of Integral.t
+    | Float of Float_width.t
 
-  let equal x y = Stdlib.( = ) (x :> t) (y :> t)
+  let[@inline] static_cast ~dbg ~src ~dst exp =
+    match src, dst with
+    | Integral src, Integral dst -> Integral.static_cast ~dbg ~src ~dst exp
+    | Float src, Float dst -> Float_width.static_cast ~dbg ~src ~dst exp
+    | Float src, Integral dst ->
+      unary (Cstatic_cast (Int_of_float src)) exp ~dbg
+      |> Integral.static_cast ~dbg ~src:Integral.nativeint ~dst
+    | Integral src, Float dst ->
+      Integral.static_cast ~dbg ~src ~dst:Integral.nativeint exp
+      |> unary (Cstatic_cast (Int_of_float dst)) ~dbg
 
-  let[@inline] static_cast dbg =
-    let ( >> ) f g arg = g (f arg) in
-    let conv_machine ~(src : [< machine]) ~(dst : [< machine]) =
-      match dst, src with
-      | `Float, `Float | `Float32, `Float32 | `Word, `Word -> fun arg -> arg
-      | `Word, `Float -> int_of_float ~dbg
-      | `Word, `Float32 -> int_of_float32 ~dbg
-      | `Float32, `Float -> float32_of_float ~dbg
-      | `Float32, `Word -> float32_of_int ~dbg
-      | `Float, `Float32 -> float_of_float32 ~dbg
-      | `Float, `Word -> float_of_int ~dbg
-    in
-    let conv_int ~src ~dst arg =
-      if src <= dst then arg else sign_extend ~bits:dst arg dbg
-    in
-    let conv_untagged ~(src : [< untagged]) ~(dst : [< untagged]) =
-      match src, dst with
-      | (#machine as src), (#machine as dst) -> conv_machine ~src ~dst
-      | `Bits src, (#machine as dst) ->
-        conv_int ~src ~dst:arch_bits >> conv_machine ~src:`Word ~dst
-      | (#machine as src), `Bits dst ->
-        conv_machine ~src ~dst:`Word >> conv_int ~src:arch_bits ~dst
-      | `Bits src, `Bits dst -> conv_int ~src ~dst
-    in
-    let tag_int arg = tag_int arg dbg in
-    let untag_int arg = untag_int arg dbg in
-    let id x = x in
-    fun (src : [< t]) (dst : [< t]) ->
-      if equal src dst
-      then id
-      else
-        match src, dst with
-        | `Tagged `Word, `Tagged `Word -> id
-        | (#untagged as src), `Tagged dst -> conv_untagged ~src ~dst >> tag_int
-        | `Tagged src, (#untagged as dst) ->
-          untag_int >> conv_untagged ~src ~dst
-        | (#untagged as src), (#untagged as dst) -> conv_untagged ~src ~dst
+  module Untagged = struct
+    type numeric = t
+
+    type t =
+      | Untagged of Integer.t
+      | Float of float_width
+
+    let to_numeric : t -> numeric = function
+      | Untagged width -> Integral (Untagged width)
+      | Float float -> Float float
+
+    let[@inline] static_cast ~dbg ~src ~dst exp =
+      static_cast ~dbg ~src:(to_numeric src) ~dst:(to_numeric dst) exp
+  end
 end
-
-let[@inline] static_cast ~src ~dst e dbg = Static_cast.static_cast dbg src dst e

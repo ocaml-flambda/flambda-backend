@@ -486,12 +486,6 @@ val or_int_caml : binary_primitive
 
 val xor_int_caml : binary_primitive
 
-val lsl_int_caml : binary_primitive
-
-val lsr_int_caml : binary_primitive
-
-val asr_int_caml : binary_primitive
-
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
 
@@ -706,15 +700,6 @@ val create_ccatch :
   handlers:static_handler list ->
   body:Cmm.expression ->
   Cmm.expression
-
-val lsl_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
-
-val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
-
-(** Shift operations. take as first argument a tagged caml integer, and as
-    second argument an untagged machine intger which is the amount to shift the
-    first argument by. *)
-val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Reinterpret cast functions *)
 
@@ -1215,46 +1200,89 @@ val dls_get : dbg:Debuginfo.t -> expression
 
 val poll : dbg:Debuginfo.t -> expression
 
-module Static_cast : sig
-  (** A signed integer of machine width *)
-  type word = [`Word]
+module Numeric : sig
+  type 'a static_cast :=
+    dbg:Debuginfo.t -> src:'a -> dst:'a -> expression -> expression
 
-  type float =
-    [ `Float
-    | `Float32 ]
+  module Float_width : sig
+    type t = Cmm.float_width =
+      | Float64
+      | Float32
 
-  type machine =
-    [ word
-    | float ]
+    val static_cast : t static_cast
+  end
 
-  (** A signed integer of [n] bits, always stored sign-extended *)
-  type bits = [`Bits of int]
+  module Integer : sig
+    type t
 
-  (** A tagged immediate *)
-  type tagged = [`Tagged of word]
+    val create_exn : bits:int -> signed:bool -> t
 
-  type untagged_int =
-    [ word
-    | bits ]
+    val nativeint : t
 
-  type standard_int =
-    [ bits
-    | tagged ]
+    val static_cast : t static_cast
 
-  type untagged =
-    [ untagged_int
-    | float ]
+    val bits : t -> int
+
+    val is_signed : t -> bool
+
+    val signed : t -> t
+
+    val unsigned : t -> t
+
+    val with_signedness : t -> signed:bool -> t
+  end
+
+  module Tagged_integer : sig
+    type t
+
+    val create_exn : bits_excluding_tag_bit:int -> signed:bool -> t
+
+    val immediate : t
+
+    val untagged : t -> Integer.t
+
+    val static_cast : t static_cast
+
+    val bits_excluding_tag_bit : t -> int
+
+    val bits_including_tag_bit : t -> int
+
+    val signed : t -> t
+
+    val unsigned : t -> t
+
+    val with_signedness : t -> signed:bool -> t
+  end
+
+  module Integral : sig
+    type t =
+      | Untagged of Integer.t
+      | Tagged of Tagged_integer.t
+
+    val nativeint : t
+
+    val static_cast : t static_cast
+
+    val signed : t -> t
+
+    val unsigned : t -> t
+  end
 
   type t =
-    [ tagged
-    | untagged ]
+    | Integral of Integral.t
+    | Float of float_width
 
-  val equal : [< t] -> [< t] -> bool
+  val static_cast : t static_cast
+
+  module Untagged : sig
+    type numeric = t
+
+    type t =
+      | Untagged of Integer.t
+      | Float of float_width
+
+    val to_numeric : t -> numeric
+
+    val static_cast : t static_cast
+  end
 end
-
-val static_cast :
-  src:[< Static_cast.t] ->
-  dst:[< Static_cast.t] ->
-  expression ->
-  Debuginfo.t ->
-  expression
