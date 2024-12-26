@@ -291,7 +291,7 @@ jobs:
 #        include-hidden-files: true
 
     - uses: actions/upload-artifact@v3
-      if: matrix.os != 'macos-latest'
+      if: always()
       with:
         name: typing-layouts-arrays_${{ matrix.name }}
         path: ${{ github.workspace }}/flambda_backend/_runtest/testsuite/tests/typing-layouts-arrays/
