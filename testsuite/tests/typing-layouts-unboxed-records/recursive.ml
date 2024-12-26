@@ -289,3 +289,47 @@ Line 1, characters 0-25:
 Error: The definition of "bad" is recursive without boxing:
          "bad" contains "bad"
 |}]
+
+(* We actually can create singleton recursive unboxed record types,
+   through recursive modules *)
+
+module F (X : sig type t end) = struct
+  type u = #{ u : X.t }
+end
+
+module rec M : sig
+  type u
+  type t = u
+end = struct
+  include F(M)
+  type t = u
+end
+[%%expect{|
+module F : functor (X : sig type t end) -> sig type u = #{ u : X.t; } end
+module rec M : sig type u type t = u end
+|}]
+
+module F (X : sig
+    type u
+    type t = #{ u : u }
+  end) = struct
+  type u = X.t = #{ u : X.u }
+end
+
+module rec M : sig
+  type u
+  type t = #{ u : u }
+end = struct
+  include F(M)
+  type t = #{ u : u }
+  let rec u = #{ u }
+end
+[%%expect{|
+module F :
+  functor (X : sig type u type t = #{ u : u; } end) ->
+    sig type u = X.t = #{ u : X.u; } end
+Line 14, characters 14-20:
+14 |   let rec u = #{ u }
+                   ^^^^^^
+Error: This kind of expression is not allowed as right-hand side of "let rec"
+|}]
