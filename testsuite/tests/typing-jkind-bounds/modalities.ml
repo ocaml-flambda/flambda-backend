@@ -60,17 +60,10 @@ type 'a t : immutable_data with 'a @@ many = { x : 'a @@ many }
 type 'a t : immutable_data with 'a @@ contended = { x : 'a @@ contended }
 type 'a t : immutable_data with 'a @@ portable = { x : 'a @@ portable }
 [%%expect{|
-Line 1, characters 0-63:
-1 | type 'a t : immutable_data with 'a @@ many = { x : 'a @@ many }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is
-         value mod many uncontended with 'a portable with 'a
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of
-         value mod many uncontended with 'a portable with 'a
-         because of the annotation on the declaration of the type t.
+type 'a t = { x : 'a @@ many; }
+type 'a t = { x : 'a @@ contended; }
+type 'a t = { x : 'a @@ portable; }
 |}]
-(* CR layouts v2.8: this should be accepted *)
 
 let use_global : ('a : value & value). 'a @ global -> unit = fun _ -> ()
 let cross_global : ('a : value & value mod global). 'a -> unit = fun _ -> ()
@@ -103,7 +96,9 @@ Error: This expression has type "string t"
        but an expression was expected of type
          "('a : value mod global & value mod global)"
        The kind of string t is
-         value_or_null mod global unique many with string
+         value_or_null mod global unique with string
+string
+                           many with string
 string
                            uncontended with string
 string
@@ -113,7 +108,9 @@ string
 string
                            non_null with string
 string
-         & value_or_null mod global unique many with string
+         & value_or_null mod global unique with string
+string
+                             many with string
 string
                              uncontended with string
 string
@@ -149,7 +146,9 @@ Line 1, characters 65-66:
 Error: This expression has type "(string -> string) t"
        but an expression was expected of type "('a : value & value)"
        The kind of (string -> string) t is
-         value_or_null mod global unique
+         value_or_null mod global
+                           unique with string -> string
+string -> string
                            many with string -> string
 string -> string
                            uncontended with string -> string
@@ -160,7 +159,9 @@ string -> string
 string -> string
                            non_null with string -> string
 string -> string
-         & value_or_null mod global unique
+         & value_or_null mod global
+                             unique with string -> string
+string -> string
                              many with string -> string
 string -> string
                              uncontended with string -> string
