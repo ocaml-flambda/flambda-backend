@@ -8,10 +8,6 @@
  arch_amd64;
  {
    flags = "-extension layouts_beta";
-   bytecode;
- }
- {
-   flags = "-extension layouts_beta";
    native;
  }
 *)
