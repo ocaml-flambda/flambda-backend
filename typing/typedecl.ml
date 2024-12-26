@@ -1971,6 +1971,11 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    types like [type t = #{ t : t }]. The current implementation gives more
    informative error traces, and leaves the flexiblity to switch to a less
    restrictive check in the future.
+
+   CR layouts v7.2: accept safe types that expand the same path multiple times,
+   e.g. [type 'a t = #{ a : 'a } and x = int t t],
+   either by using layouts variables or the algorithm from
+   "Unboxed data constructors - or, how cpp decides a halting problem."
 *)
 let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
   let check_visited parents trace ty =
