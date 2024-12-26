@@ -761,7 +761,9 @@ Line 1, characters 0-61:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "q" is
          value_or_null mod global with int -> int
-int -> q unique
+int -> q
+                           unique with int -> int
+int -> q
                            many with int -> int
 int -> q
                            uncontended with int -> int
@@ -773,7 +775,9 @@ int -> q
                            non_null with int -> int
 int -> q
          & value_or_null mod global with int -> int
-int -> q unique
+int -> q
+                             unique with int -> int
+int -> q
                              many with int -> int
 int -> q
                              uncontended with int -> int
