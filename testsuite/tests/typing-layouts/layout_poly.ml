@@ -1,6 +1,10 @@
 (* TEST
  include stdlib_upstream_compatible;
  {
+   flags = "-extension layouts";
+   expect;
+ }{
+   flags = "-extension layouts_beta";
    expect;
  }
 *)
@@ -711,8 +715,8 @@ Error: "[@layout_poly]" on this external declaration has no
        variable for it to operate on.
 |}]
 
-(********************************************************)
-(* Newer prims are gated to appropriate maturity levels *)
+(***********************************************)
+(* New untested array prims are gated to alpha *)
 
 external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
   "%makearray_dynamic"
@@ -720,7 +724,7 @@ external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a 
 Lines 1-2, characters 0-22:
 1 | external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
 2 |   "%makearray_dynamic"
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
 |}]
 
 external[@layout_poly] arrayblit :
@@ -731,14 +735,5 @@ Lines 1-3, characters 0-14:
 1 | external[@layout_poly] arrayblit :
 2 |   ('a : any_non_null). 'a array -> int -> 'a array -> int -> int -> unit =
 3 |   "%arrayblit"
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
-|}]
-
-external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
-  "%makearray_dynamic_uninit"
-[%%expect{|
-Lines 1-2, characters 0-29:
-1 | external[@layout_poly] makearray_dynamic : ('a : any_non_null). int -> 'a -> 'a array =
-2 |   "%makearray_dynamic_uninit"
-Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used
+Error: This construct requires the alpha version of the extension "layouts", which is disabled and cannot be used
 |}]

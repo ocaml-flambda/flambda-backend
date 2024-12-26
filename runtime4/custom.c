@@ -35,8 +35,7 @@ static value alloc_custom_gen (struct custom_operations * ops,
                                mlsize_t mem,
                                mlsize_t max_major,
                                mlsize_t mem_minor,
-                               mlsize_t max_minor,
-                               int local)
+                               mlsize_t max_minor)
 {
   mlsize_t wosize;
   CAMLparam0();
@@ -47,12 +46,7 @@ static value alloc_custom_gen (struct custom_operations * ops,
   CAMLassert (mem_minor <= mem);
 
   wosize = 1 + (bsz + sizeof(value) - 1) / sizeof(value);
-  if (local) {
-    CAMLassert(ops->finalize == NULL);
-    result = caml_alloc_local(wosize, Custom_tag);
-    Custom_ops_val(result) = ops;
-  }
-  else if (wosize <= Max_young_wosize) {
+  if (wosize <= Max_young_wosize) {
     result = caml_alloc_small(wosize, Custom_tag);
     Custom_ops_val(result) = ops;
     if (ops->finalize != NULL || mem != 0) {
@@ -87,19 +81,7 @@ CAMLexport value caml_alloc_custom(struct custom_operations * ops,
                                    mlsize_t mem,
                                    mlsize_t max)
 {
-  return alloc_custom_gen (ops, bsz, mem, max, mem, max, 0);
-}
-
-CAMLexport value caml_alloc_custom_local(struct custom_operations * ops,
-                                         uintnat bsz,
-                                         mlsize_t mem,
-                                         mlsize_t max)
-{
-  if (ops->finalize != NULL)
-    caml_invalid_argument(
-      "caml_alloc_custom_local: finalizers not supported");
-
-  return alloc_custom_gen (ops, bsz, mem, max, mem, max, 1);
+  return alloc_custom_gen (ops, bsz, mem, max, mem, max);
 }
 
 CAMLexport value caml_alloc_custom_mem(struct custom_operations * ops,
@@ -121,8 +103,7 @@ CAMLexport value caml_alloc_custom_mem(struct custom_operations * ops,
     Bsize_wsize (Caml_state->stat_heap_wsz) / 150 * caml_custom_major_ratio;
   mlsize_t max_minor =
     Bsize_wsize (Caml_state->minor_heap_wsz) / 100 * caml_custom_minor_ratio;
-  value v =
-    alloc_custom_gen (ops, bsz, mem, max_major, mem_minor, max_minor, 0);
+  value v = alloc_custom_gen (ops, bsz, mem, max_major, mem_minor, max_minor);
   caml_memprof_track_custom(v, mem);
   return v;
 }
