@@ -685,7 +685,10 @@ let comp_primitive stack_info p sz args =
         "Preinterpret_unboxed_int64_as_tagged_int63 can only be used on 64-bit \
          targets";
     Kccall("caml_reinterpret_unboxed_int64_as_tagged_int63", 1)
-  | Pmakearray_dynamic(kind, locality) ->
+  | Pmakearray_dynamic(kind, locality, With_initializer) ->
+    if List.compare_length_with args 2 <> 0 then
+      fatal_error "Bytegen.comp_primitive: Pmakearray_dynamic takes two \
+        arguments for [With_initializer]";
     (* CR layouts v4.0: This is "wrong" for unboxed types. It should construct
        blocks that can't be marshalled. We've decided to ignore that problem in
        the short term, as it's unlikely to cause issues - see the internal arrays
@@ -701,8 +704,8 @@ let comp_primitive stack_info p sz args =
     | Alloc_heap -> Kccall("caml_make_vect", 2)
     | Alloc_local -> Kccall("caml_make_local_vect", 2)
     end
-  | Parrayblit(kind) ->
-    begin match kind with
+  | Parrayblit { src_mutability = _; dst_array_set_kind } ->
+    begin match dst_array_set_kind with
     | Punboxedvectorarray_set _ ->
       fatal_error "SIMD is not supported in bytecode mode."
     | Pgenarray_set _ | Pintarray_set | Paddrarray_set _
@@ -710,6 +713,9 @@ let comp_primitive stack_info p sz args =
     | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ -> ()
     end;
     Kccall("caml_array_blit", 5)
+  | Pmakearray_dynamic(_, _, Uninitialized) ->
+    Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
+      translated to Pmakearray_dynamic Initialized earlier on"
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
@@ -1011,6 +1017,54 @@ and comp_expr stack_info env exp sz cont =
           (Kreperformterm(sz + nargs) :: discard_dead_code cont)
       else
         fatal_error "Reperform used in non-tail position"
+  | Lprim (Pmakearray_dynamic (kind, locality, Uninitialized), [len], loc) ->
+      (* Use a dummy initializer to implement the "uninitialized" primitive *)
+      let init =
+        match kind with
+        | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+        | Pgcscannableproductarray _ ->
+            Misc.fatal_errorf "Array kind %s should have been ruled out by \
+                the frontend for %%makearray_dynamic_uninit"
+              (Printlambda.array_kind kind)
+        | Punboxedfloatarray Unboxed_float32 ->
+            Lconst (Const_base (Const_float32 "0.0"))
+        | Punboxedfloatarray Unboxed_float64 ->
+            Lconst (Const_base (Const_float "0.0"))
+        | Punboxedintarray Unboxed_int32 ->
+            Lconst (Const_base (Const_int32 0l))
+        | Punboxedintarray Unboxed_int64 ->
+            Lconst (Const_base (Const_int64 0L))
+        | Punboxedintarray Unboxed_nativeint ->
+            Lconst (Const_base (Const_nativeint 0n))
+        | Punboxedvectorarray _ ->
+            fatal_error "SIMD is not supported in bytecode mode."
+        | Pgcignorableproductarray ignorables ->
+            let rec convert_ignorable
+                  (ign : Lambda.ignorable_product_element_kind) =
+              match ign with
+              | Pint_ignorable -> Lconst (Const_base (Const_int 0))
+              | Punboxedfloat_ignorable Unboxed_float32 ->
+                Lconst (Const_base (Const_float32 "0.0"))
+              | Punboxedfloat_ignorable Unboxed_float64 ->
+                Lconst (Const_base (Const_float "0.0"))
+              | Punboxedint_ignorable Unboxed_int32 ->
+                Lconst (Const_base (Const_int32 0l))
+              | Punboxedint_ignorable Unboxed_int64 ->
+                Lconst (Const_base (Const_int64 0L))
+              | Punboxedint_ignorable Unboxed_nativeint ->
+                Lconst (Const_base (Const_nativeint 0n))
+              | Pproduct_ignorable ignorables ->
+                  let fields = List.map convert_ignorable ignorables in
+                  Lprim (Pmakeblock (0, Immutable, None, alloc_heap), fields,
+                    loc)
+            in
+            convert_ignorable (Pproduct_ignorable ignorables)
+      in
+      comp_expr stack_info env
+        (Lprim (Pmakearray_dynamic (kind, locality, With_initializer),
+          [len; init], loc)) sz cont
+  | Lprim (Pmakearray_dynamic (_, _, Uninitialized), _, _loc) ->
+      Misc.fatal_error "Pmakearray_dynamic takes one arg when [Uninitialized]"
   | Lprim (Pduparray (kind, mutability),
            [Lprim (Pmakearray (kind',_,m),args,_)], loc) ->
       assert (kind = kind');
