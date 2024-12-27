@@ -145,6 +145,13 @@ module Axis_collection (T : Axed) : sig
       ('type_expr, 'd1, 'd2) f -> ('type_expr, 'd1) t -> ('type_expr, 'd2) t
   end
 
+  module Iter : sig
+    type ('type_expr, 'd) f =
+      { f : 'axis. axis:'axis Axis.t -> ('type_expr, 'd, 'axis) T.t -> unit }
+
+    val f : ('type_expr, 'd) f -> ('type_expr, 'd) t -> unit
+  end
+
   (** Map an operation over two sets of bounds *)
   module Map2 : sig
     module Monadic (M : Misc.Stdlib.Monad.S) : sig

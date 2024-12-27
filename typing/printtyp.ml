@@ -1340,45 +1340,6 @@ let add_type_to_preparation = prepare_type
 (* Disabled in classic mode when printing an unification error *)
 let print_labels = ref true
 
-let out_jkind_of_const_jkind jkind =
-  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
-
-(* CR layouts v2.8: This is just like [Jkind.format], and likely needs to
-   be overhauled with [with]-types. *)
-let rec out_jkind_of_desc (desc : 'd Jkind.Desc.t) =
-  match desc.layout with
-  | Sort (Var n) ->
-    Ojkind_var ("'_representable_layout_" ^
-                Int.to_string (Jkind.Sort.Var.get_print_number n))
-  (* Analyze a product before calling [get_const]: the machinery in
-     [Jkind.Const.to_out_jkind_const] works better for atomic layouts, not
-     products. *)
-  | Product lays ->
-    Ojkind_product
-      (List.map (fun layout -> out_jkind_of_desc { desc with layout }) lays)
-  | _ -> match Jkind.Desc.get_const desc with
-    | Some c -> out_jkind_of_const_jkind c
-    | None -> assert false (* handled above *)
-
-(* returns None for [value], according to (C2.1) from
-   Note [When to print jkind annotations] *)
-(* CR layouts v2.8: This should use the annotation in the jkind, if there
-   is one. But first that annotation needs to be in Typedtree, not in
-   Parsetree. *)
-let out_jkind_option_of_jkind jkind =
-  let desc = Jkind.get jkind in
-  let elide =
-    (* CR layouts: We ignore nullability here to avoid needlessly printing
-       ['a : value_or_null] when it's not relevant (most cases).
-       Unfortunately, this makes error messages really confusing, because
-       we don't consider jkind annotations. *)
-    Jkind.is_value_for_printing ~ignore_null:true jkind (* C2.1 *)
-    || (match desc.layout with
-        | Sort (Var _) -> not !Clflags.verbose_types (* X1 *)
-        | _ -> false)
-  in
-  if elide then None else Some (out_jkind_of_desc desc)
-
 let alias_nongen_row mode px ty =
     match get_desc ty with
     | Tvariant _ | Tobject _ ->
@@ -1573,7 +1534,7 @@ let rec tree_of_typexp mode alloc_mode ty =
 and tree_of_qtvs qtvs =
   let tree_of_qtv v : (string * out_jkind option) option =
     let tree jkind = Some (Names.name_of_type Names.new_name v,
-                            out_jkind_option_of_jkind jkind)
+                           out_jkind_option_of_jkind jkind)
     in
     match v.desc with
     | Tvar { jkind } when v.level = generic_level -> tree jkind
@@ -1673,6 +1634,106 @@ and tree_of_typfields mode rest = function
       let (fields, rest) = tree_of_typfields mode rest l in
       (field :: fields, rest)
 
+and tree_of_type_scheme ty =
+  prepare_for_printing [ty];
+  tree_of_typexp Type_scheme Alloc.Const.legacy ty
+
+and out_jkind_of_const_jkind jkind =
+  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+
+(* CR layouts v2.8: This is just like [Jkind.format], and likely needs to
+   be overhauled with [with]-types. *)
+and out_jkind_of_desc (desc : ('l * 'r) Jkind.Desc.t) =
+  let base =
+    match desc.layout with
+    | Sort (Var n) ->
+        Ojkind_var ("'_representable_layout_" ^
+                    Int.to_string (Jkind.Sort.Var.get_print_number n))
+    (* Analyze a product before calling [get_const]: the machinery in
+       [Jkind.Const.to_out_jkind_const] works better for atomic layouts, not
+       products. *)
+    | Product lays ->
+        Ojkind_product
+          (List.map (fun layout -> out_jkind_of_desc { desc with layout }) lays)
+    | _ -> match Jkind.Desc.get_const desc with
+      | Some c -> out_jkind_of_const_jkind c
+      | None -> assert false (* handled above *)
+  in
+  match base with
+  | Ojkind_const base -> (
+    let module Mentioned_in_bounds = struct
+      include Jkind_axis.Axis_collection(struct
+        type (+'type_expr, 'd, 'a) t = bool constraint 'd = 'l * 'r
+      end)
+
+      let empty = Create.f { f = (fun ~axis:_ -> false) }
+
+      let to_modality =
+        Fold.f
+          ~combine:(fun m1 m2 -> Mode.Modality.Value.Const.concat m1 ~then_:m2)
+          { f =
+              fun (type axis) ~(axis : axis Jkind_axis.Axis.t) mentioned ->
+                match axis with
+                | Modal axis when not mentioned -> (
+                    let P axis = Mode.Const.Axis.alloc_as_value axis in
+                    match axis with
+                    | Monadic ax ->
+                        Mode.Modality.Value.Const.singleton
+                          (Atom
+                            (Monadic ax,
+                              Join_with (Mode.Value.Monadic.Const.max_axis ax)))
+                    | Comonadic ax ->
+                        Mode.Modality.Value.Const.singleton
+                          (Atom
+                            (Comonadic ax,
+                              Meet_with
+                                (Mode.Value.Comonadic.Const.min_axis ax))))
+                | _ -> Mode.Modality.Value.Const.id
+          }
+    end
+    in
+    let types = Btype.TypeHash.create 8 in
+    Jkind_types.Bounds.Iter.f
+      { f =
+          fun ~axis { modifier = _; baggage } ->
+            List.iter
+              (fun ty ->
+                let mentioned =
+                  Btype.TypeHash.find_opt types ty
+                  |> Option.value ~default:Mentioned_in_bounds.empty
+                in
+                let mentioned' = Mentioned_in_bounds.set ~axis mentioned true in
+                Btype.TypeHash.replace types ty mentioned'
+              )
+              (Jkind_types.Baggage.as_list baggage) }
+      desc.upper_bounds;
+    let const =
+      Btype.TypeHash.to_seq types
+      |> Seq.fold_left
+        (fun okind (ty, mentioned) ->
+           let modality = Mentioned_in_bounds.to_modality mentioned in
+           let ty = tree_of_type_scheme (Transient_expr.type_expr ty) in
+           let modalities = tree_of_modalities_new Immutable [] modality in
+           Ojkind_const_with (okind, ty, modalities))
+        base
+    in Ojkind_const const)
+  | k -> k
+
+(* returns None for [value], according to (C2.1) from
+   Note [When to print jkind annotations] *)
+(* CR layouts v2.8: This should use the annotation in the jkind, if there
+   is one. But first that annotation needs to be in Typedtree, not in
+   Parsetree. *)
+and out_jkind_option_of_jkind jkind =
+  let desc = Jkind.get jkind in
+  let elide =
+    Jkind.is_value_for_printing jkind (* C2.1 *)
+    || (match desc.layout with
+        | Sort (Var _) -> not !Clflags.verbose_types (* X1 *)
+        | _ -> false)
+  in
+  if elide then None else Some (out_jkind_of_desc desc)
+
 let tree_of_typexp mode ty = tree_of_typexp mode Alloc.Const.legacy ty
 
 let typexp mode ppf ty =
@@ -1721,9 +1782,7 @@ let type_path ppf p =
   let t = tree_of_path (Some Type) p'' in
   !Oprint.out_ident ppf t
 
-let tree_of_type_scheme ty =
-  prepare_for_printing [ty];
-  tree_of_typexp Type_scheme ty
+
 
 (* Print one type declaration *)
 
@@ -1996,7 +2055,8 @@ let tree_of_type_decl id decl =
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
         (* unsafe_mode_crossing corresponds to C1.2 *)
-        Some (out_jkind_of_desc (Jkind.get decl.type_jkind))
+        (* CR aspsmith: fixme *)
+        Some (out_jkind_of_desc (Jkind.get decl.type_jkind |> Obj.magic))
     | _ -> None (* other cases have no jkind annotation *)
   in
   let attrs =
