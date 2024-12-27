@@ -247,7 +247,8 @@ Error: Unboxed record element types must have a representable layout.
 (***************************************)
 (* Singleton recursive unboxed records *)
 
-(* CR layouts v7.2: allow the below. *)
+(* CR layouts v7.2: allow bounded repetition of the same type constructor of
+   unboxed records. *)
 type 'a safe = #{ a : 'a }
 type x = int safe safe
 [%%expect{|
