@@ -347,3 +347,30 @@ Line 14, characters 14-20:
                    ^^^^^^
 Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}]
+
+
+(* This should still error once unboxed records elements need not have a
+   representable layout *)
+module type S = sig
+  type u : any
+  type t = #{ a : u ; b : u }
+end
+module F (X : S) = struct
+  type u = X.t = #{ a : X.u ; b : X.u}
+end
+
+module rec M : S = struct
+  include F(M)
+  type t = #{ a : u ; b : u }
+  let rec u = #{ u ; u }
+end
+[%%expect{|
+Line 3, characters 14-21:
+3 |   type t = #{ a : u ; b : u }
+                  ^^^^^^^
+Error: Unboxed record element types must have a representable layout.
+       The layout of u is any
+         because of the definition of u at line 2, characters 2-14.
+       But the layout of u must be representable
+         because it is the type of record field a.
+|}]
