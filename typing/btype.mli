@@ -41,6 +41,7 @@ module TypeHash : sig
   include Hashtbl.S with type key = transient_expr
   val mem: 'a t -> type_expr -> bool
   val add: 'a t -> type_expr -> 'a -> unit
+  val replace: 'a t -> type_expr -> 'a -> unit
   val remove: 'a t -> type_expr -> unit
   val find: 'a t -> type_expr -> 'a
   val find_opt: 'a t -> type_expr -> 'a option
