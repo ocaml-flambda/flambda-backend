@@ -77,6 +77,8 @@ module Axis : sig
       day be modal (it is a deep property). *)
   val is_modal : _ t -> bool
 
+  (* CR layouts v2.8: Not sure this belongs here, but there's not another obvious spot. Once this
+     file is more aligned with axis treatment in mode.ml, possibly re-home this. *)
   val modality_is_const_for_axis : _ t -> Mode.Modality.Value.Const.t -> bool
 end
 
