@@ -443,6 +443,9 @@ let tag_int i dbg =
   | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 ->
     Cop
       (Cor, [asr_int c (Cconst_int (n - 1, dbg)) dbg; Cconst_int (1, dbg)], dbg)
+  | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 ->
+    Cop
+      (Cor, [lsr_int c (Cconst_int (n - 1, dbg)) dbg; Cconst_int (1, dbg)], dbg)
   | c -> incr_int (lsl_int c (Cconst_int (1, dbg)) dbg) dbg
 
 let untag_int i dbg =
@@ -4345,73 +4348,133 @@ module Numeric = struct
       | Float64, Float32 -> float32_of_float ~dbg exp
   end
 
-  module Make_integer (I : sig
-    val max_bits : int
-  end) =
-  struct
-    (** An integer that fits into a general-purpose register. It is canonically stored in
-        twos-complement representation, in the lower [bits] bits of its container (whether
-        that be memory or a register), and is sign- or zero-extended as needed, according
-        to [signed]. *)
+  module Signedness = struct
     type t =
-      { bits : int;
-        signed : bool
-      }
+      | Signed
+      | Unsigned
 
-    let[@inline] create_exn ~bits ~signed =
-      assert (0 < bits && bits <= I.max_bits);
-      { bits; signed }
+    let equal (x : t) (y : t) = x = y
+
+    let print ppf t =
+      match t with
+      | Signed -> Format.pp_print_string ppf "signed"
+      | Unsigned -> Format.pp_print_string ppf "unsigned"
+  end
+
+  module Bit_width_and_signedness : sig
+    (** An integer with signedness [signedness t] that fits into a general-purpose
+        register. It is canonically stored in twos-complement representation, in the lower
+        [bits] bits of its container (whether that be memory or a register), and is sign-
+        or zero-extended to fill the entire container. *)
+    type t [@@immediate]
+
+    val create_exn : bit_width:int -> signedness:Signedness.t -> t
+
+    val bit_width : t -> int
+
+    val signedness : t -> Signedness.t
+
+    val equal : t -> t -> bool
+  end = struct
+    (* [signedness t] is stored in the low bit of [t], and [bit_width t] is
+       stored in the remaining high bits of [t]. We use this encoding to fit [t]
+       into an immediate value *)
+    type t = { bit_width_and_signedness : int } [@@unboxed]
+
+    let[@inline] equal { bit_width_and_signedness = x }
+        { bit_width_and_signedness = y } =
+      Int.equal x y
+
+    let[@inline] bit_width { bit_width_and_signedness } =
+      bit_width_and_signedness lsr 1
+
+    let[@inline] signedness { bit_width_and_signedness } =
+      match (Obj.magic (bit_width_and_signedness land 1) : Signedness.t) with
+      | (Signed | Unsigned) as signedness ->
+        (* If [Signedness.t] ever changes, adjust the representation of [t]
+           accordingly *)
+        signedness
+
+    (** This type annotation proves that [int_of_signedness] is valid *)
+    type signedness_is_immediate = Signedness.t [@@immediate]
+
+    external int_of_signedness : signedness_is_immediate -> int = "%identity"
+
+    let[@inline] create_exn ~bit_width ~signedness =
+      assert (0 < bit_width && bit_width <= arch_bits);
+      { bit_width_and_signedness =
+          (bit_width lsl 1) lor int_of_signedness signedness
+      }
+  end
+
+  module Integral_type = struct
+    include Bit_width_and_signedness
+
+    (** Determines whether [dst] can represent every value of [src], preserving sign *)
+    let[@inline] is_promotable ~src ~dst =
+      match signedness src, signedness dst with
+      | Signed, Signed | Unsigned, Unsigned -> bit_width src <= bit_width dst
+      | Unsigned, Signed -> bit_width src < bit_width dst
+      | Signed, Unsigned -> false
 
     let[@inline] static_cast ~dbg ~src ~dst exp =
-      let is_promotable =
-        if src.signed
-        then dst.signed && src.bits <= dst.bits
-        else src.bits < dst.bits
-      in
-      if is_promotable
-      then exp
-      else if dst.signed
-      then sign_extend ~bits:dst.bits exp dbg
-      else zero_extend ~bits:dst.bits exp dbg
+      if is_promotable ~src ~dst
+      then
+        (* since the values are already stored sign- or zero-extended, this is a
+           no-op. *)
+        exp
+      else
+        match signedness dst with
+        | Signed -> sign_extend ~bits:(bit_width dst) exp dbg
+        | Unsigned -> zero_extend ~bits:(bit_width dst) exp dbg
 
-    let[@inline] bits t = t.bits
+    let[@inline] with_signedness t ~signedness =
+      create_exn ~bit_width:(bit_width t) ~signedness
 
-    let[@inline] is_signed t = t.signed
+    let[@inline] signed t = with_signedness t ~signedness:Signed
 
-    let[@inline] signed t = { t with signed = true }
-
-    let[@inline] unsigned t = { t with signed = false }
-
-    let[@inline] with_signedness t ~signed = { t with signed }
+    let[@inline] unsigned t = with_signedness t ~signedness:Unsigned
   end
-  [@@inline]
 
   module Integer = struct
-    include Make_integer (struct
-      let max_bits = arch_bits
-    end)
+    include Integral_type
 
-    let nativeint = create_exn ~bits:arch_bits ~signed:true
+    let print ppf t =
+      Format.fprintf ppf "%a int%d" Signedness.print (signedness t)
+        (bit_width t)
+
+    let nativeint = create_exn ~bit_width:arch_bits ~signedness:Signed
   end
 
   (** An {!Integer.t} but with the additional stipulation that its container must
       reserve its lowest bit to be 1. The [bits] field does not include this bit. *)
   module Tagged_integer = struct
-    include Make_integer (struct
-      let max_bits = arch_bits - 1
-    end)
+    include Integral_type
 
-    let[@inline] create_exn ~bits_excluding_tag_bit:bits ~signed =
-      create_exn ~bits ~signed
+    let[@inline] create_exn ~bit_width_including_tag_bit:bit_width ~signedness =
+      assert (bit_width > 1);
+      create_exn ~bit_width ~signedness
 
     let immediate =
-      create_exn ~bits_excluding_tag_bit:(arch_bits - 1) ~signed:true
+      create_exn ~bit_width_including_tag_bit:arch_bits ~signedness:Signed
 
-    let[@inline] untagged { bits; signed } : Integer.t = { bits; signed }
+    let[@inline] bit_width_including_tag_bit t = bit_width t
 
-    let[@inline] bits_excluding_tag_bit t = bits t
+    let[@inline] bit_width_excluding_tag_bit t = bit_width t - 1
 
-    let[@inline] bits_including_tag_bit t = bits t + 1
+    let[@inline] untagged t =
+      Integer.create_exn
+        ~bit_width:(bit_width_excluding_tag_bit t)
+        ~signedness:(signedness t)
+
+    let[@inline] untag ~dbg t exp =
+      match signedness t with
+      | Signed -> asr_const exp 1 dbg
+      | Unsigned -> lsr_const exp 1 dbg
+
+    let print ppf t =
+      Format.fprintf ppf "tagged %a int%d" Signedness.print (signedness t)
+        (bit_width_excluding_tag_bit t)
   end
 
   module Integral = struct
@@ -4421,7 +4484,14 @@ module Numeric = struct
 
     let nativeint = Untagged Integer.nativeint
 
-    let[@inline] static_cast ~dbg ~src ~dst exp =
+    let[@inline] is_promotable ~src ~dst =
+      let[@inline] untagged = function
+        | Untagged t -> t
+        | Tagged t -> Tagged_integer.untagged t
+      in
+      Integer.is_promotable ~src:(untagged src) ~dst:(untagged dst)
+
+    let static_cast ~dbg ~src ~dst exp =
       match src, dst with
       | Untagged src, Untagged dst -> Integer.static_cast ~dbg ~src ~dst exp
       | Tagged src, Tagged dst -> Tagged_integer.static_cast ~dbg ~src ~dst exp
@@ -4433,31 +4503,60 @@ module Numeric = struct
         Integer.static_cast ~dbg
           ~src:(Tagged_integer.untagged src)
           ~dst
-          (if src.signed then asr_const exp 1 dbg else lsr_const exp 1 dbg)
+          (Tagged_integer.untag ~dbg src exp)
 
-    let signed = function
-      | Untagged untagged -> Untagged (Integer.signed untagged)
-      | Tagged tagged -> Tagged (Tagged_integer.signed tagged)
+    let signedness = function
+      | Untagged t -> Integer.signedness t
+      | Tagged t -> Tagged_integer.signedness t
 
-    let unsigned = function
-      | Untagged untagged -> Untagged (Integer.unsigned untagged)
-      | Tagged tagged -> Tagged (Tagged_integer.unsigned tagged)
+    let with_signedness t ~signedness =
+      match t with
+      | Untagged t -> Untagged (Integer.with_signedness t ~signedness)
+      | Tagged t -> Tagged (Tagged_integer.with_signedness t ~signedness)
+
+    let[@inline] signed t = with_signedness t ~signedness:Signed
+
+    let[@inline] unsigned t = with_signedness t ~signedness:Signed
+
+    let[@inline] equal x y =
+      match x, y with
+      | Untagged x, Untagged y -> Integer.equal x y
+      | Untagged _, _ -> false
+      | Tagged x, Tagged y -> Tagged_integer.equal x y
+      | Tagged _, _ -> false
+
+    let print ppf t =
+      match t with
+      | Untagged untagged -> Integer.print ppf untagged
+      | Tagged tagged -> Tagged_integer.print ppf tagged
   end
 
   type t =
     | Integral of Integral.t
     | Float of Float_width.t
 
-  let[@inline] static_cast ~dbg ~src ~dst exp =
+  let static_cast ~dbg ~src ~dst exp =
     match src, dst with
     | Integral src, Integral dst -> Integral.static_cast ~dbg ~src ~dst exp
     | Float src, Float dst -> Float_width.static_cast ~dbg ~src ~dst exp
-    | Float src, Integral dst ->
-      unary (Cstatic_cast (Int_of_float src)) exp ~dbg
-      |> Integral.static_cast ~dbg ~src:Integral.nativeint ~dst
     | Integral src, Float dst ->
-      Integral.static_cast ~dbg ~src ~dst:Integral.nativeint exp
-      |> unary (Cstatic_cast (Int_of_float dst)) ~dbg
+      let float_of_int_arg = Integral.nativeint in
+      if not (Integral.is_promotable ~src ~dst:float_of_int_arg)
+      then
+        Misc.fatal_errorf "static_cast: casting %a to float is not implemented"
+          Integral.print src
+      else
+        unary (Cstatic_cast (Float_of_int dst)) ~dbg
+          (Integral.static_cast exp ~dbg ~src ~dst:float_of_int_arg)
+    | Float src, Integral dst -> (
+      match Integral.signedness dst with
+      | Unsigned ->
+        Misc.fatal_errorf
+          "static_cast: casting floats to unsigned values is undefined"
+      | Signed ->
+        (* we can truncate, but we don't want to promote *)
+        Integral.static_cast ~dbg ~src:Integral.nativeint ~dst
+          (unary (Cstatic_cast (Int_of_float src)) exp ~dbg))
 
   module Untagged = struct
     type numeric = t

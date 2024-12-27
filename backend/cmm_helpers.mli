@@ -1204,6 +1204,7 @@ module Numeric : sig
   type 'a static_cast :=
     dbg:Debuginfo.t -> src:'a -> dst:'a -> expression -> expression
 
+  (** An IEEE 754 floating-point number *)
   module Float_width : sig
     type t = Cmm.float_width =
       | Float64
@@ -1212,46 +1213,69 @@ module Numeric : sig
     val static_cast : t static_cast
   end
 
-  module Integer : sig
+  module Signedness : sig
+    type t =
+      | Signed
+      | Unsigned
+
+    val equal : t -> t -> bool
+
+    val print : Format.formatter -> t -> unit
+  end
+
+  module type Integral_ops := sig
     type t
 
-    val create_exn : bits:int -> signed:bool -> t
+    val print : Format.formatter -> t -> unit
+
+    val equal : t -> t -> bool
+
+    val signedness : t -> Signedness.t
+
+    val with_signedness : t -> signedness:Signedness.t -> t
+
+    val signed : t -> t
+
+    val unsigned : t -> t
+
+    val is_promotable : src:t -> dst:t -> bool
+
+    val static_cast : t static_cast
+  end
+
+  (** An integer that fits into a general-purpose register. It is canonically stored in
+      twos-complement representation, in the lower [bits] bits of its container (whether
+      that be memory or a register), and is sign- or zero-extended as needed, according
+      to [signed]. *)
+  module Integer : sig
+    type t [@@immediate]
 
     val nativeint : t
 
-    val static_cast : t static_cast
+    val create_exn : bit_width:int -> signedness:Signedness.t -> t
 
-    val bits : t -> int
+    val bit_width : t -> int
 
-    val is_signed : t -> bool
-
-    val signed : t -> t
-
-    val unsigned : t -> t
-
-    val with_signedness : t -> signed:bool -> t
+    include Integral_ops with type t := t
   end
 
+  (** An {!Integer.t} but with the additional stipulation that its lowest bit is always
+      set to 1 and is not considered in mathematical operations on the numbers. *)
   module Tagged_integer : sig
-    type t
-
-    val create_exn : bits_excluding_tag_bit:int -> signed:bool -> t
+    type t [@@immediate]
 
     val immediate : t
 
+    val create_exn :
+      bit_width_including_tag_bit:int -> signedness:Signedness.t -> t
+
+    val bit_width_excluding_tag_bit : t -> int
+
+    val bit_width_including_tag_bit : t -> int
+
     val untagged : t -> Integer.t
 
-    val static_cast : t static_cast
-
-    val bits_excluding_tag_bit : t -> int
-
-    val bits_including_tag_bit : t -> int
-
-    val signed : t -> t
-
-    val unsigned : t -> t
-
-    val with_signedness : t -> signed:bool -> t
+    include Integral_ops with type t := t
   end
 
   module Integral : sig
@@ -1263,14 +1287,12 @@ module Numeric : sig
 
     val static_cast : t static_cast
 
-    val signed : t -> t
-
-    val unsigned : t -> t
+    include Integral_ops with type t := t
   end
 
   type t =
     | Integral of Integral.t
-    | Float of float_width
+    | Float of Float_width.t
 
   val static_cast : t static_cast
 

@@ -529,23 +529,32 @@ let dead_slots_msg dbg function_slots value_slots =
 (* Arithmetic primitives *)
 
 let integral_of_standard_int : K.Standard_int.t -> C.Numeric.Integral.t
-    = function
-    | Naked_int8 -> Untagged (C.Numeric.Integer.create_exn ~bits:8 ~signed:true)
-    | Naked_int16 -> Untagged (C.Numeric.Integer.create_exn ~bits:16 ~signed:true)
-    | Naked_int32 -> Untagged (C.Numeric.Integer.create_exn ~bits:32 ~signed:true)
-    | Naked_int64 -> Untagged (C.Numeric.Integer.create_exn ~bits:64 ~signed:true)
+  =
+  let[@inline] untagged_int bit_width : C.Numeric.Integral.t =
+    Untagged (C.Numeric.Integer.create_exn ~bit_width ~signedness:Signed)
+  in
+  function
+    | Naked_int8 -> untagged_int 8
+    | Naked_int16 -> untagged_int 16
+    | Naked_int32 -> untagged_int 32
+    | Naked_int64 -> untagged_int 64
     | Naked_nativeint -> Untagged C.Numeric.Integer.nativeint
     | Naked_immediate -> Untagged (C.Numeric.Tagged_integer.(untagged immediate))
     | Tagged_immediate -> Tagged C.Numeric.Tagged_integer.immediate
 
-let numeric_of_standard_int_or_float :
-    K.Standard_int_or_float.t -> C.Numeric.t = function
-  | Naked_int8 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:8 ~signed:true))
-  | Naked_int16 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:16 ~signed:true))
-  | Naked_int32 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:32 ~signed:true))
-  | Naked_int64 -> Integral (Untagged (C.Numeric.Integer.create_exn ~bits:64 ~signed:true))
+let numeric_of_standard_int_or_float : K.Standard_int_or_float.t -> C.Numeric.t =
+  let[@inline] untagged_int bit_width : C.Numeric.t =
+    Integral (Untagged (C.Numeric.Integer.create_exn
+                          ~bit_width ~signedness:Signed))
+  in
+  function
+  | Naked_int8 -> untagged_int 8
+  | Naked_int16 -> untagged_int 16
+  | Naked_int32 -> untagged_int 32
+  | Naked_int64 -> untagged_int 64
   | Naked_nativeint -> Integral (Untagged C.Numeric.Integer.nativeint)
-  | Naked_immediate -> Integral (Untagged (C.Numeric.Tagged_integer.(untagged immediate)))
+  | Naked_immediate ->
+    Integral (Untagged (C.Numeric.Tagged_integer.(untagged immediate)))
   | Tagged_immediate -> Integral (Tagged C.Numeric.Tagged_integer.immediate)
   | Naked_float32 -> Float Float32
   | Naked_float -> Float Float64
@@ -565,7 +574,7 @@ let unary_int_arith_primitive _env dbg kind op arg =
         C.Numeric.Integer.static_cast arg
           ~src ~dst:C.Numeric.Integer.nativeint ~dbg
         |> (fun arg ->
-          let bits = C.Numeric.Integer.bits src in
+          let bits = C.Numeric.Integer.bit_width src in
           (C.sub_int (C.int ~dbg 0) (C.low_bits ~bits arg dbg) dbg))
         |>  C.Numeric.Integer.static_cast
               ~src:C.Numeric.Integer.nativeint ~dst:src ~dbg)
@@ -605,8 +614,8 @@ let arithmetic_conversion dbg src dst arg =
     let extra =
       match src, dst with
       | Integral (Tagged src), Integral (Untagged dst)
-        when C.Numeric.Tagged_integer.bits_excluding_tag_bit src
-             = C.Numeric.Integer.bits dst
+        when C.Numeric.Integer.equal (C.Numeric.Tagged_integer.untagged src)
+               dst
         -> Some (Env.Untag arg)
       | (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)),
         (Integral (Tagged _ | Untagged _) | Float (Float32 | Float64)) -> None
@@ -620,104 +629,141 @@ let phys_equal _env dbg op x y =
   | Neq -> C.neq ~dbg x y
 
 let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
-    (op : P.binary_int_arith_op) x y =
+      (op : P.binary_int_arith_op) x y =
   let kind = integral_of_standard_int kind in
-  let[@inline] wrap ~can_simplify_operands f  =
-    (* We cast the operands to the width that the operator expects, apply the operator,
-       and cast the result back. *)
-    let native : C.Numeric.Integral.t =
+  let[@inline] wrap f  =
+    (* We cast the operands to the width that the operator expects, apply the
+       operator, and cast the result back. *)
+    let operator_type : C.Numeric.Integral.t =
       match kind with
       | Untagged _ -> Untagged (C.Numeric.Integer.nativeint)
       | Tagged _ -> Tagged (C.Numeric.Tagged_integer.immediate)
     in
+    let requires_sign_extended_operands =
+      match op with
+      | Div | Mod ->
+        (* Note that it would be wrong to apply [C.low_bits] to operands
+           for div and mod.
+
+           Some background: The problem arises in cases like: [(num1 * num2) /
+           num3]. If an overflow occurs in the multiplication, then we must deal
+           with it by sign-extending before the division. Whereas [ (num1 *
+           num2) * num3 ] can delay the sign-extension until the very end, even
+           in the case of overflow in the middle. So in a way, div and mod are
+           regular functions, while all the others are special as they can delay
+           overflow handling.
+
+           Cmm only has [Arch.size_int]-width virtual registers, so we must
+           always do operations on values of that size. (If we had smaller
+           virtual registers, we could use them in Cmm without sign-extension
+           and let the backend insert sign-extensions if it doesn't support
+           operations on n-bit physical registers. There was a prototype
+           developed of this but it was quite complicated and didn't get
+           merged.) *)
+        true
+      | Add | Sub | Mul ->
+        (* https://en.wikipedia.org/wiki/Modular_arithmetic - these operations
+           are compatible with modular arithmetic *)
+        false
+      | And | Or | Xor ->
+        (* bitwise operations are clearly compatible *)
+        false
+    in
     let[@inline] prepare_operand operand =
-      let operand = C.Numeric.Integral.static_cast ~dbg ~src:kind ~dst:native operand in
-      if not can_simplify_operands then operand else
+      let operand =
+        C.Numeric.Integral.static_cast ~dbg ~src:kind ~dst:operator_type operand
+      in
+      if requires_sign_extended_operands
+      then operand
+      else
         let bits =
           match kind with
-          | Untagged untagged -> C.Numeric.Integer.bits untagged
-          | Tagged tagged -> C.Numeric.Tagged_integer.bits_including_tag_bit tagged
+          | Untagged untagged -> C.Numeric.Integer.bit_width untagged
+          | Tagged tagged ->
+            C.Numeric.Tagged_integer.bit_width_including_tag_bit tagged
         in
         C.low_bits ~bits operand dbg
     in
     let x = prepare_operand x in
     let y = prepare_operand y in
     let result = f x y dbg in
-    C.Numeric.Integral.static_cast ~dbg ~src:native ~dst:kind result
+    C.Numeric.Integral.static_cast ~dbg ~src:operator_type ~dst:kind result
     (* Operations on integer arguments must return something in the range of
        their values, hence the [static_cast] here. The [C.low_bits] operations
        (see above in [prepare_operand]) are used to avoid unnecessary
        sign-extensions, e.g. when chaining additions together. Also see comment
        below about [C.low_bits] in the [Div] and [Mod] cases. *)
   in
-  (* Note that it would be wrong to apply [C.low_bits] to [x] and/or [y]
-     for div and mod. [C.safe_div_bi] and [C.safe_mod_bi] require
-     sign-extended input for both the numerator and denominator.
 
-     Some background: The problem arises in cases like: [(num1 * num2) / num3].
-     If an overflow occurs in the multiplication, then we must deal with it by
-     sign-extending before the division. Whereas [ (num1 * num2) * num3 ] can
-     delay the sign-extension until the very end, even in the case of overflow
-     in the middle. So in a way, div and mod are regular functions, while all
-     the others are special as they can delay overflow handling.
-
-     Cmm only has [Arch.size_int]-width virtual registers, so we must always
-     do operations on values of that size. (If we had smaller virtual registers,
-     we could use them in Cmm without sign-extension and let the backend insert
-     sign-extensions if it doesn't support operations on n-bit physical
-     registers. There was a prototype developed of this but it was quite
-     complicated and didn't get merged.) *)
   match kind with
   | Tagged _ -> (match op with
-      | Add -> wrap C.add_int_caml ~can_simplify_operands:true
-      | Sub -> wrap C.sub_int_caml ~can_simplify_operands:true
-      | Mul -> wrap C.mul_int_caml ~can_simplify_operands:true
-      | Div -> wrap (C.div_int_caml Unsafe) ~can_simplify_operands:false
-      | Mod -> wrap (C.mod_int_caml Unsafe)~can_simplify_operands:false
-      | And -> wrap C.and_int_caml ~can_simplify_operands:true
-      | Or ->  wrap C.or_int_caml ~can_simplify_operands:true
-      | Xor -> wrap C.xor_int_caml ~can_simplify_operands:true)
+    | Add -> wrap C.add_int_caml
+    | Sub -> wrap C.sub_int_caml
+    | Mul -> wrap C.mul_int_caml
+    | Div -> wrap (C.div_int_caml Unsafe)
+    | Mod -> wrap (C.mod_int_caml Unsafe)
+    | And -> wrap C.and_int_caml
+    | Or ->  wrap C.or_int_caml
+    | Xor -> wrap C.xor_int_caml)
   | Untagged untagged ->
-    let dividend_cannot_be_min_int = C.Numeric.Integer.bits untagged < C.arch_bits in
+    let dividend_cannot_be_min_int =
+      C.Numeric.Integer.bit_width untagged < C.arch_bits
+    in
     (match op with
-     | Add -> wrap C.add_int ~can_simplify_operands:true
-     | Sub -> wrap C.sub_int ~can_simplify_operands:true
-     | Mul -> wrap C.mul_int ~can_simplify_operands:true
-     | Div ->
-       wrap (C.safe_div_bi Unsafe ~dividend_cannot_be_min_int)
-         ~can_simplify_operands:false
-     | Mod ->
-       wrap (C.safe_mod_bi Unsafe ~dividend_cannot_be_min_int)
-         ~can_simplify_operands:false
-     | And -> wrap C.and_int ~can_simplify_operands:true
-     | Or ->  wrap C.or_int ~can_simplify_operands:true
-     | Xor -> wrap C.xor_int ~can_simplify_operands:true)
+     | Add -> wrap C.add_int
+     | Sub -> wrap C.sub_int
+     | Mul -> wrap C.mul_int
+     | Div -> wrap (C.safe_div_bi Unsafe ~dividend_cannot_be_min_int)
+     | Mod -> wrap (C.safe_mod_bi Unsafe ~dividend_cannot_be_min_int)
+     | And -> wrap C.and_int
+     | Or ->  wrap C.or_int
+     | Xor -> wrap C.xor_int)
 
-let binary_int_shift_primitive _env dbg kind op x y =
+let binary_int_shift_primitive _env dbg kind (op : P.int_shift_op) x y =
   (* [kind] only applies to [x], the [y] argument is always a bare
      register-sized integer *)
   (* See comments on [binary_int_arity_primitive], above, about sign extension
      and use of [C.low_bits]. *)
   let kind = integral_of_standard_int kind in
-  let input, output =
-    match (op : P.int_shift_op) with
-    | Lsl -> kind, C.Numeric.Integral.nativeint
-    | Asr -> C.Numeric.Integral.signed kind, C.Numeric.Integral.signed kind
-    | Lsr -> C.Numeric.Integral.unsigned kind, C.Numeric.Integral.unsigned kind
+  let signedness : C.Numeric.Signedness.t =
+    match op with
+    | Lsl -> C.Numeric.Integral.signedness kind
+    | Asr -> C.Numeric.Signedness.Signed
+    | Lsr -> C.Numeric.Signedness.Unsigned
   in
-  let x = C.Numeric.Integral.static_cast x ~src:kind ~dst:input ~dbg in
-  let shifted =
-    match (op : P.int_shift_op) with
-    | Lsl -> C.lsl_int x y dbg
-    | Asr -> C.asr_int x y dbg
-    | Lsr -> C.lsr_int x y dbg
+  let kind_with_signedness_of_operator =
+    C.Numeric.Integral.with_signedness kind ~signedness
+  in
+  let operator_type =
+    C.Numeric.Integral.(with_signedness nativeint) ~signedness
+  in
+  let x =
+    C.Numeric.Integral.static_cast x ~dbg
+      ~src:kind
+      ~dst:kind_with_signedness_of_operator
+  in
+  let x =
+    C.Numeric.Integral.static_cast x ~dbg
+      ~src:kind_with_signedness_of_operator
+      ~dst:operator_type
+  in
+  let untagged_kind_with_signedness_of_operator : C.Numeric.Integral.t =
+    Untagged
+      (match kind_with_signedness_of_operator with
+        | Tagged x -> C.Numeric.Tagged_integer.untagged x
+        | Untagged x -> x)
+  in
+  let shifted, output =
+    match op with
+    | Lsl -> C.lsl_int x y dbg, operator_type
+    | Asr -> C.asr_int x y dbg, untagged_kind_with_signedness_of_operator
+    | Lsr -> C.lsr_int x y dbg, untagged_kind_with_signedness_of_operator
   in
   C.Numeric.Integral.static_cast shifted ~src:output ~dst:kind ~dbg
 
-
 let binary_int_comp_primitive _env dbg kind cmp x y =
   match
-    static_cast_of_standard_int kind, (cmp : P.signed_or_unsigned P.comparison)
+    integral_of_standard_int kind, (cmp : P.signed_or_unsigned P.comparison)
   with
   (* [x] and [y] are expressions yielding well-formed tagged immediates, that is
      to say, their least significant bit (LSB) is 1. However when comparing
@@ -729,25 +775,25 @@ let binary_int_comp_primitive _env dbg kind cmp x y =
 
      See middle_end/flambda2/z3/comparisons.smt2 for a Z3 script to prove
      this. *)
-  | `Tagged `Word, Lt Signed -> C.lt ~dbg x (C.ignore_low_bit_int y)
-  | `Tagged `Word, Le Signed -> C.le ~dbg (C.ignore_low_bit_int x) y
-  | `Tagged `Word, Gt Signed -> C.gt ~dbg (C.ignore_low_bit_int x) y
-  | `Tagged `Word, Ge Signed -> C.ge ~dbg x (C.ignore_low_bit_int y)
-  | `Tagged `Word, Lt Unsigned -> C.ult ~dbg x (C.ignore_low_bit_int y)
-  | `Tagged `Word, Le Unsigned -> C.ule ~dbg (C.ignore_low_bit_int x) y
-  | `Tagged `Word, Gt Unsigned -> C.ugt ~dbg (C.ignore_low_bit_int x) y
-  | `Tagged `Word, Ge Unsigned -> C.uge ~dbg x (C.ignore_low_bit_int y)
+  | Tagged _, Lt Signed -> C.lt ~dbg x (C.ignore_low_bit_int y)
+  | Tagged _, Le Signed -> C.le ~dbg (C.ignore_low_bit_int x) y
+  | Tagged _, Gt Signed -> C.gt ~dbg (C.ignore_low_bit_int x) y
+  | Tagged _, Ge Signed -> C.ge ~dbg x (C.ignore_low_bit_int y)
+  | Tagged _, Lt Unsigned -> C.ult ~dbg x (C.ignore_low_bit_int y)
+  | Tagged _, Le Unsigned -> C.ule ~dbg (C.ignore_low_bit_int x) y
+  | Tagged _, Gt Unsigned -> C.ugt ~dbg (C.ignore_low_bit_int x) y
+  | Tagged _, Ge Unsigned -> C.uge ~dbg x (C.ignore_low_bit_int y)
   (* Naked integers. *)
-  | `Bits (_ : int), Lt Signed -> C.lt ~dbg x y
-  | `Bits (_ : int), Le Signed -> C.le ~dbg x y
-  | `Bits (_ : int), Gt Signed -> C.gt ~dbg x y
-  | `Bits (_ : int), Ge Signed -> C.ge ~dbg x y
-  | `Bits (_ : int), Lt Unsigned -> C.ult ~dbg x y
-  | `Bits (_ : int), Le Unsigned -> C.ule ~dbg x y
-  | `Bits (_ : int), Gt Unsigned -> C.ugt ~dbg x y
-  | `Bits (_ : int), Ge Unsigned -> C.uge ~dbg x y
-  | #C.Static_cast.standard_int, Eq -> C.eq ~dbg x y
-  | #C.Static_cast.standard_int, Neq -> C.neq ~dbg x y
+  | Untagged _ , Lt Signed -> C.lt ~dbg x y
+  | Untagged _ , Le Signed -> C.le ~dbg x y
+  | Untagged _ , Gt Signed -> C.gt ~dbg x y
+  | Untagged _ , Ge Signed -> C.ge ~dbg x y
+  | Untagged _ , Lt Unsigned -> C.ult ~dbg x y
+  | Untagged _ , Le Unsigned -> C.ule ~dbg x y
+  | Untagged _ , Gt Unsigned -> C.ugt ~dbg x y
+  | Untagged _ , Ge Unsigned -> C.uge ~dbg x y
+  | (Tagged _ | Untagged _), Eq -> C.eq ~dbg x y
+  | (Tagged _ | Untagged _), Neq -> C.neq ~dbg x y
 
 let binary_int_comp_primitive_yielding_int _env dbg _kind
     (signed : P.signed_or_unsigned) x y =
