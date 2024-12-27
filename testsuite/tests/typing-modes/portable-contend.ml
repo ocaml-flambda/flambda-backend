@@ -364,11 +364,16 @@ val foo : int @ shared -> unit = <fun>
 (* TESTING immutable array *)
 module Iarray = Stdlib_stable.Iarray
 
-let foo (r @ contended) = Iarray.get r 42
+let foo (r : int iarray @@ contended) = Iarray.get r 42
 [%%expect{|
 module Iarray = Stdlib_stable.Iarray
-Line 3, characters 37-38:
-3 | let foo (r @ contended) = Iarray.get r 42
+val foo : int iarray @ contended -> int = <fun>
+|}]
+
+let foo (r @ contended) = Iarray.get r 42
+[%%expect{|
+Line 1, characters 37-38:
+1 | let foo (r @ contended) = Iarray.get r 42
                                          ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
