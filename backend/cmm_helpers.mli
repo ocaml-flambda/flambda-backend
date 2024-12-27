@@ -1285,7 +1285,12 @@ module Numeric : sig
 
     val nativeint : t
 
-    val static_cast : t static_cast
+    (** Gets the integral resulting from untagging the integer (if it is tagged).
+
+        E.g., you can use [static_cast ~src ~dst:(Untagged (untagged src))] to untag a
+        value of type [src]
+    *)
+    val untagged : t -> Integer.t
 
     include Integral_ops with type t := t
   end

@@ -416,6 +416,10 @@ let lsr_int c1 c2 dbg =
   | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
     when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
     Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
+  | Cop (Clsr, [c; Cconst_int (n, _)], _), c2 when 0 < n && n < arch_bits ->
+    (* prefer to keep the constant shift on the outside to enable further
+       optimizations. *)
+    Cop (Clsr, [Cop (Clsr, [c; c2], dbg); Cconst_int (n, dbg)], dbg)
   | c1, Cconst_int (n, _) when n > 0 ->
     Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
   | _ -> Cop (Clsr, [c1; c2], dbg)
@@ -423,9 +427,12 @@ let lsr_int c1 c2 dbg =
 let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
 let asr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> (
+  match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
+  | Cop (Casr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
+    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
+    Cop (Casr, [c; Cconst_int (n1 + n2, dbg)], dbg)
+  | c1, Cconst_int (n, _) when n > 0 -> (
     match ignore_low_bit_int c1 with
     (* some operations always return small enough integers that it is safe and
        correct to optimise [asr (lsl x 1) 1] into [x]. *)
@@ -433,7 +440,11 @@ let asr_int c1 c2 dbg =
       when n = 1 && guaranteed_to_be_small_int c ->
       c
     | c1' -> Cop (Casr, [c1'; c2], dbg))
-  | _ -> Cop (Casr, [c1; c2], dbg)
+  | Cop (Casr, [c; Cconst_int (n, _)], _), c2 when 0 < n && n < arch_bits ->
+    (* prefer to keep the constant shift on the outside to enable further
+       optimizations. *)
+    Cop (Casr, [Cop (Casr, [c; c2], dbg); Cconst_int (n, dbg)], dbg)
+  | c1, c2 -> Cop (Casr, [c1; c2], dbg)
 
 let asr_const c n dbg = asr_int c (Cconst_int (n, dbg)) dbg
 
@@ -1321,15 +1332,19 @@ let rec low_bits ~bits x dbg =
     bits set to 0 *)
 let zero_extend ~bits e dbg =
   assert (0 < bits && bits <= arch_bits);
-  let mask = Nativeint.pred (Nativeint.shift_left 1n bits) in
-  let zero_extend_via_mask e =
-    Cop (Cand, [e; natint_const_untagged dbg mask], dbg)
+  let unused_bits = arch_bits - bits in
+  let zero_extend_via_shift e =
+    lsr_const (lsl_const e unused_bits dbg) unused_bits dbg
   in
   if bits = arch_bits
   then e
   else
     map_tail
       (function
+        | Cop (Clsr, [_; Cconst_int (n, _)], _)
+          when unused_bits <= n && n < arch_bits ->
+          (* already has zero in the high bits *)
+          e
         | Cop (Cload { memory_chunk; mutability; is_atomic }, args, dbg) as e
           -> (
           let load memory_chunk =
@@ -1340,8 +1355,8 @@ let zero_extend ~bits e dbg =
           | (Sixteen_signed | Sixteen_unsigned), 16 -> load Sixteen_unsigned
           | (Thirtytwo_signed | Thirtytwo_unsigned), 32 ->
             load Thirtytwo_unsigned
-          | _ -> zero_extend_via_mask e)
-        | e -> zero_extend_via_mask e)
+          | _ -> zero_extend_via_shift e)
+        | e -> zero_extend_via_shift e)
       (low_bits ~bits e dbg)
 
 let sign_extend ~bits e dbg =
@@ -4484,11 +4499,11 @@ module Numeric = struct
 
     let nativeint = Untagged Integer.nativeint
 
+    let[@inline] untagged = function
+      | Untagged t -> t
+      | Tagged t -> Tagged_integer.untagged t
+
     let[@inline] is_promotable ~src ~dst =
-      let[@inline] untagged = function
-        | Untagged t -> t
-        | Tagged t -> Tagged_integer.untagged t
-      in
       Integer.is_promotable ~src:(untagged src) ~dst:(untagged dst)
 
     let static_cast ~dbg ~src ~dst exp =

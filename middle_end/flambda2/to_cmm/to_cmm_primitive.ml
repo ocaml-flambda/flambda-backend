@@ -720,46 +720,35 @@ let binary_int_arith_primitive _env dbg (kind : K.Standard_int.t)
      | Xor -> wrap C.xor_int)
 
 let binary_int_shift_primitive _env dbg kind (op : P.int_shift_op) x y =
-  (* [kind] only applies to [x], the [y] argument is always a bare
-     register-sized integer *)
   (* See comments on [binary_int_arity_primitive], above, about sign extension
      and use of [C.low_bits]. *)
   let kind = integral_of_standard_int kind in
-  let signedness : C.Numeric.Signedness.t =
+  let right_shift_kind signedness =
+    (* right shifts can operate directly on untagged small integers of the
+       correct signedness, as they do not require sign- or zero-extension after
+       the shift *)
+    C.Numeric.Integer.with_signedness
+      (C.Numeric.Integral.untagged kind)
+      ~signedness
+  in
+  let f, (op_kind : Cmm_helpers.Numeric.Integer.t) =
     match op with
-    | Lsl -> C.Numeric.Integral.signedness kind
-    | Asr -> C.Numeric.Signedness.Signed
-    | Lsr -> C.Numeric.Signedness.Unsigned
-  in
-  let kind_with_signedness_of_operator =
-    C.Numeric.Integral.with_signedness kind ~signedness
-  in
-  let operator_type =
-    C.Numeric.Integral.(with_signedness nativeint) ~signedness
+    | Asr -> C.asr_int, right_shift_kind Signed
+    | Lsr -> C.lsr_int, right_shift_kind Unsigned
+    | Lsl ->
+      (* Left shifts need to be casted back from nativeint since they might
+         shift arbitrary bits into the high bits of the register. *)
+      C.lsl_int, C.Numeric.Integer.nativeint
   in
   let x =
-    C.Numeric.Integral.static_cast x ~dbg
-      ~src:kind
-      ~dst:kind_with_signedness_of_operator
+    C.Numeric.Integral.static_cast x ~dbg ~src:kind ~dst:(Untagged op_kind)
   in
-  let x =
-    C.Numeric.Integral.static_cast x ~dbg
-      ~src:kind_with_signedness_of_operator
-      ~dst:operator_type
+  let shifted =
+    (* [kind] only applies to [x], the [y] argument is always a bare
+       register-sized integer *)
+    f x y dbg
   in
-  let untagged_kind_with_signedness_of_operator : C.Numeric.Integral.t =
-    Untagged
-      (match kind_with_signedness_of_operator with
-        | Tagged x -> C.Numeric.Tagged_integer.untagged x
-        | Untagged x -> x)
-  in
-  let shifted, output =
-    match op with
-    | Lsl -> C.lsl_int x y dbg, operator_type
-    | Asr -> C.asr_int x y dbg, untagged_kind_with_signedness_of_operator
-    | Lsr -> C.lsr_int x y dbg, untagged_kind_with_signedness_of_operator
-  in
-  C.Numeric.Integral.static_cast shifted ~src:output ~dst:kind ~dbg
+  C.Numeric.Integral.static_cast shifted ~dbg ~src:(Untagged op_kind) ~dst:kind
 
 let binary_int_comp_primitive _env dbg kind cmp x y =
   match
