@@ -1066,15 +1066,27 @@ type 'a contended : immutable_data with 'a @@ contended
 type 'a contended_with_int : immutable_data with 'a @@ contended with int
 
 [%%expect{|
-type 'a list : value mod many with 'a uncontended with 'a portable with 'a
+type 'a list : value mod many uncontended portable with 'a @@ global aliased
 type ('a, 'b) either
-  : value mod many with 'a * 'b uncontended with 'a * 'b
-              portable with 'a * 'b
-type 'a contended : value mod many with 'a uncontended portable with 'a
+  : value mod many uncontended portable with 'a * 'b
+  @@
+  global
+  aliased
+type 'a contended
+  : value mod many uncontended portable with 'a
+  @@
+  global
+  aliased
+  contended
 type 'a contended_with_int
-  : value mod many with int
-'a uncontended with int portable with int
-'a
+  : value mod many uncontended portable with 'a
+  @@
+  global
+  aliased
+  contended with int
+  @@
+  global
+  aliased
 |}]
 
 (* not yet supported *)
