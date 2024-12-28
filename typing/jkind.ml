@@ -903,7 +903,7 @@ module Const = struct
               (fun (type axis) ~(axis : axis Jkind_axis.Axis.t) mentioned ->
                 match axis with
                 | Modal axis when not mentioned -> (
-                  let (P axis) = Mode.Const.Axis.alloc_as_value axis in
+                  let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
                   match axis with
                   | Monadic ax ->
                     Mode.Modality.Value.Const.singleton
