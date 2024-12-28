@@ -665,10 +665,13 @@ module Context_with_transl = struct
     | Left_jkind (_, ctx) -> ctx
 end
 
-let print_type_expr =
-  ref (fun ppf _ -> Format.fprintf ppf "ERROR: unset [Jkind.print_type_expr]")
+let outcometree_of_type_scheme = ref (fun _ -> assert false)
 
-let set_print_type_expr p = print_type_expr := p
+let set_outcometree_of_type_scheme p = outcometree_of_type_scheme := p
+
+let outcometree_of_modalities_new = ref (fun _ _ _ -> assert false)
+
+let set_outcometree_of_modalities_new p = outcometree_of_modalities_new := p
 
 module Const = struct
   open Jkind_types.Layout_and_axes
@@ -867,25 +870,51 @@ module Const = struct
 
   module To_out_jkind_const : sig
     (** Convert a [t] into a [Outcometree.out_jkind_const].
-        The jkind is written in terms of the built-in jkind that requires the least amount
-        of modes after the mod. For example,
-        [value mod global many unique portable uncontended external_ non_null] could be
-        written in terms of [value] (as it appears above), or in terms of [immediate]
-        (which would just be [immediate]). Since the latter requires less modes to be
-        printed, it is chosen. *)
+        The jkind is written in terms of the built-in jkind that requires the
+        least amount of modes after the mod. For example, [value mod global many
+        unique portable uncontended external_ non_null] could be written in
+        terms of [value] (as it appears above), or in terms of [immediate]
+        (which would just be [immediate]). Since the latter requires less modes
+        to be printed, it is chosen. *)
     val convert : 'd t -> Outcometree.out_jkind_const
   end = struct
     type printable_jkind =
       { base : string;
-        modal_bounds : string list
+        modal_bounds : string list;
+        with_tys :
+          (Outcometree.out_type * Outcometree.out_modality_new list) list
       }
 
-    let get_baggage : type l r. (l * r) Baggage.t -> _ = function
-      | No_baggage -> ""
-      | Baggage (ty, tys) ->
-        Format.asprintf " with %a"
-          (Format.pp_print_list ~pp_sep:Format.pp_print_space !print_type_expr)
-          (ty :: tys)
+    module Mentioned_in_bounds = struct
+      include Jkind_axis.Axis_collection (struct
+        type (+'type_expr, 'd, 'a) t = bool constraint 'd = 'l * 'r
+      end)
+
+      let empty = Create.f { f = (fun ~axis:_ -> false) }
+
+      let to_modality =
+        Fold.f
+          ~combine:(fun m1 m2 -> Mode.Modality.Value.Const.concat m1 ~then_:m2)
+          { f =
+              (fun (type axis) ~(axis : axis Jkind_axis.Axis.t) mentioned ->
+                match axis with
+                | Modal axis when not mentioned -> (
+                  let (P axis) = Mode.Const.Axis.alloc_as_value axis in
+                  match axis with
+                  | Monadic ax ->
+                    Mode.Modality.Value.Const.singleton
+                      (Atom
+                         ( Monadic ax,
+                           Join_with (Mode.Value.Monadic.Const.max_axis ax) ))
+                  | Comonadic ax ->
+                    Mode.Modality.Value.Const.singleton
+                      (Atom
+                         ( Comonadic ax,
+                           Meet_with (Mode.Value.Comonadic.Const.min_axis ax) ))
+                  )
+                | _ -> Mode.Modality.Value.Const.id)
+          }
+    end
 
     let get_modal_bound (type a) ~(axis : a Axis.t) ~(base : ('d1, a) Bound.t)
         (actual : ('d2, a) Bound.t) =
@@ -904,10 +933,7 @@ module Const = struct
         match less_or_equal base actual with
         | Some Less | Some Equal -> `Valid None
         | None | Some Not_le ->
-          `Valid
-            (Some
-               (Format.asprintf "%a%s" A.print actual.modifier
-                  (get_baggage actual.baggage))))
+          `Valid (Some (Format.asprintf "%a" A.print actual.modifier)))
       | None | Some Not_le -> `Invalid
 
     let get_modal_bounds ~(base : _ Bounds.t) (actual : _ Bounds.t) =
@@ -925,6 +951,36 @@ module Const = struct
              | Some acc, `Valid (Some mode) -> Some (mode :: acc))
            (Some [])
 
+    let get_with_tys upper_bounds =
+      let types = Btype.TypeHash.create 8 in
+      Jkind_types.Bounds.Iter.f
+        { f =
+            (fun ~axis { modifier = _; baggage } ->
+              List.iter
+                (fun ty ->
+                  let mentioned =
+                    Btype.TypeHash.find_opt types ty
+                    |> Option.value ~default:Mentioned_in_bounds.empty
+                  in
+                  let mentioned' =
+                    Mentioned_in_bounds.set ~axis mentioned true
+                  in
+                  Btype.TypeHash.replace types ty mentioned')
+                (Jkind_types.Baggage.as_list baggage))
+        }
+        upper_bounds;
+      Btype.TypeHash.to_seq types
+      |> Seq.map (fun (ty, mentioned) ->
+             let modality = Mentioned_in_bounds.to_modality mentioned in
+             let ty =
+               !outcometree_of_type_scheme (Types.Transient_expr.type_expr ty)
+             in
+             let modalities =
+               !outcometree_of_modalities_new Types.Immutable [] modality
+             in
+             ty, modalities)
+      |> List.of_seq
+
     (** Write [actual] in terms of [base] *)
     let convert_with_base ~(base : Builtin.t) actual =
       let matching_layouts =
@@ -933,8 +989,10 @@ module Const = struct
       let modal_bounds =
         get_modal_bounds ~base:base.jkind.upper_bounds actual.upper_bounds
       in
+      let with_tys = get_with_tys actual.upper_bounds in
       match matching_layouts, modal_bounds with
-      | true, Some modal_bounds -> Some { base = base.name; modal_bounds }
+      | true, Some modal_bounds ->
+        Some { base = base.name; modal_bounds; with_tys }
       | false, _ | _, None -> None
 
     (** Select the out_jkind_const with the least number of modal bounds to print *)
@@ -1009,12 +1067,19 @@ module Const = struct
                  modal bounds are all max *)
             Option.get out_jkind_verbose)
       in
-      match printable_jkind with
-      | { base; modal_bounds = _ :: _ as modal_bounds } ->
-        Outcometree.Ojkind_const_mod
-          (Ojkind_const_abbreviation base, modal_bounds)
-      | { base; modal_bounds = [] } ->
-        Outcometree.Ojkind_const_abbreviation base
+      let base, with_tys =
+        match printable_jkind with
+        | { base; modal_bounds = _ :: _ as modal_bounds; with_tys } ->
+          ( Outcometree.Ojkind_const_mod
+              (Ojkind_const_abbreviation base, modal_bounds),
+            with_tys )
+        | { base; modal_bounds = []; with_tys } ->
+          Outcometree.Ojkind_const_abbreviation base, with_tys
+      in
+      List.fold_left
+        (fun jkind (ty, modalities) ->
+          Outcometree.Ojkind_const_with (jkind, ty, modalities))
+        base with_tys
   end
 
   let to_out_jkind_const jkind = To_out_jkind_const.convert jkind

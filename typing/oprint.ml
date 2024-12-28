@@ -633,7 +633,7 @@ and print_out_jkind_const ppf ojkind =
       Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
     | Ojkind_const_with (base, ty, modalities) ->
         fprintf ppf "%a with @[%a@]%a"
-          (pp_element ~nested:true) base
+          (pp_element ~nested:false) base
           print_out_type ty
           print_out_modalities_new modalities
     | Ojkind_const_kind_of _ ->
