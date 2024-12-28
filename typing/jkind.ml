@@ -889,13 +889,38 @@ module Const = struct
           (Outcometree.out_type * Outcometree.out_modality_new list) list
       }
 
-    module Include_modality = struct
-      type include_modality =
-        | Include
-        | Don't_include
+    (* Note [Reconstructing modalities]
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+       Currently (though not forever!), we have two kinds of modalities:
+
+       - Constant modalities
+       - Identity modalities
+
+       For the purposes of [with]-kinds, identity modalities on an axis for a type serve
+       to "include" that type on the baggage for that axis, and constant modalities serve
+       to "exclude" that type from that axis.
+
+       When printing jkinds, we scan the baggage on each axis, building up (morally) a map
+       from type, to axis, to a variant ([Modality_axis_map.modality]) indicating whether
+       to include a constant modality for that axis on that type in the [with] of the
+       jkind. We start out with a [Constant_modality] for the axes mentioned in the bounds
+       of the jkind, then when a type is mentioned on an axis, we switch it to
+       [Don't_include].
+    *)
+
+    module Modality_axis_map = struct
+      (* Tracks, for each axis, whether we should be including a constant modality "zeroing out"
+         that axis on a type. Used to reconstruct modalities when printing kinds. See Note
+         [Reconstructing modalities] for more. *)
+
+      type modality =
+        | Constant_modality
+        | No_modality
+      (* Plausibly, once we have non-constant, non-identity modalities, this could be
+         extended to track those as well *)
 
       include Jkind_axis.Axis_collection (struct
-        type (+'type_expr, 'd, 'a) t = include_modality constraint 'd = 'l * 'r
+        type (+'type_expr, 'd, 'a) t = modality constraint 'd = 'l * 'r
       end)
 
       let to_modality =
@@ -904,7 +929,7 @@ module Const = struct
           { f =
               (fun (type axis) ~(axis : axis Jkind_axis.Axis.t) include_modality ->
                 match axis, include_modality with
-                | Modal axis, Include -> (
+                | Modal axis, Constant_modality -> (
                   let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
                   match axis with
                   | Monadic ax ->
@@ -957,16 +982,22 @@ module Const = struct
              | Some acc, `Valid (Some mode) -> Some (mode :: acc))
            (Some [])
 
+    (* Reconstruct the [with]-types for the kind.
+
+       See Note [Reconstructing modalities] *)
     let get_with_tys ~base upper_bounds =
       let default_include_modality =
-        Include_modality.Create.f
+        Modality_axis_map.Create.f
           { f =
               (fun ~axis ->
                 let base = Bounds.get ~axis base in
                 let actual = Bounds.get ~axis upper_bounds in
+                (* Note we're only defaulting to [Constant_modality] for the bounds actually
+                   mentioned in the kind, so we don't print eg `immutable_data with 'a` as
+                   `immutable_data with 'a @@ global many *)
                 match get_modal_bound ~axis ~base actual with
-                | `Valid (Some _) -> Include
-                | `Valid None | `Invalid -> Don't_include)
+                | `Valid (Some _) -> Constant_modality
+                | `Valid None | `Invalid -> No_modality)
           }
       in
       let types = Btype.TypeHash.create 8 in
@@ -980,7 +1011,9 @@ module Const = struct
                     |> Option.value ~default:default_include_modality
                   in
                   let include_modality' =
-                    Include_modality.set ~axis include_modality Don't_include
+                    (* If a type is mentioned on an axis, we don't want a modality on that
+                       type! *)
+                    Modality_axis_map.set ~axis include_modality No_modality
                   in
                   Btype.TypeHash.replace types ty include_modality')
                 (Jkind_types.Baggage.as_list baggage))
@@ -988,7 +1021,7 @@ module Const = struct
         upper_bounds;
       Btype.TypeHash.to_seq types
       |> Seq.map (fun (ty, mentioned) ->
-             let modality = Include_modality.to_modality mentioned in
+             let modality = Modality_axis_map.to_modality mentioned in
              let ty =
                !outcometree_of_type_scheme (Types.Transient_expr.type_expr ty)
              in
@@ -1095,6 +1128,7 @@ module Const = struct
         | { base; modal_bounds = []; with_tys } ->
           Outcometree.Ojkind_const_abbreviation base, with_tys
       in
+      (* Finally, add on the [with]-types and their modalities *)
       List.fold_left
         (fun jkind (ty, modalities) ->
           Outcometree.Ojkind_const_with (jkind, ty, modalities))
