@@ -760,34 +760,24 @@ Line 1, characters 0-61:
 1 | type q : any mod portable = #{ x : int -> int; y : int -> q }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "q" is
-         value_or_null mod global with int -> int
-int -> q
-                           unique with int -> int
-int -> q
-                           many with int -> int
-int -> q
-                           uncontended with int -> int
-int -> q
-                           portable with int -> int
-int -> q
-                           external_ with int -> int
-int -> q
-                           non_null with int -> int
-int -> q
-         & value_or_null mod global with int -> int
-int -> q
-                             unique with int -> int
-int -> q
-                             many with int -> int
-int -> q
-                             uncontended with int -> int
-int -> q
-                             portable with int -> int
-int -> q
-                             external_ with int -> int
-int -> q
-                             non_null with int -> int
-int -> q
+         value_or_null mod global unique many uncontended portable external_
+                           non_null with int -> int with int -> q
+         & value_or_null mod global unique many uncontended portable
+                             external_ non_null with int -> int with
+         int -> q
+         because it is an unboxed record.
+       But the kind of type "q" must be a subkind of
+         value_or_null mod portable & value_or_null mod portable
+         because of the annotation on the declaration of the type q.
+|}, Principal{|
+Line 1, characters 0-61:
+1 | type q : any mod portable = #{ x : int -> int; y : int -> q }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "q" is
+         value_or_null mod global unique many uncontended portable external_
+                           non_null with int -> q with int -> int
+         & value_or_null mod global unique many uncontended portable
+                             external_ non_null with int -> q with int -> int
          because it is an unboxed record.
        But the kind of type "q" must be a subkind of
          value_or_null mod portable & value_or_null mod portable
