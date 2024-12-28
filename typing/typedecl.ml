@@ -1897,13 +1897,11 @@ let update_decl_jkind env dpath decl =
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then begin
-    (* CR layouts v2.8: Consider making a function that doesn't compute
-       histories for this use-case, which doesn't need it. *)
-    (* The [decl.type_jkind] should never have [with]-types in it at this
-       point. *)
-    let type_equal _ _ = false in
-    match Jkind.sub_jkind_l ~type_equal ~jkind_of_type
-            new_jkind decl.type_jkind
+    let type_equal = Ctype.type_equal env in
+    match
+      (* CR layouts v2.8: Consider making a function that doesn't compute
+         histories for this use-case, which doesn't need it. *)
+      Jkind.sub_jkind_l ~type_equal ~jkind_of_type new_jkind decl.type_jkind
     with
     | Ok _ -> ()
     | Error err ->

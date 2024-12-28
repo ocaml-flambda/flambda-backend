@@ -551,31 +551,13 @@ Error: This value is "aliased" but expected to be "unique".
 
 (* user syntax *)
 type 'a t : immutable_data with 'a = { x : 'a }
-
-(* CR layouts v2.8: This should be accepted *)
-(* CR reisenberg: fix! *)
 [%%expect{|
-Line 1, characters 0-47:
-1 | type 'a t : immutable_data with 'a = { x : 'a }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of immutable_data
-         because of the annotation on the declaration of the type t.
+type 'a t = { x : 'a; }
 |}]
 
 type 'a t : immutable_data with 'a = Foo of 'a
-
-(* CR layouts v2.8: This should be accepted *)
-(* CR reisenberg: fix! *)
 [%%expect{|
-Line 1, characters 0-46:
-1 | type 'a t : immutable_data with 'a = Foo of 'a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
-         because it's a boxed variant type.
-       But the kind of type "t" must be a subkind of immutable_data
-         because of the annotation on the declaration of the type t.
+type 'a t = Foo of 'a
 |}]
 
 type t : immutable_data = { x : int }

@@ -170,15 +170,8 @@ Error: This value escapes its region.
 
 (***********************************************************************)
 type ('a : immutable_data) t : immutable_data = { x : 'a list }
-(* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 0-63:
-1 | type ('a : immutable_data) t : immutable_data = { x : 'a list }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is immutable_data
-         because it's a boxed record type.
-       But the kind of type "t" must be a subkind of immutable_data
-         because of the annotation on the declaration of the type t.
+type ('a : immutable_data) t = { x : 'a list; }
 |}]
 
 type ('a : immutable_data) t = { x : 'a list }

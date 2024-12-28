@@ -1223,7 +1223,6 @@ Error: The kind of type "t" is immutable_data
        But the kind of type "t" must be a subkind of value mod many
          because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: this should be accepted *)
 
 type 'a t : value mod unique = { x : 'a @@ unique }
 [%%expect {|
