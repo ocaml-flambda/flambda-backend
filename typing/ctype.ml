@@ -2173,6 +2173,9 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
+(* forward declaration *)
+let type_equal' = ref (fun _ _ _ -> Misc.fatal_error "type_equal")
+
 (* We parameterize [estimate_type_jkind] by a function
    [expand_component] because some callers want expansion of types and others
    don't. *)
@@ -2183,8 +2186,9 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Ttuple _ -> Jkind.Builtin.value ~why:Tuple
   | Tunboxed_tuple ltys ->
      let tys_modalities =
-       List.map (fun (_, ty) -> expand_component ty,
-                                Mode.Modality.Value.Const.id) ltys
+       List.map
+         (fun (_, ty) -> expand_component ty, Mode.Modality.Value.Const.id)
+         ltys
      in
      (* CR layouts v2.8: This pretty ridiculous use of [estimate_type_jkind]
         just to throw most of it away will go away once we get [layout_of]. *)
@@ -2194,12 +2198,14 @@ let rec estimate_type_jkind ~expand_component env ty =
          tys_modalities
      in
      let layouts = List.map Jkind.extract_layout jkinds in
-     Jkind.Builtin.product ~jkind_of_first_type:(fun () ->
-       match jkinds with
-         | first_jkind :: _ -> first_jkind
-         | _ -> Misc.fatal_error
-                  "Ctype.estimate_type_jkind: use of jkind_of_first_type \
-                   with more than 1 type")
+     Jkind.Builtin.product
+       ~type_equal:(!type_equal' env)
+       ~jkind_of_first_type:(fun () ->
+           match jkinds with
+           | first_jkind :: _ -> first_jkind
+           | _ -> Misc.fatal_error
+                    "Ctype.estimate_type_jkind: use of jkind_of_first_type \
+                     with more than 1 type")
        ~why:Unboxed_tuple tys_modalities layouts
   | Tconstr (p, args, _) -> begin try
       let type_decl = Env.find_type p env in
@@ -2260,9 +2266,6 @@ let type_jkind_purely_if_principal env ty =
 let estimate_type_jkind = estimate_type_jkind ~expand_component:Fun.id
 
 (**** checking jkind relationships ****)
-
-(* forward declaration *)
-let type_equal' = ref (fun _ _ _ -> Misc.fatal_error "type_equal")
 
 (* The ~fixed argument controls what effects this may have on `ty`.  If false,
    then we will update the jkind of type variables to make the check true, if

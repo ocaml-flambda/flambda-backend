@@ -165,6 +165,7 @@ module TyVarEnv : sig
 
   val make_poly_univars_jkinds :
     context:(string -> Jkind.History.annotation_context_lr) ->
+    Env.t ->
     (string Location.loc * Parsetree.jkind_annotation option) list
     -> poly_univars
   (* see mli file *)
@@ -334,10 +335,12 @@ end = struct
   let mk_pending_univar name jkind jkind_info =
     { univar = newvar ~name jkind; associated = []; jkind_info }
 
-  let mk_poly_univars_tuple_with_jkind ~context var jkind_annot =
+  let mk_poly_univars_tuple_with_jkind ~context env var jkind_annot =
     let name = var.txt in
     let original_jkind =
-      Jkind.of_annotation ~context:(context name) jkind_annot
+      Jkind.of_annotation
+        ~type_equal:(Ctype.type_equal env)
+        ~context:(context name) jkind_annot
     in
     let jkind_info = { original_jkind; defaulted = false } in
     name, mk_pending_univar name original_jkind jkind_info
@@ -353,10 +356,10 @@ end = struct
   let make_poly_univars vars =
     List.map mk_poly_univars_tuple_without_jkind vars
 
-  let make_poly_univars_jkinds ~context vars_jkinds =
+  let make_poly_univars_jkinds ~context env vars_jkinds =
     let mk_trip = function
         | (v, None) -> mk_poly_univars_tuple_without_jkind v
-        | (v, Some l) -> mk_poly_univars_tuple_with_jkind ~context v l
+        | (v, Some l) -> mk_poly_univars_tuple_with_jkind ~context env v l
     in
     List.map mk_trip vars_jkinds
 
@@ -586,7 +589,9 @@ let transl_type_param env path jkind_default styp =
     match jkind_annot with
     | None -> jkind_default, None
     | Some jkind_annot ->
-      Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot,
+      Jkind.of_annotation
+        ~type_equal:(Ctype.type_equal env)
+        ~context:(Type_parameter (path, name)) jkind_annot,
       Some jkind_annot
   in
   let attrs = styp.ptyp_attributes in
@@ -607,10 +612,12 @@ let transl_type_param env path jkind_default styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_param env path jkind_default styp)
 
-let get_type_param_jkind path styp =
+let get_type_param_jkind env path styp =
   let of_annotation jkind name =
     let jkind =
-      Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind
+      Jkind.of_annotation
+        ~type_equal:(Ctype.type_equal env)
+        ~context:(Type_parameter (path, name)) jkind
     in
     jkind
   in
@@ -678,8 +685,10 @@ let enrich_with_attributes attrs annotation_context =
   | Some msg -> Jkind.History.With_error_message (msg, annotation_context)
   | None -> annotation_context
 
-let jkind_of_annotation annotation_context attrs jkind =
-  Jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context)
+let jkind_of_annotation env annotation_context attrs jkind =
+  Jkind.of_annotation
+    ~type_equal:(Ctype.type_equal env)
+    ~context:(enrich_with_attributes attrs annotation_context)
     jkind
 
 (* translate the ['a 'b ('c : immediate) .] part of a polytype,
@@ -712,8 +721,11 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         | None -> TyVarEnv.new_jkind ~is_named:false policy, None
         | Some jkind ->
             let tjkind =
-              jkind_of_annotation (Type_wildcard loc)
-                styp.ptyp_attributes jkind
+              jkind_of_annotation
+                env
+                (Type_wildcard loc)
+                styp.ptyp_attributes
+                jkind
             in
             tjkind, Some jkind
       in
@@ -1062,7 +1074,7 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
   let print_name = "'" ^ name in
   if not (valid_tyvar_name name) then
     raise (Error (loc, env, Invalid_variable_name print_name));
-  let of_annot = jkind_of_annotation (Type_variable print_name) attrs in
+  let of_annot = jkind_of_annotation env (Type_variable print_name) attrs in
   let ty = try
       TyVarEnv.lookup_local ~row_context name
     with Not_found ->
@@ -1090,7 +1102,7 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
 and transl_type_poly env ~policy ~row_context mode loc vars st =
   let typed_vars, new_univars, cty =
     with_local_level begin fun () ->
-      let new_univars = transl_bound_vars vars in
+      let new_univars = transl_bound_vars env vars in
       let typed_vars = TyVarEnv.ttyp_poly_arg new_univars in
       let cty = TyVarEnv.with_univars new_univars begin fun () ->
         transl_type env ~policy ~row_context mode st
@@ -1123,7 +1135,7 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
         | None -> None
         | Some jkind_annot ->
           let jkind =
-            jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
+            jkind_of_annotation env (Type_variable ("'" ^ alias)) attrs jkind_annot
           in
           begin match constrain_type_jkind env t jkind with
           | Ok () -> ()
@@ -1141,7 +1153,7 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
               | None -> Jkind.Builtin.any ~why:Dummy_jkind, None
               | Some jkind_annot ->
                 let jkind =
-                  jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
+                  jkind_of_annotation env (Type_variable ("'" ^ alias)) attrs jkind_annot
                 in
                 jkind, Some jkind_annot
             in
@@ -1176,7 +1188,7 @@ and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
         | Some jkind_annot -> jkind_annot
       in
       let jkind =
-        jkind_of_annotation (Type_wildcard jkind_annot.pjkind_loc)
+        jkind_of_annotation env (Type_wildcard jkind_annot.pjkind_loc)
           attrs jkind_annot
       in
       begin match constrain_type_jkind env cty_expr jkind with
@@ -1388,7 +1400,7 @@ let transl_type_scheme_poly env attrs loc vars inner_type =
   let typed_vars, univars, typ =
     with_local_level begin fun () ->
       TyVarEnv.reset ();
-      let univars = transl_bound_vars vars in
+      let univars = transl_bound_vars env vars in
       let typed_vars = TyVarEnv.ttyp_poly_arg univars in
       let typ =
         transl_simple_type ~new_var_jkind:Sort env ~univars ~closed:true Alloc.Const.legacy

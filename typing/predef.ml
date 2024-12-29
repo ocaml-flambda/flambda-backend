@@ -221,9 +221,11 @@ let option_argument_jkind = Jkind.Builtin.value ~why:(
 (* CR layouts v2.8: Simplify this once we have a real subsumption check. *)
 let list_jkind param =
   Jkind.add_baggage
+    ~type_equal:(fun _ _ -> false)
     ~modality:Mode.Modality.Value.Const.id
     ~baggage:param
     (Jkind.add_baggage
+       ~type_equal:(fun _ _ -> false)
        ~modality:Mode.Modality.Value.Const.id
        ~baggage:(type_list param)
        (Jkind.Builtin.immutable_data ~why:Boxed_variant))
@@ -367,6 +369,7 @@ let build_initial_env add_type add_extension empty_env =
                       (Jkind.Builtin.any ~why:Array_type_argument))
        ~jkind:(fun param ->
          Jkind.add_baggage
+           ~type_equal:(fun _ _ -> false)
            ~modality:Mode.Modality.Value.Const.id
            ~baggage:param
            (Jkind.Builtin.mutable_data ~why:(Primitive ident_array)))
@@ -377,6 +380,7 @@ let build_initial_env add_type add_extension empty_env =
                       (Jkind.Builtin.any ~why:Array_type_argument))
        ~jkind:(fun param ->
          Jkind.add_baggage
+           ~type_equal:(fun _ _ -> false)
            ~modality:Mode.Modality.Value.Const.id
            ~baggage:param
            (Jkind.Builtin.immutable_data ~why:(Primitive ident_iarray)))
@@ -414,6 +418,7 @@ let build_initial_env add_type add_extension empty_env =
                   cstr ident_some [unrestricted tvar option_argument_sort]])
        ~jkind:(fun param ->
          Jkind.add_baggage
+           ~type_equal:(fun _ _ -> false)
            ~modality:Mode.Modality.Value.Const.id
            ~baggage:param
            (Jkind.Builtin.immutable_data ~why:Boxed_variant))
@@ -448,10 +453,14 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:Jkind.(
          of_builtin Const.Builtin.immutable_data
            ~why:(Primitive ident_lexing_position) |>
-         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_int |>
-         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_int |>
-         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_int |>
-         add_baggage ~modality:Mode.Modality.Value.Const.id ~baggage:type_string)
+         add_baggage
+           ~type_equal:(fun _ _ -> false)
+           ~modality:Mode.Modality.Value.Const.id
+           ~baggage:type_int |>
+         add_baggage
+           ~type_equal:(fun _ _ -> false)
+           ~modality:Mode.Modality.Value.Const.id
+           ~baggage:type_string)
   |> add_type ident_string ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_float ~jkind:Jkind.Const.Builtin.float64
   |> add_type ident_unboxed_nativeint ~jkind:Jkind.Const.Builtin.word

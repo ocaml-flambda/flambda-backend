@@ -70,7 +70,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let jkind = Jkind.for_boxed_record lbls in
+      let jkind = Jkind.for_boxed_record ~type_equal:(fun _ _ -> false (* CR aspsmith: ?? *)) lbls in
       let tdecl =
         {
           type_params;
@@ -156,7 +156,8 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
-      constructor_args ~current_unit decl.type_private cd_args cd_res
+      constructor_args
+        ~current_unit decl.type_private cd_args cd_res
         Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
@@ -183,7 +184,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
   let (_,_,_,cstrs) = List.fold_left describe_constructor (0,0,0,[]) cstrs in
   List.rev cstrs
 
-let extension_descr ~current_unit path_ext ext =
+let extension_descr  ~current_unit path_ext ext =
   let ty_res =
     match ext.ext_ret_type with
         Some type_ret -> type_ret
@@ -191,7 +192,8 @@ let extension_descr ~current_unit path_ext ext =
   in
   let cstr_tag = Extension path_ext in
   let existentials, cstr_args, cstr_inlined =
-    constructor_args ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
+    constructor_args
+       ~current_unit ext.ext_private ext.ext_args ext.ext_ret_type
       Path.(Pextra_ty (path_ext, Pext_ty))
       (Record_inlined (cstr_tag, ext.ext_shape, Variant_extensible))
   in

@@ -313,6 +313,7 @@ module Builtin : sig
       This returns an [jkind_l] simply as a matter of convenience; it can be
       generalized if need be.  *)
   val product :
+    type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
     jkind_of_first_type:(unit -> jkind_l) ->
     why:History.product_creation_reason ->
     (Types.type_expr * Mode.Modality.Value.Const.t) list ->
@@ -330,6 +331,7 @@ val add_nullability_crossing : 'd t -> 'd t
 
 (** Take an existing [jkind_l] and add some baggage. *)
 val add_baggage :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   modality:Mode.Modality.Value.Const.t ->
   baggage:Types.type_expr ->
   jkind_l ->
@@ -378,11 +380,13 @@ val of_const :
 val of_builtin : why:History.creation_reason -> Const.Builtin.t -> 'd t
 
 val of_annotation :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   context:('l * allowed) History.annotation_context ->
   Parsetree.jkind_annotation ->
   ('l * allowed) t
 
 val of_annotation_option_default :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   default:('l * allowed) t ->
   context:('l * allowed) History.annotation_context ->
   Parsetree.jkind_annotation option ->
@@ -399,6 +403,7 @@ val of_annotation_option_default :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   context:History.annotation_context_l ->
   transl_type:(Parsetree.core_type -> Types.type_expr) ->
   Parsetree.type_declaration ->
@@ -410,6 +415,7 @@ val of_type_decl :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl_default :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   context:History.annotation_context_l ->
   transl_type:(Parsetree.core_type -> Types.type_expr) ->
   default:jkind_l ->
@@ -417,18 +423,25 @@ val of_type_decl_default :
   jkind_l
 
 (** Choose an appropriate jkind for a boxed record type *)
-val for_boxed_record : Types.label_declaration list -> jkind_l
+val for_boxed_record :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
+  Types.label_declaration list ->
+  jkind_l
 
 (** Choose an appropriate jkind for an unboxed record type. Uses [jkind_of_type]
     only in the singleton case, where the jkind of the unboxed record must match
     that of the single field. *)
 val for_unboxed_record :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
   jkind_of_type:(Types.type_expr -> jkind_l) ->
   Types.label_declaration list ->
   jkind_l
 
 (** Choose an appropriate jkind for a boxed variant type. *)
-val for_boxed_variant : Types.constructor_declaration list -> jkind_l
+val for_boxed_variant :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) ->
+  Types.constructor_declaration list ->
+  jkind_l
 
 (** The jkind of an arrow type. *)
 val for_arrow : jkind_l

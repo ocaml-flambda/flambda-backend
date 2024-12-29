@@ -1148,7 +1148,7 @@ and approx_sig_items env ssg=
   | item :: srem ->
       match item.psig_desc with
       | Psig_type (rec_flag, sdecls) ->
-          let decls = Typedecl.approx_type_decl sdecls in
+          let decls = Typedecl.approx_type_decl env sdecls in
           let rem = approx_sig_items env srem in
           map_rec_type ~rec_flag
             (fun rs (id, info) -> Sig_type(id, info, rs, Exported)) decls rem

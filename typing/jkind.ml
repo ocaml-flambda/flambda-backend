@@ -402,10 +402,14 @@ module Baggage = struct
       (l1 * allowed) t =
     match bag1, bag2 with No_baggage, No_baggage -> No_baggage
 
-  let add_baggage (t : (allowed * 'r) t) baggage : (allowed * 'r) t =
+  let add_baggage ~type_equal (t : (allowed * 'r) t) baggage : (allowed * 'r) t
+      =
     match t with
     | No_baggage -> Baggage (baggage, [])
-    | Baggage (ty, tys) -> Baggage (baggage, ty :: tys)
+    | Baggage (ty, tys) ->
+      if type_equal baggage ty || List.exists (type_equal baggage) tys
+      then Baggage (ty, tys)
+      else Baggage (baggage, ty :: tys)
 end
 
 module Bound = struct
@@ -425,7 +429,7 @@ module Bound = struct
     let (module Ops) = Axis.get axis in
     { modifier = Ops.meet mod1 mod2; baggage = Baggage.meet bag1 bag2 }
 
-  let add_baggage (type axis) ({ modifier; baggage } as bound)
+  let add_baggage (type axis) ~type_equal ({ modifier; baggage } as bound)
       ~(axis : axis Axis.t) new_baggage =
     (* No need to add baggage to top. While the subsumption check is still not
        great, this is not just an optimization; see test
@@ -434,7 +438,10 @@ module Bound = struct
     let (module Ops) = Axis.get axis in
     if Ops.le Ops.max modifier
     then bound
-    else { bound with baggage = Baggage.add_baggage baggage new_baggage }
+    else
+      { bound with
+        baggage = Baggage.add_baggage ~type_equal baggage new_baggage
+      }
 
   let reduce_baggage (type a) ~type_equal ~jkind_of_type ~(axis : a Axis.t)
       modifier baggage =
@@ -628,14 +635,14 @@ module Bounds = struct
       }
       ~combine:Misc.Le_result.combine bounds1 bounds2
 
-  let add_baggage ~modality ~deep_only ~baggage bounds =
+  let add_baggage ~type_equal ~modality ~deep_only ~baggage bounds =
     (* Add the type as a baggage type along all deep axes *)
     Map.f
       { f =
           (fun ~axis (bound : _ Bound.t) : _ Bound.t ->
             if (not (Jkind_axis.Axis.modality_is_const_for_axis axis modality))
                && (Axis.is_deep axis || not deep_only)
-            then Bound.add_baggage bound ~axis baggage
+            then Bound.add_baggage ~type_equal bound ~axis baggage
             else bound)
       }
       bounds
@@ -1037,8 +1044,11 @@ module Const = struct
 
   let rec of_user_written_annotation_unchecked_level :
       type l r.
-      (l * r) Context_with_transl.t -> Parsetree.jkind_annotation -> (l * r) t =
-   fun context jkind ->
+      type_equal:(type_expr -> type_expr -> bool) ->
+      (l * r) Context_with_transl.t ->
+      Parsetree.jkind_annotation ->
+      (l * r) t =
+   fun ~type_equal context jkind ->
     match jkind.pjkind_desc with
     | Abbreviation name ->
       (* CR layouts v2.8: move this to predef *)
@@ -1061,7 +1071,9 @@ module Const = struct
       | _ -> raise ~loc:jkind.pjkind_loc (Unknown_jkind jkind))
       |> allow_left |> allow_right
     | Mod (base, modifiers) ->
-      let base = of_user_written_annotation_unchecked_level context base in
+      let base =
+        of_user_written_annotation_unchecked_level ~type_equal context base
+      in
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let upper_bounds =
@@ -1088,11 +1100,15 @@ module Const = struct
       { layout = base.layout; upper_bounds }
     | Product ts ->
       let jkinds =
-        List.map (of_user_written_annotation_unchecked_level context) ts
+        List.map
+          (of_user_written_annotation_unchecked_level ~type_equal context)
+          ts
       in
       jkind_of_product_annotations jkinds
     | With (base, type_, modalities) -> (
-      let base = of_user_written_annotation_unchecked_level context base in
+      let base =
+        of_user_written_annotation_unchecked_level ~type_equal context base
+      in
       match context with
       | Right_jkind _ -> raise ~loc:type_.ptyp_loc With_on_right
       | Left_jkind (transl_type, _) ->
@@ -1102,8 +1118,8 @@ module Const = struct
         in
         { layout = base.layout;
           upper_bounds =
-            Bounds.add_baggage ~modality ~deep_only:true ~baggage:type_
-              base.upper_bounds
+            Bounds.add_baggage ~type_equal ~modality ~deep_only:true
+              ~baggage:type_ base.upper_bounds
         })
     | Default | Kind_of _ -> raise ~loc:jkind.pjkind_loc Unimplemented_syntax
 
@@ -1128,8 +1144,11 @@ module Const = struct
     in
     scan_layout jkind.layout
 
-  let of_user_written_annotation ~context (annot : Parsetree.jkind_annotation) =
-    let const = of_user_written_annotation_unchecked_level context annot in
+  let of_user_written_annotation ~type_equal ~context
+      (annot : Parsetree.jkind_annotation) =
+    let const =
+      of_user_written_annotation_unchecked_level ~type_equal context annot
+    in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
@@ -1211,10 +1230,11 @@ module Jkind_desc = struct
     in
     { to_ with upper_bounds }, added1 || added2
 
-  let add_baggage ~deep_only ~baggage ~modality t =
+  let add_baggage ~type_equal ~deep_only ~baggage ~modality t =
     { t with
       upper_bounds =
-        Bounds.add_baggage ~deep_only ~baggage ~modality t.upper_bounds
+        Bounds.add_baggage ~type_equal ~deep_only ~baggage ~modality
+          t.upper_bounds
     }
 
   let max = of_const Const.max
@@ -1259,7 +1279,7 @@ module Jkind_desc = struct
     let immediate = of_const Const.Builtin.immediate.jkind
   end
 
-  let product ~jkind_of_first_type tys_modalities layouts =
+  let product ~jkind_of_first_type ~type_equal tys_modalities layouts =
     (* CR layouts v2.8: We can probably drop this special case once we
        have proper subsumption. The general algorithm gets the right
        jkind, but the subsumption check fails because it can't recognize
@@ -1271,7 +1291,8 @@ module Jkind_desc = struct
       let upper_bounds =
         List.fold_right
           (fun (ty, modality) bounds ->
-            Bounds.add_baggage ~deep_only:false ~baggage:ty bounds ~modality)
+            Bounds.add_baggage ~type_equal ~deep_only:false ~baggage:ty bounds
+              ~modality)
           tys_modalities
           (Bounds.min |> Bounds.disallow_right)
       in
@@ -1350,8 +1371,10 @@ module Builtin = struct
     fresh_jkind Jkind_desc.Builtin.immediate ~annotation:(mk_annot "immediate")
       ~why:(Immediate_creation why)
 
-  let product ~jkind_of_first_type ~why tys_modalities layouts =
-    let desc = Jkind_desc.product ~jkind_of_first_type tys_modalities layouts in
+  let product ~type_equal ~jkind_of_first_type ~why tys_modalities layouts =
+    let desc =
+      Jkind_desc.product ~type_equal ~jkind_of_first_type tys_modalities layouts
+    in
     fresh_jkind_poly desc ~annotation:None ~why:(Product_creation why)
 
   let product_of_sorts ~why arity =
@@ -1368,9 +1391,11 @@ end
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
-let add_baggage ~modality ~baggage t =
+let add_baggage ~type_equal ~modality ~baggage t =
   { t with
-    jkind = Jkind_desc.add_baggage ~deep_only:true ~baggage ~modality t.jkind
+    jkind =
+      Jkind_desc.add_baggage ~type_equal ~deep_only:true ~baggage ~modality
+        t.jkind
   }
 
 let has_baggage t = Bounds.has_baggage t.jkind.upper_bounds
@@ -1414,17 +1439,17 @@ let of_annotated_const ~context ~annotation ~const ~const_loc =
   let context = Context_with_transl.get_context context in
   of_const ~annotation ~why:(Annotated (context, const_loc)) const
 
-let of_annotation_lr ~context (annot : Parsetree.jkind_annotation) =
-  let const = Const.of_user_written_annotation ~context annot in
+let of_annotation_lr ~type_equal ~context (annot : Parsetree.jkind_annotation) =
+  let const = Const.of_user_written_annotation ~type_equal ~context annot in
   of_annotated_const ~annotation:(Some annot) ~const ~const_loc:annot.pjkind_loc
     ~context
 
-let of_annotation ~context annot =
-  of_annotation_lr ~context:(Right_jkind context) annot
+let of_annotation ~type_equal ~context annot =
+  of_annotation_lr ~type_equal ~context:(Right_jkind context) annot
 
-let of_annotation_option_default ~default ~context = function
+let of_annotation_option_default ~type_equal ~default ~context = function
   | None -> default
-  | Some annot -> of_annotation ~context annot
+  | Some annot -> of_annotation ~type_equal ~context annot
 
 let of_attribute ~context
     (attribute : Builtin_attributes.jkind_attribute Location.loc) =
@@ -1434,11 +1459,13 @@ let of_attribute ~context
   of_annotated_const ~context ~annotation:(mk_annot name) ~const
     ~const_loc:attribute.loc
 
-let of_type_decl ~context ~transl_type (decl : Parsetree.type_declaration) =
+let of_type_decl ~type_equal ~context ~transl_type
+    (decl : Parsetree.type_declaration) =
   let context = Context_with_transl.Left_jkind (transl_type, context) in
   let jkind_of_annotation =
     decl.ptype_jkind_annotation
-    |> Option.map (fun annot -> of_annotation_lr ~context annot, annot)
+    |> Option.map (fun annot ->
+           of_annotation_lr ~type_equal ~context annot, annot)
   in
   let jkind_of_attribute =
     Builtin_attributes.jkind decl.ptype_attributes
@@ -1453,9 +1480,9 @@ let of_type_decl ~context ~transl_type (decl : Parsetree.type_declaration) =
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl_default ~context ~transl_type ~default
+let of_type_decl_default ~type_equal ~context ~transl_type ~default
     (decl : Parsetree.type_declaration) =
-  match of_type_decl ~context ~transl_type decl with
+  match of_type_decl ~type_equal ~context ~transl_type decl with
   | Some (t, _) -> t
   | None -> default
 
@@ -1470,13 +1497,13 @@ let all_void_labels lbls =
     (fun (lbl : Types.label_declaration) -> Sort.Const.(equal void lbl.ld_sort))
     lbls
 
-let add_labels_as_baggage lbls jkind =
+let add_labels_as_baggage ~type_equal lbls jkind =
   List.fold_right
     (fun (lbl : Types.label_declaration) ->
-      add_baggage ~baggage:lbl.ld_type ~modality:lbl.ld_modalities)
+      add_baggage ~type_equal ~baggage:lbl.ld_type ~modality:lbl.ld_modalities)
     lbls jkind
 
-let for_boxed_record lbls =
+let for_boxed_record ~type_equal lbls =
   if all_void_labels lbls
   then Builtin.immediate ~why:Empty_record
   else
@@ -1485,9 +1512,9 @@ let for_boxed_record lbls =
       (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
         ~why:Boxed_record
     in
-    add_labels_as_baggage lbls base
+    add_labels_as_baggage ~type_equal lbls base
 
-let for_unboxed_record ~jkind_of_type lbls =
+let for_unboxed_record ~type_equal ~jkind_of_type lbls =
   let open Types in
   let tys_modalities =
     List.map (fun lbl -> lbl.ld_type, lbl.ld_modalities) lbls
@@ -1497,7 +1524,7 @@ let for_unboxed_record ~jkind_of_type lbls =
       (fun lbl -> lbl.ld_sort |> Layout.Const.of_sort_const |> Layout.of_const)
       lbls
   in
-  Builtin.product
+  Builtin.product ~type_equal
     ~jkind_of_first_type:(fun () ->
       match lbls with
       | [lbl] -> jkind_of_type lbl.ld_type
@@ -1508,7 +1535,7 @@ let for_unboxed_record ~jkind_of_type lbls =
     ~why:Unboxed_record tys_modalities layouts
 
 (* CR layouts v2.8: This should take modalities into account. *)
-let for_boxed_variant cstrs =
+let for_boxed_variant ~type_equal cstrs =
   let open Types in
   if List.for_all
        (fun cstr ->
@@ -1547,9 +1574,10 @@ let for_boxed_variant cstrs =
         | Cstr_tuple args ->
           List.fold_right
             (fun arg ->
-              add_baggage ~modality:arg.ca_modalities ~baggage:arg.ca_type)
+              add_baggage ~type_equal ~modality:arg.ca_modalities
+                ~baggage:arg.ca_type)
             args jkind
-        | Cstr_record lbls -> add_labels_as_baggage lbls jkind
+        | Cstr_record lbls -> add_labels_as_baggage ~type_equal lbls jkind
       in
       List.fold_right add_cstr_args cstrs base
 

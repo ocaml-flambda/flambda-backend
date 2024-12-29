@@ -266,6 +266,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      kind. *)
   let type_jkind =
     Jkind.of_type_decl_default
+      ~type_equal:(Ctype.type_equal env)
       ~context:(Type_declaration path)
       (* CR layouts v2.8: This next line is truly terrible. But I think it's OK
          for now: it will mean that any [with] constraints get interpreted to
@@ -297,7 +298,7 @@ in
   let type_params =
     List.map (fun (param, _) ->
         let name = get_type_param_name param in
-        let jkind = get_type_param_jkind path param in
+        let jkind = get_type_param_jkind env path param in
         Btype.newgenvar ?name jkind)
       sdecl.ptype_params
   in
@@ -590,6 +591,7 @@ let make_constructor
           let univar_list =
             TyVarEnv.make_poly_univars_jkinds
               ~context:(fun v -> Constructor_type_parameter (cstr_path, v))
+              env
               svars
           in
           let univars = if closed then Some univar_list else None in
@@ -820,7 +822,11 @@ let transl_declaration env sdecl (id, uid) =
                       add with-kinds to Typedtree. *)
   in
   let jkind_from_annotation, jkind_annotation =
-    match Jkind.of_type_decl ~context:(Type_declaration path) ~transl_type sdecl with
+    match Jkind.of_type_decl
+            ~type_equal:(Ctype.type_equal env)
+            ~context:(Type_declaration path)
+            ~transl_type
+            sdecl with
     | Some (jkind, annot) ->
         Some jkind, annot
     | None -> None, None
@@ -1669,7 +1675,11 @@ let update_decl_jkind env dpath decl =
       let lbls, _all_void, jkinds =
         update_label_sorts env loc lbls (Some sorts)
       in
-      let jkind = Jkind.for_boxed_record lbls in
+      let jkind =
+        Jkind.for_boxed_record
+          ~type_equal:(Ctype.type_equal env)
+          lbls
+      in
       let reprs =
         List.map2
           (fun lbl jkind ->
@@ -1823,7 +1833,9 @@ let update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs)
         ) (0,[]) cstrs
       in
-      let jkind = Jkind.for_boxed_variant cstrs in
+      let jkind =
+        Jkind.for_boxed_variant ~type_equal:(Ctype.type_equal env) cstrs
+      in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
@@ -1872,6 +1884,7 @@ let update_decl_jkind env dpath decl =
           in
           let type_jkind =
             Jkind.for_unboxed_record
+              ~type_equal:(Ctype.type_equal env)
               ~jkind_of_type:(Ctype.estimate_type_jkind env)
               lbls
           in
@@ -3525,7 +3538,7 @@ let abstract_type_decl ~injective ~jkind ~params =
     }
   end
 
-let approx_type_decl sdecl_list =
+let approx_type_decl env sdecl_list =
   let scope = Ctype.create_scope () in
   List.map
     (fun sdecl ->
@@ -3541,13 +3554,14 @@ let approx_type_decl sdecl_list =
        in
        let jkind =
          Jkind.of_type_decl_default
+           ~type_equal:(Ctype.type_equal env)
            ~context:(Type_declaration path)
            ~transl_type
            ~default:(Jkind.Builtin.value ~why:Default_type_jkind)
            sdecl
        in
        let params =
-         List.map (fun (param, _) -> get_type_param_jkind path param)
+         List.map (fun (param, _) -> get_type_param_jkind env path param)
            sdecl.ptype_params
        in
        (id, abstract_type_decl ~injective ~jkind ~params))
