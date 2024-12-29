@@ -1948,7 +1948,9 @@ let update_decls_jkind env decls =
    - if -rectypes is not used, we only allow cycles in the type graph
      if they go through an object or polymorphic variant type *)
 
-let check_well_founded ~abs_env env loc path to_check visited ty0 =
+type type_contains_relation = Structural | Without_boxing
+
+let check_well_founded ~abs_env type_contains_relation env loc path to_check visited ty0 =
   let rec check parents trace ty =
     if TypeSet.mem ty parents then begin
       (*Format.eprintf "@[%a@]@." Printtyp.raw_type_expr ty;*)
@@ -1963,9 +1965,13 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
                 List.rev trace, true
           | trace -> List.rev trace, false
         in
-        if rec_abbrev
-        then Recursive_abbrev (Path.name path, abs_env, reaching_path)
-        else Cycle_in_def (Path.name path, abs_env, reaching_path)
+        match type_contains_relation with
+        | Structural ->
+          if rec_abbrev
+          then Recursive_abbrev (Path.name path, abs_env, reaching_path)
+          else Cycle_in_def (Path.name path, abs_env, reaching_path)
+        | Without_boxing ->
+          Unboxed_recursion (Path.name path, abs_env, reaching_path)
       in raise (Error (loc, err))
     end;
     let (fini, parents) =
@@ -1992,15 +1998,26 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
     let parents = TypeSet.add ty parents in
     match get_desc ty with
     | Tconstr(p, tyl, _) ->
-        let to_check = to_check p in
-        if to_check then List.iter (check_subtype parents trace ty) tyl;
-        begin match Ctype.try_expand_once_opt env ty with
-        | ty' -> check parents (Expands_to (ty, ty') :: trace) ty'
-        | exception Ctype.Cannot_expand ->
-            if not to_check then List.iter (check_subtype parents trace ty) tyl
-        end
+        let to_check_p = to_check p in
+        let expansion = match Ctype.try_expand_once_opt env ty with
+          | ty' -> Some ty'
+          | exception Ctype.Cannot_expand -> None
+        in
+        let contained = match to_check_p, type_contains_relation with
+          | false, Structural -> if Option.is_none expansion then tyl else []
+          | false, Without_boxing -> []
+          | true, Structural -> tyl
+          | true, Without_boxing -> Ctype.contained_without_boxing env ty @ tyl
+        in
+        List.iter (check_subtype parents trace ty) contained;
+        Option.iter
+          (fun ty' -> check parents (Expands_to (ty, ty') :: trace) ty')
+          expansion
     | _ ->
-        Btype.iter_type_expr (check_subtype parents trace ty) ty
+      match type_contains_relation with
+        | Structural -> Btype.iter_type_expr (check_subtype parents trace ty) ty
+        | Without_boxing -> List.iter (check_subtype parents trace ty)
+                              (Ctype.contained_without_boxing env ty)
   and check_subtype parents trace outer_ty inner_ty =
       check parents (Contains (outer_ty, inner_ty) :: trace) inner_ty
   in
@@ -2019,7 +2036,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
       decl.type_params
   in
   let visited = ref TypeMap.empty in
-  check_well_founded ~abs_env env loc path (Path.same path) visited
+  check_well_founded ~abs_env Structural env loc path (Path.same path) visited
     (Ctype.newconstr path args)
 
 (* Given a new type declaration [type t = ...] (potentially mutually-recursive),
@@ -2037,7 +2054,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
    (we don't have an example at hand where it is necessary), but we
    are doing it anyway out of caution.
 *)
-let check_well_founded_decl  ~abs_env env loc path decl to_check =
+let check_well_founded_decl ~abs_env type_contains_relation env loc path decl to_check =
   let open Btype in
   (* We iterate on all subexpressions of the declaration to check
      "in depth" that no ill-founded type exists. *)
@@ -2056,7 +2073,7 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
     {type_iterators with it_type_expr =
      (fun self ty ->
        if TypeSet.mem ty !checked then () else begin
-         check_well_founded  ~abs_env env loc path to_check visited ty;
+         check_well_founded ~abs_env type_contains_relation env loc path to_check visited ty;
          checked := TypeSet.add ty !checked;
          self.it_do_type_expr self ty
        end)} in
@@ -2083,54 +2100,6 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    either by using layouts variables or the algorithm from
    "Unboxed data constructors - or, how cpp decides a halting problem."
 *)
-let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
-  let check_visited parents trace ty =
-    match get_desc ty with
-    | Tconstr (path, _, _) ->
-      if Path.Set.mem path parents then
-        let err = Unboxed_recursion(Path.name path0, abs_env, List.rev trace) in
-        raise (Error(loc, err))
-    | _ -> ()
-  in
-  let rec expand parents trace ty =
-    match Ctype.try_expand_safe_opt env ty with
-    | ty' ->
-      begin match get_desc ty with
-      | Tconstr (path, _, _) ->
-        expand (Path.Set.add path parents) (Expands_to (ty, ty') :: trace) ty'
-      | _ ->
-        (* Only [Tconstr]s can be expanded *)
-        Misc.fatal_error "Typedecl.check_unboxed_recursion"
-      end
-    | exception Ctype.Cannot_expand ->
-      parents, trace, ty
-  in
-  let rec visit parents trace ty =
-    (* Expand even if this type isn't part of the recursive group, because it
-       could be instantiated back into the group by a type parameter. *)
-    let parents, trace, ty = expand parents trace ty in
-    match get_desc ty with
-    | Tconstr (path, _, _) ->
-      (* If we get a Tconstr, we only need to visit if it's part of this group
-         of mutually recursive typedecls. *)
-      if not (to_check path) then () else
-      check_visited parents trace ty;
-      visit_subtypes (Path.Set.add path parents) trace ty
-    | _ ->
-      visit_subtypes parents trace ty
-  and visit_subtypes parents trace ty =
-    List.iter (fun ty' ->
-        let trace = Contains (ty, ty') :: trace in
-        check_visited parents trace ty';
-        visit parents trace ty')
-      (Ctype.contained_without_boxing env ty)
-  in
-  Ctype.wrap_trace_gadt_instances env (visit Path.Set.empty []) ty0
-
-let check_unboxed_recursion_decl ~abs_env env loc path decl to_check =
-  let decl = Ctype.generic_instance_declaration decl in
-  let ty = Btype.newgenty (Tconstr (path, decl.type_params, ref Mnil)) in
-  check_unboxed_recursion ~abs_env env loc path ty to_check
 
 (* Check for non-regular abbreviations; an abbreviation
    [type 'a t = ...] is non-regular if the expansion of [...]
@@ -2414,12 +2383,12 @@ let transl_type_decl env rec_flag sdecl_list =
   let to_check =
     function Path.Pident id -> List.mem_assoc id id_loc_list | _ -> false in
   List.iter (fun (id, decl) ->
-    check_well_founded_decl ~abs_env new_env (List.assoc id id_loc_list)
+    check_well_founded_decl ~abs_env Structural new_env (List.assoc id id_loc_list)
       (Path.Pident id)
       decl to_check)
     decls;
   List.iter (fun (id, decl) ->
-    check_unboxed_recursion_decl ~abs_env new_env (List.assoc id id_loc_list)
+    check_well_founded_decl ~abs_env Without_boxing new_env (List.assoc id id_loc_list)
       (Path.Pident id)
       decl to_check)
     decls;
@@ -3509,8 +3478,8 @@ let check_recmod_typedecl env loc recmod_ids path decl =
   (* recmod_ids is the list of recursively-defined module idents.
      (path, decl) is the type declaration to be checked. *)
   let to_check path = Path.exists_free recmod_ids path in
-  check_well_founded_decl ~abs_env:env env loc path decl to_check;
-  check_unboxed_recursion_decl ~abs_env:env env loc path decl to_check;
+  check_well_founded_decl ~abs_env:env Structural env loc path decl to_check;
+  check_well_founded_decl ~abs_env:env Without_boxing env loc path decl to_check;
   check_regularity ~abs_env:env env loc path decl to_check;
   (* additional coherence check, as one might build an incoherent signature,
      and use it to build an incoherent module, cf. #7851 *)

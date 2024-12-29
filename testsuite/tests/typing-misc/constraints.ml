@@ -7,12 +7,6 @@ type 'a t = [`A of 'a t t] as 'a;; (* fails *)
 Line 1, characters 0-32:
 1 | type 'a t = [`A of 'a t t] as 'a;; (* fails *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The type abbreviation "t" is cyclic:
-         "('a t as 'b) t as 'a" contains "'b"
-|}, Principal{|
-Line 1, characters 0-32:
-1 | type 'a t = [`A of 'a t t] as 'a;; (* fails *)
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This recursive type is not regular.
        The type constructor "t" is defined as
          type "'b t"
@@ -38,7 +32,7 @@ Line 1, characters 0-47:
 1 | type 'a t = [`A of 'a t t] constraint 'a = 'a t;; (* fails since 4.04 *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "t" contains a cycle:
-         "'a t as 'a" contains "'a"
+         "('a t as 'a) t" contains "'a"
 |}];;
 type 'a t = [`A of 'a t] constraint 'a = 'a t;; (* fails since 4.04 *)
 [%%expect{|
@@ -46,7 +40,7 @@ Line 1, characters 0-45:
 1 | type 'a t = [`A of 'a t] constraint 'a = 'a t;; (* fails since 4.04 *)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "t" contains a cycle:
-         "'a t as 'a" contains "'a"
+         "('a t as 'a) t" contains "'a"
 |}];;
 type 'a t = [`A of 'a] as 'a;;
 [%%expect{|
@@ -56,12 +50,14 @@ type 'a t = [ `A of 'b ] as 'b constraint 'a = [ `A of 'a ]
 |}];;
 type 'a v = [`A of u v] constraint 'a = t and t = u and u = t;; (* fails *)
 [%%expect{|
-Line 1, characters 42-51:
+Line 1, characters 0-41:
 1 | type 'a v = [`A of u v] constraint 'a = t and t = u and u = t;; (* fails *)
-                                              ^^^^^^^^^
-Error: The type abbreviation "t" is cyclic:
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The definition of "v" contains a cycle:
+         "t v" contains "t",
          "t" = "u",
-         "u" = "t"
+         "u" = "t",
+         "t" = "u"
 |}];;
 
 type 'a t = 'a;;
@@ -201,8 +197,9 @@ type 'a t = 'a * 'b constraint 'a = 'b t;;
 Line 1, characters 0-40:
 1 | type 'a t = 'a * 'b constraint 'a = 'b t;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The type abbreviation "t" is cyclic:
-         "'a t t" = "'a t * 'a",
+Error: The definition of "t" contains a cycle:
+         "'a t t" contains "'a t",
+         "'a t" = "'a t * 'a",
          "'a t * 'a" contains "'a t"
 |}]
 

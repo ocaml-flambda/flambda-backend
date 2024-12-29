@@ -2116,10 +2116,43 @@ let unbox_once env ty =
   | Tpoly (ty, _) -> Stepped ty
   | _ -> Final_result
 
+(* variation of unbox_once that doesn't substitute args *)
+let [@warning "-26-27"] unbox_once' env ty =
+  match get_desc ty with
+  | Tconstr (p, args, abbrev) ->
+    begin match Env.find_type p env with
+    | exception Not_found -> Missing p
+    | decl ->
+      let level = get_level ty in
+      let kind = Private in
+      (* let apply ty2 = subst env level kind abbrev (Some ty) decl.type_params args ty2 in *)
+      let apply ty2 = ty2 in
+      begin match find_unboxed_type decl with
+      | Some ty2 ->
+        let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
+        Stepped (apply ty2)
+      | None -> begin match decl.type_kind with
+        | Type_record_unboxed_product ([_], Record_unboxed_product) ->
+          (* [find_unboxed_type] would have returned [Some] *)
+          Misc.fatal_error "Ctype.unbox_once"
+        | Type_record_unboxed_product
+            ((_::_::_ as lbls), Record_unboxed_product) ->
+          Stepped_record_unboxed_product
+            (List.map (fun ld -> apply ld.ld_type) lbls)
+        | Type_record_unboxed_product ([], _) ->
+          Misc.fatal_error "Ctype.unboxed_once: fieldless record"
+        | Type_abstract _ | Type_record _ | Type_variant _ | Type_open ->
+          Final_result
+        end
+      end
+    end
+  | Tpoly (ty, _) -> Stepped ty
+  | _ -> Final_result
+
 let contained_without_boxing env ty =
   match get_desc ty with
   | Tconstr _ ->
-    begin match unbox_once env ty with
+    begin match unbox_once' env ty with
     | Stepped ty -> [ty]
     | Stepped_record_unboxed_product tys -> tys
     | Final_result | Missing _ -> []

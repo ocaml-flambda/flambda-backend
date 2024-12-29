@@ -38,7 +38,7 @@ Line 1, characters 0-49:
 1 | type ('a : void) bad  = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
-         "'a bad" contains "'a bad"
+         "'a bad" contains "'a0 bad"
 |}]
 
 (******************************************************************************)

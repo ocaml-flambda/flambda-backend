@@ -1034,8 +1034,11 @@ and  ('a2, 'b2) ty2 = 'b2 -> unit
 Lines 1-2, characters 0-51:
 1 | type ('a1, 'b1) ty1 = 'a1 -> unit
 2 |   constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
-Error: The definition of "ty1" contains a cycle:
-         "([> `V1 of 'a ] as 'b, 'a) ty2 as 'a" contains "'a"
+Error: Constraints are not satisfied in this type.
+       Type "[> `V1 of ('a, 'b) ty2 as 'b ] as 'a" should be an instance of
+         "('c, [> `V2 of 'c ]) ty1 as 'c"
+       Type "ty1" was considered abstract when checking constraints in this
+       recursive type definition.
 |}];;
 
 (* PR#8359: expanding may change original in Ctype.unify2 *)

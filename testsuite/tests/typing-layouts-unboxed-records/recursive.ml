@@ -78,7 +78,7 @@ Line 1, characters 0-31:
 1 | type a_bad = #{ b_bad : b_bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "a_bad" is recursive without boxing:
-         "a_bad" contains "a_bad"
+         "b_bad" contains "a_bad"
 |}]
 
 type bad : any = #{ bad : bad }
@@ -124,7 +124,7 @@ Line 1, characters 0-39:
 1 | type 'a bad = #{ bad : 'a bad ; u : 'a}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
-         "'a bad" contains "'a bad"
+         "'a bad" contains "'a0 bad"
 |}]
 
 type 'a bad = { bad : 'a bad ; u : 'a}
@@ -152,7 +152,7 @@ Line 1, characters 0-29:
 1 | type 'a bad = #{ a : 'a bad }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
-         "'a bad" contains "'a bad"
+         "'a bad" contains "'a0 bad"
 |}]
 
 type bad = #( s * s )
@@ -164,10 +164,11 @@ Line 1, characters 0-21:
 1 | type bad = #( s * s )
     ^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
-         "bad" = "#(s * s)",
          "#(s * s)" contains "u",
          "u" = "#(int * bad record_id2)",
-         "#(int * bad record_id2)" contains "bad"
+         "#(int * bad record_id2)" contains "bad",
+         "bad" = "#(s * s)",
+         "#(s * s)" contains "u"
 |}]
 
 type bad = #( s * s )
@@ -179,13 +180,12 @@ Line 1, characters 0-21:
 1 | type bad = #( s * s )
     ^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "bad" is recursive without boxing:
-         "bad" = "#(s * s)",
          "#(s * s)" contains "u",
          "u" = "#(int * bad alias_id record_id2)",
          "#(int * bad alias_id record_id2)" contains "bad alias_id",
          "bad alias_id" = "bad",
          "bad" = "#(s * s)",
-         "#(s * s)" contains "s"
+         "#(s * s)" contains "u"
 |}]
 
 (* We also check recursive types via modules *)
@@ -213,12 +213,11 @@ Lines 1-7, characters 0-3:
 6 |   and s = #{ u : Bad_rec2.u }
 7 | end
 Error: The definition of "Bad_rec1.t" is recursive without boxing:
-         "Bad_rec1.t" = "#(Bad_rec1.s * Bad_rec1.s)",
          "#(Bad_rec1.s * Bad_rec1.s)" contains "Bad_rec2.u",
          "Bad_rec2.u" = "Bad_rec1.t Bad_rec2.id",
-         "Bad_rec1.t Bad_rec2.id" = "Bad_rec1.t",
+         "Bad_rec1.t Bad_rec2.id" contains "Bad_rec1.t",
          "Bad_rec1.t" = "#(Bad_rec1.s * Bad_rec1.s)",
-         "#(Bad_rec1.s * Bad_rec1.s)" contains "Bad_rec1.s"
+         "#(Bad_rec1.s * Bad_rec1.s)" contains "Bad_rec2.u"
 |}]
 
 (* When we allow records with elements of unrepresentable layout, this should
@@ -253,12 +252,7 @@ type 'a safe = #{ a : 'a }
 type x = int safe safe
 [%%expect{|
 type 'a safe = #{ a : 'a; }
-Line 2, characters 0-22:
-2 | type x = int safe safe
-    ^^^^^^^^^^^^^^^^^^^^^^
-Error: The definition of "x" is recursive without boxing:
-         "x" = "int safe safe",
-         "int safe safe" contains "int safe"
+type x = int safe safe
 |}]
 
 (* We could allow these, as although they have unguarded recursion,

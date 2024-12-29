@@ -89,7 +89,7 @@ Line 1, characters 0-37:
 1 | type 'a t12 : value = #{ a : 'a t12 };;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "t12" is recursive without boxing:
-         "'a t12" contains "'a t12"
+         "'a t12" contains "'a0 t12"
 |}];;
 let f (a : int t12 array) = a.(0);;
 [%%expect{|

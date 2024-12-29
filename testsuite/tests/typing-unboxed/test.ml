@@ -760,7 +760,7 @@ Line 1, characters 0-35:
 1 | type 'a b = B of 'a b b [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The definition of "b" is recursive without boxing:
-         "'a b" contains "'a b b"
+         "'a b b" contains "'a0 b b"
 |}]
 
 
