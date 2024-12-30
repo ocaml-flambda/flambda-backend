@@ -1118,15 +1118,16 @@ type 'a contended_with_int : immutable_data with 'a @@ contended with int
 [%%expect{|
 type 'a list : value mod many uncontended portable unyielding with 'a
 type ('a, 'b) either
-  : value mod many uncontended portable unyielding with 'a * 'b
+  : value mod many uncontended portable unyielding
+  with 'a * 'b
 type 'a contended
-  : value mod many uncontended portable unyielding with 'a
-  @@
-  contended
+  : value mod many uncontended portable unyielding
+  with 'a @@ contended
 type 'a contended_with_int
-  : value mod many uncontended portable unyielding with int with 'a
-  @@
-  contended
+  : value mod many uncontended portable unyielding
+  with 'a @@ contended
+
+  with int
 |}]
 
 (* not yet supported *)

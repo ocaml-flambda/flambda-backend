@@ -617,7 +617,28 @@ and print_out_label ppf (name, mut, arg, gbl) =
 
 and print_out_jkind_const ppf ojkind =
   let rec pp_element ~nested ppf (ojkind : Outcometree.out_jkind_const) =
-    match ojkind with
+    (* HACK: we strip off the [Ojkind_const_with]s and convert them to a [string string
+       list] so we can sort them lexicographically, because otherwise the order of printed
+       [with]s is nondeterministic. This is sad, but we'd need deterministic sorting of
+       types to work around it.
+
+       CR aspsmith: remove this if we ever add deterministic, semantic type comparison
+    *)
+    let rec strip_withs ojkind =
+      match ojkind with
+      | Ojkind_const_with (base, ty, modalities) ->
+        let base, withs = strip_withs base in
+        let with_ =
+          Format.asprintf "%a" print_out_type ty
+          :: (match modalities with
+            | [] -> []
+            | modalities -> "@@" :: modalities)
+        in
+        base, with_ :: withs
+      | base -> base, []
+    in
+    let base, withs = strip_withs ojkind in
+    (match base with
     | Ojkind_const_default -> fprintf ppf "_"
     | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
     | Ojkind_const_mod (base, modes) ->
@@ -631,13 +652,21 @@ and print_out_jkind_const ppf ojkind =
     | Ojkind_const_product ts ->
       let pp_sep ppf () = Format.fprintf ppf "@ & " in
       Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
-    | Ojkind_const_with (base, ty, modalities) ->
-        fprintf ppf "%a with @[%a@]%a"
-          (pp_element ~nested:false) base
-          print_out_type ty
-          print_out_modalities_new modalities
+    | Ojkind_const_with _ -> failwith "XXX unreachable (stripped off earlier)"
     | Ojkind_const_kind_of _ ->
-      failwith "XXX unimplemented jkind syntax"
+      failwith "XXX unimplemented jkind syntax");
+    let withs = List.sort (List.compare String.compare) withs in
+    match withs with
+    | [] -> ()
+    | withs ->
+      pp_print_list
+        (fun ppf ->
+           Format.fprintf ppf "@ @[with %a@]"
+             (pp_print_list
+                ~pp_sep:(fun ppf () -> fprintf ppf " ")
+                (fun ppf -> Format.fprintf ppf "%s")))
+        ppf
+        withs
   in
   pp_element ~nested:false ppf ojkind
 
