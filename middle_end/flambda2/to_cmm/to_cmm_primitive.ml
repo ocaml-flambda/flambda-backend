@@ -191,6 +191,30 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
   let index = C.int_const dbg offset in
   C.return_unit dbg (set_func block index new_value dbg)
 
+let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
+    ~block ~field ~new_value =
+  let init_or_assign = P.Init_or_assign.to_lambda init in
+  match kind with
+  | Mixed { field_kind = Value_prefix Any_value; _ }
+  | Values { field_kind = Any_value; _ } ->
+    let field = Targetint_31_63.to_int field in
+    let set_func, offset =
+      C.setfield_computed Pointer init_or_assign, field
+    in
+    let index = C.int_const dbg offset in
+    C.return_unit dbg (set_func block index new_value dbg)
+  | Mixed { field_kind = Value_prefix Immediate; _ }
+  | Values { field_kind = Immediate; _ } ->
+    let field = Targetint_31_63.to_int field in
+    let set_func, offset =
+      C.setfield_computed Immediate init_or_assign, field
+    in
+    let index = C.int_const dbg offset in
+    C.return_unit dbg (set_func block index new_value dbg)
+  | Naked_floats _
+  | Mixed { tag=_; size=_; field_kind=Flat_suffix _ ; _}
+    -> block_set ~dbg kind init ~block ~field ~new_value
+
 (* Array creation and access. For these functions, [index] is a tagged
    integer. *)
 
