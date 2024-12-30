@@ -720,7 +720,7 @@ module Test (A : S) : sig end = struct
         check_sorted a (i + 1);
       end
     in
-
+    let str_ref = ref "" in
     let rec check_permutation a b i =
       let orig_length = A.length a in
       let p = Array.make (A.length a) true in
@@ -735,10 +735,11 @@ module Test (A : S) : sig end = struct
             Format.printf " x: ";
             A.I.print x;
             Format.printf " length of a: %d (orig_length %d) lo %d hi %d \
-                            tag of a %d tag of b %d size of a %d size of b %d\n%!"
+                            tag of a %d tag of b %d size of a %d size of b %d\n\nORIGINAL:\n%s%!"
               (A.length a) orig_length lo hi
               (Obj.tag (Obj.repr a)) (Obj.tag (Obj.repr b))
               (Obj.size (Obj.repr a)) (Obj.size (Obj.repr b))
+              !str_ref
           );
           assert (p.(lo));
           p.(lo) <- false;
@@ -756,12 +757,13 @@ module Test (A : S) : sig end = struct
       A.iter (find 0 (A.length a)) b
     in
     let b = A.copy a in
-
-    Format.printf " After copy: length of a: %d \
+    let str =
+    Format.asprintf " After copy: length of a: %d \
                     tag of a %d tag of b %d size of a %d size of b %d\n%!"
       (A.length a)
       (Obj.tag (Obj.repr a)) (Obj.tag (Obj.repr b))
-      (Obj.size (Obj.repr a)) (Obj.size (Obj.repr b));
+      (Obj.size (Obj.repr a)) (Obj.size (Obj.repr b)); in
+    str_ref := str;
 
     sort cmp a;
 
