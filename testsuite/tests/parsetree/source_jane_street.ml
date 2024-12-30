@@ -1070,9 +1070,10 @@ type 'a list : value mod many uncontended portable with 'a
 type ('a, 'b) either : value mod many uncontended portable with 'a * 'b
 type 'a contended : value mod many uncontended portable with 'a @@ contended
 type 'a contended_with_int
-  : value mod many uncontended portable with 'a
-  @@
-  contended with int
+  : value mod many uncontended portable
+  with 'a @@ contended
+
+  with int
 |}]
 
 (* not yet supported *)
