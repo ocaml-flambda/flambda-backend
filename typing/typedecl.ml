@@ -1991,7 +1991,10 @@ let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
     | ty' ->
       begin match get_desc ty with
       | Tconstr (path, _, _) ->
-        expand (Path.Set.add path parents) (Expands_to (ty, ty') :: trace) ty'
+        if to_check path then
+          expand (Path.Set.add path parents) (Expands_to (ty, ty') :: trace) ty'
+        else
+          parents, trace, ty
       | _ ->
         (* Only [Tconstr]s can be expanded *)
         Misc.fatal_error "Typedecl.check_unboxed_recursion"
@@ -2005,11 +2008,11 @@ let check_unboxed_recursion ~abs_env env loc path0 ty0 to_check =
     let parents, trace, ty = expand parents trace ty in
     match get_desc ty with
     | Tconstr (path, _, _) ->
-      (* If we get a Tconstr, we only need to visit if it's part of this group
-         of mutually recursive typedecls. *)
-      if not (to_check path) then () else
-      check_visited parents trace ty;
-      visit_subtypes (Path.Set.add path parents) trace ty
+      (* Only visit [Tconstr]s in this recursive group of typedecls. *)
+      if to_check path then begin
+        check_visited parents trace ty;
+        visit_subtypes (Path.Set.add path parents) trace ty
+      end
     | _ ->
       visit_subtypes parents trace ty
   and visit_subtypes parents trace ty =
