@@ -115,7 +115,7 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
      not. There is no need to wrap other return arities. *)
   let maybe_sign_extend kind dbg cmm =
     match Flambda_kind.With_subkind.kind kind with
-    | Naked_number Naked_int32 -> C.sign_extend_32 dbg cmm
+    | Naked_number Naked_int32 -> C.sign_extend ~bits:32 ~dbg cmm
     | Naked_number
         ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
         | Naked_vec128 | Naked_float32 )
