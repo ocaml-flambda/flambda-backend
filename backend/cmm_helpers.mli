@@ -15,6 +15,8 @@
 
 open Cmm
 
+val arch_bits : int
+
 type arity =
   { function_kind : Lambda.function_kind;
     params_layout : Lambda.layout list;
@@ -65,9 +67,6 @@ val alloc_infix_header : int -> Debuginfo.t -> expression
 (** Make an integer constant from the given integer (tags the integer) *)
 val int_const : Debuginfo.t -> int -> expression
 
-(** Simplify the given expression knowing its last bit will be irrelevant *)
-val ignore_low_bit_int : expression -> expression
-
 (** Arithmetical operations on integers *)
 val add_int : expression -> expression -> Debuginfo.t -> expression
 
@@ -103,18 +102,18 @@ val untag_int : expression -> Debuginfo.t -> expression
 
 (** Specific division operations for boxed integers *)
 val safe_div_bi :
+  ?dividend_cannot_be_min_int:bool ->
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.unboxed_integer ->
   Debuginfo.t ->
   expression
 
 val safe_mod_bi :
+  ?dividend_cannot_be_min_int:bool ->
   Lambda.is_safe ->
   expression ->
   expression ->
-  Primitive.unboxed_integer ->
   Debuginfo.t ->
   expression
 
@@ -381,28 +380,18 @@ val bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int
     bigarray. *)
 val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 
-(** Operations on 32-bit integers *)
+(** Operations on n-bit integers *)
 
-(** [low_32 _ x] is a value which agrees with x on at least the low 32 bits *)
-val low_32 : Debuginfo.t -> expression -> expression
+(** Simplify the given expression knowing low [bits] bits will be irrelevant *)
+val ignore_low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
-(** Sign extend from 32 bits to the word size *)
-val sign_extend_32 : Debuginfo.t -> expression -> expression
+(** Simplify the given expression knowing that bits other than the low [bits] bits will be
+    irrelevant *)
+val low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
-(** Zero extend from 32 bits to the word size *)
-val zero_extend_32 : Debuginfo.t -> expression -> expression
+val sign_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
-(** Operations on 63-bit integers. These may only be used for compilation to
-    64-bit targets. *)
-
-(** [low_63 _ x] is a value which agrees with x on at least the low 63 bits *)
-val low_63 : Debuginfo.t -> expression -> expression
-
-(** Sign extend from 63 bits to the word size *)
-val sign_extend_63 : Debuginfo.t -> expression -> expression
-
-(** Zero extend from 63 bits to the word size *)
-val zero_extend_63 : Debuginfo.t -> expression -> expression
+val zero_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
 (** Box a given integer, without sharing of constants *)
 val box_int_gen :
@@ -497,12 +486,6 @@ val and_int_caml : binary_primitive
 val or_int_caml : binary_primitive
 
 val xor_int_caml : binary_primitive
-
-val lsl_int_caml : binary_primitive
-
-val lsr_int_caml : binary_primitive
-
-val asr_int_caml : binary_primitive
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -719,13 +702,14 @@ val create_ccatch :
   body:Cmm.expression ->
   Cmm.expression
 
+(** Shift operations. take as first argument a tagged caml integer, and as
+    second argument an untagged machine intger which is the amount to shift the
+    first argument by. *)
+
 val lsl_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
-(** Shift operations. take as first argument a tagged caml integer, and as
-    second argument an untagged machine intger which is the amount to shift the
-    first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Reinterpret cast functions *)
@@ -1215,56 +1199,25 @@ val unboxed_int64_or_nativeint_array_set :
   expression
 
 (** {2 Getters and setters for unboxed int and float32 fields of mixed
-    blocks} *)
+    blocks} [immediate_or_pointer] is not needed as the layout is implied from the name,
+    and [initialization_or_assignment] is not needed as unboxed ints can always be
+    assigned without caml_modify (etc.). *)
 
-(** The argument structure for getters is parallel to [get_field_computed]. *)
-
-val get_field_unboxed_int32 :
+val get_field_unboxed :
+  dbg:Debuginfo.t ->
+  memory_chunk ->
   Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_float32 :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_vec128 :
-  Asttypes.mutable_flag ->
-  block:expression ->
+  expression ->
   index_in_words:expression ->
-  Debuginfo.t ->
   expression
 
-val get_field_unboxed_int64_or_nativeint :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-(** The argument structure for setters is parallel to [setfield_computed].
-   [immediate_or_pointer] is not needed as the layout is implied from the name,
-   and [initialization_or_assignment] is not needed as unboxed ints can always be
-   assigned without caml_modify (etc.).
- *)
-
-val setfield_unboxed_int32 : ternary_primitive
-
-val setfield_unboxed_float32 : ternary_primitive
-
-val setfield_unboxed_vec128 :
+val set_field_unboxed :
+  dbg:Debuginfo.t ->
+  memory_chunk ->
   expression ->
   index_in_words:expression ->
   expression ->
-  Debuginfo.t ->
   expression
-
-val setfield_unboxed_int64_or_nativeint : ternary_primitive
 
 val dls_get : dbg:Debuginfo.t -> expression
 

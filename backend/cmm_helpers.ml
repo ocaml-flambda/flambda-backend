@@ -20,6 +20,8 @@ module VP = Backend_var.With_provenance
 open Cmm
 open Arch
 
+let arch_bits = Arch.size_int * 8
+
 type arity =
   { function_kind : Lambda.function_kind;
     params_layout : Lambda.layout list;
@@ -749,35 +751,46 @@ let mod_int c1 c2 is_safe dbg =
 (* Division or modulo on boxed integers. The overflow case min_int / -1 can
    occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
 
-let is_different_from x = function
-  | Cconst_int (n, _) -> n <> x
-  | Cconst_natint (n, _) -> n <> Nativeint.of_int x
-  | _ -> false
+(* Division or modulo on boxed integers. The overflow case min_int / -1 can
+   occur, in which case we force x / -1 = -x and x mod -1 = 0. (PR#5513). *)
 
-let safe_divmod_bi mkop kind is_safe mkm1 c1 c2 bi dbg =
-  bind "divisor" c2 (fun c2 ->
-      bind "dividend" c1 (fun c1 ->
-          let c = mkop c1 c2 is_safe dbg in
-          if Arch.division_crashes_on_overflow
-             && bi <> Primitive.Unboxed_int32
-             && not (is_different_from (-1) c2)
-          then
-            Cifthenelse
-              ( Cop (Ccmpi Cne, [c2; Cconst_int (-1, dbg)], dbg),
-                dbg,
-                c,
-                dbg,
-                mkm1 c1 dbg,
-                dbg,
-                kind )
-          else c))
+let safe_divmod_bi mkop mkm1 ?(dividend_cannot_be_min_int = false) is_safe
+    dividend divisor dbg =
+  let is_different_from x = function
+    | Cconst_int (n, _) -> Nativeint.of_int n <> x
+    | Cconst_natint (n, _) -> n <> x
+    | _ -> false
+  in
+  bind "divisor" divisor (fun divisor ->
+      bind "dividend" dividend (fun dividend ->
+          let c = mkop dividend divisor is_safe dbg in
+          if not Arch.division_crashes_on_overflow
+          then c
+          else
+            let dividend_cannot_be_min_int =
+              dividend_cannot_be_min_int
+              || is_different_from Nativeint.min_int dividend
+            in
+            let divisor_cannot_be_negative_one =
+              is_different_from (-1n) divisor
+            in
+            if dividend_cannot_be_min_int || divisor_cannot_be_negative_one
+            then c
+            else
+              Cifthenelse
+                ( Cop (Ccmpi Cne, [divisor; Cconst_int (-1, dbg)], dbg),
+                  dbg,
+                  c,
+                  dbg,
+                  mkm1 dividend dbg,
+                  dbg,
+                  Any )))
 
-let safe_div_bi is_safe =
-  safe_divmod_bi div_int Any is_safe (fun c1 dbg ->
+let safe_div_bi =
+  safe_divmod_bi div_int (fun c1 dbg ->
       Cop (Csubi, [Cconst_int (0, dbg); c1], dbg))
 
-let safe_mod_bi is_safe =
-  safe_divmod_bi mod_int Any is_safe (fun _ dbg -> Cconst_int (0, dbg))
+let safe_mod_bi = safe_divmod_bi mod_int (fun _ dbg -> Cconst_int (0, dbg))
 
 (* Bool *)
 
@@ -1501,6 +1514,37 @@ let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
          [field_address; newval],
          dbg ))
 
+let get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words =
+  match (memory_chunk : memory_chunk) with
+  | Single { reg = Float32 } ->
+    get_field_unboxed_float32 mutability ~block ~index:index_in_words dbg
+  | Double ->
+    unboxed_float_array_ref mutability ~block ~index:index_in_words dbg
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+    get_field_unboxed_vec128 mutability ~block ~index_in_words dbg
+  | Thirtytwo_signed ->
+    get_field_unboxed_int32 mutability ~block ~index:index_in_words dbg
+  | Word_int ->
+    get_field_unboxed_int64_or_nativeint mutability ~block ~index:index_in_words
+      dbg
+  | Word_val ->
+    Misc.fatal_error "cannot use get_field_unboxed with a heap block"
+  | _ -> Misc.fatal_error "get_field_unboxed: unexpected memory chunk"
+
+let set_field_unboxed ~dbg memory_chunk block ~index_in_words newval =
+  match (memory_chunk : memory_chunk) with
+  | Single { reg = Float32 } ->
+    setfield_unboxed_float32 block index_in_words newval dbg
+  | Double -> float_array_set block index_in_words newval dbg
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+    setfield_unboxed_vec128 block ~index_in_words newval dbg
+  | Thirtytwo_signed -> setfield_unboxed_int32 block index_in_words newval dbg
+  | Word_int ->
+    setfield_unboxed_int64_or_nativeint block index_in_words newval dbg
+  | Word_val ->
+    Misc.fatal_error "cannot use set_field_unboxed with a heap block"
+  | _ -> Misc.fatal_error "set_field_unboxed : unexpected memory chunk"
+
 (* String length *)
 
 (* Length of string block *)
@@ -2008,6 +2052,40 @@ let zero_extend_63 dbg e =
   check_64_bit_target "zero_extend_63";
   let e = low_63 dbg e in
   Cop (Cand, [e; natint_const_untagged dbg 0x7FFF_FFFF_FFFF_FFFFn], dbg)
+
+let zero_extend ~bits ~dbg e =
+  assert (0 < bits && bits <= arch_bits);
+  if bits = arch_bits
+  then e
+  else
+    match bits with
+    | 63 -> zero_extend_63 dbg e
+    | 32 -> zero_extend_32 dbg e
+    | bits -> Misc.fatal_errorf "zero_extend not implemented for %d bits" bits
+
+let sign_extend ~bits ~dbg e =
+  assert (0 < bits && bits <= arch_bits);
+  if bits = arch_bits
+  then e
+  else
+    match bits with
+    | 63 -> sign_extend_63 dbg e
+    | 32 -> sign_extend_32 dbg e
+    | bits -> Misc.fatal_errorf "sign_extend not implemented for %d bits" bits
+
+let low_bits ~bits ~(dbg : Debuginfo.t) e =
+  assert (0 < bits && bits <= arch_bits);
+  if bits = arch_bits
+  then e
+  else
+    match bits with
+    | 63 -> low_63 dbg e
+    | 32 -> low_32 dbg e
+    | bits -> Misc.fatal_errorf "low_bits not implemented for %d bits" bits
+
+let ignore_low_bits ~bits ~dbg:(_ : Debuginfo.t) e =
+  assert (0 <= bits && bits <= arch_bits);
+  if bits = 0 then e else ignore_low_bit_int e
 
 let and_int e1 e2 dbg =
   let is_mask32 = function
@@ -3506,15 +3584,6 @@ let xor_int_caml arg1 arg2 dbg =
       [ xor_int (ignore_low_bit_int arg1) (ignore_low_bit_int arg2) dbg;
         Cconst_int (1, dbg) ],
       dbg )
-
-let lsl_int_caml arg1 arg2 dbg =
-  incr_int (lsl_int (decr_int arg1 dbg) (untag_int arg2 dbg) dbg) dbg
-
-let lsr_int_caml arg1 arg2 dbg =
-  Cop (Cor, [lsr_int arg1 (untag_int arg2 dbg) dbg; Cconst_int (1, dbg)], dbg)
-
-let asr_int_caml arg1 arg2 dbg =
-  Cop (Cor, [asr_int arg1 (untag_int arg2 dbg) dbg; Cconst_int (1, dbg)], dbg)
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
