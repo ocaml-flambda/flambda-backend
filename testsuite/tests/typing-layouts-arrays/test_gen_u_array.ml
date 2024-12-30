@@ -236,7 +236,7 @@ module Test (A : S) : sig end = struct
   check_inval (fun i -> A.set a i (I.of_int 1)) (-1);
   check_inval (fun i -> A.set a i (I.of_int 1)) 1001;
 
-  
+
 
   (* [length] *)
   let test_length l = assert (l = (A.length (A.make l (I.of_int 1)))) in
@@ -249,7 +249,7 @@ module Test (A : S) : sig end = struct
   test_length 1000;
   test_length 1001;
   test_length 123456;
-  
+
 
   (* [init] *)
   let a = A.init 1000 I.of_int in
@@ -258,7 +258,7 @@ module Test (A : S) : sig end = struct
   check_i a;
   check_inval (fun i -> A.init i I.of_int) (-1);
   check_inval (fun i -> A.init i I.of_int) (A.max_length + 1);
-  
+
 
   (* [append] *)
   let check m n =
@@ -279,7 +279,7 @@ module Test (A : S) : sig end = struct
   check 1001 1000;
   check 1001 1001;
   (* check_inval omitted *)
-  
+
 
   (* [concat] *)
   let check l =
@@ -302,7 +302,7 @@ module Test (A : S) : sig end = struct
   check [1000; 1000; 1001];
   check [1001; 1001; 1001];
   (* check_inval omitted *)
-  
+
 
   (* [sub] *)
   let a = A.init 1000 (fun i -> I.of_int (i - 100)) in
@@ -328,7 +328,7 @@ module Test (A : S) : sig end = struct
   check_inval (A.sub a 0) (-1);
   check_inval (A.sub a 0) 1002;
   check_inval (A.sub a 1001) 1;
-  
+
 
   (* [copy] *)
   let check len =
@@ -341,7 +341,7 @@ module Test (A : S) : sig end = struct
   check 1;
   check 128;
   check 1023;
-  
+
 
   (* [blit] [fill] *)
   let test_blit_fill data initval ofs len =
@@ -397,7 +397,7 @@ module Test (A : S) : sig end = struct
     done
   in
   test_blit_overlap [(I.of_int 1); (I.of_int 2); (I.of_int 3); (I.of_int 4)] 1 2 2;
-  
+
 
   (* [to_list] [of_list] *)
   let a = A.init 1000 I.of_int in
@@ -407,7 +407,7 @@ module Test (A : S) : sig end = struct
   let a = A.init 0 I.of_int in
   assert (A.equal a (A.of_list (A.to_list a)));
   (* check_inval omitted *)
-  
+
 
   (* [iter] *)
   let a = A.init 300 (I.of_int) in
@@ -415,13 +415,13 @@ module Test (A : S) : sig end = struct
   A.iter (fun x -> assert_eq x !r; r := I.add x (I.of_int 1)) a;
   A.iter (fun _ -> assert false) (A.make 0 (I.of_int 0));
   assert_eq !r (I.of_int 300);
-  
+
 
   let a = A.init 301 (I.of_int) in
   let r = ref (I.of_int 0) in
   A.iter (fun x -> assert_eq x !r; r := I.add x (I.of_int 1)) a;
   assert_eq !r (I.of_int 301);
-  
+
 
   (* [iteri] *)
   let a = A.init 300 I.of_int in
@@ -445,7 +445,7 @@ module Test (A : S) : sig end = struct
   A.iteri f a;
   A.iteri (fun _ _ -> assert false) (A.make 0 (I.of_int 0));
   assert (!r = 301);
-  
+
 
   (* [map], test result and order of evaluation *)
   let a = A.init 500 I.of_int in
@@ -458,7 +458,7 @@ module Test (A : S) : sig end = struct
   let b = A.map f a in
   check_i (A.sub b 1 499);
 
-  
+
   let a = A.init 501 I.of_int in
   let r = ref (I.of_int 0) in
   let f x =
@@ -468,7 +468,7 @@ module Test (A : S) : sig end = struct
   in
   let b = A.map f a in
   check_i (A.sub b 1 500);
-  
+
 
   (* [mapi], test result and order of evaluation *)
   let a = A.init 500 I.of_int in
@@ -481,7 +481,7 @@ module Test (A : S) : sig end = struct
   in
   let b = A.mapi f a in
   check_i (A.sub b 1 499);
-  
+
 
   let a = A.init 501 I.of_int in
   let r = ref (I.of_int 0) in
@@ -493,7 +493,7 @@ module Test (A : S) : sig end = struct
   in
   let b = A.mapi f a in
   check_i (A.sub b 1 500);
-  
+
 
   (* [fold_left], test result and order of evaluation *)
   let a = A.init 500 I.of_int in
@@ -507,7 +507,7 @@ module Test (A : S) : sig end = struct
   let a = A.init 501 I.of_int in
   let acc = A.fold_left f (I.of_int 0) a in
   assert_eq acc (I.of_int 501);
-  
+
 
   (* [fold_right], test result and order of evaluation *)
   let a = A.init 500 I.of_int in
@@ -521,7 +521,7 @@ module Test (A : S) : sig end = struct
   let a = A.init 501 I.of_int in
   let acc = A.fold_right f a (I.of_int 501) in
   assert_eq acc (I.of_int 0);
-  
+
 
   (* [iter2], test result and order of evaluation *)
   let a = A.init 123 I.of_int in
@@ -546,7 +546,7 @@ module Test (A : S) : sig end = struct
     r := I.add !r (I.of_int 1);
   in
   A.iter2 f a b;
-  
+
 
   (* [map2], test result and order of evaluation *)
   let a = A.init 456 I.of_int in
@@ -563,7 +563,7 @@ module Test (A : S) : sig end = struct
   let d = A.make 455 (I.of_int 0) in
   check_inval (A.map2 (fun _ _ -> assert false) a) d;
   check_inval (A.map2 (fun _ _ -> assert false) d) a;
-  
+
 
   let a = A.init 457 I.of_int in
   let b = A.init 457 (fun i -> I.(mul (of_int i) (I.of_int 2))) in
@@ -576,7 +576,7 @@ module Test (A : S) : sig end = struct
   in
   let c = A.map2 f a b in
   check_i c;
-  
+
 
   (* [for_all], test result and order of evaluation *)
   let a = A.init 777 I.of_int in
@@ -600,7 +600,7 @@ module Test (A : S) : sig end = struct
   assert (A.for_all f a);
   let f x = assert_eq x (I.of_int 0); false in
   assert (not (A.for_all f a));
-  
+
 
   (* [exists], test result and order of evaluation *)
   let a = A.init 777 I.of_int in
@@ -624,7 +624,7 @@ module Test (A : S) : sig end = struct
   assert (not (A.exists f a));
   let f x = assert_eq x (I.of_int 0); true in
   assert (A.exists f a);
-  
+
 
   (* [mem] *)
   let a = A.init 7777 I.of_int in
@@ -648,7 +648,7 @@ module Test (A : S) : sig end = struct
     assert (A.mem v a);
   in
   List.iter check [I.max_val; I.min_val; (I.of_int (-1)); (I.of_int 0)];
-  
+
 
   (* [find_opt], test result and order of evaluation *)
   let a = A.init 777 I.of_int in
@@ -661,7 +661,7 @@ module Test (A : S) : sig end = struct
   assert (Option.is_none (A.find_opt f a));
   let f x = assert_eq x (I.of_int 0); true in
   assert (Option.is_some (A.find_opt f a));
-  
+
 
   (* [find_index], test result and order of evaluation *)
   let a = A.init 777 I.of_int in
@@ -674,7 +674,7 @@ module Test (A : S) : sig end = struct
   assert (Option.is_none (A.find_index f a));
   let f x = assert_eq x (I.of_int 0); true in
   assert (Option.get (A.find_index f a) = 0);
-  
+
 
   (* [find_map], test result and order of evaluation *)
   let a = A.init 777 I.of_int in
@@ -687,13 +687,13 @@ module Test (A : S) : sig end = struct
   assert (Option.is_none (A.find_map f a));
   let f x = assert_eq x (I.of_int 0); Some "abc" in
   assert (Option.get (A.find_map f a) = "abc");
-  
+
 
   (* [find_mapi], test result and order of evaluation *)
   let a = A.init 777 I.of_int in
   let r = ref (I.of_int 0) in
   let r_i = ref 0 in
-  
+
   let f i x =
     assert (i = !r_i);
     assert_eq x !r;
@@ -702,15 +702,15 @@ module Test (A : S) : sig end = struct
     None
   in
   assert (Option.is_none (A.find_mapi f a));
-  
+
   let f i x =
     assert (i = 0);
     assert_eq x (I.of_int 0);
     Some "abc"
   in
-  
+
   assert (Option.get (A.find_mapi f a) = "abc");
-  
+
 
   (* [sort] [fast_sort] [stable_sort] *)
   let check_sort sort cmp a =
@@ -720,13 +720,26 @@ module Test (A : S) : sig end = struct
         check_sorted a (i + 1);
       end
     in
-  
+
     let rec check_permutation a b i =
+      let orig_length = A.length a in
       let p = Array.make (A.length a) true in
       let rec find lo hi x =
         assert (lo < hi);
         if hi = lo + 1 then begin
-          assert (cmp (A.get a lo) x = 0);
+     (*     assert (cmp (A.get a lo) x = 0); *)
+          let a_get = A.get a lo in
+          if cmp a_get x <> 0 then (
+            Format.printf "FAIL: a_get: ";
+            A.I.print a_get;
+            Format.printf " x: ";
+            A.I.print x;
+            Format.printf " length of a: %d (orig_length %d) lo %d hi %d \
+                            tag of a %d tag of b %d size of a %d size of b %d\n%!"
+              (A.length a) orig_length lo hi
+              (Obj.tag (Obj.repr a)) (Obj.tag (Obj.repr b))
+              (Obj.size (Obj.repr a)) (Obj.size (Obj.repr b))
+          );
           assert (p.(lo));
           p.(lo) <- false;
         end else begin
@@ -743,16 +756,22 @@ module Test (A : S) : sig end = struct
       A.iter (find 0 (A.length a)) b
     in
     let b = A.copy a in
-  
+
+    Format.printf " After copy: length of a: %d \
+                    tag of a %d tag of b %d size of a %d size of b %d\n%!"
+      (A.length a)
+      (Obj.tag (Obj.repr a)) (Obj.tag (Obj.repr b))
+      (Obj.size (Obj.repr a)) (Obj.size (Obj.repr b));
+
     sort cmp a;
-  
+
     check_sorted a 0;
-  
+
     check_permutation a b 0;
   in
-  
+
   Random.init 123;
-  
+
   let rand_val _ =
     match Random.int 1000 with
     | n when n < 500 -> I.rand I.max_val
@@ -763,39 +782,39 @@ module Test (A : S) : sig end = struct
     check_sort s I.compare a; (* already sorted *)
     check_sort s (fun x y -> I.compare y x) a; (* reverse-sorted *)
 
-  
+
     let a = A.init 6 I.of_int in
     check_sort s I.compare a; (* already sorted *)
     check_sort s (fun x y -> I.compare y x) a; (* reverse-sorted *)
 
-  
+
     let a = A.of_list [I.max_val; I.min_val; (I.of_int (-1)); (I.of_int 0)] in
     check_sort s I.compare a; (* already sorted *)
     check_sort s (fun x y -> I.compare y x) a; (* reverse-sorted *)
 
-  
+
     let a = A.init 50000 rand_val in
     check_sort s I.compare a;
     let a = A.init 50001 rand_val in
     check_sort s I.compare a;
     let a = A.make 1000 (I.of_int 1) in
     check_sort s I.compare a;
-  
+
     let a = A.make 1001 (I.of_int 1) in
     check_sort s I.compare a;
-  
+
     let a = A.append (A.make 1000 (I.of_int 1)) (A.make 1000 (I.of_int 2)) in
     check_sort s I.compare a;
-  
+
     let a = A.append (A.make 1001 (I.of_int 1)) (A.make 1001 (I.of_int 2)) in
     check_sort s I.compare a;
   in
   check A.sort;
-  
+
   check A.stable_sort;
-  
+
   check A.fast_sort;
-  
+
 
   (* [to_seq] *)
   let check_seq a =
@@ -810,7 +829,7 @@ module Test (A : S) : sig end = struct
   check_seq (A.init 999 I.of_int);
   check_seq (A.init 1000 I.of_int);
   check_seq (A.make 0 (I.of_int 0));
-  
+
 
   (* [to_seqi] *)
   let check_seqi a =
