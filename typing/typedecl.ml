@@ -3448,8 +3448,10 @@ module Reaching_path = struct
 
   (* Simplify a reaching path before showing it in error messages. *)
   let simplify path =
+    let is_tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false in
     let rec simplify : t -> t = function
-      | Contains (ty1, _ty2) :: Contains (_ty2', ty3) :: rest ->
+      | Contains (ty1, _ty2) :: Contains (ty2', ty3) :: rest
+        when not (is_tconstr ty2') ->
           (* If t1 contains t2 and t2 contains t3, then t1 contains t3
              and we don't need to show t2. *)
           simplify (Contains (ty1, ty3) :: rest)
